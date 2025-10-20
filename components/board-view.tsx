@@ -88,7 +88,9 @@ export function BoardView({ orders }: BoardViewProps) {
                           {order.deliveryDate && (
                             <div className="flex items-center gap-2 text-xs text-primary">
                               <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
-                              <span className="truncate">{order.deliveryDate.toLocaleDateString("tr-TR")}</span>
+                              <span className="truncate">
+                                {new Date(order.deliveryDate).toLocaleDateString("tr-TR")}
+                              </span>
                             </div>
                           )}
 

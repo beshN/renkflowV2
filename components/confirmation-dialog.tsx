@@ -19,6 +19,7 @@ interface ConfirmationDialogProps {
   quickReplies?: string[]
   showManufacturingSteps?: boolean
   manufacturingSteps?: { category: string; steps: string[] }[]
+  initialSelectedSteps?: string[]
 }
 
 export function ConfirmationDialog({
@@ -34,10 +35,23 @@ export function ConfirmationDialog({
   quickReplies = [],
   showManufacturingSteps = false,
   manufacturingSteps = [],
+  initialSelectedSteps = [],
 }: ConfirmationDialogProps) {
   const [inputValue, setInputValue] = useState("")
   const [loadedQuickReplies, setLoadedQuickReplies] = useState<string[]>(quickReplies)
   const [selectedSteps, setSelectedSteps] = useState<string[]>([])
+
+  useEffect(() => {
+    if (isOpen && initialSelectedSteps.length > 0) {
+      setSelectedSteps(initialSelectedSteps)
+    }
+  }, [isOpen, initialSelectedSteps])
+
+  useEffect(() => {
+    if (!isOpen) {
+      setInputValue("")
+    }
+  }, [isOpen])
 
   useEffect(() => {
     if (quickReplies.length === 0) {
@@ -74,7 +88,13 @@ export function ConfirmationDialog({
   }
 
   const handleStepToggle = (step: string) => {
-    setSelectedSteps((prev) => (prev.includes(step) ? prev.filter((s) => s !== step) : [...prev, step]))
+    setSelectedSteps((prev) => {
+      if (prev.includes(step)) {
+        return prev.filter((s) => s !== step)
+      } else {
+        return [...prev, step]
+      }
+    })
   }
 
   const capitalizeWords = (text: string) => {
@@ -87,42 +107,53 @@ export function ConfirmationDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={handleCancel} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleCancel} />
 
       {/* Dialog */}
-      <div className="relative bg-card border border-border rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 animate-in zoom-in-95 duration-200">
-        <button
-          onClick={handleCancel}
-          disabled={isLoading}
-          className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <X className="w-5 h-5" />
-        </button>
+      <div className="relative bg-card border border-border rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+        <div className="sticky top-0 bg-card/95 backdrop-blur-sm border-b border-border p-4 flex items-center justify-between z-10">
+          <h2 className="text-xl font-semibold">{title || "Değişiklikleri kaydetmek ister misiniz?"}</h2>
+          <button
+            onClick={handleCancel}
+            disabled={isLoading}
+            className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-lg hover:bg-muted"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold mb-2">{title || "Değişiklikleri kaydetmek ister misiniz?"}</h2>
-          {message && <p className="text-sm text-muted-foreground mb-4">{message}</p>}
+        <div className="p-6">
+          {message && <p className="text-sm text-muted-foreground mb-6">{message}</p>}
 
           {showManufacturingSteps && manufacturingSteps.length > 0 && (
-            <div className="space-y-4 mb-4">
-              <p className="text-sm font-medium text-foreground">İmalat Adımlarını Seçin:</p>
-              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+            <div className="space-y-6 mb-6">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-foreground">İmalat Adımlarını Seçin</p>
+                {selectedSteps.length > 0 && (
+                  <span className="text-xs text-muted-foreground bg-primary/10 px-3 py-1 rounded-full">
+                    {selectedSteps.length} adım seçildi
+                  </span>
+                )}
+              </div>
+              <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2">
                 {manufacturingSteps.map((category, categoryIndex) => (
-                  <div key={categoryIndex} className="space-y-2">
-                    <h3 className="text-sm font-semibold text-primary capitalize">{category.category}</h3>
-                    <div className="space-y-2 pl-2">
+                  <div key={categoryIndex} className="space-y-2.5">
+                    <div className="space-y-2.5">
                       {category.steps.map((step, stepIndex) => (
-                        <div key={stepIndex} className="flex items-start space-x-3">
+                        <div
+                          key={stepIndex}
+                          className="flex items-start space-x-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors group"
+                        >
                           <Checkbox
                             id={`step-${categoryIndex}-${stepIndex}`}
                             checked={selectedSteps.includes(step)}
                             onCheckedChange={() => handleStepToggle(step)}
                             disabled={isLoading}
-                            className="mt-0.5"
+                            className="mt-0.5 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                           />
                           <label
                             htmlFor={`step-${categoryIndex}-${stepIndex}`}
-                            className="text-sm leading-relaxed cursor-pointer select-none"
+                            className="text-sm leading-relaxed cursor-pointer select-none flex-1 group-hover:text-foreground transition-colors"
                           >
                             {capitalizeWords(step)}
                           </label>
@@ -142,12 +173,12 @@ export function ConfirmationDialog({
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder={inputPlaceholder}
                 disabled={isLoading}
-                className="mt-4 min-h-[100px]"
+                className="mt-4 min-h-[120px] resize-none"
               />
 
               {loadedQuickReplies.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-xs text-muted-foreground">Hızlı Cevaplar:</p>
+                <div className="mt-4 space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Hızlı Cevaplar</p>
                   <div className="flex flex-wrap gap-2">
                     {loadedQuickReplies.map((reply, index) => (
                       <Button
@@ -157,7 +188,7 @@ export function ConfirmationDialog({
                         size="sm"
                         onClick={() => handleQuickReply(reply)}
                         disabled={isLoading}
-                        className="text-xs h-8"
+                        className="text-xs h-9 hover:bg-primary hover:text-primary-foreground transition-colors"
                       >
                         {reply}
                       </Button>
@@ -169,16 +200,16 @@ export function ConfirmationDialog({
           )}
         </div>
 
-        <div className="flex gap-3 justify-end">
+        <div className="sticky bottom-0 bg-card/95 backdrop-blur-sm border-t border-border p-4 flex gap-3 justify-end">
           <Button
             variant="outline"
             onClick={handleCancel}
             disabled={isLoading}
-            className="flex-1 sm:flex-none bg-transparent"
+            className="flex-1 sm:flex-none bg-transparent hover:bg-muted"
           >
             İptal
           </Button>
-          <Button onClick={handleConfirm} disabled={isLoading} className="flex-1 sm:flex-none min-w-[100px]">
+          <Button onClick={handleConfirm} disabled={isLoading} className="flex-1 sm:flex-none min-w-[120px] shadow-lg">
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
