@@ -41,6 +41,8 @@ export function ConfirmationDialog({
   const [loadedQuickReplies, setLoadedQuickReplies] = useState<string[]>(quickReplies)
   const [selectedSteps, setSelectedSteps] = useState<string[]>([])
 
+  const allManufacturingSteps = manufacturingSteps
+
   useEffect(() => {
     if (isOpen && initialSelectedSteps.length > 0) {
       setSelectedSteps(initialSelectedSteps)
@@ -136,7 +138,7 @@ export function ConfirmationDialog({
                 )}
               </div>
               <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2">
-                {manufacturingSteps.map((category, categoryIndex) => (
+                {allManufacturingSteps.map((category, categoryIndex) => (
                   <div key={categoryIndex} className="space-y-2.5">
                     <div className="space-y-2.5">
                       {category.steps.map((step, stepIndex) => (

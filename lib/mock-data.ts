@@ -1,6 +1,6 @@
 export type OrderStatus = "pending" | "paint-send" | "in-progress" | "ready"
 
-export type Department = "cam" | "pergola" | "makasli" | "aluminyum-tavan"
+export type Department = "cam" | "pergola" | "makasli" | "aluminyum-tavan" | "servis"
 
 export interface OrderFile {
   id: string

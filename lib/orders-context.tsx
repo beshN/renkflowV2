@@ -7,7 +7,7 @@ import { toast } from "sonner"
 
 interface OrdersContextType {
   orders: Order[]
-  addOrder: (order: Omit<Order, "id" | "orderId" | "createdAt" | "updatedAt">) => Promise<void>
+  addOrder: (order: Omit<Order, "id" | "orderId" | "createdAt" | "updatedAt">) => Promise<string>
   updateOrderStatus: (
     orderId: string,
     status: OrderStatus,
@@ -218,6 +218,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
               name: file.name,
               type: file.type,
               url: file.url,
+              is_admin_only: false,
             })),
           )
 
@@ -230,6 +231,8 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         toast.success("Sipariş başarıyla eklendi", {
           description: `Sipariş No: ${generatedOrderId}`,
         })
+
+        return newOrder.id
       } catch (error) {
         console.error("[v0] Sipariş eklenirken hata:", error)
         const errorMessage = error instanceof Error ? error.message : "Bilinmeyen hata"

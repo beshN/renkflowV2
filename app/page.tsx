@@ -74,11 +74,55 @@ export default function HomePage() {
   const clearStatusFilter = useCallback(() => setStatusFilter("all"), [])
   const clearDepartmentFilter = useCallback(() => setDepartmentFilter("all"), [])
 
+  const statusStats = useMemo(() => {
+    return {
+      pending: orders.filter((o) => o.status === "pending").length,
+      inProgress: orders.filter((o) => o.status === "in-progress").length,
+      paint: orders.filter((o) => o.status === "paint").length,
+      ready: orders.filter((o) => o.status === "ready").length,
+    }
+  }, [orders])
+
   return (
     <div className="min-h-screen bg-background pt-20 pb-8">
       <Navigation />
       <main className="max-w-7xl mx-auto px-4 py-6">
         <h1 className="text-xl md:text-3xl font-bold text-balance mb-6">Renk Alüminyum Sipariş Takip Sistemi</h1>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <Card className="hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-1">Yeni Sipariş</p>
+                <p className="text-2xl font-bold text-blue-600">{statusStats.pending}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-1">İmalatta</p>
+                <p className="text-2xl font-bold text-orange-600">{statusStats.inProgress}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-1">Boyada</p>
+                <p className="text-2xl font-bold text-purple-600">{statusStats.paint}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-all">
+            <CardContent className="p-4">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-1">Hazır</p>
+                <p className="text-2xl font-bold text-green-600">{statusStats.ready}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4 md:p-6 rounded-lg mb-4">
           <h2 className="text-xl md:text-3xl font-bold mb-2">Tüm Siparişler</h2>

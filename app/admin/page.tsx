@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
@@ -40,6 +40,7 @@ const departmentLabels: Record<Department, string> = {
   pergola: "Pergola",
   makasli: "Makaslı",
   "aluminyum-tavan": "Alüminyum Tavan",
+  servis: "Servis",
 }
 
 const DEFAULT_QUICK_REPLIES = [
@@ -61,6 +62,7 @@ export default function AdminPage() {
   const [isConfirmLoading, setIsConfirmLoading] = useState(false)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [uploadedFiles, setUploadedFiles] = useState<FileWithData[]>([])
+  const [proformaFiles, setProformaFiles] = useState<FileWithData[]>([])
   const [activityLogs, setActivityLogs] = useState<any[]>([])
   const [isLoadingActivities, setIsLoadingActivities] = useState(false)
   // Removed quickReplies and newQuickReply states
@@ -171,6 +173,16 @@ export default function AdminPage() {
     specifications: "",
   })
 
+  const totalOrders = orders.length
+  const statusStats = useMemo(() => {
+    return {
+      pending: orders.filter((o) => o.status === "pending").length,
+      inProgress: orders.filter((o) => o.status === "in-progress").length,
+      paint: orders.filter((o) => o.status === "paint").length,
+      ready: orders.filter((o) => o.status === "ready").length,
+    }
+  }, [orders])
+
   useEffect(() => {
     checkAuth()
   }, [router])
@@ -256,6 +268,28 @@ export default function AdminPage() {
 
         await updateOrder(editingOrder.id, updatedOrder)
 
+        if (proformaFiles.length > 0) {
+          const supabase = createClient()
+          const { error: proformaError } = await supabase.from("order_files").insert(
+            proformaFiles.map((fileData) => ({
+              order_id: editingOrder.id,
+              name: fileData.file.name,
+              type: fileData.file.name.endsWith(".pdf")
+                ? "pdf"
+                : fileData.file.name.endsWith(".xlsx") || fileData.file.name.endsWith(".xls")
+                  ? "excel"
+                  : "image",
+              url: fileData.dataUrl,
+              is_admin_only: true,
+            })),
+          )
+
+          if (proformaError) {
+            console.error("[v0] Error uploading proforma files:", proformaError)
+            toast.warning("Sipariş güncellendi ancak proforma dosyaları yüklenemedi")
+          }
+        }
+
         router.push(`/orders/${editingOrder.id}`)
         setEditingOrder(null)
       } else {
@@ -285,7 +319,29 @@ export default function AdminPage() {
           })),
         }
 
-        await addOrder(newOrder)
+        const orderId = await addOrder(newOrder)
+
+        if (proformaFiles.length > 0 && orderId) {
+          const supabase = createClient()
+          const { error: proformaError } = await supabase.from("order_files").insert(
+            proformaFiles.map((fileData) => ({
+              order_id: orderId,
+              name: fileData.file.name,
+              type: fileData.file.name.endsWith(".pdf")
+                ? "pdf"
+                : fileData.file.name.endsWith(".xlsx") || fileData.file.name.endsWith(".xls")
+                  ? "excel"
+                  : "image",
+              url: fileData.dataUrl,
+              is_admin_only: true,
+            })),
+          )
+
+          if (proformaError) {
+            console.error("[v0] Error uploading proforma files:", proformaError)
+            toast.warning("Sipariş eklendi ancak proforma dosyaları yüklenemedi")
+          }
+        }
 
         router.push("/")
       }
@@ -297,7 +353,7 @@ export default function AdminPage() {
         productType: "",
         quantity: "",
         department: "",
-        deliveryDate: "", // Reset delivery date
+        deliveryDate: "",
         notes: "",
         assemblyRequired: false,
         width: "",
@@ -308,6 +364,7 @@ export default function AdminPage() {
         specifications: "",
       })
       setUploadedFiles([])
+      setProformaFiles([])
       setFormErrors({})
       setShowConfirmation(false)
       setIsConfirmLoading(false)
@@ -411,9 +468,6 @@ export default function AdminPage() {
     }
   }
 
-  const totalOrders = orders.length
-  const activeOrders = orders.filter((o) => o.status === "in-progress" || o.status === "pending").length
-
   const handleLogout = () => {
     sessionStorage.removeItem("admin_auth")
     router.push("/admin/login")
@@ -437,25 +491,11 @@ export default function AdminPage() {
             <CardHeader className="pb-2 pt-4">
               <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <Package className="w-4 h-4" />
-                Toplam Sipariş
+                Yeni Sipariş
               </CardTitle>
             </CardHeader>
             <CardContent className="pb-4">
-              <div className="text-2xl font-bold text-foreground">{totalOrders}</div>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-all active:scale-95">
-            <CardHeader className="pb-2 pt-4">
-              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <TrendingUp className="w-4 h-4" />
-                Yeni
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pb-4">
-              <div className="text-2xl font-bold text-blue-600">
-                {orders.filter((o) => o.status === "pending").length}
-              </div>
+              <div className="text-2xl font-bold text-blue-600">{statusStats.pending}</div>
             </CardContent>
           </Card>
 
@@ -467,9 +507,19 @@ export default function AdminPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pb-4">
-              <div className="text-2xl font-bold text-orange-600">
-                {orders.filter((o) => o.status === "in-progress").length}
-              </div>
+              <div className="text-2xl font-bold text-orange-600">{statusStats.inProgress}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-all active:scale-95">
+            <CardHeader className="pb-2 pt-4">
+              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4" />
+                Boyada
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4">
+              <div className="text-2xl font-bold text-purple-600">{statusStats.paint}</div>
             </CardContent>
           </Card>
 
@@ -481,9 +531,7 @@ export default function AdminPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pb-4">
-              <div className="text-2xl font-bold text-green-600">
-                {orders.filter((o) => o.status === "ready").length}
-              </div>
+              <div className="text-2xl font-bold text-green-600">{statusStats.ready}</div>
             </CardContent>
           </Card>
         </div>
@@ -496,7 +544,7 @@ export default function AdminPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <div className="text-center p-3 bg-secondary/50 rounded-lg">
                 <p className="text-xs text-muted-foreground mb-1">Cam</p>
                 <p className="text-xl font-bold">{orders.filter((o) => o.department === "cam").length}</p>
@@ -512,6 +560,10 @@ export default function AdminPage() {
               <div className="text-center p-3 bg-secondary/50 rounded-lg">
                 <p className="text-xs text-muted-foreground mb-1">Alüminyum Tavan</p>
                 <p className="text-xl font-bold">{orders.filter((o) => o.department === "aluminyum-tavan").length}</p>
+              </div>
+              <div className="text-center p-3 bg-secondary/50 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-1">Servis</p>
+                <p className="text-xl font-bold">{orders.filter((o) => o.department === "servis").length}</p>
               </div>
             </div>
           </CardContent>
@@ -593,7 +645,7 @@ export default function AdminPage() {
                         id="projectName"
                         type="text"
                         inputMode="text"
-                        placeholder="Örn: Villa Projesi"
+                        placeholder="Örn: Restaurant Projesi"
                         value={formData.projectName}
                         onChange={(e) => handleInputChange("projectName", e.target.value)}
                         className="h-12 text-base"
@@ -613,7 +665,7 @@ export default function AdminPage() {
                         id="productType"
                         type="text"
                         inputMode="text"
-                        placeholder="Örn: Metal Kapı"
+                        placeholder="Örn: Makaslı Tente"
                         value={formData.productType}
                         onChange={(e) => handleInputChange("productType", e.target.value)}
                         required
@@ -630,7 +682,7 @@ export default function AdminPage() {
                         id="quantity"
                         type="text"
                         inputMode="text"
-                        placeholder="Örn: 5 adet kapı, 3 adet pencere"
+                        placeholder="Örn: 5 adet giyotin, 3 adet saksı"
                         value={formData.quantity}
                         onChange={(e) => handleInputChange("quantity", e.target.value)}
                         required
@@ -693,6 +745,21 @@ export default function AdminPage() {
                   <p className="text-sm text-muted-foreground mt-2">
                     Sipariş ölçü listesi, teknik çizim veya referans görselleri yükleyebilirsiniz.
                   </p>
+                </div>
+
+                <div className="border-t pt-6">
+                  <h3 className="text-base md:text-lg font-semibold mb-2 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-primary" />
+                    Proforma (Gizli)
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Buraya eklenen belgeleri sadece yöneticiler görüntüleyebilir.           
+                  </p>
+                  <FileUpload
+                    onFileSelect={(files) => setProformaFiles((prev) => [...prev, ...files])}
+                    selectedFiles={proformaFiles}
+                    onRemoveFile={(index) => setProformaFiles((prev) => prev.filter((_, i) => i !== index))}
+                  />
                 </div>
 
                 <div>
@@ -791,6 +858,15 @@ export default function AdminPage() {
                         >
                           <Edit className="w-4 h-4" />
                           Düzenle
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="default"
+                          onClick={() => router.push(`/orders/${order.id}`)}
+                          className="flex items-center gap-2 h-11 flex-1 sm:flex-initial"
+                        >
+                          <FileText className="w-4 h-4" />
+                          Detaylar
                         </Button>
                         <Button
                           variant="outline"

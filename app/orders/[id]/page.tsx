@@ -10,7 +10,19 @@ import { Label } from "@/components/ui/label"
 import { StatusBadge } from "@/components/status-badge"
 import { getDepartmentLabel } from "@/components/department-filter"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
-import { ArrowLeft, FileText, FileSpreadsheet, Clock, Factory, ImageIcon, Download, Calendar } from "lucide-react"
+import { createClient } from "@/lib/supabase/client" // Import Supabase client
+import {
+  ArrowLeft,
+  FileText,
+  FileSpreadsheet,
+  Clock,
+  Factory,
+  ImageIcon,
+  Download,
+  Calendar,
+  X,
+  ExternalLink,
+} from "lucide-react"
 import Link from "next/link"
 import { useOrders } from "@/lib/orders-context"
 import type { OrderStatus, Department } from "@/lib/mock-data"
@@ -31,6 +43,7 @@ const quickRepliesByDepartment: Record<Department, string[]> = {
     "Boya işlemi bekleniyor",
     "Paketleme aşamasında",
   ],
+  servis: [],
 }
 
 const manufacturingStepsByDepartment: Record<Department, { category: string; steps: string[] }[]> = {
@@ -65,6 +78,7 @@ const manufacturingStepsByDepartment: Record<Department, { category: string; ste
       steps: ["alüminyumlar kesildi", "raylar toplandı", "paneller toplandı", "paketlendi"],
     },
   ],
+  servis: [],
 }
 
 export default function OrderDetailPage() {
@@ -72,7 +86,7 @@ export default function OrderDetailPage() {
   const orderId = params.id as string
   const router = useRouter()
 
-  const { orders, updateOrderStatus, updatePaintDates, isLoading } = useOrders()
+  const { orders, updateOrderStatus, updatePaintDates, updateOrder, isLoading } = useOrders()
   const order = useMemo(() => orders.find((o) => o.id === orderId), [orders, orderId])
 
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null)
@@ -97,6 +111,43 @@ export default function OrderDetailPage() {
   const [isSavingDates, setIsSavingDates] = useState(false)
 
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [adminFiles, setAdminFiles] = useState<any[]>([])
+  const [isLoadingAdminFiles, setIsLoadingAdminFiles] = useState(false)
+
+  useEffect(() => {
+    const adminAuth = sessionStorage.getItem("admin_auth")
+    setIsAdmin(!!adminAuth)
+
+    if (adminAuth && orderId) {
+      loadAdminFiles()
+    }
+  }, [orderId])
+
+  const loadAdminFiles = async () => {
+    try {
+      setIsLoadingAdminFiles(true)
+      const supabase = createClient()
+
+      const { data, error } = await supabase
+        .from("order_files")
+        .select("*")
+        .eq("order_id", orderId)
+        .eq("is_admin_only", true)
+
+      if (error) {
+        console.error("[v0] Error loading admin files:", error)
+        return
+      }
+
+      setAdminFiles(data || [])
+    } catch (error) {
+      console.error("[v0] Error in loadAdminFiles:", error)
+    } finally {
+      setIsLoadingAdminFiles(false)
+    }
+  }
 
   useEffect(() => {
     if (!isLoading) {
@@ -199,6 +250,20 @@ export default function OrderDetailPage() {
     setPendingStatus(null)
   }
 
+  const handleRemoveManufacturingStep = async (stepToRemove: string) => {
+    if (!order.manufacturingSteps) return
+
+    const updatedSteps = order.manufacturingSteps.filter((step) => step !== stepToRemove)
+
+    try {
+      await updateOrder(orderId, { manufacturingSteps: updatedSteps })
+      toast.success("İmalat adımı silindi")
+    } catch (error) {
+      console.error("[v0] Error removing manufacturing step:", error)
+      toast.error("İmalat adımı silinemedi")
+    }
+  }
+
   const handleFileDownload = async (file: {
     id: string
     name: string
@@ -213,68 +278,6 @@ export default function OrderDetailPage() {
     }
 
     try {
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-      const isPDF = file.type === "pdf" || file.name.toLowerCase().endsWith(".pdf")
-      const isImage = isImageFile(file)
-
-      // Mobil cihazlarda özel işlem
-      if (isMobile) {
-        // Resimler için doğrudan yeni sekmede aç
-        if (isImage) {
-          window.open(fileUrl, "_blank")
-          toast.success("Resim yeni sekmede açılıyor")
-          return
-        }
-
-        // PDF ve diğer dosyalar için blob URL oluştur
-        if (fileUrl.startsWith("data:")) {
-          try {
-            // Data URL'i blob'a çevir
-            const response = await fetch(fileUrl)
-            const blob = await response.blob()
-            const blobUrl = URL.createObjectURL(blob)
-
-            // PDF için özel işlem
-            if (isPDF) {
-              // Yeni sekmede aç
-              const newWindow = window.open(blobUrl, "_blank")
-              if (newWindow) {
-                toast.success("PDF yeni sekmede açılıyor")
-                // Blob URL'i 1 dakika sonra temizle
-                setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
-                return
-              }
-            }
-
-            // Diğer dosyalar için indirmeye zorla
-            const link = document.createElement("a")
-            link.href = blobUrl
-            link.download = file.name
-            link.style.display = "none"
-            document.body.appendChild(link)
-            link.click()
-
-            setTimeout(() => {
-              document.body.removeChild(link)
-              URL.revokeObjectURL(blobUrl)
-            }, 100)
-
-            toast.success("Dosya indiriliyor")
-          } catch (error) {
-            console.error("[v0] Blob conversion error:", error)
-            // Hata durumunda doğrudan data URL'i aç
-            window.open(fileUrl, "_blank")
-            toast.info("Dosya yeni sekmede açılıyor")
-          }
-        } else {
-          // Normal URL için doğrudan aç
-          window.open(fileUrl, "_blank")
-          toast.success("Dosya yeni sekmede açılıyor")
-        }
-        return
-      }
-
-      // Masaüstü için mevcut işlem
       if (fileUrl.startsWith("data:")) {
         const response = await fetch(fileUrl)
         const blob = await response.blob()
@@ -306,7 +309,50 @@ export default function OrderDetailPage() {
       }
     } catch (error) {
       console.error("[v0] File download error:", error)
-      toast.error("Dosya açılamadı. Lütfen tekrar deneyin.")
+      toast.error("Dosya indirilemedi. Lütfen tekrar deneyin.")
+    }
+  }
+
+  const handleFileOpen = async (file: { id: string; name: string; type: string; url?: string; dataUrl?: string }) => {
+    const fileUrl = file.dataUrl || file.url
+    if (!fileUrl) {
+      toast.error("Dosya verisi bulunamadı")
+      return
+    }
+
+    try {
+      if (fileUrl.startsWith("data:")) {
+        const response = await fetch(fileUrl)
+        const blob = await response.blob()
+        const blobUrl = URL.createObjectURL(blob)
+
+        const newWindow = window.open(blobUrl, "_blank")
+
+        if (!newWindow) {
+          toast.error("Pop-up engelleyici nedeniyle dosya açılamadı")
+          return
+        }
+
+        // Clean up blob URL after a delay
+        setTimeout(() => {
+          URL.revokeObjectURL(blobUrl)
+        }, 60000) // 1 minute
+
+        toast.success("Dosya yeni sekmede açılıyor")
+      } else {
+        // Regular URL
+        const newWindow = window.open(fileUrl, "_blank")
+
+        if (!newWindow) {
+          toast.error("Pop-up engelleyici nedeniyle dosya açılamadı")
+          return
+        }
+
+        toast.success("Dosya yeni sekmede açılıyor")
+      }
+    } catch (error) {
+      console.error("[v0] File open error:", error)
+      toast.error("Dosya açılamadı. Lütfen indirmeyi deneyin.")
     }
   }
 
@@ -437,16 +483,26 @@ export default function OrderDetailPage() {
                   <p className="text-sm text-muted-foreground mb-2">İmalat Adımları</p>
                   <div className="bg-secondary p-4 rounded-lg space-y-2.5">
                     {order.manufacturingSteps.map((step, index) => (
-                      <div key={index} className="flex items-start gap-3">
+                      <div key={index} className="flex items-start gap-3 group">
                         <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
                           {index + 1}
                         </span>
-                        <p className="text-base break-words pt-0.5 capitalize">
+                        <p className="text-base break-words pt-0.5 capitalize flex-1">
                           {step
                             .split(" ")
                             .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
                             .join(" ")}
                         </p>
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveManufacturingStep(step)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 text-destructive hover:text-destructive/80"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -472,7 +528,7 @@ export default function OrderDetailPage() {
                   {order.files.map((file) => (
                     <div
                       key={file.id}
-                      className="group relative overflow-hidden rounded-lg border bg-card hover:shadow-md active:scale-95 transition-all"
+                      className="group relative overflow-hidden rounded-lg border bg-card hover:shadow-md transition-all"
                     >
                       {isImageFile(file) && (file.dataUrl || file.url) ? (
                         <div className="aspect-video w-full overflow-hidden bg-secondary/20">
@@ -487,14 +543,26 @@ export default function OrderDetailPage() {
                         <p className="text-base font-medium truncate mb-2">{file.name}</p>
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-sm text-muted-foreground">{file.uploadedAt.toLocaleDateString("tr-TR")}</p>
-                          <Button
-                            size="default"
-                            variant="ghost"
-                            onClick={() => handleFileDownload(file)}
-                            className="h-10 px-3"
-                          >
-                            <Download className="w-5 h-5" />
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleFileOpen(file)}
+                              className="h-9 px-3"
+                              title="Aç"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleFileDownload(file)}
+                              className="h-9 px-3"
+                              title="İndir"
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -505,6 +573,73 @@ export default function OrderDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {isAdmin && (
+            <Card className="hover:shadow-lg transition-shadow border-primary/50">
+              <CardHeader>
+                <CardTitle className="text-lg md:text-xl flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" />
+                  Gizli Belgeler (Sadece Admin)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoadingAdminFiles ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                    <p className="mt-4 text-muted-foreground">Yükleniyor...</p>
+                  </div>
+                ) : adminFiles.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {adminFiles.map((file) => (
+                      <div
+                        key={file.id}
+                        className="group relative overflow-hidden rounded-lg border border-primary/30 bg-card hover:shadow-md transition-all"
+                      >
+                        <div className="aspect-video w-full flex items-center justify-center bg-primary/5">
+                          <div className="scale-150">{getFileIcon(file.type)}</div>
+                        </div>
+                        <div className="p-4">
+                          <p className="text-base font-medium truncate mb-2">{file.name}</p>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(file.uploaded_at).toLocaleDateString("tr-TR")}
+                            </p>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => window.open(file.url, "_blank")}
+                                className="h-9 px-3"
+                                title="Aç"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  const link = document.createElement("a")
+                                  link.href = file.url
+                                  link.download = file.name
+                                  link.click()
+                                }}
+                                className="h-9 px-3"
+                                title="İndir"
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-base text-muted-foreground text-center py-8">Henüz gizli belge eklenmemiş</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="hover:shadow-lg transition-shadow">
             <CardHeader>

@@ -3,7 +3,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Factory } from "lucide-react"
 
-export type Department = "all" | "cam" | "pergola" | "makasli" | "aluminyum-tavan"
+export type Department = "all" | "cam" | "pergola" | "makasli" | "aluminyum-tavan" | "servis"
 
 interface DepartmentFilterProps {
   value: Department
@@ -24,6 +24,7 @@ export function DepartmentFilter({ value, onChange }: DepartmentFilterProps) {
           <SelectItem value="pergola">Pergola</SelectItem>
           <SelectItem value="makasli">Makaslı</SelectItem>
           <SelectItem value="aluminyum-tavan">Alüminyum Tavan</SelectItem>
+          <SelectItem value="servis">Servis</SelectItem>
         </SelectContent>
       </Select>
     </div>
@@ -37,6 +38,7 @@ export function getDepartmentLabel(department: Department): string {
     pergola: "Pergola",
     makasli: "Makaslı",
     "aluminyum-tavan": "Alüminyum Tavan",
+    servis: "Servis",
   }
   return labels[department]
 }
