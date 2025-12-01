@@ -1,3 +1,5 @@
+'use client';
+
 import { ReactNode, ButtonHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 import { useSpotlight } from './SpotlightEffect';
