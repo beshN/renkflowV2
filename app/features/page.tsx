@@ -56,7 +56,7 @@ export default function Features() {
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ delay: i * 0.1, duration: 0.6 }}
               whileHover={{ y: -8, boxShadow: "0 20px 50px -10px rgba(0,0,0,0.15)" }}
-              className="bg-white dark:bg-gray-800/50 p-8 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm"
+              className="bg-white dark:bg-gray-800/50 p-8 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm"
             >
               <div className="w-14 h-14 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary flex items-center justify-center mb-6">
                 <span className="material-symbols-outlined text-3xl">{feature.icon}</span>
@@ -73,7 +73,7 @@ export default function Features() {
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="mt-24 bg-primary/10 dark:bg-primary/20 rounded-3xl py-16 px-8 text-center"
+          className="mt-24 bg-primary/10 dark:bg-primary/20 rounded-2xl py-16 px-8 text-center"
         >
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Daha Fazlasını Keşfetmeye Hazır Mısınız?</h2>
           <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto">

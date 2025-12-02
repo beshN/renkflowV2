@@ -15,7 +15,7 @@ export default function Signup() {
         <div className="flex items-center gap-4">
           <p className="text-sm text-subtle-light dark:text-subtle-dark hidden sm:block">Zaten bir hesabın var mı?</p>
           <Link href="/auth/login">
-            <button className="px-4 py-2 border border-border-light dark:border-border-dark rounded-lg font-bold text-sm hover:bg-white dark:hover:bg-surface-dark transition-colors shadow-sm">
+            <button className="px-4 py-2 border border-border-light dark:border-border-dark rounded-md font-bold text-sm hover:bg-white dark:hover:bg-surface-dark transition-colors shadow-sm">
               Giriş Yap
             </button>
           </Link>

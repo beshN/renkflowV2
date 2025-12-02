@@ -145,7 +145,7 @@ export default function Pricing() {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className={`h-11 w-full rounded-lg px-4 text-sm font-bold transition-colors ${
+                className={`h-11 w-full rounded-md px-4 text-sm font-bold transition-colors ${
                   plan.popular
                     ? 'bg-primary text-white hover:bg-primary/90'
                     : 'bg-border-light dark:bg-border-dark text-text-light dark:text-text-dark hover:bg-gray-300 dark:hover:bg-gray-700'
