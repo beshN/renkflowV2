@@ -201,17 +201,17 @@ function SidebarItem({ item, pathname, user, handleItemClick }: { item: any, pat
         <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-20" />
       )}
       <span className={cn(
-        "material-symbols-outlined transition-transform duration-200 group-hover:scale-110 relative z-10",
+        "material-symbols-outlined transition-transform duration-200 group-hover:scale-110 relative z-10 flex-shrink-0",
         isActive ? "text-white" : "text-subtle-light dark:text-subtle-dark group-hover:text-primary"
       )}>
         {icon}
       </span>
       <span className={cn(
-        "font-medium transition-all duration-200 relative z-10",
+        "font-medium transition-all duration-200 relative z-10 whitespace-nowrap overflow-hidden",
         // Mobile: always visible if open
-        "opacity-100",
-        // Desktop: hidden unless hovered
-        "md:opacity-0 md:delay-75 md:group-hover:opacity-100"
+        "opacity-100 max-w-full",
+        // Desktop: hidden unless hovered, width transitions
+        "md:opacity-0 md:max-w-0 md:delay-75 md:group-hover:opacity-100 md:group-hover:max-w-full"
       )}>
         {label}
       </span>

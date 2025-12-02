@@ -8,7 +8,7 @@ export default function Home() {
       <nav className="fixed top-0 left-0 right-0 h-24 z-50 transition-all duration-300 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 supports-[backdrop-filter]:bg-white/60">
         <div className="mx-auto max-w-7xl px-6 lg:px-8 h-full flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="relative h-14 w-48 transition-transform hover:scale-105 duration-300">
+            <div className="relative h-16 w-56 transition-transform hover:scale-105 duration-300">
               <Image 
                 src="/logo.png" 
                 alt="RenkFlow" 
