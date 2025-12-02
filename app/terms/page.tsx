@@ -21,7 +21,7 @@ export default function Terms() {
 
           <section>
             <h2 className="text-2xl font-bold mb-4">3. Fikri Mülkiyet</h2>
-            <p>Tüm içerik ve yazılımlar Renkflow A.Ş.'nin mülkiyetindedir.</p>
+            <p>Tüm içerik ve yazılımlar Renkflow A.Ş.&apos;nin mülkiyetindedir.</p>
           </section>
 
           <section>

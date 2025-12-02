@@ -28,7 +28,7 @@ export default function Signup() {
         >
           <div className="w-full max-w-md">
             <header className="text-center lg:text-left mb-6">
-              <h1 className="text-3xl sm:text-4xl font-black mb-3">Renkflow'a Hoş Geldiniz</h1>
+              <h1 className="text-3xl sm:text-4xl font-black mb-3">Renkflow&apos;a Hoş Geldiniz</h1>
               <p className="text-gray-600 dark:text-gray-400">Projelerinizi organize etmeye başlayın</p>
             </header>
 
@@ -103,7 +103,7 @@ export default function Signup() {
             </form>
 
             <p className="text-xs text-center text-gray-600 dark:text-gray-400 mt-4">
-              Kaydol'a tıklayarak Renkflow'un{' '}
+              Kaydol&apos;a tıklayarak Renkflow&apos;un{' '}
               <Link href="/terms" className="underline hover:text-primary">Kullanıcı Sözleşmesini</Link> ve{' '}
               <Link href="/privacy" className="underline hover:text-primary">Gizlilik Politikasını</Link> kabul etmiş olursunuz.
             </p>
