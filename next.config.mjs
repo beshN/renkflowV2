@@ -3,6 +3,7 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['@dnd-kit/core', '@dnd-kit/sortable'],
   },
+  output: 'standalone',
   images: {
     remotePatterns: [
       {
