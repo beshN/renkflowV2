@@ -12,12 +12,10 @@ export default function LandingNav() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20); // Increased threshold slightly for smoother feel
+      setIsScrolled(window.scrollY > 20);
     };
     
-    // Check initial scroll
     handleScroll();
-    
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -34,14 +32,14 @@ export default function LandingNav() {
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
-      className={`py-4 flex justify-between items-center sticky top-0 z-50 transition-all duration-500 ease-in-out ${
+      className={`flex justify-between items-center sticky top-0 z-50 transition-all duration-500 ease-in-out ${
         isScrolled 
-          ? 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg shadow-sm py-3' 
-          : 'bg-transparent py-6'
+          ? 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg shadow-sm py-4' 
+          : 'bg-transparent py-5'
       } container mx-auto px-4 sm:px-6 lg:px-8 max-w-full`}
     >
       <Link href="/" className="flex items-center space-x-3">
-        <div className="relative w-80 h-20 transition-all duration-500 ease-in-out">
+        <div className="relative w-96 h-24 transition-all duration-500 ease-in-out">
           <Image
             src="/logo.png"
             alt="Renkflow"
