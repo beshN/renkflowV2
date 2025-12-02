@@ -18,7 +18,6 @@ function useScrollAnimation() {
     ref,
     initial: { opacity: 0, y: 60 },
     animate: inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 60 },
-    transition: { duration: 0.8, ease: "easeInOut" }
   };
 }
 
@@ -102,6 +101,7 @@ export default function Home() {
         {/* Trusted By Section */}
         <motion.section
           {...section1}
+          transition={{ duration: 0.8 }}
           className="py-12 text-center"
         >
           <p className="text-subtle-light dark:text-subtle-dark mb-8 font-medium">Sektör liderlerinin güvendiği platform:</p>
@@ -124,6 +124,7 @@ export default function Home() {
         {/* Features Section */}
         <motion.section
           {...section2}
+          transition={{ duration: 0.8 }}
           className="py-24 md:py-32"
         >
           <div className="text-center max-w-3xl mx-auto">
@@ -178,6 +179,7 @@ export default function Home() {
         {/* How It Works Section with Image */}
         <motion.section
           {...section3}
+          transition={{ duration: 0.8 }}
           className="py-24 md:py-32"
         >
           <div className="grid md:grid-cols-2 gap-16 items-center">
@@ -228,6 +230,7 @@ export default function Home() {
         {/* Optimize Workflow Section */}
         <motion.section
           {...section4}
+          transition={{ duration: 0.8 }}
           className="py-24 md:py-32"
         >
           <div className="text-center max-w-3xl mx-auto">
@@ -247,6 +250,7 @@ export default function Home() {
         {/* Testimonials Section */}
         <motion.section
           {...section5}
+          transition={{ duration: 0.8 }}
           className="py-24 md:py-32"
         >
           <div className="text-center max-w-3xl mx-auto mb-16">
