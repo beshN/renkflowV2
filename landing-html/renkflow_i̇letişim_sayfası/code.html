@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+
+<html class="light" lang="tr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Renkflow İletişim Sayfası</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#0db9f2",
+            "background-light": "#f5f8f8",
+            "background-dark": "#101e22",
+            "text-light": "#0d181c",
+            "text-dark": "#f5f8f8",
+            "card-light": "#ffffff",
+            "card-dark": "#1a2c32",
+            "border-light": "#cee2e8",
+            "border-dark": "#2a4a53"
+          },
+          fontFamily: {
+            "display": ["Manrope", "sans-serif"]
+          },
+          borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+        },
+      },
+    }
+  </script>
+<style>.material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24
+    }
+select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuDWKDifYkvUSNQbwLENZh5tVudRMKGnrU6Mdj3s-uyS_0In5UVlTrle-UvLkU9dl9M2fK5RitO4xViWlFw31kk5t1_s5V0L82NF0h3sxZjtmbPKbExmHyk91cI73M2xV9lr2qy6Gpz3y3PUz3iDqKQJsrcNvGv8Lpn5RA83mJ_S1jFhtkjZfiRUg_RXvjuuxAIehU0cmwm7Y5-lLMhDGLUgWN0M4RqON14RltJJVrd_C4Dm8d6iwrWpnvC3VJZhnAZ6-Einp0trSW2Z);
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem
+    }</style>
+</head>
+<body class="font-display bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark">
+<div class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+<div class="layout-container flex h-full grow flex-col">
+<div class="px-4 sm:px-6 lg:px-8">
+<div class="mx-auto max-w-6xl">
+<header class="flex items-center justify-between whitespace-nowrap border-b border-border-light dark:border-border-dark px-4 sm:px-6 lg:px-10 py-3 my-5 bg-card-light dark:bg-card-dark rounded-xl shadow-sm">
+<div class="flex items-center gap-4">
+<div class="size-6 text-primary">
+<svg fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M24 4C25.7818 14.2173 33.7827 22.2182 44 24C33.7827 25.7818 25.7818 33.7827 24 44C22.2182 33.7827 14.2173 25.7818 4 24C14.2173 22.2182 22.2182 14.2173 24 4Z" fill="currentColor"></path>
+</svg>
+</div>
+<h2 class="text-xl font-bold leading-tight tracking-[-0.015em]">Renkflow</h2>
+</div>
+<div class="hidden md:flex flex-1 justify-end gap-8">
+<div class="flex items-center gap-9">
+<a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Features</a>
+<a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Pricing</a>
+<a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">About Us</a>
+<a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Contact</a>
+</div>
+<div class="flex gap-2">
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary/20 dark:bg-primary/30 text-primary text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/30 dark:hover:bg-primary/40 transition-colors">
+<span class="truncate">Log In</span>
+</button>
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity">
+<span class="truncate">Sign Up Free</span>
+</button>
+</div>
+</div>
+<div class="md:hidden">
+<button class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</div>
+</header>
+<main class="py-10">
+<div class="flex flex-col items-center text-center mb-12">
+<div class="flex min-w-72 flex-col gap-3">
+<h1 class="text-4xl md:text-5xl font-black leading-tight tracking-[-0.033em]">Bize Ulaşın</h1>
+<p class="text-slate-500 dark:text-slate-400 text-lg font-normal leading-normal max-w-2xl mx-auto">Renkflow ekibiyle iletişime geçmekten çekinmeyin. Sorularınıza en kısa sürede yanıt vereceğiz.</p>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<div class="lg:col-span-2 bg-card-light dark:bg-card-dark p-8 rounded-xl shadow-sm border border-border-light dark:border-border-dark">
+<h3 class="text-2xl font-bold mb-6">Bize Mesaj Gönderin</h3>
+<form class="space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<label class="flex flex-col min-w-40 flex-1">
+<p class="text-sm font-medium leading-normal pb-2">Adınız Soyadınız</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-12 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 text-base font-normal leading-normal transition-shadow" placeholder="Adınızı ve soyadınızı girin" value=""/>
+</label>
+<label class="flex flex-col min-w-40 flex-1">
+<p class="text-sm font-medium leading-normal pb-2">E-posta Adresiniz</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-12 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 text-base font-normal leading-normal transition-shadow" placeholder="ornek@eposta.com" value=""/>
+</label>
+</div>
+<label class="flex flex-col min-w-40 flex-1">
+<p class="text-sm font-medium leading-normal pb-2">Konu</p>
+<select class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-12 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 text-base font-normal leading-normal transition-shadow">
+<option value="one">Konu seçin</option>
+<option value="technical">Teknik Destek</option>
+<option value="sales">Satış</option>
+<option value="general">Genel Sorular</option>
+</select>
+</label>
+<label class="flex flex-col min-w-40 flex-1">
+<p class="text-sm font-medium leading-normal pb-2">Mesajınız</p>
+<textarea class="form-textarea flex w-full min-w-0 flex-1 resize-y overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark min-h-36 placeholder:text-slate-400 dark:placeholder:text-slate-500 p-4 text-base font-normal leading-normal transition-shadow" placeholder="Mesajınızı buraya yazın..."></textarea>
+</label>
+<button class="flex min-w-[120px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] w-full md:w-auto hover:opacity-90 transition-opacity">
+<span class="truncate">Mesajı Gönder</span>
+</button>
+</form>
+</div>
+<div class="space-y-8">
+<div class="bg-card-light dark:bg-card-dark p-6 rounded-xl shadow-sm border border-border-light dark:border-border-dark">
+<h3 class="text-xl font-bold mb-4">Diğer İletişim Yolları</h3>
+<div class="space-y-4">
+<a class="flex items-center gap-4 group" href="mailto:destek@renkflow.com">
+<span class="material-symbols-outlined text-primary text-2xl">mail</span>
+<span class="font-medium text-slate-600 dark:text-slate-300 group-hover:text-primary transition-colors">destek@renkflow.com</span>
+</a>
+<a class="flex items-center gap-4 group" href="tel:+901234567890">
+<span class="material-symbols-outlined text-primary text-2xl">call</span>
+<span class="font-medium text-slate-600 dark:text-slate-300 group-hover:text-primary transition-colors">+90 (123) 456 78 90</span>
+</a>
+</div>
+<div class="mt-6 pt-6 border-t border-border-light dark:border-border-dark flex gap-4">
+<a class="p-2 rounded-full bg-primary/10 dark:bg-primary/20 text-primary hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors" data-alt="Twitter social media link" href="#">
+<svg aria-hidden="true" class="h-5 w-5" fill="currentColor" viewbox="0 0 24 24"><path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.71v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84"></path></svg>
+</a>
+<a class="p-2 rounded-full bg-primary/10 dark:bg-primary/20 text-primary hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors" data-alt="LinkedIn social media link" href="#">
+<svg aria-hidden="true" class="h-5 w-5" fill="currentColor" viewbox="0 0 24 24"><path clip-rule="evenodd" d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" fill-rule="evenodd"></path></svg>
+</a>
+</div>
+</div>
+<div class="bg-primary/10 dark:bg-primary/20 p-6 rounded-xl text-center">
+<h3 class="text-xl font-bold mb-2 text-text-light dark:text-text-dark">Bir sorunuz mu var?</h3>
+<p class="text-slate-600 dark:text-slate-300 mb-4">Cevabı Sıkça Sorulan Sorular sayfamızda bulabilirsiniz.</p>
+<a class="inline-flex items-center justify-center gap-2 min-w-[84px] cursor-pointer rounded-lg h-11 px-5 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity" href="#">
+<span>SSS Sayfasına Git</span>
+<span class="material-symbols-outlined">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</div>
+</div>
+</body></html>

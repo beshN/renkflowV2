@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html class="scroll-smooth" lang="tr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Renkflow - İş Akışınızı Dönüştürün</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+<script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: "#4361EE",
+              light: "#F0F3FF"
+            },
+            secondary: "#3A0CA3",
+            "background-light": "#FFFFFF",
+            "background-dark": "#0B1120",
+            "text-light": "#1E293B",
+            "text-dark": "#E2E8F0",
+            "subtle-light": "#64748B",
+            "subtle-dark": "#94A3B8"
+          },
+          fontFamily: {
+            display: ["Sora", "sans-serif"],
+          },
+          borderRadius: {
+            'xl': '1rem',
+            '2xl': '1.5rem',
+            '3xl': '2rem',
+          },
+          boxShadow: {
+            'glow-primary': '0 0 40px 0px rgba(67, 97, 238, 0.3)',
+          }
+        },
+      },
+    };
+  </script>
+<style>
+    body {
+        font-family: 'Sora', sans-serif;
+    }
+    .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .hero-gradient {
+        background: radial-gradient(circle at 50% 50%, rgba(67, 97, 238, 0.1), transparent 70%);
+    }
+    .dark .hero-gradient {
+        background: radial-gradient(circle at 50% 50%, rgba(67, 97, 238, 0.2), transparent 70%);
+    }
+    .button-glow {
+        box-shadow: 0px 10px 30px -5px rgba(67, 97, 238, 0.4);
+    }
+    .button-glow:hover {
+        box-shadow: 0px 15px 35px -5px rgba(67, 97, 238, 0.5);
+    }
+  </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-display transition-colors duration-300 antialiased">
+<div class="container mx-auto px-4 sm:px-6 lg:px-8">
+<header class="py-6 flex justify-between items-center sticky top-0 z-50 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md">
+<div class="flex items-center space-x-3">
+<svg class="w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 2L2 7V17L12 22L22 17V7L12 2Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M2 7L12 12L22 7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M12 22V12" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="text-2xl font-bold text-text-light dark:text-text-dark">Renkflow</span>
+</div>
+<nav class="hidden md:flex items-center space-x-8 bg-white/70 dark:bg-slate-800/50 px-6 py-2 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
+<a class="text-subtle-light dark:text-subtle-dark hover:text-primary dark:hover:text-primary transition-colors font-medium" href="#">Özellikler</a>
+<a class="text-subtle-light dark:text-subtle-dark hover:text-primary dark:hover:text-primary transition-colors font-medium" href="#">Fiyatlandırma</a>
+<a class="text-subtle-light dark:text-subtle-dark hover:text-primary dark:hover:text-primary transition-colors font-medium" href="#">Entegrasyonlar</a>
+<a class="text-subtle-light dark:text-subtle-dark hover:text-primary dark:hover:text-primary transition-colors font-medium" href="#">İletişim</a>
+</nav>
+<div class="flex items-center space-x-4">
+<a class="text-subtle-light dark:text-subtle-dark hover:text-primary dark:hover:text-primary transition-colors font-semibold" href="#">Giriş Yap</a>
+<a class="bg-primary text-white font-semibold py-2.5 px-6 rounded-full shadow-sm hover:bg-primary/90 transition-all flex items-center space-x-2" href="#">
+<span>Ücretsiz Başlayın</span>
+<span class="material-symbols-outlined !text-xl">arrow_forward</span>
+</a>
+</div>
+</header>
+<main class="py-24 md:py-32">
+<div class="grid md:grid-cols-2 gap-16 items-center">
+<div class="text-center md:text-left relative z-10">
+<h1 class="text-5xl md:text-6xl lg:text-7xl font-bold text-text-light dark:text-text-dark leading-tight">
+            Zirveye Ulaşın: İş Akışınızı <span class="text-primary">Renkflow</span> ile Dönüştürün.
+          </h1>
+<p class="mt-6 text-lg md:text-xl text-subtle-light dark:text-subtle-dark max-w-xl mx-auto md:mx-0">
+            Ekibinizin en iyi işlerini, baştan sona güçlendiren görsel iş birliği aracı. Karmaşayı netliğe, fikirleri gerçeğe dönüştürün.
+          </p>
+<div class="mt-10 flex items-center justify-center md:justify-start space-x-4">
+<a class="bg-primary text-white font-bold py-4 px-10 rounded-full transition-transform hover:scale-105 button-glow text-lg" href="#">
+                Ücretsiz Deneyin
+            </a>
+<a class="font-semibold text-subtle-light dark:text-subtle-dark hover:text-primary dark:hover:text-primary transition-colors" href="#">
+                Demo Talep Et
+            </a>
+</div>
+</div>
+<div class="relative flex justify-center items-center">
+<div class="absolute inset-0 hero-gradient"></div>
+<div class="relative bg-white dark:bg-slate-800/50 p-4 rounded-3xl shadow-glow-primary transform rotate-3 border border-gray-200 dark:border-gray-700">
+<img alt="Renkflow application interface showing two overlapping cards for project management" class="rounded-2xl w-full h-auto max-w-md" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFfzrk7dJqlT6bazlRwmXT_B6j9QdrYZQ2iampSvdIoulZFBPwNI2LE7sS7LNYd9f8H4pW1T6fIuQ3jmMJbKO4przUketLaZz7MeWxo4007MRSah3eCtJ10qhbMFHFJrVZdlhpAn6nQ7CxAKs1gO84FD5jt7BkVfMWAoZPLmXKJmZj_UETVCVK9AcIbAFVHwkbTaIRmLrFelZzWJts1ZkXGSwaPt96TpiimQ1Ed0CRIB0rctEnZqCkOo1ymR5o_rN3Q0WRmSKt1KWv"/>
+</div>
+</div>
+</div>
+</main>
+<section class="py-12 text-center">
+<p class="text-subtle-light dark:text-subtle-dark mb-8 font-medium">Sektör liderlerinin güvendiği platform:</p>
+<div class="flex flex-wrap justify-center items-center gap-x-12 sm:gap-x-16 gap-y-8">
+<img alt="Microsoft logo" class="h-6 opacity-60 dark:opacity-50 grayscale hover:grayscale-0 hover:opacity-100 dark:hover:opacity-100 transition-all" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCiw0VMSNb9yVK1KIGATSQH16FbdWQ594sjuduD9_GVMBfjYrve2xsIsx1nC_osoa4NDdeQFkmBMlf2LSUiJjUviZOMWgPqaak1WvN_RsRGYC1fheuqBVkL19hVEdQjcUyoHAmyFO8m9rkQHaYmQL4Al9AE9Y2vfNW-Bci1s8ZNXWLzWHdE5YSOAJ9GPOVuhSB7EwhY11luGPVWUh_-_bnF4qoGYUaAccZnQyoO7_5nIUQiHB6tsuW_U81_mB0qPHXCvBKfoOxOnBxs"/>
+<img alt="IBM logo" class="h-6 opacity-60 dark:opacity-50 grayscale hover:grayscale-0 hover:opacity-100 dark:hover:opacity-100 transition-all" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCCwWOG2v4gmAladMf3xDgdOUo3akAt3x0WSVoQoXi1OTKcV1V7nIOUQkosXZE7yVrXgvGL6BFdK0EI0PF26WxhOgJaPlZiF5zytp4Rk3wbO26QA6NwL_Jge4CQQchfZHsJRkPABUBwS1RLa0QEhXqkBJCT31gKIvNoAIxOWMGb6gq0HDzfSl-qwkjhrueCI9V6Ve-qZY1Y4V0NFLxDcjIhHuJKwmSom52IEgp6b3lGKmTIDvZooUJ3NiGBnyUD1rdDObM_Y8rrzmpq"/>
+<img alt="Spotify logo" class="h-6 opacity-60 dark:opacity-50 grayscale hover:grayscale-0 hover:opacity-100 dark:hover:opacity-100 transition-all" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCusWGvk2B2lh8n9WfBOnvOJIAjlzrv0NCLMVwkXlLypndIUyTPY90lPkuFonJbrCZT2oLKd38a1LWQh8aqBDlQeiXfI37IkY4ZEWdzdwpalDUKuPNYy_4pX0w-SNXYBVLDj2hZyLlJDmUUZGBzEEZQ-YZao8u33OtYws7sonopGkTNI7FonRyaO0vHYUGYVdoOXhoNF77Xu3puG4setR0hw0Dz7r4HEj0xH7rwy2-QXq2eVASCgBI9fr7EWbU6DMwjVBmSJAsGLKqm"/>
+<img alt="ACME logo" class="h-6 opacity-60 dark:opacity-50 grayscale hover:grayscale-0 hover:opacity-100 dark:hover:opacity-100 transition-all" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDQ0X23v0Wgfqys209SSQiiN3Yyg1q-Kerqk_PF43PrGHfOQa69xv6ferrw7rZ5j6pKrUQQNxpoZ11KK0GNa0sgdONGD_G-bxBtx36Oq3XrVAqA92MpuIM6odJJcuU0ilpN_aa63f70RaDmbC6ZHjSEVX4Cjdc8WmZZKqzFRKbUJxQsMTncGmEHpmFFv9fB6VpXERWYxEaZq6OT2CtJKPsVfQOCcfljoqM1Y2j_tB4_r8ZKhRcV5hrRZ295kd2gdLEJXwrxaJpGXH4N"/>
+<img alt="Samsung logo" class="h-7 opacity-60 dark:opacity-50 grayscale hover:grayscale-0 hover:opacity-100 dark:hover:opacity-100 transition-all" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBj_x4Okmf5Wg4kjpryZOlScD7eL3vBKLnVFa_SgQIygSJBTRnIpnnqbEd75uXZThtVnf_m4xDcBPd8BhfmAOknTA0tdo1yumEUI3HU7ZGc8gDMQoqCUqaXhuN6FWsIRGYmHny31BYyXOQXDISGzAVMFH206gs_416g7yiiyYPoIc3y15KBu5leR5zZnx4oBMZUNdiRsEnqnWYvQUzWxDmr7r2odhqivBnC5CkUsXeHToAWBngdOAzRpi-Mz9-4qFZIpEpaEJiuUAQV"/>
+<img alt="Sonegan logo" class="h-6 opacity-60 dark:opacity-50 grayscale hover:grayscale-0 hover:opacity-100 dark:hover:opacity-100 transition-all" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAs91PcHWGwRdWeaxfGahyE8p6bgVMdtNCqyhXk998dJU33DzyE5Wv3DIUraeqvra9BxvClqsEOv9xp8xtdf5Qr89gMwCJBJued-xobIDIBORELxaGoICMV5wpmfKO8siXeeaNl3OucK4ARFxQwdivoQp4AcEYaWF1vwnHErYqZFzcTnMbdeFCzAxgeFaBjJqWqrfVxL-MFgZZ0Qtkv-bJXwlJAQbPtsYiVdCFfXMkgtDhtYZ7TiCoVM1XgmjMTIA6TZygUOR_KBUoH"/>
+</div>
+</section>
+<section class="py-24 md:py-32">
+<div class="text-center max-w-3xl mx-auto">
+<h2 class="text-4xl md:text-5xl font-bold text-text-light dark:text-text-dark mb-6">Her Ekip İçin Güçlü Çözümler</h2>
+<p class="text-lg text-subtle-light dark:text-subtle-dark">Renkflow, iş akışınızı ne olursa olsun, ekibinizin potansiyelini en üst düzeye çıkarmak için tasarlanmıştır. Sizin için nasıl çalıştığını keşfedin.</p>
+</div>
+<div class="mt-16 grid md:grid-cols-3 gap-8">
+<div class="bg-white dark:bg-slate-800/50 p-8 rounded-3xl shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 border border-gray-100 dark:border-gray-800">
+<div class="bg-primary-light dark:bg-primary/10 text-primary w-14 h-14 rounded-xl flex items-center justify-center mb-6">
+<span class="material-symbols-outlined !text-3xl">stacks</span>
+</div>
+<h3 class="text-xl font-bold mb-3 text-text-light dark:text-text-dark">Proje Yönetimi</h3>
+<p class="text-subtle-light dark:text-subtle-dark mb-6">Görevleri atayın, son tarihleri belirleyin ve projelerinizin ilerlemesini tek bir yerden görsel olarak takip edin.</p>
+<a class="font-semibold text-primary hover:underline flex items-center group" href="#">Daha Fazla Bilgi <span class="material-symbols-outlined ml-1 group-hover:translate-x-1 transition-transform">arrow_forward</span></a>
+</div>
+<div class="bg-white dark:bg-slate-800/50 p-8 rounded-3xl shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 border border-gray-100 dark:border-gray-800">
+<div class="bg-primary-light dark:bg-primary/10 text-primary w-14 h-14 rounded-xl flex items-center justify-center mb-6">
+<span class="material-symbols-outlined !text-3xl">cycle</span>
+</div>
+<h3 class="text-xl font-bold mb-3 text-text-light dark:text-text-dark">Çevik Geliştirme</h3>
+<p class="text-subtle-light dark:text-subtle-dark mb-6">Sprint planlaması, backlog yönetimi ve Kanban panoları ile çevik metodolojileri kolayca uygulayın.</p>
+<a class="font-semibold text-primary hover:underline flex items-center group" href="#">Daha Fazla Bilgi <span class="material-symbols-outlined ml-1 group-hover:translate-x-1 transition-transform">arrow_forward</span></a>
+</div>
+<div class="bg-white dark:bg-slate-800/50 p-8 rounded-3xl shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 border border-gray-100 dark:border-gray-800">
+<div class="bg-primary-light dark:bg-primary/10 text-primary w-14 h-14 rounded-xl flex items-center justify-center mb-6">
+<span class="material-symbols-outlined !text-3xl">palette</span>
+</div>
+<h3 class="text-xl font-bold mb-3 text-text-light dark:text-text-dark">Yaratıcı Süreçler</h3>
+<p class="text-subtle-light dark:text-subtle-dark mb-6">Fikir aşamasından son tasarıma kadar tüm yaratıcı projelerinizi ve geri bildirim döngülerini yönetin.</p>
+<a class="font-semibold text-primary hover:underline flex items-center group" href="#">Daha Fazla Bilgi <span class="material-symbols-outlined ml-1 group-hover:translate-x-1 transition-transform">arrow_forward</span></a>
+</div>
+</div>
+</section>
+<section class="py-24 md:py-32">
+<div class="grid md:grid-cols-2 gap-16 items-center">
+<div class="space-y-8">
+<div class="flex items-start space-x-6">
+<div class="bg-primary-light dark:bg-primary/10 text-primary w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined">grid_view</span>
+</div>
+<div>
+<h3 class="text-xl font-bold mb-2 text-text-light dark:text-text-dark">Özelleştirilebilir Panolar</h3>
+<p class="text-subtle-light dark:text-subtle-dark">İş akışınıza mükemmel şekilde uyan panolar, listeler ve kartlarla her projeyi kendinize göre şekillendirin.</p>
+</div>
+</div>
+<div class="flex items-start space-x-6">
+<div class="bg-primary-light dark:bg-primary/10 text-primary w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined">bolt</span>
+</div>
+<div>
+<h3 class="text-xl font-bold mb-2 text-text-light dark:text-text-dark">Güçlü Otomasyon</h3>
+<p class="text-subtle-light dark:text-subtle-dark">Tekrarlayan görevleri otomatize ederek zaman kazanın ve ekibinizin önemli işlere odaklanmasını sağlayın.</p>
+</div>
+</div>
+<div class="flex items-start space-x-6">
+<div class="bg-primary-light dark:bg-primary/10 text-primary w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined">insights</span>
+</div>
+<div>
+<h3 class="text-xl font-bold mb-2 text-text-light dark:text-text-dark">Gelişmiş Raporlama</h3>
+<p class="text-subtle-light dark:text-subtle-dark">Proje performansını ve ekip verimliliğini anlamak için derinlemesine analizler ve görsel raporlar alın.</p>
+</div>
+</div>
+</div>
+<div class="p-2 bg-white dark:bg-slate-800/50 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700">
+<img alt="Detailed dashboard view of the Renkflow application in dark mode" class="rounded-2xl" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAvJDrdlgOwZq0gD7XOVJlVf69Yhqk1lgjeiswgVQL5vBhXrQHTlo4p2Fp6lgonsyyhu0msF395XtqB0dj16AYx2PfBLSCydbhkmeZ7EBmjFksFmZEf-knvrvQwVTF-wW0FC5RxljmSwxq7AfJG7itxY9maEtkUgEaSoKleKvV1ACFzjj_frI0PeHeWhzPtzIBM1mm_MEeoEouMozdyNp3tQcjIRwRRr28krjTo1lpwEyvwOJs75xaynmcCN1DZYrHnpNwnvT2W5me0"/>
+</div>
+</div>
+</section>
+<section class="py-24 md:py-32">
+<div class="text-center max-w-3xl mx-auto">
+<h2 class="text-4xl md:text-5xl font-bold text-text-light dark:text-text-dark">İş Akışınızı Optimize Edin</h2>
+<p class="mt-4 text-xl text-primary font-semibold">Verimliliği %50'ye Kadar Artırın</p>
+</div>
+<div class="mt-16 bg-primary-light dark:bg-primary/10 p-8 md:p-12 rounded-3xl border border-primary/10 dark:border-primary/20">
+<img alt="Diagram showing a transition from 'Chaos' to 'Renkflow' to an 'Optimized Workflow'" class="w-full h-auto rounded-xl" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA8xcb_5ay_Dg7O_K8tRw9sIy4zkyfjB1B7FDu7iEydQ7AuOWqP8UXjZ5rmELVbveOOUwx3aPnlv0IugOdKickucfBH7hlXtxAjzYVHI6cUFl9bMrxhe2YoDfJN2ZVkA1kE-bOcvQBVgLNtqbwhvIpJ5NgIE3G01K9crbl8zrxp9XB38F3GSqyxPiDTam76hMwU7GkyZP9qVPcYTakG_DVDMehfSrRKeAG286_Op4BruH5raEKq1H3wRD0TaB28qalc1MTZxBXcNijY"/>
+</div>
+</section>
+<section class="py-24 md:py-32">
+<div class="text-center max-w-3xl mx-auto mb-16">
+<h2 class="text-4xl md:text-5xl font-bold text-text-light dark:text-text-dark">Müşterilerimiz Ne Diyor?</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<div class="bg-white dark:bg-slate-800/50 p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col justify-between">
+<p class="text-lg mb-6 text-text-light dark:text-text-dark">"Renkflow, ekibimizin proje teslim hızını iki katına çıkardı. Artık her şey daha organize ve şeffaf."</p>
+<div class="flex items-center mt-auto">
+<img alt="Avatar of Azse V." class="w-12 h-12 rounded-full mr-4" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC1S9jX-TdsC7AweEsQIAIlwd7SS9E9o8ELcswwsnm3NNYOLTgLryYuH7h7iuWtyDQtz-Qa-Uo3nlaooX4mhhTTaJaCkjsrEXbgQXMVzAwfOIX6rYVOBosMYeil7IUHXoqitL3tdS9cvMOa2hU_OQ0Ovz6eAWcWNTVhYhuSxu5fFS9cuOS5Irx0m1A0V0QX4nD8lkoymoZHxdkBdOw9LqVifeLHiOdCvwnEh0dOztSXUrTOOWfRt26cgksvcu4D9DUJOfkt9Rl5w9hy"/>
+<div>
+<p class="font-bold text-text-light dark:text-text-dark">Azse V.</p>
+<p class="text-sm text-subtle-light dark:text-subtle-dark">Proje Müdürü, X97 Corp.</p>
+</div>
+</div>
+</div>
+<div class="bg-primary text-white p-8 rounded-3xl shadow-xl flex flex-col justify-between scale-105">
+<p class="text-lg mb-6">"Daha önce kullandığımız tüm araçları tek bir platformda birleştirdi. Verimliliğimizdeki artış inanılmaz."</p>
+<div class="flex items-center mt-auto">
+<img alt="Avatar of Soma N." class="w-12 h-12 rounded-full mr-4 border-2 border-white/50" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqWt0rPEBfw_OXnOP_ceUmb1vsqpQDOGRwCoHWs_RmALRQVnhPGYE1NzQk2UrKlthjXfFhYTWHtpYX7jHsVDe4w5hJCU9Z9Nxo2C0C0oOWYlVitZgsrUVo-QWMnzPCYkZ7_DXgZt6XMhYEBe8EJfIMjtfDT9zV5bPAyZrK-IdnWReWfpUmCZek-wZ55c1O-7kN4loPwWXC6y_N1qmTLuJWCopjjOXh-D_NvRDYzuL23t2e7s-L3aIWqxkUPpmXBa73XpqhpJSr4fHI"/>
+<div>
+<p class="font-bold">Soma N.</p>
+<p class="text-sm opacity-80">CEO, S12 Corp.</p>
+</div>
+</div>
+</div>
+<div class="bg-white dark:bg-slate-800/50 p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col justify-between">
+<p class="text-lg mb-6 text-text-light dark:text-text-dark">"Yaratıcı ekibimiz için mükemmel bir araç. Fikir paylaşımı ve geri bildirim süreci hiç bu kadar kolay olmamıştı."</p>
+<div class="flex items-center mt-auto">
+<img alt="Avatar of Lama L." class="w-12 h-12 rounded-full mr-4" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAhGgQYzKp3TZ3okUTzmFtaeV-YhXEx4GFx_Ct6_F9C22mRIPihL-EHgOzuVW33pbHS0ZjserIxMOTCSiYNTcWgWLNLAbURckBEB7c9LjA8c4ox3xOx2tU95TbpRYsQhffridw1c4sG1C__qycg5rFffrm1Wvj69QVLavxN0Km7Wg2Gwoc9GF4nVdlQJLrs_DJyeesu-07_ak5OIId3GLs7f2X8hPrnbbhV9xYhQoDa2lUSP-UUXGEKCKyygYoGf-hsUAADm_xI9faO"/>
+<div>
+<p class="font-bold text-text-light dark:text-text-dark">Lama L.</p>
+<p class="text-sm text-subtle-light dark:text-subtle-dark">Tasarım Lideri, 017 Companies</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="bg-primary-light dark:bg-slate-800/50 rounded-3xl my-24 md:my-32 py-20 px-8 text-center">
+<div class="max-w-3xl mx-auto">
+<h2 class="text-4xl md:text-5xl font-bold text-text-light dark:text-white">Verimliliğinizi Bugün Artırın</h2>
+<p class="mt-6 text-lg text-subtle-light dark:text-subtle-dark">
+            Binlerce ekibe katılın ve iş akışınızı Renkflow ile bir sonraki seviyeye taşıyın. Kredi kartı gerekmez.
+        </p>
+<a class="mt-10 inline-block bg-primary text-white font-bold py-4 px-10 rounded-full transition-transform hover:scale-105 button-glow text-lg" href="#">
+            Hemen Ücretsiz Başlayın
+        </a>
+</div>
+</section>
+</div>
+<footer class="bg-primary-light/50 dark:bg-slate-900/50 pt-24 pb-12">
+<div class="container mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-5 gap-12">
+<div class="md:col-span-2">
+<div class="flex items-center space-x-3 mb-4">
+<svg class="w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 2L2 7V17L12 22L22 17V7L12 2Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M2 7L12 12L22 7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M12 22V12" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="text-2xl font-bold text-text-light dark:text-text-dark">Renkflow</span>
+</div>
+<p class="text-subtle-light dark:text-subtle-dark">Ekibinizin en iyi işlerini güçlendiren görsel iş birliği aracı.</p>
+</div>
+<div>
+<h4 class="font-bold text-lg mb-4 text-text-light dark:text-text-dark">Ürün</h4>
+<ul class="space-y-3">
+<li><a class="text-subtle-light dark:text-subtle-dark hover:text-primary transition" href="#">Çözümler</a></li>
+<li><a class="text-subtle-light dark:text-subtle-dark hover:text-primary transition" href="#">Fiyatlandırma</a></li>
+<li><a class="text-subtle-light dark:text-subtle-dark hover:text-primary transition" href="#">Entegrasyonlar</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-bold text-lg mb-4 text-text-light dark:text-text-dark">Şirket</h4>
+<ul class="space-y-3">
+<li><a class="text-subtle-light dark:text-subtle-dark hover:text-primary transition" href="#">Hakkımızda</a></li>
+<li><a class="text-subtle-light dark:text-subtle-dark hover:text-primary transition" href="#">Kariyer</a></li>
+<li><a class="text-subtle-light dark:text-subtle-dark hover:text-primary transition" href="#">İletişim</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-bold text-lg mb-4 text-text-light dark:text-text-dark">Kaynaklar</h4>
+<ul class="space-y-3">
+<li><a class="text-subtle-light dark:text-subtle-dark hover:text-primary transition" href="#">Blog</a></li>
+<li><a class="text-subtle-light dark:text-subtle-dark hover:text-primary transition" href="#">Yardım Merkezi</a></li>
+<li><a class="text-subtle-light dark:text-subtle-dark hover:text-primary transition" href="#">API Dokümanları</a></li>
+</ul>
+</div>
+</div>
+<div class="container mx-auto px-4 sm:px-6 lg:px-8 mt-16 pt-8 border-t border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row justify-between items-center text-sm text-subtle-light dark:text-subtle-dark">
+<p>© 2024 Renkflow. Tüm hakları saklıdır.</p>
+<div class="flex space-x-6 mt-4 sm:mt-0">
+<a class="hover:text-primary transition" href="#"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M22.46,6C21.69,6.35 20.86,6.58 20,6.69C20.88,6.16 21.56,5.32 21.88,4.31C21.05,4.81 20.13,5.16 19.16,5.36C18.37,4.5 17.26,4 16,4C13.65,4 11.73,5.92 11.73,8.29C11.73,8.63 11.77,8.96 11.84,9.27C8.28,9.09 5.11,7.38 3,4.79C2.63,5.42 2.42,6.16 2.42,6.94C2.42,8.43 3.17,9.75 4.33,10.5C3.62,10.48 2.96,10.29 2.38,10V10.03C2.38,12.11 3.86,13.85 5.82,14.24C5.46,14.34 5.08,14.39 4.69,14.39C4.42,14.39 4.15,14.36 3.89,14.31C4.43,16.02 6.02,17.25 7.89,17.29C6.43,18.45 4.58,19.13 2.56,19.13C2.22,19.13 1.88,19.11 1.54,19.07C3.44,20.29 5.7,21 8.12,21C16,21 20.33,14.46 20.33,8.79C20.33,8.6 20.33,8.42 20.32,8.23C21.16,7.63 21.88,6.87 22.46,6Z"></path></svg></a>
+<a class="hover:text-primary transition" href="#"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M21,21H17V14.25C17,13.19 15.81,12.31 14.75,12.31C13.69,12.31 13,13.19 13,14.25V21H9V9H13V11C13.66,9.93 14.38,9 16.5,9C19,9 21,11.25 21,14V21M7,21H3V9H7V21M5,7.5A2.5,2.5 0 0,1 2.5,5A2.5,2.5 0 0,1 5,2.5A2.5,2.5 0 0,1 7.5,5A2.5,2.5 0 0,1 5,7.5Z"></path></svg></a>
+<a class="hover:text-primary transition" href="#"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19,3A2,2 0 0,1 21,5V19A2,2 0 0,1 19,21H5A2,2 0 0,1 3,19V5A2,2 0 0,1 5,3H19M18.5,18.5V13.2A3.26,3.26 0 0,0 15.24,9.94C14.39,9.94 13.4,10.46 12.92,11.24V10.13H10.13V18.5H12.92V13.57C12.92,12.8 13.54,12.17 14.31,12.17C15.08,12.17 15.71,12.8 15.71,13.57V18.5H18.5Z"></path></svg></a>
+</div>
+</div>
+</footer>
+
+</body></html>
