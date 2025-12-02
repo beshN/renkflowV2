@@ -82,12 +82,12 @@ export function Sidebar() {
         {/* Logo */}
         <Link
           href={user?.role === 'admin' ? "/dashboard" : "/orders"}
-          className="flex h-28 items-center justify-center border-b border-border-light dark:border-border-dark overflow-hidden flex-shrink-0 relative group/logo"
+          className="flex h-40 items-center justify-center border-b border-border-light dark:border-border-dark overflow-hidden flex-shrink-0 relative group/logo transition-all duration-300"
         >
           <div className="flex items-center justify-center w-full h-full relative">
             {/* Collapsed State - 'R' only */}
             <div className="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out opacity-100 scale-100 group-hover:opacity-0 group-hover:scale-75 group-hover:rotate-12">
-              <div className="relative h-10 w-10">
+              <div className="relative h-14 w-14">
                 <Image
                   src="/logo-r.png"
                   alt="RenkFlow"
@@ -99,7 +99,7 @@ export function Sidebar() {
 
             {/* Expanded State - Full Logo */}
             <div className="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out opacity-0 scale-90 -translate-x-4 group-hover:opacity-100 group-hover:scale-100 group-hover:translate-x-0">
-              <div className="relative h-32 w-56">
+              <div className="relative h-36 w-64">
                 <Image
                   src="/logo.png"
                   alt="RenkFlow"
