@@ -66,7 +66,7 @@ export default function AuthLogin() {
               </p>
               <input
                 type="email"
-                className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-surface-light dark:bg-surface-dark text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark focus:border-primary h-12 placeholder:text-text-muted-light dark:placeholder:text-text-muted-dark px-4 text-base font-normal leading-normal"
+                className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-md bg-surface-light dark:bg-surface-dark text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark focus:border-primary h-12 placeholder:text-text-muted-light dark:placeholder:text-text-muted-dark px-4 text-base font-normal leading-normal"
                 placeholder="ornek@eposta.com"
               />
             </label>
@@ -75,16 +75,16 @@ export default function AuthLogin() {
               <p className="text-sm font-medium leading-normal pb-2 text-text-light dark:text-text-dark">
                 Şifre
               </p>
-              <div className="flex w-full flex-1 items-stretch rounded-lg">
+              <div className="flex w-full flex-1 items-stretch rounded-md">
                 <input
                   type={showPassword ? "text" : "password"}
-                  className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-l-lg bg-surface-light dark:bg-surface-dark text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark focus:border-primary h-12 placeholder:text-text-muted-light dark:placeholder:text-text-muted-dark px-4 border-r-0 pr-2 text-base font-normal leading-normal"
+                  className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-l-md bg-surface-light dark:bg-surface-dark text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark focus:border-primary h-12 placeholder:text-text-muted-light dark:placeholder:text-text-muted-dark px-4 border-r-0 pr-2 text-base font-normal leading-normal"
                   placeholder="Şifrenizi girin"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="flex items-center justify-center rounded-r-lg border border-l-0 border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark pr-4"
+                  className="flex items-center justify-center rounded-r-md border border-l-0 border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark pr-4"
                 >
                   <span className="material-symbols-outlined cursor-pointer text-text-muted-light dark:text-text-muted-dark">
                     {showPassword ? 'visibility' : 'visibility_off'}
@@ -103,14 +103,14 @@ export default function AuthLogin() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
-              className="flex min-w-[84px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary text-white text-base font-bold leading-normal tracking-wide hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-background-dark transition-colors duration-200"
+              className="flex min-w-[84px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-md h-12 px-5 bg-primary text-white text-base font-bold leading-normal tracking-wide hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-background-dark transition-colors duration-200"
             >
               <span className="truncate">Giriş Yap</span>
             </motion.button>
 
             <button
               type="button"
-              className="flex min-w-[84px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-base font-bold leading-normal tracking-wide hover:bg-background-light dark:hover:bg-background-dark transition-colors duration-200"
+              className="flex min-w-[84px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-md h-12 px-5 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-base font-bold leading-normal tracking-wide hover:bg-background-light dark:hover:bg-background-dark transition-colors duration-200"
             >
               <div className="flex items-center gap-3">
                 <svg className="w-5 h-5" viewBox="0 0 24 24">

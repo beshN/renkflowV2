@@ -38,7 +38,7 @@ export default function Signup() {
 
             {/* Social Login */}
             <div className="space-y-3 mb-6">
-              <button className="w-full h-12 border border-border-light dark:border-border-dark rounded-lg font-bold flex items-center justify-center gap-3 hover:bg-white dark:hover:bg-surface-dark transition-colors bg-surface-light dark:bg-surface-dark shadow-sm">
+              <button className="w-full h-12 border border-border-light dark:border-border-dark rounded-md font-bold flex items-center justify-center gap-3 hover:bg-white dark:hover:bg-surface-dark transition-colors bg-surface-light dark:bg-surface-dark shadow-sm">
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -48,7 +48,7 @@ export default function Signup() {
                 Google ile devam et
               </button>
               
-              <button className="w-full h-12 border border-border-light dark:border-border-dark rounded-lg font-bold flex items-center justify-center gap-3 hover:bg-white dark:hover:bg-surface-dark transition-colors bg-surface-light dark:bg-surface-dark shadow-sm">
+              <button className="w-full h-12 border border-border-light dark:border-border-dark rounded-md font-bold flex items-center justify-center gap-3 hover:bg-white dark:hover:bg-surface-dark transition-colors bg-surface-light dark:bg-surface-dark shadow-sm">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 21 21">
                   <path d="M1 1h9v9H1V1zm10 0h9v9h-9V1zM1 11h9v9H1v-9zm10 11h9v-9h-9v9z"/>
                 </svg>
@@ -69,7 +69,7 @@ export default function Signup() {
                 <label className="block text-sm font-medium mb-2">Ad Soyad</label>
                 <input
                   type="text"
-                  className="w-full px-4 py-3 rounded-lg border border-border-light dark:border-border-dark bg-white dark:bg-background-dark focus:ring-2 focus:ring-primary/50 focus:border-primary transition-shadow text-text-light dark:text-text-dark"
+                  className="w-full px-4 py-3 rounded-md border border-border-light dark:border-border-dark bg-white dark:bg-background-dark focus:ring-2 focus:ring-primary/50 focus:border-primary transition-shadow text-text-light dark:text-text-dark"
                   placeholder="Adınızı ve soyadınızı girin"
                 />
               </div>
@@ -78,7 +78,7 @@ export default function Signup() {
                 <label className="block text-sm font-medium mb-2">E-posta Adresi</label>
                 <input
                   type="email"
-                  className="w-full px-4 py-3 rounded-lg border border-border-light dark:border-border-dark bg-white dark:bg-background-dark focus:ring-2 focus:ring-primary/50 focus:border-primary transition-shadow text-text-light dark:text-text-dark"
+                  className="w-full px-4 py-3 rounded-md border border-border-light dark:border-border-dark bg-white dark:bg-background-dark focus:ring-2 focus:ring-primary/50 focus:border-primary transition-shadow text-text-light dark:text-text-dark"
                   placeholder="ornek@eposta.com"
                 />
               </div>
@@ -88,7 +88,7 @@ export default function Signup() {
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
-                    className="w-full px-4 py-3 rounded-lg border border-border-light dark:border-border-dark bg-white dark:bg-background-dark focus:ring-2 focus:ring-primary/50 focus:border-primary transition-shadow pr-10 text-text-light dark:text-text-dark"
+                    className="w-full px-4 py-3 rounded-md border border-border-light dark:border-border-dark bg-white dark:bg-background-dark focus:ring-2 focus:ring-primary/50 focus:border-primary transition-shadow pr-10 text-text-light dark:text-text-dark"
                     placeholder="En az 8 karakter"
                   />
                   <button
@@ -105,7 +105,7 @@ export default function Signup() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 type="submit"
-                className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:opacity-90 transition-opacity mt-2 shadow-sm"
+                className="w-full bg-primary text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity mt-2 shadow-sm"
               >
                 Hesap Oluştur
               </motion.button>
