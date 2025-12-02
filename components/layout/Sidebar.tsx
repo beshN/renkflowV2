@@ -9,15 +9,13 @@ import { useSettings } from '@/lib/context/SettingsContext';
 import { useState, useEffect } from 'react';
 import { useSpotlight } from '@/components/ui/SpotlightEffect';
 
-import { AdminLoginModal } from '@/components/auth/AdminLoginModal';
-
 const menuItems = [
   { icon: 'dashboard', label: 'Dashboard', href: '/dashboard', adminOnly: true },
   { icon: 'receipt_long', label: 'Siparişler', href: '/orders', adminOnly: false },
   { icon: 'add_circle', label: 'Yeni Sipariş', href: '/new-order', adminOnly: true },
   { icon: 'settings', label: 'Ayarlar', href: '/settings', adminOnly: true },
-  // Special item for Admin Login
-  { icon: 'admin_panel_settings', label: 'Yönetici Paneli', href: '#', adminOnly: false, action: 'login' },
+  // Special item for Logout/Switch Account
+  { icon: 'logout', label: 'Çıkış Yap', href: '#', adminOnly: false, action: 'logout' },
 ];
 
 export function Sidebar() {
@@ -25,7 +23,6 @@ export function Sidebar() {
   const { user, logout } = useAuth();
   const { settings } = useSettings();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -33,26 +30,14 @@ export function Sidebar() {
   }, [pathname]);
 
   const handleItemClick = (item: any, e: React.MouseEvent) => {
-    if (item.action === 'login') {
+    if (item.action === 'logout') {
       e.preventDefault();
-      if (user?.role === 'admin') {
-        // If already admin, maybe just toggle or do nothing? 
-        // Or we could make this a "Logout" button if admin?
-        // Let's make it a Logout action if already admin for better UX
-        logout();
-      } else {
-        setIsLoginModalOpen(true);
-      }
+      logout();
     }
   };
 
   return (
     <>
-      <AdminLoginModal 
-        isOpen={isLoginModalOpen} 
-        onClose={() => setIsLoginModalOpen(false)} 
-      />
-
       {/* Mobile Hamburger Button */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
@@ -163,14 +148,10 @@ function SidebarItem({ item, pathname, user, handleItemClick }: { item: any, pat
   // Hide admin-only items if user is not admin
   if (item.adminOnly && user?.role !== 'admin') return null;
 
-  // Special handling for Admin Panel item text/icon if already admin
+  // Special handling for Logout item
   let label = item.label;
   let icon = item.icon;
-  if (item.action === 'login' && user?.role === 'admin') {
-    label = 'Yönetici Çıkış';
-    icon = 'logout';
-  }
-
+  
   const isActive = pathname === item.href || 
     (item.href !== '/dashboard' && item.href !== '#' && pathname.startsWith(item.href));
 
@@ -183,8 +164,8 @@ function SidebarItem({ item, pathname, user, handleItemClick }: { item: any, pat
         isActive
           ? 'bg-primary text-white shadow-md shadow-primary/20'
           : 'text-subtle-light dark:text-subtle-dark hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-text-light dark:hover:text-text-dark',
-          // Special style for Admin Panel item
-          item.action === 'login' && user?.role !== 'admin' && 'mt-auto border-t border-border-light dark:border-border-dark pt-4'
+          // Special style for Logout item
+          item.action === 'logout' && 'mt-auto border-t border-border-light dark:border-border-dark pt-4 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10'
       )}
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}

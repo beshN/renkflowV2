@@ -87,7 +87,7 @@ Tarayıcıda [http://localhost:3000](http://localhost:3000) adresini açın.
 
 ### Public Pages
 - `/` - Landing page
-- `/login` - Giriş sayfası
+- `/auth/login` - Giriş sayfası
 
 ### Dashboard Pages (Protected)
 - `/dashboard` - Ana dashboard
