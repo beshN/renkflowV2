@@ -137,42 +137,87 @@ export default function Home() {
           </div>
 
           <div className="mt-16 grid md:grid-cols-3 gap-8">
-            {[
-              {
-                icon: 'stacks',
-                title: 'Proje Yönetimi',
-                desc: 'Görevleri atayın, son tarihleri belirleyin ve projelerinizin ilerlemesini tek bir yerden görsel olarak takip edin.'
-              },
-              {
-                icon: 'cycle',
-                title: 'Çevik Geliştirme',
-                desc: 'Sprint planlaması, backlog yönetimi ve Kanban panoları ile çevik metodolojileri kolayca uygulayın.'
-              },
-              {
-                icon: 'palette',
-                title: 'Yaratıcı Süreçler',
-                desc: 'Fikir aşamasından son tasarıma kadar tüm yaratıcı projelerinizi ve geri bildirim döngülerini yönetin.'
-              }
-            ].map((feature, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.15, duration: 0.6 }}
-                whileHover={{ y: -8, boxShadow: "0 20px 50px -10px rgba(0,0,0,0.15)" }}
-                className="bg-white dark:bg-slate-800/50 p-8 rounded-3xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 dark:border-gray-800"
-              >
-                <div className="bg-primary-light dark:bg-primary/10 text-primary w-14 h-14 rounded-xl flex items-center justify-center mb-6">
-                  <span className="material-symbols-outlined !text-3xl">{feature.icon}</span>
+
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0 * 0.15, duration: 0.6 }}
+              whileHover={{ y: -8, boxShadow: "0 20px 50px -10px rgba(0,0,0,0.15)" }}
+            >
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl relative overflow-hidden h-full min-h-[400px]">
+                <div className="absolute inset-0">
+                  <Image
+                    src="/feature-project-mgmt.png"
+                    alt="Project Management"
+                    fill
+                    className="object-cover opacity-90 hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 </div>
-                <h3 className="text-xl font-bold mb-3 text-text-light dark:text-text-dark">{feature.title}</h3>
-                <p className="text-subtle-light dark:text-subtle-dark mb-6">{feature.desc}</p>
-                <Link href="/features" className="font-semibold text-primary hover:underline flex items-center group">
-                  Daha Fazla Bilgi <span className="material-symbols-outlined ml-1 group-hover:translate-x-1 transition-transform">arrow_forward</span>
-                </Link>
-              </motion.div>
-            ))}
+                <div className="relative z-10 h-full flex flex-col justify-end text-white">
+                  <div className="bg-primary/20 backdrop-blur-sm w-12 h-12 rounded-xl flex items-center justify-center mb-4 border border-white/10">
+                    <span className="material-symbols-outlined text-white">dashboard</span>
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">Gelişmiş Proje Yönetimi</h3>
+                  <p className="text-gray-200">Projelerinizi Kanban, Liste veya Takvim görünümünde yönetin. Sürükle-bırak ile iş akışınızı hızlandırın.</p>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 1 * 0.15, duration: 0.6 }}
+              whileHover={{ y: -8, boxShadow: "0 20px 50px -10px rgba(0,0,0,0.15)" }}
+            >
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl relative overflow-hidden h-full min-h-[400px]">
+                <div className="absolute inset-0">
+                  <Image
+                    src="/feature-agile.png"
+                    alt="Agile Workflow"
+                    fill
+                    className="object-cover opacity-90 hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                </div>
+                <div className="relative z-10 h-full flex flex-col justify-end text-white">
+                  <div className="bg-secondary/20 backdrop-blur-sm w-12 h-12 rounded-xl flex items-center justify-center mb-4 border border-white/10">
+                    <span className="material-symbols-outlined text-white">bolt</span>
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">Agile ve Scrum Uyumlu</h3>
+                  <p className="text-gray-200">Sprint planlaması, backlog yönetimi ve burndown grafikleri ile çevik süreçlerinizi mükemmelleştirin.</p>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 2 * 0.15, duration: 0.6 }}
+              whileHover={{ y: -8, boxShadow: "0 20px 50px -10px rgba(0,0,0,0.15)" }}
+            >
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl relative overflow-hidden h-full min-h-[400px]">
+                <div className="absolute inset-0">
+                  <Image
+                    src="/feature-creative.png"
+                    alt="Creative Collaboration"
+                    fill
+                    className="object-cover opacity-90 hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                </div>
+                <div className="relative z-10 h-full flex flex-col justify-end text-white">
+                  <div className="bg-purple-500/20 backdrop-blur-sm w-12 h-12 rounded-xl flex items-center justify-center mb-4 border border-white/10">
+                    <span className="material-symbols-outlined text-white">brush</span>
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">Yaratıcı İşbirliği</h3>
+                  <p className="text-gray-200">Tasarım dosyaları üzerinde doğrudan yorum yapın, versiyonları takip edin ve onay süreçlerini hızlandırın.</p>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </motion.section>
 

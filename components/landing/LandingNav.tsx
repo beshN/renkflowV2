@@ -4,9 +4,19 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 
 export default function LandingNav() {
   const pathname = usePathname();
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
   
   const navItems = [
     { label: 'Özellikler', href: '/features' },
@@ -20,10 +30,14 @@ export default function LandingNav() {
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6 }}
-      className="py-6 flex justify-between items-center sticky top-0 z-50 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md container mx-auto px-4 sm:px-6 lg:px-8"
+      className={`py-4 flex justify-between items-center sticky top-0 z-50 transition-all duration-300 ${
+        isScrolled 
+          ? 'bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-sm py-3' 
+          : 'bg-transparent py-6'
+      } container mx-auto px-4 sm:px-6 lg:px-8 max-w-full`}
     >
       <Link href="/" className="flex items-center space-x-3">
-        <div className="relative w-32 h-10">
+        <div className="relative w-48 h-12 transition-all duration-300">
           <Image
             src="/logo.png"
             alt="Renkflow"
@@ -34,7 +48,11 @@ export default function LandingNav() {
         </div>
       </Link>
 
-      <nav className="hidden md:flex items-center space-x-8 bg-white/70 dark:bg-slate-800/50 px-6 py-2 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
+      <nav className={`hidden md:flex items-center space-x-8 px-6 py-2 rounded-full transition-all duration-300 ${
+        isScrolled 
+          ? 'bg-transparent border-transparent' 
+          : 'bg-white/70 dark:bg-slate-800/50 border border-gray-200 dark:border-gray-700 shadow-sm'
+      }`}>
         {navItems.map((item) => (
           <Link
             key={item.href}

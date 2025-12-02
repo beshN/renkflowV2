@@ -57,7 +57,7 @@ export default function Contact() {
                       <p className="text-sm font-medium leading-normal pb-2">Adınız Soyadınız</p>
                       <input
                         type="text"
-                        className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-12 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 text-base font-normal leading-normal transition-shadow"
+                        className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-md text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-12 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 text-base font-normal leading-normal transition-shadow"
                         placeholder="Adınızı ve soyadınızı girin"
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
@@ -68,7 +68,7 @@ export default function Contact() {
                       <p className="text-sm font-medium leading-normal pb-2">E-posta Adresiniz</p>
                       <input
                         type="email"
-                        className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-12 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 text-base font-normal leading-normal transition-shadow"
+                        className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-md text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-12 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 text-base font-normal leading-normal transition-shadow"
                         placeholder="ornek@eposta.com"
                         value={formData.email}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
@@ -79,7 +79,7 @@ export default function Contact() {
                   <label className="flex flex-col min-w-40 flex-1">
                     <p className="text-sm font-medium leading-normal pb-2">Konu</p>
                     <select 
-                      className="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-12 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 text-base font-normal leading-normal transition-shadow"
+                      className="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-md text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-12 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 text-base font-normal leading-normal transition-shadow"
                       value={formData.subject}
                       onChange={(e) => setFormData({...formData, subject: e.target.value})}
                     >
@@ -93,7 +93,7 @@ export default function Contact() {
                   <label className="flex flex-col min-w-40 flex-1">
                     <p className="text-sm font-medium leading-normal pb-2">Mesajınız</p>
                     <textarea
-                      className="form-textarea flex w-full min-w-0 flex-1 resize-y overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark min-h-36 placeholder:text-slate-400 dark:placeholder:text-slate-500 p-4 text-base font-normal leading-normal transition-shadow"
+                      className="form-textarea flex w-full min-w-0 flex-1 resize-y overflow-hidden rounded-md text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark min-h-36 placeholder:text-slate-400 dark:placeholder:text-slate-500 p-4 text-base font-normal leading-normal transition-shadow"
                       placeholder="Mesajınızı buraya yazın..."
                       value={formData.message}
                       onChange={(e) => setFormData({...formData, message: e.target.value})}
@@ -104,7 +104,7 @@ export default function Contact() {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     type="submit"
-                    className="flex min-w-[120px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] w-full md:w-auto hover:opacity-90 transition-opacity"
+                    className="flex min-w-[120px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-md h-12 px-6 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] w-full md:w-auto hover:opacity-90 transition-opacity"
                   >
                     Mesajı Gönder
                   </motion.button>
