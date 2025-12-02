@@ -10,32 +10,40 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: "#0f172a", // Slate 900
-        secondary: "#0ea5e9", // Sky 500
-        "background-light": "#f8fafc", // Slate 50
-        "background-dark": "#020617", // Slate 950
-        "card-light": "#ffffff",
-        "card-dark": "#0f172a", // Slate 900
-        "text-light": "#334155", // Slate 700
-        "text-dark": "#e2e8f0", // Slate 200
-        "subtle-light": "#64748b", // Slate 500
-        "subtle-dark": "#94a3b8", // Slate 400
-        "border-light": "#e2e8f0", // Slate 200
-        "border-dark": "#1e293b", // Slate 800
-        "surface-light": "#ffffff",
-        "surface-dark": "#1e293b", // Slate 800
+        primary: {
+          DEFAULT: "#4361EE",
+          light: "#F0F3FF"
+        },
+        secondary: "#3A0CA3",
+        "background-light": "#FFFFFF",
+        "background-dark": "#0B1120",
+        "text-light": "#1E293B",
+        "text-dark": "#E2E8F0",
+        "subtle-light": "#64748B",
+        "subtle-dark": "#94A3B8",
+        "border-light": "#E2E8F0",
+        "border-dark": "#1E293B",
+        "card-light": "#FFFFFF",
+        "card-dark": "#0F172A",
+        "surface-light": "#FFFFFF",
+        "surface-dark": "#1A2A30",
+        "text-muted-light": "#6B7280",
+        "text-muted-dark": "#9CA3AF",
       },
       fontFamily: {
-        display: ["Inter", "sans-serif"]
+        display: ["var(--font-sora)", "Sora", "sans-serif"]
       },
       borderRadius: {
-        DEFAULT: "0.25rem",
-        lg: "0.5rem",
-        xl: "0.75rem",
+        DEFAULT: "0.5rem",
+        lg: "0.75rem",
+        xl: "1rem",
+        '2xl': "1.5rem",
+        '3xl': "2rem",
         full: "9999px"
       },
       boxShadow: {
         subtle: '0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -2px rgba(0, 0, 0, 0.03)',
+        'glow-primary': '0 0 40px 0px rgba(67, 97, 238, 0.3)',
       },
       transitionTimingFunction: {
         'smooth': 'cubic-bezier(0.4, 0, 0.2, 1)',
