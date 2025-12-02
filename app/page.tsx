@@ -248,7 +248,7 @@ export default function Home() {
             İşletmenizi Dönüştürmeye Hazır mısınız?
           </h2>
           <p className="text-lg text-slate-300 mb-10 max-w-2xl mx-auto">
-            Yüzlerce modern fabrika, büyüme ve verimlilik için RenkFlow'a güveniyor. Bugün ücretsiz demoyu deneyin.
+            Yüzlerce modern fabrika, büyüme ve verimlilik için RenkFlow&apos;a güveniyor. Bugün ücretsiz demoyu deneyin.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link href="/login">
