@@ -4,9 +4,78 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/auth/supabase';
+import { toast } from 'sonner';
 
 export default function AuthLogin() {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const router = useRouter();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      toast.success('Giriş başarılı! Yönlendiriliyorsunuz...');
+      router.push('/orders'); // Redirect to dashboard
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast.error(error.message === 'Invalid login credentials' 
+        ? 'Hatalı e-posta veya şifre.' 
+        : 'Giriş yapılırken bir hata oluştu.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast.error('Lütfen önce e-posta adresinizi girin.');
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/update-password`,
+      });
+
+      if (error) throw error;
+
+      toast.success('Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.');
+    } catch (error: any) {
+      console.error('Reset password error:', error);
+      toast.error('Şifre sıfırlama e-postası gönderilemedi.');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const handleSocialLogin = async (provider: 'google' | 'azure') => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      toast.error(`${provider} ile giriş yapılamadı.`);
+    }
+  };
 
   return (
     <div className="min-h-screen grid md:grid-cols-2">
@@ -59,15 +128,18 @@ export default function AuthLogin() {
           </div>
 
           {/* Form */}
-          <form className="flex flex-col gap-4">
+          <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <label className="flex flex-col min-w-40 flex-1">
               <p className="text-sm font-medium leading-normal pb-2 text-text-light dark:text-text-dark">
                 E-posta Adresi
               </p>
               <input
                 type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="input-professional"
                 placeholder="ornek@eposta.com"
+                required
               />
             </label>
 
@@ -78,8 +150,11 @@ export default function AuthLogin() {
               <div className="flex w-full flex-1 items-stretch rounded-md">
                 <input
                   type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="input-professional rounded-r-none border-r-0"
                   placeholder="Şifrenizi girin"
+                  required
                 />
                 <button
                   type="button"
@@ -94,22 +169,29 @@ export default function AuthLogin() {
             </label>
 
             <div className="flex items-center justify-end">
-              <Link href="#" className="text-sm font-medium text-primary hover:underline">
-                Şifremi Unuttum?
-              </Link>
+              <button 
+                type="button" 
+                onClick={handleForgotPassword}
+                disabled={isResetting}
+                className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
+              >
+                {isResetting ? 'Gönderiliyor...' : 'Şifremi Unuttum?'}
+              </button>
             </div>
 
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
-              className="flex min-w-[84px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-md h-12 px-5 bg-primary text-white text-base font-bold leading-normal tracking-wide hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-background-dark transition-colors duration-200"
+              disabled={isLoading}
+              className="flex min-w-[84px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-md h-12 px-5 bg-primary text-white text-base font-bold leading-normal tracking-wide hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-background-dark transition-colors duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              <span className="truncate">Giriş Yap</span>
+              <span className="truncate">{isLoading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}</span>
             </motion.button>
 
             <button
               type="button"
+              onClick={() => handleSocialLogin('google')}
               className="flex min-w-[84px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-md h-12 px-5 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark text-text-light dark:text-text-dark text-base font-bold leading-normal tracking-wide hover:bg-background-light dark:hover:bg-background-dark transition-colors duration-200"
             >
               <div className="flex items-center gap-3">

@@ -4,9 +4,61 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/auth/supabase';
+import { toast } from 'sonner';
 
 export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        toast.success('Hesabınız oluşturuldu! Lütfen e-posta adresinizi doğrulayın.');
+        // Optionally redirect to login or a "check email" page
+        setTimeout(() => router.push('/auth/login'), 2000);
+      }
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      toast.error(error.message || 'Kayıt olurken bir hata oluştu.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSocialLogin = async (provider: 'google' | 'azure') => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      toast.error(`${provider} ile giriş yapılamadı.`);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark relative font-display">
@@ -38,7 +90,10 @@ export default function Signup() {
 
             {/* Social Login */}
             <div className="space-y-3 mb-6">
-              <button className="w-full h-12 border border-border-light dark:border-border-dark rounded-md font-bold flex items-center justify-center gap-3 hover:bg-white dark:hover:bg-surface-dark transition-colors bg-surface-light dark:bg-surface-dark shadow-sm">
+              <button 
+                onClick={() => handleSocialLogin('google')}
+                className="w-full h-12 border border-border-light dark:border-border-dark rounded-md font-bold flex items-center justify-center gap-3 hover:bg-white dark:hover:bg-surface-dark transition-colors bg-surface-light dark:bg-surface-dark shadow-sm"
+              >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -48,7 +103,10 @@ export default function Signup() {
                 Google ile devam et
               </button>
               
-              <button className="w-full h-12 border border-border-light dark:border-border-dark rounded-md font-bold flex items-center justify-center gap-3 hover:bg-white dark:hover:bg-surface-dark transition-colors bg-surface-light dark:bg-surface-dark shadow-sm">
+              <button 
+                onClick={() => handleSocialLogin('azure')}
+                className="w-full h-12 border border-border-light dark:border-border-dark rounded-md font-bold flex items-center justify-center gap-3 hover:bg-white dark:hover:bg-surface-dark transition-colors bg-surface-light dark:bg-surface-dark shadow-sm"
+              >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 21 21">
                   <path d="M1 1h9v9H1V1zm10 0h9v9h-9V1zM1 11h9v9H1v-9zm10 11h9v-9h-9v9z"/>
                 </svg>
@@ -64,13 +122,16 @@ export default function Signup() {
             </div>
 
             {/* Form */}
-            <form className="space-y-4">
+            <form onSubmit={handleSignup} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Ad Soyad</label>
                 <input
                   type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   className="input-professional"
                   placeholder="Adınızı ve soyadınızı girin"
+                  required
                 />
               </div>
 
@@ -78,8 +139,11 @@ export default function Signup() {
                 <label className="block text-sm font-medium mb-2">E-posta Adresi</label>
                 <input
                   type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="input-professional"
                   placeholder="ornek@eposta.com"
+                  required
                 />
               </div>
 
@@ -88,8 +152,12 @@ export default function Signup() {
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="input-professional pr-10"
                     placeholder="En az 8 karakter"
+                    required
+                    minLength={8}
                   />
                   <button
                     type="button"
@@ -105,9 +173,10 @@ export default function Signup() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 type="submit"
-                className="w-full bg-primary text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity mt-2 shadow-sm"
+                disabled={isLoading}
+                className="w-full bg-primary text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity mt-2 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Hesap Oluştur
+                {isLoading ? 'Hesap Oluşturuluyor...' : 'Hesap Oluştur'}
               </motion.button>
             </form>
 
@@ -133,6 +202,7 @@ export default function Signup() {
                 alt="Renkflow"
                 fill
                 className="object-contain"
+                priority
               />
             </div>
           </div>

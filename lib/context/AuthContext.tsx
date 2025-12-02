@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/auth/supabase';
+import { User as SupabaseUser } from '@supabase/supabase-js';
 
 export interface User {
   id: string;
@@ -14,77 +16,73 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  loginAsAdmin: (password: string) => boolean;
-  loginAsWorker: () => void;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const ADMIN_USER: User = {
-  id: 'admin',
-  name: 'Yönetici',
-  email: 'admin@renkflow.com',
-  role: 'admin',
-  avatar: 'https://ui-avatars.com/api/?name=Yonetici&background=0D8ABC&color=fff',
-};
-
-const WORKER_USER: User = {
-  id: 'worker',
-  name: 'Fabrika Personeli',
-  email: 'uretim@renkflow.com',
-  role: 'worker',
-  avatar: 'https://ui-avatars.com/api/?name=Uretim&background=10B981&color=fff',
-};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Default Staff User
-  const STAFF_USER: User = {
-    id: 'staff',
-    name: 'Personel',
-    email: 'staff@renkflow.com',
-    role: 'worker',
-    avatar: 'https://ui-avatars.com/api/?name=Personel&background=10B981&color=fff',
-  };
-
   useEffect(() => {
-    // Check localStorage for persisted session
-    const storedRole = localStorage.getItem('renkflow-role');
-    
-    if (storedRole === 'admin') {
-      setUser(ADMIN_USER);
-    } else {
-      // Default to Staff if not explicitly admin
-      setUser(STAFF_USER);
-    }
-    setIsLoading(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Check active session
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          mapSupabaseUser(session.user);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Session check error:', error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        mapSupabaseUser(session.user);
+      } else {
+        setUser(null);
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const loginAsAdmin = (password: string): boolean => {
-    if (password === '123') {
-      setUser(ADMIN_USER);
-      localStorage.setItem('renkflow-role', 'admin');
-      return true;
-    }
-    return false;
+  const mapSupabaseUser = (supabaseUser: SupabaseUser) => {
+    // In a real app, you might fetch additional profile data from a 'profiles' table here
+    // For now, we'll derive basic info from the auth user
+    const newUser: User = {
+      id: supabaseUser.id,
+      name: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0] || 'Kullanıcı',
+      email: supabaseUser.email || '',
+      role: 'admin', // Defaulting to admin for now as requested for the dashboard access
+      avatar: supabaseUser.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${supabaseUser.email}&background=random`,
+    };
+    setUser(newUser);
+    setIsLoading(false);
   };
 
-  // Removed loginAsWorker as it's now the default state
-
-  const logout = () => {
-    // "Logout" now means reverting to Staff mode
-    setUser(STAFF_USER);
-    localStorage.removeItem('renkflow-role');
-    router.push('/orders'); // Redirect to main view
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    router.push('/auth/login');
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, loginAsAdmin, loginAsWorker: () => {}, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, logout }}>
       {children}
     </AuthContext.Provider>
   );
