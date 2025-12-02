@@ -57,7 +57,7 @@ export default function Contact() {
                       <p className="text-sm font-medium leading-normal pb-2">Adınız Soyadınız</p>
                       <input
                         type="text"
-                        className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-md text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-12 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 text-base font-normal leading-normal transition-shadow"
+                        className="input-professional h-12"
                         placeholder="Adınızı ve soyadınızı girin"
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
@@ -68,7 +68,7 @@ export default function Contact() {
                       <p className="text-sm font-medium leading-normal pb-2">E-posta Adresiniz</p>
                       <input
                         type="email"
-                        className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-md text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-12 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 text-base font-normal leading-normal transition-shadow"
+                        className="input-professional h-12"
                         placeholder="ornek@eposta.com"
                         value={formData.email}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}

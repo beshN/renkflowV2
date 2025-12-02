@@ -69,7 +69,7 @@ export default function Signup() {
                 <label className="block text-sm font-medium mb-2">Ad Soyad</label>
                 <input
                   type="text"
-                  className="w-full px-4 py-3 rounded-md border border-border-light dark:border-border-dark bg-white dark:bg-background-dark focus:ring-2 focus:ring-primary/50 focus:border-primary transition-shadow text-text-light dark:text-text-dark"
+                  className="input-professional"
                   placeholder="Adınızı ve soyadınızı girin"
                 />
               </div>
@@ -78,7 +78,7 @@ export default function Signup() {
                 <label className="block text-sm font-medium mb-2">E-posta Adresi</label>
                 <input
                   type="email"
-                  className="w-full px-4 py-3 rounded-md border border-border-light dark:border-border-dark bg-white dark:bg-background-dark focus:ring-2 focus:ring-primary/50 focus:border-primary transition-shadow text-text-light dark:text-text-dark"
+                  className="input-professional"
                   placeholder="ornek@eposta.com"
                 />
               </div>
@@ -88,7 +88,7 @@ export default function Signup() {
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
-                    className="w-full px-4 py-3 rounded-md border border-border-light dark:border-border-dark bg-white dark:bg-background-dark focus:ring-2 focus:ring-primary/50 focus:border-primary transition-shadow pr-10 text-text-light dark:text-text-dark"
+                    className="input-professional pr-10"
                     placeholder="En az 8 karakter"
                   />
                   <button

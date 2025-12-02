@@ -66,7 +66,7 @@ export default function AuthLogin() {
               </p>
               <input
                 type="email"
-                className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-md bg-surface-light dark:bg-surface-dark text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark focus:border-primary h-12 placeholder:text-text-muted-light dark:placeholder:text-text-muted-dark px-4 text-base font-normal leading-normal"
+                className="input-professional"
                 placeholder="ornek@eposta.com"
               />
             </label>
@@ -78,15 +78,15 @@ export default function AuthLogin() {
               <div className="flex w-full flex-1 items-stretch rounded-md">
                 <input
                   type={showPassword ? "text" : "password"}
-                  className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-l-md bg-surface-light dark:bg-surface-dark text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark focus:border-primary h-12 placeholder:text-text-muted-light dark:placeholder:text-text-muted-dark px-4 border-r-0 pr-2 text-base font-normal leading-normal"
+                  className="input-professional rounded-r-none border-r-0"
                   placeholder="Şifrenizi girin"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="flex items-center justify-center rounded-r-md border border-l-0 border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark pr-4"
+                  className="flex items-center justify-center rounded-r-md border border-l-0 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800/50 pr-4 pl-2 text-gray-500 dark:text-gray-400"
                 >
-                  <span className="material-symbols-outlined cursor-pointer text-text-muted-light dark:text-text-muted-dark">
+                  <span className="material-symbols-outlined cursor-pointer text-xl">
                     {showPassword ? 'visibility' : 'visibility_off'}
                   </span>
                 </button>
