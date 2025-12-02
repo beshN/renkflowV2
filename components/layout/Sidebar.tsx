@@ -99,7 +99,7 @@ export function Sidebar() {
 
             {/* Expanded State - Full Logo */}
             <div className="absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out opacity-0 scale-90 -translate-x-4 group-hover:opacity-100 group-hover:scale-100 group-hover:translate-x-0">
-              <div className="relative h-24 w-64">
+              <div className="relative h-32 w-56">
                 <Image
                   src="/logo.png"
                   alt="RenkFlow"
