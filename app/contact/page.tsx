@@ -17,11 +17,10 @@ export default function Contact() {
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
-      <div className="px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-6xl">
-          <header className="flex items-center justify-between whitespace-nowrap border-b border-border-light dark:border-border-dark px-4 sm:px-6 lg:px-10 py-3 my-5 bg-card-light dark:bg-card-dark rounded-xl shadow-sm">
-            <LandingNav />
-          </header>
+      <LandingNav />
+      
+      <div className="pt-20">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
 
           <motion.main
             initial={{ opacity: 0 }}
