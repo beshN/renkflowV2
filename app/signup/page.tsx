@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/auth/supabase';
 import { toast } from 'sonner';
+import LandingNav from '@/components/landing/LandingNav';
 
 export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
@@ -34,8 +35,7 @@ export default function Signup() {
       if (error) throw error;
 
       if (data.user) {
-        toast.success('Hesabınız oluşturuldu! Lütfen e-posta adresinizi doğrulayın.');
-        // Optionally redirect to login or a "check email" page
+        toast.success('Hesabınız başarıyla oluşturuldu! Giriş sayfasına yönlendiriliyorsunuz...');
         setTimeout(() => router.push('/auth/login'), 2000);
       }
     } catch (error: any) {
@@ -49,32 +49,24 @@ export default function Signup() {
   const handleSocialLogin = async (provider: 'google' | 'azure') => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider,
+        provider: provider,
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
+
       if (error) throw error;
     } catch (error: any) {
-      toast.error(`${provider} ile giriş yapılamadı.`);
+      console.error('Social login error:', error);
+      toast.error(error.message || 'Sosyal medya girişi başarısız oldu.');
     }
   };
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark relative font-display">
-      {/* Top Right Login Link */}
-      <div className="absolute top-6 right-6 z-10">
-        <div className="flex items-center gap-4">
-          <p className="text-sm text-subtle-light dark:text-subtle-dark hidden sm:block">Zaten bir hesabın var mı?</p>
-          <Link href="/auth/login">
-            <button className="px-4 py-2 border border-border-light dark:border-border-dark rounded-md font-bold text-sm hover:bg-white dark:hover:bg-surface-dark transition-colors shadow-sm">
-              Giriş Yap
-            </button>
-          </Link>
-        </div>
-      </div>
-
-      <div className="flex min-h-screen w-full">
+      <LandingNav />
+      
+      <div className="flex min-h-screen w-full pt-20">
         {/* Left - Form */}
         <motion.div
           initial={{ opacity: 0, x: -50 }}
@@ -185,6 +177,15 @@ export default function Signup() {
               <Link href="/terms" className="underline hover:text-primary">Kullanıcı Sözleşmesini</Link> ve{' '}
               <Link href="/privacy" className="underline hover:text-primary">Gizlilik Politikasını</Link> kabul etmiş olursunuz.
             </p>
+            
+            <div className="mt-6 text-center">
+              <p className="text-sm text-subtle-light dark:text-subtle-dark">
+                Zaten bir hesabın var mı?{' '}
+                <Link href="/auth/login" className="text-primary font-bold hover:underline">
+                  Giriş Yap
+                </Link>
+              </p>
+            </div>
           </div>
         </motion.div>
 
