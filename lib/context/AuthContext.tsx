@@ -13,6 +13,8 @@ export interface User {
   avatar?: string;
   tenantId?: string;
   tenantName?: string;
+  brandColor?: string;
+  logoUrl?: string;
 }
 
 interface AuthContextType {
@@ -37,7 +39,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role,
           tenant_id,
           tenants (
-            name
+            name,
+            brand_color,
+            logo_url
           )
         `)
         .eq('user_id', userId)
@@ -49,10 +53,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const tenantData = data.tenants as any;
+      const tenant = Array.isArray(tenantData) ? tenantData[0] : tenantData;
+
       return {
         role: data.role as 'owner' | 'admin' | 'member',
         tenantId: data.tenant_id,
-        tenantName: Array.isArray(tenantData) ? tenantData[0]?.name : tenantData?.name
+        tenantName: tenant?.name,
+        brandColor: tenant?.brand_color,
+        logoUrl: tenant?.logo_url
       };
     } catch (error) {
       console.error('Error in fetchTenantInfo:', error);
@@ -70,7 +78,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       role: tenantInfo?.role || 'member',
       avatar: supabaseUser.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${supabaseUser.email}&background=random`,
       tenantId: tenantInfo?.tenantId,
-      tenantName: tenantInfo?.tenantName
+      tenantName: tenantInfo?.tenantName,
+      brandColor: tenantInfo?.brandColor,
+      logoUrl: tenantInfo?.logoUrl
     };
     setUser(newUser);
     setIsLoading(false);

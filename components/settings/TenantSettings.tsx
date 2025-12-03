@@ -14,7 +14,8 @@ export function TenantSettings() {
 
   const [formData, setFormData] = useState({
     name: user?.tenantName || '',
-    brandColor: '#6366f1', // Default
+    brandColor: user?.brandColor || '#6366f1',
+    logoUrl: user?.logoUrl || '',
   });
 
   const handleUpdateTenant = async (e: React.FormEvent) => {
@@ -28,6 +29,7 @@ export function TenantSettings() {
         .update({
           name: formData.name,
           brand_color: formData.brandColor,
+          logo_url: formData.logoUrl,
         })
         .eq('id', user.tenantId);
 
@@ -113,6 +115,18 @@ export function TenantSettings() {
               className="input-professional w-full"
               placeholder="Firma Adı"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Logo URL</label>
+            <input
+              type="url"
+              value={formData.logoUrl}
+              onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+              className="input-professional w-full"
+              placeholder="https://ornek.com/logo.png"
+            />
+            <p className="text-xs text-gray-500 mt-1">Logo görselinin direkt bağlantısını girin.</p>
           </div>
           
           <div>

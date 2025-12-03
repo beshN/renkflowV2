@@ -1,3 +1,4 @@
+import { ThemeApplier } from '@/components/layout/ThemeApplier'
 import { Analytics } from "@vercel/analytics/react"
 import './globals.css'
 import type { Metadata } from 'next'
@@ -35,7 +36,10 @@ export default function RootLayout({
         <meta httpEquiv="Expires" content="0" />
       </head>
       <body className={`${sora.variable} font-display antialiased`}>
-        <Providers>{children}</Providers>
+        <Providers>
+          <ThemeApplier />
+          {children}
+        </Providers>
         <Analytics />
       </body>
     </html>
