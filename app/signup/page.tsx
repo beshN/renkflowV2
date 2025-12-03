@@ -16,11 +16,19 @@ export default function Signup() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [formErrors, setFormErrors] = useState<{
+    name?: string;
+    companyName?: string;
+    email?: string;
+    password?: string;
+    general?: string;
+  }>({});
   const router = useRouter();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setFormErrors({}); // Clear previous errors
 
     try {
       // 1. Sign up user
@@ -34,7 +42,17 @@ export default function Signup() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Map error to appropriate field
+        if (error.message.includes('Password')) {
+          setFormErrors({ password: error.message });
+        } else if (error.message.includes('Email') || error.message.includes('email')) {
+          setFormErrors({ email: error.message });
+        } else {
+          setFormErrors({ general: error.message });
+        }
+        return;
+      }
 
       if (data.user) {
         // 2. Create Tenant
@@ -68,7 +86,7 @@ export default function Signup() {
       }
     } catch (error: any) {
       console.error('Signup error:', error);
-      toast.error(error.message || 'Kayıt olurken bir hata oluştu.');
+      setFormErrors({ general: error.message || 'Kayıt olurken bir hata oluştu.' });
     } finally {
       setIsLoading(false);
     }
@@ -148,11 +166,17 @@ export default function Signup() {
                 <input
                   type="text"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="input-professional"
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
+                  }}
+                  className={`input-professional ${formErrors.name ? 'border-red-500' : ''}`}
                   placeholder="Adınız Soyadınız"
                   required
                 />
+                {formErrors.name && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
+                )}
               </div>
 
               <div>
@@ -160,11 +184,17 @@ export default function Signup() {
                 <input
                   type="text"
                   value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  className="input-professional"
+                  onChange={(e) => {
+                    setCompanyName(e.target.value);
+                    if (formErrors.companyName) setFormErrors({ ...formErrors, companyName: undefined });
+                  }}
+                  className={`input-professional ${formErrors.companyName ? 'border-red-500' : ''}`}
                   placeholder="Şirketinizin Adı"
                   required
                 />
+                {formErrors.companyName && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.companyName}</p>
+                )}
               </div>
 
               <div>
@@ -172,11 +202,17 @@ export default function Signup() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input-professional"
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (formErrors.email) setFormErrors({ ...formErrors, email: undefined });
+                  }}
+                  className={`input-professional ${formErrors.email ? 'border-red-500' : ''}`}
                   placeholder="ornek@eposta.com"
                   required
                 />
+                {formErrors.email && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>
+                )}
               </div>
 
               <div>
@@ -185,11 +221,14 @@ export default function Signup() {
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="input-professional pr-10"
-                    placeholder="En az 8 karakter"
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (formErrors.password) setFormErrors({ ...formErrors, password: undefined });
+                    }}
+                    className={`input-professional pr-10 ${formErrors.password ? 'border-red-500' : ''}`}
+                    placeholder="En az 6 karakter"
                     required
-                    minLength={8}
+                    minLength={6}
                   />
                   <button
                     type="button"
@@ -199,7 +238,16 @@ export default function Signup() {
                     <span className="material-symbols-outlined">{showPassword ? 'visibility' : 'visibility_off'}</span>
                   </button>
                 </div>
+                {formErrors.password && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.password}</p>
+                )}
               </div>
+
+              {formErrors.general && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+                  <p className="text-sm text-red-600 dark:text-red-400">{formErrors.general}</p>
+                </div>
+              )}
 
               <motion.button
                 whileHover={{ scale: 1.02 }}

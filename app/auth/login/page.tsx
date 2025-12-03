@@ -15,11 +15,17 @@ export default function AuthLogin() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [formErrors, setFormErrors] = useState<{
+    email?: string;
+    password?: string;
+    general?: string;
+  }>({});
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setFormErrors({}); // Clear previous errors
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -27,15 +33,25 @@ export default function AuthLogin() {
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Map error to appropriate field
+        if (error.message.includes('Invalid login credentials')) {
+          setFormErrors({ 
+            password: 'E-posta veya şifre hatalı.' 
+          });
+        } else if (error.message.includes('Email')) {
+          setFormErrors({ email: error.message });
+        } else {
+          setFormErrors({ general: error.message });
+        }
+        return;
+      }
 
       toast.success('Giriş başarılı! Yönlendiriliyorsunuz...');
       router.push('/orders'); // Redirect to dashboard
     } catch (error: any) {
       console.error('Login error:', error);
-      toast.error(error.message === 'Invalid login credentials' 
-        ? 'Hatalı e-posta veya şifre.' 
-        : 'Giriş yapılırken bir hata oluştu.');
+      setFormErrors({ general: 'Giriş yapılırken bir hata oluştu.' });
     } finally {
       setIsLoading(false);
     }
@@ -43,21 +59,25 @@ export default function AuthLogin() {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      toast.error('Lütfen önce e-posta adresinizi girin.');
+      setFormErrors({ email: 'Lütfen önce e-posta adresinizi girin.' });
       return;
     }
 
     setIsResetting(true);
+    setFormErrors({});
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/update-password`,
       });
 
-      if (error) throw error;
+      if (error) {
+        setFormErrors({ email: error.message || 'Şifre sıfırlama işlemi başarısız oldu.' });
+        return;
+      }
       toast.success('Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.');
     } catch (error: any) {
       console.error('Reset password error:', error);
-      toast.error(error.message || 'Şifre sıfırlama işlemi başarısız oldu.');
+      setFormErrors({ email: error.message || 'Şifre sıfırlama işlemi başarısız oldu.' });
     } finally {
       setIsResetting(false);
     }
@@ -149,11 +169,17 @@ export default function AuthLogin() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input-professional"
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (formErrors.email) setFormErrors({ ...formErrors, email: undefined });
+                  }}
+                  className={`input-professional ${formErrors.email ? 'border-red-500' : ''}`}
                   placeholder="ornek@eposta.com"
                   required
                 />
+                {formErrors.email && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>
+                )}
               </div>
 
               <div>
@@ -162,8 +188,11 @@ export default function AuthLogin() {
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="input-professional pr-10"
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (formErrors.password) setFormErrors({ ...formErrors, password: undefined });
+                    }}
+                    className={`input-professional pr-10 ${formErrors.password ? 'border-red-500' : ''}`}
                     placeholder="Şifreniz"
                     required
                   />
@@ -175,6 +204,9 @@ export default function AuthLogin() {
                     <span className="material-symbols-outlined">{showPassword ? 'visibility' : 'visibility_off'}</span>
                   </button>
                 </div>
+                {formErrors.password && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.password}</p>
+                )}
                 <div className="flex justify-end mt-2">
                   <button
                     type="button"
@@ -186,6 +218,12 @@ export default function AuthLogin() {
                   </button>
                 </div>
               </div>
+
+              {formErrors.general && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+                  <p className="text-sm text-red-600 dark:text-red-400">{formErrors.general}</p>
+                </div>
+              )}
 
               <motion.button
                 whileHover={{ scale: 1.02 }}
