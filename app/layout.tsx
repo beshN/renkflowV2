@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/react"
 import './globals.css'
 import type { Metadata } from 'next'
 import { Sora } from 'next/font/google'
@@ -35,6 +36,7 @@ export default function RootLayout({
       </head>
       <body className={`${sora.variable} font-display antialiased`}>
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   )
