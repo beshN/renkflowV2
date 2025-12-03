@@ -34,15 +34,37 @@ export default function AuthLogin() {
       });
 
       if (error) {
-        // Map error to appropriate field
-        if (error.message.includes('Invalid login credentials')) {
+        // Detailed error mapping
+        const errorMessage = error.message.toLowerCase();
+        
+        if (errorMessage.includes('email not confirmed')) {
           setFormErrors({ 
-            password: 'E-posta veya şifre hatalı.' 
+            email: 'E-posta adresiniz doğrulanmamış. Lütfen gelen kutunuzu kontrol edin veya yeni doğrulama e-postası gönderin.',
           });
-        } else if (error.message.includes('Email')) {
-          setFormErrors({ email: error.message });
+        } else if (errorMessage.includes('invalid login credentials') || errorMessage.includes('invalid password')) {
+          setFormErrors({ 
+            password: 'E-posta veya şifre hatalı. Lütfen tekrar deneyin.' 
+          });
+        } else if (errorMessage.includes('user not found') || errorMessage.includes('no user found')) {
+          setFormErrors({ 
+            email: 'Bu e-posta adresi kayıtlı değil. Lütfen kayıt olun.' 
+          });
+        } else if (errorMessage.includes('email') && errorMessage.includes('invalid')) {
+          setFormErrors({ 
+            email: 'Geçersiz e-posta adresi formatı.' 
+          });
+        } else if (errorMessage.includes('too many requests') || errorMessage.includes('rate limit')) {
+          setFormErrors({ 
+            general: 'Çok fazla deneme yaptınız. Lütfen birkaç dakika sonra tekrar deneyin.' 
+          });
+        } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+          setFormErrors({ 
+            general: 'Bağlantı hatası. İnternet bağlantınızı kontrol edin.' 
+          });
         } else {
-          setFormErrors({ general: error.message });
+          setFormErrors({ 
+            general: error.message || 'Giriş yapılırken bir hata oluştu.' 
+          });
         }
         return;
       }
@@ -51,9 +73,29 @@ export default function AuthLogin() {
       router.push('/orders'); // Redirect to dashboard
     } catch (error: any) {
       console.error('Login error:', error);
-      setFormErrors({ general: 'Giriş yapılırken bir hata oluştu.' });
+      setFormErrors({ general: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.' });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!email) {
+      toast.error('Lütfen önce e-posta adresinizi girin.');
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+      });
+
+      if (error) throw error;
+      toast.success('Doğrulama e-postası tekrar gönderildi. Lütfen gelen kutunuzu kontrol edin.');
+    } catch (error: any) {
+      console.error('Resend error:', error);
+      toast.error('E-posta gönderilemedi. Lütfen daha sonra tekrar deneyin.');
     }
   };
 
@@ -178,7 +220,18 @@ export default function AuthLogin() {
                   required
                 />
                 {formErrors.email && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>
+                  <div className="mt-1">
+                    <p className="text-sm text-red-500">{formErrors.email}</p>
+                    {formErrors.email.includes('doğrulanmamış') && (
+                      <button
+                        type="button"
+                        onClick={handleResendConfirmation}
+                        className="mt-2 text-xs text-primary hover:underline font-medium"
+                      >
+                        Doğrulama e-postasını tekrar gönder
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
 
