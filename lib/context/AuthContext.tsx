@@ -9,7 +9,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'owner' | 'admin' | 'member';
+  role: 'owner' | 'admin' | 'member' | 'office' | 'worker';
   avatar?: string;
   tenantId?: string;
   tenantName?: string;
@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const tenant = Array.isArray(tenantData) ? tenantData[0] : tenantData;
 
       return {
-        role: data.role as 'owner' | 'admin' | 'member',
+        role: data.role as 'owner' | 'admin' | 'member' | 'office' | 'worker',
         tenantId: data.tenant_id,
         tenantName: tenant?.name,
         brandColor: tenant?.brand_color,

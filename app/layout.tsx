@@ -1,5 +1,6 @@
 import { ThemeApplier } from '@/components/layout/ThemeApplier'
 import { Analytics } from "@vercel/analytics/react"
+import { Toaster } from 'sonner'
 import './globals.css'
 import type { Metadata } from 'next'
 import { Sora } from 'next/font/google'
@@ -39,6 +40,7 @@ export default function RootLayout({
         <Providers>
           <ThemeApplier />
           {children}
+          <Toaster position="top-center" richColors />
         </Providers>
         <Analytics />
       </body>

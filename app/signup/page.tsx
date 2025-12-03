@@ -51,13 +51,13 @@ export default function Signup() {
           console.error('Tenant creation error:', tenantError);
           // Continue anyway, user is created
         } else if (tenant) {
-          // 3. Link User as Owner
+          // 3. Link User as Owner (Kurucu)
           const { error: memberError } = await supabase
             .from('tenant_members')
             .insert({
               tenant_id: tenant.id,
               user_id: data.user.id,
-              role: 'owner'
+              role: 'owner' // Explicitly set as owner
             });
             
           if (memberError) console.error('Member linking error:', memberError);
