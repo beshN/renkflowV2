@@ -12,6 +12,7 @@ import LandingNav from '@/components/landing/LandingNav';
 export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -22,6 +23,7 @@ export default function Signup() {
     setIsLoading(true);
 
     try {
+      // 1. Sign up user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -35,7 +37,33 @@ export default function Signup() {
       if (error) throw error;
 
       if (data.user) {
-        toast.success('Hesabınız başarıyla oluşturuldu! Giriş sayfasına yönlendiriliyorsunuz...');
+        // 2. Create Tenant
+        const { data: tenant, error: tenantError } = await supabase
+          .from('tenants')
+          .insert({
+            name: companyName || `${name}'in Şirketi`,
+            slug: (companyName || name).toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now(),
+          })
+          .select()
+          .single();
+
+        if (tenantError) {
+          console.error('Tenant creation error:', tenantError);
+          // Continue anyway, user is created
+        } else if (tenant) {
+          // 3. Link User as Owner
+          const { error: memberError } = await supabase
+            .from('tenant_members')
+            .insert({
+              tenant_id: tenant.id,
+              user_id: data.user.id,
+              role: 'owner'
+            });
+            
+          if (memberError) console.error('Member linking error:', memberError);
+        }
+
+        toast.success('Hesabınız ve şirketiniz başarıyla oluşturuldu! Giriş sayfasına yönlendiriliyorsunuz...');
         setTimeout(() => router.push('/auth/login'), 2000);
       }
     } catch (error: any) {
@@ -122,7 +150,19 @@ export default function Signup() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="input-professional"
-                  placeholder="Adınızı ve soyadınızı girin"
+                  placeholder="Adınız Soyadınız"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Şirket Adı</label>
+                <input
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  className="input-professional"
+                  placeholder="Şirketinizin Adı"
                   required
                 />
               </div>

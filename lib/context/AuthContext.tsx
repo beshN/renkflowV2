@@ -9,14 +9,17 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'worker';
+  role: 'owner' | 'admin' | 'member';
   avatar?: string;
+  tenantId?: string;
+  tenantName?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,30 +29,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    // Check active session
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          mapSupabaseUser(session.user);
-        } else {
-          setUser(null);
-        }
-      } catch (error) {
-        console.error('Session check error:', error);
-        setUser(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchTenantInfo = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('tenant_members')
+        .select(`
+          role,
+          tenant_id,
+          tenants (
+            name
+          )
+        `)
+        .eq('user_id', userId)
+        .single();
 
+      if (error) {
+        console.error('Error fetching tenant info:', error);
+        return null;
+      }
+
+      const tenantData = data.tenants as any;
+      return {
+        role: data.role as 'owner' | 'admin' | 'member',
+        tenantId: data.tenant_id,
+        tenantName: Array.isArray(tenantData) ? tenantData[0]?.name : tenantData?.name
+      };
+    } catch (error) {
+      console.error('Error in fetchTenantInfo:', error);
+      return null;
+    }
+  };
+
+  const mapSupabaseUser = async (supabaseUser: SupabaseUser) => {
+    const tenantInfo = await fetchTenantInfo(supabaseUser.id);
+    
+    const newUser: User = {
+      id: supabaseUser.id,
+      name: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0] || 'Kullanıcı',
+      email: supabaseUser.email || '',
+      role: tenantInfo?.role || 'member',
+      avatar: supabaseUser.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${supabaseUser.email}&background=random`,
+      tenantId: tenantInfo?.tenantId,
+      tenantName: tenantInfo?.tenantName
+    };
+    setUser(newUser);
+    setIsLoading(false);
+  };
+
+  const checkSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await mapSupabaseUser(session.user);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error('Session check error:', error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     checkSession();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        mapSupabaseUser(session.user);
+        await mapSupabaseUser(session.user);
       } else {
         setUser(null);
         setIsLoading(false);
@@ -61,20 +109,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const mapSupabaseUser = (supabaseUser: SupabaseUser) => {
-    // In a real app, you might fetch additional profile data from a 'profiles' table here
-    // For now, we'll derive basic info from the auth user
-    const newUser: User = {
-      id: supabaseUser.id,
-      name: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0] || 'Kullanıcı',
-      email: supabaseUser.email || '',
-      role: 'admin', // Defaulting to admin for now as requested for the dashboard access
-      avatar: supabaseUser.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${supabaseUser.email}&background=random`,
-    };
-    setUser(newUser);
-    setIsLoading(false);
-  };
-
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -82,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, logout, refreshUser: checkSession }}>
       {children}
     </AuthContext.Provider>
   );

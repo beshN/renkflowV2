@@ -27,6 +27,8 @@ async function pushSchema() {
 
     console.log('🔄 Pushing schema to Neon database...');
     
+    console.log('🔄 Pushing schema to Neon database...');
+    
     // Split schema into individual statements
     // Remove comments and split by semicolon
     const statements = schema

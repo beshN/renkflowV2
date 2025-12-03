@@ -6,6 +6,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { SettingsForm } from '@/components/forms/SettingsForm';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { useAuth } from '@/lib/context/AuthContext';
+import { TenantSettings } from '@/components/settings/TenantSettings';
 
 export default function SettingsPage() {
   const { user, isLoading } = useAuth();
@@ -29,6 +30,10 @@ export default function SettingsPage() {
       <main className="flex-1 p-8">
         <div className="max-w-3xl">
           <SettingsForm initialSettings={settings} onSave={updateSettings} />
+          
+          <div className="my-8 border-t border-gray-200 dark:border-gray-700" />
+          
+          <TenantSettings />
         </div>
       </main>
     </div>
