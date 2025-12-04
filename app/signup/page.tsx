@@ -54,23 +54,13 @@ export default function SignupPage() {
         return;
       }
 
-      toast.success('Hesabınız oluşturuldu! Giriş yapılıyor...');
+      toast.success('Hesabınız oluşturuldu! Lütfen e-posta adresinizi kontrol edin.');
+      toast.info('Gelen kutunuzdaki doğrulama linkine tıklayın.');
       
-      // Auto login after signup
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      });
-
-      if (result?.ok) {
-        router.push('/orders');
-        router.refresh();
-      } else {
-        // If auto-login fails, redirect to login page
-        toast.info('Lütfen giriş yapın.');
+      // Redirect to login after 2 seconds
+      setTimeout(() => {
         router.push('/auth/login');
-      }
+      }, 2000);
     } catch (error: any) {
       console.error('Signup error:', error);
       setFormErrors({ general: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.' });

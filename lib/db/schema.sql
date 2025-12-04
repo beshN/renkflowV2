@@ -37,6 +37,7 @@ create table public.users (
   email_verified timestamp with time zone,
   image text,
   password text, -- For credentials auth (hashed)
+  verification_token text, -- For email verification
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );

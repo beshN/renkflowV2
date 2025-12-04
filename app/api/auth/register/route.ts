@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
+import { sendVerificationEmail } from '@/lib/email';
 
 const sql = neon(process.env.DATABASE_URL!);
 
@@ -38,10 +39,13 @@ export async function POST(request: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
+    // Generate verification token
+    const verificationToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
+
+    // Create user (email NOT verified yet)
     const users = await sql`
-      INSERT INTO users (name, email, password, email_verified)
-      VALUES (${name}, ${email}, ${hashedPassword}, NOW())
+      INSERT INTO users (name, email, password, verification_token)
+      VALUES (${name}, ${email}, ${hashedPassword}, ${verificationToken})
       RETURNING id
     `;
 
@@ -70,8 +74,22 @@ export async function POST(request: Request) {
       `;
     }
 
+    // Send verification email
+    const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/verify?token=${verificationToken}`;
+    
+    try {
+      await sendVerificationEmail(email, name, verificationUrl);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      // Don't fail the signup if email fails (user created successfully)
+    }
+
     return NextResponse.json(
-      { success: true, userId },
+      { 
+        success: true, 
+        userId,
+        message: 'Hesabınız oluşturuldu! Lütfen e-posta adresinizi kontrol edin.' 
+      },
       { status: 201 }
     );
   } catch (error: any) {
