@@ -16,7 +16,7 @@ drop table if exists public.customers cascade;
 drop table if exists public.tenant_members cascade;
 drop table if exists public.invitations cascade;
 drop table if exists public.tenants cascade;
-drop table if exists public.profiles cascade;
+drop table if exists public.users cascade;
 
 -- 1. Tenants (Organizations)
 create table public.tenants (
@@ -29,12 +29,14 @@ create table public.tenants (
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- 2. Profiles (Users)
-create table public.profiles (
-  id uuid primary key, -- Matches Supabase Auth ID
+-- 2. Users (Auth.js compatible)
+create table public.users (
+  id uuid default uuid_generate_v4() primary key,
+  name text,
   email text unique not null,
-  full_name text,
-  avatar_url text,
+  email_verified timestamp with time zone,
+  image text,
+  password text, -- For credentials auth (hashed)
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -43,7 +45,7 @@ create table public.profiles (
 create table public.tenant_members (
   id uuid default uuid_generate_v4() primary key,
   tenant_id uuid references public.tenants(id) on delete cascade,
-  user_id uuid references public.profiles(id) on delete cascade,
+  user_id uuid references public.users(id) on delete cascade,
   role text check (role in ('owner', 'admin', 'office', 'worker', 'member')) default 'member',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   unique(tenant_id, user_id)
@@ -115,13 +117,13 @@ create table public.documents (
   file_path text not null,
   file_type text,
   size integer,
-  uploaded_by uuid references public.profiles(id),
+  uploaded_by uuid references public.users(id),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- Enable RLS
 alter table public.tenants enable row level security;
-alter table public.profiles enable row level security;
+alter table public.users enable row level security;
 alter table public.tenant_members enable row level security;
 alter table public.invitations enable row level security;
 alter table public.customers enable row level security;
@@ -131,13 +133,13 @@ alter table public.documents enable row level security;
 
 -- RLS Policies
 
--- Profiles: Users can see their own profile
+-- Users: Users can see their own profile
 create policy "Users can view own profile"
-  on public.profiles for select
+  on public.users for select
   using (auth.uid() = id);
 
 create policy "Users can update own profile"
-  on public.profiles for update
+  on public.users for update
   using (auth.uid() = id);
 
 -- Tenants: Users can view tenants they are members of

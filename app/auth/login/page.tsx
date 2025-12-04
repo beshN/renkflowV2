@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/auth/supabase';
+import { signIn } from 'next-auth/react';
 import { toast } from 'sonner';
 import LandingNav from '@/components/landing/LandingNav';
 
@@ -14,7 +14,6 @@ export default function AuthLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
   const [formErrors, setFormErrors] = useState<{
     email?: string;
     password?: string;
@@ -25,52 +24,41 @@ export default function AuthLogin() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setFormErrors({}); // Clear previous errors
+    setFormErrors({});
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const result = await signIn('credentials', {
         email,
         password,
+        redirect: false,
       });
 
-      if (error) {
-        // Detailed error mapping
-        const errorMessage = error.message.toLowerCase();
+      if (result?.error) {
+        const errorMessage = result.error.toLowerCase();
         
-        if (errorMessage.includes('email not confirmed')) {
+        if (errorMessage.includes('doğrulanmamış') || errorMessage.includes('not confirmed')) {
           setFormErrors({ 
-            email: 'E-posta adresiniz doğrulanmamış. Lütfen gelen kutunuzu kontrol edin veya yeni doğrulama e-postası gönderin.',
+            email: 'E-posta adresiniz doğrulanmamış. Lütfen gelen kutunuzu kontrol edin.',
           });
-        } else if (errorMessage.includes('invalid login credentials') || errorMessage.includes('invalid password')) {
+        } else if (errorMessage.includes('hatalı') || errorMessage.includes('invalid')) {
           setFormErrors({ 
             password: 'E-posta veya şifre hatalı. Lütfen tekrar deneyin.' 
           });
-        } else if (errorMessage.includes('user not found') || errorMessage.includes('no user found')) {
+        } else if (errorMessage.includes('bulunamadı') || errorMessage.includes('not found')) {
           setFormErrors({ 
             email: 'Bu e-posta adresi kayıtlı değil. Lütfen kayıt olun.' 
           });
-        } else if (errorMessage.includes('email') && errorMessage.includes('invalid')) {
-          setFormErrors({ 
-            email: 'Geçersiz e-posta adresi formatı.' 
-          });
-        } else if (errorMessage.includes('too many requests') || errorMessage.includes('rate limit')) {
-          setFormErrors({ 
-            general: 'Çok fazla deneme yaptınız. Lütfen birkaç dakika sonra tekrar deneyin.' 
-          });
-        } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-          setFormErrors({ 
-            general: 'Bağlantı hatası. İnternet bağlantınızı kontrol edin.' 
-          });
         } else {
-          setFormErrors({ 
-            general: error.message || 'Giriş yapılırken bir hata oluştu.' 
-          });
+          setFormErrors({ general: result.error });
         }
         return;
       }
 
-      toast.success('Giriş başarılı! Yönlendiriliyorsunuz...');
-      router.push('/orders'); // Redirect to dashboard
+      if (result?.ok) {
+        toast.success('Giriş başarılı! Yönlendiriliyorsunuz...');
+        router.push('/orders');
+        router.refresh();
+      }
     } catch (error: any) {
       console.error('Login error:', error);
       setFormErrors({ general: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.' });
@@ -79,65 +67,12 @@ export default function AuthLogin() {
     }
   };
 
-  const handleResendConfirmation = async () => {
-    if (!email) {
-      toast.error('Lütfen önce e-posta adresinizi girin.');
-      return;
-    }
-
+  const handleSocialLogin = async (provider: 'google' | 'azure-ad') => {
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email,
-      });
-
-      if (error) throw error;
-      toast.success('Doğrulama e-postası tekrar gönderildi. Lütfen gelen kutunuzu kontrol edin.');
-    } catch (error: any) {
-      console.error('Resend error:', error);
-      toast.error('E-posta gönderilemedi. Lütfen daha sonra tekrar deneyin.');
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setFormErrors({ email: 'Lütfen önce e-posta adresinizi girin.' });
-      return;
-    }
-
-    setIsResetting(true);
-    setFormErrors({});
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
-      });
-
-      if (error) {
-        setFormErrors({ email: error.message || 'Şifre sıfırlama işlemi başarısız oldu.' });
-        return;
-      }
-      toast.success('Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.');
-    } catch (error: any) {
-      console.error('Reset password error:', error);
-      setFormErrors({ email: error.message || 'Şifre sıfırlama işlemi başarısız oldu.' });
-    } finally {
-      setIsResetting(false);
-    }
-  };
-
-  const handleSocialLogin = async (provider: 'google' | 'azure') => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: provider,
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-
-      if (error) throw error;
+      await signIn(provider, { callbackUrl: '/orders' });
     } catch (error: any) {
       console.error('Social login error:', error);
-      toast.error(error.message || 'Sosyal medya girişi başarısız oldu.');
+      toast.error('Sosyal medya girişi başarısız oldu.');
     }
   };
 
@@ -187,7 +122,7 @@ export default function AuthLogin() {
               </button>
               
               <button 
-                onClick={() => handleSocialLogin('azure')}
+                onClick={() => handleSocialLogin('azure-ad')}
                 className="w-full h-12 border border-border-light dark:border-border-dark rounded-md font-bold flex items-center justify-center gap-3 hover:bg-white dark:hover:bg-surface-dark transition-colors bg-surface-light dark:bg-surface-dark shadow-sm"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 21 21">
@@ -220,18 +155,7 @@ export default function AuthLogin() {
                   required
                 />
                 {formErrors.email && (
-                  <div className="mt-1">
-                    <p className="text-sm text-red-500">{formErrors.email}</p>
-                    {formErrors.email.includes('doğrulanmamış') && (
-                      <button
-                        type="button"
-                        onClick={handleResendConfirmation}
-                        className="mt-2 text-xs text-primary hover:underline font-medium"
-                      >
-                        Doğrulama e-postasını tekrar gönder
-                      </button>
-                    )}
-                  </div>
+                  <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>
                 )}
               </div>
 
@@ -261,14 +185,12 @@ export default function AuthLogin() {
                   <p className="mt-1 text-sm text-red-500">{formErrors.password}</p>
                 )}
                 <div className="flex justify-end mt-2">
-                  <button
-                    type="button"
-                    onClick={handleForgotPassword}
+                  <Link
+                    href="/auth/forgot-password"
                     className="text-xs text-primary hover:underline font-medium"
-                    disabled={isResetting}
                   >
-                    {isResetting ? 'Gönderiliyor...' : 'Şifremi unuttum'}
-                  </button>
+                    Şifremi unuttum
+                  </Link>
                 </div>
               </div>
 
@@ -300,23 +222,28 @@ export default function AuthLogin() {
           </div>
         </motion.div>
 
-        {/* Right - Visual */}
+        {/* Right - Hero Image */}
         <motion.div
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6 }}
-          className="hidden lg:flex flex-1 items-center justify-center bg-primary/10 dark:bg-primary/20 p-8"
+          className="hidden lg:flex lg:flex-[0.5] items-center justify-center p-8 bg-gradient-to-br from-primary/10 to-primary/5"
         >
-          <div className="w-full max-w-lg aspect-square rounded-2xl bg-gradient-to-br from-primary/70 to-primary/40 dark:from-primary/50 dark:to-primary/30 p-8 shadow-2xl flex items-center justify-center">
-            <div className="relative w-48 h-16">
+          <div className="max-w-md text-center">
+            <div className="mb-8">
               <Image
-                src="/logo.png"
-                alt="Renkflow"
-                fill
-                className="object-contain"
+                src="/logo-full.png"
+                alt="Renkflow Logo"
+                width={300}
+                height={80}
+                className="mx-auto"
                 priority
               />
             </div>
+            <h2 className="text-2xl font-black mb-4">İş Akışınızı Dönüştürün</h2>
+            <p className="text-subtle-light dark:text-subtle-dark">
+              Renkflow ile siparişlerinizi, müşterilerinizi ve iş süreçlerinizi tek bir platformda yönetin.
+            </p>
           </div>
         </motion.div>
       </div>

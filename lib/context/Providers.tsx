@@ -1,20 +1,24 @@
-import { ReactNode } from 'react';
-import { ThemeProvider } from './ThemeContext';
-import { ToastProvider } from './ToastContext';
+'use client';
+
+import { SessionProvider } from 'next-auth/react';
 import { AuthProvider } from './AuthContext';
-import { OrdersProvider } from './OrdersContext';
 import { SettingsProvider } from './SettingsContext';
+import { OrdersProvider } from './OrdersContext';
+import { ToastProvider } from './ToastContext';
+import { ReactNode } from 'react';
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <ThemeProvider>
-      <ToastProvider>
-        <AuthProvider>
-          <SettingsProvider>
-            <OrdersProvider>{children}</OrdersProvider>
-          </SettingsProvider>
-        </AuthProvider>
-      </ToastProvider>
-    </ThemeProvider>
+    <SessionProvider>
+      <AuthProvider>
+        <SettingsProvider>
+          <OrdersProvider>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </OrdersProvider>
+        </SettingsProvider>
+      </AuthProvider>
+    </SessionProvider>
   );
 }

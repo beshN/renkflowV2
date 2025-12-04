@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/lib/context/AuthContext';
-import { supabase } from '@/lib/auth/supabase';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
@@ -25,16 +24,18 @@ export function TenantSettings() {
 
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from('tenants')
-        .update({
+      const response = await fetch('/api/tenant/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: user.tenantId,
           name: formData.name,
-          brand_color: formData.brandColor,
-          logo_url: formData.logoUrl,
-        })
-        .eq('id', user.tenantId);
+          brandColor: formData.brandColor,
+          logoUrl: formData.logoUrl,
+        }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Update failed');
 
       toast.success('Firma bilgileri güncellendi');
       await refreshUser();
@@ -48,43 +49,40 @@ export function TenantSettings() {
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.tenantId || !inviteEmail) return;
+    if (!user?.tenantId || !inviteEmail || !inviteRole) return;
 
     setIsInviting(true);
     try {
-      // 1. Create invitation record
-      const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
-      const { error } = await supabase
-        .from('invitations')
-        .insert({
-          tenant_id: user.tenantId,
+      const response = await fetch('/api/tenant/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: user.tenantId,
           email: inviteEmail,
-          token,
-          role: inviteRole || 'member',
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
-        });
+          role: inviteRole,
+        }),
+      });
 
-      if (error) {
-        if (error.code === '23505') { // Unique violation
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.error?.includes('zaten')) {
           toast.error('Bu e-posta adresi için zaten bekleyen bir davet var.');
         } else {
-          throw error;
+          throw new Error(data.error || 'Invite failed');
         }
         return;
       }
 
-      // 2. In a real app, send email here via API route
-      // For now, we'll just show the magic link in a toast for demo purposes
-      const inviteLink = `${window.location.origin}/auth/accept-invite?token=${token}`;
-      console.log('Invite Link:', inviteLink);
+      toast.success('Davet oluşturuldu! Link konsola yazıldı.');
+      console.log('Invite Link:', data.inviteLink);
       
-      toast.success('Davet oluşturuldu! (Link konsola yazıldı - Demo)');
-      
-      // Copy to clipboard for convenience
-      navigator.clipboard.writeText(inviteLink);
+      // Copy to clipboard
+      navigator.clipboard.writeText(data.inviteLink);
       toast.info('Davet linki panoya kopyalandı');
 
       setInviteEmail('');
+      setInviteRole(null);
     } catch (error: any) {
       console.error('Error inviting user:', error);
       toast.error('Davet gönderilemedi');

@@ -1,15 +1,15 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import Link from 'next/link';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/auth/supabase';
+import { signIn } from 'next-auth/react';
 import { toast } from 'sonner';
 import LandingNav from '@/components/landing/LandingNav';
 
-export default function Signup() {
+export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -28,90 +28,82 @@ export default function Signup() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setFormErrors({}); // Clear previous errors
+    setFormErrors({});
 
     try {
-      // 1. Sign up user
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: name,
-          },
-        },
+      // Call API route to create user
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          companyName: companyName || `${name}'in Şirketi`,
+        }),
       });
 
-      if (error) {
-        // Map error to appropriate field
-        if (error.message.includes('Password')) {
-          setFormErrors({ password: error.message });
-        } else if (error.message.includes('Email') || error.message.includes('email')) {
-          setFormErrors({ email: error.message });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.field) {
+          setFormErrors({ [data.field]: data.error });
         } else {
-          setFormErrors({ general: error.message });
+          setFormErrors({ general: data.error || 'Kayıt olurken bir hata oluştu.' });
         }
         return;
       }
 
-      if (data.user) {
-        // 2. Create Tenant
-        const { data: tenant, error: tenantError } = await supabase
-          .from('tenants')
-          .insert({
-            name: companyName || `${name}'in Şirketi`,
-            slug: (companyName || name).toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now(),
-          })
-          .select()
-          .single();
+      toast.success('Hesabınız oluşturuldu! Giriş yapılıyor...');
+      
+      // Auto login after signup
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
 
-        if (tenantError) {
-          console.error('Tenant creation error:', tenantError);
-          // Continue anyway, user is created
-        } else if (tenant) {
-          // 3. Link User as Owner (Kurucu)
-          const { error: memberError } = await supabase
-            .from('tenant_members')
-            .insert({
-              tenant_id: tenant.id,
-              user_id: data.user.id,
-              role: 'owner' // Explicitly set as owner
-            });
-            
-          if (memberError) console.error('Member linking error:', memberError);
-        }
-
-        toast.success('Hesabınız ve şirketiniz başarıyla oluşturuldu! Giriş sayfasına yönlendiriliyorsunuz...');
-        setTimeout(() => router.push('/auth/login'), 2000);
+      if (result?.ok) {
+        router.push('/orders');
+        router.refresh();
+      } else {
+        // If auto-login fails, redirect to login page
+        toast.info('Lütfen giriş yapın.');
+        router.push('/auth/login');
       }
     } catch (error: any) {
       console.error('Signup error:', error);
-      setFormErrors({ general: error.message || 'Kayıt olurken bir hata oluştu.' });
+      setFormErrors({ general: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.' });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSocialLogin = async (provider: 'google' | 'azure') => {
+  const handleSocialSignup = async (provider: 'google' | 'azure-ad') => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: provider,
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-
-      if (error) throw error;
+      await signIn(provider, { callbackUrl: '/orders' });
     } catch (error: any) {
-      console.error('Social login error:', error);
-      toast.error(error.message || 'Sosyal medya girişi başarısız oldu.');
+      console.error('Social signup error:', error);
+      toast.error('Sosyal medya kaydı başarısız oldu.');
     }
   };
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark relative font-display">
       <LandingNav />
-      
+
+      {/* Top Right Login Link */}
+      <div className="absolute top-6 right-6 z-10 hidden sm:block">
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-subtle-light dark:text-subtle-dark">Zaten hesabınız var mı?</p>
+          <Link href="/auth/login">
+            <button className="px-4 py-2 border border-border-light dark:border-border-dark rounded-md font-bold text-sm hover:bg-white dark:hover:bg-surface-dark transition-colors shadow-sm">
+              Giriş Yap
+            </button>
+          </Link>
+        </div>
+      </div>
+
       <div className="flex min-h-screen w-full pt-20">
         {/* Left - Form */}
         <motion.div
@@ -122,14 +114,14 @@ export default function Signup() {
         >
           <div className="w-full max-w-md">
             <header className="text-center lg:text-left mb-6">
-              <h1 className="text-3xl sm:text-4xl font-black mb-3">Renkflow&apos;a Hoş Geldiniz</h1>
-              <p className="text-subtle-light dark:text-subtle-dark">Projelerinizi organize etmeye başlayın</p>
+              <h1 className="text-3xl sm:text-4xl font-black mb-3">Hesap Oluşturun</h1>
+              <p className="text-subtle-light dark:text-subtle-dark">Hemen başlayın, ücretsiz</p>
             </header>
 
-            {/* Social Login */}
+            {/* Social Signup */}
             <div className="space-y-3 mb-6">
               <button 
-                onClick={() => handleSocialLogin('google')}
+                onClick={() => handleSocialSignup('google')}
                 className="w-full h-12 border border-border-light dark:border-border-dark rounded-md font-bold flex items-center justify-center gap-3 hover:bg-white dark:hover:bg-surface-dark transition-colors bg-surface-light dark:bg-surface-dark shadow-sm"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -142,7 +134,7 @@ export default function Signup() {
               </button>
               
               <button 
-                onClick={() => handleSocialLogin('azure')}
+                onClick={() => handleSocialSignup('azure-ad')}
                 className="w-full h-12 border border-border-light dark:border-border-dark rounded-md font-bold flex items-center justify-center gap-3 hover:bg-white dark:hover:bg-surface-dark transition-colors bg-surface-light dark:bg-surface-dark shadow-sm"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 21 21">
@@ -254,21 +246,15 @@ export default function Signup() {
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-primary text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity mt-2 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full bg-primary text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Hesap Oluşturuluyor...' : 'Hesap Oluştur'}
               </motion.button>
             </form>
 
-            <p className="text-xs text-center text-subtle-light dark:text-subtle-dark mt-4">
-              Kaydol&apos;a tıklayarak Renkflow&apos;un{' '}
-              <Link href="/terms" className="underline hover:text-primary">Kullanıcı Sözleşmesini</Link> ve{' '}
-              <Link href="/privacy" className="underline hover:text-primary">Gizlilik Politikasını</Link> kabul etmiş olursunuz.
-            </p>
-            
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center sm:hidden">
               <p className="text-sm text-subtle-light dark:text-subtle-dark">
-                Zaten bir hesabın var mı?{' '}
+                Zaten hesabınız var mı?{' '}
                 <Link href="/auth/login" className="text-primary font-bold hover:underline">
                   Giriş Yap
                 </Link>
@@ -277,23 +263,28 @@ export default function Signup() {
           </div>
         </motion.div>
 
-        {/* Right - Visual */}
+        {/* Right - Hero Image */}
         <motion.div
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6 }}
-          className="hidden lg:flex flex-1 items-center justify-center bg-primary/10 dark:bg-primary/20 p-8"
+          className="hidden lg:flex lg:flex-[0.5] items-center justify-center p-8 bg-gradient-to-br from-primary/10 to-primary/5"
         >
-          <div className="w-full max-w-lg aspect-square rounded-2xl bg-gradient-to-br from-primary/70 to-primary/40 dark:from-primary/50 dark:to-primary/30 p-8 shadow-2xl flex items-center justify-center">
-            <div className="relative w-48 h-16">
+          <div className="max-w-md text-center">
+            <div className="mb-8">
               <Image
-                src="/logo.png"
-                alt="Renkflow"
-                fill
-                className="object-contain"
+                src="/logo-full.png"
+                alt="Renkflow Logo"
+                width={300}
+                height={80}
+                className="mx-auto"
                 priority
               />
             </div>
+            <h2 className="text-2xl font-black mb-4">Hemen Başlayın</h2>
+            <p className="text-subtle-light dark:text-subtle-dark">
+              Renkflow ile dakikalar içinde işletmenizi dijitalleştirin ve verimliliğinizi artırın.
+            </p>
           </div>
         </motion.div>
       </div>

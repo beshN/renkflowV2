@@ -8,21 +8,27 @@ import { useAuth } from '@/lib/context/AuthContext';
 import { useSettings } from '@/lib/context/SettingsContext';
 import { useState, useEffect } from 'react';
 import { useSpotlight } from '@/components/ui/SpotlightEffect';
+import { signOut } from 'next-auth/react';
 
-const menuItems = [
-  { icon: 'dashboard', label: 'Dashboard', href: '/dashboard', adminOnly: true },
+const navItems = [
+  { icon: 'home', label: 'Ana Sayfa', href: '/dashboard', adminOnly: false },
   { icon: 'receipt_long', label: 'Siparişler', href: '/orders', adminOnly: false },
-  { icon: 'add_circle', label: 'Yeni Sipariş', href: '/new-order', adminOnly: true },
-  { icon: 'settings', label: 'Ayarlar', href: '/settings', adminOnly: true },
-  // Special item for Logout/Switch Account
+  { icon: 'add_circle', label: 'Yeni Sipariş', href: '/new-order', adminOnly: false },
+  { icon: 'settings', label: 'Ayarlar', href: '/settings', adminOnly: false },
   { icon: 'logout', label: 'Çıkış Yap', href: '#', adminOnly: false, action: 'logout' },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { settings } = useSettings();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  // Filter nav items based on user role
+  const filteredNavItems = navItems.filter(item => {
+    if (!item.adminOnly) return true;
+    return user?.role === 'owner' || user?.role === 'admin';
+  });
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -32,7 +38,7 @@ export function Sidebar() {
   const handleItemClick = (item: any, e: React.MouseEvent) => {
     if (item.action === 'logout') {
       e.preventDefault();
-      logout();
+      signOut({ callbackUrl: '/auth/login' });
     }
   };
 
@@ -99,7 +105,7 @@ export function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex flex-col gap-1 p-3 flex-1 overflow-y-auto overflow-x-hidden">
-          {menuItems.map((item) => (
+          {filteredNavItems.map((item) => (
             <SidebarItem
               key={item.href}
               item={item}
