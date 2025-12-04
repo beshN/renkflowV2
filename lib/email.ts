@@ -20,7 +20,7 @@ export async function sendVerificationEmail(
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Renkflow <onboarding@yourdomain.com>',
+      from: 'Renkflow <onboarding@resend.dev>',
       to: [email],
       subject: 'Renkflow Hesabınızı Doğrulayın',
       react: VerifyEmail({ userName, verificationUrl }),
@@ -52,7 +52,7 @@ export async function sendPasswordResetEmail(
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Renkflow <noreply@yourdomain.com>',
+      from: 'Renkflow <noreply@resend.dev>',
       to: [email],
       subject: 'Şifre Sıfırlama Talebi',
       html: `
