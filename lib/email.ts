@@ -1,13 +1,23 @@
 import { Resend } from 'resend';
 import VerifyEmail from '@/emails/verify-email';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Resend only if API key is available
+const resend = process.env.RESEND_API_KEY 
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 export async function sendVerificationEmail(
   email: string,
   userName: string,
   verificationUrl: string
 ) {
+  // If Resend is not configured, log warning and return
+  if (!resend) {
+    console.warn('Resend is not configured. Verification email not sent.');
+    console.log('Verification URL:', verificationUrl);
+    return { success: false, error: 'Email service not configured' };
+  }
+
   try {
     const { data, error } = await resend.emails.send({
       from: 'Renkflow <onboarding@yourdomain.com>',
@@ -33,6 +43,13 @@ export async function sendPasswordResetEmail(
   userName: string,
   resetUrl: string
 ) {
+  // If Resend is not configured, log warning and return
+  if (!resend) {
+    console.warn('Resend is not configured. Password reset email not sent.');
+    console.log('Reset URL:', resetUrl);
+    return { success: false, error: 'Email service not configured' };
+  }
+
   try {
     const { data, error } = await resend.emails.send({
       from: 'Renkflow <noreply@yourdomain.com>',
