@@ -283,11 +283,27 @@ export default function Home() {
             <p className="mt-4 text-xl text-primary font-semibold">Verimliliği %50&apos;ye Kadar Artırın</p>
           </div>
           <div className="mt-16 bg-primary-light dark:bg-primary/10 p-8 md:p-12 rounded-3xl border border-primary/10 dark:border-primary/20">
-            <div className="relative aspect-[3/1] rounded-xl overflow-hidden bg-gradient-to-r from-primary/20 to-primary/5">
-              {/* Placeholder for workflow diagram */}
-              <div className="absolute inset-0 flex items-center justify-center text-primary/20 text-6xl font-bold">
-                Workflow Diagram
-              </div>
+            {/* Visual Workflow Diagram */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 md:gap-8">
+              {[
+                { icon: 'note_add', label: 'Görev Oluştur', color: 'bg-blue-500' },
+                { icon: 'group_add', label: 'Ekip Ata', color: 'bg-purple-500' },
+                { icon: 'schedule', label: 'Planlama', color: 'bg-orange-500' },
+                { icon: 'engineering', label: 'Üretim', color: 'bg-cyan-500' },
+                { icon: 'check_circle', label: 'Tamamla', color: 'bg-green-500' },
+              ].map((step, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-16 h-16 ${step.color} rounded-2xl flex items-center justify-center shadow-lg`}>
+                      <span className="material-symbols-outlined text-white text-3xl">{step.icon}</span>
+                    </div>
+                    <span className="mt-3 text-sm font-medium text-text-light dark:text-text-dark">{step.label}</span>
+                  </div>
+                  {i < 4 && (
+                    <span className="material-symbols-outlined text-primary/30 text-3xl hidden md:block">arrow_forward</span>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </motion.section>
@@ -324,7 +340,13 @@ export default function Home() {
                   {testimonial.text}
                 </p>
                 <div className="flex items-center mt-auto">
-                  <div className="w-12 h-12 rounded-full bg-gray-300 dark:bg-gray-600 mr-4"></div>
+                  <div className={`w-12 h-12 rounded-full mr-4 flex items-center justify-center text-lg font-bold ${
+                    testimonial.featured 
+                      ? 'bg-white/20 text-white' 
+                      : 'bg-primary/10 text-primary'
+                  }`}>
+                    {testimonial.name.charAt(0)}
+                  </div>
                   <div>
                     <p className={`font-bold ${testimonial.featured ? 'text-white' : 'text-text-light dark:text-text-dark'}`}>{testimonial.name}</p>
                     <p className={`text-sm ${testimonial.featured ? 'opacity-80' : 'text-subtle-light dark:text-subtle-dark'}`}>{testimonial.role}</p>

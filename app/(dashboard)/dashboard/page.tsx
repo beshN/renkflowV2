@@ -95,9 +95,9 @@ export default function DashboardPage() {
     <div className="flex-1 flex flex-col">
       <Navbar title="Dashboard" showSearch={true} />
       
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-4 md:p-8 pt-16 md:pt-8">
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
           {statsData.map((stat) => (
             <StatsCard key={stat.title} {...stat} />
           ))}

@@ -3,17 +3,54 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useInView } from 'react-intersection-observer';
+import { toast } from 'sonner';
 import LandingNav from '@/components/landing/LandingNav';
 import LandingFooter from '@/components/landing/LandingFooter';
+import Link from 'next/link';
 
 export default function Contact() {
   const [formRef, formInView] = useInView({ triggerOnce: true, threshold: 0.1 });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     subject: 'general',
     message: ''
   });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Bir hata oluştu');
+      }
+
+      toast.success('Mesajınız başarıyla gönderildi!');
+      toast.info('En kısa sürede size dönüş yapacağız.');
+      
+      // Reset form
+      setFormData({
+        name: '',
+        email: '',
+        subject: 'general',
+        message: ''
+      });
+    } catch (error: any) {
+      toast.error(error.message || 'Mesaj gönderilirken bir hata oluştu.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
@@ -50,7 +87,7 @@ export default function Contact() {
                 className="lg:col-span-2 bg-card-light dark:bg-card-dark p-8 rounded-xl shadow-sm border border-border-light dark:border-border-dark"
               >
                 <h3 className="text-2xl font-bold mb-6">Bize Mesaj Gönderin</h3>
-                <form className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <label className="flex flex-col min-w-40 flex-1">
                       <p className="text-sm font-medium leading-normal pb-2">Adınız Soyadınız</p>
@@ -60,6 +97,7 @@ export default function Contact() {
                         placeholder="Adınızı ve soyadınızı girin"
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
+                        required
                       />
                     </label>
                     
@@ -71,6 +109,7 @@ export default function Contact() {
                         placeholder="ornek@eposta.com"
                         value={formData.email}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        required
                       />
                     </label>
                   </div>
@@ -82,10 +121,9 @@ export default function Contact() {
                       value={formData.subject}
                       onChange={(e) => setFormData({...formData, subject: e.target.value})}
                     >
-                      <option value="general">Konu seçin</option>
+                      <option value="general">Genel Sorular</option>
                       <option value="technical">Teknik Destek</option>
                       <option value="sales">Satış</option>
-                      <option value="general">Genel Sorular</option>
                     </select>
                   </label>
 
@@ -96,6 +134,7 @@ export default function Contact() {
                       placeholder="Mesajınızı buraya yazın..."
                       value={formData.message}
                       onChange={(e) => setFormData({...formData, message: e.target.value})}
+                      required
                     />
                   </label>
 
@@ -103,9 +142,17 @@ export default function Contact() {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     type="submit"
-                    className="flex min-w-[120px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-md h-12 px-6 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] w-full md:w-auto hover:opacity-90 transition-opacity"
+                    disabled={isSubmitting}
+                    className="flex min-w-[120px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-md h-12 px-6 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] w-full md:w-auto hover:opacity-90 transition-opacity disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    Mesajı Gönder
+                    {isSubmitting ? (
+                      <>
+                        <span className="material-symbols-outlined animate-spin mr-2">progress_activity</span>
+                        Gönderiliyor...
+                      </>
+                    ) : (
+                      'Mesajı Gönder'
+                    )}
                   </motion.button>
                 </form>
               </motion.div>
@@ -135,12 +182,19 @@ export default function Contact() {
                   </div>
 
                   <div className="mt-6 pt-6 border-t border-border-light dark:border-border-dark flex gap-4">
-                    {['twitter', 'linkedin', 'github'].map((social) => (
+                    {[
+                      { icon: 'X', href: 'https://twitter.com/renkflow' },
+                      { icon: 'LinkedIn', href: 'https://linkedin.com/company/renkflow' },
+                      { icon: 'Instagram', href: 'https://instagram.com/renkflow' }
+                    ].map((social) => (
                       <motion.a
-                        key={social}
-                        href="#"
+                        key={social.icon}
+                        href={social.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         whileHover={{ scale: 1.1 }}
                         className="p-2 rounded-full bg-primary/10 dark:bg-primary/20 text-primary hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors"
+                        aria-label={social.icon}
                       >
                         <span className="material-symbols-outlined">share</span>
                       </motion.a>
@@ -153,13 +207,13 @@ export default function Contact() {
                   <p className="text-slate-600 dark:text-slate-300 mb-4">
                     Cevabı Sıkça Sorulan Sorular sayfamızda bulabilirsiniz.
                   </p>
-                  <a 
-                    href="#"
+                  <Link 
+                    href="/faq"
                     className="inline-flex items-center justify-center gap-2 min-w-[84px] cursor-pointer rounded-lg h-11 px-5 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity"
                   >
                     <span>SSS Sayfasına Git</span>
                     <span className="material-symbols-outlined">arrow_forward</span>
-                  </a>
+                  </Link>
                 </div>
               </motion.div>
             </div>

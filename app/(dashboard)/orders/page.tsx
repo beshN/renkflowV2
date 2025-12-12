@@ -69,53 +69,53 @@ export default function OrdersPage() {
         onSearch={setSearchTerm}
       />
       
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-4 md:p-8 pt-16 md:pt-8">
         {/* Header with View Toggle */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-xl font-semibold text-text-light dark:text-text-dark">
+            <h2 className="text-lg md:text-xl font-semibold text-text-light dark:text-text-dark">
               Tüm Siparişler
             </h2>
-            <p className="text-sm text-subtle-light dark:text-subtle-dark mt-1">
+            <p className="text-xs md:text-sm text-subtle-light dark:text-subtle-dark mt-1">
               Toplam {filteredData.length} sipariş
               {searchTerm && ` ("${searchTerm}" için sonuçlar)`}
             </p>
           </div>
 
           {/* View Mode Toggle */}
-          <div className="flex gap-2 bg-card-light dark:bg-card-dark rounded-lg p-1 border border-border-light dark:border-border-dark">
+          <div className="flex gap-1 md:gap-2 bg-card-light dark:bg-card-dark rounded-lg p-1 border border-border-light dark:border-border-dark overflow-x-auto">
             <button
               onClick={() => setViewMode('list')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
                 viewMode === 'list'
                   ? 'bg-primary text-white'
                   : 'text-subtle-light dark:text-subtle-dark hover:text-text-light dark:hover:text-text-dark'
               }`}
             >
-              <span className="material-symbols-outlined text-[18px]">table_rows</span>
-              Liste
+              <span className="material-symbols-outlined text-[16px] md:text-[18px]">table_rows</span>
+              <span className="hidden sm:inline">Liste</span>
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
                 viewMode === 'table'
                   ? 'bg-primary text-white'
                   : 'text-subtle-light dark:text-subtle-dark hover:text-text-light dark:hover:text-text-dark'
               }`}
             >
-              <span className="material-symbols-outlined text-[18px]">view_kanban</span>
-              Tablo
+              <span className="material-symbols-outlined text-[16px] md:text-[18px]">view_kanban</span>
+              <span className="hidden sm:inline">Tablo</span>
             </button>
             <button
               onClick={() => setViewMode('calendar')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
                 viewMode === 'calendar'
                   ? 'bg-primary text-white'
                   : 'text-subtle-light dark:text-subtle-dark hover:text-text-light dark:hover:text-text-dark'
               }`}
             >
-              <span className="material-symbols-outlined text-[18px]">calendar_month</span>
-              Takvim
+              <span className="material-symbols-outlined text-[16px] md:text-[18px]">calendar_month</span>
+              <span className="hidden sm:inline">Takvim</span>
             </button>
           </div>
         </div>

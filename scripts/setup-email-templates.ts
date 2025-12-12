@@ -83,7 +83,7 @@ async function createTemplates() {
         { key: 'VERIFICATION_URL', type: 'string', fallbackValue: '#' },
       ],
     });
-    console.log('✅ Created:', verifyTemplate.id, '\n');
+    console.log('✅ Created:', verifyTemplate.data?.id || 'unknown', '\n');
 
     // 2. Password Reset Template
     console.log('📧 Creating: Password Reset Template');
@@ -157,7 +157,7 @@ async function createTemplates() {
         { key: 'RESET_URL', type: 'string', fallbackValue: '#' },
       ],
     });
-    console.log('✅ Created:', resetTemplate.id, '\n');
+    console.log('✅ Created:', resetTemplate.data?.id || 'unknown', '\n');
 
     // 3. Team Invitation Template
     console.log('📧 Creating: Team Invitation Template');
@@ -236,7 +236,7 @@ async function createTemplates() {
         { key: 'INVITE_URL', type: 'string', fallbackValue: '#' },
       ],
     });
-    console.log('✅ Created:', inviteTemplate.id, '\n');
+    console.log('✅ Created:', inviteTemplate.data?.id || 'unknown', '\n');
 
     // 4. Order Confirmation Template
     console.log('📧 Creating: Order Confirmation Template');
@@ -346,7 +346,7 @@ async function createTemplates() {
         { key: 'ORDER_URL', type: 'string', fallbackValue: '#' },
       ],
     });
-    console.log('✅ Created:', orderTemplate.id, '\n');
+    console.log('✅ Created:', orderTemplate.data?.id || 'unknown', '\n');
 
     // 5. Welcome Email Template
     console.log('📧 Creating: Welcome Email Template');
@@ -442,15 +442,15 @@ async function createTemplates() {
         { key: 'DASHBOARD_URL', type: 'string', fallbackValue: '#' },
       ],
     });
-    console.log('✅ Created:', welcomeTemplate.id, '\n');
+    console.log('✅ Created:', welcomeTemplate.data?.id || 'unknown', '\n');
 
     console.log('🎉 All templates created successfully!\n');
     console.log('Template IDs:');
-    console.log('1. Email Verification:', verifyTemplate.id);
-    console.log('2. Password Reset:', resetTemplate.id);
-    console.log('3. Team Invitation:', inviteTemplate.id);
-    console.log('4. Order Confirmation:', orderTemplate.id);
-    console.log('5. Welcome Email:', welcomeTemplate.id);
+    console.log('1. Email Verification:', verifyTemplate.data?.id);
+    console.log('2. Password Reset:', resetTemplate.data?.id);
+    console.log('3. Team Invitation:', inviteTemplate.data?.id);
+    console.log('4. Order Confirmation:', orderTemplate.data?.id);
+    console.log('5. Welcome Email:', welcomeTemplate.data?.id);
 
   } catch (error) {
     console.error('❌ Error creating templates:', error);
