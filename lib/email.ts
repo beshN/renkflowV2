@@ -1,10 +1,20 @@
 import { Resend } from 'resend';
 import VerifyEmail from '@/emails/verify-email';
+import PasswordResetEmail from '@/emails/password-reset';
 
 // Initialize Resend only if API key is available
 const resend = process.env.RESEND_API_KEY 
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
+
+// Get the from email address - use custom domain in production if configured
+const getFromEmail = () => {
+  const customDomain = process.env.RESEND_FROM_EMAIL;
+  if (customDomain) {
+    return customDomain;
+  }
+  return 'Renkflow <onboarding@resend.dev>';
+};
 
 export async function sendVerificationEmail(
   email: string,
@@ -14,13 +24,12 @@ export async function sendVerificationEmail(
   // If Resend is not configured, log warning and return
   if (!resend) {
     console.warn('Resend is not configured. Verification email not sent.');
-    console.log('Verification URL:', verificationUrl);
     return { success: false, error: 'Email service not configured' };
   }
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Renkflow <onboarding@resend.dev>',
+      from: getFromEmail(),
       to: [email],
       subject: 'Renkflow Hesabınızı Doğrulayın',
       react: VerifyEmail({ userName, verificationUrl }),
@@ -46,26 +55,15 @@ export async function sendPasswordResetEmail(
   // If Resend is not configured, log warning and return
   if (!resend) {
     console.warn('Resend is not configured. Password reset email not sent.');
-    console.log('Reset URL:', resetUrl);
     return { success: false, error: 'Email service not configured' };
   }
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Renkflow <noreply@resend.dev>',
+      from: getFromEmail(),
       to: [email],
-      subject: 'Şifre Sıfırlama Talebi',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Merhaba ${userName},</h2>
-          <p>Şifrenizi sıfırlamak için aşağıdaki linke tıklayın:</p>
-          <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 8px; margin: 16px 0;">
-            Şifremi Sıfırla
-          </a>
-          <p>Bu link 1 saat içinde geçerliliğini yitirecektir.</p>
-          <p style="color: #666; font-size: 12px;">Bu talebi siz yapmadıysanız, bu e-postayı görmezden gelebilirsiniz.</p>
-        </div>
-      `,
+      subject: 'Renkflow Şifre Sıfırlama Talebi',
+      react: PasswordResetEmail({ userName, resetUrl }),
     });
 
     if (error) {
@@ -79,3 +77,4 @@ export async function sendPasswordResetEmail(
     return { success: false, error };
   }
 }
+

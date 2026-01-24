@@ -46,7 +46,8 @@ export default function OrderDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const isAdmin = user?.role === 'admin';
+  // Allow admin and owner to edit/delete orders
+  const canEditDelete = user?.role === 'admin' || user?.role === 'owner';
 
 
   const handleDeleteClick = () => setIsDeleteConfirmOpen(true);
@@ -67,7 +68,8 @@ export default function OrderDetailPage() {
   };
 
   const handleStatusChange = async (status: Order['status']) => {
-    if (!isAdmin) return;
+    // All authenticated users can update status
+    if (!user) return;
     try {
       await updateOrderStatus(order!.id, status);
       showToast('Sipariş durumu güncellendi', 'success');
@@ -147,13 +149,13 @@ export default function OrderDetailPage() {
           </div>
           <div className="flex gap-3">
             <Badge status={order.status}>{statusInfo.label}</Badge>
-            {isAdmin && (
+            {canEditDelete && (
               <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
                 <span className="material-symbols-outlined text-base mr-2">edit</span>
                 Düzenle
               </Button>
             )}
-            {isAdmin && (
+            {canEditDelete && (
               <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleDeleteClick}>
                 <span className="material-symbols-outlined text-base mr-2">delete</span>
                 Sil
@@ -244,7 +246,7 @@ export default function OrderDetailPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Belgeler</CardTitle>
-                  {isAdmin && (
+                  {canEditDelete && (
                     <Button variant="outline" size="sm">
                       <span className="material-symbols-outlined text-base mr-2">upload</span>
                       Belge Yükle

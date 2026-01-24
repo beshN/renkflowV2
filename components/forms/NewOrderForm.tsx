@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '../ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { NewOrderFormData } from '@/lib/types';
@@ -27,6 +28,7 @@ const DEPARTMENTS = [
 ];
 
 export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
+  const router = useRouter();
   const [formData, setFormData] = useState<NewOrderFormData>(initialData || {
     customerName: '',
     customerEmail: '',
@@ -366,7 +368,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
             </>
           )}
         </Button>
-        <Button type="button" variant="outline" size="lg">
+        <Button type="button" variant="outline" size="lg" onClick={() => router.back()}>
           İptal
         </Button>
       </div>

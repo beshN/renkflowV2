@@ -184,6 +184,11 @@ function LoginForm() {
               {formErrors.password && (
                 <p className="mt-1 text-sm text-red-500">{formErrors.password}</p>
               )}
+              <div className="text-right">
+                <Link href="/auth/forgot-password" className="text-sm text-primary hover:underline">
+                  Şifremi Unuttum
+                </Link>
+              </div>
             </div>
 
             {formErrors.general && (

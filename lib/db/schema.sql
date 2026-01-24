@@ -38,6 +38,8 @@ create table public.users (
   image text,
   password text, -- For credentials auth (hashed)
   verification_token text, -- For email verification
+  password_reset_token text, -- For password reset
+  password_reset_expires timestamp with time zone, -- Password reset token expiration
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -273,6 +275,16 @@ create policy "Tenant members can update orders"
     )
   );
 
+create policy "Tenant members can delete orders"
+  on public.orders for delete
+  using (
+    exists (
+      select 1 from public.tenant_members
+      where tenant_members.tenant_id = orders.tenant_id
+      and tenant_members.user_id = auth.uid()
+    )
+  );
+
 -- Order Items: Access via Order -> Tenant
 create policy "Tenant members can view order items"
   on public.order_items for select
@@ -317,5 +329,12 @@ create policy "Tenant members can insert documents"
     )
   );
 
-
-
+create policy "Tenant members can delete documents"
+  on public.documents for delete
+  using (
+    exists (
+      select 1 from public.tenant_members
+      where tenant_members.tenant_id = documents.tenant_id
+      and tenant_members.user_id = auth.uid()
+    )
+  );

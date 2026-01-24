@@ -1,20 +1,52 @@
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import { auth } from '@/auth';
+import crypto from 'crypto';
 
 const sql = neon(process.env.DATABASE_URL!);
+
+// Email validation regex
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Valid roles for invitation
+const VALID_ROLES = ['admin', 'office', 'worker', 'member'];
+
+// Generate secure token
+function generateSecureToken(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
 
 export async function POST(request: Request) {
   try {
     const session = await auth();
     
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Oturum açmanız gerekiyor' }, { status: 401 });
     }
 
-    const { tenantId, email, role } = await request.json();
+    const body = await request.json();
+    const tenantId = body?.tenantId;
+    const email = body?.email?.trim().toLowerCase();
+    const role = body?.role || 'member';
 
-    // Verify user has permission
+    // Validate inputs
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Şirket kimliği gereklidir' }, { status: 400 });
+    }
+
+    if (!email) {
+      return NextResponse.json({ error: 'E-posta adresi gereklidir' }, { status: 400 });
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      return NextResponse.json({ error: 'Geçerli bir e-posta adresi girin' }, { status: 400 });
+    }
+
+    if (!VALID_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Geçersiz rol' }, { status: 400 });
+    }
+
+    // Verify user has permission to invite
     const members = await sql`
       SELECT role FROM tenant_members
       WHERE tenant_id = ${tenantId} AND user_id = ${session.user.id}
@@ -22,30 +54,60 @@ export async function POST(request: Request) {
     `;
 
     if (members.length === 0 || !['owner', 'admin'].includes(members[0].role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ error: 'Bu işlem için yetkiniz yok' }, { status: 403 });
     }
 
-    // Create invitation
-    const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    // Check if user already exists
+    const existingUsers = await sql`
+      SELECT id FROM users WHERE email = ${email} LIMIT 1
+    `;
+
+    if (existingUsers.length > 0) {
+      // Check if already a member of this tenant
+      const existingMember = await sql`
+        SELECT id FROM tenant_members 
+        WHERE tenant_id = ${tenantId} AND user_id = ${existingUsers[0].id}
+        LIMIT 1
+      `;
+
+      if (existingMember.length > 0) {
+        return NextResponse.json({ error: 'Bu kullanıcı zaten ekipte' }, { status: 400 });
+      }
+    }
+
+    // Check for existing pending invitation
+    const existingInvite = await sql`
+      SELECT id FROM invitations 
+      WHERE tenant_id = ${tenantId} AND email = ${email} AND expires_at > NOW()
+      LIMIT 1
+    `;
+
+    if (existingInvite.length > 0) {
+      return NextResponse.json({ error: 'Bu e-posta için zaten bekleyen bir davet var' }, { status: 400 });
+    }
+
+    // Create invitation with secure token
+    const token = generateSecureToken();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    try {
-      await sql`
-        INSERT INTO invitations (tenant_id, email, token, role, expires_at)
-        VALUES (${tenantId}, ${email}, ${token}, ${role}, ${expiresAt.toISOString()})
-      `;
-    } catch (err: any) {
-      if (err.code === '23505') {
-        return NextResponse.json({ error: 'Bu e-posta için zaten davet var' }, { status: 400 });
-      }
-      throw err;
-    }
+    await sql`
+      INSERT INTO invitations (tenant_id, email, token, role, expires_at, created_at)
+      VALUES (${tenantId}, ${email}, ${token}, ${role}, ${expiresAt.toISOString()}, NOW())
+    `;
 
-    const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/accept-invite?token=${token}`;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const inviteLink = `${baseUrl}/auth/accept-invite?token=${token}`;
 
-    return NextResponse.json({ success: true, inviteLink });
-  } catch (error: any) {
+    // Log
+
+    return NextResponse.json({ 
+      success: true, 
+      inviteLink,
+      message: 'Davet linki oluşturuldu'
+    });
+  } catch (error: unknown) {
     console.error('Invite error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Davet oluşturulurken bir hata oluştu' }, { status: 500 });
   }
 }
+

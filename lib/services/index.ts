@@ -18,6 +18,6 @@ export const orderService: IOrderService = isDatabaseConfigured
 
 // Log which service is being used
 if (typeof window === 'undefined') {
-  console.log(`[RenkFlow] Using ${isDatabaseConfigured ? 'Neon' : 'Mock'} Order Service`);
+  // console.log(`[RenkFlow] Using ${isDatabaseConfigured ? 'Neon' : 'Mock'} Order Service`);
 }
 

@@ -8,7 +8,7 @@ export function ServiceWorkerUnregister() {
       navigator.serviceWorker.getRegistrations().then(function (registrations) {
         for (let registration of registrations) {
           registration.unregister();
-          console.log('Service Worker unregistered:', registration);
+          // console.log('Service Worker unregistered:', registration);
         }
       });
     }

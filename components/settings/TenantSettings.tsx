@@ -75,7 +75,7 @@ export function TenantSettings() {
       }
 
       toast.success('Davet oluşturuldu! Link konsola yazıldı.');
-      console.log('Invite Link:', data.inviteLink);
+      // console.log('Invite Link:', data.inviteLink);
       
       // Copy to clipboard
       navigator.clipboard.writeText(data.inviteLink);

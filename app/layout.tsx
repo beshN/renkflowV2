@@ -67,9 +67,9 @@ export const metadata: Metadata = {
     images: ['/dashboard-preview.png'],
     creator: '@renkflow',
   },
-  verification: {
-    google: 'your-google-verification-code',
-  },
+  verification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION ? {
+    google: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION,
+  } : undefined,
   category: 'technology',
 }
 
