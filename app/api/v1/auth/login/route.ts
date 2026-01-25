@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { NextRequest } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';

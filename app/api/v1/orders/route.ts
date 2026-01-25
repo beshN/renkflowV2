@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { NextRequest } from 'next/server';
 import { getAPIUser, successResponse, errorResponse, handleCORS, corsHeaders } from '@/lib/api/middleware';
 import { orderService } from '@/lib/services';
