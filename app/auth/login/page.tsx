@@ -50,17 +50,24 @@ function LoginForm() {
 
       if (result?.error) {
         const errorMessage = result.error.toLowerCase();
+        console.log('Login error received:', result.error);
         
-        // Handle specific NextAuth errors
-        if (errorMessage === 'configuration') {
+        // NextAuth v5 returns "CallbackRouteError" for auth failures
+        // The actual error message is in the cause, but we can deduce from the error type
+        if (errorMessage.includes('callbackrouteerror') || errorMessage.includes('credentialssignin')) {
+          // This is an authentication error (wrong password, user not found, etc.)
           setFormErrors({ 
-            general: 'Sistem yapılandırma hatası. Lütfen daha sonra tekrar deneyin veya e-posta/şifre ile giriş yapın.',
+            password: 'E-posta veya şifre hatalı. Lütfen bilgilerinizi kontrol edin.' 
           });
-        } else if (errorMessage.includes('doğrulanmamış') || errorMessage.includes('not confirmed')) {
+        } else if (errorMessage === 'configuration') {
+          setFormErrors({ 
+            general: 'Sistem yapılandırma hatası. Lütfen daha sonra tekrar deneyin.',
+          });
+        } else if (errorMessage.includes('doğrulanmamış') || errorMessage.includes('not confirmed') || errorMessage.includes('verified')) {
           setFormErrors({ 
             email: 'E-posta adresiniz doğrulanmamış. Lütfen gelen kutunuzu kontrol edin.',
           });
-        } else if (errorMessage.includes('hatalı') || errorMessage.includes('invalid') || errorMessage.includes('credentials')) {
+        } else if (errorMessage.includes('hatalı') || errorMessage.includes('invalid')) {
           setFormErrors({ 
             password: 'E-posta veya şifre hatalı. Lütfen tekrar deneyin.' 
           });
@@ -68,12 +75,8 @@ function LoginForm() {
           setFormErrors({ 
             email: 'Bu e-posta adresi kayıtlı değil. Lütfen kayıt olun.' 
           });
-        } else if (errorMessage.includes('credentialssignin')) {
-          setFormErrors({ 
-            password: 'E-posta veya şifre hatalı. Lütfen bilgilerinizi kontrol edin.' 
-          });
         } else {
-          setFormErrors({ general: 'Giriş yapılamadı. Lütfen bilgilerinizi kontrol edip tekrar deneyin.' });
+          setFormErrors({ password: 'E-posta veya şifre hatalı. Lütfen tekrar deneyin.' });
         }
         return;
       }
