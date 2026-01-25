@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db/neon';
 import { sendWaitlistEmail } from '@/lib/email';
@@ -41,4 +42,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Bir hata oluştu. Lütfen tekrar deneyin.' }, { status: 500 });
   }
 }
-export const runtime = 'edge';

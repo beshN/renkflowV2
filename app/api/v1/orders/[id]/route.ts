@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextRequest } from 'next/server';
 import { getAPIUser, successResponse, errorResponse, handleCORS, hasRole } from '@/lib/api/middleware';
 import { orderService } from '@/lib/services';
@@ -96,4 +97,3 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return errorResponse('Sipariş silinirken bir hata oluştu', 500);
   }
 }
-export const runtime = 'edge';

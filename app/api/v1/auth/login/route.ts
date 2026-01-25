@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextRequest } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
@@ -96,4 +97,3 @@ export async function POST(request: NextRequest) {
     return errorResponse('Giriş yapılırken bir hata oluştu', 500);
   }
 }
-export const runtime = 'edge';

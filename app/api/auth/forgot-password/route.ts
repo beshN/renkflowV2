@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import { sendPasswordResetEmail } from '@/lib/email';
@@ -107,4 +108,3 @@ export async function POST(request: Request) {
   }
 }
 
-export const runtime = 'edge';

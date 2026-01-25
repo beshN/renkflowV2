@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextRequest } from 'next/server';
 import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/middleware';
 import { orderService } from '@/lib/services';
@@ -53,4 +54,3 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return errorResponse('Sipariş durumu güncellenirken bir hata oluştu', 500);
   }
 }
-export const runtime = 'edge';

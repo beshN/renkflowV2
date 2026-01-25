@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextRequest } from 'next/server';
 import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/middleware';
 
@@ -27,4 +28,3 @@ export async function GET(request: NextRequest) {
     return errorResponse('Kullanıcı bilgileri alınırken bir hata oluştu', 500);
   }
 }
-export const runtime = 'edge';

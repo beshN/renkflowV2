@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import { sendVerificationEmail } from '@/lib/email';
 
@@ -37,4 +38,3 @@ export async function GET() {
     }, { status: 500 });
   }
 }
-export const runtime = 'edge';

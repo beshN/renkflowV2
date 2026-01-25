@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
@@ -82,4 +83,3 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export const runtime = 'edge';

@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
@@ -180,4 +181,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export const runtime = 'edge';
