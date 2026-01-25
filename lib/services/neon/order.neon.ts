@@ -2,13 +2,25 @@ import { Order, NewOrderFormData, Document } from '@/lib/types';
 import { IOrderService } from '../types';
 import { sql } from '@/lib/db/neon';
 import { uploadFile, deleteFile, generateFilePath, getFileUrl } from '@/lib/storage/r2';
+import { auth } from '@/auth';
 
 /**
  * Neon + R2 Order Service
  * Production-ready implementation using Neon DB and R2 Storage
  */
 export class NeonOrderService implements IOrderService {
+  
+  private async getTenantId(): Promise<string> {
+    const session = await auth();
+    if (!session?.user?.tenantId) {
+      throw new Error('Unauthorized: No tenant ID found');
+    }
+    return session.user.tenantId;
+  }
+
   async getOrders(): Promise<Order[]> {
+    const tenantId = await this.getTenantId();
+
     const result = await sql`
       SELECT 
         o.*,
@@ -23,6 +35,7 @@ export class NeonOrderService implements IOrderService {
         ) FILTER (WHERE d.id IS NOT NULL) as documents
       FROM orders o
       LEFT JOIN documents d ON o.id = d.order_id
+      WHERE o.tenant_id = ${tenantId}
       GROUP BY o.id
       ORDER BY o.created_at DESC
     `;
@@ -60,6 +73,8 @@ export class NeonOrderService implements IOrderService {
   }
 
   async getOrderById(id: string): Promise<Order | null> {
+    const tenantId = await this.getTenantId();
+
     const result = await sql`
       SELECT 
         o.*,
@@ -74,7 +89,7 @@ export class NeonOrderService implements IOrderService {
         ) FILTER (WHERE d.id IS NOT NULL) as documents
       FROM orders o
       LEFT JOIN documents d ON o.id = d.order_id
-      WHERE o.id = ${id}
+      WHERE o.id = ${id} AND o.tenant_id = ${tenantId}
       GROUP BY o.id
     `;
 
@@ -109,20 +124,22 @@ export class NeonOrderService implements IOrderService {
   }
 
   async createOrder(formData: NewOrderFormData, files?: File[]): Promise<Order> {
+    const tenantId = await this.getTenantId();
+
     // Generate unique order number
     const orderNumber = `ORD${Date.now()}`;
 
-    // Insert order
+    // Insert order with tenant_id
     const orderResult = await sql`
       INSERT INTO orders (
         order_number, customer_name, email, phone, 
         status, total_amount, currency, delivery_date, 
-        notes, product_name, quantity
+        notes, product_name, quantity, tenant_id
       )
       VALUES (
         ${orderNumber}, ${formData.customerName}, ${formData.customerEmail || null}, ${formData.customerPhone || null},
         'pending', ${formData.quantity * (formData.unitPrice || 0)}, '₺', ${formData.deliveryDate},
-        ${formData.notes || null}, ${formData.productName}, ${formData.quantity}
+        ${formData.notes || null}, ${formData.productName}, ${formData.quantity}, ${tenantId}
       )
       RETURNING *
     `;
@@ -154,6 +171,12 @@ export class NeonOrderService implements IOrderService {
   }
 
   async updateOrder(id: string, updates: Partial<Order>): Promise<Order> {
+    const tenantId = await this.getTenantId();
+    
+    // First verification: Ensure order belongs to tenant
+    const existingOrder = await this.getOrderById(id);
+    if (!existingOrder) throw new Error('Order not found or access denied');
+
     const setClauses = [];
     const values: any[] = [];
     let paramIndex = 1;
@@ -193,8 +216,10 @@ export class NeonOrderService implements IOrderService {
 
     if (setClauses.length > 0) {
       values.push(id);
+      values.push(tenantId);
+      // Ensure we only update if tenant_id matches
       await sql.query(
-        `UPDATE orders SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex}`,
+        `UPDATE orders SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1}`,
         values
       );
     }
@@ -203,16 +228,24 @@ export class NeonOrderService implements IOrderService {
   }
 
   async updateOrderStatus(id: string, status: Order['status']): Promise<Order> {
+    const tenantId = await this.getTenantId();
+
     await sql`
       UPDATE orders 
       SET status = ${status}, updated_at = NOW() 
-      WHERE id = ${id}
+      WHERE id = ${id} AND tenant_id = ${tenantId}
     `;
 
     return this.getOrderById(id) as Promise<Order>;
   }
 
   async deleteOrder(id: string): Promise<void> {
+    const tenantId = await this.getTenantId();
+
+    // Verify ownership first
+    const existingOrder = await this.getOrderById(id);
+    if (!existingOrder) throw new Error('Order not found or access denied');
+
     // Get documents to delete from R2
     const docs = await sql`
       SELECT file_path FROM documents WHERE order_id = ${id}
@@ -228,6 +261,7 @@ export class NeonOrderService implements IOrderService {
     }
 
     // Delete order (documents will cascade)
-    await sql`DELETE FROM orders WHERE id = ${id}`;
+    // Extra safety: enforce tenant_id check
+    await sql`DELETE FROM orders WHERE id = ${id} AND tenant_id = ${tenantId}`;
   }
 }
