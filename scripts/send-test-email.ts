@@ -14,9 +14,9 @@ async function main() {
      const result = await resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
         to: 'beratshn2007@gmail.com',
-        subject: 'Test Template ID Support', // Subject might be overridden by template?
+        subject: 'Test Template ID Support', 
         template_id: templateId,
-     });
+     } as any);
      
      if (result.error) {
          console.error('❌ Failed to send:', result.error);

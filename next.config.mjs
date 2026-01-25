@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Config updated 2026-01-25 to force fresh build
   experimental: {
     optimizePackageImports: ['@dnd-kit/core', '@dnd-kit/sortable'],
   },
