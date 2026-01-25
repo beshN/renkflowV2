@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import VerifyEmail from '@/emails/verify-email';
 import PasswordResetEmail from '@/emails/password-reset';
+import WaitlistConfirmationEmail from '@/emails/waitlist-confirmation';
 
 // Initialize Resend only if API key is available
 const resend = process.env.RESEND_API_KEY 
@@ -78,3 +79,28 @@ export async function sendPasswordResetEmail(
   }
 }
 
+export async function sendWaitlistEmail(email: string) {
+  if (!resend) {
+      console.warn('Resend is not configured. Waitlist email not sent.');
+      return { success: false, error: 'Email service not configured' };
+  }
+
+  try {
+      const { data, error } = await resend.emails.send({
+          from: getFromEmail(),
+          to: [email],
+          subject: 'Renkflow Bekleme Listesine Hoş Geldiniz!',
+          react: WaitlistConfirmationEmail(),
+      });
+
+      if (error) {
+          console.error('Waitlist email error:', error);
+          return { success: false, error };
+      }
+
+      return { success: true, data };
+  } catch (error) {
+      console.error('Waitlist email exception:', error);
+      return { success: false, error };
+  }
+}

@@ -1,15 +1,11 @@
 import {
-  Body,
   Button,
-  Container,
-  Head,
   Heading,
-  Html,
-  Link,
-  Preview,
   Section,
   Text,
+  Link,
 } from '@react-email/components';
+import { EmailLayout } from './components/EmailLayout';
 
 interface PasswordResetEmailProps {
   userName?: string;
@@ -21,110 +17,71 @@ export default function PasswordResetEmail({
   resetUrl 
 }: PasswordResetEmailProps) {
   return (
-    <Html>
-      <Head />
-      <Preview>Renkflow şifre sıfırlama talebi</Preview>
-      <Body style={main}>
-        <Container style={container}>
-          {/* Header */}
-          <Section style={headerSection}>
-            <Text style={logo}>Renkflow</Text>
-          </Section>
+    <EmailLayout preview="Renkflow şifre sıfırlama talebi">
+      <Heading style={heading}>Şifre Sıfırlama Talebi</Heading>
 
-          <Heading style={heading}>Şifre Sıfırlama Talebi</Heading>
+      <Text style={text}>
+        Merhaba {userName},
+      </Text>
 
-          <Text style={text}>
-            Merhaba {userName},
-          </Text>
+      <Text style={text}>
+        Hesabınız için bir şifre sıfırlama talebi aldık. Şifrenizi sıfırlamak için aşağıdaki butona tıklayın:
+      </Text>
 
-          <Text style={text}>
-            Hesabınız için bir şifre sıfırlama talebi aldık. Şifrenizi sıfırlamak için aşağıdaki butona tıklayın:
-          </Text>
+      <Section style={buttonContainer}>
+        <Button style={button} href={resetUrl}>
+          Şifremi Sıfırla
+        </Button>
+      </Section>
 
-          <Section style={buttonContainer}>
-            <Button style={button} href={resetUrl}>
-              Şifremi Sıfırla
-            </Button>
-          </Section>
+      <Text style={text}>
+        Veya bu linki kopyalayarak tarayıcınıza yapıştırın:
+      </Text>
+      <Text style={link}>
+        <Link href={resetUrl}>{resetUrl}</Link>
+      </Text>
 
-          <Text style={text}>
-            Veya bu linki kopyalayarak tarayıcınıza yapıştırın:
-          </Text>
-          <Text style={link}>
-            <Link href={resetUrl}>{resetUrl}</Link>
-          </Text>
+      <Section style={warningSection}>
+        <Text style={warningText}>
+          ⚠️ Bu link 1 saat içinde geçerliliğini yitirecektir.
+        </Text>
+      </Section>
 
-          <Section style={warningSection}>
-            <Text style={warningText}>
-              ⚠️ Bu link 1 saat içinde geçerliliğini yitirecektir.
-            </Text>
-          </Section>
-
-          <Text style={footer}>
-            Bu talebi siz yapmadıysanız, bu e-postayı güvenle silebilirsiniz. Hesabınız güvende.
-          </Text>
-
-          <Text style={footer}>
-            © {new Date().getFullYear()} Renkflow. Tüm hakları saklıdır.
-          </Text>
-        </Container>
-      </Body>
-    </Html>
+      <Text style={text}>
+        Bu talebi siz yapmadıysanız, bu e-postayı güvenle silebilirsiniz. Hesabınız güvende.
+      </Text>
+    </EmailLayout>
   );
 }
 
-// Styles
-const main = {
-  backgroundColor: '#f6f9fc',
-  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Ubuntu,sans-serif',
-};
-
-const container = {
-  backgroundColor: '#ffffff',
-  margin: '0 auto',
-  padding: '20px 0 48px',
-  marginBottom: '64px',
-  borderRadius: '8px',
-  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-};
-
-const headerSection = {
-  padding: '24px 48px',
-  borderBottom: '1px solid #e6e6e6',
-};
-
-const logo = {
-  fontSize: '24px',
-  fontWeight: '700',
-  color: '#6366f1',
-  margin: '0',
-};
-
+// Local Content Styles
 const heading = {
   fontSize: '28px',
-  lineHeight: '1.3',
+  lineHeight: '1.2',
   fontWeight: '700',
-  color: '#484848',
-  padding: '32px 48px 0',
-  margin: '0',
+  color: '#0f172a',
+  textAlign: 'center' as const,
+  marginBottom: '24px',
+  padding: '0 40px',
+  letterSpacing: '-0.5px',
 };
 
 const text = {
   fontSize: '16px',
   lineHeight: '26px',
-  color: '#484848',
-  padding: '0 48px',
+  color: '#475569',
+  padding: '0 40px',
   margin: '16px 0',
 };
 
 const buttonContainer = {
-  padding: '27px 48px',
+  padding: '24px 0 24px',
   textAlign: 'center' as const,
 };
 
 const button = {
-  backgroundColor: '#6366f1',
-  borderRadius: '8px',
+  backgroundColor: '#4361ee', // RenkFlow Primary Blue
+  borderRadius: '12px',
   color: '#fff',
   fontSize: '16px',
   fontWeight: '600',
@@ -132,35 +89,29 @@ const button = {
   textAlign: 'center' as const,
   display: 'inline-block',
   padding: '14px 32px',
+  boxShadow: '0 4px 12px rgba(67, 97, 238, 0.3)',
 };
 
 const link = {
   fontSize: '14px',
-  color: '#6366f1',
-  padding: '0 48px',
+  color: '#4361ee',
+  padding: '0 40px',
   wordBreak: 'break-all' as const,
-  margin: '8px 0',
+  textDecoration: 'underline',
 };
 
 const warningSection = {
-  backgroundColor: '#fff8e6',
-  margin: '24px 48px',
+  backgroundColor: '#fef2f2', // Lighter red/orange for warning
+  margin: '24px 40px',
   padding: '16px',
-  borderRadius: '8px',
-  border: '1px solid #f5e6cc',
+  borderRadius: '12px',
+  border: '1px solid #fee2e2',
 };
 
 const warningText = {
   fontSize: '14px',
-  color: '#8a6914',
+  color: '#991b1b', // Darker red text
   margin: '0',
   padding: '0',
-};
-
-const footer = {
-  color: '#8898aa',
-  fontSize: '12px',
-  lineHeight: '16px',
-  padding: '0 48px',
-  marginTop: '16px',
+  textAlign: 'center' as const,
 };

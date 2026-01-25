@@ -338,3 +338,18 @@ create policy "Tenant members can delete documents"
       and tenant_members.user_id = auth.uid()
     )
   );
+
+-- 9. Newsletter Subscribers
+create table if not exists public.newsletter_subscribers (
+  id uuid default uuid_generate_v4() primary key,
+  email text unique not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- RLS
+alter table public.newsletter_subscribers enable row level security;
+
+-- Policies
+create policy "Public can insert subscribers"
+  on public.newsletter_subscribers for insert
+  with check (true);
