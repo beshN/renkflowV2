@@ -215,13 +215,15 @@ export class NeonOrderService implements IOrderService {
     }
 
     if (setClauses.length > 0) {
+    if (setClauses.length > 0) {
       values.push(id);
       values.push(tenantId);
       // Ensure we only update if tenant_id matches
-      await sql.query(
+      await sql(
         `UPDATE orders SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1}`,
         values
       );
+    }
     }
 
     return this.getOrderById(id) as Promise<Order>;
