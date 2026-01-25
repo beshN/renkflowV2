@@ -16,6 +16,8 @@ const sora = Sora({
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://renkflow.com';
 
+export const runtime = 'edge';
+
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
