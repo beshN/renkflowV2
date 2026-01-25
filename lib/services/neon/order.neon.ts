@@ -20,6 +20,7 @@ export class NeonOrderService implements IOrderService {
 
   async getOrders(): Promise<Order[]> {
     const tenantId = await this.getTenantId();
+    console.log('[NeonOrderService] getOrders called for tenant:', tenantId);
 
     const result = await sql`
       SELECT 
@@ -214,16 +215,19 @@ export class NeonOrderService implements IOrderService {
       values.push(updates.description);
     }
 
-    if (setClauses.length > 0) {
+    console.log('[NeonOrderService] Updating order:', id, 'for tenant:', tenantId, 'Updates:', Object.keys(updates));
+    
     if (setClauses.length > 0) {
       values.push(id);
       values.push(tenantId);
+      
+      const query = `UPDATE orders SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1}`;
+      
+      console.log('[NeonOrderService] Update Query:', query);
+      console.log('[NeonOrderService] Update Values:', values);
+
       // Ensure we only update if tenant_id matches
-      await sql(
-        `UPDATE orders SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1}`,
-        values
-      );
-    }
+      await sql(query, values);
     }
 
     return this.getOrderById(id) as Promise<Order>;

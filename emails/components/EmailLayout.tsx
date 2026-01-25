@@ -34,7 +34,7 @@ export const EmailLayout = ({ preview, children }: EmailLayoutProps) => {
           fontStyle="normal"
         />
       </Head>
-      <Preview>{preview}</Preview>
+      <Preview>{preview || ""}</Preview>
       <Tailwind
         config={{
           theme: {
