@@ -39,11 +39,16 @@ export const authConfig: NextAuthConfig = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
+        console.log('[AUTH] Starting authorize...');
+        
         try {
           if (!credentials?.email || !credentials?.password) {
-            throw new Error('Geçersiz kimlik bilgileri');
+            console.log('[AUTH] Missing credentials');
+            return null;
           }
 
+          console.log('[AUTH] Checking database connection...');
+          
           // Query user from database
           const users = await sql`
             SELECT u.*, tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url
@@ -54,9 +59,12 @@ export const authConfig: NextAuthConfig = {
             LIMIT 1
           `;
 
+          console.log('[AUTH] Query complete, found users:', users.length);
+
           const user = users[0];
 
           if (!user || !user.password) {
+            console.log('[AUTH] User not found');
             throw new Error('Kullanıcı bulunamadı');
           }
 
@@ -67,12 +75,16 @@ export const authConfig: NextAuthConfig = {
           );
 
           if (!isPasswordValid) {
+            console.log('[AUTH] Invalid password');
             throw new Error('E-posta veya şifre hatalı');
           }
 
           if (!user.email_verified) {
+            console.log('[AUTH] Email not verified');
             throw new Error('E-posta adresiniz doğrulanmamış. Lütfen gelen kutunuzu kontrol edin.');
           }
+
+          console.log('[AUTH] Login successful for:', user.email);
 
           return {
             id: user.id,
@@ -86,8 +98,9 @@ export const authConfig: NextAuthConfig = {
             logoUrl: user.logo_url,
           };
         } catch (error: any) {
-          console.error('Authorize error:', error?.message || error);
-          throw error;
+          console.error('[AUTH] Authorize error:', error?.message || error);
+          // Re-throw with the error message so NextAuth can display it
+          throw new Error(error?.message || 'Giriş yapılamadı');
         }
       },
     }),
