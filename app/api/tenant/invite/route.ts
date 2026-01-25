@@ -2,7 +2,6 @@ export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import { auth } from '@/auth';
-import crypto from 'crypto';
 
 import { sql } from '@/lib/db';
 
@@ -12,9 +11,11 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Valid roles for invitation
 const VALID_ROLES = ['admin', 'office', 'worker', 'member'];
 
-// Generate secure token
+// Generate cryptographically secure token using Web Crypto API (Edge compatible)
 function generateSecureToken(): string {
-  return crypto.randomBytes(32).toString('hex');
+  const array = new Uint8Array(32);
+  globalThis.crypto.getRandomValues(array);
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 export async function POST(request: Request) {

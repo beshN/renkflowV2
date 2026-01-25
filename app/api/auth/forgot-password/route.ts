@@ -1,17 +1,18 @@
 export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
-import { sendPasswordResetEmail } from '@/lib/email';
-import crypto from 'crypto';
-
 import { sql } from '@/lib/db';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Generate cryptographically secure token
+import { sendPasswordResetEmail } from '@/lib/email';
+
+// Generate cryptographically secure token using Web Crypto API (Edge compatible)
 function generateSecureToken(): string {
-  return crypto.randomBytes(32).toString('hex');
+  const array = new Uint8Array(32);
+  globalThis.crypto.getRandomValues(array);
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 export async function POST(request: Request) {

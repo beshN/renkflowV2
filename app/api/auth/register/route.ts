@@ -2,7 +2,6 @@ export const runtime = 'edge';
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
 import { sendVerificationEmail } from '@/lib/email';
 import { authLimiter, rateLimitResponse } from '@/lib/api/rate-limit';
 
@@ -16,9 +15,11 @@ function sanitizeName(name: string): string {
   return name.trim().slice(0, 100).replace(/<[^>]*>/g, '');
 }
 
-// Generate cryptographically secure token
+// Generate cryptographically secure token using Web Crypto API (Edge compatible)
 function generateSecureToken(): string {
-  return crypto.randomBytes(32).toString('hex');
+  const array = new Uint8Array(32);
+  globalThis.crypto.getRandomValues(array);
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 // Validate password strength
