@@ -2,85 +2,102 @@ import type { NextAuthConfig } from 'next-auth';
 import Google from 'next-auth/providers/google';
 import AzureAD from 'next-auth/providers/azure-ad';
 import Credentials from 'next-auth/providers/credentials';
-import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 
 import { sql } from '@/lib/db';
+
+// Build providers array conditionally
+const providers: NextAuthConfig['providers'] = [];
+
+// Only add Google if credentials are configured
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  providers.push(
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    })
+  );
+}
+
+// Only add Azure AD if credentials are configured
+if (process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET) {
+  providers.push(
+    AzureAD({
+      clientId: process.env.AZURE_AD_CLIENT_ID,
+      clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
+      authorization: {
+        params: {
+          tenant: process.env.AZURE_AD_TENANT_ID || 'common'
+        }
+      }
+    })
+  );
+}
+
+// Always add Credentials provider
+providers.push(
+  Credentials({
+    name: 'credentials',
+    credentials: {
+      email: { label: 'Email', type: 'email' },
+      password: { label: 'Password', type: 'password' },
+    },
+    async authorize(credentials) {
+      if (!credentials?.email || !credentials?.password) {
+        throw new Error('Geçersiz kimlik bilgileri');
+      }
+
+      // Query user from database
+      const users = await sql`
+        SELECT u.*, tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url
+        FROM users u
+        LEFT JOIN tenant_members tm ON u.id = tm.user_id
+        LEFT JOIN tenants t ON tm.tenant_id = t.id
+        WHERE u.email = ${credentials.email as string}
+        LIMIT 1
+      `;
+
+      const user = users[0];
+
+      if (!user || !user.password) {
+        throw new Error('Kullanıcı bulunamadı');
+      }
+
+      // Verify password
+      const isPasswordValid = await bcrypt.compare(
+        credentials.password as string,
+        user.password
+      );
+
+      if (!isPasswordValid) {
+        throw new Error('E-posta veya şifre hatalı');
+      }
+
+      if (!user.email_verified) {
+        throw new Error('E-posta adresiniz doğrulanmamış. Lütfen gelen kutunuzu kontrol edin.');
+      }
+
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        image: user.image,
+        tenantId: user.tenant_id,
+        tenantName: user.tenant_name,
+        role: user.role,
+        brandColor: user.brand_color,
+        logoUrl: user.logo_url,
+      };
+    },
+  })
+);
 
 export const authConfig: NextAuthConfig = {
   pages: {
     signIn: '/auth/login',
     error: '/auth/login',
   },
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-    AzureAD({
-      clientId: process.env.AZURE_AD_CLIENT_ID!,
-      clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-      authorization: {
-        params: {
-          tenant: process.env.AZURE_AD_TENANT_ID || 'common'
-        }
-      }
-    }),
-    Credentials({
-      name: 'credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error('Geçersiz kimlik bilgileri');
-        }
-
-        // Query user from database
-        const users = await sql`
-          SELECT u.*, tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url
-          FROM users u
-          LEFT JOIN tenant_members tm ON u.id = tm.user_id
-          LEFT JOIN tenants t ON tm.tenant_id = t.id
-          WHERE u.email = ${credentials.email as string}
-          LIMIT 1
-        `;
-
-        const user = users[0];
-
-        if (!user || !user.password) {
-          throw new Error('Kullanıcı bulunamadı');
-        }
-
-        // Verify password
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password as string,
-          user.password
-        );
-
-        if (!isPasswordValid) {
-          throw new Error('E-posta veya şifre hatalı');
-        }
-
-        if (!user.email_verified) {
-          throw new Error('E-posta adresiniz doğrulanmamış. Lütfen gelen kutunuzu kontrol edin.');
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-          tenantId: user.tenant_id,
-          tenantName: user.tenant_name,
-          role: user.role,
-          brandColor: user.brand_color,
-          logoUrl: user.logo_url,
-        };
-      },
-    }),
-  ],
+  providers,
   callbacks: {
     async authorized({ auth }) {
       return !!auth?.user;

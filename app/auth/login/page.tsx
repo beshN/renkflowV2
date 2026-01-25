@@ -51,11 +51,16 @@ function LoginForm() {
       if (result?.error) {
         const errorMessage = result.error.toLowerCase();
         
-        if (errorMessage.includes('doğrulanmamış') || errorMessage.includes('not confirmed')) {
+        // Handle specific NextAuth errors
+        if (errorMessage === 'configuration') {
+          setFormErrors({ 
+            general: 'Sistem yapılandırma hatası. Lütfen daha sonra tekrar deneyin veya e-posta/şifre ile giriş yapın.',
+          });
+        } else if (errorMessage.includes('doğrulanmamış') || errorMessage.includes('not confirmed')) {
           setFormErrors({ 
             email: 'E-posta adresiniz doğrulanmamış. Lütfen gelen kutunuzu kontrol edin.',
           });
-        } else if (errorMessage.includes('hatalı') || errorMessage.includes('invalid')) {
+        } else if (errorMessage.includes('hatalı') || errorMessage.includes('invalid') || errorMessage.includes('credentials')) {
           setFormErrors({ 
             password: 'E-posta veya şifre hatalı. Lütfen tekrar deneyin.' 
           });
@@ -63,8 +68,12 @@ function LoginForm() {
           setFormErrors({ 
             email: 'Bu e-posta adresi kayıtlı değil. Lütfen kayıt olun.' 
           });
+        } else if (errorMessage.includes('credentialssignin')) {
+          setFormErrors({ 
+            password: 'E-posta veya şifre hatalı. Lütfen bilgilerinizi kontrol edin.' 
+          });
         } else {
-          setFormErrors({ general: result.error });
+          setFormErrors({ general: 'Giriş yapılamadı. Lütfen bilgilerinizi kontrol edip tekrar deneyin.' });
         }
         return;
       }
@@ -252,21 +261,10 @@ export default function AuthLogin() {
     <div className="min-h-screen bg-background-light dark:bg-background-dark relative font-display">
       <LandingNav />
 
-      {/* Top Right Signup Link */}
-      <div className="absolute top-6 right-6 z-10 hidden sm:block">
-        <div className="flex items-center gap-4">
-          <p className="text-sm text-subtle-light dark:text-subtle-dark">Hesabınız yok mu?</p>
-          <Link href="/signup">
-            <button className="px-4 py-2 border border-border-light dark:border-border-dark rounded-md font-bold text-sm hover:bg-white dark:hover:bg-surface-dark transition-colors shadow-sm">
-              Kayıt Ol
-            </button>
-          </Link>
-        </div>
-      </div>
-
-      <Suspense fallback={<div>Yükleniyor...</div>}>
+      <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Yükleniyor...</div>}>
         <LoginForm />
       </Suspense>
     </div>
   );
 }
+
