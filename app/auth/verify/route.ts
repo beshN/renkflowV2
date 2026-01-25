@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
-const sql = neon(process.env.DATABASE_URL!);
+import { sql } from '@/lib/db';
 
 // Validate token format (should be 64 hex characters)
 function isValidTokenFormat(token: string): boolean {

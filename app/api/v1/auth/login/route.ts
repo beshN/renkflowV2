@@ -3,7 +3,7 @@ import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 import { successResponse, errorResponse, handleCORS, generateAPIToken } from '@/lib/api/middleware';
 
-const sql = neon(process.env.DATABASE_URL!);
+import { sql } from '@/lib/db';
 
 // Email validation
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

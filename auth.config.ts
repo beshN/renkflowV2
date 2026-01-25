@@ -5,7 +5,7 @@ import Credentials from 'next-auth/providers/credentials';
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 
-const sql = neon(process.env.DATABASE_URL!);
+import { sql } from '@/lib/db';
 
 export const authConfig: NextAuthConfig = {
   pages: {

@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY 
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 export async function POST(request: Request) {
   try {
     const { name, email, subject, message } = await request.json();
+
+    if (!resend) {
+      console.error('Resend API key is missing');
+      return NextResponse.json(
+        { error: 'E-posta servisi yapılandırılmamış.' },
+        { status: 503 }
+      );
+    }
 
     // Validate input
     if (!name || !email || !message) {

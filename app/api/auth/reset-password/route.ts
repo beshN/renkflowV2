@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 
-const sql = neon(process.env.DATABASE_URL!);
+import { sql } from '@/lib/db';
 
 // Password strength validation
 function validatePassword(password: string): { valid: boolean; error?: string } {

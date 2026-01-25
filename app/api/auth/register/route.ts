@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import { sendVerificationEmail } from '@/lib/email';
 import { authLimiter, rateLimitResponse } from '@/lib/api/rate-limit';
 
-const sql = neon(process.env.DATABASE_URL!);
+import { sql } from '@/lib/db';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

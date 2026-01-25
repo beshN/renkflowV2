@@ -3,7 +3,7 @@ import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
-const sql = neon(process.env.DATABASE_URL!);
+import { sql } from '@/lib/db';
 
 // Sanitize name input
 function sanitizeName(name: string): string {

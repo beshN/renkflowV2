@@ -3,7 +3,7 @@ import { neon } from '@neondatabase/serverless';
 import { auth } from '@/auth';
 import crypto from 'crypto';
 
-const sql = neon(process.env.DATABASE_URL!);
+import { sql } from '@/lib/db';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
