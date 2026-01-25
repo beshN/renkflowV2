@@ -240,8 +240,8 @@ function LoginForm() {
             <Image
               src="/logo-full.png"
               alt="Renkflow Logo"
-              width={300}
-              height={80}
+              width={380}
+              height={100}
               className="mx-auto"
               priority
             />

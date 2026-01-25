@@ -97,6 +97,11 @@ export const Hero: React.FC = () => {
             <span className="text-sm font-semibold text-slate-700">Çok Yakında...</span>
           </div>
 
+          {/* Gradient Divider Line - Above Headline */}
+          <div className="mb-6 w-full max-w-md">
+            <div className="h-1 rounded-full bg-gradient-to-r from-blue-600 via-indigo-500 to-blue-600" />
+          </div>
+
           {/* Headline - Fixed Flow */}
           <h1 className="mb-4 max-w-4xl text-center text-3xl font-bold leading-tight tracking-tight text-slate-900 sm:text-4xl md:text-5xl lg:text-6xl">
             Şirketinizin ihtiyacı olan tek yazılım:{' '}

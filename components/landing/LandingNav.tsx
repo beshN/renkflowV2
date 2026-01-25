@@ -73,7 +73,7 @@ export default function LandingNav() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-full">
           <div className="flex justify-between items-center h-20">
             <Link href="/" className="flex items-center flex-shrink-0 ml-2 md:ml-8">
-              <div className="relative h-16 md:h-20 transition-all duration-1000 ease-[cubic-bezier(0.25,0.1,0.25,1)]" style={{ width: '280px' }}>
+              <div className="relative h-20 md:h-24 transition-all duration-1000 ease-[cubic-bezier(0.25,0.1,0.25,1)]" style={{ width: '350px' }}>
                 <Image
                   src="/logo.png"
                   alt="Renkflow"
