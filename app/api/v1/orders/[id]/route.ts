@@ -96,3 +96,4 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return errorResponse('Sipariş silinirken bir hata oluştu', 500);
   }
 }
+export const runtime = 'edge';

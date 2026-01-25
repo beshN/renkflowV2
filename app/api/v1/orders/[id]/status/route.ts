@@ -53,3 +53,4 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return errorResponse('Sipariş durumu güncellenirken bir hata oluştu', 500);
   }
 }
+export const runtime = 'edge';

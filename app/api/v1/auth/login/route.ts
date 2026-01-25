@@ -96,3 +96,4 @@ export async function POST(request: NextRequest) {
     return errorResponse('Giriş yapılırken bir hata oluştu', 500);
   }
 }
+export const runtime = 'edge';

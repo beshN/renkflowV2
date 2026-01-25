@@ -27,3 +27,4 @@ export async function GET(request: NextRequest) {
     return errorResponse('Kullanıcı bilgileri alınırken bir hata oluştu', 500);
   }
 }
+export const runtime = 'edge';

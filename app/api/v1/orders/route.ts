@@ -85,3 +85,4 @@ export async function POST(request: NextRequest) {
     return errorResponse('Sipariş oluşturulurken bir hata oluştu', 500);
   }
 }
+export const runtime = 'edge';
