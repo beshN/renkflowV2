@@ -18,7 +18,8 @@ interface VerifyEmailCustomProps {
   verificationUrl: string;
 }
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://renkflow.com';
+// Always use production URL for email images (they need to be publicly accessible)
+const emailAssetsUrl = 'https://renkflow.com';
 
 export default function VerifyEmailCustom({ 
   userName = 'Kullanıcı', 
@@ -40,7 +41,7 @@ export default function VerifyEmailCustom({
           {/* Header / Logo */}
           <Section style={logoSection}>
             <Img
-              src={`${baseUrl}/email-assets/logo-full.png`} // User needs to ensure this exists or update path
+              src={`${emailAssetsUrl}/email-assets/logo-full.png`} // User needs to ensure this exists or update path
               width="222"
               height="44"
               alt="RenkFlow"
@@ -94,7 +95,7 @@ export default function VerifyEmailCustom({
           {/* Footer Image/Content */}
           <Section style={centerSection}>
              <Img
-              src={`${baseUrl}/email-assets/footer-graphic.png`} // Placeholder for the footer image user had
+              src={`${emailAssetsUrl}/email-assets/footer-graphic.png`} // Placeholder for the footer image user had
               width="560"
               height="129"
               alt="Footer Graphic"
