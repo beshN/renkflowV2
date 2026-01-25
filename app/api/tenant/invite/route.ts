@@ -3,6 +3,7 @@ import { neon } from '@neondatabase/serverless';
 import { auth } from '@/auth';
 
 import { sql } from '@/lib/db';
+import { sendInviteEmail } from '@/lib/email';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -99,12 +100,16 @@ export async function POST(request: Request) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const inviteLink = `${baseUrl}/auth/accept-invite?token=${token}`;
 
+    // Send the email
+    await sendInviteEmail(email, inviteLink, role);
+
     // Log
+    console.log(`Invitation created for ${email} with role ${role}`);
 
     return NextResponse.json({ 
       success: true, 
       inviteLink,
-      message: 'Davet linki oluşturuldu'
+      message: 'Davet linki oluşturuldu ve e-posta gönderildi'
     });
   } catch (error: unknown) {
     console.error('Invite error:', error);

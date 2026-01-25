@@ -1,7 +1,4 @@
 import { Resend } from 'resend';
-import VerifyEmailCustom from '@/emails/verify-email-custom';
-import PasswordResetEmail from '@/emails/password-reset';
-import WaitlistConfirmationEmail from '@/emails/waitlist-confirmation';
 
 // Initialize Resend only if API key is available
 const resend = process.env.RESEND_API_KEY 
@@ -29,11 +26,18 @@ export async function sendVerificationEmail(
   }
 
   try {
+    // @ts-ignore - Resend Managed Templates usage
     const { data, error } = await resend.emails.send({
-      from: getUpdatesEmail(), // Doğrulama maili updates@ ile gider
+      from: getUpdatesEmail(),
       to: [email],
       subject: 'Renkflow Hesabınızı Doğrulayın',
-      react: VerifyEmailCustom({ userName, verificationUrl }),
+      template: {
+        id: 'verify-email',
+        variables: {
+          userName,
+          confirmationLink: verificationUrl,
+        },
+      },
     });
 
     if (error) {
@@ -59,11 +63,18 @@ export async function sendPasswordResetEmail(
   }
 
   try {
+    // @ts-ignore - Resend Managed Templates usage
     const { data, error } = await resend.emails.send({
-      from: getSupportEmail(), // Şifre sıfırlama support@ ile gider
+      from: getSupportEmail(),
       to: [email],
       subject: 'Renkflow Şifre Sıfırlama Talebi',
-      react: PasswordResetEmail({ userName, resetUrl }),
+      template: {
+        id: 'password-reset',
+        variables: {
+          userName,
+          resetLink: resetUrl,
+        },
+      },
     });
 
     if (error) {
@@ -85,11 +96,15 @@ export async function sendWaitlistEmail(email: string) {
   }
 
   try {
+    // @ts-ignore - Resend Managed Templates usage
     const { data, error } = await resend.emails.send({
-      from: getUpdatesEmail(), // Abonelik maili updates@ ile gider
+      from: getUpdatesEmail(),
       to: [email],
       subject: 'Renkflow Bekleme Listesine Hoş Geldiniz!',
-      react: WaitlistConfirmationEmail(),
+      template: {
+        id: 'waitlist-confirmation',
+        variables: {},
+      },
     });
 
     if (error) {
@@ -100,6 +115,45 @@ export async function sendWaitlistEmail(email: string) {
     return { success: true, data };
   } catch (error) {
     console.error('Waitlist email exception:', error);
+    return { success: false, error };
+  }
+}
+
+/**
+ * Send Invite Email (New)
+ */
+export async function sendInviteEmail(
+  email: string,
+  inviteLink: string,
+  role: string
+) {
+  if (!resend) {
+    return { success: false, error: 'Email service not configured' };
+  }
+
+  try {
+    // @ts-ignore
+    const { data, error } = await resend.emails.send({
+      from: getUpdatesEmail(),
+      to: [email],
+      subject: 'Bir RenkFlow Daveti Aldınız!',
+      template: {
+        id: 'invite-user',
+        variables: {
+          inviteLink,
+          role,
+        },
+      },
+    });
+
+    if (error) {
+      console.error('Invite email error:', error);
+      return { success: false, error };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Invite email exception:', error);
     return { success: false, error };
   }
 }
