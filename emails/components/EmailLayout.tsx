@@ -1,4 +1,3 @@
-import * as React from 'react';
 import {
   Body,
   Container,
@@ -8,15 +7,17 @@ import {
   Preview,
   Section,
   Text,
-  Link,
-  Hr,
+  Tailwind,
   Font,
-} from '@react-email/components';
+} from "@react-email/components";
+import * as React from "react";
 
 interface EmailLayoutProps {
   preview?: string;
   children: React.ReactNode;
 }
+
+const baseUrl = "https://renkflow.com";
 
 export const EmailLayout = ({ preview, children }: EmailLayoutProps) => {
   return (
@@ -26,112 +27,81 @@ export const EmailLayout = ({ preview, children }: EmailLayoutProps) => {
           fontFamily="Roboto"
           fallbackFontFamily="Verdana"
           webFont={{
-            url: 'https://fonts.gstatic.com/s/roboto/v27/KFOmCnqEu92Fr1Mu4mxKKTU1Kg.woff2',
-            format: 'woff2',
+            url: "https://fonts.gstatic.com/s/roboto/v27/KFOmCnqEu92Fr1Mu4mxK.woff2",
+            format: "woff2",
           }}
           fontWeight={400}
           fontStyle="normal"
         />
       </Head>
-      {preview && <Preview>{preview}</Preview>}
-      <Body style={main}>
-        <Container style={container}>
-          <Section style={logoContainer}>
-             <Img
-                src={`https://documents.yourdomain.com/public/logo-full.png`}
-                width="170" // Adjusted width for the full logo (approx 3.5:1 ratio)
-                height="48"
-                alt="Renkflow"
-                style={logo}
+      <Preview>{preview}</Preview>
+      <Tailwind
+        config={{
+          theme: {
+            extend: {
+              colors: {
+                background: "#f0f1f5",
+                container: "#f6f5f1",
+                text: "#000000",
+                subtle: "#737373",
+              },
+            },
+          },
+        }}
+      >
+        <Body className="bg-background my-auto mx-auto font-sans">
+          <Container className="bg-container border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[600px]">
+            {/* Header Logo */}
+            <Section className="mt-[10px] mb-[20px]">
+              <Img
+                src={`${baseUrl}/email-assets/header-logo.png`}
+                width="222"
+                height="44"
+                alt="RenkFlow"
+                className="my-0 mx-auto"
               />
-          </Section>
+            </Section>
 
-          {children}
+            {/* Gradient Line */}
+            <Section className="my-[16px] mx-auto max-w-[560px]">
+               <div style={{
+                 height: '2px',
+                 background: 'linear-gradient(45deg, #1a1054, #255ff1)',
+                 borderRadius: '999px',
+                 lineHeight: '2px',
+                 fontSize: '0'
+               }}>&nbsp;</div>
+            </Section>
 
-          <Hr style={hr} />
+            {/* Content */}
+            <Section className="px-[20px]">
+              {children}
+            </Section>
+            
+            <Section className="h-[16px]">&nbsp;</Section>
 
-          <Text style={footer}>
-            © {new Date().getFullYear()} Renkflow. Tüm hakları saklıdır.
-          </Text>
-          
-          <Section style={socialContainer}>
-            <Link href="https://renkflow.com" style={footerLink}>Web Sitemiz</Link>
-            <span style={{ margin: '0 8px', color: '#cbd5e1' }}>•</span>
-            <Link href="https://twitter.com/renkflow" style={footerLink}>Twitter</Link>
-            <span style={{ margin: '0 8px', color: '#cbd5e1' }}>•</span>
-            <Link href="https://linkedin.com/company/renkflow" style={footerLink}>LinkedIn</Link>
-          </Section>
+            {/* Footer Brand Image */}
+            <Section className="mx-auto max-w-[560px]">
+               <Img
+                src={`${baseUrl}/email-assets/footer-brand.png`}
+                width="560"
+                height="129"
+                alt="RenkFlow Footer"
+                className="w-full max-w-full block"
+              />
+            </Section>
 
-          <Text style={unsubText}>
-            Bu e-postayı almak istemiyorsanız <Link href="#" style={link}>abonelikten ayrılabilirsiniz</Link>.
-          </Text>
-
-        </Container>
-      </Body>
+            {/* Copyright */}
+            <Section className="text-center mt-[17px]">
+              <Text className="text-[13px] leading-[1.1] text-subtle text-center">
+                © 2026 RenkFlow tüm hakları saklıdır.
+              </Text>
+            </Section>
+          </Container>
+        </Body>
+      </Tailwind>
     </Html>
   );
 };
 
-// Shared Styles
-const main = {
-  backgroundColor: '#f8fafc',
-  fontFamily: 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Ubuntu, sans-serif',
-};
-
-const container = {
-  backgroundColor: '#ffffff',
-  margin: '40px auto',
-  padding: '40px 0',
-  borderRadius: '16px',
-  boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04)',
-  maxWidth: '600px',
-  border: '1px solid #e2e8f0',
-};
-
-const logoContainer = {
-  marginBottom: '32px',
-  textAlign: 'center' as const,
-};
-
-const logo = {
-  margin: '0 auto',
-  display: 'block',
-};
-
-const hr = {
-  borderColor: '#e2e8f0',
-  margin: '40px 0 24px',
-  borderWidth: '1px',
-};
-
-const footer = {
-  color: '#94a3b8',
-  fontSize: '13px',
-  lineHeight: '20px',
-  textAlign: 'center' as const,
-  marginBottom: '12px',
-};
-
-const socialContainer = {
-  textAlign: 'center' as const,
-  marginBottom: '24px',
-};
-
-const footerLink = {
-  fontSize: '13px',
-  color: '#64748b',
-  textDecoration: 'none',
-  fontWeight: '500',
-};
-
-const unsubText = {
-  fontSize: '12px',
-  color: '#cbd5e1',
-  textAlign: 'center' as const,
-  padding: '0 40px',
-};
-
-const link = {
-  color: '#94a3b8',
-  textDecoration: 'underline',
-};
+export default EmailLayout;

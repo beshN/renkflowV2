@@ -1,92 +1,52 @@
 import {
-  Button,
-  Heading,
+  Img,
+  Link,
   Section,
   Text,
-  Link,
-} from '@react-email/components';
-import { EmailLayout } from './components/EmailLayout';
+} from "@react-email/components";
+import * as React from "react";
+import EmailLayout from "./components/EmailLayout";
 
 interface VerifyEmailProps {
-  userName?: string;
-  verificationUrl: string;
+  confirmationLink?: string;
 }
 
-export default function VerifyEmail({ 
-  userName = 'Kullanıcı',
-  verificationUrl 
-}: VerifyEmailProps) {
+const baseUrl = "https://renkflow.com";
+
+export const VerifyEmail = ({
+  confirmationLink = "https://renkflow.com/auth/verify",
+}: VerifyEmailProps) => {
   return (
-    <EmailLayout preview="Renkflow hesabınızı doğrulayın">
-      <Heading style={heading}>Hoş Geldiniz, {userName}!</Heading>
-
-      <Text style={text}>
-        Renkflow hesabınızı oluşturduğunuz için teşekkür ederiz.
-        Hesabınızı aktifleştirmek için aşağıdaki butona tıklayın:
+    <EmailLayout preview="RenkFlow'a Hoşgeldiniz">
+      <Text className="text-[42px] font-bold font-sans text-center leading-tight my-0">
+        RenkFlow’a Hoşgeldiniz.
+      </Text>
+      
+      <Text className="text-[37px] font-normal font-sans text-center leading-tight mt-[40px] mb-[40px]">
+        Hesabınızı doğrulamak için alttaki butona tıklayın.
       </Text>
 
-      <Section style={buttonContainer}>
-        <Button style={button} href={verificationUrl}>
-          Hesabımı Doğrula
-        </Button>
+      {/* Action Button */}
+      <Section className="my-[40px] mx-auto text-center">
+        <Link href={confirmationLink} className="inline-block">
+          <Img
+            src={`${baseUrl}/email-assets/verify-button.png`}
+            width="262"
+            height="88"
+            alt="Hesabımı Doğrula"
+            className="block mx-auto"
+          />
+        </Link>
       </Section>
-
-      <Text style={text}>
-        Veya bu linki kopyalayarak tarayıcınıza yapıştırın:
-      </Text>
-      <Text style={link}>
-        <Link href={verificationUrl}>{verificationUrl}</Link>
-      </Text>
-
-      <Text style={text}>
-        Bu e-postayı siz talep etmediyseniz, güvenle silebilirsiniz.
+      
+      <Text className="text-[16px] text-center mt-[40px]">
+        Eğer buton çalışmazsa aşağıdaki linke tıklayabilirsiniz.<br/>
+        <Link href={confirmationLink} className="text-blue-600 underline">
+          {confirmationLink}
+        </Link>
       </Text>
     </EmailLayout>
   );
-}
-
-// Local Content Styles
-const heading = {
-  fontSize: '28px',
-  lineHeight: '1.2',
-  fontWeight: '700',
-  color: '#0f172a',
-  textAlign: 'center' as const,
-  marginBottom: '24px',
-  padding: '0 40px',
-  letterSpacing: '-0.5px',
 };
 
-const text = {
-  fontSize: '16px',
-  lineHeight: '26px',
-  color: '#475569',
-  padding: '0 40px',
-  margin: '16px 0',
-};
-
-const buttonContainer = {
-  padding: '24px 0 24px',
-  textAlign: 'center' as const,
-};
-
-const button = {
-  backgroundColor: '#4361ee', // RenkFlow Primary Blue
-  borderRadius: '12px',
-  color: '#fff',
-  fontSize: '16px',
-  fontWeight: '600',
-  textDecoration: 'none',
-  textAlign: 'center' as const,
-  display: 'inline-block',
-  padding: '14px 32px',
-  boxShadow: '0 4px 12px rgba(67, 97, 238, 0.3)',
-};
-
-const link = {
-  fontSize: '14px',
-  color: '#4361ee',
-  padding: '0 40px',
-  wordBreak: 'break-all' as const,
-  textDecoration: 'underline',
-};
+export default VerifyEmail;
