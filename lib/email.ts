@@ -8,13 +8,14 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-// Get the from email address - use custom domain in production if configured
+// Get the from email address - use verified domain
 const getFromEmail = () => {
   const customDomain = process.env.RESEND_FROM_EMAIL;
   if (customDomain) {
     return customDomain;
   }
-  return 'Renkflow <onboarding@resend.dev>';
+  // Default to verified renkflow.com domain
+  return 'Renkflow <updates@renkflow.com>';
 };
 
 export async function sendVerificationEmail(
