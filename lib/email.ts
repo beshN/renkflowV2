@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import VerifyEmail from '@/emails/verify-email';
+import VerifyEmailCustom from '@/emails/verify-email-custom';
 import PasswordResetEmail from '@/emails/password-reset';
 import WaitlistConfirmationEmail from '@/emails/waitlist-confirmation';
 
@@ -33,7 +33,7 @@ export async function sendVerificationEmail(
       from: getFromEmail(),
       to: [email],
       subject: 'Renkflow Hesabınızı Doğrulayın',
-      react: VerifyEmail({ userName, verificationUrl }),
+      react: VerifyEmailCustom({ userName, verificationUrl }),
     });
 
     if (error) {
