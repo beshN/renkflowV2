@@ -54,7 +54,7 @@ export default function DashboardPage() {
       },
       {
         title: 'Toplam Gelir',
-        value: `₺${totalRevenue.toLocaleString('tr-TR')}`,
+        value: `₺${(totalRevenue || 0).toLocaleString('tr-TR')}`,
         icon: 'payments',
         trend: { value: 15, isPositive: true },
         color: 'text-yellow-600',

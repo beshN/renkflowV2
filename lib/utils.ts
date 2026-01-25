@@ -12,7 +12,8 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Format currency
  */
-export function formatCurrency(amount: number, currency: string = '₺'): string {
+export function formatCurrency(amount: number | null | undefined, currency: string = '₺'): string {
+  if (amount === null || amount === undefined) return `${currency}0,00`;
   return `${currency}${amount.toLocaleString('tr-TR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -22,13 +23,18 @@ export function formatCurrency(amount: number, currency: string = '₺'): string
 /**
  * Format date
  */
-export function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('tr-TR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+export function formatDate(dateString: string | null | undefined): string {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('tr-TR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  } catch (e) {
+    return '-';
+  }
 }
 
 /**
