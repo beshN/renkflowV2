@@ -36,6 +36,7 @@ export async function sendVerificationEmail(
       react: VerifyEmailCustom({ userName, verificationUrl }),
     });
 
+    if (error) {
       if (error.name === 'validation_error' && error.message?.includes('domain')) {
         console.error('RESEND DOMAIN ERROR: You can only send to your own email address when using onboarding@resend.dev. To send to other users, verify your domain in Resend dashboard.');
       }
