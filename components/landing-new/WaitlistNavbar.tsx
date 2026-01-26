@@ -52,32 +52,11 @@ export const WaitlistNavbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) =
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
-             <a href="#features" className="relative px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 cursor-pointer transition-colors select-none group">
-                Özellikler
-             </a>
-             <a href="#pricing" className="relative px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 cursor-pointer transition-colors select-none group">
-                Fiyatlandırma
-             </a>
-             <a href="#integrations" className="relative px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 cursor-pointer transition-colors select-none group">
-                Entegrasyonlar
-             </a>
-             <a href="#contact" className="relative px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 cursor-pointer transition-colors select-none group">
-                İletişim
-             </a>
-          </div>
+          {/* Desktop Navigation - Removed for Waitlist */}
+          <div className="hidden md:flex items-center space-x-1 lg:space-x-2"></div>
 
-          {/* Right Actions */}
-          <div className="flex items-center gap-4">
-             <Link href="/auth/login" className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 transition-colors hidden sm:block">
-                Giriş Yap
-             </Link>
-             <Link href="/signup" className="bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-full shadow-sm hover:bg-blue-700 transition-all flex items-center gap-2">
-                <span>Ücretsiz Başlayın</span>
-             </Link>
-
-        </div>
+          {/* Right Actions - Removed for Waitlist */}
+          <div className="flex items-center gap-4"></div>
         </div>
       </div>
     </motion.nav>

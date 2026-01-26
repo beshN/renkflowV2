@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, ResponsiveContainer, BarChart, Bar, Cell, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   TrendingUp, 
   Package, 
@@ -13,21 +14,33 @@ import {
   Settings,
   PieChart,
   Calendar,
-  Zap
+  Zap,
+  Briefcase,
+  CheckCircle2
 } from 'lucide-react';
 
 interface DashboardPreviewProps {
   isDark: boolean;
 }
 
-const areaData = [
+const weeklyData = [
   { name: 'Mon', value: 2400 },
   { name: 'Tue', value: 1398 },
-  { name: 'Wed', value: 5800 },
+  { name: 'Wed', value: 9800 },
   { name: 'Thu', value: 3908 },
   { name: 'Fri', value: 4800 },
   { name: 'Sat', value: 3800 },
   { name: 'Sun', value: 4300 },
+];
+
+const monthlyData = [
+    { name: 'W1', value: 4000 },
+    { name: 'W2', value: 3000 },
+    { name: 'W3', value: 2000 },
+    { name: 'W4', value: 2780 },
+    { name: 'W5', value: 1890 },
+    { name: 'W6', value: 2390 },
+    { name: 'W7', value: 3490 },
 ];
 
 const barData = [
@@ -39,8 +52,50 @@ const barData = [
 ];
 
 export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) => {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [dataMode, setDataMode] = useState<'weekly' | 'monthly'>('weekly');
+  const [notification, setNotification] = useState<{title: string, amount: string} | null>(null);
+  const [income, setIncome] = useState(124500);
+
+  // Simulate live updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+        const randomBonus = Math.floor(Math.random() * 500);
+        setNotification({
+            title: 'Sipariş Tamamlandı',
+            amount: `₺${randomBonus}`
+        });
+        setIncome(prev => prev + randomBonus);
+
+        setTimeout(() => setNotification(null), 3000);
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="relative group perspective-[2000px]">
+      
+      {/* Live Notification Popup (Floating) */}
+      <AnimatePresence>
+        {notification && (
+            <motion.div 
+                initial={{ opacity: 0, y: -20, scale: 0.8 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.8 }}
+                className="absolute top-[-40px] right-[20px] z-50 bg-white dark:bg-slate-800 p-3 rounded-xl shadow-2xl flex items-center gap-3 border border-green-100 dark:border-green-900 pointer-events-none"
+            >
+                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                    <CheckCircle2 size={16} />
+                </div>
+                <div>
+                    <p className="text-xs font-bold text-slate-800 dark:text-white">{notification.title}</p>
+                    <p className="text-xs text-green-600 font-bold">+{notification.amount}</p>
+                </div>
+            </motion.div>
+        )}
+      </AnimatePresence>
+
       
       {/* Decorative Blur Backdrops */}
       <div className="absolute -inset-1 bg-gradient-to-r from-primary to-indigo-600 rounded-[2rem] blur opacity-20 dark:opacity-40 group-hover:opacity-30 transition duration-1000 group-hover:duration-200"></div>
@@ -49,112 +104,133 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
       <div className="relative bg-background rounded-[1.5rem] shadow-2xl ring-1 ring-border overflow-hidden transform rotate-y-[-10deg] rotate-x-[5deg] group-hover:rotate-0 transition-all duration-700 ease-out h-[600px] flex">
         
         {/* Sidebar */}
-        <div className="w-16 border-r border-border flex flex-col items-center py-6 gap-6 bg-secondary/50 backdrop-blur-sm">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold">R</div>
+        <div className="w-16 border-r border-border flex flex-col items-center py-6 gap-6 bg-secondary/50 backdrop-blur-sm z-20">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg">R</div>
+            
             <div className="flex flex-col gap-4 mt-4 w-full px-2">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                    <LayoutDashboard size={20} />
-                </div>
-                <div className="p-2 rounded-lg text-muted-foreground hover:bg-secondary transition-colors">
-                    <Package size={20} />
-                </div>
-                <div className="p-2 rounded-lg text-muted-foreground hover:bg-secondary transition-colors">
-                    <Users size={20} />
-                </div>
-                <div className="p-2 rounded-lg text-muted-foreground hover:bg-secondary transition-colors">
-                    <PieChart size={20} />
-                </div>
-                 <div className="p-2 rounded-lg text-muted-foreground hover:bg-secondary transition-colors">
-                    <Calendar size={20} />
-                </div>
+                {[
+                    { id: 'dashboard', icon: LayoutDashboard },
+                    { id: 'package', icon: Package },
+                    { id: 'users', icon: Users },
+                    { id: 'reports', icon: PieChart },
+                    { id: 'calendar', icon: Calendar },
+                ].map((item) => (
+                    <div 
+                        key={item.id}
+                        onClick={() => setActiveTab(item.id)}
+                        className={`p-2 rounded-lg transition-all cursor-pointer relative ${activeTab === item.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-muted-foreground hover:bg-secondary'}`}
+                    >
+                        <item.icon size={20} />
+                        {activeTab === item.id && (
+                            <motion.div layoutId="activeTabIndicator" className="absolute -right-[10px] top-1/2 -translate-y-1/2 w-1 h-6 bg-blue-600 rounded-l-full" />
+                        )}
+                    </div>
+                ))}
             </div>
-            <div className="mt-auto p-2 text-muted-foreground">
+
+            <div className="mt-auto p-2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors hover:rotate-90 duration-500">
                 <Settings size={20} />
             </div>
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col bg-background/80">
+        <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-3xl">
             
             {/* Header */}
-            <div className="h-16 border-b border-border flex items-center justify-between px-6 bg-background">
+            <div className="h-16 border-b border-border flex items-center justify-between px-6 bg-background/50">
                 <h2 className="font-semibold text-foreground">Genel Bakış</h2>
                 <div className="flex items-center gap-4">
-                    <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary text-muted-foreground text-xs border border-border w-48">
+                    <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 text-muted-foreground text-xs border border-border w-48 shadow-sm">
                         <Search size={14} />
                         <span>Ara...</span>
                     </div>
-                    <div className="relative">
-                        <Bell size={18} className="text-muted-foreground" />
-                        <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border border-background"></span>
+                    <div className="relative group/bell cursor-pointer">
+                        <Bell size={18} className="text-muted-foreground group-hover/bell:text-blue-600 transition-colors" />
+                        <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border border-background animate-pulse"></span>
                     </div>
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 border-2 border-background shadow-sm"></div>
+                    <div className="w-8 h-8 rounded-full bg-orange-400 border-2 border-white shadow-md cursor-pointer hover:scale-105 transition-transform"></div>
                 </div>
             </div>
 
             {/* Dashboard Content Grid */}
-            <div className="p-6 overflow-hidden flex flex-col gap-6">
+            <div className="p-6 overflow-hidden flex flex-col gap-6 h-full">
                 
                 {/* Stats Row */}
                 <div className="grid grid-cols-3 gap-4">
                     {/* Stat Card 1 */}
-                    <div className="p-4 rounded-xl bg-card border border-border shadow-sm">
+                    <motion.div 
+                        whileHover={{ y: -2 }}
+                        className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-border shadow-sm"
+                    >
                         <div className="flex justify-between items-start mb-2">
                             <span className="text-xs text-muted-foreground font-medium">Toplam Gelir</span>
                             <span className="text-xs font-semibold text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded flex items-center gap-1">
                                 <TrendingUp size={10} /> +12%
                             </span>
                         </div>
-                        <h3 className="text-xl font-bold text-foreground">₺124,500</h3>
-                    </div>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                            ₺{income.toLocaleString()}
+                        </h3>
+                    </motion.div>
+
                      {/* Stat Card 2 */}
-                    <div className="p-4 rounded-xl bg-card border border-border shadow-sm">
+                     <motion.div 
+                        whileHover={{ y: -2 }}
+                        className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-border shadow-sm"
+                    >
                         <div className="flex justify-between items-start mb-2">
                             <span className="text-xs text-muted-foreground font-medium">Aktif Sipariş</span>
-                             <div className="p-1 bg-blue-500/10 rounded text-primary">
+                             <div className="p-1 bg-blue-500/10 rounded text-blue-600 animate-pulse-slow">
                                 <Package size={12} />
                              </div>
                         </div>
-                        <h3 className="text-xl font-bold text-foreground">48</h3>
-                    </div>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">48</h3>
+                    </motion.div>
+
                      {/* Stat Card 3 */}
-                    <div className="p-4 rounded-xl bg-card border border-border shadow-sm">
+                     <motion.div 
+                        whileHover={{ y: -2 }}
+                        className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-border shadow-sm"
+                    >
                         <div className="flex justify-between items-start mb-2">
                             <span className="text-xs text-muted-foreground font-medium">Verimlilik</span>
                             <div className="p-1 bg-purple-500/10 rounded text-purple-600">
                                 <Zap size={12} />
                              </div>
                         </div>
-                        <h3 className="text-xl font-bold text-foreground">%94.2</h3>
-                    </div>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">%94.2</h3>
+                    </motion.div>
                 </div>
 
                 {/* Main Chart Section */}
                 <div className="flex-1 grid grid-cols-3 gap-6 min-h-0">
-                    <div className="col-span-2 p-5 rounded-2xl bg-card border border-border shadow-sm flex flex-col">
-                        <div className="flex justify-between items-center mb-4">
+                    <div className="col-span-2 p-5 rounded-2xl bg-white dark:bg-slate-800 border border-border shadow-sm flex flex-col relative overflow-hidden">
+                        <div className="flex justify-between items-center mb-4 relative z-10">
                             <div>
-                                <h4 className="font-semibold text-foreground text-sm">Haftalık Üretim Analizi</h4>
+                                <h4 className="font-semibold text-slate-900 dark:text-white text-sm">Haftalık Üretim Analizi</h4>
                                 <p className="text-[10px] text-muted-foreground">Son 7 günlük performans</p>
                             </div>
-                            <MoreHorizontal size={16} className="text-muted-foreground cursor-pointer hover:text-foreground" />
+                            <div className="flex bg-slate-100 dark:bg-slate-900 rounded-lg p-0.5">
+                                <button onClick={() => setDataMode('weekly')} className={`px-2 py-0.5 text-[10px] rounded-md transition-all ${dataMode === 'weekly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 font-medium' : 'text-slate-500'}`}>Haftalık</button>
+                                <button onClick={() => setDataMode('monthly')} className={`px-2 py-0.5 text-[10px] rounded-md transition-all ${dataMode === 'monthly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 font-medium' : 'text-slate-500'}`}>Aylık</button>
+                            </div>
                         </div>
-                        <div className="flex-1 min-h-[150px]">
+                        <div className="flex-1 min-h-[150px] relative z-10">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={areaData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                                <AreaChart data={dataMode === 'weekly' ? weeklyData : monthlyData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="colorProd" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#2563EB" stopOpacity={0.2}/>
                                             <stop offset="95%" stopColor="#2563EB" stopOpacity={0}/>
                                         </linearGradient>
                                     </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" opacity={0.5} />
-                                    <XAxis dataKey="name" tick={{fontSize: 10, fill: '#6B7280'}} axisLine={false} tickLine={false} dy={10} />
-                                    <YAxis tick={{fontSize: 10, fill: '#6B7280'}} axisLine={false} tickLine={false} />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#334155' : '#E5E7EB'} opacity={0.5} />
+                                    <XAxis dataKey="name" tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} dy={10} />
+                                    <YAxis tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} />
                                     <Tooltip 
                                         contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                                         labelStyle={{ color: '#374151', fontWeight: 600, fontSize: '12px' }}
-                                        itemStyle={{ fontSize: '12px' }}
+                                        itemStyle={{ fontSize: '12px', color: '#2563EB' }}
                                     />
                                     <Area 
                                         type="monotone" 
@@ -169,10 +245,16 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                         </div>
                     </div>
 
-                    <div className="col-span-1 p-5 rounded-2xl bg-card border border-border shadow-sm flex flex-col">
+                    <div className="col-span-1 p-5 rounded-2xl bg-white dark:bg-slate-800 border border-border shadow-sm flex flex-col">
                         <div className="flex justify-between items-center mb-4">
-                             <h4 className="font-semibold text-foreground text-sm">Verimlilik</h4>
-                             <div className="p-1 rounded bg-secondary text-xs font-mono text-muted-foreground">%</div>
+                             <h4 className="font-semibold text-slate-900 dark:text-white text-sm">Verimlilik</h4>
+                             <motion.div 
+                               animate={{ rotate: 360 }}
+                               transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+                               className="p-1 rounded bg-blue-50 text-blue-600"
+                             >
+                                <Briefcase size={12} />
+                             </motion.div>
                         </div>
                         <div className="flex-1 min-h-[150px]">
                             <ResponsiveContainer width="100%" height="100%">
