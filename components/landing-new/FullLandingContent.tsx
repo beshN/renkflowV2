@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 export const FullLandingContent: React.FC = () => {
   return (
@@ -17,12 +18,12 @@ export const FullLandingContent: React.FC = () => {
                 Ekibinizin en iyi işlerini, baştan sona güçlendiren görsel iş birliği aracı. Karmaşayı netliğe, fikirleri gerçeğe dönüştürün.
               </p>
               <div className="mt-10 flex items-center justify-center md:justify-start space-x-4">
-                <a className="bg-blue-600 text-white font-bold py-4 px-10 rounded-full transition-transform hover:scale-105 shadow-[0_0_40px_0px_rgba(67,97,238,0.3)] hover:shadow-[0_0_50px_0px_rgba(67,97,238,0.4)] text-lg" href="#">
+                <Link href="/signup" className="bg-blue-600 text-white font-bold py-4 px-10 rounded-full transition-transform hover:scale-105 shadow-[0_0_40px_0px_rgba(67,97,238,0.3)] hover:shadow-[0_0_50px_0px_rgba(67,97,238,0.4)] text-lg">
                   Ücretsiz Deneyin
-                </a>
-                <a className="font-semibold text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-600 transition-colors" href="#">
+                </Link>
+                <Link href="/contact" className="font-semibold text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-600 transition-colors">
                   Demo Talep Et
-                </a>
+                </Link>
               </div>
             </div>
             <div className="relative flex justify-center items-center">
@@ -181,9 +182,9 @@ export const FullLandingContent: React.FC = () => {
           <p className="mt-6 text-lg text-slate-600 dark:text-slate-400">
             Binlerce ekibe katılın ve iş akışınızı Renkflow ile bir sonraki seviyeye taşıyın. Kredi kartı gerekmez.
           </p>
-          <a className="mt-10 inline-block bg-blue-600 text-white font-bold py-4 px-10 rounded-full transition-transform hover:scale-105 shadow-[0_0_40px_0px_rgba(67,97,238,0.3)] text-lg" href="#">
+          <Link href="/signup" className="mt-10 inline-block bg-blue-600 text-white font-bold py-4 px-10 rounded-full transition-transform hover:scale-105 shadow-[0_0_40px_0px_rgba(67,97,238,0.3)] text-lg">
             Hemen Ücretsiz Başlayın
-          </a>
+          </Link>
         </div>
       </section>
       
