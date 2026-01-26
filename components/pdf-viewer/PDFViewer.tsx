@@ -225,8 +225,8 @@ export default function PDFViewer({
   }, [])
 
   // Document load handler
-  const onDocumentLoadSuccess = useCallback(({ numPages: pages }: { numPages: number }) => {
-    setNumPages(pages)
+  const onDocumentLoadSuccess = useCallback((pdf: any) => {
+    setNumPages(pdf.numPages)
     setLoading(false)
     setLoadProgress(100)
     setError(null)
@@ -1620,11 +1620,9 @@ export default function PDFViewer({
                 <Document
                   key={retryCount} // Force re-render on retry
                   file={fileUrl}
-                  onLoadSuccess={onDocumentLoadSuccess}
-                  onLoadError={onDocumentLoadError}
-                  onLoadProgress={onLoadProgress}
-                  onSourceSuccess={(pdf) => {
+                  onLoadSuccess={(pdf) => {
                     pdfDocRef.current = pdf
+                    onDocumentLoadSuccess(pdf)
                   }}
                   loading={
                     <div className="flex items-center justify-center h-96">
