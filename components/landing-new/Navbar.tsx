@@ -41,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
           
           {/* Logo Section */}
           <Link href="/" className="flex-shrink-0 flex items-center gap-3 cursor-pointer group">
-            <div className="relative h-12 w-40 sm:h-16 sm:w-56 flex items-center transition-transform group-hover:scale-105">
+            <div className="relative h-16 w-56 sm:h-20 sm:w-72 flex items-center transition-transform group-hover:scale-105">
                 <Image 
                   src="/logo-full.png" 
                   alt="RenkFlow" 
@@ -57,26 +57,9 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
             {/* Menu items removed */}
           </div>
 
-          {/* Right Actions */}
+          {/* Right Actions - Hidden/Removed as per request */}
           <div className="flex items-center gap-4">
-            <button
-              onClick={toggleTheme}
-              className="p-2.5 rounded-full bg-secondary/50 hover:bg-secondary transition-all text-muted-foreground hover:text-foreground border border-transparent hover:border-border"
-              aria-label="Toggle Dark Mode"
-            >
-              {isDark ? (
-                <Sun className="w-5 h-5 text-amber-400" />
-              ) : (
-                <Moon className="w-5 h-5 text-indigo-500" />
-              )}
-            </button>
-            
-            <motion.div 
-                whileHover={{ scale: 1.05 }}
-                className="hidden sm:flex px-4 py-2 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20 cursor-default"
-            >
-              Beta v2.0
-            </motion.div>
+            {/* Elements removed */}
           </div>
         </div>
       </div>
