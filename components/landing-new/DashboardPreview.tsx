@@ -83,7 +83,7 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
       <div className="relative bg-background rounded-[1.5rem] shadow-2xl ring-1 ring-border overflow-hidden transform rotate-y-[-10deg] rotate-x-[5deg] group-hover:rotate-0 transition-all duration-700 ease-out h-[600px] flex preserve-3d">
         
         {/* Sidebar */}
-        <div className="w-16 border-r border-border flex flex-col items-center py-6 gap-6 bg-secondary/50 backdrop-blur-sm z-30 relative">
+        <div className="w-16 border-r border-border flex flex-col items-center py-6 gap-6 bg-secondary/50 backdrop-blur-sm z-[60] relative pointer-events-auto">
             <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-500/20">R</div>
             
             <div className="flex flex-col gap-4 mt-4 w-full px-2">

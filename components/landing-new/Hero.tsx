@@ -78,18 +78,7 @@ export const Hero: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
             >
-                {/* Badge */}
-                <motion.div 
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/50 border border-border backdrop-blur-sm mb-8 mx-auto lg:mx-0"
-                >
-                    <span className="flex h-2 w-2 rounded-full bg-blue-500 relative">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                    </span>
-                    <span className="text-sm font-medium text-foreground/80">RenkFlow v2.0 Erken Erişim</span>
-                </motion.div>
+
 
                 {/* Headline */}
                 <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight text-foreground mb-6 leading-[1.1]">
