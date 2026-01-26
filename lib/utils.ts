@@ -27,6 +27,8 @@ export function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return '-';
   try {
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '-';
+
     return date.toLocaleDateString('tr-TR', {
       day: 'numeric',
       month: 'long',
