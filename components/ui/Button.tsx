@@ -5,8 +5,8 @@ import { cn } from '@/lib/utils';
 import { useSpotlight } from './SpotlightEffect';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
-  size?: 'sm' | 'md' | 'lg';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'default';
+  size?: 'sm' | 'md' | 'lg' | 'icon';
   children: ReactNode;
   spotlight?: boolean;
   spotlightColor?: string;
@@ -29,6 +29,8 @@ export function Button({
   const variants = {
     primary:
       'bg-primary text-white hover:bg-primary/90 shadow-sm hover:shadow-md',
+    default:
+      'bg-primary text-white hover:bg-primary/90 shadow-sm hover:shadow-md',
     secondary:
       'bg-secondary text-white hover:bg-secondary/90 shadow-sm hover:shadow-md',
     outline:
@@ -43,6 +45,7 @@ export function Button({
     sm: 'px-3 py-1.5 text-sm',
     md: 'px-4 py-2 text-base',
     lg: 'px-6 py-3 text-lg',
+    icon: 'h-10 w-10',
   };
 
   return (
