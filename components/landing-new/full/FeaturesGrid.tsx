@@ -63,9 +63,9 @@ export const FeaturesGrid: React.FC = () => {
                     </div>
                     <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white relative z-10">{feature.title}</h3>
                     <p className="text-slate-600 dark:text-slate-400 mb-6 relative z-10">{feature.desc}</p>
-                    <a className="font-semibold text-blue-600 hover:underline flex items-center cursor-pointer relative z-10">
+                    <Link href="/features" className="font-semibold text-blue-600 hover:underline flex items-center cursor-pointer relative z-10">
                         Daha Fazla Bilgi <span className="material-symbols-outlined ml-1 group-hover:translate-x-1 transition-transform">arrow_forward</span>
-                    </a>
+                    </Link>
                 </motion.div>
             ))}
         </div>

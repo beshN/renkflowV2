@@ -29,9 +29,9 @@ export const Footer: React.FC = () => {
               Üretim yönetimini basitleştiren, verimliliği artıran yeni nesil SaaS platformu.
             </p>
             <div className="flex gap-4 pt-2">
-              <SocialIcon icon={Twitter} href="#" />
-              <SocialIcon icon={Linkedin} href="#" />
-              <SocialIcon icon={Instagram} href="#" />
+              <SocialIcon icon={Twitter} href="https://twitter.com/renkflow" />
+              <SocialIcon icon={Linkedin} href="https://linkedin.com/company/renkflow" />
+              <SocialIcon icon={Instagram} href="https://instagram.com/renkflow" />
             </div>
           </div>
 
