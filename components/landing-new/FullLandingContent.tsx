@@ -7,6 +7,7 @@ import { FeaturesGrid } from './full/FeaturesGrid';
 import { DetailedFeatures } from './full/DetailedFeatures';
 import { OptimizationSection } from './full/OptimizationSection';
 import { Testimonials } from './full/Testimonials';
+import { FAQSection } from './full/FAQSection';
 import { CTASection } from './full/CTASection';
 
 export const FullLandingContent: React.FC = () => {
@@ -18,6 +19,7 @@ export const FullLandingContent: React.FC = () => {
       <DetailedFeatures />
       <OptimizationSection />
       <Testimonials />
+      <FAQSection />
       <CTASection />
       
       <div id="contact"></div>
