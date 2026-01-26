@@ -2,13 +2,16 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Mail, ShieldCheck, CheckCircle2, Factory, Wrench, Package, BarChart3, ChevronRight } from 'lucide-react';
-
+import { Mail, ShieldCheck, CheckCircle2, ChevronRight, ArrowRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { DashboardPreview } from './DashboardPreview';
+import { useTheme } from '@/lib/context/ThemeContext';
 
 export const Hero: React.FC = () => {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+  const { isDark } = useTheme();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,166 +47,164 @@ export const Hero: React.FC = () => {
     }
   };
 
-  const features = [
-    { icon: Factory, label: 'Üretim Yönetimi', desc: 'Planlama & takip' },
-    { icon: Wrench, label: 'Bakım Yönetimi', desc: 'Önleyici bakım' },
-    { icon: Package, label: 'Stok & Tedarik', desc: 'Envanter kontrolü' },
-    { icon: BarChart3, label: 'Raporlama', desc: 'Analitik & KPI' },
-  ];
-
   return (
-    <div className="h-screen w-full overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/20 to-indigo-50/10">
+    <div className="relative min-h-screen w-full overflow-hidden bg-background">
       
-      {/* Background - Softened Grid */}
-      <div className="pointer-events-none fixed inset-0">
-        <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-blue-500/8 blur-[100px]" />
-        <div className="absolute top-20 -right-40 h-[450px] w-[450px] rounded-full bg-indigo-500/6 blur-[100px]" />
+      {/* Aurora Background Effect */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-blue-500/20 blur-[120px] animate-pulse" style={{ animationDuration: '8s' }} />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-indigo-500/20 blur-[120px] animate-pulse" style={{ animationDuration: '10s', animationDelay: '1s' }} />
+        <div className="absolute top-[40%] left-[30%] w-[40%] h-[40%] rounded-full bg-purple-500/10 blur-[100px]" />
         
-        {/* Softer, masked grid - MORE VISIBLE */}
+        {/* Grid Pattern */}
         <div 
-          className="absolute inset-0 opacity-[0.04]"
+          className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
           style={{
-            backgroundImage: 'linear-gradient(to right, #000 1px, transparent 1px), linear-gradient(to bottom, #000 1px, transparent 1px)',
-            backgroundSize: '64px 64px',
-            maskImage: 'radial-gradient(circle at center, transparent 5%, black 60%)'
+            backgroundImage: 'linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)',
+            backgroundSize: '40px 40px',
+            maskImage: 'radial-gradient(circle at center, black, transparent 80%)'
           }}
         />
       </div>
 
-      {/* Page wrapper */}
-      <div className="relative z-10 flex h-full flex-col">
-        
-        {/* Header with logo - perfectly aligned, 1.1x larger */}
-        <header className="w-full pl-6 lg:pl-8">
-          <Image
-            src="/renkflow-logo-new.png"
-            alt="RenkFlow"
-            width={1000}
-            height={250}
-            priority
-            className="h-48 sm:h-60 md:h-64 lg:h-[17rem] w-auto -ml-6 -mt-14 lg:-mt-16"
-          />
-        </header>
-
-        {/* Main content - Moved up slightly with justify-start + pt */}
-        <main className="flex flex-1 flex-col items-center justify-center -mt-10 px-6 sm:-mt-16">
-          
-          {/* Badge */}
-          <div className="mb-6 inline-flex items-center gap-2.5 rounded-full border border-blue-100 bg-white/80 px-4 py-1.5 shadow-sm backdrop-blur-sm">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-600 opacity-75" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-blue-600" />
-            </span>
-            <span className="text-sm font-semibold text-slate-700">Çok Yakında...</span>
-          </div>
-
-          {/* Gradient Divider Line - Above Headline */}
-          <div className="mb-6 w-full max-w-md">
-            <div className="h-1 rounded-full bg-gradient-to-r from-blue-600 via-indigo-500 to-blue-600" />
-          </div>
-
-          {/* Headline - Fixed Flow */}
-          <h1 className="mb-4 max-w-4xl text-center text-3xl font-bold leading-tight tracking-tight text-slate-900 sm:text-4xl md:text-5xl lg:text-6xl">
-            Şirketinizin ihtiyacı olan tek yazılım:{' '}
-            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              RenkFlow.
-            </span>
-          </h1>
-
-          {/* Subtitle */}
-          <p className="mb-3 text-lg font-medium text-slate-600 sm:text-xl md:text-2xl lg:text-3xl">
-            Planla. Takip et. Optimize et.
-          </p>
-
-          <p className="mb-8 max-w-xl text-center text-sm leading-relaxed text-slate-500 sm:text-base md:text-lg">
-            <span className="block">
-              RenkFlow ile üretim süreçlerinizi modernize edin, verimliliği artırın.
-            </span>
-            <span className="block mt-1">
-              Erken erişim listesine katılın, ilk siz haberdar olun.
-            </span>
-          </p>
-
-          {/* Email form - Updated CTA */}
-          <div className="w-full max-w-md">
-            {status === 'success' ? (
-              <div className="flex flex-col items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-5 shadow-sm">
-                <div className="rounded-full bg-green-100 p-2.5 text-green-600">
-                  <CheckCircle2 className="h-6 w-6" />
-                </div>
-                <div className="text-center">
-                  <h4 className="text-base font-semibold text-slate-900">Teşekkürler!</h4>
-                  <p className="text-sm text-slate-600">Sizi bekleme listesine ekledik.</p>
-                </div>
-                <button
-                  onClick={() => setStatus('idle')}
-                  className="text-sm text-slate-500 underline hover:text-slate-900"
+      <div className="relative z-10 container mx-auto px-6 pt-32 pb-20 lg:pt-48 lg:pb-32">
+        <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-20">
+            
+            {/* Left Content */}
+            <motion.div 
+                className="flex-1 max-w-2xl text-center lg:text-left z-20"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+            >
+                {/* Badge */}
+                <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/50 border border-border backdrop-blur-sm mb-8 mx-auto lg:mx-0"
                 >
-                  Başka e-posta ekle
-                </button>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
-                <form onSubmit={handleSubmit} className="flex gap-2">
-                  <div className="relative flex-grow">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                      <Mail className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <input
-                      type="email"
-                      
-                      disabled={status === 'loading'}
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="block w-full rounded-xl border border-slate-200 bg-white py-3.5 pl-11 pr-4 text-base text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="E-posta adresiniz"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={status === 'loading'}
-                    className="flex items-center gap-2 whitespace-nowrap rounded-xl bg-slate-900 px-6 py-3.5 text-sm font-semibold text-white shadow transition-all hover:bg-slate-800 active:scale-[0.98] disabled:opacity-60 sm:text-base"
-                  >
-                    {status === 'loading' ? (
-                      <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    <span className="flex h-2 w-2 rounded-full bg-blue-500 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                    </span>
+                    <span className="text-sm font-medium text-foreground/80">RenkFlow v2.0 Erken Erişim</span>
+                </motion.div>
+
+                {/* Headline */}
+                <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight text-foreground mb-6 leading-[1.1]">
+                    Üretim Yönetiminde <br/>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+                        Yeni Bir Çağ.
+                    </span>
+                </h1>
+
+                <p className="text-lg sm:text-xl text-muted-foreground mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                    Siparişten teslimata, stoktan faturaya. Karmaşık süreçleri basitleştiren, işletmenizle büyüyen modern çözüm.
+                </p>
+
+                {/* Email Form */}
+                <div className="max-w-md mx-auto lg:mx-0">
+                    {status === 'success' ? (
+                         <motion.div 
+                             initial={{ opacity: 0, scale: 0.95 }}
+                             animate={{ opacity: 1, scale: 1 }}
+                             className="flex items-center gap-4 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400"
+                         >
+                            <CheckCircle2 size={24} />
+                            <div className="text-left">
+                                <p className="font-semibold">Harika seçim!</p>
+                                <p className="text-sm opacity-90">Bekleme listesine eklendiniz.</p>
+                            </div>
+                         </motion.div>
                     ) : (
-                      <>
-                        Haber Ver <ChevronRight className="h-4 w-4" />
-                      </>
+                        <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
+                            <div className="relative flex-grow">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground">
+                                    <Mail size={18} />
+                                </div>
+                                <input 
+                                    type="email" 
+                                    placeholder="E-posta adresiniz" 
+                                    className="w-full h-12 pl-11 pr-4 rounded-xl bg-background border border-input focus:border-primary focus:ring-1 focus:ring-primary transition-all shadow-sm"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    disabled={status === 'loading'}
+                                />
+                            </div>
+                            <button 
+                                type="submit" 
+                                disabled={status === 'loading'}
+                                className="h-12 px-6 rounded-xl bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/25 disabled:opacity-70 whitespace-nowrap"
+                            >
+                                {status === 'loading' ? (
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <>Haber Ver <ArrowRight size={18} /></>
+                                )}
+                            </button>
+                        </form>
                     )}
-                  </button>
-                </form>
-                <div className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-slate-50 px-4 py-2 text-xs text-slate-500 sm:text-sm">
-                  <ShieldCheck className="h-4 w-4 text-green-600" />
-                  <span>Spam yok, sadece önemli güncellemeler.</span>
+                    <div className="mt-4 flex items-center justify-center lg:justify-start gap-2 text-xs text-muted-foreground">
+                        <ShieldCheck size={14} className="text-green-500" />
+                        <span>Verileriniz şifrelenir ve korunur. Spam yok.</span>
+                    </div>
                 </div>
-              </div>
-            )}
-          </div>
 
-          {/* Feature cards - Updated icons/labels */}
-          <div className="mt-12 w-full max-w-2xl">
-            <div className="grid grid-cols-4 gap-3">
-              {features.map((feature, index) => (
-                <div
-                  key={index}
-                  className="group rounded-xl border border-slate-200 bg-white/60 p-3.5 shadow-sm backdrop-blur-sm transition-all hover:bg-white hover:shadow-md"
+                {/* Companies / Social Proof (Optional Placeholder) */}
+                <div className="mt-12 pt-8 border-t border-border/50 hidden lg:block">
+                   <p className="text-sm font-medium text-muted-foreground mb-4">Modern işletmelerin tercihi</p>
+                   <div className="flex gap-6 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-blue-500/20 rounded-md"></div>
+                        <span className="font-bold text-lg text-foreground/50">TechCorp</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-purple-500/20 rounded-md"></div>
+                        <span className="font-bold text-lg text-foreground/50">InduSys</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-green-500/20 rounded-md"></div>
+                        <span className="font-bold text-lg text-foreground/50">Logistix</span>
+                      </div>
+                   </div>
+                </div>
+            </motion.div>
+
+            {/* Right Visual - 3D Dashboard */}
+            <motion.div 
+                className="flex-1 w-full max-w-2xl lg:max-w-none relative perspective-[2000px]"
+                initial={{ opacity: 0, x: 50, rotateY: 20 }}
+                animate={{ opacity: 1, x: 0, rotateY: -5 }}
+                transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
+                style={{ transformStyle: 'preserve-3d' }}
+            >
+                {/* Floating Elements (Decorations) */}
+                <motion.div 
+                    animate={{ y: [0, -10, 0] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute -top-12 -right-8 z-30 p-4 rounded-2xl bg-card shadow-xl border border-border hidden lg:block backdrop-blur-md bg-opacity-90"
                 >
-                  <feature.icon className="mb-1.5 h-5 w-5 text-blue-600 sm:h-6 sm:w-6" />
-                  <h3 className="text-xs font-semibold text-slate-800 sm:text-sm">{feature.label}</h3>
-                  <p className="text-[10px] text-slate-500 sm:text-xs">{feature.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </main>
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center text-green-500">
+                            <CheckCircle2 size={20} />
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground">Sipariş Tamamlandı</p>
+                            <p className="text-sm font-bold text-foreground">₺24,500</p>
+                        </div>
+                    </div>
+                </motion.div>
 
-        {/* Footer */}
-        <footer className="w-full border-t border-slate-100 bg-white/40 py-3 text-center backdrop-blur-sm">
-          <p className="text-xs text-slate-400 sm:text-sm">
-            © {new Date().getFullYear()} RenkFlow. Tüm hakları saklıdır.
-          </p>
-        </footer>
+                {/* Main Dashboard Preview */}
+                <div className="relative z-20">
+                    <DashboardPreview isDark={isDark} />
+                </div>
+                
+                 {/* 3D Floor Shadow */}
+                 <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 w-[90%] h-12 bg-black/20 blur-xl rounded-[100%] pointer-events-none transform rotate-x-60" />
+
+            </motion.div>
+        </div>
       </div>
     </div>
   );
