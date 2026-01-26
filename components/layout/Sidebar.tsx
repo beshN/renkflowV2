@@ -64,9 +64,9 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed md:sticky top-0 h-screen flex flex-col border-r border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark transition-all duration-300 ease-in-out z-[58]",
+        "fixed md:sticky top-0 h-screen flex flex-col border-r border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl transition-all duration-300 ease-in-out z-[58]",
         // Mobile styles
-        isMobileOpen ? "translate-x-0 w-64" : "-translate-x-full md:translate-x-0",
+        isMobileOpen ? "translate-x-0 w-64 shadow-2xl" : "-translate-x-full md:translate-x-0",
         // Desktop styles
         "md:w-20 md:hover:w-72 group"
       )}>
