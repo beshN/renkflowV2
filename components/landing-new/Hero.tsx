@@ -179,22 +179,7 @@ export const Hero: React.FC = () => {
                 transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
                 style={{ transformStyle: 'preserve-3d' }}
             >
-                {/* Floating Elements (Decorations) */}
-                <motion.div 
-                    animate={{ y: [0, -10, 0] }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute -top-12 -right-8 z-30 p-4 rounded-2xl bg-card shadow-xl border border-border hidden lg:block backdrop-blur-md bg-opacity-90"
-                >
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center text-green-500">
-                            <CheckCircle2 size={20} />
-                        </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground">Sipariş Tamamlandı</p>
-                            <p className="text-sm font-bold text-foreground">₺24,500</p>
-                        </div>
-                    </div>
-                </motion.div>
+
 
                 {/* Main Dashboard Preview */}
                 <div className="relative z-20">

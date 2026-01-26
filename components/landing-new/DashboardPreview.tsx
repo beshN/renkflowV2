@@ -16,7 +16,9 @@ import {
   Calendar,
   Zap,
   Briefcase,
-  CheckCircle2
+  CheckCircle2,
+  Box,
+  Truck
 } from 'lucide-react';
 
 interface DashboardPreviewProps {
@@ -68,10 +70,180 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
         setIncome(prev => prev + randomBonus);
 
         setTimeout(() => setNotification(null), 3000);
-    }, 8000);
+    }, 5000); // Faster updates
 
     return () => clearInterval(interval);
   }, []);
+
+  const renderContent = () => {
+      switch(activeTab) {
+          case 'dashboard':
+              return (
+                <div className="p-6 overflow-hidden flex flex-col gap-6 h-full animate-in fade-in duration-500">
+                    {/* Stats Row */}
+                    <div className="grid grid-cols-3 gap-4">
+                        {/* Stat Card 1 */}
+                        <motion.div 
+                            whileHover={{ y: -2 }}
+                            className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-border shadow-sm"
+                        >
+                            <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs text-muted-foreground font-medium">Toplam Gelir</span>
+                                <span className="text-xs font-semibold text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                    <TrendingUp size={10} /> +12%
+                                </span>
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                                ₺{income.toLocaleString()}
+                            </h3>
+                        </motion.div>
+
+                         {/* Stat Card 2 */}
+                         <motion.div 
+                            whileHover={{ y: -2 }}
+                            className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-border shadow-sm"
+                        >
+                            <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs text-muted-foreground font-medium">Aktif Sipariş</span>
+                                 <div className="p-1 bg-blue-500/10 rounded text-blue-600 animate-pulse-slow">
+                                    <Package size={12} />
+                                 </div>
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white">48</h3>
+                        </motion.div>
+
+                         {/* Stat Card 3 */}
+                         <motion.div 
+                            whileHover={{ y: -2 }}
+                            className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-border shadow-sm"
+                        >
+                            <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs text-muted-foreground font-medium">Verimlilik</span>
+                                <div className="p-1 bg-purple-500/10 rounded text-purple-600">
+                                    <Zap size={12} />
+                                 </div>
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white">%94.2</h3>
+                        </motion.div>
+                    </div>
+
+                    {/* Main Chart Section */}
+                    <div className="flex-1 grid grid-cols-3 gap-6 min-h-0">
+                        <div className="col-span-2 p-5 rounded-2xl bg-white dark:bg-slate-800 border border-border shadow-sm flex flex-col relative overflow-hidden">
+                            <div className="flex justify-between items-center mb-4 relative z-10">
+                                <div>
+                                    <h4 className="font-semibold text-slate-900 dark:text-white text-sm">Haftalık Üretim Analizi</h4>
+                                    <p className="text-[10px] text-muted-foreground">Son 7 günlük performans</p>
+                                </div>
+                                <div className="flex bg-slate-100 dark:bg-slate-900 rounded-lg p-0.5">
+                                    <button onClick={() => setDataMode('weekly')} className={`px-2 py-0.5 text-[10px] rounded-md transition-all ${dataMode === 'weekly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 font-medium' : 'text-slate-500'}`}>Haftalık</button>
+                                    <button onClick={() => setDataMode('monthly')} className={`px-2 py-0.5 text-[10px] rounded-md transition-all ${dataMode === 'monthly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 font-medium' : 'text-slate-500'}`}>Aylık</button>
+                                </div>
+                            </div>
+                            <div className="flex-1 min-h-[150px] relative z-10">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={dataMode === 'weekly' ? weeklyData : monthlyData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                                        <defs>
+                                            <linearGradient id="colorProd" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#2563EB" stopOpacity={0.2}/>
+                                                <stop offset="95%" stopColor="#2563EB" stopOpacity={0}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#334155' : '#E5E7EB'} opacity={0.5} />
+                                        <XAxis dataKey="name" tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} dy={10} />
+                                        <YAxis tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} />
+                                        <Tooltip 
+                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                            labelStyle={{ color: '#374151', fontWeight: 600, fontSize: '12px' }}
+                                            itemStyle={{ fontSize: '12px', color: '#2563EB' }}
+                                        />
+                                        <Area 
+                                            type="monotone" 
+                                            dataKey="value" 
+                                            stroke="#2563EB" 
+                                            strokeWidth={3} 
+                                            fill="url(#colorProd)" 
+                                            animationDuration={1500}
+                                        />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        <div className="col-span-1 p-5 rounded-2xl bg-white dark:bg-slate-800 border border-border shadow-sm flex flex-col">
+                            <div className="flex justify-between items-center mb-4">
+                                 <h4 className="font-semibold text-slate-900 dark:text-white text-sm">Verimlilik</h4>
+                                 <motion.div 
+                                   animate={{ rotate: 360 }}
+                                   transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+                                   className="p-1 rounded bg-blue-50 text-blue-600"
+                                 >
+                                    <Briefcase size={12} />
+                                 </motion.div>
+                            </div>
+                            <div className="flex-1 min-h-[150px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={barData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                                        <Bar dataKey="value" radius={[4, 4, 4, 4]} animationDuration={1500}>
+                                            {barData.map((entry, index) => (
+                                                <Cell 
+                                                    key={`cell-${index}`} 
+                                                    fill={index === 3 ? '#2563EB' : '#E2E8F0'} 
+                                                />
+                                            ))}
+                                        </Bar>
+                                        <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+              );
+          case 'package':
+              return (
+                  <div className="p-8 h-full flex flex-col items-center justify-center text-center animate-in fade-in duration-300">
+                      <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-4 text-blue-600">
+                          <Package size={32} />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Stok Yönetimi</h3>
+                      <p className="text-slate-500 text-sm max-w-xs">Tüm ürünleriniz, hammaddeleriniz ve envanteriniz tek bir yerde.</p>
+                      
+                      <div className="mt-8 w-full space-y-3">
+                          {[1,2,3].map(i => (
+                              <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border bg-white dark:bg-slate-800 shadow-sm">
+                                  <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 rounded bg-slate-100 dark:bg-slate-700" />
+                                      <div className="w-24 h-2 bg-slate-200 dark:bg-slate-700 rounded" />
+                                  </div>
+                                  <div className="w-12 h-2 bg-green-200 dark:bg-green-900 rounded" />
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+              );
+        case 'users':
+            return (
+                <div className="p-8 h-full flex flex-col items-center justify-center text-center animate-in fade-in duration-300">
+                    <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mb-4 text-purple-600">
+                        <Users size={32} />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Ekip Yönetimi</h3>
+                    <p className="text-slate-500 text-sm max-w-xs">Kullanıcı rolleri, izinler ve performans takibi.</p>
+                </div>
+            );
+        default:
+              return (
+                <div className="p-8 h-full flex flex-col items-center justify-center text-center animate-in fade-in duration-300">
+                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 text-slate-400">
+                        <Settings size={32} />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Yapım Aşamasında</h3>
+                    <p className="text-slate-500 text-sm max-w-xs">Bu özellik yakında eklenecek.</p>
+                </div>
+            );
+      }
+  }
 
   return (
     <div className="relative group perspective-[2000px]">
@@ -113,11 +285,16 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-3xl relative z-10">
+        <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-3xl relative z-10 transition-all duration-300">
             
             {/* Header */}
             <div className="h-16 border-b border-border flex items-center justify-between px-6 bg-background/50">
-                <h2 className="font-semibold text-foreground">Genel Bakış</h2>
+                <h2 className="font-semibold text-foreground">
+                    {activeTab === 'dashboard' ? 'Genel Bakış' : 
+                     activeTab === 'package' ? 'Stoklar' :
+                     activeTab === 'users' ? 'Kullanıcılar' :
+                     activeTab === 'reports' ? 'Raporlar' : 'Takvim'}
+                </h2>
                 <div className="flex items-center gap-4">
                     <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 text-muted-foreground text-xs border border-border w-48 shadow-sm">
                         <Search size={14} />
@@ -132,128 +309,7 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
             </div>
 
             {/* Dashboard Content Grid */}
-            <div className="p-6 overflow-hidden flex flex-col gap-6 h-full">
-                
-                {/* Stats Row */}
-                <div className="grid grid-cols-3 gap-4">
-                    {/* Stat Card 1 */}
-                    <motion.div 
-                        whileHover={{ y: -2 }}
-                        className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-border shadow-sm"
-                    >
-                        <div className="flex justify-between items-start mb-2">
-                            <span className="text-xs text-muted-foreground font-medium">Toplam Gelir</span>
-                            <span className="text-xs font-semibold text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded flex items-center gap-1">
-                                <TrendingUp size={10} /> +12%
-                            </span>
-                        </div>
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                            ₺{income.toLocaleString()}
-                        </h3>
-                    </motion.div>
-
-                     {/* Stat Card 2 */}
-                     <motion.div 
-                        whileHover={{ y: -2 }}
-                        className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-border shadow-sm"
-                    >
-                        <div className="flex justify-between items-start mb-2">
-                            <span className="text-xs text-muted-foreground font-medium">Aktif Sipariş</span>
-                             <div className="p-1 bg-blue-500/10 rounded text-blue-600 animate-pulse-slow">
-                                <Package size={12} />
-                             </div>
-                        </div>
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">48</h3>
-                    </motion.div>
-
-                     {/* Stat Card 3 */}
-                     <motion.div 
-                        whileHover={{ y: -2 }}
-                        className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-border shadow-sm"
-                    >
-                        <div className="flex justify-between items-start mb-2">
-                            <span className="text-xs text-muted-foreground font-medium">Verimlilik</span>
-                            <div className="p-1 bg-purple-500/10 rounded text-purple-600">
-                                <Zap size={12} />
-                             </div>
-                        </div>
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">%94.2</h3>
-                    </motion.div>
-                </div>
-
-                {/* Main Chart Section */}
-                <div className="flex-1 grid grid-cols-3 gap-6 min-h-0">
-                    <div className="col-span-2 p-5 rounded-2xl bg-white dark:bg-slate-800 border border-border shadow-sm flex flex-col relative overflow-hidden">
-                        <div className="flex justify-between items-center mb-4 relative z-10">
-                            <div>
-                                <h4 className="font-semibold text-slate-900 dark:text-white text-sm">Haftalık Üretim Analizi</h4>
-                                <p className="text-[10px] text-muted-foreground">Son 7 günlük performans</p>
-                            </div>
-                            <div className="flex bg-slate-100 dark:bg-slate-900 rounded-lg p-0.5">
-                                <button onClick={() => setDataMode('weekly')} className={`px-2 py-0.5 text-[10px] rounded-md transition-all ${dataMode === 'weekly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 font-medium' : 'text-slate-500'}`}>Haftalık</button>
-                                <button onClick={() => setDataMode('monthly')} className={`px-2 py-0.5 text-[10px] rounded-md transition-all ${dataMode === 'monthly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 font-medium' : 'text-slate-500'}`}>Aylık</button>
-                            </div>
-                        </div>
-                        <div className="flex-1 min-h-[150px] relative z-10">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={dataMode === 'weekly' ? weeklyData : monthlyData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                                    <defs>
-                                        <linearGradient id="colorProd" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#2563EB" stopOpacity={0.2}/>
-                                            <stop offset="95%" stopColor="#2563EB" stopOpacity={0}/>
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#334155' : '#E5E7EB'} opacity={0.5} />
-                                    <XAxis dataKey="name" tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} dy={10} />
-                                    <YAxis tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} />
-                                    <Tooltip 
-                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                        labelStyle={{ color: '#374151', fontWeight: 600, fontSize: '12px' }}
-                                        itemStyle={{ fontSize: '12px', color: '#2563EB' }}
-                                    />
-                                    <Area 
-                                        type="monotone" 
-                                        dataKey="value" 
-                                        stroke="#2563EB" 
-                                        strokeWidth={3} 
-                                        fill="url(#colorProd)" 
-                                        animationDuration={1500}
-                                    />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-
-                    <div className="col-span-1 p-5 rounded-2xl bg-white dark:bg-slate-800 border border-border shadow-sm flex flex-col">
-                        <div className="flex justify-between items-center mb-4">
-                             <h4 className="font-semibold text-slate-900 dark:text-white text-sm">Verimlilik</h4>
-                             <motion.div 
-                               animate={{ rotate: 360 }}
-                               transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-                               className="p-1 rounded bg-blue-50 text-blue-600"
-                             >
-                                <Briefcase size={12} />
-                             </motion.div>
-                        </div>
-                        <div className="flex-1 min-h-[150px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={barData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                                    <Bar dataKey="value" radius={[4, 4, 4, 4]} animationDuration={1500}>
-                                        {barData.map((entry, index) => (
-                                            <Cell 
-                                                key={`cell-${index}`} 
-                                                fill={index === 3 ? '#2563EB' : '#E2E8F0'} 
-                                            />
-                                        ))}
-                                    </Bar>
-                                    <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
+            {renderContent()}
         </div>
       </div>
 
@@ -264,8 +320,8 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                 initial={{ opacity: 0, y: 20, x: 20, scale: 0.8 }}
                 animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 20, x: 20, scale: 0.8 }}
-                className="absolute top-[-30px] right-[-20px] z-[100] bg-white dark:bg-slate-800 p-4 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex items-center gap-3 border border-green-100 dark:border-green-900 transform translate-z-50"
-                style={{ transform: 'translateZ(100px)' }}
+                className="absolute top-[-40px] right-[-30px] z-[9999] bg-white dark:bg-slate-800 p-4 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex items-center gap-3 border border-green-100 dark:border-green-900 transform-gpu"
+                style={{ transform: 'translate3d(0,0,200px)' }}
             >
                 <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 shadow-sm">
                     <CheckCircle2 size={20} />
