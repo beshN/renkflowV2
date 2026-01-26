@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
-import { successResponse, errorResponse, handleCORS, generateAPIToken } from '@/lib/api/middleware';
+import { successResponse, errorResponse, handleCORS, generateAPIToken } from '@/lib/api/auth-helpers';
 
 import { sql } from '@/lib/db';
 

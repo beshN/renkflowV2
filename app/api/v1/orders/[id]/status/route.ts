@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/middleware';
+import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
 import { orderService } from '@/lib/services';
 import { Order } from '@/lib/types';
 
