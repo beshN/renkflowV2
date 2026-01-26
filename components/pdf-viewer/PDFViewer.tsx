@@ -447,7 +447,7 @@ export default function PDFViewer({
       }
       
       // Combine chunks into blob
-      const blob = new Blob(chunks, { type: 'application/pdf' })
+      const blob = new Blob(chunks as any, { type: 'application/pdf' })
       const url = window.URL.createObjectURL(blob)
       
       // Create download link
