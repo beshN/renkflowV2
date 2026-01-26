@@ -7,11 +7,21 @@ import { Features } from '@/components/landing-new/Features';
 import { Pricing } from '@/components/landing-new/Pricing';
 import { Testimonials } from '@/components/landing-new/Testimonials';
 import { FAQ } from '@/components/landing-new/FAQ';
-// ... (imports)
+import { Footer } from '@/components/landing-new/Footer';
+import { useTheme } from '@/lib/context/ThemeContext';
 
-// ...
+export default function LandingPage() {
+  const [mounted, setMounted] = useState(false);
+  const { theme, toggleTheme } = useTheme();
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       <Navbar isDark={theme === 'dark'} toggleTheme={toggleTheme} />
       <Hero />
       <Features />
