@@ -56,39 +56,25 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
           <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
              {[
                 'Özellikler', 
-                'Çözümler', 
-                'Fiyatlandırma'
+                'Fiyatlandırma', 
+                'Entegrasyonlar',
+                'İletişim'
              ].map((item) => (
-                <div key={item} className="relative px-4 py-2 text-sm font-medium text-muted-foreground/50 cursor-not-allowed select-none group">
+                <div key={item} className="relative px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 cursor-pointer transition-colors select-none group">
                     {item}
-                    <span className="absolute -top-1 -right-1 flex h-1.5 w-1.5">
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-border"></span>
-                    </span>
                 </div>
              ))}
           </div>
 
           {/* Right Actions */}
           <div className="flex items-center gap-4">
-            <button
-              onClick={toggleTheme}
-              className="p-2.5 rounded-full bg-secondary/50 hover:bg-secondary transition-all text-muted-foreground hover:text-foreground border border-transparent hover:border-border"
-              aria-label="Toggle Dark Mode"
-            >
-              {isDark ? (
-                <Sun className="w-5 h-5 text-amber-400" />
-              ) : (
-                <Moon className="w-5 h-5 text-indigo-500" />
-              )}
-            </button>
-            
-            <motion.div 
-                whileHover={{ scale: 1.05 }}
-                className="hidden sm:flex px-4 py-2 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20 cursor-default"
-            >
-              Beta v2.0
-            </motion.div>
-          </div>
+             <a className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 transition-colors hidden sm:block" href="#">
+                Giriş Yap
+             </a>
+             <a className="bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-full shadow-sm hover:bg-blue-700 transition-all flex items-center gap-2" href="#">
+                <span>Ücretsiz Başlayın</span>
+             </a>
+
         </div>
       </div>
     </motion.nav>
