@@ -4,8 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/landing-new/Navbar';
 import { Hero } from '@/components/landing-new/Hero';
 import { Features } from '@/components/landing-new/Features';
-import { Pricing } from '@/components/landing-new/Pricing';
-import { Testimonials } from '@/components/landing-new/Testimonials';
+
 import { FAQ } from '@/components/landing-new/FAQ';
 import { Footer } from '@/components/landing-new/Footer';
 import { useTheme } from '@/lib/context/ThemeContext';
@@ -25,8 +24,7 @@ export default function LandingPage() {
       <Navbar isDark={theme === 'dark'} toggleTheme={toggleTheme} />
       <Hero />
       <Features />
-      <Testimonials />
-      <Pricing />
+
       <FAQ />
       <Footer />
     </div>

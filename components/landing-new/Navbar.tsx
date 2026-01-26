@@ -41,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
           
           {/* Logo Section */}
           <Link href="/" className="flex-shrink-0 flex items-center gap-3 cursor-pointer group">
-            <div className="relative h-10 w-32 flex items-center transition-transform group-hover:scale-105">
+            <div className="relative h-12 w-40 sm:h-16 sm:w-56 flex items-center transition-transform group-hover:scale-105">
                 <Image 
                   src="/logo-full.png" 
                   alt="RenkFlow" 
@@ -52,20 +52,9 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation - Hidden/Removed as per request */}
           <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
-             {[
-                'Özellikler', 
-                'Çözümler', 
-                'Fiyatlandırma'
-             ].map((item) => (
-                <div key={item} className="relative px-4 py-2 text-sm font-medium text-muted-foreground/50 cursor-not-allowed select-none group">
-                    {item}
-                    <span className="absolute -top-1 -right-1 flex h-1.5 w-1.5">
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-border"></span>
-                    </span>
-                </div>
-             ))}
+            {/* Menu items removed */}
           </div>
 
           {/* Right Actions */}
