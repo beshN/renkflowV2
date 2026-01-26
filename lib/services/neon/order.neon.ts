@@ -221,13 +221,21 @@ export class NeonOrderService implements IOrderService {
       values.push(id);
       values.push(tenantId);
       
-      const query = `UPDATE orders SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1}`;
+      const query = `UPDATE orders SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1} RETURNING *`;
       
       console.log('[NeonOrderService] Update Query:', query);
       console.log('[NeonOrderService] Update Values:', values);
 
       // Ensure we only update if tenant_id matches
-      await sql(query, values);
+      const result = await sql(query, values);
+      
+      if (result.length === 0) {
+        throw new Error('Order update failed: Order not found or access denied (Tenant Mismatch)');
+      }
+      
+      // Update successful, return the new data
+      // We still re-fetch to get documents and joined data if needed, or we can just map the result
+      return this.getOrderById(id) as Promise<Order>;
     }
 
     return this.getOrderById(id) as Promise<Order>;
@@ -268,6 +276,39 @@ export class NeonOrderService implements IOrderService {
 
     // Delete order (documents will cascade)
     // Extra safety: enforce tenant_id check
-    await sql`DELETE FROM orders WHERE id = ${id} AND tenant_id = ${tenantId}`;
+    const deleteResult = await sql`DELETE FROM orders WHERE id = ${id} AND tenant_id = ${tenantId} RETURNING id`;
+    
+    if (deleteResult.length === 0) {
+       throw new Error('Delete failed: Order not found or access denied');
+    }
+  }
+  async addDocuments(id: string, files: File[]): Promise<Order> {
+    const tenantId = await this.getTenantId();
+
+    // Verify ownership first
+    const existingOrder = await this.getOrderById(id);
+    if (!existingOrder) throw new Error('Order not found or access denied');
+
+    if (files && files.length > 0) {
+      for (const file of files) {
+        // Generate Key
+        const key = generateFilePath(id, file.name);
+        
+        // Convert File to Buffer
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        // Upload to R2
+        await uploadFile(key, buffer, file.type);
+
+        // Insert into DB (Store Key in file_path)
+        await sql`
+          INSERT INTO documents (order_id, name, file_path, size)
+          VALUES (${id}, ${file.name}, ${key}, ${file.size})
+        `;
+      }
+    }
+
+    return this.getOrderById(id) as Promise<Order>;
   }
 }

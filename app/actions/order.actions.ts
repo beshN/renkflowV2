@@ -53,7 +53,16 @@ export async function updateOrderStatusAction(id: string, status: Order['status'
   return order;
 }
 
+
 export async function deleteOrderAction(id: string) {
   await orderService.deleteOrder(id);
   revalidatePath('/orders');
+}
+
+export async function uploadOrderDocumentsAction(id: string, formData: FormData) {
+  const files = formData.getAll('files') as File[];
+  if (files.length > 0) {
+    await orderService.addDocuments(id, files);
+    revalidatePath(`/orders/${id}`);
+  }
 }

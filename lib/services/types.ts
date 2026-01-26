@@ -35,4 +35,9 @@ export interface IOrderService {
    * Delete an order
    */
   deleteOrder(id: string): Promise<void>;
+
+  /**
+   * Add documents to an existing order
+   */
+  addDocuments(id: string, files: File[]): Promise<Order>;
 }

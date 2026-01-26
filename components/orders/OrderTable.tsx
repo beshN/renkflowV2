@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Order } from '@/lib/types';
 import { formatCurrency, formatDate, getOrderStatusInfo } from '@/lib/utils';
 import { Badge } from '../ui/Badge';
 import { useAuth } from '@/lib/context/AuthContext';
-
 import { SortConfig } from '@/lib/hooks/useSort';
 
 interface OrderTableProps {
@@ -17,7 +17,9 @@ interface OrderTableProps {
 }
 
 export function OrderTable({ orders, onDelete, onStatusChange, onSort, sortConfig }: OrderTableProps) {
+  const router = useRouter();
   const { user } = useAuth();
+
   const handleStatusClick = (e: React.MouseEvent, order: Order) => {
     e.stopPropagation();
     if (!onStatusChange) return;
@@ -79,7 +81,7 @@ export function OrderTable({ orders, onDelete, onStatusChange, onSort, sortConfi
               <tr
                 key={order.id}
                 className="border-b border-border-light dark:border-border-dark last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
-                onClick={() => window.location.href = `/orders/${order.id}`}
+                onClick={() => router.push(`/orders/${order.id}`)}
               >
                 <td className="p-4">
                   <Link

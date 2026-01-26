@@ -99,4 +99,30 @@ export class MockOrderService implements IOrderService {
     const filteredOrders = orders.filter(order => order.id !== id);
     this.saveOrders(filteredOrders);
   }
+  async addDocuments(id: string, files: File[]): Promise<Order> {
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    const orders = this.getStoredOrders();
+    const index = orders.findIndex(order => order.id === id);
+    
+    if (index === -1) {
+      throw new Error(`Order with id ${id} not found`);
+    }
+
+    // Creating mock documents
+    const newDocuments = files.map(file => ({
+      id: Math.random().toString(36).substr(2, 9),
+      name: file.name,
+      url: URL.createObjectURL(file), // Warning: This blob URL won't work after refresh in real mock usage but fine for session
+      size: file.size,
+      uploadedAt: new Date().toISOString(),
+    }));
+
+    const currentDocuments = orders[index].documents || [];
+    orders[index].documents = [...currentDocuments, ...newDocuments];
+    
+    this.saveOrders(orders);
+    
+    return orders[index];
+  }
 }
