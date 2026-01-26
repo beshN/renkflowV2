@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { AreaChart, Area, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
+import { AreaChart, Area, ResponsiveContainer, BarChart, Bar, Cell, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { 
   TrendingUp, 
   Package, 
@@ -133,33 +133,59 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                 <div className="flex-1 grid grid-cols-3 gap-6 min-h-0">
                     <div className="col-span-2 p-5 rounded-2xl bg-card border border-border shadow-sm flex flex-col">
                         <div className="flex justify-between items-center mb-4">
-                            <h4 className="font-semibold text-foreground text-sm">Haftalık Üretim</h4>
-                            <MoreHorizontal size={16} className="text-muted-foreground" />
+                            <div>
+                                <h4 className="font-semibold text-foreground text-sm">Haftalık Üretim Analizi</h4>
+                                <p className="text-[10px] text-muted-foreground">Son 7 günlük performans</p>
+                            </div>
+                            <MoreHorizontal size={16} className="text-muted-foreground cursor-pointer hover:text-foreground" />
                         </div>
                         <div className="flex-1 min-h-[150px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={areaData}>
+                                <AreaChart data={areaData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="colorProd" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#2563EB" stopOpacity={0.3}/>
+                                            <stop offset="5%" stopColor="#2563EB" stopOpacity={0.2}/>
                                             <stop offset="95%" stopColor="#2563EB" stopOpacity={0}/>
                                         </linearGradient>
                                     </defs>
-                                    <Area type="monotone" dataKey="value" stroke="#2563EB" strokeWidth={2} fill="url(#colorProd)" />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" opacity={0.5} />
+                                    <XAxis dataKey="name" tick={{fontSize: 10, fill: '#6B7280'}} axisLine={false} tickLine={false} dy={10} />
+                                    <YAxis tick={{fontSize: 10, fill: '#6B7280'}} axisLine={false} tickLine={false} />
+                                    <Tooltip 
+                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                        labelStyle={{ color: '#374151', fontWeight: 600, fontSize: '12px' }}
+                                        itemStyle={{ fontSize: '12px' }}
+                                    />
+                                    <Area 
+                                        type="monotone" 
+                                        dataKey="value" 
+                                        stroke="#2563EB" 
+                                        strokeWidth={3} 
+                                        fill="url(#colorProd)" 
+                                        animationDuration={1500}
+                                    />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
                     <div className="col-span-1 p-5 rounded-2xl bg-card border border-border shadow-sm flex flex-col">
+                        <div className="flex justify-between items-center mb-4">
+                             <h4 className="font-semibold text-foreground text-sm">Verimlilik</h4>
+                             <div className="p-1 rounded bg-secondary text-xs font-mono text-muted-foreground">%</div>
+                        </div>
                         <div className="flex-1 min-h-[150px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={barData}>
-                                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                                <BarChart data={barData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                                    <Bar dataKey="value" radius={[4, 4, 4, 4]} animationDuration={1500}>
                                         {barData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#3B82F6' : '#93C5FD'} />
+                                            <Cell 
+                                                key={`cell-${index}`} 
+                                                fill={index === 3 ? '#2563EB' : '#E2E8F0'} 
+                                            />
                                         ))}
                                     </Bar>
+                                    <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Mail, ShieldCheck, CheckCircle2, ChevronRight, ArrowRight } from 'lucide-react';
+import { Mail, ShieldCheck, CheckCircle2, ChevronRight, ArrowRight, Factory, Wrench, Package } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { DashboardPreview } from './DashboardPreview';
@@ -154,18 +154,29 @@ export const Hero: React.FC = () => {
                 {/* Companies / Social Proof (Optional Placeholder) */}
                 <div className="mt-12 pt-8 border-t border-border/50 hidden lg:block">
                    <p className="text-sm font-medium text-muted-foreground mb-4">Modern işletmelerin tercihi</p>
-                   <div className="flex gap-6 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-blue-500/20 rounded-md"></div>
-                        <span className="font-bold text-lg text-foreground/50">TechCorp</span>
+                   <div className="flex gap-8 items-center opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
+                      {/* Logo 1: GlobalMfg */}
+                      <div className="flex items-center gap-2 group">
+                        <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white">
+                           <Factory size={18} />
+                        </div>
+                        <span className="font-bold text-lg text-slate-700 dark:text-slate-300 group-hover:text-blue-600 transition-colors">GlobalMfg</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-purple-500/20 rounded-md"></div>
-                        <span className="font-bold text-lg text-foreground/50">InduSys</span>
+                      
+                      {/* Logo 2: TechAssembly */}
+                      <div className="flex items-center gap-2 group">
+                        <div className="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center text-white">
+                           <Wrench size={18} />
+                        </div>
+                         <span className="font-bold text-lg text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 transition-colors">TechAssembly</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-green-500/20 rounded-md"></div>
-                        <span className="font-bold text-lg text-foreground/50">Logistix</span>
+                      
+                      {/* Logo 3: AutoParts */}
+                      <div className="flex items-center gap-2 group">
+                        <div className="w-8 h-8 rounded bg-emerald-600 flex items-center justify-center text-white">
+                           <Package size={18} />
+                        </div>
+                         <span className="font-bold text-lg text-slate-700 dark:text-slate-300 group-hover:text-emerald-600 transition-colors">AutoParts</span>
                       </div>
                    </div>
                 </div>
