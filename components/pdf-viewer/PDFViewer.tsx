@@ -110,7 +110,8 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 // Throttle function with proper typing
-function throttle<T extends (...args: Parameters<T>) => ReturnType<T>>(
+// Throttle function with proper typing
+function throttle<T extends (...args: any[]) => any>(
   func: T,
   limit: number
 ): (...args: Parameters<T>) => void {
