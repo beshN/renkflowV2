@@ -1,26 +1,12 @@
+
+const { S3Client, PutObjectCommand, ListObjectsCommand } = require('@aws-sdk/client-s3');
+const dotenv = require('dotenv');
 const path = require('path');
-const fs = require('fs');
 
-// Load env vars
-const envLocalPath = path.resolve(process.cwd(), '.env.local');
-const envPath = path.resolve(process.cwd(), '.env');
+// Load .env.local
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
-if (fs.existsSync(envLocalPath)) {
-  require('dotenv').config({ path: envLocalPath });
-} else {
-  require('dotenv').config({ path: envPath });
-}
-
-const { S3Client, ListBucketsCommand } = require('@aws-sdk/client-s3');
-
-if (!process.env.R2_ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY) {
-  console.error('Error: Missing R2 environment variables.');
-  console.log('R2_ACCOUNT_ID:', process.env.R2_ACCOUNT_ID ? 'OK' : 'MISSING');
-  console.log('R2_ACCESS_KEY_ID:', process.env.R2_ACCESS_KEY_ID ? 'OK' : 'MISSING');
-  console.log('R2_SECRET_ACCESS_KEY:', process.env.R2_SECRET_ACCESS_KEY ? 'OK' : 'MISSING');
-  process.exit(1);
-}
-
+// Setup Client
 const r2Client = new S3Client({
   region: 'auto',
   endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
@@ -30,38 +16,43 @@ const r2Client = new S3Client({
   },
 });
 
-async function listBuckets() {
+const BUCKET_NAME = process.env.R2_BUCKET_NAME;
+
+async function testR2() {
+  console.log('🔵 Starting R2 Connection Test...');
+  console.log('Account ID:', process.env.R2_ACCOUNT_ID ? 'OK' : 'MISSING');
+  console.log('Bucket:', BUCKET_NAME);
+
   try {
-    console.log('Checking R2 connection...');
-    console.log('Endpoint:', `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`);
-    
-    const command = new ListBucketsCommand({});
-    const { Buckets } = await r2Client.send(command);
-    
-    console.log('\nBuckets found:');
-    if (Buckets && Buckets.length > 0) {
-      Buckets.forEach(b => console.log(` - ${b.Name}`));
-    } else {
-      console.log(' - No buckets found.');
+    // 1. List Buckets (actually List Objects to verify bucket access)
+    console.log('\n📂 Listing Files in Bucket...');
+    const listCmd = new ListObjectsCommand({ Bucket: BUCKET_NAME, MaxKeys: 5 });
+    const listRes = await r2Client.send(listCmd);
+    console.log('Files found:', listRes.Contents ? listRes.Contents.length : 0);
+    if(listRes.Contents) {
+        listRes.Contents.forEach(f => console.log(' - ' + f.Key));
     }
-    
-    const targetBucket = process.env.R2_BUCKET_NAME || 'renkflow-documents';
-    console.log(`\nTarget Bucket: '${targetBucket}'`);
-    
-    const exists = Buckets && Buckets.some(b => b.Name === targetBucket);
-    
-    if (exists) {
-      console.log(`✅ SUCCESS: Bucket '${targetBucket}' exists.`);
-    } else {
-      console.error(`❌ ERROR: Bucket '${targetBucket}' does NOT exist.`);
-      console.log('Please create it in your Cloudflare R2 dashboard or update R2_BUCKET_NAME in .env');
-    }
-  } catch (err) {
-    console.error('\n❌ Error connecting to R2:', err.message);
-    if (err.name === 'InvalidAccessKeyId') {
-      console.log('Check your R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY.');
-    }
+
+    // 2. Upload Test File
+    console.log('\n⬆️  Uploading Test File...');
+    const testKey = `test-upload-${Date.now()}.txt`;
+    const uploadCmd = new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: testKey,
+        Body: 'Hello from RenkFlow Deployment Test',
+        ContentType: 'text/plain'
+    });
+    await r2Client.send(uploadCmd);
+    console.log('✅ Upload Successful:', testKey);
+
+    console.log('\nR2 IS WORKING CORRECTLY ✅');
+
+  } catch (error) {
+    console.error('\n❌ R2 ERROR:', error.message);
+    if(error.name === 'NetworkingError') console.error('Check your internet connection or firewall.');
+    if(error.name === 'InvalidAccessKeyId') console.error('Check R2_ACCESS_KEY_ID.');
+    if(error.name === 'SignatureDoesNotMatch') console.error('Check R2_SECRET_ACCESS_KEY.');
   }
 }
 
-listBuckets();
+testR2();

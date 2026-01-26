@@ -7,7 +7,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { toast } from 'sonner';
-import LandingNav from '@/components/landing/LandingNav';
+import { AuthLayout } from '@/components/auth/AuthLayout';
+import { Mail, Lock, User, Building2, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -31,7 +32,6 @@ export default function SignupPage() {
     setFormErrors({});
 
     try {
-      // Call API route to create user
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -57,13 +57,11 @@ export default function SignupPage() {
       toast.success('Hesabınız oluşturuldu! Lütfen e-posta adresinizi kontrol edin.');
       toast.info('Gelen kutunuzdaki doğrulama linkine tıklayın.');
       
-      // Redirect to login after 2 seconds
       setTimeout(() => {
         router.push('/auth/login');
       }, 2000);
     } catch (error: any) {
-      console.error('Signup error:', error);
-      setFormErrors({ general: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.' });
+      setFormErrors({ general: 'Beklenmeyen bir hata oluştu.' });
     } finally {
       setIsLoading(false);
     }
@@ -73,211 +71,153 @@ export default function SignupPage() {
     try {
       await signIn(provider, { callbackUrl: '/orders' });
     } catch (error: any) {
-      console.error('Social signup error:', error);
-      toast.error('Sosyal medya kaydı başarısız oldu.');
+      toast.error(`${provider} kaydı başarısız.`);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark relative font-display">
-      <LandingNav />
+    <AuthLayout>
+      <div className="text-center mb-8">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Aramıza Katılın</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">30 gün boyunca ücretsiz deneyin</p>
+      </div>
 
-      {/* Top Right Login Link */}
-      <div className="absolute top-6 right-6 z-10 hidden sm:block">
-        <div className="flex items-center gap-4">
-          <p className="text-sm text-subtle-light dark:text-subtle-dark">Zaten hesabınız var mı?</p>
-          <Link href="/auth/login">
-            <button className="px-4 py-2 border border-border-light dark:border-border-dark rounded-md font-bold text-sm hover:bg-white dark:hover:bg-surface-dark transition-colors shadow-sm">
-              Giriş Yap
-            </button>
-          </Link>
+      <form onSubmit={handleSignup} className="space-y-4">
+        
+        {/* Name Input */}
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 ml-1">Ad Soyad</label>
+          <div className="relative group">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
+              }}
+              className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border ${formErrors.name ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm`}
+              placeholder="Adınız Soyadınız"
+              required
+            />
+          </div>
+          {formErrors.name && <p className="text-xs text-red-500 ml-1">{formErrors.name}</p>}
         </div>
+
+        {/* Company Input */}
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 ml-1">Şirket Adı</label>
+          <div className="relative group">
+            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+            <input
+              type="text"
+              value={companyName}
+              onChange={(e) => {
+                setCompanyName(e.target.value);
+                if (formErrors.companyName) setFormErrors({ ...formErrors, companyName: undefined });
+              }}
+              className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border ${formErrors.companyName ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm`}
+              placeholder="Şirketinizin Adı"
+              required
+            />
+          </div>
+        </div>
+
+        {/* Email Input */}
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 ml-1">E-posta</label>
+          <div className="relative group">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (formErrors.email) setFormErrors({ ...formErrors, email: undefined });
+              }}
+              className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border ${formErrors.email ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm`}
+              placeholder="ornek@sirket.com"
+              required
+            />
+          </div>
+          {formErrors.email && <p className="text-xs text-red-500 ml-1">{formErrors.email}</p>}
+        </div>
+
+        {/* Password Input */}
+        <div className="space-y-1">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 ml-1">Şifre</label>
+            <div className="relative group">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (formErrors.password) setFormErrors({ ...formErrors, password: undefined });
+                }}
+                className={`w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/50 border ${formErrors.password ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm`}
+                placeholder="En az 6 karakter"
+                required
+                minLength={6}
+                />
+                <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+            </div>
+            {formErrors.password && <p className="text-xs text-red-500 ml-1">{formErrors.password}</p>}
+        </div>
+
+        {formErrors.general && (
+            <div className="p-3 bg-red-50 text-red-600 text-xs rounded-lg border border-red-100 flex items-center gap-2">
+                <AlertCircle size={14} /> {formErrors.general}
+            </div>
+        )}
+
+        <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl shadow-lg shadow-blue-500/25 transition-all text-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+            {isLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Hesap Oluştur'}
+        </motion.button>
+      </form>
+
+      {/* Divider */}
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200 dark:border-slate-700"></div></div>
+        <div className="relative flex justify-center text-xs uppercase"><span className="bg-white dark:bg-slate-900 px-2 text-slate-400">veya</span></div>
       </div>
 
-      <div className="flex min-h-screen w-full pt-20">
-        {/* Left - Form */}
-        <motion.div
-          initial={{ opacity: 0, x: -50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}
-          className="flex-1 lg:flex-[0.5] flex items-center justify-center p-4 sm:p-8"
+       {/* Social Buttons (Compact) */}
+       <div className="grid grid-cols-2 gap-3 mb-6">
+        <button 
+            onClick={() => handleSocialSignup('google')}
+            className="flex items-center justify-center gap-2 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors bg-white dark:bg-slate-900"
         >
-          <div className="w-full max-w-md">
-            <header className="text-center lg:text-left mb-6">
-              <h1 className="text-3xl sm:text-4xl font-black mb-3">Hesap Oluşturun</h1>
-              <p className="text-subtle-light dark:text-subtle-dark">Hemen başlayın, ücretsiz</p>
-            </header>
-
-            {/* Social Signup */}
-            <div className="space-y-3 mb-6">
-              <button 
-                onClick={() => handleSocialSignup('google')}
-                className="w-full h-12 border border-border-light dark:border-border-dark rounded-md font-bold flex items-center justify-center gap-3 hover:bg-white dark:hover:bg-surface-dark transition-colors bg-surface-light dark:bg-surface-dark shadow-sm"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                Google ile devam et
-              </button>
-              
-              <button 
-                onClick={() => handleSocialSignup('azure-ad')}
-                className="w-full h-12 border border-border-light dark:border-border-dark rounded-md font-bold flex items-center justify-center gap-3 hover:bg-white dark:hover:bg-surface-dark transition-colors bg-surface-light dark:bg-surface-dark shadow-sm"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 21 21">
-                  <path d="M1 1h9v9H1V1zm10 0h9v9h-9V1zM1 11h9v9H1v-9zm10 11h9v-9h-9v9z"/>
-                </svg>
-                Microsoft ile devam et
-              </button>
-            </div>
-
-            {/* Divider */}
-            <div className="flex items-center gap-2 mb-6">
-              <hr className="flex-1 border-border-light dark:border-border-dark"/>
-              <p className="text-sm text-subtle-light dark:text-subtle-dark">veya</p>
-              <hr className="flex-1 border-border-light dark:border-border-dark"/>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={handleSignup} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Ad Soyad</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
-                  }}
-                  className={`input-professional ${formErrors.name ? 'border-red-500' : ''}`}
-                  placeholder="Adınız Soyadınız"
-                  required
-                />
-                {formErrors.name && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Şirket Adı</label>
-                <input
-                  type="text"
-                  value={companyName}
-                  onChange={(e) => {
-                    setCompanyName(e.target.value);
-                    if (formErrors.companyName) setFormErrors({ ...formErrors, companyName: undefined });
-                  }}
-                  className={`input-professional ${formErrors.companyName ? 'border-red-500' : ''}`}
-                  placeholder="Şirketinizin Adı"
-                  required
-                />
-                {formErrors.companyName && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.companyName}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">E-posta Adresi</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (formErrors.email) setFormErrors({ ...formErrors, email: undefined });
-                  }}
-                  className={`input-professional ${formErrors.email ? 'border-red-500' : ''}`}
-                  placeholder="ornek@eposta.com"
-                  required
-                />
-                {formErrors.email && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Şifre</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      if (formErrors.password) setFormErrors({ ...formErrors, password: undefined });
-                    }}
-                    className={`input-professional pr-10 ${formErrors.password ? 'border-red-500' : ''}`}
-                    placeholder="En az 6 karakter"
-                    required
-                    minLength={6}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-subtle-light dark:text-subtle-dark"
-                  >
-                    <span className="material-symbols-outlined">{showPassword ? 'visibility' : 'visibility_off'}</span>
-                  </button>
-                </div>
-                {formErrors.password && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.password}</p>
-                )}
-              </div>
-
-              {formErrors.general && (
-                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-                  <p className="text-sm text-red-600 dark:text-red-400">{formErrors.general}</p>
-                </div>
-              )}
-
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-primary text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Hesap Oluşturuluyor...' : 'Hesap Oluştur'}
-              </motion.button>
-            </form>
-
-            <div className="mt-6 text-center sm:hidden">
-              <p className="text-sm text-subtle-light dark:text-subtle-dark">
-                Zaten hesabınız var mı?{' '}
-                <Link href="/auth/login" className="text-primary font-bold hover:underline">
-                  Giriş Yap
-                </Link>
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Right - Hero Image */}
-        <motion.div
-          initial={{ opacity: 0, x: 50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}
-          className="hidden lg:flex lg:flex-[0.5] items-center justify-center p-8 bg-gradient-to-br from-primary/10 to-primary/5"
+            <Image src="https://authjs.dev/img/providers/google.svg" width={18} height={18} alt="Google" />
+            <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Google</span>
+        </button>
+        <button 
+             onClick={() => handleSocialSignup('azure-ad')}
+             className="flex items-center justify-center gap-2 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors bg-white dark:bg-slate-900"
         >
-          <div className="max-w-md text-center">
-            <div className="mb-8">
-              <Image
-                src="/logo-full.png"
-                alt="Renkflow Logo"
-                width={300}
-                height={80}
-                className="mx-auto"
-                priority
-              />
-            </div>
-            <h2 className="text-2xl font-black mb-4">Hemen Başlayın</h2>
-            <p className="text-subtle-light dark:text-subtle-dark">
-              Renkflow ile dakikalar içinde işletmenizi dijitalleştirin ve verimliliğinizi artırın.
-            </p>
-          </div>
-        </motion.div>
+             <Image src="https://authjs.dev/img/providers/microsoft-entra-id.svg" width={18} height={18} alt="Microsoft" />
+             <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Microsoft</span>
+        </button>
       </div>
-    </div>
+
+      <p className="text-center text-xs text-slate-500">
+        Zaten hesabınız var mı?{' '}
+        <Link href="/auth/login" className="text-blue-600 hover:underline font-semibold">
+          Giriş Yap
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }

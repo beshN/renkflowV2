@@ -11,12 +11,12 @@ export const Footer: React.FC = () => {
   return (
     <footer className="w-full bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 pt-16 pb-8">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center text-center mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           
-          {/* Brand Column - Centered */}
-          <div className="space-y-4 flex flex-col items-center">
+          {/* Brand Column */}
+          <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="relative h-10 w-32 sm:h-12 sm:w-40">
+              <div className="relative h-8 w-28">
                  <Image 
                     src="/logo-full.png" 
                     alt="RenkFlow" 
@@ -25,16 +25,56 @@ export const Footer: React.FC = () => {
                  />
               </div>
             </Link>
-            <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed max-w-md mx-auto">
+            <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed max-w-xs">
               Üretim yönetimini basitleştiren, verimliliği artıran yeni nesil SaaS platformu.
             </p>
-            <div className="flex gap-4 pt-2 justify-center">
+            <div className="flex gap-4 pt-2">
               <SocialIcon icon={Twitter} href="#" />
               <SocialIcon icon={Linkedin} href="#" />
               <SocialIcon icon={Instagram} href="#" />
             </div>
           </div>
 
+          {/* Links Column 1 */}
+          <div>
+            <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Ürün</h4>
+            <ul className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
+              <li><Link href="/features" className="hover:text-blue-600 transition-colors">Özellikler</Link></li>
+              <li><Link href="/pricing" className="hover:text-blue-600 transition-colors">Fiyatlandırma</Link></li>
+              <li><Link href="/roadmap" className="hover:text-blue-600 transition-colors">Yol Haritası</Link></li>
+              <li><Link href="/changelog" className="hover:text-blue-600 transition-colors">Güncellemeler</Link></li>
+            </ul>
+          </div>
+
+          {/* Links Column 2 */}
+          <div>
+            <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Şirket</h4>
+            <ul className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
+              <li><Link href="/about" className="hover:text-blue-600 transition-colors">Hakkımızda</Link></li>
+              <li><Link href="/contact" className="hover:text-blue-600 transition-colors">İletişim</Link></li>
+              <li><Link href="/careers" className="hover:text-blue-600 transition-colors">Kariyer</Link></li>
+              <li><Link href="/blog" className="hover:text-blue-600 transition-colors">Blog</Link></li>
+            </ul>
+          </div>
+
+          {/* Contact Column */}
+          <div>
+             <h4 className="font-semibold text-slate-900 dark:text-white mb-4">İletişim</h4>
+             <ul className="space-y-3 text-sm text-slate-500 dark:text-slate-400">
+                <li className="flex items-start gap-2">
+                    <MapPin size={16} className="mt-0.5 text-blue-600" />
+                    <span>Teknopark İstanbul, 34912<br/>Pendik/İstanbul</span>
+                </li>
+                <li className="flex items-center gap-2">
+                    <Mail size={16} className="text-blue-600" />
+                    <a href="mailto:info@renkflow.com" className="hover:text-blue-600">info@renkflow.com</a>
+                </li>
+                <li className="flex items-center gap-2">
+                    <Phone size={16} className="text-blue-600" />
+                    <a href="tel:+902120000000" className="hover:text-blue-600">+90 (212) 000 00 00</a>
+                </li>
+             </ul>
+          </div>
         </div>
 
         <div className="pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">

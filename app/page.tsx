@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Navbar } from '@/components/landing-new/Navbar';
+import { WaitlistNavbar } from '@/components/landing-new/WaitlistNavbar';
 import { Hero } from '@/components/landing-new/Hero';
 import { Features } from '@/components/landing-new/Features';
 
 import { FAQ } from '@/components/landing-new/FAQ';
-import { Footer } from '@/components/landing-new/Footer';
+import { WaitlistFooter } from '@/components/landing-new/WaitlistFooter';
 import { useTheme } from '@/lib/context/ThemeContext';
 
 export default function LandingPage() {
@@ -21,12 +21,12 @@ export default function LandingPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Navbar isDark={theme === 'dark'} toggleTheme={toggleTheme} />
+      <WaitlistNavbar isDark={theme === 'dark'} toggleTheme={toggleTheme} />
       <Hero />
       <Features />
 
       <FAQ />
-      <Footer />
+      <WaitlistFooter />
     </div>
   );
 }
