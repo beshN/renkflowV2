@@ -19,7 +19,7 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'renkflow-documents.e133c6a8581c4228807833059082381e.r2.cloudflarestorage.com',
+        hostname: 'renkflowv2-storage.e133c6a8581c4228807833059082381e.r2.cloudflarestorage.com',
         pathname: '/**',
       }
     ],
