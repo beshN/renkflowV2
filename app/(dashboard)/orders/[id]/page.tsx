@@ -290,17 +290,9 @@ export default function OrderDetailPage() {
 
         {selectedDocument && (
             <PDFViewer
-                file={{
-                    id: selectedDocument.id || 'doc-id',
-                    name: selectedDocument.name,
-                    size: 'Unknown',
-                    type: selectedDocument.name.endsWith('.pdf') ? 'pdf' : 'img',
-                    pageCount: 1,
-                    thumbnailUrl: selectedDocument.url,
-                    pages: [selectedDocument.url],
-                }}
+                fileUrl={selectedDocument.url}
+                fileName={selectedDocument.name}
                 onClose={() => setSelectedDocument(null)}
-                onError={() => console.error('Error')}
             />
         )}
 
