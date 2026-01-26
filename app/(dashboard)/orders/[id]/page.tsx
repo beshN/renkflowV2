@@ -5,9 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
 import { Navbar } from '@/components/layout/Navbar';
-import { Button } from '@/components/ui/Button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { NewOrderForm } from '@/components/forms/NewOrderForm';
@@ -16,39 +13,35 @@ import { useOrders } from '@/lib/hooks/useOrders';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { formatCurrency, formatDate, getOrderStatusInfo } from '@/lib/utils';
-import { Order, NewOrderFormData, Document } from '@/lib/types';
+import { Order, Document } from '@/lib/types';
+import { 
+  ArrowLeft, Calendar, User, Package, CreditCard, 
+  FileText, Clock, CheckCircle, Truck, MoreHorizontal 
+} from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const PDFViewer = dynamic(() => import('@/components/pdf-viewer/PDFViewer'), {
   ssr: false,
-  loading: () => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white" />
-    </div>
-  ),
+  loading: () => <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600" />,
 });
 
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
   const orderId = params.id as string;
-
   const { getOrderById, deleteOrder, updateOrder, updateOrderStatus, uploadDocuments, isLoading } = useOrders();
-
   const { user } = useAuth();
   const { showToast } = useToast();
 
   const order = getOrderById(orderId);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Allow admin and owner to edit/delete orders
   const canEditDelete = user?.role === 'admin' || user?.role === 'owner';
-
 
   const handleDeleteClick = () => setIsDeleteConfirmOpen(true);
 
@@ -56,26 +49,13 @@ export default function OrderDetailPage() {
     setIsDeleting(true);
     try {
       await deleteOrder(order!.id);
-      showToast('Sipariş başarıyla silindi', 'success');
+      showToast('Sipariş silindi', 'success');
       router.push('/orders');
-    } catch (error) {
-      console.error('Error deleting order:', error);
-      showToast('Sipariş silinirken bir hata oluştu', 'error');
+    } catch {
+      showToast('Hata oluştu', 'error');
     } finally {
       setIsDeleting(false);
       setIsDeleteConfirmOpen(false);
-    }
-  };
-
-  const handleStatusChange = async (status: Order['status']) => {
-    // All authenticated users can update status
-    if (!user) return;
-    try {
-      await updateOrderStatus(order!.id, status);
-      showToast('Sipariş durumu güncellendi', 'success');
-    } catch (error) {
-      console.error('Error updating status:', error);
-      showToast('Durum güncellenirken bir hata oluştu', 'error');
     }
   };
 
@@ -84,8 +64,6 @@ export default function OrderDetailPage() {
     try {
       const quantity = parseInt(formData.get('quantity') as string);
       const unitPrice = parseFloat(formData.get('unitPrice') as string) || 0;
-      
-      // Update text fields
       await updateOrder(order!.id, {
         customer: formData.get('customerName') as string,
         email: (formData.get('customerEmail') as string) || undefined,
@@ -96,296 +74,248 @@ export default function OrderDetailPage() {
         description: (formData.get('notes') as string) || undefined,
         deliveryDate: formData.get('deliveryDate') as string,
       });
-
-      // Upload new documents if any
       const files = formData.getAll('files');
-      if (files.length > 0) {
-        await uploadDocuments(order!.id, formData);
-      }
-
+      if (files.length > 0) await uploadDocuments(order!.id, formData);
       setIsEditModalOpen(false);
-      showToast('Sipariş başarıyla güncellendi', 'success');
-    } catch (error) {
-      console.error('Error updating order:', error);
-      showToast('Sipariş güncellenirken bir hata oluştu', 'error');
+      showToast('Güncellendi', 'success');
+    } catch {
+      showToast('Hata oluştu', 'error');
     } finally {
       setIsUpdating(false);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
-      </div>
-    );
-  }
+  const statusInfo = order ? getOrderStatusInfo(order.status) : { label: '', color: '', bgColor: '' };
+  
+  const steps = [
+    { id: 'pending', label: 'Beklemede', icon: Clock },
+    { id: 'in_production', label: 'Üretimde', icon: Package },
+    { id: 'delivered', label: 'Teslim Edildi', icon: CheckCircle },
+  ];
 
-  if (!order) {
-    return (
-      <div className="flex-1 flex flex-col">
-        <Navbar title="Sipariş Detayı" showSearch={false} />
-        <main className="flex-1 p-8 flex items-center justify-center">
-          <div className="text-center">
-            <span className="material-symbols-outlined text-6xl text-subtle-light dark:text-subtle-dark mb-4">error</span>
-            <h2 className="text-2xl font-semibold text-text-light dark:text-text-dark mb-2">Sipariş Bulunamadı</h2>
-            <p className="text-subtle-light dark:text-subtle-dark mb-6">#{orderId} numaralı sipariş bulunamadı.</p>
-            <Link href="/orders">
-              <Button variant="primary">Siparişlere Dön</Button>
-            </Link>
-          </div>
-        </main>
-      </div>
-    );
-  }
+  const currentStepIndex = steps.findIndex(s => s.id === order?.status);
 
-  const statusInfo = getOrderStatusInfo(order.status);
+  if (isLoading || !order) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600"/></div>;
 
   return (
-    <>
-      <div className="flex-1 flex flex-col">
-        <Navbar title={`Sipariş #${order.id}`} showSearch={false} />
-      <main className="flex-1 p-8">
-        <Link href="/orders" className="inline-flex items-center gap-2 text-sm text-primary hover:underline mb-6">
-          <span className="material-symbols-outlined text-base">arrow_back</span>
-          Siparişlere Dön
-        </Link>
-
-        <div className="flex items-start justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-text-light dark:text-text-dark mb-2">Sipariş #{order.id}</h1>
-            <p className="text-subtle-light dark:text-subtle-dark">{formatDate(order.date)} tarihinde oluşturuldu</p>
-          </div>
-          <div className="flex gap-3">
-            <Badge status={order.status}>{statusInfo.label}</Badge>
-            {canEditDelete && (
-              <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
-                <span className="material-symbols-outlined text-base mr-2">edit</span>
-                Düzenle
-              </Button>
-            )}
-            {canEditDelete && (
-              <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleDeleteClick}>
-                <span className="material-symbols-outlined text-base mr-2">delete</span>
-                Sil
-              </Button>
-            )}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            {/* Customer Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Müşteri Bilgileri</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-subtle-light dark:text-subtle-dark">person</span>
-                    <div>
-                      <p className="text-sm text-subtle-light dark:text-subtle-dark">Müşteri</p>
-                      <p className="font-medium text-text-light dark:text-text-dark">{order.customer}</p>
-                    </div>
-                  </div>
-                  {order.email && (
-                    <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined text-subtle-light dark:text-subtle-dark">mail</span>
-                      <div>
-                        <p className="text-sm text-subtle-light dark:text-subtle-dark">E-posta</p>
-                        <p className="font-medium text-text-light dark:text-text-dark">{order.email}</p>
-                      </div>
-                    </div>
-                  )}
-                  {order.phone && (
-                    <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined text-subtle-light dark:text-subtle-dark">phone</span>
-                      <div>
-                        <p className="text-sm text-subtle-light dark:text-subtle-dark">Telefon</p>
-                        <p className="font-medium text-text-light dark:text-text-dark">{order.phone}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Product Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Ürün Detayları</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-subtle-light dark:text-subtle-dark mb-1">Ürün</p>
-                    <p className="font-medium text-text-light dark:text-text-dark">{order.product || 'Belirtilmemiş'}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-subtle-light dark:text-subtle-dark mb-1">Miktar</p>
-                      <p className="font-medium text-text-light dark:text-text-dark">{order.quantity || 1} adet</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-subtle-light dark:text-subtle-dark mb-1">Tutar</p>
-                      <p className="font-medium text-text-light dark:text-text-dark">{formatCurrency(order.amount, order.currency)}</p>
-                    </div>
-                  </div>
-                  {order.deliveryDate && (
-                    <div>
-                      <p className="text-sm text-subtle-light dark:text-subtle-dark mb-1">Teslim Tarihi</p>
-                      <p className="font-medium text-text-light dark:text-text-dark">{formatDate(order.deliveryDate)}</p>
-                    </div>
-                  )}
-                  {order.description && (
-                    <div>
-                      <p className="text-sm text-subtle-light dark:text-subtle-dark mb-1">Notlar</p>
-                      <p className="text-sm text-text-light dark:text-text-dark bg-background-light dark:bg-background-dark p-3 rounded-lg border border-border-light dark:border-border-dark">
-                        {order.description}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Documents */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Belgeler</CardTitle>
-                  {canEditDelete && (
-                    <Button variant="outline" size="sm">
-                      <span className="material-symbols-outlined text-base mr-2">upload</span>
-                      Belge Yükle
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                {order.documents && order.documents.length > 0 ? (
-                  <div className="space-y-2">
-                    {order.documents.map((doc, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          setSelectedDocument(doc);
-                          setIsViewerOpen(true);
-                        }}
-                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-background-dark transition-colors text-left"
-                      >
-                        <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                          <span className="material-symbols-outlined">
-                            {doc.name.endsWith('.pdf') ? 'picture_as_pdf' : 'image'}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-text-light dark:text-text-dark truncate">{doc.name}</p>
-                          <p className="text-xs text-subtle-light dark:text-subtle-dark">Tıklayarak görüntüle</p>
-                        </div>
-                        <span className="material-symbols-outlined text-subtle-light dark:text-subtle-dark group-hover:text-primary transition-colors">visibility</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="border-2 border-dashed border-border-light dark:border-border-dark rounded-lg p-8 text-center">
-                    <span className="material-symbols-outlined text-4xl text-subtle-light dark:text-subtle-dark mb-2">folder_open</span>
-                    <p className="text-subtle-light dark:text-subtle-dark">Henüz belge eklenmemiş</p>
-                  </div>
+    <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-950/50 min-h-screen">
+      <Navbar title={`Sipariş #${order.id.slice(0,8)}`} showSearch={false} />
+      
+      <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
+        {/* Breadcrumb & Actions */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <Link href="/orders" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors">
+                <ArrowLeft size={16} />
+                Sipariş Listesine Dön
+            </Link>
+            
+            <div className="flex items-center gap-3">
+                {canEditDelete && (
+                     <button onClick={() => setIsEditModalOpen(true)} className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                        Düzenle
+                     </button>
                 )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Status Sidebar */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Sipariş Durumu</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <Button
-                    variant={order.status === 'pending' ? 'primary' : 'outline'}
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={() => handleStatusChange('pending')}
-                  >
-                    <span className="material-symbols-outlined text-base mr-2">schedule</span>
-                    Beklemede
-                  </Button>
-                  <Button
-                    variant={order.status === 'in_production' ? 'primary' : 'outline'}
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={() => handleStatusChange('in_production')}
-                  >
-                    <span className="material-symbols-outlined text-base mr-2">factory</span>
-                    Üretimde
-                  </Button>
-                  <Button
-                    variant={order.status === 'delivered' ? 'primary' : 'outline'}
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={() => handleStatusChange('delivered')}
-                  >
-                    <span className="material-symbols-outlined text-base mr-2">check_circle</span>
-                    Teslim Edildi
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-lg shadow-blue-500/20 transition-all">
+                    Fatura Oluştur
+                </button>
+                {canEditDelete && (
+                    <button onClick={handleDeleteClick} className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                        <span className="material-symbols-outlined">delete</span>
+                    </button>
+                )}
+            </div>
         </div>
-      </main>
 
-      {/* Edit Modal */}
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Siparişi Düzenle">
-        <NewOrderForm onSubmit={handleUpdate} initialData={{
-          customerName: order.customer,
-          customerEmail: order.email || '',
-          customerPhone: order.phone || '',
-          productName: order.product || '',
-          quantity: order.quantity || 1,
-          unitPrice: (order.amount / (order.quantity || 1)) || 0,
-          deliveryDate: order.deliveryDate || '',
-          notes: order.description || '',
-          documents: order.documents || [],
-        }} />
-      </Modal>
+        <div className="grid lg:grid-cols-3 gap-8">
+            {/* Left Column: Order Info */}
+            <div className="lg:col-span-2 space-y-6">
+                
+                {/* Status Timeline Card */}
+                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500 opacity-20" />
+                     <div className="flex justify-between items-center mb-8">
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
+                                {order.product}
+                            </h2>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm">
+                                Sipariş No: #{order.id}
+                            </p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-sm font-bold border ${statusInfo.color.replace('text-', 'border-').replace('600', '200')} ${statusInfo.bgColor} bg-opacity-10 text-${statusInfo.color.split('-')[1]}-600`}>
+                            {statusInfo.label}
+                        </span>
+                     </div>
+                     
+                     {/* Stepper */}
+                     <div className="relative flex justify-between">
+                        {/* Connecting Line */}
+                        <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-100 dark:bg-slate-800 -z-10 -translate-y-1/2 rounded-full" />
+                        <div 
+                            className="absolute top-1/2 left-0 h-0.5 bg-blue-500 -z-10 -translate-y-1/2 rounded-full transition-all duration-500"
+                            style={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
+                        />
 
-      {/* Document Viewer */}
-      {selectedDocument ? (
-        <PDFViewer
-          file={{
-            id: selectedDocument.id || 'doc-id',
-            name: selectedDocument.name,
-            size: 'Unknown',
-            type: selectedDocument.name.endsWith('.pdf') ? 'pdf' : 'img',
-            pageCount: 1,
-            thumbnailUrl: selectedDocument.url,
-            pages: [selectedDocument.url],
-          }}
-          onClose={() => setSelectedDocument(null)}
-          onError={() => console.error('Error opening document')}
+                        {steps.map((step, idx) => {
+                            const isCompleted = idx <= currentStepIndex;
+                            const isCurrent = idx === currentStepIndex;
+                            const Icon = step.icon;
+                            return (
+                                <div key={step.id} className="flex flex-col items-center gap-2 bg-white dark:bg-slate-900 px-2">
+                                    <button 
+                                        onClick={() => updateOrderStatus(order.id, step.id as any)}
+                                        className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
+                                        isCompleted 
+                                            ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/30' 
+                                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400'
+                                    } ${!user ? 'cursor-default' : 'cursor-pointer hover:scale-110'}`}>
+                                        <Icon size={18} />
+                                    </button>
+                                    <span className={`text-xs font-medium ${isCurrent ? 'text-blue-600' : 'text-slate-500'}`}>
+                                        {step.label}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                     </div>
+                </div>
+
+                {/* Details Grid */}
+                <div className="grid sm:grid-cols-2 gap-6">
+                     <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-5 rounded-2xl">
+                        <div className="flex items-center gap-3 mb-4 text-slate-500">
+                            <User size={18} />
+                            <span className="text-sm font-medium uppercase tracking-wider">Müşteri</span>
+                        </div>
+                        <p className="font-bold text-lg text-slate-900 dark:text-white mb-1">{order.customer}</p>
+                        {order.email && <p className="text-sm text-slate-500">{order.email}</p>}
+                        {order.phone && <p className="text-sm text-slate-500">{order.phone}</p>}
+                     </div>
+
+                     <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-5 rounded-2xl">
+                        <div className="flex items-center gap-3 mb-4 text-slate-500">
+                            <CreditCard size={18} />
+                            <span className="text-sm font-medium uppercase tracking-wider">Ödeme Detayı</span>
+                        </div>
+                        <p className="font-bold text-2xl text-slate-900 dark:text-white mb-1 tracking-tight">
+                            {formatCurrency(order.amount, order.currency)}
+                        </p>
+                        <p className="text-sm text-slate-500">
+                            {order.quantity} Adet x {formatCurrency(order.amount / order.quantity, order.currency)}
+                        </p>
+                     </div>
+                </div>
+
+                {/* Description */}
+                {order.description && (
+                     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl">
+                        <h3 className="font-bold text-slate-900 dark:text-white mb-2">Sipariş Notu</h3>
+                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
+                            {order.description}
+                        </p>
+                     </div>
+                )}
+            </div>
+
+            {/* Right Column: Documents and Dates */}
+            <div className="space-y-6">
+                 {/* Dates */}
+                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl space-y-4">
+                     <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600">
+                            <Calendar size={20} />
+                         </div>
+                         <div>
+                             <p className="text-xs text-slate-500 uppercase font-semibold">Oluşturulma</p>
+                             <p className="font-medium text-slate-900 dark:text-white">{formatDate(order.date)}</p>
+                         </div>
+                     </div>
+                     {order.deliveryDate && (
+                         <div className="flex items-center gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                            <div className="w-10 h-10 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center text-green-600">
+                                <Truck size={20} />
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-500 uppercase font-semibold">Teslimat</p>
+                                <p className="font-medium text-slate-900 dark:text-white">{formatDate(order.deliveryDate)}</p>
+                            </div>
+                         </div>
+                     )}
+                 </div>
+
+                 {/* Documents */}
+                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl">
+                     <div className="flex justify-between items-center mb-4">
+                         <h3 className="font-bold text-slate-900 dark:text-white">Belgeler</h3>
+                         <button className="text-xs font-bold text-blue-600 hover:underline uppercase">Yükle</button>
+                     </div>
+                     
+                     <div className="space-y-3">
+                         {order.documents && order.documents.length > 0 ? order.documents.map((doc, i) => (
+                             <div 
+                                key={i} 
+                                onClick={() => setSelectedDocument(doc)}
+                                className="group flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer border border-transparent hover:border-slate-100 dark:hover:border-slate-700 transition-all"
+                             >
+                                 <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500">
+                                     <FileText size={20} />
+                                 </div>
+                                 <div className="flex-1 min-w-0">
+                                     <p className="font-medium text-sm text-slate-900 dark:text-white truncate">{doc.name}</p>
+                                     <p className="text-xs text-slate-500">PDF • 1.2 MB</p>
+                                 </div>
+                             </div>
+                         )) : (
+                             <p className="text-sm text-slate-400 text-center py-4">Belge eklenmemiş</p>
+                         )}
+                     </div>
+                 </div>
+            </div>
+        </div>
+
+        {/* Modals are kept same logic-wise */}
+        <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Siparişi Düzenle">
+             <NewOrderForm onSubmit={handleUpdate} initialData={{
+                customerName: order.customer,
+                customerEmail: order.email || '',
+                customerPhone: order.phone || '',
+                productName: order.product || '',
+                quantity: order.quantity || 1,
+                unitPrice: (order.amount / (order.quantity || 1)) || 0,
+                deliveryDate: order.deliveryDate || '',
+                notes: order.description || '',
+                documents: order.documents || [],
+             }} />
+        </Modal>
+
+        {selectedDocument && (
+            <PDFViewer
+                file={{
+                    id: selectedDocument.id || 'doc-id',
+                    name: selectedDocument.name,
+                    size: 'Unknown',
+                    type: selectedDocument.name.endsWith('.pdf') ? 'pdf' : 'img',
+                    pageCount: 1,
+                    thumbnailUrl: selectedDocument.url,
+                    pages: [selectedDocument.url],
+                }}
+                onClose={() => setSelectedDocument(null)}
+                onError={() => console.error('Error')}
+            />
+        )}
+
+        <ConfirmDialog
+            isOpen={isDeleteConfirmOpen}
+            onClose={() => setIsDeleteConfirmOpen(false)}
+            onConfirm={handleConfirmDelete}
+            title="Siparişi Sil"
+            message="Emin misiniz?"
+            confirmText="Sil"
+            variant="danger"
+            isLoading={isDeleting}
         />
-      ) : null}
 
-      {/* Delete Confirmation */}
-      <ConfirmDialog
-        isOpen={isDeleteConfirmOpen}
-        onClose={() => setIsDeleteConfirmOpen(false)}
-        onConfirm={handleConfirmDelete}
-        title="Siparişi Sil"
-        message="Bu siparişi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
-        confirmText="Sil"
-        variant="danger"
-        isLoading={isDeleting}
-      />
-      </div>
-
-      {/* Print-only content */}
-    </>
+      </main>
+    </div>
   );
 }
