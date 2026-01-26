@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 export const CTASection: React.FC = () => {
   return (
-    <section id="pricing" className="bg-blue-50 dark:bg-slate-800/50 rounded-3xl my-24 md:my-32 py-20 px-8 text-center max-w-[1400px] mx-auto overflow-hidden">
+    <section className="bg-blue-50 dark:bg-slate-800/50 rounded-3xl my-24 md:my-32 py-20 px-8 text-center max-w-[1400px] mx-auto overflow-hidden">
       <div className="max-w-3xl mx-auto relative z-10">
         <motion.h2 
            initial={{ opacity: 0, scale: 0.9 }}

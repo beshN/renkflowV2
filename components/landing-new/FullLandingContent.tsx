@@ -9,6 +9,7 @@ import { OptimizationSection } from './full/OptimizationSection';
 import { Testimonials } from './full/Testimonials';
 import { FAQSection } from './full/FAQSection';
 import { CTASection } from './full/CTASection';
+import { PricingSection } from './full/PricingSection';
 
 export const FullLandingContent: React.FC = () => {
   return (
@@ -19,6 +20,7 @@ export const FullLandingContent: React.FC = () => {
       <DetailedFeatures />
       <OptimizationSection />
       <Testimonials />
+      <PricingSection />
       <FAQSection />
       <CTASection />
       
