@@ -15,35 +15,67 @@ export const ClientsSection: React.FC = () => {
   ];
 
   return (
-    <section id="integrations" className="py-12 text-center">
+  return (
+    <section id="integrations" className="py-12 bg-white dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800 overflow-hidden">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
         <motion.p 
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-slate-600 dark:text-slate-400 mb-8 font-medium"
+          className="text-center text-slate-600 dark:text-slate-400 mb-10 font-medium"
         >
             Sektör liderlerinin güvendiği platform:
         </motion.p>
-        <div className="flex flex-wrap justify-center items-center gap-x-12 sm:gap-x-16 gap-y-8">
-            {clients.map((client, i) => (
-                <motion.div
-                    key={client.name}
-                    initial={{ opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.1 }}
-                >
-                    <Image 
-                        src={client.src} 
-                        alt={`${client.name} logo`} 
-                        height={client.height} 
-                        width={120} 
-                        className="h-auto w-auto max-h-8 opacity-60 dark:opacity-50 grayscale hover:grayscale-0 hover:opacity-100 dark:hover:opacity-100 transition-all cursor-pointer"
-                        unoptimized
-                    />
-                </motion.div>
-            ))}
+        
+        <div className="relative flex overflow-hidden">
+             {/* Gradient Masks */}
+             <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-white dark:from-slate-900 to-transparent z-10" />
+             <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white dark:from-slate-900 to-transparent z-10" />
+
+             {/* Marquee Track */}
+             <div className="flex animate-marquee whitespace-nowrap gap-16 items-center">
+                {/* Original Set */}
+                {clients.map((client, i) => (
+                    <div key={`original-${i}`} className="flex-shrink-0 w-32 flex justify-center">
+                        <Image 
+                            src={client.src} 
+                            alt={`${client.name} logo`} 
+                            height={client.height} 
+                            width={120} 
+                            className="h-auto w-auto max-h-8 opacity-50 dark:opacity-40 grayscale hover:grayscale-0 hover:opacity-100 dark:hover:opacity-100 transition-all cursor-pointer"
+                            unoptimized
+                        />
+                    </div>
+                ))}
+                
+                {/* Duplicate Set for Loop */}
+                {clients.map((client, i) => (
+                    <div key={`duplicate-${i}`} className="flex-shrink-0 w-32 flex justify-center">
+                        <Image 
+                            src={client.src} 
+                            alt={`${client.name} logo`} 
+                            height={client.height} 
+                            width={120} 
+                            className="h-auto w-auto max-h-8 opacity-50 dark:opacity-40 grayscale hover:grayscale-0 hover:opacity-100 dark:hover:opacity-100 transition-all cursor-pointer"
+                            unoptimized
+                        />
+                    </div>
+                ))}
+
+                {/* Second Duplicate Set for Smoother Loop on large screens */}
+                {clients.map((client, i) => (
+                    <div key={`duplicate-2-${i}`} className="flex-shrink-0 w-32 flex justify-center">
+                        <Image 
+                            src={client.src} 
+                            alt={`${client.name} logo`} 
+                            height={client.height} 
+                            width={120} 
+                            className="h-auto w-auto max-h-8 opacity-50 dark:opacity-40 grayscale hover:grayscale-0 hover:opacity-100 dark:hover:opacity-100 transition-all cursor-pointer"
+                            unoptimized
+                        />
+                    </div>
+                ))}
+             </div>
         </div>
       </div>
     </section>
