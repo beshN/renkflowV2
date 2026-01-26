@@ -35,7 +35,7 @@ export const FullLandingContent: React.FC = () => {
         </div>
       </main>
 
-      <section className="py-12 text-center">
+      <section id="integrations" className="py-12 text-center">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <p className="text-slate-600 dark:text-slate-400 mb-8 font-medium">Sektör liderlerinin güvendiği platform:</p>
           <div className="flex flex-wrap justify-center items-center gap-x-12 sm:gap-x-16 gap-y-8">
@@ -49,7 +49,7 @@ export const FullLandingContent: React.FC = () => {
         </div>
       </section>
 
-      <section className="py-24 md:py-32">
+      <section id="features" className="py-24 md:py-32">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto">
             <h2 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-6">Her Ekip İçin Güçlü Çözümler</h2>
@@ -175,7 +175,7 @@ export const FullLandingContent: React.FC = () => {
         </div>
       </section>
 
-      <section className="bg-blue-50 dark:bg-slate-800/50 rounded-3xl my-24 md:my-32 py-20 px-8 text-center max-w-[1400px] mx-auto">
+      <section id="pricing" className="bg-blue-50 dark:bg-slate-800/50 rounded-3xl my-24 md:my-32 py-20 px-8 text-center max-w-[1400px] mx-auto">
         <div className="max-w-3xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white">Verimliliğinizi Bugün Artırın</h2>
           <p className="mt-6 text-lg text-slate-600 dark:text-slate-400">
@@ -186,6 +186,8 @@ export const FullLandingContent: React.FC = () => {
           </a>
         </div>
       </section>
+      
+      <div id="contact"></div>
     </>
   );
 };

@@ -54,16 +54,18 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
-             {[
-                'Özellikler', 
-                'Fiyatlandırma', 
-                'Entegrasyonlar',
-                'İletişim'
-             ].map((item) => (
-                <div key={item} className="relative px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 cursor-pointer transition-colors select-none group">
-                    {item}
-                </div>
-             ))}
+             <a href="#features" className="relative px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 cursor-pointer transition-colors select-none group">
+                Özellikler
+             </a>
+             <a href="#pricing" className="relative px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 cursor-pointer transition-colors select-none group">
+                Fiyatlandırma
+             </a>
+             <a href="#integrations" className="relative px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 cursor-pointer transition-colors select-none group">
+                Entegrasyonlar
+             </a>
+             <a href="#contact" className="relative px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 cursor-pointer transition-colors select-none group">
+                İletişim
+             </a>
           </div>
 
           {/* Right Actions */}
