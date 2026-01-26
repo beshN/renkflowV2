@@ -32,7 +32,8 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const orderId = params.id as string;
 
-  const { getOrderById, deleteOrder, updateOrder, updateOrderStatus, isLoading } = useOrders();
+  const { getOrderById, deleteOrder, updateOrder, updateOrderStatus, uploadDocuments, isLoading } = useOrders();
+
   const { user } = useAuth();
   const { showToast } = useToast();
 
@@ -78,21 +79,30 @@ export default function OrderDetailPage() {
     }
   };
 
-  const handleUpdate = async (formData: any) => {
+  const handleUpdate = async (formData: FormData) => {
     setIsUpdating(true);
     try {
-      const quantity = formData.quantity;
-      const unitPrice = formData.unitPrice || 0;
+      const quantity = parseInt(formData.get('quantity') as string);
+      const unitPrice = parseFloat(formData.get('unitPrice') as string) || 0;
+      
+      // Update text fields
       await updateOrder(order!.id, {
-        customer: formData.customerName,
-        email: formData.customerEmail || undefined,
-        phone: formData.customerPhone || undefined,
-        product: formData.productName,
+        customer: formData.get('customerName') as string,
+        email: (formData.get('customerEmail') as string) || undefined,
+        phone: (formData.get('customerPhone') as string) || undefined,
+        product: formData.get('productName') as string,
         quantity,
         amount: quantity * unitPrice,
-        description: formData.notes || undefined,
-        deliveryDate: formData.deliveryDate,
+        description: (formData.get('notes') as string) || undefined,
+        deliveryDate: formData.get('deliveryDate') as string,
       });
+
+      // Upload new documents if any
+      const files = formData.getAll('files');
+      if (files.length > 0) {
+        await uploadDocuments(order!.id, formData);
+      }
+
       setIsEditModalOpen(false);
       showToast('Sipariş başarıyla güncellendi', 'success');
     } catch (error) {
