@@ -5,8 +5,8 @@ import { DocumentFile, SidebarMode } from './types';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-// Set worker source - use local file for reliability
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+// Set worker source - use CDN for reliability across environments
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface PDFViewerProps {
   file: DocumentFile;
@@ -40,8 +40,10 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onError }) => {
   const [zoom, setZoom] = useState(100);
   const [numPages, setNumPages] = useState<number>(0);
   const [activePage, setActivePage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  // Error state for fallback
+  const [hasError, setHasError] = useState(false);
   
   // Touch state for Pinch-to-Zoom
   const [initialTouchDistance, setInitialTouchDistance] = useState<number | null>(null);
@@ -60,12 +62,20 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onError }) => {
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
+    setHasError(false);
+  }
+
+  function onDocumentLoadError() {
+      console.error('PDF Render Error, switching to fallback');
+      setHasError(true);
+      // We don't call onError() immediately, we show the fallback iframe first
   }
 
   // Initial Setup
   useEffect(() => {
       setActivePage(1);
       setZoom(100);
+      setHasError(false);
   }, [file.id]);
 
   const handleZoomIn = useCallback(() => setZoom((prev) => Math.min(prev + 25, 200)), []);
@@ -138,6 +148,9 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onError }) => {
 
   const handleTouchEnd = () => setInitialTouchDistance(null);
 
+  // If error or fallback, show simple viewer
+  const showFallback = hasError || !isRealPdf;
+
   return (
     <>
       {/* Backdrop */}
@@ -156,54 +169,63 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onError }) => {
             }
           `}} />
         
-        {/* Sidebar */}
-        <div className={`pdf-viewer-sidebar bg-background-light dark:bg-background-dark border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out flex flex-col z-20 ${sidebarMode !== 'none' ? 'w-full md:w-80 absolute md:relative h-full shadow-xl md:shadow-none' : 'w-0 overflow-hidden'}`}>
-          {/* Thumbnails */}
-          {sidebarMode === 'thumbnails' && (
-            <>
-              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Pages</h2>
-                <button onClick={() => setSidebarMode('none')} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"><span className="material-symbols-outlined">chevron_left</span></button>
-              </div>
-              <div className="p-4 overflow-y-auto custom-scrollbar flex-1 bg-white dark:bg-gray-900">
-                <div className="grid grid-cols-2 gap-4">
-                  {isRealPdf && Array.from({ length: numPages }).map((_, i) => (
-                    <PdfThumbnail 
-                        key={i} 
-                        fileUrl={fileUrl} 
-                        pageNumber={i + 1} 
-                        onClick={() => setActivePage(i + 1)} 
-                        isActive={activePage === i + 1}
-                    />
-                  ))}
+        {/* Sidebar (Only show if real PDF and no error) */}
+        {!hasError && (
+            <div className={`pdf-viewer-sidebar bg-background-light dark:bg-background-dark border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out flex flex-col z-20 ${sidebarMode !== 'none' ? 'w-full md:w-80 absolute md:relative h-full shadow-xl md:shadow-none' : 'w-0 overflow-hidden'}`}>
+            {/* Thumbnails */}
+            {sidebarMode === 'thumbnails' && (
+                <>
+                <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Pages</h2>
+                    <button onClick={() => setSidebarMode('none')} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"><span className="material-symbols-outlined">chevron_left</span></button>
                 </div>
-              </div>
-            </>
-          )}
-        </div>
+                <div className="p-4 overflow-y-auto custom-scrollbar flex-1 bg-white dark:bg-gray-900">
+                    <div className="grid grid-cols-2 gap-4">
+                    {isRealPdf && Array.from({ length: numPages }).map((_, i) => (
+                        <PdfThumbnail 
+                            key={i} 
+                            fileUrl={fileUrl} 
+                            pageNumber={i + 1} 
+                            onClick={() => setActivePage(i + 1)} 
+                            isActive={activePage === i + 1}
+                        />
+                    ))}
+                    </div>
+                </div>
+                </>
+            )}
+            </div>
+        )}
 
         {/* Main Viewer Area */}
         <div className="flex-1 flex flex-col min-w-0 bg-gray-100 dark:bg-gray-900 relative">
           <header className="pdf-viewer-header flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 bg-surface-light dark:bg-surface-dark flex-shrink-0 z-30 shadow-sm">
             <div className="flex items-center space-x-3 min-w-0">
-              <button onClick={toggleSidebar} className={`p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 ${sidebarMode !== 'none' ? 'bg-gray-100 dark:bg-gray-800 text-primary' : ''}`} title="Küçük resimleri göster/gizle"><span className="material-symbols-outlined">menu</span></button>
+              {!hasError && <button onClick={toggleSidebar} className={`p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 ${sidebarMode !== 'none' ? 'bg-gray-100 dark:bg-gray-800 text-primary' : ''}`} title="Küçük resimleri göster/gizle"><span className="material-symbols-outlined">menu</span></button>}
               <div className="min-w-0">
                 <h1 className="text-sm font-semibold text-gray-800 dark:text-white truncate max-w-[200px]">{file.name}</h1>
-                <p className="text-xs text-gray-500 dark:text-gray-400">PDF • {file.size}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {hasError ? 'Native Viewer' : `PDF • ${file.size}`}
+                </p>
               </div>
             </div>
-            <div className="flex items-center space-x-1 sm:space-x-3">
-               <div className="flex items-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-sm">
-                  <button onClick={handlePrevPage} disabled={activePage <= 1} className="p-1.5 text-gray-500 hover:text-gray-800 disabled:opacity-30"><span className="material-symbols-outlined text-lg">chevron_left</span></button>
-                  <span className="px-2 text-xs font-mono font-medium text-gray-700 dark:text-gray-300 w-12 text-center">{activePage} / {numPages || 1}</span>
-                  <button onClick={handleNextPage} disabled={activePage >= (numPages || 1)} className="p-1.5 text-gray-500 hover:text-gray-800 disabled:opacity-30"><span className="material-symbols-outlined text-lg">chevron_right</span></button>
-               </div>
-               <div className="hidden md:flex items-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-sm">
-                 <button onClick={handleZoomOut} className="p-1.5 text-gray-500 hover:text-gray-800"><span className="material-symbols-outlined text-lg">remove</span></button>
-                 <span className="px-2 text-xs font-mono font-medium text-gray-700 dark:text-gray-300 w-12 text-center">{Math.round(zoom)}%</span>
-                 <button onClick={handleZoomIn} className="p-1.5 text-gray-500 hover:text-gray-800"><span className="material-symbols-outlined text-lg">add</span></button>
-               </div>
-            </div>
+            
+            {/* Controls (Hide standard controls if error/fallback) */}
+            {!hasError && (
+                <div className="flex items-center space-x-1 sm:space-x-3">
+                <div className="flex items-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-sm">
+                    <button onClick={handlePrevPage} disabled={activePage <= 1} className="p-1.5 text-gray-500 hover:text-gray-800 disabled:opacity-30"><span className="material-symbols-outlined text-lg">chevron_left</span></button>
+                    <span className="px-2 text-xs font-mono font-medium text-gray-700 dark:text-gray-300 w-12 text-center">{activePage} / {numPages || 1}</span>
+                    <button onClick={handleNextPage} disabled={activePage >= (numPages || 1)} className="p-1.5 text-gray-500 hover:text-gray-800 disabled:opacity-30"><span className="material-symbols-outlined text-lg">chevron_right</span></button>
+                </div>
+                <div className="hidden md:flex items-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-sm">
+                    <button onClick={handleZoomOut} className="p-1.5 text-gray-500 hover:text-gray-800"><span className="material-symbols-outlined text-lg">remove</span></button>
+                    <span className="px-2 text-xs font-mono font-medium text-gray-700 dark:text-gray-300 w-12 text-center">{Math.round(zoom)}%</span>
+                    <button onClick={handleZoomIn} className="p-1.5 text-gray-500 hover:text-gray-800"><span className="material-symbols-outlined text-lg">add</span></button>
+                </div>
+                </div>
+            )}
+
             <div className="flex items-center space-x-1 sm:space-x-2 border-l border-gray-200 dark:border-gray-700 pl-2 sm:pl-3">
               <button onClick={toggleFullscreen} className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800" title={isFullscreen ? "Küçült" : "Tam Ekran"}><span className="material-symbols-outlined text-xl">{isFullscreen ? 'fullscreen_exit' : 'fullscreen'}</span></button>
               <button onClick={handlePrint} className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800" title="Yazdır"><span className="material-symbols-outlined text-xl">print</span></button>
@@ -218,19 +240,19 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onError }) => {
             onTouchEnd={handleTouchEnd}
           >
             <div 
-                className="relative bg-white shadow-2xl transition-transform duration-100 ease-out origin-top border border-gray-200 dark:border-gray-800"
+                className={`relative bg-white shadow-2xl transition-transform duration-100 ease-out origin-top border border-gray-200 dark:border-gray-800 ${hasError ? 'w-full h-full' : ''}`}
                 style={{ 
-                    width: isRealPdf ? 'auto' : `${800 * (zoom / 100)}px`,
-                    minHeight: isRealPdf ? 'auto' : `${1100 * (zoom / 100)}px`
+                    width: (!hasError && isRealPdf) ? 'auto' : (hasError ? '100%' : `${800 * (zoom / 100)}px`),
+                    minHeight: (!hasError && isRealPdf) ? 'auto' : (hasError ? '100%' : `${1100 * (zoom / 100)}px`)
                 }}
             >
-                {isRealPdf ? (
+                {isRealPdf && !hasError ? (
                     <Document
                         file={fileUrl}
                         onLoadSuccess={onDocumentLoadSuccess}
-                        onLoadError={onError}
+                        onLoadError={onDocumentLoadError}
                         loading={<div className="p-10 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}
-                        error={<div className="p-10 text-red-500">PDF yüklenemedi</div>}
+                        error={<div className="p-10 text-red-500">PDF yüklenemedi. Tarayıcıda açılıyor...</div>}
                         options={pdfOptions}
                     >
                         <Page 
@@ -243,7 +265,15 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onError }) => {
                             devicePixelRatio={Math.min(window.devicePixelRatio || 1, 2)}
                         />
                     </Document>
+                ) : isRealPdf && hasError ? (
+                    // Fallback Iframe for PDF Error
+                    <iframe 
+                        src={fileUrl}
+                        className="w-full h-full border-0 min-h-[500px]"
+                        title="PDF Viewer"
+                    />
                 ) : (
+                    // Image fallback
                     <div className="relative w-full h-auto">
                       <Image 
                         src={fileUrl} 
