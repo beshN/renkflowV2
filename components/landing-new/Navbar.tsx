@@ -41,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
           
           {/* Logo Section */}
           <Link href="/" className="flex-shrink-0 flex items-center gap-3 cursor-pointer group">
-            <div className="relative h-10 w-32 flex items-center transition-transform group-hover:scale-105">
+            <div className="relative h-16 w-56 flex items-center transition-transform group-hover:scale-105">
                 <Image 
                   src="/logo-full.png" 
                   alt="RenkFlow" 
@@ -70,12 +70,12 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
 
           {/* Right Actions */}
           <div className="flex items-center gap-4">
-             <a className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 transition-colors hidden sm:block" href="#">
+             <Link href="/auth/login" className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 transition-colors hidden sm:block">
                 Giriş Yap
-             </a>
-             <a className="bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-full shadow-sm hover:bg-blue-700 transition-all flex items-center gap-2" href="#">
+             </Link>
+             <Link href="/signup" className="bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-full shadow-sm hover:bg-blue-700 transition-all flex items-center gap-2">
                 <span>Ücretsiz Başlayın</span>
-             </a>
+             </Link>
 
         </div>
         </div>

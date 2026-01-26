@@ -41,7 +41,7 @@ export const WaitlistNavbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) =
           
           {/* Logo Section */}
           <Link href="/" className="flex-shrink-0 flex items-center gap-3 cursor-pointer group">
-            <div className="relative h-16 w-56 sm:h-20 sm:w-72 flex items-center transition-transform group-hover:scale-105">
+            <div className="relative h-16 w-56 flex items-center transition-transform group-hover:scale-105">
                 <Image 
                   src="/logo-full.png" 
                   alt="RenkFlow" 
@@ -52,15 +52,32 @@ export const WaitlistNavbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) =
             </div>
           </Link>
 
-          {/* Desktop Navigation - Hidden/Removed as per request */}
+          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
-            {/* Menu items removed */}
+             <a href="#features" className="relative px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 cursor-pointer transition-colors select-none group">
+                Özellikler
+             </a>
+             <a href="#pricing" className="relative px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 cursor-pointer transition-colors select-none group">
+                Fiyatlandırma
+             </a>
+             <a href="#integrations" className="relative px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 cursor-pointer transition-colors select-none group">
+                Entegrasyonlar
+             </a>
+             <a href="#contact" className="relative px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 cursor-pointer transition-colors select-none group">
+                İletişim
+             </a>
           </div>
 
-          {/* Right Actions - Hidden/Removed as per request */}
+          {/* Right Actions */}
           <div className="flex items-center gap-4">
-            {/* Elements removed */}
-          </div>
+             <Link href="/auth/login" className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-500 transition-colors hidden sm:block">
+                Giriş Yap
+             </Link>
+             <Link href="/signup" className="bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-full shadow-sm hover:bg-blue-700 transition-all flex items-center gap-2">
+                <span>Ücretsiz Başlayın</span>
+             </Link>
+
+        </div>
         </div>
       </div>
     </motion.nav>
