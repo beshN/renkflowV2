@@ -201,7 +201,7 @@ export default function OrderDetailPage() {
                             {formatCurrency(order.amount, order.currency)}
                         </p>
                         <p className="text-sm text-slate-500">
-                            {order.quantity} Adet x {formatCurrency(order.amount / order.quantity, order.currency)}
+                            {order.quantity || 1} Adet x {formatCurrency(order.amount / (order.quantity || 1), order.currency)}
                         </p>
                      </div>
                 </div>
