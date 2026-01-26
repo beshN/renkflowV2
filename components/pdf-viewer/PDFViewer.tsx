@@ -41,7 +41,8 @@ import 'react-pdf/dist/esm/Page/TextLayer.css'
 
 // Set up PDF.js worker with fallback
 if (typeof window !== 'undefined') {
-  pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+  // Hardcoded version to ensure match with installed pdfjs-dist
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.9.155/build/pdf.worker.min.mjs`
 }
 
 interface PDFViewerProps {
@@ -246,6 +247,9 @@ export default function PDFViewer({
       errorMessage = 'This PDF is password protected.'
     } else if (err.message.includes('corrupt') || err.message.includes('Invalid')) {
       errorMessage = 'The PDF file appears to be corrupted.'
+    } else {
+        // Show detailed error for debugging
+        errorMessage = `Load Error: ${err.message}`
     }
     
     setError(errorMessage)
