@@ -15,7 +15,6 @@ export const ClientsSection: React.FC = () => {
   ];
 
   return (
-  return (
     <section id="integrations" className="py-12 bg-white dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800 overflow-hidden">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
         <motion.p 

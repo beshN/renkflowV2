@@ -78,6 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
              </a>
 
         </div>
+        </div>
       </div>
     </motion.nav>
   );
