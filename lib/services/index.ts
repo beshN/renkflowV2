@@ -10,7 +10,9 @@ import { NeonOrderService } from './neon/order.neon';
  * - Otherwise: uses MockOrderService for development
  */
 
-const isDatabaseConfigured = !!process.env.DATABASE_URL;
+const isDatabaseConfigured = process.env.NEXT_PUBLIC_USE_DATABASE === 'true';
+
+console.log('[ServiceFactory] Configured:', isDatabaseConfigured, 'DB_URL Present:', !!process.env.DATABASE_URL);
 
 export const orderService: IOrderService = isDatabaseConfigured
   ? new NeonOrderService()
