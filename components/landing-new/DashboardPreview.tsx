@@ -76,36 +76,15 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
   return (
     <div className="relative group perspective-[2000px]">
       
-      {/* Live Notification Popup (Floating) */}
-      <AnimatePresence>
-        {notification && (
-            <motion.div 
-                initial={{ opacity: 0, y: -20, scale: 0.8 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -20, scale: 0.8 }}
-                className="absolute top-[-40px] right-[20px] z-50 bg-white dark:bg-slate-800 p-3 rounded-xl shadow-2xl flex items-center gap-3 border border-green-100 dark:border-green-900 pointer-events-none"
-            >
-                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                    <CheckCircle2 size={16} />
-                </div>
-                <div>
-                    <p className="text-xs font-bold text-slate-800 dark:text-white">{notification.title}</p>
-                    <p className="text-xs text-green-600 font-bold">+{notification.amount}</p>
-                </div>
-            </motion.div>
-        )}
-      </AnimatePresence>
-
-      
-      {/* Decorative Blur Backdrops */}
-      <div className="absolute -inset-1 bg-gradient-to-r from-primary to-indigo-600 rounded-[2rem] blur opacity-20 dark:opacity-40 group-hover:opacity-30 transition duration-1000 group-hover:duration-200"></div>
+      {/* Decorative Blur Backdrops - Added pointer-events-none to prevent click blocking */}
+      <div className="absolute -inset-1 bg-gradient-to-r from-primary to-indigo-600 rounded-[2rem] blur opacity-20 dark:opacity-40 group-hover:opacity-30 transition duration-1000 group-hover:duration-200 pointer-events-none"></div>
       
       {/* Main Container - Rotated 3D Effect */}
-      <div className="relative bg-background rounded-[1.5rem] shadow-2xl ring-1 ring-border overflow-hidden transform rotate-y-[-10deg] rotate-x-[5deg] group-hover:rotate-0 transition-all duration-700 ease-out h-[600px] flex">
+      <div className="relative bg-background rounded-[1.5rem] shadow-2xl ring-1 ring-border overflow-hidden transform rotate-y-[-10deg] rotate-x-[5deg] group-hover:rotate-0 transition-all duration-700 ease-out h-[600px] flex preserve-3d">
         
         {/* Sidebar */}
-        <div className="w-16 border-r border-border flex flex-col items-center py-6 gap-6 bg-secondary/50 backdrop-blur-sm z-20">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg">R</div>
+        <div className="w-16 border-r border-border flex flex-col items-center py-6 gap-6 bg-secondary/50 backdrop-blur-sm z-30 relative">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-500/20">R</div>
             
             <div className="flex flex-col gap-4 mt-4 w-full px-2">
                 {[
@@ -117,8 +96,8 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                 ].map((item) => (
                     <div 
                         key={item.id}
-                        onClick={() => setActiveTab(item.id)}
-                        className={`p-2 rounded-lg transition-all cursor-pointer relative ${activeTab === item.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-muted-foreground hover:bg-secondary'}`}
+                        onClick={(e) => { e.stopPropagation(); setActiveTab(item.id); }}
+                        className={`p-2 rounded-lg transition-all cursor-pointer relative z-40 ${activeTab === item.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 scale-105' : 'text-muted-foreground hover:bg-secondary hover:scale-105'}`}
                     >
                         <item.icon size={20} />
                         {activeTab === item.id && (
@@ -128,13 +107,13 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                 ))}
             </div>
 
-            <div className="mt-auto p-2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors hover:rotate-90 duration-500">
+            <div className="mt-auto p-2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors hover:rotate-90 duration-500 z-40">
                 <Settings size={20} />
             </div>
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-3xl">
+        <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-3xl relative z-10">
             
             {/* Header */}
             <div className="h-16 border-b border-border flex items-center justify-between px-6 bg-background/50">
@@ -277,6 +256,27 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
             </div>
         </div>
       </div>
+
+      {/* Live Notification Popup (Floating) - Moved to bottom for Z-Index Stacking */}
+      <AnimatePresence>
+        {notification && (
+            <motion.div 
+                initial={{ opacity: 0, y: 20, x: 20, scale: 0.8 }}
+                animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, x: 20, scale: 0.8 }}
+                className="absolute top-[-30px] right-[-20px] z-[100] bg-white dark:bg-slate-800 p-4 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex items-center gap-3 border border-green-100 dark:border-green-900 transform translate-z-50"
+                style={{ transform: 'translateZ(100px)' }}
+            >
+                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 shadow-sm">
+                    <CheckCircle2 size={20} />
+                </div>
+                <div>
+                    <p className="text-sm font-bold text-slate-800 dark:text-white">{notification.title}</p>
+                    <p className="text-sm text-green-600 font-bold">+{notification.amount}</p>
+                </div>
+            </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
