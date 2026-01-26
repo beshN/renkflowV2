@@ -1,227 +1,127 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useState } from 'react';
-import { useInView } from 'react-intersection-observer';
-import { toast } from 'sonner';
-import LandingNav from '@/components/landing/LandingNav';
-import LandingFooter from '@/components/landing/LandingFooter';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { Navbar } from '@/components/landing-new/Navbar';
+import { Footer } from '@/components/landing-new/Footer';
+import { useTheme } from '@/lib/context/ThemeContext';
+import { Mail, MapPin, Phone, Send } from 'lucide-react';
 
-export default function Contact() {
-  const [formRef, formInView] = useInView({ triggerOnce: true, threshold: 0.1 });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: 'general',
-    message: ''
-  });
+export default function ContactPage() {
+  const [mounted, setMounted] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-    try {
-      const response = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Bir hata oluştu');
-      }
-
-      toast.success('Mesajınız başarıyla gönderildi!');
-      toast.info('En kısa sürede size dönüş yapacağız.');
-      
-      // Reset form
-      setFormData({
-        name: '',
-        email: '',
-        subject: 'general',
-        message: ''
-      });
-    } catch (error: any) {
-      toast.error(error.message || 'Mesaj gönderilirken bir hata oluştu.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
-      <LandingNav />
-      
-      <div className="pt-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
+    <div className="flex min-h-screen flex-col bg-background">
+      <Navbar isDark={theme === 'dark'} toggleTheme={toggleTheme} />
 
-          <motion.main
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6 }}
-            className="py-10"
-          >
+      <main className="flex-grow pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          
+          <div className="grid md:grid-cols-2 gap-16 items-start">
+            
+            {/* Contact Info */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6 }}
-              className="flex flex-col items-center text-center mb-12"
             >
-              <h1 className="text-4xl md:text-5xl font-black">Bize Ulaşın</h1>
-              <p className="text-slate-500 dark:text-slate-400 text-lg font-normal max-w-2xl mx-auto mt-4">
-                Renkflow ekibiyle iletişime geçmekten çekinmeyin. Sorularınıza en kısa sürede yanıt vereceğiz.
+              <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-6">
+                İletişime Geçin
+              </h1>
+              <p className="text-xl text-muted-foreground mb-12 leading-relaxed">
+                Platform hakkındaki sorularınız, özel entegrasyon talepleriniz veya ortaklık teklifleriniz için bize ulaşın.
               </p>
+
+              <div className="space-y-8">
+                <div className="flex items-start gap-4 group">
+                  <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <Mail size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg text-foreground mb-1">E-posta</h3>
+                    <p className="text-muted-foreground">info@renkflow.com</p>
+                    <p className="text-muted-foreground">destek@renkflow.com</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4 group">
+                  <div className="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                    <Phone size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg text-foreground mb-1">Telefon</h3>
+                    <p className="text-muted-foreground">+90 (212) 000 00 00</p>
+                    <p className="text-sm text-muted-foreground mt-1">Hafta içi 09:00 - 18:00</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4 group">
+                  <div className="w-12 h-12 rounded-xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center text-green-600 group-hover:bg-green-600 group-hover:text-white transition-colors">
+                    <MapPin size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg text-foreground mb-1">Ofis</h3>
+                    <p className="text-muted-foreground">Teknopark İstanbul</p>
+                    <p className="text-muted-foreground">Sanayi Mah. Teknopark Bulvarı</p>
+                    <p className="text-muted-foreground">Pendik / İstanbul</p>
+                  </div>
+                </div>
+              </div>
             </motion.div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Form */}
-              <motion.div
-                ref={formRef}
-                initial={{ opacity: 0, x: -20 }}
-                animate={formInView ? { opacity: 1, x: 0 } : {}}
-                transition={{ duration: 0.6 }}
-                className="lg:col-span-2 bg-card-light dark:bg-card-dark p-8 rounded-xl shadow-sm border border-border-light dark:border-border-dark"
-              >
-                <h3 className="text-2xl font-bold mb-6">Bize Mesaj Gönderin</h3>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <label className="flex flex-col min-w-40 flex-1">
-                      <p className="text-sm font-medium leading-normal pb-2">Adınız Soyadınız</p>
-                      <input
-                        type="text"
-                        className="input-professional h-12"
-                        placeholder="Adınızı ve soyadınızı girin"
-                        value={formData.name}
-                        onChange={(e) => setFormData({...formData, name: e.target.value})}
-                        required
-                      />
-                    </label>
-                    
-                    <label className="flex flex-col min-w-40 flex-1">
-                      <p className="text-sm font-medium leading-normal pb-2">E-posta Adresiniz</p>
-                      <input
-                        type="email"
-                        className="input-professional h-12"
-                        placeholder="ornek@eposta.com"
-                        value={formData.email}
-                        onChange={(e) => setFormData({...formData, email: e.target.value})}
-                        required
-                      />
-                    </label>
+            {/* Contact Form */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="bg-card border border-border rounded-3xl p-8 shadow-sm"
+            >
+              <h3 className="text-2xl font-bold text-foreground mb-6">Bize Yazın</h3>
+              <form className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">Adınız</label>
+                    <input type="text" className="w-full h-12 rounded-xl bg-background border border-input focus:ring-2 focus:ring-primary/20 focus:border-primary px-4 outline-none transition-all" placeholder="Adınız" />
                   </div>
-
-                  <label className="flex flex-col min-w-40 flex-1">
-                    <p className="text-sm font-medium leading-normal pb-2">Konu</p>
-                    <select 
-                      className="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-md text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-12 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 text-base font-normal leading-normal transition-shadow"
-                      value={formData.subject}
-                      onChange={(e) => setFormData({...formData, subject: e.target.value})}
-                    >
-                      <option value="general">Genel Sorular</option>
-                      <option value="technical">Teknik Destek</option>
-                      <option value="sales">Satış</option>
-                    </select>
-                  </label>
-
-                  <label className="flex flex-col min-w-40 flex-1">
-                    <p className="text-sm font-medium leading-normal pb-2">Mesajınız</p>
-                    <textarea
-                      className="form-textarea flex w-full min-w-0 flex-1 resize-y overflow-hidden rounded-md text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark min-h-36 placeholder:text-slate-400 dark:placeholder:text-slate-500 p-4 text-base font-normal leading-normal transition-shadow"
-                      placeholder="Mesajınızı buraya yazın..."
-                      value={formData.message}
-                      onChange={(e) => setFormData({...formData, message: e.target.value})}
-                      required
-                    />
-                  </label>
-
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex min-w-[120px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-md h-12 px-6 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] w-full md:w-auto hover:opacity-90 transition-opacity disabled:opacity-70 disabled:cursor-not-allowed"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <span className="material-symbols-outlined animate-spin mr-2">progress_activity</span>
-                        Gönderiliyor...
-                      </>
-                    ) : (
-                      'Mesajı Gönder'
-                    )}
-                  </motion.button>
-                </form>
-              </motion.div>
-
-              {/* Contact Info */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2, duration: 0.6 }}
-                className="space-y-8"
-              >
-                <div className="bg-card-light dark:bg-card-dark p-6 rounded-xl shadow-sm border border-border-light dark:border-border-dark">
-                  <h3 className="text-xl font-bold mb-4">Diğer İletişim Yolları</h3>
-                  <div className="space-y-4">
-                    <a href="mailto:destek@renkflow.com" className="flex items-center gap-4 group">
-                      <span className="material-symbols-outlined text-primary text-2xl">email</span>
-                      <span className="font-medium text-slate-600 dark:text-slate-300 group-hover:text-primary transition-colors">
-                        destek@renkflow.com
-                      </span>
-                    </a>
-                    <a href="tel:+901234567890" className="flex items-center gap-4 group">
-                      <span className="material-symbols-outlined text-primary text-2xl">call</span>
-                      <span className="font-medium text-slate-600 dark:text-slate-300 group-hover:text-primary transition-colors">
-                        +90 (123) 456 78 90
-                      </span>
-                    </a>
-                  </div>
-
-                  <div className="mt-6 pt-6 border-t border-border-light dark:border-border-dark flex gap-4">
-                    {[
-                      { icon: 'X', href: 'https://twitter.com/renkflow' },
-                      { icon: 'LinkedIn', href: 'https://linkedin.com/company/renkflow' },
-                      { icon: 'Instagram', href: 'https://instagram.com/renkflow' }
-                    ].map((social) => (
-                      <motion.a
-                        key={social.icon}
-                        href={social.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        whileHover={{ scale: 1.1 }}
-                        className="p-2 rounded-full bg-primary/10 dark:bg-primary/20 text-primary hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors"
-                        aria-label={social.icon}
-                      >
-                        <span className="material-symbols-outlined">share</span>
-                      </motion.a>
-                    ))}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">Soyadınız</label>
+                    <input type="text" className="w-full h-12 rounded-xl bg-background border border-input focus:ring-2 focus:ring-primary/20 focus:border-primary px-4 outline-none transition-all" placeholder="Soyadınız" />
                   </div>
                 </div>
-
-                <div className="bg-primary/10 dark:bg-primary/20 p-6 rounded-xl text-center">
-                  <h3 className="text-xl font-bold mb-2 text-text-light dark:text-text-dark">Bir sorunuz mu var?</h3>
-                  <p className="text-slate-600 dark:text-slate-300 mb-4">
-                    Cevabı Sıkça Sorulan Sorular sayfamızda bulabilirsiniz.
-                  </p>
-                  <Link 
-                    href="/faq"
-                    className="inline-flex items-center justify-center gap-2 min-w-[84px] cursor-pointer rounded-lg h-11 px-5 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity"
-                  >
-                    <span>SSS Sayfasına Git</span>
-                    <span className="material-symbols-outlined">arrow_forward</span>
-                  </Link>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Konu</label>
+                  <select className="w-full h-12 rounded-xl bg-background border border-input focus:ring-2 focus:ring-primary/20 focus:border-primary px-4 outline-none transition-all">
+                    <option>Satış & Teklif</option>
+                    <option>Teknik Destek</option>
+                    <option>Öneri & Geri Bildirim</option>
+                    <option>Diğer</option>
+                  </select>
                 </div>
-              </motion.div>
-            </div>
-          </motion.main>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Mesajınız</label>
+                  <textarea className="w-full h-32 rounded-xl bg-background border border-input focus:ring-2 focus:ring-primary/20 focus:border-primary p-4 outline-none transition-all resize-none" placeholder="Size nasıl yardımcı olabiliriz?"></textarea>
+                </div>
+
+                <button type="submit" className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+                  Gönder <Send size={18} />
+                </button>
+              </form>
+            </motion.div>
+
+          </div>
         </div>
-      </div>
+      </main>
 
-      <LandingFooter />
+      <Footer />
     </div>
   );
 }
