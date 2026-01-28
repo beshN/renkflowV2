@@ -6,7 +6,11 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 
-export default function LandingNav() {
+interface LandingNavProps {
+  largeLogo?: boolean;
+}
+
+export default function LandingNav({ largeLogo = false }: LandingNavProps) {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -73,7 +77,12 @@ export default function LandingNav() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-full">
           <div className="flex justify-between items-center h-20">
             <Link href="/" className="flex items-center flex-shrink-0 ml-2 md:ml-8">
-              <div className="relative h-20 md:h-24 transition-all duration-1000 ease-[cubic-bezier(0.25,0.1,0.25,1)]" style={{ width: '350px' }}>
+              <div 
+                className={`relative transition-all duration-1000 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${
+                  largeLogo ? 'h-40 md:h-48' : 'h-20 md:h-24'
+                }`} 
+                style={{ width: largeLogo ? '700px' : '350px' }}
+              >
                 <Image
                   src="/logo.png"
                   alt="Renkflow"

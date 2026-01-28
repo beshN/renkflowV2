@@ -114,8 +114,8 @@ function LoginForm() {
       >
         <div className="w-full max-w-md">
           <header className="text-center lg:text-left mb-6">
-            <h1 className="text-3xl sm:text-4xl font-black mb-3">Tekrar Hoş Geldiniz</h1>
-            <p className="text-subtle-light dark:text-subtle-dark">Hesabınıza giriş yapın</p>
+            <h1 className="text-4xl sm:text-5xl font-black mb-3">Tekrar Hoş Geldiniz</h1>
+            <p className="text-lg text-subtle-light dark:text-subtle-dark">Hesabınıza giriş yapın</p>
           </header>
 
           {/* Social Login */}
@@ -147,14 +147,14 @@ function LoginForm() {
           {/* Divider */}
           <div className="flex items-center gap-2 mb-6">
             <hr className="flex-1 border-border-light dark:border-border-dark"/>
-            <p className="text-sm text-subtle-light dark:text-subtle-dark">veya</p>
+            <p className="text-base text-subtle-light dark:text-subtle-dark">veya</p>
             <hr className="flex-1 border-border-light dark:border-border-dark"/>
           </div>
 
           {/* Form */}
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">E-posta Adresi</label>
+              <label className="block text-base font-semibold mb-2">E-posta Adresi</label>
               <input
                 type="email"
                 value={email}
@@ -172,7 +172,7 @@ function LoginForm() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Şifre</label>
+              <label className="block text-base font-semibold mb-2">Şifre</label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -197,7 +197,7 @@ function LoginForm() {
                 <p className="mt-1 text-sm text-red-500">{formErrors.password}</p>
               )}
               <div className="text-right">
-                <Link href="/auth/forgot-password" className="text-sm text-primary hover:underline">
+                <Link href="/auth/forgot-password" className="text-base text-primary hover:underline">
                   Şifremi Unuttum
                 </Link>
               </div>
@@ -205,7 +205,7 @@ function LoginForm() {
 
             {formErrors.general && (
               <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-                <p className="text-sm text-red-600 dark:text-red-400">{formErrors.general}</p>
+                <p className="text-base text-red-600 dark:text-red-400">{formErrors.general}</p>
               </div>
             )}
 
@@ -214,14 +214,14 @@ function LoginForm() {
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={isLoading}
-              className="w-full bg-primary text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity mt-2 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full bg-primary text-white font-bold py-4 rounded-md hover:opacity-90 transition-opacity mt-2 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed text-lg"
             >
               {isLoading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
             </motion.button>
           </form>
 
           <div className="mt-6 text-center sm:hidden">
-            <p className="text-sm text-subtle-light dark:text-subtle-dark">
+            <p className="text-base text-subtle-light dark:text-subtle-dark">
               Hesabınız yok mu?{' '}
               <Link href="/signup" className="text-primary font-bold hover:underline">
                 Kayıt Ol
@@ -243,8 +243,8 @@ function LoginForm() {
             <Image
               src="/logo-full.png"
               alt="Renkflow Logo"
-              width={380}
-              height={100}
+              width={1000}
+              height={260}
               className="mx-auto"
               priority
             />

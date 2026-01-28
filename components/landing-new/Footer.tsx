@@ -16,7 +16,7 @@ export const Footer: React.FC = () => {
           {/* Brand Column */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="relative h-8 w-28">
+              <div className="relative h-32 w-112">
                  <Image 
                     src="/logo-full.png" 
                     alt="RenkFlow" 

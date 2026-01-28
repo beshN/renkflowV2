@@ -152,8 +152,8 @@ export default function ForgotPasswordPage() {
               <Image
                 src="/logo-full.png"
                 alt="Renkflow Logo"
-                width={300}
-                height={80}
+                width={1000}
+                height={260}
                 className="mx-auto"
                 priority
               />

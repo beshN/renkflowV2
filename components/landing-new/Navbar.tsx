@@ -41,10 +41,10 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
           
           {/* Logo Section - Sol üstte konumlandırılmış */}
           <Link href="/" className="flex-shrink-0 flex items-center cursor-pointer group">
-            <div className="relative h-10 w-40">
-                <Image 
-                  src="/logo-full.png" 
-                  alt="RenkFlow" 
+            <div className="relative h-40 w-144">
+                <Image
+                  src="/logo-full.png"
+                  alt="RenkFlow"
                   fill
                   className="object-contain object-left"
                   priority

@@ -280,14 +280,14 @@ function AcceptInviteForm() {
       >
         <div className="max-w-md text-center">
           <div className="mb-8">
-            <Image
-              src="/logo-full.png"
-              alt="Renkflow Logo"
-              width={300}
-              height={80}
-              className="mx-auto"
-              priority
-            />
+              <Image
+                src="/logo-full.png"
+                alt="Renkflow Logo"
+                width={1000}
+                height={260}
+                className="mx-auto"
+                priority
+              />
           </div>
           <h2 className="text-2xl font-black mb-4">Ekibe Katılın</h2>
           <p className="text-subtle-light dark:text-subtle-dark">

@@ -41,7 +41,7 @@ export const WaitlistNavbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) =
           
           {/* Logo Section */}
           <Link href="/" className="flex-shrink-0 flex items-center cursor-pointer group">
-            <div className="relative h-10 w-40">
+            <div className="relative h-40 w-144">
                 <Image 
                   src="/logo-full.png" 
                   alt="RenkFlow" 

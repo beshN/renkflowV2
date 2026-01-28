@@ -39,7 +39,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, showHomeLink =
       >
         {/* Header Logo */}
         <div className="flex flex-col items-center pt-8 pb-4">
-            <Link href="/" className="relative h-10 w-32 hover:opacity-80 transition-opacity">
+            <Link href="/" className="relative h-32 w-112 hover:opacity-80 transition-opacity">
                 <Image 
                   src="/logo-full.png" 
                   alt="RenkFlow" 

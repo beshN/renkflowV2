@@ -16,7 +16,7 @@ export const WaitlistFooter: React.FC = () => {
           {/* Brand Column - Centered */}
           <div className="space-y-4 flex flex-col items-center">
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="relative h-10 w-32 sm:h-12 sm:w-40">
+              <div className="relative h-32 w-112 sm:h-40 sm:w-144">
                  <Image 
                     src="/logo-full.png" 
                     alt="RenkFlow" 
