@@ -146,7 +146,7 @@ export default function BlogPage() {
     <div className="min-h-screen bg-background-light dark:bg-background-dark font-display">
       <LandingNav />
       
-      <main className="pt-32 pb-20 container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
+      <main className="pt-32 pb-20 container mx-auto px-6 md:px-12 max-w-6xl">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

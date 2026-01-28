@@ -21,7 +21,7 @@ export default function PricingPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <LandingNav />
       
-      <div className="pt-32 pb-10 px-4 sm:px-6 lg:px-8 max-w-[1400px] mx-auto text-center">
+      <div className="pt-32 pb-10 px-6 md:px-12 max-w-[1400px] mx-auto text-center">
             <motion.h1 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

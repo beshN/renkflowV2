@@ -10,7 +10,7 @@ export default function NotFound() {
     <div className="min-h-screen bg-background-light dark:bg-background-dark font-display flex flex-col">
       <LandingNav />
       
-      <main className="flex-1 flex items-center justify-center px-4">
+      <main className="flex-1 flex items-center justify-center px-6 md:px-12">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

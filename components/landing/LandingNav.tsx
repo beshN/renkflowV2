@@ -1,5 +1,10 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { usePathname } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Sun } from 'lucide-react';
 import { useTheme } from '@/lib/context/ThemeContext';
 

@@ -21,7 +21,7 @@ export default function ContactPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <LandingNav />
 
-      <main className="flex-grow pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+      <main className="flex-grow pt-32 pb-20 px-6 md:px-12">
         <div className="max-w-6xl mx-auto">
           
           <div className="grid md:grid-cols-2 gap-16 items-start">

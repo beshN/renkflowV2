@@ -6,7 +6,7 @@ export default function Terms() {
     <div className="min-h-screen bg-white dark:bg-gray-900">
       <LandingNav />
       
-      <main className="py-20 container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
+      <main className="py-20 container mx-auto px-6 md:px-12 max-w-4xl">
         <h1 className="text-4xl font-black mb-8 text-text-light dark:text-text-dark">Kullanım Koşulları</h1>
         
         <div className="prose dark:prose-invert max-w-none space-y-8 text-gray-700 dark:text-gray-300">
