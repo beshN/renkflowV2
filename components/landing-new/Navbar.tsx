@@ -37,11 +37,11 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
       }`}
     >
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-24">
+        <div className="flex justify-between items-center h-32">
           
           {/* Logo Section */}
-          <Link href="/" className="flex-shrink-0 flex items-center gap-3 cursor-pointer group">
-            <div className="relative h-28 w-96 flex items-center transition-transform group-hover:scale-105">
+          <Link href="/" className="flex-shrink-0 flex items-center gap-3 cursor-pointer group -ml-4">
+            <div className="relative h-28 w-[500px] flex items-center transition-transform group-hover:scale-105">
                 <Image 
                   src="/logo-full.png" 
                   alt="RenkFlow" 
