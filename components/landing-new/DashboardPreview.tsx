@@ -127,8 +127,10 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                         </motion.div>
                     </div>
 
-                    {/* Main Chart Section */}
-                    <div className="flex-1 grid grid-cols-3 gap-6 min-h-0">
+                    {/* Main Content Grid */}
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 min-h-0">
+                        
+                        {/* Main Chart Section */}
                         <div className="col-span-2 p-5 rounded-2xl bg-white dark:bg-slate-800 border border-border shadow-sm flex flex-col relative overflow-hidden">
                             <div className="flex justify-between items-center mb-4 relative z-10">
                                 <div>
@@ -170,31 +172,51 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                             </div>
                         </div>
 
-                        <div className="col-span-1 p-5 rounded-2xl bg-white dark:bg-slate-800 border border-border shadow-sm flex flex-col">
-                            <div className="flex justify-between items-center mb-4">
-                                 <h4 className="font-semibold text-slate-900 dark:text-white text-sm">Verimlilik</h4>
-                                 <motion.div 
-                                   animate={{ rotate: 360 }}
-                                   transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-                                   className="p-1 rounded bg-blue-50 text-blue-600"
-                                 >
-                                    <Briefcase size={12} />
-                                 </motion.div>
+                        {/* Recent Orders / Activity Column */}
+                        <div className="col-span-1 flex flex-col gap-4">
+                             {/* Efficiency Chart */}
+                            <div className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-border shadow-sm flex flex-col h-[180px]">
+                                <div className="flex justify-between items-center mb-2">
+                                     <h4 className="font-semibold text-slate-900 dark:text-white text-xs">Verimlilik</h4>
+                                     <div className="text-[10px] text-green-500 bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded">+4.2%</div>
+                                </div>
+                                <div className="flex-1 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={barData}>
+                                            <Bar dataKey="value" radius={[4, 4, 4, 4]} animationDuration={1500}>
+                                                {barData.map((entry, index) => (
+                                                    <Cell 
+                                                        key={`cell-${index}`} 
+                                                        fill={index === 3 ? '#2563EB' : '#E2E8F0'} 
+                                                    />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
                             </div>
-                            <div className="flex-1 min-h-[150px]">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={barData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                                        <Bar dataKey="value" radius={[4, 4, 4, 4]} animationDuration={1500}>
-                                            {barData.map((entry, index) => (
-                                                <Cell 
-                                                    key={`cell-${index}`} 
-                                                    fill={index === 3 ? '#2563EB' : '#E2E8F0'} 
-                                                />
-                                            ))}
-                                        </Bar>
-                                        <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                            
+                            {/* Mini Recent Orders List */}
+                            <div className="flex-1 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-border shadow-sm overflow-hidden flex flex-col">
+                                <h4 className="font-semibold text-slate-900 dark:text-white text-xs mb-3">Son Siparişler</h4>
+                                <div className="flex flex-col gap-3 overflow-y-auto pr-1 custom-scrollbar">
+                                    {[
+                                        { id: '#4829', status: 'Tamamlandı', amount: '₺12,400', time: '2dk önce', color: 'bg-green-500' },
+                                        { id: '#4830', status: 'Üretimde', amount: '₺8,250', time: '15dk önce', color: 'bg-blue-500' },
+                                        { id: '#4831', status: 'Bekliyor', amount: '₺3,100', time: '1s önce', color: 'bg-orange-500' },
+                                    ].map((order, i) => (
+                                        <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-700/50 border border-border/50">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200">{order.id}</span>
+                                                <span className="text-[9px] text-muted-foreground">{order.time}</span>
+                                            </div>
+                                            <div className="flex flex-col items-end gap-1">
+                                                 <span className="text-[10px] font-semibold text-slate-900 dark:text-white">{order.amount}</span>
+                                                 <span className={`text-[8px] px-1.5 py-0.5 rounded-full text-white ${order.color} bg-opacity-80`}>{order.status}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>
