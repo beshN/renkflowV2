@@ -25,10 +25,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Validate inputs
+    if (!name || typeof name !== 'string' || name.trim().length < 2) {
+      return NextResponse.json({ error: 'Şirket adı en az 2 karakter olmalıdır' }, { status: 400 });
+    }
+
+    // Validate Hex Color
+    const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (brandColor && !hexColorRegex.test(brandColor)) {
+      return NextResponse.json({ error: 'Geçersiz renk kodu' }, { status: 400 });
+    }
+
+    // Validate URL (if provided)
+    if (logoUrl && typeof logoUrl === 'string') {
+      try {
+        new URL(logoUrl);
+      } catch {
+        return NextResponse.json({ error: 'Geçersiz logo URL' }, { status: 400 });
+      }
+    }
+
     // Update tenant
     await sql`
       UPDATE tenants
-      SET name = ${name}, brand_color = ${brandColor}, logo_url = ${logoUrl}, updated_at = NOW()
+      SET 
+        name = ${name.trim()}, 
+        brand_color = ${brandColor || null}, 
+        logo_url = ${logoUrl || null}, 
+        updated_at = NOW()
       WHERE id = ${tenantId}
     `;
 

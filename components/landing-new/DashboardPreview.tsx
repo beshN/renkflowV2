@@ -26,23 +26,23 @@ interface DashboardPreviewProps {
 }
 
 const weeklyData = [
-  { name: 'Mon', value: 2400 },
-  { name: 'Tue', value: 1398 },
-  { name: 'Wed', value: 9800 },
-  { name: 'Thu', value: 3908 },
-  { name: 'Fri', value: 4800 },
-  { name: 'Sat', value: 3800 },
-  { name: 'Sun', value: 4300 },
+  { name: 'Mon', value: 24000 },
+  { name: 'Tue', value: 13980 },
+  { name: 'Wed', value: 98000 },
+  { name: 'Thu', value: 39080 },
+  { name: 'Fri', value: 48000 },
+  { name: 'Sat', value: 38000 },
+  { name: 'Sun', value: 43000 },
 ];
 
 const monthlyData = [
-    { name: 'W1', value: 4000 },
-    { name: 'W2', value: 3000 },
-    { name: 'W3', value: 2000 },
-    { name: 'W4', value: 2780 },
-    { name: 'W5', value: 1890 },
-    { name: 'W6', value: 2390 },
-    { name: 'W7', value: 3490 },
+    { name: 'W1', value: 40000 },
+    { name: 'W2', value: 30000 },
+    { name: 'W3', value: 20000 },
+    { name: 'W4', value: 27800 },
+    { name: 'W5', value: 18900 },
+    { name: 'W6', value: 23900 },
+    { name: 'W7', value: 34900 },
 ];
 
 const barData = [
@@ -57,12 +57,12 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
   const [activeTab, setActiveTab] = useState('dashboard');
   const [dataMode, setDataMode] = useState<'weekly' | 'monthly'>('weekly');
   const [notification, setNotification] = useState<{title: string, amount: string} | null>(null);
-  const [income, setIncome] = useState(124500);
+  const [income, setIncome] = useState(854950);
 
   // Simulate live updates
   useEffect(() => {
     const interval = setInterval(() => {
-        const randomBonus = Math.floor(Math.random() * 500);
+        const randomBonus = Math.floor(Math.random() * 2500) + 2500;
         setNotification({
             title: 'Sipariş Tamamlandı',
             amount: `₺${randomBonus}`
@@ -109,7 +109,7 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                                     <Package size={12} />
                                  </div>
                             </div>
-                            <h3 className="text-xl font-bold text-slate-900 dark:text-white">48</h3>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white">148</h3>
                         </motion.div>
 
                          {/* Stat Card 3 */}
