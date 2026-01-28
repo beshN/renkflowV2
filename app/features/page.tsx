@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Navbar } from '@/components/landing-new/Navbar';
+import LandingNav from '@/components/landing/LandingNav';
 import { Features } from '@/components/landing-new/Features';
 import { Footer } from '@/components/landing-new/Footer';
 import { useTheme } from '@/lib/context/ThemeContext';
@@ -19,7 +19,7 @@ export default function FeaturesPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Navbar isDark={theme === 'dark'} toggleTheme={toggleTheme} />
+      <LandingNav />
       
       <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-[1400px] mx-auto text-center">
             <motion.h1 

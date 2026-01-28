@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
-import { Navbar } from '@/components/landing-new/Navbar';
+import LandingNav from '@/components/landing/LandingNav';
 import { Footer } from '@/components/landing-new/Footer';
 import { useTheme } from '@/lib/context/ThemeContext';
 import { Mail, MapPin, Phone, Send } from 'lucide-react';
@@ -19,7 +19,7 @@ export default function ContactPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Navbar isDark={theme === 'dark'} toggleTheme={toggleTheme} />
+      <LandingNav />
 
       <main className="flex-grow pt-32 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
