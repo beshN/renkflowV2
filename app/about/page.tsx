@@ -5,7 +5,7 @@ import { useInView } from 'react-intersection-observer';
 import Image from 'next/image';
 import Link from 'next/link';
 import LandingNav from '@/components/landing/LandingNav';
-import LandingFooter from '@/components/landing/LandingFooter';
+import { Footer } from '@/components/landing-new/Footer';
 
 export default function About() {
   const [heroRef, heroInView] = useInView({ triggerOnce: true, threshold: 0.1 });
@@ -237,7 +237,7 @@ export default function About() {
         </section>
       </main>
 
-      <LandingFooter />
+      <Footer />
     </div>
   );
 }

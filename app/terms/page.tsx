@@ -1,5 +1,5 @@
 import LandingNav from '@/components/landing/LandingNav';
-import LandingFooter from '@/components/landing/LandingFooter';
+import { Footer } from '@/components/landing-new/Footer';
 
 export default function Terms() {
   return (
@@ -76,7 +76,7 @@ export default function Terms() {
         </div>
       </main>
       
-      <LandingFooter />
+      <Footer />
     </div>
   );
 }

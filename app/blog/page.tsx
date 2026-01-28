@@ -5,7 +5,7 @@ import { useInView } from 'react-intersection-observer';
 import Image from 'next/image';
 import Link from 'next/link';
 import LandingNav from '@/components/landing/LandingNav';
-import LandingFooter from '@/components/landing/LandingFooter';
+import { Footer } from '@/components/landing-new/Footer';
 
 interface BlogPost {
   id: string;
@@ -235,7 +235,7 @@ export default function BlogPage() {
         </motion.div>
       </main>
 
-      <LandingFooter />
+      <Footer />
     </div>
   );
 }

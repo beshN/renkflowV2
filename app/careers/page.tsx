@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import Link from 'next/link';
 import LandingNav from '@/components/landing/LandingNav';
-import LandingFooter from '@/components/landing/LandingFooter';
+import { Footer } from '@/components/landing-new/Footer';
 
 interface JobPosition {
   id: string;
@@ -293,7 +293,7 @@ export default function CareersPage() {
         </section>
       </main>
 
-      <LandingFooter />
+      <Footer />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import LandingNav from '@/components/landing/LandingNav';
-import LandingFooter from '@/components/landing/LandingFooter';
+import { Footer } from '@/components/landing-new/Footer';
 
 export default function Privacy() {
   return (
@@ -69,7 +69,7 @@ export default function Privacy() {
         </div>
       </main>
       
-      <LandingFooter />
+      <Footer />
     </div>
   );
 }

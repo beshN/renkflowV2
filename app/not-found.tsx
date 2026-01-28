@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import LandingNav from '@/components/landing/LandingNav';
-import LandingFooter from '@/components/landing/LandingFooter';
+import { Footer } from '@/components/landing-new/Footer';
 
 export default function NotFound() {
   return (
@@ -57,7 +57,7 @@ export default function NotFound() {
         </motion.div>
       </main>
       
-      <LandingFooter />
+      <Footer />
     </div>
   );
 }

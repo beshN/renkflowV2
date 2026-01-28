@@ -1,10 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import Image from 'next/image';
-import { usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect, useRef } from 'react';
+import { Moon, Sun } from 'lucide-react';
+import { useTheme } from '@/lib/context/ThemeContext';
 
 interface LandingNavProps {
   largeLogo?: boolean;
@@ -14,6 +11,7 @@ export default function LandingNav({ largeLogo = false }: LandingNavProps) {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
   const rafId = useRef<number>();
 
   useEffect(() => {
@@ -114,6 +112,15 @@ export default function LandingNav({ largeLogo = false }: LandingNavProps) {
             </nav>
 
             <div className="flex items-center space-x-4 flex-shrink-0">
+               {/* Theme Toggle */}
+               <button
+                  onClick={toggleTheme}
+                  className="p-2 rounded-full text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  aria-label="Temayı Değiştir"
+                >
+                  {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                </button>
+
               <Link href="/auth/login" className="text-sm font-semibold text-subtle-light dark:text-subtle-dark hover:text-primary dark:hover:text-primary transition-colors duration-300 hidden sm:block">
                 Giriş Yap
               </Link>

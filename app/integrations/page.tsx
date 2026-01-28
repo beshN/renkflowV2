@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 import Link from 'next/link';
 import LandingNav from '@/components/landing/LandingNav';
-import LandingFooter from '@/components/landing/LandingFooter';
+import { Footer } from '@/components/landing-new/Footer';
 
 interface Integration {
   name: string;
@@ -206,7 +206,7 @@ export default function IntegrationsPage() {
         </motion.div>
       </main>
 
-      <LandingFooter />
+      <Footer />
     </div>
   );
 }
