@@ -74,14 +74,13 @@ export default function LandingNav({ largeLogo = false }: LandingNavProps) {
           transform: 'translateZ(0)',
         }}
       >
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-full">
-          <div className="flex justify-between items-center h-20">
-            <Link href="/" className="flex items-center flex-shrink-0 ml-2 md:ml-8">
+        <div className="w-full px-6 md:px-12">
+          <div className="flex justify-between items-center h-16">
+            <Link href="/" className="flex items-center flex-shrink-0 cursor-pointer group">
               <div 
                 className={`relative transition-all duration-1000 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${
-                  largeLogo ? 'h-40 md:h-48' : 'h-20 md:h-24'
+                  largeLogo ? 'h-64 w-[800px]' : 'h-40 w-144'
                 }`} 
-                style={{ width: largeLogo ? '700px' : '350px' }}
               >
                 <Image
                   src="/logo.png"
