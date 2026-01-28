@@ -36,12 +36,12 @@ export const Navbar: React.FC<NavbarProps> = ({ isDark, toggleTheme }) => {
           : 'bg-transparent border-transparent'
       }`}
     >
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-32">
+      <div className="w-full px-6 md:px-12">
+        <div className="flex justify-between items-center h-24">
           
           {/* Logo Section */}
-          <Link href="/" className="flex-shrink-0 flex items-center gap-3 cursor-pointer group -ml-4">
-            <div className="relative h-28 w-[400px] flex items-center justify-start overflow-visible -ml-8">
+          <Link href="/" className="flex-shrink-0 flex items-center gap-3 cursor-pointer group">
+            <div className="relative h-28 w-[400px] flex items-center justify-start overflow-visible -ml-16 md:-ml-12">
                 <Image 
                   src="/logo-full.png" 
                   alt="RenkFlow" 
