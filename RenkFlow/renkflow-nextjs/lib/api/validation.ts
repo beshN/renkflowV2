@@ -108,7 +108,7 @@ export const APIErrorSchema = z.object({
   success: z.literal(false),
   error: z.string(),
   code: z.string().optional(),
-  details: z.record(z.string()).optional(),
+  details: z.record(z.string(), z.string()).optional(),
 });
 
 export const APIResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
@@ -124,7 +124,7 @@ export const APIResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
 export interface ParseFormDataResult<T> {
   success: boolean;
   data?: T;
-  errors?: z.ZodError['errors'];
+  errors?: z.ZodError['issues'];
 }
 
 /**
@@ -170,7 +170,7 @@ export function parseFormData<T extends z.ZodTypeAny>(
     return { success: true, data: result.data };
   }
 
-  return { success: false, errors: result.error.errors };
+  return { success: false, errors: result.error.issues };
 }
 
 /**
@@ -186,13 +186,13 @@ export function parseJSON<T extends z.ZodTypeAny>(
     return { success: true, data: result.data };
   }
 
-  return { success: false, errors: result.error.errors };
+  return { success: false, errors: result.error.issues };
 }
 
 /**
  * Create validation error response
  */
-export function createValidationErrorResponse(errors: z.ZodError['errors']) {
+export function createValidationErrorResponse(errors: z.ZodError['issues']) {
   const errorMap: Record<string, string> = {};
   
   errors.forEach((error) => {
@@ -222,7 +222,7 @@ export function withValidation<T extends z.ZodTypeAny, R>(
       return createValidationErrorResponse(result.errors!);
     }
     
-    return handler(result.data);
+    return handler(result.data!);
   };
 }
 
