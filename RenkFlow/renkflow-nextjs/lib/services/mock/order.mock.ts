@@ -5,13 +5,27 @@ import { generateId } from '@/lib/utils';
 
 /**
  * Mock Order Service
- * Uses localStorage for persistence
+ * Uses in-memory storage for SSR compatibility, localStorage for client persistence
  */
 export class MockOrderService implements IOrderService {
   private readonly STORAGE_KEY = 'renkflow-orders';
+  private static inMemoryOrders: Order[] | null = null;
+
+  private isClient(): boolean {
+    return typeof window !== 'undefined';
+  }
 
   private getStoredOrders(): Order[] {
     try {
+      // Server-side: use in-memory storage
+      if (!this.isClient()) {
+        if (MockOrderService.inMemoryOrders === null) {
+          MockOrderService.inMemoryOrders = [...sampleOrders];
+        }
+        return MockOrderService.inMemoryOrders;
+      }
+      
+      // Client-side: use localStorage
       const stored = localStorage.getItem(this.STORAGE_KEY);
       if (stored) {
         return JSON.parse(stored);
@@ -27,6 +41,13 @@ export class MockOrderService implements IOrderService {
 
   private saveOrders(orders: Order[]): void {
     try {
+      // Server-side: use in-memory storage
+      if (!this.isClient()) {
+        MockOrderService.inMemoryOrders = orders;
+        return;
+      }
+      
+      // Client-side: use localStorage
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(orders));
     } catch (error) {
       console.error('Error saving orders to localStorage:', error);

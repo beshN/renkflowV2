@@ -58,8 +58,8 @@ export class ErrorBoundary extends Component<Props, State> {
           <p className="text-subtle-light dark:text-subtle-dark mb-6 max-w-md">
             Üzgünüz, bu sayfada beklenmedik bir hata oluştu. Lütfen tekrar deneyin.
           </p>
-          {/* ALWAYS SHOW ERROR DETAILS FOR DEBUGGING */}
-          {this.state.error && (
+          {/* Only show error details in development mode for security */}
+          {process.env.NODE_ENV === 'development' && this.state.error && (
             <details className="mb-6 text-left max-w-lg w-full">
               <summary className="cursor-pointer text-sm text-subtle-light dark:text-subtle-dark hover:text-primary">
                 Hata Detayları (Geliştirme Modu)

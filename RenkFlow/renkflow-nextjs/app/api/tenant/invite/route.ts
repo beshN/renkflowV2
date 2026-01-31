@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
 import { auth } from '@/auth';
-
 import { sql } from '@/lib/db';
 import { sendInviteEmail } from '@/lib/email';
 

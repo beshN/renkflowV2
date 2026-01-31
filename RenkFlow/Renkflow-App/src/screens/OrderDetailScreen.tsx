@@ -28,7 +28,6 @@ export default function OrderDetailScreen() {
   const navigation = useNavigation();
   const { orderId } = route.params;
   
-  const fadeAnims = useRef(STATUSES.map(() => new Animated.Value(0))).current;
   const cardAnims = useRef([0, 1, 2, 3].map(() => new Animated.Value(0))).current;
 
   useEffect(() => {
