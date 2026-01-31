@@ -85,7 +85,7 @@ export function useOrders(): UseOrdersResult {
   );
 
   // Update order mutation with optimistic update
-  const updateOrderMutation = useMutation<Order, { id: string; updates: Partial<Order> }>(
+  const updateOrderMutation = useMutation<Order, { id: string; updates: Partial<Order> }, { previousOrders: Order[] }>(
     async ({ id, updates }) => {
       return orderService.updateOrder(id, updates);
     },
@@ -103,7 +103,7 @@ export function useOrders(): UseOrdersResult {
         devLog.info('[useOrders] Order updated:', updatedOrder.id);
         requestCache.invalidate(ORDER_CACHE_KEY(updatedOrder.id));
       },
-      onError: (err, variables, context) => {
+      onError: (err, variables, context: { previousOrders?: Order[] } | undefined) => {
         devLog.error('[useOrders] Failed to update order:', err);
         // Rollback
         if (context?.previousOrders) {
@@ -114,7 +114,7 @@ export function useOrders(): UseOrdersResult {
   );
 
   // Update status mutation
-  const updateStatusMutation = useMutation<Order, { id: string; status: Order['status'] }>(
+  const updateStatusMutation = useMutation<Order, { id: string; status: Order['status'] }, { previousOrders: Order[] }>(
     async ({ id, status }) => {
       return orderService.updateOrderStatus(id, status);
     },
@@ -130,7 +130,7 @@ export function useOrders(): UseOrdersResult {
       onSuccess: (updatedOrder) => {
         devLog.info('[useOrders] Order status updated:', updatedOrder.id, updatedOrder.status);
       },
-      onError: (err, variables, context) => {
+      onError: (err, variables, context: { previousOrders?: Order[] } | undefined) => {
         devLog.error('[useOrders] Failed to update status:', err);
         if (context?.previousOrders) {
           mutate(context.previousOrders);
@@ -140,7 +140,7 @@ export function useOrders(): UseOrdersResult {
   );
 
   // Delete order mutation with optimistic update
-  const deleteOrderMutation = useMutation<void, string>(
+  const deleteOrderMutation = useMutation<void, string, { previousOrders: Order[] }>(
     async (id) => {
       return orderService.deleteOrder(id);
     },
@@ -154,7 +154,7 @@ export function useOrders(): UseOrdersResult {
       onSuccess: () => {
         devLog.info('[useOrders] Order deleted');
       },
-      onError: (err, id, context) => {
+      onError: (err, id, context: { previousOrders?: Order[] } | undefined) => {
         devLog.error('[useOrders] Failed to delete order:', err);
         if (context?.previousOrders) {
           mutate(context.previousOrders);
