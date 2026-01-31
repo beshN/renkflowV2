@@ -1,5 +1,5 @@
-import { LandingContainer } from '@/components/landing-new/LandingContainer';
-import type { Metadata } from 'next';
+import { FullLandingContent } from '@/components/landing-new/FullLandingContent';
+import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Renkflow - İş Akışınızı Dönüştürün',
@@ -10,5 +10,5 @@ export const metadata: Metadata = {
 };
 
 export default function LandingPage() {
-  return <LandingContainer />;
+  return <FullLandingContent />;
 }

@@ -20,8 +20,9 @@ export default auth((req) => {
     '/terms',
     '/cookies',
     '/roadmap',
+    '/teaser',
+    '/coming-soon',
     '/changelog',
-    '/full-landing',
   ];
 
   // Auth routes
