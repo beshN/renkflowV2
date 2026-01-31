@@ -38,6 +38,20 @@ export function formatDate(dateString: string | null | undefined): string {
 }
 
 /**
+ * Format file size
+ */
+export function formatFileSize(bytes?: number | null): string {
+  if (bytes === null || bytes === undefined || Number.isNaN(bytes)) return '-';
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+  const mb = kb / 1024;
+  if (mb < 1024) return `${mb.toFixed(2)} MB`;
+  const gb = mb / 1024;
+  return `${gb.toFixed(2)} GB`;
+}
+
+/**
  * Get order status label and color
  */
 export function getOrderStatusInfo(status: string) {

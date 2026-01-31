@@ -3,8 +3,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '../ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { NewOrderFormData } from '@/lib/types';
+import { formatFileSize } from '@/lib/utils';
 import { toast } from 'sonner';
-import Image from 'next/image';
 
 interface NewOrderFormProps {
   onSubmit: (data: FormData) => Promise<void>;
@@ -296,7 +296,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                             {doc.name}
                           </span>
                           <span className="text-xs text-subtle-light dark:text-subtle-dark">
-                            {(doc.size / 1024 / 1024).toFixed(2)} MB
+                            {formatFileSize(doc.size)}
                           </span>
                         </div>
                       </div>

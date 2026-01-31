@@ -12,7 +12,7 @@ import { NewOrderForm } from '@/components/forms/NewOrderForm';
 import { useOrders } from '@/lib/hooks/useOrders';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
-import { formatCurrency, formatDate, getOrderStatusInfo } from '@/lib/utils';
+import { formatCurrency, formatDate, formatFileSize, getOrderStatusInfo } from '@/lib/utils';
 import { Order, Document } from '@/lib/types';
 import { 
   ArrowLeft, Calendar, User, Package, CreditCard, 
@@ -44,6 +44,22 @@ export default function OrderDetailPage() {
   const canEditDelete = user?.role === 'admin' || user?.role === 'owner';
 
   const handleDeleteClick = () => setIsDeleteConfirmOpen(true);
+
+  const handleInvoiceClick = () => {
+    showToast('Fatura modülü yakında aktif olacak.', 'info');
+  };
+
+  const handleUploadClick = () => {
+    setIsEditModalOpen(true);
+  };
+
+  const handleDocumentOpen = (doc: Document) => {
+    if (!doc.url) {
+      showToast('Bu belge için geçerli bir bağlantı bulunamadı.', 'error');
+      return;
+    }
+    setSelectedDocument(doc);
+  };
 
   const handleConfirmDelete = async () => {
     setIsDeleting(true);
@@ -95,7 +111,48 @@ export default function OrderDetailPage() {
 
   const currentStepIndex = steps.findIndex(s => s.id === order?.status);
 
-  if (isLoading || !order) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600"/></div>;
+  const getDocumentMeta = (doc: Document) => {
+    const extension = doc.name.split('.').pop()?.toLowerCase() ?? '';
+    const typeMap: Record<string, string> = {
+      pdf: 'PDF',
+      png: 'PNG',
+      jpg: 'JPG',
+      jpeg: 'JPG',
+      svg: 'SVG',
+      webp: 'WEBP',
+    };
+
+    return {
+      typeLabel: typeMap[extension] ?? 'DOSYA',
+      sizeLabel: formatFileSize(doc.size),
+    };
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600" />
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 text-center px-6">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Sipariş bulunamadı</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Bu siparişe erişemiyoruz. Lütfen sipariş listesinden tekrar deneyin.
+        </p>
+        <Link
+          href="/orders"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+        >
+          <ArrowLeft size={16} />
+          Siparişlere dön
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-950/50 min-h-screen">
@@ -115,7 +172,10 @@ export default function OrderDetailPage() {
                         Düzenle
                      </button>
                 )}
-                <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-lg shadow-blue-500/20 transition-all">
+                <button
+                  onClick={handleInvoiceClick}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-lg shadow-blue-500/20 transition-all"
+                >
                     Fatura Oluştur
                 </button>
                 {canEditDelete && (
@@ -163,12 +223,20 @@ export default function OrderDetailPage() {
                             return (
                                 <div key={step.id} className="flex flex-col items-center gap-2 bg-white dark:bg-slate-900 px-2">
                                     <button 
-                                        onClick={() => updateOrderStatus(order.id, step.id as any)}
+                                        onClick={() => {
+                                          if (!canEditDelete) {
+                                            showToast('Durumu güncellemek için yetkiniz yok.', 'error');
+                                            return;
+                                          }
+                                          updateOrderStatus(order.id, step.id as any);
+                                        }}
                                         className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
                                         isCompleted 
                                             ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/30' 
                                             : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400'
-                                    } ${!user ? 'cursor-default' : 'cursor-pointer hover:scale-110'}`}>
+                                    } ${!canEditDelete ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:scale-110'}`}
+                                        disabled={!canEditDelete}
+                                    >
                                         <Icon size={18} />
                                     </button>
                                     <span className={`text-xs font-medium ${isCurrent ? 'text-blue-600' : 'text-slate-500'}`}>
@@ -247,14 +315,21 @@ export default function OrderDetailPage() {
                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl">
                      <div className="flex justify-between items-center mb-4">
                          <h3 className="font-bold text-slate-900 dark:text-white">Belgeler</h3>
-                         <button className="text-xs font-bold text-blue-600 hover:underline uppercase">Yükle</button>
+                         <button
+                           onClick={handleUploadClick}
+                           className="text-xs font-bold text-blue-600 hover:underline uppercase"
+                         >
+                           Yükle
+                         </button>
                      </div>
                      
                      <div className="space-y-3">
-                         {order.documents && order.documents.length > 0 ? order.documents.map((doc, i) => (
+                         {order.documents && order.documents.length > 0 ? order.documents.map((doc, i) => {
+                             const { typeLabel, sizeLabel } = getDocumentMeta(doc);
+                             return (
                              <div 
                                 key={i} 
-                                onClick={() => setSelectedDocument(doc)}
+                                onClick={() => handleDocumentOpen(doc)}
                                 className="group flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer border border-transparent hover:border-slate-100 dark:hover:border-slate-700 transition-all"
                              >
                                  <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500">
@@ -262,10 +337,24 @@ export default function OrderDetailPage() {
                                  </div>
                                  <div className="flex-1 min-w-0">
                                      <p className="font-medium text-sm text-slate-900 dark:text-white truncate">{doc.name}</p>
-                                     <p className="text-xs text-slate-500">PDF • 1.2 MB</p>
+                                     <p className="text-xs text-slate-500">{typeLabel} • {sizeLabel}</p>
                                  </div>
+                                 {doc.url && (
+                                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                     <Link
+                                       href={doc.url}
+                                       target="_blank"
+                                       rel="noreferrer"
+                                       className="text-xs font-semibold text-blue-600 hover:underline"
+                                       onClick={(event) => event.stopPropagation()}
+                                     >
+                                       Aç
+                                     </Link>
+                                   </div>
+                                 )}
                              </div>
-                         )) : (
+                            );
+                         }) : (
                              <p className="text-sm text-slate-400 text-center py-4">Belge eklenmemiş</p>
                          )}
                      </div>
