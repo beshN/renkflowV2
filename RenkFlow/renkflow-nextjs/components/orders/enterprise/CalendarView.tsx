@@ -68,7 +68,7 @@ const OrderBadge: React.FC<{
           'h-1.5 rounded-full cursor-pointer hover:h-2 transition-all',
         statusIndicatorMap[order.status] || 'bg-gray-300'
       )}
-      title={`${order.customerNameName} - ${order.productNameName}`}
+      title={`${order.customerName} - ${order.productName}`}
     />
   );
   }
@@ -87,7 +87,7 @@ const OrderBadge: React.FC<{
         statusIndicatorMap[order.status] || 'bg-gray-300'
       )} />
       <span className="text-xs text-gray-900 dark:text-white truncate flex-1">
-        {order.customerNameName}
+        {order.customerName}
       </span>
       <span className="text-xs text-gray-500 hidden group-hover:inline">
         {formatCurrency(order.totalAmount || 0, order.currency)}
