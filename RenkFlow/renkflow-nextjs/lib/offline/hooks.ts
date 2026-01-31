@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { offlineDB } from './indexeddb';
+import type { WithSyncMetadata } from './indexeddb';
 import { syncQueue, SyncQueueStatus, SyncQueueEvent } from './sync-queue';
-import { SyncOperationType } from '../realtime/types';
+import type { SyncOperation, SyncOperationType } from '../realtime/types';
 
 /**
  * React Hooks for Offline-First Functionality
@@ -110,7 +111,7 @@ interface UseOfflineDataResult<T> {
   remove: (id: string) => Promise<void>;
 }
 
-export function useOfflineData<T extends { id: string }>(
+export function useOfflineData<T extends { id: string } & WithSyncMetadata>(
   options: UseOfflineDataOptions<T>
 ): UseOfflineDataResult<T> {
   const { storeName, serverFetcher, syncOnMount = true } = options;
@@ -418,7 +419,7 @@ export function useConflictQueue(): UseConflictQueueResult {
     const operation = conflicts.find((c) => c.id === operationId);
     if (!operation) return;
 
-    await offlineDB.put('syncQueue', {
+    await offlineDB.put<SyncOperation>('syncQueue', {
       id: operationId,
       type: 'update' as SyncOperationType,
       resourceType: operation.resourceType,
@@ -445,7 +446,7 @@ export function useConflictQueue(): UseConflictQueueResult {
     const operation = conflicts.find((c) => c.id === operationId);
     if (!operation) return;
 
-    await offlineDB.put('syncQueue', {
+    await offlineDB.put<SyncOperation>('syncQueue', {
       id: operationId,
       type: 'update' as SyncOperationType,
       resourceType: operation.resourceType,

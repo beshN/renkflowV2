@@ -51,7 +51,7 @@ const STORES: StoreConfig[] = [
 
 type SyncStatus = 'synced' | 'pending' | 'conflict' | 'error';
 
-interface WithSyncMetadata {
+export interface WithSyncMetadata {
   _syncStatus?: SyncStatus;
   _localVersion?: number;
   _serverVersion?: number;

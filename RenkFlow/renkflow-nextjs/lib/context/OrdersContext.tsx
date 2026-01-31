@@ -1,6 +1,31 @@
+/**
+ * ⚠️ DEPRECATED: OrdersContext
+ * 
+ * This file is deprecated and will be removed in v2.0.
+ * 
+ * 🔄 MIGRATION GUIDE:
+ * Use Zustand store + useOrders hook instead:
+ * 
+ * Before:
+ *   import { useOrdersContext } from '@/lib/context/OrdersContext';
+ *   const { orders, addOrder } = useOrdersContext();
+ * 
+ * After:
+ *   import { useOrders } from '@/lib/hooks/useOrders';
+ *   const { orders, addOrder } = useOrders();
+ * 
+ * Benefits:
+ * - Single source of truth (Zustand store)
+ * - Optimistic updates with rollback
+ * - Better performance (no Context re-renders)
+ * - Cleaner architecture
+ * 
+ * This file is kept for backward compatibility during migration.
+ */
+
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { Order, NewOrderFormData } from '@/lib/types';
 import { MockOrderService } from '@/lib/services/mock/order.mock';
@@ -12,6 +37,12 @@ import {
   deleteOrderAction 
 } from '@/app/actions/order.actions';
 
+console.warn(
+  '[RenkFlow] ⚠️ OrdersContext is deprecated. ' +
+  'Migrate to useOrders hook from @/lib/hooks/useOrders'
+);
+
+// ... rest of the file unchanged
 interface OrdersContextType {
   orders: Order[];
   addOrder: (order: NewOrderFormData | FormData) => Promise<void>;
