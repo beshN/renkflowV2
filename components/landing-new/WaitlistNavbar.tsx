@@ -34,31 +34,21 @@ export const WaitlistNavbar = () => {
         The logo container uses negative margins and overflow-visible to 
         allow the large logo to extend beyond the navbar bounds
       */}
+      {/* Large Logo - Fixed to the absolute top-left corner */}
+      <Link href="/" className="fixed top-0 left-0 z-[60] group block p-4 md:p-8">
+        <div className="relative h-24 w-72 md:h-48 md:w-[600px] transition-transform duration-300 group-hover:scale-105">
+            <Image 
+              src="/logo-full.png" 
+              alt="RenkFlow" 
+              fill
+              sizes="(max-width: 768px) 300px, 600px"
+              className="object-contain object-left"
+              priority
+            />
+        </div>
+      </Link>
+
       <div className="w-full px-4 md:px-12">
-        <div className="flex justify-end items-center h-16 md:h-24">
-          
-          {/* 
-            Logo Section - Large logo that overflows the navbar
-            - h-40 (160px) for the logo image
-            - w-[600px] for width to maintain aspect ratio
-            - -my-8 to extend vertically beyond the h-24 navbar
-            - overflow-visible to prevent clipping
-          */}
-          {/* 
-            Logo Section - Optimized for visual balance without layout shifts
-          */}
-          <Link href="/" className="absolute top-2 left-4 md:top-4 md:left-12 z-[60] group">
-            <div className="relative h-24 w-72 md:h-44 md:w-[480px] transition-all duration-500 group-hover:scale-105">
-                <Image 
-                  src="/logo-full.png" 
-                  alt="RenkFlow" 
-                  fill
-                  sizes="(max-width: 768px) 70vw, 480px"
-                  className="object-contain object-left"
-                  priority
-                />
-            </div>
-          </Link>
 
           {/* Empty div for spacing (no navigation links on waitlist page) */}
           <div className="hidden md:flex items-center space-x-1 lg:space-x-2"></div>
