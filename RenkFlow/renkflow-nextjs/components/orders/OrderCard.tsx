@@ -5,7 +5,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { Order } from '@/lib/types';
 import { formatCurrency, formatDate, getOrderStatusInfo } from '@/lib/utils';
 import { useAuth } from '@/lib/context/AuthContext';
-import { memo } from 'react';
 
 interface OrderCardProps {
   order: Order;
@@ -13,9 +12,6 @@ interface OrderCardProps {
   isDragOverlay?: boolean;
 }
 
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/components/orders/OrderCard.tsx
-function OrderCardComponent({ order, onStatusChange }: OrderCardProps) {
-=======
 const statusColors = {
   pending: {
     bg: 'bg-amber-50 dark:bg-amber-950/30',
@@ -38,7 +34,6 @@ const statusColors = {
 };
 
 export const OrderCard = memo(function OrderCard({ order, onStatusChange, isDragOverlay = false }: OrderCardProps) {
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow-Worktree/RenkFlow-Worktree-42fbda1e/RenkFlow/renkflow-nextjs/components/orders/OrderCard.tsx
   const { user } = useAuth();
   const statusInfo = getOrderStatusInfo(order.status);
   const colors = statusColors[order.status];
@@ -160,10 +155,4 @@ export const OrderCard = memo(function OrderCard({ order, onStatusChange, isDrag
       </div>
     </div>
   );
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/components/orders/OrderCard.tsx
-}
-
-export const OrderCard = memo(OrderCardComponent);
-=======
 });
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow-Worktree/RenkFlow-Worktree-42fbda1e/RenkFlow/renkflow-nextjs/components/orders/OrderCard.tsx
