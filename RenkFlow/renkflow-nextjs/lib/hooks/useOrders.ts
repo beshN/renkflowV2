@@ -1,195 +1,334 @@
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
 /**
- * useOrders Hook - Zustand + Optimistic Updates
+ * useOrders Hook - Enterprise Grade
  * 
  * Features:
- * - Single source of truth: Zustand store
- * - Optimistic updates with rollback
- * - No Context dependency
- * - Server Actions integration
+ * - Request caching with deduplication (SWR-like pattern)
+ * - Optimistic updates with automatic rollback
+ * - Zustand store synchronization
+ * - Document upload support
+ * - TypeScript strict mode compatible
  */
 
 'use client';
 
-import { useCallback, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { Order } from '@/lib/types';
-import { useOrdersStore } from '@/lib/stores/orders.store';
+=======
+'use client';
+
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+import React from 'react';
+import { useCachedQuery, useMutation, requestCache } from '@/lib/api/request-layer';
 import {
-  getOrdersAction,
   createOrderAction,
+  deleteOrderAction,
+  getOrdersAction,
   updateOrderAction,
   updateOrderStatusAction,
-  deleteOrderAction,
+  uploadOrderDocumentsAction,
 } from '@/app/actions/order.actions';
+import { Order, NewOrderFormData } from '@/lib/types';
+import { useOrdersStore } from '@/lib/stores/orders.store';
+import { devLog } from '@/lib/utils/logger';
+
+const ORDERS_CACHE_KEY = 'orders';
 
 export interface UseOrdersResult {
   orders: Order[];
   isLoading: boolean;
-  error: string | null;
+  isValidating: boolean;
+  error: Error | null;
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   refetch: () => Promise<void>;
-  addOrder: (data: FormData) => Promise<Order>;
+=======
+  refresh: () => Promise<void>;
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  addOrder: (data: NewOrderFormData | FormData) => Promise<Order>;
   updateOrder: (id: string, updates: Partial<Order>) => Promise<Order>;
   updateOrderStatus: (id: string, status: Order['status']) => Promise<Order>;
   deleteOrder: (id: string) => Promise<void>;
+  uploadDocuments: (id: string, formData: FormData) => Promise<void>;
   getOrderById: (id: string) => Order | undefined;
 }
 
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+/**
+ * Convert NewOrderFormData to FormData for server action compatibility
+ */
+=======
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+function objectToFormData(data: NewOrderFormData): FormData {
+  const formData = new FormData();
+  formData.append('customerName', data.customerName);
+  if (data.email) formData.append('email', data.email);
+  if (data.phone) formData.append('phone', data.phone);
+  formData.append('productName', data.productName);
+  formData.append('quantity', String(data.quantity));
+  formData.append('totalAmount', String(data.totalAmount));
+  formData.append('currency', data.currency || '₺');
+  if (data.deliveryDate) formData.append('deliveryDate', data.deliveryDate);
+  if (data.notes) formData.append('notes', data.notes);
+  return formData;
+}
+
 export function useOrders(): UseOrdersResult {
-  const { data: session, status } = useSession();
-  const isAuthenticated = status === 'authenticated' && !!session?.user;
+  const store = useOrdersStore();
+  const orders = useOrdersStore((s) => s.orders);
+  const setOrders = useOrdersStore((s) => s.setOrders);
+  const setLoading = useOrdersStore((s) => s.setLoading);
+  const setTotalCount = useOrdersStore((s) => s.setTotalCount);
 
-  // Zustand store selectors
-  const orders = useOrdersStore((state) => state.orders);
-  const isLoading = useOrdersStore((state) => state.isLoading);
-  const error = useOrdersStore((state) => state.error);
-  const setOrders = useOrdersStore((state) => state.setOrders);
-  const setLoading = useOrdersStore((state) => state.setLoading);
-  const setError = useOrdersStore((state) => state.setError);
-  const addOrderToStore = useOrdersStore((state) => state.addOrder);
-  const updateOrderInStore = useOrdersStore((state) => state.updateOrder);
-  const removeOrderFromStore = useOrdersStore((state) => state.removeOrder);
-
-  // Fetch orders
-  const refetch = useCallback(async () => {
-    if (!isAuthenticated) {
-      setOrders([]);
-      setLoading(false);
-      return;
+  const {
+    data: fetchedOrders,
+    isLoading,
+    isValidating,
+    error,
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+    refetch: cacheRefetch,
+=======
+    refetch,
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+    mutate,
+  } = useCachedQuery<Order[]>(
+    ORDERS_CACHE_KEY,
+    async () => {
+      return await getOrdersAction();
+    },
+    {
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      onError: (err) => {
+        devLog.error('[useOrders] Failed to fetch orders:', err);
+      },
     }
+  );
 
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const data = await getOrdersAction();
-      setOrders(data || []);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch orders';
-      setError(errorMessage);
-      console.error('[useOrders] Fetch error:', err);
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  // Sync loading state with Zustand store
+=======
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  React.useEffect(() => {
+    setLoading(isLoading);
+  }, [isLoading, setLoading]);
+
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  // Sync fetched orders with Zustand store
+=======
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  React.useEffect(() => {
+    if (!fetchedOrders) return;
+    setOrders(fetchedOrders);
+    setTotalCount(fetchedOrders.length);
+  }, [fetchedOrders, setOrders, setTotalCount]);
+
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  // Add Order Mutation
+=======
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  const addOrderMutation = useMutation<Order, NewOrderFormData | FormData>(
+    async (data) => {
+      const formData = data instanceof FormData ? data : objectToFormData(data);
+      return await createOrderAction(formData);
+    },
+    {
+      onSuccess: (newOrder) => {
+        const previous = useOrdersStore.getState().orders;
+        const next = [...previous, newOrder];
+        setOrders(next);
+        setTotalCount(next.length);
+        requestCache.invalidate(ORDERS_CACHE_KEY);
+      },
+      onError: (err) => {
+        devLog.error('[useOrders] Failed to create order:', err);
+      },
     }
-  }, [isAuthenticated, setOrders, setLoading, setError]);
+  );
 
-  // Initial fetch
-  useEffect(() => {
-    if (status !== 'loading') {
-      refetch();
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  // Update Order Mutation with Optimistic Update
+=======
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  const updateOrderMutation = useMutation<Order, { id: string; updates: Partial<Order> }, { previous: Order[] }>(
+    async ({ id, updates }) => {
+      return await updateOrderAction(id, updates);
+    },
+    {
+      onMutate: async ({ id, updates }) => {
+        const previous = useOrdersStore.getState().orders;
+        const optimistic = previous.map((o) => (o.id === id ? { ...o, ...updates } : o));
+        setOrders(optimistic);
+        mutate(optimistic);
+        return { previous };
+      },
+      onSuccess: (updated) => {
+        const next = useOrdersStore.getState().orders.map((o) => (o.id === updated.id ? updated : o));
+        setOrders(next);
+        mutate(next);
+      },
+      onError: (err, _vars, ctx) => {
+        devLog.error('[useOrders] Failed to update order:', err);
+        if (ctx?.previous) {
+          setOrders(ctx.previous);
+          mutate(ctx.previous);
+        }
+      },
     }
-  }, [refetch, status]);
+  );
 
-  // Add order
-  const addOrder = useCallback(async (formData: FormData): Promise<Order> => {
-    if (!isAuthenticated) {
-      throw new Error('User not authenticated');
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  // Update Status Mutation with Optimistic Update
+=======
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  const updateStatusMutation = useMutation<Order, { id: string; status: Order['status'] }, { previous: Order[] }>(
+    async ({ id, status }) => {
+      return await updateOrderStatusAction(id, status);
+    },
+    {
+      onMutate: async ({ id, status }) => {
+        const previous = useOrdersStore.getState().orders;
+        const optimistic = previous.map((o) => (o.id === id ? { ...o, status } : o));
+        setOrders(optimistic);
+        mutate(optimistic);
+        return { previous };
+      },
+      onSuccess: (updated) => {
+        const next = useOrdersStore.getState().orders.map((o) => (o.id === updated.id ? updated : o));
+        setOrders(next);
+        mutate(next);
+      },
+      onError: (err, _vars, ctx) => {
+        devLog.error('[useOrders] Failed to update order status:', err);
+        if (ctx?.previous) {
+          setOrders(ctx.previous);
+          mutate(ctx.previous);
+        }
+      },
     }
+  );
 
-    try {
-      const order = await createOrderAction(formData);
-      addOrderToStore(order);
-      return order;
-    } catch (err) {
-      console.error('[useOrders] Create error:', err);
-      throw err;
-    }
-  }, [isAuthenticated, addOrderToStore]);
-
-  // Update order with optimistic update
-  const updateOrder = useCallback(async (
-    id: string, 
-    updates: Partial<Order>
-  ): Promise<Order> => {
-    if (!isAuthenticated) {
-      throw new Error('User not authenticated');
-    }
-
-    // Store previous state for rollback
-    const previousOrder = orders.find((o) => o.id === id);
-    if (!previousOrder) {
-      throw new Error('Order not found');
-    }
-
-    // Optimistic update
-    updateOrderInStore(id, updates);
-
-    try {
-      const updatedOrder = await updateOrderAction(id, updates);
-      return updatedOrder;
-    } catch (err) {
-      // Rollback on error
-      updateOrderInStore(id, previousOrder);
-      console.error('[useOrders] Update error:', err);
-      throw err;
-    }
-  }, [isAuthenticated, orders, updateOrderInStore]);
-
-  // Update order status with optimistic update
-  const updateOrderStatus = useCallback(async (
-    id: string, 
-    status: Order['status']
-  ): Promise<Order> => {
-    if (!isAuthenticated) {
-      throw new Error('User not authenticated');
-    }
-
-    // Store previous state for rollback
-    const previousOrder = orders.find((o) => o.id === id);
-    if (!previousOrder) {
-      throw new Error('Order not found');
-    }
-
-    // Optimistic update (no refresh() call - prevents UI flash)
-    updateOrderInStore(id, { status });
-
-    try {
-      const updatedOrder = await updateOrderStatusAction(id, status);
-      return updatedOrder;
-    } catch (err) {
-      // Rollback on error
-      updateOrderInStore(id, { status: previousOrder.status });
-      console.error('[useOrders] Status update error:', err);
-      throw err;
-    }
-  }, [isAuthenticated, orders, updateOrderInStore]);
-
-  // Delete order with optimistic update
-  const deleteOrder = useCallback(async (id: string): Promise<void> => {
-    if (!isAuthenticated) {
-      throw new Error('User not authenticated');
-    }
-
-    // Store previous state for rollback
-    const previousOrder = orders.find((o) => o.id === id);
-    if (!previousOrder) {
-      throw new Error('Order not found');
-    }
-
-    // Optimistic update
-    removeOrderFromStore(id);
-
-    try {
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  // Delete Order Mutation with Optimistic Update
+=======
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  const deleteOrderMutation = useMutation<void, string, { previous: Order[] }>(
+    async (id) => {
       await deleteOrderAction(id);
-    } catch (err) {
-      // Rollback on error - restore the order
-      addOrderToStore(previousOrder);
-      console.error('[useOrders] Delete error:', err);
-      throw err;
+    },
+    {
+      onMutate: async (id) => {
+        const previous = useOrdersStore.getState().orders;
+        const optimistic = previous.filter((o) => o.id !== id);
+        setOrders(optimistic);
+        setTotalCount(optimistic.length);
+        mutate(optimistic);
+        return { previous };
+      },
+      onError: (err, _id, ctx) => {
+        devLog.error('[useOrders] Failed to delete order:', err);
+        if (ctx?.previous) {
+          setOrders(ctx.previous);
+          setTotalCount(ctx.previous.length);
+          mutate(ctx.previous);
+        }
+      },
     }
-  }, [isAuthenticated, orders, removeOrderFromStore, addOrderToStore]);
+  );
 
-  // Get order by ID
-  const getOrderById = useCallback((id: string) => {
-    return orders.find((o) => o.id === id);
-  }, [orders]);
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  // Upload Documents Mutation
+=======
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  const uploadDocumentsMutation = useMutation<void, { id: string; formData: FormData }>(
+    async ({ id, formData }) => {
+      await uploadOrderDocumentsAction(id, formData);
+    },
+    {
+      onSuccess: async () => {
+        requestCache.invalidate(ORDERS_CACHE_KEY);
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+        await cacheRefetch();
+=======
+        await refetch();
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+      },
+      onError: (err) => {
+        devLog.error('[useOrders] Failed to upload documents:', err);
+      },
+    }
+  );
 
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  // Exposed Methods
+  const refetch = React.useCallback(async () => {
+    await cacheRefetch();
+  }, [cacheRefetch]);
+=======
+  const refresh = React.useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+
+  const addOrder = React.useCallback(
+    async (data: NewOrderFormData | FormData) => {
+      return await addOrderMutation.mutateAsync(data);
+    },
+    [addOrderMutation]
+  );
+
+  const updateOrder = React.useCallback(
+    async (id: string, updates: Partial<Order>) => {
+      return await updateOrderMutation.mutateAsync({ id, updates });
+    },
+    [updateOrderMutation]
+  );
+
+  const updateOrderStatus = React.useCallback(
+    async (id: string, status: Order['status']) => {
+      return await updateStatusMutation.mutateAsync({ id, status });
+    },
+    [updateStatusMutation]
+  );
+
+  const deleteOrder = React.useCallback(
+    async (id: string) => {
+      await deleteOrderMutation.mutateAsync(id);
+    },
+    [deleteOrderMutation]
+  );
+
+  const uploadDocuments = React.useCallback(
+    async (id: string, formData: FormData) => {
+      await uploadDocumentsMutation.mutateAsync({ id, formData });
+    },
+    [uploadDocumentsMutation]
+  );
+
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
+  const getOrderById = React.useCallback(
+    (id: string) => store.orders.find((o) => o.id === id),
+    [store.orders]
+  );
+
+=======
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   return {
     orders,
     isLoading,
+    isValidating,
     error,
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
     refetch,
+=======
+    refresh,
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
     addOrder,
     updateOrder,
     updateOrderStatus,
     deleteOrder,
+    uploadDocuments,
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
     getOrderById,
+=======
+    getOrderById: (id: string) => store.orders.find((o) => o.id === id),
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   };
 }

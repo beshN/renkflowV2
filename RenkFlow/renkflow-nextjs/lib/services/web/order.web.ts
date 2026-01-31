@@ -8,7 +8,7 @@ import { IOrderService } from '../types';
 export class WebOrderService implements IOrderService {
   private readonly baseUrl = '/api/v1/orders';
 
-  async getOrders(): Promise<Order[]> {
+  async getOrders(_tenantId: string): Promise<Order[]> {
     const response = await fetch(this.baseUrl);
     if (!response.ok) {
       throw new Error('Failed to fetch orders');
@@ -17,7 +17,7 @@ export class WebOrderService implements IOrderService {
     return result.data;
   }
 
-  async getOrderById(id: string): Promise<Order | null> {
+  async getOrderById(_tenantId: string, id: string): Promise<Order | null> {
     const response = await fetch(`${this.baseUrl}/${id}`);
     if (!response.ok) {
       if (response.status === 404) return null;
@@ -27,7 +27,7 @@ export class WebOrderService implements IOrderService {
     return result.data;
   }
 
-  async createOrder(formData: NewOrderFormData, files?: File[]): Promise<Order> {
+  async createOrder(_tenantId: string, formData: NewOrderFormData, files?: File[]): Promise<Order> {
     const data = new FormData();
     
     // Core fields
@@ -60,7 +60,7 @@ export class WebOrderService implements IOrderService {
     return result.data;
   }
 
-  async updateOrder(id: string, updates: Partial<Order>): Promise<Order> {
+  async updateOrder(_tenantId: string, id: string, updates: Partial<Order>): Promise<Order> {
     const response = await fetch(`${this.baseUrl}/${id}`, {
       method: 'PATCH',
       headers: {
@@ -77,7 +77,7 @@ export class WebOrderService implements IOrderService {
     return result.data;
   }
 
-  async updateOrderStatus(id: string, status: Order['status']): Promise<Order> {
+  async updateOrderStatus(_tenantId: string, id: string, status: Order['status']): Promise<Order> {
     const response = await fetch(`${this.baseUrl}/${id}/status`, {
       method: 'PATCH',
       headers: {
@@ -94,7 +94,7 @@ export class WebOrderService implements IOrderService {
     return result.data;
   }
 
-  async deleteOrder(id: string): Promise<void> {
+  async deleteOrder(_tenantId: string, id: string): Promise<void> {
     const response = await fetch(`${this.baseUrl}/${id}`, {
       method: 'DELETE',
     });
@@ -104,7 +104,7 @@ export class WebOrderService implements IOrderService {
     }
   }
 
-  async addDocuments(id: string, files: File[]): Promise<Order> {
+  async addDocuments(_tenantId: string, id: string, files: File[]): Promise<Order> {
     const data = new FormData();
     files.forEach(file => data.append('files', file));
 

@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
 import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
-import { orderService } from '@/lib/services';
+import { orderService } from '@/lib/services/orderService.server';
 import { hasPermission, UserRole, AuthorizationError } from '@/lib/auth/rbac';
+import { TenantMismatchError } from '@/lib/services/types';
 import { 
   updateOrderSchema, 
   orderIdSchema,
@@ -27,6 +28,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return errorResponse('Yetkilendirme gereklidir', 401);
     }
 
+    if (!user.tenantId) {
+      return errorResponse('Yetkilendirme gereklidir', 401);
+    }
+
     // RBAC Check
     const userRole = (user.role as UserRole) || 'member';
     if (!hasPermission(userRole, 'orders', 'read')) {
@@ -41,7 +46,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return errorResponse('Geçersiz sipariş ID formatı', 400);
     }
 
-    const order = await orderService.getOrderById(id);
+    const order = await orderService.getOrderById(user.tenantId, id);
     
     if (!order) {
       return errorResponse('Sipariş bulunamadı', 404);
@@ -50,6 +55,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return successResponse(order, 'Sipariş başarıyla getirildi');
   } catch (error: unknown) {
     console.error('Get order error:', error);
+    if (error instanceof TenantMismatchError) {
+      return errorResponse('Bu siparişe erişim yetkiniz bulunmuyor', 403);
+    }
     if (error instanceof AuthorizationError) {
       return errorResponse(error.message, 403);
     }
@@ -63,6 +71,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const user = await getAPIUser(request);
     
     if (!user) {
+      return errorResponse('Yetkilendirme gereklidir', 401);
+    }
+
+    if (!user.tenantId) {
       return errorResponse('Yetkilendirme gereklidir', 401);
     }
 
@@ -90,12 +102,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check if order exists
-    const existingOrder = await orderService.getOrderById(id);
+    const existingOrder = await orderService.getOrderById(user.tenantId, id);
     if (!existingOrder) {
       return errorResponse('Sipariş bulunamadı', 404);
     }
 
-    const order = await orderService.updateOrder(id, validationResult.data);
+    const order = await orderService.updateOrder(user.tenantId, id, validationResult.data);
     
     return successResponse(order, 'Sipariş başarıyla güncellendi');
   } catch (error: unknown) {
@@ -104,6 +116,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (error instanceof ZodError) {
       const errors = formatValidationErrors(error);
       return errorResponse('Geçersiz veri: ' + Object.values(errors).join(', '), 400);
+    }
+
+    if (error instanceof TenantMismatchError) {
+      return errorResponse('Bu siparişi güncelleme yetkiniz bulunmuyor', 403);
     }
     
     if (error instanceof AuthorizationError) {
@@ -123,6 +139,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return errorResponse('Yetkilendirme gereklidir', 401);
     }
 
+    if (!user.tenantId) {
+      return errorResponse('Yetkilendirme gereklidir', 401);
+    }
+
     // RBAC Check: Require 'delete' permission on 'orders'
     // Only owner and admin have delete permission in the matrix
     const userRole = (user.role as UserRole) || 'member';
@@ -139,16 +159,19 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check if order exists
-    const existingOrder = await orderService.getOrderById(id);
+    const existingOrder = await orderService.getOrderById(user.tenantId, id);
     if (!existingOrder) {
       return errorResponse('Sipariş bulunamadı', 404);
     }
 
-    await orderService.deleteOrder(id);
+    await orderService.deleteOrder(user.tenantId, id);
     
     return successResponse({ id }, 'Sipariş başarıyla silindi');
   } catch (error: unknown) {
     console.error('Delete order error:', error);
+    if (error instanceof TenantMismatchError) {
+      return errorResponse('Bu siparişi silme yetkiniz bulunmuyor', 403);
+    }
     
     if (error instanceof AuthorizationError) {
       return errorResponse(error.message, 403);

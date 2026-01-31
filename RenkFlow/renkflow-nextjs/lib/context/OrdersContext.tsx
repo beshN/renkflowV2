@@ -68,6 +68,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
 
   // Check if user is authenticated
   const isAuthenticated = status === 'authenticated' && !!session?.user;
+  const tenantId = session?.user?.tenantId || '';
 
   const refresh = useCallback(async () => {
     // Only fetch orders if user is authenticated
@@ -86,7 +87,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
         });
         setOrders(data || []);
       } else {
-        const data = await mockService.getOrders();
+        const data = await mockService.getOrders(tenantId);
         setOrders(data || []);
       }
     } catch (error) {
@@ -95,7 +96,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, tenantId]);
 
   useEffect(() => {
     // Only fetch when authentication status is determined (not loading)
@@ -134,7 +135,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
             uploadedAt: new Date().toISOString(),
           })),
         };
-        await mockService.createOrder(formData, files);
+        await mockService.createOrder(tenantId, formData, files);
       }
     } else {
       // Legacy support for NewOrderFormData object
@@ -153,7 +154,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
         // Cannot append files as we don't have File objects here
         await createOrderAction(formData);
       } else {
-        await mockService.createOrder(data);
+        await mockService.createOrder(tenantId, data);
       }
     }
     await refresh();
@@ -168,7 +169,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     if (USE_DATABASE) {
       await updateOrderAction(id, updates);
     } else {
-      await mockService.updateOrder(id, updates);
+      await mockService.updateOrder(tenantId, id, updates);
     }
     await refresh();
   };
@@ -182,7 +183,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     if (USE_DATABASE) {
       await deleteOrderAction(id);
     } else {
-      await mockService.deleteOrder(id);
+      await mockService.deleteOrder(tenantId, id);
     }
     await refresh();
   };
@@ -205,7 +206,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       if (USE_DATABASE) {
         await updateOrderStatusAction(id, status);
       } else {
-        await mockService.updateOrderStatus(id, status);
+        await mockService.updateOrderStatus(tenantId, id, status);
       }
       refresh();
     } catch (error) {
@@ -227,7 +228,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
         await uploadOrderDocumentsAction(id, formData);
     } else {
         const files = formData.getAll('files') as File[];
-        await mockService.addDocuments(id, files);
+        await mockService.addDocuments(tenantId, id, files);
     }
     await refresh();
   };

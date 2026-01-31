@@ -1,3 +1,4 @@
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/services/index.ts
 /**
  * Service Layer Entry Point (DEPRECATED)
  * 
@@ -26,12 +27,8 @@ import { WebOrderService } from './web/order.web';
 /**
  * ⚠️ DEPRECATED: Runtime service factory
  * 
- * This pattern has several issues:
- * 1. Cannot guarantee server code doesn't leak to client bundle
- * 2. Runtime checks are harder to debug and test
- * 3. Relies on NEXT_PUBLIC_* env vars (security concern)
- * 
- * Use orderService.server.ts or orderService.client.ts instead.
+ * This pattern will be removed in v2.0. Use orderService.server.ts
+ * or orderService.client.ts instead.
  */
 const isBrowser = typeof window !== 'undefined';
 const isDatabaseConfigured = process.env.NEXT_PUBLIC_USE_DATABASE === 'true' || !!process.env.DATABASE_URL;
@@ -42,11 +39,18 @@ export const orderService: IOrderService = isBrowser
     ? new NeonOrderService()
     : new MockOrderService();
 
+console.warn('[DEPRECATION WARNING] Runtime service factory is deprecated. Migrate to server/client split');
+
 // Re-export types for convenience
 export type { IOrderService } from './types';
+=======
+export type { IOrderService } from './types';
+
+export { MockOrderService } from './mock/order.mock';
+export { NeonOrderService } from './neon/order.neon';
+export { WebOrderService } from './web/order.web';
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/services/index.ts
 
 // Re-export new entry points for migration
 export { getOrderService as getServerOrderService } from './orderService.server';
 export { getOrderService as getClientOrderService } from './orderService.client';
-
-

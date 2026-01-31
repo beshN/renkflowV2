@@ -6,6 +6,7 @@
 
 import { z } from 'zod';
 
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/types/index.ts
 // ============================================
 // Branded Types - Compile-time ID Safety
 // ============================================
@@ -21,6 +22,27 @@ export type DocumentId = Brand<string, 'DocumentId'>;
 // Brand constructors
 export function createOrderId(id: string): OrderId {
   return id as OrderId;
+=======
+export interface Order {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  email?: string;
+  phone?: string;
+  date: string;
+  deliveryDate?: string;
+  totalAmount: number;
+  currency: string;
+  status: OrderStatus;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  notes?: string;
+  productName?: string;
+  quantity?: number;
+  documents?: Document[];
+  createdAt: string;
+  updatedAt: string;
+  tenantId?: string;
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/types/index.ts
 }
 
 export function createTenantId(id: string): TenantId {
@@ -179,7 +201,7 @@ export const APIErrorSchema = z.object({
   success: z.literal(false),
   error: z.string(),
   code: z.string().optional(),
-  details: z.record(z.string()).optional(),
+  details: z.record(z.string(), z.string()).optional(),
 });
 
 export type APIError = z.infer<typeof APIErrorSchema>;

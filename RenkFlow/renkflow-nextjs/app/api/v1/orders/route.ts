@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
-import { orderService } from '@/lib/services';
+import { orderService } from '@/lib/services/orderService.server';
 import { NewOrderFormData } from '@/lib/types';
 import { hasPermission, UserRole, AuthorizationError } from '@/lib/auth/rbac';
 import { 
@@ -24,13 +24,17 @@ export async function GET(request: NextRequest) {
       return errorResponse('Yetkilendirme gereklidir', 401);
     }
 
+    if (!user.tenantId) {
+      return errorResponse('Yetkilendirme gereklidir', 401);
+    }
+
     // RBAC Check: Require 'list' permission on 'orders'
     const userRole = (user.role as UserRole) || 'member';
     if (!hasPermission(userRole, 'orders', 'list')) {
       return errorResponse('Bu işlem için yetkiniz bulunmuyor', 403);
     }
 
-    const orders = await orderService.getOrders();
+    const orders = await orderService.getOrders(user.tenantId);
     
     return successResponse(orders, 'Siparişler başarıyla getirildi');
   } catch (error: unknown) {
@@ -49,6 +53,10 @@ export async function POST(request: NextRequest) {
     const user = await getAPIUser(request);
     
     if (!user) {
+      return errorResponse('Yetkilendirme gereklidir', 401);
+    }
+
+    if (!user.tenantId) {
       return errorResponse('Yetkilendirme gereklidir', 401);
     }
 
@@ -102,7 +110,7 @@ export async function POST(request: NextRequest) {
       documents: [],
     };
 
-    const order = await orderService.createOrder(orderData, files);
+    const order = await orderService.createOrder(user.tenantId, orderData, files);
     
     return successResponse(order, 'Sipariş başarıyla oluşturuldu');
   } catch (error: unknown) {

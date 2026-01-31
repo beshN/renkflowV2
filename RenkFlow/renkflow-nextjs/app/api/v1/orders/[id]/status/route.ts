@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
 import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
-import { orderService } from '@/lib/services';
+import { orderService } from '@/lib/services/orderService.server';
 import { hasPermission, UserRole, AuthorizationError } from '@/lib/auth/rbac';
+import { TenantMismatchError } from '@/lib/services/types';
 import { statusUpdateSchema, orderIdSchema, formatValidationErrors } from '@/lib/validations/order.schema';
 import { ZodError } from 'zod';
 
@@ -20,6 +21,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const user = await getAPIUser(request);
     
     if (!user) {
+      return errorResponse('Yetkilendirme gereklidir', 401);
+    }
+
+    if (!user.tenantId) {
       return errorResponse('Yetkilendirme gereklidir', 401);
     }
 
@@ -50,16 +55,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const { status } = validationResult.data;
 
     // Check if order exists
-    const existingOrder = await orderService.getOrderById(id);
+    const existingOrder = await orderService.getOrderById(user.tenantId, id);
     if (!existingOrder) {
       return errorResponse('Sipariş bulunamadı', 404);
     }
 
-    const order = await orderService.updateOrderStatus(id, status);
+    const order = await orderService.updateOrderStatus(user.tenantId, id, status);
     
     return successResponse(order, `Sipariş durumu "${status}" olarak güncellendi`);
   } catch (error: unknown) {
     console.error('Update order status error:', error);
+    
+    if (error instanceof TenantMismatchError) {
+      return errorResponse('Bu siparişin durumunu güncelleme yetkiniz bulunmuyor', 403);
+    }
     
     if (error instanceof ZodError) {
       const errors = formatValidationErrors(error);

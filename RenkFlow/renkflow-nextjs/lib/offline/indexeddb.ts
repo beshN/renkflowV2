@@ -6,7 +6,7 @@
  */
 
 const DB_NAME = 'renkflow-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 interface StoreConfig {
   name: string;
@@ -20,8 +20,8 @@ const STORES: StoreConfig[] = [
     keyPath: 'id',
     indexes: [
       { name: 'by-status', keyPath: 'status' },
-      { name: 'by-customer', keyPath: 'customer' },
-      { name: 'by-date', keyPath: 'date' },
+      { name: 'by-customerName', keyPath: 'customerName' },
+      { name: 'by-createdAt', keyPath: 'createdAt' },
       { name: 'by-tenantId', keyPath: 'tenantId' },
       { name: 'by-syncStatus', keyPath: '_syncStatus' },
     ],

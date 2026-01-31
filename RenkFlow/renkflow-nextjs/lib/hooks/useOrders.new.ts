@@ -3,8 +3,9 @@
 import React from 'react';
 import { useCachedQuery, useMutation, optimisticUpdate, requestCache } from '@/lib/api/request-layer';
 import { Order, NewOrderFormData } from '@/lib/types';
-import { orderService } from '@/lib/services';
+import { orderService } from '@/lib/services/orderService.client';
 import { devLog } from '@/lib/utils/logger';
+import { useAuth } from '@/lib/context/AuthContext';
 
 /**
  * Production-Ready Orders Hook
@@ -31,6 +32,9 @@ export interface UseOrdersResult {
 }
 
 export function useOrders(): UseOrdersResult {
+  const { user } = useAuth();
+  const tenantId = user?.tenantId || '';
+
   // Cached query for orders list
   const {
     data: orders,
@@ -41,7 +45,7 @@ export function useOrders(): UseOrdersResult {
     mutate,
   } = useCachedQuery<Order[]>(
     ORDERS_CACHE_KEY,
-    () => orderService.getOrders(),
+    () => orderService.getOrders(tenantId),
     {
       cacheTTL: CACHE_TTL,
       refetchOnMount: true,
@@ -69,7 +73,7 @@ export function useOrders(): UseOrdersResult {
       };
 
       const files = formData.getAll('files') as File[];
-      return orderService.createOrder(data, files.length > 0 ? files : undefined);
+      return orderService.createOrder(tenantId, data, files.length > 0 ? files : undefined);
     },
     {
       onSuccess: (newOrder) => {
@@ -87,7 +91,7 @@ export function useOrders(): UseOrdersResult {
   // Update order mutation with optimistic update
   const updateOrderMutation = useMutation<Order, { id: string; updates: Partial<Order> }, { previousOrders: Order[] }>(
     async ({ id, updates }) => {
-      return orderService.updateOrder(id, updates);
+      return orderService.updateOrder(tenantId, id, updates);
     },
     {
       onMutate: async ({ id, updates }) => {
@@ -102,6 +106,8 @@ export function useOrders(): UseOrdersResult {
       onSuccess: (updatedOrder) => {
         devLog.info('[useOrders] Order updated:', updatedOrder.id);
         requestCache.invalidate(ORDER_CACHE_KEY(updatedOrder.id));
+        requestCache.invalidate(ORDERS_CACHE_KEY);
+        refetch();
       },
       onError: (err, variables, context: { previousOrders?: Order[] } | undefined) => {
         devLog.error('[useOrders] Failed to update order:', err);
@@ -116,7 +122,7 @@ export function useOrders(): UseOrdersResult {
   // Update status mutation
   const updateStatusMutation = useMutation<Order, { id: string; status: Order['status'] }, { previousOrders: Order[] }>(
     async ({ id, status }) => {
-      return orderService.updateOrderStatus(id, status);
+      return orderService.updateOrderStatus(tenantId, id, status);
     },
     {
       onMutate: async ({ id, status }) => {
@@ -129,6 +135,9 @@ export function useOrders(): UseOrdersResult {
       },
       onSuccess: (updatedOrder) => {
         devLog.info('[useOrders] Order status updated:', updatedOrder.id, updatedOrder.status);
+        requestCache.invalidate(ORDER_CACHE_KEY(updatedOrder.id));
+        requestCache.invalidate(ORDERS_CACHE_KEY);
+        refetch();
       },
       onError: (err, variables, context: { previousOrders?: Order[] } | undefined) => {
         devLog.error('[useOrders] Failed to update status:', err);
@@ -142,7 +151,7 @@ export function useOrders(): UseOrdersResult {
   // Delete order mutation with optimistic update
   const deleteOrderMutation = useMutation<void, string, { previousOrders: Order[] }>(
     async (id) => {
-      return orderService.deleteOrder(id);
+      return orderService.deleteOrder(tenantId, id);
     },
     {
       onMutate: async (id) => {
@@ -153,6 +162,8 @@ export function useOrders(): UseOrdersResult {
       },
       onSuccess: () => {
         devLog.info('[useOrders] Order deleted');
+        requestCache.invalidate(ORDERS_CACHE_KEY);
+        refetch();
       },
       onError: (err, id, context: { previousOrders?: Order[] } | undefined) => {
         devLog.error('[useOrders] Failed to delete order:', err);
@@ -209,9 +220,12 @@ export function useOrders(): UseOrdersResult {
  * Hook for fetching a single order by ID
  */
 export function useOrder(id: string | null) {
+  const { user } = useAuth();
+  const tenantId = user?.tenantId || '';
+
   return useCachedQuery<Order | null>(
     id ? ORDER_CACHE_KEY(id) : null,
-    () => (id ? orderService.getOrderById(id) : Promise.resolve(null)),
+    () => (id ? orderService.getOrderById(tenantId, id) : Promise.resolve(null)),
     {
       cacheTTL: CACHE_TTL,
       enabled: !!id,

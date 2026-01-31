@@ -1,5 +1,12 @@
 import { Order, NewOrderFormData } from '@/lib/types';
 
+export class TenantMismatchError extends Error {
+  constructor() {
+    super('Tenant mismatch');
+    this.name = 'TenantMismatchError';
+  }
+}
+
 /**
  * Order Service Interface
  * Defines the contract for order data operations
@@ -9,35 +16,35 @@ export interface IOrderService {
   /**
    * Fetch all orders
    */
-  getOrders(): Promise<Order[]>;
+  getOrders(tenantId: string): Promise<Order[]>;
 
   /**
    * Get a single order by ID
    */
-  getOrderById(id: string): Promise<Order | null>;
+  getOrderById(tenantId: string, id: string): Promise<Order | null>;
 
   /**
    * Create a new order
    */
-  createOrder(formData: NewOrderFormData, files?: File[]): Promise<Order>;
+  createOrder(tenantId: string, formData: NewOrderFormData, files?: File[]): Promise<Order>;
 
   /**
    * Update an existing order
    */
-  updateOrder(id: string, updates: Partial<Order>): Promise<Order>;
+  updateOrder(tenantId: string, id: string, updates: Partial<Order>): Promise<Order>;
 
   /**
    * Update order status
    */
-  updateOrderStatus(id: string, status: Order['status']): Promise<Order>;
+  updateOrderStatus(tenantId: string, id: string, status: Order['status']): Promise<Order>;
 
   /**
    * Delete an order
    */
-  deleteOrder(id: string): Promise<void>;
+  deleteOrder(tenantId: string, id: string): Promise<void>;
 
   /**
    * Add documents to an existing order
    */
-  addDocuments(id: string, files: File[]): Promise<Order>;
+  addDocuments(tenantId: string, id: string, files: File[]): Promise<Order>;
 }

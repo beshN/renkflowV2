@@ -7,6 +7,7 @@ import { Sora } from 'next/font/google'
 import { Providers } from '@/lib/context/Providers'
 import CookieConsent from '@/components/ui/CookieConsent'
 import PWAInstallPrompt from '@/components/ui/PWAInstallPrompt'
+import { SyncStatusBar } from '@/components/sync/SyncStatusBar'
 
 const sora = Sora({ 
   subsets: ['latin'],
@@ -109,6 +110,7 @@ export default function RootLayout({
       </head>
       <body className={`${sora.variable} font-display antialiased`}>
         <Providers>
+          <SyncStatusBar />
           <ThemeApplier />
           {children}
           <Toaster position="top-center" richColors />

@@ -1,5 +1,5 @@
 import { syncQueue } from './sync-queue';
-import { orderService } from '../services';
+import { orderService } from '../services/orderService.client';
 import { SyncOperation } from '../realtime/types';
 import { devLog } from '../utils/logger';
 
@@ -26,19 +26,19 @@ export function initializeSyncHandlers() {
     
     // Note: If files are present, they should be handles by a separate file sync queue
     // but for now we assume JSON sync.
-    await orderService.createOrder(orderData);
+    await orderService.createOrder('', orderData);
   });
 
   // Update Order
   syncQueue.registerSyncHandler('order', 'update', async (operation: SyncOperation) => {
     devLog.info(`[SyncQueue] Handling update:order for ${operation.resourceId}`);
-    await orderService.updateOrder(operation.resourceId, operation.data as any);
+    await orderService.updateOrder('', operation.resourceId, operation.data as any);
   });
 
   // Delete Order
   syncQueue.registerSyncHandler('order', 'delete', async (operation: SyncOperation) => {
     devLog.info(`[SyncQueue] Handling delete:order for ${operation.resourceId}`);
-    await orderService.deleteOrder(operation.resourceId);
+    await orderService.deleteOrder('', operation.resourceId);
   });
 
   // Start the queue

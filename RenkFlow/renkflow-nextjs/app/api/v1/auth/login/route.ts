@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
-import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 import { successResponse, errorResponse, handleCORS, generateAPIToken } from '@/lib/api/auth-helpers';
-import { authLimiter, rateLimitResponse } from '@/lib/api/rate-limit';
+import { authRateLimiter, createRateLimitResponse } from '@/lib/rateLimiter';
+import { sessionManager } from '@/lib/redis';
 
 import { sql } from '@/lib/db';
 
@@ -16,9 +16,10 @@ export async function OPTIONS() {
 
 // POST /api/v1/auth/login - Login and get JWT token
 export async function POST(request: NextRequest) {
-  const { allowed, remaining, resetIn } = authLimiter.check(request);
-  if (!allowed) {
-    return rateLimitResponse(remaining, resetIn);
+  // Check rate limit with Redis-backed limiter
+  const rateLimitResult = await authRateLimiter.check(request, 'login');
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult);
   }
 
   try {
@@ -52,7 +53,8 @@ export async function POST(request: NextRequest) {
     `;
 
     if (users.length === 0) {
-      // Use same error message for security
+      // Record failed attempt for rate limiting
+      await authRateLimiter.recordFailure(request, 'login');
       return errorResponse('E-posta veya şifre hatalı', 401);
     }
 
@@ -70,8 +72,13 @@ export async function POST(request: NextRequest) {
 
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
+      // Record failed attempt for rate limiting
+      await authRateLimiter.recordFailure(request, 'login');
       return errorResponse('E-posta veya şifre hatalı', 401);
     }
+
+    // Clear rate limit on successful login
+    await authRateLimiter.clearLimit(request, 'login');
 
     // Generate JWT token
     const { accessToken, expiresIn } = generateAPIToken({
@@ -82,8 +89,20 @@ export async function POST(request: NextRequest) {
       tenantId: user.tenant_id || '',
     });
 
-    // Log successful login
-    // console.log(`API login successful: ${email}`);
+    // Create session in Redis
+    const sessionId = `${user.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 
+               request.headers.get('x-real-ip') || 
+               'unknown';
+
+    await sessionManager.createSession(sessionId, {
+      userId: user.id,
+      email: user.email,
+      tenantId: user.tenant_id,
+      userAgent,
+      ip,
+    });
 
     return successResponse({
       user: {
@@ -96,6 +115,7 @@ export async function POST(request: NextRequest) {
       accessToken,
       expiresIn,
       tokenType: 'Bearer',
+      sessionId,
     }, 'Giriş başarılı');
   } catch (error: unknown) {
     console.error('API login error:', error);

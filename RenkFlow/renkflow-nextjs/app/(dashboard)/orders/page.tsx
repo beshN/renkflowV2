@@ -29,7 +29,7 @@ import { Order, OrderStatus } from '@/lib/types';
 
 export default function OrdersPage() {
   const router = useRouter();
-  const { orders, deleteOrder, updateOrderStatus, updateOrder, refresh, isLoading } = useOrders();
+  const { deleteOrder, updateOrderStatus, updateOrder, refresh } = useOrders();
   const { showToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -37,8 +37,8 @@ export default function OrdersPage() {
   const {
     viewMode,
     setViewMode,
-    setOrders,
-    setLoading,
+    orders,
+    isLoading,
     setTotalCount,
     filters,
     setSearch,
@@ -62,12 +62,9 @@ export default function OrdersPage() {
     setCalendarView,
   } = useOrdersStore();
 
-  // Sync orders to store
   useEffect(() => {
-    setOrders(orders);
     setTotalCount(orders.length);
-    setLoading(isLoading);
-  }, [orders, isLoading, setOrders, setTotalCount, setLoading]);
+  }, [orders.length, setTotalCount]);
 
   // Online/offline detection for connection status
   useEffect(() => {

@@ -1,9 +1,8 @@
 import { Order, NewOrderFormData } from '@/lib/types';
-import { IOrderService } from '../types';
+import { IOrderService, TenantMismatchError } from '../types';
 import { sql } from '@/lib/db/neon';
 import { withTransaction } from '@/lib/db/transaction';
 import { uploadFile, deleteFile, generateFilePath, getFileUrl } from '@/lib/storage/r2';
-import { auth } from '@/auth';
 
 /**
  * Neon + R2 Order Service
@@ -21,16 +20,7 @@ export class NeonOrderService implements IOrderService {
     }
   }
   
-  private async getTenantId(): Promise<string> {
-    const session = await auth();
-    if (!session?.user?.tenantId) {
-      throw new Error('Unauthorized: No tenant ID found');
-    }
-    return session.user.tenantId;
-  }
-
-  async getOrders(): Promise<Order[]> {
-    const tenantId = await this.getTenantId();
+  async getOrders(tenantId: string): Promise<Order[]> {
     console.log('[NeonOrderService] getOrders called for tenant:', tenantId);
 
     const result = await sql`
@@ -87,8 +77,17 @@ export class NeonOrderService implements IOrderService {
     return orders;
   }
 
-  async getOrderById(id: string): Promise<Order | null> {
-    const tenantId = await this.getTenantId();
+  async getOrderById(tenantId: string, id: string): Promise<Order | null> {
+    // First: check if the order exists and belongs to the tenant.
+    // This allows us to return 403 (tenant mismatch) vs 404 (not found).
+    const tenantCheck = await sql`
+      SELECT tenant_id FROM orders WHERE id = ${id} LIMIT 1
+    `;
+
+    if (tenantCheck.length === 0) return null;
+    if (tenantCheck[0].tenant_id !== tenantId) {
+      throw new TenantMismatchError();
+    }
 
     const result = await sql`
       SELECT 
@@ -141,8 +140,7 @@ export class NeonOrderService implements IOrderService {
     };
   }
 
-  async createOrder(formData: NewOrderFormData, files?: File[]): Promise<Order> {
-    const tenantId = await this.getTenantId();
+  async createOrder(tenantId: string, formData: NewOrderFormData, files?: File[]): Promise<Order> {
 
     // Generate unique order number
     const orderNumber = `ORD${Date.now()}`;
@@ -188,19 +186,17 @@ export class NeonOrderService implements IOrderService {
         return orderId;
       });
 
-      return this.getOrderById(orderId) as Promise<Order>;
+      return this.getOrderById(tenantId, orderId) as Promise<Order>;
     } catch (error) {
       await this.cleanupUploadedFiles(uploadedFiles);
       throw error;
     }
   }
 
-  async updateOrder(id: string, updates: Partial<Order>): Promise<Order> {
-    const tenantId = await this.getTenantId();
-    
-    // First verification: Ensure order belongs to tenant
-    const existingOrder = await this.getOrderById(id);
-    if (!existingOrder) throw new Error('Order not found or access denied');
+  async updateOrder(tenantId: string, id: string, updates: Partial<Order>): Promise<Order> {
+    // Ensure order belongs to tenant (throws TenantMismatchError on cross-tenant)
+    const existingOrder = await this.getOrderById(tenantId, id);
+    if (!existingOrder) throw new Error('Order not found');
 
     const setClauses = [];
     const values: any[] = [];
@@ -258,19 +254,21 @@ export class NeonOrderService implements IOrderService {
       const result = await sql(query, values);
       
       if (result.length === 0) {
-        throw new Error('Order update failed: Order not found or access denied (Tenant Mismatch)');
+        throw new Error('Order update failed: Order not found');
       }
       
       // Update successful, return the new data
       // We still re-fetch to get documents and joined data if needed, or we can just map the result
-      return this.getOrderById(id) as Promise<Order>;
+      return this.getOrderById(tenantId, id) as Promise<Order>;
     }
 
-    return this.getOrderById(id) as Promise<Order>;
+    return this.getOrderById(tenantId, id) as Promise<Order>;
   }
 
-  async updateOrderStatus(id: string, status: Order['status']): Promise<Order> {
-    const tenantId = await this.getTenantId();
+  async updateOrderStatus(tenantId: string, id: string, status: Order['status']): Promise<Order> {
+    // Ensure order belongs to tenant (throws TenantMismatchError on cross-tenant)
+    const existingOrder = await this.getOrderById(tenantId, id);
+    if (!existingOrder) throw new Error('Order not found');
 
     await sql`
       UPDATE orders 
@@ -278,15 +276,13 @@ export class NeonOrderService implements IOrderService {
       WHERE id = ${id} AND tenant_id = ${tenantId}
     `;
 
-    return this.getOrderById(id) as Promise<Order>;
+    return this.getOrderById(tenantId, id) as Promise<Order>;
   }
 
-  async deleteOrder(id: string): Promise<void> {
-    const tenantId = await this.getTenantId();
-
-    // Verify ownership first
-    const existingOrder = await this.getOrderById(id);
-    if (!existingOrder) throw new Error('Order not found or access denied');
+  async deleteOrder(tenantId: string, id: string): Promise<void> {
+    // Verify ownership first (throws TenantMismatchError on cross-tenant)
+    const existingOrder = await this.getOrderById(tenantId, id);
+    if (!existingOrder) throw new Error('Order not found');
 
     // Get documents to delete from R2
     const docs = await sql`
@@ -307,15 +303,14 @@ export class NeonOrderService implements IOrderService {
     const deleteResult = await sql`DELETE FROM orders WHERE id = ${id} AND tenant_id = ${tenantId} RETURNING id`;
     
     if (deleteResult.length === 0) {
-       throw new Error('Delete failed: Order not found or access denied');
+       throw new Error('Delete failed: Order not found');
     }
   }
-  async addDocuments(id: string, files: File[]): Promise<Order> {
-    const tenantId = await this.getTenantId();
 
-    // Verify ownership first
-    const existingOrder = await this.getOrderById(id);
-    if (!existingOrder) throw new Error('Order not found or access denied');
+  async addDocuments(tenantId: string, id: string, files: File[]): Promise<Order> {
+    // Verify ownership first (throws TenantMismatchError on cross-tenant)
+    const existingOrder = await this.getOrderById(tenantId, id);
+    if (!existingOrder) throw new Error('Order not found');
 
     const uploadedFiles: { key: string }[] = [];
 
@@ -338,7 +333,7 @@ export class NeonOrderService implements IOrderService {
         });
       }
 
-      return this.getOrderById(id) as Promise<Order>;
+      return this.getOrderById(tenantId, id) as Promise<Order>;
     } catch (error) {
       await this.cleanupUploadedFiles(uploadedFiles);
       throw error;

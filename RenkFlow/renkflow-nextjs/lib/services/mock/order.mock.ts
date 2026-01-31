@@ -113,18 +113,19 @@ export class MockOrderService implements IOrderService {
     }
   }
 
-  async getOrders(): Promise<Order[]> {
+  async getOrders(tenantId: string): Promise<Order[]> {
     await new Promise((resolve) => setTimeout(resolve, 300));
-    return this.getStoredOrders();
+    const orders = this.getStoredOrders();
+    return orders.filter((order) => !order.tenantId || order.tenantId === tenantId);
   }
 
-  async getOrderById(id: string): Promise<Order | null> {
+  async getOrderById(tenantId: string, id: string): Promise<Order | null> {
     await new Promise((resolve) => setTimeout(resolve, 100));
     const orders = this.getStoredOrders();
-    return orders.find((order) => order.id === id) || null;
+    return orders.find((order) => order.id === id && (!order.tenantId || order.tenantId === tenantId)) || null;
   }
 
-  async createOrder(formData: NewOrderFormData, files?: File[]): Promise<Order> {
+  async createOrder(tenantId: string, formData: NewOrderFormData, files?: File[]): Promise<Order> {
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     const totalAmount = formData.totalAmount || 0;
@@ -170,6 +171,7 @@ export class MockOrderService implements IOrderService {
       quantity: formData.quantity,
       notes: formData.notes,
       documents,
+      tenantId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -181,10 +183,10 @@ export class MockOrderService implements IOrderService {
     return newOrder;
   }
 
-  async updateOrder(id: string, updates: Partial<Order>): Promise<Order> {
+  async updateOrder(tenantId: string, id: string, updates: Partial<Order>): Promise<Order> {
     await new Promise((resolve) => setTimeout(resolve, 300));
     const orders = this.getStoredOrders();
-    const index = orders.findIndex((order) => order.id === id);
+    const index = orders.findIndex((order) => order.id === id && (!order.tenantId || order.tenantId === tenantId));
 
     if (index === -1) {
       throw new Error(`Order with id ${id} not found`);
@@ -197,21 +199,21 @@ export class MockOrderService implements IOrderService {
     return updatedOrder;
   }
 
-  async updateOrderStatus(id: string, status: Order['status']): Promise<Order> {
-    return this.updateOrder(id, { status });
+  async updateOrderStatus(tenantId: string, id: string, status: Order['status']): Promise<Order> {
+    return this.updateOrder(tenantId, id, { status });
   }
 
-  async deleteOrder(id: string): Promise<void> {
+  async deleteOrder(tenantId: string, id: string): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 300));
     const orders = this.getStoredOrders();
-    const filteredOrders = orders.filter((order) => order.id !== id);
+    const filteredOrders = orders.filter((order) => !(order.id === id && (!order.tenantId || order.tenantId === tenantId)));
     this.saveOrders(filteredOrders);
   }
 
-  async addDocuments(id: string, files: File[]): Promise<Order> {
+  async addDocuments(tenantId: string, id: string, files: File[]): Promise<Order> {
     await new Promise((resolve) => setTimeout(resolve, 400));
     const orders = this.getStoredOrders();
-    const index = orders.findIndex((order) => order.id === id);
+    const index = orders.findIndex((order) => order.id === id && (!order.tenantId || order.tenantId === tenantId));
 
     if (index === -1) {
       throw new Error(`Order with id ${id} not found`);

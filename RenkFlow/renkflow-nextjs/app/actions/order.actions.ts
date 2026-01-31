@@ -1,6 +1,10 @@
 'use server';
 
-import { orderService } from '@/lib/services';
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/app/actions/order.actions.ts
+=======
+import { auth } from '@/auth';
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/app/actions/order.actions.ts
+import { orderService } from '@/lib/services/orderService.server';
 import { NewOrderFormData, Order } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 
@@ -10,14 +14,26 @@ import { revalidatePath } from 'next/cache';
  */
 
 export async function getOrdersAction() {
-  return await orderService.getOrders();
+  const session = await auth();
+  if (!session?.user?.tenantId) {
+    throw new Error('Yetkilendirme gereklidir');
+  }
+  return await orderService.getOrders(session.user.tenantId);
 }
 
 export async function getOrderByIdAction(id: string) {
-  return await orderService.getOrderById(id);
+  const session = await auth();
+  if (!session?.user?.tenantId) {
+    throw new Error('Yetkilendirme gereklidir');
+  }
+  return await orderService.getOrderById(session.user.tenantId, id);
 }
 
 export async function createOrderAction(formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.tenantId) {
+    throw new Error('Yetkilendirme gereklidir');
+  }
   // Extract files
   const files = formData.getAll('files') as File[];
   
@@ -35,20 +51,28 @@ export async function createOrderAction(formData: FormData) {
     documents: [], // Documents are handled via 'files'
   };
 
-  const order = await orderService.createOrder(data, files);
+  const order = await orderService.createOrder(session.user.tenantId, data, files);
   revalidatePath('/orders');
   return order;
 }
 
 export async function updateOrderAction(id: string, updates: Partial<Order>) {
-  const order = await orderService.updateOrder(id, updates);
+  const session = await auth();
+  if (!session?.user?.tenantId) {
+    throw new Error('Yetkilendirme gereklidir');
+  }
+  const order = await orderService.updateOrder(session.user.tenantId, id, updates);
   revalidatePath('/orders');
   revalidatePath(`/orders/${id}`);
   return order;
 }
 
 export async function updateOrderStatusAction(id: string, status: Order['status']) {
-  const order = await orderService.updateOrderStatus(id, status);
+  const session = await auth();
+  if (!session?.user?.tenantId) {
+    throw new Error('Yetkilendirme gereklidir');
+  }
+  const order = await orderService.updateOrderStatus(session.user.tenantId, id, status);
   revalidatePath('/orders');
   revalidatePath(`/orders/${id}`);
   return order;
@@ -56,14 +80,22 @@ export async function updateOrderStatusAction(id: string, status: Order['status'
 
 
 export async function deleteOrderAction(id: string) {
-  await orderService.deleteOrder(id);
+  const session = await auth();
+  if (!session?.user?.tenantId) {
+    throw new Error('Yetkilendirme gereklidir');
+  }
+  await orderService.deleteOrder(session.user.tenantId, id);
   revalidatePath('/orders');
 }
 
 export async function uploadOrderDocumentsAction(id: string, formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.tenantId) {
+    throw new Error('Yetkilendirme gereklidir');
+  }
   const files = formData.getAll('files') as File[];
   if (files.length > 0) {
-    await orderService.addDocuments(id, files);
+    await orderService.addDocuments(session.user.tenantId, id, files);
     revalidatePath(`/orders/${id}`);
   }
 }

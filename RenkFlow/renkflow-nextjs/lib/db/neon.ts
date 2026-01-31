@@ -1,16 +1,18 @@
-import { neon } from '@neondatabase/serverless';
+import { neon, neonConfig } from '@neondatabase/serverless';
 
 const databaseUrl = process.env.DATABASE_URL;
 
-// Create a safe wrapper that doesn't crash on client-side import
-const sql: any = databaseUrl 
-  ? neon(databaseUrl)
-  : () => {
-      console.warn('Attempted to use Neon DB client on client-side or without DATABASE_URL');
-      return Promise.reject(new Error('Database not configured'));
-    };
+if (typeof window !== 'undefined') {
+  throw new Error('Neon DB client cannot be used in the browser');
+}
 
-export { sql };
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL is not defined');
+}
+
+neonConfig.fetchConnectionCache = true;
+
+export const sql = neon(databaseUrl);
 
 /**
  * Neon Database Client

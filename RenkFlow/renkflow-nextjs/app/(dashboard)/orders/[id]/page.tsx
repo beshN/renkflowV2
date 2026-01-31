@@ -13,7 +13,7 @@ import { useOrders } from '@/lib/hooks/useOrders';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { formatCurrency, formatDate, getOrderStatusInfo } from '@/lib/utils';
-import { Order, Document } from '@/lib/types';
+import { Order, Document, Currency } from '@/lib/types';
 import { 
   ArrowLeft, Calendar, User, Package, CreditCard, 
   FileText, Clock, CheckCircle, Truck
@@ -78,7 +78,7 @@ export default function OrderDetailPage() {
         productName: formData.get('productName') as string,
         quantity,
         totalAmount,
-        currency: (formData.get('currency') as string) || order?.currency || '₺',
+        currency: ((formData.get('currency') as string) || order?.currency || '₺') as Currency,
         notes: (formData.get('notes') as string) || undefined,
         deliveryDate: (formData.get('deliveryDate') as string) || undefined,
       });
@@ -306,7 +306,6 @@ export default function OrderDetailPage() {
                 currency: order.currency || '₺',
                 deliveryDate: order.deliveryDate || '',
                 notes: order.notes || '',
-                documents: order.documents || [],
              }} />
         </Modal>
 

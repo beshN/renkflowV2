@@ -10,7 +10,7 @@ async function diagnose() {
   console.log('---------------------------------------');
   
   // 2. Import modules AFTER env load
-  const { orderService } = require('../lib/services/index');
+  const { orderService } = require('../lib/services/orderService.server');
   const { NeonOrderService } = require('../lib/services/neon/order.neon');
   const { MockOrderService } = require('../lib/services/mock/order.mock');
   const { sql } = require('../lib/db/neon');
