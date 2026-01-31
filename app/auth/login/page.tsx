@@ -7,7 +7,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { toast } from 'sonner';
-import LandingNav from '@/components/landing/LandingNav';
+import { UnifiedNavbar } from '@/components/landing-new/UnifiedNavbar';
 
 function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -50,10 +50,7 @@ function LoginForm() {
 
       if (result?.error) {
         const errorMessage = result.error.toLowerCase();
-        console.log('Login error received:', result.error);
         
-        // NextAuth v5 returns "CallbackRouteError" for auth failures
-        // The actual error message is in the cause, but we can deduce from the error type
         if (errorMessage.includes('callbackrouteerror') || errorMessage.includes('credentialssignin')) {
           // This is an authentication error (wrong password, user not found, etc.)
           setFormErrors({ 
@@ -239,13 +236,13 @@ function LoginForm() {
         className="hidden lg:flex lg:flex-[0.5] items-center justify-center p-8 bg-gradient-to-br from-primary/10 to-primary/5"
       >
         <div className="max-w-md text-center">
-          <div className="mb-8">
-            <Image
-              src="/logo-full.png"
-              alt="Renkflow Logo"
-              width={1000}
-              height={260}
-              className="mx-auto"
+          <div className="relative h-20 w-80 mx-auto mb-8">
+            <Image 
+              src="/logo-full.png" 
+              alt="RenkFlow" 
+              fill
+              sizes="(max-width: 768px) 100vw, 400px"
+              className="object-contain"
               priority
             />
           </div>
@@ -262,7 +259,7 @@ function LoginForm() {
 export default function AuthLogin() {
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark relative font-display">
-      <LandingNav />
+      <UnifiedNavbar />
 
       <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Yükleniyor...</div>}>
         <LoginForm />

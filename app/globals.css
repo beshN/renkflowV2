@@ -226,19 +226,38 @@
 }
 
 /* ===== AURORA BLOB ANIMATIONS ===== */
+@keyframes blob {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+.animate-blob {
+  animation: blob 8s infinite ease-in-out;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
 @keyframes aurora1 {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(5%, 5%) scale(1.05); }
+  50% { transform: translate(3%, 3%) scale(1.02); }
 }
 
 @keyframes aurora2 {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(-5%, 3%) scale(1.03); }
+  50% { transform: translate(-3%, 2%) scale(1.01); }
 }
 
 @keyframes aurora3 {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(3%, -5%) scale(1.04); }
+  50% { transform: translate(2%, -3%) scale(1.02); }
 }
 
 /* Reduced motion preference */

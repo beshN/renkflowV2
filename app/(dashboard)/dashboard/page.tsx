@@ -37,6 +37,7 @@ export default function DashboardPage() {
         icon: 'shopping_bag',
         trend: { value: 12, isPositive: true },
         color: 'text-primary',
+        href: '/orders'
       },
       {
         title: 'Aktif Üretim',
@@ -44,6 +45,7 @@ export default function DashboardPage() {
         icon: 'factory',
         trend: { value: 3, isPositive: true },
         color: 'text-blue-600',
+        href: '/orders?status=in_production'
       },
       {
         title: 'Teslim Edildi',
@@ -51,6 +53,7 @@ export default function DashboardPage() {
         icon: 'check_circle',
         trend: { value: 8, isPositive: true },
         color: 'text-green-600',
+        href: '/orders?status=delivered'
       },
       {
         title: 'Toplam Gelir',
@@ -58,6 +61,7 @@ export default function DashboardPage() {
         icon: 'payments',
         trend: { value: 15, isPositive: true },
         color: 'text-yellow-600',
+        href: '/orders' // Could go to a finance/reports page later
       },
     ];
   }, [orders]);

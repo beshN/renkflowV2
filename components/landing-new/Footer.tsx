@@ -79,7 +79,7 @@ export const Footer: React.FC = () => {
 
         <div className="pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-xs text-slate-400">
-                © {currentYear} RenkFlow Yazılım A.Ş. Tüm hakları saklıdır.
+                &copy; {new Date().getFullYear()} RenkFlow. Tüm hakları saklıdır.
             </p>
             <div className="flex gap-6 text-xs text-slate-400">
                 <Link href="/privacy" className="hover:text-slate-600 dark:hover:text-slate-200">Gizlilik Politikası</Link>

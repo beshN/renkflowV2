@@ -274,7 +274,10 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
       <div className="absolute -inset-1 bg-gradient-to-r from-primary to-indigo-600 rounded-[2rem] blur opacity-20 dark:opacity-40 group-hover:opacity-30 transition duration-1000 group-hover:duration-200 pointer-events-none"></div>
       
       {/* Main Container - Rotated 3D Effect */}
-      <div className="relative bg-background rounded-[1.5rem] shadow-2xl ring-1 ring-border overflow-hidden transform rotate-y-[-10deg] rotate-x-[5deg] group-hover:rotate-0 transition-all duration-700 ease-out h-[600px] flex preserve-3d">
+      <div className="relative bg-background/95 backdrop-blur-xl rounded-[1.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] ring-1 ring-white/20 dark:ring-white/10 overflow-hidden transform rotate-y-[-10deg] rotate-x-[5deg] group-hover:rotate-0 transition-all duration-700 ease-out h-[600px] flex preserve-3d">
+         
+         {/* Glass Shine Effect */}
+         <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none z-50 mix-blend-overlay" />
         
         {/* Sidebar */}
         <div className="w-16 border-r border-border flex flex-col items-center py-6 gap-6 bg-secondary/50 backdrop-blur-sm z-[60] relative pointer-events-auto">
@@ -307,7 +310,7 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-3xl relative z-10 transition-all duration-300">
+        <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-xl relative z-10 transition-all duration-300">
             
             {/* Header */}
             <div className="h-16 border-b border-border flex items-center justify-between px-6 bg-background/50">

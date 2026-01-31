@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { Order, NewOrderFormData } from '@/lib/types';
 import { MockOrderService } from '@/lib/services/mock/order.mock';
 import { 
@@ -30,14 +31,28 @@ const USE_DATABASE = process.env.NEXT_PUBLIC_USE_DATABASE === 'true';
 const mockService = new MockOrderService();
 
 export function OrdersProvider({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Check if user is authenticated
+  const isAuthenticated = status === 'authenticated' && !!session?.user;
+
   const refresh = useCallback(async () => {
+    // Only fetch orders if user is authenticated
+    if (!isAuthenticated) {
+      setOrders([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       if (USE_DATABASE) {
-        const data = await getOrdersAction();
+        const data = await getOrdersAction().catch(err => {
+          console.warn('Failed to fetch orders:', err);
+          return null;
+        });
         setOrders(data || []);
       } else {
         const data = await mockService.getOrders();
@@ -45,18 +60,25 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Failed to fetch orders:', error);
+      setOrders([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    console.log('[OrdersContext] USE_DATABASE:', USE_DATABASE);
-    console.log('[OrdersContext] Env Var:', process.env.NEXT_PUBLIC_USE_DATABASE);
-    refresh();
-  }, [refresh]);
+    // Only fetch when authentication status is determined (not loading)
+    if (status !== 'loading') {
+      refresh();
+    }
+  }, [refresh, status]);
 
   const addOrder = async (data: NewOrderFormData | FormData) => {
+    if (!isAuthenticated) {
+      console.warn('Cannot add order: User not authenticated');
+      return;
+    }
+
     if (data instanceof FormData) {
       if (USE_DATABASE) {
         await createOrderAction(data);
@@ -105,6 +127,11 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateOrder = async (id: string, updates: Partial<Order>) => {
+    if (!isAuthenticated) {
+      console.warn('Cannot update order: User not authenticated');
+      return;
+    }
+
     if (USE_DATABASE) {
       await updateOrderAction(id, updates);
     } else {
@@ -114,6 +141,11 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteOrder = async (id: string) => {
+    if (!isAuthenticated) {
+      console.warn('Cannot delete order: User not authenticated');
+      return;
+    }
+
     if (USE_DATABASE) {
       await deleteOrderAction(id);
     } else {
@@ -123,6 +155,11 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateOrderStatus = async (id: string, status: Order['status']) => {
+    if (!isAuthenticated) {
+      console.warn('Cannot update order status: User not authenticated');
+      return;
+    }
+
     // Optimistic Update: Update local state immediately
     const previousOrders = [...orders];
     setOrders(currentOrders => 
@@ -146,6 +183,11 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
   };
 
   const uploadDocuments = async (id: string, formData: FormData) => {
+    if (!isAuthenticated) {
+      console.warn('Cannot upload documents: User not authenticated');
+      return;
+    }
+
     if (USE_DATABASE) {
         // Dynamic import to avoid circular dependencies if any, or just import action
         const { uploadOrderDocumentsAction } = await import('@/app/actions/order.actions');

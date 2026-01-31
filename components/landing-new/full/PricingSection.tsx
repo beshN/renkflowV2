@@ -68,7 +68,7 @@ export const PricingSection: React.FC = () => {
                 className="p-8 rounded-3xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-300"
             >
                 <h3 className="font-semibold text-slate-900 dark:text-white mb-2 text-xl">Başlangıç</h3>
-                <p className="text-sm text-slate-500 mb-6">Küçük ekipler ve startup'lar için.</p>
+                <p className="text-sm text-slate-500 mb-6">Küçük ekipler ve startup&apos;lar için.</p>
                 <div className="mb-6">
                     <span className="text-4xl font-bold text-slate-900 dark:text-white">₺{annual ? '490' : '590'}</span>
                     <span className="text-slate-500">/ay</span>

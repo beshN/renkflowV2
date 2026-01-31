@@ -37,7 +37,7 @@ export const Testimonials: React.FC = () => {
                 <div className="flex gap-1 mb-4 text-yellow-400 text-sm">
                     {'★★★★★'}
                 </div>
-                <p className="text-lg text-slate-800 dark:text-slate-200">"Renkflow, ekibimizin proje teslim hızını iki katına çıkardı. Artık her şey daha organize ve şeffaf."</p>
+                <p className="text-lg text-slate-800 dark:text-slate-200">&quot;Renkflow, ekibimizin proje teslim hızını iki katına çıkardı. Artık her şey daha organize ve şeffaf.&quot;</p>
             </div>
             <div className="flex items-center mt-auto">
               <Image 
@@ -70,7 +70,7 @@ export const Testimonials: React.FC = () => {
                 <div className="flex gap-1 mb-4 text-yellow-300 text-sm">
                     {'★★★★★'}
                 </div>
-                <p className="text-lg">"Daha önce kullandığımız tüm araçları tek bir platformda birleştirdi. Verimliliğimizdeki artış inanılmaz."</p>
+                <p className="text-lg">&quot;Daha önce kullandığımız tüm araçları tek bir platformda birleştirdi. Verimliliğimizdeki artış inanılmaz.&quot;</p>
             </div>
             <div className="flex items-center mt-auto relative z-10">
               <Image 
@@ -100,7 +100,7 @@ export const Testimonials: React.FC = () => {
                 <div className="flex gap-1 mb-4 text-yellow-400 text-sm">
                     {'★★★★★'}
                 </div>
-                <p className="text-lg text-slate-800 dark:text-slate-200">"Yaratıcı ekibimiz için mükemmel bir araç. Fikir paylaşımı ve geri bildirim süreci hiç bu kadar kolay olmamıştı."</p>
+                <p className="text-lg text-slate-800 dark:text-slate-200">&quot;Yaratıcı ekibimiz için mükemmel bir araç. Fikir paylaşımı ve geri bildirim süreci hiç bu kadar kolay olmamıştı.&quot;</p>
              </div>
             <div className="flex items-center mt-auto">
               <Image 

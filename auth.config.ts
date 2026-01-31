@@ -11,6 +11,7 @@ export const authConfig: NextAuthConfig = {
     signIn: '/auth/login',
     error: '/auth/login',
   },
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   providers: [
     // Only add Google if credentials are configured
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET

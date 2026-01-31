@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Navbar } from '@/components/landing-new/Navbar';
+import { UnifiedNavbar } from '@/components/landing-new/UnifiedNavbar';
 import { FullLandingContent } from '@/components/landing-new/FullLandingContent';
 import { Footer } from '@/components/landing-new/Footer';
 import { useTheme } from '@/lib/context/ThemeContext';
 
 export default function FullLandingPage() {
   const [mounted, setMounted] = useState(false);
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   
   useEffect(() => {
     setMounted(true);
@@ -43,7 +43,7 @@ export default function FullLandingPage() {
         }
       `}</style>
 
-      <Navbar isDark={theme === 'dark'} toggleTheme={toggleTheme} />
+      <UnifiedNavbar />
       <FullLandingContent />
       <Footer />
     </div>

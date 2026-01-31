@@ -3,9 +3,9 @@ import { auth } from '@/auth';
 import jwt from 'jsonwebtoken';
 
 // JWT Secret with security warning for fallback
-const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
+const JWT_SECRET = process.env.AUTH_SECRET || process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
 if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
-  console.error('[SECURITY WARNING] No JWT_SECRET or NEXTAUTH_SECRET configured in production!');
+  console.error('[SECURITY WARNING] No JWT_SECRET, AUTH_SECRET or NEXTAUTH_SECRET configured in production!');
 }
 const EFFECTIVE_JWT_SECRET = JWT_SECRET || 'development-only-fallback-secret';
 

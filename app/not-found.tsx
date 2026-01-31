@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import LandingNav from '@/components/landing/LandingNav';
+import { UnifiedNavbar } from '@/components/landing-new/UnifiedNavbar';
 import { Footer } from '@/components/landing-new/Footer';
 
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark font-display flex flex-col">
-      <LandingNav />
+      <UnifiedNavbar />
       
       <main className="flex-1 flex items-center justify-center px-6 md:px-12">
         <motion.div 

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import LandingNav from '@/components/landing/LandingNav';
+import { UnifiedNavbar } from '@/components/landing-new/UnifiedNavbar';
 
 function UpdatePasswordForm() {
   const [password, setPassword] = useState('');
@@ -262,7 +262,7 @@ function UpdatePasswordForm() {
 export default function UpdatePasswordPage() {
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark relative font-display">
-      <LandingNav />
+      <UnifiedNavbar />
       <Suspense fallback={
         <div className="flex min-h-screen w-full pt-20 items-center justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />

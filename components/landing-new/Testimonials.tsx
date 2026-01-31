@@ -54,7 +54,7 @@ export const Testimonials: React.FC = () => {
                     </div>
 
                     <p className="text-slate-600 dark:text-slate-300 mb-8 relative z-10 leading-relaxed">
-                        "{t.content}"
+                        &quot;{t.content}&quot;
                     </p>
 
                     <div className="flex items-center gap-4">

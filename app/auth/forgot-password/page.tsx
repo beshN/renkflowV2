@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import LandingNav from '@/components/landing/LandingNav';
+import { UnifiedNavbar } from '@/components/landing-new/UnifiedNavbar';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -44,7 +44,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark relative font-display">
-      <LandingNav />
+      <UnifiedNavbar />
 
       {/* Top Right Login Link */}
       <div className="absolute top-6 right-6 z-10 hidden sm:block">

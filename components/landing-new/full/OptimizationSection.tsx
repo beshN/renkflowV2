@@ -24,7 +24,7 @@ export const OptimizationSection: React.FC = () => {
             transition={{ delay: 0.1 }}
             className="mt-4 text-xl text-blue-600 font-semibold inline-block py-1 px-3 bg-blue-50 dark:bg-blue-900/30 rounded-full"
           >
-            ⚡️ Verimliliği %50'ye Kadar Artırın
+            ⚡️ Verimliliği %50&apos;ye Kadar Artırın
           </motion.p>
         </div>
         

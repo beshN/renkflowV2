@@ -16,8 +16,8 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, showHomeLink =
       
       {/* Aurora Background Effect */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-blue-500/20 blur-[120px] animate-pulse" style={{ animationDuration: '8s' }} />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-purple-500/20 blur-[120px] animate-pulse" style={{ animationDuration: '10s', animationDelay: '1s' }} />
+        <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-blue-500/10 blur-[80px] animate-blob will-change-transform" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-purple-500/10 blur-[80px] animate-blob animation-delay-2000 will-change-transform" />
         
         {/* Grid Pattern */}
         <div 
@@ -39,11 +39,12 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, showHomeLink =
       >
         {/* Header Logo */}
         <div className="flex flex-col items-center pt-8 pb-4">
-            <Link href="/" className="relative h-32 w-112 hover:opacity-80 transition-opacity">
-                <Image 
-                  src="/logo-full.png" 
-                  alt="RenkFlow" 
+            <Link href="/" className="relative h-24 w-72 md:h-32 md:w-96 hover:opacity-80 transition-opacity">
+                <Image
+                  src="/logo-full.png"
+                  alt="RenkFlow"
                   fill
+                  sizes="(max-width: 768px) 280px, 384px"
                   className="object-contain"
                   priority
                 />
