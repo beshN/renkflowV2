@@ -24,8 +24,8 @@ export const WaitlistNavbar = () => {
     <nav 
       className={`fixed top-0 z-50 w-full transition-all duration-300 ${
         scrolled 
-          ? 'bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm' 
-          : 'bg-transparent border-transparent'
+          ? 'bg-background/80 backdrop-blur-xl shadow-sm' 
+          : 'bg-transparent'
       }`}
     >
       {/* 

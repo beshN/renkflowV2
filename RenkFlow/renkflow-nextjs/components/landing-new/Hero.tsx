@@ -63,11 +63,6 @@ export const Hero: React.FC = () => {
         <div className="absolute top-[-20%] left-[-10%] w-[70%] h-[70%] rounded-full bg-gradient-to-tr from-blue-600/15 to-indigo-600/15 blur-[80px] animate-blob will-change-transform dark:mix-blend-soft-light" />
         <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-gradient-to-bl from-purple-500/15 to-pink-500/15 blur-[80px] animate-blob animation-delay-2000 will-change-transform dark:mix-blend-soft-light" />
         <div className="absolute bottom-[-20%] left-[20%] w-[50%] h-[50%] rounded-full bg-gradient-to-t from-cyan-400/15 to-blue-400/15 blur-[60px] animate-blob animation-delay-4000 will-change-transform dark:mix-blend-soft-light" />
-        
-        {/* Grid Pattern */}
-        <div
-          className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]"
-        />
       </div>
 
       <div className="relative z-10 container mx-auto px-6 pt-32 pb-20 lg:pt-48 lg:pb-32">
