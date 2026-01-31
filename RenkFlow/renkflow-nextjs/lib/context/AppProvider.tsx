@@ -131,12 +131,12 @@ function AppProviderInternal({ children }: { children: ReactNode }) {
     if (session?.user) {
       const user: User = {
         id: (session.user as any).id || '',
-        name: session.user.name,
+        name: session.user.name ?? null,
         email: session.user.email || '',
-        image: session.user.image,
-        role: (session.user as any).role,
-        tenantId: (session.user as any).tenantId,
-        brandColor: (session.user as any).brandColor,
+        image: session.user.image ?? null,
+        role: (session.user as any).role ?? null,
+        tenantId: (session.user as any).tenantId ?? null,
+        brandColor: (session.user as any).brandColor ?? null,
       };
       dispatch({ type: 'SET_USER', payload: user });
     } else {
