@@ -16,8 +16,8 @@ export function Card({ children, className, hover = false, spotlight, spotlightC
   return (
     <div
       className={cn(
-        'rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark p-6',
-        hover && 'transition-shadow duration-300 hover:shadow-lg',
+        'rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-[0_20px_40px_-35px_rgba(15,23,42,0.35)]',
+        hover && 'transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_28px_55px_-35px_rgba(15,23,42,0.5)]',
         spotlight && "relative overflow-hidden",
         className
       )}

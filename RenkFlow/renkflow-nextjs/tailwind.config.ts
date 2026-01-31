@@ -11,8 +11,30 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#4361EE",
-          light: "#F0F3FF"
+          main: "#3B82F6",
+          hover: "#2563EB",
+          light: "#DBEAFE",
+          dark: "#1E40AF",
+          DEFAULT: "#3B82F6",
+        },
+        success: {
+          main: "#10B981",
+          hover: "#059669",
+          light: "#D1FAE5",
+        },
+        danger: {
+          main: "#EF4444",
+          hover: "#DC2626",
+          light: "#FEE2E2",
+        },
+        neutral: {
+          50: '#F9FAFB',
+          100: '#F3F4F6',
+          200: '#E5E7EB',
+          300: '#D1D5DB',
+          400: '#9CA3AF',
+          500: '#6B7280',
+          900: '#111827',
         },
         secondary: "#3A0CA3",
         "background-light": "#FFFFFF",
@@ -31,12 +53,22 @@ const config: Config = {
         "text-muted-dark": "#9CA3AF",
       },
       fontFamily: {
-        display: ["var(--font-sora)", "Sora", "sans-serif"]
+        display: ["var(--font-sora)", "Sora", "sans-serif"],
+        sans: ["Inter", "system-ui", "sans-serif"],
+      },
+      spacing: {
+        xs: '0.25rem',
+        sm: '0.5rem',
+        md: '1rem',
+        lg: '1.5rem',
+        xl: '2rem',
+        '2xl': '3rem',
       },
       borderRadius: {
-        DEFAULT: "0.5rem",
-        lg: "0.75rem",
-        xl: "1rem",
+        sm: '0.375rem',
+        md: '0.5rem',
+        lg: '0.75rem',
+        xl: '1rem',
         '2xl': "1.5rem",
         '3xl': "2rem",
         full: "9999px"

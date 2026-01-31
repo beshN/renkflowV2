@@ -24,19 +24,19 @@ export function Button({
   const { position, opacity, handleMouseMove, handleMouseEnter, handleMouseLeave } = useSpotlight();
 
   const baseStyles =
-    'inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
+    'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 disabled:opacity-50 disabled:cursor-not-allowed';
 
   const variants = {
     primary:
-      'bg-primary text-white hover:bg-primary/90 shadow-sm hover:shadow-md',
+      'bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 text-white shadow-[0_18px_30px_-18px_rgba(14,165,233,0.7)] hover:opacity-90',
     default:
-      'bg-primary text-white hover:bg-primary/90 shadow-sm hover:shadow-md',
+      'bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 text-white shadow-[0_18px_30px_-18px_rgba(14,165,233,0.7)] hover:opacity-90',
     secondary:
-      'bg-secondary text-white hover:bg-secondary/90 shadow-sm hover:shadow-md',
+      'bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 shadow-sm',
     outline:
-      'border border-border-light dark:border-border-dark bg-transparent hover:bg-card-light dark:hover:bg-card-dark',
+      'border border-slate-200/80 dark:border-slate-700 bg-white/60 dark:bg-slate-900/60 text-slate-700 dark:text-slate-200 hover:border-sky-300 hover:text-slate-900 dark:hover:text-white',
     ghost:
-      'bg-transparent hover:bg-card-light dark:hover:bg-card-dark',
+      'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/70',
     danger:
       'bg-red-500 text-white hover:bg-red-600 shadow-sm hover:shadow-md',
   };

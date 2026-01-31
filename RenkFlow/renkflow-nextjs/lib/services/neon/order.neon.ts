@@ -1,6 +1,7 @@
-import { Order, NewOrderFormData, Document } from '@/lib/types';
+import { Order, NewOrderFormData } from '@/lib/types';
 import { IOrderService } from '../types';
 import { sql } from '@/lib/db/neon';
+import { withTransaction } from '@/lib/db/transaction';
 import { uploadFile, deleteFile, generateFilePath, getFileUrl } from '@/lib/storage/r2';
 import { auth } from '@/auth';
 
@@ -9,6 +10,16 @@ import { auth } from '@/auth';
  * Production-ready implementation using Neon DB and R2 Storage
  */
 export class NeonOrderService implements IOrderService {
+
+  private async cleanupUploadedFiles(uploadedFiles: { key: string }[]) {
+    for (const file of uploadedFiles) {
+      try {
+        await deleteFile(file.key);
+      } catch (error) {
+        console.error('Error cleaning up uploaded file:', file.key, error);
+      }
+    }
+  }
   
   private async getTenantId(): Promise<string> {
     const session = await auth();
@@ -55,18 +66,21 @@ export class NeonOrderService implements IOrderService {
 
       return {
         id: row.id,
-        customer: row.customer_name,
+        orderNumber: row.order_number,
+        customerName: row.customer_name,
         email: row.email,
         phone: row.phone,
         date: new Date(row.created_at).toISOString().split('T')[0],
         deliveryDate: row.delivery_date ? new Date(row.delivery_date).toISOString().split('T')[0] : undefined,
-        amount: parseFloat(row.total_amount),
+        totalAmount: parseFloat(row.total_amount),
         currency: row.currency,
         status: row.status,
-        product: row.product_name,
+        productName: row.product_name,
         quantity: row.quantity,
-        description: row.notes,
+        notes: row.notes,
         documents: documents,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
       };
     }));
 
@@ -109,18 +123,21 @@ export class NeonOrderService implements IOrderService {
 
     return {
       id: row.id,
-      customer: row.customer_name,
+      orderNumber: row.order_number,
+      customerName: row.customer_name,
       email: row.email,
       phone: row.phone,
       date: new Date(row.created_at).toISOString().split('T')[0],
       deliveryDate: row.delivery_date ? new Date(row.delivery_date).toISOString().split('T')[0] : undefined,
-      amount: parseFloat(row.total_amount),
+      totalAmount: parseFloat(row.total_amount),
       currency: row.currency,
       status: row.status,
-      product: row.product_name,
+      productName: row.product_name,
       quantity: row.quantity,
-      description: row.notes,
+      notes: row.notes,
       documents: documents,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
   }
 
@@ -129,46 +146,53 @@ export class NeonOrderService implements IOrderService {
 
     // Generate unique order number
     const orderNumber = `ORD${Date.now()}`;
+    const uploadedFiles: { key: string }[] = [];
 
-    // Insert order with tenant_id
-    const orderResult = await sql`
-      INSERT INTO orders (
-        order_number, customer_name, email, phone, 
-        status, total_amount, currency, delivery_date, 
-        notes, product_name, quantity, tenant_id
-      )
-      VALUES (
-        ${orderNumber}, ${formData.customerName}, ${formData.customerEmail || null}, ${formData.customerPhone || null},
-        'pending', ${formData.quantity * (formData.unitPrice || 0)}, '₺', ${formData.deliveryDate},
-        ${formData.notes || null}, ${formData.productName}, ${formData.quantity}, ${tenantId}
-      )
-      RETURNING *
-    `;
-
-    const order = orderResult[0];
-
-    // Upload documents to R2 if any
-    if (files && files.length > 0) {
-      for (const file of files) {
-        // Generate Key
-        const key = generateFilePath(order.id, file.name);
-        
-        // Convert File to Buffer
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-
-        // Upload to R2
-        await uploadFile(key, buffer, file.type);
-
-        // Insert into DB (Store Key in file_path)
-        await sql`
-          INSERT INTO documents (order_id, name, file_path, size)
-          VALUES (${order.id}, ${file.name}, ${key}, ${file.size})
+    try {
+      const orderId = await withTransaction(async (tx) => {
+        const orderResult = await tx.sql`
+          INSERT INTO orders (
+            order_number, customer_name, email, phone, 
+            status, total_amount, currency, delivery_date, 
+            notes, product_name, quantity, tenant_id
+          )
+          VALUES (
+            ${orderNumber}, ${formData.customerName}, ${formData.email || null}, ${formData.phone || null},
+            'pending', ${formData.totalAmount}, ${formData.currency || '₺'}, ${formData.deliveryDate || null},
+            ${formData.notes || null}, ${formData.productName}, ${formData.quantity}, ${tenantId}
+          )
+          RETURNING id
         `;
-      }
-    }
 
-    return this.getOrderById(order.id) as Promise<Order>;
+        const orderId = orderResult[0]?.id as string | undefined;
+        if (!orderId) {
+          throw new Error('Order creation failed');
+        }
+
+        if (files && files.length > 0) {
+          for (const file of files) {
+            const key = generateFilePath(orderId, file.name);
+            const arrayBuffer = await file.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+
+            await uploadFile(key, buffer, file.type);
+            uploadedFiles.push({ key });
+
+            await tx.sql`
+              INSERT INTO documents (order_id, name, file_path, size)
+              VALUES (${orderId}, ${file.name}, ${key}, ${file.size})
+            `;
+          }
+        }
+
+        return orderId;
+      });
+
+      return this.getOrderById(orderId) as Promise<Order>;
+    } catch (error) {
+      await this.cleanupUploadedFiles(uploadedFiles);
+      throw error;
+    }
   }
 
   async updateOrder(id: string, updates: Partial<Order>): Promise<Order> {
@@ -182,37 +206,41 @@ export class NeonOrderService implements IOrderService {
     const values: any[] = [];
     let paramIndex = 1;
 
-    if (updates.customer) {
+    if (updates.customerName !== undefined) {
       setClauses.push(`customer_name = $${paramIndex++}`);
-      values.push(updates.customer);
+      values.push(updates.customerName);
     }
-    if (updates.email) {
+    if (updates.email !== undefined) {
       setClauses.push(`email = $${paramIndex++}`);
       values.push(updates.email);
     }
-    if (updates.phone) {
+    if (updates.phone !== undefined) {
       setClauses.push(`phone = $${paramIndex++}`);
       values.push(updates.phone);
     }
-    if (updates.product) {
+    if (updates.productName !== undefined) {
       setClauses.push(`product_name = $${paramIndex++}`);
-      values.push(updates.product);
+      values.push(updates.productName);
     }
-    if (updates.quantity) {
+    if (updates.quantity !== undefined) {
       setClauses.push(`quantity = $${paramIndex++}`);
       values.push(updates.quantity);
     }
-    if (updates.amount) {
+    if (updates.totalAmount !== undefined) {
       setClauses.push(`total_amount = $${paramIndex++}`);
-      values.push(updates.amount);
+      values.push(updates.totalAmount);
     }
-    if (updates.deliveryDate) {
+    if (updates.currency !== undefined) {
+      setClauses.push(`currency = $${paramIndex++}`);
+      values.push(updates.currency);
+    }
+    if (updates.deliveryDate !== undefined) {
       setClauses.push(`delivery_date = $${paramIndex++}`);
       values.push(updates.deliveryDate);
     }
-    if (updates.description !== undefined) {
+    if (updates.notes !== undefined) {
       setClauses.push(`notes = $${paramIndex++}`);
-      values.push(updates.description);
+      values.push(updates.notes);
     }
 
     console.log('[NeonOrderService] Updating order:', id, 'for tenant:', tenantId, 'Updates:', Object.keys(updates));
@@ -289,26 +317,31 @@ export class NeonOrderService implements IOrderService {
     const existingOrder = await this.getOrderById(id);
     if (!existingOrder) throw new Error('Order not found or access denied');
 
-    if (files && files.length > 0) {
-      for (const file of files) {
-        // Generate Key
-        const key = generateFilePath(id, file.name);
-        
-        // Convert File to Buffer
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
+    const uploadedFiles: { key: string }[] = [];
 
-        // Upload to R2
-        await uploadFile(key, buffer, file.type);
+    try {
+      if (files && files.length > 0) {
+        await withTransaction(async (tx) => {
+          for (const file of files) {
+            const key = generateFilePath(id, file.name);
+            const arrayBuffer = await file.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
 
-        // Insert into DB (Store Key in file_path)
-        await sql`
-          INSERT INTO documents (order_id, name, file_path, size)
-          VALUES (${id}, ${file.name}, ${key}, ${file.size})
-        `;
+            await uploadFile(key, buffer, file.type);
+            uploadedFiles.push({ key });
+
+            await tx.sql`
+              INSERT INTO documents (order_id, name, file_path, size)
+              VALUES (${id}, ${file.name}, ${key}, ${file.size})
+            `;
+          }
+        });
       }
-    }
 
-    return this.getOrderById(id) as Promise<Order>;
+      return this.getOrderById(id) as Promise<Order>;
+    } catch (error) {
+      await this.cleanupUploadedFiles(uploadedFiles);
+      throw error;
+    }
   }
 }

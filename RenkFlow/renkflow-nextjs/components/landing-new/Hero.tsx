@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { Mail, ShieldCheck, CheckCircle2, ArrowRight, ChevronDown, Star, Users, Zap } from 'lucide-react';
+import { Mail, ShieldCheck, CheckCircle2, ArrowRight, ChevronDown, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { DashboardPreview } from './DashboardPreview';
 import { useTheme } from '@/lib/context/ThemeContext';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 export const Hero: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -56,13 +58,13 @@ export const Hero: React.FC = () => {
   }, [email]);
 
   return (
-    <section className="relative min-h-screen w-full overflow-hidden bg-background" aria-label="Hero Section">
+    <section className="relative min-h-screen w-full overflow-hidden bg-[#f7f8fb] dark:bg-slate-950" aria-label="Hero Section">
       
       {/* Aurora Background Effect */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        <div className="absolute top-[-20%] left-[-10%] w-[70%] h-[70%] rounded-full bg-gradient-to-tr from-blue-600/15 to-indigo-600/15 blur-[80px] animate-blob will-change-transform dark:mix-blend-soft-light" />
-        <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-gradient-to-bl from-purple-500/15 to-pink-500/15 blur-[80px] animate-blob animation-delay-2000 will-change-transform dark:mix-blend-soft-light" />
-        <div className="absolute bottom-[-20%] left-[20%] w-[50%] h-[50%] rounded-full bg-gradient-to-t from-cyan-400/15 to-blue-400/15 blur-[60px] animate-blob animation-delay-4000 will-change-transform dark:mix-blend-soft-light" />
+        <div className="absolute top-[-20%] left-[-10%] w-[70%] h-[70%] rounded-full bg-gradient-to-tr from-sky-500/15 to-emerald-500/15 blur-[80px] animate-blob will-change-transform dark:mix-blend-soft-light" />
+        <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-gradient-to-bl from-blue-500/15 to-sky-500/15 blur-[80px] animate-blob animation-delay-2000 will-change-transform dark:mix-blend-soft-light" />
+        <div className="absolute bottom-[-20%] left-[20%] w-[50%] h-[50%] rounded-full bg-gradient-to-t from-emerald-400/15 to-sky-400/15 blur-[60px] animate-blob animation-delay-4000 will-change-transform dark:mix-blend-soft-light" />
       </div>
 
       <div className="relative z-10 container mx-auto px-6 pt-32 pb-20 lg:pt-48 lg:pb-32">
@@ -78,7 +80,7 @@ export const Hero: React.FC = () => {
                 {/* Headline */}
                 <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight text-foreground mb-6 leading-[1.1]">
                     Üretim Yönetiminde <br/>
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-emerald-500 dark:from-sky-400 dark:to-emerald-400">
                         Yeni Bir Çağ.
                     </span>
                 </h1>
@@ -108,10 +110,10 @@ export const Hero: React.FC = () => {
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground">
                                     <Mail size={18} aria-hidden="true" />
                                 </div>
-                                <input
+                                <Input
                                     type="email"
                                     placeholder="E-posta adresiniz"
-                                    className="w-full h-12 pl-11 pr-4 rounded-xl bg-background border border-input focus:border-primary focus:ring-1 focus:ring-primary transition-all shadow-sm"
+                                    className="w-full h-12 pl-11 pr-4 rounded-xl bg-white/90 dark:bg-slate-900/70 shadow-sm"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     disabled={status === 'loading'}
@@ -119,10 +121,11 @@ export const Hero: React.FC = () => {
                                     required
                                 />
                             </div>
-                            <button
+                            <Button
                                 type="submit"
+                                size="lg"
                                 disabled={status === 'loading'}
-                                className="h-12 px-6 rounded-xl bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/25 disabled:opacity-70 disabled:cursor-not-allowed whitespace-nowrap"
+                                className="h-12 rounded-xl px-6 shadow-[0_18px_30px_-18px_rgba(14,165,233,0.7)]"
                                 aria-label="Bekleme listesine katıl"
                             >
                                 {status === 'loading' ? (
@@ -130,7 +133,7 @@ export const Hero: React.FC = () => {
                                 ) : (
                                     <>Haber Ver <ArrowRight size={18} aria-hidden="true" /></>
                                 )}
-                            </button>
+                            </Button>
                         </form>
                     )}
                     <div className="mt-4 flex items-center justify-center lg:justify-start gap-2 text-xs text-muted-foreground">
@@ -149,7 +152,7 @@ export const Hero: React.FC = () => {
                     <div className="flex items-center gap-2">
                         <div className="flex -space-x-2">
                             {[1,2,3,4].map(i => (
-                                <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 border-2 border-background flex items-center justify-center text-white text-xs font-bold">
+                                <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-500 to-emerald-500 border-2 border-background flex items-center justify-center text-white text-xs font-bold">
                                     {String.fromCharCode(64 + i)}
                                 </div>
                             ))}

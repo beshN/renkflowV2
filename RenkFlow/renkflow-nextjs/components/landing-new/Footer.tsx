@@ -3,13 +3,19 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Facebook, Twitter, Instagram, Linkedin, Mail, MapPin, Phone } from 'lucide-react';
+import { Twitter, Instagram, Linkedin, Mail, MapPin, Phone } from 'lucide-react';
 
 export const Footer: React.FC = () => {
-  const currentYear = new Date().getFullYear();
-
   return (
-    <footer className="w-full bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 pt-16 pb-8">
+    <footer className="w-full bg-slate-50/80 dark:bg-slate-950 border-t border-slate-200/70 dark:border-slate-800 pt-16 pb-8 relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(14,165,233,0.08),transparent_45%),radial-gradient(circle_at_90%_10%,rgba(16,185,129,0.08),transparent_40%)]"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-0 h-px w-[80%] -translate-x-1/2 bg-gradient-to-r from-transparent via-sky-400/40 to-transparent"
+      />
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           
@@ -40,10 +46,10 @@ export const Footer: React.FC = () => {
           <div>
             <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Ürün</h4>
             <ul className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
-              <li><Link href="/features" className="hover:text-blue-600 transition-colors">Özellikler</Link></li>
-              <li><Link href="/pricing" className="hover:text-blue-600 transition-colors">Fiyatlandırma</Link></li>
-              <li><Link href="/integrations" className="hover:text-blue-600 transition-colors">Entegrasyonlar</Link></li>
-              <li><Link href="/faq" className="hover:text-blue-600 transition-colors">SSS</Link></li>
+              <li><Link href="/features" className="hover:text-sky-600 transition-colors">Özellikler</Link></li>
+              <li><Link href="/pricing" className="hover:text-sky-600 transition-colors">Fiyatlandırma</Link></li>
+              <li><Link href="/integrations" className="hover:text-sky-600 transition-colors">Entegrasyonlar</Link></li>
+              <li><Link href="/faq" className="hover:text-sky-600 transition-colors">SSS</Link></li>
             </ul>
           </div>
 
@@ -51,10 +57,10 @@ export const Footer: React.FC = () => {
           <div>
             <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Şirket</h4>
             <ul className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
-              <li><Link href="/about" className="hover:text-blue-600 transition-colors">Hakkımızda</Link></li>
-              <li><Link href="/contact" className="hover:text-blue-600 transition-colors">İletişim</Link></li>
-              <li><Link href="/careers" className="hover:text-blue-600 transition-colors">Kariyer</Link></li>
-              <li><Link href="/blog" className="hover:text-blue-600 transition-colors">Blog</Link></li>
+              <li><Link href="/about" className="hover:text-emerald-500 transition-colors">Hakkımızda</Link></li>
+              <li><Link href="/contact" className="hover:text-emerald-500 transition-colors">İletişim</Link></li>
+              <li><Link href="/careers" className="hover:text-emerald-500 transition-colors">Kariyer</Link></li>
+              <li><Link href="/blog" className="hover:text-emerald-500 transition-colors">Blog</Link></li>
             </ul>
           </div>
 
@@ -63,22 +69,22 @@ export const Footer: React.FC = () => {
              <h4 className="font-semibold text-slate-900 dark:text-white mb-4">İletişim</h4>
              <ul className="space-y-3 text-sm text-slate-500 dark:text-slate-400">
                 <li className="flex items-start gap-2">
-                    <MapPin size={16} className="mt-0.5 text-blue-600" />
+                    <MapPin size={16} className="mt-0.5 text-sky-600" />
                     <span>Teknopark İstanbul, 34912<br/>Pendik/İstanbul</span>
                 </li>
                 <li className="flex items-center gap-2">
-                    <Mail size={16} className="text-blue-600" />
-                    <a href="mailto:info@renkflow.com" className="hover:text-blue-600">info@renkflow.com</a>
+                    <Mail size={16} className="text-sky-600" />
+                    <a href="mailto:info@renkflow.com" className="hover:text-sky-600">info@renkflow.com</a>
                 </li>
                 <li className="flex items-center gap-2">
-                    <Phone size={16} className="text-blue-600" />
-                    <a href="tel:+902120000000" className="hover:text-blue-600">+90 (212) 000 00 00</a>
+                    <Phone size={16} className="text-emerald-500" />
+                    <a href="tel:+902120000000" className="hover:text-emerald-500">+90 (212) 000 00 00</a>
                 </li>
              </ul>
           </div>
         </div>
 
-        <div className="pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="pt-8 border-t border-slate-200/70 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-xs text-slate-400">
                 &copy; {new Date().getFullYear()} RenkFlow. Tüm hakları saklıdır.
             </p>
@@ -93,7 +99,10 @@ export const Footer: React.FC = () => {
 };
 
 const SocialIcon = ({ icon: Icon, href }: { icon: any, href: string }) => (
-    <a href={href} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-blue-600 hover:text-white transition-all">
+    <a
+      href={href}
+      className="w-9 h-9 rounded-full bg-white/80 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 flex items-center justify-center text-slate-500 hover:text-white hover:border-transparent hover:bg-gradient-to-br hover:from-sky-600 hover:via-blue-600 hover:to-emerald-500 transition-all shadow-sm"
+    >
         <Icon size={16} />
     </a>
 );

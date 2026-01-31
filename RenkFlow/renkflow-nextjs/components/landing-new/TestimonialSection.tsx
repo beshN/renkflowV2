@@ -3,7 +3,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Star, Quote } from 'lucide-react';
-import Image from 'next/image';
 
 const testimonials = [
   {
@@ -34,11 +33,11 @@ const testimonials = [
 
 export const TestimonialSection: React.FC = () => {
   return (
-    <section className="py-24 bg-gradient-to-b from-white to-slate-50 dark:from-slate-950 dark:to-slate-900 relative overflow-hidden">
+    <section className="py-24 bg-[#f7f8fb] dark:bg-slate-950 relative overflow-hidden">
       {/* Background Decoration */}
-      <div className="absolute inset-0 opacity-30">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+      <div className="absolute inset-0 opacity-40">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl" />
       </div>
 
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -49,8 +48,11 @@ export const TestimonialSection: React.FC = () => {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-4">
-            Müşterilerimizin <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Başarı Hikayeleri</span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300">
+            Referanslar
+          </span>
+          <h2 className="mt-6 text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-4">
+            Müşterilerimizin <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-emerald-500">Başarı Hikayeleri</span>
           </h2>
           <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
             Binlerce işletme RenkFlow ile verimliliğini artırdı. Siz de onlara katılın.
@@ -66,10 +68,10 @@ export const TestimonialSection: React.FC = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="relative p-8 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg hover:shadow-2xl transition-all duration-300 group"
+              className="relative p-8 rounded-3xl bg-white/90 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.4)] hover:shadow-[0_30px_60px_-40px_rgba(15,23,42,0.55)] transition-all duration-300 group"
             >
               {/* Quote Icon */}
-              <Quote className="absolute top-6 right-6 text-blue-600/10 group-hover:text-blue-600/20 transition-colors" size={48} />
+              <Quote className="absolute top-6 right-6 text-sky-600/10 group-hover:text-sky-600/20 transition-colors" size={48} />
               
               {/* Rating */}
               <div className="flex gap-1 mb-4">
@@ -85,7 +87,7 @@ export const TestimonialSection: React.FC = () => {
 
               {/* Author Info */}
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-600 to-emerald-500 flex items-center justify-center text-white font-bold text-lg">
                   {testimonial.name.charAt(0)}
                 </div>
                 <div>
@@ -102,7 +104,7 @@ export const TestimonialSection: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8 p-8 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
+          className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8 p-8 rounded-3xl bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 text-white shadow-[0_30px_60px_-40px_rgba(14,165,233,0.6)]"
         >
           <div className="text-center">
             <div className="text-4xl font-bold mb-2">500+</div>

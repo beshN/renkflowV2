@@ -138,7 +138,7 @@ export function CalendarView({ orders }: CalendarViewProps) {
                           >
                             <div
                               className={`text-[10px] px-1.5 py-0.5 rounded truncate ${statusInfo.className} hover:opacity-80 transition-opacity leading-tight`}
-                              title={`${order.customer} - ${order.product || 'Sipariş'}`}
+                              title={`${order.customerName} - ${order.productName || 'Sipariş'}`}
                             >
                               #{order.id.slice(0, 4)}
                             </div>

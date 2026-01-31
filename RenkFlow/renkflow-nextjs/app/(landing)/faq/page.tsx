@@ -3,6 +3,8 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useInView } from 'react-intersection-observer';
+import Link from 'next/link';
+import { Button } from '@/components/ui/Button';
 
 interface FAQItem {
   question: string;
@@ -80,16 +82,16 @@ const faqData: FAQItem[] = [
 
 function FAQAccordion({ item, isOpen, onToggle }: { item: FAQItem; isOpen: boolean; onToggle: () => void }) {
   return (
-    <div className="border border-border-light dark:border-border-dark rounded-xl overflow-hidden">
+    <div className="border border-slate-200/70 dark:border-slate-800 rounded-2xl overflow-hidden bg-white/90 dark:bg-slate-900/70 shadow-[0_16px_35px_-30px_rgba(15,23,42,0.4)]">
       <button
         onClick={onToggle}
-        className="w-full px-6 py-5 flex items-center justify-between text-left bg-surface-light dark:bg-surface-dark hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+        className="w-full px-6 py-5 flex items-center justify-between text-left hover:bg-slate-50/70 dark:hover:bg-slate-800/60 transition-colors"
       >
         <span className="font-semibold text-text-light dark:text-text-dark pr-4">{item.question}</span>
         <motion.span
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.2 }}
-          className="material-symbols-outlined text-primary flex-shrink-0"
+          className="material-symbols-outlined text-sky-600 flex-shrink-0"
         >
           expand_more
         </motion.span>
@@ -100,7 +102,7 @@ function FAQAccordion({ item, isOpen, onToggle }: { item: FAQItem; isOpen: boole
         transition={{ duration: 0.3 }}
         className="overflow-hidden"
       >
-        <div className="px-6 py-5 bg-white dark:bg-gray-900/50 border-t border-border-light dark:border-border-dark">
+        <div className="px-6 py-5 border-t border-slate-200/70 dark:border-slate-800 text-slate-600 dark:text-slate-400">
           <p className="text-subtle-light dark:text-subtle-dark leading-relaxed">{item.answer}</p>
         </div>
       </motion.div>
@@ -130,9 +132,13 @@ export default function FAQPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark font-display">
+    <div className="min-h-screen bg-[#f7f8fb] dark:bg-slate-950 font-display relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(14,165,233,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_40%)]"
+      />
       
-      <main className="pt-32 pb-20 container mx-auto px-6 md:px-12 max-w-4xl">
+      <main className="pt-32 pb-20 container mx-auto px-6 md:px-12 max-w-4xl relative z-10">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -140,7 +146,10 @@ export default function FAQPage() {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h1 className="text-4xl md:text-5xl font-black mb-4 text-text-light dark:text-text-dark">
+          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300">
+            Destek
+          </span>
+          <h1 className="mt-6 text-4xl md:text-5xl font-black mb-4 text-text-light dark:text-text-dark">
             Sıkça Sorulan Sorular
           </h1>
           <p className="text-lg text-subtle-light dark:text-subtle-dark max-w-2xl mx-auto">
@@ -162,7 +171,7 @@ export default function FAQPage() {
               className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
                 activeCategory === category
                   ? 'bg-primary text-white shadow-md'
-                  : 'bg-surface-light dark:bg-surface-dark text-subtle-light dark:text-subtle-dark hover:bg-gray-100 dark:hover:bg-gray-800'
+                  : 'bg-white/70 dark:bg-slate-900/60 text-subtle-light dark:text-subtle-dark hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               {category}
@@ -197,7 +206,7 @@ export default function FAQPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="mt-16 text-center bg-primary/10 dark:bg-primary/20 rounded-2xl p-10"
+          className="mt-16 text-center bg-white/80 dark:bg-slate-900/70 rounded-3xl border border-slate-200/70 dark:border-slate-800 p-10 shadow-[0_24px_50px_-32px_rgba(14,165,233,0.4)]"
         >
           <h2 className="text-2xl font-bold mb-3 text-text-light dark:text-text-dark">
             Sorunuzun cevabını bulamadınız mı?
@@ -205,16 +214,14 @@ export default function FAQPage() {
           <p className="text-subtle-light dark:text-subtle-dark mb-6">
             Destek ekibimiz size yardımcı olmaktan mutluluk duyar.
           </p>
-          <a href="/contact">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-primary text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transition-shadow inline-flex items-center gap-2"
-            >
-              <span className="material-symbols-outlined">support_agent</span>
-              Bize Ulaşın
-            </motion.button>
-          </a>
+          <Link href="/contact">
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button size="lg">
+                <span className="material-symbols-outlined">support_agent</span>
+                Bize Ulaşın
+              </Button>
+            </motion.div>
+          </Link>
         </motion.div>
       </main>
       

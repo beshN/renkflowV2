@@ -1,0 +1,64 @@
+name: Deployment Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Type Check
+        run: npx tsc --noEmit
+      - name: Run Tests
+        run: npm test
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: validate
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Vercel CLI
+        run: npm install --global vercel
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=preview --token ${{ secrets.VERCEL_TOKEN }}
+      - name: Build Project Artifacts
+        run: vercel build --token ${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy to Vercel (Staging)
+        run: vercel deploy --prebuilt --token ${{ secrets.VERCEL_TOKEN }}
+
+  deploy-production:
+    name: Deploy to Production
+    needs: validate
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Vercel CLI
+        run: npm install --global vercel
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token ${{ secrets.VERCEL_TOKEN }}
+      - name: Build Project Artifacts
+        run: vercel build --prod --token ${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy to Vercel (Production)
+        run: vercel deploy --prebuilt --prod --token ${{ secrets.VERCEL_TOKEN }}
+      - name: Sentry Release Tracking
+        run: |
+          curl -X POST https://sentry.io/api/hooks/release \
+            -H 'Authorization: Bearer ${{ secrets.SENTRY_TOKEN }}' \
+            -d '{"version": "${{ github.sha }}"}'

@@ -3,6 +3,8 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, Search } from 'lucide-react';
+import Link from 'next/link';
+import { Input } from '@/components/ui/Input';
 
 export const FAQ: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,10 +42,17 @@ export const FAQ: React.FC = () => {
   }, [searchTerm, faqs]);
 
   return (
-    <section className="py-24 bg-white dark:bg-slate-950">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-24 bg-[#f7f8fb] dark:bg-slate-950 relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(14,165,233,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_40%)]"
+      />
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
         <div className="text-center mb-12">
+            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300">
+                Destek
+            </span>
             <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-4">
                 Sıkça Sorulan Sorular
             </h2>
@@ -54,12 +63,12 @@ export const FAQ: React.FC = () => {
             {/* Search Bar */}
             <div className="max-w-md mx-auto relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                <input
+                <Input
                     type="text"
                     placeholder="Soru ara..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                    className="w-full pl-12 pr-4 rounded-xl bg-white/90 dark:bg-slate-900/70"
                 />
             </div>
         </div>
@@ -73,6 +82,9 @@ export const FAQ: React.FC = () => {
                 <div className="text-center py-12 text-slate-500 dark:text-slate-400">
                     <p className="text-lg font-medium mb-2">Sonuç bulunamadı</p>
                     <p className="text-sm">Farklı bir arama terimi deneyin veya bizimle iletişime geçin.</p>
+                    <Link href="/contact" className="mt-4 inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:border-sky-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200">
+                      İletişime Geç
+                    </Link>
                 </div>
             )}
         </div>
@@ -86,13 +98,13 @@ const Accordion = ({ question, answer }: { question: string, answer: string }) =
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+        <div className="border border-slate-200/70 dark:border-slate-800 rounded-2xl overflow-hidden bg-white/90 dark:bg-slate-900/70 shadow-[0_16px_35px_-30px_rgba(15,23,42,0.4)]">
             <button 
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex justify-between items-center p-6 text-left hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors"
+                className="w-full flex justify-between items-center p-6 text-left hover:bg-slate-50/70 dark:hover:bg-slate-800/60 transition-colors"
             >
                 <span className="font-semibold text-slate-900 dark:text-white">{question}</span>
-                {isOpen ? <Minus size={20} className="text-blue-600" /> : <Plus size={20} className="text-slate-400" />}
+                {isOpen ? <Minus size={20} className="text-sky-600" /> : <Plus size={20} className="text-slate-400" />}
             </button>
             <AnimatePresence>
                 {isOpen && (
@@ -100,9 +112,9 @@ const Accordion = ({ question, answer }: { question: string, answer: string }) =
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        className="bg-slate-50 dark:bg-slate-900/50"
+                        className="bg-white/80 dark:bg-slate-900/60"
                     >
-                        <div className="p-6 pt-0 text-slate-600 dark:text-slate-400 leading-relaxed border-t border-slate-100 dark:border-slate-800/50">
+                        <div className="p-6 pt-0 text-slate-600 dark:text-slate-400 leading-relaxed border-t border-slate-100/80 dark:border-slate-800/50">
                             {answer}
                         </div>
                     </motion.div>

@@ -24,12 +24,13 @@ export async function createOrderAction(formData: FormData) {
   // Extract other data
   const data: NewOrderFormData = {
     customerName: formData.get('customerName') as string,
-    customerEmail: formData.get('customerEmail') as string || undefined,
-    customerPhone: formData.get('customerPhone') as string || undefined,
+    email: formData.get('email') as string || undefined,
+    phone: formData.get('phone') as string || undefined,
     productName: formData.get('productName') as string,
     quantity: parseInt(formData.get('quantity') as string),
-    unitPrice: parseFloat(formData.get('unitPrice') as string) || undefined,
-    deliveryDate: formData.get('deliveryDate') as string,
+    totalAmount: parseFloat(formData.get('totalAmount') as string) || 0,
+    currency: (formData.get('currency') as string) || '₺',
+    deliveryDate: formData.get('deliveryDate') as string || undefined,
     notes: formData.get('notes') as string || undefined,
     documents: [], // Documents are handled via 'files'
   };

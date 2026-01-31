@@ -28,7 +28,7 @@ export default function DashboardPage() {
     const totalOrders = orders.length;
     const activeProduction = orders.filter(o => o.status === 'in_production').length;
     const delivered = orders.filter(o => o.status === 'delivered').length;
-    const totalRevenue = orders.reduce((sum, order) => sum + order.amount, 0);
+    const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
 
     return [
       {

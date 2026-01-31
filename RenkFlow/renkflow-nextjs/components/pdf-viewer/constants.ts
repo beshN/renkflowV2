@@ -1,50 +1,216 @@
-import { DocumentFile } from "./types";
+import { DocumentFile } from './types';
 
-const GENERIC_PDF_URL = "https://lh3.googleusercontent.com/aida-public/AB6AXuDkHZwpQQ39NAq2aue5JlRvhLj6tUPkxj8ad2ukgPah1XUjth_uyxVCwDFIbFt4LahTrdM6noYMQyc2oaiwouJPzqIOHT4CDXIlUvqrzhLUBo0mJo8u-Pt-ZLP748bc791YDjOEp-7C-1CGuyfvVFR_KCtPIpL0mGgSarbnYEK70gZmliMGE405R-ylkK-liYv72CXHM7usuyGDKH03Sw1a07qOCLvcJ2FNsJ4J7fL2kZtKjZqpBEThcqX8HUk9rcnFEcP53bvSoAI_";
-const CONTRACT_URL = "https://lh3.googleusercontent.com/aida-public/AB6AXuC0YhUOQLUvkgA93_MBF_aL4Cp1-J0_KDiVkz6IQGVkJLE2SXDx8TG399EsEDhnd3OEBE_0-t_6nph-TTykaweUu5m0gqj1GKlN4Z4Kf7pfrK6nmvKMVBRW4GEd6n00lkrz6rDLXkOF7x-XKOqTID9vYqfyQlL5ag99h3Qj-HiBcqIFj0__LXkao61Usc6et_wPp9OR6T3gEgkVOzwZMR6sRXFfEoWpCb2dOK0nlnx3jBRwYwQRx4VOJe9IpwiMkimcFBCmqk2COA0U";
+// ============================================================================
+// Extended DocumentFile Interface
+// ============================================================================
 
-export const MOCK_FILES: DocumentFile[] = [
+/** Extended DocumentFile with additional test properties */
+export interface ExtendedDocumentFile extends DocumentFile {
+  /** Optional description of the file */
+  description?: string;
+  /** Whether this is a test file */
+  isTestFile?: boolean;
+  /** Expected error type for test files */
+  expectedError?: string;
+}
+
+// ============================================================================
+// Mock PDF URLs for Testing
+// ============================================================================
+
+/**
+ * Sample PDF URLs for testing purposes
+ * These are public domain or sample PDFs that can be used for testing
+ */
+const SAMPLE_PDF_URLS = {
+  /** Sample PDF from pdfobject.com - CORS friendly */
+  sample: 'https://pdfobject.com/pdf/sample.pdf',
+  /** PDF.js test document */
+  pdfjsTest: 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf',
+  /** Small test PDF */
+  small: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+} as const;
+
+/**
+ * Generate a mock thumbnail URL
+ * In production, this would be a real thumbnail service
+ */
+const generateThumbnailUrl = (seed: string): string => {
+  // Using a placeholder service for demo purposes
+  return `https://placehold.co/200x280/e2e8f0/64748b?text=${encodeURIComponent(seed)}`;
+};
+
+// ============================================================================
+// Mock Files
+// ============================================================================
+
+/**
+ * Mock document files for testing and development
+ * 
+ * These files cover various scenarios:
+ * - Normal PDF files
+ * - Large PDF files
+ * - Password protected (simulated)
+ * - Corrupted/invalid URLs (for error testing)
+ * - Single page PDFs
+ * - Multi-page PDFs
+ */
+export const MOCK_FILES: ExtendedDocumentFile[] = [
   {
-    id: "renk-1",
-    name: "Renk_Kepenk_Sistemleri.pdf",
-    size: "1.8 MB",
-    type: "pdf",
-    pageCount: 3,
-    thumbnailUrl: GENERIC_PDF_URL, 
+    id: 'sample-1',
+    name: 'Ornek_Dokuman.pdf',
+    size: '45 KB',
+    type: 'pdf',
+    pageCount: 1,
+    thumbnailUrl: generateThumbnailUrl('PDF-1'),
+    pages: [SAMPLE_PDF_URLS.sample],
+    description: 'Örnek tek sayfalık PDF dosyası',
+  },
+  {
+    id: 'sample-2',
+    name: 'PDF.js_Test_Dokumani.pdf',
+    size: '1.2 MB',
+    type: 'pdf',
+    pageCount: 14,
+    thumbnailUrl: generateThumbnailUrl('PDF-14'),
+    pages: [SAMPLE_PDF_URLS.pdfjsTest],
+    description: 'PDF.js test dokümanı - 14 sayfa',
+  },
+  {
+    id: 'sample-3',
+    name: 'Kucuk_Test.pdf',
+    size: '12 KB',
+    type: 'pdf',
+    pageCount: 1,
+    thumbnailUrl: generateThumbnailUrl('PDF-S'),
+    pages: [SAMPLE_PDF_URLS.small],
+    description: 'Küçük boyutlu test PDF',
+  },
+  {
+    id: 'error-network',
+    name: 'Ağ_Hatasi_Test.pdf',
+    size: '0 KB',
+    type: 'pdf',
+    pageCount: 0,
+    thumbnailUrl: generateThumbnailUrl('ERR-NET'),
+    pages: ['https://invalid-url-that-will-fail.com/document.pdf'],
+    description: 'Ağ hatası testi için - geçersiz URL',
+    isTestFile: true,
+    expectedError: 'network',
+  },
+  {
+    id: 'error-notfound',
+    name: 'Bulunamadi_Test.pdf',
+    size: '0 KB',
+    type: 'pdf',
+    pageCount: 0,
+    thumbnailUrl: generateThumbnailUrl('ERR-404'),
+    pages: ['https://httpstat.us/404'],
+    description: '404 hatası testi için',
+    isTestFile: true,
+    expectedError: 'not-found',
+  },
+  {
+    id: 'multi-page',
+    name: 'Cok_Sayfali_Dokuman.pdf',
+    size: '2.5 MB',
+    type: 'pdf',
+    pageCount: 5,
+    thumbnailUrl: generateThumbnailUrl('PDF-5'),
     pages: [
-      GENERIC_PDF_URL, 
-      GENERIC_PDF_URL, 
-      GENERIC_PDF_URL
-    ]
+      SAMPLE_PDF_URLS.sample,
+      SAMPLE_PDF_URLS.small,
+      SAMPLE_PDF_URLS.sample,
+      SAMPLE_PDF_URLS.small,
+      SAMPLE_PDF_URLS.sample,
+    ],
+    description: 'Çok sayfalı örnek doküman',
   },
-  {
-    id: "real-pdf",
-    name: "Real_Sample_Doc.pdf",
-    size: "45 KB",
-    type: "pdf",
-    pageCount: 1,
-    thumbnailUrl: GENERIC_PDF_URL,
-    // CORS-friendly public PDF for testing
-    pages: ["https://pdfobject.com/pdf/sample.pdf"]
-  },
-  {
-    id: "broken-pdf",
-    name: "Bozuk Dosya (TEST).pdf",
-    size: "0 KB",
-    type: "pdf",
-    pageCount: 1,
-    thumbnailUrl: GENERIC_PDF_URL,
-    // This triggers the error overlay via error handler in PDFViewer
-    pages: ["https://invalid-url-that-fails.com/doc.pdf"]
-  },
-  {
-    id: "2",
-    name: "Contract_V3.pdf",
-    size: "1.2 MB",
-    type: "pdf",
-    pageCount: 6,
-    thumbnailUrl: CONTRACT_URL,
-    pages: [CONTRACT_URL, CONTRACT_URL, CONTRACT_URL, CONTRACT_URL, CONTRACT_URL, CONTRACT_URL],
-    searchUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuCfforcI125fd1VzpqdjaDYhuulfevU-mBeey8ApKGBCdHHN6a6XOYOErtrZObsxFXMy1MuVWLM0x99gloib1CQ16qBHmFch0qUBYWtG0rwYuChHhfvlYyCEDrDa_IUFz2dDPAtrJ47JGrZ7tJGfvz9Jv8l8NpAX8EJC8_OBWg1Fhg9dyjmxUgIjxFSBqG9WiS0ISIhGHZV3NVsA_wqI5q1EbV2kzxDpzcwEYrLshdyEoCtdpvfjpk4HN0oIpf-T_xFQkukcMZYK5I-"
-  }
 ];
+
+// ============================================================================
+// Viewer Configuration Constants
+// ============================================================================
+
+/**
+ * Default configuration for the PDF viewer
+ */
+export const VIEWER_CONFIG = {
+  /** Minimum zoom level (25%) */
+  MIN_ZOOM: 0.25,
+  /** Maximum zoom level (400%) */
+  MAX_ZOOM: 4.0,
+  /** Default zoom level (100%) */
+  DEFAULT_ZOOM: 1.0,
+  /** Zoom step increment */
+  ZOOM_STEP: 0.25,
+  /** Default rotation (0 degrees) */
+  DEFAULT_ROTATION: 0,
+  /** Rotation step (90 degrees) */
+  ROTATION_STEP: 90,
+  /** Maximum retry attempts for loading */
+  MAX_RETRY_ATTEMPTS: 3,
+  /** Debounce delay for search (ms) */
+  SEARCH_DEBOUNCE: 300,
+  /** Throttle delay for scroll events (ms) */
+  SCROLL_THROTTLE: 150,
+  /** Mobile breakpoint (px) */
+  MOBILE_BREAKPOINT: 768,
+  /** Double tap timeout (ms) */
+  DOUBLE_TAP_TIMEOUT: 300,
+} as const;
+
+/**
+ * Loading stages for the viewer
+ */
+export const LOADING_STAGES = {
+  DOWNLOADING: 'downloading' as const,
+  PARSING: 'parsing' as const,
+  RENDERING: 'rendering' as const,
+  COMPLETE: 'complete' as const,
+};
+
+/**
+ * Error types for the viewer
+ */
+export const ERROR_TYPES = {
+  NETWORK: 'network' as const,
+  CORRUPT: 'corrupt' as const,
+  PASSWORD: 'password' as const,
+  NOT_FOUND: 'not-found' as const,
+  UNKNOWN: 'unknown' as const,
+};
+
+/**
+ * View modes for the viewer
+ */
+export const VIEW_MODES = {
+  SINGLE: 'single' as const,
+  CONTINUOUS: 'continuous' as const,
+  TWO_PAGE: 'two-page' as const,
+};
+
+/**
+ * Keyboard shortcuts configuration
+ */
+export const KEYBOARD_SHORTCUTS = {
+  CLOSE: 'Escape',
+  SEARCH: 'Ctrl+F',
+  ZOOM_IN: 'Ctrl++',
+  ZOOM_OUT: 'Ctrl+-',
+  ZOOM_RESET: 'Ctrl+0',
+  FIT_WIDTH: 'Ctrl+W',
+  FIT_PAGE: 'Ctrl+1',
+  ROTATE: 'Ctrl+R',
+  PRINT: 'Ctrl+P',
+  DOWNLOAD: 'Ctrl+S',
+  BOOKMARK: 'Ctrl+B',
+  FULLSCREEN: 'F11',
+  TOGGLE_THUMBNAILS: 'T',
+  PREV_PAGE: 'ArrowLeft',
+  NEXT_PAGE: 'ArrowRight',
+  FIRST_PAGE: 'Home',
+  LAST_PAGE: 'End',
+} as const;
+
+export default MOCK_FILES;

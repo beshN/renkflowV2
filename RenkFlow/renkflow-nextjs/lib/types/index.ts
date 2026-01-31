@@ -5,18 +5,24 @@ export type ViewMode = 'list' | 'table' | 'calendar';
 
 export interface Order {
   id: string;
-  customer: string;
+  orderNumber: string;
+  customerName: string;
   email?: string;
   phone?: string;
   date: string;
   deliveryDate?: string;
-  amount: number;
+  totalAmount: number;
   currency: string;
   status: OrderStatus;
-  description?: string;
-  product?: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  notes?: string;
+  productName?: string;
   quantity?: number;
   documents?: Document[];
+  createdAt: string;
+  updatedAt: string;
+  tenantId?: string;
+  [key: string]: unknown;
 }
 
 export interface Document {
@@ -63,12 +69,13 @@ export interface CompanySettings {
 
 export interface NewOrderFormData {
   customerName: string;
-  customerEmail?: string;
-  customerPhone?: string;
+  email?: string;
+  phone?: string;
   productName: string;
   quantity: number;
-  unitPrice?: number;
-  deliveryDate: string;
+  totalAmount: number;
+  currency: string;
+  deliveryDate?: string;
   notes?: string;
-  documents: Document[];
+  documents?: Document[];
 }

@@ -1,28 +1,24 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
 import { Features } from '@/components/landing-new/Features';
-import { useTheme } from '@/lib/context/ThemeContext';
 import { motion } from 'framer-motion';
 
 export default function FeaturesPage() {
-  const [mounted, setMounted] = useState(false);
-  const { theme, toggleTheme } = useTheme();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
-
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-[#f7f8fb] dark:bg-slate-950 relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(14,165,233,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_40%)]"
+      />
       
-      <div className="pt-32 pb-20 px-6 md:px-12 max-w-[1400px] mx-auto text-center">
+      <div className="pt-32 pb-20 px-6 md:px-12 max-w-[1400px] mx-auto text-center relative z-10">
+            <span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-600 dark:bg-sky-500/10 dark:text-sky-300">
+                Özellikler
+            </span>
             <motion.h1 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-4xl sm:text-5xl font-bold text-foreground mb-6"
+                className="mt-6 text-4xl sm:text-5xl font-bold text-foreground mb-6"
             >
                 Özellikleri Keşfedin
             </motion.h1>

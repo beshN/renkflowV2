@@ -4,6 +4,9 @@ import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 interface BlogPost {
   id: string;
@@ -95,7 +98,7 @@ function BlogCard({ post, index }: { post: BlogPost; index: number }) {
       className={`group ${post.featured ? 'md:col-span-2' : ''}`}
     >
       <Link href={`/blog/${post.id}`} className="block">
-        <div className={`bg-white dark:bg-gray-800/50 rounded-2xl overflow-hidden border border-border-light dark:border-border-dark shadow-sm hover:shadow-xl transition-all duration-300 ${post.featured ? 'md:flex' : ''}`}>
+        <div className={`bg-white/90 dark:bg-slate-900/70 rounded-3xl overflow-hidden border border-slate-200/70 dark:border-slate-800 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.4)] hover:shadow-[0_30px_60px_-40px_rgba(15,23,42,0.55)] transition-all duration-300 ${post.featured ? 'md:flex' : ''}`}>
           <div className={`relative ${post.featured ? 'md:w-1/2 h-64 md:h-auto' : 'h-48'} overflow-hidden`}>
             <Image
               src={post.image}
@@ -104,7 +107,7 @@ function BlogCard({ post, index }: { post: BlogPost; index: number }) {
               className="object-cover group-hover:scale-105 transition-transform duration-500"
             />
             <div className="absolute top-4 left-4">
-              <span className="bg-primary text-white text-xs font-bold px-3 py-1 rounded-full">
+              <span className="bg-slate-900/90 text-white text-xs font-bold px-3 py-1 rounded-full">
                 {post.category}
               </span>
             </div>
@@ -139,11 +142,45 @@ function BlogCard({ post, index }: { post: BlogPost; index: number }) {
 
 export default function BlogPage() {
   const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 });
+  const [activeCategory, setActiveCategory] = useState('Tümü');
+  const [visibleCount, setVisibleCount] = useState(4);
+
+  const filteredPosts = useMemo(() => (
+    activeCategory === 'Tümü'
+      ? blogPosts
+      : blogPosts.filter((post) => post.category === activeCategory)
+  ), [activeCategory]);
+
+  useEffect(() => {
+    setVisibleCount(4);
+  }, [activeCategory]);
+
+  const handleLoadMore = () => {
+    setVisibleCount((prev) => Math.min(prev + 4, filteredPosts.length));
+  };
+
+  const handleSubscribe = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get('email') || '').trim();
+    if (!email) return;
+
+    const params = new URLSearchParams({
+      subject: 'Renkflow Blog Bülteni',
+      body: `Merhaba,\n\nBlog bültenine abone olmak istiyorum.\nE-posta: ${email}\n`,
+    });
+    window.location.href = `mailto:newsletter@renkflow.com?${params.toString()}`;
+    event.currentTarget.reset();
+  };
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark font-display">
+    <div className="min-h-screen bg-[#f7f8fb] dark:bg-slate-950 font-display relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(14,165,233,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_40%)]"
+      />
       
-      <main className="pt-32 pb-20 container mx-auto px-6 md:px-12 max-w-6xl">
+      <main className="pt-32 pb-20 container mx-auto px-6 md:px-12 max-w-6xl relative z-10">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -151,7 +188,10 @@ export default function BlogPage() {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h1 className="text-4xl md:text-5xl font-black mb-4 text-text-light dark:text-text-dark">
+          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300">
+            İçerikler
+          </span>
+          <h1 className="mt-6 text-4xl md:text-5xl font-black mb-4 text-text-light dark:text-text-dark">
             Blog
           </h1>
           <p className="text-lg text-subtle-light dark:text-subtle-dark max-w-2xl mx-auto">
@@ -169,7 +209,12 @@ export default function BlogPage() {
           {categories.map((category) => (
             <button
               key={category}
-              className="px-5 py-2 rounded-full text-sm font-medium bg-surface-light dark:bg-surface-dark text-subtle-light dark:text-subtle-dark hover:bg-primary hover:text-white transition-all"
+              onClick={() => setActiveCategory(category)}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+                activeCategory === category
+                  ? 'bg-primary text-white shadow-md'
+                  : 'bg-surface-light dark:bg-surface-dark text-subtle-light dark:text-subtle-dark hover:bg-primary hover:text-white'
+              }`}
             >
               {category}
             </button>
@@ -178,27 +223,27 @@ export default function BlogPage() {
 
         {/* Blog Grid */}
         <div ref={ref} className="grid md:grid-cols-2 gap-8">
-          {blogPosts.map((post, index) => (
+          {filteredPosts.slice(0, visibleCount).map((post, index) => (
             <BlogCard key={post.id} post={post} index={index} />
           ))}
         </div>
 
         {/* Load More */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5, duration: 0.6 }}
-          className="text-center mt-12"
-        >
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="border border-border-light dark:border-border-dark font-bold py-3 px-8 rounded-full hover:bg-surface-light dark:hover:bg-surface-dark transition-colors inline-flex items-center gap-2"
+        {visibleCount < filteredPosts.length && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+            className="text-center mt-12"
           >
-            <span>Daha Fazla Yükle</span>
-            <span className="material-symbols-outlined">expand_more</span>
-          </motion.button>
-        </motion.div>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="inline-block">
+              <Button variant="outline" size="lg" onClick={handleLoadMore}>
+                Daha Fazla Yükle
+                <span className="material-symbols-outlined">expand_more</span>
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
 
         {/* Newsletter CTA */}
         <motion.div
@@ -207,6 +252,7 @@ export default function BlogPage() {
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
           className="mt-20 bg-gradient-to-r from-primary to-primary/80 rounded-2xl p-10 text-center text-white"
+          id="newsletter"
         >
           <h2 className="text-2xl md:text-3xl font-bold mb-3">
             Her Hafta En Yeni İçerikler
@@ -214,20 +260,18 @@ export default function BlogPage() {
           <p className="text-white/80 mb-6 max-w-xl mx-auto">
             Bültenimize abone olun ve proje yönetimi dünyasındaki en güncel trendleri kaçırmayın.
           </p>
-          <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
-            <input
+          <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
+            <Input
               type="email"
+              name="email"
               placeholder="E-posta adresiniz"
-              className="flex-1 px-5 py-3 rounded-full text-text-light focus:outline-none focus:ring-2 focus:ring-white/50"
+              className="flex-1 rounded-full bg-white/95 text-slate-900 placeholder:text-slate-500 focus-visible:ring-white/40"
             />
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              type="submit"
-              className="bg-white text-primary font-bold py-3 px-8 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              Abone Ol
-            </motion.button>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button type="submit" variant="ghost" size="lg" className="rounded-full bg-white text-primary hover:bg-slate-100">
+                Abone Ol
+              </Button>
+            </motion.div>
           </form>
         </motion.div>
       </main>

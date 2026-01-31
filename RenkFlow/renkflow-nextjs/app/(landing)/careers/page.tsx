@@ -81,19 +81,19 @@ function JobCard({ position, index }: { position: JobPosition; index: number }) 
       initial={{ opacity: 0, y: 30 }}
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ delay: index * 0.1, duration: 0.5 }}
-      className="bg-white dark:bg-gray-800/50 rounded-xl p-6 border border-border-light dark:border-border-dark hover:border-primary/50 hover:shadow-lg transition-all group"
+      className="bg-white/90 dark:bg-slate-900/70 rounded-2xl p-6 border border-slate-200/70 dark:border-slate-800 hover:border-sky-300/80 hover:shadow-[0_24px_50px_-35px_rgba(15,23,42,0.5)] transition-all group"
     >
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded">
+            <span className="text-xs font-medium bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300 px-2 py-1 rounded">
               {position.department}
             </span>
-            <span className="text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded">
+            <span className="text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded">
               {position.type}
             </span>
           </div>
-          <h3 className="text-xl font-bold text-text-light dark:text-text-dark mb-2 group-hover:text-primary transition-colors">
+          <h3 className="text-xl font-bold text-text-light dark:text-text-dark mb-2 group-hover:text-sky-600 transition-colors">
             {position.title}
           </h3>
           <p className="text-subtle-light dark:text-subtle-dark text-sm mb-2">
@@ -104,15 +104,14 @@ function JobCard({ position, index }: { position: JobPosition; index: number }) 
             <span>{position.location}</span>
           </div>
         </div>
-        <Link href={`/careers/${position.id}`}>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="bg-primary text-white font-bold py-3 px-6 rounded-lg hover:bg-primary/90 transition-colors whitespace-nowrap"
+        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <Link
+            href={`/careers/${position.id}`}
+            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_30px_-18px_rgba(14,165,233,0.7)] hover:opacity-90 whitespace-nowrap"
           >
             Başvur
-          </motion.button>
-        </Link>
+          </Link>
+        </motion.div>
       </div>
     </motion.div>
   );
@@ -124,9 +123,13 @@ export default function CareersPage() {
   const [benefitsRef, benefitsInView] = useInView({ triggerOnce: true, threshold: 0.1 });
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark font-display">
+    <div className="min-h-screen bg-[#f7f8fb] dark:bg-slate-950 font-display relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(14,165,233,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_40%)]"
+      />
       
-      <main className="pt-32 pb-20">
+      <main className="pt-32 pb-20 relative z-10">
         {/* Hero Section */}
         <motion.section
           ref={heroRef}
@@ -135,8 +138,11 @@ export default function CareersPage() {
           transition={{ duration: 0.8 }}
           className="container mx-auto px-6 md:px-12 max-w-5xl text-center mb-20"
         >
+          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300">
+            Kariyer
+          </span>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 text-text-light dark:text-text-dark">
-            Geleceği Birlikte <span className="text-primary">İnşa Edelim</span>
+            Geleceği Birlikte <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-emerald-500">İnşa Edelim</span>
           </h1>
           <p className="text-lg md:text-xl text-subtle-light dark:text-subtle-dark max-w-3xl mx-auto">
             Renkflow&apos;ta, her gün milyonlarca insanın çalışma şeklini değiştiriyoruz. 
@@ -145,7 +151,7 @@ export default function CareersPage() {
         </motion.section>
 
         {/* Values Section */}
-        <section className="bg-surface-light dark:bg-surface-dark py-20 mb-20">
+        <section className="py-20 mb-20">
           <div className="container mx-auto px-6 md:px-12 max-w-6xl">
             <motion.div
               ref={valuesRef}
@@ -169,10 +175,10 @@ export default function CareersPage() {
                   initial={{ opacity: 0, y: 30 }}
                   animate={valuesInView ? { opacity: 1, y: 0 } : {}}
                   transition={{ delay: i * 0.1, duration: 0.5 }}
-                  className="bg-white dark:bg-gray-800/50 rounded-xl p-6 text-center"
+                  className="bg-white/90 dark:bg-slate-900/70 rounded-2xl p-6 text-center border border-slate-200/70 dark:border-slate-800 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.35)]"
                 >
-                  <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                    <span className="material-symbols-outlined text-primary text-2xl">{value.icon}</span>
+                  <div className="w-14 h-14 rounded-2xl bg-sky-50 dark:bg-sky-500/10 flex items-center justify-center mx-auto mb-4 text-sky-600 dark:text-sky-300">
+                    <span className="material-symbols-outlined text-2xl">{value.icon}</span>
                   </div>
                   <h3 className="font-bold text-text-light dark:text-text-dark mb-2">{value.title}</h3>
                   <p className="text-sm text-subtle-light dark:text-subtle-dark">{value.desc}</p>
@@ -206,10 +212,10 @@ export default function CareersPage() {
                 initial={{ opacity: 0, y: 30 }}
                 animate={benefitsInView ? { opacity: 1, y: 0 } : {}}
                 transition={{ delay: i * 0.1, duration: 0.5 }}
-                className="flex items-start gap-4 p-4"
+                className="flex items-start gap-4 p-5 rounded-2xl border border-slate-200/70 bg-white/80 shadow-[0_16px_35px_-30px_rgba(15,23,42,0.3)] dark:border-slate-800 dark:bg-slate-900/70"
               >
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="material-symbols-outlined text-primary text-xl">{benefit.icon}</span>
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center flex-shrink-0 text-emerald-600 dark:text-emerald-300">
+                  <span className="material-symbols-outlined text-xl">{benefit.icon}</span>
                 </div>
                 <div>
                   <h3 className="font-bold text-text-light dark:text-text-dark mb-1">{benefit.title}</h3>
@@ -249,15 +255,14 @@ export default function CareersPage() {
               <p className="text-subtle-light dark:text-subtle-dark mb-6">
                 Yeni pozisyonlardan haberdar olmak için bize e-posta gönderin.
               </p>
-              <a href="mailto:careers@renkflow.com">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="bg-primary text-white font-bold py-3 px-8 rounded-full"
-                >
-                  CV Gönder
-                </motion.button>
-              </a>
+              <motion.a
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                href="mailto:careers@renkflow.com"
+                className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 px-8 py-3 text-sm font-semibold text-white shadow-[0_18px_30px_-18px_rgba(14,165,233,0.7)] hover:opacity-90"
+              >
+                CV Gönder
+              </motion.a>
             </div>
           )}
 
@@ -276,16 +281,15 @@ export default function CareersPage() {
               Yetenekli insanlarla tanışmak bizi heyecanlandırıyor. CV&apos;nizi bize gönderin, 
               uygun bir pozisyon açıldığında sizinle iletişime geçelim.
             </p>
-            <a href="mailto:careers@renkflow.com">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-primary text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transition-shadow inline-flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined">mail</span>
-                CV Gönder
-              </motion.button>
-            </a>
+            <motion.a
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              href="mailto:careers@renkflow.com"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 px-8 py-3 text-sm font-semibold text-white shadow-[0_18px_30px_-18px_rgba(14,165,233,0.7)] hover:opacity-90"
+            >
+              <span className="material-symbols-outlined">mail</span>
+              CV Gönder
+            </motion.a>
           </motion.div>
         </section>
       </main>

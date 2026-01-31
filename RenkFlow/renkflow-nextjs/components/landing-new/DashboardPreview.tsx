@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AreaChart, Area, ResponsiveContainer, BarChart, Bar, Cell, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   TrendingUp, 
   Package, 
   Users, 
-  MoreHorizontal, 
   Search, 
   Bell, 
   LayoutDashboard,
@@ -59,21 +58,24 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
   const [notification, setNotification] = useState<{title: string, amount: string} | null>(null);
   const [income, setIncome] = useState(854950);
 
+  const triggerNotification = useCallback((title = 'Sipariş Tamamlandı') => {
+    const randomBonus = Math.floor(Math.random() * 2500) + 2500;
+    setNotification({
+      title,
+      amount: `₺${randomBonus}`
+    });
+    setIncome(prev => prev + randomBonus);
+    setTimeout(() => setNotification(null), 3000);
+  }, []);
+
   // Simulate live updates
   useEffect(() => {
     const interval = setInterval(() => {
-        const randomBonus = Math.floor(Math.random() * 2500) + 2500;
-        setNotification({
-            title: 'Sipariş Tamamlandı',
-            amount: `₺${randomBonus}`
-        });
-        setIncome(prev => prev + randomBonus);
-
-        setTimeout(() => setNotification(null), 3000);
+        triggerNotification('Sipariş Tamamlandı');
     }, 5000); // Faster updates
 
     return () => clearInterval(interval);
-  }, []);
+  }, [triggerNotification]);
 
   const renderContent = () => {
       switch(activeTab) {
@@ -244,6 +246,112 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                       </div>
                   </div>
               );
+        case 'reports':
+            return (
+                <div className="p-6 h-full flex flex-col gap-6 animate-in fade-in duration-300">
+                    <div className="grid grid-cols-3 gap-4">
+                        <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-border shadow-sm">
+                            <p className="text-[10px] text-muted-foreground font-medium">Toplam Gelir</p>
+                            <p className="text-lg font-bold text-slate-900 dark:text-white mt-1">₺1.2M</p>
+                            <p className="text-[10px] text-emerald-500 font-semibold mt-1">+9.4% bu ay</p>
+                        </div>
+                        <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-border shadow-sm">
+                            <p className="text-[10px] text-muted-foreground font-medium">Teslimat Süresi</p>
+                            <p className="text-lg font-bold text-slate-900 dark:text-white mt-1">3.8 gün</p>
+                            <p className="text-[10px] text-blue-500 font-semibold mt-1">-0.6 gün</p>
+                        </div>
+                        <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-border shadow-sm">
+                            <p className="text-[10px] text-muted-foreground font-medium">Fire Oranı</p>
+                            <p className="text-lg font-bold text-slate-900 dark:text-white mt-1">%1.4</p>
+                            <p className="text-[10px] text-amber-500 font-semibold mt-1">stabil</p>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 grid grid-cols-2 gap-4 min-h-0">
+                        <div className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-border shadow-sm flex flex-col">
+                            <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-semibold text-slate-900 dark:text-white text-xs">Üretim Dağılımı</h4>
+                                <span className="text-[10px] text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">Son 30 gün</span>
+                            </div>
+                            <div className="flex-1 min-h-[140px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={barData}>
+                                        <Bar dataKey="value" radius={[6, 6, 6, 6]} animationDuration={1500}>
+                                            {barData.map((entry, index) => (
+                                                <Cell 
+                                                    key={`report-cell-${index}`} 
+                                                    fill={index === 3 ? '#2563EB' : '#E2E8F0'} 
+                                                />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                        <div className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-border shadow-sm flex flex-col">
+                            <h4 className="font-semibold text-slate-900 dark:text-white text-xs mb-3">Öne Çıkan Hatlar</h4>
+                            <div className="flex flex-col gap-3">
+                                {[
+                                    { label: 'Kesim Hattı', value: '₺320K', icon: Box },
+                                    { label: 'Montaj Hattı', value: '₺240K', icon: Briefcase },
+                                    { label: 'Paketleme', value: '₺190K', icon: Truck },
+                                ].map((item, i) => (
+                                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50 border border-border/50">
+                                        <div className="flex items-center gap-2">
+                                            <item.icon size={14} className="text-slate-500" />
+                                            <span className="text-[11px] font-medium text-slate-700 dark:text-slate-200">{item.label}</span>
+                                        </div>
+                                        <span className="text-[11px] font-semibold text-slate-900 dark:text-white">{item.value}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        case 'calendar':
+            return (
+                <div className="p-8 h-full flex flex-col gap-6 animate-in fade-in duration-300">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Üretim Takvimi</h3>
+                        <span className="text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full">Haftalık görünüm</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        {[
+                            { day: 'Pzt', task: 'Kesim - 14 sipariş', color: 'bg-blue-500' },
+                            { day: 'Sal', task: 'Montaj - 11 sipariş', color: 'bg-emerald-500' },
+                            { day: 'Çar', task: 'Boya - 9 sipariş', color: 'bg-purple-500' },
+                            { day: 'Per', task: 'Paketleme - 16 sipariş', color: 'bg-amber-500' },
+                        ].map((item, i) => (
+                            <div key={i} className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-border shadow-sm">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{item.day}</span>
+                                    <span className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
+                                </div>
+                                <p className="text-xs font-semibold text-slate-900 dark:text-white">{item.task}</p>
+                                <p className="text-[10px] text-slate-500 mt-1">08:30 - 17:00</p>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-border shadow-sm">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Calendar size={14} className="text-slate-500" />
+                                <span className="text-xs font-semibold text-slate-900 dark:text-white">Bugünkü görevler</span>
+                            </div>
+                            <span className="text-[10px] text-blue-600 font-semibold">4 adet</span>
+                        </div>
+                        <div className="mt-3 space-y-2">
+                            {['Kesim hattı kontrol', 'Montaj kalite testi', 'Depo sevkiyat planı', 'Müşteri revizyonu'].map((task, idx) => (
+                                <div key={idx} className="flex items-center gap-2 text-[11px] text-slate-600 dark:text-slate-300">
+                                    <CheckCircle2 size={12} className="text-emerald-500" />
+                                    {task}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
         case 'users':
             return (
                 <div className="p-8 h-full flex flex-col items-center justify-center text-center animate-in fade-in duration-300">
@@ -256,12 +364,29 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
             );
         default:
               return (
-                <div className="p-8 h-full flex flex-col items-center justify-center text-center animate-in fade-in duration-300">
-                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 text-slate-400">
-                        <Settings size={32} />
+                <div className="p-8 h-full flex flex-col gap-6 animate-in fade-in duration-300">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-500">
+                            <Settings size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Sistem Ayarları</h3>
+                            <p className="text-[10px] text-slate-500">Takım ve süreç tercihleri</p>
+                        </div>
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Yapım Aşamasında</h3>
-                    <p className="text-slate-500 text-sm max-w-xs">Bu özellik yakında eklenecek.</p>
+                    <div className="grid grid-cols-2 gap-4">
+                        {[
+                            { label: 'Otomatik Bildirimler', status: 'Açık' },
+                            { label: 'Teslimat Hatırlatıcıları', status: 'Açık' },
+                            { label: 'Raporlama Özeti', status: 'Haftalık' },
+                            { label: 'Kalite Kontrol', status: 'Standart' },
+                        ].map((item, i) => (
+                            <div key={i} className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-border shadow-sm">
+                                <p className="text-xs font-semibold text-slate-900 dark:text-white">{item.label}</p>
+                                <p className="text-[10px] text-slate-500 mt-1">{item.status}</p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             );
       }
@@ -304,9 +429,14 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                 ))}
             </div>
 
-            <div className="mt-auto p-2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors hover:rotate-90 duration-500 z-40">
+            <button
+              type="button"
+              onClick={() => setActiveTab('settings')}
+              className="mt-auto p-2 text-muted-foreground hover:text-foreground transition-colors hover:rotate-90 duration-500 z-40"
+              aria-label="Ayarlar"
+            >
                 <Settings size={20} />
-            </div>
+            </button>
         </div>
 
         {/* Main Content Area */}
@@ -325,11 +455,21 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                         <Search size={14} />
                         <span>Ara...</span>
                     </div>
-                    <div className="relative group/bell cursor-pointer">
+                    <button
+                        type="button"
+                        onClick={() => triggerNotification('Yeni Bildirim')}
+                        className="relative group/bell transition-colors"
+                        aria-label="Bildirimler"
+                    >
                         <Bell size={18} className="text-muted-foreground group-hover/bell:text-blue-600 transition-colors" />
                         <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border border-background animate-pulse"></span>
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-orange-400 border-2 border-white shadow-md cursor-pointer hover:scale-105 transition-transform"></div>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('users')}
+                        className="w-8 h-8 rounded-full bg-orange-400 border-2 border-white shadow-md hover:scale-105 transition-transform"
+                        aria-label="Profil"
+                    ></button>
                 </div>
             </div>
 

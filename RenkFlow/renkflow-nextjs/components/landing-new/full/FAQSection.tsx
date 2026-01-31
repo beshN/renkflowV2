@@ -29,15 +29,27 @@ export const FAQSection: React.FC = () => {
   ];
 
   return (
-    <section id="faq" className="py-24 bg-slate-50 dark:bg-slate-900/50">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="faq" className="py-24 bg-slate-50/70 dark:bg-slate-900/50 relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(14,165,233,0.12),transparent_40%),radial-gradient(circle_at_85%_0%,rgba(16,185,129,0.12),transparent_40%)]"
+      />
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
         <div className="text-center mb-16">
+            <motion.p 
+               initial={{ opacity: 0, y: 14 }}
+               whileInView={{ opacity: 1, y: 0 }}
+               viewport={{ once: true }}
+               className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300"
+            >
+                Destek
+            </motion.p>
             <motion.h2 
                initial={{ opacity: 0, y: 20 }}
                whileInView={{ opacity: 1, y: 0 }}
                viewport={{ once: true }}
-               className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-4"
+               className="mt-6 text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-4"
             >
                 Sıkça Sorulan Sorular
             </motion.h2>
@@ -72,14 +84,14 @@ const Accordion = ({ question, answer, index }: { question: string, answer: stri
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: index * 0.1 }}
-            className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-800 shadow-sm hover:shadow-md transition-all duration-300"
+            className="border border-slate-200/70 dark:border-slate-800 rounded-2xl overflow-hidden bg-white/90 dark:bg-slate-900/70 shadow-[0_16px_35px_-30px_rgba(15,23,42,0.4)] hover:shadow-[0_24px_50px_-32px_rgba(14,165,233,0.4)] transition-all duration-300 backdrop-blur"
         >
             <button 
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex justify-between items-center p-6 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                className="w-full flex justify-between items-center p-6 text-left hover:bg-slate-50/70 dark:hover:bg-slate-800/60 transition-colors"
             >
                 <span className="font-semibold text-slate-900 dark:text-white">{question}</span>
-                {isOpen ? <Minus size={20} className="text-blue-600 flex-shrink-0" /> : <Plus size={20} className="text-slate-400 flex-shrink-0" />}
+                {isOpen ? <Minus size={20} className="text-sky-600 flex-shrink-0" /> : <Plus size={20} className="text-slate-400 flex-shrink-0" />}
             </button>
             <AnimatePresence>
                 {isOpen && (
@@ -89,7 +101,7 @@ const Accordion = ({ question, answer, index }: { question: string, answer: stri
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.3, ease: "easeInOut" }}
                     >
-                        <div className="p-6 pt-0 text-slate-600 dark:text-slate-400 leading-relaxed border-t border-slate-100 dark:border-slate-700/50">
+                        <div className="p-6 pt-0 text-slate-600 dark:text-slate-400 leading-relaxed border-t border-slate-100/80 dark:border-slate-700/50">
                             {answer}
                         </div>
                     </motion.div>

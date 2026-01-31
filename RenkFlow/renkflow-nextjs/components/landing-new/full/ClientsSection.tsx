@@ -15,16 +15,31 @@ export const ClientsSection: React.FC = () => {
   ];
 
   return (
-    <section id="integrations" className="py-12 bg-white dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800 overflow-hidden">
+    <section id="integrations" className="py-16 bg-white/80 dark:bg-slate-900/60 border-y border-slate-100 dark:border-slate-800 overflow-hidden relative">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(14,165,233,0.06),transparent_30%,rgba(16,185,129,0.06))]"
+      />
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.p 
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center text-slate-600 dark:text-slate-400 mb-10 font-medium"
-        >
-            Sektör liderlerinin güvendiği platform:
-        </motion.p>
+        <div className="text-center mb-10">
+          <motion.p
+            initial={{ opacity: 0, y: 14 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 dark:bg-slate-800/70 dark:text-slate-300"
+          >
+            Güven
+          </motion.p>
+          <motion.p 
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="mt-4 text-center text-slate-600 dark:text-slate-400 font-medium"
+          >
+              Sektör liderlerinin güvendiği platform:
+          </motion.p>
+        </div>
         
         <div className="relative flex overflow-hidden">
              {/* Gradient Masks */}

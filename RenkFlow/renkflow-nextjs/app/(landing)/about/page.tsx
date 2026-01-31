@@ -24,9 +24,13 @@ export default function About() {
   ];
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900">
+    <div className="min-h-screen bg-[#f7f8fb] dark:bg-slate-950 relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(14,165,233,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_40%)]"
+      />
       
-      <main className="flex-grow">
+      <main className="flex-grow relative z-10">
         {/* Hero Section */}
         <motion.section
           ref={heroRef}
@@ -36,7 +40,10 @@ export default function About() {
           className="w-full py-20 lg:py-32"
         >
           <div className="container mx-auto max-w-5xl px-4 text-center">
-            <h1 className="text-4xl font-black leading-tight tracking-tighter sm:text-5xl md:text-6xl text-text-light dark:text-text-dark">
+            <span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-600 dark:bg-sky-500/10 dark:text-sky-300">
+              Hakkımızda
+            </span>
+            <h1 className="mt-6 text-4xl font-black leading-tight tracking-tighter sm:text-5xl md:text-6xl text-text-light dark:text-text-dark">
               Ekiplerin Birlikte Çalışma Şeklini Değiştiriyoruz
             </h1>
             <p className="mx-auto max-w-2xl text-base sm:text-lg text-gray-600 dark:text-gray-400 mt-6">
@@ -51,7 +58,7 @@ export default function About() {
           initial={{ opacity: 0 }}
           animate={storyInView ? { opacity: 1 } : {}}
           transition={{ duration: 0.8 }}
-          className="w-full py-16 lg:py-24 bg-white dark:bg-black/20"
+          className="w-full py-16 lg:py-24"
         >
           <div className="container mx-auto max-w-5xl px-4">
             <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12">
@@ -67,6 +74,17 @@ export default function About() {
                 <p className="mt-4 text-base font-normal leading-relaxed text-gray-600 dark:text-gray-400">
                   Renkflow basit bir fikirden doğdu: proje yönetimi bir angarya değil, sezgisel, görsel ve işbirlikçi olmalıdır. Ekiplerin aşırı karmaşık araçlarla mücadele ettiğini gördük ve iş akışlarını kolaylaştıran, iletişimi teşvik eden ve her üyenin en iyi işlerini zahmetsizce başarmasını sağlayan bir platform oluşturmak için yola çıktık.
                 </p>
+                <div className="mt-6 flex flex-wrap gap-3 text-sm text-slate-500 dark:text-slate-400">
+                  <span className="rounded-full border border-slate-200/70 bg-white/80 px-4 py-2 dark:border-slate-800 dark:bg-slate-900/70">
+                    2019&apos;dan beri
+                  </span>
+                  <span className="rounded-full border border-slate-200/70 bg-white/80 px-4 py-2 dark:border-slate-800 dark:bg-slate-900/70">
+                    20+ ekip
+                  </span>
+                  <span className="rounded-full border border-slate-200/70 bg-white/80 px-4 py-2 dark:border-slate-800 dark:bg-slate-900/70">
+                    Türkiye ve Avrupa
+                  </span>
+                </div>
               </motion.div>
               
               <motion.div
@@ -75,7 +93,7 @@ export default function About() {
                 transition={{ delay: 0.4, duration: 0.6 }}
                 className="flex-1 w-full"
               >
-                <div className="aspect-video w-full rounded-xl overflow-hidden relative">
+                <div className="aspect-video w-full rounded-3xl overflow-hidden relative border border-slate-200/70 bg-white/80 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900/70">
                   <Image
                     src="/team-collaboration.png"
                     alt="Team collaboration"
@@ -98,10 +116,10 @@ export default function About() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.6 }}
                 whileHover={{ y: -5 }}
-                className="flex flex-col gap-4 rounded-xl border border-border-light dark:border-border-dark p-6 bg-white dark:bg-black/20"
+                className="flex flex-col gap-4 rounded-3xl border border-slate-200/70 dark:border-slate-800 p-6 bg-white/90 dark:bg-slate-900/70 shadow-[0_25px_55px_-40px_rgba(15,23,42,0.45)]"
               >
                 <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary/20 text-secondary">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300">
                     <span className="material-symbols-outlined">rocket_launch</span>
                   </div>
                   <h3 className="text-xl font-bold">Misyonumuz</h3>
@@ -117,10 +135,10 @@ export default function About() {
                 viewport={{ once: true }}
                 transition={{ delay: 0.1, duration: 0.6 }}
                 whileHover={{ y: -5 }}
-                className="flex flex-col gap-4 rounded-xl border border-border-light dark:border-border-dark p-6 bg-white dark:bg-black/20"
+                className="flex flex-col gap-4 rounded-3xl border border-slate-200/70 dark:border-slate-800 p-6 bg-white/90 dark:bg-slate-900/70 shadow-[0_25px_55px_-40px_rgba(15,23,42,0.45)]"
               >
                 <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary/20 text-secondary">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300">
                     <span className="material-symbols-outlined">visibility</span>
                   </div>
                   <h3 className="text-xl font-bold">Vizyonumuz</h3>
@@ -136,7 +154,7 @@ export default function About() {
         {/* Core Values */}
         <motion.section
           ref={valuesRef}
-          className="w-full py-16 lg:py-24 bg-white dark:bg-black/20"
+          className="w-full py-16 lg:py-24"
         >
           <div className="container mx-auto max-w-5xl px-4">
             <motion.div
@@ -145,6 +163,9 @@ export default function About() {
               transition={{ duration: 0.6 }}
               className="text-center mb-12"
             >
+              <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300">
+                Değerler
+              </span>
               <h2 className="text-3xl font-bold leading-tight tracking-[-0.015em] text-text-light dark:text-text-dark">
                 Temel Değerlerimiz
               </h2>
@@ -159,9 +180,9 @@ export default function About() {
                   animate={valuesInView ? { opacity: 1, y: 0 } : {}}
                   transition={{ delay: i * 0.1, duration: 0.6 }}
                   whileHover={{ y: -5 }}
-                  className="flex flex-col items-center text-center"
+                  className="flex flex-col items-center text-center rounded-2xl border border-slate-200/70 bg-white/80 p-6 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.35)] dark:border-slate-800 dark:bg-slate-900/70"
                 >
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/20 text-primary mb-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 text-white mb-4">
                     <span className="material-symbols-outlined text-3xl">{value.icon}</span>
                   </div>
                   <h4 className="font-bold">{value.title}</h4>
@@ -176,6 +197,9 @@ export default function About() {
         <section className="w-full py-16 lg:py-24">
           <div className="container mx-auto max-w-5xl px-4">
             <div className="text-center mb-12">
+              <span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-600 dark:bg-sky-500/10 dark:text-sky-300">
+                Ekibimiz
+              </span>
               <h2 className="text-3xl font-bold leading-tight tracking-[-0.015em] text-text-light dark:text-text-dark">
                 Ekiple Tanışın
               </h2>
@@ -191,7 +215,7 @@ export default function About() {
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1, duration: 0.6 }}
                   whileHover={{ y: -8 }}
-                  className="text-center"
+                  className="text-center rounded-2xl border border-slate-200/70 bg-white/80 p-6 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.35)] dark:border-slate-800 dark:bg-slate-900/70"
                 >
                   <div className="aspect-square w-full max-w-xs mx-auto rounded-full bg-gray-300 dark:bg-gray-600 mb-4 overflow-hidden">
                     <div className="w-full h-full flex items-center justify-center text-6xl text-gray-400">
@@ -199,7 +223,7 @@ export default function About() {
                     </div>
                   </div>
                   <h4 className="font-bold text-lg">{member.name}</h4>
-                  <p className="text-sm text-primary">{member.role}</p>
+                  <p className="text-sm text-sky-600">{member.role}</p>
                 </motion.div>
               ))}
             </div>
@@ -214,21 +238,26 @@ export default function About() {
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
-              className="rounded-xl bg-primary text-white p-8 md:p-12 text-center"
+              className="rounded-[36px] bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 text-white p-8 md:p-12 text-center shadow-[0_30px_60px_-40px_rgba(14,165,233,0.6)]"
             >
               <h2 className="text-3xl font-bold leading-tight tracking-tight">Renkflow Topluluğuna Katılın</h2>
               <p className="mt-2 mx-auto max-w-2xl text-white/80">
                 İş akışınızı iyileştirmeye ve ekibinizin potansiyelini en üst düzeye çıkarmaya bugün başlayın.
               </p>
-              <Link href="/signup">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="mt-8 bg-white text-primary font-bold py-3 px-8 rounded-lg hover:bg-gray-200 transition-colors"
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+                <Link
+                  href="/signup"
+                  className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-100"
                 >
                   Hemen Başlayın
-                </motion.button>
-              </Link>
+                </Link>
+                <Link
+                  href="/contact"
+                  className="inline-flex items-center justify-center rounded-full border border-white/70 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10"
+                >
+                  Demo Talep Et
+                </Link>
+              </div>
             </motion.div>
           </div>
         </section>

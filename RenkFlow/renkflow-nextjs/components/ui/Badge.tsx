@@ -16,7 +16,7 @@ export function Badge({ children, variant = 'default', status, className }: Badg
     return (
       <span
         className={cn(
-          'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
+          'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ring-slate-900/5 dark:ring-white/10',
           statusInfo.bgColor,
           statusInfo.color,
           className
@@ -39,7 +39,7 @@ export function Badge({ children, variant = 'default', status, className }: Badg
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ring-slate-900/5 dark:ring-white/10',
         variants[variant],
         className
       )}

@@ -2,24 +2,43 @@
 
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
-import { useTheme } from '@/lib/context/ThemeContext';
 import { Mail, MapPin, Phone, Send } from 'lucide-react';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 export default function ContactPage() {
   const [mounted, setMounted] = useState(false);
-  const { theme, toggleTheme } = useTheme();
-
   useEffect(() => {
     setMounted(true);
   }, []);
 
   if (!mounted) return null;
 
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const firstName = String(formData.get('firstName') || '').trim();
+    const lastName = String(formData.get('lastName') || '').trim();
+    const topic = String(formData.get('topic') || '').trim();
+    const message = String(formData.get('message') || '').trim();
+
+    const params = new URLSearchParams({
+      subject: `Renkflow İletişim: ${topic || 'Genel'}`,
+      body: `Ad Soyad: ${firstName} ${lastName}\nKonu: ${topic}\n\nMesaj:\n${message}`,
+    });
+    window.location.href = `mailto:info@renkflow.com?${params.toString()}`;
+    event.currentTarget.reset();
+  };
+
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-[#f7f8fb] dark:bg-slate-950 relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(14,165,233,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_40%)]"
+      />
 
 
-      <main className="flex-grow pt-32 pb-20 px-6 md:px-12">
+      <main className="flex-grow pt-32 pb-20 px-6 md:px-12 relative z-10">
         <div className="max-w-6xl mx-auto">
           
           <div className="grid md:grid-cols-2 gap-16 items-start">
@@ -30,6 +49,9 @@ export default function ContactPage() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6 }}
             >
+              <span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-600 dark:bg-sky-500/10 dark:text-sky-300">
+                İletişim
+              </span>
               <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-6">
                 İletişime Geçin
               </h1>
@@ -79,24 +101,24 @@ export default function ContactPage() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="bg-card border border-border rounded-3xl p-8 shadow-sm"
+              className="bg-white/90 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 rounded-3xl p-8 shadow-[0_20px_45px_-30px_rgba(15,23,42,0.4)] backdrop-blur"
             >
               <h3 className="text-2xl font-bold text-foreground mb-6">Bize Yazın</h3>
-              <form className="space-y-4">
+              <form className="space-y-4" onSubmit={handleSubmit}>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Adınız</label>
-                    <input type="text" className="w-full h-12 rounded-xl bg-background border border-input focus:ring-2 focus:ring-primary/20 focus:border-primary px-4 outline-none transition-all" placeholder="Adınız" />
+                    <Input name="firstName" type="text" placeholder="Adınız" className="h-12 rounded-xl" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Soyadınız</label>
-                    <input type="text" className="w-full h-12 rounded-xl bg-background border border-input focus:ring-2 focus:ring-primary/20 focus:border-primary px-4 outline-none transition-all" placeholder="Soyadınız" />
+                    <Input name="lastName" type="text" placeholder="Soyadınız" className="h-12 rounded-xl" />
                   </div>
                 </div>
                 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Konu</label>
-                  <select className="w-full h-12 rounded-xl bg-background border border-input focus:ring-2 focus:ring-primary/20 focus:border-primary px-4 outline-none transition-all">
+                  <select name="topic" className="input-professional h-12 rounded-xl">
                     <option>Satış & Teklif</option>
                     <option>Teknik Destek</option>
                     <option>Öneri & Geri Bildirim</option>
@@ -106,12 +128,16 @@ export default function ContactPage() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Mesajınız</label>
-                  <textarea className="w-full h-32 rounded-xl bg-background border border-input focus:ring-2 focus:ring-primary/20 focus:border-primary p-4 outline-none transition-all resize-none" placeholder="Size nasıl yardımcı olabiliriz?"></textarea>
+                  <textarea
+                    name="message"
+                    className="input-professional h-32 rounded-xl resize-none"
+                    placeholder="Size nasıl yardımcı olabiliriz?"
+                  ></textarea>
                 </div>
 
-                <button type="submit" className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+                <Button type="submit" size="lg" className="w-full h-12 rounded-xl">
                   Gönder <Send size={18} />
-                </button>
+                </Button>
               </form>
             </motion.div>
 

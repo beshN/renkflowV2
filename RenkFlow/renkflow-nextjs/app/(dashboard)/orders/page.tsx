@@ -1,238 +1,459 @@
 'use client';
 
-import { useState } from 'react';
-import { Navbar } from '@/components/layout/Navbar';
-import { OrderTable } from '@/components/orders/OrderTable';
-import { KanbanBoard } from '@/components/orders/KanbanBoard';
-import { CalendarView } from '@/components/orders/CalendarView';
-import { useOrders } from '@/lib/hooks/useOrders';
-import { Order, ViewMode } from '@/lib/types';
-import { useToast } from '@/lib/context/ToastContext';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+/**
+ * Enterprise Orders Page
+ * Full-featured data management platform
+ */
 
-import { useSearch } from '@/lib/hooks/useSearch';
-import { usePagination } from '@/lib/hooks/usePagination';
-import { useSort } from '@/lib/hooks/useSort';
+import { useEffect, useMemo, useCallback, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Navbar } from '@/components/layout/Navbar';
+import { useOrders } from '@/lib/hooks/useOrders';
+import { useToast } from '@/lib/context/ToastContext';
+import { useOrdersStore, ViewMode } from '@/lib/stores/orders.store';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { exportOrders, ExportFormat } from '@/lib/utils/export';
+import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Enterprise Components
+import {
+  DataGrid,
+  FilterSidebar,
+  BulkActionsToolbar,
+  CommandPalette,
+  KanbanBoardV2,
+  CalendarView,
+} from '@/components/orders/enterprise';
+import { Order, OrderStatus } from '@/lib/types';
 
 export default function OrdersPage() {
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const { orders, deleteOrder, updateOrderStatus, isLoading } = useOrders();
+  const router = useRouter();
+  const { orders, deleteOrder, updateOrderStatus, updateOrder, refresh, isLoading } = useOrders();
   const { showToast } = useToast();
-  
-  const [deleteConfirmState, setDeleteConfirmState] = useState<{ isOpen: boolean; orderId: string | null }>({ 
-    isOpen: false, 
-    orderId: null 
-  });
-  const [isDeleting, setIsDeleting] = useState(false);
-  
-  // 1. Search
-  const { searchTerm, setSearchTerm, filteredData } = useSearch(orders, ['id', 'customer', 'product']);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // 2. Sort
-  const { sortedData, requestSort, sortConfig } = useSort(filteredData);
+  // Zustand store
+  const {
+    viewMode,
+    setViewMode,
+    setOrders,
+    setLoading,
+    setTotalCount,
+    filters,
+    setSearch,
+    isSidebarOpen,
+    selectedIds,
+    selectAllMode,
+    selectAll,
+    clearSelection,
+    getFilteredOrders,
+    getSelectedOrders,
+    isConnected,
+    setConnected,
+    setOffline,
+    lastSyncAt,
+    setLastSyncAt,
+    autoRefreshInterval,
+    setAutoRefreshInterval,
+    dirtyRows,
+    clearDirtyRow,
+    discardDirtyRows,
+    setCalendarView,
+  } = useOrdersStore();
 
-  // 3. Pagination
-  const { 
-    currentData: paginatedOrders, 
-    currentPage, 
-    totalPages, 
-    goToPage, 
-    nextPage, 
-    prevPage 
-  } = usePagination(sortedData, 10);
+  // Sync orders to store
+  useEffect(() => {
+    setOrders(orders);
+    setTotalCount(orders.length);
+    setLoading(isLoading);
+  }, [orders, isLoading, setOrders, setTotalCount, setLoading]);
 
-  const handleDeleteClick = (id: string) => {
-    setDeleteConfirmState({ isOpen: true, orderId: id });
-  };
+  // Online/offline detection for connection status
+  useEffect(() => {
+    const updateConnection = () => {
+      const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      setConnected(online);
+      setOffline(!online);
+    };
 
-  const handleConfirmDelete = async () => {
-    if (!deleteConfirmState.orderId) return;
-    
-    setIsDeleting(true);
-    try {
-      await deleteOrder(deleteConfirmState.orderId);
-      showToast('Sipariş başarıyla silindi', 'success');
-      setDeleteConfirmState({ isOpen: false, orderId: null });
-    } catch (error) {
-      showToast('Sipariş silinirken bir hata oluştu', 'error');
-    } finally {
-      setIsDeleting(false);
+    updateConnection();
+    window.addEventListener('online', updateConnection);
+    window.addEventListener('offline', updateConnection);
+
+    return () => {
+      window.removeEventListener('online', updateConnection);
+      window.removeEventListener('offline', updateConnection);
+    };
+  }, [setConnected, setOffline]);
+
+  // Auto-refresh polling
+  useEffect(() => {
+    if (!autoRefreshInterval) return;
+
+    const intervalId = setInterval(async () => {
+      await refresh();
+      setLastSyncAt(new Date());
+    }, autoRefreshInterval);
+
+    return () => clearInterval(intervalId);
+  }, [autoRefreshInterval, refresh, setLastSyncAt]);
+
+  // Update last sync on successful load
+  useEffect(() => {
+    if (!isLoading) {
+      setLastSyncAt(new Date());
     }
-  };
+  }, [isLoading, orders, setLastSyncAt]);
+
+  // Get filtered orders
+  const filteredOrders = useMemo(() => getFilteredOrders(), [getFilteredOrders, orders, filters]);
+  const filteredIds = useMemo(() => filteredOrders.map((order) => order.id), [filteredOrders]);
+
+  // Keep select-all in sync with current filters
+  useEffect(() => {
+    if (selectAllMode === 'all') {
+      selectAll('all', filteredIds);
+    }
+  }, [selectAllMode, filteredIds, selectAll]);
+
+  // Extract unique customers and products for filter autocomplete
+  const uniqueCustomers = useMemo(
+    () => [...new Set(orders.map((o) => o.customerName).filter(Boolean))] as string[],
+    [orders]
+  );
+  const uniqueProducts = useMemo(
+    () => [...new Set(orders.map((o) => o.productName).filter(Boolean))] as string[],
+    [orders]
+  );
+
+  // Handle export
+  const handleExport = useCallback(
+    (format: ExportFormat) => {
+      const ordersToExport = selectedIds.size > 0 ? getSelectedOrders() : filteredOrders;
+      exportOrders(ordersToExport, format);
+      showToast(`${ordersToExport.length} sipariş ${format.toUpperCase()} olarak dışa aktarıldı`, 'success');
+    },
+    [selectedIds, getSelectedOrders, filteredOrders, showToast]
+  );
+
+  // Handle status change
+  const handleStatusChange = useCallback(
+    async (orderId: string, status: OrderStatus) => {
+      try {
+        await updateOrderStatus(orderId, status);
+        showToast('Sipariş durumu güncellendi', 'success');
+      } catch (error) {
+        showToast('Durum güncellenirken hata oluştu', 'error');
+      }
+    },
+    [updateOrderStatus, showToast]
+  );
+
+  // Handle order click
+  const handleOrderClick = useCallback(
+    (order: { id: string }) => {
+      router.push(`/orders/${order.id}`);
+    },
+    [router]
+  );
+
+  // Bulk delete
+  const handleBulkDelete = useCallback(
+    async (ids?: string[]) => {
+      const targetIds = ids && ids.length > 0 ? ids : Array.from(selectedIds);
+      if (targetIds.length === 0) return;
+
+      try {
+        for (const id of targetIds) {
+          await deleteOrder(id);
+        }
+        clearSelection();
+        showToast(`${targetIds.length} sipariş silindi`, 'success');
+      } catch (error) {
+        showToast('Siparişler silinirken hata oluştu', 'error');
+      }
+    },
+    [selectedIds, deleteOrder, showToast]
+  );
+
+  // Bulk status change
+  const handleBulkStatusChange = useCallback(
+    async (ids: string[], status: OrderStatus) => {
+      if (ids.length === 0) return;
+
+      try {
+        for (const id of ids) {
+          await updateOrderStatus(id, status);
+        }
+        showToast('Sipariş durumu güncellendi', 'success');
+      } catch (error) {
+        showToast('Toplu güncelleme sırasında hata oluştu', 'error');
+      }
+    },
+    [updateOrderStatus, showToast]
+  );
+
+  // Save dirty rows (inline edits)
+  const handleSaveDirtyRows = useCallback(async () => {
+    if (dirtyRows.size === 0 || isSaving) return;
+    setIsSaving(true);
+
+    try {
+      const dirtyEntries = Array.from(dirtyRows.values());
+      for (const dirty of dirtyEntries) {
+        const updates: Partial<Order> = {};
+        Object.entries(dirty.changes).forEach(([key, change]) => {
+          (updates as Record<string, unknown>)[key] = change.current;
+        });
+        await updateOrder(dirty.rowId, updates);
+        clearDirtyRow(dirty.rowId);
+      }
+      showToast('Değişiklikler kaydedildi', 'success');
+    } catch (error) {
+      showToast('Değişiklikler kaydedilemedi', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [dirtyRows, isSaving, updateOrder, clearDirtyRow, showToast]);
+
+  // View mode icons
+  const viewModes: { mode: ViewMode; icon: string; label: string }[] = [
+    { mode: 'grid', icon: 'table_rows', label: 'Tablo' },
+    { mode: 'kanban', icon: 'view_kanban', label: 'Kanban' },
+    { mode: 'calendar', icon: 'calendar_month', label: 'Takvim' },
+    { mode: 'timeline', icon: 'timeline', label: 'Timeline' },
+  ];
+
+  const handleViewModeChange = useCallback(
+    (mode: ViewMode) => {
+      setViewMode(mode);
+      if (mode === 'timeline') {
+        setCalendarView('timeline');
+      }
+      if (mode === 'calendar') {
+        setCalendarView('month');
+      }
+    },
+    [setViewMode, setCalendarView]
+  );
+
+  // Auto-refresh options
+  const refreshOptions = [
+    { value: null, label: 'Manuel' },
+    { value: 30000, label: '30 sn' },
+    { value: 60000, label: '1 dk' },
+    { value: 300000, label: '5 dk' },
+  ];
+
+  // Global keyboard shortcuts
+  useKeyboardShortcuts({
+    onBulkDelete: handleBulkDelete,
+    onExport: () => handleExport('csv'),
+  });
 
   return (
-    <div className="flex-1 flex flex-col">
-      <Navbar 
-        title="Siparişler" 
-        showSearch={true} 
-        onSearch={setSearchTerm}
+    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+      {/* Command Palette */}
+      <CommandPalette />
+
+      {/* Navbar */}
+      <Navbar
+        title="Siparişler"
+        showSearch={true}
+        onSearch={setSearch}
       />
-      
-      <main className="flex-1 p-4 md:p-8 pt-16 md:pt-8">
-        {/* Header with View Toggle and Export */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-lg md:text-xl font-semibold text-text-light dark:text-text-dark">
-              Tüm Siparişler
-            </h2>
-            <p className="text-xs md:text-sm text-subtle-light dark:text-subtle-dark mt-1">
-              Toplam {filteredData.length} sipariş
-              {searchTerm && ` ("${searchTerm}" için sonuçlar)`}
-            </p>
-          </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-             {/* Export Button */}
-             <button
-                onClick={() => {
-                  const headers = ['ID', 'Müşteri', 'Ürün', 'Tutar', 'Durum', 'Tarih'];
-                  const csvContent = "data:text/csv;charset=utf-8," 
-                      + headers.join(",") + "\n"
-                      + filteredData.map(order => [
-                          order.id, 
-                          `"${order.customer}"`, // Quote strings with commas 
-                          `"${order.product}"`,
-                          order.amount,
-                          order.status,
-                          new Date(order.date).toLocaleDateString()
-                        ].join(",")).join("\n");
-                  
-                  const encodedUri = encodeURI(csvContent);
-                  const link = document.createElement("a");
-                  link.setAttribute("href", encodedUri);
-                  link.setAttribute("download", "siparisler_export.csv");
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                  showToast('Siparişler dışa aktarıldı', 'success');
-                }}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-slate-700 dark:text-slate-200 shadow-sm"
-             >
-                <span className="material-symbols-outlined text-[18px]">download</span>
-                Dışa Aktar
-             </button>
-
-            {/* View Mode Toggle */}
-            <div className="flex gap-1 md:gap-2 bg-card-light dark:bg-card-dark rounded-lg p-1 border border-border-light dark:border-border-dark overflow-x-auto">
-              <button
-                onClick={() => setViewMode('list')}
-                className={`flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
-                  viewMode === 'list'
-                    ? 'bg-primary text-white'
-                    : 'text-subtle-light dark:text-subtle-dark hover:text-text-light dark:hover:text-text-dark'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[16px] md:text-[18px]">table_rows</span>
-                <span className="hidden sm:inline">Liste</span>
-              </button>
-              <button
-                onClick={() => setViewMode('table')}
-                className={`flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
-                  viewMode === 'table'
-                    ? 'bg-primary text-white'
-                    : 'text-subtle-light dark:text-subtle-dark hover:text-text-light dark:hover:text-text-dark'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[16px] md:text-[18px]">view_kanban</span>
-                <span className="hidden sm:inline">Tablo</span>
-              </button>
-              <button
-                onClick={() => setViewMode('calendar')}
-                className={`flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
-                  viewMode === 'calendar'
-                    ? 'bg-primary text-white'
-                    : 'text-subtle-light dark:text-subtle-dark hover:text-text-light dark:hover:text-text-dark'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[16px] md:text-[18px]">calendar_month</span>
-                <span className="hidden sm:inline">Takvim</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Loading State */}
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 space-y-4">
-            <div className="relative">
-              <div className="w-16 h-16 border-4 border-primary/20 rounded-full"></div>
-              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
-            </div>
-            <p className="text-lg font-medium text-text-light dark:text-text-dark">Siparişler yükleniyor...</p>
-            <p className="text-sm text-subtle-light dark:text-subtle-dark">Lütfen bekleyin</p>
-          </div>
-        ) : orders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 space-y-4">
-            <span className="material-symbols-outlined text-6xl text-subtle-light dark:text-subtle-dark">inventory_2</span>
-            <p className="text-lg font-medium text-text-light dark:text-text-dark">Henüz sipariş bulunmuyor</p>
-            <p className="text-sm text-subtle-light dark:text-subtle-dark">Yeni sipariş ekleyerek başlayın</p>
-          </div>
-        ) : viewMode === 'list' ? (
-          <>
-            <OrderTable 
-              orders={paginatedOrders} 
-              onDelete={handleDeleteClick}
-              onStatusChange={updateOrderStatus}
-              onSort={requestSort}
-              sortConfig={sortConfig}
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden pt-16 md:pt-0">
+        {/* Filter Sidebar */}
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <FilterSidebar
+              customers={uniqueCustomers}
+              products={uniqueProducts}
             />
-            
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4 border-t border-border-light dark:border-border-dark pt-4">
-                <p className="text-sm text-subtle-light dark:text-subtle-dark">
-                  Sayfa {currentPage} / {totalPages}
+          )}
+        </AnimatePresence>
+
+        {/* Main Area */}
+        <main className="flex-1 flex flex-col overflow-hidden">
+          {/* Header */}
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Siparişler
+                </h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {filteredOrders.length} / {orders.length} sipariş
+                  {filters.search && ` • "${filters.search}" için sonuçlar`}
                 </p>
-                <div className="flex gap-2">
+              </div>
+
+              {/* Connection Status */}
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-full">
+                <div
+                  className={cn(
+                    'w-2 h-2 rounded-full',
+                    isConnected ? 'bg-green-500' : 'bg-gray-400'
+                  )}
+                />
+                <span className="text-xs text-gray-600 dark:text-gray-400">
+                  {isConnected ? 'Bağlı' : 'Çevrimdışı'}
+                </span>
+              </div>
+
+              {/* Last Sync */}
+              {lastSyncAt && (
+                <span className="text-xs text-gray-500">
+                  Son güncelleme: {new Date(lastSyncAt).toLocaleTimeString('tr-TR')}
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Dirty State Warning */}
+              {dirtyRows.size > 0 && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                  <span className="text-sm text-yellow-700 dark:text-yellow-300">
+                    {dirtyRows.size} kaydedilmemiş değişiklik
+                  </span>
                   <button
-                    onClick={prevPage}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 rounded-md border border-border-light dark:border-border-dark text-sm disabled:opacity-50 hover:bg-card-light dark:hover:bg-card-dark transition-colors"
+                    onClick={handleSaveDirtyRows}
+                    disabled={isSaving}
+                    className="text-xs px-2 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-60"
                   >
-                    Önceki
+                    Kaydet
                   </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => goToPage(page)}
-                      className={`px-3 py-1 rounded-md border border-border-light dark:border-border-dark text-sm transition-colors ${
-                        currentPage === page
-                          ? 'bg-primary text-white border-primary'
-                          : 'hover:bg-card-light dark:hover:bg-card-dark'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
                   <button
-                    onClick={nextPage}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1 rounded-md border border-border-light dark:border-border-dark text-sm disabled:opacity-50 hover:bg-card-light dark:hover:bg-card-dark transition-colors"
+                    onClick={() => discardDirtyRows()}
+                    className="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
                   >
-                    Sonraki
+                    İptal
                   </button>
                 </div>
-              </div>
-            )}
-          </>
-        ) : viewMode === 'table' ? (
-          <KanbanBoard orders={filteredData} onOrderStatusChange={updateOrderStatus} />
-        ) : (
-          <CalendarView orders={filteredData} />
-        )}
-      </main>
+              )}
 
-      {/* Confirm Delete Dialog */}
-      <ConfirmDialog
-        isOpen={deleteConfirmState.isOpen}
-        onClose={() => setDeleteConfirmState({ isOpen: false, orderId: null })}
-        onConfirm={handleConfirmDelete}
-        title="Siparişi Sil"
-        message="Bu siparişi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
-        confirmText="Sil"
-        variant="danger"
-        isLoading={isDeleting}
-      />
+              {/* Auto Refresh */}
+              <select
+                value={autoRefreshInterval ?? ''}
+                onChange={(e) => setAutoRefreshInterval(e.target.value ? parseInt(e.target.value) : null)}
+                className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg border-0 focus:ring-2 focus:ring-blue-500"
+              >
+                {refreshOptions.map((opt) => (
+                  <option key={opt.label} value={opt.value ?? ''}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* View Mode Toggle */}
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                {viewModes.map(({ mode, icon, label }) => (
+                  <button
+                    key={mode}
+                    onClick={() => handleViewModeChange(mode)}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors',
+                      viewMode === mode
+                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    )}
+                    title={label}
+                  >
+                    <span className="material-symbols-outlined text-lg">{icon}</span>
+                    <span className="hidden lg:inline">{label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* New Order Button */}
+              <button
+                onClick={() => router.push('/orders/new')}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">add</span>
+                <span className="hidden sm:inline">Yeni Sipariş</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Content Area */}
+          <div className="flex-1 overflow-auto p-6">
+            <AnimatePresence mode="wait">
+              {isLoading ? (
+                <motion.div
+                  key="loading"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex flex-col items-center justify-center h-full"
+                >
+                  <div className="relative w-16 h-16">
+                    <div className="absolute inset-0 border-4 border-blue-200 dark:border-blue-900 rounded-full" />
+                    <div className="absolute inset-0 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                  <p className="mt-4 text-gray-500 dark:text-gray-400">Siparişler yükleniyor...</p>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={viewMode}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="h-full"
+                >
+                  {viewMode === 'grid' && (
+                    <DataGrid
+                      data={filteredOrders}
+                      onRowClick={handleOrderClick}
+                    />
+                  )}
+                  {viewMode === 'kanban' && (
+                    <KanbanBoardV2
+                      orders={filteredOrders}
+                      onOrderClick={handleOrderClick}
+                      onStatusChange={handleStatusChange}
+                    />
+                  )}
+                  {viewMode === 'calendar' && (
+                    <CalendarView
+                      orders={filteredOrders}
+                      onOrderClick={handleOrderClick}
+                    />
+                  )}
+                  {viewMode === 'timeline' && (
+                    <CalendarView
+                      orders={filteredOrders}
+                      onOrderClick={handleOrderClick}
+                    />
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </main>
+      </div>
+
+      {/* Bulk Actions Toolbar */}
+      <AnimatePresence>
+        {(selectedIds.size > 0 || selectAllMode === 'all') && (
+          <BulkActionsToolbar
+            totalFilteredCount={filteredOrders.length}
+            filteredIds={filteredIds}
+            onExport={handleExport}
+            onBulkUpdateStatus={handleBulkStatusChange}
+            onBulkDelete={handleBulkDelete}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Keyboard Shortcuts Hint */}
+      <div className="fixed bottom-4 right-4 hidden lg:flex items-center gap-2 px-3 py-2 bg-gray-900/80 text-white text-xs rounded-lg backdrop-blur-sm">
+        <kbd className="px-1.5 py-0.5 bg-gray-700 rounded">⌘K</kbd>
+        <span>Komut Paleti</span>
+      </div>
     </div>
   );
 }

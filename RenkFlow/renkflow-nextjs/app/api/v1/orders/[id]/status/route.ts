@@ -1,7 +1,9 @@
 import { NextRequest } from 'next/server';
 import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
 import { orderService } from '@/lib/services';
-import { Order } from '@/lib/types';
+import { hasPermission, UserRole, AuthorizationError } from '@/lib/auth/rbac';
+import { statusUpdateSchema, orderIdSchema, formatValidationErrors } from '@/lib/validations/order.schema';
+import { ZodError } from 'zod';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -12,9 +14,6 @@ export async function OPTIONS() {
   return handleCORS();
 }
 
-// Valid order statuses
-const VALID_STATUSES: Order['status'][] = ['pending', 'in_production', 'delivered'];
-
 // PATCH /api/v1/orders/:id/status - Update order status
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
@@ -24,20 +23,31 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return errorResponse('Yetkilendirme gereklidir', 401);
     }
 
-    // All authenticated users can update status (workers, office, admin, owner)
-    // This is intentional for mobile app usage by workers
+    // RBAC Check: Workers can update status (for mobile app)
+    // But only on orders assigned to them (enforced at service level)
+    const userRole = (user.role as UserRole) || 'member';
+    if (!hasPermission(userRole, 'orders', 'update')) {
+      return errorResponse('Durum güncelleme yetkiniz bulunmuyor', 403);
+    }
 
     const { id } = await params;
-    const body = await request.json();
-    const { status } = body;
-
-    // Validate status
-    if (!status || !VALID_STATUSES.includes(status)) {
-      return errorResponse(
-        `Geçersiz durum. Geçerli değerler: ${VALID_STATUSES.join(', ')}`,
-        400
-      );
+    
+    // Validate ID format
+    const idValidation = orderIdSchema.safeParse(id);
+    if (!idValidation.success) {
+      return errorResponse('Geçersiz sipariş ID formatı', 400);
     }
+
+    const body = await request.json();
+
+    // Validate status with Zod
+    const validationResult = statusUpdateSchema.safeParse(body);
+    if (!validationResult.success) {
+      const errors = formatValidationErrors(validationResult.error);
+      return errorResponse('Geçersiz durum: ' + Object.values(errors).join(', '), 400);
+    }
+
+    const { status } = validationResult.data;
 
     // Check if order exists
     const existingOrder = await orderService.getOrderById(id);
@@ -50,6 +60,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return successResponse(order, `Sipariş durumu "${status}" olarak güncellendi`);
   } catch (error: unknown) {
     console.error('Update order status error:', error);
+    
+    if (error instanceof ZodError) {
+      const errors = formatValidationErrors(error);
+      return errorResponse('Geçersiz veri: ' + Object.values(errors).join(', '), 400);
+    }
+    
+    if (error instanceof AuthorizationError) {
+      return errorResponse(error.message, 403);
+    }
+    
     return errorResponse('Sipariş durumu güncellenirken bir hata oluştu', 500);
   }
 }

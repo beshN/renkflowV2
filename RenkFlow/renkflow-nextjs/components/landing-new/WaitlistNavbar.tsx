@@ -22,10 +22,10 @@ export const WaitlistNavbar = () => {
 
   return (
     <nav 
-      className={`fixed top-0 z-50 w-full transition-all duration-300 ${
+      className={`fixed top-0 z-50 w-full bg-transparent transition-all duration-300 ${
         scrolled 
-          ? 'bg-background/80 backdrop-blur-xl shadow-sm' 
-          : 'bg-transparent'
+          ? 'backdrop-blur-xl shadow-[0_10px_30px_-20px_rgba(15,23,42,0.35)]' 
+          : ''
       }`}
     >
       {/* 
@@ -35,13 +35,13 @@ export const WaitlistNavbar = () => {
       */}
       {/* Large Logo - Fixed to the absolute top-left corner */}
       <Link href="/" className="fixed top-0 left-0 z-[60] group block">
-        <div className="relative h-24 w-72 md:h-48 md:w-[600px] transition-transform duration-300 group-hover:scale-105">
+        <div className="relative h-24 w-72 md:h-48 md:w-[600px] overflow-hidden transition-transform duration-300 group-hover:scale-105">
             <Image 
               src="/logo-full.png" 
               alt="RenkFlow" 
               fill
               sizes="(max-width: 768px) 300px, 600px"
-              className="object-contain object-left"
+              className="object-contain object-left scale-[1.85] origin-left"
               priority
             />
         </div>

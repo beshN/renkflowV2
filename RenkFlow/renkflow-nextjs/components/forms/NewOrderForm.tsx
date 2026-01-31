@@ -13,11 +13,11 @@ interface NewOrderFormProps {
 
 interface FormErrors {
   customerName?: string;
-  customerEmail?: string;
-  customerPhone?: string;
+  email?: string;
+  phone?: string;
   productName?: string;
   quantity?: string;
-  unitPrice?: string;
+  totalAmount?: string;
 }
 
 // Default departments - these could come from settings in the future
@@ -31,11 +31,12 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
   const router = useRouter();
   const [formData, setFormData] = useState<NewOrderFormData>(initialData || {
     customerName: '',
-    customerEmail: '',
-    customerPhone: '',
+    email: '',
+    phone: '',
     productName: '',
     quantity: 1,
-    unitPrice: 0,
+    totalAmount: 0,
+    currency: '₺',
     deliveryDate: '',
     notes: '',
     documents: [],
@@ -81,12 +82,13 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
     try {
       const data = new FormData();
       data.append('customerName', formData.customerName);
-      if (formData.customerEmail) data.append('customerEmail', formData.customerEmail);
-      if (formData.customerPhone) data.append('customerPhone', formData.customerPhone);
+      if (formData.email) data.append('email', formData.email);
+      if (formData.phone) data.append('phone', formData.phone);
       data.append('productName', formData.productName);
       data.append('quantity', formData.quantity.toString());
-      if (formData.unitPrice) data.append('unitPrice', formData.unitPrice.toString());
-      data.append('deliveryDate', formData.deliveryDate);
+      if (formData.totalAmount) data.append('totalAmount', formData.totalAmount.toString());
+      data.append('currency', formData.currency);
+      data.append('deliveryDate', formData.deliveryDate || '');
       if (formData.notes) data.append('notes', formData.notes);
       if (department) data.append('department', department);
       
@@ -107,7 +109,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'quantity' ? parseFloat(value) || 0 : value,
+      [name]: name === 'quantity' || name === 'totalAmount' ? parseFloat(value) || 0 : value,
     }));
     
     // Clear error when user types
@@ -124,8 +126,8 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
           <CardTitle>Müşteri Bilgileri</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
                 Müşteri Adı *
               </label>
@@ -145,6 +147,32 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
               {errors.customerName && (
                 <p className="mt-1 text-sm text-red-500">{errors.customerName}</p>
               )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
+                E-posta
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                placeholder="ahmet@example.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
+                Telefon
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                placeholder="+90 5XX XXX XX XX"
+              />
             </div>
           </div>
         </CardContent>
@@ -221,8 +249,24 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                 ))}
               </select>
             </div>
-            {/* Document Attachment */}
-          <div className="md:col-span-2 border-t border-border-light dark:border-border-dark pt-6 mt-2">
+            <div>
+              <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
+                Toplam Tutar ({formData.currency}) *
+              </label>
+              <input
+                type="number"
+                name="totalAmount"
+                value={formData.totalAmount}
+                onChange={handleChange}
+                min="0"
+                step="0.01"
+                required
+                className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+              />
+            </div>
+          </div>
+          {/* Document Attachment */}
+          <div className="md:col-span-2 border-t border-border-light dark:border-border-dark pt-6 mt-6">
             <h3 className="text-lg font-medium text-text-light dark:text-text-dark mb-4">
               Belge Ekleme
             </h3>
@@ -268,7 +312,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                             
                             setFormData(prev => ({
                               ...prev,
-                              documents: [...prev.documents, ...newDocuments]
+                              documents: [...(prev.documents || []), ...newDocuments]
                             }));
                             toast.success(`${newFiles.length} dosya eklendi`);
                           }
@@ -284,7 +328,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
               </div>
               
               {/* File Preview List */}
-              {formData.documents.length > 0 && (
+              {formData.documents && formData.documents.length > 0 && (
                 <div className="mt-4 space-y-2">
                   {formData.documents.map((doc) => (
                     <div key={doc.id} className="flex items-center justify-between p-3 bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-lg animate-in-fade">
@@ -304,7 +348,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                         onClick={() => {
                           setFormData(prev => ({
                             ...prev,
-                            documents: prev.documents.filter(d => d.id !== doc.id)
+                            documents: prev.documents?.filter(d => d.id !== doc.id)
                           }));
                           setFiles(prev => prev.filter(f => f.id !== doc.id));
                           toast.info('Dosya kaldırıldı');
@@ -319,7 +363,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
               )}
             </div>
 
-            <div className="md:col-span-2">
+            <div className="md:col-span-2 mt-4">
               <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
                 Notlar
               </label>
@@ -333,8 +377,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
               />
             </div>
           </div>
-        </div>
-      </CardContent>
+        </CardContent>
       </Card>
 
       {/* Summary */}
@@ -345,8 +388,12 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
         <CardContent>
           <div className="space-y-2">
             <div className="flex justify-between text-text-light dark:text-text-dark">
-              <span>Toplam Miktar:</span>
+              <span>Miktar:</span>
               <span className="font-medium">{formData.quantity} adet</span>
+            </div>
+            <div className="flex justify-between text-lg font-bold text-text-light dark:text-text-dark pt-2 border-t border-border-light dark:border-border-dark">
+              <span>Toplam:</span>
+              <span>{formData.totalAmount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}</span>
             </div>
           </div>
         </CardContent>

@@ -58,10 +58,10 @@ export function OrderTable({ orders, onDelete, onStatusChange, onSort, sortConfi
       <table className="w-full">
         <thead>
           <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80">
-            <SortableHeader label="Sipariş No" sortKey="id" />
-            <SortableHeader label="Müşteri" sortKey="customer" />
+            <SortableHeader label="Sipariş No" sortKey="orderNumber" />
+            <SortableHeader label="Müşteri" sortKey="customerName" />
             <SortableHeader label="Tarih" sortKey="date" />
-            <SortableHeader label="Tutar" sortKey="amount" />
+            <SortableHeader label="Tutar" sortKey="totalAmount" />
             <SortableHeader label="Durum" sortKey="status" />
             <th className="text-left py-4 px-6 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Belgeler
@@ -88,23 +88,23 @@ export function OrderTable({ orders, onDelete, onStatusChange, onSort, sortConfi
                         className="font-medium text-slate-900 dark:text-white hover:text-blue-600 transition-colors"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        #{order.id.slice(0, 8)}
+                        #{(order.orderNumber || order.id).slice(0, 8)}
                     </Link>
                   </div>
                 </td>
                 <td className="py-4 px-6">
                    <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-[10px] text-white font-bold">
-                            {order.customer.charAt(0)}
+                            {order.customerName.charAt(0)}
                         </div>
-                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{order.customer}</span>
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{order.customerName}</span>
                     </div>
                 </td>
                 <td className="py-4 px-6 text-sm text-slate-500 dark:text-slate-400">
                   {formatDate(order.date)}
                 </td>
                 <td className="py-4 px-6 text-sm font-medium text-slate-900 dark:text-white font-mono">
-                  {formatCurrency(order.amount, order.currency)}
+                  {formatCurrency(order.totalAmount, order.currency)}
                 </td>
                 <td className="py-4 px-6">
                   <div onClick={(e) => handleStatusClick(e, order)} className="cursor-pointer hover:scale-105 transition-transform inline-block">

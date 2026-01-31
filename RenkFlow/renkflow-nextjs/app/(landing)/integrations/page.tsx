@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 import Link from 'next/link';
+import { Button } from '@/components/ui/Button';
 
 interface Integration {
   name: string;
@@ -52,7 +53,7 @@ function IntegrationCard({ integration, index }: { integration: Integration; ind
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ delay: index * 0.05, duration: 0.5 }}
       whileHover={{ y: -5, boxShadow: '0 20px 40px -10px rgba(0,0,0,0.15)' }}
-      className={`relative bg-white dark:bg-gray-800/50 rounded-2xl p-6 border border-border-light dark:border-border-dark overflow-hidden group ${
+      className={`relative bg-white/90 dark:bg-slate-900/70 rounded-3xl p-6 border border-slate-200/70 dark:border-slate-800 overflow-hidden group shadow-[0_20px_45px_-35px_rgba(15,23,42,0.4)] ${
         integration.status === 'coming' ? 'opacity-75' : ''
       }`}
     >
@@ -61,7 +62,7 @@ function IntegrationCard({ integration, index }: { integration: Integration; ind
       
       {/* Coming Soon Badge */}
       {integration.status === 'coming' && (
-        <div className="absolute top-4 right-4 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-xs font-bold px-2 py-1 rounded-full">
+        <div className="absolute top-4 right-4 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs font-bold px-2 py-1 rounded-full">
           Yakında
         </div>
       )}
@@ -81,13 +82,13 @@ function IntegrationCard({ integration, index }: { integration: Integration; ind
       </div>
 
       {integration.status === 'available' && (
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="mt-4 w-full py-2.5 rounded-lg bg-primary/10 text-primary font-medium text-sm hover:bg-primary/20 transition-colors"
-        >
-          Bağlan
-        </motion.button>
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="mt-4">
+          <Link href="/contact" className="block">
+            <Button variant="outline" size="sm" className="w-full">
+              Bağlan
+            </Button>
+          </Link>
+        </motion.div>
       )}
     </motion.div>
   );
@@ -102,9 +103,13 @@ export default function IntegrationsPage() {
     : integrations.filter(i => i.category === activeCategory);
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark font-display">
+    <div className="min-h-screen bg-[#f7f8fb] dark:bg-slate-950 font-display relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(14,165,233,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_40%)]"
+      />
       
-      <main className="pt-32 pb-20 container mx-auto px-6 md:px-12 max-w-6xl">
+      <main className="pt-32 pb-20 container mx-auto px-6 md:px-12 max-w-6xl relative z-10">
         {/* Header */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -112,7 +117,10 @@ export default function IntegrationsPage() {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h1 className="text-4xl md:text-5xl font-black mb-4 text-text-light dark:text-text-dark">
+          <span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-600 dark:bg-sky-500/10 dark:text-sky-300">
+            Entegrasyonlar
+          </span>
+          <h1 className="mt-6 text-4xl md:text-5xl font-black mb-4 text-text-light dark:text-text-dark">
             Entegrasyonlar
           </h1>
           <p className="text-lg text-subtle-light dark:text-subtle-dark max-w-2xl mx-auto">
@@ -134,7 +142,7 @@ export default function IntegrationsPage() {
               className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
                 activeCategory === category
                   ? 'bg-primary text-white shadow-md'
-                  : 'bg-surface-light dark:bg-surface-dark text-subtle-light dark:text-subtle-dark hover:bg-gray-100 dark:hover:bg-gray-800'
+                  : 'bg-white/70 dark:bg-slate-900/60 text-subtle-light dark:text-subtle-dark hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               {category}
@@ -187,18 +195,14 @@ export default function IntegrationsPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/contact">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-primary text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transition-shadow"
-              >
-                Bize Ulaşın
-              </motion.button>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button size="lg">Bize Ulaşın</Button>
+              </motion.div>
             </Link>
-            <a href="#" className="flex items-center justify-center gap-2 font-semibold text-primary hover:underline">
-              <span>API Dokümantasyonu</span>
+            <Link href="/contact" className="flex items-center justify-center gap-2 font-semibold text-primary hover:underline">
+              <span>API Dokümantasyonu Talep Et</span>
               <span className="material-symbols-outlined text-lg">arrow_outward</span>
-            </a>
+            </Link>
           </div>
         </motion.div>
       </main>

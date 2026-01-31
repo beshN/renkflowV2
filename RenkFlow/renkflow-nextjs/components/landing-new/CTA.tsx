@@ -3,11 +3,12 @@
 import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowRight, Sparkles, Clock } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 
 export const CTA = () => {
   return (
-    <section className="py-24 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 dark:from-blue-700 dark:via-indigo-800 dark:to-purple-900 relative overflow-hidden">
+    <section className="py-24 bg-gradient-to-br from-sky-600 via-blue-600 to-emerald-600 dark:from-sky-700 dark:via-blue-800 dark:to-emerald-800 relative overflow-hidden">
       
       {/* Animated Background */}
       <div className="absolute inset-0 opacity-10">
@@ -25,7 +26,7 @@ export const CTA = () => {
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="rounded-2xl bg-gradient-to-r from-primary to-secondary p-8 md:p-16 text-center shadow-xl relative"
+          className="rounded-[36px] bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 p-8 md:p-16 text-center shadow-[0_40px_90px_-60px_rgba(14,165,233,0.7)] relative"
         >
           <h2 className="text-3xl font-bold leading-tight tracking-tight text-white md:text-4xl lg:text-5xl">
             Ekibinizin Potansiyelini Ortaya Çıkarın
@@ -36,23 +37,19 @@ export const CTA = () => {
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/signup">
-              <motion.button
-                whileHover={{ scale: 1.05, boxShadow: "0 20px 60px rgba(255,255,255,0.3)" }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-white text-blue-600 px-8 py-4 rounded-xl font-bold text-lg shadow-2xl hover:shadow-white/20 transition-all flex items-center gap-2 group"
-              >
-                Ücretsiz Başlayın
-                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-              </motion.button>
+              <motion.div whileHover={{ scale: 1.05, boxShadow: "0 20px 60px rgba(255,255,255,0.25)" }} whileTap={{ scale: 0.95 }}>
+                <Button variant="ghost" size="lg" className="bg-white text-slate-900 hover:bg-slate-100 rounded-xl px-8 py-4 text-lg">
+                  Ücretsiz Başlayın
+                  <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </motion.div>
             </Link>
             <Link href="/contact">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/10 transition-all backdrop-blur-sm"
-              >
-                Satış Ekibiyle Görüş
-              </motion.button>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button variant="outline" size="lg" className="border-white/70 text-white hover:bg-white/10 rounded-xl px-8 py-4 text-lg">
+                  Satış Ekibiyle Görüş
+                </Button>
+              </motion.div>
             </Link>
           </div>
           

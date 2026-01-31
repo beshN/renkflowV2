@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
 import { Navbar } from '@/components/layout/Navbar';
@@ -16,7 +16,7 @@ import { formatCurrency, formatDate, getOrderStatusInfo } from '@/lib/utils';
 import { Order, Document } from '@/lib/types';
 import { 
   ArrowLeft, Calendar, User, Package, CreditCard, 
-  FileText, Clock, CheckCircle, Truck, MoreHorizontal 
+  FileText, Clock, CheckCircle, Truck
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -28,6 +28,7 @@ const PDFViewer = dynamic(() => import('@/components/pdf-viewer/PDFViewer'), {
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const orderId = params.id as string;
   const { getOrderById, deleteOrder, updateOrder, updateOrderStatus, uploadDocuments, isLoading } = useOrders();
   const { user } = useAuth();
@@ -40,6 +41,12 @@ export default function OrderDetailPage() {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('edit') === 'true') {
+      setIsEditModalOpen(true);
+    }
+  }, [searchParams]);
 
   const canEditDelete = user?.role === 'admin' || user?.role === 'owner';
 
@@ -63,16 +70,17 @@ export default function OrderDetailPage() {
     setIsUpdating(true);
     try {
       const quantity = parseInt(formData.get('quantity') as string);
-      const unitPrice = parseFloat(formData.get('unitPrice') as string) || 0;
+      const totalAmount = parseFloat(formData.get('totalAmount') as string) || 0;
       await updateOrder(order!.id, {
-        customer: formData.get('customerName') as string,
-        email: (formData.get('customerEmail') as string) || undefined,
-        phone: (formData.get('customerPhone') as string) || undefined,
-        product: formData.get('productName') as string,
+        customerName: formData.get('customerName') as string,
+        email: (formData.get('email') as string) || undefined,
+        phone: (formData.get('phone') as string) || undefined,
+        productName: formData.get('productName') as string,
         quantity,
-        amount: quantity * unitPrice,
-        description: (formData.get('notes') as string) || undefined,
-        deliveryDate: formData.get('deliveryDate') as string,
+        totalAmount,
+        currency: (formData.get('currency') as string) || order?.currency || '₺',
+        notes: (formData.get('notes') as string) || undefined,
+        deliveryDate: (formData.get('deliveryDate') as string) || undefined,
       });
       const files = formData.getAll('files');
       if (files.length > 0) await uploadDocuments(order!.id, formData);
@@ -99,7 +107,7 @@ export default function OrderDetailPage() {
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-950/50 min-h-screen">
-      <Navbar title={`Sipariş #${order.id.slice(0,8)}`} showSearch={false} />
+      <Navbar title={`Sipariş #${(order.orderNumber || order.id).slice(0,8)}`} showSearch={false} />
       
       <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
         {/* Breadcrumb & Actions */}
@@ -115,9 +123,12 @@ export default function OrderDetailPage() {
                         Düzenle
                      </button>
                 )}
-                <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-lg shadow-blue-500/20 transition-all">
+                <Link
+                    href={`/orders/${order.id}/invoice`}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-lg shadow-blue-500/20 transition-all"
+                >
                     Fatura Oluştur
-                </button>
+                </Link>
                 {canEditDelete && (
                     <button onClick={handleDeleteClick} className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
                         <span className="material-symbols-outlined">delete</span>
@@ -136,10 +147,10 @@ export default function OrderDetailPage() {
                      <div className="flex justify-between items-center mb-8">
                         <div>
                             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
-                                {order.product}
+                                {order.productName}
                             </h2>
                             <p className="text-slate-500 dark:text-slate-400 text-sm">
-                                Sipariş No: #{order.id}
+                                Sipariş No: #{order.orderNumber || order.id}
                             </p>
                         </div>
                         <span className={`px-3 py-1 rounded-full text-sm font-bold border ${statusInfo.color.replace('text-', 'border-').replace('600', '200')} ${statusInfo.bgColor} ${statusInfo.color}`}>
@@ -187,7 +198,7 @@ export default function OrderDetailPage() {
                             <User size={18} />
                             <span className="text-sm font-medium uppercase tracking-wider">Müşteri</span>
                         </div>
-                        <p className="font-bold text-lg text-slate-900 dark:text-white mb-1">{order.customer}</p>
+                        <p className="font-bold text-lg text-slate-900 dark:text-white mb-1">{order.customerName}</p>
                         {order.email && <p className="text-sm text-slate-500">{order.email}</p>}
                         {order.phone && <p className="text-sm text-slate-500">{order.phone}</p>}
                      </div>
@@ -198,20 +209,20 @@ export default function OrderDetailPage() {
                             <span className="text-sm font-medium uppercase tracking-wider">Ödeme Detayı</span>
                         </div>
                         <p className="font-bold text-2xl text-slate-900 dark:text-white mb-1 tracking-tight">
-                            {formatCurrency(order.amount, order.currency)}
+                            {formatCurrency(order.totalAmount, order.currency)}
                         </p>
                         <p className="text-sm text-slate-500">
-                            {order.quantity || 1} Adet x {formatCurrency(order.amount / (order.quantity || 1), order.currency)}
+                            {order.quantity || 1} Adet x {formatCurrency(order.totalAmount / (order.quantity || 1), order.currency)}
                         </p>
                      </div>
                 </div>
 
                 {/* Description */}
-                {order.description && (
+                {order.notes && (
                      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl">
                         <h3 className="font-bold text-slate-900 dark:text-white mb-2">Sipariş Notu</h3>
                         <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
-                            {order.description}
+                            {order.notes}
                         </p>
                      </div>
                 )}
@@ -247,7 +258,17 @@ export default function OrderDetailPage() {
                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl">
                      <div className="flex justify-between items-center mb-4">
                          <h3 className="font-bold text-slate-900 dark:text-white">Belgeler</h3>
-                         <button className="text-xs font-bold text-blue-600 hover:underline uppercase">Yükle</button>
+                         {canEditDelete ? (
+                           <button
+                             type="button"
+                             onClick={() => setIsEditModalOpen(true)}
+                             className="text-xs font-bold text-blue-600 hover:underline uppercase"
+                           >
+                             Belge Yükle
+                           </button>
+                         ) : (
+                           <span className="text-xs font-semibold text-slate-400 uppercase">Salt görüntüleme</span>
+                         )}
                      </div>
                      
                      <div className="space-y-3">
@@ -276,14 +297,15 @@ export default function OrderDetailPage() {
         {/* Modals are kept same logic-wise */}
         <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Siparişi Düzenle">
              <NewOrderForm onSubmit={handleUpdate} initialData={{
-                customerName: order.customer,
-                customerEmail: order.email || '',
-                customerPhone: order.phone || '',
-                productName: order.product || '',
+                customerName: order.customerName,
+                email: order.email || '',
+                phone: order.phone || '',
+                productName: order.productName || '',
                 quantity: order.quantity || 1,
-                unitPrice: (order.amount / (order.quantity || 1)) || 0,
+                totalAmount: order.totalAmount || 0,
+                currency: order.currency || '₺',
                 deliveryDate: order.deliveryDate || '',
-                notes: order.description || '',
+                notes: order.notes || '',
                 documents: order.documents || [],
              }} />
         </Modal>

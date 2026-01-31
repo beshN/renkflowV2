@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 
 export interface User {
@@ -18,7 +18,8 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  refreshUser: () => void;
+  isAuthenticated: boolean;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,33 +27,38 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: session, status, update } = useSession();
 
-  const user: User | null = session?.user
-    ? {
-        id: session.user.id,
-        name: session.user.name || '',
-        email: session.user.email || '',
-        role: session.user.role || 'member',
-        avatar: session.user.image || undefined,
-        tenantId: session.user.tenantId,
-        tenantName: session.user.tenantName,
-        brandColor: session.user.brandColor,
-        logoUrl: session.user.logoUrl,
-      }
-    : null;
+  // Memoize user object to prevent unnecessary re-renders
+  const user: User | null = useMemo(() => {
+    if (!session?.user) return null;
+    
+    return {
+      id: session.user.id,
+      name: session.user.name || '',
+      email: session.user.email || '',
+      role: session.user.role || 'member',
+      avatar: session.user.image || undefined,
+      tenantId: session.user.tenantId,
+      tenantName: session.user.tenantName,
+      brandColor: session.user.brandColor,
+      logoUrl: session.user.logoUrl,
+    };
+  }, [session?.user]);
 
-  const refreshUser = async () => {
-    // Refresh session to get latest user data
+  // Stable callback for refreshing user data
+  const refreshUser = useCallback(async () => {
     await update();
-  };
+  }, [update]);
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo<AuthContextType>(() => ({
+    user,
+    isLoading: status === 'loading',
+    isAuthenticated: !!user,
+    refreshUser,
+  }), [user, status, refreshUser]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading: status === 'loading',
-        refreshUser,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
