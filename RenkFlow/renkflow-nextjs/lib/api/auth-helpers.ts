@@ -1,0 +1,153 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/auth';
+import jwt from 'jsonwebtoken';
+
+// JWT Secret with strict production enforcement
+const JWT_SECRET = process.env.AUTH_SECRET || process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
+const IS_PROD = process.env.NODE_ENV === 'production';
+if (!JWT_SECRET) {
+  if (IS_PROD) {
+    throw new Error('[SECURITY] Missing JWT secret in production. Set AUTH_SECRET or JWT_SECRET or NEXTAUTH_SECRET.');
+  } else {
+    console.warn('[SECURITY WARNING] Missing JWT secret. Using development-only fallback.');
+  }
+}
+const EFFECTIVE_JWT_SECRET = JWT_SECRET || 'development-only-fallback-secret';
+
+export interface APIUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  tenantId: string;
+}
+
+export interface APIResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+}
+
+// Standard API response helpers with CORS headers
+export function successResponse<T>(data: T, message?: string): NextResponse<APIResponse<T>> {
+  return NextResponse.json({
+    success: true,
+    data,
+    message,
+  }, {
+    headers: corsHeaders(),
+  });
+}
+
+export function errorResponse(error: string, status: number = 400): NextResponse<APIResponse> {
+  return NextResponse.json({
+    success: false,
+    error,
+  }, { 
+    status,
+    headers: corsHeaders(),
+  });
+}
+
+// Verify JWT token from Authorization header
+export async function verifyAPIToken(request: NextRequest): Promise<APIUser | null> {
+  const authHeader = request.headers.get('authorization');
+  
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    
+    try {
+      const decoded = jwt.verify(token, EFFECTIVE_JWT_SECRET) as unknown as {
+        sub: string;
+        email: string;
+        name: string;
+        role: string;
+        tenantId: string;
+      };
+      
+      return {
+        id: decoded.sub,
+        email: decoded.email,
+        name: decoded.name,
+        role: decoded.role,
+        tenantId: decoded.tenantId,
+      };
+    } catch (error) {
+      console.error('JWT verification failed:', error);
+      return null;
+    }
+  }
+  
+  return null;
+}
+
+// Get user from session or JWT token
+export async function getAPIUser(request: NextRequest): Promise<APIUser | null> {
+  // First try JWT from header (for mobile apps)
+  const jwtUser = await verifyAPIToken(request);
+  if (jwtUser) {
+    return jwtUser;
+  }
+  
+  // Fallback to session (for web app)
+  const session = await auth();
+  if (session?.user) {
+    return {
+      id: session.user.id || '',
+      email: session.user.email || '',
+      name: session.user.name || '',
+      role: session.user.role || 'member',
+      tenantId: session.user.tenantId || '',
+    };
+  }
+  
+  return null;
+}
+
+// Role-based access control
+export function hasRole(user: APIUser, allowedRoles: string[]): boolean {
+  return allowedRoles.includes(user.role);
+}
+
+// Generate JWT token for mobile login
+export function generateAPIToken(user: {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  tenantId: string;
+}): { accessToken: string; expiresIn: number } {
+  const expiresIn = 7 * 24 * 60 * 60; // 7 days
+  
+  const accessToken = jwt.sign(
+    {
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      tenantId: user.tenantId,
+    },
+    EFFECTIVE_JWT_SECRET,
+    { expiresIn }
+  );
+  
+  return { accessToken, expiresIn };
+}
+
+// CORS headers for mobile apps
+export function corsHeaders(): HeadersInit {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+}
+
+// Handle OPTIONS request for CORS preflight
+export function handleCORS(): NextResponse {
+  return new NextResponse(null, {
+    status: 200,
+    headers: corsHeaders(),
+  });
+}

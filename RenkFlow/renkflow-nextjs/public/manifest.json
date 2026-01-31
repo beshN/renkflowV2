@@ -1,0 +1,89 @@
+{
+  "name": "Renkflow",
+  "short_name": "Renkflow",
+  "description": "Ekibinizin potansiyelini ortaya çıkaran modern iş akışı ve proje yönetim platformu",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#4361ee",
+  "categories": ["business", "productivity"],
+  "lang": "tr",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/logo-r.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-r.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-r.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-r.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-r.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-r.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-r.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-r.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Yeni Sipariş",
+      "short_name": "Yeni",
+      "description": "Yeni sipariş oluştur",
+      "url": "/new-order",
+      "icons": [{ "src": "/logo-r.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Siparişler",
+      "short_name": "Siparişler",
+      "description": "Tüm siparişleri görüntüle",
+      "url": "/orders",
+      "icons": [{ "src": "/logo-r.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Ana Sayfa",
+      "description": "Ana sayfa ve istatistikler",
+      "url": "/dashboard",
+      "icons": [{ "src": "/logo-r.png", "sizes": "96x96" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

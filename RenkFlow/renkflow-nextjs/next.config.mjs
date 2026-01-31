@@ -1,0 +1,31 @@
+
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Config updated 2026-01-25 to force fresh build
+  experimental: {
+    optimizePackageImports: ['@dnd-kit/core', '@dnd-kit/sortable'],
+  },
+  output: 'standalone',
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'ui-avatars.com',
+        pathname: '/api/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'pub-*.r2.dev', // Allow all R2 buckets
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'renkflowv2-storage.e133c6a8581c4228807833059082381e.r2.cloudflarestorage.com',
+        pathname: '/**',
+      }
+    ],
+  },
+};
+
+export default nextConfig;
