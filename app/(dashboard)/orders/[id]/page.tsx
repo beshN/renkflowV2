@@ -13,12 +13,11 @@ import { useOrders } from '@/lib/hooks/useOrders';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { formatCurrency, formatDate, formatFileSize, getOrderStatusInfo } from '@/lib/utils';
-import { Order, Document } from '@/lib/types';
+import { Document } from '@/lib/types';
 import { 
   ArrowLeft, Calendar, User, Package, CreditCard, 
-  FileText, Clock, CheckCircle, Truck, MoreHorizontal 
+  FileText, Clock, CheckCircle, Truck
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 const PDFViewer = dynamic(() => import('@/components/pdf-viewer/PDFViewer'), {
   ssr: false,
@@ -50,6 +49,10 @@ export default function OrderDetailPage() {
   };
 
   const handleUploadClick = () => {
+    if (!canEditDelete) {
+      showToast('Belge yüklemek için yetkiniz yok.', 'error');
+      return;
+    }
     setIsEditModalOpen(true);
   };
 
@@ -58,7 +61,12 @@ export default function OrderDetailPage() {
       showToast('Bu belge için geçerli bir bağlantı bulunamadı.', 'error');
       return;
     }
-    setSelectedDocument(doc);
+    const extension = doc.name.split('.').pop()?.toLowerCase();
+    if (extension === 'pdf') {
+      setSelectedDocument(doc);
+      return;
+    }
+    window.open(doc.url, '_blank', 'noopener,noreferrer');
   };
 
   const handleConfirmDelete = async () => {
@@ -110,6 +118,7 @@ export default function OrderDetailPage() {
   ];
 
   const currentStepIndex = steps.findIndex(s => s.id === order?.status);
+  const safeStepIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
 
   const getDocumentMeta = (doc: Document) => {
     const extension = doc.name.split('.').pop()?.toLowerCase() ?? '';
@@ -213,12 +222,12 @@ export default function OrderDetailPage() {
                         <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-100 dark:bg-slate-800 -z-10 -translate-y-1/2 rounded-full" />
                         <div 
                             className="absolute top-1/2 left-0 h-0.5 bg-blue-500 -z-10 -translate-y-1/2 rounded-full transition-all duration-500"
-                            style={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
+                            style={{ width: `${(safeStepIndex / (steps.length - 1)) * 100}%` }}
                         />
 
                         {steps.map((step, idx) => {
-                            const isCompleted = idx <= currentStepIndex;
-                            const isCurrent = idx === currentStepIndex;
+                            const isCompleted = idx <= safeStepIndex;
+                            const isCurrent = idx === safeStepIndex;
                             const Icon = step.icon;
                             return (
                                 <div key={step.id} className="flex flex-col items-center gap-2 bg-white dark:bg-slate-900 px-2">
@@ -317,7 +326,8 @@ export default function OrderDetailPage() {
                          <h3 className="font-bold text-slate-900 dark:text-white">Belgeler</h3>
                          <button
                            onClick={handleUploadClick}
-                           className="text-xs font-bold text-blue-600 hover:underline uppercase"
+                           disabled={!canEditDelete}
+                           className={`text-xs font-bold uppercase ${canEditDelete ? 'text-blue-600 hover:underline' : 'text-slate-300 cursor-not-allowed'}`}
                          >
                            Yükle
                          </button>
