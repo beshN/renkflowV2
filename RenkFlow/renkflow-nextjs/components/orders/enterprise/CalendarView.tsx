@@ -213,7 +213,7 @@ const MonthView: React.FC<{
 
       {/* Calendar Grid */}
       <div className="grid grid-cols-7">
-        {days.map((day) => {
+        {days.map((day: Date) => {
           const dateKey = format(day, 'yyyy-MM-dd');
           const dayOrders = ordersByDate.get(dateKey) || [];
 
@@ -261,7 +261,7 @@ const WeekView: React.FC<{
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div className="grid grid-cols-7 min-h-[600px]">
-        {days.map((day) => {
+        {days.map((day: Date) => {
           const dateKey = format(day, 'yyyy-MM-dd');
           const dayOrders = ordersByDate.get(dateKey) || [];
           const totalAmount = dayOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
@@ -435,7 +435,7 @@ const TimelineView: React.FC<{
           <span className="text-sm font-medium text-gray-500">Sipariş</span>
         </div>
         <div className="flex-1 flex">
-          {days.map((day) => (
+          {days.map((day: Date) => (
             <div
               key={day.toISOString()}
               className={cn(
@@ -453,7 +453,7 @@ const TimelineView: React.FC<{
       <div className="max-h-[500px] overflow-y-auto">
         {timelineOrders.map((order) => {
           const orderDate = parseISO(order.deliveryDate!);
-          const dayIndex = days.findIndex((d) => isSameDay(d, orderDate));
+          const dayIndex = days.findIndex((d: Date) => isSameDay(d, orderDate));
 
           return (
             <div
@@ -470,7 +470,7 @@ const TimelineView: React.FC<{
                 <div className="text-xs text-gray-500 truncate">{order.productName}</div>
               </div>
               <div className="flex-1 flex relative">
-                {days.map((day, idx) => (
+                {days.map((day: Date, idx: number) => (
                   <div
                     key={day.toISOString()}
                     className={cn(
