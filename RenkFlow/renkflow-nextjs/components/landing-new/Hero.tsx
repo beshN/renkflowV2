@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { Mail, ShieldCheck, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Mail, ShieldCheck, CheckCircle2, ArrowRight, ChevronDown, Star, Users, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { DashboardPreview } from './DashboardPreview';
@@ -15,8 +15,16 @@ export const Hero: React.FC = () => {
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Email validation
     if (!email) {
         toast.error('Lütfen e-posta adresinizi girin.');
+        return;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        toast.error('Lütfen geçerli bir e-posta adresi girin.');
         return;
     }
     
@@ -135,6 +143,31 @@ export const Hero: React.FC = () => {
                         <span>Verileriniz şifrelenir ve korunur. Spam yok.</span>
                     </div>
                 </div>
+
+                {/* Trust Badges */}
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="mt-12 flex flex-wrap items-center justify-center lg:justify-start gap-6 text-sm text-muted-foreground"
+                >
+                    <div className="flex items-center gap-2">
+                        <div className="flex -space-x-2">
+                            {[1,2,3,4].map(i => (
+                                <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 border-2 border-background flex items-center justify-center text-white text-xs font-bold">
+                                    {String.fromCharCode(64 + i)}
+                                </div>
+                            ))}
+                        </div>
+                        <span className="font-medium">500+ mutlu kullanıcı</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        {[1,2,3,4,5].map(i => (
+                            <Star key={i} size={14} className="fill-yellow-400 text-yellow-400" />
+                        ))}
+                        <span className="ml-1 font-medium">4.9/5 puan</span>
+                    </div>
+                </motion.div>
             </motion.div>
 
             {/* Right Visual - 3D Dashboard */}
@@ -155,6 +188,23 @@ export const Hero: React.FC = () => {
 
             </motion.div>
         </div>
+
+        {/* Scroll Indicator */}
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1 }}
+            className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 cursor-pointer"
+            onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
+        >
+            <span className="text-xs text-muted-foreground">Keşfet</span>
+            <motion.div
+                animate={{ y: [0, 8, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+            >
+                <ChevronDown size={20} className="text-muted-foreground" />
+            </motion.div>
+        </motion.div>
       </div>
     </section>
   );

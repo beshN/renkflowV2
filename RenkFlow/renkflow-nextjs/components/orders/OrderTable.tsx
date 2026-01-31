@@ -120,7 +120,7 @@ export function OrderTable({ orders, onDelete, onStatusChange, onSort, sortConfi
                   {order.documents && order.documents.length > 0 ? (
                     <div className="flex -space-x-2 overflow-hidden">
                       {order.documents.slice(0,3).map((doc, i) => (
-                        <div key={i} className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-slate-900 bg-slate-100 dark:bg-slate-800 flex items-center justify-center" title={doc.name}>
+                        <div key={`${order.id}-doc-${i}`} className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-slate-900 bg-slate-100 dark:bg-slate-800 flex items-center justify-center" title={doc.name}>
                             <FileText size={12} className="text-slate-500" />
                         </div>
                       ))}

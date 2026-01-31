@@ -1,8 +1,38 @@
 'use client';
 
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, useInView } from 'framer-motion';
 import { Zap, Shield, Users, Layers, Workflow, BarChart3 } from 'lucide-react';
+import { useRef } from 'react';
+
+const CountUp = ({ end, duration = 2 }: { end: number; duration?: number }) => {
+  const [count, setCount] = useState(0);
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true });
+
+  useEffect(() => {
+    if (!isInView) return;
+    
+    let startTime: number;
+    let animationFrame: number;
+
+    const animate = (currentTime: number) => {
+      if (!startTime) startTime = currentTime;
+      const progress = Math.min((currentTime - startTime) / (duration * 1000), 1);
+      
+      setCount(Math.floor(progress * end));
+      
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(animate);
+      }
+    };
+
+    animationFrame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [end, duration, isInView]);
+
+  return <span ref={ref}>{count.toLocaleString()}</span>;
+};
 
 export const Features: React.FC = () => {
   const features = [
@@ -39,13 +69,46 @@ export const Features: React.FC = () => {
   ];
 
   return (
-    <section className="py-24 bg-slate-50 dark:bg-slate-900/50 relative overflow-hidden">
+    <section className="py-24 bg-slate-50 dark:bg-slate-900/50 relative overflow-hidden" id="features">
       
       {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent opacity-50" />
 
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
+        {/* Stats Bar */}
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-20 p-8 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg"
+        >
+            <div className="text-center">
+                <div className="text-3xl font-bold text-blue-600 mb-1">
+                    <CountUp end={500} />+
+                </div>
+                <div className="text-sm text-muted-foreground">Aktif Kullanıcı</div>
+            </div>
+            <div className="text-center">
+                <div className="text-3xl font-bold text-green-600 mb-1">
+                    <CountUp end={10000} />+
+                </div>
+                <div className="text-sm text-muted-foreground">Tamamlanan Sipariş</div>
+            </div>
+            <div className="text-center">
+                <div className="text-3xl font-bold text-purple-600 mb-1">
+                    <CountUp end={98} />%
+                </div>
+                <div className="text-sm text-muted-foreground">Müşteri Memnuniyeti</div>
+            </div>
+            <div className="text-center">
+                <div className="text-3xl font-bold text-orange-600 mb-1">
+                    <CountUp end={24} />/7
+                </div>
+                <div className="text-sm text-muted-foreground">Destek Hizmeti</div>
+            </div>
+        </motion.div>
+
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
             <motion.h2 
@@ -77,17 +140,22 @@ export const Features: React.FC = () => {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.1 }}
-                    className="p-8 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group"
+                    className="p-8 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-2xl hover:-translate-y-2 hover:border-blue-500/50 transition-all duration-300 group relative overflow-hidden"
                 >
-                    <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                        <feature.icon size={24} />
+                    {/* Hover Gradient Effect */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    
+                    <div className="relative">
+                        <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 mb-6 group-hover:bg-blue-600 group-hover:text-white group-hover:scale-110 transition-all">
+                            <feature.icon size={24} />
+                        </div>
+                        <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                            {feature.title}
+                        </h3>
+                        <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
+                            {feature.desc}
+                        </p>
                     </div>
-                    <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-3">
-                        {feature.title}
-                    </h3>
-                    <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
-                        {feature.desc}
-                    </p>
                 </motion.div>
             ))}
         </div>

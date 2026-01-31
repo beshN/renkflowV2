@@ -78,9 +78,9 @@ export const UnifiedNavbar = ({ largeLogo = false }: UnifiedNavbarProps) => {
               }`}
             >
               <div 
-                className={`relative transition-all duration-500 overflow-visible ${
+                className={`relative transition-all duration-500 ${
                   largeLogo 
-                    ? 'h-24 w-72 md:h-44 md:w-[480px] group-hover:scale-105' 
+                    ? 'h-20 w-56 md:h-24 md:w-80 group-hover:scale-105' 
                     : 'h-16 w-48 md:h-20 md:w-64 group-hover:scale-105'
                 }`}
               >

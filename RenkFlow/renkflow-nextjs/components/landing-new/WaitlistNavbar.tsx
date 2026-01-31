@@ -33,14 +33,14 @@ export const WaitlistNavbar = () => {
         The logo container uses negative margins and overflow-visible to 
         allow the large logo to extend beyond the navbar bounds
       */}
-      {/* Large Logo - Fixed to the absolute top-left corner */}
-      <Link href="/" className="fixed top-0 left-0 z-[60] group block p-4 md:p-8">
-        <div className="relative h-24 w-72 md:h-48 md:w-[600px] transition-transform duration-300 group-hover:scale-105">
+      {/* Large Logo - Fixed to the absolute top-left corner with overflow control */}
+      <Link href="/" className="fixed top-4 left-4 md:top-6 md:left-8 z-[60] group block">
+        <div className="relative h-16 w-48 md:h-20 md:w-64 transition-transform duration-300 group-hover:scale-105">
             <Image 
               src="/logo-full.png" 
               alt="RenkFlow" 
               fill
-              sizes="(max-width: 768px) 300px, 600px"
+              sizes="(max-width: 768px) 192px, 256px"
               className="object-contain object-left"
               priority
             />

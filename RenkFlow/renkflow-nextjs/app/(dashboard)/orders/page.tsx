@@ -54,7 +54,6 @@ export default function OrdersPage() {
       showToast('Sipariş başarıyla silindi', 'success');
       setDeleteConfirmState({ isOpen: false, orderId: null });
     } catch (error) {
-      console.error('Error deleting order:', error);
       showToast('Sipariş silinirken bir hata oluştu', 'error');
     } finally {
       setIsDeleting(false);

@@ -40,7 +40,6 @@ export function TenantSettings() {
       toast.success('Firma bilgileri güncellendi');
       await refreshUser();
     } catch (error: any) {
-      console.error('Error updating tenant:', error);
       toast.error('Güncelleme başarısız oldu');
     } finally {
       setIsLoading(false);
@@ -74,8 +73,7 @@ export function TenantSettings() {
         return;
       }
 
-      toast.success('Davet oluşturuldu! Link konsola yazıldı.');
-      // console.log('Invite Link:', data.inviteLink);
+      toast.success('Davet oluşturuldu! Link panoya kopyalandı.');
       
       // Copy to clipboard
       navigator.clipboard.writeText(data.inviteLink);
@@ -84,7 +82,6 @@ export function TenantSettings() {
       setInviteEmail('');
       setInviteRole(null);
     } catch (error: any) {
-      console.error('Error inviting user:', error);
       toast.error('Davet gönderilemedi');
     } finally {
       setIsInviting(false);

@@ -16,12 +16,13 @@ export const Footer: React.FC = () => {
           {/* Brand Column */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="relative h-32 w-112">
+              <div className="relative h-16 w-48">
                  <Image 
                     src="/logo-full.png" 
                     alt="RenkFlow" 
                     fill
-                    className="object-contain opacity-80 group-hover:opacity-100 transition-opacity"
+                    sizes="192px"
+                    className="object-contain object-left opacity-80 group-hover:opacity-100 transition-opacity"
                  />
               </div>
             </Link>
@@ -41,8 +42,8 @@ export const Footer: React.FC = () => {
             <ul className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
               <li><Link href="/features" className="hover:text-blue-600 transition-colors">Özellikler</Link></li>
               <li><Link href="/pricing" className="hover:text-blue-600 transition-colors">Fiyatlandırma</Link></li>
-              <li><Link href="/roadmap" className="hover:text-blue-600 transition-colors">Yol Haritası</Link></li>
-              <li><Link href="/changelog" className="hover:text-blue-600 transition-colors">Güncellemeler</Link></li>
+              <li><Link href="/integrations" className="hover:text-blue-600 transition-colors">Entegrasyonlar</Link></li>
+              <li><Link href="/faq" className="hover:text-blue-600 transition-colors">SSS</Link></li>
             </ul>
           </div>
 
@@ -84,7 +85,6 @@ export const Footer: React.FC = () => {
             <div className="flex gap-6 text-xs text-slate-400">
                 <Link href="/privacy" className="hover:text-slate-600 dark:hover:text-slate-200">Gizlilik Politikası</Link>
                 <Link href="/terms" className="hover:text-slate-600 dark:hover:text-slate-200">Kullanım Koşulları</Link>
-                <Link href="/cookies" className="hover:text-slate-600 dark:hover:text-slate-200">Çerez Politikası</Link>
             </div>
         </div>
       </div>

@@ -47,10 +47,23 @@ const config: Config = {
       },
       transitionTimingFunction: {
         'smooth': 'cubic-bezier(0.4, 0, 0.2, 1)',
+        'spring': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+        'bounce': 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+        'ease-out-expo': 'cubic-bezier(0.19, 1, 0.22, 1)',
+      },
+      transitionDuration: {
+        '250': '250ms',
+        '350': '350ms',
+        '400': '400ms',
       },
       animation: {
         fadeIn: 'fadeIn 0.3s ease-out forwards',
         progressBar: 'progressBar 2s linear infinite',
+        'slide-up': 'slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+        'slide-down': 'slideDown 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+        'scale-in': 'scaleIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+        'scale-out': 'scaleOut 0.15s ease-out forwards',
+        'card-hover': 'cardHover 0.3s ease-out forwards',
       },
       keyframes: {
         fadeIn: {
@@ -60,6 +73,26 @@ const config: Config = {
         progressBar: {
           '0%': { width: '0%' },
           '100%': { width: '100%' },
+        },
+        slideUp: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideDown: {
+          '0%': { opacity: '0', transform: 'translateY(-10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        scaleIn: {
+          '0%': { opacity: '0', transform: 'scale(0.9)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        scaleOut: {
+          '0%': { opacity: '1', transform: 'scale(1)' },
+          '100%': { opacity: '0', transform: 'scale(0.9)' },
+        },
+        cardHover: {
+          '0%': { transform: 'translateY(0)' },
+          '100%': { transform: 'translateY(-2px)' },
         },
       },
     },

@@ -66,7 +66,7 @@ export default function PWAInstallPrompt() {
         setShowPrompt(false);
       }
     } catch (error) {
-      console.error('Install error:', error);
+      // Silent fail for install errors
     }
     
     setDeferredPrompt(null);

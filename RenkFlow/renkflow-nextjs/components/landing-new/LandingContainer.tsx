@@ -1,13 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { WaitlistNavbar } from '@/components/landing-new/WaitlistNavbar';
 import { Hero } from '@/components/landing-new/Hero';
 import { Features } from '@/components/landing-new/Features';
+import { TestimonialSection } from '@/components/landing-new/TestimonialSection';
+import { Pricing } from '@/components/landing-new/Pricing';
 import { FAQ } from '@/components/landing-new/FAQ';
+import { CTA } from '@/components/landing-new/CTA';
 import { Footer } from '@/components/landing-new/Footer';
 
-export function LandingContainer() {
+const LandingContainerComponent = () => {
   const [mounted, setMounted] = useState(false);
   
   useEffect(() => {
@@ -21,12 +24,13 @@ export function LandingContainer() {
       <WaitlistNavbar />
       <Hero />
       <Features />
+      <TestimonialSection />
+      <Pricing />
       <FAQ />
-      <div className="py-12 border-t border-border/50 text-center">
-        <p className="text-subtle-light dark:text-subtle-dark font-medium">
-          Renkflow 2026
-        </p>
-      </div>
+      <CTA />
+      <Footer />
     </div>
   );
-}
+};
+
+export const LandingContainer = memo(LandingContainerComponent);

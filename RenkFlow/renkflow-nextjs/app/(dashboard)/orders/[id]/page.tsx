@@ -142,7 +142,7 @@ export default function OrderDetailPage() {
                                 Sipariş No: #{order.id}
                             </p>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-sm font-bold border ${statusInfo.color.replace('text-', 'border-').replace('600', '200')} ${statusInfo.bgColor} bg-opacity-10 text-${statusInfo.color.split('-')[1]}-600`}>
+                        <span className={`px-3 py-1 rounded-full text-sm font-bold border ${statusInfo.color.replace('text-', 'border-').replace('600', '200')} ${statusInfo.bgColor} ${statusInfo.color}`}>
                             {statusInfo.label}
                         </span>
                      </div>

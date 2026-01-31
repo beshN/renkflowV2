@@ -1,6 +1,7 @@
 'use client';
 
 import { useTheme } from '@/lib/context/ThemeContext';
+import { useState, useEffect, useRef } from 'react';
 
 interface NavbarProps {
   title: string;
@@ -10,6 +11,23 @@ interface NavbarProps {
 
 export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
   const { theme, toggleTheme } = useTheme();
+  const [searchValue, setSearchValue] = useState('');
+  const debounceRef = useRef<NodeJS.Timeout>();
+
+  useEffect(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      onSearch?.(searchValue);
+    }, 300);
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [searchValue, onSearch]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark">
@@ -29,7 +47,8 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
               <input
                 type="text"
                 placeholder="Ara..."
-                onChange={(e) => onSearch?.(e.target.value)}
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
                 className="w-full rounded-lg border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark px-10 py-2 text-sm text-text-light dark:text-text-dark placeholder:text-subtle-light dark:placeholder:text-subtle-dark focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
             </div>

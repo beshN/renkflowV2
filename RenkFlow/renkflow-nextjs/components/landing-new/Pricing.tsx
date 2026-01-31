@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Star, Quote } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const Pricing: React.FC = () => {
@@ -102,6 +102,63 @@ export const Pricing: React.FC = () => {
             </div>
 
         </div>
+
+        {/* Testimonials */}
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-24"
+        >
+            <h3 className="text-2xl font-bold text-center text-slate-900 dark:text-white mb-12">
+                Müşterilerimiz Ne Diyor?
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {[
+                    {
+                        name: 'Ahmet Yılmaz',
+                        role: 'Üretim Müdürü, ABC Mobilya',
+                        text: 'RenkFlow sayesinde sipariş takibimiz %80 hızlandı. Artık hiçbir detay gözden kaçmıyor.',
+                        rating: 5
+                    },
+                    {
+                        name: 'Zeynep Kaya',
+                        role: 'CEO, XYZ Tekstil',
+                        text: 'Ekip koordinasyonu çok kolaylaştı. Herkes ne yapacağını biliyor, e-posta trafiği bitti.',
+                        rating: 5
+                    },
+                    {
+                        name: 'Mehmet Demir',
+                        role: 'İşletme Sahibi, DEF Metal',
+                        text: 'Raporlama özellikleri harika. Hangi ürün ne kadar kar getiriyor artık net görüyorum.',
+                        rating: 5
+                    }
+                ].map((testimonial, i) => (
+                    <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: i * 0.1 }}
+                        className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 relative"
+                    >
+                        <Quote className="absolute top-4 right-4 text-blue-600/10" size={48} />
+                        <div className="flex gap-1 mb-4">
+                            {[...Array(testimonial.rating)].map((_, i) => (
+                                <Star key={i} size={16} className="fill-yellow-400 text-yellow-400" />
+                            ))}
+                        </div>
+                        <p className="text-slate-600 dark:text-slate-400 mb-6 relative z-10">
+                            &quot;{testimonial.text}&quot;
+                        </p>
+                        <div>
+                            <p className="font-semibold text-slate-900 dark:text-white">{testimonial.name}</p>
+                            <p className="text-sm text-slate-500">{testimonial.role}</p>
+                        </div>
+                    </motion.div>
+                ))}
+            </div>
+        </motion.div>
 
       </div>
     </section>

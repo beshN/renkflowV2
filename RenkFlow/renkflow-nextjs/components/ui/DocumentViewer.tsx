@@ -25,7 +25,7 @@ export function DocumentViewer({ isOpen, onClose, documentUrl, documentName }: D
   const loadPDF = useCallback(async () => {
     try {
       // @ts-ignore - PDF.js loaded from CDN
-      const pdfjsLib = window['pdfjs-dist/build/pdf'];
+      const pdfjsLib = (window as any).pdfjsLib;
       
       if (!pdfjsLib) {
         setError('PDF.js henüz yüklenmedi, lütfen bekleyin...');
@@ -33,15 +33,17 @@ export function DocumentViewer({ isOpen, onClose, documentUrl, documentName }: D
         return;
       }
 
-      // Set worker
+      // Set worker - updated to match package.json version
       pdfjsLib.GlobalWorkerOptions.workerSrc = 
-        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.worker.min.js';
 
       // Load PDF with proper error handling
       const loadingTask = pdfjsLib.getDocument({
         url: documentUrl,
         withCredentials: false,
         isEvalSupported: false,
+        cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/cmaps/',
+        cMapPacked: true,
       });
 
       const pdf = await loadingTask.promise;
@@ -71,15 +73,14 @@ export function DocumentViewer({ isOpen, onClose, documentUrl, documentName }: D
     setError(null);
 
     // Check if PDF.js is already loaded
-    // @ts-ignore
-    if (window['pdfjs-dist/build/pdf']) {
+    if ((window as any).pdfjsLib) {
       loadPDF();
       return;
     }
 
-    // Load PDF.js from CDN
+    // Load PDF.js from CDN - updated to match package.json version
     const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.min.js';
     script.async = true;
     script.id = 'pdfjs-script';
     

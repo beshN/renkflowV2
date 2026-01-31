@@ -139,6 +139,7 @@ function throttle<T extends (...args: any[]) => any>(
 export default function PDFViewer({
   fileUrl,
   fileName,
+  onClose,
 }: PDFViewerProps) {
   // Core state
   const [numPages, setNumPages] = useState<number>(0)
@@ -185,6 +186,22 @@ export default function PDFViewer({
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const pdfDocRef = useRef<pdfjs.PDFDocumentProxy | null>(null)
   const printIframeRef = useRef<HTMLIFrameElement | null>(null)
+
+  // Close handler
+  const handleClose = useCallback(() => {
+    // Cleanup before closing
+    if (printIframeRef.current) {
+      try {
+        document.body.removeChild(printIframeRef.current)
+        printIframeRef.current = null
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }
+    if (onClose) {
+      onClose()
+    }
+  }, [onClose])
 
   // Touch gesture state - improved for pinch-to-zoom
   const gestureRef = useRef<{
@@ -240,16 +257,16 @@ export default function PDFViewer({
     setLoading(false)
     
     // Provide user-friendly error messages
-    let errorMessage = 'Failed to load PDF'
+    let errorMessage = 'PDF yüklenemedi'
     if (err.message.includes('network') || err.message.includes('fetch')) {
-      errorMessage = 'Network error. Please check your connection.'
+      errorMessage = 'Ağ hatası. Lütfen bağlantınızı kontrol edin.'
     } else if (err.message.includes('password')) {
-      errorMessage = 'This PDF is password protected.'
+      errorMessage = 'Bu PDF şifre korumalı.'
     } else if (err.message.includes('corrupt') || err.message.includes('Invalid')) {
-      errorMessage = 'The PDF file appears to be corrupted.'
+      errorMessage = 'PDF dosyası bozuk görünüyor.'
     } else {
         // Show detailed error for debugging
-        errorMessage = `Load Error: ${err.message}`
+        errorMessage = `Yükleme Hatası: ${err.message}`
     }
     
     setError(errorMessage)
@@ -675,17 +692,6 @@ export default function PDFViewer({
   const isPageBookmarked = useCallback((page: number) => {
     return bookmarks.some(b => b.page === page)
   }, [bookmarks])
-
-  // Handle close
-  const handleClose = useCallback(() => {
-    // Cleanup before closing
-    if (printIframeRef.current) {
-      document.body.removeChild(printIframeRef.current)
-      printIframeRef.current = null
-    }
-    // Use history back if available, otherwise just call parent
-    window.history.back()
-  }, [])
 
   // Keyboard shortcuts - comprehensive
   useEffect(() => {
@@ -1599,7 +1605,7 @@ export default function PDFViewer({
                       <AlertCircle className="w-8 h-8 text-red-500" />
                     </div>
                     <p className="text-red-500 font-semibold mb-2">
-                      Failed to load PDF
+                      PDF yüklenemedi
                     </p>
                     <p className="text-slate-500 text-sm mb-4 max-w-xs mx-auto">
                       {error}
@@ -1607,15 +1613,15 @@ export default function PDFViewer({
                     <div className="flex gap-2 justify-center flex-wrap">
                       <Button onClick={handleRetry} disabled={retryCount >= 3}>
                         <RefreshCw className="h-4 w-4 mr-2" />
-                        {retryCount >= 3 ? 'Max retries' : 'Retry'}
+                        {retryCount >= 3 ? 'Maksimum deneme' : 'Tekrar Dene'}
                       </Button>
                       <Button variant="outline" onClick={handleDownload}>
                         <Download className="h-4 w-4 mr-2" />
-                        Download
+                        İndir
                       </Button>
                       <Button variant="outline" onClick={handleOpenInNewTab}>
                         <ExternalLink className="h-4 w-4 mr-2" />
-                        Open in Tab
+                        Yeni Sekmede Aç
                       </Button>
                     </div>
                   </div>
@@ -1628,6 +1634,8 @@ export default function PDFViewer({
                     pdfDocRef.current = pdf
                     onDocumentLoadSuccess(pdf)
                   }}
+                  onLoadError={onDocumentLoadError}
+                  onLoadProgress={onLoadProgress}
                   loading={
                     <div className="flex items-center justify-center h-96">
                       <div className="text-center">
@@ -1649,7 +1657,7 @@ export default function PDFViewer({
                             {loadProgress}%
                           </span>
                         </div>
-                        <p className="text-slate-500">Loading PDF...</p>
+                        <p className="text-slate-500">PDF yükleniyor...</p>
                       </div>
                     </div>
                   }

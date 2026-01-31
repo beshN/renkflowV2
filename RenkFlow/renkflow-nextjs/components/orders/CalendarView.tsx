@@ -103,7 +103,7 @@ export function CalendarView({ orders }: CalendarViewProps) {
         <div className="grid grid-cols-7 gap-1">
           {calendarDays.map((day, index) => {
             if (!day) {
-              return <div key={`empty-${index}`} className="h-20" />;
+              return <div key={`empty-${currentDate.getMonth()}-${index}`} className="h-20" />;
             }
 
             const dayOrders = getOrdersForDate(day);
@@ -111,7 +111,7 @@ export function CalendarView({ orders }: CalendarViewProps) {
 
             return (
               <div
-                key={day.toISOString()}
+                key={`${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`}
                 className={`
                   h-20 border rounded-md p-1.5 transition-all hover:border-primary/50 overflow-hidden
                   ${isToday 

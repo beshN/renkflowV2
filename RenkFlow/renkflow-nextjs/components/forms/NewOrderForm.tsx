@@ -97,7 +97,6 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
       await onSubmit(data);
       toast.success('Sipariş başarıyla oluşturuldu!', { id: toastId });
     } catch (error) {
-      console.error('Submit error:', error);
       toast.error('Sipariş oluşturulurken bir hata oluştu.', { id: toastId });
     } finally {
       setIsSubmitting(false);

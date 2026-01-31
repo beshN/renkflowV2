@@ -1,18 +1,31 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import React from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { ArrowRight, Sparkles, Clock } from 'lucide-react';
 
 export const CTA = () => {
   return (
-    <section className="w-full py-20 lg:py-32 bg-background-light dark:bg-background-dark">
+    <section className="py-24 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 dark:from-blue-700 dark:via-indigo-800 dark:to-purple-900 relative overflow-hidden">
+      
+      {/* Animated Background */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl animate-blob" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl animate-blob animation-delay-2000" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-white rounded-full blur-3xl animate-blob animation-delay-4000" />
+      </div>
+      
+      {/* Grid Pattern */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:32px_32px]" />
+      
       <div className="container mx-auto max-w-4xl px-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="rounded-2xl bg-gradient-to-r from-primary to-secondary p-8 md:p-16 text-center shadow-xl"
+          className="rounded-2xl bg-gradient-to-r from-primary to-secondary p-8 md:p-16 text-center shadow-xl relative"
         >
           <h2 className="text-3xl font-bold leading-tight tracking-tight text-white md:text-4xl lg:text-5xl">
             Ekibinizin Potansiyelini Ortaya Çıkarın
@@ -24,22 +37,45 @@ export const CTA = () => {
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/signup">
               <motion.button
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.05, boxShadow: "0 20px 60px rgba(255,255,255,0.3)" }}
                 whileTap={{ scale: 0.95 }}
-                className="bg-white text-primary font-bold py-4 px-8 rounded-full shadow-lg hover:shadow-xl transition-all w-full sm:w-auto"
+                className="bg-white text-blue-600 px-8 py-4 rounded-xl font-bold text-lg shadow-2xl hover:shadow-white/20 transition-all flex items-center gap-2 group"
               >
                 Ücretsiz Başlayın
+                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
               </motion.button>
             </Link>
             <Link href="/contact">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="bg-transparent border-2 border-white text-white font-bold py-3.5 px-8 rounded-full hover:bg-white/10 transition-colors w-full sm:w-auto"
+                className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/10 transition-all backdrop-blur-sm"
               >
-                Demo İsteyin
+                Satış Ekibiyle Görüş
               </motion.button>
             </Link>
+          </div>
+          
+          {/* Trust Indicators */}
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-8 text-white/80 text-sm">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span>Kredi kartı gerekmez</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span>30 gün ücretsiz deneme</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span>İstediğiniz zaman iptal</span>
+            </div>
           </div>
         </motion.div>
       </div>

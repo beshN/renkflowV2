@@ -1,5 +1,7 @@
 import { StatsCardData } from '@/lib/types';
 import { motion } from 'framer-motion';
+import { memo } from 'react';
+import Link from 'next/link';
 
 // Color configuration map for better maintainability
 const colorConfig = {
@@ -20,9 +22,7 @@ function getColorConfig(color?: string) {
   return colorKey ? colorConfig[colorKey as keyof typeof colorConfig] : colorConfig.default;
 }
 
-import Link from 'next/link';
-
-export function StatsCard({ title, value, icon, trend, color, href }: StatsCardData & { href?: string }) {
+function StatsCardComponent({ title, value, icon, trend, color, href }: StatsCardData & { href?: string }) {
   const { base: baseColorClass, gradient: gradientFrom, iconBg } = getColorConfig(color);
 
   const CardContent = (
@@ -88,3 +88,5 @@ export function StatsCard({ title, value, icon, trend, color, href }: StatsCardD
     </motion.div>
   );
 }
+
+export const StatsCard = memo(StatsCardComponent);

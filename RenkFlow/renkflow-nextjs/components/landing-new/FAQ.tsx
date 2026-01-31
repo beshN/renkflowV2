@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus } from 'lucide-react';
+import { Plus, Minus, Search } from 'lucide-react';
 
 export const FAQ: React.FC = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  
   const faqs = [
     {
       q: 'RenkFlow kimler için uygun?',
@@ -28,23 +30,51 @@ export const FAQ: React.FC = () => {
     }
   ];
 
+  const filteredFaqs = useMemo(() => {
+    if (!searchTerm) return faqs;
+    const term = searchTerm.toLowerCase();
+    return faqs.filter(faq => 
+      faq.q.toLowerCase().includes(term) || 
+      faq.a.toLowerCase().includes(term)
+    );
+  }, [searchTerm, faqs]);
+
   return (
     <section className="py-24 bg-white dark:bg-slate-950">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        <div className="text-center mb-16">
+        <div className="text-center mb-12">
             <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-4">
                 Sıkça Sorulan Sorular
             </h2>
-            <p className="text-slate-500 dark:text-slate-400">
+            <p className="text-slate-500 dark:text-slate-400 mb-8">
                 Aklınıza takılan soruların cevapları burada.
             </p>
+            
+            {/* Search Bar */}
+            <div className="max-w-md mx-auto relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <input
+                    type="text"
+                    placeholder="Soru ara..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                />
+            </div>
         </div>
 
         <div className="space-y-4">
-            {faqs.map((faq, i) => (
-                <Accordion key={i} question={faq.q} answer={faq.a} />
-            ))}
+            {filteredFaqs.length > 0 ? (
+                filteredFaqs.map((faq, i) => (
+                    <Accordion key={i} question={faq.q} answer={faq.a} />
+                ))
+            ) : (
+                <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+                    <p className="text-lg font-medium mb-2">Sonuç bulunamadı</p>
+                    <p className="text-sm">Farklı bir arama terimi deneyin veya bizimle iletişime geçin.</p>
+                </div>
+            )}
         </div>
 
       </div>
