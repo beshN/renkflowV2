@@ -5,7 +5,6 @@ import { Moon, Sun } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useTheme } from '@/lib/context/ThemeContext';
-import { motion } from 'framer-motion';
 
 export const WaitlistNavbar = () => {
   const { theme, toggleTheme } = useTheme();
@@ -49,6 +48,7 @@ export const WaitlistNavbar = () => {
       </Link>
 
       <div className="w-full px-4 md:px-12">
+        <div className="flex items-center justify-between h-24 md:h-28">
 
           {/* Empty div for spacing (no navigation links on waitlist page) */}
           <div className="hidden md:flex items-center space-x-1 lg:space-x-2"></div>

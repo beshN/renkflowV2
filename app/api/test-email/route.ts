@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { sendVerificationEmail } from '@/lib/email';
 
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   try {
     // Test email sending
     const testEmail = 'test@example.com'; // Değiştir: gerçek email adresi koy
@@ -16,13 +20,13 @@ export async function GET() {
     console.log('📬 Email send result:', result);
 
     if (result.success) {
-      return Response.json({ 
+      return NextResponse.json({ 
         success: true, 
         message: 'Email sent successfully!',
         data: result.data 
       });
     } else {
-      return Response.json({ 
+      return NextResponse.json({ 
         success: false, 
         error: result.error,
         message: 'Email failed to send. Check logs above.' 
@@ -30,10 +34,9 @@ export async function GET() {
     }
   } catch (error: any) {
     console.error('❌ Test email error:', error);
-    return Response.json({ 
+    return NextResponse.json({ 
       success: false, 
-      error: error.message,
-      stack: error.stack 
+      error: 'Email test failed'
     }, { status: 500 });
   }
 }

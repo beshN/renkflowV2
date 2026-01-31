@@ -1,10 +1,10 @@
 # RenkFlow Next.js - Admin Panel
 
-Modern mobilya atölyesi için Next.js 15 App Router ile geliştirilmiş üretim takip ve yönetim sistemi.
+Modern mobilya atölyesi için Next.js 16 App Router ile geliştirilmiş üretim takip ve yönetim sistemi.
 
 ## 🚀 Özellikler
 
-- ✅ **Next.js 15** - App Router ile modern routing
+- ✅ **Next.js 16** - App Router ile modern routing
 - ✅ **TypeScript** - Type-safe development
 - ✅ **Tailwind CSS** - Utility-first styling
 - ✅ **Dark Mode** - Otomatik tema değiştirme
@@ -59,7 +59,7 @@ Tarayıcıda [http://localhost:3000](http://localhost:3000) adresini açın.
 
 ## 📦 Kullanılan Teknolojiler
 
-- **Next.js 15.0** - React framework
+- **Next.js 16.0** - React framework
 - **TypeScript 5.0** - Type safety
 - **Tailwind CSS 3.4** - Styling
 - **@dnd-kit** - Drag and drop

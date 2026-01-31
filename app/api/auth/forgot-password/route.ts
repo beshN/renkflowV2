@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
+import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
+import { authLimiter, rateLimitResponse } from '@/lib/api/rate-limit';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -14,7 +14,18 @@ function generateSecureToken(): string {
   return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export async function POST(request: Request) {
+async function hashToken(token: string): Promise<string> {
+  const data = new TextEncoder().encode(token);
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+export async function POST(request: NextRequest) {
+  const { allowed, remaining, resetIn } = authLimiter.check(request);
+  if (!allowed) {
+    return rateLimitResponse(remaining, resetIn);
+  }
+
   try {
     const body = await request.json();
     const email = body?.email?.trim().toLowerCase();
@@ -70,13 +81,14 @@ export async function POST(request: Request) {
 
     // Generate secure reset token
     const resetToken = generateSecureToken();
+    const resetTokenHash = await hashToken(resetToken);
     const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
 
     // Save token to database
     await sql`
       UPDATE users
       SET 
-        password_reset_token = ${resetToken}, 
+        password_reset_token = ${resetTokenHash}, 
         password_reset_expires = ${resetExpires.toISOString()},
         updated_at = NOW()
       WHERE id = ${user.id}
@@ -107,4 +119,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

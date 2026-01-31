@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 
 import { sql } from '@/lib/db';
+
+async function hashToken(token: string): Promise<string> {
+  const data = new TextEncoder().encode(token);
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
 
 // Password strength validation
 function validatePassword(password: string): { valid: boolean; error?: string } {
@@ -51,9 +56,10 @@ export async function POST(request: Request) {
     }
 
     // Verify token and check expiration
+    const tokenHash = await hashToken(token);
     const users = await sql`
       SELECT id, email, name FROM users
-      WHERE password_reset_token = ${token}
+      WHERE (password_reset_token = ${tokenHash} OR password_reset_token = ${token})
       AND password_reset_expires > NOW()
       LIMIT 1
     `;
@@ -79,7 +85,7 @@ export async function POST(request: Request) {
         password_reset_expires = NULL,
         updated_at = NOW()
       WHERE id = ${user.id}
-      AND password_reset_token = ${token}
+      AND (password_reset_token = ${tokenHash} OR password_reset_token = ${token})
     `;
 
     // Log successful password reset (for security auditing)
@@ -96,4 +102,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

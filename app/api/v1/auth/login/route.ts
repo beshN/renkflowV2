@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 import { successResponse, errorResponse, handleCORS, generateAPIToken } from '@/lib/api/auth-helpers';
+import { authLimiter, rateLimitResponse } from '@/lib/api/rate-limit';
 
 import { sql } from '@/lib/db';
 
@@ -15,6 +16,11 @@ export async function OPTIONS() {
 
 // POST /api/v1/auth/login - Login and get JWT token
 export async function POST(request: NextRequest) {
+  const { allowed, remaining, resetIn } = authLimiter.check(request);
+  if (!allowed) {
+    return rateLimitResponse(remaining, resetIn);
+  }
+
   try {
     const body = await request.json();
     const email = body?.email?.trim()?.toLowerCase();
