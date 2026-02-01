@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Order } from '@/lib/types';
 import { formatDate, getOrderStatusInfo } from '@/lib/utils';
 import Link from 'next/link';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface CalendarViewProps {
   orders: Order[];
@@ -70,7 +71,7 @@ export function CalendarView({ orders }: CalendarViewProps) {
           onClick={() => navigateMonth('prev')}
           className="p-1.5 hover:bg-card-light dark:hover:bg-card-dark rounded-lg transition-colors"
         >
-          <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+          <ChevronLeft size={20} />
         </button>
         
         <h3 className="text-base font-semibold text-text-light dark:text-text-dark capitalize">
@@ -81,7 +82,7 @@ export function CalendarView({ orders }: CalendarViewProps) {
           onClick={() => navigateMonth('next')}
           className="p-1.5 hover:bg-card-light dark:hover:bg-card-dark rounded-lg transition-colors"
         >
-          <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+          <ChevronRight size={20} />
         </button>
       </div>
 

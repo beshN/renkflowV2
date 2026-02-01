@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
+    "lint": "eslint .",
     "db:push": "node scripts/push-schema.js",
     "ws:server": "tsx server/index.ts",
     "type-check": "tsc --noEmit"
@@ -31,7 +31,6 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@react-email/components": "^1.0.1",
-    "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@tanstack/react-query": "^5.90.20",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.18",
@@ -52,6 +51,7 @@
     "lucide-react": "^0.563.0",
     "next": "^16.1.6",
     "next-auth": "^5.0.0-beta.30",
+    "next-themes": "^0.4.6",
     "pdfjs-dist": "^4.9.155",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
@@ -75,14 +75,15 @@
     "zustand": "^5.0.10"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.3",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.22",
-    "eslint": "^8",
-    "eslint-config-next": "15.0.3",
+    "eslint": "^9.39.2",
+    "eslint-config-next": "^16.1.6",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.18",
     "typescript": "^5"

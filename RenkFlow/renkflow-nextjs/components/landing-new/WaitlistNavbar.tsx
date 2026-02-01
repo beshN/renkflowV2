@@ -4,11 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useTheme } from '@/lib/context/ThemeContext';
+import { useTheme } from 'next-themes';
 
 export const WaitlistNavbar = () => {
-  const { theme, toggleTheme } = useTheme();
-  const isDark = theme === 'dark';
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
   const [scrolled, setScrolled] = useState(false);
 
   // Update scrolled state for conditional styling
@@ -57,7 +57,7 @@ export const WaitlistNavbar = () => {
           <div className="flex items-center gap-4">
              {/* Theme Toggle */}
              <button
-                onClick={toggleTheme}
+                onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
                 className="p-2 rounded-full text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 aria-label="Temayı Değiştir"
               >

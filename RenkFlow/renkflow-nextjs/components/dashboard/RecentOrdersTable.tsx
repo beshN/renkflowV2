@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Order } from '@/lib/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { getOrderStatusInfo } from '@/lib/utils';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, Inbox } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -41,7 +41,7 @@ export function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
     return (
       <div className="p-12 text-center flex flex-col items-center justify-center text-slate-500 dark:text-slate-400">
         <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
-            <span className="material-symbols-outlined text-3xl">inbox</span>
+            <Inbox className="w-8 h-8 opacity-50" />
         </div>
         <p className="font-medium">Henüz sipariş bulunmuyor</p>
         <p className="text-sm mt-1">Yeni sipariş oluşturarak başlayın.</p>
@@ -50,7 +50,7 @@ export function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200/60 dark:border-slate-800/60 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md shadow-sm">
+    <div className="glass-panel overflow-hidden rounded-xl border border-slate-200/60 dark:border-slate-800/60">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>

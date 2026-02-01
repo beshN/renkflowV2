@@ -6,6 +6,7 @@ import { Order } from '@/lib/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
+import { MoreVertical, Eye, Edit, Copy, Trash2, Calendar, Paperclip } from 'lucide-react';
 
 interface OrderCardProps {
   order: Order;
@@ -156,7 +157,7 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
                 onPointerDown={(e) => e.stopPropagation()}
                 className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-subtle-light dark:text-subtle-dark hover:text-primary"
               >
-                <span className="material-symbols-outlined text-[18px]">more_vert</span>
+                <MoreVertical size={18} />
               </button>
               {menuOpen && (
                 <div className="absolute right-0 mt-2 w-40 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-xl z-20">
@@ -169,7 +170,7 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
                     }}
                     onPointerDown={(e) => e.stopPropagation()}
                   >
-                    <span className="material-symbols-outlined text-[16px]">visibility</span>
+                    <Eye size={16} />
                     Görüntüle
                   </Link>
                   <Link
@@ -181,7 +182,7 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
                     }}
                     onPointerDown={(e) => e.stopPropagation()}
                   >
-                    <span className="material-symbols-outlined text-[16px]">edit</span>
+                    <Edit size={16} />
                     Düzenle
                   </Link>
                   <button
@@ -189,7 +190,7 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
                     onPointerDown={(e) => e.stopPropagation()}
                     className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                   >
-                    <span className="material-symbols-outlined text-[16px]">content_copy</span>
+                    <Copy size={16} />
                     ID Kopyala
                   </button>
                   {onDelete && (user?.role === 'admin' || user?.role === 'owner') && (
@@ -202,7 +203,7 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
                       onPointerDown={(e) => e.stopPropagation()}
                       className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-b-xl"
                     >
-                      <span className="material-symbols-outlined text-[16px]">delete</span>
+                      <Trash2 size={16} />
                       Sil
                     </button>
                   )}
@@ -218,7 +219,7 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
             {formatCurrency(order.totalAmount, order.currency)}
           </p>
           <div className="flex items-center gap-1.5 text-xs text-subtle-light dark:text-subtle-dark">
-            <span className="material-symbols-outlined text-[14px]">calendar_today</span>
+            <Calendar size={14} />
             <span>{formatDate(order.date)}</span>
           </div>
         </div>
@@ -256,7 +257,7 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
               onPointerDown={(e) => e.stopPropagation()}
               className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 font-medium"
             >
-              <span className="material-symbols-outlined text-[14px]">attach_file</span>
+              <Paperclip size={14} />
               Belge Ekle
             </button>
           </div>

@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Sun, Menu, X } from 'lucide-react';
-import { useTheme } from '@/lib/context/ThemeContext';
+import { useTheme } from 'next-themes';
 
 interface UnifiedNavbarProps {
   largeLogo?: boolean;
@@ -16,7 +16,7 @@ export const UnifiedNavbar = ({ largeLogo = false }: UnifiedNavbarProps) => {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -116,11 +116,11 @@ export const UnifiedNavbar = ({ largeLogo = false }: UnifiedNavbarProps) => {
             <div className="hidden md:flex items-center gap-4">
                {/* Theme Toggle */}
                <button
-                  onClick={toggleTheme}
+                  onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
                   className="p-2 rounded-full text-slate-600 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800 transition-colors"
                   aria-label="Temayı Değiştir"
                 >
-                  {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                  {resolvedTheme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
                 </button>
 
               <Link href="/auth/login" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
@@ -194,10 +194,10 @@ export const UnifiedNavbar = ({ largeLogo = false }: UnifiedNavbarProps) => {
                    <div className="flex justify-between items-center py-4 border-t border-gray-100 dark:border-gray-800">
                       <span className="text-sm text-slate-500">Görünüm</span>
                       <button
-                        onClick={toggleTheme}
+                        onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
                         className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-slate-600 dark:text-slate-300"
                       >
-                        {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                        {resolvedTheme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
                       </button>
                    </div>
                   <Link href="/auth/login" className="block w-full">

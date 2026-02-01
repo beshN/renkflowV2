@@ -53,8 +53,8 @@ const config: Config = {
         "text-muted-dark": "#9CA3AF",
       },
       fontFamily: {
-        display: ["var(--font-sora)", "Sora", "sans-serif"],
-        sans: ["Inter", "system-ui", "sans-serif"],
+        display: ["var(--font-outfit)", "sans-serif"],
+        sans: ["var(--font-jakarta)", "sans-serif"],
       },
       spacing: {
         xs: '0.25rem',

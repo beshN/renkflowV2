@@ -2,6 +2,7 @@ import { StatsCardData } from '@/lib/types';
 import { motion } from 'framer-motion';
 import { memo } from 'react';
 import Link from 'next/link';
+import { LucideIcon, TrendingUp, TrendingDown } from 'lucide-react';
 
 // Color configuration map for better maintainability
 const colorConfig = {
@@ -22,25 +23,29 @@ function getColorConfig(color?: string) {
   return colorKey ? colorConfig[colorKey as keyof typeof colorConfig] : colorConfig.default;
 }
 
-function StatsCardComponent({ title, value, icon, trend, color, href }: StatsCardData & { href?: string }) {
+// Override type for component prop to be specific
+interface StatsCardProps extends Omit<StatsCardData, 'icon'> {
+  icon: LucideIcon;
+  href?: string;
+}
+
+function StatsCardComponent({ title, value, icon: Icon, trend, color, href }: StatsCardProps) {
   const { base: baseColorClass, gradient: gradientFrom, iconBg } = getColorConfig(color);
 
   const CardContent = (
-    <div className="relative overflow-hidden p-6 rounded-2xl bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200/60 dark:border-slate-800/60 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300 group cursor-pointer">
+    <div className="relative overflow-hidden p-6 rounded-2xl glass-panel shadow-premium hover:shadow-glow-primary transition-all duration-300 group cursor-pointer">
          {/* Aurora Gradient Hover Effect */}
         <div className={`absolute inset-0 bg-gradient-to-br ${gradientFrom} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
         
         {/* Giant Background Icon */}
         <div className="absolute -right-4 -top-4 opacity-[0.02] group-hover:opacity-[0.06] transition-all duration-500 transform group-hover:scale-110 group-hover:rotate-6 pointer-events-none" aria-hidden="true">
-           <span className={`material-symbols-outlined text-[100px] ${baseColorClass}`}>
-              {icon}
-           </span>
+           <Icon className={`w-32 h-32 ${baseColorClass}`} />
         </div>
 
         <div className="relative flex justify-between items-start">
           <div>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">{title}</p>
-            <h3 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight" aria-label={`Değer: ${value}`}>{value}</h3>
+            <h3 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight font-display" aria-label={`Değer: ${value}`}>{value}</h3>
             
             {/* Trend Indicator */}
             {trend && (
@@ -52,9 +57,12 @@ function StatsCardComponent({ title, value, icon, trend, color, href }: StatsCar
                  }`}
                  aria-label={`Trend: ${trend.isPositive ? 'yukarı' : 'aşağı'} ${Math.abs(trend.value)}%`}
                  >
-                    <span className="material-symbols-outlined text-sm font-bold mr-0.5" aria-hidden="true">
-                      {trend.isPositive ? 'trending_up' : 'trending_down'}
-                    </span>
+                    {/* Trend Icon */}
+                    {trend.isPositive ? (
+                      <TrendingUp className="w-3 h-3 mr-1" />
+                    ) : (
+                      <TrendingDown className="w-3 h-3 mr-1" />
+                    )}
                     {Math.abs(trend.value)}%
                  </div>
                  <span className="text-xs text-slate-400 dark:text-slate-500">geçen aya göre</span>
@@ -62,8 +70,8 @@ function StatsCardComponent({ title, value, icon, trend, color, href }: StatsCar
             )}
           </div>
 
-          <div className={`p-3 rounded-xl ${iconBg} backdrop-blur-md shadow-sm ring-1 ring-black/5 dark:ring-white/5`} aria-hidden="true">
-            <span className="material-symbols-outlined text-2xl">{icon}</span>
+          <div className={`p-3 rounded-xl ${iconBg} backdrop-blur-md shadow-sm ring-1 ring-black/5 dark:ring-white/5 bg-white/50`} aria-hidden="true">
+            <Icon className="w-6 h-6" />
           </div>
         </div>
       </div>

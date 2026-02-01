@@ -3,16 +3,17 @@ import { Analytics } from "@vercel/analytics/react"
 import { Toaster } from 'sonner'
 import './globals.css'
 import type { Metadata } from 'next'
-import { Sora } from 'next/font/google'
-import { Providers } from '@/lib/context/Providers'
-import CookieConsent from '@/components/ui/CookieConsent'
-import PWAInstallPrompt from '@/components/ui/PWAInstallPrompt'
-import { SyncStatusBar } from '@/components/sync/SyncStatusBar'
+import { Outfit, Plus_Jakarta_Sans } from 'next/font/google'
 
-const sora = Sora({ 
+const outfit = Outfit({ 
   subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-sora',
+  variable: '--font-outfit',
+  display: 'swap',
+})
+
+const jakarta = Plus_Jakarta_Sans({ 
+  subsets: ['latin'],
+  variable: '--font-jakarta',
   display: 'swap',
 })
 
@@ -76,6 +77,13 @@ export const metadata: Metadata = {
   category: 'technology',
 }
 
+import { Providers } from '@/lib/context/Providers'
+import CookieConsent from '@/components/ui/CookieConsent'
+import PWAInstallPrompt from '@/components/ui/PWAInstallPrompt'
+import { SyncStatusBar } from '@/components/sync/SyncStatusBar'
+
+// ... metadata ...
+
 export default function RootLayout({
   children,
 }: {
@@ -108,7 +116,7 @@ export default function RootLayout({
         <meta name="msapplication-TileColor" content="#4361ee" />
         <meta name="msapplication-TileImage" content="/logo-r.png" />
       </head>
-      <body className={`${sora.variable} font-display antialiased`}>
+      <body className={`${outfit.variable} ${jakarta.variable} font-sans antialiased`}>
         <Providers>
           <SyncStatusBar />
           <ThemeApplier />

@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { Home, Receipt, PlusCircle, Settings } from 'lucide-react';
 
 const navItems = [
-  { icon: 'home', label: 'Ana Sayfa', href: '/dashboard' },
-  { icon: 'receipt_long', label: 'Siparişler', href: '/orders' },
-  { icon: 'add_circle', label: 'Yeni', href: '/new-order' },
-  { icon: 'settings', label: 'Ayarlar', href: '/settings' },
+  { icon: Home, label: 'Ana Sayfa', href: '/dashboard' },
+  { icon: Receipt, label: 'Siparişler', href: '/orders' },
+  { icon: PlusCircle, label: 'Yeni', href: '/new-order' },
+  { icon: Settings, label: 'Ayarlar', href: '/settings' },
 ];
 
 export function MobileBottomNav() {
@@ -32,12 +33,12 @@ export function MobileBottomNav() {
                   : 'text-subtle-light dark:text-subtle-dark'
               )}
             >
-              <span className={cn(
-                'material-symbols-outlined transition-transform',
-                isActive ? 'text-[26px] scale-110' : 'text-[24px]'
+              <div className={cn(
+                'transition-transform',
+                isActive ? 'scale-110' : ''
               )}>
-                {item.icon}
-              </span>
+                <item.icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+              </div>
               <span className={cn(
                 'text-[10px] font-medium',
                 isActive && 'font-semibold'

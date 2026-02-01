@@ -1,6 +1,7 @@
 'use client';
 
 import { SessionProvider } from 'next-auth/react';
+import { ThemeProvider } from 'next-themes';
 import { AuthProvider } from './AuthContext';
 import { SettingsProvider } from './SettingsContext';
 import { ToastProvider } from './ToastContext';
@@ -15,13 +16,15 @@ import { ReactNode } from 'react';
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <SessionProvider>
-      <AuthProvider>
-        <SettingsProvider>
-          <ToastProvider>
-            {children}
-          </ToastProvider>
-        </SettingsProvider>
-      </AuthProvider>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <AuthProvider>
+          <SettingsProvider>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </SettingsProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </SessionProvider>
   );
 }

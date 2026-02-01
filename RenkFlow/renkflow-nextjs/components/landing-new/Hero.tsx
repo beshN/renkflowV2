@@ -5,15 +5,15 @@ import { Mail, ShieldCheck, CheckCircle2, ArrowRight, ChevronDown, Star } from '
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { DashboardPreview } from './DashboardPreview';
-import { useTheme } from '@/lib/context/ThemeContext';
+import { useTheme } from 'next-themes';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
 export const Hero: React.FC = () => {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();

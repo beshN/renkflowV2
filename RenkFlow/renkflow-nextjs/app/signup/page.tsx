@@ -96,7 +96,7 @@ export default function SignupPage() {
                 setName(e.target.value);
                 if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
               }}
-              className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border ${formErrors.name ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm`}
+              className={`w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border ${formErrors.name ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm`}
               placeholder="Adınız Soyadınız"
               required
             />
@@ -116,7 +116,7 @@ export default function SignupPage() {
                 setCompanyName(e.target.value);
                 if (formErrors.companyName) setFormErrors({ ...formErrors, companyName: undefined });
               }}
-              className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border ${formErrors.companyName ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm`}
+              className={`w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border ${formErrors.companyName ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm`}
               placeholder="Şirketinizin Adı (opsiyonel)"
             />
           </div>
@@ -134,7 +134,7 @@ export default function SignupPage() {
                 setEmail(e.target.value);
                 if (formErrors.email) setFormErrors({ ...formErrors, email: undefined });
               }}
-              className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border ${formErrors.email ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm`}
+              className={`w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border ${formErrors.email ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm`}
               placeholder="ornek@sirket.com"
               required
             />
@@ -154,7 +154,7 @@ export default function SignupPage() {
                     setPassword(e.target.value);
                     if (formErrors.password) setFormErrors({ ...formErrors, password: undefined });
                 }}
-                className={`w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/50 border ${formErrors.password ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm`}
+                className={`w-full pl-10 pr-10 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border ${formErrors.password ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm`}
                 placeholder="En az 6 karakter"
                 required
                 minLength={6}

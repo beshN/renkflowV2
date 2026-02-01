@@ -55,40 +55,42 @@ export default function ForgotPasswordPage() {
           transition={{ duration: 0.6 }}
           className="flex-1 lg:flex-[0.5] flex items-center justify-center p-4 sm:p-8"
         >
-          <div className="w-full max-w-md">
+        <div className="w-full max-w-md glass-panel p-8 rounded-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-white/5">
             {isSuccess ? (
               <div className="text-center">
-                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <span className="material-symbols-outlined text-3xl text-green-600 dark:text-green-400">
+                <div className="w-20 h-20 bg-emerald-100/50 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-6 ring-4 ring-emerald-50 dark:ring-emerald-900/10">
+                  <span className="material-symbols-outlined text-4xl text-emerald-600 dark:text-emerald-400">
                     mark_email_read
                   </span>
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-black mb-3">E-posta Gönderildi</h1>
-                <p className="text-subtle-light dark:text-subtle-dark mb-6">
-                  Şifre sıfırlama linki <strong>{email}</strong> adresine gönderildi. 
+                <h1 className="text-3xl sm:text-4xl font-black mb-3 bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">E-posta Gönderildi</h1>
+                <p className="text-lg text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
+                  Şifre sıfırlama linki <strong className="text-slate-900 dark:text-white font-semibold">{email}</strong> adresine gönderildi. 
                   Lütfen gelen kutunuzu kontrol edin.
                 </p>
-                <p className="text-sm text-subtle-light dark:text-subtle-dark mb-6">
-                  E-posta gelmedi mi? Spam klasörünü kontrol edin veya birkaç dakika bekleyin.
-                </p>
+                <div className="p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/30 mb-8">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    E-posta gelmedi mi? Spam klasörünü kontrol edin veya birkaç dakika bekleyin.
+                  </p>
+                </div>
                 <Link href="/auth/login">
-                  <button className="w-full bg-primary text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity shadow-sm">
+                  <button className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-4 rounded-xl hover:opacity-90 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5">
                     Giriş Sayfasına Dön
                   </button>
                 </Link>
               </div>
             ) : (
               <>
-                <header className="text-center lg:text-left mb-6">
-                  <h1 className="text-3xl sm:text-4xl font-black mb-3">Şifremi Unuttum</h1>
-                  <p className="text-subtle-light dark:text-subtle-dark">
+                <header className="text-center lg:text-left mb-8">
+                  <h1 className="text-3xl sm:text-4xl font-extrabold mb-3 bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">Şifremi Unuttum</h1>
+                  <p className="text-base text-slate-500 dark:text-slate-400">
                     E-posta adresinizi girin, size şifre sıfırlama linki gönderelim.
                   </p>
                 </header>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
-                    <label className="block text-sm font-medium mb-2">E-posta Adresi</label>
+                    <label className="block text-sm font-semibold mb-2 ml-1 text-slate-700 dark:text-slate-200">E-posta Adresi</label>
                     <input
                       type="email"
                       value={email}
@@ -96,28 +98,42 @@ export default function ForgotPasswordPage() {
                         setEmail(e.target.value);
                         if (formError) setFormError('');
                       }}
-                      className={`input-professional ${formError ? 'border-red-500' : ''}`}
+                      className={`w-full px-4 py-3.5 rounded-xl border bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm focus:ring-4 focus:ring-primary/10 transition-all outline-none ${
+                        formError 
+                          ? 'border-red-500 focus:border-red-500' 
+                          : 'border-slate-200 dark:border-slate-700 focus:border-primary'
+                      }`}
                       placeholder="ornek@eposta.com"
                       required
                     />
                     {formError && (
-                      <p className="mt-1 text-sm text-red-500">{formError}</p>
+                      <p className="mt-2 text-sm text-red-500 font-medium flex items-center gap-2 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-100 dark:border-red-800">
+                        <span className="material-symbols-outlined text-lg">error</span>
+                        {formError}
+                      </p>
                     )}
                   </div>
 
                   <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                     type="submit"
                     disabled={isLoading}
-                    className="w-full bg-primary text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity mt-2 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="w-full bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-600/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/25 disabled:opacity-70 disabled:cursor-not-allowed text-lg flex items-center justify-center gap-2 transition-all"
                   >
-                    {isLoading ? 'Gönderiliyor...' : 'Şifre Sıfırlama Linki Gönder'}
+                    {isLoading ? (
+                      <>
+                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Gönderiliyor...
+                      </>
+                    ) : (
+                      'Şifre Sıfırlama Linki Gönder'
+                    )}
                   </motion.button>
                 </form>
 
-                <div className="mt-6 text-center">
-                  <p className="text-sm text-subtle-light dark:text-subtle-dark">
+                <div className="mt-8 text-center">
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     Şifrenizi hatırladınız mı?{' '}
                     <Link href="/auth/login" className="text-primary font-bold hover:underline">
                       Giriş Yap

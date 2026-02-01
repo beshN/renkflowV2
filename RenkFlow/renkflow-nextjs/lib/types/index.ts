@@ -136,7 +136,7 @@ export type User = z.infer<typeof UserSchema>;
 export const StatsCardDataSchema = z.object({
   title: z.string(),
   value: z.union([z.string(), z.number()]),
-  icon: z.string(),
+  icon: z.any(), // Changed to allow LucideIcon component
   trend: z.object({
     value: z.number(),
     isPositive: z.boolean(),

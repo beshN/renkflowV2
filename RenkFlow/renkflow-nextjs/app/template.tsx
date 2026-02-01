@@ -1,30 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { motion } from 'framer-motion';
 
 export default function Template({ children }: { children: React.ReactNode }) {
-  const [opacity, setOpacity] = useState(0);
-  const pathname = usePathname();
-
-  useEffect(() => {
-    // Reset opacity to 0 when pathname changes (start of transition)
-    setOpacity(0);
-    
-    // Small timeout to trigger the fade-in
-    const timeout = setTimeout(() => {
-      setOpacity(1);
-    }, 50);
-
-    return () => clearTimeout(timeout);
-  }, [pathname]);
-
   return (
-    <div
-      className="transition-opacity duration-500 ease-in-out"
-      style={{ opacity }}
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ ease: 'easeInOut', duration: 0.4 }}
+      className="flex-1 w-full"
     >
       {children}
-    </div>
+    </motion.div>
   );
 }

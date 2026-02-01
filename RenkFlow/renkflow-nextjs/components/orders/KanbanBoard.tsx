@@ -29,6 +29,7 @@ import { useAuth } from '@/lib/context/AuthContext';
 import { formatCurrency } from '@/lib/utils';
 import { realtime } from '@/lib/realtime/client';
 import { PresenceUser } from '@/lib/realtime/types';
+import { Clock, Settings2, CheckCircle, Search, ArrowUp, ArrowDown, ChevronsUpDown, Inbox } from 'lucide-react';
 
 interface KanbanBoardProps {
   orders: Order[];
@@ -56,7 +57,7 @@ const columnColors = {
     border: 'border-amber-200/50 dark:border-amber-800/30',
     hoverBorder: 'border-amber-400 dark:border-amber-500',
     badge: 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300',
-    icon: 'schedule',
+    icon: Clock,
     gradient: 'from-amber-500/10 to-transparent',
   },
   in_production: {
@@ -64,7 +65,7 @@ const columnColors = {
     border: 'border-blue-200/50 dark:border-blue-800/30',
     hoverBorder: 'border-blue-400 dark:border-blue-500',
     badge: 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300',
-    icon: 'precision_manufacturing',
+    icon: Settings2,
     gradient: 'from-blue-500/10 to-transparent',
   },
   delivered: {
@@ -72,7 +73,7 @@ const columnColors = {
     border: 'border-emerald-200/50 dark:border-emerald-800/30',
     hoverBorder: 'border-emerald-400 dark:border-emerald-500',
     badge: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300',
-    icon: 'check_circle',
+    icon: CheckCircle,
     gradient: 'from-emerald-500/10 to-transparent',
   },
 };
@@ -129,9 +130,9 @@ const DroppableColumn = memo(function DroppableColumn({
       {/* Column Header */}
       <div className={`flex items-center justify-between ${isCollapsed ? 'mb-2' : 'mb-4'}`}>
         <div className="flex items-center gap-2">
-          <span className={`material-symbols-outlined text-lg ${colors.badge.split(' ').slice(2).join(' ')}`}>
-            {colors.icon}
-          </span>
+          <div className={`p-1 rounded-md ${colors.badge}`}>
+            <colors.icon size={18} />
+          </div>
           {!isCollapsed && (
             <h3 className="text-sm font-semibold text-text-light dark:text-text-dark uppercase tracking-wide">
               {column.title}
@@ -163,9 +164,7 @@ const DroppableColumn = memo(function DroppableColumn({
             className="p-1 rounded-lg hover:bg-white/70 dark:hover:bg-black/20 transition-colors"
             title={isCollapsed ? 'Kolonu genişlet' : 'Kolonu daralt'}
           >
-            <span className="material-symbols-outlined text-[16px] text-subtle-light dark:text-subtle-dark">
-              {isCollapsed ? 'unfold_more' : 'unfold_less'}
-            </span>
+            <ChevronsUpDown size={16} className="text-subtle-light dark:text-subtle-dark" />
           </button>
         </div>
       </div>
@@ -240,9 +239,7 @@ const DroppableColumn = memo(function DroppableColumn({
           animate={{ opacity: 1 }}
           className="flex flex-col items-center justify-center py-8 text-center"
         >
-          <span className="material-symbols-outlined text-3xl text-gray-300 dark:text-gray-600 mb-2">
-            inbox
-          </span>
+          <Inbox size={32} className="text-gray-300 dark:text-gray-600 mb-2" />
           <p className="text-xs text-gray-400 dark:text-gray-500">Sipariş yok</p>
         </motion.div>
       )}
@@ -503,7 +500,7 @@ export function KanbanBoard({ orders, onOrderStatusChange, onOrderDelete }: Kanb
       <div className="mb-4 rounded-2xl border border-border-light dark:border-border-dark bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl p-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[220px]">
-            <span className="material-symbols-outlined text-[18px] absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
@@ -544,9 +541,7 @@ export function KanbanBoard({ orders, onOrderStatusChange, onOrderDelete }: Kanb
               className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-500 hover:text-slate-700"
               title="Sıralama yönü"
             >
-              <span className="material-symbols-outlined text-[18px]">
-                {sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
-              </span>
+              {sortDirection === 'asc' ? <ArrowUp size={18} /> : <ArrowDown size={18} />}
             </button>
           </div>
 
