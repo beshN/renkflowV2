@@ -156,7 +156,7 @@ export async function swrFetch<T>(
   const { ttl = 5 * 60 * 1000 } = options;
   
   // Check memory cache first
-  const cached = globalCache.get<T>(key);
+  const cached = globalCache.get(key) as T | undefined;
   if (cached !== undefined) {
     // Revalidate in background
     fetcher().then((fresh) => {
