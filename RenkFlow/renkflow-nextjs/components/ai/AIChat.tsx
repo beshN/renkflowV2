@@ -185,9 +185,9 @@ export function AIChat({ onClose, initialMessage, context }: AIChatProps) {
     {
       id: 'welcome',
       role: 'assistant',
-      content: 'Merhaba! Ben RenkFlow AI asistanınızım. Size nasıl yardımcı olabilirim?\n\nSiparişler, üretim, raporlar veya herhangi bir konuda soru sorabilirsiniz.',
+      content: 'Merhaba! 👋 Ben RenkFlow AI, matbaa ve baskı işlerinizde size yardımcı olmak için buradayım.\n\nSipariş takibi, üretim planlaması, geciken işler veya finansal raporlar hakkında sorularınızı yanıtlayabilirim.',
       timestamp: new Date(),
-      suggestions: ['Bugünkü siparişler', 'Geciken işler', 'Haftalık rapor'],
+      suggestions: ['Geciken siparişler', 'Bugünkü teslimler', 'Haftalık özet', 'Yeni sipariş nasıl eklerim?'],
     },
   ]);
   const [input, setInput] = useState('');
