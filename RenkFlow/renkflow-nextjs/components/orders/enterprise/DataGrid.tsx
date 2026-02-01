@@ -25,6 +25,7 @@ import { useOrdersStore } from '@/lib/stores/orders.store';
 import { formatCurrency, formatDate, getOrderStatusInfo } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { OrderHoverCard } from './OrderHoverCard';
 
 // ============================================
 // Types
@@ -349,11 +350,13 @@ export const DataGrid: React.FC<DataGridProps> = ({
       accessorKey: 'customerName',
       header: 'Müşteri',
       cell: ({ getValue, row }) => (
-        <InlineEditCell
-          value={getValue() as string}
-          row={row}
-          columnId="customerName"
-        />
+        <OrderHoverCard order={row.original} side="right" align="start">
+          <InlineEditCell
+            value={getValue() as string}
+            row={row}
+            columnId="customerName"
+          />
+        </OrderHoverCard>
       ),
       size: 180,
     },

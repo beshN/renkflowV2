@@ -11,6 +11,7 @@ import { useOrders } from '@/lib/hooks/useOrders';
 import { useAuth } from '@/lib/context/AuthContext';
 import { StatsCardData } from '@/lib/types';
 import { ShoppingBag, Factory, CheckCircle2, Banknote } from 'lucide-react';
+import { AdvancedStatsCard, StatsGrid } from '@/components/dashboard/AdvancedStatsCard';
 
 export default function DashboardPage() {
   const { orders } = useOrders();
@@ -206,11 +207,45 @@ export default function DashboardPage() {
           </Card>
         </div>
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
-          {statsData.map((stat) => (
-            <StatsCard key={stat.title} {...stat} />
-          ))}
-        </div>
+        <StatsGrid columns={4} className="mb-6 md:mb-8">
+          <AdvancedStatsCard
+            title="Toplam Sipariş"
+            value={orders?.length || 0}
+            icon={ShoppingBag}
+            iconColor="text-blue-600"
+            trend={{ value: 12, isPositive: true }}
+            format="number"
+            href="/orders"
+          />
+          <AdvancedStatsCard
+            title="Aktif Üretim"
+            value={orders?.filter(o => o.status === 'in_production').length || 0}
+            icon={Factory}
+            iconColor="text-amber-600"
+            trend={{ value: 3, isPositive: true }}
+            format="number"
+            href="/orders?status=in_production"
+          />
+          <AdvancedStatsCard
+            title="Teslim Edildi"
+            value={orders?.filter(o => o.status === 'delivered').length || 0}
+            icon={CheckCircle2}
+            iconColor="text-green-600"
+            trend={{ value: 8, isPositive: true }}
+            format="number"
+            href="/orders?status=delivered"
+          />
+          <AdvancedStatsCard
+            title="Toplam Gelir"
+            value={orders?.reduce((sum, order) => sum + order.totalAmount, 0) || 0}
+            icon={Banknote}
+            iconColor="text-yellow-600"
+            trend={{ value: 15, isPositive: true }}
+            format="currency"
+            currency="₺"
+            href="/orders"
+          />
+        </StatsGrid>
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">

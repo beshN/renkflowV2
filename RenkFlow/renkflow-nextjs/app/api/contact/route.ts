@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     // Send email to support team
     await resend.emails.send({
       from: 'RenkFlow <noreply@renkflow.com>',
-      to: ['destek@renkflow.com'],
+      to: ['support@renkflow.com'],
       replyTo: email,
       subject: `[İletişim Formu] ${subjectText} - ${safeNameForSubject}`,
       html: `

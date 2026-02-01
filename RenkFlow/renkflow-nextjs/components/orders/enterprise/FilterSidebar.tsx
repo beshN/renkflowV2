@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FilterPresets } from './FilterPresets';
 
 // ============================================
 // Types
@@ -583,6 +584,11 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
             </div>
           </div>
         </FilterSection>
+
+        {/* Filter Presets */}
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+          <FilterPresets variant="sidebar" />
+        </div>
 
         {/* Status */}
         <FilterSection title="Durum" icon="pending_actions">

@@ -26,7 +26,7 @@ export default function ContactPage() {
       subject: `Renkflow İletişim: ${topic || 'Genel'}`,
       body: `Ad Soyad: ${firstName} ${lastName}\nKonu: ${topic}\n\nMesaj:\n${message}`,
     });
-    window.location.href = `mailto:info@renkflow.com?${params.toString()}`;
+    window.location.href = `mailto:support@renkflow.com?${params.toString()}`;
     event.currentTarget.reset();
   };
 
@@ -67,10 +67,9 @@ export default function ContactPage() {
                   <div>
                     <h3 className="font-semibold text-lg text-foreground mb-1">E-posta</h3>
                     <p className="text-muted-foreground">info@renkflow.com</p>
-                    <p className="text-muted-foreground">destek@renkflow.com</p>
+                    <p className="text-muted-foreground">support@renkflow.com</p>
                   </div>
                 </div>
-
                 <div className="flex items-start gap-4 group">
                   <div className="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
                     <Phone size={24} />
@@ -88,7 +87,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg text-foreground mb-1">Ofis</h3>
-                    <p className="text-muted-foreground">Teknopark İstanbul</p>
+                    <p className="text-muted-foreground">Güngören İstanbul</p>
                     <p className="text-muted-foreground">Sanayi Mah. Teknopark Bulvarı</p>
                     <p className="text-muted-foreground">Pendik / İstanbul</p>
                   </div>
