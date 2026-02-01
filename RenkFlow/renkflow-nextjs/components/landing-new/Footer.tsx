@@ -27,7 +27,7 @@ export const Footer: React.FC = () => {
                     src="/logo-full.png" 
                     alt="RenkFlow" 
                     fill
-                    sizes="192px"
+                    sizes="292px"
                     className="object-contain object-left opacity-80 group-hover:opacity-100 transition-opacity"
                  />
               </div>
@@ -44,7 +44,7 @@ export const Footer: React.FC = () => {
 
           {/* Links Column 1 */}
           <div>
-            <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Ürün</h4>
+            <h4 className="font-semibold text-slate-900 dark:text-white mb-4"></h4>
             <ul className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
               <li><Link href="/features" className="hover:text-sky-600 transition-colors">Özellikler</Link></li>
               <li><Link href="/pricing" className="hover:text-sky-600 transition-colors">Fiyatlandırma</Link></li>
@@ -55,7 +55,7 @@ export const Footer: React.FC = () => {
 
           {/* Links Column 2 */}
           <div>
-            <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Şirket</h4>
+            <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Kurumsal</h4>
             <ul className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
               <li><Link href="/about" className="hover:text-emerald-500 transition-colors">Hakkımızda</Link></li>
               <li><Link href="/contact" className="hover:text-emerald-500 transition-colors">İletişim</Link></li>
@@ -70,7 +70,7 @@ export const Footer: React.FC = () => {
              <ul className="space-y-3 text-sm text-slate-500 dark:text-slate-400">
                 <li className="flex items-start gap-2">
                     <MapPin size={16} className="mt-0.5 text-sky-600" />
-                    <span>Teknopark İstanbul, 34912<br/>Pendik/İstanbul</span>
+                    <span>Güngören İstanbul, 34912<br/>İstanbul/Türkiye</span>
                 </li>
                 <li className="flex items-center gap-2">
                     <Mail size={16} className="text-sky-600" />

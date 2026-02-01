@@ -4,7 +4,7 @@ import tsPlugin from "@typescript-eslint/eslint-plugin";
 /** @type {import('eslint').Linter.Config[]} */
 export default [
   {
-    ignores: [".next/**", "node_modules/**", "coverage/**", "dist/**", "*.config.*", "public/sw.js", "scripts/*.js"],
+    ignores: [".next/**", "node_modules/**", "**/node_modules/**", "coverage/**", "dist/**", "*.config.*", "public/sw.js", "scripts/*.js", "**/*.min.js"],
   },
   {
     files: ["**/*.{js,jsx,ts,tsx}"],

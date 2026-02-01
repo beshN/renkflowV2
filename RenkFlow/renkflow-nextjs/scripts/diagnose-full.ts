@@ -44,6 +44,7 @@ async function diagnose() {
          // It might be the wrapped function
           const time = await sql`SELECT now()`;
           console.log('   ✅ DB Connection Successful!');
+          console.log('      Time:', time[0].now);
      }
   } catch (error) {
     console.error('   ❌ DB Connection FAILED:', (error as any).message);
