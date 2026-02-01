@@ -31,8 +31,8 @@ export const HeroSection: React.FC = () => {
               RenkFlow OS
             </div>
             <h1 className="mt-6 text-5xl md:text-6xl lg:text-7xl font-bold text-slate-900 dark:text-white leading-tight min-h-[160px] md:min-h-[auto]">
-              Ekiplerinizi <br />
-              <span className="bg-gradient-to-r from-sky-500 via-blue-600 to-emerald-500 bg-clip-text text-transparent">
+              <span className="block">Ekiplerinizi</span>
+              <span className="block bg-gradient-to-r from-sky-500 via-blue-600 to-emerald-500 bg-clip-text text-transparent h-[1.2em]">
                 <TypeAnimation
                   sequence={[
                     'İş Akışınızı',
@@ -46,8 +46,8 @@ export const HeroSection: React.FC = () => {
                   speed={50}
                   repeat={Infinity}
                 />
-              </span> <br />
-              tek merkezden yönetin.
+              </span>
+              <span className="block">tek merkezden yönetin.</span>
             </h1>
             <p className="mt-6 text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-xl mx-auto md:mx-0">
               Görsel planlama, otomasyon ve ekip iş birliğini aynı platformda birleştirin. Karmaşayı netliğe, fikirleri somut çıktılara çevirin.

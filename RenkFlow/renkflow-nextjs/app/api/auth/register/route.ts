@@ -42,6 +42,46 @@ function validatePassword(password: string): { valid: boolean; error?: string } 
   return { valid: true };
 }
 
+function mapRegistrationError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes('duplicate') ||
+    normalized.includes('unique') ||
+    normalized.includes('users_email')
+  ) {
+    return {
+      status: 400,
+      field: 'email',
+      error: 'Bu e-posta adresi zaten kullanılıyor',
+      code: 'email_exists',
+    };
+  }
+
+  if (
+    normalized.includes('database_url') ||
+    normalized.includes('connection') ||
+    normalized.includes('connect') ||
+    normalized.includes('timeout') ||
+    normalized.includes('econn')
+  ) {
+    return {
+      status: 500,
+      field: 'general',
+      error: 'Veritabanına bağlanılamadı. Lütfen daha sonra tekrar deneyin.',
+      code: 'db_unavailable',
+    };
+  }
+
+  return {
+    status: 500,
+    field: 'general',
+    error: 'Kayıt olurken bir hata oluştu',
+    code: 'unknown_error',
+  };
+}
+
 export async function POST(request: NextRequest) {
   // Rate limiting check
   const { allowed, remaining, resetIn } = authLimiter.check(request);
@@ -50,7 +90,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json();
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: 'Geçersiz istek formatı', field: 'general', code: 'invalid_payload' },
+        { status: 400 }
+      );
+    }
     
     // Extract and sanitize inputs
     const name = body?.name ? sanitizeName(body.name) : '';
@@ -176,9 +224,10 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: unknown) {
     console.error('Registration error:', error);
+    const mapped = mapRegistrationError(error);
     return NextResponse.json(
-      { error: 'Kayıt olurken bir hata oluştu', field: 'general' },
-      { status: 500 }
+      { error: mapped.error, field: mapped.field, code: mapped.code },
+      { status: mapped.status }
     );
   }
 }

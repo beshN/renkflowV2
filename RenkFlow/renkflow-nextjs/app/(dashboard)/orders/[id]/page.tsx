@@ -8,6 +8,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { NewOrderForm } from '@/components/forms/NewOrderForm';
+import { OrderTimeline } from '@/components/orders/enterprise';
 
 import { useOrders } from '@/lib/hooks/useOrders';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -240,6 +241,12 @@ export default function OrderDetailPage() {
                         </p>
                      </div>
                 )}
+
+                {/* Order Timeline */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl">
+                  <h3 className="font-bold text-slate-900 dark:text-white mb-4">Sipariş Akışı</h3>
+                  <OrderTimeline order={order} />
+                </div>
 
                 {order.customFields && Object.keys(order.customFields).length > 0 && (
                   <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl">

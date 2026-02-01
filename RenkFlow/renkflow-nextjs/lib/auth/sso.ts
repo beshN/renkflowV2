@@ -8,7 +8,7 @@
  * - Multi-tenant SSO configuration
  */
 
-import { sql } from '@/lib/db/neon';
+import { sql } from '@/lib/db';
 import { SAML } from '@node-saml/node-saml';
 import { parseStringPromise } from 'xml2js';
 import crypto from 'node:crypto';
@@ -331,7 +331,7 @@ async function createSamlInstance(provider: any, callbackUrl: string): Promise<S
     entryPoint,
     issuer: issuer || callbackUrl,
     callbackUrl,
-    cert,
+    idpCert: cert,
     wantAssertionsSigned: true,
     wantAuthnResponseSigned: true,
     disableRequestedAuthnContext: false,

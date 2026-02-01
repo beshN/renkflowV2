@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import { LayoutDashboard, Zap, LineChart } from 'lucide-react';
 
 export const DetailedFeatures: React.FC = () => {
   return (
@@ -32,7 +33,7 @@ export const DetailedFeatures: React.FC = () => {
                className="flex items-start space-x-6"
             >
               <div className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0">
-                <span className="material-symbols-outlined">grid_view</span>
+                <LayoutDashboard size={24} />
               </div>
               <div>
                 <h3 className="text-xl font-bold mb-2 text-slate-900 dark:text-white">Özelleştirilebilir Panolar</h3>
@@ -48,7 +49,7 @@ export const DetailedFeatures: React.FC = () => {
                className="flex items-start space-x-6"
             >
               <div className="bg-sky-50 dark:bg-sky-500/10 text-sky-600 w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0">
-                <span className="material-symbols-outlined">bolt</span>
+                <Zap size={24} />
               </div>
               <div>
                 <h3 className="text-xl font-bold mb-2 text-slate-900 dark:text-white">Güçlü Otomasyon</h3>
@@ -64,7 +65,7 @@ export const DetailedFeatures: React.FC = () => {
                className="flex items-start space-x-6"
             >
               <div className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0">
-                <span className="material-symbols-outlined">insights</span>
+                <LineChart size={24} />
               </div>
               <div>
                 <h3 className="text-xl font-bold mb-2 text-slate-900 dark:text-white">Gelişmiş Raporlama</h3>

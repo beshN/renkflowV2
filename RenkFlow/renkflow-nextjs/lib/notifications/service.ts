@@ -9,7 +9,7 @@
  * - Batch processing and queuing
  */
 
-import { sql } from '@/lib/db/neon';
+import { sql } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
 import { Order, OrderStatus } from '@/lib/types';
 import crypto from 'node:crypto';

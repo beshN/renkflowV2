@@ -56,7 +56,7 @@ export const ClientsSection: React.FC = () => {
                             alt={`${client.name} logo`} 
                             height={client.height} 
                             width={120} 
-                            className="h-auto w-auto max-h-8 opacity-50 dark:opacity-40 grayscale hover:grayscale-0 hover:opacity-100 dark:hover:opacity-100 transition-all cursor-pointer"
+                            className="h-auto w-auto max-h-8 opacity-50 dark:opacity-40 grayscale hover:grayscale-0 dark:invert hover:invert-0 hover:opacity-100 dark:hover:opacity-100 transition-all cursor-pointer"
                             unoptimized
                         />
                     </div>
@@ -70,7 +70,7 @@ export const ClientsSection: React.FC = () => {
                             alt={`${client.name} logo`} 
                             height={client.height} 
                             width={120} 
-                            className="h-auto w-auto max-h-8 opacity-50 dark:opacity-40 grayscale hover:grayscale-0 hover:opacity-100 dark:hover:opacity-100 transition-all cursor-pointer"
+                            className="h-auto w-auto max-h-8 opacity-50 dark:opacity-40 grayscale hover:grayscale-0 dark:invert hover:invert-0 hover:opacity-100 dark:hover:opacity-100 transition-all cursor-pointer"
                             unoptimized
                         />
                     </div>
@@ -84,7 +84,7 @@ export const ClientsSection: React.FC = () => {
                             alt={`${client.name} logo`} 
                             height={client.height} 
                             width={120} 
-                            className="h-auto w-auto max-h-8 opacity-50 dark:opacity-40 grayscale hover:grayscale-0 hover:opacity-100 dark:hover:opacity-100 transition-all cursor-pointer"
+                            className="h-auto w-auto max-h-8 opacity-50 dark:opacity-40 grayscale hover:grayscale-0 dark:invert hover:invert-0 hover:opacity-100 dark:hover:opacity-100 transition-all cursor-pointer"
                             unoptimized
                         />
                     </div>

@@ -1,12 +1,26 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '../ui/Button';
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { NewOrderFormData } from '@/lib/types';
 import { toast } from 'sonner';
-import Image from 'next/image';
 import { useAuth } from '@/lib/context/AuthContext';
 import { TEMPLATE_BY_KEY, DEFAULT_TEMPLATE_KEY, TemplateKey } from '@/lib/config/templates';
+import { Input } from '../ui/Input';
+import { 
+  User, 
+  Mail, 
+  Phone, 
+  Package, 
+  Calendar, 
+  Building2, 
+  CreditCard, 
+  UploadCloud, 
+  FileText, 
+  X, 
+  CheckCircle, 
+  Loader2,
+  Info 
+} from 'lucide-react';
 
 interface NewOrderFormProps {
   onSubmit: (data: FormData) => Promise<void>;
@@ -140,164 +154,156 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Customer Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Müşteri Bilgileri</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                Müşteri Adı *
-              </label>
-              <input
-                type="text"
-                name="customerName"
-                value={formData.customerName}
-                onChange={handleChange}
-                required
-                className={`w-full rounded-lg border ${
-                  errors.customerName 
-                    ? 'border-red-500 focus:ring-red-500' 
-                    : 'border-border-light dark:border-border-dark focus:ring-primary/50'
-                } bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 transition-all`}
-                placeholder="Örn: Ahmet Yılmaz"
-              />
-              {errors.customerName && (
-                <p className="mt-1 text-sm text-red-500">{errors.customerName}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                E-posta
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                placeholder="ahmet@example.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                Telefon
-              </label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                placeholder="+90 5XX XXX XX XX"
-              />
-            </div>
+      <div className="glass-panel p-6 rounded-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-600 dark:text-blue-400">
+            <User size={24} />
           </div>
-          {template.extraFields.length > 0 && (
-            <div className="mt-6 border-t border-border-light dark:border-border-dark pt-6">
-              <h4 className="text-sm font-semibold text-text-light dark:text-text-dark mb-4">
-                Sektor Ozel Alanlar
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+              Müşteri Bilgileri
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Siparişi veren müşteri veya firma detayları.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="md:col-span-2">
+            <Input
+              label="Müşteri Adı *"
+              name="customerName"
+              value={formData.customerName}
+              onChange={handleChange}
+              placeholder="Örn: Ahmet Yılmaz"
+              errorMessage={errors.customerName}
+            />
+          </div>
+          <div>
+            <Input
+              label="E-posta"
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="ahmet@example.com"
+            />
+          </div>
+          <div>
+            <Input
+              label="Telefon"
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              placeholder="+90 5XX XXX XX XX"
+            />
+          </div>
+        </div>
+        
+        {template.extraFields.length > 0 && (
+          <div className="mt-8 border-t border-slate-100 dark:border-slate-800 pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Info size={16} className="text-slate-400" />
+              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
+                Sektörel Alanlar
               </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {template.extraFields.map((field) => (
-                  <div key={field.key}>
-                    <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                      {field.label} {field.required ? '*' : ''}
-                    </label>
-                    {field.type === 'select' ? (
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {template.extraFields.map((field) => (
+                <div key={field.key}>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                    {field.label} {field.required ? '*' : ''}
+                  </label>
+                  {field.type === 'select' ? (
+                    <div className="relative">
                       <select
                         value={customFields[field.key] || ''}
                         onChange={(e) => handleCustomFieldChange(field.key, e.target.value)}
-                        className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
                       >
-                        <option value="">Seciniz</option>
+                        <option value="">Seçiniz</option>
                         {field.options?.map((option) => (
                           <option key={option} value={option}>
                             {option}
                           </option>
                         ))}
                       </select>
-                    ) : (
-                      <input
-                        type={field.type}
-                        value={customFields[field.key] || ''}
-                        onChange={(e) => handleCustomFieldChange(field.key, e.target.value)}
-                        required={field.required}
-                        placeholder={field.placeholder}
-                        className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                      </div>
+                    </div>
+                  ) : (
+                    <Input
+                      type={field.type}
+                      value={customFields[field.key] || ''}
+                      onChange={(e) => handleCustomFieldChange(field.key, e.target.value)}
+                      placeholder={field.placeholder}
+                    />
+                  )}
+                </div>
+              ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+      </div>
 
       {/* Product Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{template.title}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                {template.productLabel} *
-              </label>
-              <input
-                type="text"
-                name="productName"
-                value={formData.productName}
-                onChange={handleChange}
-                required
-                className={`w-full rounded-lg border ${
-                  errors.productName 
-                    ? 'border-red-500 focus:ring-red-500' 
-                    : 'border-border-light dark:border-border-dark focus:ring-primary/50'
-                } bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 transition-all`}
-                placeholder={template.productPlaceholder}
-              />
-              {errors.productName && (
-                <p className="mt-1 text-sm text-red-500">{errors.productName}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                {template.quantityLabel} *
-              </label>
-              <input
-                type="number"
-                name="quantity"
-                value={formData.quantity}
-                onChange={handleChange}
-                min="1"
-                required
-                className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                {template.deliveryLabel}
-              </label>
-              <input
-                type="date"
-                name="deliveryDate"
-                value={formData.deliveryDate}
-                onChange={handleChange}
-                className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                {template.departmentLabel}
-              </label>
+      <div className="glass-panel p-6 rounded-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl text-indigo-600 dark:text-indigo-400">
+            <Package size={24} />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+              {template.title}
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Ürün, miktar ve teslimat bilgileri.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="md:col-span-2">
+            <Input
+              label={`${template.productLabel} *`}
+              name="productName"
+              value={formData.productName}
+              onChange={handleChange}
+              placeholder={template.productPlaceholder}
+              errorMessage={errors.productName}
+            />
+          </div>
+          <div>
+            <Input
+              label={`${template.quantityLabel} *`}
+              type="number"
+              name="quantity"
+              value={formData.quantity}
+              onChange={handleChange}
+              min={1}
+            />
+          </div>
+          <div>
+            <Input
+              label={template.deliveryLabel}
+              type="date"
+              name="deliveryDate"
+              value={formData.deliveryDate}
+              onChange={handleChange}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              {template.departmentLabel}
+            </label>
+            <div className="relative">
               <select
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
-                className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
               >
                 <option value="">Seçiniz</option>
                 {template.departments.map((dept) => (
@@ -306,156 +312,160 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                   </option>
                 ))}
               </select>
+               <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                {template.totalLabel.replace('(TL)', `(${formData.currency})`)} *
-              </label>
-              <input
+          </div>
+          <div>
+            <div className="relative">
+               <Input
+                label={`${template.totalLabel.replace('(TL)', `(${formData.currency})`)} *`}
                 type="number"
                 name="totalAmount"
                 value={formData.totalAmount}
                 onChange={handleChange}
-                min="0"
+                min={0}
                 step="0.01"
-                required
-                className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               />
             </div>
           </div>
-          {/* Document Attachment */}
-          <div className="md:col-span-2 border-t border-border-light dark:border-border-dark pt-6 mt-6">
-            <h3 className="text-lg font-medium text-text-light dark:text-text-dark mb-4">
-              Belge Ekleme
-            </h3>
-            {/* Document Upload */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                Belgeler (Teknik Çizim, Sözleşme vb.)
-              </label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-border-light dark:border-border-dark border-dashed rounded-lg hover:bg-card-light dark:hover:bg-card-dark transition-colors relative group">
-                <div className="space-y-1 text-center">
-                  <span className="material-symbols-outlined text-4xl text-subtle-light dark:text-subtle-dark group-hover:text-primary transition-colors">
-                    cloud_upload
-                  </span>
-                  <div className="flex text-sm text-subtle-light dark:text-subtle-dark">
-                    <label
-                      htmlFor="file-upload"
-                      className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary/80 focus-within:outline-none"
-                    >
-                      <span>Dosya Yükle</span>
-                      <input 
-                        id="file-upload" 
-                        name="file-upload" 
-                        type="file" 
-                        className="sr-only" 
-                        multiple
-                        accept="image/*,.pdf"
-                        onChange={(e) => {
-                          const selectedFiles = e.target.files;
-                          if (selectedFiles && selectedFiles.length > 0) {
-                            const newFiles = Array.from(selectedFiles).map(file => ({
-                              id: Math.random().toString(36).substr(2, 9),
-                              file
-                            }));
-                            setFiles(prev => [...prev, ...newFiles]);
-                            toast.success(`${newFiles.length} dosya eklendi`);
-                          }
-                        }}
-                      />
-                    </label>
-                    <p className="pl-1">veya sürükleyip bırakın</p>
-                  </div>
-                  <p className="text-xs text-subtle-light dark:text-subtle-dark">
-                    {template.documentHint} · PNG, JPG, PDF (max. 10MB)
-                  </p>
-                </div>
-              </div>
-              
-              {/* File Preview List */}
-              {files.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  {files.map((fileItem) => (
-                    <div key={fileItem.id} className="flex items-center justify-between p-3 bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-lg animate-in-fade">
-                      <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-primary">description</span>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium text-text-light dark:text-text-dark">
-                            {fileItem.file.name}
-                          </span>
-                          <span className="text-xs text-subtle-light dark:text-subtle-dark">
-                            {(fileItem.file.size / 1024 / 1024).toFixed(2)} MB
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFiles(prev => prev.filter(f => f.id !== fileItem.id));
-                          toast.info('Dosya kaldırıldı');
-                        }}
-                        className="text-subtle-light dark:text-subtle-dark hover:text-red-500 transition-colors"
-                      >
-                        <span className="material-symbols-outlined">close</span>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+        </div>
 
-            <div className="md:col-span-2 mt-4">
-              <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                {template.notesLabel}
-              </label>
-              <textarea
-                name="notes"
-                value={formData.notes}
-                onChange={handleChange}
-                rows={4}
-                className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                placeholder="Sipariş ile ilgili özel notlar..."
-              />
+        {/* Document Attachment */}
+        <div className="mt-8 border-t border-slate-100 dark:border-slate-800 pt-6">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <UploadCloud size={16} className="text-slate-500" />
+            Belgeler
+          </h3>
+          
+          <div className="group border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-8 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 hover:border-slate-300 dark:hover:border-slate-700 transition-all text-center cursor-pointer relative">
+            <input 
+              type="file" 
+              multiple 
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              accept="image/*,.pdf"
+              onChange={(e) => {
+                const selectedFiles = e.target.files;
+                if (selectedFiles && selectedFiles.length > 0) {
+                  const newFiles = Array.from(selectedFiles).map(file => ({
+                    id: Math.random().toString(36).substr(2, 9),
+                    file
+                  }));
+                  setFiles(prev => [...prev, ...newFiles]);
+                  toast.success(`${newFiles.length} dosya eklendi`);
+                }
+              }}
+            />
+            <div className="flex flex-col items-center gap-2 pointer-events-none">
+              <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-400 group-hover:text-blue-500 transition-colors">
+                 <UploadCloud size={24} />
+              </div>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                <span className="text-blue-600 dark:text-blue-400">Dosya seçin</span> veya buraya bırakın
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {template.documentHint} · PNG, JPG, PDF (max. 10MB)
+              </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+            
+          {/* File Preview List */}
+          {files.length > 0 && (
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {files.map((fileItem) => (
+                <div key={fileItem.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl group/file">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="p-2 bg-white dark:bg-slate-800 rounded-lg text-slate-500">
+                      <FileText size={20} />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate pr-2">
+                        {fileItem.file.name}
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        {(fileItem.file.size / 1024 / 1024).toFixed(2)} MB
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFiles(prev => prev.filter(f => f.id !== fileItem.id));
+                      toast.info('Dosya kaldırıldı');
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-6">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              {template.notesLabel}
+            </label>
+            <textarea
+              name="notes"
+              value={formData.notes}
+              onChange={handleChange}
+              rows={3}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm resize-none"
+              placeholder="Sipariş ile ilgili özel notlar..."
+            />
+          </div>
+        </div>
+      </div>
 
       {/* Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Sipariş Özeti</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div className="flex justify-between text-text-light dark:text-text-dark">
-              <span>Miktar:</span>
-              <span className="font-medium">{formData.quantity} adet</span>
-            </div>
-            <div className="flex justify-between text-lg font-bold text-text-light dark:text-text-dark pt-2 border-t border-border-light dark:border-border-dark">
-              <span>Toplam:</span>
-              <span>{formData.totalAmount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}</span>
-            </div>
+      <div className="glass-panel p-6 rounded-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+          Sipariş Özeti
+        </h3>
+        <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 space-y-3">
+          <div className="flex justify-between text-slate-600 dark:text-slate-400 text-sm">
+            <span>Miktar</span>
+            <span className="font-medium text-slate-900 dark:text-slate-200">{formData.quantity} adet</span>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex justify-between items-center pt-3 border-t border-slate-200 dark:border-slate-800">
+            <span className="font-semibold text-slate-900 dark:text-white">Toplam Tutar</span>
+            <span className="text-xl font-bold text-slate-900 dark:text-white font-display">
+              {formData.totalAmount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Actions */}
-      <div className="flex gap-4">
-        <Button type="submit" variant="primary" size="lg" className="flex-1" disabled={isSubmitting}>
+      <div className="flex gap-4 pt-2">
+        <Button 
+          type="submit" 
+          variant="primary" 
+          size="lg" 
+          className="flex-1 text-base h-12" 
+          disabled={isSubmitting}
+        >
           {isSubmitting ? (
             <>
-              <span className="material-symbols-outlined mr-2 animate-spin">progress_activity</span>
+              <Loader2 className="mr-2 animate-spin" size={20} />
               Kaydediliyor...
             </>
           ) : (
             <>
-              <span className="material-symbols-outlined mr-2">check_circle</span>
+              <CheckCircle className="mr-2" size={20} />
               Siparişi Kaydet
             </>
           )}
         </Button>
-        <Button type="button" variant="outline" size="lg" onClick={() => router.back()}>
+        <Button 
+          type="button" 
+          variant="secondary" 
+          size="lg" 
+          className="h-12 px-8"
+          onClick={() => router.back()}
+        >
           İptal
         </Button>
       </div>

@@ -44,7 +44,7 @@ export const Footer: React.FC = () => {
 
           {/* Links Column 1 */}
           <div>
-            <h4 className="font-semibold text-slate-900 dark:text-white mb-4"></h4>
+            <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Ürün</h4>
             <ul className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
               <li><Link href="/features" className="hover:text-sky-600 transition-colors">Özellikler</Link></li>
               <li><Link href="/pricing" className="hover:text-sky-600 transition-colors">Fiyatlandırma</Link></li>

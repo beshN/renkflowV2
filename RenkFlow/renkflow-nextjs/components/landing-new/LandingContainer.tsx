@@ -10,7 +10,7 @@ import { FAQ } from '@/components/landing-new/FAQ';
 import { CTA } from '@/components/landing-new/CTA';
 import { Footer } from '@/components/landing-new/Footer';
 
-const LandingContainerComponent = () => {
+const LandingContainerComponent = ({ compact = false }: { compact?: boolean }) => {
   const [mounted, setMounted] = useState(false);
   
   useEffect(() => {
@@ -27,9 +27,9 @@ const LandingContainerComponent = () => {
       />
       <WaitlistNavbar />
       <Hero />
-      <Features />
-      <TestimonialSection />
-      <Pricing />
+      <Features showStats={!compact} />
+      {!compact && <TestimonialSection />}
+      {!compact && <Pricing />}
       <FAQ />
       <CTA />
       <Footer />

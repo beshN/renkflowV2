@@ -10,6 +10,48 @@ import { toast } from 'sonner';
 import { UnifiedNavbar } from '@/components/landing-new/UnifiedNavbar';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
+const CREDENTIALS_ERROR_MAP: Record<
+  string,
+  { field: 'email' | 'password' | 'general'; message: string }
+> = {
+  missing_credentials: {
+    field: 'general',
+    message: 'E-posta ve şifre gereklidir.',
+  },
+  user_not_found: {
+    field: 'email',
+    message: 'Bu e-posta adresiyle kayıtlı bir kullanıcı bulunamadı.',
+  },
+  invalid_password: {
+    field: 'password',
+    message: 'Şifre yanlış. Lütfen tekrar deneyin.',
+  },
+  email_not_verified: {
+    field: 'email',
+    message: 'E-posta adresiniz doğrulanmamış. Lütfen gelen kutunuzu kontrol edin.',
+  },
+  oauth_only: {
+    field: 'general',
+    message: 'Bu hesap sosyal giriş ile oluşturulmuş. Google veya Microsoft ile giriş yapın.',
+  },
+  db_unavailable: {
+    field: 'general',
+    message: 'Sisteme şu anda erişilemiyor. Lütfen daha sonra tekrar deneyin.',
+  },
+  auth_failed: {
+    field: 'general',
+    message: 'Giriş yapılamadı. Lütfen tekrar deneyin.',
+  },
+  credentials: {
+    field: 'general',
+    message: 'E-posta veya şifre hatalı. Lütfen tekrar deneyin.',
+  },
+  invalid_credentials: {
+    field: 'general',
+    message: 'Giriş bilgileri hatalı. Lütfen tekrar deneyin.',
+  },
+};
+
 function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
@@ -44,37 +86,37 @@ function LoginForm() {
 
     try {
       const result = await signIn('credentials', {
-        email,
+        email: email.trim().toLowerCase(),
         password,
         redirect: false,
       });
 
       if (result?.error) {
-        const errorMessage = result.error.toLowerCase();
-        
-        if (errorMessage.includes('callbackrouteerror') || errorMessage.includes('credentialssignin')) {
-          setFormErrors({ 
-            password: 'E-posta veya şifre hatalı. Lütfen bilgilerinizi kontrol edin.' 
-          });
-        } else if (errorMessage === 'configuration') {
-          setFormErrors({ 
-            general: 'Sistem yapılandırma hatası. Lütfen daha sonra tekrar deneyin.',
-          });
-        } else if (errorMessage.includes('doğrulanmamış') || errorMessage.includes('not confirmed') || errorMessage.includes('verified')) {
-          setFormErrors({ 
-            email: 'E-posta adresiniz doğrulanmamış. Lütfen gelen kutunuzu kontrol edin.',
-          });
-        } else if (errorMessage.includes('hatalı') || errorMessage.includes('invalid')) {
-          setFormErrors({ 
-            password: 'E-posta veya şifre hatalı. Lütfen tekrar deneyin.' 
-          });
-        } else if (errorMessage.includes('bulunamadı') || errorMessage.includes('not found')) {
-          setFormErrors({ 
-            email: 'Bu e-posta adresi kayıtlı değil. Lütfen kayıt olun.' 
-          });
-        } else {
-          setFormErrors({ password: 'E-posta veya şifre hatalı. Lütfen tekrar deneyin.' });
+        if (result.error === 'CredentialsSignin') {
+          const code = (result.code || 'credentials').toLowerCase();
+          const mapped = CREDENTIALS_ERROR_MAP[code] || CREDENTIALS_ERROR_MAP.credentials;
+          const nextErrors: { email?: string; password?: string; general?: string } = {};
+          nextErrors[mapped.field] = mapped.message;
+          setFormErrors(nextErrors);
+          return;
         }
+
+        if (result.error === 'Configuration') {
+          setFormErrors({ general: 'Sistem yapılandırma hatası. Lütfen daha sonra tekrar deneyin.' });
+          return;
+        }
+
+        if (result.error === 'OAuthAccountNotLinked') {
+          setFormErrors({ general: 'Bu e-posta farklı bir giriş yöntemiyle kayıtlı. Lütfen doğru yöntemle giriş yapın.' });
+          return;
+        }
+
+        if (result.error === 'AccessDenied') {
+          setFormErrors({ general: 'Giriş izni reddedildi. Lütfen destek ile iletişime geçin.' });
+          return;
+        }
+
+        setFormErrors({ general: 'Giriş yapılamadı. Lütfen tekrar deneyin.' });
         return;
       }
 
@@ -322,4 +364,3 @@ export default function AuthLogin() {
     </div>
   );
 }
-

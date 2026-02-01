@@ -33,22 +33,21 @@ export const WaitlistNavbar = () => {
         The logo container uses negative margins and overflow-visible to 
         allow the large logo to extend beyond the navbar bounds
       */}
-      {/* Large Logo - Fixed to the absolute top-left corner */}
-      <Link href="/" className="fixed top-0 left-0 z-[60] group block">
-        <div className="relative h-24 w-72 md:h-48 md:w-[600px] overflow-hidden transition-transform duration-300 group-hover:scale-105">
-            <Image 
-              src="/logo-full.png" 
-              alt="RenkFlow" 
-              fill
-              sizes="(max-width: 768px) 300px, 600px"
-              className="object-contain object-left scale-[1.85] origin-left"
-              priority
-            />
-        </div>
-      </Link>
-
       <div className="w-full px-4 md:px-12">
         <div className="flex items-center justify-between h-24 md:h-28">
+          {/* Logo */}
+          <Link href="/" className="group flex items-center">
+            <div className="relative h-14 w-48 md:h-20 md:w-72 overflow-hidden transition-transform duration-300 group-hover:scale-105">
+              <Image 
+                src="/logo-full.png" 
+                alt="RenkFlow" 
+                fill
+                sizes="(max-width: 768px) 192px, 288px"
+                className="object-contain object-left"
+                priority
+              />
+            </div>
+          </Link>
 
           {/* Empty div for spacing (no navigation links on waitlist page) */}
           <div className="hidden md:flex items-center space-x-1 lg:space-x-2"></div>

@@ -34,7 +34,7 @@ const CountUp = ({ end, duration = 2 }: { end: number; duration?: number }) => {
   return <span ref={ref}>{count.toLocaleString()}</span>;
 };
 
-export const Features: React.FC = () => {
+export const Features: React.FC<{ showStats?: boolean }> = ({ showStats = true }) => {
   const features = [
     {
       icon: Layers,
@@ -77,37 +77,39 @@ export const Features: React.FC = () => {
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
         {/* Stats Bar */}
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-20 p-8 rounded-3xl bg-white/90 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.4)]"
-        >
-            <div className="text-center">
-                <div className="text-3xl font-bold text-sky-600 mb-1">
-                    <CountUp end={500} />+
-                </div>
-                <div className="text-sm text-muted-foreground">Aktif Kullanıcı</div>
-            </div>
-            <div className="text-center">
-                <div className="text-3xl font-bold text-emerald-600 mb-1">
-                    <CountUp end={10000} />+
-                </div>
-                <div className="text-sm text-muted-foreground">Tamamlanan Sipariş</div>
-            </div>
-            <div className="text-center">
-                <div className="text-3xl font-bold text-indigo-600 mb-1">
-                    <CountUp end={98} />%
-                </div>
-                <div className="text-sm text-muted-foreground">Müşteri Memnuniyeti</div>
-            </div>
-            <div className="text-center">
-                <div className="text-3xl font-bold text-amber-500 mb-1">
-                    <CountUp end={24} />/7
-                </div>
-                <div className="text-sm text-muted-foreground">Destek Hizmeti</div>
-            </div>
-        </motion.div>
+        {showStats && (
+          <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-20 p-8 rounded-3xl bg-white/90 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.4)]"
+          >
+              <div className="text-center">
+                  <div className="text-3xl font-bold text-sky-600 mb-1">
+                      <CountUp end={500} />+
+                  </div>
+                  <div className="text-sm text-muted-foreground">Aktif Kullanıcı</div>
+              </div>
+              <div className="text-center">
+                  <div className="text-3xl font-bold text-emerald-600 mb-1">
+                      <CountUp end={10000} />+
+                  </div>
+                  <div className="text-sm text-muted-foreground">Tamamlanan Sipariş</div>
+              </div>
+              <div className="text-center">
+                  <div className="text-3xl font-bold text-indigo-600 mb-1">
+                      <CountUp end={98} />%
+                  </div>
+                  <div className="text-sm text-muted-foreground">Müşteri Memnuniyeti</div>
+              </div>
+              <div className="text-center">
+                  <div className="text-3xl font-bold text-amber-500 mb-1">
+                      <CountUp end={24} />/7
+                  </div>
+                  <div className="text-sm text-muted-foreground">Destek Hizmeti</div>
+              </div>
+          </motion.div>
+        )}
 
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">

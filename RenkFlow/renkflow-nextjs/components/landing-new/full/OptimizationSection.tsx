@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import { TrendingUp } from 'lucide-react';
 
 export const OptimizationSection: React.FC = () => {
   return (
@@ -63,7 +64,7 @@ export const OptimizationSection: React.FC = () => {
               className="absolute top-[8%] left-[6%] z-20 bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 flex items-center gap-3"
             >
               <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center text-emerald-600">
-                <span className="material-symbols-outlined">trending_up</span>
+                <TrendingUp size={20} />
               </div>
               <div>
                 <p className="text-xs text-slate-500">Takip</p>

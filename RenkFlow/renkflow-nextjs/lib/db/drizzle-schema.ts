@@ -269,6 +269,19 @@ export const ssoProvidersRelations = relations(ssoProviders, ({ one }) => ({
 }));
 
 // ============================================
+// SSO States (PKCE & SAML State)
+// ============================================
+
+export const ssoStates = pgTable('sso_states', {
+  state: text('state').primaryKey(),
+  providerId: uuid('provider_id').references(() => ssoProviders.id, { onDelete: 'cascade' }).notNull(),
+  callbackUrl: text('callback_url').notNull(),
+  codeVerifier: text('code_verifier'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+});
+
+// ============================================
 // Push Subscriptions (Web Push)
 // ============================================
 
@@ -280,9 +293,54 @@ export const pushSubscriptions = pgTable('push_subscriptions', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+
 export const pushSubscriptionsRelations = relations(pushSubscriptions, ({ one }) => ({
   user: one(users, {
     fields: [pushSubscriptions.userId],
+    references: [users.id],
+  }),
+}));
+
+// ============================================
+// Internal Notifications
+// ============================================
+
+export const notifications = pgTable('notifications', {
+  id: text('id').primaryKey(), // Using text specific ID from service
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  type: text('type').notNull(),
+  title: text('title').notNull(),
+  message: text('message').notNull(),
+  data: jsonb('data'),
+  channels: jsonb('channels').$type<string[]>().notNull(), // ['in_app', 'email', 'push']
+  read: boolean('read').default(false).notNull(),
+  readAt: timestamp('read_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+  tenant: one(tenants, {
+    fields: [notifications.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
+export const notificationPreferences = pgTable('notification_preferences', {
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).primaryKey(),
+  email: jsonb('email').$type<Record<string, boolean>>().default({}),
+  push: jsonb('push').$type<Record<string, boolean>>().default({}),
+  inApp: jsonb('in_app').$type<Record<string, boolean>>().default({}),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const notificationPreferencesRelations = relations(notificationPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [notificationPreferences.userId],
     references: [users.id],
   }),
 }));

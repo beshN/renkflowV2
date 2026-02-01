@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { CompanySettings } from '@/lib/types';
 import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Building2, Save, Trash2, Plus, GripVertical } from 'lucide-react';
 
 interface SettingsFormProps {
   initialSettings: CompanySettings;
@@ -69,214 +72,240 @@ export function SettingsForm({ initialSettings, onSave }: SettingsFormProps) {
     setDepartments(departments.filter(d => d.id !== id));
   };
 
+  const tabs = [
+    { id: 'company', label: 'Şirket Bilgileri' },
+    { id: 'statuses', label: 'Sipariş Durumları' },
+    { id: 'departments', label: 'Bölümler' },
+  ] as const;
+
   return (
     <div className="space-y-6">
       {/* Tabs */}
-      <div className="border-b border-border-light dark:border-border-dark">
-        <div className="flex gap-4">
+      <div className="flex p-1 bg-slate-100/50 dark:bg-slate-900/50 rounded-xl overflow-x-auto whitespace-nowrap">
+        {tabs.map((tab) => (
           <button
-            onClick={() => setActiveTab('company')}
-            className={`px-4 py-3 font-medium transition-colors border-b-2 ${
-              activeTab === 'company'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-subtle-light dark:text-subtle-dark hover:text-text-light dark:hover:text-text-dark'
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`relative flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+              activeTab === tab.id
+                ? 'text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-800/50'
             }`}
           >
-            Şirket Bilgileri
+            {activeTab === tab.id && (
+              <motion.div
+                layoutId="activeTab"
+                className="absolute inset-0 bg-white dark:bg-slate-800 rounded-lg shadow-sm"
+                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+              />
+            )}
+            <span className="relative z-10">{tab.label}</span>
           </button>
-          <button
-            onClick={() => setActiveTab('statuses')}
-            className={`px-4 py-3 font-medium transition-colors border-b-2 ${
-              activeTab === 'statuses'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-subtle-light dark:text-subtle-dark hover:text-text-light dark:hover:text-text-dark'
-            }`}
-          >
-            Sipariş Durumları
-          </button>
-          <button
-            onClick={() => setActiveTab('departments')}
-            className={`px-4 py-3 font-medium transition-colors border-b-2 ${
-              activeTab === 'departments'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-subtle-light dark:text-subtle-dark hover:text-text-light dark:hover:text-text-dark'
-            }`}
-          >
-            Bölümler
-          </button>
-        </div>
+        ))}
       </div>
 
-      {/* Company Settings Tab */}
-      {activeTab === 'company' && (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="bg-card-light dark:bg-card-dark rounded-xl p-6 border border-border-light dark:border-border-dark">
-            <h3 className="text-lg font-semibold text-text-light dark:text-text-dark mb-4">
-              Şirket Bilgileri
-            </h3>
-            
-            <div className="grid gap-4">
-              <div>
-                <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-1">
-                  Şirket Adı
-                </label>
-                <input
-                  type="text"
-                  value={settings.companyName}
-                  onChange={(e) => handleChange('companyName', e.target.value)}
-                  className="w-full px-4 py-2 rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-1">
-                  Vergi Numarası
-                </label>
-                <input
-                  type="text"
-                  value={settings.taxNumber}
-                  onChange={(e) => handleChange('taxNumber', e.target.value)}
-                  className="w-full px-4 py-2 rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-1">
-                  Adres
-                </label>
-                <textarea
-                  value={settings.address}
-                  onChange={(e) => handleChange('address', e.target.value)}
-                  rows={3}
-                  className="w-full px-4 py-2 rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+      <AnimatePresence mode="wait">
+        {/* Company Settings Tab */}
+        {activeTab === 'company' && (
+          <motion.form 
+            key="company"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            onSubmit={handleSubmit} 
+            className="space-y-6"
+          >
+            <div className="glass-panel p-6 rounded-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-600 dark:text-blue-400">
+                  <Building2 size={24} />
+                </div>
                 <div>
-                  <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-1">
-                    Telefon
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                    Şirket Bilgileri
+                  </h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Resmi fatura ve iletişim bilgilerinizi güncelleyin.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="grid gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <Input
+                    label="Şirket Adı"
+                    value={settings.companyName}
+                    onChange={(e) => handleChange('companyName', e.target.value)}
+                    placeholder="Örn: Renk Tekstil Ltd. Şti."
+                  />
+                  <Input
+                    label="Vergi Numarası"
+                    value={settings.taxNumber}
+                    onChange={(e) => handleChange('taxNumber', e.target.value)}
+                    placeholder="10 haneli vergi numarası"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                    Adres
                   </label>
-                  <input
+                  <textarea
+                    value={settings.address}
+                    onChange={(e) => handleChange('address', e.target.value)}
+                    rows={3}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all text-sm resize-none"
+                    placeholder="Tam şirket adresi"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <Input
+                    label="Telefon"
                     type="tel"
                     value={settings.phone}
                     onChange={(e) => handleChange('phone', e.target.value)}
-                    className="w-full px-4 py-2 rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark"
+                    placeholder="0212 555 00 00"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-1">
-                    E-posta
-                  </label>
-                  <input
+                  <Input
+                    label="E-posta"
                     type="email"
                     value={settings.email}
                     onChange={(e) => handleChange('email', e.target.value)}
-                    className="w-full px-4 py-2 rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark"
+                    placeholder="info@renktekstil.com"
                   />
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex justify-end">
-            <Button type="submit" variant="primary">
-              Değişiklikleri Kaydet
-            </Button>
-          </div>
-        </form>
-      )}
-
-      {/* Statuses Tab */}
-      {activeTab === 'statuses' && (
-        <div className="space-y-6">
-          <div className="bg-card-light dark:bg-card-dark rounded-xl p-6 border border-border-light dark:border-border-dark">
-            <h3 className="text-lg font-semibold text-text-light dark:text-text-dark mb-4">
-              Sipariş Durumları
-            </h3>
-            
-            <div className="space-y-3 mb-6">
-              {customStatuses.map((status) => (
-                <div key={status.id} className="flex items-center gap-3 p-3 bg-background-light dark:bg-background-dark rounded-lg">
-                  <div className="w-6 h-6 rounded" style={{ backgroundColor: status.color }}></div>
-                  <span className="flex-1 text-text-light dark:text-text-dark">{status.name}</span>
-                  <button
-                    onClick={() => removeStatus(status.id)}
-                    className="p-2 text-subtle-light dark:text-subtle-dark hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-[20px]">delete</span>
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex gap-3 pt-4 border-t border-border-light dark:border-border-dark">
-              <input
-                type="text"
-                value={newStatus.name}
-                onChange={(e) => setNewStatus({ ...newStatus, name: e.target.value })}
-                placeholder="Yeni durum adı"
-                className="flex-1 px-4 py-2 rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark"
-              />
-              <input
-                type="color"
-                value={newStatus.color}
-                onChange={(e) => setNewStatus({ ...newStatus, color: e.target.value })}
-                className="w-16 h-10 rounded-lg border border-border-light dark:border-border-dark"
-              />
-              <Button onClick={addStatus} variant="primary">
-                Ekle
+            <div className="flex justify-end pt-2">
+              <Button type="submit" variant="primary" className="pl-4 pr-6">
+                <Save size={18} className="mr-2" />
+                Değişiklikleri Kaydet
               </Button>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.form>
+        )}
 
-      {/* Departments Tab */}
-      {activeTab === 'departments' && (
-        <div className="space-y-6">
-          <div className="bg-card-light dark:bg-card-dark rounded-xl p-6 border border-border-light dark:border-border-dark">
-            <h3 className="text-lg font-semibold text-text-light dark:text-text-dark mb-4">
-              Fabrika Bölümleri
-            </h3>
-            
-            <div className="space-y-3 mb-6">
-              {departments.map((dept) => (
-                <div key={dept.id} className="flex items-center gap-3 p-3 bg-background-light dark:bg-background-dark rounded-lg">
-                  <div className="w-6 h-6 rounded" style={{ backgroundColor: dept.color }}></div>
-                  <span className="flex-1 text-text-light dark:text-text-dark">{dept.name}</span>
-                  <button
-                    onClick={() => removeDepartment(dept.id)}
-                    className="p-2 text-subtle-light dark:text-subtle-dark hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-[20px]">delete</span>
-                  </button>
+        {/* Statuses Tab */}
+        {activeTab === 'statuses' && (
+          <motion.div 
+            key="statuses"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-6"
+          >
+            <div className="glass-panel p-6 rounded-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
+                Sipariş Durumları
+              </h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                İş akışınızda kullandığınız özel durumları tanımlayın.
+              </p>
+              
+              <div className="space-y-3 mb-8">
+                {customStatuses.map((status) => (
+                  <div key={status.id} className="group flex items-center gap-4 p-3 bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl hover:border-sky-200 dark:hover:border-sky-800/50 transition-colors">
+                    <GripVertical className="text-slate-300 dark:text-slate-600 cursor-move" size={20} />
+                    <div className="h-8 w-8 rounded-lg shadow-sm" style={{ backgroundColor: status.color }}></div>
+                    <span className="flex-1 font-medium text-slate-700 dark:text-slate-200">{status.name}</span>
+                    <button
+                      onClick={() => removeStatus(status.id)}
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-3 pt-6 border-t border-slate-100 dark:border-slate-800">
+                <input
+                  type="text"
+                  value={newStatus.name}
+                  onChange={(e) => setNewStatus({ ...newStatus, name: e.target.value })}
+                  placeholder="Yeni durum adı"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                />
+                <div className="relative w-14 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+                   <input
+                    type="color"
+                    value={newStatus.color}
+                    onChange={(e) => setNewStatus({ ...newStatus, color: e.target.value })}
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 border-0 cursor-pointer"
+                  />
                 </div>
-              ))}
+                <Button onClick={addStatus} variant="secondary">
+                  <Plus size={18} className="mr-2" />
+                  Ekle
+                </Button>
+              </div>
             </div>
+          </motion.div>
+        )}
 
-            <div className="flex gap-3 pt-4 border-t border-border-light dark:border-border-dark">
-              <input
-                type="text"
-                value={newDepartment.name}
-                onChange={(e) => setNewDepartment({ ...newDepartment, name: e.target.value })}
-                placeholder="Yeni bölüm adı"
-                className="flex-1 px-4 py-2 rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark"
-              />
-              <input
-                type="color"
-                value={newDepartment.color}
-                onChange={(e) => setNewDepartment({ ...newDepartment, color: e.target.value })}
-                className="w-16 h-10 rounded-lg border border-border-light dark:border-border-dark"
-              />
-              <Button onClick={addDepartment} variant="primary">
-                Ekle
-              </Button>
+        {/* Departments Tab */}
+        {activeTab === 'departments' && (
+          <motion.div 
+            key="departments"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-6"
+          >
+            <div className="glass-panel p-6 rounded-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
+                Fabrika Bölümleri
+              </h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                 Üretim hattınızdaki birimleri yönetin.
+              </p>
+              
+              <div className="space-y-3 mb-8">
+                {departments.map((dept) => (
+                  <div key={dept.id} className="group flex items-center gap-4 p-3 bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl hover:border-violet-200 dark:hover:border-violet-800/50 transition-colors">
+                    <GripVertical className="text-slate-300 dark:text-slate-600 cursor-move" size={20} />
+                    <div className="h-8 w-8 rounded-lg shadow-sm" style={{ backgroundColor: dept.color }}></div>
+                    <span className="flex-1 font-medium text-slate-700 dark:text-slate-200">{dept.name}</span>
+                    <button
+                      onClick={() => removeDepartment(dept.id)}
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-3 pt-6 border-t border-slate-100 dark:border-slate-800">
+                <input
+                  type="text"
+                  value={newDepartment.name}
+                  onChange={(e) => setNewDepartment({ ...newDepartment, name: e.target.value })}
+                  placeholder="Yeni bölüm adı"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+                />
+                 <div className="relative w-14 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+                   <input
+                    type="color"
+                    value={newDepartment.color}
+                    onChange={(e) => setNewDepartment({ ...newDepartment, color: e.target.value })}
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 border-0 cursor-pointer"
+                  />
+                </div>
+                <Button onClick={addDepartment} variant="secondary">
+                  <Plus size={18} className="mr-2" />
+                  Ekle
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

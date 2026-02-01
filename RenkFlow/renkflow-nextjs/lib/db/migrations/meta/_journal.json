@@ -15,6 +15,13 @@
       "when": 1769951756666,
       "tag": "0005_add_integrations",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769955014949,
+      "tag": "0002_mighty_hardball",
+      "breakpoints": true
     }
   ]
 }

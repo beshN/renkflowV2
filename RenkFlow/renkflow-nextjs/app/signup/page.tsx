@@ -11,6 +11,16 @@ import { AuthLayout } from '@/components/auth/AuthLayout';
 import { Mail, Lock, User, Building2, Eye, EyeOff, AlertCircle, Briefcase } from 'lucide-react';
 import { TEMPLATE_DEFINITIONS, DEFAULT_TEMPLATE_KEY, TemplateKey } from '@/lib/config/templates';
 
+async function readJsonResponse(response: Response) {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
+}
+
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
@@ -38,18 +48,28 @@ export default function SignupPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name,
-          email,
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
           password,
-          companyName: companyName || `${name}'in Şirketi`,
+          companyName: companyName.trim() || `${name.trim()}'in Şirketi`,
           industry: TEMPLATE_DEFINITIONS.find((t) => t.key === templateKey)?.industry,
           templateKey,
         }),
       });
 
-      const data = await response.json();
+      const data = await readJsonResponse(response);
 
       if (!response.ok) {
+        if (response.status === 429) {
+          const retryAfter = typeof data?.retryAfter === 'number' ? data.retryAfter : null;
+          setFormErrors({
+            general: retryAfter
+              ? `Çok fazla istek gönderdiniz. Lütfen ${retryAfter} saniye sonra tekrar deneyin.`
+              : 'Çok fazla istek gönderdiniz. Lütfen biraz bekleyin.',
+          });
+          return;
+        }
+
         if (data.field) {
           setFormErrors({ [data.field]: data.error });
         } else {

@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from 'next-auth';
+import { CredentialsSignin } from 'next-auth';
 import Google from 'next-auth/providers/google';
 import AzureAD from 'next-auth/providers/azure-ad';
 import Credentials from 'next-auth/providers/credentials';
@@ -26,6 +27,28 @@ function maskEmail(email: string): string {
   const [local, domain] = email.split('@');
   if (!domain) return '***';
   return `${local?.charAt(0) || '*'}***@${domain}`;
+}
+
+function createCredentialsError(code: string) {
+  const error = new CredentialsSignin();
+  error.code = code;
+  return error;
+}
+
+function mapAuthErrorToCode(message: string) {
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes('database_url') ||
+    normalized.includes('connection') ||
+    normalized.includes('connect') ||
+    normalized.includes('timeout') ||
+    normalized.includes('econn')
+  ) {
+    return 'db_unavailable';
+  }
+
+  return 'auth_failed';
 }
 
 export const authConfig: NextAuthConfig = {
@@ -60,15 +83,64 @@ export const authConfig: NextAuthConfig = {
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
+        ticket: { label: 'Ticket', type: 'text' },
       },
       async authorize(credentials) {
         if (DEBUG) console.log('[AUTH] Starting authorize...');
         
         try {
           const sql = getSql();
-          if (!credentials?.email || !credentials?.password) {
+          const normalizedEmail = credentials?.email
+            ? (credentials.email as string).trim().toLowerCase()
+            : '';
+          
+          // Ticket-based Login (SSO/Magic Link)
+          if (credentials?.ticket && normalizedEmail) {
+            if (DEBUG) console.log('[AUTH] Attempting ticket login for:', normalizedEmail);
+            
+            const users = await sql`
+              SELECT u.*, tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url, t.industry, t.template_key
+              FROM users u
+              LEFT JOIN tenant_members tm ON u.id = tm.user_id
+              LEFT JOIN tenants t ON tm.tenant_id = t.id
+              WHERE u.email = ${normalizedEmail}
+              AND u.verification_token = ${credentials.ticket as string}
+              LIMIT 1
+            `;
+
+            if (users.length === 0) {
+              if (DEBUG) console.log('[AUTH] Invalid ticket or email');
+              throw createCredentialsError('invalid_credentials');
+            }
+
+            const user = users[0];
+
+            // Clear the used ticket
+            await sql`
+              UPDATE users SET verification_token = NULL WHERE id = ${user.id}
+            `;
+
+            if (DEBUG) console.log('[AUTH] Ticket login successful for:', maskEmail(user.email));
+
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              image: user.image,
+              tenantId: user.tenant_id,
+              tenantName: user.tenant_name,
+              role: user.role,
+              brandColor: user.brand_color,
+              logoUrl: user.logo_url,
+              tenantIndustry: user.industry,
+              templateKey: user.template_key,
+            };
+          }
+
+          // Password-based Login
+          if (!normalizedEmail || !credentials?.password) {
             if (DEBUG) console.log('[AUTH] Missing credentials');
-            return null;
+            throw createCredentialsError('missing_credentials');
           }
 
           if (DEBUG) console.log('[AUTH] Checking database connection...');
@@ -79,7 +151,7 @@ export const authConfig: NextAuthConfig = {
             FROM users u
             LEFT JOIN tenant_members tm ON u.id = tm.user_id
             LEFT JOIN tenants t ON tm.tenant_id = t.id
-            WHERE u.email = ${credentials.email as string}
+            WHERE u.email = ${normalizedEmail}
             LIMIT 1
           `;
 
@@ -87,9 +159,14 @@ export const authConfig: NextAuthConfig = {
 
           const user = users[0];
 
-          if (!user || !user.password) {
+          if (!user) {
             if (DEBUG) console.log('[AUTH] User not found');
-            throw new Error('Kullanıcı bulunamadı');
+            throw createCredentialsError('user_not_found');
+          }
+
+          if (!user.password) {
+            if (DEBUG) console.log('[AUTH] Password not set (OAuth account)');
+            throw createCredentialsError('oauth_only');
           }
 
           // Verify password
@@ -100,12 +177,12 @@ export const authConfig: NextAuthConfig = {
 
           if (!isPasswordValid) {
             if (DEBUG) console.log('[AUTH] Invalid password');
-            throw new Error('E-posta veya şifre hatalı');
+            throw createCredentialsError('invalid_password');
           }
 
           if (!user.email_verified) {
             if (DEBUG) console.log('[AUTH] Email not verified');
-            throw new Error('E-posta adresiniz doğrulanmamış. Lütfen gelen kutunuzu kontrol edin.');
+            throw createCredentialsError('email_not_verified');
           }
 
           if (DEBUG) console.log('[AUTH] Login successful for:', maskEmail(user.email));
@@ -124,9 +201,14 @@ export const authConfig: NextAuthConfig = {
             templateKey: user.template_key,
           };
         } catch (error: any) {
-          if (DEBUG) console.error('[AUTH] Authorize error:', error?.message || error);
-          // Re-throw with the error message so NextAuth can display it
-          throw new Error(error?.message || 'Giriş yapılamadı');
+          if (error instanceof CredentialsSignin) {
+            throw error;
+          }
+
+          const message = error?.message || String(error);
+          if (DEBUG) console.error('[AUTH] Authorize error:', message);
+
+          throw createCredentialsError(mapAuthErrorToCode(message));
         }
       },
     }),

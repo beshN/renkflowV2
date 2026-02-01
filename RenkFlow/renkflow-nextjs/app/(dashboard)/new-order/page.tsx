@@ -47,18 +47,18 @@ export default function NewOrderPage() {
         <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-6">
           <NewOrderForm onSubmit={handleSubmit} />
           <div className="space-y-6">
-            <div className="rounded-2xl border border-slate-200/70 bg-white/80 p-6 shadow-sm dark:border-slate-800/70 dark:bg-slate-900/70">
+            <div className="glass-panel p-6 rounded-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20">
               <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">İpuçları</p>
-              <h3 className="text-lg font-semibold text-text-light dark:text-text-dark mt-2">Sipariş oluşturma rehberi</h3>
-              <ul className="mt-4 space-y-3 text-sm text-subtle-light dark:text-subtle-dark">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mt-2">Sipariş oluşturma rehberi</h3>
+              <ul className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-400">
                 <li>• Teslim tarihi ekleyerek önceliklendirme yapın.</li>
                 <li>• Teknik çizim veya sözleşme dosyalarını yükleyin.</li>
                 <li>• Not alanına üretim detaylarını yazın.</li>
               </ul>
             </div>
-            <div className="rounded-2xl border border-slate-200/70 bg-white/80 p-6 shadow-sm dark:border-slate-800/70 dark:bg-slate-900/70">
-              <h3 className="text-lg font-semibold text-text-light dark:text-text-dark">Kontrol Listesi</h3>
-              <div className="mt-4 space-y-3 text-sm text-subtle-light dark:text-subtle-dark">
+            <div className="glass-panel p-6 rounded-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Kontrol Listesi</h3>
+              <div className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-400">
                 <p>✓ Müşteri bilgileri</p>
                 <p>✓ Ürün adı ve miktar</p>
                 <p>✓ Toplam tutar</p>
