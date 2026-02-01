@@ -37,6 +37,10 @@
   ],
   "exclude": [
     "node_modules",
-    "jest.setup.ts"
+    "jest.setup.ts",
+    "drizzle.config.ts",
+    "lib/db/drizzle-schema.ts",
+    "scripts",
+    "server"
   ]
 }

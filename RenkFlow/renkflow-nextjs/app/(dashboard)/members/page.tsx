@@ -1,55 +1,40 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/layout/Navbar';
 import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/lib/context/AuthContext';
-import { ShieldCheck, UserPlus, Mail, BadgeCheck, UserCircle2, Crown, Briefcase } from 'lucide-react';
+import { ShieldCheck, UserPlus, Mail, BadgeCheck, UserCircle2, Crown, Briefcase, Copy, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
-const members = [
-  {
-    name: 'Berat Aksoy',
-    role: 'Owner',
-    email: 'berat@renkflow.com',
-    status: 'Aktif',
-    lastActive: 'Bugün 09:40',
-    badge: 'Yetkili',
-  },
-  {
-    name: 'Ayşe Demir',
-    role: 'Production Lead',
-    email: 'ayse@renkflow.com',
-    status: 'Aktif',
-    lastActive: 'Bugün 08:15',
-    badge: 'Operasyon',
-  },
-  {
-    name: 'Mehmet Kaya',
-    role: 'Planner',
-    email: 'mehmet@renkflow.com',
-    status: 'Aktif',
-    lastActive: 'Dün 18:30',
-    badge: 'Planlama',
-  },
-  {
-    name: 'Elif Yılmaz',
-    role: 'Quality',
-    email: 'elif@renkflow.com',
-    status: 'İzinli',
-    lastActive: '2 gün önce',
-    badge: 'Kalite',
-  },
-];
+type Member = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  avatar?: string | null;
+  joinedAt?: string;
+};
 
-const invites = [
-  { email: 'yeni-uye@renkflow.com', role: 'Member', status: 'Bekliyor', sentAt: 'Bugün 10:12' },
-  { email: 'lojistik@renkflow.com', role: 'Member', status: 'Bekliyor', sentAt: 'Dün 16:05' },
-];
+type Invite = {
+  id: string;
+  email: string;
+  role: string;
+  token: string;
+  createdAt: string;
+  expiresAt: string;
+};
 
 export default function MembersPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const [members, setMembers] = useState<Member[]>([]);
+  const [invites, setInvites] = useState<Invite[]>([]);
+  const [isFetching, setIsFetching] = useState(true);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'office' | 'worker' | 'member'>('member');
+  const [isInviting, setIsInviting] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -57,11 +42,78 @@ export default function MembersPage() {
     }
   }, [user, isLoading, router]);
 
+  useEffect(() => {
+    if (!user?.tenantId) return;
+    const fetchData = async () => {
+      try {
+        const [membersRes, invitesRes] = await Promise.all([
+          fetch('/api/tenant/members'),
+          fetch('/api/tenant/invites'),
+        ]);
+
+        if (membersRes.ok) {
+          const membersData = await membersRes.json();
+          setMembers(membersData.members || []);
+        }
+
+        if (invitesRes.ok) {
+          const invitesData = await invitesRes.json();
+          setInvites(invitesData.invites || []);
+        }
+      } catch (error) {
+        console.error('Members fetch error:', error);
+      } finally {
+        setIsFetching(false);
+      }
+    };
+
+    fetchData();
+  }, [user?.tenantId]);
+
   const stats = useMemo(() => {
-    const active = members.filter((m) => m.status === 'Aktif').length;
+    const active = members.length;
     const pending = invites.length;
     return { active, pending, total: members.length };
-  }, []);
+  }, [members, invites]);
+
+  const handleInvite = async () => {
+    if (!user?.tenantId || !inviteEmail.trim()) return;
+    setIsInviting(true);
+    try {
+      const response = await fetch('/api/tenant/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: user.tenantId,
+          email: inviteEmail.trim(),
+          role: inviteRole,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        toast.error(data.error || 'Davet oluşturulamadı');
+        return;
+      }
+
+      toast.success('Davet oluşturuldu ve link kopyalandı');
+      if (data.inviteLink) {
+        navigator.clipboard.writeText(data.inviteLink);
+      }
+      setInviteEmail('');
+      setInviteRole('member');
+
+      const invitesRes = await fetch('/api/tenant/invites');
+      if (invitesRes.ok) {
+        const invitesData = await invitesRes.json();
+        setInvites(invitesData.invites || []);
+      }
+    } catch (error) {
+      toast.error('Davet oluşturulamadı');
+    } finally {
+      setIsInviting(false);
+    }
+  };
 
   if (isLoading || !user) return null;
 
@@ -104,7 +156,15 @@ export default function MembersPage() {
           <Card spotlight className="p-6">
             <h3 className="text-lg font-semibold text-text-light dark:text-text-dark mb-4">Üyeler</h3>
             <div className="space-y-3">
-              {members.map((member) => (
+              {isFetching ? (
+                <div className="flex items-center justify-center py-12 text-sm text-slate-500">
+                  <Loader2 className="w-5 h-5 animate-spin mr-2" /> Yükleniyor...
+                </div>
+              ) : members.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 p-6 text-sm text-slate-500 dark:border-slate-700">
+                  Henüz üye bulunmuyor.
+                </div>
+              ) : members.map((member) => (
                 <div key={member.email} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-3 text-sm dark:border-slate-700/60 dark:bg-slate-900/60">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600">
@@ -119,13 +179,14 @@ export default function MembersPage() {
                     <span className="text-xs rounded-full px-2 py-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                       {member.role}
                     </span>
-                    <span className={`text-xs rounded-full px-2 py-1 ${member.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                      {member.status}
+                    <span className="text-xs rounded-full px-2 py-1 bg-emerald-100 text-emerald-700">
+                      Aktif
                     </span>
-                    <span className="text-xs rounded-full px-2 py-1 bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-200">
-                      {member.badge}
-                    </span>
-                    <span className="text-xs text-slate-400">{member.lastActive}</span>
+                    {member.joinedAt && (
+                      <span className="text-xs text-slate-400">
+                        {new Date(member.joinedAt).toLocaleDateString('tr-TR')}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -152,18 +213,64 @@ export default function MembersPage() {
               </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-200/70 dark:border-slate-700/60">
-              <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-2">Bekleyen davetler</p>
-              <div className="space-y-2">
-                {invites.map((invite) => (
-                  <div key={invite.email} className="flex items-center justify-between rounded-xl border border-slate-200/70 bg-white/70 px-3 py-2 text-xs dark:border-slate-700/60 dark:bg-slate-900/60">
-                    <div className="flex items-center gap-2">
-                      <Mail size={14} className="text-slate-500" />
-                      <span className="text-slate-600 dark:text-slate-300">{invite.email}</span>
+            <div className="pt-3 border-t border-slate-200/70 dark:border-slate-700/60 space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-2">Üye daveti oluştur</p>
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="E-posta adresi"
+                    className="input-professional w-full"
+                  />
+                  <select
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as any)}
+                    className="input-professional w-full"
+                  >
+                    <option value="member">Member</option>
+                    <option value="office">Office</option>
+                    <option value="worker">Worker</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                  <button
+                    onClick={handleInvite}
+                    disabled={isInviting}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 text-white px-4 py-2 text-xs font-semibold disabled:opacity-60"
+                  >
+                    {isInviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus size={14} />}
+                    Davet Gönder
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-2">Bekleyen davetler</p>
+                <div className="space-y-2">
+                  {invites.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs text-slate-500 dark:border-slate-700">
+                      Bekleyen davet yok.
                     </div>
-                    <span className="text-slate-400">{invite.sentAt}</span>
-                  </div>
-                ))}
+                  ) : invites.map((invite) => (
+                    <div key={invite.id} className="flex items-center justify-between rounded-xl border border-slate-200/70 bg-white/70 px-3 py-2 text-xs dark:border-slate-700/60 dark:bg-slate-900/60">
+                      <div className="flex items-center gap-2">
+                        <Mail size={14} className="text-slate-500" />
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-300">{invite.email}</p>
+                          <p className="text-[10px] text-slate-400">{invite.role}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(`${window.location.origin}/auth/accept-invite?token=${invite.token}`)}
+                        className="text-slate-500 hover:text-slate-900"
+                        title="Link kopyala"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </Card>

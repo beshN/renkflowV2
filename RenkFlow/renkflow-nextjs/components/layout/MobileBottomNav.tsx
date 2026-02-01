@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Home, Receipt, PlusCircle, Settings } from 'lucide-react';
+import { Home, Receipt, PlusCircle, Settings, Search } from 'lucide-react';
 
 const navItems = [
   { icon: Home, label: 'Ana Sayfa', href: '/dashboard' },
   { icon: Receipt, label: 'Siparişler', href: '/orders' },
   { icon: PlusCircle, label: 'Yeni', href: '/new-order' },
+  { icon: Search, label: 'Arama', href: '/search' },
   { icon: Settings, label: 'Ayarlar', href: '/settings' },
 ];
 

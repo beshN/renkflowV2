@@ -8,6 +8,10 @@
     "start": "next start",
     "lint": "eslint .",
     "db:push": "node scripts/push-schema.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx scripts/seed.ts",
     "ws:server": "tsx server/index.ts",
     "type-check": "tsc --noEmit"
   },
@@ -41,6 +45,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.38.3",
     "express": "^5.2.1",
     "framer-motion": "^12.23.25",
     "i18next": "^25.8.0",
@@ -76,6 +81,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
+    "drizzle-kit": "^0.30.4",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",

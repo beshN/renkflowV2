@@ -24,6 +24,9 @@ import {
 import { Order, NewOrderFormData } from '@/lib/types';
 import { useOrdersStore } from '@/lib/stores/orders.store';
 import { devLog } from '@/lib/utils/logger';
+import { useOrderRealtime } from '@/lib/realtime/hooks';
+import { useAuth } from '@/lib/context/AuthContext';
+import { RealtimeEvent } from '@/lib/realtime/types';
 
 const ORDERS_CACHE_KEY = 'orders';
 
@@ -65,6 +68,47 @@ export function useOrders(): UseOrdersResult {
   const setOrders = useOrdersStore((s) => s.setOrders);
   const setLoading = useOrdersStore((s) => s.setLoading);
   const setTotalCount = useOrdersStore((s) => s.setTotalCount);
+  const { user } = useAuth();
+  const tenantId = user?.tenantId || '';
+
+  // Real-time event handler for WebSocket updates
+  const handleRealtimeEvent = React.useCallback((event: RealtimeEvent) => {
+    devLog.info('[useOrders] Realtime event received:', event.type);
+    const currentOrders = useOrdersStore.getState().orders;
+    
+    switch (event.type) {
+      case 'order:created': {
+        const newOrder = event.payload as Order;
+        // Avoid duplicates
+        if (!currentOrders.some((o) => o.id === newOrder.id)) {
+          setOrders([...currentOrders, newOrder]);
+        }
+        break;
+      }
+      case 'order:updated':
+      case 'order:status_changed': {
+        const updatedOrder = event.payload as Order;
+        setOrders(
+          currentOrders.map((o) => (o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o))
+        );
+        break;
+      }
+      case 'order:deleted': {
+        const { orderId } = event.payload as { orderId: string };
+        setOrders(currentOrders.filter((o) => o.id !== orderId));
+        break;
+      }
+      case 'document:added':
+      case 'document:removed': {
+        // Refetch to get updated documents
+        requestCache.invalidate(ORDERS_CACHE_KEY);
+        break;
+      }
+    }
+  }, [setOrders]);
+
+  // Subscribe to real-time order events
+  const { publish: publishRealtimeEvent } = useOrderRealtime(tenantId, handleRealtimeEvent);
 
   const {
     data: fetchedOrders,
@@ -112,6 +156,8 @@ export function useOrders(): UseOrdersResult {
         setOrders(next);
         setTotalCount(next.length);
         requestCache.invalidate(ORDERS_CACHE_KEY);
+        // Broadcast to other clients
+        publishRealtimeEvent('order:created', newOrder, 1);
       },
       onError: (err) => {
         devLog.error('[useOrders] Failed to create order:', err);
@@ -136,6 +182,8 @@ export function useOrders(): UseOrdersResult {
         const next = useOrdersStore.getState().orders.map((o) => (o.id === updated.id ? updated : o));
         setOrders(next);
         mutate(next);
+        // Broadcast to other clients
+        publishRealtimeEvent('order:updated', updated, 1);
       },
       onError: (err, _vars, ctx) => {
         devLog.error('[useOrders] Failed to update order:', err);
@@ -164,6 +212,8 @@ export function useOrders(): UseOrdersResult {
         const next = useOrdersStore.getState().orders.map((o) => (o.id === updated.id ? updated : o));
         setOrders(next);
         mutate(next);
+        // Broadcast to other clients
+        publishRealtimeEvent('order:status_changed', updated, 1);
       },
       onError: (err, _vars, ctx) => {
         devLog.error('[useOrders] Failed to update order status:', err);
@@ -176,7 +226,7 @@ export function useOrders(): UseOrdersResult {
   );
 
   // Delete Order Mutation with Optimistic Update
-  const deleteOrderMutation = useMutation<void, string, { previous: Order[] }>(
+  const deleteOrderMutation = useMutation<void, string, { previous: Order[]; deletedId: string }>(
     async (id) => {
       await deleteOrderAction(id);
     },
@@ -187,7 +237,13 @@ export function useOrders(): UseOrdersResult {
         setOrders(optimistic);
         setTotalCount(optimistic.length);
         mutate(optimistic);
-        return { previous };
+        return { previous, deletedId: id };
+      },
+      onSuccess: (_result, _id, ctx) => {
+        // Broadcast to other clients
+        if (ctx?.deletedId) {
+          publishRealtimeEvent('order:deleted', { orderId: ctx.deletedId }, 1);
+        }
       },
       onError: (err, _id, ctx) => {
         devLog.error('[useOrders] Failed to delete order:', err);

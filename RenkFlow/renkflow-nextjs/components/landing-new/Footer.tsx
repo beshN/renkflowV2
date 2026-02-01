@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Twitter, Instagram, Linkedin, Mail, MapPin, Phone } from 'lucide-react';
+import { Twitter, Instagram, Linkedin, Mail, MapPin, Phone, LucideIcon } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
@@ -98,7 +98,7 @@ export const Footer: React.FC = () => {
   );
 };
 
-const SocialIcon = ({ icon: Icon, href }: { icon: any, href: string }) => (
+const SocialIcon = ({ icon: Icon, href }: { icon: LucideIcon, href: string }) => (
     <a
       href={href}
       className="w-9 h-9 rounded-full bg-white/80 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 flex items-center justify-center text-slate-500 hover:text-white hover:border-transparent hover:bg-gradient-to-br hover:from-sky-600 hover:via-blue-600 hover:to-emerald-500 transition-all shadow-sm"

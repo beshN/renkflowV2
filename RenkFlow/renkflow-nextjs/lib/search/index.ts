@@ -28,6 +28,22 @@ export {
   type TrendInfo,
 } from './analytics-engine';
 
+// Elasticsearch (server-side only)
+export {
+  searchOrders,
+  getSearchSuggestions,
+  indexOrder,
+  bulkIndexOrders,
+  deleteOrderFromIndex,
+  createOrdersIndex,
+  deleteOrdersIndex,
+  getOrdersAggregations,
+  checkElasticsearchHealth,
+  isElasticsearchConfigured,
+  type ElasticSearchOptions,
+  type ElasticSearchResult,
+} from './elasticsearch';
+
 // React Hooks
 export {
   useSearch,
