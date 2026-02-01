@@ -94,6 +94,28 @@ function checkAuthRateLimit(ip: string): { allowed: boolean; message?: string; r
 
 export default auth((request) => {
   const { pathname } = request.nextUrl;
+  const host = request.headers.get('host')?.toLowerCase() || '';
+
+  // ============================================
+  // Coming Soon Redirect (renkflow.com + subdomains)
+  // ============================================
+  const isRenkflowHost =
+    host === 'renkflow.com' ||
+    host === 'www.renkflow.com' ||
+    host.endsWith('.renkflow.com');
+  const comingSoonBypass =
+    pathname === '/coming-soon' ||
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/favicon') ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml' ||
+    pathname === '/manifest.json' ||
+    pathname.startsWith('/logo');
+
+  if (isRenkflowHost && !comingSoonBypass) {
+    return NextResponse.redirect(new URL('/coming-soon', request.url));
+  }
 
   // ============================================
   // Rate Limit Auth Routes
