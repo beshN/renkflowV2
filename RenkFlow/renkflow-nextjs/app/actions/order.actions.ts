@@ -27,30 +27,66 @@ export async function getOrderByIdAction(id: string) {
 }
 
 export async function createOrderAction(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.tenantId) {
-    throw new Error('Yetkilendirme gereklidir');
-  }
-  // Extract files
-  const files = formData.getAll('files') as File[];
-  
-  // Extract other data
-  const data: NewOrderFormData = {
-    customerName: formData.get('customerName') as string,
-    email: formData.get('email') as string || undefined,
-    phone: formData.get('phone') as string || undefined,
-    productName: formData.get('productName') as string,
-    quantity: parseInt(formData.get('quantity') as string),
-    totalAmount: parseFloat(formData.get('totalAmount') as string) || 0,
-    currency: safeParseCurrency(formData.get('currency') as string | null),
-    deliveryDate: formData.get('deliveryDate') as string || undefined,
-    notes: formData.get('notes') as string || undefined,
-    // documents property removed - handled via files parameter
-  };
+  try {
+    const session = await auth();
+    if (!session?.user?.tenantId) {
+      console.error('[createOrderAction] No session or tenant ID');
+      throw new Error('Yetkilendirme gereklidir');
+    }
+    
+    // Extract files
+    const files = formData.getAll('files') as File[];
+    
+    // Extract other data
+    const data: NewOrderFormData = {
+      customerName: formData.get('customerName') as string,
+      email: formData.get('email') as string || undefined,
+      phone: formData.get('phone') as string || undefined,
+      productName: formData.get('productName') as string,
+      quantity: parseInt(formData.get('quantity') as string),
+      totalAmount: parseFloat(formData.get('totalAmount') as string) || 0,
+      currency: safeParseCurrency(formData.get('currency') as string | null),
+      deliveryDate: formData.get('deliveryDate') as string || undefined,
+      notes: formData.get('notes') as string || undefined,
+      // documents property removed - handled via files parameter
+    };
 
-  const order = await orderService.createOrder(session.user.tenantId, data, files);
-  revalidatePath('/orders');
-  return order;  // Return created order
+    // Validate required fields
+    if (!data.customerName || !data.productName) {
+      console.error('[createOrderAction] Missing required fields:', { 
+        hasCustomerName: !!data.customerName, 
+        hasProductName: !!data.productName 
+      });
+      throw new Error('Müşteri adı ve ürün adı zorunludur');
+    }
+
+    if (isNaN(data.quantity) || data.quantity <= 0) {
+      console.error('[createOrderAction] Invalid quantity:', data.quantity);
+      throw new Error('Geçersiz miktar');
+    }
+
+    console.log('[createOrderAction] Creating order for tenant:', session.user.tenantId, {
+      customerName: data.customerName,
+      productName: data.productName,
+      quantity: data.quantity,
+      totalAmount: data.totalAmount,
+      filesCount: files.length
+    });
+
+    const order = await orderService.createOrder(session.user.tenantId, data, files);
+    
+    console.log('[createOrderAction] Order created successfully:', order.id);
+    
+    revalidatePath('/orders');
+    return order;  // Return created order
+  } catch (error) {
+    console.error('[createOrderAction] Error creating order:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    throw error;
+  }
 }
 
 export async function updateOrderAction(id: string, updates: Partial<Order>) {

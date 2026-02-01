@@ -141,6 +141,12 @@ export class NeonOrderService implements IOrderService {
   }
 
   async createOrder(tenantId: string, formData: NewOrderFormData, files?: File[]): Promise<Order> {
+    console.log('[NeonOrderService] createOrder called', {
+      tenantId,
+      customerName: formData.customerName,
+      productName: formData.productName,
+      filesCount: files?.length || 0
+    });
 
     // Generate unique order number
     const orderNumber = `ORD${Date.now()}`;
@@ -148,6 +154,8 @@ export class NeonOrderService implements IOrderService {
 
     try {
       const orderId = await withTransaction(async (tx) => {
+        console.log('[NeonOrderService] Starting transaction for order creation');
+        
         const orderResult = await tx.sql`
           INSERT INTO orders (
             order_number, customer_name, email, phone, 
@@ -164,30 +172,52 @@ export class NeonOrderService implements IOrderService {
 
         const orderId = orderResult[0]?.id as string | undefined;
         if (!orderId) {
+          console.error('[NeonOrderService] Order creation failed - no ID returned');
           throw new Error('Order creation failed');
         }
 
+        console.log('[NeonOrderService] Order created with ID:', orderId);
+
         if (files && files.length > 0) {
-          for (const file of files) {
-            const key = generateFilePath(orderId, file.name);
-            const arrayBuffer = await file.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
+          console.log('[NeonOrderService] Uploading', files.length, 'files');
+          
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            try {
+              const key = generateFilePath(orderId, file.name);
+              const arrayBuffer = await file.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
 
-            await uploadFile(key, buffer, file.type);
-            uploadedFiles.push({ key });
+              console.log('[NeonOrderService] Uploading file', i + 1, '/', files.length, ':', file.name);
+              await uploadFile(key, buffer, file.type);
+              uploadedFiles.push({ key });
 
-            await tx.sql`
-              INSERT INTO documents (order_id, name, file_path, size)
-              VALUES (${orderId}, ${file.name}, ${key}, ${file.size})
-            `;
+              await tx.sql`
+                INSERT INTO documents (order_id, name, file_path, size)
+                VALUES (${orderId}, ${file.name}, ${key}, ${file.size})
+              `;
+              console.log('[NeonOrderService] File uploaded successfully:', file.name);
+            } catch (fileError) {
+              console.error('[NeonOrderService] File upload failed for:', file.name, fileError);
+              // Don't fail the entire order if file upload fails - just log it
+              // throw fileError; // Comment this out to allow order creation even if files fail
+            }
           }
         }
 
         return orderId;
-      });
+      }, { timeout: 60000 }); // Increase timeout to 60s for file uploads
 
+      console.log('[NeonOrderService] Transaction committed successfully');
       return this.getOrderById(tenantId, orderId) as Promise<Order>;
     } catch (error) {
+      console.error('[NeonOrderService] createOrder failed:', {
+        error: error instanceof Error ? error.message : String(error),
+        orderNumber,
+        tenantId,
+        uploadedFilesCount: uploadedFiles.length
+      });
+      
       await this.cleanupUploadedFiles(uploadedFiles);
       throw error;
     }

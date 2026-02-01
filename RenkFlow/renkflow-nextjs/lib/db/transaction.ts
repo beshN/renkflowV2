@@ -35,7 +35,7 @@ class RollbackError extends Error {
  */
 export async function withTransaction<T>(
   callback: (ctx: TransactionContext) => Promise<T>,
-  options: { isolationLevel?: IsolationLevel } = {}
+  options: { isolationLevel?: IsolationLevel; timeout?: number } = {}
 ): Promise<T> {
   const databaseUrl = process.env.DATABASE_URL;
 
@@ -52,6 +52,7 @@ export async function withTransaction<T>(
   // Create a dedicated connection for this transaction
   const sql = neon(databaseUrl);
   const isolationLevel = options.isolationLevel || 'READ COMMITTED';
+  const timeout = options.timeout || 30000; // 30 seconds default
   
   let shouldRollback = false;
   
@@ -60,18 +61,44 @@ export async function withTransaction<T>(
     throw new RollbackError();
   };
 
+  const startTime = Date.now();
+
   try {
     // Start transaction with isolation level
     await sql`BEGIN TRANSACTION ISOLATION LEVEL ${sql(isolationLevel)}`;
     
-    // Execute the callback
-    const result = await callback({ sql, rollback });
+    // Execute the callback with timeout
+    const result = await Promise.race([
+      callback({ sql, rollback }),
+      new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error(`Transaction timeout after ${timeout}ms`)), timeout)
+      )
+    ]);
     
     // Commit if no errors
     await sql`COMMIT`;
     
+    const duration = Date.now() - startTime;
+    if (duration > 5000) {
+      console.warn(`[Transaction] Slow transaction completed in ${duration}ms`);
+    }
+    
     return result;
   } catch (error) {
+    const duration = Date.now() - startTime;
+    
+    // Enhanced error logging for production debugging
+    console.error('[Transaction] Failed after', duration, 'ms');
+    console.error('[Transaction] Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      code: (error as any)?.code,
+      constraint: (error as any)?.constraint,
+      detail: (error as any)?.detail,
+      hint: (error as any)?.hint,
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
     // Always rollback on error
     try {
       await sql`ROLLBACK`;

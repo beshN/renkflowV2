@@ -2,18 +2,19 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Config updated 2026-01-25 to force fresh build
+  // Optimize package imports for better performance
   experimental: {
-    optimizePackageImports: ['@dnd-kit/core', '@dnd-kit/sortable'],
+    optimizePackageImports: ['@dnd-kit/core', '@dnd-kit/sortable', 'framer-motion', 'lucide-react'],
+    // Enable experimental optimizations
+    optimizeCss: true,
   },
+  
   output: 'standalone',
+  
+  // Optimize images
   images: {
+    formats: ['image/webp', 'image/avif'],
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'ui-avatars.com',
-        pathname: '/api/**',
-      },
       {
         protocol: 'https',
         hostname: 'pub-*.r2.dev', // Allow all R2 buckets
@@ -29,3 +30,4 @@ const nextConfig = {
 };
 
 export default nextConfig;
+
