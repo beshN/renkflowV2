@@ -1,6 +1,6 @@
 /**
  * AI Assistant Service
- * Claude/OpenAI integration for intelligent task management
+ * Claude/OpenAI/Groq integration for intelligent task management
  */
 
 import type {
@@ -16,7 +16,7 @@ import type {
 // ============================================
 
 interface AIConfig {
-  provider: 'claude' | 'openai';
+  provider: 'claude' | 'openai' | 'groq';
   apiKey: string;
   model: string;
   maxTokens: number;
@@ -24,9 +24,16 @@ interface AIConfig {
 }
 
 const DEFAULT_CONFIG: Partial<AIConfig> = {
-  maxTokens: 4096,
+  maxTokens: 2048,
   temperature: 0.7,
 };
+
+// Groq models - all FREE!
+const GROQ_MODELS = {
+  'llama-3.3-70b': 'llama-3.3-70b-versatile',
+  'llama-3.1-8b': 'llama-3.1-8b-instant',
+  'mixtral-8x7b': 'mixtral-8x7b-32768',
+} as const;
 
 // ============================================
 // AI Service Class
@@ -37,13 +44,32 @@ export class AIService {
   private conversationHistory: AIMessage[] = [];
 
   constructor(config: Partial<AIConfig> = {}) {
+    // Default to Groq (free) if GROQ_API_KEY is set
+    const defaultProvider = process.env.GROQ_API_KEY ? 'groq' : 
+                           process.env.ANTHROPIC_API_KEY ? 'claude' : 
+                           process.env.OPENAI_API_KEY ? 'openai' : 'groq';
+    
+    const provider = config.provider || defaultProvider;
+    
     this.config = {
-      provider: config.provider || 'claude',
-      apiKey: config.apiKey || process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || '',
-      model: config.model || (config.provider === 'openai' ? 'gpt-4-turbo' : 'claude-3-sonnet-20240229'),
+      provider,
+      apiKey: config.apiKey || 
+              process.env.GROQ_API_KEY || 
+              process.env.ANTHROPIC_API_KEY || 
+              process.env.OPENAI_API_KEY || '',
+      model: config.model || this.getDefaultModel(provider),
       maxTokens: config.maxTokens || DEFAULT_CONFIG.maxTokens!,
       temperature: config.temperature ?? DEFAULT_CONFIG.temperature!,
     };
+  }
+
+  private getDefaultModel(provider: string): string {
+    switch (provider) {
+      case 'groq': return GROQ_MODELS['llama-3.3-70b'];
+      case 'openai': return 'gpt-4-turbo';
+      case 'claude': return 'claude-3-sonnet-20240229';
+      default: return GROQ_MODELS['llama-3.3-70b'];
+    }
   }
 
   // ============================================
@@ -344,11 +370,49 @@ Sadece JSON döndür, açıklama ekleme.
       return this.getMockResponse(messages[messages.length - 1]?.content || '');
     }
 
-    if (this.config.provider === 'claude') {
-      return await this.callClaude(systemPrompt, messages);
-    } else {
-      return await this.callOpenAI(systemPrompt, messages);
+    switch (this.config.provider) {
+      case 'groq':
+        return await this.callGroq(systemPrompt, messages);
+      case 'claude':
+        return await this.callClaude(systemPrompt, messages);
+      case 'openai':
+      default:
+        return await this.callOpenAI(systemPrompt, messages);
     }
+  }
+
+  private async callGroq(
+    systemPrompt: string,
+    messages: AIMessage[]
+  ): Promise<string> {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.config.model,
+        max_tokens: this.config.maxTokens,
+        temperature: this.config.temperature,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('[AI Service] Groq error:', error);
+      throw new Error(`Groq API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0]?.message?.content || '';
   }
 
   private async callClaude(
