@@ -24,6 +24,9 @@ const nextConfig = {
     optimizeCss: true,
   },
 
+  // Increase static page generation timeout for complex pages
+  staticPageGenerationTimeout: 300,
+
   // Compiler optimizations
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,
