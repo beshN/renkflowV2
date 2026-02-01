@@ -31,10 +31,10 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
   }, [searchValue, onSearch]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/70 dark:border-slate-800 bg-transparent backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-slate-200/70 dark:border-slate-800 bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl shadow-[0_1px_0_rgba(15,23,42,0.04)]">
       <div className="flex h-16 items-center gap-4 px-6">
         {/* Title */}
-        <h1 className="text-2xl font-semibold text-text-light dark:text-text-dark font-display">
+        <h1 className="text-2xl font-semibold text-text-light dark:text-text-dark font-display tracking-tight">
           {title}
         </h1>
 
@@ -48,7 +48,7 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
                 placeholder="Ara..."
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                className="input-professional w-full rounded-xl px-10 py-2 text-sm"
+                className="input-professional w-full rounded-full px-10 py-2.5 text-sm bg-white/80 dark:bg-slate-900/70"
               />
             </div>
           </div>
@@ -61,7 +61,7 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
           {/* Dark Mode Toggle */}
           <button
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-            className="flex size-10 items-center justify-center rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/70 transition-colors"
+            className="flex size-10 items-center justify-center rounded-full hover:bg-slate-100/80 dark:hover:bg-slate-800/70 transition-colors"
             aria-label="Toggle dark mode"
           >
             {resolvedTheme === 'dark' ? (
@@ -73,7 +73,7 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
 
           {/* Notifications */}
           <button
-            className="relative flex size-10 items-center justify-center rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/70 transition-colors"
+            className="relative flex size-10 items-center justify-center rounded-full hover:bg-slate-100/80 dark:hover:bg-slate-800/70 transition-colors"
             aria-label="Notifications"
           >
             <Bell className="text-subtle-light dark:text-subtle-dark w-5 h-5" />
@@ -81,7 +81,7 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
           </button>
 
           {/* User Menu */}
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200/70 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 px-3 py-2 shadow-sm glass-button hover:bg-white/60">
+          <div className="flex items-center gap-2 rounded-full border border-slate-200/70 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 px-3 py-2 shadow-sm glass-button hover:bg-white/80">
             <div className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-sky-600 via-blue-600 to-emerald-500 shadow-sm">
               <span className="text-white text-xs font-medium">AK</span>
             </div>

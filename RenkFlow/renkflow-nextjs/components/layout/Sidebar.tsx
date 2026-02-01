@@ -52,6 +52,7 @@ export function Sidebar() {
   const { user } = useAuth();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [logoFailed, setLogoFailed] = useState({ compact: false, full: false });
 
   // Filter nav items based on user role
   const filteredNavItems = navItems.filter(item => {
@@ -140,14 +141,19 @@ export function Sidebar() {
              }}
              className="absolute inset-0 flex items-center justify-center pointer-events-none"
            >
-              <div className="relative h-12 w-12 rounded-xl overflow-hidden shadow-lg shadow-blue-500/30 bg-white">
-                <Image
-                  src="/logo-r.png"
-                  alt="RenkFlow"
-                  fill
-                  sizes="48px"
-                  className="object-contain"
-                />
+              <div className="relative h-12 w-12 rounded-xl overflow-hidden shadow-lg shadow-blue-500/30 bg-white flex items-center justify-center">
+                {logoFailed.compact ? (
+                  <span className="text-lg font-extrabold text-slate-900">RF</span>
+                ) : (
+                  <Image
+                    src="/logo-r.png"
+                    alt="RenkFlow"
+                    fill
+                    sizes="48px"
+                    className="object-contain"
+                    onError={() => setLogoFailed((prev) => ({ ...prev, compact: true }))}
+                  />
+                )}
               </div>
            </motion.div>
 
@@ -161,13 +167,18 @@ export function Sidebar() {
              className="absolute inset-0 flex items-center justify-center"
            >
               <div className="relative h-16 w-40 flex items-center justify-center">
-                <Image
-                  src="/logo-full.png"
-                  alt="RenkFlow"
-                  fill
-                  sizes="160px"
-                  className="object-contain"
-                />
+                {logoFailed.full ? (
+                  <span className="text-2xl font-extrabold tracking-tight text-slate-900">RenkFlow</span>
+                ) : (
+                  <Image
+                    src="/logo-full.png"
+                    alt="RenkFlow"
+                    fill
+                    sizes="160px"
+                    className="object-contain"
+                    onError={() => setLogoFailed((prev) => ({ ...prev, full: true }))}
+                  />
+                )}
               </div>
            </motion.div>
         </div>

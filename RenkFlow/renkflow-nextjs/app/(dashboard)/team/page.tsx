@@ -1,28 +1,39 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Navbar } from '@/components/layout/Navbar';
 import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/lib/context/AuthContext';
-import { UserPlus, ShieldCheck, CalendarClock, Briefcase } from 'lucide-react';
+import { useOrders } from '@/lib/hooks/useOrders';
+import { formatDate } from '@/lib/utils';
+import { UserPlus, ShieldCheck, CalendarClock, Briefcase, Users, Loader2 } from 'lucide-react';
 
-const teamMembers = [
-  { name: 'Ayşe Demir', role: 'Üretim Lideri', status: 'Aktif', shift: '08:00 - 16:00', workload: 'Yüksek' },
-  { name: 'Mehmet Kaya', role: 'Planlama', status: 'Aktif', shift: '09:00 - 17:00', workload: 'Orta' },
-  { name: 'Elif Yılmaz', role: 'Kalite', status: 'Aktif', shift: '08:00 - 16:00', workload: 'Düşük' },
-  { name: 'Can Arslan', role: 'Lojistik', status: 'İzinli', shift: '—', workload: '—' },
-];
+type TeamMember = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  avatar?: string | null;
+  joinedAt?: string | null;
+};
 
-const activityFeed = [
-  { title: 'Ayşe Demir', description: '3 siparişi üretime aldı', time: '25 dk önce' },
-  { title: 'Mehmet Kaya', description: 'Haftalık planı güncelledi', time: '1 saat önce' },
-  { title: 'Elif Yılmaz', description: 'Kalite kontrol raporu ekledi', time: 'Bugün 09:30' },
-];
+const roleLabels: Record<string, string> = {
+  owner: 'Sahip',
+  admin: 'Yönetici',
+  member: 'Üye',
+  office: 'Ofis',
+  worker: 'Üretim',
+};
 
 export default function TeamPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const { orders } = useOrders();
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
+  const [membersError, setMembersError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -30,11 +41,60 @@ export default function TeamPage() {
     }
   }, [user, isLoading, router]);
 
+  useEffect(() => {
+    const fetchMembers = async () => {
+      setMembersLoading(true);
+      setMembersError(null);
+      try {
+        const res = await fetch('/api/tenant/members');
+        if (!res.ok) throw new Error('Üyeler yüklenemedi');
+        const data = await res.json();
+        setMembers(data.members || []);
+      } catch (error) {
+        setMembersError('Üyeler yüklenemedi, lütfen tekrar deneyin.');
+      } finally {
+        setMembersLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchMembers();
+    }
+  }, [user]);
+
   const stats = useMemo(() => {
-    const active = teamMembers.filter((member) => member.status === 'Aktif').length;
-    const onLeave = teamMembers.filter((member) => member.status !== 'Aktif').length;
-    return { active, onLeave };
-  }, []);
+    const active = members.length;
+    const roles = new Set(members.map((member) => member.role));
+    return { active, roles: roles.size };
+  }, [members]);
+
+  const workloadSummary = useMemo(() => {
+    const totalOrders = orders?.length || 0;
+    const activeOrders = orders?.filter((o) => o.status !== 'delivered').length || 0;
+    const deliveredOrders = orders?.filter((o) => o.status === 'delivered').length || 0;
+    const avgPerMember = members.length ? Math.round(activeOrders / members.length) : 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const overdue = (orders || []).filter((o) => {
+      if (!o.deliveryDate || o.status === 'delivered') return false;
+      return new Date(o.deliveryDate) < today;
+    }).length;
+
+    return { totalOrders, activeOrders, deliveredOrders, avgPerMember, overdue };
+  }, [orders, members.length]);
+
+  const activityFeed = useMemo(() => {
+    return (orders || [])
+      .slice()
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .slice(0, 5)
+      .map((order) => ({
+        id: order.id,
+        title: order.customerName,
+        description: `${order.orderNumber} • ${order.productName}`,
+        time: formatDate(order.updatedAt),
+      }));
+  }, [orders]);
 
   if (isLoading || !user) return null;
 
@@ -51,50 +111,71 @@ export default function TeamPage() {
                 Roller, vardiyalar ve sorumluluk dağılımını tek yerden yönetin.
               </p>
             </div>
-            <button className="inline-flex items-center gap-2 rounded-full bg-slate-900 text-white px-5 py-2.5 text-sm font-semibold shadow-[0_18px_40px_-24px_rgba(15,23,42,0.7)] hover:opacity-90">
+            <Link
+              href="/members"
+              className="inline-flex items-center gap-2 rounded-full bg-slate-900 text-white px-5 py-2.5 text-sm font-semibold shadow-[0_18px_40px_-24px_rgba(15,23,42,0.7)] hover:opacity-90"
+            >
               <UserPlus size={16} />
-              Yeni Üye Ekle
-            </button>
+              Üye Davet Et
+            </Link>
           </div>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card spotlight className="p-5">
             <p className="text-xs text-slate-500 dark:text-slate-400">Aktif Üyeler</p>
             <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.active}</p>
           </Card>
           <Card spotlight className="p-5">
-            <p className="text-xs text-slate-500 dark:text-slate-400">İzinli</p>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.onLeave}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Aktif Sipariş</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">{workloadSummary.activeOrders}</p>
           </Card>
           <Card spotlight className="p-5">
             <p className="text-xs text-slate-500 dark:text-slate-400">Roller</p>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white">4</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.roles}</p>
+          </Card>
+          <Card spotlight className="p-5">
+            <p className="text-xs text-slate-500 dark:text-slate-400">Kişi Başına İş</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">{workloadSummary.avgPerMember}</p>
           </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_0.6fr] gap-6">
           <Card spotlight className="p-6">
-            <h3 className="text-lg font-semibold text-text-light dark:text-text-dark mb-4">Takım Üyeleri</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {teamMembers.map((member) => (
-                <div key={member.name} className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700/60 dark:bg-slate-900/60">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{member.name}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{member.role}</p>
-                    </div>
-                    <span className={`text-xs rounded-full px-2 py-1 ${member.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                      {member.status}
-                    </span>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                    <span>{member.shift}</span>
-                    <span>{member.workload}</span>
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-text-light dark:text-text-dark">Takım Üyeleri</h3>
+              <span className="text-xs text-slate-500 dark:text-slate-400">{members.length} kişi</span>
             </div>
+            {membersLoading ? (
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Üyeler yükleniyor...
+              </div>
+            ) : membersError ? (
+              <div className="rounded-2xl border border-rose-200/70 bg-rose-50/60 p-4 text-sm text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+                {membersError}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {members.map((member) => (
+                  <div key={member.id} className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700/60 dark:bg-slate-900/60">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{member.name}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{member.email}</p>
+                      </div>
+                      <span className="text-xs rounded-full px-2 py-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
+                        {roleLabels[member.role] || member.role}
+                      </span>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                      <span>Katılım: {member.joinedAt ? formatDate(member.joinedAt) : '-'}</span>
+                      <span>Aktif</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
 
           <Card spotlight className="p-6">
@@ -110,16 +191,23 @@ export default function TeamPage() {
               <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700/60 dark:bg-slate-900/60">
                 <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-semibold">
                   <CalendarClock size={16} />
-                  Vardiya planı güncel
+                  Teslimat riskleri izleniyor
                 </div>
-                <p className="text-xs mt-1">Haftalık planlar otomatik güncellenir.</p>
+                <p className="text-xs mt-1">{workloadSummary.overdue} geciken sipariş için erken uyarı açık.</p>
               </div>
               <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700/60 dark:bg-slate-900/60">
                 <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-semibold">
                   <Briefcase size={16} />
-                  Rol dağılımı dengeli
+                  Kapasite kullanımı
                 </div>
-                <p className="text-xs mt-1">Üretim ve kalite arasında iş dağılımı optimize.</p>
+                <p className="text-xs mt-1">Kişi başına ortalama {workloadSummary.avgPerMember} aktif iş.</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700/60 dark:bg-slate-900/60">
+                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-semibold">
+                  <Users size={16} />
+                  Teslimat çıktısı
+                </div>
+                <p className="text-xs mt-1">Toplam {workloadSummary.deliveredOrders} sipariş teslim edildi.</p>
               </div>
             </div>
           </Card>
@@ -127,15 +215,21 @@ export default function TeamPage() {
 
         <Card spotlight className="p-6">
           <h3 className="text-lg font-semibold text-text-light dark:text-text-dark mb-4">Son Aktivite</h3>
-          <div className="space-y-3">
-            {activityFeed.map((item) => (
-              <div key={item.title + item.time} className="rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-3 text-sm dark:border-slate-700/60 dark:bg-slate-900/60">
-                <p className="font-semibold text-slate-900 dark:text-white">{item.title}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{item.description}</p>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">{item.time}</p>
-              </div>
-            ))}
-          </div>
+          {activityFeed.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 p-6 text-sm text-slate-500 dark:border-slate-700">
+              Henüz aktivite yok. Sipariş güncellemeleri burada görünecek.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {activityFeed.map((item) => (
+                <div key={item.id} className="rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-3 text-sm dark:border-slate-700/60 dark:bg-slate-900/60">
+                  <p className="font-semibold text-slate-900 dark:text-white">{item.title}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{item.description}</p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">{item.time}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       </main>
     </div>
