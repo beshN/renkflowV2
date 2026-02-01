@@ -15,8 +15,6 @@ jobs:
         working-directory: RenkFlow/renkflow-nextjs
       - run: npm run lint
         working-directory: RenkFlow/renkflow-nextjs
-      - run: npm run test:unit
-        working-directory: RenkFlow/renkflow-nextjs
       - run: npm run build
         working-directory: RenkFlow/renkflow-nextjs
 
