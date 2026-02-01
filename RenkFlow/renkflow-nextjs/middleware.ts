@@ -127,7 +127,23 @@ export default auth((request) => {
   // Protected Routes
   // ============================================
   const isAuthPage = pathname.startsWith('/auth/');
-  const isPublicPage = pathname === '/' || pathname.startsWith('/public/');
+  const publicExactPaths = new Set([
+    '/',
+    '/about',
+    '/pricing',
+    '/features',
+    '/integrations',
+    '/faq',
+    '/terms',
+    '/privacy',
+    '/coming-soon',
+    '/contact',
+    '/signup',
+  ]);
+  const publicPrefixes = ['/public/', '/blog', '/careers'];
+  const isPublicPage =
+    publicExactPaths.has(pathname) ||
+    publicPrefixes.some((prefix) => pathname.startsWith(prefix));
   const isApiRoute = pathname.startsWith('/api/');
   const isStaticAsset = pathname.startsWith('/_next/') || pathname.includes('.');
 
