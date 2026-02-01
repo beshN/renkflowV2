@@ -27,7 +27,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { Order, NewOrderFormData } from '@/lib/types';
+import { Order, NewOrderFormData, Currency, safeParseCurrency } from '@/lib/types';
 import { MockOrderService } from '@/lib/services/mock/order.mock';
 import { 
   getOrdersAction, 
@@ -124,16 +124,9 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
           productName: data.get('productName') as string,
           quantity: parseInt(data.get('quantity') as string),
           totalAmount: parseFloat(data.get('totalAmount') as string) || 0,
-          currency: (data.get('currency') as string) || '₺',
+          currency: safeParseCurrency(data.get('currency') as string | null),
           deliveryDate: data.get('deliveryDate') as string || undefined,
           notes: data.get('notes') as string || undefined,
-          documents: files.map(file => ({
-            id: Math.random().toString(36).substr(2, 9),
-            name: file.name,
-            url: URL.createObjectURL(file),
-            size: file.size,
-            uploadedAt: new Date().toISOString(),
-          })),
         };
         await mockService.createOrder(tenantId, formData, files);
       }

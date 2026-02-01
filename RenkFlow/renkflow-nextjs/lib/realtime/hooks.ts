@@ -47,7 +47,7 @@ export function useRealtime(config: UseRealtimeConfig): UseRealtimeResult {
   });
 
   const connect = React.useCallback(() => {
-    wsClient.connect(config);
+    wsClient.connect(config.url, config.userId, config.userName);
   }, [config]);
 
   const disconnect = React.useCallback(() => {
@@ -99,7 +99,7 @@ export function useChannel<T = unknown>(
       onEvent?.(event as RealtimeEvent<T>);
     };
 
-    const unsubscribe = wsClient.subscribe(channel, handleEvent);
+    const unsubscribe = wsClient.subscribe({ room: channel, onEvent: handleEvent });
 
     return () => {
       unsubscribe();
@@ -136,7 +136,8 @@ export function useOrderRealtime(
 
   const publish = React.useCallback(
     (eventType: RealtimeEventType, payload: unknown, version: number) => {
-      wsClient.publish(channel, eventType, payload, version);
+      wsClient.join(channel);
+      wsClient.publish(eventType, payload, version);
     },
     [channel]
   );
@@ -168,7 +169,13 @@ export function usePresence(): UsePresenceResult {
   });
 
   React.useEffect(() => {
-    const unsubscribe = wsClient.onPresenceUpdate(setPresence);
+    const handlePresenceUpdate = (users: PresenceUser[]) => {
+      setPresence(prev => ({
+        ...prev,
+        users: new Map(users.map(u => [u.id, u])),
+      }));
+    };
+    const unsubscribe = wsClient.onPresenceUpdate(handlePresenceUpdate);
     return unsubscribe;
   }, []);
 
@@ -188,7 +195,7 @@ export function usePresence(): UsePresenceResult {
   );
 
   const setTyping = React.useCallback((isTyping: boolean) => {
-    wsClient.setTyping(isTyping);
+    wsClient.setTyping(isTyping, 'order', '');
   }, []);
 
   const updateStatus = React.useCallback((status: PresenceUser['status']) => {
@@ -350,7 +357,7 @@ export function useTypingIndicator(debounceMs: number = 2000): UseTypingIndicato
   const startTyping = React.useCallback(() => {
     if (!isTyping) {
       setIsTyping(true);
-      wsClient.setTyping(true);
+      wsClient.setTyping(true, 'order', '');
     }
 
     // Reset timeout
@@ -360,7 +367,7 @@ export function useTypingIndicator(debounceMs: number = 2000): UseTypingIndicato
 
     timeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      wsClient.setTyping(false);
+      wsClient.setTyping(false, 'order', '');
     }, debounceMs);
   }, [isTyping, debounceMs]);
 
@@ -369,7 +376,7 @@ export function useTypingIndicator(debounceMs: number = 2000): UseTypingIndicato
       clearTimeout(timeoutRef.current);
     }
     setIsTyping(false);
-    wsClient.setTyping(false);
+    wsClient.setTyping(false, 'order', '');
   }, []);
 
   React.useEffect(() => {
@@ -417,7 +424,8 @@ export function useLiveCursors(channel: string): UseLiveCursorsResult {
 
   const updateCursor = React.useCallback(
     (x: number, y: number) => {
-      wsClient.publish(channel, 'user:viewing', { x, y }, 0);
+      wsClient.join(channel);
+      wsClient.publish('user:viewing' as any, { x, y }, 0);
     },
     [channel]
   );

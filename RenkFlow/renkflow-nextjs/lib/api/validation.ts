@@ -108,9 +108,6 @@ export const APIErrorSchema = z.object({
   success: z.literal(false),
   error: z.string(),
   code: z.string().optional(),
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/api/validation.ts
-  details: z.record(z.string(), z.string()).optional(),
-=======
   details: z
     .union([
       z.record(z.string(), z.string()),
@@ -119,7 +116,6 @@ export const APIErrorSchema = z.object({
       z.string(),
     ])
     .optional(),
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/api/validation.ts
 });
 
 export const APIResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>

@@ -160,8 +160,9 @@ class EncryptionManager {
     fullCiphertext.set(ciphertext);
     fullCiphertext.set(tag, ciphertext.length);
 
+    const ivBytes = new Uint8Array(iv);
     const plaintextBuffer = await crypto.subtle.decrypt(
-      { name: this.ALGORITHM, iv },
+      { name: this.ALGORITHM, iv: ivBytes },
       keyInfo.key,
       fullCiphertext
     );

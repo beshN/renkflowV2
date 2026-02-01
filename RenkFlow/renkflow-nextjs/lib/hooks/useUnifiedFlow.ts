@@ -5,7 +5,7 @@ import { offlineDB } from '@/lib/offline/indexeddb';
 import { syncQueue } from '@/lib/offline/sync-queue';
 import { realtime as wsClient } from '@/lib/realtime/client';
 import { encryption } from '@/lib/security/encryption';
-import { Order } from '@/lib/types';
+import { Order, createOrderId, createTenantId, safeParseCurrency } from '@/lib/types';
 
 /**
  * Unified Flow Hook
@@ -49,20 +49,21 @@ export function useUnifiedOrderSystem(tenantId: string) {
       }
 
       // 3. Prepare Enhanced Order with Security & AI data
-      const id = orderData.id || `order-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      const idString = orderData.id || `order-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
       const enhancedOrder: UnifiedOrder = {
         ...orderData,
-        id,
+        id: createOrderId(idString as string),
         orderNumber: orderData.orderNumber || `RF-${Date.now().toString().slice(-6)}`,
         customerName: orderData.customerName || 'Unnamed Customer',
         email: emailField,
         date: new Date().toISOString(),
         totalAmount: orderData.totalAmount || 0,
-        currency: orderData.currency || 'TRY',
+        currency: safeParseCurrency(orderData.currency),
         status: orderData.status || 'pending',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        tenantId,
+        tenantId: createTenantId(tenantId),
+        documents: orderData.documents || [],
         isSuspicious: aiAnalysis.fraudProbability > 0.5,
         aiMetadata: aiAnalysis,
         encryptionKeyId,

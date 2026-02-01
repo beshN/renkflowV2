@@ -140,7 +140,7 @@ export class QueryCache {
 
     if (this.useRedis && await isRedisAvailable()) {
       try {
-        const redis = getRedisClient();
+        const redis = getRedisClient(); if (!redis) throw new Error("Redis not available");
         const data = await redis.get(cacheKey);
         return data ? JSON.parse(data) : null;
       } catch (error) {
@@ -161,7 +161,8 @@ export class QueryCache {
 
     if (this.useRedis && await isRedisAvailable()) {
       try {
-        const redis = getRedisClient();
+        const redis = getRedisClient(); if (!redis) throw new Error("Redis not available");
+        if (!redis) throw new Error('Redis client not available');
         await redis.set(cacheKey, JSON.stringify(data), 'PX', ttl);
 
         // Store tags for invalidation
@@ -189,7 +190,7 @@ export class QueryCache {
 
     if (this.useRedis && await isRedisAvailable()) {
       try {
-        const redis = getRedisClient();
+        const redis = getRedisClient(); if (!redis) throw new Error("Redis not available");
         await redis.del(cacheKey);
         return;
       } catch (error) {
@@ -206,7 +207,7 @@ export class QueryCache {
   async invalidateByTag(tag: string): Promise<number> {
     if (this.useRedis && await isRedisAvailable()) {
       try {
-        const redis = getRedisClient();
+        const redis = getRedisClient(); if (!redis) throw new Error("Redis not available");
         const tagKey = `${TAG_PREFIX}${tag}`;
         const keys = await redis.smembers(tagKey);
         
@@ -281,7 +282,7 @@ export class QueryCache {
   async invalidateMany(keys: string[]): Promise<void> {
     if (this.useRedis && await isRedisAvailable()) {
       try {
-        const redis = getRedisClient();
+        const redis = getRedisClient(); if (!redis) throw new Error("Redis not available");
         const cacheKeys = keys.map(k => `${CACHE_PREFIX}${k}`);
         if (cacheKeys.length > 0) {
           await redis.del(...cacheKeys);
@@ -304,7 +305,7 @@ export class QueryCache {
   async invalidatePattern(pattern: string): Promise<number> {
     if (this.useRedis && await isRedisAvailable()) {
       try {
-        const redis = getRedisClient();
+        const redis = getRedisClient(); if (!redis) throw new Error("Redis not available");
         const keys = await redis.keys(`${CACHE_PREFIX}${pattern}`);
         if (keys.length > 0) {
           await redis.del(...keys);
@@ -344,7 +345,7 @@ export class QueryCache {
   async clear(): Promise<void> {
     if (this.useRedis && await isRedisAvailable()) {
       try {
-        const redis = getRedisClient();
+        const redis = getRedisClient(); if (!redis) throw new Error("Redis not available");
         const keys = await redis.keys(`${CACHE_PREFIX}*`);
         if (keys.length > 0) {
           await redis.del(...keys);
@@ -377,7 +378,7 @@ export function cached(options: CacheOptions = {}) {
   ) {
     const originalMethod = descriptor.value!;
 
-    descriptor.value = async function (...args: unknown[]) {
+    descriptor.value = async function (this: unknown, ...args: unknown[]) {
       const cacheKey = `${propertyKey}:${JSON.stringify(args)}`;
       
       return queryCache.getOrSet(

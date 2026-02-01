@@ -107,6 +107,8 @@ const optionalPhone = z.preprocess(
     .optional()
 );
 
+const currencyEnum = z.enum(['₺', '$', '€', '£']);
+
 // ============================================
 // Order Schemas
 // ============================================
@@ -132,7 +134,7 @@ export const createOrderSchema = z.object({
     message: 'Miktar 10.000\'den fazla olamaz',
   }),
   totalAmount: safeNonNegativeNumber,
-  currency: sanitizedString.pipe(z.string().min(1, 'Para birimi gereklidir')).default('₺'),
+  currency: currencyEnum.default('₺'),
   deliveryDate: optionalDate,
   notes: sanitizedString.pipe(z.string().max(2000, 'Notlar çok uzun')).optional(),
 });
@@ -144,7 +146,7 @@ export const updateOrderSchema = z.object({
   productName: sanitizedString.pipe(z.string().min(1).max(200)).optional(),
   quantity: safePositiveInt.optional(),
   totalAmount: safeNonNegativeNumber.optional(),
-  currency: sanitizedString.pipe(z.string().min(1)).optional(),
+  currency: currencyEnum.optional(),
   deliveryDate: optionalDate,
   notes: sanitizedString.pipe(z.string().max(2000)).optional(),
   status: z.enum(['pending', 'in_production', 'delivered']).optional(),

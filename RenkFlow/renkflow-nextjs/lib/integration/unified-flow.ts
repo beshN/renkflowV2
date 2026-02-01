@@ -5,7 +5,7 @@ import { useOfflineOrders } from '@/lib/offline/hooks';
 import { useOrderRealtime } from '@/lib/realtime/hooks';
 import { useFacetedSearch, useDashboardStats } from '@/lib/search/hooks';
 import { auditTrail, encryptField } from '@/lib/security';
-import { Order, NewOrderFormData } from '@/lib/types';
+import { Order, NewOrderFormData, createOrderId, CurrencySchema } from '@/lib/types';
 
 // Mock/Draft AI Engine (as @/lib/ai doesn't exist yet)
 const aiEngine = {
@@ -40,10 +40,15 @@ export function useUnifiedOrderSystem(tenantId: string) {
     // but the hook handles the actual persistence and ID generation.
     const tempOrder: Order = {
       ...data,
-      id: `temp-${Date.now()}`,
+      id: createOrderId(`temp-${Date.now()}`),
       orderNumber: 'PENDING',
       date: new Date().toISOString(),
       status: 'pending',
+      currency: (() => {
+        const result = CurrencySchema.safeParse(data.currency);
+        return result.success ? result.data : '₺';
+      })(),
+      documents: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -51,7 +56,7 @@ export function useUnifiedOrderSystem(tenantId: string) {
     // 2. AI analiz (şüpheli mi?)
     const analysis = await aiEngine.analyzeOrder(tempOrder);
     if (analysis.isSuspicious) {
-      tempOrder.flags = ['suspicious'];
+      (tempOrder as any).flags = ['suspicious'];
     }
     
     // 3. Security - encrypt sensitive data

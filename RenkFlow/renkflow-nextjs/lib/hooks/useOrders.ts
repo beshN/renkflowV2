@@ -1,4 +1,3 @@
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
 /**
  * useOrders Hook - Enterprise Grade
  * 
@@ -12,10 +11,6 @@
 
 'use client';
 
-=======
-'use client';
-
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
 import React from 'react';
 import { useCachedQuery, useMutation, requestCache } from '@/lib/api/request-layer';
 import {
@@ -37,11 +32,7 @@ export interface UseOrdersResult {
   isLoading: boolean;
   isValidating: boolean;
   error: Error | null;
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
-  refetch: () => Promise<void>;
-=======
   refresh: () => Promise<void>;
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   addOrder: (data: NewOrderFormData | FormData) => Promise<Order>;
   updateOrder: (id: string, updates: Partial<Order>) => Promise<Order>;
   updateOrderStatus: (id: string, status: Order['status']) => Promise<Order>;
@@ -50,12 +41,9 @@ export interface UseOrdersResult {
   getOrderById: (id: string) => Order | undefined;
 }
 
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
 /**
  * Convert NewOrderFormData to FormData for server action compatibility
  */
-=======
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
 function objectToFormData(data: NewOrderFormData): FormData {
   const formData = new FormData();
   formData.append('customerName', data.customerName);
@@ -82,11 +70,7 @@ export function useOrders(): UseOrdersResult {
     isLoading,
     isValidating,
     error,
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
-    refetch: cacheRefetch,
-=======
     refetch,
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
     mutate,
   } = useCachedQuery<Order[]>(
     ORDERS_CACHE_KEY,
@@ -102,28 +86,19 @@ export function useOrders(): UseOrdersResult {
     }
   );
 
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   // Sync loading state with Zustand store
-=======
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   React.useEffect(() => {
     setLoading(isLoading);
   }, [isLoading, setLoading]);
 
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   // Sync fetched orders with Zustand store
-=======
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   React.useEffect(() => {
     if (!fetchedOrders) return;
     setOrders(fetchedOrders);
     setTotalCount(fetchedOrders.length);
   }, [fetchedOrders, setOrders, setTotalCount]);
 
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   // Add Order Mutation
-=======
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   const addOrderMutation = useMutation<Order, NewOrderFormData | FormData>(
     async (data) => {
       const formData = data instanceof FormData ? data : objectToFormData(data);
@@ -143,10 +118,7 @@ export function useOrders(): UseOrdersResult {
     }
   );
 
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   // Update Order Mutation with Optimistic Update
-=======
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   const updateOrderMutation = useMutation<Order, { id: string; updates: Partial<Order> }, { previous: Order[] }>(
     async ({ id, updates }) => {
       return await updateOrderAction(id, updates);
@@ -174,10 +146,7 @@ export function useOrders(): UseOrdersResult {
     }
   );
 
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   // Update Status Mutation with Optimistic Update
-=======
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   const updateStatusMutation = useMutation<Order, { id: string; status: Order['status'] }, { previous: Order[] }>(
     async ({ id, status }) => {
       return await updateOrderStatusAction(id, status);
@@ -205,10 +174,7 @@ export function useOrders(): UseOrdersResult {
     }
   );
 
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   // Delete Order Mutation with Optimistic Update
-=======
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   const deleteOrderMutation = useMutation<void, string, { previous: Order[] }>(
     async (id) => {
       await deleteOrderAction(id);
@@ -233,10 +199,7 @@ export function useOrders(): UseOrdersResult {
     }
   );
 
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   // Upload Documents Mutation
-=======
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   const uploadDocumentsMutation = useMutation<void, { id: string; formData: FormData }>(
     async ({ id, formData }) => {
       await uploadOrderDocumentsAction(id, formData);
@@ -244,11 +207,7 @@ export function useOrders(): UseOrdersResult {
     {
       onSuccess: async () => {
         requestCache.invalidate(ORDERS_CACHE_KEY);
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
-        await cacheRefetch();
-=======
         await refetch();
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
       },
       onError: (err) => {
         devLog.error('[useOrders] Failed to upload documents:', err);
@@ -256,16 +215,10 @@ export function useOrders(): UseOrdersResult {
     }
   );
 
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   // Exposed Methods
-  const refetch = React.useCallback(async () => {
-    await cacheRefetch();
-  }, [cacheRefetch]);
-=======
   const refresh = React.useCallback(async () => {
     await refetch();
   }, [refetch]);
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
 
   const addOrder = React.useCallback(
     async (data: NewOrderFormData | FormData) => {
@@ -302,33 +255,22 @@ export function useOrders(): UseOrdersResult {
     [uploadDocumentsMutation]
   );
 
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   const getOrderById = React.useCallback(
     (id: string) => store.orders.find((o) => o.id === id),
     [store.orders]
   );
 
-=======
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   return {
     orders,
     isLoading,
     isValidating,
     error,
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
-    refetch,
-=======
     refresh,
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
     addOrder,
     updateOrder,
     updateOrderStatus,
     deleteOrder,
     uploadDocuments,
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
     getOrderById,
-=======
-    getOrderById: (id: string) => store.orders.find((o) => o.id === id),
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/hooks/useOrders.ts
   };
 }

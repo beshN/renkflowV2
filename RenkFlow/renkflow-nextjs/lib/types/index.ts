@@ -6,7 +6,6 @@
 
 import { z } from 'zod';
 
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/types/index.ts
 // ============================================
 // Branded Types - Compile-time ID Safety
 // ============================================
@@ -22,27 +21,6 @@ export type DocumentId = Brand<string, 'DocumentId'>;
 // Brand constructors
 export function createOrderId(id: string): OrderId {
   return id as OrderId;
-=======
-export interface Order {
-  id: string;
-  orderNumber: string;
-  customerName: string;
-  email?: string;
-  phone?: string;
-  date: string;
-  deliveryDate?: string;
-  totalAmount: number;
-  currency: string;
-  status: OrderStatus;
-  priority?: 'low' | 'medium' | 'high' | 'urgent';
-  notes?: string;
-  productName?: string;
-  quantity?: number;
-  documents?: Document[];
-  createdAt: string;
-  updatedAt: string;
-  tenantId?: string;
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/types/index.ts
 }
 
 export function createTenantId(id: string): TenantId {
@@ -69,6 +47,15 @@ export type Priority = z.infer<typeof PrioritySchema>;
 
 export const CurrencySchema = z.enum(['₺', '$', '€', '£']);
 export type Currency = z.infer<typeof CurrencySchema>;
+
+/**
+ * Safely parse a currency value from string/form data
+ * Returns valid Currency or default '₺'
+ */
+export function safeParseCurrency(value: string | null | undefined): Currency {
+  const result = CurrencySchema.safeParse(value || '₺');
+  return result.success ? result.data : '₺';
+}
 
 export const ViewModeSchema = z.enum(['grid', 'kanban', 'calendar', 'timeline']);
 export type ViewMode = z.infer<typeof ViewModeSchema>;

@@ -3,7 +3,7 @@
  * Tools for measuring system limits and detecting regressions
  */
 
-import { Order } from '../types';
+import { Order, createOrderId } from '@/lib/types';
 
 /**
  * Generates massive datasets for stress testing the UI and IndexedDB
@@ -16,14 +16,15 @@ export async function generateStressTestData(count: number): Promise<Order[]> {
 
   for (let i = 0; i < count; i++) {
     orders.push({
-      id: `stress-${i}-${Math.random().toString(36).substr(2, 5)}`,
+      id: createOrderId(`stress-${i}-${Math.random().toString(36).substr(2, 5)}`),
       orderNumber: `RF-ST-${i}`,
       customerName: `Stress Test User ${i}`,
       date: new Date().toISOString(),
       totalAmount: Math.floor(Math.random() * 5000),
-      currency: 'TRY',
+      currency: '₺',
       status: i % 2 === 0 ? 'pending' : 'delivered',
       notes: `Large dataset item for performance analysis #${i}`,
+      documents: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });

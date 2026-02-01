@@ -349,7 +349,7 @@ class IndexedDBStorage {
   }
 
   async setMetadata<T>(key: string, value: T): Promise<void> {
-    await this.put('metadata', { key, value }, false);
+    await this.put('metadata', { key, value } as any, false);
   }
 
   // ============================================

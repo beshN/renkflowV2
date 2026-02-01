@@ -105,10 +105,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const orderData: NewOrderFormData = {
-      ...validationResult.data,
-      documents: [],
-    };
+    const orderData: NewOrderFormData = validationResult.data;
 
     const order = await orderService.createOrder(user.tenantId, orderData, files);
     

@@ -1,4 +1,4 @@
-import { Order, NewOrderFormData } from '@/lib/types';
+import { Order, NewOrderFormData, createOrderId, createTenantId, createDocumentId, safeParseCurrency } from '@/lib/types';
 import { IOrderService } from '../types';
 import { sampleOrders } from '@/lib/data/sampleOrders';
 import { generateId } from '@/lib/utils';
@@ -27,8 +27,11 @@ export class MockOrderService implements IOrderService {
     const createdAt = order.createdAt || `${date}T00:00:00Z`;
     const updatedAt = order.updatedAt || createdAt;
 
+    const rawId = (order.id as string) || `ORD${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const tenantId = order.tenantId ? createTenantId(order.tenantId as string) : undefined;
+
     return {
-      id: order.id || `ORD${Date.now()}${Math.floor(Math.random() * 1000)}`,
+      id: createOrderId(rawId),
       orderNumber: order.orderNumber || `RF-${String(order.id || Date.now()).slice(-6)}`,
       customerName: order.customerName || legacyCustomer || 'Bilinmeyen Müşteri',
       email: order.email as string | undefined,
@@ -36,14 +39,14 @@ export class MockOrderService implements IOrderService {
       date,
       deliveryDate: order.deliveryDate as string | undefined,
       totalAmount: typeof order.totalAmount === 'number' ? order.totalAmount : (legacyAmount || 0),
-      currency: (order.currency as string) || '₺',
+      currency: safeParseCurrency(order.currency),
       status: (order.status as Order['status']) || 'pending',
       priority: order.priority as Order['priority'],
       notes: order.notes || legacyNotes,
       productName: order.productName || legacyProduct,
       quantity: order.quantity as number | undefined,
       documents: order.documents as Order['documents'],
-      tenantId: order.tenantId as string | undefined,
+      tenantId,
       createdAt,
       updatedAt,
     };
@@ -140,13 +143,13 @@ export class MockOrderService implements IOrderService {
             ? 'medium'
             : 'low';
 
-    let documents = formData.documents || [];
+    let documents: Order['documents'] = [];
     if (files && files.length > 0) {
       documents = files.map((file) => {
         const url = URL.createObjectURL(file);
         MockOrderService.objectUrls.add(url);
         return {
-          id: Math.random().toString(36).substr(2, 9),
+          id: createDocumentId(Math.random().toString(36).substr(2, 9)),
           name: file.name,
           url,
           size: file.size,
@@ -156,7 +159,7 @@ export class MockOrderService implements IOrderService {
     }
 
     const newOrder: Order = {
-      id: generateId(),
+      id: createOrderId(generateId()),
       orderNumber,
       customerName: formData.customerName,
       email: formData.email,
@@ -164,14 +167,14 @@ export class MockOrderService implements IOrderService {
       date: new Date().toISOString().split('T')[0],
       deliveryDate,
       totalAmount,
-      currency: formData.currency || '₺',
+      currency: safeParseCurrency(formData.currency),
       status: 'pending',
       priority,
       productName: formData.productName,
       quantity: formData.quantity,
       notes: formData.notes,
       documents,
-      tenantId,
+      tenantId: createTenantId(tenantId),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -223,7 +226,7 @@ export class MockOrderService implements IOrderService {
       const url = URL.createObjectURL(file);
       MockOrderService.objectUrls.add(url);
       return {
-        id: Math.random().toString(36).substr(2, 9),
+        id: createDocumentId(Math.random().toString(36).substr(2, 9)),
         name: file.name,
         url,
         size: file.size,

@@ -1,11 +1,8 @@
 'use server';
 
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/app/actions/order.actions.ts
-=======
 import { auth } from '@/auth';
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/app/actions/order.actions.ts
 import { orderService } from '@/lib/services/orderService.server';
-import { NewOrderFormData, Order } from '@/lib/types';
+import { NewOrderFormData, Order, safeParseCurrency } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -45,15 +42,15 @@ export async function createOrderAction(formData: FormData) {
     productName: formData.get('productName') as string,
     quantity: parseInt(formData.get('quantity') as string),
     totalAmount: parseFloat(formData.get('totalAmount') as string) || 0,
-    currency: (formData.get('currency') as string) || '₺',
+    currency: safeParseCurrency(formData.get('currency') as string | null),
     deliveryDate: formData.get('deliveryDate') as string || undefined,
     notes: formData.get('notes') as string || undefined,
-    documents: [], // Documents are handled via 'files'
+    // documents property removed - handled via files parameter
   };
 
   const order = await orderService.createOrder(session.user.tenantId, data, files);
   revalidatePath('/orders');
-  return order;
+  return order;  // Return created order
 }
 
 export async function updateOrderAction(id: string, updates: Partial<Order>) {

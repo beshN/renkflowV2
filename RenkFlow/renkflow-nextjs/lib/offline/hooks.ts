@@ -419,7 +419,7 @@ export function useConflictQueue(): UseConflictQueueResult {
     const operation = conflicts.find((c) => c.id === operationId);
     if (!operation) return;
 
-    await offlineDB.put<SyncOperation>('syncQueue', {
+    await offlineDB.put('syncQueue', {
       id: operationId,
       type: 'update' as SyncOperationType,
       resourceType: operation.resourceType,
@@ -429,7 +429,7 @@ export function useConflictQueue(): UseConflictQueueResult {
       retryCount: 0,
       maxRetries: 3,
       status: 'pending',
-    });
+    } as any);
 
     syncQueue.processQueue();
   }, [conflicts]);
@@ -446,7 +446,7 @@ export function useConflictQueue(): UseConflictQueueResult {
     const operation = conflicts.find((c) => c.id === operationId);
     if (!operation) return;
 
-    await offlineDB.put<SyncOperation>('syncQueue', {
+    await offlineDB.put('syncQueue', {
       id: operationId,
       type: 'update' as SyncOperationType,
       resourceType: operation.resourceType,
@@ -456,7 +456,7 @@ export function useConflictQueue(): UseConflictQueueResult {
       retryCount: 0,
       maxRetries: 3,
       status: 'pending',
-    });
+    } as any);
 
     syncQueue.processQueue();
   }, [conflicts]);

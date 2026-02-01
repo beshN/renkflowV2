@@ -1,4 +1,3 @@
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/services/index.ts
 /**
  * Service Layer Entry Point (DEPRECATED)
  * 
@@ -43,14 +42,10 @@ console.warn('[DEPRECATION WARNING] Runtime service factory is deprecated. Migra
 
 // Re-export types for convenience
 export type { IOrderService } from './types';
-=======
-export type { IOrderService } from './types';
-
 export { MockOrderService } from './mock/order.mock';
 export { NeonOrderService } from './neon/order.neon';
 export { WebOrderService } from './web/order.web';
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/services/index.ts
 
 // Re-export new entry points for migration
-export { getOrderService as getServerOrderService } from './orderService.server';
-export { getOrderService as getClientOrderService } from './orderService.client';
+export { orderService as serverOrderService } from './orderService.server';
+export { orderService as clientOrderService } from './orderService.client';

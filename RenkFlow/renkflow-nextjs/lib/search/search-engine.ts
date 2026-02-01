@@ -288,7 +288,7 @@ class SearchEngine<T extends SearchableDocument> {
 
       for (const field of searchFields) {
         const fieldValue = this.getFieldValue(doc, field.name);
-        if (!fieldValue) continue;
+        if (typeof fieldValue !== 'string' || fieldValue.length === 0) continue;
 
         const weight = field.weight || 1;
         let fieldScore = 0;

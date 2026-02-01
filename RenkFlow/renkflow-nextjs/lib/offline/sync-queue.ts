@@ -116,7 +116,7 @@ class SyncQueue {
       status: 'pending',
     };
 
-    await offlineDB.put('syncQueue', operation);
+    await offlineDB.put('syncQueue', operation as any);
     this.emit({ type: 'enqueued', operation });
 
     // Try to process immediately if online
@@ -159,7 +159,7 @@ class SyncQueue {
         status: 'pending',
         retryCount: 0,
         error: undefined,
-      });
+      } as any);
     }
 
     if (this.isOnline) {
@@ -215,7 +215,7 @@ class SyncQueue {
     }
 
     // Mark as in progress
-    await offlineDB.put('syncQueue', { ...operation, status: 'in_progress' });
+    await offlineDB.put('syncQueue', { ...operation, status: 'in_progress' } as any);
 
     try {
       await handler(operation);
@@ -241,7 +241,7 @@ class SyncQueue {
           status: 'pending',
           retryCount: operation.retryCount + 1,
           error: error.message,
-        });
+        } as any);
         
         this.emit({ type: 'operation_retrying', operation, error });
       } else {
@@ -250,7 +250,7 @@ class SyncQueue {
           ...operation,
           status: 'failed',
           error: error.message,
-        });
+        } as any);
         
         this.emit({ type: 'operation_failed', operation, error });
       }
@@ -273,7 +273,7 @@ class SyncQueue {
           data: resolvedData,
           status: 'pending',
           retryCount: 0,
-        });
+        } as any);
         
         this.emit({ type: 'conflict_resolved', operation });
       } catch {
@@ -281,7 +281,7 @@ class SyncQueue {
         await offlineDB.put('syncQueue', {
           ...operation,
           status: 'conflict',
-        });
+        } as any);
         
         await offlineDB.markAsConflict(
           operation.resourceType === 'order' ? 'orders' : 'documents',
@@ -295,7 +295,7 @@ class SyncQueue {
       await offlineDB.put('syncQueue', {
         ...operation,
         status: 'conflict',
-      });
+      } as any);
       
       this.emit({ type: 'conflict_pending', operation, serverData });
     }

@@ -1,4 +1,3 @@
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/lib/db/index.ts
 /**
  * Hardened Database Layer
  * 
@@ -136,9 +135,11 @@ export async function checkDatabaseHealth(): Promise<boolean> {
  * Transaction wrapper with automatic rollback on error
  */
 export async function withTransaction<T>(
-  callback: (sql: typeof import('@neondatabase/serverless').neon) => Promise<T>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  callback: (sql: any) => Promise<T>
 ): Promise<T> {
-  const client = getSql();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const client: any = getSql();
   
   try {
     await client`BEGIN`;
@@ -165,9 +166,4 @@ export function validateDatabaseConfig(): void {
   if (DATABASE_URL) {
     validateDatabaseUrl(DATABASE_URL);
   }
-};
-=======
-import 'server-only';
-
-export { sql } from './neon';
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-fe52b22f/RenkFlow/renkflow-nextjs/lib/db/index.ts
+}

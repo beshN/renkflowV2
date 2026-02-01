@@ -1,18 +1,20 @@
 // @/lib/performance/load-test.ts
 import type { Order } from '@/lib/types';
+import { createOrderId } from '@/lib/types';
 import * as React from 'react';
 export async function generateStressTestData(count: number): Promise<Order[]> {
   const statuses: Order['status'][] = ['pending', 'in_production', 'delivered'];
   return Array.from({ length: count }, (_, i) => ({
-    id: `order-${i}`,
+    id: createOrderId(`order-${i}`),
     orderNumber: `RF-${String(i).padStart(6, '0')}`,
     customerName: `Müşteri ${i}`,
     productName: `Ürün ${i % 20}`,
     quantity: Math.max(1, Math.floor(Math.random() * 5)),
     totalAmount: Math.round(Math.random() * 10000),
-    currency: '₺',
+    currency: '₺' as const,
     status: statuses[i % statuses.length],
     date: new Date(Date.now() - Math.random() * 86400000 * 365).toISOString().split('T')[0],
+    documents: [],
     createdAt: new Date(Date.now() - Math.random() * 86400000 * 365).toISOString(),
     updatedAt: new Date().toISOString(),
   }));
@@ -51,8 +53,9 @@ export async function testWebSocketLimits(): Promise<{ maxConnections: number; l
 export function detectMemoryLeaks(callback: () => void, duration: number): number[] {
   const measurements: number[] = [];
   const interval = setInterval(() => {
-    if (performance.memory) {
-      measurements.push(performance.memory.usedJSHeapSize);
+    const perf = performance as any;
+    if (perf.memory) {
+      measurements.push(perf.memory.usedJSHeapSize);
     }
   }, 1000);
   

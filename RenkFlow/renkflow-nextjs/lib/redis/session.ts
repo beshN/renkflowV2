@@ -62,6 +62,8 @@ export class SessionManager {
     }
 
     const redis = getRedisClient();
+    if (!redis) return false;
+    
     const now = Date.now();
     const sessionData: SessionData = {
       ...data,
@@ -95,6 +97,8 @@ export class SessionManager {
     }
 
     const redis = getRedisClient();
+    if (!redis) return null;
+    
     try {
       const key = `${SESSION_PREFIX}${sessionId}`;
       const data = await redis.get(key);
@@ -114,6 +118,8 @@ export class SessionManager {
     }
 
     const redis = getRedisClient();
+    if (!redis) return false;
+    
     try {
       const key = `${SESSION_PREFIX}${sessionId}`;
       const data = await redis.get(key);
@@ -140,6 +146,7 @@ export class SessionManager {
     }
 
     const redis = getRedisClient();
+    if (!redis) return false;
     try {
       const key = `${SESSION_PREFIX}${sessionId}`;
       const data = await redis.get(key);
@@ -167,6 +174,7 @@ export class SessionManager {
     }
 
     const redis = getRedisClient();
+    if (!redis) return [];
     try {
       const userSessionsKey = `${USER_SESSIONS_PREFIX}${userId}`;
       const sessionIds = await redis.smembers(userSessionsKey);
@@ -203,6 +211,7 @@ export class SessionManager {
     }
 
     const redis = getRedisClient();
+    if (!redis) return 0;
     try {
       const userSessionsKey = `${USER_SESSIONS_PREFIX}${userId}`;
       const sessionIds = await redis.smembers(userSessionsKey);
@@ -232,6 +241,7 @@ export class SessionManager {
     }
 
     const redis = getRedisClient();
+    if (!redis) return 0;
     try {
       const userSessionsKey = `${USER_SESSIONS_PREFIX}${userId}`;
       const sessionIds = await redis.smembers(userSessionsKey);

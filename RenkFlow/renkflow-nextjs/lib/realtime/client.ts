@@ -295,6 +295,40 @@ class RealtimeClient {
   isConnected(): boolean {
     return this.socket?.connected || false;
   }
+
+  // ============================================
+  // Additional Methods for Hooks Compatibility
+  // ============================================
+
+  onConnectionChange(callback: (info: any) => void): () => void {
+    const wrappedCallback = (state: ConnectionState) => {
+      callback({
+        state,
+        latency: this.connectionInfo.latency,
+        lastConnected: state === 'connected' ? Date.now() : null,
+        reconnectAttempts: this.connectionInfo.reconnectAttempts,
+        socketId: this.connectionInfo.socketId,
+      });
+    };
+    this.connectionListeners.add(wrappedCallback as any);
+    // Immediately notify
+    wrappedCallback(this.connectionInfo.state);
+    return () => this.connectionListeners.delete(wrappedCallback as any);
+  }
+
+  onPresenceUpdate(callback: PresenceCallback): () => void {
+    this.presenceListeners.add(callback);
+    return () => this.presenceListeners.delete(callback);
+  }
+
+  setViewingOrder(orderId: string | null): void {
+    if (!this.socket) return;
+    this.socket.emit('viewing', { userId: this.userId, orderId });
+  }
+
+  updatePresence(updates: Partial<PresenceUser>): void {
+    this.setPresence(updates);
+  }
 }
 
 export const realtime = RealtimeClient.getInstance();

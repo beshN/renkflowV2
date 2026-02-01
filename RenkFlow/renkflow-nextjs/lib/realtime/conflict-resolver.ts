@@ -210,8 +210,8 @@ class ConflictResolver {
     // Special handling for arrays (documents)
     if (local.documents || server.documents) {
       merged.documents = this.mergeArrays(
-        local.documents || [],
-        server.documents || []
+        (local.documents || []) as { id?: string }[],
+        (server.documents || []) as { id?: string }[]
       );
     }
 

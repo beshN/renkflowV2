@@ -39,7 +39,6 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
     currency: '₺',
     deliveryDate: '',
     notes: '',
-    documents: [],
   });
   
   const [department, setDepartment] = useState<string>('');
@@ -301,19 +300,6 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                               file
                             }));
                             setFiles(prev => [...prev, ...newFiles]);
-
-                            const newDocuments = newFiles.map(({ id, file }) => ({
-                              id,
-                              name: file.name,
-                              url: URL.createObjectURL(file),
-                              size: file.size,
-                              uploadedAt: new Date().toISOString(),
-                            }));
-                            
-                            setFormData(prev => ({
-                              ...prev,
-                              documents: [...(prev.documents || []), ...newDocuments]
-                            }));
                             toast.success(`${newFiles.length} dosya eklendi`);
                           }
                         }}
@@ -328,29 +314,25 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
               </div>
               
               {/* File Preview List */}
-              {formData.documents && formData.documents.length > 0 && (
+              {files.length > 0 && (
                 <div className="mt-4 space-y-2">
-                  {formData.documents.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between p-3 bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-lg animate-in-fade">
+                  {files.map((fileItem) => (
+                    <div key={fileItem.id} className="flex items-center justify-between p-3 bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-lg animate-in-fade">
                       <div className="flex items-center gap-3">
                         <span className="material-symbols-outlined text-primary">description</span>
                         <div className="flex flex-col">
                           <span className="text-sm font-medium text-text-light dark:text-text-dark">
-                            {doc.name}
+                            {fileItem.file.name}
                           </span>
                           <span className="text-xs text-subtle-light dark:text-subtle-dark">
-                            {(doc.size / 1024 / 1024).toFixed(2)} MB
+                            {(fileItem.file.size / 1024 / 1024).toFixed(2)} MB
                           </span>
                         </div>
                       </div>
                       <button
                         type="button"
                         onClick={() => {
-                          setFormData(prev => ({
-                            ...prev,
-                            documents: prev.documents?.filter(d => d.id !== doc.id)
-                          }));
-                          setFiles(prev => prev.filter(f => f.id !== doc.id));
+                          setFiles(prev => prev.filter(f => f.id !== fileItem.id));
                           toast.info('Dosya kaldırıldı');
                         }}
                         className="text-subtle-light dark:text-subtle-dark hover:text-red-500 transition-colors"

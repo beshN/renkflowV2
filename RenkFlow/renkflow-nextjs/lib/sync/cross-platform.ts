@@ -1,8 +1,19 @@
 // @/lib/sync/cross-platform.ts
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { openDB } from 'idb';
 
 export const SYNC_CHANNEL = 'renkflow-sync-v1';
+
+type AsyncStorageLike = {
+  getItem(key: string): Promise<string | null>;
+};
+
+let AsyncStorage: AsyncStorageLike | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  AsyncStorage = require('@react-native-async-storage/async-storage').default as AsyncStorageLike;
+} catch {
+  AsyncStorage = null;
+}
 
 export async function syncOfflineQueue(platform: 'web' | 'native') {
   const queue = platform === 'web' 
@@ -24,6 +35,7 @@ export async function getWebQueue() {
 }
 
 export async function getNativeQueue() {
+  if (!AsyncStorage) return [];
   const data = await AsyncStorage.getItem('syncQueue');
   return data ? JSON.parse(data) : [];
 }

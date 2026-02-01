@@ -13,7 +13,8 @@ import '@testing-library/jest-dom';
 // Environment Variables
 // ============================================
 
-process.env.NODE_ENV = 'test';
+// NODE_ENV is read-only, skip setting it
+// process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
 process.env.NEXTAUTH_SECRET = 'test-secret-key-for-testing-purposes';
 process.env.NEXTAUTH_URL = 'http://localhost:3000';

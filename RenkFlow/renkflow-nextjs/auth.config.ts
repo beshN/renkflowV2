@@ -4,7 +4,7 @@ import AzureAD from 'next-auth/providers/azure-ad';
 import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 
-import { sql } from '@/lib/db';
+import { getSql } from '@/lib/db';
 
 const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 
@@ -64,6 +64,7 @@ export const authConfig: NextAuthConfig = {
         if (DEBUG) console.log('[AUTH] Starting authorize...');
         
         try {
+          const sql = getSql();
           if (!credentials?.email || !credentials?.password) {
             if (DEBUG) console.log('[AUTH] Missing credentials');
             return null;
@@ -163,6 +164,7 @@ export const authConfig: NextAuthConfig = {
       // For OAuth providers, create user and tenant if first time
       if (account?.provider !== 'credentials' && user.email) {
         try {
+          const sql = getSql();
           const existingUsers = await sql`
             SELECT id FROM users WHERE email = ${user.email} LIMIT 1
           `;

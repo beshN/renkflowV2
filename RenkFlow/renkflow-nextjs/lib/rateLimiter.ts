@@ -126,6 +126,10 @@ export class RateLimiter {
     const redis = getRedisClient();
     const now = Date.now();
 
+    if (!redis) {
+      return this.checkMemory(key);
+    }
+
     try {
       // Check if blocked
       const blockKey = `${key}:blocked`;
@@ -283,8 +287,10 @@ export class RateLimiter {
 
     if (this.useRedis && await isRedisAvailable()) {
       const redis = getRedisClient();
-      await redis.del(key);
-      await redis.del(`${key}:blocked`);
+      if (redis) {
+        await redis.del(key);
+        await redis.del(`${key}:blocked`);
+      }
     } else {
       memoryStore.delete(key);
     }

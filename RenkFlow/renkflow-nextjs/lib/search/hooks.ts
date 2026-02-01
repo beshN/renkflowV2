@@ -351,6 +351,7 @@ interface Order {
   totalAmount?: number;
   date?: string;
   createdAt?: string;
+  [key: string]: unknown;
 }
 
 export function useDashboardStats(orders: Order[]): DashboardStats {
