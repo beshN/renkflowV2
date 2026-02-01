@@ -21,7 +21,7 @@ export class NeonOrderService implements IOrderService {
   }
   
   async getOrders(tenantId: string): Promise<Order[]> {
-    console.log('[NeonOrderService] getOrders called for tenant:', tenantId);
+    // console.log('[NeonOrderService] getOrders called for tenant:', tenantId);
 
     const result = await sql`
       SELECT 
@@ -54,24 +54,25 @@ export class NeonOrderService implements IOrderService {
         uploadedAt: doc.uploadedAt
       })));
 
-      return {
-        id: row.id,
-        orderNumber: row.order_number,
-        customerName: row.customer_name,
-        email: row.email,
-        phone: row.phone,
-        date: new Date(row.created_at).toISOString().split('T')[0],
-        deliveryDate: row.delivery_date ? new Date(row.delivery_date).toISOString().split('T')[0] : undefined,
-        totalAmount: parseFloat(row.total_amount),
-        currency: row.currency,
-        status: row.status,
-        productName: row.product_name,
-        quantity: row.quantity,
-        notes: row.notes,
-        documents: documents,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      };
+        return {
+          id: row.id,
+          orderNumber: row.order_number,
+          customerName: row.customer_name,
+          email: row.email,
+          phone: row.phone,
+          date: new Date(row.created_at).toISOString().split('T')[0],
+          deliveryDate: row.delivery_date ? new Date(row.delivery_date).toISOString().split('T')[0] : undefined,
+          totalAmount: parseFloat(row.total_amount),
+          currency: row.currency,
+          status: row.status,
+          productName: row.product_name,
+          quantity: row.quantity,
+          notes: row.notes,
+          customFields: row.custom_fields || undefined,
+          documents: documents,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        };
     }));
 
     return orders;
@@ -134,6 +135,7 @@ export class NeonOrderService implements IOrderService {
       productName: row.product_name,
       quantity: row.quantity,
       notes: row.notes,
+      customFields: row.custom_fields || undefined,
       documents: documents,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -141,12 +143,7 @@ export class NeonOrderService implements IOrderService {
   }
 
   async createOrder(tenantId: string, formData: NewOrderFormData, files?: File[]): Promise<Order> {
-    console.log('[NeonOrderService] createOrder called', {
-      tenantId,
-      customerName: formData.customerName,
-      productName: formData.productName,
-      filesCount: files?.length || 0
-    });
+    // console.log('[NeonOrderService] createOrder called', { tenantId, ... });
 
     // Generate unique order number
     const orderNumber = `ORD${Date.now()}`;
@@ -154,18 +151,19 @@ export class NeonOrderService implements IOrderService {
 
     try {
       const orderId = await withTransaction(async (tx) => {
-        console.log('[NeonOrderService] Starting transaction for order creation');
+        // console.log('[NeonOrderService] Starting transaction');
         
         const orderResult = await tx.sql`
           INSERT INTO orders (
             order_number, customer_name, email, phone, 
             status, total_amount, currency, delivery_date, 
-            notes, product_name, quantity, tenant_id
+            notes, product_name, quantity, tenant_id, custom_fields
           )
           VALUES (
             ${orderNumber}, ${formData.customerName}, ${formData.email || null}, ${formData.phone || null},
             'pending', ${formData.totalAmount}, ${formData.currency || '₺'}, ${formData.deliveryDate || null},
-            ${formData.notes || null}, ${formData.productName}, ${formData.quantity}, ${tenantId}
+            ${formData.notes || null}, ${formData.productName}, ${formData.quantity}, ${tenantId},
+            ${formData.customFields ? JSON.stringify(formData.customFields) : null}
           )
           RETURNING id
         `;
@@ -176,7 +174,7 @@ export class NeonOrderService implements IOrderService {
           throw new Error('Order creation failed');
         }
 
-        console.log('[NeonOrderService] Order created with ID:', orderId);
+        // console.log('[NeonOrderService] Order created with ID:', orderId);
 
         if (files && files.length > 0) {
           console.log('[NeonOrderService] Uploading', files.length, 'files');
@@ -196,7 +194,7 @@ export class NeonOrderService implements IOrderService {
                 INSERT INTO documents (order_id, name, file_path, size)
                 VALUES (${orderId}, ${file.name}, ${key}, ${file.size})
               `;
-              console.log('[NeonOrderService] File uploaded successfully:', file.name);
+              // console.log('[NeonOrderService] File uploaded successfully:', file.name);
             } catch (fileError) {
               console.error('[NeonOrderService] File upload failed for:', file.name, fileError);
               // Don't fail the entire order if file upload fails - just log it
@@ -208,7 +206,7 @@ export class NeonOrderService implements IOrderService {
         return orderId;
       }, { timeout: 60000 }); // Increase timeout to 60s for file uploads
 
-      console.log('[NeonOrderService] Transaction committed successfully');
+      // console.log('[NeonOrderService] Transaction committed successfully');
       return this.getOrderById(tenantId, orderId) as Promise<Order>;
     } catch (error) {
       console.error('[NeonOrderService] createOrder failed:', {
@@ -268,8 +266,12 @@ export class NeonOrderService implements IOrderService {
       setClauses.push(`notes = $${paramIndex++}`);
       values.push(updates.notes);
     }
+    if (updates.customFields !== undefined) {
+      setClauses.push(`custom_fields = $${paramIndex++}`);
+      values.push(updates.customFields ? JSON.stringify(updates.customFields) : null);
+    }
 
-    console.log('[NeonOrderService] Updating order:', id, 'for tenant:', tenantId, 'Updates:', Object.keys(updates));
+    // console.log('[NeonOrderService] Updating order:', id);
     
     if (setClauses.length > 0) {
       values.push(id);
@@ -277,8 +279,7 @@ export class NeonOrderService implements IOrderService {
       
       const query = `UPDATE orders SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1} RETURNING *`;
       
-      console.log('[NeonOrderService] Update Query:', query);
-      console.log('[NeonOrderService] Update Values:', values);
+      // console.log('[NeonOrderService] Update Query:', query);
 
       // Ensure we only update if tenant_id matches
       const result = await sql(query, values);

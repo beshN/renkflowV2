@@ -96,6 +96,7 @@ create table public.orders (
   currency text default '₺',
   delivery_date date,
   notes text,
+  custom_fields jsonb default '{}'::jsonb,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
   unique(tenant_id, order_number)

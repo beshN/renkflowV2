@@ -35,9 +35,13 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
     currency: '₺',
     deliveryDate: '',
     notes: '',
+    customFields: {},
   });
   
   const [department, setDepartment] = useState<string>('');
+  const [customFields, setCustomFields] = useState<Record<string, string>>(
+    (initialData?.customFields as Record<string, string>) || {}
+  );
   
   const [files, setFiles] = useState<{ id: string, file: File }[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -64,8 +68,16 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
       newErrors.quantity = 'Miktar en az 1 olmalıdır';
     }
 
+    let customFieldError = false;
+    template.extraFields.forEach((field) => {
+      if (field.required && !customFields[field.key]?.trim()) {
+        customFieldError = true;
+        toast.error(`${field.label} alani gereklidir.`);
+      }
+    });
+
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return Object.keys(newErrors).length === 0 && !customFieldError;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,6 +103,9 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
       data.append('deliveryDate', formData.deliveryDate || '');
       if (formData.notes) data.append('notes', formData.notes);
       if (department) data.append('department', department);
+      if (Object.keys(customFields).length > 0) {
+        data.append('customFields', JSON.stringify(customFields));
+      }
       
       files.forEach(({ file }) => {
         data.append('files', file);
@@ -116,6 +131,10 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
     if (errors[name as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
+  };
+
+  const handleCustomFieldChange = (key: string, value: string) => {
+    setCustomFields((prev) => ({ ...prev, [key]: value }));
   };
 
   return (
@@ -175,6 +194,45 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
               />
             </div>
           </div>
+          {template.extraFields.length > 0 && (
+            <div className="mt-6 border-t border-border-light dark:border-border-dark pt-6">
+              <h4 className="text-sm font-semibold text-text-light dark:text-text-dark mb-4">
+                Sektor Ozel Alanlar
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {template.extraFields.map((field) => (
+                  <div key={field.key}>
+                    <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
+                      {field.label} {field.required ? '*' : ''}
+                    </label>
+                    {field.type === 'select' ? (
+                      <select
+                        value={customFields[field.key] || ''}
+                        onChange={(e) => handleCustomFieldChange(field.key, e.target.value)}
+                        className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                      >
+                        <option value="">Seciniz</option>
+                        {field.options?.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={field.type}
+                        value={customFields[field.key] || ''}
+                        onChange={(e) => handleCustomFieldChange(field.key, e.target.value)}
+                        required={field.required}
+                        placeholder={field.placeholder}
+                        className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

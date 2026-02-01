@@ -38,6 +38,16 @@ export async function createOrderAction(formData: FormData) {
     const files = formData.getAll('files') as File[];
     
     // Extract other data
+    const customFieldsRaw = formData.get('customFields') as string | null;
+    let parsedCustomFields: Record<string, string> | undefined = undefined;
+    if (customFieldsRaw) {
+      try {
+        parsedCustomFields = JSON.parse(customFieldsRaw);
+      } catch (error) {
+        console.warn('[createOrderAction] Invalid customFields JSON');
+      }
+    }
+
     const data: NewOrderFormData = {
       customerName: formData.get('customerName') as string,
       email: formData.get('email') as string || undefined,
@@ -48,6 +58,7 @@ export async function createOrderAction(formData: FormData) {
       currency: safeParseCurrency(formData.get('currency') as string | null),
       deliveryDate: formData.get('deliveryDate') as string || undefined,
       notes: formData.get('notes') as string || undefined,
+      customFields: parsedCustomFields,
       // documents property removed - handled via files parameter
     };
 
@@ -65,17 +76,11 @@ export async function createOrderAction(formData: FormData) {
       throw new Error('Geçersiz miktar');
     }
 
-    console.log('[createOrderAction] Creating order for tenant:', session.user.tenantId, {
-      customerName: data.customerName,
-      productName: data.productName,
-      quantity: data.quantity,
-      totalAmount: data.totalAmount,
-      filesCount: files.length
-    });
+    // console.log('[createOrderAction] Creating order for tenant:', session.user.tenantId);
 
     const order = await orderService.createOrder(session.user.tenantId, data, files);
     
-    console.log('[createOrderAction] Order created successfully:', order.id);
+    // console.log('[createOrderAction] Order created successfully');
     
     revalidatePath('/orders');
     return order;  // Return created order

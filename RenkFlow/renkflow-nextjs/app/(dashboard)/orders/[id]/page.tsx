@@ -71,6 +71,15 @@ export default function OrderDetailPage() {
     try {
       const quantity = parseInt(formData.get('quantity') as string);
       const totalAmount = parseFloat(formData.get('totalAmount') as string) || 0;
+      const customFieldsRaw = formData.get('customFields') as string | null;
+      let parsedCustomFields: Record<string, string> | undefined = undefined;
+      if (customFieldsRaw) {
+        try {
+          parsedCustomFields = JSON.parse(customFieldsRaw);
+        } catch (error) {
+          console.warn('[OrderDetail] Invalid customFields JSON');
+        }
+      }
       await updateOrder(order!.id, {
         customerName: formData.get('customerName') as string,
         email: (formData.get('email') as string) || undefined,
@@ -81,6 +90,7 @@ export default function OrderDetailPage() {
         currency: safeParseCurrency(formData.get('currency') as string | null) || order?.currency || '₺',
         notes: (formData.get('notes') as string) || undefined,
         deliveryDate: (formData.get('deliveryDate') as string) || undefined,
+        customFields: parsedCustomFields,
       });
       const files = formData.getAll('files');
       if (files.length > 0) await uploadDocuments(order!.id, formData);
@@ -285,6 +295,20 @@ export default function OrderDetailPage() {
                      </div>
                 )}
 
+                {order.customFields && Object.keys(order.customFields).length > 0 && (
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl">
+                    <h3 className="font-bold text-slate-900 dark:text-white mb-4">Sektor Ozel Alanlar</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-300">
+                      {Object.entries(order.customFields).map(([key, value]) => (
+                        <div key={key} className="rounded-xl border border-slate-200/70 bg-white/70 px-4 py-3 dark:border-slate-700/60 dark:bg-slate-900/60">
+                          <p className="text-xs uppercase tracking-wider text-slate-400">{key}</p>
+                          <p className="font-semibold text-slate-900 dark:text-white">{String(value ?? '')}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Activity Timeline */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl">
                   <h3 className="font-bold text-slate-900 dark:text-white mb-4">Aktivite Zaman Çizelgesi</h3>
@@ -455,6 +479,7 @@ export default function OrderDetailPage() {
                 currency: order.currency || '₺',
                 deliveryDate: order.deliveryDate || '',
                 notes: order.notes || '',
+                customFields: order.customFields || {},
              }} />
         </Modal>
 

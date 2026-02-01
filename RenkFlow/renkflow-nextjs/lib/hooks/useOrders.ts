@@ -55,6 +55,7 @@ function objectToFormData(data: NewOrderFormData): FormData {
   formData.append('currency', data.currency || '₺');
   if (data.deliveryDate) formData.append('deliveryDate', data.deliveryDate);
   if (data.notes) formData.append('notes', data.notes);
+  if (data.customFields) formData.append('customFields', JSON.stringify(data.customFields));
   return formData;
 }
 

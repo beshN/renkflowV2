@@ -20,6 +20,14 @@ export interface TemplateDefinition {
   departmentLabel: string;
   departments: { id: string; name: string; color: string }[];
   documentHint: string;
+  extraFields: {
+    key: string;
+    label: string;
+    type: 'text' | 'number' | 'select' | 'date';
+    placeholder?: string;
+    required?: boolean;
+    options?: string[];
+  }[];
 }
 
 export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
@@ -42,6 +50,12 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
       { id: 'paketleme', name: 'Paketleme', color: '#F59E0B' },
     ],
     documentHint: 'Teknik cizim, olcu listesi, malzeme listesi ekleyin.',
+    extraFields: [
+      { key: 'material', label: 'Malzeme Tipi', type: 'text', placeholder: 'Orn: Masif, MDF', required: true },
+      { key: 'color', label: 'Renk', type: 'text', placeholder: 'Orn: Ceviz', required: true },
+      { key: 'dimensions', label: 'Olcu', type: 'text', placeholder: 'Orn: 120x200x45 cm' },
+      { key: 'finish', label: 'Yuzey Isleme', type: 'select', options: ['Mat', 'Parlak', 'Lake', 'Vernik'] },
+    ],
   },
   {
     key: 'tekstil',
@@ -62,6 +76,12 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
       { id: 'paket', name: 'Paket', color: '#0EA5E9' },
     ],
     documentHint: 'Kalip, beden tablosu ve kumas detaylarini ekleyin.',
+    extraFields: [
+      { key: 'fabric', label: 'Kumas', type: 'text', placeholder: 'Orn: Pamuk, Keten', required: true },
+      { key: 'sizeRun', label: 'Beden Dagilimi', type: 'text', placeholder: 'Orn: S:10 M:20 L:10' },
+      { key: 'color', label: 'Renk', type: 'text', placeholder: 'Orn: Lacivert' },
+      { key: 'wash', label: 'Yikama Talimati', type: 'select', options: ['30C', '40C', 'Kuru Temizleme'] },
+    ],
   },
   {
     key: 'reklam',
@@ -82,6 +102,12 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
       { id: 'medya', name: 'Medya', color: '#0EA5E9' },
     ],
     documentHint: 'Brief, moodboard ve teslim planini yukleyin.',
+    extraFields: [
+      { key: 'channel', label: 'Kanal', type: 'select', options: ['Outdoor', 'Digital', 'TV', 'Sosyal Medya'] },
+      { key: 'budget', label: 'Medya Butcesi (TL)', type: 'number', placeholder: 'Orn: 150000' },
+      { key: 'deadline', label: 'Onay Tarihi', type: 'date' },
+      { key: 'audience', label: 'Hedef Kitle', type: 'text', placeholder: 'Orn: 25-40' },
+    ],
   },
   {
     key: 'insaat',
@@ -102,6 +128,12 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
       { id: 'teslim', name: 'Teslim', color: '#22C55E' },
     ],
     documentHint: 'Metraj listesi, sozlesme ve saha raporu ekleyin.',
+    extraFields: [
+      { key: 'site', label: 'Saha Lokasyonu', type: 'text', placeholder: 'Orn: Beylikduzu' },
+      { key: 'phase', label: 'Proje Asamasi', type: 'select', options: ['Kesif', 'Uygulama', 'Kontrol', 'Teslim'] },
+      { key: 'contact', label: 'Saha Sorumlusu', type: 'text', placeholder: 'Orn: Mehmet Kaya' },
+      { key: 'scope', label: 'Metraj / Scope', type: 'text', placeholder: 'Orn: 120 m2' },
+    ],
   },
   {
     key: 'yazilim',
@@ -122,6 +154,12 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
       { id: 'qa', name: 'QA', color: '#F97316' },
     ],
     documentHint: 'Scope dokumani, wireframe ve teknik gereksinimleri ekleyin.',
+    extraFields: [
+      { key: 'platform', label: 'Platform', type: 'select', options: ['Web', 'iOS', 'Android', 'Full-stack'] },
+      { key: 'tech', label: 'Teknoloji', type: 'text', placeholder: 'Orn: Next.js, Node.js' },
+      { key: 'sprint', label: 'Sprint Sayisi', type: 'number', placeholder: 'Orn: 4' },
+      { key: 'release', label: 'Go-live Tarihi', type: 'date' },
+    ],
   },
   {
     key: 'diger',
@@ -142,6 +180,12 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
       { id: 'teslim', name: 'Teslim', color: '#A855F7' },
     ],
     documentHint: 'Gerekli teknik dosyalari ekleyin.',
+    extraFields: [
+      { key: 'priority', label: 'Oncelik', type: 'select', options: ['Dusuk', 'Orta', 'Yuksek'] },
+      { key: 'owner', label: 'Sorumlu Kisi', type: 'text', placeholder: 'Orn: Ayse Demir' },
+      { key: 'channel', label: 'Gelis Kanali', type: 'select', options: ['Referans', 'Web', 'Telefon'] },
+      { key: 'budget', label: 'Butce', type: 'number', placeholder: 'Orn: 50000' },
+    ],
   },
 ];
 

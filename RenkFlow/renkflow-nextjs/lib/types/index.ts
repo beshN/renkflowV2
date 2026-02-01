@@ -85,6 +85,7 @@ export const OrderSchema = z.object({
   productName: z.string().min(1).optional(),
   quantity: z.number().int().positive().optional(),
   documents: z.array(DocumentSchema).default([]),
+  customFields: z.record(z.string(), z.string()).optional(),
   tenantId: z.string().transform(createTenantId).optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
@@ -101,6 +102,7 @@ export const NewOrderFormSchema = z.object({
   currency: CurrencySchema.default('₺'),
   deliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   notes: z.string().optional(),
+  customFields: z.record(z.string(), z.string()).optional(),
 });
 export type NewOrderFormData = z.infer<typeof NewOrderFormSchema>;
 
