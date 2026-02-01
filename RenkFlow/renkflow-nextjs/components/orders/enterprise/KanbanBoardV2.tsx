@@ -177,7 +177,7 @@ const SortableOrderCard: React.FC<{
           </div>
         </div>
         <div className="flex items-center justify-between text-[11px] text-gray-500">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {priorityBadge && (
               <span className={cn('px-2 py-0.5 rounded-full font-semibold', priorityBadge.className)}>
                 {priorityBadge.label}
@@ -189,9 +189,28 @@ const SortableOrderCard: React.FC<{
                 {order.documents.length}
               </span>
             ) : null}
+            {order.customFields && Object.keys(order.customFields).length > 0 && (
+              <span className="flex items-center gap-1 text-gray-500">
+                <span className="material-symbols-outlined text-sm">checklist</span>
+                {Object.keys(order.customFields).length}
+              </span>
+            )}
           </div>
           <span className="text-gray-400">#{String(order.id).slice(-4)}</span>
         </div>
+        {order.customFields && Object.keys(order.customFields).length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {Object.entries(order.customFields).slice(0, 2).map(([key, value]) => (
+              <span
+                key={key}
+                className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                title={`${key}: ${String(value ?? '')}`}
+              >
+                {key}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Quick actions (visible on hover) */}

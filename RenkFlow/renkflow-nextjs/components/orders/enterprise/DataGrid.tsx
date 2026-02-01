@@ -168,10 +168,18 @@ const ExpandedRowContent: React.FC<{ order: Order }> = ({ order }) => {
           </p>
         </div>
         <div>
-          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Belgeler</h4>
-          <p className="mt-1 text-sm text-gray-500">
-            {order.documents?.length || 0} belge
-          </p>
+          <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Sektör Alanları</h4>
+          {order.customFields && Object.keys(order.customFields).length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+              {Object.entries(order.customFields).slice(0, 4).map(([key, value]) => (
+                <span key={key} className="rounded-full bg-gray-100 px-2 py-1 text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                  {key}: {String(value ?? '')}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-1 text-sm text-gray-500">Alan bulunmuyor</p>
+          )}
         </div>
       </div>
     </motion.div>
@@ -360,6 +368,31 @@ export const DataGrid: React.FC<DataGridProps> = ({
         />
       ),
       size: 200,
+    },
+    {
+      id: 'customFields',
+      header: 'Sektör Alanları',
+      cell: ({ row }) => {
+        const fields = row.original.customFields || {};
+        const entries = Object.entries(fields);
+        if (entries.length === 0) {
+          return <span className="text-sm text-gray-400">-</span>;
+        }
+        return (
+          <div className="flex flex-wrap gap-1">
+            {entries.slice(0, 2).map(([key, value]) => (
+              <span
+                key={key}
+                className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                title={`${key}: ${String(value ?? '')}`}
+              >
+                {key}
+              </span>
+            ))}
+          </div>
+        );
+      },
+      size: 160,
     },
     {
       accessorKey: 'quantity',
