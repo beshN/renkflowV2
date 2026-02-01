@@ -5,6 +5,7 @@ import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 
 import { getSql } from '@/lib/db';
+import { DEFAULT_TEMPLATE_KEY, TEMPLATE_BY_KEY } from '@/lib/config/templates';
 
 const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 
@@ -74,7 +75,7 @@ export const authConfig: NextAuthConfig = {
           
           // Query user from database
           const users = await sql`
-            SELECT u.*, tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url
+            SELECT u.*, tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url, t.industry, t.template_key
             FROM users u
             LEFT JOIN tenant_members tm ON u.id = tm.user_id
             LEFT JOIN tenants t ON tm.tenant_id = t.id
@@ -119,6 +120,8 @@ export const authConfig: NextAuthConfig = {
             role: user.role,
             brandColor: user.brand_color,
             logoUrl: user.logo_url,
+            tenantIndustry: user.industry,
+            templateKey: user.template_key,
           };
         } catch (error: any) {
           if (DEBUG) console.error('[AUTH] Authorize error:', error?.message || error);
@@ -140,6 +143,8 @@ export const authConfig: NextAuthConfig = {
         token.role = user.role;
         token.brandColor = user.brandColor;
         token.logoUrl = user.logoUrl;
+        token.tenantIndustry = user.tenantIndustry;
+        token.templateKey = user.templateKey;
       }
 
       // Update session data on refresh
@@ -157,6 +162,8 @@ export const authConfig: NextAuthConfig = {
         session.user.role = token.role as 'owner' | 'admin' | 'member' | 'office' | 'worker';
         session.user.brandColor = token.brandColor as string;
         session.user.logoUrl = token.logoUrl as string;
+        session.user.tenantIndustry = token.tenantIndustry as string;
+        session.user.templateKey = token.templateKey as string;
       }
       return session;
     },
@@ -189,9 +196,10 @@ export const authConfig: NextAuthConfig = {
               .toLowerCase()
               .replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
 
+            const oauthTemplate = TEMPLATE_BY_KEY[DEFAULT_TEMPLATE_KEY];
             const tenants = await sql`
-              INSERT INTO tenants (name, slug, created_at, updated_at)
-              VALUES (${user.name || 'My Company'}, ${tenantSlug}, NOW(), NOW())
+              INSERT INTO tenants (name, slug, industry, template_key, created_at, updated_at)
+              VALUES (${user.name || 'My Company'}, ${tenantSlug}, ${oauthTemplate.industry}, ${oauthTemplate.key}, NOW(), NOW())
               RETURNING id
             `;
 

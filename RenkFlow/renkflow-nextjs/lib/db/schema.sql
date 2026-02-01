@@ -25,6 +25,8 @@ create table public.tenants (
   slug text unique not null,
   logo_url text,
   brand_color text default '#6366f1', -- Default primary color
+  industry text,
+  template_key text default 'mobilya',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );

@@ -3,6 +3,7 @@ import { neon } from '@neondatabase/serverless';
 import { auth } from '@/auth';
 
 import { sql } from '@/lib/db';
+import { TEMPLATE_BY_KEY, DEFAULT_TEMPLATE_KEY, TemplateKey } from '@/lib/config/templates';
 
 export async function POST(request: Request) {
   try {
@@ -12,7 +13,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { tenantId, name, brandColor, logoUrl } = await request.json();
+    const { tenantId, name, brandColor, logoUrl, industry, templateKey } = await request.json();
 
     // Verify user has permission to update this tenant
     const members = await sql`
@@ -45,13 +46,18 @@ export async function POST(request: Request) {
       }
     }
 
+    const normalizedTemplate = TEMPLATE_BY_KEY[(templateKey as TemplateKey) || DEFAULT_TEMPLATE_KEY];
+    const normalizedIndustry = industry || normalizedTemplate.industry;
+
     // Update tenant
     await sql`
       UPDATE tenants
       SET 
         name = ${name.trim()}, 
         brand_color = ${brandColor || null}, 
-        logo_url = ${logoUrl || null}, 
+        logo_url = ${logoUrl || null},
+        industry = ${normalizedIndustry || null},
+        template_key = ${normalizedTemplate?.key || null},
         updated_at = NOW()
       WHERE id = ${tenantId}
     `;

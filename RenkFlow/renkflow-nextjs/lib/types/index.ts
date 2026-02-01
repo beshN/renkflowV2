@@ -124,6 +124,8 @@ export const UserSchema = z.object({
   avatar: z.string().url().optional(),
   tenantId: z.string().transform(createTenantId).optional(),
   tenantName: z.string().optional(),
+  tenantIndustry: z.string().optional(),
+  templateKey: z.string().optional(),
   brandColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   logoUrl: z.string().url().optional(),
 });

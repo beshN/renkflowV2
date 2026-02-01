@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { sendVerificationEmail } from '@/lib/email';
 import { authLimiter, rateLimitResponse } from '@/lib/api/rate-limit';
 import { sql } from '@/lib/db';
+import { DEFAULT_TEMPLATE_KEY, TEMPLATE_BY_KEY, TemplateKey } from '@/lib/config/templates';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -56,6 +57,9 @@ export async function POST(request: NextRequest) {
     const email = body?.email?.trim()?.toLowerCase() || '';
     const password = body?.password || '';
     const companyName = body?.companyName ? sanitizeName(body.companyName) : '';
+    const rawTemplateKey = (body?.templateKey as TemplateKey) || DEFAULT_TEMPLATE_KEY;
+    const selectedTemplate = TEMPLATE_BY_KEY[rawTemplateKey] || TEMPLATE_BY_KEY[DEFAULT_TEMPLATE_KEY];
+    const industry = selectedTemplate.industry;
 
     // Validate required fields
     if (!name) {
@@ -136,8 +140,8 @@ export async function POST(request: NextRequest) {
       '-' + Date.now().toString(36);
 
     const tenants = await sql`
-      INSERT INTO tenants (name, slug, created_at, updated_at)
-      VALUES (${tenantName}, ${tenantSlug}, NOW(), NOW())
+      INSERT INTO tenants (name, slug, industry, template_key, created_at, updated_at)
+      VALUES (${tenantName}, ${tenantSlug}, ${industry}, ${selectedTemplate.key}, NOW(), NOW())
       RETURNING id
     `;
 
@@ -178,4 +182,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

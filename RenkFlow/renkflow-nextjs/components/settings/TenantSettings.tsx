@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { TEMPLATE_DEFINITIONS, TemplateKey, DEFAULT_TEMPLATE_KEY } from '@/lib/config/templates';
 
 export function TenantSettings() {
   const { user, refreshUser } = useAuth();
@@ -16,7 +17,13 @@ export function TenantSettings() {
     name: user?.tenantName || '',
     brandColor: user?.brandColor || '#6366f1',
     logoUrl: user?.logoUrl || '',
+    industry: user?.tenantIndustry || TEMPLATE_DEFINITIONS.find((t) => t.key === (user?.templateKey as TemplateKey))?.industry || TEMPLATE_DEFINITIONS[0]?.industry,
+    templateKey: (user?.templateKey as TemplateKey) || DEFAULT_TEMPLATE_KEY,
   });
+
+  const selectedTemplate = useMemo(() => {
+    return TEMPLATE_DEFINITIONS.find((t) => t.key === formData.templateKey) || TEMPLATE_DEFINITIONS[0];
+  }, [formData.templateKey]);
 
   const handleUpdateTenant = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +39,8 @@ export function TenantSettings() {
           name: formData.name,
           brandColor: formData.brandColor,
           logoUrl: formData.logoUrl,
+          industry: selectedTemplate?.industry,
+          templateKey: formData.templateKey,
         }),
       });
 
@@ -111,6 +120,22 @@ export function TenantSettings() {
               className="input-professional w-full"
               placeholder="Firma Adı"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Sektor / Meslek</label>
+            <select
+              value={formData.templateKey}
+              onChange={(e) => setFormData({ ...formData, templateKey: e.target.value as TemplateKey })}
+              className="input-professional w-full"
+            >
+              {TEMPLATE_DEFINITIONS.map((template) => (
+                <option key={template.key} value={template.key}>
+                  {template.industry}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">{selectedTemplate?.description}</p>
           </div>
 
           <div>

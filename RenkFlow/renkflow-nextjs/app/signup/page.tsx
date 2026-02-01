@@ -8,7 +8,8 @@ import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { toast } from 'sonner';
 import { AuthLayout } from '@/components/auth/AuthLayout';
-import { Mail, Lock, User, Building2, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Mail, Lock, User, Building2, Eye, EyeOff, AlertCircle, Briefcase } from 'lucide-react';
+import { TEMPLATE_DEFINITIONS, DEFAULT_TEMPLATE_KEY, TemplateKey } from '@/lib/config/templates';
 
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -16,6 +17,7 @@ export default function SignupPage() {
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [templateKey, setTemplateKey] = useState<TemplateKey>(DEFAULT_TEMPLATE_KEY);
   const [isLoading, setIsLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<{
     name?: string;
@@ -40,6 +42,8 @@ export default function SignupPage() {
           email,
           password,
           companyName: companyName || `${name}'in Şirketi`,
+          industry: TEMPLATE_DEFINITIONS.find((t) => t.key === templateKey)?.industry,
+          templateKey,
         }),
       });
 
@@ -119,6 +123,28 @@ export default function SignupPage() {
               className={`w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border ${formErrors.companyName ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm`}
               placeholder="Şirketinizin Adı (opsiyonel)"
             />
+          </div>
+        </div>
+
+        {/* Industry Template */}
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 ml-1">Meslek / Sektör</label>
+          <div className="relative group">
+            <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+            <select
+              value={templateKey}
+              onChange={(e) => setTemplateKey(e.target.value as TemplateKey)}
+              className="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm"
+            >
+              {TEMPLATE_DEFINITIONS.map((template) => (
+                <option key={template.key} value={template.key}>
+                  {template.industry}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="rounded-xl border border-slate-200/70 bg-white/70 p-3 text-xs text-slate-500 dark:border-slate-700/60 dark:bg-slate-900/60 dark:text-slate-300">
+            {TEMPLATE_DEFINITIONS.find((t) => t.key === templateKey)?.description}
           </div>
         </div>
 

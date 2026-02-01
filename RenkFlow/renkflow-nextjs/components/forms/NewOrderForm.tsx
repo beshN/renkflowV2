@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '../ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { NewOrderFormData } from '@/lib/types';
 import { toast } from 'sonner';
 import Image from 'next/image';
+import { useAuth } from '@/lib/context/AuthContext';
+import { TEMPLATE_BY_KEY, DEFAULT_TEMPLATE_KEY, TemplateKey } from '@/lib/config/templates';
 
 interface NewOrderFormProps {
   onSubmit: (data: FormData) => Promise<void>;
@@ -20,15 +22,9 @@ interface FormErrors {
   totalAmount?: string;
 }
 
-// Default departments - these could come from settings in the future
-const DEPARTMENTS = [
-  { id: 'kesim', name: 'Kesim', color: '#EF4444' },
-  { id: 'dikim', name: 'Dikim', color: '#8B5CF6' },
-  { id: 'paketleme', name: 'Paketleme', color: '#F59E0B' },
-];
-
 export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [formData, setFormData] = useState<NewOrderFormData>(initialData || {
     customerName: '',
     email: '',
@@ -46,6 +42,11 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
   const [files, setFiles] = useState<{ id: string, file: File }[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const template = useMemo(() => {
+    const key = (user?.templateKey as TemplateKey) || DEFAULT_TEMPLATE_KEY;
+    return TEMPLATE_BY_KEY[key] || TEMPLATE_BY_KEY[DEFAULT_TEMPLATE_KEY];
+  }, [user?.templateKey]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -180,13 +181,13 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
       {/* Product Details */}
       <Card>
         <CardHeader>
-          <CardTitle>Ürün Detayları</CardTitle>
+          <CardTitle>{template.title}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                Ürün Adı *
+                {template.productLabel} *
               </label>
               <input
                 type="text"
@@ -199,7 +200,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                     ? 'border-red-500 focus:ring-red-500' 
                     : 'border-border-light dark:border-border-dark focus:ring-primary/50'
                 } bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 transition-all`}
-                placeholder="Örn: Özel Tasarım Koltuk"
+                placeholder={template.productPlaceholder}
               />
               {errors.productName && (
                 <p className="mt-1 text-sm text-red-500">{errors.productName}</p>
@@ -207,7 +208,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
             </div>
             <div>
               <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                Miktar *
+                {template.quantityLabel} *
               </label>
               <input
                 type="number"
@@ -221,7 +222,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
             </div>
             <div>
               <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                Teslim Tarihi
+                {template.deliveryLabel}
               </label>
               <input
                 type="date"
@@ -233,15 +234,15 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
             </div>
             <div>
               <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                Bölüm
+                {template.departmentLabel}
               </label>
               <select
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
                 className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-2 text-text-light dark:text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               >
-                <option value="">Bölüm Seçiniz</option>
-                {DEPARTMENTS.map((dept) => (
+                <option value="">Seçiniz</option>
+                {template.departments.map((dept) => (
                   <option key={dept.id} value={dept.id}>
                     {dept.name}
                   </option>
@@ -250,7 +251,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
             </div>
             <div>
               <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                Toplam Tutar ({formData.currency}) *
+                {template.totalLabel.replace('(TL)', `(${formData.currency})`)} *
               </label>
               <input
                 type="number"
@@ -308,7 +309,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                     <p className="pl-1">veya sürükleyip bırakın</p>
                   </div>
                   <p className="text-xs text-subtle-light dark:text-subtle-dark">
-                    PNG, JPG, PDF (max. 10MB)
+                    {template.documentHint} · PNG, JPG, PDF (max. 10MB)
                   </p>
                 </div>
               </div>
@@ -347,7 +348,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
 
             <div className="md:col-span-2 mt-4">
               <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-2">
-                Notlar
+                {template.notesLabel}
               </label>
               <textarea
                 name="notes"

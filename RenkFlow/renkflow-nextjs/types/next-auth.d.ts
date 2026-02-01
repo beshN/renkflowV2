@@ -6,6 +6,8 @@ declare module 'next-auth' {
       id: string;
       tenantId?: string;
       tenantName?: string;
+      tenantIndustry?: string;
+      templateKey?: string;
       role?: 'owner' | 'admin' | 'member' | 'office' | 'worker';
       brandColor?: string;
       logoUrl?: string;
@@ -15,6 +17,8 @@ declare module 'next-auth' {
   interface User {
     tenantId?: string;
     tenantName?: string;
+    tenantIndustry?: string;
+    templateKey?: string;
     role?: string;
     brandColor?: string;
     logoUrl?: string;
@@ -26,6 +30,8 @@ declare module 'next-auth/jwt' {
     id?: string;
     tenantId?: string;
     tenantName?: string;
+    tenantIndustry?: string;
+    templateKey?: string;
     role?: string;
     brandColor?: string;
     logoUrl?: string;

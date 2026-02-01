@@ -13,6 +13,8 @@ export interface User {
   tenantName?: string;
   brandColor?: string;
   logoUrl?: string;
+  tenantIndustry?: string;
+  templateKey?: string;
 }
 
 interface AuthContextType {
@@ -41,6 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       tenantName: session.user.tenantName,
       brandColor: session.user.brandColor,
       logoUrl: session.user.logoUrl,
+      tenantIndustry: session.user.tenantIndustry,
+      templateKey: session.user.templateKey,
     };
   }, [session?.user]);
 
