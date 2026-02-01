@@ -6,6 +6,8 @@ import { Mail, MapPin, Phone, Send } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
+export const dynamic = 'force-dynamic';
+
 export default function ContactPage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {

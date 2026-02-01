@@ -94,6 +94,8 @@ function IntegrationCard({ integration, index }: { integration: Integration; ind
   );
 }
 
+export const dynamic = 'force-dynamic';
+
 export default function IntegrationsPage() {
   const [activeCategory, setActiveCategory] = useState('Tümü');
   const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 });

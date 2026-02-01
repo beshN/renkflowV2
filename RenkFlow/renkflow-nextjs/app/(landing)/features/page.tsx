@@ -3,6 +3,8 @@
 import { Features } from '@/components/landing-new/Features';
 import { motion } from 'framer-motion';
 
+export const dynamic = 'force-dynamic';
+
 export default function FeaturesPage() {
   return (
     <div className="flex min-h-screen flex-col bg-[#f7f8fb] dark:bg-slate-950 relative overflow-hidden">

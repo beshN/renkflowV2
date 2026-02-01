@@ -110,6 +110,8 @@ function FAQAccordion({ item, isOpen, onToggle }: { item: FAQItem; isOpen: boole
   );
 }
 
+export const dynamic = 'force-dynamic';
+
 export default function FAQPage() {
   const [openItems, setOpenItems] = useState<Set<number>>(new Set());
   const [activeCategory, setActiveCategory] = useState<string>('Tümü');

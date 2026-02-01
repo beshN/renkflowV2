@@ -5,6 +5,8 @@ import { Pricing } from '@/components/landing-new/Pricing';
 import { CTA } from '@/components/landing-new/CTA';
 import { motion } from 'framer-motion';
 
+export const dynamic = 'force-dynamic';
+
 export default function PricingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-[#f7f8fb] dark:bg-slate-950 relative overflow-hidden">

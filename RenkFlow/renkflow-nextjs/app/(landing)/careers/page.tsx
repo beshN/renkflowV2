@@ -4,6 +4,8 @@ import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 interface JobPosition {
   id: string;
   title: string;

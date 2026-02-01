@@ -5,6 +5,8 @@ import { useInView } from 'react-intersection-observer';
 import Image from 'next/image';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 export default function About() {
   const [heroRef, heroInView] = useInView({ triggerOnce: true, threshold: 0.1 });
   const [storyRef, storyInView] = useInView({ triggerOnce: true, threshold: 0.1 });

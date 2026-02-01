@@ -8,6 +8,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
+export const dynamic = 'force-dynamic';
+
 interface BlogPost {
   id: string;
   title: string;

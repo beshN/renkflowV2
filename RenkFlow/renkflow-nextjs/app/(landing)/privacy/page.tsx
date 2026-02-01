@@ -1,6 +1,8 @@
 
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 export default function Privacy() {
   return (
     <div className="min-h-screen bg-[#f7f8fb] dark:bg-slate-950 relative overflow-hidden">
