@@ -20,14 +20,30 @@ export const FullLandingContent: React.FC = () => {
       />
 
       <HeroSection />
-      <ClientsSection />
-      <FeaturesGrid />
-      <DetailedFeatures />
-      <OptimizationSection />
-      <Testimonials />
-      <PricingSection />
-      <FAQSection />
-      <CTASection />
+      <div className="cv-auto">
+        <ClientsSection />
+      </div>
+      <div className="cv-auto">
+        <FeaturesGrid />
+      </div>
+      <div className="cv-auto">
+        <DetailedFeatures />
+      </div>
+      <div className="cv-auto">
+        <OptimizationSection />
+      </div>
+      <div className="cv-auto">
+        <Testimonials />
+      </div>
+      <div className="cv-auto">
+        <PricingSection />
+      </div>
+      <div className="cv-auto">
+        <FAQSection />
+      </div>
+      <div className="cv-auto">
+        <CTASection />
+      </div>
       
       <div id="contact"></div>
     </div>

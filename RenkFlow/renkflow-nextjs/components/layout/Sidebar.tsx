@@ -203,13 +203,20 @@ export function Sidebar() {
              (isHovered || isMobileOpen) ? "justify-start" : "justify-center"
            )}>
               <div className="relative h-10 w-10 rounded-full ring-2 ring-white dark:ring-slate-700 shadow-md flex-shrink-0 cursor-pointer overflow-hidden group">
+                {(() => {
+                  const name = encodeURIComponent(user?.name || 'User');
+                  const avatarUrl = user?.avatar || `https://ui-avatars.com/api/?name=${name}&background=4f46e5&color=fff`;
+                  return (
                 <Image
-                  src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=4f46e5&color=fff`}
+                  src={avatarUrl}
                   alt={user?.name || 'User'}
                   fill
                   sizes="40px"
                   className="object-cover transition-transform duration-500 group-hover:scale-110"
+                  unoptimized
                 />
+                  );
+                })()}
                 
                 {/* Status Indicator */}
                 <div className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-white dark:border-slate-900" />

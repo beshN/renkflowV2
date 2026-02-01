@@ -81,6 +81,12 @@
   }
 }
 
+/* Improve render performance for long landing pages */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1000px 800px;
+}
+
 /* Material Symbols */
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined';
