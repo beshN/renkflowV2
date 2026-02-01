@@ -5,7 +5,7 @@ import { offlineDB } from '@/lib/offline/indexeddb';
 import { syncQueue } from '@/lib/offline/sync-queue';
 import { realtime as wsClient } from '@/lib/realtime/client';
 import { encryption } from '@/lib/security/encryption';
-import { Order, createOrderId, createTenantId, safeParseCurrency } from '@/lib/types';
+import { Order, createOrderId, createTenantId, CurrencySchema } from '@/lib/types';
 
 /**
  * Unified Flow Hook
@@ -58,7 +58,10 @@ export function useUnifiedOrderSystem(tenantId: string) {
         email: emailField,
         date: new Date().toISOString(),
         totalAmount: orderData.totalAmount || 0,
-        currency: safeParseCurrency(orderData.currency),
+        currency: (() => {
+          const result = CurrencySchema.safeParse(orderData.currency);
+          return result.success ? result.data : '₺';
+        })(),
         status: orderData.status || 'pending',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

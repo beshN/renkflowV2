@@ -142,7 +142,6 @@ export function DocumentViewer({ isOpen, onClose, documentUrl, documentName }: D
     if (pdfDocRef.current && !isLoading) {
       renderPage(currentPage);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, scale, isLoading]);
 
   const handlePrevPage = () => {

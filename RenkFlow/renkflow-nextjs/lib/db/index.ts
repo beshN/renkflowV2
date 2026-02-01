@@ -135,10 +135,10 @@ export async function checkDatabaseHealth(): Promise<boolean> {
  * Transaction wrapper with automatic rollback on error
  */
 export async function withTransaction<T>(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   callback: (sql: any) => Promise<T>
 ): Promise<T> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const client: any = getSql();
   
   try {

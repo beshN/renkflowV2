@@ -43,16 +43,10 @@ export function ConfirmDialog({
           <Button
             variant={variant === 'danger' ? 'danger' : 'primary'}
             onClick={onConfirm}
-            disabled={isLoading}
+            isLoading={isLoading}
+            loadingText="İşleniyor..."
           >
-            {isLoading ? (
-              <span className="flex items-center gap-2">
-                <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
-                İşleniyor...
-              </span>
-            ) : (
-              confirmText
-            )}
+            {confirmText}
           </Button>
         </div>
       </div>

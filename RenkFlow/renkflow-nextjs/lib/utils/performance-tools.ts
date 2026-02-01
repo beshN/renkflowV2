@@ -3,7 +3,7 @@
  * Tools for measuring system limits and detecting regressions
  */
 
-import { Order, createOrderId } from '@/lib/types';
+import { Order } from '../types';
 
 /**
  * Generates massive datasets for stress testing the UI and IndexedDB
@@ -15,19 +15,26 @@ export async function generateStressTestData(count: number): Promise<Order[]> {
   const start = performance.now();
 
   for (let i = 0; i < count; i++) {
+    const today = new Date();
+    const dateOnly = today.toISOString().slice(0, 10);
+    const statuses: Order['status'][] = ['pending', 'in_production', 'delivered'];
     orders.push({
-      id: createOrderId(`stress-${i}-${Math.random().toString(36).substr(2, 5)}`),
+      id: `stress-${i}-${Math.random().toString(36).substr(2, 5)}` as Order['id'],
       orderNumber: `RF-ST-${i}`,
       customerName: `Stress Test User ${i}`,
-      date: new Date().toISOString(),
+      productName: `Test Product ${i}`,
+      quantity: Math.floor(Math.random() * 100) + 1,
+      date: dateOnly,
+      deliveryDate: dateOnly,
       totalAmount: Math.floor(Math.random() * 5000),
       currency: '₺',
-      status: i % 2 === 0 ? 'pending' : 'delivered',
+      status: statuses[i % 3],
       notes: `Large dataset item for performance analysis #${i}`,
       documents: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
+      customFields: {},
+      createdAt: today.toISOString(),
+      updatedAt: today.toISOString(),
+    } as Order);
   }
 
   const end = performance.now();

@@ -9,6 +9,11 @@
 
 import '@testing-library/jest-dom';
 
+declare const jest: {
+  mock: (...args: unknown[]) => void;
+  fn: () => unknown;
+};
+
 // ============================================
 // Environment Variables
 // ============================================

@@ -27,7 +27,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { Order, NewOrderFormData, Currency, safeParseCurrency } from '@/lib/types';
+import { Order, NewOrderFormData, Currency } from '@/lib/types';
 import { MockOrderService } from '@/lib/services/mock/order.mock';
 import { 
   getOrdersAction, 
@@ -124,7 +124,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
           productName: data.get('productName') as string,
           quantity: parseInt(data.get('quantity') as string),
           totalAmount: parseFloat(data.get('totalAmount') as string) || 0,
-          currency: safeParseCurrency(data.get('currency') as string | null),
+          currency: ((data.get('currency') as string) || '₺') as Currency,
           deliveryDate: data.get('deliveryDate') as string || undefined,
           notes: data.get('notes') as string || undefined,
         };

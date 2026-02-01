@@ -31,8 +31,8 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
   }, [searchValue, onSearch]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/70 dark:border-slate-800 bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl shadow-[0_1px_0_rgba(15,23,42,0.04)]">
-      <div className="flex h-16 items-center gap-4 px-6">
+    <header role="banner" className="sticky top-0 z-40 border-b border-slate-200/70 dark:border-slate-800 bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl shadow-[0_1px_0_rgba(15,23,42,0.04)]">
+      <div className="flex h-16 items-center gap-4 px-6" role="navigation" aria-label="Ana navigasyon">
         {/* Title */}
         <h1 className="text-2xl font-semibold text-text-light dark:text-text-dark font-display tracking-tight">
           {title}
@@ -46,6 +46,7 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
               <input
                 type="text"
                 placeholder="Ara..."
+                aria-label={`${title} içinde ara`}
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
                 className="input-professional w-full rounded-full px-10 py-2.5 text-sm bg-white/80 dark:bg-slate-900/70"
@@ -63,6 +64,7 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
             className="flex size-10 items-center justify-center rounded-full hover:bg-slate-100/80 dark:hover:bg-slate-800/70 transition-colors"
             aria-label="Toggle dark mode"
+            aria-pressed={resolvedTheme === 'dark'}
           >
             {resolvedTheme === 'dark' ? (
               <Sun className="text-subtle-light dark:text-subtle-dark w-5 h-5" />

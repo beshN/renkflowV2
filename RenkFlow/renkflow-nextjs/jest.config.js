@@ -20,7 +20,7 @@ const customJestConfig = {
   testEnvironment: 'jsdom',
   
   // Setup files
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.tsx'],
   
   // Module paths
   moduleNameMapper: {

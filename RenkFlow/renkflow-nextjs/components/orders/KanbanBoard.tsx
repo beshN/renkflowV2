@@ -183,7 +183,6 @@ const DroppableColumn = memo(function DroppableColumn({
                   title={user.name}
                 >
                   {user.avatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
                   ) : (
                     user.name?.charAt(0) || '?'

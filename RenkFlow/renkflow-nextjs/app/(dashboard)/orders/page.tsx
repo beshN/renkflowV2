@@ -15,6 +15,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { exportOrders, ExportFormat } from '@/lib/utils/export';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ErrorState, SectionSkeleton, SkeletonCard } from '@/components/ui/skeleton';
 
 // Enterprise Components
 import {
@@ -29,7 +30,7 @@ import { Order, OrderStatus } from '@/lib/types';
 
 export default function OrdersPage() {
   const router = useRouter();
-  const { deleteOrder, updateOrderStatus, updateOrder, refresh } = useOrders();
+  const { deleteOrder, updateOrderStatus, updateOrder, refresh, error } = useOrders();
   const { showToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -274,7 +275,7 @@ export default function OrdersPage() {
         </AnimatePresence>
 
         {/* Main Area */}
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <main role="main" className="flex-1 flex flex-col overflow-hidden">
           {/* Header */}
           <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
             <div className="flex items-center gap-4">
@@ -282,14 +283,14 @@ export default function OrdersPage() {
                 <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
                   Siparişler
                 </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-gray-500 dark:text-gray-400" aria-live="polite">
                   {filteredOrders.length} / {orders.length} sipariş
                   {filters.search && ` • "${filters.search}" için sonuçlar`}
                 </p>
               </div>
 
               {/* Connection Status */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-full">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-full" aria-live="polite">
                 <div
                   className={cn(
                     'w-2 h-2 rounded-full',
@@ -337,6 +338,7 @@ export default function OrdersPage() {
                 value={autoRefreshInterval ?? ''}
                 onChange={(e) => setAutoRefreshInterval(e.target.value ? parseInt(e.target.value) : null)}
                 className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg border-0 focus:ring-2 focus:ring-blue-500"
+                aria-label="Otomatik yenileme aralığı"
               >
                 {refreshOptions.map((opt) => (
                   <option key={opt.label} value={opt.value ?? ''}>
@@ -358,6 +360,7 @@ export default function OrdersPage() {
                         : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                     )}
                     title={label}
+                    aria-pressed={viewMode === mode}
                   >
                     <span className="material-symbols-outlined text-lg">{icon}</span>
                     <span className="hidden lg:inline">{label}</span>
@@ -379,19 +382,36 @@ export default function OrdersPage() {
           {/* Content Area */}
           <div className="flex-1 overflow-auto p-6">
             <AnimatePresence mode="wait">
-              {isLoading ? (
+              {error ? (
+                <motion.div
+                  key="error"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center justify-center h-full"
+                >
+                  <ErrorState
+                    title="Siparişler yüklenemedi"
+                    description={error.message || 'Bağlantınızı kontrol edip tekrar deneyin.'}
+                    onRetry={refresh}
+                  />
+                </motion.div>
+              ) : isLoading ? (
                 <motion.div
                   key="loading"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="flex flex-col items-center justify-center h-full"
+                  className="grid grid-cols-1 xl:grid-cols-3 gap-6 h-full"
                 >
-                  <div className="relative w-16 h-16">
-                    <div className="absolute inset-0 border-4 border-blue-200 dark:border-blue-900 rounded-full" />
-                    <div className="absolute inset-0 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  <div className="xl:col-span-2 space-y-6">
+                    <SectionSkeleton rows={6} />
+                    <SectionSkeleton rows={6} />
                   </div>
-                  <p className="mt-4 text-gray-500 dark:text-gray-400">Siparişler yükleniyor...</p>
+                  <div className="space-y-4">
+                    <SkeletonCard />
+                    <SkeletonCard />
+                  </div>
                 </motion.div>
               ) : (
                 <motion.div

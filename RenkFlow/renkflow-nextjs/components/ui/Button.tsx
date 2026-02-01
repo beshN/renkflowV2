@@ -10,6 +10,8 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
   spotlight?: boolean;
   spotlightColor?: string;
+  isLoading?: boolean;
+  loadingText?: string;
 }
 
 export function Button({
@@ -19,12 +21,14 @@ export function Button({
   children,
   spotlight,
   spotlightColor,
+  isLoading = false,
+  loadingText,
   ...props
 }: ButtonProps) {
   const { position, opacity, handleMouseMove, handleMouseEnter, handleMouseLeave } = useSpotlight();
 
   const baseStyles =
-    'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 disabled:opacity-50 disabled:cursor-not-allowed';
+    'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] min-touch';
 
   const variants = {
     primary:
@@ -69,6 +73,8 @@ export function Button({
         if (spotlight) handleMouseLeave();
         props.onMouseLeave?.(e);
       }}
+      aria-busy={isLoading || props['aria-busy']}
+      disabled={isLoading || props.disabled}
       {...props}
     >
       {spotlight && (
@@ -80,7 +86,15 @@ export function Button({
           }}
         />
       )}
-      {children}
+      <span className={cn(isLoading ? 'opacity-0' : 'opacity-100', 'inline-flex items-center gap-2')}>
+        {children}
+      </span>
+      {isLoading && (
+        <span className="absolute inset-0 flex items-center justify-center gap-2 text-current">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          {loadingText && <span className="text-sm font-medium">{loadingText}</span>}
+        </span>
+      )}
     </button>
   );
 }
