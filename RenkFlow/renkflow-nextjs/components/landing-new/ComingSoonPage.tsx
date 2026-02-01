@@ -292,7 +292,7 @@ export const ComingSoonPage: React.FC = () => {
                 alt="RenkFlow"
                 width={80}
                 height={80}
-                className="w-20 h-20 object-contain brightness-0 invert dark:brightness-100 dark:invert-0"
+                className="-mt-2 w-20 h-20 object-contain brightness-0 invert dark:brightness-100 dark:invert-0"
                 priority
               />
               <span className="text-xl font-bold text-white">
