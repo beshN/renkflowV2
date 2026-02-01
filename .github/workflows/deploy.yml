@@ -12,9 +12,13 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
       - run: npm ci
+        working-directory: RenkFlow/renkflow-nextjs
       - run: npm run lint
+        working-directory: RenkFlow/renkflow-nextjs
       - run: npm run test:unit
+        working-directory: RenkFlow/renkflow-nextjs
       - run: npm run build
+        working-directory: RenkFlow/renkflow-nextjs
 
   deploy-staging:
     needs: test
@@ -22,7 +26,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: npm ci
+        working-directory: RenkFlow/renkflow-nextjs
       - run: npm run build
+        working-directory: RenkFlow/renkflow-nextjs
       - uses: vercel/action-deploy@v1
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -36,7 +42,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: npm ci
+        working-directory: RenkFlow/renkflow-nextjs
       - run: npm run build
+        working-directory: RenkFlow/renkflow-nextjs
       - uses: vercel/action-deploy@v1
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
