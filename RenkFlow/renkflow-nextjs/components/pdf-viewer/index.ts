@@ -22,6 +22,7 @@
 
 // Main Components
 export { default as PDFViewer } from './PDFViewer';
+export { PDFViewerV2 } from './PDFViewerV2';
 export { default as ErrorOverlay } from './ErrorOverlay';
 export { default as LoadingOverlay } from './LoadingOverlay';
 

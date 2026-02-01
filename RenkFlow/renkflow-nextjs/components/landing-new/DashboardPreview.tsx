@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { AreaChart, Area, ResponsiveContainer, BarChart, Bar, Cell, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -395,18 +396,25 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
   return (
     <div className="relative group perspective-[2000px]">
       
-      {/* Decorative Blur Backdrops - Added pointer-events-none to prevent click blocking */}
-      <div className="absolute -inset-1 bg-gradient-to-r from-primary to-indigo-600 rounded-[2rem] blur opacity-20 dark:opacity-40 group-hover:opacity-30 transition duration-1000 group-hover:duration-200 pointer-events-none"></div>
+      {/* Decorative Blur Backdrops */}
+      <div className="absolute -inset-2 bg-gradient-to-r from-blue-500 via-cyan-500 to-emerald-500 rounded-[2rem] blur-xl opacity-20 dark:opacity-30 group-hover:opacity-40 transition-all duration-700 pointer-events-none"></div>
       
       {/* Main Container - Rotated 3D Effect */}
-      <div className="relative bg-background/95 backdrop-blur-xl rounded-[1.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] ring-1 ring-white/20 dark:ring-white/10 overflow-hidden transform rotate-y-[-10deg] rotate-x-[5deg] group-hover:rotate-0 transition-all duration-700 ease-out h-[600px] flex preserve-3d">
+      <div className="relative bg-background/95 backdrop-blur-xl rounded-[1.5rem] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.2)] dark:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.4)] ring-1 ring-white/20 dark:ring-white/10 overflow-hidden transform rotate-y-[-8deg] rotate-x-[4deg] group-hover:rotate-0 group-hover:scale-[1.02] transition-all duration-500 ease-out h-[600px] flex preserve-3d">
          
          {/* Glass Shine Effect */}
-         <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none z-50 mix-blend-overlay" />
+         <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-50" />
         
         {/* Sidebar */}
         <div className="w-16 border-r border-border flex flex-col items-center py-6 gap-6 bg-secondary/50 backdrop-blur-sm z-[60] relative pointer-events-auto">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-500/20">R</div>
+            <Image
+              src="/renkflow-logo-new.png"
+              alt="RenkFlow"
+              width={32}
+              height={32}
+              className="w-8 h-8 object-contain"
+              priority
+            />
             
             <div className="flex flex-col gap-4 mt-4 w-full px-2">
                 {[

@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
 
 // Mock i18n
@@ -50,9 +50,10 @@ describe('LanguageSelector Component', () => {
     fireEvent.click(screen.getByRole('button'));
 
     await waitFor(() => {
-      expect(screen.getByText('Türkçe')).toBeInTheDocument();
-      expect(screen.getByText('English')).toBeInTheDocument();
-      expect(screen.getByText('العربية')).toBeInTheDocument();
+      const listbox = screen.getByRole('listbox');
+      expect(within(listbox).getByText('Türkçe')).toBeInTheDocument();
+      expect(within(listbox).getByText('English')).toBeInTheDocument();
+      expect(within(listbox).getByText('العربية')).toBeInTheDocument();
     });
   });
 
@@ -62,7 +63,8 @@ describe('LanguageSelector Component', () => {
     fireEvent.click(screen.getByRole('button'));
 
     await waitFor(() => {
-      fireEvent.click(screen.getByText('English'));
+      const listbox = screen.getByRole('listbox');
+      fireEvent.click(within(listbox).getByText('English'));
     });
 
     expect(mockChangeLanguage).toHaveBeenCalledWith('en');

@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/context/AuthContext';
 import { signOut } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { LanguageSelector } from '@/components/ui/LanguageSelector';
 
 interface NavbarProps {
   title: string;
@@ -80,6 +81,8 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
+          <LanguageSelector variant="dropdown" showLabel={false} showFlag={true} className="mr-1" />
+
           {/* Dark Mode Toggle */}
           <button
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}

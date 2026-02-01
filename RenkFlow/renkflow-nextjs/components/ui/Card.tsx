@@ -1,78 +1,172 @@
-import { ReactNode } from 'react';
+'use client';
+
+import { ReactNode, forwardRef, HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 import { useSpotlight } from './SpotlightEffect';
 
-interface CardProps {
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
-  className?: string;
-  hover?: boolean;
+  variant?: 'default' | 'elevated' | 'outlined' | 'glass' | 'gradient';
+  hover?: boolean | 'lift' | 'glow' | 'border';
   spotlight?: boolean;
   spotlightColor?: string;
+  padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 
-export function Card({ children, className, hover = false, spotlight, spotlightColor }: CardProps) {
+export const Card = forwardRef<HTMLDivElement, CardProps>(({ 
+  children, 
+  className, 
+  variant = 'default',
+  hover = false, 
+  spotlight, 
+  spotlightColor,
+  padding = 'md',
+  ...props 
+}, ref) => {
   const { position, opacity, handleMouseMove, handleMouseEnter, handleMouseLeave } = useSpotlight();
+
+  const variants = {
+    default: cn(
+      'bg-white dark:bg-slate-900',
+      'border border-slate-200/60 dark:border-slate-800/60',
+      'shadow-sm'
+    ),
+    elevated: cn(
+      'bg-white dark:bg-slate-900',
+      'shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)]',
+      'border border-slate-100/50 dark:border-slate-800/50'
+    ),
+    outlined: cn(
+      'bg-transparent',
+      'border-2 border-slate-200 dark:border-slate-700'
+    ),
+    glass: cn(
+      'bg-white/70 dark:bg-slate-900/70',
+      'backdrop-blur-xl backdrop-saturate-150',
+      'border border-white/20 dark:border-slate-700/50',
+      'shadow-[0_8px_32px_-8px_rgba(0,0,0,0.1)]'
+    ),
+    gradient: cn(
+      'bg-gradient-to-br from-white via-slate-50 to-slate-100',
+      'dark:from-slate-900 dark:via-slate-800 dark:to-slate-900',
+      'border border-slate-200/40 dark:border-slate-700/40',
+      'shadow-lg'
+    ),
+  };
+
+  const hoverEffects = {
+    lift: 'hover:-translate-y-1.5 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.4)]',
+    glow: 'hover:shadow-[0_0_30px_-5px_rgba(14,165,233,0.3)] hover:border-sky-200 dark:hover:border-sky-800',
+    border: 'hover:border-sky-500 dark:hover:border-sky-400',
+  };
+
+  const paddings = {
+    none: 'p-0',
+    sm: 'p-4',
+    md: 'p-6',
+    lg: 'p-8',
+  };
+
+  const hoverClass = hover === true ? hoverEffects.lift : hover ? hoverEffects[hover] : '';
 
   return (
     <div
+      ref={ref}
       className={cn(
-        'rounded-2xl glass-panel p-6 shadow-premium transition-all duration-300',
-        hover && 'hover:-translate-y-1 hover:shadow-glow-primary',
+        'rounded-2xl transition-all duration-300 ease-out',
+        variants[variant],
+        paddings[padding],
+        hoverClass,
         spotlight && "relative overflow-hidden",
         className
       )}
       onMouseMove={spotlight ? handleMouseMove : undefined}
       onMouseEnter={spotlight ? handleMouseEnter : undefined}
       onMouseLeave={spotlight ? handleMouseLeave : undefined}
+      {...props}
     >
       {spotlight && (
         <div
-          className="pointer-events-none absolute -inset-px transition-opacity duration-300"
+          className="pointer-events-none absolute -inset-px transition-opacity duration-300 rounded-[inherit] z-10"
           style={{
             opacity,
-            background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, ${spotlightColor || 'rgba(255, 255, 255, 0.15)'}, transparent 40%)`,
+            background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, ${spotlightColor || 'rgba(14,165,233,0.08)'}, transparent 40%)`,
           }}
         />
       )}
-      {children}
+      <div className="relative z-20">{children}</div>
+    </div>
+  );
+});
+
+Card.displayName = 'Card';
+
+interface CardHeaderProps extends HTMLAttributes<HTMLDivElement> {
+  children: ReactNode;
+  action?: ReactNode;
+}
+
+export function CardHeader({ children, className, action }: CardHeaderProps) {
+  return (
+    <div className={cn('flex items-start justify-between gap-4 mb-4', className)}>
+      <div className="flex-1">{children}</div>
+      {action && <div className="flex-shrink-0">{action}</div>}
     </div>
   );
 }
 
-interface CardHeaderProps {
+interface CardTitleProps extends HTMLAttributes<HTMLHeadingElement> {
   children: ReactNode;
-  className?: string;
+  as?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
 }
 
-export function CardHeader({ children, className }: CardHeaderProps) {
+export function CardTitle({ children, className, as: Tag = 'h3' }: CardTitleProps) {
   return (
-    <div className={cn('mb-4', className)}>
+    <Tag className={cn(
+      'text-lg font-semibold tracking-tight',
+      'text-slate-900 dark:text-white',
+      className
+    )}>
       {children}
-    </div>
+    </Tag>
   );
 }
 
-interface CardTitleProps {
+interface CardDescriptionProps extends HTMLAttributes<HTMLParagraphElement> {
   children: ReactNode;
-  className?: string;
 }
 
-export function CardTitle({ children, className }: CardTitleProps) {
+export function CardDescription({ children, className }: CardDescriptionProps) {
   return (
-    <h3 className={cn('text-lg font-semibold text-text-light dark:text-text-dark', className)}>
+    <p className={cn('text-sm text-slate-500 dark:text-slate-400 mt-1', className)}>
       {children}
-    </h3>
+    </p>
   );
 }
 
-interface CardContentProps {
+interface CardContentProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
-  className?: string;
 }
 
 export function CardContent({ children, className }: CardContentProps) {
   return (
-    <div className={cn(className)}>
+    <div className={cn('relative', className)}>
+      {children}
+    </div>
+  );
+}
+
+interface CardFooterProps extends HTMLAttributes<HTMLDivElement> {
+  children: ReactNode;
+}
+
+export function CardFooter({ children, className }: CardFooterProps) {
+  return (
+    <div className={cn(
+      'flex items-center gap-3 mt-6 pt-4',
+      'border-t border-slate-100 dark:border-slate-800',
+      className
+    )}>
       {children}
     </div>
   );

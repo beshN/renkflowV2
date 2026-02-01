@@ -102,6 +102,9 @@ const nextConfig = {
     ],
   },
 
+  // Increase static generation timeout for heavy pages (default 60s)
+  staticPageGenerationTimeout: 180,
+
   // Enable Turbopack with empty config to avoid build mismatch errors
   turbopack: {},
 

@@ -115,7 +115,7 @@ export type UpdateOrderFormData = z.infer<typeof UpdateOrderFormSchema>;
 // Auth Types
 // ============================================
 
-export const UserRoleSchema = z.enum(['owner', 'admin', 'member', 'office', 'worker']);
+export const UserRoleSchema = z.enum(['owner', 'admin', 'accountant', 'member', 'office', 'worker']);
 export type UserRole = z.infer<typeof UserRoleSchema>;
 
 export const UserSchema = z.object({
@@ -223,3 +223,8 @@ export interface ConnectionInfo {
   errorMessage: string | null;
   latencyMs: number | null;
 }
+
+// ============================================
+// Re-export Finance Types
+// ============================================
+export * from './finance';

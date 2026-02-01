@@ -1,5 +1,7 @@
 import tsParser from "@typescript-eslint/parser";
 import tsPlugin from "@typescript-eslint/eslint-plugin";
+import nextPlugin from "@next/eslint-plugin-next";
+import reactHooksPlugin from "eslint-plugin-react-hooks";
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
@@ -20,6 +22,8 @@ export default [
     },
     plugins: {
       "@typescript-eslint": tsPlugin,
+      "@next/next": nextPlugin,
+      "react-hooks": reactHooksPlugin,
     },
     rules: {
       "@typescript-eslint/no-explicit-any": "off",

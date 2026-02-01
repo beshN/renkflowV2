@@ -51,7 +51,7 @@ create table public.tenant_members (
   id uuid default uuid_generate_v4() primary key,
   tenant_id uuid references public.tenants(id) on delete cascade,
   user_id uuid references public.users(id) on delete cascade,
-  role text check (role in ('owner', 'admin', 'office', 'worker', 'member')) default 'member',
+  role text check (role in ('owner', 'admin', 'accountant', 'office', 'worker', 'member')) default 'member',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   unique(tenant_id, user_id)
 );
@@ -61,7 +61,7 @@ create table public.invitations (
   id uuid default uuid_generate_v4() primary key,
   tenant_id uuid references public.tenants(id) on delete cascade,
   email text not null,
-  role text check (role in ('admin', 'office', 'worker', 'member')) default 'member',
+  role text check (role in ('admin', 'accountant', 'office', 'worker', 'member')) default 'member',
   token text unique not null,
   expires_at timestamp with time zone not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,

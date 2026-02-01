@@ -7,7 +7,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'owner' | 'admin' | 'member' | 'office' | 'worker';
+  role: 'owner' | 'admin' | 'accountant' | 'member' | 'office' | 'worker';
   avatar?: string;
   tenantId?: string;
   tenantName?: string;

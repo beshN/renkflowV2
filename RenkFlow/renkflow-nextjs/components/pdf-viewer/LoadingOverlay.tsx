@@ -7,11 +7,13 @@ import type { DocumentFile } from './types';
 
 export interface LoadingOverlayProps {
   /** The file being loaded */
-  file: DocumentFile | null;
+  file?: DocumentFile | null;
   /** Callback when user clicks close */
-  onClose: () => void;
+  onClose?: () => void;
   /** Actual loading progress (0-100), if available from PDF.js */
   actualProgress?: number;
+  /** Progress value (0-100) */
+  progress?: number;
   /** Estimated file size in bytes for progress calculation */
   fileSize?: number;
   /** Whether loading is complete */
@@ -168,7 +170,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   // Handle keyboard
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && onClose) {
         onClose();
       }
     };

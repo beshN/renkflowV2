@@ -8,7 +8,7 @@ declare module 'next-auth' {
       tenantName?: string;
       tenantIndustry?: string;
       templateKey?: string;
-      role?: 'owner' | 'admin' | 'member' | 'office' | 'worker';
+      role?: 'owner' | 'admin' | 'accountant' | 'member' | 'office' | 'worker';
       brandColor?: string;
       logoUrl?: string;
     } & DefaultSession['user'];

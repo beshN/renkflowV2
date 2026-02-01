@@ -96,6 +96,8 @@ const config: Config = {
         'scale-in': 'scaleIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
         'scale-out': 'scaleOut 0.15s ease-out forwards',
         'card-hover': 'cardHover 0.3s ease-out forwards',
+        'blob': 'blob 7s infinite',
+        'shimmer': 'shimmer 2s linear infinite',
       },
       keyframes: {
         fadeIn: {
@@ -126,6 +128,21 @@ const config: Config = {
           '0%': { transform: 'translateY(0)' },
           '100%': { transform: 'translateY(-2px)' },
         },
+        blob: {
+          '0%': { transform: 'translate(0px, 0px) scale(1)' },
+          '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+          '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+          '100%': { transform: 'translate(0px, 0px) scale(1)' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
+      },
+      willChange: {
+        transform: 'transform',
+        opacity: 'opacity',
+        'transform-opacity': 'transform, opacity',
       },
     },
   },

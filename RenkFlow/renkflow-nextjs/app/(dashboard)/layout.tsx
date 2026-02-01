@@ -3,6 +3,7 @@
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { RouteGuard } from '@/components/auth/RouteGuard';
 import { ReactNode } from 'react';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -15,7 +16,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <Sidebar />
       <main className="flex-1 w-full min-w-0 pb-20 md:pb-0 z-10">
         <ErrorBoundary>
-          {children}
+          <RouteGuard>
+            {children}
+          </RouteGuard>
         </ErrorBoundary>
       </main>
       <MobileBottomNav />

@@ -1,9 +1,11 @@
 import { ThemeApplier } from '@/components/layout/ThemeApplier'
 import { Analytics } from "@vercel/analytics/react"
+import GoogleAnalytics from '@/components/analytics/GoogleAnalytics'
 import { Toaster } from 'sonner'
 import './globals.css'
 import type { Metadata } from 'next'
 import { Outfit, Plus_Jakarta_Sans } from 'next/font/google'
+import { ClientComponents } from '@/components/layout/ClientComponents'
 
 const outfit = Outfit({ 
   subsets: ['latin'],
@@ -78,11 +80,7 @@ export const metadata: Metadata = {
 }
 
 import { Providers } from '@/lib/context/Providers'
-import CookieConsent from '@/components/ui/CookieConsent'
-import PWAInstallPrompt from '@/components/ui/PWAInstallPrompt'
 import { SyncStatusBar } from '@/components/sync/SyncStatusBar'
-
-// ... metadata ...
 
 export default function RootLayout({
   children,
@@ -90,12 +88,25 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="tr">
+    <html lang="tr" suppressHydrationWarning>
       <head>
+        {/* Preconnect to Google Fonts for faster loading */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Material Symbols loaded async to prevent render blocking */}
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
           rel="stylesheet"
+          media="print"
+          // @ts-expect-error - onLoad is valid for link elements
+          onLoad="this.media='all'"
         />
+        <noscript>
+          <link
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+            rel="stylesheet"
+          />
+        </noscript>
         {/* PWA Meta Tags */}
         <meta name="theme-color" content="#4361ee" />
         <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0B1120" />
@@ -122,10 +133,10 @@ export default function RootLayout({
           <ThemeApplier />
           {children}
           <Toaster position="top-center" richColors />
-          <CookieConsent />
-          <PWAInstallPrompt />
+          <ClientComponents />
         </Providers>
         <Analytics />
+        <GoogleAnalytics GA_MEASUREMENT_ID={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || ''} />
       </body>
     </html>
   )

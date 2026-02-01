@@ -6,6 +6,7 @@ import { AuthProvider } from './AuthContext';
 import { SettingsProvider } from './SettingsContext';
 import { ToastProvider } from './ToastContext';
 import { ReactNode } from 'react';
+import { I18nProvider } from '@/lib/i18n';
 
 /**
  * Application Providers
@@ -16,15 +17,17 @@ import { ReactNode } from 'react';
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <SessionProvider>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        <AuthProvider>
-          <SettingsProvider>
-            <ToastProvider>
-              {children}
-            </ToastProvider>
-          </SettingsProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <I18nProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <AuthProvider>
+            <SettingsProvider>
+              <ToastProvider>
+                {children}
+              </ToastProvider>
+            </SettingsProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </I18nProvider>
     </SessionProvider>
   );
 }

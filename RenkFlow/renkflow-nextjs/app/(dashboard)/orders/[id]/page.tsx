@@ -17,11 +17,13 @@ import { formatCurrency, formatDate, getOrderStatusInfo } from '@/lib/utils';
 import { Order, Document, Currency, CurrencySchema } from '@/lib/types';
 import { 
   ArrowLeft, Calendar, User, Package, CreditCard, 
-  FileText, Clock, CheckCircle, Truck
+  FileText, Clock, CheckCircle, Truck, Wallet
 } from 'lucide-react';
+import { OrderFinanceSection } from '@/components/finance/OrderFinanceSection';
+import { canAccessFinance, UserRole } from '@/lib/auth/permissions';
 import { motion } from 'framer-motion';
 
-const PDFViewer = dynamic(() => import('@/components/pdf-viewer/PDFViewer'), {
+const PDFViewer = dynamic(() => import('@/components/pdf-viewer/PDFViewerV2'), {
   ssr: false,
   loading: () => <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600" />,
 });
@@ -326,6 +328,15 @@ export default function OrderDetailPage() {
                          )}
                      </div>
                  </div>
+
+                 {/* Finance Section - Only visible to finance roles */}
+                 {user && canAccessFinance(user.role as UserRole) && (
+                   <OrderFinanceSection 
+                     orderId={order.id}
+                     orderTotal={order.totalAmount}
+                     currency={order.currency || 'TRY'}
+                   />
+                 )}
             </div>
         </div>
 

@@ -43,6 +43,8 @@
     "node_modules",
     "jest.setup.ts",
     "jest.setup.tsx",
+    "e2e",
+    "playwright.config.ts",
     "drizzle.config.ts",
     "lib/db/drizzle-schema.ts",
     "scripts",

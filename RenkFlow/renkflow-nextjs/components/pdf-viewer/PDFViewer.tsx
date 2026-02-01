@@ -42,6 +42,29 @@ import {
   Plus,
   AlertCircle,
   RefreshCw,
+  Highlighter,
+  Underline,
+  Strikethrough,
+  StickyNote,
+  Type,
+  Square,
+  Circle,
+  ArrowRight,
+  Pencil,
+  Eraser,
+  PenTool,
+  MousePointer,
+  Hand,
+  Ruler,
+  Copy,
+  Scissors,
+  Palette,
+  Save,
+  Undo,
+  Redo,
+  Eye,
+  EyeOff,
+  Layers,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 // @ts-ignore - CSS imports are handled by bundler
@@ -77,7 +100,39 @@ interface BookmarkItem {
   timestamp: number;
 }
 
+type AnnotationType = 'highlight' | 'underline' | 'strikethrough' | 'note' | 'text' | 'rectangle' | 'circle' | 'arrow' | 'freehand' | 'signature';
+type ToolMode = 'select' | 'hand' | 'text' | AnnotationType;
+
+interface Annotation {
+  id: string;
+  type: AnnotationType;
+  page: number;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  text?: string;
+  color: string;
+  opacity: number;
+  points?: { x: number; y: number }[];
+  timestamp: number;
+  author?: string;
+}
+
+interface FormField {
+  id: string;
+  page: number;
+  type: 'text' | 'checkbox' | 'radio' | 'signature';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  value: string;
+  label?: string;
+}
+
 type ViewMode = 'single' | 'continuous' | 'two-page';
+type SidebarTab = 'thumbnails' | 'bookmarks' | 'annotations' | 'layers';
 type LoadingStage = 'downloading' | 'parsing' | 'rendering' | 'complete';
 type ErrorType = 'network' | 'corrupt' | 'password' | 'not-found' | 'unknown';
 
@@ -96,6 +151,8 @@ interface ViewerState {
   showThumbnails: boolean;
   showBookmarks: boolean;
   showSettings: boolean;
+  showSidebar: boolean;
+  sidebarTab: SidebarTab;
   isFullscreen: boolean;
   viewMode: ViewMode;
   searchText: string;
@@ -108,6 +165,17 @@ interface ViewerState {
   copied: boolean;
   pageInputValue: string;
   isMobile: boolean;
+  toolMode: ToolMode;
+  selectedAnnotation: string | null;
+  annotationColor: string;
+  annotationOpacity: number;
+  showAnnotationTools: boolean;
+  showFormTools: boolean;
+  isDrawing: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  showLayers: boolean;
+  textSelectionMode: boolean;
 }
 
 type ViewerAction =
@@ -129,6 +197,8 @@ type ViewerAction =
   | { type: 'SET_SHOW_BOOKMARKS'; payload: boolean }
   | { type: 'TOGGLE_SETTINGS' }
   | { type: 'SET_SHOW_SETTINGS'; payload: boolean }
+  | { type: 'SET_SHOW_SIDEBAR'; payload: boolean }
+  | { type: 'SET_SIDEBAR_TAB'; payload: SidebarTab }
   | { type: 'SET_FULLSCREEN'; payload: boolean }
   | { type: 'SET_VIEW_MODE'; payload: ViewMode }
   | { type: 'SET_SEARCH_TEXT'; payload: string }
@@ -141,6 +211,17 @@ type ViewerAction =
   | { type: 'SET_COPIED'; payload: boolean }
   | { type: 'SET_PAGE_INPUT_VALUE'; payload: string }
   | { type: 'SET_IS_MOBILE'; payload: boolean }
+  | { type: 'SET_TOOL_MODE'; payload: ToolMode }
+  | { type: 'SET_SELECTED_ANNOTATION'; payload: string | null }
+  | { type: 'SET_ANNOTATION_COLOR'; payload: string }
+  | { type: 'SET_ANNOTATION_OPACITY'; payload: number }
+  | { type: 'TOGGLE_ANNOTATION_TOOLS' }
+  | { type: 'TOGGLE_FORM_TOOLS' }
+  | { type: 'SET_IS_DRAWING'; payload: boolean }
+  | { type: 'SET_CAN_UNDO'; payload: boolean }
+  | { type: 'SET_CAN_REDO'; payload: boolean }
+  | { type: 'TOGGLE_LAYERS' }
+  | { type: 'SET_TEXT_SELECTION_MODE'; payload: boolean }
   | { type: 'RESET_STATE' };
 
 // ============================================================================
@@ -162,6 +243,8 @@ const initialState: ViewerState = {
   showThumbnails: true,
   showBookmarks: false,
   showSettings: false,
+  showSidebar: true,
+  sidebarTab: 'thumbnails',
   isFullscreen: false,
   viewMode: 'continuous',
   searchText: '',
@@ -174,6 +257,17 @@ const initialState: ViewerState = {
   copied: false,
   pageInputValue: '1',
   isMobile: false,
+  toolMode: 'select',
+  selectedAnnotation: null,
+  annotationColor: '#FFEB3B',
+  annotationOpacity: 0.5,
+  showAnnotationTools: false,
+  showFormTools: false,
+  isDrawing: false,
+  canUndo: false,
+  canRedo: false,
+  showLayers: false,
+  textSelectionMode: true,
 };
 
 function viewerReducer(state: ViewerState, action: ViewerAction): ViewerState {
@@ -240,6 +334,32 @@ function viewerReducer(state: ViewerState, action: ViewerAction): ViewerState {
       return { ...state, pageInputValue: action.payload };
     case 'SET_IS_MOBILE':
       return { ...state, isMobile: action.payload, showThumbnails: action.payload ? false : state.showThumbnails };
+    case 'SET_SHOW_SIDEBAR':
+      return { ...state, showSidebar: action.payload };
+    case 'SET_SIDEBAR_TAB':
+      return { ...state, sidebarTab: action.payload, showSidebar: true };
+    case 'SET_TOOL_MODE':
+      return { ...state, toolMode: action.payload };
+    case 'SET_SELECTED_ANNOTATION':
+      return { ...state, selectedAnnotation: action.payload };
+    case 'SET_ANNOTATION_COLOR':
+      return { ...state, annotationColor: action.payload };
+    case 'SET_ANNOTATION_OPACITY':
+      return { ...state, annotationOpacity: action.payload };
+    case 'TOGGLE_ANNOTATION_TOOLS':
+      return { ...state, showAnnotationTools: !state.showAnnotationTools, showFormTools: false };
+    case 'TOGGLE_FORM_TOOLS':
+      return { ...state, showFormTools: !state.showFormTools, showAnnotationTools: false };
+    case 'SET_IS_DRAWING':
+      return { ...state, isDrawing: action.payload };
+    case 'SET_CAN_UNDO':
+      return { ...state, canUndo: action.payload };
+    case 'SET_CAN_REDO':
+      return { ...state, canRedo: action.payload };
+    case 'TOGGLE_LAYERS':
+      return { ...state, showLayers: !state.showLayers };
+    case 'SET_TEXT_SELECTION_MODE':
+      return { ...state, textSelectionMode: action.payload };
     case 'RESET_STATE':
       return { ...initialState, isMobile: state.isMobile };
     default:
@@ -461,6 +581,10 @@ export default function PDFViewer({
 }: PDFViewerProps) {
   const [state, dispatch] = useReducer(viewerReducer, initialState);
   const [bookmarks, setBookmarks] = useLocalStorage<BookmarkItem[]>(`pdf-bookmarks-${fileName}`, []);
+  const [annotations, setAnnotations] = useLocalStorage<Annotation[]>(`pdf-annotations-${fileName}`, []);
+  const [formFields, setFormFields] = useLocalStorage<FormField[]>(`pdf-forms-${fileName}`, []);
+  const [annotationHistory, setAnnotationHistory] = useState<Annotation[][]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -960,6 +1084,106 @@ export default function PDFViewer({
   const isPageBookmarked = useCallback(
     (page: number) => bookmarks.some((b) => b.page === page),
     [bookmarks]
+  );
+
+  // ============================================================================
+  // Annotation Handlers
+  // ============================================================================
+
+  const addAnnotation = useCallback((annotation: Omit<Annotation, 'id' | 'timestamp'>) => {
+    const newAnnotation: Annotation = {
+      ...annotation,
+      id: `ann-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: Date.now(),
+    };
+    
+    setAnnotations((prev) => {
+      const updated = [...prev, newAnnotation];
+      // Save to history for undo/redo
+      setAnnotationHistory((history) => {
+        const newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push(updated);
+        return newHistory;
+      });
+      setHistoryIndex((idx) => idx + 1);
+      dispatch({ type: 'SET_CAN_UNDO', payload: true });
+      dispatch({ type: 'SET_CAN_REDO', payload: false });
+      return updated;
+    });
+  }, [historyIndex, setAnnotations]);
+
+  const updateAnnotation = useCallback((id: string, updates: Partial<Annotation>) => {
+    setAnnotations((prev) => {
+      const updated = prev.map((ann) => (ann.id === id ? { ...ann, ...updates } : ann));
+      setAnnotationHistory((history) => {
+        const newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push(updated);
+        return newHistory;
+      });
+      setHistoryIndex((idx) => idx + 1);
+      dispatch({ type: 'SET_CAN_UNDO', payload: true });
+      dispatch({ type: 'SET_CAN_REDO', payload: false });
+      return updated;
+    });
+  }, [historyIndex, setAnnotations]);
+
+  const deleteAnnotation = useCallback((id: string) => {
+    setAnnotations((prev) => {
+      const updated = prev.filter((ann) => ann.id !== id);
+      setAnnotationHistory((history) => {
+        const newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push(updated);
+        return newHistory;
+      });
+      setHistoryIndex((idx) => idx + 1);
+      dispatch({ type: 'SET_CAN_UNDO', payload: true });
+      dispatch({ type: 'SET_CAN_REDO', payload: false });
+      return updated;
+    });
+    if (state.selectedAnnotation === id) {
+      dispatch({ type: 'SET_SELECTED_ANNOTATION', payload: null });
+    }
+  }, [historyIndex, state.selectedAnnotation, setAnnotations]);
+
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setAnnotations(annotationHistory[newIndex] || []);
+      dispatch({ type: 'SET_CAN_UNDO', payload: newIndex > 0 });
+      dispatch({ type: 'SET_CAN_REDO', payload: true });
+    }
+  }, [historyIndex, annotationHistory, setAnnotations]);
+
+  const handleRedo = useCallback(() => {
+    if (historyIndex < annotationHistory.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setAnnotations(annotationHistory[newIndex]);
+      dispatch({ type: 'SET_CAN_UNDO', payload: true });
+      dispatch({ type: 'SET_CAN_REDO', payload: newIndex < annotationHistory.length - 1 });
+    }
+  }, [historyIndex, annotationHistory, setAnnotations]);
+
+  const handleSaveAnnotations = useCallback(async () => {
+    // In a real implementation, this would save to a backend
+    try {
+      const data = JSON.stringify({ annotations, formFields }, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${fileName.replace('.pdf', '')}-annotations.json`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Save annotations error:', err);
+    }
+  }, [annotations, formFields, fileName]);
+
+  const getPageAnnotations = useCallback(
+    (page: number) => annotations.filter((ann) => ann.page === page),
+    [annotations]
   );
 
   // ============================================================================
@@ -1723,6 +1947,189 @@ export default function PDFViewer({
               )}
             </div>
 
+            {/* Annotation Tools */}
+            <div className="hidden lg:block h-6 w-px bg-slate-200 dark:bg-slate-700" />
+            
+            <div className="relative hidden lg:block">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => dispatch({ type: 'TOGGLE_ANNOTATION_TOOLS' })}
+                title="Açıklama Araçları"
+                className="h-8 w-8 sm:h-10 sm:w-10"
+              >
+                <Highlighter className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
+
+              {state.showAnnotationTools && (
+                <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 p-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Açıklama Araçları</h3>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => dispatch({ type: 'TOGGLE_ANNOTATION_TOOLS' })}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs text-slate-500 mb-1.5 block">Araç Seçimi</label>
+                      <div className="grid grid-cols-4 gap-1">
+                        {[
+                          { mode: 'select' as ToolMode, icon: MousePointer, label: 'Seç' },
+                          { mode: 'hand' as ToolMode, icon: Hand, label: 'El' },
+                          { mode: 'highlight' as ToolMode, icon: Highlighter, label: 'Vurgula' },
+                          { mode: 'underline' as ToolMode, icon: Underline, label: 'Alt Çizgi' },
+                          { mode: 'strikethrough' as ToolMode, icon: Strikethrough, label: 'Üstü Çizili' },
+                          { mode: 'note' as ToolMode, icon: StickyNote, label: 'Not' },
+                          { mode: 'text' as ToolMode, icon: Type, label: 'Metin' },
+                          { mode: 'rectangle' as ToolMode, icon: Square, label: 'Dikdörtgen' },
+                          { mode: 'circle' as ToolMode, icon: Circle, label: 'Daire' },
+                          { mode: 'arrow' as ToolMode, icon: ArrowRight, label: 'Ok' },
+                          { mode: 'freehand' as ToolMode, icon: Pencil, label: 'Serbest' },
+                          { mode: 'signature' as ToolMode, icon: PenTool, label: 'İmza' },
+                        ].map(({ mode, icon: Icon, label }) => (
+                          <Button
+                            key={mode}
+                            variant={state.toolMode === mode ? 'default' : 'outline'}
+                            size="sm"
+                            className="h-12 flex flex-col items-center justify-center gap-1 text-[10px]"
+                            onClick={() => dispatch({ type: 'SET_TOOL_MODE', payload: mode })}
+                            title={label}
+                          >
+                            <Icon className="h-4 w-4" />
+                            <span className="truncate w-full text-center">{label}</span>
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-slate-500 mb-1.5 block">Renk</label>
+                      <div className="grid grid-cols-8 gap-1">
+                        {[
+                          '#FFEB3B', '#FFC107', '#FF9800', '#FF5722',
+                          '#F44336', '#E91E63', '#9C27B0', '#673AB7',
+                          '#3F51B5', '#2196F3', '#03A9F4', '#00BCD4',
+                          '#009688', '#4CAF50', '#8BC34A', '#CDDC39',
+                        ].map((color) => (
+                          <button
+                            key={color}
+                            className={cn(
+                              'w-6 h-6 rounded border-2 transition-all',
+                              state.annotationColor === color
+                                ? 'border-slate-900 dark:border-white scale-110'
+                                : 'border-transparent hover:border-slate-300'
+                            )}
+                            style={{ backgroundColor: color }}
+                            onClick={() => dispatch({ type: 'SET_ANNOTATION_COLOR', payload: color })}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-slate-500 mb-1.5 block">
+                        Opaklık: {Math.round(state.annotationOpacity * 100)}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={state.annotationOpacity}
+                        onChange={(e) => dispatch({ type: 'SET_ANNOTATION_OPACITY', payload: parseFloat(e.target.value) })}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div className="flex gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-8 text-xs"
+                        onClick={handleUndo}
+                        disabled={!state.canUndo}
+                      >
+                        <Undo className="h-3 w-3 mr-1" />
+                        Geri Al
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-8 text-xs"
+                        onClick={handleRedo}
+                        disabled={!state.canRedo}
+                      >
+                        <Redo className="h-3 w-3 mr-1" />
+                        Yinele
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-8 text-xs"
+                        onClick={handleSaveAnnotations}
+                      >
+                        <Save className="h-3 w-3 mr-1" />
+                        Kaydet
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sidebar Tabs */}
+            <div className="hidden lg:flex items-center bg-slate-100 dark:bg-slate-900 rounded-md border border-slate-200 dark:border-slate-700">
+              <Button
+                variant={state.sidebarTab === 'thumbnails' ? 'default' : 'ghost'}
+                size="icon"
+                onClick={() => dispatch({ type: 'SET_SIDEBAR_TAB', payload: 'thumbnails' })}
+                title="Küçük Resimler"
+                className="h-8 w-8"
+              >
+                <FileText className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={state.sidebarTab === 'bookmarks' ? 'default' : 'ghost'}
+                size="icon"
+                onClick={() => dispatch({ type: 'SET_SIDEBAR_TAB', payload: 'bookmarks' })}
+                title="Yer İmleri"
+                className="h-8 w-8"
+              >
+                <Bookmark className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={state.sidebarTab === 'annotations' ? 'default' : 'ghost'}
+                size="icon"
+                onClick={() => dispatch({ type: 'SET_SIDEBAR_TAB', payload: 'annotations' })}
+                title="Açıklamalar"
+                className="h-8 w-8 relative"
+              >
+                <Highlighter className="h-4 w-4" />
+                {annotations.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                    {annotations.length}
+                  </span>
+                )}
+              </Button>
+              <Button
+                variant={state.sidebarTab === 'layers' ? 'default' : 'ghost'}
+                size="icon"
+                onClick={() => dispatch({ type: 'SET_SIDEBAR_TAB', payload: 'layers' })}
+                title="Katmanlar"
+                className="h-8 w-8"
+              >
+                <Layers className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="hidden sm:block h-6 w-px bg-slate-200 dark:bg-slate-700" />
+
             {/* Action Buttons */}
             <Button
               variant="ghost"
@@ -1801,75 +2208,167 @@ export default function PDFViewer({
 
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden bg-white dark:bg-slate-900 rounded-lg shadow-lg relative">
-          {/* Thumbnails Sidebar */}
-          {state.showThumbnails && !state.isMobile && (
-            <aside className="w-40 sm:w-48 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 overflow-y-auto p-2 sm:p-4 flex-shrink-0">
-              <h2 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white mb-2 sm:mb-4">
-                Sayfalar
-              </h2>
-              <div className="space-y-2 sm:space-y-4">
-                {thumbnailList?.map((page) => (
-                  <ThumbnailPage
-                    key={page}
-                    fileUrl={fileUrl}
-                    page={page}
-                    rotation={state.rotation}
-                    isActive={page === state.pageNumber}
-                    isBookmarked={isPageBookmarked(page)}
-                    searchMatchCount={state.searchResults.find((r) => r.page === page)?.matches || 0}
-                    onClick={() => goToPage(page)}
-                  />
-                ))}
+          {/* Unified Sidebar */}
+          {state.showSidebar && !state.isMobile && (
+            <aside className="w-56 sm:w-64 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 overflow-y-auto flex-shrink-0">
+              <div className="sticky top-0 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 p-3 z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                    {state.sidebarTab === 'thumbnails' && 'Sayfalar'}
+                    {state.sidebarTab === 'bookmarks' && 'Yer İmleri'}
+                    {state.sidebarTab === 'annotations' && 'Açıklamalar'}
+                    {state.sidebarTab === 'layers' && 'Katmanlar'}
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => dispatch({ type: 'SET_SHOW_SIDEBAR', payload: false })}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="p-3">
+                {state.sidebarTab === 'thumbnails' && (
+                  <div className="space-y-3">
+                    {thumbnailList?.map((page) => (
+                      <ThumbnailPage
+                        key={page}
+                        fileUrl={fileUrl}
+                        page={page}
+                        rotation={state.rotation}
+                        isActive={page === state.pageNumber}
+                        isBookmarked={isPageBookmarked(page)}
+                        searchMatchCount={state.searchResults.find((r) => r.page === page)?.matches || 0}
+                        onClick={() => goToPage(page)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {state.sidebarTab === 'bookmarks' && (
+                  <div className="space-y-2">
+                    {bookmarks.length === 0 ? (
+                      <div className="text-center py-8 text-slate-400 text-sm">
+                        <Bookmark className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>Henüz yer imi yok</p>
+                        <p className="text-xs mt-1">Ctrl+B ile ekleyin</p>
+                      </div>
+                    ) : (
+                      bookmarks.map((bookmark) => (
+                        <div
+                          key={bookmark.page}
+                          className={cn(
+                            'group w-full flex items-center gap-2 p-2 rounded-md text-left transition-colors cursor-pointer',
+                            bookmark.page === state.pageNumber
+                              ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                              : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                          )}
+                          onClick={() => goToPage(bookmark.page)}
+                        >
+                          <BookmarkCheck className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{bookmark.title}</p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleBookmark(bookmark.page);
+                            }}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {state.sidebarTab === 'annotations' && (
+                  <div className="space-y-2">
+                    {annotations.length === 0 ? (
+                      <div className="text-center py-8 text-slate-400 text-sm">
+                        <Highlighter className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>Henüz açıklama yok</p>
+                        <p className="text-xs mt-1">Araç çubuğundan ekleyin</p>
+                      </div>
+                    ) : (
+                      annotations.map((annotation) => (
+                        <div
+                          key={annotation.id}
+                          className={cn(
+                            'group w-full flex items-start gap-2 p-2 rounded-md text-left transition-colors cursor-pointer',
+                            state.selectedAnnotation === annotation.id
+                              ? 'bg-blue-100 dark:bg-blue-900/30'
+                              : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                          )}
+                          onClick={() => {
+                            dispatch({ type: 'SET_SELECTED_ANNOTATION', payload: annotation.id });
+                            goToPage(annotation.page);
+                          }}
+                        >
+                          <div
+                            className="w-4 h-4 rounded flex-shrink-0 mt-0.5"
+                            style={{ backgroundColor: annotation.color, opacity: annotation.opacity }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-slate-500">Sayfa {annotation.page}</p>
+                            <p className="text-sm truncate">{annotation.type}</p>
+                            {annotation.text && (
+                              <p className="text-xs text-slate-500 truncate mt-1">{annotation.text}</p>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteAnnotation(annotation.id);
+                            }}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {state.sidebarTab === 'layers' && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
+                      <div className="flex items-center gap-2">
+                        <Eye className="h-4 w-4" />
+                        <span className="text-sm">PDF İçeriği</span>
+                      </div>
+                      <input type="checkbox" defaultChecked className="rounded" />
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
+                      <div className="flex items-center gap-2">
+                        <Highlighter className="h-4 w-4" />
+                        <span className="text-sm">Açıklamalar ({annotations.length})</span>
+                      </div>
+                      <input type="checkbox" defaultChecked className="rounded" />
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
+                      <div className="flex items-center gap-2">
+                        <Square className="h-4 w-4" />
+                        <span className="text-sm">Form Alanları ({formFields.length})</span>
+                      </div>
+                      <input type="checkbox" defaultChecked className="rounded" />
+                    </div>
+                  </div>
+                )}
               </div>
             </aside>
           )}
 
-          {/* Bookmarks Panel */}
-          {state.showBookmarks && bookmarks.length > 0 && (
-            <aside className="w-48 sm:w-56 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 overflow-y-auto p-4 flex-shrink-0">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Yer İmleri</h2>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={() => dispatch({ type: 'SET_SHOW_BOOKMARKS', payload: false })}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {bookmarks.map((bookmark) => (
-                  <div
-                    key={bookmark.page}
-                    className={cn(
-                      'group w-full flex items-center gap-2 p-2 rounded-md text-left transition-colors cursor-pointer',
-                      bookmark.page === state.pageNumber
-                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                        : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-                    )}
-                    onClick={() => goToPage(bookmark.page)}
-                  >
-                    <BookmarkCheck className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{bookmark.title}</p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleBookmark(bookmark.page);
-                      }}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </aside>
-          )}
 
           {/* PDF Display */}
           <main

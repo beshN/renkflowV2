@@ -1,0 +1,293 @@
+'use client';
+
+import React, { useEffect, useCallback } from 'react';
+import { usePDFStore } from '@/stores/usePDFStore';
+import { PDFRenderer } from './components/PDFRenderer';
+import { PDFToolbar } from './components/PDFToolbar';
+import { PDFSidebar } from './components/PDFSidebar';
+import { PDFSearch } from './components/PDFSearch';
+import { AnnotationTools } from './components/AnnotationTools';
+import { LoadingOverlay } from './LoadingOverlay';
+import { ErrorOverlay } from './ErrorOverlay';
+import { cn } from '@/lib/utils';
+
+interface PDFViewerV2Props {
+  fileUrl: string;
+  fileName: string;
+  onClose?: () => void;
+  className?: string;
+}
+
+export const PDFViewerV2: React.FC<PDFViewerV2Props> = ({
+  fileUrl,
+  fileName,
+  onClose,
+  className,
+}) => {
+  // Store selectors
+  const loading = usePDFStore((state) => state.loading);
+  const loadProgress = usePDFStore((state) => state.loadProgress);
+  const loadingStage = usePDFStore((state) => state.loadingStage);
+  const error = usePDFStore((state) => state.error);
+  const errorType = usePDFStore((state) => state.errorType);
+  const retryCount = usePDFStore((state) => state.retryCount);
+  const isFullscreen = usePDFStore((state) => state.isFullscreen);
+  const isMobile = usePDFStore((state) => state.isMobile);
+  
+  // Store actions
+  const setDocument = usePDFStore((state) => state.setDocument);
+  const resetDocument = usePDFStore((state) => state.resetDocument);
+  const setLoading = usePDFStore((state) => state.setLoading);
+  const setError = usePDFStore((state) => state.setError);
+  const incrementRetry = usePDFStore((state) => state.incrementRetry);
+  const resetRetry = usePDFStore((state) => state.resetRetry);
+  const setIsMobile = usePDFStore((state) => state.setIsMobile);
+  const setFullscreen = usePDFStore((state) => state.setFullscreen);
+  const toggleSearch = usePDFStore((state) => state.toggleSearch);
+  const toggleSidebar = usePDFStore((state) => state.toggleSidebar);
+  const nextPage = usePDFStore((state) => state.nextPage);
+  const previousPage = usePDFStore((state) => state.previousPage);
+  const zoomIn = usePDFStore((state) => state.zoomIn);
+  const zoomOut = usePDFStore((state) => state.zoomOut);
+  const undo = usePDFStore((state) => state.undo);
+  const redo = usePDFStore((state) => state.redo);
+  
+  // Initialize document
+  useEffect(() => {
+    setDocument(fileUrl, fileName);
+    setLoading(true);
+    
+    return () => {
+      resetDocument();
+    };
+  }, [fileUrl, fileName, setDocument, setLoading, resetDocument]);
+  
+  // Detect mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [setIsMobile]);
+  
+  // Fullscreen change listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setFullscreen(!!document.fullscreenElement);
+    };
+    
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, [setFullscreen]);
+  
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      
+      const ctrl = e.ctrlKey || e.metaKey;
+      
+      // Navigation
+      if (e.key === 'ArrowLeft' && !ctrl) {
+        previousPage();
+        e.preventDefault();
+      } else if (e.key === 'ArrowRight' && !ctrl) {
+        nextPage();
+        e.preventDefault();
+      }
+      
+      // Zoom
+      else if (e.key === '+' && ctrl) {
+        zoomIn();
+        e.preventDefault();
+      } else if (e.key === '-' && ctrl) {
+        zoomOut();
+        e.preventDefault();
+      }
+      
+      // Search
+      else if (e.key === 'f' && ctrl) {
+        toggleSearch();
+        e.preventDefault();
+      }
+      
+      // Sidebar
+      else if (e.key === 't' && !ctrl) {
+        toggleSidebar();
+        e.preventDefault();
+      }
+      
+      // Undo/Redo
+      else if (e.key === 'z' && ctrl && !e.shiftKey) {
+        undo();
+        e.preventDefault();
+      } else if (e.key === 'y' && ctrl) {
+        redo();
+        e.preventDefault();
+      } else if (e.key === 'z' && ctrl && e.shiftKey) {
+        redo();
+        e.preventDefault();
+      }
+      
+      // Close
+      else if (e.key === 'Escape') {
+        onClose?.();
+      }
+      
+      // Fullscreen
+      else if (e.key === 'F11') {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen();
+        } else {
+          document.exitFullscreen();
+        }
+        e.preventDefault();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [
+    nextPage,
+    previousPage,
+    zoomIn,
+    zoomOut,
+    toggleSearch,
+    toggleSidebar,
+    undo,
+    redo,
+    onClose,
+  ]);
+  
+  // Handle retry
+  const handleRetry = useCallback(() => {
+    if (retryCount < 3) {
+      incrementRetry();
+      setError(null);
+      setLoading(true);
+      setDocument(fileUrl, fileName);
+    }
+  }, [retryCount, incrementRetry, setError, setLoading, setDocument, fileUrl, fileName]);
+  
+  // Handle download
+  const handleDownload = useCallback(async () => {
+    try {
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download error:', err);
+    }
+  }, [fileUrl, fileName]);
+  
+  // Handle print
+  const handlePrint = useCallback(() => {
+    window.print();
+  }, []);
+  
+  // Handle share
+  const handleShare = useCallback(async () => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(fileUrl);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = fileUrl;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+    } catch (err) {
+      console.error('Share error:', err);
+    }
+  }, [fileUrl]);
+  
+  return (
+    <div
+      className={cn(
+        'fixed inset-0 z-50 bg-slate-900/95 backdrop-blur-sm flex flex-col',
+        isFullscreen && 'bg-black',
+        className
+      )}
+    >
+      {/* Loading Overlay */}
+      {loading && (
+        <LoadingOverlay
+          progress={loadProgress}
+          stage={loadingStage}
+        />
+      )}
+      
+      {/* Error Overlay */}
+      {error && (
+        <ErrorOverlay
+          message={error}
+          onRetry={handleRetry}
+          onClose={onClose || (() => {})}
+          retryCount={retryCount}
+        />
+      )}
+      
+      {/* Main Content */}
+      {!loading && !error && (
+        <>
+          {/* Toolbar */}
+          <PDFToolbar
+            fileName={fileName}
+            onClose={onClose}
+            onDownload={handleDownload}
+            onPrint={handlePrint}
+            onShare={handleShare}
+          />
+          
+          {/* Search Bar */}
+          <PDFSearch />
+          
+          {/* Content Area */}
+          <div className="flex-1 flex overflow-hidden">
+            {/* Sidebar */}
+            <PDFSidebar />
+            
+            {/* PDF Renderer */}
+            <PDFRenderer
+              onDocumentLoadSuccess={(numPages) => {
+                console.log(`PDF loaded: ${numPages} pages`);
+              }}
+              onDocumentLoadError={(error) => {
+                console.error('PDF load error:', error);
+              }}
+            />
+          </div>
+          
+          {/* Annotation Tools (Floating) */}
+          <div className="fixed bottom-6 right-6 z-50">
+            <AnnotationTools />
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default PDFViewerV2;

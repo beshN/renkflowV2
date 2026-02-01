@@ -88,8 +88,6 @@ export default function ContactPage() {
                   <div>
                     <h3 className="font-semibold text-lg text-foreground mb-1">Ofis</h3>
                     <p className="text-muted-foreground">Güngören İstanbul</p>
-                    <p className="text-muted-foreground">Sanayi Mah. Teknopark Bulvarı</p>
-                    <p className="text-muted-foreground">Pendik / İstanbul</p>
                   </div>
                 </div>
               </div>

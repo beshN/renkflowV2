@@ -22,8 +22,10 @@ import {
   UserRound,
   Search,
   Activity,
-  Bell
+  Bell,
+  Wallet,
 } from 'lucide-react';
+import { canAccessFinance, hasPermission, Permission, UserRole } from '@/lib/auth/permissions';
 
 interface NavItem {
   icon: LucideIcon;
@@ -31,19 +33,22 @@ interface NavItem {
   href: string;
   adminOnly: boolean;
   action?: string;
+  requiresPermission?: Permission;
+  requiresFinanceAccess?: boolean;
 }
 
 const navItems: NavItem[] = [
   { icon: Home, label: 'Ana Sayfa', href: '/dashboard', adminOnly: false },
-  { icon: Receipt, label: 'Siparişler', href: '/orders', adminOnly: false },
-  { icon: PlusCircle, label: 'Yeni Sipariş', href: '/new-order', adminOnly: false },
+  { icon: Receipt, label: 'Siparişler', href: '/orders', adminOnly: false, requiresPermission: 'orders.view' },
+  { icon: PlusCircle, label: 'Yeni Sipariş', href: '/new-order', adminOnly: false, requiresPermission: 'orders.create' },
   { icon: Search, label: 'Arama', href: '/search', adminOnly: false },
   { icon: Bell, label: 'Bildirimler', href: '/notifications', adminOnly: false },
-  { icon: BarChart3, label: 'Raporlar', href: '/reports', adminOnly: false },
-  { icon: Activity, label: 'Analitik', href: '/analytics', adminOnly: false },
-  { icon: Users, label: 'Ekip', href: '/team', adminOnly: false },
+  { icon: Wallet, label: 'Finans', href: '/finance', adminOnly: false, requiresFinanceAccess: true },
+  { icon: BarChart3, label: 'Raporlar', href: '/reports', adminOnly: false, requiresPermission: 'reports.view' },
+  { icon: Activity, label: 'Analitik', href: '/analytics', adminOnly: false, requiresPermission: 'analytics.view' },
+  { icon: Users, label: 'Ekip', href: '/team', adminOnly: false, requiresPermission: 'team.view' },
   { icon: UserRound, label: 'Üyeler', href: '/members', adminOnly: false },
-  { icon: Settings, label: 'Ayarlar', href: '/settings', adminOnly: false },
+  { icon: Settings, label: 'Ayarlar', href: '/settings', adminOnly: false, requiresPermission: 'settings.view' },
   { icon: LogOut, label: 'Çıkış Yap', href: '#', adminOnly: false, action: 'logout' },
 ];
 
@@ -54,10 +59,28 @@ export function Sidebar() {
   const [isHovered, setIsHovered] = useState(false);
   const [logoFailed, setLogoFailed] = useState({ compact: false, full: false });
 
-  // Filter nav items based on user role
+  // Filter nav items based on user role and permissions
   const filteredNavItems = navItems.filter(item => {
-    if (!item.adminOnly) return true;
-    return user?.role === 'owner' || user?.role === 'admin';
+    // Admin only items
+    if (item.adminOnly && user?.role !== 'owner' && user?.role !== 'admin') {
+      return false;
+    }
+    
+    // Finance access check
+    if (item.requiresFinanceAccess && user?.role) {
+      if (!canAccessFinance(user.role as UserRole)) {
+        return false;
+      }
+    }
+    
+    // Permission check
+    if (item.requiresPermission && user?.role) {
+      if (!hasPermission(user.role as UserRole, item.requiresPermission)) {
+        return false;
+      }
+    }
+    
+    return true;
   });
 
   // Close mobile menu on route change

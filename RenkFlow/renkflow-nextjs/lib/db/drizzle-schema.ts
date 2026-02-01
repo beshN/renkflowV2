@@ -73,7 +73,7 @@ export const tenantMembers = pgTable('tenant_members', {
   id: uuid('id').defaultRandom().primaryKey(),
   tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
-  role: text('role', { enum: ['owner', 'admin', 'office', 'worker', 'member'] }).default('member'),
+  role: text('role', { enum: ['owner', 'admin', 'accountant', 'office', 'worker', 'member'] }).default('member'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   uniqueTenantUser: unique().on(table.tenantId, table.userId),
@@ -98,7 +98,7 @@ export const invitations = pgTable('invitations', {
   id: uuid('id').defaultRandom().primaryKey(),
   tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
   email: text('email').notNull(),
-  role: text('role', { enum: ['admin', 'office', 'worker', 'member'] }).default('member'),
+  role: text('role', { enum: ['admin', 'accountant', 'office', 'worker', 'member'] }).default('member'),
   token: text('token').unique().notNull(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

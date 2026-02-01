@@ -8,6 +8,9 @@ import { Card } from '@/components/ui/Card';
 import { useOrders } from '@/lib/hooks/useOrders';
 import { useAuth } from '@/lib/context/AuthContext';
 import { ArrowUpRight, TrendingUp, AlertTriangle, Gauge, CalendarClock } from 'lucide-react';
+import { RevenueChart } from '@/components/analytics/RevenueChart';
+import { OrderStatusChart } from '@/components/analytics/OrderStatusChart';
+import { OrderVolumeChart } from '@/components/analytics/OrderVolumeChart';
 
 export default function AnalyticsPage() {
   const { orders } = useOrders();
@@ -50,16 +53,6 @@ export default function AnalyticsPage() {
       completionRate,
     };
   }, [orders]);
-
-  const statusBreakdown = useMemo(() => {
-    return [
-      { label: 'Beklemede', value: metrics.pending, color: 'bg-amber-400', text: 'text-amber-600' },
-      { label: 'Üretimde', value: metrics.production, color: 'bg-sky-500', text: 'text-sky-600' },
-      { label: 'Teslim', value: metrics.delivered, color: 'bg-emerald-500', text: 'text-emerald-600' },
-    ];
-  }, [metrics]);
-
-  const maxValue = Math.max(...statusBreakdown.map((item) => item.value), 1);
 
   return (
     <div className="flex-1 flex flex-col">
@@ -137,30 +130,14 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card spotlight className="p-6">
-            <h3 className="text-lg font-semibold text-text-light dark:text-text-dark mb-4">Durum Dağılımı</h3>
-            <div className="space-y-4">
-              {statusBreakdown.map((item) => (
-                <div key={item.label} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className={`h-3 w-3 rounded-full ${item.color}`} />
-                      <span className="text-slate-700 dark:text-slate-200">{item.label}</span>
-                    </div>
-                    <span className="text-slate-500 dark:text-slate-400">{item.value}</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div
-                      className={`h-full ${item.color}`}
-                      style={{ width: `${(item.value / maxValue) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+          <RevenueChart orders={orders || []} />
+          <OrderStatusChart orders={orders || []} />
+        </div>
 
-          <Card spotlight className="p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <OrderVolumeChart orders={orders || []} />
+
+          <Card spotlight className="p-6 h-[400px]">
             <h3 className="text-lg font-semibold text-text-light dark:text-text-dark mb-4">Operasyon Sağlığı</h3>
             <div className="space-y-4 text-sm text-subtle-light dark:text-subtle-dark">
               <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700/60 dark:bg-slate-900/60">

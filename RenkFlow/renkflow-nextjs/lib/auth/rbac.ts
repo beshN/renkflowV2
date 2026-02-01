@@ -7,7 +7,7 @@
 // Types & Constants
 // ============================================
 
-export type UserRole = 'owner' | 'admin' | 'office' | 'worker' | 'member';
+export type UserRole = 'owner' | 'admin' | 'accountant' | 'office' | 'worker' | 'member';
 
 export type Resource = 
   | 'orders'
@@ -71,6 +71,17 @@ const PERMISSION_MATRIX: Record<UserRole, Permission[]> = {
     { resource: 'billing', actions: ['read'] },
   ],
 
+  // Accountant: Finance-focused role, read-only orders, full finance access
+  accountant: [
+    { resource: 'orders', actions: ['read', 'list'] },
+    { resource: 'documents', actions: ['create', 'read', 'list'] },
+    { resource: 'users', actions: ['read', 'list'] },
+    { resource: 'tenants', actions: ['read'] },
+    { resource: 'analytics', actions: ['read', 'export'] },
+    { resource: 'settings', actions: ['read'] },
+    { resource: 'billing', actions: ['read'] },
+  ],
+
   // Office: Can manage orders and documents, limited user access
   office: [
     { resource: 'orders', actions: ['create', 'read', 'update', 'list', 'export'] },
@@ -109,6 +120,7 @@ const PERMISSION_MATRIX: Record<UserRole, Permission[]> = {
 const ROLE_HIERARCHY: Record<UserRole, number> = {
   owner: 100,
   admin: 80,
+  accountant: 70,
   office: 60,
   worker: 40,
   member: 20,

@@ -77,8 +77,8 @@ describe('Pagination Component', () => {
   it('should show summary when showSummary is true', () => {
     render(<Pagination {...defaultProps} showSummary={true} />);
 
-    expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByText('100')).toBeInTheDocument();
+    expect(screen.getByText(/common\.total/)).toBeInTheDocument();
   });
 
   it('should call onLimitChange when limit selector changes', () => {

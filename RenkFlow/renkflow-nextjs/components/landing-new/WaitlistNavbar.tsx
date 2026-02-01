@@ -5,6 +5,7 @@ import { Moon, Sun } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
+import { LanguageSelector } from '@/components/ui/LanguageSelector';
 
 export const WaitlistNavbar = () => {
   const { resolvedTheme, setTheme } = useTheme();
@@ -54,6 +55,8 @@ export const WaitlistNavbar = () => {
 
           {/* Right Actions - Theme Toggle Only */}
           <div className="flex items-center gap-4">
+             <LanguageSelector variant="dropdown" showLabel={false} />
+             
              {/* Theme Toggle */}
              <button
                 onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}

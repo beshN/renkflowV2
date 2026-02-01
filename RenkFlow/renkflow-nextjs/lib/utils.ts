@@ -14,7 +14,14 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function formatCurrency(amount: number | null | undefined, currency: string = '₺'): string {
   if (amount === null || amount === undefined) return `${currency}0,00`;
-  return `${currency}${amount.toLocaleString('tr-TR', {
+  const currencyMap: Record<string, string> = {
+    TRY: '₺',
+    USD: '$',
+    EUR: '€',
+    GBP: '£',
+  };
+  const symbol = currencyMap[currency] || currency;
+  return `${symbol}${amount.toLocaleString('tr-TR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
