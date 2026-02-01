@@ -2,6 +2,7 @@
 
 import { useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Navbar } from '@/components/layout/Navbar';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Card } from '@/components/ui/Card';
@@ -9,6 +10,7 @@ import { RecentOrdersTable } from '@/components/dashboard/RecentOrdersTable';
 import { useOrders } from '@/lib/hooks/useOrders';
 import { useAuth } from '@/lib/context/AuthContext';
 import { StatsCardData } from '@/lib/types';
+import { ShoppingBag, Factory, CheckCircle2, Banknote } from 'lucide-react';
 
 export default function DashboardPage() {
   const { orders } = useOrders();
@@ -34,7 +36,7 @@ export default function DashboardPage() {
       {
         title: 'Toplam Sipariş',
         value: totalOrders.toString(),
-        icon: 'shopping_bag',
+        icon: ShoppingBag,
         trend: { value: 12, isPositive: true },
         color: 'text-primary',
         href: '/orders'
@@ -42,7 +44,7 @@ export default function DashboardPage() {
       {
         title: 'Aktif Üretim',
         value: activeProduction.toString(),
-        icon: 'factory',
+        icon: Factory,
         trend: { value: 3, isPositive: true },
         color: 'text-blue-600',
         href: '/orders?status=in_production'
@@ -50,7 +52,7 @@ export default function DashboardPage() {
       {
         title: 'Teslim Edildi',
         value: delivered.toString(),
-        icon: 'check_circle',
+        icon: CheckCircle2,
         trend: { value: 8, isPositive: true },
         color: 'text-green-600',
         href: '/orders?status=delivered'
@@ -58,7 +60,7 @@ export default function DashboardPage() {
       {
         title: 'Toplam Gelir',
         value: `₺${(totalRevenue || 0).toLocaleString('tr-TR')}`,
-        icon: 'payments',
+        icon: Banknote,
         trend: { value: 15, isPositive: true },
         color: 'text-yellow-600',
         href: '/orders' // Could go to a finance/reports page later
@@ -81,6 +83,43 @@ export default function DashboardPage() {
     ];
   }, [orders]);
 
+  const dashboardInsights = useMemo(() => {
+    const totalOrders = orders?.length || 0;
+    const delivered = orders?.filter((o) => o.status === 'delivered').length || 0;
+    const completionRate = totalOrders > 0 ? Math.round((delivered / totalOrders) * 100) : 0;
+    const totalRevenue = orders?.reduce((sum, order) => sum + order.totalAmount, 0) || 0;
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const overdue = (orders || []).filter((o) => {
+      if (!o.deliveryDate) return false;
+      if (o.status === 'delivered') return false;
+      const due = new Date(o.deliveryDate);
+      return due < today;
+    }).length;
+
+    return {
+      completionRate,
+      avgOrderValue,
+      overdue,
+    };
+  }, [orders]);
+
+  const focusOrders = useMemo(() => {
+    if (!orders || orders.length === 0) return [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const soon = new Date(today);
+    soon.setDate(today.getDate() + 7);
+    return orders
+      .filter((o) => o.deliveryDate && o.status !== 'delivered')
+      .map((o) => ({ ...o, deliveryDateObj: new Date(o.deliveryDate!) }))
+      .filter((o) => o.deliveryDateObj <= soon)
+      .sort((a, b) => a.deliveryDateObj.getTime() - b.deliveryDateObj.getTime())
+      .slice(0, 4);
+  }, [orders]);
+
   // Monthly trend (last 6 months simulation)
   const monthlyTrend = useMemo(() => {
     return [
@@ -100,6 +139,72 @@ export default function DashboardPage() {
       <Navbar title="Dashboard" showSearch={true} />
       
       <main className="flex-1 p-4 md:p-8 pt-16 md:pt-8">
+        {/* Action Center */}
+        <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_1fr] gap-6 mb-8">
+          <Card spotlight className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Hızlı Başlangıç</p>
+                <h2 className="text-2xl md:text-3xl font-bold text-text-light dark:text-text-dark">Bugün ne yapmak istersiniz?</h2>
+                <p className="text-sm md:text-base text-subtle-light dark:text-subtle-dark max-w-xl">
+                  Sipariş oluşturun, üretim kanbanına göz atın veya ekip ayarlarını güncelleyin.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href="/new-order"
+                  className="inline-flex items-center justify-center rounded-full bg-slate-900 text-white px-5 py-2.5 text-sm font-semibold shadow-[0_18px_40px_-24px_rgba(15,23,42,0.7)] hover:opacity-90"
+                >
+                  Yeni Sipariş
+                </Link>
+                <Link
+                  href="/orders"
+                  className="inline-flex items-center justify-center rounded-full border border-slate-200/70 bg-white/70 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:border-sky-200 hover:text-slate-900 dark:border-slate-700/70 dark:bg-slate-900/60 dark:text-slate-200"
+                >
+                  Siparişleri Gör
+                </Link>
+                <Link
+                  href="/kanban"
+                  className="inline-flex items-center justify-center rounded-full border border-slate-200/70 bg-white/70 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:border-emerald-200 hover:text-slate-900 dark:border-slate-700/70 dark:bg-slate-900/60 dark:text-slate-200"
+                >
+                  Üretim Kanban
+                </Link>
+                <Link
+                  href="/settings"
+                  className="inline-flex items-center justify-center rounded-full border border-slate-200/70 bg-white/70 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:text-slate-900 dark:border-slate-700/70 dark:bg-slate-900/60 dark:text-slate-200"
+                >
+                  Ayarlar
+                </Link>
+              </div>
+            </div>
+          </Card>
+
+          <Card spotlight className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">İçgörü</p>
+                <h3 className="text-xl font-semibold text-text-light dark:text-text-dark mt-2">Haftalık sağlık özeti</h3>
+              </div>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Son 7 gün</span>
+            </div>
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700/60 dark:bg-slate-900/60">
+                <p className="text-xs text-slate-500 dark:text-slate-400">Tamamlama Oranı</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{dashboardInsights.completionRate}%</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700/60 dark:bg-slate-900/60">
+                <p className="text-xs text-slate-500 dark:text-slate-400">Ortalama Sipariş</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                  ₺{Math.round(dashboardInsights.avgOrderValue || 0).toLocaleString('tr-TR')}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-rose-200/70 bg-rose-50/60 p-4 text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+                <p className="text-xs">Geciken</p>
+                <p className="text-2xl font-bold">{dashboardInsights.overdue}</p>
+              </div>
+            </div>
+          </Card>
+        </div>
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
           {statsData.map((stat) => (
@@ -207,15 +312,57 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Recent Orders */}
-        <Card spotlight className="p-0">
-          <div className="p-6 border-b border-border-light dark:border-border-dark">
-            <h3 className="text-lg font-semibold text-text-light dark:text-text-dark">
-              Son Siparişler
-            </h3>
-          </div>
-          <RecentOrdersTable orders={orders?.slice(0, 5) || []} />
-        </Card>
+        {/* Recent Orders + Focus */}
+        <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-6">
+          <Card spotlight className="p-0">
+            <div className="p-6 border-b border-border-light dark:border-border-dark">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-text-light dark:text-text-dark">
+                  Son Siparişler
+                </h3>
+                <Link href="/orders" className="text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+                  Tümünü Gör
+                </Link>
+              </div>
+            </div>
+            <RecentOrdersTable orders={orders?.slice(0, 5) || []} />
+          </Card>
+
+          <Card spotlight className="p-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-text-light dark:text-text-dark">Öncelikli İşler</h3>
+              <span className="text-xs text-slate-500 dark:text-slate-400">7 gün</span>
+            </div>
+            <div className="mt-6 space-y-4">
+              {focusOrders.length === 0 && (
+                <div className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  Harika! Yaklaşan teslimat yok.
+                </div>
+              )}
+              {focusOrders.map((order) => (
+                <div key={order.id} className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700/60 dark:bg-slate-900/60">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{order.productName || 'Sipariş'}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {order.customerName} • {order.orderNumber || String(order.id).slice(0, 8)}
+                      </p>
+                    </div>
+                    <span className="text-xs rounded-full bg-amber-100 px-2 py-1 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200">
+                      {order.deliveryDate}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                    <span>{order.status === 'in_production' ? 'Üretimde' : 'Beklemede'}</span>
+                    <Link href={`/orders/${order.id}`} className="text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white">
+                      Detaya git →
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
       </main>
     </div>
   );

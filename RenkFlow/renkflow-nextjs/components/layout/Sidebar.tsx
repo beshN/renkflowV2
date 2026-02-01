@@ -8,9 +8,23 @@ import { useAuth } from '@/lib/context/AuthContext';
 import { useState, useEffect, useCallback } from 'react';
 import { signOut } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { LucideIcon } from 'lucide-react';
+import { 
+  Home, 
+  Receipt, 
+  PlusCircle, 
+  Settings, 
+  LogOut, 
+  Menu, 
+  X,
+  BarChart3,
+  Users,
+  Activity,
+  Bell
+} from 'lucide-react';
 
 interface NavItem {
-  icon: string;
+  icon: LucideIcon;
   label: string;
   href: string;
   adminOnly: boolean;
@@ -18,11 +32,15 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { icon: 'home', label: 'Ana Sayfa', href: '/dashboard', adminOnly: false },
-  { icon: 'receipt_long', label: 'Siparişler', href: '/orders', adminOnly: false },
-  { icon: 'add_circle', label: 'Yeni Sipariş', href: '/new-order', adminOnly: false },
-  { icon: 'settings', label: 'Ayarlar', href: '/settings', adminOnly: false },
-  { icon: 'logout', label: 'Çıkış Yap', href: '#', adminOnly: false, action: 'logout' },
+  { icon: Home, label: 'Ana Sayfa', href: '/dashboard', adminOnly: false },
+  { icon: Receipt, label: 'Siparişler', href: '/orders', adminOnly: false },
+  { icon: PlusCircle, label: 'Yeni Sipariş', href: '/new-order', adminOnly: false },
+  { icon: Bell, label: 'Bildirimler', href: '/notifications', adminOnly: false },
+  { icon: BarChart3, label: 'Raporlar', href: '/reports', adminOnly: false },
+  { icon: Activity, label: 'Analitik', href: '/analytics', adminOnly: false },
+  { icon: Users, label: 'Ekip', href: '/team', adminOnly: false },
+  { icon: Settings, label: 'Ayarlar', href: '/settings', adminOnly: false },
+  { icon: LogOut, label: 'Çıkış Yap', href: '#', adminOnly: false, action: 'logout' },
 ];
 
 export function Sidebar() {
@@ -74,9 +92,7 @@ export function Sidebar() {
         aria-label={isMobileOpen ? "Menüyü Kapat" : "Menüyü Aç"}
         className="md:hidden fixed top-4 left-4 z-[60] p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-lg border border-white/20 dark:border-white/10 text-slate-600 dark:text-slate-300 active:scale-95 transition-all"
       >
-        <span className="material-symbols-outlined text-xl">
-          {isMobileOpen ? 'close' : 'menu'}
-        </span>
+        {isMobileOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
       {/* Mobile Overlay */}
@@ -120,8 +136,14 @@ export function Sidebar() {
              }}
              className="absolute inset-0 flex items-center justify-center pointer-events-none"
            >
-              <div className="relative h-12 w-12 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-blue-500/30">
-                R
+              <div className="relative h-12 w-12 rounded-xl overflow-hidden shadow-lg shadow-blue-500/30 bg-white">
+                <Image
+                  src="/logo-r.png"
+                  alt="RenkFlow"
+                  fill
+                  sizes="48px"
+                  className="object-contain"
+                />
               </div>
            </motion.div>
 
@@ -134,10 +156,14 @@ export function Sidebar() {
              }}
              className="absolute inset-0 flex items-center justify-center"
            >
-              <div className="relative h-24 w-48 flex items-center justify-center">
-                 <span className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400">
-                   RenkFlow
-                 </span>
+              <div className="relative h-16 w-40 flex items-center justify-center">
+                <Image
+                  src="/logo-full.png"
+                  alt="RenkFlow"
+                  fill
+                  sizes="160px"
+                  className="object-contain"
+                />
               </div>
            </motion.div>
         </div>
@@ -167,12 +193,12 @@ export function Sidebar() {
                  )}
 
                  {/* Icon */}
-                 <span className={cn(
-                   "material-symbols-outlined text-2xl transition-transform duration-300 group-hover:scale-110 flex-shrink-0 relative z-10",
+                 <div className={cn(
+                   "transition-transform duration-300 group-hover:scale-110 flex-shrink-0 relative z-10",
                    isActive ? "text-white" : "text-current"
                  )}>
-                   {item.icon}
-                 </span>
+                   <item.icon size={24} />
+                 </div>
 
                  {/* Label - Animated with Framer Motion */}
                  <span className={cn(
@@ -203,20 +229,22 @@ export function Sidebar() {
              (isHovered || isMobileOpen) ? "justify-start" : "justify-center"
            )}>
               <div className="relative h-10 w-10 rounded-full ring-2 ring-white dark:ring-slate-700 shadow-md flex-shrink-0 cursor-pointer overflow-hidden group">
-                {(() => {
-                  const name = encodeURIComponent(user?.name || 'User');
-                  const avatarUrl = user?.avatar || `https://ui-avatars.com/api/?name=${name}&background=4f46e5&color=fff`;
-                  return (
-                <Image
-                  src={avatarUrl}
-                  alt={user?.name || 'User'}
-                  fill
-                  sizes="40px"
-                  className="object-cover transition-transform duration-500 group-hover:scale-110"
-                  unoptimized
-                />
-                  );
-                })()}
+                {user?.avatar ? (
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={user.avatar}
+                      alt={user?.name || 'User'}
+                      fill
+                      sizes="40px"
+                      className="object-cover transition-transform duration-500 group-hover:scale-110"
+                      unoptimized
+                    />
+                  </div>
+                ) : (
+                   <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                      {(user?.name || 'U').charAt(0).toUpperCase()}
+                   </div>
+                )}
                 
                 {/* Status Indicator */}
                 <div className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-white dark:border-slate-900" />
