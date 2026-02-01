@@ -19,6 +19,7 @@ import {
   X,
   BarChart3,
   Users,
+  UserRound,
   Activity,
   Bell
 } from 'lucide-react';
@@ -39,6 +40,7 @@ const navItems: NavItem[] = [
   { icon: BarChart3, label: 'Raporlar', href: '/reports', adminOnly: false },
   { icon: Activity, label: 'Analitik', href: '/analytics', adminOnly: false },
   { icon: Users, label: 'Ekip', href: '/team', adminOnly: false },
+  { icon: UserRound, label: 'Üyeler', href: '/members', adminOnly: false },
   { icon: Settings, label: 'Ayarlar', href: '/settings', adminOnly: false },
   { icon: LogOut, label: 'Çıkış Yap', href: '#', adminOnly: false, action: 'logout' },
 ];

@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import {
   DndContext,
   DragOverlay,
@@ -109,6 +110,19 @@ const SortableOrderCard: React.FC<{
   };
 
   const isOverdue = order.deliveryDate && new Date(order.deliveryDate) < new Date() && order.status !== 'delivered';
+  const priorityBadge = order.priority
+    ? {
+        label: order.priority.toUpperCase(),
+        className:
+          order.priority === 'urgent'
+            ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'
+            : order.priority === 'high'
+            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+            : order.priority === 'medium'
+            ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300'
+            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+      }
+    : null;
 
   return (
     <div
@@ -152,13 +166,31 @@ const SortableOrderCard: React.FC<{
       </p>
 
       {/* Footer */}
-      <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
-        <span className="text-sm font-medium text-gray-900 dark:text-white">
-          {formatCurrency(order.totalAmount || 0, order.currency)}
-        </span>
-        <div className="flex items-center gap-1 text-xs text-gray-500">
-          <span className="material-symbols-outlined text-sm">calendar_today</span>
-          {formatDate(order.deliveryDate)}
+      <div className="flex flex-col gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-900 dark:text-white">
+            {formatCurrency(order.totalAmount || 0, order.currency)}
+          </span>
+          <div className="flex items-center gap-1 text-xs text-gray-500">
+            <span className="material-symbols-outlined text-sm">calendar_today</span>
+            {formatDate(order.deliveryDate)}
+          </div>
+        </div>
+        <div className="flex items-center justify-between text-[11px] text-gray-500">
+          <div className="flex items-center gap-2">
+            {priorityBadge && (
+              <span className={cn('px-2 py-0.5 rounded-full font-semibold', priorityBadge.className)}>
+                {priorityBadge.label}
+              </span>
+            )}
+            {order.documents?.length ? (
+              <span className="flex items-center gap-1 text-gray-500">
+                <span className="material-symbols-outlined text-sm">attach_file</span>
+                {order.documents.length}
+              </span>
+            ) : null}
+          </div>
+          <span className="text-gray-400">#{String(order.id).slice(-4)}</span>
         </div>
       </div>
 
@@ -217,15 +249,20 @@ const KanbanColumn: React.FC<{
   config: ColumnConfig;
   orders: Order[];
   wipLimit: number;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
   onOrderClick?: (order: Order) => void;
-}> = ({ config, orders, wipLimit, onOrderClick }) => {
+}> = ({ config, orders, wipLimit, collapsed = false, onToggleCollapse, onOrderClick }) => {
   const count = orders.length;
   const isOverWip = count > wipLimit;
   const totalAmount = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
   const currency = orders[0]?.currency || '₺';
+  const overdueOrders = orders.filter(
+    (o) => o.deliveryDate && new Date(o.deliveryDate) < new Date() && o.status !== 'delivered'
+  );
 
   return (
-    <div className="flex flex-col w-80 min-w-[320px] shrink-0">
+    <div className={cn('flex flex-col shrink-0', collapsed ? 'w-20' : 'w-80 min-w-[320px]')}>
       {/* Column Header */}
       <div className={cn(
         'rounded-t-xl p-4 border-2 border-b-0',
@@ -237,36 +274,53 @@ const KanbanColumn: React.FC<{
             <span className={cn('material-symbols-outlined', config.color)}>
               {config.icon}
             </span>
-            <h3 className={cn('font-semibold', config.color)}>{config.title}</h3>
+            {!collapsed && <h3 className={cn('font-semibold', config.color)}>{config.title}</h3>}
           </div>
-          <div className={cn(
-            'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
-            isOverWip
-              ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-          )}>
-            <span>{count}</span>
-            <span>/</span>
-            <span>{wipLimit}</span>
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-          <div
-            className={cn(
-              'h-full rounded-full transition-all duration-300',
-              isOverWip ? 'bg-red-500' : config.color.includes('yellow') ? 'bg-yellow-500' : config.color.includes('blue') ? 'bg-blue-500' : config.color.includes('green') ? 'bg-green-500' : 'bg-red-500'
+          <div className="flex items-center gap-2">
+            {!collapsed && (
+              <div className={cn(
+                'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
+                isOverWip
+                  ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+              )}>
+                <span>{count}</span>
+                <span>/</span>
+                <span>{wipLimit}</span>
+              </div>
             )}
-            style={{ width: `${Math.min((count / wipLimit) * 100, 100)}%` }}
-          />
+            <button
+              onClick={onToggleCollapse}
+              className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              title={collapsed ? 'Kolonu aç' : 'Kolonu daralt'}
+            >
+              <span className="material-symbols-outlined text-sm">
+                {collapsed ? 'unfold_more' : 'unfold_less'}
+              </span>
+            </button>
+          </div>
         </div>
 
-        {/* Stats */}
-        <div className="flex items-center justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">
-          <span>{count} sipariş</span>
-          <span className="font-medium">{formatCurrency(totalAmount, currency)}</span>
-        </div>
+        {!collapsed && (
+          <>
+            {/* Progress Bar */}
+            <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className={cn(
+                  'h-full rounded-full transition-all duration-300',
+                  isOverWip ? 'bg-red-500' : config.color.includes('yellow') ? 'bg-yellow-500' : config.color.includes('blue') ? 'bg-blue-500' : config.color.includes('green') ? 'bg-green-500' : 'bg-red-500'
+                )}
+                style={{ width: `${Math.min((count / wipLimit) * 100, 100)}%` }}
+              />
+            </div>
+
+            {/* Stats */}
+            <div className="flex items-center justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">
+              <span>{count} sipariş</span>
+              <span className="font-medium">{formatCurrency(totalAmount, currency)}</span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Column Body */}
@@ -275,6 +329,11 @@ const KanbanColumn: React.FC<{
         'bg-gray-50 dark:bg-gray-900/50',
         config.borderColor
       )}>
+        {collapsed ? (
+          <div className="flex items-center justify-center h-full">
+            <span className={cn('material-symbols-outlined text-xl', config.color)}>{config.icon}</span>
+          </div>
+        ) : (
         <SortableContext
           items={orders.map((o) => o.id)}
           strategy={verticalListSortingStrategy}
@@ -286,22 +345,30 @@ const KanbanColumn: React.FC<{
                 <p className="text-sm">Sipariş yok</p>
               </div>
             ) : (
-              orders.map((order) => (
-                <motion.div
-                  key={order.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                >
-                  <SortableOrderCard
-                    order={order}
-                    onClick={() => onOrderClick?.(order)}
-                  />
-                </motion.div>
-              ))
+              <>
+                {overdueOrders.length > 0 && (
+                  <div className="rounded-lg border border-red-200 bg-red-50/80 px-3 py-2 text-xs text-red-700 dark:border-red-800/40 dark:bg-red-900/20 dark:text-red-300">
+                    {overdueOrders.length} geciken sipariş var
+                  </div>
+                )}
+                {orders.map((order) => (
+                  <motion.div
+                    key={order.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                  >
+                    <SortableOrderCard
+                      order={order}
+                      onClick={() => onOrderClick?.(order)}
+                    />
+                  </motion.div>
+                ))}
+              </>
             )}
           </AnimatePresence>
         </SortableContext>
+        )}
       </div>
     </div>
   );
@@ -318,6 +385,8 @@ export const KanbanBoardV2: React.FC<KanbanBoardV2Props> = ({
 }) => {
   const { kanbanWipLimits, kanbanGroupBy } = useOrdersStore();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [collapsedColumns, setCollapsedColumns] = useState<Set<OrderStatus>>(new Set());
+  const [priorityFilter, setPriorityFilter] = useState<'all' | 'urgent' | 'high' | 'medium' | 'low'>('all');
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -330,6 +399,11 @@ export const KanbanBoardV2: React.FC<KanbanBoardV2Props> = ({
     })
   );
 
+  const filteredOrders = useMemo(() => {
+    if (priorityFilter === 'all') return orders;
+    return orders.filter((order) => order.priority === priorityFilter);
+  }, [orders, priorityFilter]);
+
   // Group orders by status
   const ordersByStatus = useMemo(() => {
     const groups: Record<OrderStatus, Order[]> = {
@@ -338,14 +412,14 @@ export const KanbanBoardV2: React.FC<KanbanBoardV2Props> = ({
       delivered: [],
     };
 
-    orders.forEach((order) => {
+    filteredOrders.forEach((order) => {
       if (groups[order.status]) {
         groups[order.status].push(order);
       }
     });
 
     return groups;
-  }, [orders]);
+  }, [filteredOrders]);
 
   // Find active order for drag overlay
   const activeOrder = useMemo(() => {
@@ -396,30 +470,84 @@ export const KanbanBoardV2: React.FC<KanbanBoardV2Props> = ({
   };
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="flex gap-4 p-4 overflow-x-auto min-h-[600px]">
-        {columns.map((column) => (
-          <KanbanColumn
-            key={column.status}
-            config={column}
-            orders={ordersByStatus[column.status]}
-            wipLimit={kanbanWipLimits[column.status] || 15}
-            onOrderClick={onOrderClick}
-          />
-        ))}
+    <div className="space-y-4">
+      {/* Board Toolbar */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+          <span className="font-semibold text-gray-900 dark:text-white">Kanban Board</span>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            {filteredOrders.length} kart
+          </span>
+          {priorityFilter !== 'all' && (
+            <button
+              onClick={() => setPriorityFilter('all')}
+              className="text-xs text-blue-600 hover:text-blue-700"
+            >
+              Filtreyi temizle
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {(['all', 'urgent', 'high', 'medium', 'low'] as const).map((priority) => (
+            <button
+              key={priority}
+              onClick={() => setPriorityFilter(priority)}
+              className={cn(
+                'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
+                priorityFilter === priority
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-white/70 text-slate-600 border-slate-200 dark:bg-slate-900/60 dark:text-slate-200 dark:border-slate-700'
+              )}
+            >
+              {priority === 'all' ? 'Tümü' : priority.toUpperCase()}
+            </button>
+          ))}
+          <Link
+            href="/new-order"
+            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700"
+          >
+            + Yeni kart
+          </Link>
+        </div>
       </div>
 
-      {/* Drag Overlay */}
-      <DragOverlay>
-        {activeOrder ? <DragOverlayCard order={activeOrder} /> : null}
-      </DragOverlay>
-    </DndContext>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex gap-4 p-4 overflow-x-auto min-h-[600px]">
+          {columns.map((column) => (
+            <KanbanColumn
+              key={column.status}
+              config={column}
+              orders={ordersByStatus[column.status]}
+              wipLimit={kanbanWipLimits[column.status] || 15}
+              collapsed={collapsedColumns.has(column.status)}
+              onToggleCollapse={() => {
+                setCollapsedColumns((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(column.status)) {
+                    next.delete(column.status);
+                  } else {
+                    next.add(column.status);
+                  }
+                  return next;
+                });
+              }}
+              onOrderClick={onOrderClick}
+            />
+          ))}
+        </div>
+
+        {/* Drag Overlay */}
+        <DragOverlay>
+          {activeOrder ? <DragOverlayCard order={activeOrder} /> : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
   );
 };
 
