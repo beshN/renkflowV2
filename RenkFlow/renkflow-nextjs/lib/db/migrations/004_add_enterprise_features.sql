@@ -1,8 +1,8 @@
 -- Enterprise features: SSO, Audit Logs, Notifications, Export Jobs
 
 CREATE TABLE IF NOT EXISTS sso_providers (
-  id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   type TEXT NOT NULL,
   metadata TEXT,
@@ -23,7 +23,7 @@ CREATE INDEX IF NOT EXISTS idx_sso_providers_tenant ON sso_providers(tenant_id);
 
 CREATE TABLE IF NOT EXISTS sso_states (
   state TEXT PRIMARY KEY,
-  provider_id TEXT NOT NULL REFERENCES sso_providers(id) ON DELETE CASCADE,
+  provider_id UUID NOT NULL REFERENCES sso_providers(id) ON DELETE CASCADE,
   callback_url TEXT NOT NULL,
   code_verifier TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -34,8 +34,8 @@ CREATE INDEX IF NOT EXISTS idx_sso_states_expires ON sso_states(expires_at);
 
 CREATE TABLE IF NOT EXISTS audit_logs (
   id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   user_email TEXT,
   action TEXT NOT NULL,
   entity_type TEXT NOT NULL,
@@ -55,8 +55,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, enti
 
 CREATE TABLE IF NOT EXISTS notifications (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   type TEXT NOT NULL,
   title TEXT NOT NULL,
   message TEXT NOT NULL,
@@ -71,7 +71,7 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_tenant ON notifications(tenant_id);
 
 CREATE TABLE IF NOT EXISTS notification_preferences (
-  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   email JSONB,
   push JSONB,
   in_app JSONB,
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS notification_preferences (
 );
 
 CREATE TABLE IF NOT EXISTS push_subscriptions (
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   endpoint TEXT PRIMARY KEY,
   p256dh TEXT NOT NULL,
   auth TEXT NOT NULL,
@@ -88,8 +88,8 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
 
 CREATE TABLE IF NOT EXISTS export_jobs (
   id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   status TEXT NOT NULL,
   progress INTEGER NOT NULL DEFAULT 0,
   format TEXT NOT NULL,

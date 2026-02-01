@@ -14,6 +14,7 @@ import {
   jsonb,
   unique,
   pgSchema,
+  boolean,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -238,6 +239,55 @@ export const newsletterSubscribers = pgTable('newsletter_subscribers', {
 });
 
 // ============================================
+// SSO Providers
+// ============================================
+
+export const ssoProviders = pgTable('sso_providers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  name: text('name').notNull(),
+  type: text('type', { enum: ['saml', 'oidc', 'google', 'azure'] }).notNull(),
+  metadata: text('metadata'),
+  clientId: text('client_id'),
+  clientSecret: text('client_secret'),
+  authorizationUrl: text('authorization_url'),
+  tokenUrl: text('token_url'),
+  userInfoUrl: text('user_info_url'),
+  issuerUrl: text('issuer_url'),
+  enabled: boolean('enabled').default(true).notNull(),
+  allowSignup: boolean('allow_signup').default(false).notNull(),
+  domainRestrictions: text('domain_restrictions').array(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const ssoProvidersRelations = relations(ssoProviders, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [ssoProviders.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
+// ============================================
+// Push Subscriptions (Web Push)
+// ============================================
+
+export const pushSubscriptions = pgTable('push_subscriptions', {
+  endpoint: text('endpoint').primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  p256dh: text('p256dh').notNull(),
+  auth: text('auth').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const pushSubscriptionsRelations = relations(pushSubscriptions, ({ one }) => ({
+  user: one(users, {
+    fields: [pushSubscriptions.userId],
+    references: [users.id],
+  }),
+}));
+
+// ============================================
 // Type Exports
 // ============================================
 
@@ -267,3 +317,9 @@ export type NewDocument = typeof documents.$inferInsert;
 
 export type NewsletterSubscriber = typeof newsletterSubscribers.$inferSelect;
 export type NewNewsletterSubscriber = typeof newsletterSubscribers.$inferInsert;
+
+export type SSOProvider = typeof ssoProviders.$inferSelect;
+export type NewSSOProvider = typeof ssoProviders.$inferInsert;
+
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type NewPushSubscription = typeof pushSubscriptions.$inferInsert;
