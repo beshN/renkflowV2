@@ -37,12 +37,12 @@ export const WaitlistNavbar = () => {
         <div className="flex items-center justify-between h-24 md:h-28">
           {/* Logo */}
           <Link href="/" className="group flex items-center">
-            <div className="relative h-14 w-48 md:h-20 md:w-72 overflow-hidden transition-transform duration-300 group-hover:scale-105">
+            <div className="relative -mt-2 md:-mt-3 h-20 w-64 md:h-24 md:w-96 overflow-hidden transition-transform duration-300 group-hover:scale-105">
               <Image 
                 src="/logo-full.png" 
                 alt="RenkFlow" 
                 fill
-                sizes="(max-width: 768px) 192px, 288px"
+                sizes="(max-width: 768px) 256px, 384px"
                 className="object-contain object-left"
                 priority
               />

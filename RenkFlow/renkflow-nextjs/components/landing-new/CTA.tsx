@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 
 export const CTA = () => {
   return (
-    <section className="py-24 bg-gradient-to-br from-sky-600 via-blue-600 to-emerald-600 dark:from-sky-700 dark:via-blue-800 dark:to-emerald-800 relative overflow-hidden">
+    <section className="py-24 bg-transparent relative overflow-hidden">
       
       {/* Animated Background */}
       <div className="absolute inset-0 opacity-10">
@@ -18,7 +18,7 @@ export const CTA = () => {
       </div>
       
       {/* Grid Pattern */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:32px_32px]" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:32px_32px]" />
       
       <div className="container mx-auto max-w-4xl px-4">
         <motion.div
