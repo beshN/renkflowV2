@@ -50,13 +50,13 @@ export const ClientsSection: React.FC = () => {
              <div className="flex animate-marquee whitespace-nowrap gap-16 items-center">
                 {/* Original Set */}
                 {clients.map((client, i) => (
-                    <div key={`original-${i}`} className="flex-shrink-0 w-32 flex justify-center">
+                    <div key={`original-${i}`} className="flex-shrink-0 w-48 flex justify-center">
                         <Image 
                             src={client.src} 
                             alt={`${client.name} logo`} 
-                            height={client.height} 
-                            width={120} 
-                            className="h-auto w-auto max-h-8 opacity-50 dark:opacity-40 grayscale hover:grayscale-0 dark:invert hover:invert-0 hover:opacity-100 dark:hover:opacity-100 transition-all cursor-pointer"
+                            height={40} 
+                            width={160} 
+                            className="h-auto w-auto max-h-12 opacity-60 dark:opacity-50 grayscale hover:grayscale-0 dark:invert hover:invert-0 hover:opacity-100 dark:hover:opacity-100 transition-all cursor-pointer"
                             unoptimized
                         />
                     </div>
@@ -64,13 +64,13 @@ export const ClientsSection: React.FC = () => {
                 
                 {/* Duplicate Set for Loop */}
                 {clients.map((client, i) => (
-                    <div key={`duplicate-${i}`} className="flex-shrink-0 w-32 flex justify-center">
+                    <div key={`duplicate-${i}`} className="flex-shrink-0 w-48 flex justify-center">
                         <Image 
                             src={client.src} 
                             alt={`${client.name} logo`} 
-                            height={client.height} 
-                            width={120} 
-                            className="h-auto w-auto max-h-8 opacity-50 dark:opacity-40 grayscale hover:grayscale-0 dark:invert hover:invert-0 hover:opacity-100 dark:hover:opacity-100 transition-all cursor-pointer"
+                            height={40} 
+                            width={160} 
+                            className="h-auto w-auto max-h-12 opacity-60 dark:opacity-50 grayscale hover:grayscale-0 dark:invert hover:invert-0 hover:opacity-100 dark:hover:opacity-100 transition-all cursor-pointer"
                             unoptimized
                         />
                     </div>
@@ -78,13 +78,13 @@ export const ClientsSection: React.FC = () => {
 
                 {/* Second Duplicate Set for Smoother Loop on large screens */}
                 {clients.map((client, i) => (
-                    <div key={`duplicate-2-${i}`} className="flex-shrink-0 w-32 flex justify-center">
+                    <div key={`duplicate-2-${i}`} className="flex-shrink-0 w-48 flex justify-center">
                         <Image 
                             src={client.src} 
                             alt={`${client.name} logo`} 
-                            height={client.height} 
-                            width={120} 
-                            className="h-auto w-auto max-h-8 opacity-50 dark:opacity-40 grayscale hover:grayscale-0 dark:invert hover:invert-0 hover:opacity-100 dark:hover:opacity-100 transition-all cursor-pointer"
+                            height={40} 
+                            width={160} 
+                            className="h-auto w-auto max-h-12 opacity-60 dark:opacity-50 grayscale hover:grayscale-0 dark:invert hover:invert-0 hover:opacity-100 dark:hover:opacity-100 transition-all cursor-pointer"
                             unoptimized
                         />
                     </div>

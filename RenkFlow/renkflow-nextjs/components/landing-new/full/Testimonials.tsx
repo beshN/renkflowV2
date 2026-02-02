@@ -58,7 +58,7 @@ export const Testimonials: React.FC = () => {
             </div>
             <div className="flex items-center mt-auto">
               <Image 
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuC1S9jX-TdsC7AweEsQIAIlwd7SS9E9o8ELcswwsnm3NNYOLTgLryYuH7h7iuWtyDQtz-Qa-Uo3nlaooX4mhhTTaJaCkjsrEXbgQXMVzAwfOIX6rYVOBosMYeil7IUHXoqitL3tdS9cvMOa2hU_OQ0Ovz6eAWcWNTVhYhuSxu5fFS9cuOS5Irx0m1A0V0QX4nD8lkoymoZHxdkBdOw9LqVifeLHiOdCvwnEh0dOztSXUrTOOWfRt26cgksvcu4D9DUJOfkt9Rl5w9hy" 
+                src="https://ui-avatars.com/api/?name=Azse+V&background=0284c7&color=fff" 
                 alt="Azse V." 
                 width={48} 
                 height={48} 
@@ -91,7 +91,7 @@ export const Testimonials: React.FC = () => {
             </div>
             <div className="flex items-center mt-auto relative z-10">
               <Image 
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqWt0rPEBfw_OXnOP_ceUmb1vsqpQDOGRwCoHWs_RmALRQVnhPGYE1NzQk2UrKlthjXfFhYTWHtpYX7jHsVDe4w5hJCU9Z9Nxo2C0C0oOWYlVitZgsrUVo-QWMnzPCYkZ7_DXgZt6XMhYEBe8EJfIMjtfDT9zV5bPAyZrK-IdnWReWfpUmCZek-wZ55c1O-7kN4loPwWXC6y_N1qmTLuJWCopjjOXh-D_NvRDYzuL23t2e7s-L3aIWqxkUPpmXBa73XpqhpJSr4fHI" 
+                src="https://ui-avatars.com/api/?name=Soma+N&background=10b981&color=fff" 
                 alt="Soma N." 
                 width={48} 
                 height={48} 
@@ -121,7 +121,7 @@ export const Testimonials: React.FC = () => {
              </div>
             <div className="flex items-center mt-auto">
               <Image 
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAhGgQYzKp3TZ3okUTzmFtaeV-YhXEx4GFx_Ct6_F9C22mRIPihL-EHgOzuVW33pbHS0ZjserIxMOTCSiYNTcWgWLNLAbURckBEB7c9LjA8c4ox3xOx2tU95TbpRYsQhffridw1c4sG1C__qycg5rFffrm1Wvj69QVLavxN0Km7Wg2Gwoc9GF4nVdlQJLrs_DJyeesu-07_ak5OIId3GLs7f2X8hPrnbbhV9xYhQoDa2lUSP-UUXGEKCKyygYoGf-hsUAADm_xI9faO" 
+                src="https://ui-avatars.com/api/?name=Lama+L&background=7c3aed&color=fff" 
                 alt="Lama L." 
                 width={48} 
                 height={48} 

@@ -131,8 +131,9 @@ export const orderLoader = new DataLoader<string, any>(
       WHERE id = ANY(${orderIds})
     `;
     
+    const ordersRows = orders as any[];
     const map = new Map();
-    for (const order of orders) {
+    for (const order of ordersRows) {
       map.set(order.id, order);
     }
     return map;
@@ -154,8 +155,9 @@ export const customerLoader = new DataLoader<string, any>(
       GROUP BY email, customer_name
     `;
     
+    const customersRows = customers as any[];
     const map = new Map();
-    for (const customer of customers) {
+    for (const customer of customersRows) {
       map.set(customer.email, customer);
     }
     return map;
@@ -208,7 +210,8 @@ export async function getOrdersWithRelations(
     LIMIT ${limit} OFFSET ${offset}
   `;
 
-  return orders.map(row => ({
+  const ordersRows = orders as any[];
+  return ordersRows.map(row => ({
     ...row,
     documents: row.documents || [],
     creator: row.creator,
@@ -216,7 +219,7 @@ export async function getOrdersWithRelations(
 }
 
 export async function getOrderWithAllRelations(orderId: string) {
-  const [order] = await sql`
+  const orderResult = await sql`
     SELECT 
       o.*,
       json_agg(
@@ -249,8 +252,8 @@ export async function getOrderWithAllRelations(orderId: string) {
     WHERE o.id = ${orderId}
     GROUP BY o.id, u.id
   `;
-
-  return order;
+  const orderRows = orderResult as any[];
+  return orderRows[0];
 }
 
 // ============================================
@@ -272,7 +275,8 @@ export async function batchUpdateStatus(
     RETURNING id
   `;
 
-  return result.length;
+  const resultRows = result as any[];
+  return resultRows.length;
 }
 
 export async function batchInsertDocuments(

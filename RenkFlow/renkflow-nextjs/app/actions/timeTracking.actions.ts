@@ -116,9 +116,10 @@ export async function createTimeEntry(
 
     revalidatePath('/time-tracking');
 
+    const rows = result as any[];
     return {
       success: true,
-      data: mapTimeEntry(result[0]),
+      data: mapTimeEntry(rows[0]),
     };
   } catch (error) {
     console.error('[TimeTracking] Create error:', error);
@@ -137,48 +138,32 @@ export async function updateTimeEntry(
     const session = await getSession();
     const validated = UpdateTimeEntrySchema.parse(data);
 
-    // Build dynamic update query
-    const updates: string[] = [];
-    const values: unknown[] = [];
-
-    if (validated.description !== undefined) {
-      updates.push('description = $' + (values.length + 1));
-      values.push(validated.description);
-    }
-    if (validated.startTime !== undefined) {
-      updates.push('start_time = $' + (values.length + 1));
-      values.push(validated.startTime);
-    }
-    if (validated.endTime !== undefined) {
-      updates.push('end_time = $' + (values.length + 1));
-      values.push(validated.endTime);
-    }
-    if (validated.duration !== undefined) {
-      updates.push('duration = $' + (values.length + 1));
-      values.push(validated.duration);
-    }
-    if (validated.billable !== undefined) {
-      updates.push('billable = $' + (values.length + 1));
-      values.push(validated.billable);
-    }
-    if (validated.tags !== undefined) {
-      updates.push('tags = $' + (values.length + 1));
-      values.push(validated.tags);
-    }
-
-    if (updates.length === 0) {
-      return { success: false, error: 'No updates provided' };
-    }
+    // Use COALESCE for partial updates
+    const description = validated.description;
+    const startTime = validated.startTime;
+    const endTime = validated.endTime;
+    const duration = validated.duration;
+    const billable = validated.billable;
+    const tags = validated.tags ? JSON.stringify(validated.tags) : null;
 
     const result = await sql`
       UPDATE time_entries
       SET 
+<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/app/actions/timeTracking.actions.ts
         description = COALESCE(${validated.description}, description),
         start_time = COALESCE(${validated.startTime}, start_time),
         end_time = COALESCE(${validated.endTime}, end_time),
         duration = COALESCE(${validated.duration}, duration),
         billable = COALESCE(${validated.billable}, billable),
         tags = COALESCE(${validated.tags}, tags),
+=======
+        description = COALESCE(${description}, description),
+        start_time = COALESCE(${startTime}::timestamptz, start_time),
+        end_time = COALESCE(${endTime}::timestamptz, end_time),
+        duration = COALESCE(${duration}, duration),
+        billable = COALESCE(${billable}, billable),
+        tags = COALESCE(${tags}::jsonb, tags),
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-98ad306b/RenkFlow/renkflow-nextjs/app/actions/timeTracking.actions.ts
         updated_at = NOW()
       WHERE id = ${entryId}
         AND tenant_id = ${session.user.tenantId}
@@ -186,7 +171,8 @@ export async function updateTimeEntry(
       RETURNING *
     `;
 
-    if (result.length === 0) {
+    const rows = result as any[];
+    if (rows.length === 0) {
       return { success: false, error: 'Time entry not found' };
     }
 
@@ -194,7 +180,7 @@ export async function updateTimeEntry(
 
     return {
       success: true,
-      data: mapTimeEntry(result[0]),
+      data: mapTimeEntry(rows[0]),
     };
   } catch (error) {
     console.error('[TimeTracking] Update error:', error);
@@ -217,7 +203,8 @@ export async function deleteTimeEntry(entryId: string): Promise<ActionResult> {
       RETURNING id
     `;
 
-    if (result.length === 0) {
+    const rows = result as any[];
+    if (rows.length === 0) {
       return { success: false, error: 'Time entry not found' };
     }
 
@@ -264,7 +251,7 @@ export async function getTimeEntries(params: {
       whereClause = sql`${whereClause} AND billable = ${billable}`;
     }
 
-    const [entries, countResult] = await Promise.all([
+    const [entriesResult, countResult] = await Promise.all([
       sql`
         SELECT * FROM time_entries
         WHERE ${whereClause}
@@ -277,11 +264,13 @@ export async function getTimeEntries(params: {
       `,
     ]);
 
+    const entries = entriesResult as any[];
+    const counts = countResult as any[];
     return {
       success: true,
       data: {
         entries: entries.map(mapTimeEntry),
-        total: parseInt(countResult[0]?.total || '0'),
+        total: parseInt(counts[0]?.total || '0'),
       },
     };
   } catch (error) {
@@ -308,11 +297,12 @@ export async function getTodayTotal(): Promise<ActionResult<{ totalSeconds: numb
         AND DATE(start_time) = ${today}
     `;
 
+    const rows = result as any[];
     return {
       success: true,
       data: {
-        totalSeconds: parseInt(result[0]?.total_seconds || '0'),
-        billableSeconds: parseInt(result[0]?.billable_seconds || '0'),
+        totalSeconds: parseInt(rows[0]?.total_seconds || '0'),
+        billableSeconds: parseInt(rows[0]?.billable_seconds || '0'),
       },
     };
   } catch (error) {
@@ -348,7 +338,8 @@ export async function getWeeklyReport(weekStart: string): Promise<ActionResult<{
       ORDER BY date
     `;
 
-    const days = result.map((row: any) => ({
+    const rows = result as any[];
+    const days = rows.map((row: any) => ({
       date: row.date,
       totalSeconds: parseInt(row.total_seconds),
       billableSeconds: parseInt(row.billable_seconds),

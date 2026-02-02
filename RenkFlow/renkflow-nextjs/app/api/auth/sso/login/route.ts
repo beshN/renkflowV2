@@ -28,22 +28,23 @@ export async function GET(request: NextRequest) {
         WHERE t.slug = ${tenantSlug} AND sp.enabled = true
         LIMIT 1
       `;
-      if (providers.length > 0) {
+      const providersRows = providers as any[];
+      if (providersRows.length > 0) {
         provider = {
-            id: providers[0].id,
-            tenantId: providers[0].tenant_id,
-            name: providers[0].name,
-            type: providers[0].type,
-            metadata: providers[0].metadata,
-            clientId: providers[0].client_id,
-            clientSecret: providers[0].client_secret,
-            authorizationUrl: providers[0].authorization_url,
-            tokenUrl: providers[0].token_url,
-            userInfoUrl: providers[0].user_info_url,
-            issuerUrl: providers[0].issuer_url,
-            enabled: providers[0].enabled,
-            allowSignup: providers[0].allow_signup,
-            domainRestrictions: providers[0].domain_restrictions || [],
+            id: providersRows[0].id,
+            tenantId: providersRows[0].tenant_id,
+            name: providersRows[0].name,
+            type: providersRows[0].type,
+            metadata: providersRows[0].metadata,
+            clientId: providersRows[0].client_id,
+            clientSecret: providersRows[0].client_secret,
+            authorizationUrl: providersRows[0].authorization_url,
+            tokenUrl: providersRows[0].token_url,
+            userInfoUrl: providersRows[0].user_info_url,
+            issuerUrl: providersRows[0].issuer_url,
+            enabled: providersRows[0].enabled,
+            allowSignup: providersRows[0].allow_signup,
+            domainRestrictions: providersRows[0].domain_restrictions || [],
         };
       }
     } else if (email) {
@@ -57,9 +58,10 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       `;
 
-      if (users.length > 0) {
+      const usersRows = users as any[];
+      if (usersRows.length > 0) {
         // User exists, check tenant SSO
-        const providers = await getSSOProviders(users[0].tenant_id);
+        const providers = await getSSOProviders(usersRows[0].tenant_id);
         if (providers.length > 0) {
           provider = providers[0];
         }
@@ -74,22 +76,23 @@ export async function GET(request: NextRequest) {
             AND ${domain} = ANY(domain_restrictions)
             LIMIT 1
          `;
-         if (providers.length > 0) {
+         const domainProvidersRows = providers as any[];
+         if (domainProvidersRows.length > 0) {
             provider = {
-                id: providers[0].id,
-                tenantId: providers[0].tenant_id,
-                name: providers[0].name,
-                type: providers[0].type,
-                metadata: providers[0].metadata,
-                clientId: providers[0].client_id,
-                clientSecret: providers[0].client_secret,
-                authorizationUrl: providers[0].authorization_url,
-                tokenUrl: providers[0].token_url,
-                userInfoUrl: providers[0].user_info_url,
-                issuerUrl: providers[0].issuer_url,
-                enabled: providers[0].enabled,
-                allowSignup: providers[0].allow_signup,
-                domainRestrictions: providers[0].domain_restrictions || [],
+                id: domainProvidersRows[0].id,
+                tenantId: domainProvidersRows[0].tenant_id,
+                name: domainProvidersRows[0].name,
+                type: domainProvidersRows[0].type,
+                metadata: domainProvidersRows[0].metadata,
+                clientId: domainProvidersRows[0].client_id,
+                clientSecret: domainProvidersRows[0].client_secret,
+                authorizationUrl: domainProvidersRows[0].authorization_url,
+                tokenUrl: domainProvidersRows[0].token_url,
+                userInfoUrl: domainProvidersRows[0].user_info_url,
+                issuerUrl: domainProvidersRows[0].issuer_url,
+                enabled: domainProvidersRows[0].enabled,
+                allowSignup: domainProvidersRows[0].allow_signup,
+                domainRestrictions: domainProvidersRows[0].domain_restrictions || [],
             };
          }
       }

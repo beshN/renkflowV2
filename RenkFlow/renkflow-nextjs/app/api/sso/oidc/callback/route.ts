@@ -43,7 +43,7 @@ async function setSessionCookie(user: any) {
 
 async function loadSessionUser(userId: string) {
   const sql = getSql();
-  const [user] = await sql`
+  const userResult = await sql`
     SELECT u.*, tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url, t.industry, t.template_key
     FROM users u
     LEFT JOIN tenant_members tm ON u.id = tm.user_id
@@ -51,6 +51,8 @@ async function loadSessionUser(userId: string) {
     WHERE u.id = ${userId}
     LIMIT 1
   `;
+  const userRows = userResult as any[];
+  const user = userRows[0];
   return {
     id: user.id,
     email: user.email,

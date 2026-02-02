@@ -52,13 +52,14 @@ export async function POST(request: NextRequest) {
       LIMIT 1
     `;
 
-    if (users.length === 0) {
+    const usersRows = users as any[];
+    if (usersRows.length === 0) {
       // Record failed attempt for rate limiting
       await authRateLimiter.recordFailure(request, 'login');
       return errorResponse('E-posta veya şifre hatalı', 401);
     }
 
-    const user = users[0];
+    const user = usersRows[0];
 
     // Check if email is verified
     if (!user.email_verified) {

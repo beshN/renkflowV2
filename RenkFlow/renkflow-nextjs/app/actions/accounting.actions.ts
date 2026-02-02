@@ -50,7 +50,8 @@ export async function getAccounts(): Promise<Account[]> {
       ORDER BY code ASC
     `;
 
-    return result.map((row: Record<string, unknown>) => ({
+    const rows = result as any[];
+    return rows.map((row: Record<string, unknown>) => ({
       id: row.id as string,
       tenantId: row.tenant_id as string,
       code: row.code as string,
@@ -87,8 +88,9 @@ export async function createAccount(
         AND tenant_id = ${session.user.tenantId}
       LIMIT 1
     `;
+    const existingRows = existing as any[];
 
-    if (existing.length > 0) {
+    if (existingRows.length > 0) {
       return { success: false, error: 'Bu hesap kodu zaten kullanılıyor' };
     }
 
@@ -109,7 +111,8 @@ export async function createAccount(
 
     revalidatePath('/finance/accounts');
 
-    const row = result[0];
+    const rows = result as any[];
+    const row = rows[0];
     return {
       success: true,
       account: {
@@ -183,8 +186,9 @@ export async function getExpenses(params?: {
     }
 
     const result = await query;
+    const rows = result as any[];
 
-    return result.map((row: Record<string, unknown>) => ({
+    return rows.map((row: Record<string, unknown>) => ({
       id: row.id as string,
       tenantId: row.tenant_id as string,
       category: row.category as Expense['category'],
@@ -231,7 +235,8 @@ export async function createExpense(
 
     revalidatePath('/finance/expenses');
 
-    const row = result[0];
+    const resultRows = result as any[];
+    const row = resultRows[0];
     return {
       success: true,
       expense: {
@@ -312,9 +317,13 @@ export async function getProfitLossReport(
         AND entry_date <= ${endDate.slice(0, 10)}
     `;
 
-    const grossRevenue = parseFloat(revenue[0]?.gross_revenue || '0');
-    const totalPayments = parseFloat(payments[0]?.total_payments || '0');
-    const totalSalaries = parseFloat(salaries[0]?.total_salaries || '0');
+    const revenueRows = revenue as any[];
+    const paymentsRows = payments as any[];
+    const salariesRows = salaries as any[];
+
+    const grossRevenue = parseFloat(revenueRows[0]?.gross_revenue || '0');
+    const totalPayments = parseFloat(paymentsRows[0]?.total_payments || '0');
+    const totalSalaries = parseFloat(salariesRows[0]?.total_salaries || '0');
 
     const expenseMap: Record<string, number> = {};
     (expenses as { category: string; total: string }[]).forEach((e) => {
@@ -414,10 +423,15 @@ export async function getBalanceSheet(asOfDate?: string): Promise<BalanceSheet |
         AND date <= ${date}
     `;
 
-    const totalCash = parseFloat(cashAndBank[0]?.total || '0');
-    const totalReceivables = parseFloat(receivables[0]?.total || '0');
-    const totalInventory = parseFloat(inventory[0]?.total || '0');
-    const totalPayables = parseFloat(payables[0]?.total || '0');
+    const cashAndBankRows = cashAndBank as any[];
+    const receivablesRows = receivables as any[];
+    const inventoryRows = inventory as any[];
+    const payablesRows = payables as any[];
+
+    const totalCash = parseFloat(cashAndBankRows[0]?.total || '0');
+    const totalReceivables = parseFloat(receivablesRows[0]?.total || '0');
+    const totalInventory = parseFloat(inventoryRows[0]?.total || '0');
+    const totalPayables = parseFloat(payablesRows[0]?.total || '0');
 
     const currentAssets = {
       cash: totalCash,
@@ -509,9 +523,13 @@ export async function getCashFlowReport(
         AND entry_date <= ${endDate.slice(0, 10)}
     `;
 
-    const cashIn = parseFloat(operatingCash[0]?.total || '0');
-    const cashOutExpenses = parseFloat(expensePayments[0]?.total || '0');
-    const cashOutSalaries = parseFloat(salaryPayments[0]?.total || '0');
+    const operatingCashRows = operatingCash as any[];
+    const expensePaymentsRows = expensePayments as any[];
+    const salaryPaymentsRows = salaryPayments as any[];
+
+    const cashIn = parseFloat(operatingCashRows[0]?.total || '0');
+    const cashOutExpenses = parseFloat(expensePaymentsRows[0]?.total || '0');
+    const cashOutSalaries = parseFloat(salaryPaymentsRows[0]?.total || '0');
 
     const netOperatingCash = cashIn - cashOutExpenses - cashOutSalaries;
 
@@ -593,11 +611,13 @@ export async function getTaxSummary(period: string): Promise<{
         AND tax_type = 'withholding'
     `;
 
+    const withholdingRows = withholding as any[];
+
     return {
       vatPayable,
       vatReceivable,
       netVat: vatPayable - vatReceivable,
-      withholdingTax: parseFloat(withholding[0]?.total || '0'),
+      withholdingTax: parseFloat(withholdingRows[0]?.total || '0'),
     };
   } catch (error) {
     console.error('[Accounting] Tax summary error:', error);

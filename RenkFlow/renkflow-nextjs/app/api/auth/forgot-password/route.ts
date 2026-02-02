@@ -59,13 +59,14 @@ export async function POST(request: NextRequest) {
       message: 'Eğer bu e-posta adresi kayıtlıysa, şifre sıfırlama linki gönderilecektir.'
     };
 
-    if (users.length === 0) {
+    const usersRows = users as any[];
+    if (usersRows.length === 0) {
       // Wait a bit to prevent timing attacks
       await new Promise(resolve => setTimeout(resolve, 100));
       return NextResponse.json(successResponse);
     }
 
-    const user = users[0];
+    const user = usersRows[0];
 
     // Rate limiting: Check if a recent reset request was made (within 2 minutes)
     if (user.password_reset_expires) {

@@ -46,7 +46,8 @@ export async function createEmployee(input: CreateEmployeeInput): Promise<Employ
 
   revalidatePath('/finance/employees');
 
-  const row = result[0];
+  const rows = result as any[];
+  const row = rows[0];
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -84,7 +85,8 @@ export async function listEmployees(includeInactive: boolean = false): Promise<E
     `;
   }
 
-  return result.map((row: any) => ({
+  const rows = result as any[];
+  return rows.map((row: any) => ({
     id: row.id,
     tenantId: row.tenant_id,
     fullName: row.full_name,
@@ -110,9 +112,10 @@ export async function getEmployeeById(employeeId: string): Promise<Employee | nu
     LIMIT 1
   `;
 
-  if (result.length === 0) return null;
+  const rows = result as any[];
+  if (rows.length === 0) return null;
 
-  const row = result[0];
+  const row = rows[0];
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -146,7 +149,8 @@ export async function updateEmployee(
     LIMIT 1
   `;
 
-  if (empCheck.length === 0) {
+  const empCheckRows = empCheck as any[];
+  if (empCheckRows.length === 0) {
     throw new Error('Çalışan bulunamadı');
   }
 
@@ -165,7 +169,8 @@ export async function updateEmployee(
   revalidatePath('/finance/employees');
   revalidatePath(`/finance/employees/${employeeId}`);
 
-  const row = result[0];
+  const rows = result as any[];
+  const row = rows[0];
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -192,8 +197,9 @@ export async function deleteEmployee(employeeId: string): Promise<void> {
     WHERE id = ${employeeId} AND tenant_id = ${context.tenantId}
     LIMIT 1
   `;
+  const empCheckRows = empCheck as any[];
 
-  if (empCheck.length === 0) {
+  if (empCheckRows.length === 0) {
     throw new Error('Çalışan bulunamadı');
   }
 
@@ -225,8 +231,9 @@ export async function addLedgerEntry(input: CreateLedgerEntryInput): Promise<Emp
     WHERE id = ${validated.employeeId} AND tenant_id = ${context.tenantId}
     LIMIT 1
   `;
+  const empCheckRows = empCheck as any[];
 
-  if (empCheck.length === 0) {
+  if (empCheckRows.length === 0) {
     throw new Error('Çalışan bulunamadı');
   }
 
@@ -250,7 +257,8 @@ export async function addLedgerEntry(input: CreateLedgerEntryInput): Promise<Emp
   revalidatePath('/finance/employees');
   revalidatePath(`/finance/employees/${validated.employeeId}`);
 
-  const row = result[0];
+  const rows = result as any[];
+  const row = rows[0];
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -298,7 +306,8 @@ export async function listLedgerEntries(
     `;
   }
 
-  return result.map((row: any) => ({
+  const rows = result as any[];
+  return rows.map((row: any) => ({
     id: row.id,
     tenantId: row.tenant_id,
     employeeId: row.employee_id,
@@ -335,7 +344,8 @@ export async function getThisMonthPayrollCost(): Promise<number> {
     AND entry_date <= ${endOfMonth}
   `;
 
-  return parseFloat(result[0]?.total || '0');
+  const rows = result as any[];
+  return parseFloat(rows[0]?.total || '0');
 }
 
 /**
@@ -356,7 +366,8 @@ export async function getEmployeeBalance(employeeId: string): Promise<number> {
     AND employee_id = ${employeeId}
   `;
 
-  return parseFloat(result[0]?.balance || '0');
+  const rows = result as any[];
+  return parseFloat(rows[0]?.balance || '0');
 }
 
 /**
@@ -382,7 +393,8 @@ export async function getEmployeeWithBalance(employeeId: string): Promise<Employ
     AND employee_id = ${employeeId}
   `;
 
-  const summary = summaryResult[0];
+  const summaryRows = summaryResult as any[];
+  const summary = summaryRows[0];
 
   return {
     ...employee,

@@ -64,14 +64,15 @@ export async function POST(request: Request) {
       LIMIT 1
     `;
 
-    if (users.length === 0) {
+    const usersRows = users as any[];
+    if (usersRows.length === 0) {
       return NextResponse.json(
         { error: 'token_expired' },
         { status: 400 }
       );
     }
 
-    const user = users[0];
+    const user = usersRows[0];
 
     // Hash new password with strong salt rounds
     const hashedPassword = await bcrypt.hash(password, 12);

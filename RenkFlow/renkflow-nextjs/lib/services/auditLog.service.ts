@@ -104,7 +104,7 @@ export class AuditLogService {
    */
   static async log(input: AuditLogInput): Promise<string> {
     try {
-      // Get request metadata from headers (async in Next.js 16)
+      // Get request metadata from headers
       const headersList = await headers();
       const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0] || 
                         headersList.get('x-real-ip') || 
@@ -144,7 +144,8 @@ export class AuditLogService {
         RETURNING id
       `;
 
-      return result[0].id;
+      const resultRows = result as any[];
+      return resultRows[0].id;
     } catch (error) {
       console.error('[AuditLogService] Failed to log audit event:', error);
       // Don't throw - audit logging should not break the main operation
@@ -161,79 +162,59 @@ export class AuditLogService {
     limit: number = 50,
     offset: number = 0
   ): Promise<{ logs: AuditLogEntry[]; total: number }> {
-    // Build WHERE conditions
-    const conditions: string[] = ['tenant_id = $1'];
-    const params: unknown[] = [tenantId];
-    let paramIndex = 2;
-
-    if (filters.action) {
-      conditions.push(`action = $${paramIndex}`);
-      params.push(filters.action);
-      paramIndex++;
-    }
-
-    if (filters.entityType) {
-      conditions.push(`entity_type = $${paramIndex}`);
-      params.push(filters.entityType);
-      paramIndex++;
-    }
-
-    if (filters.entityId) {
-      conditions.push(`entity_id = $${paramIndex}`);
-      params.push(filters.entityId);
-      paramIndex++;
-    }
-
-    if (filters.userId) {
-      conditions.push(`user_id = $${paramIndex}`);
-      params.push(filters.userId);
-      paramIndex++;
-    }
-
-    if (filters.startDate) {
-      conditions.push(`created_at >= $${paramIndex}::timestamptz`);
-      params.push(filters.startDate);
-      paramIndex++;
-    }
-
-    if (filters.endDate) {
-      conditions.push(`created_at <= $${paramIndex}::timestamptz`);
-      params.push(filters.endDate);
-      paramIndex++;
-    }
-
-    const whereClause = conditions.join(' AND ');
-
-    const client = getSql();
+    // Use parameterized query with optional filters using COALESCE pattern
+    const action = filters.action || null;
+    const entityType = filters.entityType || null;
+    const entityId = filters.entityId || null;
+    const userId = filters.userId || null;
+    const startDate = filters.startDate || null;
+    const endDate = filters.endDate || null;
 
     // Get total count
-    const countQuery = `SELECT COUNT(*) as total FROM audit_logs WHERE ${whereClause}`;
-    const countResult = await client(countQuery, params);
-    const total = parseInt(countResult[0].total, 10);
+    const countResult = await sql`
+      SELECT COUNT(*) as total FROM audit_logs
+      WHERE tenant_id = ${tenantId}
+        AND (${action}::text IS NULL OR action = ${action})
+        AND (${entityType}::text IS NULL OR entity_type = ${entityType})
+        AND (${entityId}::text IS NULL OR entity_id = ${entityId})
+        AND (${userId}::text IS NULL OR user_id = ${userId})
+        AND (${startDate}::timestamptz IS NULL OR created_at >= ${startDate}::timestamptz)
+        AND (${endDate}::timestamptz IS NULL OR created_at <= ${endDate}::timestamptz)
+    `;
+    const countRows = countResult as any[];
+    const total = parseInt(countRows[0]?.total || '0', 10);
 
     // Get paginated results
-    const logsQuery = `SELECT * FROM audit_logs 
-       WHERE ${whereClause} 
-       ORDER BY created_at DESC 
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-    const logsResult = await client(logsQuery, [...params, limit, offset]);
+    const logsResult = await sql`
+      SELECT * FROM audit_logs
+      WHERE tenant_id = ${tenantId}
+        AND (${action}::text IS NULL OR action = ${action})
+        AND (${entityType}::text IS NULL OR entity_type = ${entityType})
+        AND (${entityId}::text IS NULL OR entity_id = ${entityId})
+        AND (${userId}::text IS NULL OR user_id = ${userId})
+        AND (${startDate}::timestamptz IS NULL OR created_at >= ${startDate}::timestamptz)
+        AND (${endDate}::timestamptz IS NULL OR created_at <= ${endDate}::timestamptz)
+      ORDER BY created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `;
 
-    const logs: AuditLogEntry[] = (logsResult as Record<string, unknown>[]).map((row) => ({
-      id: row.id as string,
-      tenantId: row.tenant_id as string,
-      userId: row.user_id as string | null,
-      userEmail: row.user_email as string | null,
-      userRole: row.user_role as string | null,
-      action: row.action as AuditAction,
-      entityType: row.entity_type as EntityType,
-      entityId: row.entity_id as string | null,
-      oldValues: row.old_values as Record<string, unknown> | null,
-      newValues: row.new_values as Record<string, unknown> | null,
-      ipAddress: row.ip_address as string | null,
-      userAgent: row.user_agent as string | null,
-      requestId: row.request_id as string | null,
-      metadata: (row.metadata as Record<string, unknown>) || {},
-      createdAt: row.created_at as string,
+    const logsRows = logsResult as any[];
+    const logs: AuditLogEntry[] = logsRows.map((row: any) => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      userId: row.user_id,
+      userEmail: row.user_email,
+      userRole: row.user_role,
+      action: row.action,
+      entityType: row.entity_type,
+      entityId: row.entity_id,
+      oldValues: row.old_values,
+      newValues: row.new_values,
+      ipAddress: row.ip_address,
+      userAgent: row.user_agent,
+      requestId: row.request_id,
+      metadata: row.metadata,
+      createdAt: row.created_at,
     }));
 
     return { logs, total };
@@ -257,7 +238,8 @@ export class AuditLogService {
       LIMIT ${limit}
     `;
 
-    return result.map((row: any) => ({
+    const resultRows = result as any[];
+    return resultRows.map((row: any) => ({
       id: row.id,
       tenantId: row.tenant_id,
       userId: row.user_id,
@@ -326,18 +308,23 @@ export class AuditLogService {
       LIMIT 10
     `;
 
+    const totalRows = totalResult as any[];
+    const actionRows = actionResult as any[];
+    const userRows = userResult as any[];
+    const recentRows = recentResult as any[];
+
     return {
-      totalEvents: parseInt(totalResult[0].total, 10),
-      eventsByAction: actionResult.reduce((acc: Record<string, number>, row: any) => {
+      totalEvents: parseInt(totalRows[0].total, 10),
+      eventsByAction: actionRows.reduce((acc: Record<string, number>, row: any) => {
         acc[row.action] = parseInt(row.count, 10);
         return acc;
       }, {}),
-      eventsByUser: userResult.map((row: any) => ({
+      eventsByUser: userRows.map((row: any) => ({
         userId: row.user_id,
         email: row.user_email || 'Unknown',
         count: parseInt(row.count, 10),
       })),
-      recentActivity: recentResult.map((row: any) => ({
+      recentActivity: recentRows.map((row: any) => ({
         id: row.id,
         tenantId: row.tenant_id,
         userId: row.user_id,

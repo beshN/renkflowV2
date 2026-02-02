@@ -24,16 +24,17 @@ export async function GET(request: NextRequest) {
       LIMIT 1
     `;
 
-    if (users.length > 0 && users[0].password_reset_token === token) {
+    const usersRows = users as any[];
+    if (usersRows.length > 0 && usersRows[0].password_reset_token === token) {
       await sql`
         UPDATE users
         SET password_reset_token = ${tokenHash}, updated_at = NOW()
-        WHERE id = ${users[0].id}
+        WHERE id = ${usersRows[0].id}
         AND password_reset_token = ${token}
       `;
     }
 
-    return NextResponse.json({ valid: users.length > 0 });
+    return NextResponse.json({ valid: usersRows.length > 0 });
   } catch (error) {
     console.error('Token verification error:', error);
     return NextResponse.json({ valid: false });

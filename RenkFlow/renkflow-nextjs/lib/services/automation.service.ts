@@ -620,7 +620,7 @@ export const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
       executionCount: 0,
       trigger: {
         type: 'due_date_approaching',
-        config: { threshold: 0 }, // 0 = already overdue
+        config: { threshold: 0 },
       },
       conditions: [
         { field: 'status', operator: 'not_equals', value: 'delivered' },
@@ -735,7 +735,7 @@ export const AUTOMATION_TEMPLATES: AutomationTemplate[] = [
           type: 'archive_task',
           config: {},
           order: 0,
-          delay: 30 * 24 * 60 * 60, // 30 days in seconds
+          delay: 30 * 24 * 60 * 60,
         },
       ],
     },

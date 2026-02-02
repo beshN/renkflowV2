@@ -53,7 +53,8 @@ export async function POST(request: Request) {
       LIMIT 1
     `;
 
-    if (members.length === 0 || !['owner', 'admin'].includes(members[0].role)) {
+    const membersRows = members as any[];
+    if (membersRows.length === 0 || !['owner', 'admin'].includes(membersRows[0].role)) {
       return NextResponse.json({ error: 'Bu işlem için yetkiniz yok' }, { status: 403 });
     }
 
@@ -62,15 +63,17 @@ export async function POST(request: Request) {
       SELECT id FROM users WHERE email = ${email} LIMIT 1
     `;
 
-    if (existingUsers.length > 0) {
+    const existingUsersRows = existingUsers as any[];
+    if (existingUsersRows.length > 0) {
       // Check if already a member of this tenant
       const existingMember = await sql`
         SELECT id FROM tenant_members 
-        WHERE tenant_id = ${tenantId} AND user_id = ${existingUsers[0].id}
+        WHERE tenant_id = ${tenantId} AND user_id = ${existingUsersRows[0].id}
         LIMIT 1
       `;
+      const existingMemberRows = existingMember as any[];
 
-      if (existingMember.length > 0) {
+      if (existingMemberRows.length > 0) {
         return NextResponse.json({ error: 'Bu kullanıcı zaten ekipte' }, { status: 400 });
       }
     }
@@ -82,7 +85,8 @@ export async function POST(request: Request) {
       LIMIT 1
     `;
 
-    if (existingInvite.length > 0) {
+    const existingInviteRows = existingInvite as any[];
+    if (existingInviteRows.length > 0) {
       return NextResponse.json({ error: 'Bu e-posta için zaten bekleyen bir davet var' }, { status: 400 });
     }
 

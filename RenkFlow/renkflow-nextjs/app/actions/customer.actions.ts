@@ -48,8 +48,9 @@ export async function createCustomer(
         AND tenant_id = ${session.user.tenantId}
       LIMIT 1
     `;
+    const existingRows = existing as any[];
     
-    if (existing.length > 0) {
+    if (existingRows.length > 0) {
       return { success: false, error: 'Bu firma zaten kayıtlı' };
     }
     
@@ -76,7 +77,8 @@ export async function createCustomer(
     
     revalidatePath('/crm');
     
-    const row = result[0];
+    const resultRows = result as any[];
+    const row = resultRows[0];
     return {
       success: true,
       customer: {
@@ -148,7 +150,8 @@ export async function createInteraction(
     
     revalidatePath(`/crm/${validatedData.customerId}`);
     
-    const row = result[0];
+    const resultRows = result as any[];
+    const row = resultRows[0];
     return {
       success: true,
       interaction: {
@@ -200,7 +203,8 @@ export async function getCustomerStats(): Promise<{
       WHERE tenant_id = ${session.user.tenantId}
     `;
     
-    const row = stats[0];
+    const statsRows = stats as any[];
+    const row = statsRows[0];
     return {
       totalCustomers: row.total_customers,
       activeCustomers: row.active_customers,

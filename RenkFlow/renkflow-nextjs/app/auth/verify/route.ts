@@ -33,14 +33,15 @@ export async function GET(request: NextRequest) {
       LIMIT 1
     `;
 
-    if (existingUsers.length === 0) {
+    const existingUsersRows = existingUsers as any[];
+    if (existingUsersRows.length === 0) {
       return NextResponse.redirect(
         new URL('/auth/login?error=invalid_token', request.url)
       );
     }
 
     // Check if already verified
-    if (existingUsers[0].email_verified) {
+    if (existingUsersRows[0].email_verified) {
       // Already verified, redirect to login with success
       return NextResponse.redirect(
         new URL('/auth/login?verified=true', request.url)
@@ -59,7 +60,8 @@ export async function GET(request: NextRequest) {
       RETURNING id, email, name
     `;
 
-    if (users.length === 0) {
+    const usersRows = users as any[];
+    if (usersRows.length === 0) {
       return NextResponse.redirect(
         new URL('/auth/login?error=invalid_token', request.url)
       );

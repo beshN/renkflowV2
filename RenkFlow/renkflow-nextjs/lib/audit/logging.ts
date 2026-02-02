@@ -198,9 +198,11 @@ export async function queryAuditLogs(
     LIMIT ${limit} OFFSET ${offset}
   `;
 
+  const entriesRows = entries as any[];
+  const countRows = countResult as any[];
   return {
-    entries: entries.map(mapAuditEntry),
-    total: parseInt(countResult[0].total),
+    entries: entriesRows.map(mapAuditEntry),
+    total: parseInt(countRows[0].total),
   };
 }
 
@@ -218,7 +220,8 @@ export async function getEntityHistory(
     ORDER BY timestamp DESC
   `;
 
-  return entries.map(mapAuditEntry);
+  const entriesRows = entries as any[];
+  return entriesRows.map(mapAuditEntry);
 }
 
 // ============================================
@@ -234,7 +237,9 @@ export async function generateGDPRReport(
   dataLocations: string[];
 }> {
   // Get user data
-  const [user] = await sql`SELECT * FROM users WHERE id = ${userId}`;
+  const userResult = await sql`SELECT * FROM users WHERE id = ${userId}`;
+  const userRows = userResult as any[];
+  const user = userRows[0];
   
   // Get user's audit trail
   const { entries: auditTrail } = await queryAuditLogs({
@@ -245,11 +250,12 @@ export async function generateGDPRReport(
 
   // Get all orders created by user
   const orders = await sql`SELECT * FROM orders WHERE created_by = ${userId}`;
+  const ordersRows = orders as any[];
 
   return {
     personalData: {
       user: sanitizeUserData(user),
-      orders: orders.map(o => ({ id: o.id, customerEmail: o.email })),
+      orders: ordersRows.map(o => ({ id: o.id, customerEmail: o.email })),
     },
     auditTrail,
     dataLocations: ['users', 'orders', 'audit_logs', 'documents'],
@@ -301,8 +307,9 @@ export async function verifyLogIntegrity(
   `;
 
   const tamperedEntries: string[] = [];
+  const entriesRows = entries as any[];
 
-  for (const entry of entries) {
+  for (const entry of entriesRows) {
     const recomputedHash = generateLogHash({
       ...entry,
       timestamp: new Date(entry.timestamp),

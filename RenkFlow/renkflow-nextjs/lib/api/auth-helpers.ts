@@ -5,7 +5,8 @@ import jwt from 'jsonwebtoken';
 // JWT Secret with strict production enforcement
 const JWT_SECRET = process.env.AUTH_SECRET || process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
 const IS_PROD = process.env.NODE_ENV === 'production';
-if (!JWT_SECRET) {
+const IS_BUILD_TIME = process.env.NEXT_PHASE === 'phase-production-build';
+if (!JWT_SECRET && !IS_BUILD_TIME) {
   if (IS_PROD) {
     throw new Error('[SECURITY] Missing JWT secret in production. Set AUTH_SECRET or JWT_SECRET or NEXTAUTH_SECRET.');
   } else {

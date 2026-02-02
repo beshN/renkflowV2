@@ -180,12 +180,22 @@ export async function getFinanceOverview(): Promise<FinanceOverviewData> {
     `,
   ]);
 
-  const thisMonthPayments = parseFloat(thisMonthPaymentsResult[0].total);
-  const lastMonthPayments = parseFloat(lastMonthPaymentsResult[0].total);
-  const totalRevenue = parseFloat(outstandingResult[0].total_revenue);
-  const totalPaid = parseFloat(outstandingResult[0].total_paid);
-  const thisMonthPayrollTotal = parseFloat(payrollThisMonth[0].total);
-  const lastMonthPayrollTotal = parseFloat(payrollLastMonth[0].total);
+  // Cast all results to any[]
+  const thisMonthPaymentsRows = thisMonthPaymentsResult as any[];
+  const lastMonthPaymentsRows = lastMonthPaymentsResult as any[];
+  const outstandingRows = outstandingResult as any[];
+  const payrollThisMonthRows = payrollThisMonth as any[];
+  const payrollLastMonthRows = payrollLastMonth as any[];
+  const employeeCountsRows = employeeCounts as any[];
+  const orderCountsRows = orderCounts as any[];
+  const documentCountsRows = documentCounts as any[];
+
+  const thisMonthPayments = parseFloat(thisMonthPaymentsRows[0]?.total || '0');
+  const lastMonthPayments = parseFloat(lastMonthPaymentsRows[0]?.total || '0');
+  const totalRevenue = parseFloat(outstandingRows[0]?.total_revenue || '0');
+  const totalPaid = parseFloat(outstandingRows[0]?.total_paid || '0');
+  const thisMonthPayrollTotal = parseFloat(payrollThisMonthRows[0]?.total || '0');
+  const lastMonthPayrollTotal = parseFloat(payrollLastMonthRows[0]?.total || '0');
 
   // Calculate trends
   const paymentTrend = lastMonthPayments > 0 
@@ -209,16 +219,16 @@ export async function getFinanceOverview(): Promise<FinanceOverviewData> {
     
     thisMonthPayroll: thisMonthPayrollTotal,
     lastMonthPayroll: lastMonthPayrollTotal,
-    employeeCount: parseInt(employeeCounts[0].total),
-    activeEmployeeCount: parseInt(employeeCounts[0].active),
+    employeeCount: parseInt(employeeCountsRows[0]?.total || '0'),
+    activeEmployeeCount: parseInt(employeeCountsRows[0]?.active || '0'),
     
-    orderCount: parseInt(orderCounts[0].total),
-    paidOrderCount: parseInt(orderCounts[0].paid),
-    partialPaidOrderCount: parseInt(orderCounts[0].partial),
-    unpaidOrderCount: parseInt(orderCounts[0].unpaid),
+    orderCount: parseInt(orderCountsRows[0]?.total || '0'),
+    paidOrderCount: parseInt(orderCountsRows[0]?.paid || '0'),
+    partialPaidOrderCount: parseInt(orderCountsRows[0]?.partial || '0'),
+    unpaidOrderCount: parseInt(orderCountsRows[0]?.unpaid || '0'),
     
-    documentCount: parseInt(documentCounts[0].total),
-    thisMonthDocumentCount: parseInt(documentCounts[0].this_month),
+    documentCount: parseInt(documentCountsRows[0]?.total || '0'),
+    thisMonthDocumentCount: parseInt(documentCountsRows[0]?.this_month || '0'),
     
     paymentTrend,
     payrollTrend,
@@ -252,8 +262,9 @@ export async function getDailyPaymentTrend(days: number = 30): Promise<DailyPaym
   `;
 
   // Fill in missing days
+  const rows = result as any[];
   const data: DailyPaymentData[] = [];
-  const resultMap = new Map(result.map((r: any) => [r.date, r]));
+  const resultMap = new Map(rows.map((r: any) => [r.date, r]));
 
   for (let i = 0; i < days; i++) {
     const date = new Date(startDate);
@@ -318,11 +329,12 @@ export async function getPaymentMethodBreakdown(
   }
 
   const result = await query;
+  const rows = result as any[];
 
   // Calculate total for percentages
-  const total = result.reduce((sum: number, r: any) => sum + parseFloat(r.amount), 0);
+  const total = rows.reduce((sum: number, r: any) => sum + parseFloat(r.amount), 0);
 
-  return result.map((r: any) => ({
+  return rows.map((r: any) => ({
     method: r.method,
     amount: parseFloat(r.amount),
     count: parseInt(r.count),
@@ -357,7 +369,8 @@ export async function getTopCustomers(limit: number = 10): Promise<TopCustomerDa
     LIMIT ${limit}
   `;
 
-  return result.map((r: any) => ({
+  const rows = result as any[];
+  return rows.map((r: any) => ({
     customerId: '', // No customer table yet
     customerName: r.customer_name,
     totalAmount: parseFloat(r.total_amount),
@@ -414,8 +427,10 @@ export async function getMonthlySummary(months: number = 12): Promise<MonthlySum
   ]);
 
   // Create a map for easy lookup
-  const paymentMap = new Map(payments.map((p: any) => [`${p.year}-${p.month}`, p]));
-  const payrollMap = new Map(payroll.map((p: any) => [`${p.year}-${p.month}`, p]));
+  const paymentsRows = payments as any[];
+  const payrollRows = payroll as any[];
+  const paymentMap = new Map(paymentsRows.map((p: any) => [`${p.year}-${p.month}`, p]));
+  const payrollMap = new Map(payrollRows.map((p: any) => [`${p.year}-${p.month}`, p]));
 
   const result: MonthlySummary[] = [];
   const monthNames = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];

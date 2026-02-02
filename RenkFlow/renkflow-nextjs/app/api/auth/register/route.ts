@@ -152,7 +152,8 @@ export async function POST(request: NextRequest) {
       SELECT id FROM users WHERE email = ${email} LIMIT 1
     `;
 
-    if (existingUsers.length > 0) {
+    const existingUsersRows = existingUsers as any[];
+    if (existingUsersRows.length > 0) {
       return NextResponse.json(
         { error: 'Bu e-posta adresi zaten kullanılıyor', field: 'email' },
         { status: 400 }
@@ -172,11 +173,12 @@ export async function POST(request: NextRequest) {
       RETURNING id
     `;
 
-    if (users.length === 0) {
+    const usersRows = users as any[];
+    if (usersRows.length === 0) {
       throw new Error('User creation failed');
     }
 
-    const userId = users[0].id;
+    const userId = usersRows[0].id;
 
     // Create tenant with sanitized name
     const tenantName = companyName || `${name}'in Şirketi`;
@@ -193,11 +195,12 @@ export async function POST(request: NextRequest) {
       RETURNING id
     `;
 
-    if (tenants.length > 0) {
+    const tenantsRows = tenants as any[];
+    if (tenantsRows.length > 0) {
       // Link user to tenant as owner
       await sql`
         INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
-        VALUES (${tenants[0].id}, ${userId}, 'owner', NOW())
+        VALUES (${tenantsRows[0].id}, ${userId}, 'owner', NOW())
       `;
     }
 

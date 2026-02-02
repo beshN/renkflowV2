@@ -22,7 +22,8 @@ export async function POST(request: Request) {
       LIMIT 1
     `;
 
-    if (members.length === 0 || !['owner', 'admin'].includes(members[0].role)) {
+    const membersRows = members as any[];
+    if (membersRows.length === 0 || !['owner', 'admin'].includes(membersRows[0].role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

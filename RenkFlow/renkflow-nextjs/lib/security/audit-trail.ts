@@ -5,7 +5,7 @@
  * - Tamper-proof logging
  */
 
-import { sql } from '@/lib/db';
+import { sql, sqlQuery } from '@/lib/db';
 
 // ============================================
 // Types
@@ -330,14 +330,14 @@ class AuditTrail {
 
     // Count total
     const countQuery = query.replace('SELECT *', 'SELECT COUNT(*)');
-    const countResult = await sql(countQuery, params);
+    const countResult = await sqlQuery(countQuery, params);
     const total = parseInt(countResult[0]?.count || '0', 10);
 
     // Add pagination
     query += ` ORDER BY timestamp DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(pageSize, (page - 1) * pageSize);
 
-    const entries = await sql(query, params);
+    const entries = await sqlQuery(query, params);
 
     return {
       entries: entries as AuditLogEntry[],
@@ -418,7 +418,7 @@ class AuditTrail {
         entry.checksum,
       ]);
 
-      await sql(`
+      await sqlQuery(`
         INSERT INTO audit_logs (id, tenant_id, user_id, user_name, user_email, action, resource, resource_id, description, metadata, timestamp, checksum)
         VALUES ${values}
       `, params);
@@ -464,7 +464,7 @@ class AuditTrail {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
-    const result = await sql(`
+    const result = await sqlQuery(`
       DELETE FROM audit_logs
       WHERE timestamp < $1
       RETURNING id

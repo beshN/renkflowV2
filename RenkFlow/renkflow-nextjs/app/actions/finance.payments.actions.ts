@@ -31,7 +31,8 @@ export async function createPayment(input: CreatePaymentInput): Promise<Payment>
     LIMIT 1
   `;
 
-  if (orderCheck.length === 0) {
+  const orderCheckRows = orderCheck as any[];
+  if (orderCheckRows.length === 0) {
     throw new Error('Sipariş bulunamadı');
   }
 
@@ -56,7 +57,8 @@ export async function createPayment(input: CreatePaymentInput): Promise<Payment>
   revalidatePath('/finance/payments');
   revalidatePath(`/orders/${validated.orderId}`);
 
-  const row = result[0];
+  const rows = result as any[];
+  const row = rows[0];
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -87,7 +89,8 @@ export async function listPaymentsByOrder(orderId: string): Promise<Payment[]> {
     ORDER BY p.paid_at DESC
   `;
 
-  return result.map((row: any) => ({
+  const rows = result as any[];
+  return rows.map((row: any) => ({
     id: row.id,
     tenantId: row.tenant_id,
     orderId: row.order_id,
@@ -133,8 +136,9 @@ export async function listAllPayments(options?: {
   }
 
   const result = await query;
+  const rows = result as any[];
 
-  return result.map((row: any) => ({
+  return rows.map((row: any) => ({
     id: row.id,
     tenantId: row.tenant_id,
     orderId: row.order_id,
@@ -162,7 +166,8 @@ export async function deletePayment(paymentId: string): Promise<void> {
     LIMIT 1
   `;
 
-  if (paymentCheck.length === 0) {
+  const paymentCheckRows = paymentCheck as any[];
+  if (paymentCheckRows.length === 0) {
     throw new Error('Ödeme bulunamadı');
   }
 
@@ -173,7 +178,7 @@ export async function deletePayment(paymentId: string): Promise<void> {
 
   revalidatePath('/finance');
   revalidatePath('/finance/payments');
-  revalidatePath(`/orders/${paymentCheck[0].order_id}`);
+  revalidatePath(`/orders/${paymentCheckRows[0].order_id}`);
 }
 
 /**
@@ -199,7 +204,8 @@ export async function getOrdersWithPayments(): Promise<OrderWithPayments[]> {
     ORDER BY o.created_at DESC
   `;
 
-  return result.map((row: any) => ({
+  const rows = result as any[];
+  return rows.map((row: any) => ({
     id: row.id,
     orderNumber: row.order_number,
     customerName: row.customer_name,
@@ -230,7 +236,8 @@ export async function getThisMonthPaymentsTotal(): Promise<number> {
     AND paid_at <= ${endOfMonth.toISOString()}
   `;
 
-  return parseFloat(result[0]?.total || '0');
+  const rows = result as any[];
+  return parseFloat(rows[0]?.total || '0');
 }
 
 /**
@@ -254,5 +261,6 @@ export async function getOutstandingReceivables(): Promise<number> {
     AND o.status != 'delivered'
   `;
 
-  return parseFloat(result[0]?.outstanding || '0');
+  const rows = result as any[];
+  return parseFloat(rows[0]?.outstanding || '0');
 }

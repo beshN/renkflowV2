@@ -104,9 +104,12 @@ export async function getInventoryItems(params?: {
       `;
     }
 
+    const itemsRows = items as any[];
+    const countRows = countResult as any[];
+
     return {
-      items: items.map(mapInventoryItem),
-      total: parseInt(countResult[0]?.total || '0'),
+      items: itemsRows.map(mapInventoryItem),
+      total: parseInt(countRows[0]?.total || '0'),
     };
   } catch (error) {
     console.error('[Inventory] Get items error:', error);
@@ -125,8 +128,9 @@ export async function getInventoryItemById(itemId: string): Promise<InventoryIte
       LIMIT 1
     `;
 
-    if (result.length === 0) return null;
-    return mapInventoryItem(result[0]);
+    const resultRows = result as any[];
+    if (resultRows.length === 0) return null;
+    return mapInventoryItem(resultRows[0]);
   } catch (error) {
     console.error('[Inventory] Get item by id error:', error);
     return null;
@@ -148,7 +152,8 @@ export async function createInventoryItem(
       LIMIT 1
     `;
 
-    if (existing.length > 0) {
+    const existingRows = existing as any[];
+    if (existingRows.length > 0) {
       return { success: false, error: 'Bu stok kodu zaten kullanılıyor' };
     }
 
@@ -201,7 +206,7 @@ export async function createInventoryItem(
     
     return {
       success: true,
-      item: mapInventoryItem(result[0]),
+      item: mapInventoryItem((result as any[])[0]),
     };
   } catch (error) {
     console.error('[Inventory] Create item error:', error);
@@ -242,7 +247,7 @@ export async function updateInventoryItem(
       RETURNING id
     `;
 
-    if (result.length === 0) {
+    if ((result as any[]).length === 0) {
       return { success: false, error: 'Stok kalemi bulunamadı' };
     }
 
@@ -276,11 +281,12 @@ export async function createStockMovement(
       LIMIT 1
     `;
 
-    if (item.length === 0) {
+    const itemRows = item as any[];
+    if (itemRows.length === 0) {
       return { success: false, error: 'Stok kalemi bulunamadı' };
     }
 
-    const currentStock = item[0].current_stock;
+    const currentStock = itemRows[0].current_stock;
     const newStock = currentStock + validated.quantity;
 
     // Validate stock won't go negative
@@ -370,7 +376,8 @@ export async function getStockMovements(itemId?: string): Promise<StockMovement[
           LIMIT 50
         `;
 
-    return movements.map(mapStockMovement);
+    const movementsRows = movements as any[];
+    return movementsRows.map(mapStockMovement);
   } catch (error) {
     console.error('[Inventory] Get movements error:', error);
     return [];
@@ -410,11 +417,12 @@ export async function getInventorySummary(): Promise<InventorySummary> {
       categoryMap[row.category as keyof typeof categoryMap] = parseInt(row.count);
     });
 
+    const totalsRows = totals as any[];
     return {
-      totalItems: parseInt(totals[0]?.total_items || '0'),
-      totalValue: parseFloat(totals[0]?.total_value || '0'),
-      lowStockItems: parseInt(totals[0]?.low_stock || '0'),
-      outOfStockItems: parseInt(totals[0]?.out_of_stock || '0'),
+      totalItems: parseInt(totalsRows[0]?.total_items || '0'),
+      totalValue: parseFloat(totalsRows[0]?.total_value || '0'),
+      lowStockItems: parseInt(totalsRows[0]?.low_stock || '0'),
+      outOfStockItems: parseInt(totalsRows[0]?.out_of_stock || '0'),
       categoryBreakdown: categoryMap,
     };
   } catch (error) {
@@ -453,7 +461,8 @@ export async function getStockAlerts(): Promise<StockAlert[]> {
       LIMIT 20
     `;
 
-    return alerts.map((row: Record<string, unknown>) => ({
+    const alertsRows = alerts as any[];
+    return alertsRows.map((row: Record<string, unknown>) => ({
       itemId: row.item_id as string,
       itemName: row.item_name as string,
       sku: row.sku as string,

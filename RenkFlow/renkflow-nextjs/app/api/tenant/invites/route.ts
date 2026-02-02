@@ -17,9 +17,10 @@ export async function GET() {
       ORDER BY created_at DESC
     `;
 
+    const invitesRows = invites as any[];
     return NextResponse.json({
       success: true,
-      invites: invites.map((row: any) => ({
+      invites: invitesRows.map((row: any) => ({
         id: row.id,
         email: row.email,
         role: row.role,

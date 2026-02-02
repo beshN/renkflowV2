@@ -59,7 +59,7 @@ export async function batchDeletePayments(
   // Validate input
   const validated = BatchDeleteSchema.safeParse({ ids: paymentIds });
   if (!validated.success) {
-    throw new ValidationError('Geçersiz veri', { ids: validated.error.issues.map((e: { message: string }) => e.message) });
+    throw new ValidationError('Geçersiz veri', { ids: validated.error.issues.map(e => e.message) });
   }
 
   const result: BatchOperationResult = {
@@ -70,12 +70,13 @@ export async function batchDeletePayments(
   };
 
   // Get existing payments for audit log
-  const existingPayments = await sql`
+  const existingPaymentsResult = await sql`
     SELECT id, order_id, amount, currency, method, note
     FROM payments
     WHERE id = ANY(${paymentIds}::uuid[])
     AND tenant_id = ${context.tenantId}
   `;
+  const existingPayments = existingPaymentsResult as any[];
 
   const existingIds = new Set((existingPayments as { id: string }[]).map(p => p.id));
 
@@ -146,7 +147,7 @@ export async function batchDeleteDocuments(
   // Validate input
   const validated = BatchDeleteSchema.safeParse({ ids: documentIds });
   if (!validated.success) {
-    throw new ValidationError('Geçersiz veri', { ids: validated.error.issues.map((e: { message: string }) => e.message) });
+    throw new ValidationError('Geçersiz veri', { ids: validated.error.issues.map(e => e.message) });
   }
 
   const result: BatchOperationResult = {
@@ -157,12 +158,13 @@ export async function batchDeleteDocuments(
   };
 
   // Get existing documents for audit log and R2 deletion
-  const existingDocs = await sql`
+  const existingDocsResult = await sql`
     SELECT id, order_id, file_name, file_url, type
     FROM order_documents
     WHERE id = ANY(${documentIds}::uuid[])
     AND tenant_id = ${context.tenantId}
   `;
+  const existingDocs = existingDocsResult as any[];
 
   const existingIds = new Set((existingDocs as { id: string }[]).map(d => d.id));
 
@@ -260,12 +262,13 @@ export async function batchUpdateEmployees(
   };
 
   // Get existing employees for audit log
-  const existingEmployees = await sql`
+  const existingEmployeesResult = await sql`
     SELECT id, full_name, title, active
     FROM employees
     WHERE id = ANY(${employeeIds}::uuid[])
     AND tenant_id = ${context.tenantId}
   `;
+  const existingEmployees = existingEmployeesResult as any[];
 
   const existingIds = new Set(existingEmployees.map((e: any) => e.id));
 
@@ -364,12 +367,13 @@ export async function batchDeleteLedgerEntries(
   };
 
   // Get existing entries for audit log
-  const existingEntries = await sql`
+  const existingEntriesResult = await sql`
     SELECT id, employee_id, kind, amount, currency, entry_date
     FROM employee_ledger_entries
     WHERE id = ANY(${entryIds}::uuid[])
     AND tenant_id = ${context.tenantId}
   `;
+  const existingEntries = existingEntriesResult as any[];
 
   const existingIds = new Set(existingEntries.map((e: any) => e.id));
 

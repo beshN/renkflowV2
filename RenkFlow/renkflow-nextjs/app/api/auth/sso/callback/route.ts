@@ -31,12 +31,14 @@ async function handleCallback(request: NextRequest) {
     }
 
     // 1. Retrieve state to find provider type
-    const [stateRecord] = await sql`
+    const stateResult = await sql`
         SELECT s.*, p.type, p.id as provider_id
         FROM sso_states s
         JOIN sso_providers p ON s.provider_id = p.id
         WHERE s.state = ${state}
     `;
+    const stateRows = stateResult as any[];
+    const stateRecord = stateRows[0];
 
     if (!stateRecord) {
         return NextResponse.json({ error: 'Invalid or expired state' }, { status: 400 });

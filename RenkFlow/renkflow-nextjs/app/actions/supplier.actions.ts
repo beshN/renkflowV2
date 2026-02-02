@@ -47,8 +47,9 @@ export async function createSupplier(
         AND tenant_id = ${session.user.tenantId}
       LIMIT 1
     `;
+    const existingRows = existing as any[];
     
-    if (existing.length > 0) {
+    if (existingRows.length > 0) {
       return { success: false, error: 'Bu tedarikçi zaten kayıtlı' };
     }
     
@@ -76,7 +77,8 @@ export async function createSupplier(
     
     revalidatePath('/suppliers');
     
-    const row = result[0];
+    const resultRows = result as any[];
+    const row = resultRows[0];
     return {
       success: true,
       supplier: {
@@ -144,7 +146,8 @@ export async function createSupplierInteraction(
     
     revalidatePath(`/suppliers/${supplierId}`);
     
-    const row = result[0];
+    const resultRows = result as any[];
+    const row = resultRows[0];
     return {
       success: true,
       interaction: {
@@ -194,10 +197,11 @@ export async function getSupplierPerformance(
         AND period = ${period}
       LIMIT 1
     `;
+    const resultRows = result as any[];
     
-    if (result.length === 0) return null;
+    if (resultRows.length === 0) return null;
     
-    const row = result[0];
+    const row = resultRows[0];
     return {
       onTimeDeliveryRate: row.on_time_delivery_rate,
       qualityDefectRate: row.quality_defect_rate,
@@ -256,8 +260,9 @@ export async function getSuppliers(params?: {
     }
     
     const result = await query;
+    const rows = result as any[];
     
-    return result.map((row: any) => ({
+    return rows.map((row: any) => ({
       id: row.id,
       tenantId: row.tenant_id,
       companyName: row.company_name,
@@ -314,7 +319,8 @@ export async function getSupplierStats(): Promise<{
       WHERE tenant_id = ${session.user.tenantId}
     `;
     
-    const row = result[0];
+    const resultRows = result as any[];
+    const row = resultRows[0];
     return {
       totalSuppliers: parseInt(row.total_suppliers) || 0,
       activeSuppliers: parseInt(row.active_suppliers) || 0,

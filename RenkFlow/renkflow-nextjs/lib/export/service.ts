@@ -66,10 +66,11 @@ export async function exportOrdersToCSV(
   }
 
   const orders = await sql`${query} ORDER BY created_at DESC`;
+  const ordersRows = orders as any[];
 
   // Build CSV
   const headers = columns.join(',');
-  const rows = orders.map(order =>
+  const rows = ordersRows.map(order =>
     columns.map(col => {
       const val = order[col];
       if (val === null || val === undefined) return '';
@@ -104,8 +105,9 @@ export async function exportCustomersToCSV(
     ORDER BY total_spent DESC
   `;
 
+  const customersRows = customers as any[];
   const headers = columns.join(',');
-  const rows = customers.map(c =>
+  const rows = customersRows.map(c =>
     columns.map(col => {
       const val = c[col];
       if (val === null || val === undefined) return '';
@@ -143,13 +145,15 @@ export async function generateOrderReportPDF(
   orderId: string
 ): Promise<Uint8Array> {
   // Fetch order with all details
-  const [order] = await sql`
+  const orderResult = await sql`
     SELECT o.*, json_agg(d.*) as documents
     FROM orders o
     LEFT JOIN documents d ON d.order_id = o.id
     WHERE o.id = ${orderId} AND o.tenant_id = ${tenantId}
     GROUP BY o.id
   `;
+  const orderRows = orderResult as any[];
+  const order = orderRows[0];
 
   if (!order) {
     throw new Error('Order not found');
@@ -179,9 +183,10 @@ export async function generateAnalyticsReportPDF(
       AND created_at <= ${dateRange.end.toISOString()}
   `;
 
+  const metricsRows = metrics as any[];
   const report = {
     period: `${dateRange.start.toISOString().split('T')[0]} - ${dateRange.end.toISOString().split('T')[0]}`,
-    ...metrics[0],
+    ...metricsRows[0],
   };
 
   const pdfContent = generateAnalyticsPDF(report);
@@ -352,7 +357,9 @@ export async function createExportJob(
 }
 
 export async function getExportJob(jobId: string): Promise<ExportJob | null> {
-  const [job] = await sql`SELECT * FROM export_jobs WHERE id = ${jobId}`;
+  const jobResult = await sql`SELECT * FROM export_jobs WHERE id = ${jobId}`;
+  const jobRows = jobResult as any[];
+  const job = jobRows[0];
 
   if (!job) return null;
 
@@ -382,7 +389,8 @@ export async function listExportJobs(
     LIMIT ${limit}
   `;
 
-  return jobs.map((job) => ({
+  const jobsRows = jobs as any[];
+  return jobsRows.map((job) => ({
     id: job.id,
     tenantId: job.tenant_id,
     userId: job.user_id,
@@ -451,10 +459,12 @@ export async function getExportDownload(
   jobId: string,
   tenantId: string
 ): Promise<{ content: Buffer; filename: string; contentType: string } | null> {
-  const [job] = await sql`
+  const jobResult = await sql`
     SELECT * FROM export_jobs
     WHERE id = ${jobId} AND tenant_id = ${tenantId} AND status = 'completed'
   `;
+  const jobRows = jobResult as any[];
+  const job = jobRows[0];
 
   if (!job) return null;
 

@@ -1,6 +1,7 @@
 import { Order, NewOrderFormData } from '@/lib/types';
 import { IOrderService, TenantMismatchError } from '../types';
 import { sql } from '@/lib/db/neon';
+import { sqlQuery } from '@/lib/db';
 import { withTransaction } from '@/lib/db/transaction';
 import { uploadFile, deleteFile, generateFilePath, getFileUrl } from '@/lib/storage/r2';
 
@@ -43,8 +44,9 @@ export class NeonOrderService implements IOrderService {
     `;
 
     if (!result) return [];
+    const resultRows = result as any[];
 
-    const orders = await Promise.all(result.map(async (row: any) => {
+    const orders = await Promise.all(resultRows.map(async (row: any) => {
       // Generate signed URLs for documents
       const documents = await Promise.all((row.documents || []).map(async (doc: any) => ({
         id: doc.id,
@@ -85,8 +87,9 @@ export class NeonOrderService implements IOrderService {
       SELECT tenant_id FROM orders WHERE id = ${id} LIMIT 1
     `;
 
-    if (tenantCheck.length === 0) return null;
-    if (tenantCheck[0].tenant_id !== tenantId) {
+    const tenantCheckRows = tenantCheck as any[];
+    if (tenantCheckRows.length === 0) return null;
+    if (tenantCheckRows[0].tenant_id !== tenantId) {
       throw new TenantMismatchError();
     }
 
@@ -108,9 +111,10 @@ export class NeonOrderService implements IOrderService {
       GROUP BY o.id
     `;
 
-    if (result.length === 0) return null;
+    const resultRows = result as any[];
+    if (resultRows.length === 0) return null;
 
-    const row = result[0];
+    const row = resultRows[0];
     
     // Generate signed URLs for documents
     const documents = await Promise.all((row.documents || []).map(async (doc: any) => ({
@@ -282,7 +286,7 @@ export class NeonOrderService implements IOrderService {
       // console.log('[NeonOrderService] Update Query:', query);
 
       // Ensure we only update if tenant_id matches
-      const result = await sql(query, values);
+      const result = await sqlQuery(query, values);
       
       if (result.length === 0) {
         throw new Error('Order update failed: Order not found');
@@ -321,7 +325,8 @@ export class NeonOrderService implements IOrderService {
     `;
 
     // Delete from R2
-    for (const doc of docs) {
+    const docsRows = docs as any[];
+    for (const doc of docsRows) {
       try {
         await deleteFile(doc.file_path);
       } catch (error) {
@@ -332,8 +337,9 @@ export class NeonOrderService implements IOrderService {
     // Delete order (documents will cascade)
     // Extra safety: enforce tenant_id check
     const deleteResult = await sql`DELETE FROM orders WHERE id = ${id} AND tenant_id = ${tenantId} RETURNING id`;
+    const deleteRows = deleteResult as any[];
     
-    if (deleteResult.length === 0) {
+    if (deleteRows.length === 0) {
        throw new Error('Delete failed: Order not found');
     }
   }

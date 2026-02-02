@@ -68,9 +68,7 @@ export const FeaturesGrid: React.FC = () => {
                     className="group bg-white/90 dark:bg-slate-900/70 p-8 rounded-3xl shadow-[0_20px_40px_-30px_rgba(15,23,42,0.3)] hover:shadow-[0_35px_60px_-35px_rgba(14,165,233,0.45)] hover:-translate-y-2 transition-all duration-300 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden"
                 >
                     <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-400 via-blue-500 to-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity duration-300 transform translate-x-4 -translate-y-4">
-                        <span className="material-symbols-outlined !text-9xl text-sky-500">{feature.icon}</span>
-                    </div>
+
                     
                     <div className="bg-sky-50 dark:bg-sky-500/10 text-sky-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 relative z-10">
                         <span className="material-symbols-outlined !text-3xl">{feature.icon}</span>

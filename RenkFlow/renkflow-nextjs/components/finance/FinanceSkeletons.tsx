@@ -170,8 +170,8 @@ export function ChartSkeleton({ height = 200 }: { height?: number }) {
         <Skeleton className="h-5 w-32" />
         <Skeleton className="h-8 w-24 rounded-lg" />
       </div>
-      <div style={{ height }}>
-        <Skeleton className="w-full h-full rounded-lg" />
+      <div className="w-full rounded-lg overflow-hidden" style={{ height }}>
+        <Skeleton className="w-full h-full" />
       </div>
     </div>
   );

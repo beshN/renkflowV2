@@ -83,7 +83,7 @@ export async function createNotification(
   channels: NotificationChannel[] = ['in_app']
 ): Promise<Notification> {
   const id = `ntf_${crypto.randomBytes(16).toString('hex')}`;
-  const [notification] = await sql`
+  const notificationResult = await sql`
     INSERT INTO notifications (
       id, user_id, tenant_id, type, title, message, data, channels, read, created_at
     ) VALUES (
@@ -95,6 +95,8 @@ export async function createNotification(
     )
     RETURNING *
   `;
+  const notificationRows = notificationResult as any[];
+  const notification = notificationRows[0];
 
   return {
     id: notification.id,
@@ -122,11 +124,13 @@ export async function getUserNotifications(
   const { unreadOnly = false, limit = 20, offset = 0 } = options;
 
   // Get total unread count
-  const [unreadResult] = await sql`
+  const unreadCountResult = await sql`
     SELECT COUNT(*) as count
     FROM notifications
     WHERE user_id = ${userId} AND read = false
   `;
+  const unreadRows = unreadCountResult as any[];
+  const unreadResult = unreadRows[0];
 
   // Get notifications
   let query = sql`
@@ -146,14 +150,17 @@ export async function getUserNotifications(
   `;
 
   // Get total count
-  const [totalResult] = await sql`
+  const totalCountResult = await sql`
     SELECT COUNT(*) as count
     FROM notifications
     WHERE user_id = ${userId}
   `;
+  const totalRows = totalCountResult as any[];
+  const totalResult = totalRows[0];
+  const notificationsRows = notifications as any[];
 
   return {
-    notifications: notifications.map(mapNotificationRow),
+    notifications: notificationsRows.map(mapNotificationRow),
     total: parseInt(totalResult.count),
     unreadCount: parseInt(unreadResult.count),
   };
@@ -284,7 +291,8 @@ export async function sendPushNotification(
     WHERE user_id = ${userId}
   `;
 
-  if (subscriptions.length === 0) return;
+  const subscriptionsRows = subscriptions as any[];
+  if (subscriptionsRows.length === 0) return;
 
   if (!webpush) {
     console.warn('Web push is not configured. Skipping push notification.');
@@ -317,7 +325,7 @@ export async function sendPushNotification(
     ],
   });
 
-  for (const sub of subscriptions) {
+  for (const sub of subscriptionsRows) {
     try {
       await webpush.sendNotification(
         {
@@ -346,10 +354,12 @@ export async function sendPushNotification(
 export async function getNotificationPreferences(
   userId: string
 ): Promise<NotificationPreferences | null> {
-  const [prefs] = await sql`
+  const prefsResult = await sql`
     SELECT * FROM notification_preferences
     WHERE user_id = ${userId}
   `;
+  const prefsRows = prefsResult as any[];
+  const prefs = prefsRows[0];
 
   if (!prefs) return null;
 
@@ -400,7 +410,8 @@ export async function notifyOrderStatusChange(
     WHERE tm.tenant_id = ${tenantId}
   `;
 
-  for (const member of members) {
+  const membersRows = members as any[];
+  for (const member of membersRows) {
     const prefs = await getNotificationPreferences(member.id);
 
     // In-app notification for all

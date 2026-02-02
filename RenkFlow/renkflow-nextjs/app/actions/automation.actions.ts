@@ -171,9 +171,10 @@ export async function createAutomationRule(
 
     revalidatePath('/settings/automation');
 
+    const rows = result as any[];
     return {
       success: true,
-      data: mapAutomationRule(result[0]),
+      data: mapAutomationRule(rows[0]),
     };
   } catch (error) {
     console.error('[Automation] Create error:', error);
@@ -190,32 +191,41 @@ export async function updateAutomationRule(
 ): Promise<ActionResult<AutomationRule>> {
   try {
     const session = await getSession();
-    if (!session?.user?.tenantId) {
-      return { success: false, error: 'Unauthorized' };
-    }
+    const validated = UpdateAutomationRuleSchema.parse(data);
 
-    // Validate input
-    const validated = UpdateAutomationRuleSchema.partial().parse(data);
+    // Build update object with only provided fields
+    const name = validated.name;
+    const description = validated.description;
+    const triggerType = validated.trigger?.type;
+    const triggerConfig = validated.trigger?.config ? JSON.stringify(validated.trigger.config) : null;
+    const conditions = validated.conditions ? JSON.stringify(validated.conditions) : null;
+    const actions = validated.actions ? JSON.stringify(validated.actions) : null;
+    const scope = validated.scope ? JSON.stringify(validated.scope) : null;
+    const isEnabled = validated.isEnabled;
+    const schedule = validated.schedule ? JSON.stringify(validated.schedule) : null;
 
+    // Use COALESCE to only update provided fields
     const result = await sql`
       UPDATE automation_rules
       SET 
-        name = COALESCE(${validated.name}, name),
-        description = COALESCE(${validated.description}, description),
-        trigger_type = COALESCE(${validated.trigger?.type}, trigger_type),
-        trigger_config = COALESCE(${validated.trigger ? JSON.stringify(validated.trigger.config) : null}, trigger_config),
-        conditions = COALESCE(${validated.conditions ? JSON.stringify(validated.conditions) : null}, conditions),
-        actions = COALESCE(${validated.actions ? JSON.stringify(validated.actions) : null}, actions),
-        scope = COALESCE(${validated.scope ? JSON.stringify(validated.scope) : null}, scope),
-        is_enabled = COALESCE(${validated.isEnabled}, is_enabled),
-        schedule = COALESCE(${validated.schedule ? JSON.stringify(validated.schedule) : null}, schedule),
+        name = COALESCE(${name}, name),
+        description = COALESCE(${description}, description),
+        trigger_type = COALESCE(${triggerType}, trigger_type),
+        trigger_config = COALESCE(${triggerConfig}::jsonb, trigger_config),
+        conditions = COALESCE(${conditions}::jsonb, conditions),
+        actions = COALESCE(${actions}::jsonb, actions),
+        scope = COALESCE(${scope}::jsonb, scope),
+        is_enabled = COALESCE(${isEnabled}, is_enabled),
+        schedule = COALESCE(${schedule}::jsonb, schedule),
+>>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-98ad306b/RenkFlow/renkflow-nextjs/app/actions/automation.actions.ts
         updated_at = NOW()
       WHERE id = ${ruleId}
         AND tenant_id = ${session.user.tenantId}
       RETURNING *
     `;
 
-    if (result.length === 0) {
+    const rows = result as any[];
+    if (rows.length === 0) {
       return { success: false, error: 'Automation rule not found' };
     }
 
@@ -223,7 +233,7 @@ export async function updateAutomationRule(
 
     return {
       success: true,
-      data: mapAutomationRule(result[0]),
+      data: mapAutomationRule(rows[0]),
     };
   } catch (error) {
     console.error('[Automation] Update error:', error);
@@ -245,7 +255,8 @@ export async function deleteAutomationRule(ruleId: string): Promise<ActionResult
       RETURNING id
     `;
 
-    if (result.length === 0) {
+    const rows = result as any[];
+    if (rows.length === 0) {
       return { success: false, error: 'Automation rule not found' };
     }
 
@@ -273,7 +284,8 @@ export async function toggleAutomationRule(ruleId: string): Promise<ActionResult
       RETURNING *
     `;
 
-    if (result.length === 0) {
+    const rows = result as any[];
+    if (rows.length === 0) {
       return { success: false, error: 'Automation rule not found' };
     }
 
@@ -281,7 +293,7 @@ export async function toggleAutomationRule(ruleId: string): Promise<ActionResult
 
     return {
       success: true,
-      data: mapAutomationRule(result[0]),
+      data: mapAutomationRule(rows[0]),
     };
   } catch (error) {
     console.error('[Automation] Toggle error:', error);
@@ -311,7 +323,7 @@ export async function getAutomationRules(params?: {
       whereClause = sql`${whereClause} AND trigger_type = ${triggerType}`;
     }
 
-    const [rules, countResult] = await Promise.all([
+    const [rulesResult, countResult] = await Promise.all([
       sql`
         SELECT * FROM automation_rules
         WHERE ${whereClause}
@@ -324,11 +336,13 @@ export async function getAutomationRules(params?: {
       `,
     ]);
 
+    const rules = rulesResult as any[];
+    const counts = countResult as any[];
     return {
       success: true,
       data: {
         rules: rules.map(mapAutomationRule),
-        total: parseInt(countResult[0]?.total || '0'),
+        total: parseInt(counts[0]?.total || '0'),
       },
     };
   } catch (error) {
@@ -350,13 +364,14 @@ export async function getAutomationRule(ruleId: string): Promise<ActionResult<Au
         AND tenant_id = ${session.user.tenantId}
     `;
 
-    if (result.length === 0) {
+    const rows = result as any[];
+    if (rows.length === 0) {
       return { success: false, error: 'Automation rule not found' };
     }
 
     return {
       success: true,
-      data: mapAutomationRule(result[0]),
+      data: mapAutomationRule(rows[0]),
     };
   } catch (error) {
     console.error('[Automation] Get rule error:', error);
@@ -375,7 +390,7 @@ export async function getAutomationExecutions(
     const session = await getSession();
     const { limit = 50, offset = 0 } = params || {};
 
-    const [executions, countResult] = await Promise.all([
+    const [executionsResult, countResult] = await Promise.all([
       sql`
         SELECT * FROM automation_executions
         WHERE rule_id = ${ruleId}
@@ -390,11 +405,13 @@ export async function getAutomationExecutions(
       `,
     ]);
 
+    const executions = executionsResult as any[];
+    const counts = countResult as any[];
     return {
       success: true,
       data: {
         executions: executions.map(mapAutomationExecution),
-        total: parseInt(countResult[0]?.total || '0'),
+        total: parseInt(counts[0]?.total || '0'),
       },
     };
   } catch (error) {
@@ -416,11 +433,12 @@ export async function duplicateAutomationRule(ruleId: string): Promise<ActionRes
         AND tenant_id = ${session.user.tenantId}
     `;
 
-    if (original.length === 0) {
+    const origRows = original as any[];
+    if (origRows.length === 0) {
       return { success: false, error: 'Automation rule not found' };
     }
 
-    const rule = original[0];
+    const rule = origRows[0];
 
     const result = await sql`
       INSERT INTO automation_rules (
@@ -453,9 +471,10 @@ export async function duplicateAutomationRule(ruleId: string): Promise<ActionRes
 
     revalidatePath('/settings/automation');
 
+    const rows = result as any[];
     return {
       success: true,
-      data: mapAutomationRule(result[0]),
+      data: mapAutomationRule(rows[0]),
     };
   } catch (error) {
     console.error('[Automation] Duplicate error:', error);

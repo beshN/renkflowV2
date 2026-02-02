@@ -86,7 +86,8 @@ export async function getSSOProviders(tenantId: string): Promise<SSOProvider[]> 
     WHERE tenant_id = ${tenantId} AND enabled = true
   `;
 
-  return providers.map((p: any) => ({
+  const providersRows = providers as any[];
+  return providersRows.map((p: any) => ({
     ...p,
     domainRestrictions: p.domainRestrictions || [],
   })) as SSOProvider[];
@@ -97,7 +98,7 @@ export async function createSSOProvider(
 ): Promise<SSOProvider> {
   const id = createId('sso');
   
-  const [provider] = await sql`
+  const providerResult = await sql`
     INSERT INTO sso_providers (
       id,
       tenant_id,
@@ -131,6 +132,8 @@ export async function createSSOProvider(
     )
     RETURNING *
   `;
+  const providerRows = providerResult as any[];
+  const provider = providerRows[0];
 
   return {
     ...provider,
@@ -163,17 +166,18 @@ export async function initiateSAMLLogin(
   `;
 
   // Build SAML AuthnRequest
-  const provider = await sql`SELECT * FROM sso_providers WHERE id = ${providerId}`;
+  const providerResult = await sql`SELECT * FROM sso_providers WHERE id = ${providerId}`;
+  const providerRows = providerResult as any[];
   
-  if (!provider[0]) {
+  if (!providerRows[0]) {
     throw new Error('SSO provider not found');
   }
 
-  if (!provider[0]?.metadata) {
+  if (!providerRows[0]?.metadata) {
     throw new Error('SSO provider metadata is missing');
   }
 
-  const saml = await createSamlInstance(provider[0], callbackUrl);
+  const saml = await createSamlInstance(providerRows[0], callbackUrl);
   const redirectUrl = await saml.getAuthorizeUrlAsync(state, undefined, {});
   
   return { redirectUrl, state };
@@ -184,40 +188,43 @@ export async function handleSAMLCallback(
   state: string
 ): Promise<{ user: any; redirectTo: string }> {
   // Validate state
-  const [stateRecord] = await sql`
+  const stateResult = await sql`
     SELECT * FROM sso_states 
     WHERE state = ${state} AND expires_at > NOW()
   `;
+  const stateRows = stateResult as any[];
+  const stateRecord = stateRows[0];
 
   if (!stateRecord) {
     throw new Error('Invalid or expired state');
   }
 
-  const provider = await sql`SELECT * FROM sso_providers WHERE id = ${stateRecord.provider_id}`;
+  const providerResult = await sql`SELECT * FROM sso_providers WHERE id = ${stateRecord.provider_id}`;
+  const providerRows = providerResult as any[];
 
-  if (!provider[0]) {
+  if (!providerRows[0]) {
     throw new Error('SSO provider not found');
   }
 
-  if (!provider[0].metadata) {
+  if (!providerRows[0].metadata) {
     throw new Error('SSO provider metadata is missing');
   }
 
-  const saml = await createSamlInstance(provider[0], stateRecord.callback_url);
+  const saml = await createSamlInstance(providerRows[0], stateRecord.callback_url);
   const response = await saml.validatePostResponseAsync({ SAMLResponse: samlResponse });
   const profile = mapSamlProfile(response.profile);
   
   // Check domain restrictions
   const domain = profile.email.split('@')[1];
   
-  if (provider[0]?.domain_restrictions?.length > 0) {
-    if (!provider[0].domain_restrictions.includes(domain)) {
+  if (providerRows[0]?.domain_restrictions?.length > 0) {
+    if (!providerRows[0].domain_restrictions.includes(domain)) {
       throw new Error('Domain not allowed for this SSO provider');
     }
   }
 
   // Find or create user
-  const user = await findOrCreateSSOUser(profile, mapDbProvider(provider[0]));
+  const user = await findOrCreateSSOUser(profile, mapDbProvider(providerRows[0]));
   
   // Clean up state
   await sql`DELETE FROM sso_states WHERE state = ${state}`;
@@ -234,13 +241,15 @@ async function findOrCreateSSOUser(
   provider: SSOProvider
 ): Promise<any> {
   // Check if user exists
-  const [existingUser] = await sql`
+  const existingUserResult = await sql`
     SELECT u.*, tm.tenant_id, tm.role
     FROM users u
     JOIN tenant_members tm ON tm.user_id = u.id
     WHERE u.email = ${profile.email}
     LIMIT 1
   `;
+  const existingUserRows = existingUserResult as any[];
+  const existingUser = existingUserRows[0];
 
   if (existingUser) {
     // Update user info if changed
@@ -262,7 +271,7 @@ async function findOrCreateSSOUser(
   const userId = createId('user');
   
   // Create user
-  const [newUser] = await sql`
+  const newUserResult = await sql`
     INSERT INTO users (id, email, name, email_verified, created_at)
     VALUES (
       ${userId},
@@ -273,6 +282,8 @@ async function findOrCreateSSOUser(
     )
     RETURNING *
   `;
+  const newUserRows = newUserResult as any[];
+  const newUser = newUserRows[0];
 
   // Add to tenant
   const role = determineRoleFromGroups(profile.groups);
@@ -367,13 +378,14 @@ export async function initiateOIDCLogin(
 ): Promise<{ url: string; state: string; codeVerifier: string }> {
   const state = createId('state');
 
-  const provider = await sql`SELECT * FROM sso_providers WHERE id = ${providerId}`;
+  const providerResult = await sql`SELECT * FROM sso_providers WHERE id = ${providerId}`;
+  const providerRows = providerResult as any[];
   
-  if (!provider[0]) {
+  if (!providerRows[0]) {
     throw new Error('SSO provider not found');
   }
 
-  const config = await createOidcConfig(provider[0], redirectUri);
+  const config = await createOidcConfig(providerRows[0], redirectUri);
   const codeVerifier = randomPKCECodeVerifier();
   const codeChallenge = await calculatePKCECodeChallenge(codeVerifier);
   const url = buildAuthorizationUrl(config, {
@@ -398,22 +410,25 @@ export async function handleOIDCCallback(
   redirectUri: string,
   params: { code: string; state: string }
 ): Promise<{ user: any; redirectTo: string }> {
-  const [stateRecord] = await sql`
+  const stateResult = await sql`
     SELECT * FROM sso_states
     WHERE state = ${params.state} AND expires_at > NOW()
   `;
+  const stateRows = stateResult as any[];
+  const stateRecord = stateRows[0];
 
   if (!stateRecord) {
     throw new Error('Invalid or expired state');
   }
 
-  const provider = await sql`SELECT * FROM sso_providers WHERE id = ${providerId}`;
+  const providerResult = await sql`SELECT * FROM sso_providers WHERE id = ${providerId}`;
+  const providerRows = providerResult as any[];
 
-  if (!provider[0]) {
+  if (!providerRows[0]) {
     throw new Error('SSO provider not found');
   }
 
-  const config = await createOidcConfig(provider[0], redirectUri);
+  const config = await createOidcConfig(providerRows[0], redirectUri);
   const currentUrl = new URL(redirectUri);
   currentUrl.searchParams.set('code', params.code);
   currentUrl.searchParams.set('state', params.state);
@@ -425,7 +440,7 @@ export async function handleOIDCCallback(
   const userInfo = (await fetchUserInfo(config, tokenSet.access_token, expectedSubject)) as OIDCProfile;
   const profile = mapOidcProfile(userInfo);
 
-  const user = await findOrCreateSSOUser(profile, mapDbProvider(provider[0]));
+  const user = await findOrCreateSSOUser(profile, mapDbProvider(providerRows[0]));
   await sql`DELETE FROM sso_states WHERE state = ${params.state}`;
 
   return { user, redirectTo: stateRecord.callback_url };

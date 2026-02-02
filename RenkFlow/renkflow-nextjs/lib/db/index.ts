@@ -49,20 +49,24 @@ function validateDatabaseUrl(url: string): void {
  * Create and validate database connection
  */
 function createSqlClient() {
-  // Production: Fail fast if DATABASE_URL is missing
-  if (IS_PRODUCTION && !DATABASE_URL) {
-    throw new Error(
-      '[RenkFlow DB] FATAL: DATABASE_URL is not defined in production. ' +
-      'Please configure your database connection in environment variables.'
-    );
+  // During build time, return a dummy function that will be replaced at runtime
+  if (typeof process !== 'undefined' && process.env.NEXT_PHASE === 'phase-production-build') {
+    console.log('[RenkFlow DB] Build time - skipping database connection');
+    return (() => Promise.resolve([])) as unknown as ReturnType<typeof neon>;
   }
 
-  // All environments: Fail if DATABASE_URL is missing
+  // All environments: Check if DATABASE_URL is defined
   if (!DATABASE_URL) {
-    throw new Error(
-      '[RenkFlow DB] DATABASE_URL is not defined. ' +
-      'Set DATABASE_URL to connect to PostgreSQL, or use MockOrderService for development.'
-    );
+    // In production, throw error
+    if (IS_PRODUCTION) {
+      throw new Error(
+        '[RenkFlow DB] FATAL: DATABASE_URL is not defined in production. ' +
+        'Please configure your database connection in environment variables.'
+      );
+    }
+    // In development, log warning and return dummy
+    console.warn('[RenkFlow DB] DATABASE_URL is not defined. Database features will not work.');
+    return (() => Promise.resolve([])) as unknown as ReturnType<typeof neon>;
   }
 
   // Validate URL format
@@ -92,6 +96,16 @@ export function getSql() {
  * ⚠️ This will throw if DATABASE_URL is not configured
  */
 export const sql = createSqlClient();
+
+/**
+ * Execute a dynamic SQL query with parameters
+ * Use this when you need to build queries dynamically
+ */
+export async function sqlQuery(query: string, params: unknown[] = []): Promise<any[]> {
+  const client = getSql();
+  // The neon client supports being called as a function with query string and params
+  return (client as any)(query, params);
+}
 
 /**
  * Get current connection info

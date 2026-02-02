@@ -28,11 +28,12 @@ export async function uploadOrderDocument(
   OrderDocumentTypeSchema.parse(type);
 
   // Verify order belongs to tenant
-  const orderCheck = await sql`
+  const orderCheckResult = await sql`
     SELECT id, tenant_id FROM orders 
     WHERE id = ${orderId} AND tenant_id = ${context.tenantId}
     LIMIT 1
   `;
+  const orderCheck = orderCheckResult as any[];
 
   if (orderCheck.length === 0) {
     throw new Error('Sipariş bulunamadı');
@@ -66,7 +67,8 @@ export async function uploadOrderDocument(
   revalidatePath('/finance/documents');
   revalidatePath(`/orders/${orderId}`);
 
-  const row = result[0];
+  const rows = result as any[];
+  const row = rows[0];
   const signedUrl = await getFileUrl(row.file_url);
 
   return {
@@ -98,8 +100,9 @@ export async function listOrderDocuments(orderId: string): Promise<OrderDocument
     AND od.tenant_id = ${context.tenantId}
     ORDER BY od.uploaded_at DESC
   `;
+  const rows = result as any[];
 
-  return Promise.all(result.map(async (row: any) => {
+  return Promise.all(rows.map(async (row: any) => {
     const signedUrl = await getFileUrl(row.file_url);
     return {
       id: row.id,
@@ -172,8 +175,9 @@ export async function listAllDocuments(options?: {
   }
 
   const result = await query;
+  const rows = result as any[];
 
-  return Promise.all(result.map(async (row: any) => {
+  return Promise.all(rows.map(async (row: any) => {
     const signedUrl = await getFileUrl(row.file_url);
     return {
       id: row.id,
@@ -200,11 +204,12 @@ export async function deleteOrderDocument(documentId: string): Promise<void> {
   requirePermission(context, 'finance.documents.delete');
 
   // Get document info
-  const docCheck = await sql`
+  const docCheckResult = await sql`
     SELECT id, order_id, file_url FROM order_documents 
     WHERE id = ${documentId} AND tenant_id = ${context.tenantId}
     LIMIT 1
   `;
+  const docCheck = docCheckResult as any[];
 
   if (docCheck.length === 0) {
     throw new Error('Belge bulunamadı');
@@ -245,8 +250,9 @@ export async function getRecentDocuments(limit: number = 5): Promise<(OrderDocum
     ORDER BY od.uploaded_at DESC
     LIMIT ${limit}
   `;
+  const rows = result as any[];
 
-  return Promise.all(result.map(async (row: any) => {
+  return Promise.all(rows.map(async (row: any) => {
     const signedUrl = await getFileUrl(row.file_url);
     return {
       id: row.id,

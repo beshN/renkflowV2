@@ -47,6 +47,8 @@
     "playwright.config.ts",
     "drizzle.config.ts",
     "lib/db/drizzle-schema.ts",
+    "playwright.config.ts",
+    "e2e",
     "scripts",
     "server"
   ]

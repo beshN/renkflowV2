@@ -47,7 +47,8 @@ export async function getSuppliers(params?: {
     
     const result = await query;
     
-    return result.map((row: any) => ({
+    const rows = result as any[];
+    return rows.map((row: any) => ({
       id: row.id,
       tenantId: row.tenant_id,
       companyName: row.company_name,

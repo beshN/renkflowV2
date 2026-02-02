@@ -48,8 +48,9 @@ export async function getCustomers(params?: {
     }
     
     const result = await query;
+    const rows = result as any[];
     
-    return result.map((row: any) => ({
+    return rows.map((row: any) => ({
       id: row.id,
       tenantId: row.tenant_id,
       companyName: row.company_name,

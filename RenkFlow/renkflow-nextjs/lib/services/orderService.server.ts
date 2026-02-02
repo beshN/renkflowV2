@@ -5,7 +5,9 @@ import { MockOrderService } from './mock/order.mock';
 import { NeonOrderService } from './neon/order.neon';
 
 function createOrderService(): IOrderService {
-  if (process.env.NODE_ENV === 'test') {
+  const IS_BUILD_TIME = process.env.NEXT_PHASE === 'phase-production-build';
+  
+  if (process.env.NODE_ENV === 'test' || IS_BUILD_TIME) {
     return new MockOrderService();
   }
 

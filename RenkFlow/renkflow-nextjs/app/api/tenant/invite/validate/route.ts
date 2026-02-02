@@ -30,21 +30,23 @@ export async function GET(request: NextRequest) {
       LIMIT 1
     `;
 
-    if (invitations.length === 0) {
+    const invitationsRows = invitations as any[];
+    if (invitationsRows.length === 0) {
       return NextResponse.json({ 
         valid: false, 
         error: 'Bu davet linki geçersiz veya süresi dolmuş.' 
       });
     }
 
-    const invitation = invitations[0];
+    const invitation = invitationsRows[0];
 
     // Check if user already exists with this email
     const existingUsers = await sql`
       SELECT id FROM users WHERE email = ${invitation.email} LIMIT 1
     `;
 
-    if (existingUsers.length > 0) {
+    const existingUsersRows = existingUsers as any[];
+    if (existingUsersRows.length > 0) {
       return NextResponse.json({ 
         valid: false, 
         error: 'Bu e-posta adresi zaten kayıtlı. Lütfen giriş yapın.' 

@@ -63,21 +63,23 @@ export async function POST(request: Request) {
       LIMIT 1
     `;
 
-    if (invitations.length === 0) {
+    const invitationsRows = invitations as any[];
+    if (invitationsRows.length === 0) {
       return NextResponse.json(
         { error: 'Bu davet linki geçersiz veya süresi dolmuş.' },
         { status: 400 }
       );
     }
 
-    const invitation = invitations[0];
+    const invitation = invitationsRows[0];
 
     // Check if user already exists
     const existingUsers = await sql`
       SELECT id FROM users WHERE email = ${invitation.email} LIMIT 1
     `;
 
-    if (existingUsers.length > 0) {
+    const existingUsersRows = existingUsers as any[];
+    if (existingUsersRows.length > 0) {
       return NextResponse.json(
         { error: 'Bu e-posta adresi zaten kayıtlı.' },
         { status: 400 }
@@ -94,11 +96,12 @@ export async function POST(request: Request) {
       RETURNING id
     `;
 
-    if (users.length === 0) {
+    const usersRows = users as any[];
+    if (usersRows.length === 0) {
       throw new Error('User creation failed');
     }
 
-    const userId = users[0].id;
+    const userId = usersRows[0].id;
 
     // Add user to tenant with the invited role
     await sql`

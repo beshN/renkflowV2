@@ -78,7 +78,7 @@ export async function getOrderMetrics(
   const { startDate, endDate } = dateRange;
 
   // Total orders and revenue
-  const [summaryResult] = await sql`
+  const summaryResultQuery = await sql`
     SELECT 
       COUNT(*) as total_orders,
       COALESCE(SUM(total_amount), 0) as total_revenue,
@@ -88,6 +88,8 @@ export async function getOrderMetrics(
       AND created_at >= ${startDate.toISOString()}
       AND created_at <= ${endDate.toISOString()}
   `;
+  const summaryRows = summaryResultQuery as any[];
+  const summaryResult = summaryRows[0];
 
   // Orders by status
   const statusResults = await sql`
@@ -102,7 +104,8 @@ export async function getOrderMetrics(
   `;
 
   const ordersByStatus: Record<string, number> = {};
-  for (const row of statusResults) {
+  const statusRows = statusResults as any[];
+  for (const row of statusRows) {
     ordersByStatus[row.status] = parseInt(row.count);
   }
 
@@ -125,7 +128,7 @@ export async function getOrderMetrics(
     totalRevenue: parseFloat(summaryResult.total_revenue),
     averageOrderValue: parseFloat(summaryResult.avg_order_value),
     ordersByStatus: ordersByStatus as Record<OrderStatus, number>,
-    dailyVolume: dailyResults.map(row => ({
+    dailyVolume: (dailyResults as any[]).map(row => ({
       date: row.date,
       count: parseInt(row.count),
       revenue: parseFloat(row.revenue),
@@ -144,7 +147,7 @@ export async function getCustomerMetrics(
   const { startDate, endDate } = dateRange;
 
   // Total and new customers
-  const [customerSummary] = await sql`
+  const customerSummaryResult = await sql`
     SELECT 
       COUNT(DISTINCT email) as total_customers,
       COUNT(DISTINCT CASE WHEN first_order_date >= ${startDate.toISOString()} THEN email END) as new_customers
@@ -157,6 +160,9 @@ export async function getCustomerMetrics(
       GROUP BY email
     ) customer_first_orders
   `;
+
+  const customerSummaryRows = customerSummaryResult as any[];
+  const customerSummary = customerSummaryRows[0];
 
   // Top customers
   const topCustomers = await sql`
@@ -175,7 +181,7 @@ export async function getCustomerMetrics(
   `;
 
   // Average LTV (all time)
-  const [ltvResult] = await sql`
+  const ltvResultQuery = await sql`
     SELECT AVG(customer_total) as avg_ltv
     FROM (
       SELECT SUM(total_amount) as customer_total
@@ -185,6 +191,10 @@ export async function getCustomerMetrics(
     ) customer_totals
   `;
 
+  const ltvRows = ltvResultQuery as any[];
+  const ltvResult = ltvRows[0];
+  const topCustomersRows = topCustomers as any[];
+
   const totalCustomers = parseInt(customerSummary.total_customers);
   const newCustomers = parseInt(customerSummary.new_customers);
 
@@ -193,7 +203,7 @@ export async function getCustomerMetrics(
     newCustomers,
     returningCustomers: totalCustomers - newCustomers,
     averageLifetimeValue: parseFloat(ltvResult.avg_ltv) || 0,
-    topCustomers: topCustomers.map(row => ({
+    topCustomers: topCustomersRows.map(row => ({
       customerName: row.customer_name,
       email: row.email,
       totalOrders: parseInt(row.total_orders),
@@ -227,8 +237,10 @@ export async function getProductionMetrics(
     GROUP BY status
   `;
 
+  const statusHistoryRows = statusHistory as any[];
+
   // Delayed orders (in production > 14 days or pending > 7 days)
-  const [delayedResult] = await sql`
+  const delayedResultQuery = await sql`
     SELECT COUNT(*) as delayed_count
     FROM orders
     WHERE tenant_id = ${tenantId}
@@ -239,8 +251,11 @@ export async function getProductionMetrics(
       )
   `;
 
+  const delayedRows = delayedResultQuery as any[];
+  const delayedResult = delayedRows[0];
+
   // On-time delivery calculation
-  const [deliveryResult] = await sql`
+  const deliveryResultQuery = await sql`
     SELECT 
       COUNT(*) as total_delivered,
       COUNT(CASE 
@@ -253,14 +268,17 @@ export async function getProductionMetrics(
       AND created_at <= ${endDate.toISOString()}
   `;
 
+  const deliveryRows = deliveryResultQuery as any[];
+  const deliveryResult = deliveryRows[0];
+
   const totalDelivered = parseInt(deliveryResult.total_delivered) || 1;
   const onTimeDelivered = parseInt(deliveryResult.on_time_delivered) || 0;
 
   return {
-    averageProductionTime: calculateAverageProductionTime(statusHistory),
+    averageProductionTime: calculateAverageProductionTime(statusHistoryRows),
     onTimeDeliveryRate: (onTimeDelivered / totalDelivered) * 100,
     delayedOrders: parseInt(delayedResult.delayed_count),
-    statusTransitions: statusHistory.map(row => ({
+    statusTransitions: statusHistoryRows.map(row => ({
       fromStatus: 'pending' as OrderStatus,
       toStatus: row.status as OrderStatus,
       count: parseInt(row.count),
@@ -287,7 +305,7 @@ export async function getDashboardSummary(tenantId: string): Promise<DashboardSu
   lastMonth.setDate(lastMonth.getDate() - 30);
 
   // Today's metrics
-  const [todayResult] = await sql`
+  const todayQuery = await sql`
     SELECT 
       COUNT(*) as orders,
       COALESCE(SUM(total_amount), 0) as revenue
@@ -295,18 +313,22 @@ export async function getDashboardSummary(tenantId: string): Promise<DashboardSu
     WHERE tenant_id = ${tenantId}
       AND created_at >= ${today.toISOString()}
   `;
+  const todayRows = todayQuery as any[];
+  const todayResult = todayRows[0];
 
   // Pending and in production counts
-  const [statusResult] = await sql`
+  const statusQuery = await sql`
     SELECT 
       COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
       COUNT(CASE WHEN status = 'in_production' THEN 1 END) as in_production
     FROM orders
     WHERE tenant_id = ${tenantId}
   `;
+  const statusRows = statusQuery as any[];
+  const statusResult = statusRows[0];
 
   // Weekly comparison
-  const [weeklyResult] = await sql`
+  const weeklyQuery = await sql`
     SELECT 
       COUNT(CASE WHEN created_at >= ${lastWeek.toISOString()} THEN 1 END) as this_week,
       COUNT(CASE WHEN created_at >= ${lastWeek.toISOString()} - INTERVAL '7 days' 
@@ -314,9 +336,11 @@ export async function getDashboardSummary(tenantId: string): Promise<DashboardSu
     FROM orders
     WHERE tenant_id = ${tenantId}
   `;
+  const weeklyRows = weeklyQuery as any[];
+  const weeklyResult = weeklyRows[0];
 
   // Monthly comparison
-  const [monthlyResult] = await sql`
+  const monthlyQuery = await sql`
     SELECT 
       COUNT(CASE WHEN created_at >= ${lastMonth.toISOString()} THEN 1 END) as this_month,
       COUNT(CASE WHEN created_at >= ${lastMonth.toISOString()} - INTERVAL '30 days' 
@@ -324,6 +348,8 @@ export async function getDashboardSummary(tenantId: string): Promise<DashboardSu
     FROM orders
     WHERE tenant_id = ${tenantId}
   `;
+  const monthlyRows = monthlyQuery as any[];
+  const monthlyResult = monthlyRows[0];
 
   const thisWeek = parseInt(weeklyResult.this_week) || 0;
   const prevWeek = parseInt(weeklyResult.last_week) || 1;

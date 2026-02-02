@@ -9,15 +9,16 @@ import { getSql } from '@/lib/db';
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_BY_KEY } from '@/lib/config/templates';
 
 const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+const IS_BUILD_TIME = process.env.NEXT_PHASE === 'phase-production-build';
 
-if (!AUTH_SECRET) {
+if (!AUTH_SECRET && !IS_BUILD_TIME) {
   throw new Error(
     '[RenkFlow] FATAL: AUTH_SECRET or NEXTAUTH_SECRET environment variable is required.\n' +
       'Please set one of these in your .env file or deployment environment.'
   );
 }
 
-if (AUTH_SECRET.length < 32) {
+if (AUTH_SECRET && AUTH_SECRET.length < 32) {
   console.warn('[RenkFlow] WARNING: AUTH_SECRET should be at least 32 characters for security');
 }
 
@@ -108,12 +109,13 @@ export const authConfig: NextAuthConfig = {
               LIMIT 1
             `;
 
-            if (users.length === 0) {
+            const usersRows = users as any[];
+            if (usersRows.length === 0) {
               if (DEBUG) console.log('[AUTH] Invalid ticket or email');
               throw createCredentialsError('invalid_credentials');
             }
 
-            const user = users[0];
+            const user = usersRows[0];
 
             // Clear the used ticket
             await sql`
@@ -155,9 +157,10 @@ export const authConfig: NextAuthConfig = {
             LIMIT 1
           `;
 
-          if (DEBUG) console.log('[AUTH] Query complete, found users:', users.length);
+          const usersRows = users as any[];
+          if (DEBUG) console.log('[AUTH] Query complete, found users:', usersRows.length);
 
-          const user = users[0];
+          const user = usersRows[0];
 
           if (!user) {
             if (DEBUG) console.log('[AUTH] User not found');
@@ -258,20 +261,22 @@ export const authConfig: NextAuthConfig = {
             SELECT id FROM users WHERE email = ${user.email} LIMIT 1
           `;
 
-          if (existingUsers.length === 0) {
+          const existingUsersRows = existingUsers as any[];
+          if (existingUsersRows.length === 0) {
             // Create user first for OAuth
             const newUsers = await sql`
               INSERT INTO users (name, email, email_verified, image, created_at, updated_at)
               VALUES (${user.name || 'Kullanıcı'}, ${user.email}, NOW(), ${user.image || null}, NOW(), NOW())
               RETURNING id
             `;
+            const newUsersRows = newUsers as any[];
 
-            if (newUsers.length === 0) {
+            if (newUsersRows.length === 0) {
               if (DEBUG) console.error('Failed to create OAuth user');
               return true;
             }
 
-            const newUserId = newUsers[0].id;
+            const newUserId = newUsersRows[0].id;
 
             // Create tenant for new user
             const tenantSlug = (user.name || user.email)
@@ -285,11 +290,12 @@ export const authConfig: NextAuthConfig = {
               RETURNING id
             `;
 
-            if (tenants[0]) {
+            const tenantsRows = tenants as any[];
+            if (tenantsRows[0]) {
               // Link user to tenant as owner
               await sql`
                 INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
-                VALUES (${tenants[0].id}, ${newUserId}, 'owner', NOW())
+                VALUES (${tenantsRows[0].id}, ${newUserId}, 'owner', NOW())
               `;
             }
 
@@ -297,7 +303,7 @@ export const authConfig: NextAuthConfig = {
             user.id = newUserId;
           } else {
             // Existing user - update user.id for session
-            user.id = existingUsers[0].id;
+            user.id = existingUsersRows[0].id;
           }
         } catch (error) {
           if (DEBUG) console.error('OAuth signIn error:', error);

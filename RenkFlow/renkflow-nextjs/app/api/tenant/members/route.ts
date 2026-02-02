@@ -25,9 +25,10 @@ export async function GET() {
       ORDER BY tm.created_at DESC
     `;
 
+    const membersRows = members as any[];
     return NextResponse.json({
       success: true,
-      members: members.map((row: any) => ({
+      members: membersRows.map((row: any) => ({
         id: row.user_id,
         name: row.name,
         email: row.email,
