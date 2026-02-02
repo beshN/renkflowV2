@@ -87,13 +87,18 @@ function LoginForm() {
     setFormErrors({});
 
     try {
+      console.log('[Login] Attempting signIn with email:', email);
+      
       const result = await signIn('credentials', {
         email: email.trim().toLowerCase(),
         password,
         redirect: false,
       });
+      
+      console.log('[Login] signIn result:', { error: result?.error, ok: result?.ok, code: result?.code });
 
       if (result?.error) {
+        console.log('[Login] Error detected:', result.error, 'Code:', result.code);
         if (result.error === 'CredentialsSignin') {
           const code = (result.code || 'credentials').toLowerCase();
           const mapped = CREDENTIALS_ERROR_MAP[code] || CREDENTIALS_ERROR_MAP.credentials;
