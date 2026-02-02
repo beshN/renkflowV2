@@ -44,11 +44,18 @@ function mapAuthErrorToCode(message: string) {
     normalized.includes('connection') ||
     normalized.includes('connect') ||
     normalized.includes('timeout') ||
-    normalized.includes('econn')
+    normalized.includes('econn') ||
+    normalized.includes('sql') ||
+    normalized.includes('neon') ||
+    normalized.includes('db') ||
+    normalized.includes('fetch') ||
+    normalized.includes('network')
   ) {
     return 'db_unavailable';
   }
 
+  // Log unknown errors for debugging
+  console.error('[AUTH] Unmapped error message:', message);
   return 'auth_failed';
 }
 
