@@ -78,7 +78,7 @@ export const Hero: React.FC = () => {
                 transition={{ duration: 0.8, ease: "easeOut" }}
             >
                 {/* Headline */}
-                <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight text-foreground mb-6 leading-[1.1]">
+                <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight text-slate-900 dark:text-white mb-6 leading-[1.1]">
                     Üretim Yönetiminde <br/>
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-emerald-500 dark:from-sky-400 dark:to-emerald-400">
                         Yeni Bir Çağ.

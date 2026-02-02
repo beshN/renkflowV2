@@ -97,7 +97,7 @@ export default function About() {
               >
                 <div className="aspect-video w-full rounded-3xl overflow-hidden relative border border-slate-200/70 bg-white/80 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900/70">
                   <Image
-                    src="/team-collaboration.png"
+                    src="/images/about/team-meeting.png"
                     alt="Team collaboration"
                     fill
                     className="object-cover"

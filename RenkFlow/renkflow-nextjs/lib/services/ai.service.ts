@@ -1,6 +1,6 @@
 /**
  * AI Assistant Service
- * Claude/OpenAI/Groq integration for intelligent task management
+ * Claude/OpenAI integration for intelligent task management
  */
 
 import type {
@@ -24,16 +24,9 @@ interface AIConfig {
 }
 
 const DEFAULT_CONFIG: Partial<AIConfig> = {
-  maxTokens: 2048,
+  maxTokens: 4096,
   temperature: 0.7,
 };
-
-// Groq models - all FREE!
-const GROQ_MODELS = {
-  'llama-3.3-70b': 'llama-3.3-70b-versatile',
-  'llama-3.1-8b': 'llama-3.1-8b-instant',
-  'mixtral-8x7b': 'mixtral-8x7b-32768',
-} as const;
 
 // ============================================
 // AI Service Class
@@ -44,32 +37,13 @@ export class AIService {
   private conversationHistory: AIMessage[] = [];
 
   constructor(config: Partial<AIConfig> = {}) {
-    // Default to Groq (free) if GROQ_API_KEY is set
-    const defaultProvider = process.env.GROQ_API_KEY ? 'groq' : 
-                           process.env.ANTHROPIC_API_KEY ? 'claude' : 
-                           process.env.OPENAI_API_KEY ? 'openai' : 'groq';
-    
-    const provider = config.provider || defaultProvider;
-    
     this.config = {
-      provider,
-      apiKey: config.apiKey || 
-              process.env.GROQ_API_KEY || 
-              process.env.ANTHROPIC_API_KEY || 
-              process.env.OPENAI_API_KEY || '',
-      model: config.model || this.getDefaultModel(provider),
+      provider: config.provider || 'groq',
+      apiKey: config.apiKey || process.env.GROQ_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || '',
+      model: config.model || (config.provider === 'groq' ? 'llama-3.3-70b-versatile' : config.provider === 'openai' ? 'gpt-4-turbo' : 'claude-3-sonnet-20240229'),
       maxTokens: config.maxTokens || DEFAULT_CONFIG.maxTokens!,
       temperature: config.temperature ?? DEFAULT_CONFIG.temperature!,
     };
-  }
-
-  private getDefaultModel(provider: string): string {
-    switch (provider) {
-      case 'groq': return GROQ_MODELS['llama-3.3-70b'];
-      case 'openai': return 'gpt-4-turbo';
-      case 'claude': return 'claude-3-sonnet-20240229';
-      default: return GROQ_MODELS['llama-3.3-70b'];
-    }
   }
 
   // ============================================
@@ -370,49 +344,13 @@ Sadece JSON döndür, açıklama ekleme.
       return this.getMockResponse(messages[messages.length - 1]?.content || '');
     }
 
-    switch (this.config.provider) {
-      case 'groq':
-        return await this.callGroq(systemPrompt, messages);
-      case 'claude':
-        return await this.callClaude(systemPrompt, messages);
-      case 'openai':
-      default:
-        return await this.callOpenAI(systemPrompt, messages);
+    if (this.config.provider === 'claude') {
+      return await this.callClaude(systemPrompt, messages);
+    } else if (this.config.provider === 'groq') {
+      return await this.callGroq(systemPrompt, messages);
+    } else {
+      return await this.callOpenAI(systemPrompt, messages);
     }
-  }
-
-  private async callGroq(
-    systemPrompt: string,
-    messages: AIMessage[]
-  ): Promise<string> {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: this.config.model,
-        max_tokens: this.config.maxTokens,
-        temperature: this.config.temperature,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...messages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('[AI Service] Groq error:', error);
-      throw new Error(`Groq API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.choices[0]?.message?.content || '';
   }
 
   private async callClaude(
@@ -477,6 +415,38 @@ Sadece JSON döndür, açıklama ekleme.
     return data.choices[0]?.message?.content || '';
   }
 
+  private async callGroq(
+    systemPrompt: string,
+    messages: AIMessage[]
+  ): Promise<string> {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.config.model,
+        max_tokens: this.config.maxTokens,
+        temperature: this.config.temperature,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Groq API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0]?.message?.content || '';
+  }
+
   private getMockResponse(query: string): string {
     // Mock responses for testing without API key
     if (query.toLowerCase().includes('geciken')) {
@@ -489,62 +459,19 @@ Sadece JSON döndür, açıklama ekleme.
   }
 
   private buildSystemPrompt(context: WorkspaceContext): string {
-    return `Sen RenkFlow üretim yönetim sisteminin yapay zeka asistanısın. Adın "RenkFlow AI" ve matbaa/baskı sektörüne özel bir iş takip ve yönetim platformu için çalışıyorsun.
+    return `
+Sen RenkFlow üretim yönetim sisteminin AI asistanısın. 
+Türkçe yanıt ver. Kısa ve öz ol.
 
-## RenkFlow Hakkında
-RenkFlow, matbaa ve baskı şirketleri için geliştirilmiş profesyonel bir SaaS üretim yönetim platformudur. Temel özellikleri:
+Mevcut bağlam:
+- Toplam sipariş: ${context.totalOrders || 0}
+- Aktif siparişler: ${context.activeOrders || 0}
+- Geciken siparişler: ${context.overdueOrders || 0}
+- Bugünkü teslimler: ${context.todayDeliveries || 0}
 
-### Sipariş Yönetimi
-- Sipariş oluşturma, düzenleme ve takip
-- Durum güncellemeleri: Beklemede, Üretimde, Kalite Kontrol, Teslime Hazır, Teslim Edildi
-- Müşteri bilgileri ve iletişim geçmişi
-- Teslim tarihi takibi ve gecikme uyarıları
-
-### Üretim Takibi
-- İş akışı yönetimi
-- Makine ve kaynak ataması
-- Üretim süreçleri: Tasarım, Baskı, Kesim, Katlama, Ciltleme, Paketleme
-- Zaman takibi ve verimlilik analizi
-
-### Finans Modülü
-- Fatura oluşturma ve yazdırma
-- Ödeme takibi ve hatırlatmalar
-- Gelir-gider raporları
-- Müşteri borç/alacak durumu
-
-### Raporlama
-- Günlük, haftalık, aylık raporlar
-- Sipariş ve gelir grafikleri
-- Üretim verimliliği analizi
-- Müşteri bazlı raporlar
-
-## Mevcut Durum
-- Toplam sipariş: ${context.totalOrders || 'Bilinmiyor'}
-- Aktif siparişler: ${context.activeOrders || 'Bilinmiyor'}
-- Geciken siparişler: ${context.overdueOrders || 'Bilinmiyor'}
-- Bugünkü teslimler: ${context.todayDeliveries || 'Bilinmiyor'}
-
-## Davranış Kuralları
-1. Her zaman Türkçe yanıt ver
-2. Kısa, net ve profesyonel ol
-3. Matbaa/baskı terminolojisini kullan
-4. Somut sayılar ve öneriler sun
-5. Gerekirse adım adım yol göster
-6. Belirsiz durumlarda netleştirici sorular sor
-7. Kullanıcının iş süreçlerini kolaylaştırmaya odaklan
-
-## Yardım Edebileceğin Konular
-- Sipariş durumu sorgulama
-- Geciken işlerin listesi
-- Günlük/haftalık iş özeti
-- Üretim planlaması önerileri
-- Müşteri bilgileri
-- Finansal özet ve raporlar
-- Sistem kullanımı hakkında sorular
-
-Kullanıcıya samimi ama profesyonel bir şekilde yardımcı ol. Emoji kullanabilirsin ama abartma.`;
+Kullanıcıya yardımcı ol, soruları yanıtla ve önerilerde bulun.
+`;
   }
-
 
   private parseQueryResponse(
     response: string,

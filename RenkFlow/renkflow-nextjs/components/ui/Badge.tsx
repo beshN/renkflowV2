@@ -55,36 +55,36 @@ export function Badge({
     default: cn(
       'bg-slate-100 dark:bg-slate-800',
       'text-slate-700 dark:text-slate-300',
-      'ring-1 ring-slate-200/50 dark:ring-slate-700/50'
+      'ring-1 ring-slate-200 dark:ring-slate-700'
     ),
     primary: cn(
-      'bg-gradient-to-r from-sky-500/10 to-blue-500/10',
+      'bg-sky-50 dark:bg-sky-900',
       'text-sky-700 dark:text-sky-300',
-      'ring-1 ring-sky-500/20'
+      'ring-1 ring-sky-200 dark:ring-sky-800'
     ),
     secondary: cn(
       'bg-slate-900 dark:bg-white',
       'text-white dark:text-slate-900'
     ),
     success: cn(
-      'bg-emerald-50 dark:bg-emerald-900/30',
+      'bg-emerald-50 dark:bg-emerald-900',
       'text-emerald-700 dark:text-emerald-300',
-      'ring-1 ring-emerald-500/20'
+      'ring-1 ring-emerald-200 dark:ring-emerald-800'
     ),
     warning: cn(
-      'bg-amber-50 dark:bg-amber-900/30',
+      'bg-amber-50 dark:bg-amber-900',
       'text-amber-700 dark:text-amber-300',
-      'ring-1 ring-amber-500/20'
+      'ring-1 ring-amber-200 dark:ring-amber-800'
     ),
     danger: cn(
-      'bg-red-50 dark:bg-red-900/30',
+      'bg-red-50 dark:bg-red-900',
       'text-red-700 dark:text-red-300',
-      'ring-1 ring-red-500/20'
+      'ring-1 ring-red-200 dark:ring-red-800'
     ),
     info: cn(
-      'bg-blue-50 dark:bg-blue-900/30',
+      'bg-blue-50 dark:bg-blue-900',
       'text-blue-700 dark:text-blue-300',
-      'ring-1 ring-blue-500/20'
+      'ring-1 ring-blue-200 dark:ring-blue-800'
     ),
     outline: cn(
       'bg-transparent',

@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/Dialog';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
-import { canAccessFinance, hasPermission } from '@/lib/auth/permissions';
+import { canAccessFinance, hasPermission, UserRole } from '@/lib/auth/permissions';
 import { formatCurrency } from '@/lib/utils';
 import { 
   ArrowLeft,
@@ -82,12 +82,12 @@ export default function EmployeeDetailPage() {
     note: '',
   });
 
-  const canCreate = user && hasPermission(user.role as any, 'finance.ledger.create');
+  const canCreate = user && hasPermission(user.role as UserRole, 'finance.ledger.create');
 
   useEffect(() => {
     if (!user) return;
     
-    if (!canAccessFinance(user.role as any)) {
+    if (!canAccessFinance(user.role as UserRole)) {
       showToast('Finans modülüne erişim yetkiniz bulunmuyor', 'error');
       return;
     }

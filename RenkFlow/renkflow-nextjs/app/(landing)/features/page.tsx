@@ -1,6 +1,7 @@
 'use client';
 
 import { Features } from '@/components/landing-new/Features';
+import { FeaturesDashboardPreview } from '@/components/landing-new/FeaturesDashboardPreview';
 import { motion } from 'framer-motion';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,12 @@ export default function FeaturesPage() {
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
                 İşletmenizin her adımını optimize etmek için tasarlandı.
             </p>
+      </div>
+
+      <div className="flex justify-center px-4 -mt-8 mb-20 relative z-20">
+        <div className="w-full max-w-5xl">
+            <FeaturesDashboardPreview />
+        </div>
       </div>
 
       <Features />

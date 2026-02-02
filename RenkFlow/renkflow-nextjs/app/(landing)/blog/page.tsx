@@ -31,7 +31,7 @@ const blogPosts: BlogPost[] = [
     author: 'Elif Yılmaz',
     date: '10 Aralık 2024',
     readTime: '5 dk',
-    image: '/feature-project-mgmt.png',
+    image: '/images/blog/future-manufacturing.png',
     featured: true
   },
   {
@@ -42,7 +42,7 @@ const blogPosts: BlogPost[] = [
     author: 'Ahmet Kaya',
     date: '5 Aralık 2024',
     readTime: '7 dk',
-    image: '/team-collaboration.png'
+    image: '/images/blog/supply-chain.png'
   },
   {
     id: '3',
@@ -52,7 +52,7 @@ const blogPosts: BlogPost[] = [
     author: 'Zeynep Demir',
     date: '28 Kasım 2024',
     readTime: '10 dk',
-    image: '/feature-agile.png'
+    image: '/images/blog/digital-transformation.png'
   },
   {
     id: '4',
@@ -62,7 +62,7 @@ const blogPosts: BlogPost[] = [
     author: 'Elif Yılmaz',
     date: '20 Kasım 2024',
     readTime: '6 dk',
-    image: '/feature-creative.png'
+    image: '/images/blog/future-manufacturing.png'
   },
   {
     id: '5',
@@ -72,7 +72,7 @@ const blogPosts: BlogPost[] = [
     author: 'Ahmet Kaya',
     date: '15 Kasım 2024',
     readTime: '8 dk',
-    image: '/dashboard-preview.png'
+    image: '/images/blog/digital-transformation.png'
   },
   {
     id: '6',
@@ -82,7 +82,7 @@ const blogPosts: BlogPost[] = [
     author: 'Zeynep Demir',
     date: '8 Kasım 2024',
     readTime: '5 dk',
-    image: '/feature-project-mgmt.png'
+    image: '/images/blog/supply-chain.png'
   }
 ];
 

@@ -32,8 +32,8 @@ export async function GET() {
         message: 'Email failed to send. Check logs above.' 
       }, { status: 500 });
     }
-  } catch (error: any) {
-    console.error('❌ Test email error:', error);
+  } catch (error: unknown) {
+    console.error('Test email error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json({ 
       success: false, 
       error: 'Email test failed'

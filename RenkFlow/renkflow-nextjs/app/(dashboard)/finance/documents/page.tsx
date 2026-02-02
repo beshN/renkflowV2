@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Navbar } from '@/components/layout/Navbar';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
-import { canAccessFinance, hasPermission } from '@/lib/auth/permissions';
+import { canAccessFinance, hasPermission, UserRole } from '@/lib/auth/permissions';
 import { 
   ArrowLeft,
   FileText,
@@ -36,12 +36,12 @@ export default function FinanceDocumentsPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const canDelete = user && hasPermission(user.role as any, 'finance.documents.delete');
+  const canDelete = user && hasPermission(user.role as UserRole, 'finance.documents.delete');
 
   useEffect(() => {
     if (!user) return;
     
-    if (!canAccessFinance(user.role as any)) {
+    if (!canAccessFinance(user.role as UserRole)) {
       showToast('Finans modülüne erişim yetkiniz bulunmuyor', 'error');
       return;
     }
@@ -97,7 +97,7 @@ export default function FinanceDocumentsPage() {
     return matchesSearch;
   });
 
-  if (!user || !canAccessFinance(user.role as any)) {
+  if (!user || !canAccessFinance(user.role as UserRole)) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <p className="text-slate-500">Finans modülüne erişim yetkiniz bulunmuyor</p>

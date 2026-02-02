@@ -307,8 +307,9 @@ export function handleError(error: unknown): {
     };
   }
 
-  // Handle Postgres errors
-  if ((error as any)?.code && typeof (error as any).code === 'string' && (error as any).code.length === 5) {
+  // Handle Postgres errors - check for Postgres error pattern
+  const pgError = error as { code?: string; message?: string };
+  if (pgError?.code && typeof pgError.code === 'string' && pgError.code.length === 5) {
     const dbError = DatabaseError.fromPostgresError(error);
     return {
       success: false,

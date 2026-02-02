@@ -44,50 +44,38 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
 
   const variants = {
     primary: cn(
-      'bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 text-white',
-      'shadow-[0_8px_30px_-8px_rgba(14,165,233,0.5)]',
-      'hover:shadow-[0_12px_40px_-8px_rgba(14,165,233,0.6)] hover:brightness-110',
-      'before:absolute before:inset-0 before:rounded-[inherit] before:bg-gradient-to-r before:from-white/20 before:to-transparent before:opacity-0 before:transition-opacity hover:before:opacity-100'
+      'bg-slate-900 text-white',
+      'hover:bg-slate-800'
     ),
     default: cn(
-      'bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 text-white',
-      'shadow-[0_8px_30px_-8px_rgba(14,165,233,0.5)]',
-      'hover:shadow-[0_12px_40px_-8px_rgba(14,165,233,0.6)] hover:brightness-110'
+      'bg-slate-900 text-white',
+      'hover:bg-slate-800'
     ),
     secondary: cn(
-      'bg-slate-900 text-white dark:bg-white dark:text-slate-900',
-      'shadow-sm hover:shadow-lg',
-      'hover:bg-slate-800 dark:hover:bg-slate-100',
-      'border border-transparent hover:border-slate-700 dark:hover:border-slate-300'
+      'bg-slate-100 text-slate-900',
+      'hover:bg-slate-200',
+      'border border-slate-200'
     ),
     outline: cn(
-      'border-2 border-slate-200 dark:border-slate-700',
-      'bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm',
-      'text-slate-700 dark:text-slate-200',
-      'hover:border-sky-500 hover:text-sky-600 dark:hover:border-sky-400 dark:hover:text-sky-400',
-      'hover:shadow-[0_0_20px_-5px_rgba(14,165,233,0.3)]'
+      'bg-white text-slate-700',
+      'border-2 border-slate-200',
+      'hover:border-slate-300 hover:bg-slate-50'
     ),
     ghost: cn(
-      'bg-transparent text-slate-600 dark:text-slate-300',
-      'hover:text-slate-900 dark:hover:text-white',
-      'hover:bg-slate-100/80 dark:hover:bg-slate-800/70'
+      'bg-transparent text-slate-600',
+      'hover:text-slate-900 hover:bg-slate-100'
     ),
     danger: cn(
-      'bg-gradient-to-r from-red-500 to-rose-600 text-white',
-      'shadow-[0_8px_25px_-8px_rgba(239,68,68,0.5)]',
-      'hover:shadow-[0_12px_35px_-8px_rgba(239,68,68,0.6)] hover:brightness-110'
+      'bg-red-600 text-white',
+      'hover:bg-red-700'
     ),
     success: cn(
-      'bg-gradient-to-r from-emerald-500 to-teal-600 text-white',
-      'shadow-[0_8px_25px_-8px_rgba(16,185,129,0.5)]',
-      'hover:shadow-[0_12px_35px_-8px_rgba(16,185,129,0.6)] hover:brightness-110'
+      'bg-emerald-600 text-white',
+      'hover:bg-emerald-700'
     ),
     premium: cn(
-      'bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white',
-      'shadow-[0_8px_30px_-8px_rgba(251,146,60,0.5)]',
-      'hover:shadow-[0_12px_40px_-8px_rgba(251,146,60,0.6)] hover:brightness-110',
-      'before:absolute before:inset-0 before:rounded-[inherit] before:bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.3)_50%,transparent_75%)]',
-      'before:bg-[length:250%_250%] before:animate-shimmer'
+      'bg-amber-500 text-white',
+      'hover:bg-amber-600'
     ),
   };
 

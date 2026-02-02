@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { RecentOrdersTable } from '@/components/dashboard/RecentOrdersTable';
 import { useOrders } from '@/lib/hooks/useOrders';
 import { useAuth } from '@/lib/context/AuthContext';
+import { ActivityFeed } from '@/components/activity/ActivityFeed';
 import { StatsCardData } from '@/lib/types';
 import { ShoppingBag, Factory, CheckCircle2, Banknote } from 'lucide-react';
 import { AdvancedStatsCard, StatsGrid } from '@/components/dashboard/AdvancedStatsCard';
@@ -141,67 +142,61 @@ export default function DashboardPage() {
       
       <main className="flex-1 p-4 md:p-8 pt-16 md:pt-8">
         {/* Action Center */}
-        <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_1fr] gap-6 mb-8">
-          <Card spotlight className="p-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+          <Card className="xl:col-span-2 p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div className="space-y-2">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Hızlı Başlangıç</p>
-                <h2 className="text-2xl md:text-3xl font-bold text-text-light dark:text-text-dark">Bugün ne yapmak istersiniz?</h2>
-                <p className="text-sm md:text-base text-subtle-light dark:text-subtle-dark max-w-xl">
+                <p className="text-xs uppercase tracking-wide text-slate-500">Hızlı Başlangıç</p>
+                <h2 className="text-2xl md:text-3xl font-bold text-slate-900">Bugün ne yapmak istersiniz?</h2>
+                <p className="text-sm text-slate-600 max-w-xl">
                   Sipariş oluşturun, üretim kanbanına göz atın veya ekip ayarlarını güncelleyin.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
                 <Link
                   href="/new-order"
-                  className="inline-flex items-center justify-center rounded-full bg-slate-900 text-white px-5 py-2.5 text-sm font-semibold shadow-[0_18px_40px_-24px_rgba(15,23,42,0.7)] hover:opacity-90"
+                  className="inline-flex items-center justify-center rounded-lg bg-slate-900 text-white px-5 py-2.5 text-sm font-medium hover:bg-slate-800 transition-colors"
                 >
                   Yeni Sipariş
                 </Link>
                 <Link
                   href="/orders"
-                  className="inline-flex items-center justify-center rounded-full border border-slate-200/70 bg-white/70 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:border-sky-200 hover:text-slate-900 dark:border-slate-700/70 dark:bg-slate-900/60 dark:text-slate-200"
+                  className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-colors"
                 >
                   Siparişleri Gör
                 </Link>
                 <Link
                   href="/kanban"
-                  className="inline-flex items-center justify-center rounded-full border border-slate-200/70 bg-white/70 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:border-emerald-200 hover:text-slate-900 dark:border-slate-700/70 dark:bg-slate-900/60 dark:text-slate-200"
+                  className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-colors"
                 >
                   Üretim Kanban
-                </Link>
-                <Link
-                  href="/settings"
-                  className="inline-flex items-center justify-center rounded-full border border-slate-200/70 bg-white/70 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:text-slate-900 dark:border-slate-700/70 dark:bg-slate-900/60 dark:text-slate-200"
-                >
-                  Ayarlar
                 </Link>
               </div>
             </div>
           </Card>
 
-          <Card spotlight className="p-6">
+          <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">İçgörü</p>
-                <h3 className="text-xl font-semibold text-text-light dark:text-text-dark mt-2">Haftalık sağlık özeti</h3>
+                <p className="text-xs uppercase tracking-wide text-slate-500">İçgörü</p>
+                <h3 className="text-xl font-semibold text-slate-900 mt-1">Haftalık özeti</h3>
               </div>
-              <span className="text-xs text-slate-500 dark:text-slate-400">Son 7 gün</span>
+              <span className="text-xs text-slate-400">Son 7 gün</span>
             </div>
-            <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700/60 dark:bg-slate-900/60">
-                <p className="text-xs text-slate-500 dark:text-slate-400">Tamamlama Oranı</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-white">{dashboardInsights.completionRate}%</p>
+            <div className="mt-6 grid grid-cols-3 gap-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs text-slate-500 mb-1">Tamamlama</p>
+                <p className="text-2xl font-bold text-slate-900">{dashboardInsights.completionRate}%</p>
               </div>
-              <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700/60 dark:bg-slate-900/60">
-                <p className="text-xs text-slate-500 dark:text-slate-400">Ortalama Sipariş</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-white">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs text-slate-500 mb-1">Ort. Sipariş</p>
+                <p className="text-2xl font-bold text-slate-900">
                   ₺{Math.round(dashboardInsights.avgOrderValue || 0).toLocaleString('tr-TR')}
                 </p>
               </div>
-              <div className="rounded-2xl border border-rose-200/70 bg-rose-50/60 p-4 text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
-                <p className="text-xs">Geciken</p>
-                <p className="text-2xl font-bold">{dashboardInsights.overdue}</p>
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                <p className="text-xs text-red-600 mb-1">Geciken</p>
+                <p className="text-2xl font-bold text-red-700">{dashboardInsights.overdue}</p>
               </div>
             </div>
           </Card>
@@ -397,6 +392,11 @@ export default function DashboardPage() {
               ))}
             </div>
           </Card>
+        </div>
+
+        {/* Activity Feed Row */}
+        <div className="mt-8">
+          <ActivityFeed limit={8} showFilters={true} />
         </div>
       </main>
     </div>

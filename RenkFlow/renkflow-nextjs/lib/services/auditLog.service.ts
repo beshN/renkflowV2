@@ -104,7 +104,7 @@ export class AuditLogService {
    */
   static async log(input: AuditLogInput): Promise<string> {
     try {
-      // Get request metadata from headers
+      // Get request metadata from headers (async in Next.js 16)
       const headersList = await headers();
       const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0] || 
                         headersList.get('x-real-ip') || 
@@ -218,22 +218,22 @@ export class AuditLogService {
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     const logsResult = await client(logsQuery, [...params, limit, offset]);
 
-    const logs: AuditLogEntry[] = logsResult.map((row: any) => ({
-      id: row.id,
-      tenantId: row.tenant_id,
-      userId: row.user_id,
-      userEmail: row.user_email,
-      userRole: row.user_role,
-      action: row.action,
-      entityType: row.entity_type,
-      entityId: row.entity_id,
-      oldValues: row.old_values,
-      newValues: row.new_values,
-      ipAddress: row.ip_address,
-      userAgent: row.user_agent,
-      requestId: row.request_id,
-      metadata: row.metadata,
-      createdAt: row.created_at,
+    const logs: AuditLogEntry[] = (logsResult as Record<string, unknown>[]).map((row) => ({
+      id: row.id as string,
+      tenantId: row.tenant_id as string,
+      userId: row.user_id as string | null,
+      userEmail: row.user_email as string | null,
+      userRole: row.user_role as string | null,
+      action: row.action as AuditAction,
+      entityType: row.entity_type as EntityType,
+      entityId: row.entity_id as string | null,
+      oldValues: row.old_values as Record<string, unknown> | null,
+      newValues: row.new_values as Record<string, unknown> | null,
+      ipAddress: row.ip_address as string | null,
+      userAgent: row.user_agent as string | null,
+      requestId: row.request_id as string | null,
+      metadata: (row.metadata as Record<string, unknown>) || {},
+      createdAt: row.created_at as string,
     }));
 
     return { logs, total };

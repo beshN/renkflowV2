@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Navbar } from '@/components/layout/Navbar';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
-import { canAccessFinance, hasPermission } from '@/lib/auth/permissions';
+import { canAccessFinance, hasPermission, UserRole } from '@/lib/auth/permissions';
 import { formatCurrency } from '@/lib/utils';
 import { 
   ArrowLeft,
@@ -36,7 +36,7 @@ export default function FinancePaymentsPage() {
   useEffect(() => {
     if (!user) return;
     
-    if (!canAccessFinance(user.role as any)) {
+    if (!canAccessFinance(user.role as UserRole)) {
       showToast('Finans modülüne erişim yetkiniz bulunmuyor', 'error');
       return;
     }
@@ -70,7 +70,7 @@ export default function FinancePaymentsPage() {
   const totalReceivable = orders.reduce((sum, o) => sum + o.remainingAmount, 0);
   const totalCollected = orders.reduce((sum, o) => sum + o.paidAmount, 0);
 
-  if (!user || !canAccessFinance(user.role as any)) {
+  if (!user || !canAccessFinance(user.role as UserRole)) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <p className="text-slate-500">Finans modülüne erişim yetkiniz bulunmuyor</p>

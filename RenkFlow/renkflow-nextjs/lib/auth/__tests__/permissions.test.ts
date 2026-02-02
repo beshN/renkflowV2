@@ -166,7 +166,7 @@ describe('Sanitizer', () => {
     date: '2024-01-01',
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z',
-  } as any;
+  };
 
   describe('sanitizeOrderForRole', () => {
     it('should not modify order for non-worker roles', () => {

@@ -28,13 +28,14 @@ import {
 } from 'lucide-react';
 
 import {
-  getThisMonthPaymentsTotal,
-  getOutstandingReceivables,
+  getFinanceOverview,
+} from '@/app/actions/finance.overview.actions';
+import { getRecentDocuments } from '@/app/actions/finance.documents.actions';
+import { listEmployees } from '@/app/actions/finance.employees.actions';
+import {
   listAllPayments,
   getOrdersWithPayments,
 } from '@/app/actions/finance.payments.actions';
-import { getRecentDocuments } from '@/app/actions/finance.documents.actions';
-import { getThisMonthPayrollCost, listEmployees } from '@/app/actions/finance.employees.actions';
 import { Payment, OrderDocument, PAYMENT_METHOD_LABELS, DOCUMENT_TYPE_LABELS } from '@/lib/types/finance';
 import { FinanceOverviewSkeleton, CardListSkeleton } from '@/components/finance/FinanceSkeletons';
 import { MiniEmptyState } from '@/components/finance/EmptyStates';
@@ -112,10 +113,8 @@ export default function FinanceOverviewPage() {
         setIsLoading(true);
       }
       
-      const [paymentsTotal, outstanding, payroll, payments, documents, orders, employees] = await Promise.all([
-        getThisMonthPaymentsTotal(),
-        getOutstandingReceivables(),
-        getThisMonthPayrollCost(),
+      const [overview, payments, documents, orders, employees] = await Promise.all([
+        getFinanceOverview(),
         listAllPayments({ limit: 50 }),
         getRecentDocuments(5),
         getOrdersWithPayments(),
@@ -123,10 +122,10 @@ export default function FinanceOverviewPage() {
       ]);
 
       setStats({
-        thisMonthPayments: paymentsTotal,
-        lastMonthPayments: paymentsTotal * 0.85, // Mock for demo - would need actual last month data
-        outstandingReceivables: outstanding,
-        thisMonthPayroll: payroll,
+        thisMonthPayments: overview.thisMonthPayments,
+        lastMonthPayments: overview.lastMonthPayments,
+        outstandingReceivables: overview.outstandingReceivables,
+        thisMonthPayroll: overview.thisMonthPayroll,
         employeeCount: employees.length,
         orderCount: orders.length,
       });
@@ -158,7 +157,7 @@ export default function FinanceOverviewPage() {
     ? (stats.thisMonthPayments / (stats.outstandingReceivables + stats.thisMonthPayments)) * 100
     : 0;
 
-  if (!user || !canAccessFinance(user.role as any)) {
+  if (!user || !canAccessFinance(user.role as UserRole)) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <p className="text-slate-500">Finans modülüne erişim yetkiniz bulunmuyor</p>

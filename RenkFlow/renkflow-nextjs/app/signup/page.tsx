@@ -245,14 +245,14 @@ export default function SignupPage() {
        <div className="grid grid-cols-2 gap-3 mb-6">
         <button 
             onClick={() => handleSocialSignup('google')}
-            className="flex items-center justify-center gap-2 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors bg-white dark:bg-slate-900"
+            className="flex items-center justify-center gap-2 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors bg-white dark:bg-slate-950"
         >
             <Image src="https://authjs.dev/img/providers/google.svg" width={18} height={18} alt="Google" />
             <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Google</span>
         </button>
         <button 
              onClick={() => handleSocialSignup('azure-ad')}
-             className="flex items-center justify-center gap-2 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors bg-white dark:bg-slate-900"
+             className="flex items-center justify-center gap-2 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors bg-white dark:bg-slate-950"
         >
              <Image src="https://authjs.dev/img/providers/microsoft-entra-id.svg" width={18} height={18} alt="Microsoft" />
              <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Microsoft</span>

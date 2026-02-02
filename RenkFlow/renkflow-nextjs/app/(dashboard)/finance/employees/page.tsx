@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/Dialog';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
-import { canAccessFinance, hasPermission } from '@/lib/auth/permissions';
+import { canAccessFinance, hasPermission, UserRole } from '@/lib/auth/permissions';
 import { 
   ArrowLeft,
   Users,
@@ -44,12 +44,12 @@ export default function FinanceEmployeesPage() {
     phone: '',
   });
 
-  const canCreate = user && hasPermission(user.role as any, 'finance.employees.create');
+  const canCreate = user && hasPermission(user.role as UserRole, 'finance.employees.create');
 
   useEffect(() => {
     if (!user) return;
     
-    if (!canAccessFinance(user.role as any)) {
+    if (!canAccessFinance(user.role as UserRole)) {
       showToast('Finans modülüne erişim yetkiniz bulunmuyor', 'error');
       return;
     }
@@ -99,7 +99,7 @@ export default function FinanceEmployeesPage() {
     );
   });
 
-  if (!user || !canAccessFinance(user.role as any)) {
+  if (!user || !canAccessFinance(user.role as UserRole)) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <p className="text-slate-500">Finans modülüne erişim yetkiniz bulunmuyor</p>

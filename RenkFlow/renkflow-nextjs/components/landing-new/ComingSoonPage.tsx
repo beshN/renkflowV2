@@ -77,7 +77,7 @@ const AnimatedNumber = ({ value, label }: { value: number; label: string }) => (
     className="flex flex-col items-center"
   >
     <div className="relative">
-      <div className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white tabular-nums">
+      <div className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 dark:text-white tabular-nums">
         {String(value).padStart(2, '0')}
       </div>
       <div className="absolute inset-0 blur-2xl bg-blue-500/30 -z-10" />
@@ -295,7 +295,7 @@ export const ComingSoonPage: React.FC = () => {
                 className="-mt-2 w-20 h-20 object-contain brightness-0 invert dark:brightness-100 dark:invert-0"
                 priority
               />
-              <span className="text-xl font-bold text-white">
+              <span className="text-xl font-bold text-slate-900 dark:text-white">
                 RenkFlow
               </span>
             </div>
@@ -344,7 +344,7 @@ export const ComingSoonPage: React.FC = () => {
 
               {/* Headline */}
               <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight mb-6">
-                <span className="text-white">Üretim Yönetiminde</span>
+                <span className="text-slate-900 dark:text-white">Üretim Yönetiminde</span>
                 <br />
                 <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">
                   Yeni Bir Dönem
@@ -353,7 +353,7 @@ export const ComingSoonPage: React.FC = () => {
 
               <p className="text-lg sm:text-xl text-slate-400 mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed">
                 Siparişten teslimata, stoktan faturaya. Tüm üretim süreçlerinizi 
-                tek bir platformda yönetin. <span className="text-white font-medium">Modern, hızlı ve güçlü.</span>
+                tek bir platformda yönetin. <span className="text-slate-900 dark:text-white font-medium">Modern, hızlı ve güçlü.</span>
               </p>
 
               {/* Countdown Timer */}
@@ -465,15 +465,15 @@ export const ComingSoonPage: React.FC = () => {
                       </div>
                     ))}
                   </div>
-                  <span className="text-sm text-slate-400">
-                    <span className="font-semibold text-white">500+</span> kişi bekliyor
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    <span className="font-semibold text-slate-900 dark:text-white">500+</span> kişi bekliyor
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
                   {[1, 2, 3, 4, 5].map((i) => (
                     <Star key={i} size={16} className="fill-amber-400 text-amber-400" />
                   ))}
-                  <span className="ml-1 text-sm font-medium text-white">4.9/5</span>
+                  <span className="ml-1 text-sm font-medium text-slate-900 dark:text-white">4.9/5</span>
                 </div>
               </motion.div>
             </motion.div>

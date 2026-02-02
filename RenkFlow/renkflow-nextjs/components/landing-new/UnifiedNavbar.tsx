@@ -20,7 +20,7 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeItem, setActiveItem] = useState<string | null>(null);
-  const { setTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -63,12 +63,8 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
   }, []);
 
   const toggleTheme = useCallback(() => {
-    const newTheme = themeState === "light" ? "dark" : "light";
-    setThemeState(newTheme);
-    localStorage.setItem("theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-    setTheme(newTheme);
-  }, [themeState, setTheme]);
+    setTheme(resolvedTheme === "light" ? "dark" : "light");
+  }, [resolvedTheme, setTheme]);
 
   return (
     <>
@@ -125,7 +121,7 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
                       className={cn(
                         'relative px-4 py-2 text-sm font-medium rounded-full transition-all duration-300',
                         isActive 
-                          ? 'text-white' 
+                          ? 'text-white dark:text-slate-900' 
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                       )}
                     >
@@ -172,7 +168,7 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
                   aria-label="Temayı Değiştir"
                 >
                   <AnimatePresence mode="wait">
-                    {themeState === "light" ? (
+                    {resolvedTheme === "light" ? (
                       <motion.div
                         key="moon"
                         initial={{ rotate: -90, opacity: 0 }}

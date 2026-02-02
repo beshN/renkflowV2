@@ -226,7 +226,7 @@ export default function MembersPage() {
                   />
                   <select
                     value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as any)}
+                    onChange={(e) => setInviteRole(e.target.value as typeof inviteRole)}
                     className="input-professional w-full"
                   >
                     <option value="member">Member</option>

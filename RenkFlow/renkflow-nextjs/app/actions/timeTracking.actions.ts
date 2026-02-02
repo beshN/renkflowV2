@@ -172,13 +172,14 @@ export async function updateTimeEntry(
 
     const result = await sql`
       UPDATE time_entries
-      SET description = COALESCE(${validated.description}, description),
-          start_time = COALESCE(${validated.startTime}, start_time),
-          end_time = COALESCE(${validated.endTime}, end_time),
-          duration = COALESCE(${validated.duration}, duration),
-          billable = COALESCE(${validated.billable}, billable),
-          tags = COALESCE(${validated.tags}, tags),
-          updated_at = NOW()
+      SET 
+        description = COALESCE(${validated.description}, description),
+        start_time = COALESCE(${validated.startTime}, start_time),
+        end_time = COALESCE(${validated.endTime}, end_time),
+        duration = COALESCE(${validated.duration}, duration),
+        billable = COALESCE(${validated.billable}, billable),
+        tags = COALESCE(${validated.tags}, tags),
+        updated_at = NOW()
       WHERE id = ${entryId}
         AND tenant_id = ${session.user.tenantId}
         AND user_id = ${session.user.id}

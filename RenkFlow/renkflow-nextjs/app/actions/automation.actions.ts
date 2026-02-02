@@ -7,7 +7,6 @@
 
 import { sql } from '@/lib/db';
 import { auth } from '@/auth';
-import { getServerUserContext } from '@/lib/auth/serverAuth';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 
@@ -191,64 +190,28 @@ export async function updateAutomationRule(
 ): Promise<ActionResult<AutomationRule>> {
   try {
     const session = await getSession();
-    const validated = UpdateAutomationRuleSchema.parse(data);
-
-    const updateFields: string[] = [];
-    const updateValues: unknown[] = [];
-    let paramIndex = 1;
-
-    if (validated.name !== undefined) {
-      updateFields.push(`name = $${paramIndex++}`);
-      updateValues.push(validated.name);
-    }
-    if (validated.description !== undefined) {
-      updateFields.push(`description = $${paramIndex++}`);
-      updateValues.push(validated.description);
-    }
-    if (validated.trigger !== undefined) {
-      updateFields.push(`trigger_type = $${paramIndex++}`);
-      updateValues.push(validated.trigger.type);
-      updateFields.push(`trigger_config = $${paramIndex++}`);
-      updateValues.push(JSON.stringify(validated.trigger.config));
-    }
-    if (validated.conditions !== undefined) {
-      updateFields.push(`conditions = $${paramIndex++}`);
-      updateValues.push(JSON.stringify(validated.conditions));
-    }
-    if (validated.actions !== undefined) {
-      updateFields.push(`actions = $${paramIndex++}`);
-      updateValues.push(JSON.stringify(validated.actions));
-    }
-    if (validated.scope !== undefined) {
-      updateFields.push(`scope = $${paramIndex++}`);
-      updateValues.push(JSON.stringify(validated.scope));
-    }
-    if (validated.isEnabled !== undefined) {
-      updateFields.push(`is_enabled = $${paramIndex++}`);
-      updateValues.push(validated.isEnabled);
-    }
-    if (validated.schedule !== undefined) {
-      updateFields.push(`schedule = $${paramIndex++}`);
-      updateValues.push(JSON.stringify(validated.schedule));
+    if (!session?.user?.tenantId) {
+      return { success: false, error: 'Unauthorized' };
     }
 
-    if (updateFields.length === 0) {
-      return { success: false, error: 'No updates provided' };
-    }
+    // Validate input
+    const validated = UpdateAutomationRuleSchema.partial().parse(data);
 
     const result = await sql`
       UPDATE automation_rules
-      SET name = COALESCE(${validated.name}, name),
-          description = COALESCE(${validated.description}, description),
-          trigger_type = COALESCE(${validated.trigger?.type}, trigger_type),
-          trigger_config = COALESCE(${validated.trigger ? JSON.stringify(validated.trigger.config) : null}, trigger_config),
-          conditions = COALESCE(${validated.conditions ? JSON.stringify(validated.conditions) : null}, conditions),
-          actions = COALESCE(${validated.actions ? JSON.stringify(validated.actions) : null}, actions),
-          scope = COALESCE(${validated.scope ? JSON.stringify(validated.scope) : null}, scope),
-          is_enabled = COALESCE(${validated.isEnabled}, is_enabled),
-          schedule = COALESCE(${validated.schedule ? JSON.stringify(validated.schedule) : null}, schedule),
-          updated_at = NOW()
-      WHERE id = ${ruleId} AND tenant_id = ${session.user.tenantId}
+      SET 
+        name = COALESCE(${validated.name}, name),
+        description = COALESCE(${validated.description}, description),
+        trigger_type = COALESCE(${validated.trigger?.type}, trigger_type),
+        trigger_config = COALESCE(${validated.trigger ? JSON.stringify(validated.trigger.config) : null}, trigger_config),
+        conditions = COALESCE(${validated.conditions ? JSON.stringify(validated.conditions) : null}, conditions),
+        actions = COALESCE(${validated.actions ? JSON.stringify(validated.actions) : null}, actions),
+        scope = COALESCE(${validated.scope ? JSON.stringify(validated.scope) : null}, scope),
+        is_enabled = COALESCE(${validated.isEnabled}, is_enabled),
+        schedule = COALESCE(${validated.schedule ? JSON.stringify(validated.schedule) : null}, schedule),
+        updated_at = NOW()
+      WHERE id = ${ruleId}
+        AND tenant_id = ${session.user.tenantId}
       RETURNING *
     `;
 

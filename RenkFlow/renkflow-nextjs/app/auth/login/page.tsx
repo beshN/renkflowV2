@@ -203,7 +203,7 @@ function LoginForm() {
                   setEmail(e.target.value);
                   if (formErrors.email) setFormErrors({ ...formErrors, email: undefined });
                 }}
-                className={`w-full px-4 py-3.5 rounded-xl border bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm focus:ring-4 focus:ring-primary/10 transition-all outline-none ${
+                className={`w-full px-4 py-3.5 rounded-xl border bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm focus:ring-4 focus:ring-primary/10 transition-all outline-none ${
                   formErrors.email 
                     ? 'border-red-500 focus:border-red-500' 
                     : 'border-slate-200 dark:border-slate-700 focus:border-primary'

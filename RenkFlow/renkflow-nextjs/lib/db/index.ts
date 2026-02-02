@@ -5,10 +5,8 @@
  * - Fail-fast principle in production
  * - Connection monitoring and health checks
  * - URL validation
- * - Server-only enforcement
  */
 
-import 'server-only';
 import { neon, neonConfig } from '@neondatabase/serverless';
 import { ConnectionInfo } from '@/lib/types';
 

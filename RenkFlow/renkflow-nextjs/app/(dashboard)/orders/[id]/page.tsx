@@ -61,7 +61,8 @@ export default function OrderDetailPage() {
       await deleteOrder(order!.id);
       showToast('Sipariş silindi', 'success');
       router.push('/orders');
-    } catch {
+    } catch (error) {
+      console.error('Delete order error:', error);
       showToast('Hata oluştu', 'error');
     } finally {
       setIsDeleting(false);
@@ -103,7 +104,8 @@ export default function OrderDetailPage() {
       if (files.length > 0) await uploadDocuments(order!.id, formData);
       setIsEditModalOpen(false);
       showToast('Güncellendi', 'success');
-    } catch {
+    } catch (error) {
+      console.error('Update order error:', error);
       showToast('Hata oluştu', 'error');
     } finally {
       setIsUpdating(false);

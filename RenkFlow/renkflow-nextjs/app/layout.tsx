@@ -2,6 +2,7 @@ import { ThemeApplier } from '@/components/layout/ThemeApplier'
 import { Analytics } from "@vercel/analytics/react"
 import GoogleAnalytics from '@/components/analytics/GoogleAnalytics'
 import { Toaster } from 'sonner'
+import '@/styles/design-system.css'
 import './globals.css'
 import type { Metadata } from 'next'
 import { Outfit, Plus_Jakarta_Sans } from 'next/font/google'
@@ -81,6 +82,7 @@ export const metadata: Metadata = {
 
 import { Providers } from '@/lib/context/Providers'
 import { SyncStatusBar } from '@/components/sync/SyncStatusBar'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export default function RootLayout({
   children,
@@ -129,11 +131,13 @@ export default function RootLayout({
       </head>
       <body className={`${outfit.variable} ${jakarta.variable} font-sans antialiased`}>
         <Providers>
-          <SyncStatusBar />
-          <ThemeApplier />
-          {children}
-          <Toaster position="top-center" richColors />
-          <ClientComponents />
+          <ErrorBoundary>
+            <SyncStatusBar />
+            <ThemeApplier />
+            {children}
+            <Toaster position="top-center" richColors />
+            <ClientComponents />
+          </ErrorBoundary>
         </Providers>
         <Analytics />
         <GoogleAnalytics GA_MEASUREMENT_ID={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || ''} />

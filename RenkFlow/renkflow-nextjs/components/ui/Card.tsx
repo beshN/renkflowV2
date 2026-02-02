@@ -28,36 +28,36 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(({
   const variants = {
     default: cn(
       'bg-white dark:bg-slate-900',
-      'border border-slate-200/60 dark:border-slate-800/60',
+      'border border-slate-200 dark:border-slate-800',
       'shadow-sm'
     ),
     elevated: cn(
       'bg-white dark:bg-slate-900',
-      'shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)]',
-      'border border-slate-100/50 dark:border-slate-800/50'
+      'shadow-md',
+      'border border-slate-100 dark:border-slate-800'
     ),
     outlined: cn(
       'bg-transparent',
       'border-2 border-slate-200 dark:border-slate-700'
     ),
     glass: cn(
-      'bg-white/70 dark:bg-slate-900/70',
-      'backdrop-blur-xl backdrop-saturate-150',
+      'bg-white/80 dark:bg-slate-900/80',
+      'backdrop-blur-md',
       'border border-white/20 dark:border-slate-700/50',
-      'shadow-[0_8px_32px_-8px_rgba(0,0,0,0.1)]'
+      'shadow-lg'
     ),
     gradient: cn(
-      'bg-gradient-to-br from-white via-slate-50 to-slate-100',
-      'dark:from-slate-900 dark:via-slate-800 dark:to-slate-900',
-      'border border-slate-200/40 dark:border-slate-700/40',
-      'shadow-lg'
+      'bg-gradient-to-br from-slate-50 to-slate-100',
+      'dark:from-slate-900 dark:to-slate-800',
+      'border border-slate-200 dark:border-slate-700',
+      'shadow-md'
     ),
   };
 
   const hoverEffects = {
-    lift: 'hover:-translate-y-1.5 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.4)]',
-    glow: 'hover:shadow-[0_0_30px_-5px_rgba(14,165,233,0.3)] hover:border-sky-200 dark:hover:border-sky-800',
-    border: 'hover:border-sky-500 dark:hover:border-sky-400',
+    lift: 'hover:-translate-y-1 hover:shadow-lg transition-transform',
+    glow: 'hover:border-sky-500 dark:hover:border-sky-400 transition-colors',
+    border: 'hover:border-sky-500 dark:hover:border-sky-400 transition-colors',
   };
 
   const paddings = {
@@ -94,7 +94,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(({
           }}
         />
       )}
-      <div className="relative z-20">{children}</div>
+      <div className="relative z-10">{children}</div>
     </div>
   );
 });

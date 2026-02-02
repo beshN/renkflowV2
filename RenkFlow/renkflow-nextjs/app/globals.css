@@ -4,24 +4,14 @@
 
 @layer base {
   * {
-    @apply border-border-light dark:border-border-dark;
+    @apply border-[var(--border-color)];
   }
+
   body {
-    @apply bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-display antialiased selection:bg-primary/10 selection:text-primary;
-    /* Safe area for notch devices */
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
+    @apply bg-[var(--bg-primary)] text-[var(--text-primary)] antialiased;
+    font-family: var(--font-inter, system-ui, -apple-system, sans-serif);
   }
-  
-  /* Prevent text selection on UI elements */
-  button, a, [role="button"] {
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-    user-select: none;
-  }
-  
+
   /* Smooth scrolling */
   html {
     scroll-behavior: smooth;

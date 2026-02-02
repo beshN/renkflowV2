@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { RouteGuard } from '@/components/auth/RouteGuard';
+import { AIChatbot } from '@/components/ai/AIChatbot';
 import { ReactNode } from 'react';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -22,6 +23,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </ErrorBoundary>
       </main>
       <MobileBottomNav />
+      <AIChatbot />
     </div>
   );
 }

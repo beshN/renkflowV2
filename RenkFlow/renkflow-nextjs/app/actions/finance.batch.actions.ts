@@ -59,7 +59,7 @@ export async function batchDeletePayments(
   // Validate input
   const validated = BatchDeleteSchema.safeParse({ ids: paymentIds });
   if (!validated.success) {
-    throw new ValidationError('Geçersiz veri', { ids: validated.error.issues.map(e => e.message) });
+    throw new ValidationError('Geçersiz veri', { ids: validated.error.issues.map((e: { message: string }) => e.message) });
   }
 
   const result: BatchOperationResult = {
@@ -77,7 +77,7 @@ export async function batchDeletePayments(
     AND tenant_id = ${context.tenantId}
   `;
 
-  const existingIds = new Set(existingPayments.map((p: any) => p.id));
+  const existingIds = new Set((existingPayments as { id: string }[]).map(p => p.id));
 
   // Use transaction for atomicity
   await withTransaction(async (tx) => {
@@ -146,7 +146,7 @@ export async function batchDeleteDocuments(
   // Validate input
   const validated = BatchDeleteSchema.safeParse({ ids: documentIds });
   if (!validated.success) {
-    throw new ValidationError('Geçersiz veri', { ids: validated.error.issues.map(e => e.message) });
+    throw new ValidationError('Geçersiz veri', { ids: validated.error.issues.map((e: { message: string }) => e.message) });
   }
 
   const result: BatchOperationResult = {
@@ -164,7 +164,7 @@ export async function batchDeleteDocuments(
     AND tenant_id = ${context.tenantId}
   `;
 
-  const existingIds = new Set(existingDocs.map((d: any) => d.id));
+  const existingIds = new Set((existingDocs as { id: string }[]).map(d => d.id));
 
   // Import R2 helpers
   const { deleteFile } = await import('@/lib/storage/r2');
@@ -178,7 +178,7 @@ export async function batchDeleteDocuments(
           continue;
         }
 
-        const doc = existingDocs.find((d: any) => d.id === docId);
+        const doc = (existingDocs as { id: string; order_id?: string; file_name?: string; file_url?: string; type?: string }[]).find(d => d.id === docId);
 
         // Delete from R2
         if (doc?.file_url) {
@@ -451,7 +451,7 @@ export async function logExportAction(
     userEmail: context.email,
     userRole: context.role,
     action: actionMap[exportType],
-    entityType: exportType === 'ledger' ? 'employee_ledger_entry' : exportType.slice(0, -1) as any,
+    entityType: exportType === 'ledger' ? 'employee_ledger_entry' : exportType === 'documents' ? 'order_document' : (exportType.slice(0, -1) as 'payment' | 'employee'),
     metadata: { recordCount, exportType },
   });
 }
