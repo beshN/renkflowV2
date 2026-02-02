@@ -3,21 +3,22 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { Layers, Repeat, Palette } from 'lucide-react';
 
 export const FeaturesGrid: React.FC = () => {
   const features = [
     {
-      icon: 'stacks',
+      icon: <Layers className="w-8 h-8" />,
       title: 'Proje Yönetimi',
       desc: 'Görevleri atayın, son tarihleri belirleyin ve projelerinizin ilerlemesini tek bir yerden görsel olarak takip edin.'
     },
     {
-      icon: 'cycle',
+      icon: <Repeat className="w-8 h-8" />,
       title: 'Çevik Geliştirme',
       desc: 'Sprint planlaması, backlog yönetimi ve Kanban panoları ile çevik metodolojileri kolayca uygulayın.'
     },
     {
-      icon: 'palette',
+      icon: <Palette className="w-8 h-8" />,
       title: 'Yaratıcı Süreçler',
       desc: 'Fikir aşamasından son tasarıma kadar tüm yaratıcı projelerinizi ve geri bildirim döngülerini yönetin.'
     }
@@ -71,7 +72,7 @@ export const FeaturesGrid: React.FC = () => {
 
                     
                     <div className="bg-sky-50 dark:bg-sky-500/10 text-sky-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 relative z-10">
-                        <span className="material-symbols-outlined !text-3xl">{feature.icon}</span>
+                        {feature.icon}
                     </div>
                     <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white relative z-10">{feature.title}</h3>
                     <p className="text-slate-600 dark:text-slate-400 mb-6 relative z-10">{feature.desc}</p>

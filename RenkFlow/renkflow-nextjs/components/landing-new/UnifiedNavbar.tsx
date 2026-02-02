@@ -90,8 +90,8 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
                 className={cn(
                   'relative overflow-hidden transition-all duration-500',
                   largeLogo 
-                    ? 'h-20 w-56 md:h-24 md:w-80' 
-                    : 'h-14 w-44 md:h-16 md:w-52'
+                    ? 'h-24 w-64 md:h-28 md:w-96' 
+                    : 'h-12 w-40 md:h-14 md:w-48'
                 )}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
