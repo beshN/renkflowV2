@@ -38,7 +38,17 @@ async function pushSchema() {
       .filter(s => s.length > 0);
 
     for (const statement of statements) {
-      await sql(statement);
+      try {
+        await sql(statement);
+      } catch (err) {
+        // Skip if object already exists
+        const errorMessage = err?.message || String(err);
+        if (errorMessage.includes('already exists')) {
+          console.log(`⏭️  Skipping (already exists): ${statement.substring(0, 50)}...`);
+        } else {
+          throw err;
+        }
+      }
     }
     
     console.log('✅ Schema pushed successfully!');
