@@ -164,12 +164,12 @@ export function Sidebar() {
              }}
              className="absolute inset-0 flex items-center justify-center pointer-events-none"
            >
-              <div className="relative h-12 w-12 rounded-xl overflow-hidden shadow-lg shadow-blue-500/30 bg-white flex items-center justify-center">
+              <div className="relative h-12 w-12 rounded-xl overflow-hidden shadow-lg bg-white flex items-center justify-center p-1">
                 {logoFailed.compact ? (
                   <span className="text-lg font-extrabold text-slate-900">RF</span>
                 ) : (
                   <Image
-                    src="/logo-r.png"
+                    src="/renkflow-logo-new.png"
                     alt="RenkFlow"
                     fill
                     sizes="48px"
@@ -189,12 +189,12 @@ export function Sidebar() {
              }}
              className="absolute inset-0 flex items-center justify-center"
            >
-              <div className="relative h-16 w-40 flex items-center justify-center">
+              <div className="relative h-16 w-40 flex items-center justify-center p-1">
                 {logoFailed.full ? (
                   <span className="text-2xl font-extrabold tracking-tight text-slate-900">RenkFlow</span>
                 ) : (
                   <Image
-                    src="/logo-full.png"
+                    src="/renkflow-logo-new.png"
                     alt="RenkFlow"
                     fill
                     sizes="160px"

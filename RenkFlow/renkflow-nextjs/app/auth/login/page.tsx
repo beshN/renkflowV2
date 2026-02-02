@@ -311,7 +311,7 @@ function LoginForm() {
             className="relative h-24 w-full mx-auto mb-8"
           >
             <Image 
-              src="/logo-full.png" 
+              src="/renkflow-logo-new.png" 
               alt="RenkFlow" 
               fill
               sizes="(max-width: 768px) 100vw, 400px"

@@ -40,7 +40,7 @@ export const WaitlistNavbar = () => {
           <Link href="/" className="group flex items-center">
             <div className="relative -mt-2 md:-mt-3 h-20 w-64 md:h-24 md:w-96 overflow-hidden transition-transform duration-300 group-hover:scale-105">
               <Image 
-                src="/logo-full.png" 
+                src="/renkflow-logo-new.png" 
                 alt="RenkFlow" 
                 fill
                 sizes="(max-width: 768px) 256px, 384px"

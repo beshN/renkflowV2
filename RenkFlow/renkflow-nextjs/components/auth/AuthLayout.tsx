@@ -41,7 +41,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, showHomeLink =
         <div className="flex flex-col items-center pt-8 pb-4">
             <Link href="/" className="relative h-24 w-72 md:h-32 md:w-96 hover:opacity-80 transition-opacity">
                 <Image
-                  src="/logo-full.png"
+                  src="/renkflow-logo-new.png"
                   alt="RenkFlow"
                   fill
                   sizes="(max-width: 768px) 280px, 384px"

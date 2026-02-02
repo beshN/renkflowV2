@@ -97,11 +97,11 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
                 whileTap={{ scale: 0.98 }}
               >
                 <Image
-                  src="/logo-full.png"
+                  src="/renkflow-logo-new.png"
                   alt="Renkflow"
                   fill
                   sizes={largeLogo ? "(max-width: 768px) 70vw, 480px" : "(max-width: 768px) 40vw, 250px"}
-                  className="object-contain object-left scale-[1.99] origin-left"
+                  className="object-contain object-left"
                   priority
                 />
               </motion.div>

@@ -102,23 +102,25 @@
     --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
 
     /* Dark Mode Overrides */
-    --bg-primary: var(--color-neutral-0);
-    --bg-secondary: var(--color-neutral-50);
-    --bg-tertiary: var(--color-neutral-100);
-    --text-primary: var(--color-neutral-900);
-    --text-secondary: var(--color-neutral-600);
-    --text-tertiary: var(--color-neutral-500);
-    --border-color: var(--color-neutral-200);
+    --bg-primary: #fafafa;
+    --bg-secondary: #f1f5f9;
+    --bg-tertiary: #e2e8f0;
+    --text-primary: #1e293b;
+    --text-secondary: #475569;
+    --text-tertiary: #64748b;
+    --border-color: #cbd5e1;
   }
+}
 
+@layer base {
   .dark {
-    --bg-primary: var(--color-neutral-900);
-    --bg-secondary: var(--color-neutral-800);
-    --bg-tertiary: var(--color-neutral-700);
-    --text-primary: var(--color-neutral-0);
-    --text-secondary: var(--color-neutral-300);
-    --text-tertiary: var(--color-neutral-400);
-    --border-color: var(--color-neutral-700);
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-tertiary: #94a3b8;
+    --border-color: #334155;
   }
 }
 

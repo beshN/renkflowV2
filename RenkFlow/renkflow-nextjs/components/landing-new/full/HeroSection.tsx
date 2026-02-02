@@ -3,10 +3,14 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import Image from 'next/image';
 import { TypeAnimation } from 'react-type-animation';
+import { DashboardPreview } from '../DashboardPreview';
+import { useTheme } from 'next-themes';
 
 export const HeroSection: React.FC = () => {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+
   return (
     <main className="relative pt-28 md:pt-36 pb-24 overflow-hidden">
       <div
@@ -78,24 +82,12 @@ export const HeroSection: React.FC = () => {
              initial={{ opacity: 0, x: 20 }}
              animate={{ opacity: 1, x: 0 }}
              transition={{ duration: 0.8, delay: 0.2 }}
-             className="relative flex justify-center items-center"
+             className="relative flex justify-center items-center perspective-[2000px]"
           >
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(14,165,233,0.18),transparent_65%)] dark:bg-[radial-gradient(circle_at_50%_50%,rgba(56,189,248,0.25),transparent_70%)] animate-pulse" style={{ animationDuration: '4s' }}></div>
-            <div className="relative rounded-[32px] bg-gradient-to-br from-white via-white to-sky-50 p-[2px] shadow-[0_35px_80px_-40px_rgba(14,165,233,0.7)] transform rotate-2 hover:rotate-0 transition-transform duration-500">
-              <div className="bg-white dark:bg-slate-900/80 p-4 rounded-[30px] border border-slate-200/70 dark:border-slate-700/60 backdrop-blur">
-               <div className="relative w-full h-auto max-w-md aspect-[4/3]">
-                  <Image 
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFfzrk7dJqlT6bazlRwmXT_B6j9QdrYZQ2iampSvdIoulZFBPwNI2LE7sS7LNYd9f8H4pW1T6fIuQ3jmMJbKO4przUketLaZz7MeWxo4007MRSah3eCtJ10qhbMFHFJrVZdlhpAn6nQ7CxAKs1gO84FD5jt7BkVfMWAoZPLmXKJmZj_UETVCVK9AcIbAFVHwkbTaIRmLrFelZzWJts1ZkXGSwaPt96TpiimQ1Ed0CRIB0rctEnZqCkOo1ymR5o_rN3Q0WRmSKt1KWv"
-                    alt="Renkflow application interface"
-                    width={800}
-                    height={600}
-                    className="rounded-2xl object-cover"
-                    priority
-                    unoptimized // Using external URL
-                  />
-               </div>
+             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(14,165,233,0.18),transparent_65%)] dark:bg-[radial-gradient(circle_at_50%_50%,rgba(56,189,248,0.25),transparent_70%)] animate-pulse" style={{ animationDuration: '4s' }}></div>
+              <div className="w-full max-w-[600px]">
+                <DashboardPreview isDark={isDark} />
               </div>
-            </div>
           </motion.div>
         </div>
       </div>

@@ -21,7 +21,7 @@ export default function NotFound() {
           <Link href="/" className="flex items-center">
             <div className="relative h-10 w-32">
               <Image
-                src="/logo-full.png"
+                src="/renkflow-logo-new.png"
                 alt="Renkflow"
                 fill
                 className="object-contain object-left"

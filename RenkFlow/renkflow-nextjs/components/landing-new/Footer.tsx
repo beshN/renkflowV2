@@ -98,7 +98,7 @@ export const Footer: React.FC = memo(() => {
             <Link href="/" className="inline-block group">
               <div className="relative h-12 w-40">
                 <Image 
-                  src="/logo-full.png" 
+                  src="/renkflow-logo-new.png" 
                   alt="RenkFlow" 
                   fill
                   sizes="160px"

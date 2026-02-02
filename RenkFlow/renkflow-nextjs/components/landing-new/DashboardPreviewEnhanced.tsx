@@ -191,11 +191,11 @@ export const DashboardPreviewEnhanced: React.FC<DashboardPreviewEnhancedProps> =
             className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-blue-500/20 mb-4 flex-shrink-0"
           >
             <Image
-              src="/logo-r.png"
+              src="/renkflow-logo-new.png"
               alt="RenkFlow"
-              width={40}
-              height={40}
-              className="w-full h-full object-contain"
+              fill
+              sizes="(max-width: 768px) 280px, 384px"
+              className="object-contain"
               priority
             />
           </motion.div>
