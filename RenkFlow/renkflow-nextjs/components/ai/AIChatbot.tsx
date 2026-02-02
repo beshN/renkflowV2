@@ -90,24 +90,50 @@ export function AIChatbot() {
     setIsLoading(true);
 
     try {
-      // TODO: Replace with actual API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Call real AI API
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: content,
+          context: {
+            // Can pass user context here
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'AI yanıt vermedi');
+      }
+
+      const data = await response.json();
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: getMockResponse(content),
+        content: data.response || 'Üzgünüm, yanıt oluşturulamadı.',
         timestamp: new Date(),
-        suggestions: ['Detayları gör', 'Rapor oluştur', 'Başka bir soru'],
+        suggestions: data.suggestions || ['Detayları gör', 'Rapor oluştur', 'Başka bir soru'],
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('[AI Chatbot] Error:', error);
+      
+      // Fallback to mock response for development
+      const fallbackContent = getMockResponse(content);
+      
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.',
+        content: process.env.NODE_ENV === 'development' 
+          ? fallbackContent 
+          : 'Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.',
         timestamp: new Date(),
+        suggestions: ['Tekrar dene', 'Başka bir soru sor'],
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {

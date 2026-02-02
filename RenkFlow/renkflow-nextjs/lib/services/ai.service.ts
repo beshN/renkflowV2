@@ -477,12 +477,39 @@ Kullanıcıya yardımcı ol, soruları yanıtla ve önerilerde bulun.
     response: string,
     context: WorkspaceContext
   ): AIQueryResult {
+    // Generate contextual suggestions based on response content
+    const suggestions = this.generateSuggestions(response);
+    
     return {
       answer: response,
       sources: [],
-      suggestions: [],
+      suggestions,
       confidence: 0.85,
     };
+  }
+
+  private generateSuggestions(response: string): string[] {
+    const lowerResponse = response.toLowerCase();
+    
+    // Context-aware suggestions based on response content
+    if (lowerResponse.includes('sipariş') || lowerResponse.includes('order')) {
+      return ['Detayları gör', 'PDF olarak indir', 'Müşteriyi bilgilendir', 'Üretimi hızlandır'];
+    }
+    if (lowerResponse.includes('gecik') || lowerResponse.includes('delay')) {
+      return ['Gecikme nedenlerini analiz et', 'Çözüm önerileri', 'Müşterilere bildirim gönder'];
+    }
+    if (lowerResponse.includes('gelir') || lowerResponse.includes('revenue') || lowerResponse.includes('finans')) {
+      return ['Detaylı rapor oluştur', 'Geçen ay ile karşılaştır', 'Excel olarak indir'];
+    }
+    if (lowerResponse.includes('üretim') || lowerResponse.includes('production')) {
+      return ['Kapasite optimizasyonu', 'Personel planlaması', 'Makine durumunu kontrol et'];
+    }
+    if (lowerResponse.includes('müşteri') || lowerResponse.includes('customer')) {
+      return ['Müşteri geçmişini gör', 'Yeni teklif oluştur', 'CRM notları ekle'];
+    }
+    
+    // Default suggestions
+    return ['Detayları gör', 'Rapor oluştur', 'Başka bir soru'];
   }
 
   private parseAnomalies(response: string): AnomalyResult[] {

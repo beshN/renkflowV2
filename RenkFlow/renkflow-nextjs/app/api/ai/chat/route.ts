@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
       success: true,
       response: result.answer,
       confidence: result.confidence,
+      suggestions: result.suggestions || ['Detayları gör', 'Rapor oluştur', 'Başka bir soru'],
     });
   } catch (error) {
     console.error('[AI Chat API] Error:', error);
