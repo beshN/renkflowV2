@@ -209,7 +209,9 @@ export const authConfig: NextAuthConfig = {
           }
 
           const message = error?.message || String(error);
-          if (DEBUG) console.error('[AUTH] Authorize error:', message);
+          console.error('[AUTH] Full authorize error:', error);
+          console.error('[AUTH] Error message:', message);
+          console.error('[AUTH] Error stack:', error?.stack);
 
           throw createCredentialsError(mapAuthErrorToCode(message));
         }
