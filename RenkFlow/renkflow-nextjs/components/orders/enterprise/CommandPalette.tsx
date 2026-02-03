@@ -10,6 +10,26 @@ import { useOrdersStore } from '@/lib/stores/orders.store';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Search, 
+  SearchX,
+  ListTodo,
+  PlusCircle,
+  LayoutDashboard,
+  Users,
+  Grid3x3,
+  KanbanSquare,
+  Calendar,
+  Activity,
+  Clock,
+  Factory,
+  CheckCircle2,
+  FilterX,
+  PanelLeft,
+  Download,
+  Printer,
+  RotateCw
+} from 'lucide-react';
 
 // ============================================
 // Types
@@ -19,7 +39,7 @@ interface Command {
   id: string;
   label: string;
   description?: string;
-  icon: string;
+  icon: React.ComponentType<{ className?: string }>;
   shortcut?: string;
   category: 'navigation' | 'action' | 'filter' | 'view';
   action: () => void;
@@ -50,7 +70,7 @@ export const CommandPalette: React.FC = () => {
     {
       id: 'nav-orders',
       label: 'Siparişlere Git',
-      icon: 'list_alt',
+      icon: ListTodo,
       shortcut: 'G O',
       category: 'navigation',
       action: () => router.push('/orders'),
@@ -58,7 +78,7 @@ export const CommandPalette: React.FC = () => {
     {
       id: 'nav-new-order',
       label: 'Yeni Sipariş Oluştur',
-      icon: 'add_circle',
+      icon: PlusCircle,
       shortcut: 'Ctrl+N',
       category: 'navigation',
       action: () => router.push('/orders/new'),
@@ -66,7 +86,7 @@ export const CommandPalette: React.FC = () => {
     {
       id: 'nav-dashboard',
       label: 'Dashboard\'a Git',
-      icon: 'dashboard',
+      icon: LayoutDashboard,
       shortcut: 'G D',
       category: 'navigation',
       action: () => router.push('/dashboard'),
@@ -74,7 +94,7 @@ export const CommandPalette: React.FC = () => {
     {
       id: 'nav-customers',
       label: 'Müşterilere Git',
-      icon: 'people',
+      icon: Users,
       shortcut: 'G C',
       category: 'navigation',
       action: () => router.push('/customers'),
@@ -85,7 +105,7 @@ export const CommandPalette: React.FC = () => {
       id: 'view-grid',
       label: 'Grid Görünümü',
       description: 'Tablo formatında görüntüle',
-      icon: 'grid_view',
+      icon: Grid3x3,
       category: 'view',
       action: () => setViewMode('grid'),
     },
@@ -93,7 +113,7 @@ export const CommandPalette: React.FC = () => {
       id: 'view-kanban',
       label: 'Kanban Görünümü',
       description: 'Duruma göre kartlar',
-      icon: 'view_kanban',
+      icon: KanbanSquare,
       category: 'view',
       action: () => setViewMode('kanban'),
     },
@@ -101,7 +121,7 @@ export const CommandPalette: React.FC = () => {
       id: 'view-calendar',
       label: 'Takvim Görünümü',
       description: 'Tarihe göre görüntüle',
-      icon: 'calendar_month',
+      icon: Calendar,
       category: 'view',
       action: () => setViewMode('calendar'),
     },
@@ -109,7 +129,7 @@ export const CommandPalette: React.FC = () => {
       id: 'view-timeline',
       label: 'Timeline Görünümü',
       description: 'Gantt benzeri görünüm',
-      icon: 'timeline',
+      icon: Activity,
       category: 'view',
       action: () => setViewMode('timeline'),
     },
@@ -118,7 +138,7 @@ export const CommandPalette: React.FC = () => {
     {
       id: 'filter-pending',
       label: 'Bekleyen Siparişleri Göster',
-      icon: 'pending_actions',
+      icon: Clock,
       category: 'filter',
       action: () => {
         resetFilters();
@@ -128,7 +148,7 @@ export const CommandPalette: React.FC = () => {
     {
       id: 'filter-production',
       label: 'Üretimdeki Siparişleri Göster',
-      icon: 'precision_manufacturing',
+      icon: Factory,
       category: 'filter',
       action: () => {
         resetFilters();
@@ -138,7 +158,7 @@ export const CommandPalette: React.FC = () => {
     {
       id: 'filter-delivered',
       label: 'Teslim Edilen Siparişleri Göster',
-      icon: 'check_circle',
+      icon: CheckCircle2,
       category: 'filter',
       action: () => {
         resetFilters();
@@ -148,7 +168,7 @@ export const CommandPalette: React.FC = () => {
     {
       id: 'filter-clear',
       label: 'Filtreleri Temizle',
-      icon: 'filter_alt_off',
+      icon: FilterX,
       shortcut: 'Ctrl+Shift+F',
       category: 'filter',
       action: () => resetFilters(),
@@ -158,7 +178,7 @@ export const CommandPalette: React.FC = () => {
     {
       id: 'action-toggle-sidebar',
       label: 'Filtre Panelini Aç/Kapat',
-      icon: 'side_navigation',
+      icon: PanelLeft,
       shortcut: 'Ctrl+B',
       category: 'action',
       action: () => toggleSidebar(),
@@ -166,7 +186,7 @@ export const CommandPalette: React.FC = () => {
     {
       id: 'action-export',
       label: 'Dışa Aktar',
-      icon: 'download',
+      icon: Download,
       shortcut: 'Ctrl+Shift+E',
       category: 'action',
       action: () => {
@@ -176,7 +196,7 @@ export const CommandPalette: React.FC = () => {
     {
       id: 'action-print',
       label: 'Yazdır',
-      icon: 'print',
+      icon: Printer,
       shortcut: 'Ctrl+P',
       category: 'action',
       action: () => window.print(),
@@ -184,7 +204,7 @@ export const CommandPalette: React.FC = () => {
     {
       id: 'action-refresh',
       label: 'Yenile',
-      icon: 'refresh',
+      icon: RotateCw,
       shortcut: 'Ctrl+R',
       category: 'action',
       action: () => window.location.reload(),
@@ -293,7 +313,7 @@ export const CommandPalette: React.FC = () => {
       >
         {/* Search Input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-          <span className="material-symbols-outlined text-gray-400">search</span>
+          <Search className="w-5 h-5 text-gray-400" />
           <input
             type="text"
             value={search}
@@ -311,7 +331,7 @@ export const CommandPalette: React.FC = () => {
         <div className="max-h-[400px] overflow-y-auto py-2">
           {filteredCommands.length === 0 ? (
             <div className="px-4 py-8 text-center text-gray-500">
-              <span className="material-symbols-outlined text-4xl mb-2">search_off</span>
+              <SearchX className="w-10 h-10 mx-auto mb-2 text-gray-400" />
               <p>Sonuç bulunamadı</p>
             </div>
           ) : (
@@ -342,12 +362,10 @@ export const CommandPalette: React.FC = () => {
                             : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                         )}
                       >
-                        <span className={cn(
-                          'material-symbols-outlined text-xl',
+                        <cmd.icon className={cn(
+                          'w-5 h-5',
                           isSelected ? 'text-blue-600' : 'text-gray-400'
-                        )}>
-                          {cmd.icon}
-                        </span>
+                        )} />
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
                             {cmd.label}

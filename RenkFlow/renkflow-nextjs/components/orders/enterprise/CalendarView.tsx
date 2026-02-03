@@ -29,6 +29,7 @@ import { Order } from '@/lib/types';
 import { useOrdersStore } from '@/lib/stores/orders.store';
 import { formatCurrency, getOrderStatusInfo, cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 // ============================================
 // Types
@@ -580,7 +581,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               onClick={handlePrev}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
             >
-              <span className="material-symbols-outlined">chevron_left</span>
+              <ChevronLeft className="w-5 h-5" />
             </button>
             <button
               onClick={handleToday}
@@ -592,7 +593,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               onClick={handleNext}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
             >
-              <span className="material-symbols-outlined">chevron_right</span>
+              <ChevronRight className="w-5 h-5" />
             </button>
           </div>
         </div>

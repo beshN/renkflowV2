@@ -169,7 +169,7 @@ export function Sidebar() {
                   <span className="text-lg font-extrabold text-slate-900">RF</span>
                 ) : (
                   <Image
-                    src="/renkflow-logo-new.png"
+                    src="/logo-r.png"
                     alt="RenkFlow"
                     fill
                     sizes="48px"

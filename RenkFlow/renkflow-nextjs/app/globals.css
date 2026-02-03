@@ -573,11 +573,335 @@
   animation: gradientXY 12s ease infinite;
 }
 
-@media (prefers-reduced-motion: reduce) {
+/* ===== ADVANCED PERFORMANCE OPTIMIZATIONS ===== */
+
+/* Section containment for landing pages */
+.section-contain {
+  contain: layout style paint;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
+/* Card containment for lists */
+.card-contain {
+  contain: layout style;
+  will-change: transform;
+}
+
+/* Optimize images rendering */
+img {
+  content-visibility: auto;
+}
+
+/* Prevent layout shift on images */
+img[width][height] {
+  height: auto;
+}
+
+/* GPU-accelerated scrolling containers */
+.scroll-container {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  transform: translateZ(0);
+  will-change: scroll-position;
+}
+
+/* Optimize paint for sticky elements */
+.sticky-optimized {
+  position: sticky;
+  contain: layout style;
+  will-change: position;
+}
+
+/* Modal/dialog performance */
+.modal-backdrop {
+  contain: strict;
+  will-change: opacity;
+}
+
+.modal-content {
+  contain: layout style paint;
+  will-change: transform;
+}
+
+/* Dropdown/menu containment */
+.dropdown-menu {
+  contain: layout style paint;
+}
+
+/* Sidebar containment */
+.sidebar-contain {
+  contain: layout style;
+  will-change: transform;
+}
+
+/* Dashboard widget containment */
+.widget-contain {
+  contain: layout style;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
+
+/* Optimize table rendering */
+table {
+  contain: layout;
+}
+
+/* Chart containment for Recharts */
+.chart-contain {
+  contain: layout style paint;
+}
+
+/* Form input containment */
+.form-group {
+  contain: layout style;
+}
+
+/* Button press effect optimization */
+button:active {
+  transform: scale(0.98);
+}
+
+/* Loading skeleton containment */
+.skeleton-contain {
+  contain: paint;
+}
+
+/* Virtual list optimizations */
+.virtual-list-item {
+  contain: strict;
+  will-change: transform;
+}
+
+/* Hover card optimization */
+.hover-card {
+  contain: layout style paint;
+  will-change: transform, opacity;
+}
+
+/* Tooltip optimization */
+.tooltip {
+  contain: layout style paint;
+  will-change: transform, opacity;
+  position: absolute;
+  pointer-events: none;
+}
+
+/* Popover/dropdown optimization */
+.popover {
+  contain: layout style paint;
+  will-change: transform, opacity;
+}
+
+/* Kanban board optimizations */
+.kanban-board {
+  contain: layout;
+  will-change: transform;
+}
+
+.kanban-column {
+  contain: layout style;
+  content-visibility: auto;
+}
+
+/* Grid layout containment */
+.grid-layout {
+  contain: layout;
+}
+
+/* Masonry layout optimization */
+.masonry-item {
+  contain: layout style;
+  content-visibility: auto;
+}
+
+/* Timeline animation optimization */
+.timeline-item {
+  contain: layout style;
+  will-change: opacity, transform;
+}
+
+/* Calendar grid optimization */
+.calendar-grid {
+  contain: layout;
+}
+
+.calendar-cell {
+  contain: layout style;
+}
+
+/* File upload zone optimization */
+.upload-zone {
+  contain: layout style paint;
+  will-change: border-color, background-color;
+}
+
+/* Notification toast optimization */
+.toast {
+  contain: layout style paint;
+  will-change: transform, opacity;
+}
+
+/* Tab panel containment */
+.tab-panel {
+  contain: layout style paint;
+}
+
+/* Accordion optimization */
+.accordion-content {
+  contain: layout style;
+  will-change: height;
+}
+
+/* Carousel/slider containment */
+.carousel {
+  contain: layout style;
+  will-change: transform;
+}
+
+.carousel-item {
+  contain: layout style;
+}
+
+/* Infinite scroll optimization */
+.infinite-scroll-container {
+  contain: layout;
+  content-visibility: auto;
+}
+
+/* Search results optimization */
+.search-results {
+  contain: layout style;
+}
+
+.search-result-item {
+  contain: layout style;
+  content-visibility: auto;
+}
+
+/* Command palette optimization */
+.command-palette {
+  contain: layout style paint;
+}
+
+.command-item {
+  contain: layout style;
+}
+
+/* Data table virtualization */
+.data-table-row {
+  contain: strict;
+  will-change: transform;
+}
+
+/* Floating action button */
+.fab {
+  contain: layout style paint;
+  will-change: transform;
+}
+
+/* Progress bar optimization */
+.progress-bar {
+  contain: paint;
+  will-change: width;
+}
+
+/* Slider/range input optimization */
+.slider {
+  contain: layout paint;
+  will-change: transform;
+}
+
+/* Color picker optimization */
+.color-picker {
+  contain: layout style paint;
+}
+
+/* Rich text editor optimization */
+.editor {
+  contain: layout style;
+}
+
+/* Code block optimization */
+pre, code {
+  contain: layout style;
+}
+
+/* Badge/label optimization */
+.badge {
+  contain: layout paint;
+}
+
+/* Avatar optimization */
+.avatar {
+  contain: layout paint;
+  will-change: transform;
+}
+
+/* Chip/tag optimization */
+.chip {
+  contain: layout paint;
+}
+
+/* Divider optimization */
+.divider {
+  contain: paint;
+}
+
+/* Focus ring optimization */
+.focus-ring {
+  contain: paint;
+}
+
+/* Loading spinner optimization */
+.spinner {
+  contain: strict;
+  will-change: transform;
+}
+
+/* Scrollbar optimization */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+/* Dark mode scrollbar */
+.dark * {
+  scrollbar-color: rgba(75, 85, 99, 0.5) transparent;
+}
+
+/* Selection optimization */
+::selection {
+  contain: paint;
+}
+
+/* Print styles optimization */
+@media print {
   * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+    contain: none !important;
   }
 }
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .glass, .glass-panel, .glass-button {
+    border-width: 2px;
+  }
+}
+
+/* Screen reader only - performance optimized */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  contain: strict;
+}
+

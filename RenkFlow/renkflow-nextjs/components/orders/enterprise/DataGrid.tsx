@@ -26,6 +26,14 @@ import { formatCurrency, formatDate, getOrderStatusInfo } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OrderHoverCard } from './OrderHoverCard';
+import {
+  ChevronRight,
+  ChevronDown,
+  ArrowUp,
+  ArrowDown,
+  Edit,
+  Trash2
+} from 'lucide-react';
 
 // ============================================
 // Types
@@ -325,12 +333,13 @@ export const DataGrid: React.FC<DataGridProps> = ({
           }}
           className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
         >
-          <span className={cn(
-            'material-symbols-outlined text-sm transition-transform',
-            expandedRowIds.has(row.original.id) && 'rotate-90'
-          )}>
-            chevron_right
-          </span>
+          <ChevronRight 
+            size={20}
+            className={cn(
+              'text-gray-500 transition-transform',
+              expandedRowIds.has(row.original.id) && 'rotate-90'
+            )}
+          />
         </button>
       ),
       size: 40,
@@ -484,7 +493,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
             className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
             title="Düzenle"
           >
-            <span className="material-symbols-outlined text-sm">edit</span>
+            <Edit size={16} className="text-gray-500" />
           </button>
           <button
             onClick={(e) => {
@@ -494,7 +503,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
             className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-600"
             title="Sil"
           >
-            <span className="material-symbols-outlined text-sm">delete</span>
+            <Trash2 size={16} />
           </button>
         </div>
       ),
@@ -579,8 +588,8 @@ export const DataGrid: React.FC<DataGridProps> = ({
                           ? null
                           : flexRender(header.column.columnDef.header, header.getContext())}
                         {header.column.getIsSorted() && (
-                          <span className="material-symbols-outlined text-sm">
-                            {header.column.getIsSorted() === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                          <span className="text-gray-500">
+                            {header.column.getIsSorted() === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
                           </span>
                         )}
                       </div>

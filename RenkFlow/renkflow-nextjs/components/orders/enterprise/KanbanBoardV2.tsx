@@ -30,6 +30,18 @@ import { Order, OrderStatus } from '@/lib/types';
 import { useOrdersStore } from '@/lib/stores/orders.store';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Calendar as CalendarIcon, 
+  Paperclip, 
+  ListChecks, 
+  Edit2, 
+  Clock, 
+  Factory, 
+  CheckCircle2, 
+  ChevronDown, 
+  ChevronUp, 
+  Inbox 
+} from 'lucide-react';
 
 // ============================================
 // Types
@@ -44,7 +56,7 @@ interface KanbanBoardV2Props {
 interface ColumnConfig {
   status: OrderStatus;
   title: string;
-  icon: string;
+  icon: React.ComponentType<{ className?: string }>;
   color: string;
   bgColor: string;
   borderColor: string;
@@ -58,7 +70,7 @@ const columns: ColumnConfig[] = [
   {
     status: 'pending',
     title: 'Beklemede',
-    icon: 'pending_actions',
+    icon: Clock,
     color: 'text-yellow-600 dark:text-yellow-400',
     bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
     borderColor: 'border-yellow-200 dark:border-yellow-800',
@@ -66,7 +78,7 @@ const columns: ColumnConfig[] = [
   {
     status: 'in_production',
     title: 'Üretimde',
-    icon: 'precision_manufacturing',
+    icon: Factory,
     color: 'text-blue-600 dark:text-blue-400',
     bgColor: 'bg-blue-50 dark:bg-blue-900/20',
     borderColor: 'border-blue-200 dark:border-blue-800',
@@ -74,7 +86,7 @@ const columns: ColumnConfig[] = [
   {
     status: 'delivered',
     title: 'Teslim Edildi',
-    icon: 'check_circle',
+    icon: CheckCircle2,
     color: 'text-green-600 dark:text-green-400',
     bgColor: 'bg-green-50 dark:bg-green-900/20',
     borderColor: 'border-green-200 dark:border-green-800',
@@ -172,7 +184,7 @@ const SortableOrderCard: React.FC<{
             {formatCurrency(order.totalAmount || 0, order.currency)}
           </span>
           <div className="flex items-center gap-1 text-xs text-gray-500">
-            <span className="material-symbols-outlined text-sm">calendar_today</span>
+            <CalendarIcon className="w-4 h-4" />
             {formatDate(order.deliveryDate)}
           </div>
         </div>
@@ -185,13 +197,13 @@ const SortableOrderCard: React.FC<{
             )}
             {order.documents?.length ? (
               <span className="flex items-center gap-1 text-gray-500">
-                <span className="material-symbols-outlined text-sm">attach_file</span>
+                <Paperclip className="w-3.5 h-3.5" />
                 {order.documents.length}
               </span>
             ) : null}
             {order.customFields && Object.keys(order.customFields).length > 0 && (
               <span className="flex items-center gap-1 text-gray-500">
-                <span className="material-symbols-outlined text-sm">checklist</span>
+                <ListChecks className="w-3.5 h-3.5" />
                 {Object.keys(order.customFields).length}
               </span>
             )}
@@ -222,7 +234,7 @@ const SortableOrderCard: React.FC<{
           }}
           className="p-1 bg-white dark:bg-gray-700 rounded shadow-sm hover:bg-gray-100 dark:hover:bg-gray-600"
         >
-          <span className="material-symbols-outlined text-sm">edit</span>
+          <Edit2 className="w-4 h-4" />
         </button>
       </div>
     </div>
@@ -290,9 +302,7 @@ const KanbanColumn: React.FC<{
       )}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span className={cn('material-symbols-outlined', config.color)}>
-              {config.icon}
-            </span>
+            <config.icon className={cn('w-5 h-5', config.color)} />
             {!collapsed && <h3 className={cn('font-semibold', config.color)}>{config.title}</h3>}
           </div>
           <div className="flex items-center gap-2">
@@ -313,9 +323,7 @@ const KanbanColumn: React.FC<{
               className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               title={collapsed ? 'Kolonu aç' : 'Kolonu daralt'}
             >
-              <span className="material-symbols-outlined text-sm">
-                {collapsed ? 'unfold_more' : 'unfold_less'}
-              </span>
+              {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
             </button>
           </div>
         </div>
@@ -350,7 +358,7 @@ const KanbanColumn: React.FC<{
       )}>
         {collapsed ? (
           <div className="flex items-center justify-center h-full">
-            <span className={cn('material-symbols-outlined text-xl', config.color)}>{config.icon}</span>
+            <config.icon className={cn('w-6 h-6', config.color)} />
           </div>
         ) : (
         <SortableContext
@@ -360,7 +368,7 @@ const KanbanColumn: React.FC<{
           <AnimatePresence>
             {orders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                <span className="material-symbols-outlined text-3xl mb-2">inbox</span>
+                <Inbox className="w-8 h-8 mb-2" />
                 <p className="text-sm">Sipariş yok</p>
               </div>
             ) : (

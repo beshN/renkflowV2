@@ -11,6 +11,21 @@ import { OrderStatus } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  CheckCircle2, 
+  CreditCard, 
+  ArrowLeftRight, 
+  Download, 
+  Tag, 
+  Printer, 
+  Trash2, 
+  X,
+  Clock,
+  Factory,
+  FileSpreadsheet,
+  FileText,
+  FileJson
+} from 'lucide-react';
 
 // ============================================
 // Types
@@ -28,10 +43,15 @@ interface BulkActionsToolbarProps {
 // Status Options
 // ============================================
 
-const statusOptions: { value: OrderStatus; label: string; icon: string; color: string }[] = [
-  { value: 'pending', label: 'Beklemede', icon: 'pending_actions', color: 'text-yellow-600' },
-  { value: 'in_production', label: 'Üretimde', icon: 'precision_manufacturing', color: 'text-blue-600' },
-  { value: 'delivered', label: 'Teslim Edildi', icon: 'check_circle', color: 'text-green-600' },
+const statusOptions: { 
+  value: OrderStatus; 
+  label: string; 
+  icon: React.ComponentType<{ className?: string }>; 
+  color: string 
+}[] = [
+  { value: 'pending', label: 'Beklemede', icon: Clock, color: 'text-yellow-600' },
+  { value: 'in_production', label: 'Üretimde', icon: Factory, color: 'text-blue-600' },
+  { value: 'delivered', label: 'Teslim Edildi', icon: CheckCircle2, color: 'text-green-600' },
 ];
 
 // ============================================
@@ -212,7 +232,7 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
           {/* Selection Info */}
           <div className="flex items-center gap-3 pr-4 border-r border-gray-700">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-blue-400">check_circle</span>
+              <CheckCircle2 className="w-5 h-5 text-blue-400" />
               <span className="font-medium">{selectedCount}</span>
               <span className="text-gray-400">seçildi</span>
             </div>
@@ -228,7 +248,7 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
 
           {/* Total Amount */}
           <div className="flex items-center gap-2 px-4 border-r border-gray-700">
-            <span className="material-symbols-outlined text-green-400 text-sm">payments</span>
+            <CreditCard className="w-4 h-4 text-green-400" />
             <span className="text-sm text-gray-400">Toplam:</span>
             <span className="font-medium">{formatCurrency(totalAmount, currency)}</span>
           </div>
@@ -242,7 +262,7 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
                   disabled={isProcessing}
                   className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
                 >
-                  <span className="material-symbols-outlined text-sm">swap_horiz</span>
+                  <ArrowLeftRight className="w-4 h-4" />
                   Durum Değiştir
                 </button>
               }
@@ -254,9 +274,7 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
                     onClick={() => handleStatusChange(option.value)}
                     className="flex items-center gap-3 w-full px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
-                    <span className={cn('material-symbols-outlined text-sm', option.color)}>
-                      {option.icon}
-                    </span>
+                    <option.icon className={cn('w-4 h-4', option.color)} />
                     <span className="text-gray-900 dark:text-white">{option.label}</span>
                   </button>
                 ))}
@@ -270,7 +288,7 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
                   disabled={isProcessing}
                   className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
                 >
-                  <span className="material-symbols-outlined text-sm">download</span>
+                  <Download className="w-4 h-4" />
                   Dışa Aktar
                 </button>
               }
@@ -280,28 +298,28 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
                   onClick={() => onExport('csv')}
                   className="flex items-center gap-3 w-full px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <span className="material-symbols-outlined text-sm text-green-600">csv</span>
+                  <FileSpreadsheet className="w-4 h-4 text-green-600" />
                   <span className="text-gray-900 dark:text-white">CSV</span>
                 </button>
                 <button
                   onClick={() => onExport('excel')}
                   className="flex items-center gap-3 w-full px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <span className="material-symbols-outlined text-sm text-green-700">table_chart</span>
+                  <FileSpreadsheet className="w-4 h-4 text-green-700" />
                   <span className="text-gray-900 dark:text-white">Excel</span>
                 </button>
                 <button
                   onClick={() => onExport('pdf')}
                   className="flex items-center gap-3 w-full px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <span className="material-symbols-outlined text-sm text-red-600">picture_as_pdf</span>
+                  <FileText className="w-4 h-4 text-red-600" />
                   <span className="text-gray-900 dark:text-white">PDF</span>
                 </button>
                 <button
                   onClick={() => onExport('json')}
                   className="flex items-center gap-3 w-full px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <span className="material-symbols-outlined text-sm text-yellow-600">data_object</span>
+                  <FileJson className="w-4 h-4 text-yellow-600" />
                   <span className="text-gray-900 dark:text-white">JSON</span>
                 </button>
               </div>
@@ -312,7 +330,7 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
               disabled={isProcessing}
               className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
             >
-              <span className="material-symbols-outlined text-sm">label</span>
+              <Tag className="w-4 h-4" />
               Etiket Ekle
             </button>
 
@@ -321,7 +339,7 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
               disabled={isProcessing}
               className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
             >
-              <span className="material-symbols-outlined text-sm">print</span>
+              <Printer className="w-4 h-4" />
             </button>
 
             {/* Delete */}
@@ -330,7 +348,7 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
               disabled={isProcessing}
               className="flex items-center gap-2 px-3 py-1.5 text-sm bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-colors disabled:opacity-50"
             >
-              <span className="material-symbols-outlined text-sm">delete</span>
+              <Trash2 className="w-4 h-4" />
               Sil
             </button>
 
@@ -343,7 +361,7 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
               className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors"
               title="Seçimi Temizle"
             >
-              <span className="material-symbols-outlined text-sm">close</span>
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>

@@ -13,6 +13,22 @@ import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } fro
 import { tr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FilterPresets } from './FilterPresets';
+import { 
+  Filter, 
+  X, 
+  Search, 
+  Bookmark, 
+  Trash2, 
+  Check, 
+  Plus, 
+  Calendar, 
+  ListChecks, 
+  DollarSign, 
+  Users, 
+  Package, 
+  ChevronDown,
+  RotateCcw
+} from 'lucide-react';
 
 // ============================================
 // Types
@@ -95,7 +111,7 @@ const FilterChip: React.FC<{
       onClick={onRemove}
       className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
     >
-      <span className="material-symbols-outlined text-xs">close</span>
+      <X size={12} />
     </button>
   </motion.span>
 );
@@ -106,10 +122,10 @@ const FilterChip: React.FC<{
 
 const FilterSection: React.FC<{
   title: string;
-  icon: string;
+  icon: React.ElementType;
   defaultOpen?: boolean;
   children: React.ReactNode;
-}> = ({ title, icon, defaultOpen = true, children }) => {
+}> = ({ title, icon: Icon, defaultOpen = true, children }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
@@ -119,15 +135,16 @@ const FilterSection: React.FC<{
         className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-gray-500">{icon}</span>
+          <Icon size={20} className="text-gray-500" />
           <span className="font-medium text-sm text-gray-900 dark:text-white">{title}</span>
         </div>
-        <span className={cn(
-          'material-symbols-outlined text-gray-400 transition-transform',
-          isOpen && 'rotate-180'
-        )}>
-          expand_more
-        </span>
+        <ChevronDown 
+          size={20} 
+          className={cn(
+            'text-gray-400 transition-transform',
+            isOpen && 'rotate-180'
+          )}
+        />
       </button>
       <AnimatePresence>
         {isOpen && (
@@ -175,6 +192,8 @@ const MultiSelectSearch: React.FC<{
     }
   };
 
+// ... inside MultiSelectSearch FC
+// ...
   return (
     <div className="relative">
       <div
@@ -184,10 +203,11 @@ const MultiSelectSearch: React.FC<{
         <span className="text-sm text-gray-500 dark:text-gray-400">
           {selected.length > 0 ? `${selected.length} seçildi` : placeholder}
         </span>
-        <span className="material-symbols-outlined text-gray-400">expand_more</span>
+        <ChevronDown size={20} className="text-gray-400" />
       </div>
 
       <AnimatePresence>
+// ...
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -403,7 +423,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
         onClick={toggleSidebar}
         className="fixed left-0 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-r-lg p-2 shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 z-20"
       >
-        <span className="material-symbols-outlined">filter_list</span>
+        <Filter size={24} />
         {activeFilterCount > 0 && (
           <span className="absolute -top-1 -right-1 w-5 h-5 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center">
             {activeFilterCount}
@@ -423,7 +443,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-gray-500">filter_list</span>
+          <Filter size={20} className="text-gray-500" />
           <h2 className="font-semibold text-gray-900 dark:text-white">Filtreler</h2>
           {activeFilterCount > 0 && (
             <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs rounded-full">
@@ -438,14 +458,14 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
               className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
               title="Filtreleri Temizle"
             >
-              <span className="material-symbols-outlined text-sm">clear_all</span>
+              <RotateCcw size={18} />
             </button>
           )}
           <button
             onClick={toggleSidebar}
             className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
           >
-            <span className="material-symbols-outlined text-sm">close</span>
+            <X size={20} />
           </button>
         </div>
       </div>
@@ -468,9 +488,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
         {/* Search */}
         <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-gray-400 text-sm">
-              search
-            </span>
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               value={filters.search}
@@ -482,7 +500,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
         </div>
 
         {/* Saved Presets */}
-        <FilterSection title="Kayıtlı Filtreler" icon="bookmark" defaultOpen={filterPresets.length > 0}>
+        <FilterSection title="Kayıtlı Filtreler" icon={Bookmark} defaultOpen={filterPresets.length > 0}>
           <div className="space-y-2">
             {filterPresets.map((preset) => (
               <div
@@ -503,7 +521,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
                   }}
                   className="p-1 text-gray-400 hover:text-red-500 rounded"
                 >
-                  <span className="material-symbols-outlined text-sm">delete</span>
+                  <Trash2 size={16} />
                 </button>
               </div>
             ))}
@@ -521,13 +539,13 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
                   onClick={handleSavePreset}
                   className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded"
                 >
-                  <span className="material-symbols-outlined text-sm">check</span>
+                  <Check size={18} />
                 </button>
                 <button
                   onClick={() => setShowSavePreset(false)}
                   className="p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
                 >
-                  <span className="material-symbols-outlined text-sm">close</span>
+                  <X size={18} />
                 </button>
               </div>
             ) : (
@@ -535,7 +553,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
                 onClick={() => setShowSavePreset(true)}
                 className="flex items-center gap-2 w-full px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
               >
-                <span className="material-symbols-outlined text-sm">add</span>
+                <Plus size={16} />
                 Mevcut filtreleri kaydet
               </button>
             )}
@@ -543,7 +561,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
         </FilterSection>
 
         {/* Date Range */}
-        <FilterSection title="Tarih Aralığı" icon="calendar_month">
+        <FilterSection title="Tarih Aralığı" icon={Calendar}>
           <div className="grid grid-cols-2 gap-2">
             {datePresets.map((preset) => (
               <button
@@ -591,7 +609,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
         </div>
 
         {/* Status */}
-        <FilterSection title="Durum" icon="pending_actions">
+        <FilterSection title="Durum" icon={ListChecks}>
           <div className="space-y-2">
             {statusOptions.map((option) => (
               <label
@@ -620,7 +638,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
         </FilterSection>
 
         {/* Amount Range */}
-        <FilterSection title="Tutar Aralığı" icon="payments">
+        <FilterSection title="Tutar Aralığı" icon={DollarSign}>
           <AmountRangeSlider
             min={0}
             max={100000}
@@ -630,7 +648,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
         </FilterSection>
 
         {/* Customers */}
-        <FilterSection title="Müşteriler" icon="person">
+        <FilterSection title="Müşteriler" icon={Users}>
           <MultiSelectSearch
             options={customers}
             selected={filters.customers}
@@ -640,7 +658,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
         </FilterSection>
 
         {/* Products */}
-        <FilterSection title="Ürünler" icon="inventory_2">
+        <FilterSection title="Ürünler" icon={Package}>
           <MultiSelectSearch
             options={products}
             selected={filters.products}

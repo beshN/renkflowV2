@@ -16,6 +16,13 @@ import { exportOrders, ExportFormat } from '@/lib/utils/export';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ErrorState, SectionSkeleton, SkeletonCard } from '@/components/ui/skeleton';
+import {
+  TableProperties,
+  KanbanSquare,
+  Calendar,
+  Activity,
+  Plus
+} from 'lucide-react';
 
 // Enterprise Components
 import {
@@ -215,12 +222,12 @@ export default function OrdersPage() {
     }
   }, [dirtyRows, isSaving, updateOrder, clearDirtyRow, showToast]);
 
-  // View mode icons
-  const viewModes: { mode: ViewMode; icon: string; label: string }[] = [
-    { mode: 'grid', icon: 'table_rows', label: 'Tablo' },
-    { mode: 'kanban', icon: 'view_kanban', label: 'Kanban' },
-    { mode: 'calendar', icon: 'calendar_month', label: 'Takvim' },
-    { mode: 'timeline', icon: 'timeline', label: 'Timeline' },
+  // View mode components
+  const viewModeConfig: { mode: ViewMode; icon: React.ComponentType<{ className?: string }>; label: string }[] = [
+    { mode: 'grid', icon: TableProperties, label: 'Tablo' },
+    { mode: 'kanban', icon: KanbanSquare, label: 'Kanban' },
+    { mode: 'calendar', icon: Calendar, label: 'Takvim' },
+    { mode: 'timeline', icon: Activity, label: 'Timeline' },
   ];
 
   const handleViewModeChange = useCallback(
@@ -349,7 +356,7 @@ export default function OrdersPage() {
 
               {/* View Mode Toggle */}
               <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                {viewModes.map(({ mode, icon, label }) => (
+                {viewModeConfig.map(({ mode, icon: Icon, label }) => (
                   <button
                     key={mode}
                     onClick={() => handleViewModeChange(mode)}
@@ -362,7 +369,7 @@ export default function OrdersPage() {
                     title={label}
                     aria-pressed={viewMode === mode}
                   >
-                    <span className="material-symbols-outlined text-lg">{icon}</span>
+                    <Icon className="w-4 h-4" />
                     <span className="hidden lg:inline">{label}</span>
                   </button>
                 ))}
@@ -373,7 +380,7 @@ export default function OrdersPage() {
                 onClick={() => router.push('/new-order')}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                <span className="material-symbols-outlined text-lg">add</span>
+                <Plus className="w-5 h-5" />
                 <span className="hidden sm:inline">Yeni Sipariş</span>
               </button>
             </div>
