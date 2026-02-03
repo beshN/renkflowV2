@@ -24,6 +24,13 @@ const nextConfig = {
     optimizeCss: true,
   },
 
+  compress: true,
+  poweredByHeader: false,
+  generateEtags: true,
+  async generateBuildId() {
+    return process.env.NEXT_BUILD_ID || 'renkflow-build';
+  },
+
   // Increase static page generation timeout for complex pages
   staticPageGenerationTimeout: 300,
 
@@ -41,6 +48,18 @@ const nextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256],
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
     remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.amazonaws.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.cloudfront.net',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.renkflow.com',
+      },
       {
         protocol: 'https',
         hostname: 'pub-*.r2.dev',
@@ -76,6 +95,24 @@ const nextConfig = {
         ],
       },
       {
+        source: '/:all*(woff|woff2)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, must-revalidate',
+          },
+        ],
+      },
+      {
         source: '/(.*)',
         headers: [
           {
@@ -97,6 +134,14 @@ const nextConfig = {
           {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=()',
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
+          {
+            key: 'X-Permitted-Cross-Domain-Policies',
+            value: 'none',
           },
         ],
       },
@@ -128,9 +173,12 @@ const nextConfig = {
         },
       };
     }
+    config.optimization.moduleIds = 'deterministic';
+    config.optimization.chunkIds = 'deterministic';
     return config;
   },
+
+  turbopack: {},
 };
 
 export default nextConfig;
-
