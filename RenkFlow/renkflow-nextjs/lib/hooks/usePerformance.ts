@@ -34,9 +34,9 @@ function getSharedObserver(): IntersectionObserver {
 
 export function useOptimizedInView<T extends HTMLElement = HTMLDivElement>(
   options: UseOptimizedInViewOptions = {}
-): [RefObject<T | null>, boolean] {
+): [RefObject<T>, boolean] {
   const { threshold = 0.1, rootMargin = '50px', triggerOnce = true } = options;
-  const ref = useRef<T>(null);
+  const ref = useRef<T>(null!);
   const [isInView, setIsInView] = useState(false);
   const hasTriggered = useRef(false);
 

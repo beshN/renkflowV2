@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
+const outputFileTracingRoot = __dirname;
 const nextConfig = {
   // Output configuration for production
   output: 'standalone',
+  outputFileTracingRoot,
 
   // Image Optimization with CDN
   images: {
@@ -151,7 +153,7 @@ const nextConfig = {
 
   // Enable Turbopack and pin workspace root to avoid lockfile warnings
   turbopack: {
-    root: __dirname,
+    root: outputFileTracingRoot,
   },
 
   // Redirects
