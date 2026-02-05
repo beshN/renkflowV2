@@ -148,7 +148,7 @@ export function OptimizedLandingPage() {
       </StaggerContainer>
 
       {/* Stats - scale animation */}
-      <FadeInSection delay={0.3} direction="scale">
+      <FadeInSection delay={0.3} direction="none">
         <div className="stats-container">
           <StatCard />
         </div>
