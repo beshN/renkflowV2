@@ -17,6 +17,10 @@ interface PerformanceMetrics {
 }
 
 type MetricHandler = (metric: { name: string; value: number; id: string }) => void;
+type LayoutShiftEntry = PerformanceEntry & {
+  hadRecentInput?: boolean;
+  value?: number;
+};
 
 /**
  * Hook to monitor Core Web Vitals
@@ -62,9 +66,9 @@ export function usePerformanceMonitoring(onMetric?: MetricHandler) {
         let clsValue = 0;
         const clsObserver = new PerformanceObserver((list) => {
           for (const entry of list.getEntries()) {
-            const layoutShiftEntry = entry as LayoutShift;
+            const layoutShiftEntry = entry as LayoutShiftEntry;
             if (!layoutShiftEntry.hadRecentInput) {
-              clsValue += layoutShiftEntry.value;
+              clsValue += layoutShiftEntry.value ?? 0;
               if (process.env.NODE_ENV === 'development') {
                 console.log('[Performance] CLS:', clsValue);
               }

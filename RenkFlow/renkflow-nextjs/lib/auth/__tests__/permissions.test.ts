@@ -21,6 +21,7 @@ import {
   sanitizeOrderForRole,
   sanitizeOrdersForRole,
 } from '../sanitizer';
+import { createOrderId, type Order } from '@/lib/types';
 
 describe('Permission System', () => {
   describe('hasPermission', () => {
@@ -156,12 +157,12 @@ describe('Permission System', () => {
 });
 
 describe('Sanitizer', () => {
-  const mockOrder = {
-    id: '123',
+  const mockOrder: Partial<Order> = {
+    id: createOrderId('123'),
     orderNumber: 'ORD001',
     customerName: 'Test Customer',
     totalAmount: 1000,
-    currency: 'TRY',
+    currency: '₺',
     status: 'pending' as const,
     date: '2024-01-01',
     createdAt: '2024-01-01T00:00:00Z',
@@ -172,7 +173,7 @@ describe('Sanitizer', () => {
     it('should not modify order for non-worker roles', () => {
       const result = sanitizeOrderForRole(mockOrder, 'owner');
       expect(result.totalAmount).toBe(1000);
-      expect(result.currency).toBe('TRY');
+      expect(result.currency).toBe('₺');
     });
 
     it('should remove financial fields for worker role', () => {
@@ -185,7 +186,7 @@ describe('Sanitizer', () => {
   });
 
   describe('sanitizeOrdersForRole', () => {
-    const mockOrders = [mockOrder, { ...mockOrder, id: '456' }];
+    const mockOrders: Partial<Order>[] = [mockOrder, { ...mockOrder, id: createOrderId('456') }];
 
     it('should sanitize all orders for worker role', () => {
       const results = sanitizeOrdersForRole(mockOrders, 'worker');

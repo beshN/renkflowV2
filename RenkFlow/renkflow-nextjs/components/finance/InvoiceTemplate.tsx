@@ -72,7 +72,6 @@ export const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceProps>(({
       <div className="flex justify-between items-start mb-12">
         <div>
           {from.logo ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img src={from.logo} alt={from.name} className="h-12 w-auto mb-4" />
           ) : (
             <h1 className="text-3xl font-bold text-slate-900 mb-2">{from.name}</h1>

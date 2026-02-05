@@ -33,6 +33,8 @@ const customJestConfig = {
     '**/?(*.)+(spec|test).[jt]s?(x)',
   ],
   testPathIgnorePatterns: ['<rootDir>/e2e/'],
+  modulePathIgnorePatterns: ['<rootDir>/.next/'],
+  watchPathIgnorePatterns: ['<rootDir>/.next/'],
   
   // Coverage configuration
   collectCoverageFrom: [
