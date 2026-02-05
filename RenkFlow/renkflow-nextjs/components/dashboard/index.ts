@@ -13,7 +13,7 @@
  */
 
 export { AdvancedStatsCard, StatsGrid } from './AdvancedStatsCard';
-export { StatsCard, QuarterGoalCard, MiniStatCard } from './StatCard';
+export { StatCard, QuarterGoalCard, MiniStatCard } from './StatCard';
 export { RecentOrdersTable } from './RecentOrdersTable';
 export {
   ActivityFeed,

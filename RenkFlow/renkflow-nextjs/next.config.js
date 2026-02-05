@@ -149,8 +149,10 @@ const nextConfig = {
   // Increase static generation timeout for heavy pages (default 60s)
   staticPageGenerationTimeout: 180,
 
-  // Enable Turbopack with empty config to avoid build mismatch errors
-  turbopack: {},
+  // Enable Turbopack and pin workspace root to avoid lockfile warnings
+  turbopack: {
+    root: __dirname,
+  },
 
   // Redirects
   async redirects() {
