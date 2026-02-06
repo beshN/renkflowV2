@@ -35,6 +35,24 @@ const SUPPORT_SOCKET_PATH =
   // Express Socket.IO default path
   '/socket.io';
 
+function buildLocalFallbackReply(message: string): string {
+  const query = message.toLowerCase();
+
+  if (query.includes('gecik')) {
+    return 'Geciken sipariş özetini hazırlıyorum. Siparişler > filtreler ekranından "Geciken" filtresiyle hemen görebilirsiniz.';
+  }
+
+  if (query.includes('sipariş')) {
+    return 'Sipariş listesini açıp duruma göre filtreleyebilirsiniz. İsterseniz önce "Üretimde" veya "Teslim Edildi" görünümünü deneyin.';
+  }
+
+  if (query.includes('pdf') || query.includes('fatura')) {
+    return 'Sipariş detay ekranından "Fatura Oluştur" ile yazdır/PDF çıktısı alabilirsiniz.';
+  }
+
+  return 'Şu anda AI sağlayıcısına bağlanamadım, ama yardımcı olmaya devam edebilirim. Sipariş, üretim, teslimat veya PDF akışlarından birini yazabilirsiniz.';
+}
+
 export function useChat(): UseChatResult {
   const { user } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -207,7 +225,7 @@ export function useChat(): UseChatResult {
         devLog.error('[Chat] AI request failed', err);
         const errorMessage: Message = {
           id: `${Date.now()}_ai_error`,
-          text: 'Şu anda bağlantı/AI servisine ulaşılamıyor. Lütfen biraz sonra tekrar deneyin.',
+          text: buildLocalFallbackReply(text),
           senderId: 'ai',
           senderName: 'AI Destek',
           timestamp: Date.now(),

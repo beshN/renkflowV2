@@ -44,6 +44,7 @@ export default function OrderDetailPage() {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [statusUpdatingTo, setStatusUpdatingTo] = useState<Order['status'] | null>(null);
 
   useEffect(() => {
     if (searchParams.get('edit') === 'true') {
@@ -109,6 +110,23 @@ export default function OrderDetailPage() {
   };
 
   const statusInfo = order ? getOrderStatusInfo(order.status) : { label: '', color: '', bgColor: '' };
+
+  const handleStatusStepChange = async (nextStatus: Order['status']) => {
+    const currentOrder = order;
+    if (!currentOrder) return;
+    if (statusUpdatingTo || nextStatus === currentOrder.status) return;
+    setStatusUpdatingTo(nextStatus);
+
+    try {
+      await updateOrderStatus(currentOrder.id, nextStatus);
+      showToast('Sipariş durumu güncellendi', 'success');
+    } catch (error) {
+      console.error('Update order status error:', error);
+      showToast('Sipariş durumu güncellenemedi', 'error');
+    } finally {
+      setStatusUpdatingTo(null);
+    }
+  };
   
   const steps = [
     { id: 'pending', label: 'Beklemede', icon: Clock },
@@ -189,12 +207,13 @@ export default function OrderDetailPage() {
                             return (
                                 <div key={step.id} className="flex flex-col items-center gap-2 bg-white dark:bg-slate-900 px-2">
                                     <button 
-                                        onClick={() => updateOrderStatus(order.id, step.id as any)}
+                                        onClick={() => handleStatusStepChange(step.id as Order['status'])}
+                                        disabled={!!statusUpdatingTo}
                                         className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
                                         isCompleted 
                                             ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/30' 
                                             : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400'
-                                    } ${!user ? 'cursor-default' : 'cursor-pointer hover:scale-110'}`}>
+                                    } ${!user || statusUpdatingTo ? 'cursor-default opacity-80' : 'cursor-pointer hover:scale-110'}`}>
                                         <Icon size={18} />
                                     </button>
                                     <span className={`text-xs font-medium ${isCurrent ? 'text-blue-600' : 'text-slate-500'}`}>

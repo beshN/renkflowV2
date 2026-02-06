@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/context/AuthContext';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { signOut } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
@@ -13,6 +13,7 @@ import {
   Home, 
   Receipt, 
   PlusCircle, 
+  KanbanSquare,
   Settings, 
   LogOut, 
   Menu, 
@@ -31,28 +32,57 @@ interface NavItem {
   icon: LucideIcon;
   label: string;
   href: string;
-  adminOnly: boolean;
+  adminOnly?: boolean;
   action?: string;
   requiresPermission?: Permission;
   requiresFinanceAccess?: boolean;
 }
 
-const navItems: NavItem[] = [
-  { icon: Home, label: 'Ana Sayfa', href: '/dashboard', adminOnly: false },
-  { icon: Receipt, label: 'Siparişler', href: '/orders', adminOnly: false, requiresPermission: 'orders.view' },
-  { icon: PlusCircle, label: 'Yeni Sipariş', href: '/new-order', adminOnly: false, requiresPermission: 'orders.create' },
-  { icon: Search, label: 'Arama', href: '/search', adminOnly: false },
-  { icon: Bell, label: 'Bildirimler', href: '/notifications', adminOnly: false },
-  { icon: Wallet, label: 'Finans', href: '/finance', adminOnly: false, requiresFinanceAccess: true },
-  { icon: BarChart3, label: 'Raporlar', href: '/reports', adminOnly: false, requiresPermission: 'reports.view' },
-  { icon: Activity, label: 'Analitik', href: '/analytics', adminOnly: false, requiresPermission: 'analytics.view' },
-  { icon: Users, label: 'Ekip', href: '/team', adminOnly: false, requiresPermission: 'team.view' },
-  { icon: UserRound, label: 'Üyeler', href: '/members', adminOnly: false },
-  { icon: Settings, label: 'Ayarlar', href: '/settings', adminOnly: false, requiresPermission: 'settings.view' },
-  { icon: LogOut, label: 'Çıkış Yap', href: '#', adminOnly: false, action: 'logout' },
+interface NavGroup {
+  id: string;
+  label: string;
+  items: NavItem[];
+}
+
+interface SidebarProps {
+  onDesktopExpandedChange?: (expanded: boolean) => void;
+}
+
+const navGroups: NavGroup[] = [
+  {
+    id: 'operations',
+    label: 'Operasyon',
+    items: [
+      { icon: Home, label: 'Ana Sayfa', href: '/dashboard' },
+      { icon: Receipt, label: 'Siparişler', href: '/orders', requiresPermission: 'orders.view' },
+      { icon: PlusCircle, label: 'Yeni Sipariş', href: '/new-order', requiresPermission: 'orders.create' },
+      { icon: KanbanSquare, label: 'Üretim Kanban', href: '/kanban', requiresPermission: 'kanban.view' },
+      { icon: Search, label: 'Arama', href: '/search' },
+      { icon: Bell, label: 'Bildirimler', href: '/notifications' },
+    ],
+  },
+  {
+    id: 'management',
+    label: 'Yönetim',
+    items: [
+      { icon: Wallet, label: 'Finans', href: '/finance', requiresFinanceAccess: true },
+      { icon: BarChart3, label: 'Raporlar', href: '/reports', requiresPermission: 'reports.view' },
+      { icon: Activity, label: 'Analitik', href: '/analytics', requiresPermission: 'analytics.view' },
+    ],
+  },
+  {
+    id: 'team',
+    label: 'Ekip ve Hesap',
+    items: [
+      { icon: Users, label: 'Ekip', href: '/team', requiresPermission: 'team.view' },
+      { icon: UserRound, label: 'Üyeler', href: '/members' },
+      { icon: Settings, label: 'Ayarlar', href: '/settings', requiresPermission: 'settings.view' },
+      { icon: LogOut, label: 'Çıkış Yap', href: '#', action: 'logout' },
+    ],
+  },
 ];
 
-export function Sidebar() {
+export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -60,28 +90,34 @@ export function Sidebar() {
   const [logoFailed, setLogoFailed] = useState({ compact: false, full: false });
 
   // Filter nav items based on user role and permissions
-  const filteredNavItems = navItems.filter(item => {
-    // Admin only items
+  const canRenderItem = useCallback((item: NavItem) => {
     if (item.adminOnly && user?.role !== 'owner' && user?.role !== 'admin') {
       return false;
     }
-    
-    // Finance access check
+
     if (item.requiresFinanceAccess && user?.role) {
       if (!canAccessFinance(user.role as UserRole)) {
         return false;
       }
     }
-    
-    // Permission check
+
     if (item.requiresPermission && user?.role) {
       if (!hasPermission(user.role as UserRole, item.requiresPermission)) {
         return false;
       }
     }
-    
+
     return true;
-  });
+  }, [user?.role]);
+
+  const visibleGroups = useMemo(() => (
+    navGroups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter(canRenderItem),
+      }))
+      .filter((group) => group.items.length > 0)
+  ), [canRenderItem]);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -99,6 +135,10 @@ export function Sidebar() {
       document.body.style.overflow = '';
     };
   }, [isMobileOpen]);
+
+  useEffect(() => {
+    onDesktopExpandedChange?.(isHovered);
+  }, [isHovered, onDesktopExpandedChange]);
 
   const handleItemClick = useCallback((item: NavItem, e: React.MouseEvent) => {
     if (item.action === 'logout') {
@@ -136,9 +176,6 @@ export function Sidebar() {
         )}
       </AnimatePresence>
 
-      {/* Desktop Placeholder - Keeps layout spacing constant */}
-      <div className="hidden md:block w-20 flex-shrink-0 h-screen transition-all duration-300" />
-
       {/* Sidebar Container */}
       <motion.aside
         initial="collapsed"
@@ -154,7 +191,7 @@ export function Sidebar() {
         )}
       >
         {/* Logo Section */}
-        <div className="h-32 flex items-center justify-center relative flex-shrink-0 border-b border-white/10 dark:border-white/5 mb-2 overflow-hidden">
+        <div className="h-36 flex items-center justify-center relative flex-shrink-0 border-b border-white/10 dark:border-white/5 mb-2 overflow-hidden">
            {/* Logo R (Collapsed) */}
            <motion.div 
              animate={{ 
@@ -163,16 +200,16 @@ export function Sidebar() {
                rotate: isHovered || isMobileOpen ? -10 : 0
              }}
              className="absolute inset-0 flex items-center justify-center pointer-events-none"
-           >
-              <div className="relative h-12 w-12 rounded-xl overflow-hidden shadow-lg bg-white flex items-center justify-center p-1">
+          >
+              <div className="relative h-14 w-14 flex items-center justify-center">
                 {logoFailed.compact ? (
-                  <span className="text-lg font-extrabold text-slate-900">RF</span>
+                  <span className="text-2xl font-extrabold text-slate-900 dark:text-white">R</span>
                 ) : (
                   <Image
                     src="/logo-r.png"
                     alt="RenkFlow"
                     fill
-                    sizes="48px"
+                    sizes="56px"
                     className="object-contain"
                     onError={() => setLogoFailed((prev) => ({ ...prev, compact: true }))}
                   />
@@ -189,15 +226,15 @@ export function Sidebar() {
              }}
              className="absolute inset-0 flex items-center justify-center"
            >
-              <div className="relative h-16 w-40 flex items-center justify-center p-1">
+              <div className="relative h-20 w-48 flex items-center justify-center p-1">
                 {logoFailed.full ? (
-                  <span className="text-2xl font-extrabold tracking-tight text-slate-900">RenkFlow</span>
+                  <span className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">RenkFlow</span>
                 ) : (
                   <Image
-                    src="/renkflow-logo-new.png"
+                    src="/email-assets/logo-full.png"
                     alt="RenkFlow"
                     fill
-                    sizes="160px"
+                    sizes="192px"
                     className="object-contain"
                     onError={() => setLogoFailed((prev) => ({ ...prev, full: true }))}
                   />
@@ -207,57 +244,71 @@ export function Sidebar() {
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto overflow-x-hidden scrollbar-none">
-          {filteredNavItems.map((item) => {
-             const isActive = pathname === item.href || 
-                (item.href !== '/dashboard' && item.href !== '#' && pathname.startsWith(item.href));
-             
-             return (
-               <Link
-                 key={item.href}
-                 href={item.href}
-                 onClick={(e) => handleItemClick(item, e)}
-                 className={cn(
-                   "relative flex items-center gap-4 px-3.5 py-3 rounded-xl transition-all duration-300 group overflow-hidden",
-                   isActive 
-                     ? "text-white shadow-lg shadow-blue-500/25" 
-                     : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200",
-                    item.action === 'logout' && "mt-auto hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 dark:hover:text-red-400"
-                 )}
-               >
-                 {/* Active Background with Gradient */}
-                 {isActive && (
-                   <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-100 -z-10" />
-                 )}
+        <nav className="flex-1 px-3 py-4 overflow-y-auto overflow-x-hidden scrollbar-none">
+          <div className="space-y-4">
+            {visibleGroups.map((group) => (
+              <section key={group.id} className="space-y-1.5">
+                <div
+                  className={cn(
+                    "px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400 transition-all duration-300",
+                    (isHovered || isMobileOpen) ? "opacity-100 h-5" : "opacity-0 h-0 overflow-hidden"
+                  )}
+                >
+                  {group.label}
+                </div>
 
-                 {/* Icon */}
-                 <div className={cn(
-                   "transition-transform duration-300 group-hover:scale-110 flex-shrink-0 relative z-10",
-                   isActive ? "text-white" : "text-current"
-                 )}>
-                   <item.icon size={24} />
-                 </div>
+                {group.items.map((item) => {
+                  const isDashboardItem = item.href === '/dashboard';
+                  const isActive =
+                    pathname === item.href ||
+                    (isDashboardItem && pathname.startsWith('/dashboard/')) ||
+                    (!isDashboardItem && item.href !== '#' && pathname.startsWith(`${item.href}/`));
 
-                 {/* Label - Animated with Framer Motion */}
-                 <span className={cn(
-                   "font-medium whitespace-nowrap transition-all duration-300 delay-75 origin-left relative z-10",
-                   (isHovered || isMobileOpen) ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 w-0 overflow-hidden"
-                 )}>
-                   {item.label}
-                 </span>
-                 
-                 {/* Active Glow/Glass Effect Overlay */}
-                 {isActive && (
-                    <motion.div
-                       layoutId="sidebar-active-glow"
-                       className="absolute inset-0 rounded-xl bg-white/10 mix-blend-overlay z-0"
-                       initial={false}
-                       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    />
-                 )}
-               </Link>
-             );
-          })}
+                  return (
+                    <Link
+                      key={`${group.id}-${item.label}`}
+                      href={item.href}
+                      onClick={(e) => handleItemClick(item, e)}
+                      className={cn(
+                        "relative flex items-center gap-4 px-3.5 py-3 rounded-xl transition-all duration-300 group overflow-hidden",
+                        isActive
+                          ? "text-white shadow-lg shadow-blue-500/25"
+                          : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200",
+                        item.action === 'logout' && "hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 dark:hover:text-red-400"
+                      )}
+                    >
+                      {isActive && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-100 -z-10" />
+                      )}
+
+                      <div className={cn(
+                        "transition-transform duration-300 group-hover:scale-110 flex-shrink-0 relative z-10",
+                        isActive ? "text-white" : "text-current"
+                      )}>
+                        <item.icon size={22} />
+                      </div>
+
+                      <span className={cn(
+                        "font-medium whitespace-nowrap transition-all duration-300 delay-75 origin-left relative z-10",
+                        (isHovered || isMobileOpen) ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 w-0 overflow-hidden"
+                      )}>
+                        {item.label}
+                      </span>
+
+                      {isActive && (
+                        <motion.div
+                          layoutId="sidebar-active-glow"
+                          className="absolute inset-0 rounded-xl bg-white/10 mix-blend-overlay z-0"
+                          initial={false}
+                          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        />
+                      )}
+                    </Link>
+                  );
+                })}
+              </section>
+            ))}
+          </div>
         </nav>
 
         {/* User Profile Section */}

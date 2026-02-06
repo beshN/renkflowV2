@@ -18,7 +18,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <SessionProvider>
       <I18nProvider>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <AuthProvider>
             <SettingsProvider>
               <ToastProvider>

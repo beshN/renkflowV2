@@ -129,9 +129,7 @@ export function AIChatbot() {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: process.env.NODE_ENV === 'development' 
-          ? fallbackContent 
-          : 'Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.',
+        content: fallbackContent,
         timestamp: new Date(),
         suggestions: ['Tekrar dene', 'Başka bir soru sor'],
       };
