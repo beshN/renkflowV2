@@ -208,7 +208,7 @@ const CreatePresetModal: React.FC<{
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden"
+          className="w-full max-w-md glass-panel shadow-2xl overflow-hidden"
         >
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -291,10 +291,10 @@ const PresetCard: React.FC<{
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       className={cn(
-        'group relative p-3 rounded-xl border transition-all cursor-pointer',
+        'group relative p-3 rounded-xl border transition-all cursor-pointer backdrop-blur-sm',
         isActive
-          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-          : 'bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+          ? 'bg-blue-50/60 dark:bg-blue-900/10 border-blue-200/50 dark:border-blue-800/50'
+          : 'bg-white/40 dark:bg-gray-800/40 border-gray-200/50 dark:border-gray-700/50 hover:bg-white/60 dark:hover:bg-gray-800/60 hover:border-gray-300 dark:hover:border-gray-600'
       )}
       onClick={onApply}
     >

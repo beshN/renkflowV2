@@ -153,7 +153,7 @@ function LoginForm() {
         transition={{ duration: 0.6 }}
         className="flex-1 lg:flex-[0.5] flex items-center justify-center p-4 sm:p-8"
       >
-        <div className="w-full max-w-md glass-panel p-8 rounded-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-white/5">
+        <div className="w-full max-w-md glass-panel p-8 rounded-2xl overflow-hidden">
           <header className="text-center lg:text-left mb-8">
             <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">Tekrar Hoş Geldiniz</h1>
             <p className="text-base text-subtle-light dark:text-subtle-dark">Hesabınıza giriş yaparak devam edin</p>
@@ -163,7 +163,7 @@ function LoginForm() {
           <div className="space-y-3 mb-6">
             <button 
               onClick={() => handleSocialLogin('google')}
-              className="group w-full h-12 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold flex items-center justify-center gap-3 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300 bg-white/50 dark:bg-slate-900/50 hover:shadow-md hover:-translate-y-0.5"
+              className="group w-full h-12 border border-slate-200/50 dark:border-slate-700/50 rounded-xl font-semibold flex items-center justify-center gap-3 hover:bg-white/70 dark:hover:bg-slate-800/70 transition-all duration-300 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm hover:shadow-lg hover:-translate-y-0.5"
             >
               <svg className="w-5 h-5 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -176,7 +176,7 @@ function LoginForm() {
             
             <button 
               onClick={() => handleSocialLogin('azure-ad')}
-              className="group w-full h-12 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold flex items-center justify-center gap-3 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300 bg-white/50 dark:bg-slate-900/50 hover:shadow-md hover:-translate-y-0.5"
+              className="group w-full h-12 border border-slate-200/50 dark:border-slate-700/50 rounded-xl font-semibold flex items-center justify-center gap-3 hover:bg-white/70 dark:hover:bg-slate-800/70 transition-all duration-300 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm hover:shadow-lg hover:-translate-y-0.5"
             >
               <svg className="w-5 h-5 transition-transform group-hover:scale-110" fill="currentColor" viewBox="0 0 21 21">
                 <path d="M1 1h9v9H1V1zm10 0h9v9h-9V1zM1 11h9v9H1v-9zm10 11h9v-9h-9v9z"/>
@@ -203,10 +203,10 @@ function LoginForm() {
                   setEmail(e.target.value);
                   if (formErrors.email) setFormErrors({ ...formErrors, email: undefined });
                 }}
-                className={`w-full px-4 py-3.5 rounded-xl border bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm focus:ring-4 focus:ring-primary/10 transition-all outline-none ${
+                className={`w-full px-4 py-3.5 rounded-xl border bg-white/40 dark:bg-slate-900/40 backdrop-blur-md focus:ring-4 focus:ring-primary/10 transition-all outline-none ${
                   formErrors.email 
                     ? 'border-red-500 focus:border-red-500' 
-                    : 'border-slate-200 dark:border-slate-700 focus:border-primary'
+                    : 'border-slate-200/50 dark:border-slate-700/50 focus:border-primary'
                 }`}
                 placeholder="ornek@eposta.com"
                 required
@@ -229,10 +229,10 @@ function LoginForm() {
                     setPassword(e.target.value);
                     if (formErrors.password) setFormErrors({ ...formErrors, password: undefined });
                   }}
-                  className={`w-full px-4 py-3.5 pr-12 rounded-xl border bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm focus:ring-4 focus:ring-primary/10 transition-all outline-none ${
+                  className={`w-full px-4 py-3.5 pr-12 rounded-xl border bg-white/40 dark:bg-slate-900/40 backdrop-blur-md focus:ring-4 focus:ring-primary/10 transition-all outline-none ${
                     formErrors.password 
                       ? 'border-red-500 focus:border-red-500' 
-                      : 'border-slate-200 dark:border-slate-700 focus:border-primary'
+                      : 'border-slate-200/50 dark:border-slate-700/50 focus:border-primary'
                   }`}
                   placeholder="Şifreniz"
                   required

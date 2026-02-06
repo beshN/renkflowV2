@@ -58,7 +58,7 @@ export default function ForgotPasswordPage() {
           transition={{ duration: 0.6 }}
           className="flex-1 lg:flex-[0.5] flex items-center justify-center p-4 sm:p-8"
         >
-        <div className="w-full max-w-md glass-panel p-8 rounded-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-white/5">
+        <div className="w-full max-w-md glass-panel p-8 rounded-2xl overflow-hidden">
             {isSuccess ? (
               <div className="text-center">
                 <div className="w-20 h-20 bg-emerald-100/50 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-6 ring-4 ring-emerald-50 dark:ring-emerald-900/10">
@@ -99,10 +99,10 @@ export default function ForgotPasswordPage() {
                         setEmail(e.target.value);
                         if (formError) setFormError('');
                       }}
-                      className={`w-full px-4 py-3.5 rounded-xl border bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm focus:ring-4 focus:ring-primary/10 transition-all outline-none ${
+                      className={`w-full px-4 py-3.5 rounded-xl border bg-white/40 dark:bg-slate-900/40 backdrop-blur-md focus:ring-4 focus:ring-primary/10 transition-all outline-none ${
                         formError 
                           ? 'border-red-500 focus:border-red-500' 
-                          : 'border-slate-200 dark:border-slate-700 focus:border-primary'
+                          : 'border-slate-200/50 dark:border-slate-700/50 focus:border-primary'
                       }`}
                       placeholder="ornek@eposta.com"
                       required

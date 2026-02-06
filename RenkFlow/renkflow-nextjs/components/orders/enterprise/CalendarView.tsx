@@ -199,7 +199,7 @@ const MonthView: React.FC<{
   const weekDays = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="glass-panel rounded-xl overflow-hidden">
       {/* Week Day Headers */}
       <div className="grid grid-cols-7 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         {weekDays.map((day) => (
@@ -260,7 +260,7 @@ const WeekView: React.FC<{
   }, [orders]);
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="glass-panel rounded-xl overflow-hidden">
       <div className="grid grid-cols-7 min-h-[600px]">
         {days.map((day: Date) => {
           const dateKey = format(day, 'yyyy-MM-dd');
@@ -351,7 +351,7 @@ const DayView: React.FC<{
   }, [dayOrders]);
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="glass-panel rounded-xl overflow-hidden">
       {/* Header */}
       <div className="p-6 border-b border-gray-200 dark:border-gray-700 text-center">
         <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -429,7 +429,7 @@ const TimelineView: React.FC<{
   }, [orders]);
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="glass-panel rounded-xl overflow-hidden">
       {/* Timeline Header */}
       <div className="flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
         <div className="w-48 shrink-0 p-3 bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">

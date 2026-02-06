@@ -108,11 +108,11 @@ export function OrderHoverCard({
             transition={{ duration: 0.15, ease: [0.19, 1, 0.22, 1] }}
             className={cn(
               getPositionStyles(),
-              'w-80 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden'
+              'w-80 glass-panel shadow-2xl overflow-hidden'
             )}
           >
             {/* Header */}
-            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-800">
+            <div className="px-4 py-3 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md border-b border-gray-100/50 dark:border-gray-800/50">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2">

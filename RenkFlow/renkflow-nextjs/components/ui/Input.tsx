@@ -10,7 +10,7 @@ type InputProps = React.ComponentProps<'input'> & {
   hint?: string;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
-  variant?: 'default' | 'filled' | 'ghost';
+  variant?: 'default' | 'filled' | 'ghost' | 'glass';
   inputSize?: 'sm' | 'md' | 'lg';
   success?: boolean;
 }
@@ -56,6 +56,14 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(({
       'bg-transparent',
       'focus:border-sky-500 dark:focus:border-sky-400',
       'focus:ring-0'
+    ),
+    glass: cn(
+      'border border-slate-200/50 dark:border-slate-700/50',
+      'bg-white/40 dark:bg-slate-900/40',
+      'backdrop-blur-sm',
+      'focus:bg-white/60 dark:focus:bg-slate-900/60',
+      'focus:border-sky-500/80 dark:focus:border-sky-400/80',
+      'focus:ring-4 focus:ring-sky-500/10 dark:focus:ring-sky-400/10'
     ),
   };
 

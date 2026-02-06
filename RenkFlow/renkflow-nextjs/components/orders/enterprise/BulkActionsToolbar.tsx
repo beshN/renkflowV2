@@ -230,7 +230,7 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
         exit={{ opacity: 0, y: 20 }}
         className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40"
       >
-        <div className="flex items-center gap-4 px-6 py-3 bg-gray-900 dark:bg-gray-800 text-white rounded-xl shadow-2xl border border-gray-700">
+        <div className="flex items-center gap-4 px-6 py-3 bg-gray-900/90 dark:bg-gray-800/90 backdrop-blur-xl text-white rounded-xl shadow-2xl border border-gray-700/50">
           {/* Selection Info */}
           <div className="flex items-center gap-3 pr-4 border-r border-gray-700">
             <div className="flex items-center gap-2">

@@ -145,8 +145,8 @@ const SortableOrderCard: React.FC<{
       {...listeners}
       onClick={onClick}
       className={cn(
-        'group relative bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700',
-        'hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all cursor-grab active:cursor-grabbing',
+        'group relative rounded-xl p-4 glass-card',
+        'hover:scale-[1.02] cursor-grab active:cursor-grabbing',
         isDragging && 'opacity-50 shadow-lg ring-2 ring-blue-500'
       )}
     >
@@ -297,7 +297,7 @@ const KanbanColumn: React.FC<{
     <div className={cn('flex flex-col shrink-0', collapsed ? 'w-20' : 'w-80 min-w-[320px]')}>
       {/* Column Header */}
       <div className={cn(
-        'rounded-t-xl p-4 border-2 border-b-0',
+        'rounded-t-xl p-4 border-2 border-b-0 glass-panel',
         config.bgColor,
         config.borderColor
       )}>
@@ -353,8 +353,7 @@ const KanbanColumn: React.FC<{
 
       {/* Column Body */}
       <div className={cn(
-        'flex-1 p-3 space-y-3 rounded-b-xl border-2 border-t-0 overflow-y-auto max-h-[calc(100vh-300px)]',
-        'bg-gray-50 dark:bg-gray-900/50',
+        'flex-1 p-3 space-y-3 rounded-b-xl border-2 border-t-0 overflow-y-auto max-h-[calc(100vh-300px)] glass',
         config.borderColor
       )}>
         {collapsed ? (

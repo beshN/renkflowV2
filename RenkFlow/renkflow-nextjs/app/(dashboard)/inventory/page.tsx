@@ -27,6 +27,7 @@ import {
   INVENTORY_CATEGORY_LABELS 
 } from '@/lib/types/inventory';
 import { useToast } from '@/lib/context/ToastContext';
+import { Card } from '@/components/ui/Card';
 import { cn, formatCurrency } from '@/lib/utils';
 
 export default function InventoryDashboardPage() {
@@ -140,7 +141,7 @@ export default function InventoryDashboardPage() {
                 <Link
                   key={key}
                   href={`/inventory?category=${key}`}
-                  className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
+                  className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm p-4 rounded-xl border border-slate-200/50 dark:border-slate-800/50 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
                 >
                   <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
                   <p className="text-xl font-bold text-slate-900 dark:text-white mt-1">{count}</p>
@@ -153,8 +154,8 @@ export default function InventoryDashboardPage() {
         {/* Recent Items & Alerts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Items */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+          <Card variant="glass" className="p-0 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/50 dark:border-slate-800/50">
               <h3 className="font-semibold text-slate-900 dark:text-white">Son Eklenenler</h3>
               <Link 
                 href="/inventory/items" 
@@ -207,8 +208,8 @@ export default function InventoryDashboardPage() {
           </div>
 
           {/* Stock Alerts */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+          <Card variant="glass" className="p-0 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/50 dark:border-slate-800/50">
               <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-orange-500" />
                 Stok Uyarıları
@@ -320,17 +321,20 @@ function StatCard({
   };
 
   const content = (
-    <div className={cn(
-      "bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800",
-      href && "hover:border-blue-300 dark:hover:border-blue-700 transition-colors cursor-pointer"
-    )}>
+    <Card 
+      variant="glass"
+      className={cn(
+        "p-6 h-full",
+        href && "hover:border-blue-300 dark:hover:border-blue-700 transition-colors cursor-pointer group"
+      )}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-slate-500 dark:text-slate-400">{title}</p>
           {isLoading ? (
             <div className="h-8 w-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-1" />
           ) : (
-            <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{value}</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1 group-hover:scale-105 transition-transform origin-left">{value}</p>
           )}
           {alert && (
             <p className="text-xs text-orange-600 mt-1">{alert}</p>
@@ -340,11 +344,11 @@ function StatCard({
           {icon}
         </div>
       </div>
-    </div>
+    </Card>
   );
 
   if (href) {
-    return <Link href={href}>{content}</Link>;
+    return <Link href={href} className="block h-full">{content}</Link>;
   }
 
   return content;
@@ -374,7 +378,8 @@ function QuickActionCard({
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-4 p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 transition-all",
+        "flex items-center gap-4 p-4 rounded-xl border border-slate-200/50 dark:border-slate-800/50 transition-all",
+        "bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm",
         colorClasses[color]
       )}
     >

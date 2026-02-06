@@ -142,7 +142,7 @@ function UpdatePasswordForm() {
         transition={{ duration: 0.6 }}
         className="flex-1 lg:flex-[0.5] flex items-center justify-center p-4 sm:p-8"
       >
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md glass-panel p-8 rounded-2xl overflow-hidden">
           {isSuccess ? (
             <div className="text-center">
               <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -173,7 +173,7 @@ function UpdatePasswordForm() {
                         setPassword(e.target.value);
                         if (formErrors.password) setFormErrors({ ...formErrors, password: undefined });
                       }}
-                      className={`input-professional pr-10 ${formErrors.password ? 'border-red-500' : ''}`}
+                      className={`w-full px-4 py-3.5 pr-12 rounded-xl border bg-white/40 dark:bg-slate-900/40 backdrop-blur-md focus:ring-4 focus:ring-primary/10 transition-all outline-none ${formErrors.password ? 'border-red-500' : 'border-slate-200/50 dark:border-slate-700/50 focus:border-primary'}`}
                       placeholder="En az 6 karakter"
                       required
                       minLength={6}
@@ -181,7 +181,7 @@ function UpdatePasswordForm() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-subtle-light dark:text-subtle-dark"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
@@ -200,7 +200,7 @@ function UpdatePasswordForm() {
                       setConfirmPassword(e.target.value);
                       if (formErrors.confirmPassword) setFormErrors({ ...formErrors, confirmPassword: undefined });
                     }}
-                    className={`input-professional ${formErrors.confirmPassword ? 'border-red-500' : ''}`}
+                    className={`w-full px-4 py-3.5 rounded-xl border bg-white/40 dark:bg-slate-900/40 backdrop-blur-md focus:ring-4 focus:ring-primary/10 transition-all outline-none ${formErrors.confirmPassword ? 'border-red-500' : 'border-slate-200/50 dark:border-slate-700/50 focus:border-primary'}`}
                     placeholder="Şifreyi tekrar girin"
                     required
                   />
@@ -220,7 +220,7 @@ function UpdatePasswordForm() {
                   whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-primary text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity mt-2 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="w-full bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-600/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/25 disabled:opacity-70 disabled:cursor-not-allowed mt-4 transition-all"
                 >
                   {isLoading ? 'Güncelleniyor...' : 'Şifreyi Güncelle'}
                 </motion.button>

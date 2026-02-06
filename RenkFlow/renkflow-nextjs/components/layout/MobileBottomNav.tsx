@@ -17,7 +17,7 @@ export function MobileBottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-border-light dark:border-border-dark safe-bottom">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass border-t-0 safe-bottom">
       <div className="flex items-center justify-around py-2 px-1">
         {navItems.map((item) => {
           const isActive = pathname === item.href || 

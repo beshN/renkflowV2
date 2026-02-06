@@ -133,7 +133,7 @@ export function SmartFilterPanel({ uniqueCustomers, uniqueProducts }: SmartFilte
   }, [filters]);
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+    <div className="glass-panel rounded-xl overflow-hidden shadow-sm">
       {/* Header - Quick Search & Toggle */}
       <div className="p-4 flex items-center gap-3">
         <div className="relative flex-1 max-w-md">
@@ -142,7 +142,7 @@ export function SmartFilterPanel({ uniqueCustomers, uniqueProducts }: SmartFilte
             placeholder="Müşteri, ürün veya sipariş no ara..."
             value={filters.search}
             onChange={(e) => setFilters({ search: e.target.value })}
-            className="pl-10 h-10 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700"
+            className="pl-10 h-10 bg-slate-50/50 dark:bg-slate-800/30 border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm"
           />
           {filters.search && (
             <button

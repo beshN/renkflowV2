@@ -122,7 +122,7 @@ export default function SignupPage() {
                 setName(e.target.value);
                 if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
               }}
-              className={`w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border ${formErrors.name ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm`}
+              className={`w-full pl-10 pr-4 py-3 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md border ${formErrors.name ? 'border-red-500' : 'border-slate-200/50 dark:border-slate-700/50'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm`}
               placeholder="Adınız Soyadınız"
               required
             />
@@ -142,7 +142,7 @@ export default function SignupPage() {
                 setCompanyName(e.target.value);
                 if (formErrors.companyName) setFormErrors({ ...formErrors, companyName: undefined });
               }}
-              className={`w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border ${formErrors.companyName ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm`}
+              className={`w-full pl-10 pr-4 py-3 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md border ${formErrors.companyName ? 'border-red-500' : 'border-slate-200/50 dark:border-slate-700/50'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm`}
               placeholder="Şirketinizin Adı (opsiyonel)"
             />
           </div>
@@ -156,7 +156,7 @@ export default function SignupPage() {
             <select
               value={templateKey}
               onChange={(e) => setTemplateKey(e.target.value as TemplateKey)}
-              className="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm"
+              className="w-full pl-10 pr-4 py-3 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm"
             >
               {TEMPLATE_DEFINITIONS.map((template) => (
                 <option key={template.key} value={template.key}>
@@ -165,7 +165,7 @@ export default function SignupPage() {
               ))}
             </select>
           </div>
-          <div className="rounded-xl border border-slate-200/70 bg-white/70 p-3 text-xs text-slate-500 dark:border-slate-700/60 dark:bg-slate-900/60 dark:text-slate-300">
+          <div className="rounded-xl border border-slate-200/50 bg-white/30 backdrop-blur-sm p-3 text-xs text-slate-500 dark:border-slate-700/50 dark:bg-slate-900/30 dark:text-slate-300">
             {TEMPLATE_DEFINITIONS.find((t) => t.key === templateKey)?.description}
           </div>
         </div>
@@ -182,7 +182,7 @@ export default function SignupPage() {
                 setEmail(e.target.value);
                 if (formErrors.email) setFormErrors({ ...formErrors, email: undefined });
               }}
-              className={`w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border ${formErrors.email ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm`}
+              className={`w-full pl-10 pr-4 py-3 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md border ${formErrors.email ? 'border-red-500' : 'border-slate-200/50 dark:border-slate-700/50'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm`}
               placeholder="ornek@sirket.com"
               required
             />
@@ -202,7 +202,7 @@ export default function SignupPage() {
                     setPassword(e.target.value);
                     if (formErrors.password) setFormErrors({ ...formErrors, password: undefined });
                 }}
-                className={`w-full pl-10 pr-10 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border ${formErrors.password ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm`}
+                className={`w-full pl-10 pr-10 py-3 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md border ${formErrors.password ? 'border-red-500' : 'border-slate-200/50 dark:border-slate-700/50'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm`}
                 placeholder="En az 6 karakter"
                 required
                 minLength={6}
@@ -245,14 +245,14 @@ export default function SignupPage() {
        <div className="grid grid-cols-2 gap-3 mb-6">
         <button 
             onClick={() => handleSocialSignup('google')}
-            className="flex items-center justify-center gap-2 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors bg-white dark:bg-slate-950"
+            className="flex items-center justify-center gap-2 py-2.5 border border-slate-200/50 dark:border-slate-700/50 rounded-xl hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm"
         >
             <Image src="https://authjs.dev/img/providers/google.svg" width={18} height={18} alt="Google" />
             <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Google</span>
         </button>
         <button 
              onClick={() => handleSocialSignup('azure-ad')}
-             className="flex items-center justify-center gap-2 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors bg-white dark:bg-slate-950"
+             className="flex items-center justify-center gap-2 py-2.5 border border-slate-200/50 dark:border-slate-700/50 rounded-xl hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm"
         >
              <Image src="https://authjs.dev/img/providers/microsoft-entra-id.svg" width={18} height={18} alt="Microsoft" />
              <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Microsoft</span>

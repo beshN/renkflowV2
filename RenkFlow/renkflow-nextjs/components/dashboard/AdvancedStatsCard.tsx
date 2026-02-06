@@ -292,7 +292,7 @@ function AdvancedStatsCardComponent({
     default: 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800',
     gradient: 'bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 border border-gray-200/50 dark:border-gray-700/50',
     outlined: 'bg-transparent border-2 border-gray-200 dark:border-gray-700',
-    glass: 'bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50',
+    glass: 'glass',
   };
 
   const Wrapper = href ? motion.a : motion.div;

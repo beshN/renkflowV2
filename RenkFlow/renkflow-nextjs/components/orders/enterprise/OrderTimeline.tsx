@@ -139,7 +139,7 @@ const StatusProgressBar: React.FC<{ currentStatus: OrderStatus }> = ({ currentSt
   const currentIndex = statuses.indexOf(currentStatus);
 
   return (
-    <div className="flex items-center gap-2 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+    <div className="flex items-center gap-2 p-4 glass-panel rounded-xl">
       {statuses.map((status, index) => {
         const config = statusConfig[status];
         const isActive = index <= currentIndex;

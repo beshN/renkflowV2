@@ -191,7 +191,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
         aria-label={isMobileOpen ? "Menüyü Kapat" : "Menüyü Aç"}
-        className="md:hidden fixed top-4 left-4 z-[60] p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-lg border border-white/20 dark:border-white/10 text-slate-600 dark:text-slate-300 active:scale-95 transition-all"
+        className="md:hidden fixed top-4 left-4 z-[60] p-2.5 rounded-xl glass-button text-slate-600 dark:text-slate-300 active:scale-95 transition-all"
       >
         {isMobileOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
@@ -218,7 +218,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
         onMouseLeave={handleDesktopLeave}
         className={cn(
           "fixed top-0 left-0 h-screen flex flex-col z-[58]",
-          "bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-r border-white/20 dark:border-white/5 shadow-2xl",
+          "glass border-r-0 border-white/20 dark:border-white/5",
           "will-change-[width,transform]",
           isMobileOpen ? "translate-x-0 w-72" : "-translate-x-full md:translate-x-0"
         )}
@@ -347,7 +347,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
         </nav>
 
         {/* User Profile Section */}
-        <div className="p-4 border-t border-white/10 dark:border-white/5 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
+        <div className="p-4 border-t border-white/10 dark:border-white/5 bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
            <div className={cn(
              "flex items-center gap-3 transition-all duration-300",
              (isHovered || isMobileOpen) ? "justify-start" : "justify-center"

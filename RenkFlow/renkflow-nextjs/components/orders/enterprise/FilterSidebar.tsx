@@ -213,7 +213,7 @@ const MultiSelectSearch: React.FC<{
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-hidden"
+            className="absolute z-50 w-full mt-1 glass-panel rounded-lg shadow-lg max-h-60 overflow-hidden"
           >
             <div className="p-2 border-b border-gray-200 dark:border-gray-700">
               <input
@@ -438,10 +438,10 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
       initial={{ x: -300, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: -300, opacity: 0 }}
-      className="w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full"
+      className="w-80 glass border-r border-gray-200/50 dark:border-gray-700/50 flex flex-col h-full"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200/50 dark:border-gray-700/50">
         <div className="flex items-center gap-2">
           <Filter size={20} className="text-gray-500" />
           <h2 className="font-semibold text-gray-900 dark:text-white">Filtreler</h2>

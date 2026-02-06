@@ -116,7 +116,7 @@ export function SettingsForm({ initialSettings, onSave }: SettingsFormProps) {
             onSubmit={handleSubmit} 
             className="space-y-6"
           >
-            <div className="glass-panel p-6 rounded-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20">
+            <div className="p-1">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-600 dark:text-blue-400">
                   <Building2 size={24} />
@@ -135,12 +135,14 @@ export function SettingsForm({ initialSettings, onSave }: SettingsFormProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <Input
                     label="Şirket Adı"
+                    variant="glass"
                     value={settings.companyName}
                     onChange={(e) => handleChange('companyName', e.target.value)}
                     placeholder="Örn: Renk Tekstil Ltd. Şti."
                   />
                   <Input
                     label="Vergi Numarası"
+                    variant="glass"
                     value={settings.taxNumber}
                     onChange={(e) => handleChange('taxNumber', e.target.value)}
                     placeholder="10 haneli vergi numarası"
@@ -155,7 +157,7 @@ export function SettingsForm({ initialSettings, onSave }: SettingsFormProps) {
                     value={settings.address}
                     onChange={(e) => handleChange('address', e.target.value)}
                     rows={3}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all text-sm resize-none"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200/50 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-sky-500/10 focus:border-sky-500/80 transition-all text-sm resize-none"
                     placeholder="Tam şirket adresi"
                   />
                 </div>
@@ -164,6 +166,7 @@ export function SettingsForm({ initialSettings, onSave }: SettingsFormProps) {
                   <Input
                     label="Telefon"
                     type="tel"
+                    variant="glass"
                     value={settings.phone}
                     onChange={(e) => handleChange('phone', e.target.value)}
                     placeholder="0212 555 00 00"
@@ -171,6 +174,7 @@ export function SettingsForm({ initialSettings, onSave }: SettingsFormProps) {
                   <Input
                     label="E-posta"
                     type="email"
+                    variant="glass"
                     value={settings.email}
                     onChange={(e) => handleChange('email', e.target.value)}
                     placeholder="info@renktekstil.com"
@@ -198,7 +202,7 @@ export function SettingsForm({ initialSettings, onSave }: SettingsFormProps) {
             transition={{ duration: 0.2 }}
             className="space-y-6"
           >
-            <div className="glass-panel p-6 rounded-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20">
+            <div className="p-1">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
                 Sipariş Durumları
               </h3>
@@ -257,7 +261,7 @@ export function SettingsForm({ initialSettings, onSave }: SettingsFormProps) {
             transition={{ duration: 0.2 }}
             className="space-y-6"
           >
-            <div className="glass-panel p-6 rounded-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20">
+            <div className="p-1">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
                 Fabrika Bölümleri
               </h3>

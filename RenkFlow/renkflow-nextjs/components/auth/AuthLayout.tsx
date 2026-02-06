@@ -35,7 +35,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, showHomeLink =
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-md bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-2xl rounded-3xl overflow-hidden"
+        className="relative z-10 w-full max-w-md glass-panel rounded-3xl overflow-hidden"
       >
         {/* Header Logo */}
         <div className="flex flex-col items-center pt-8 pb-4">
@@ -58,7 +58,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, showHomeLink =
 
         {/* Footer/Back Link */}
         {showHomeLink && (
-            <div className="px-8 py-4 bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 text-center">
+            <div className="px-8 py-4 bg-slate-50/30 dark:bg-slate-800/30 border-t border-white/10 dark:border-white/5 text-center backdrop-blur-sm">
                 <Link href="/" className="text-xs text-slate-500 hover:text-blue-600 transition-colors">
                     ← Ana Sayfaya Dön
                 </Link>

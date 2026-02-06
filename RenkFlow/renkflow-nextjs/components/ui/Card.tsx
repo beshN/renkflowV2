@@ -41,10 +41,10 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(({
       'border-2 border-slate-200 dark:border-slate-700'
     ),
     glass: cn(
-      'bg-white/80 dark:bg-slate-900/80',
-      'backdrop-blur-md',
-      'border border-white/20 dark:border-slate-700/50',
-      'shadow-lg'
+      'bg-white/60 dark:bg-slate-900/60',
+      'backdrop-blur-xl',
+      'border border-white/40 dark:border-white/5',
+      'shadow-xl shadow-slate-200/20 dark:shadow-black/20'
     ),
     gradient: cn(
       'bg-gradient-to-br from-slate-50 to-slate-100',

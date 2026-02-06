@@ -37,7 +37,7 @@ function StatsCardComponent({ title, value, icon: Icon, trend, color, href }: St
   const CardContent = (
     <div className={cn(
       "relative overflow-hidden p-6 rounded-2xl glass-panel shadow-premium hover:shadow-glow-primary transition-all duration-300 group cursor-pointer",
-      "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+      "border-transparent"
     )}>
          {/* Aurora Gradient Hover Effect */}
         <div className={`absolute inset-0 bg-gradient-to-br ${gradientFrom} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />

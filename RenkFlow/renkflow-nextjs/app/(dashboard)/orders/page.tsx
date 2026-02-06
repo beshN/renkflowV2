@@ -276,7 +276,7 @@ export default function OrdersPage() {
   });
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-transparent">
       {/* Command Palette */}
       <CommandPalette />
 
@@ -302,7 +302,7 @@ export default function OrdersPage() {
         {/* Main Area */}
         <main role="main" className="flex-1 flex flex-col overflow-hidden">
           {/* Header */}
-          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 px-6 py-4 border-b border-gray-200/50 dark:border-gray-800/50 glass sticky top-0 z-10">
             <div className="flex items-center gap-4">
               <div>
                 <h1 className="text-xl font-semibold text-gray-900 dark:text-white">

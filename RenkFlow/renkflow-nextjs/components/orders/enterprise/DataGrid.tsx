@@ -556,7 +556,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="flex flex-col h-full glass-panel border-0 overflow-hidden">
       {/* Table Container */}
       <div
         ref={tableContainerRef}
@@ -567,7 +567,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
           style={{ width: table.getCenterTotalSize() }}
         >
           {/* Header */}
-          <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800">
+          <thead className="sticky top-0 z-10 glass border-y-0 text-xs uppercase tracking-wider">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
@@ -576,9 +576,9 @@ export const DataGrid: React.FC<DataGridProps> = ({
                     <th
                       key={header.id}
                       className={cn(
-                        'relative px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700',
-                        isFrozen && 'sticky left-0 bg-gray-50 dark:bg-gray-800 z-20',
-                        header.column.getCanSort() && 'cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-700'
+                        'relative px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200/50 dark:border-gray-700/50',
+                        isFrozen && 'sticky left-0 bg-gray-50/90 dark:bg-gray-800/90 z-20 backdrop-blur-sm',
+                        header.column.getCanSort() && 'cursor-pointer select-none hover:bg-gray-100/50 dark:hover:bg-gray-700/50'
                       )}
                       style={{ width: header.getSize() }}
                       onClick={header.column.getToggleSortingHandler()}
@@ -621,11 +621,11 @@ export const DataGrid: React.FC<DataGridProps> = ({
                     onClick={() => onRowClick?.(row.original)}
                     onDoubleClick={() => onRowDoubleClick?.(row.original)}
                     className={cn(
-                      'group border-b border-gray-100 dark:border-gray-800 transition-colors',
+                      'group border-b border-gray-100/50 dark:border-gray-800/50 transition-colors',
                       selectedIds.has(row.original.id)
-                        ? 'bg-blue-50 dark:bg-blue-900/20'
-                        : 'hover:bg-gray-50 dark:hover:bg-gray-800/50',
-                      isDirty && 'bg-yellow-50 dark:bg-yellow-900/20'
+                        ? 'bg-blue-50/50 dark:bg-blue-900/10'
+                        : 'hover:bg-gray-50/50 dark:hover:bg-gray-800/30',
+                      isDirty && 'bg-yellow-50/50 dark:bg-yellow-900/10'
                     )}
                   >
                     {row.getVisibleCells().map((cell) => {
@@ -635,8 +635,8 @@ export const DataGrid: React.FC<DataGridProps> = ({
                           key={cell.id}
                           className={cn(
                             'px-4 py-3 text-sm text-gray-900 dark:text-gray-100',
-                            isFrozen && 'sticky left-0 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800/50',
-                            selectedIds.has(row.original.id) && isFrozen && 'bg-blue-50 dark:bg-blue-900/20'
+                            isFrozen && 'sticky left-0 bg-white/95 dark:bg-gray-900/95 group-hover:bg-gray-50/95 dark:group-hover:bg-gray-800/90 backdrop-blur-sm',
+                            selectedIds.has(row.original.id) && isFrozen && 'bg-blue-50/95 dark:bg-blue-900/20'
                           )}
                           style={{ width: cell.column.getSize() }}
                         >
@@ -668,7 +668,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
       </div>
 
       {/* Footer with pagination info */}
-      <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+      <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200/50 dark:border-gray-700/50 glass">
         <div className="text-sm text-gray-500 dark:text-gray-400">
           {selectedIds.size > 0 ? (
             <span className="font-medium text-blue-600 dark:text-blue-400">

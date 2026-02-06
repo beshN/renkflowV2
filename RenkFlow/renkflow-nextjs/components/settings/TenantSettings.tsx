@@ -113,7 +113,7 @@ export function TenantSettings() {
   return (
     <div className="space-y-8">
       {/* Organization Settings */}
-      <section className="glass-panel p-6 rounded-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20">
+      <section className="p-1">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl text-indigo-600 dark:text-indigo-400">
             <Building size={24} />
@@ -128,6 +128,7 @@ export function TenantSettings() {
           <div className="grid gap-5">
             <Input
               label="Firma Adı"
+              variant="glass"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Firma Adı"
@@ -139,7 +140,7 @@ export function TenantSettings() {
                 <select
                   value={formData.templateKey}
                   onChange={(e) => setFormData({ ...formData, templateKey: e.target.value as TemplateKey })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200/50 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm text-slate-900 dark:text-white appearance-none focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/80 transition-all text-sm"
                 >
                   {TEMPLATE_DEFINITIONS.map((template) => (
                     <option key={template.key} value={template.key}>
@@ -157,6 +158,7 @@ export function TenantSettings() {
             <Input
               label="Logo URL"
               type="url"
+              variant="glass"
               value={formData.logoUrl}
               onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
               placeholder="https://ornek.com/logo.png"
@@ -196,7 +198,7 @@ export function TenantSettings() {
       </section>
 
       {/* Invite Members */}
-      <section className="glass-panel p-6 rounded-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20">
+      <section className="p-1">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">Üye Davet Et</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
           Ekip arkadaşlarınızı rollerine göre davet edin. Her rol için farklı yetkiler tanımlanmıştır.

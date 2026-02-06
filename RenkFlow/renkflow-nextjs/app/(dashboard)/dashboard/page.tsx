@@ -189,31 +189,31 @@ export default function DashboardPage() {
       <main className="flex-1 p-4 md:p-8 pt-16 md:pt-8">
         {/* Action Center */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-          <Card className="xl:col-span-2 p-6">
+          <Card variant="glass" className="xl:col-span-2 p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div className="space-y-2">
                 <p className="text-xs uppercase tracking-wide text-slate-500">Hızlı Başlangıç</p>
-                <h2 className="text-2xl md:text-3xl font-bold text-slate-900">Bugün ne yapmak istersiniz?</h2>
-                <p className="text-sm text-slate-600 max-w-xl">
+                <h2 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">Bugün ne yapmak istersiniz?</h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400 max-w-xl">
                   Sipariş oluşturun, üretim kanbanına göz atın veya ekip ayarlarını güncelleyin.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
                 <Link
                   href="/new-order"
-                  className="inline-flex items-center justify-center rounded-lg bg-slate-900 text-white px-5 py-2.5 text-sm font-medium hover:bg-slate-800 transition-colors"
+                  className="inline-flex items-center justify-center rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-5 py-2.5 text-sm font-medium hover:bg-slate-800 dark:hover:bg-slate-100 transition-colors shadow-lg shadow-blue-500/10"
                 >
                   Yeni Sipariş
                 </Link>
                 <Link
                   href="/orders"
-                  className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-colors"
+                  className="glass-button inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200"
                 >
                   Siparişleri Gör
                 </Link>
                 <Link
                   href="/kanban"
-                  className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-colors"
+                  className="glass-button inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200"
                 >
                   Üretim Kanban
                 </Link>
@@ -221,28 +221,28 @@ export default function DashboardPage() {
             </div>
           </Card>
 
-          <Card className="p-6">
+          <Card variant="glass" className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-wide text-slate-500">İçgörü</p>
-                <h3 className="text-xl font-semibold text-slate-900 mt-1">Haftalık özeti</h3>
+                <h3 className="text-xl font-semibold text-slate-900 dark:text-white mt-1">Haftalık özeti</h3>
               </div>
               <span className="text-xs text-slate-400">Son 7 gün</span>
             </div>
             <div className="mt-6 grid grid-cols-3 gap-4">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-lg bg-white/50 dark:bg-slate-800/50 p-4 border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm">
                 <p className="text-xs text-slate-500 mb-1">Tamamlama</p>
-                <p className="text-2xl font-bold text-slate-900">{dashboardInsights.completionRate}%</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{dashboardInsights.completionRate}%</p>
               </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-lg bg-white/50 dark:bg-slate-800/50 p-4 border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm">
                 <p className="text-xs text-slate-500 mb-1">Ort. Sipariş</p>
-                <p className="text-2xl font-bold text-slate-900">
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">
                   ₺{Math.round(dashboardInsights.avgOrderValue || 0).toLocaleString('tr-TR')}
                 </p>
               </div>
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                <p className="text-xs text-red-600 mb-1">Geciken</p>
-                <p className="text-2xl font-bold text-red-700">{dashboardInsights.overdue}</p>
+              <div className="rounded-lg bg-red-50/50 dark:bg-red-900/20 p-4 border border-red-200/50 dark:border-red-800/30 backdrop-blur-sm">
+                <p className="text-xs text-red-600 dark:text-red-400 mb-1">Geciken</p>
+                <p className="text-2xl font-bold text-red-700 dark:text-red-500">{dashboardInsights.overdue}</p>
               </div>
             </div>
           </Card>
@@ -258,7 +258,7 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Monthly Trend Chart - REAL DATA */}
-          <Card spotlight className="relative overflow-hidden">
+          <Card variant="glass" spotlight className="relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4">
               <span className="text-xs font-medium px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full">
                 Gerçek Zamanlı
@@ -299,7 +299,7 @@ export default function DashboardPage() {
           </Card>
 
           {/* Status Distribution - PROFESSIONAL */}
-          <Card spotlight className="flex flex-col">
+          <Card variant="glass" spotlight className="flex flex-col">
             <div className="absolute top-0 right-0 p-4">
               <span className="text-xs font-medium px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full">
                 Canlı
@@ -393,7 +393,7 @@ export default function DashboardPage() {
 
         {/* Recent Orders + Focus */}
         <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-6">
-          <Card spotlight className="p-0 overflow-hidden">
+          <Card variant="glass" spotlight className="p-0 overflow-hidden">
             <div className="p-6 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
@@ -407,7 +407,7 @@ export default function DashboardPage() {
             <RecentOrdersTable orders={orders?.slice(0, 5) || []} />
           </Card>
 
-          <Card spotlight className="p-6">
+          <Card variant="glass" spotlight className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Öncelikli İşler</h3>
               <span className="text-xs text-slate-500 dark:text-slate-400">7 gün</span>

@@ -121,6 +121,7 @@ export default function CRMDashboard() {
           <Input
             placeholder="Müşteri ara..."
             className="pl-10"
+            variant="glass"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -150,7 +151,7 @@ export default function CRMDashboard() {
       </div>
       
       {/* Customer Table */}
-      <Card>
+      <Card variant="glass">
         <CardHeader>
           <CardTitle>Müşteri Listesi</CardTitle>
         </CardHeader>
@@ -265,7 +266,7 @@ function StatCard({
   const trendColor = negative ? 'text-red-600' : 'text-green-600';
   
   return (
-    <Card>
+    <Card variant="glass">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
           {title}
