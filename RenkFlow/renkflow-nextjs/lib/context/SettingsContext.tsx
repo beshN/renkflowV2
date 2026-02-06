@@ -15,7 +15,7 @@ const defaultSettings: CompanySettings = {
   address: 'İstanbul, Türkiye',
   phone: '+90 555 123 45 67',
   email: 'info@renkflow.com',
-  currency: '₺',
+  currency: 'TRY',
   language: 'tr',
 };
 

@@ -93,7 +93,7 @@ create table public.orders (
   quantity integer default 1,
   status text check (status in ('pending', 'in_production', 'delivered')) default 'pending',
   total_amount decimal(10,2) not null,
-  currency text default '₺',
+  currency text default 'TRY',
   delivery_date date,
   notes text,
   custom_fields jsonb default '{}'::jsonb,

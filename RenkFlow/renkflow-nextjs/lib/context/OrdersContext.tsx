@@ -27,7 +27,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { Order, NewOrderFormData, Currency } from '@/lib/types';
+import { Order, NewOrderFormData, safeParseCurrency } from '@/lib/types';
 import { MockOrderService } from '@/lib/services/mock/order.mock';
 import { 
   getOrdersAction, 
@@ -124,7 +124,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
           productName: data.get('productName') as string,
           quantity: parseInt(data.get('quantity') as string),
           totalAmount: parseFloat(data.get('totalAmount') as string) || 0,
-          currency: ((data.get('currency') as string) || '₺') as Currency,
+          currency: safeParseCurrency(data.get('currency') as string | null),
           deliveryDate: data.get('deliveryDate') as string || undefined,
           notes: data.get('notes') as string || undefined,
         };
@@ -141,7 +141,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
         formData.append('productName', data.productName);
         formData.append('quantity', data.quantity.toString());
         formData.append('totalAmount', data.totalAmount.toString());
-        formData.append('currency', data.currency || '₺');
+        formData.append('currency', data.currency || 'TRY');
         if (data.deliveryDate) formData.append('deliveryDate', data.deliveryDate);
         if (data.notes) formData.append('notes', data.notes);
         // Cannot append files as we don't have File objects here

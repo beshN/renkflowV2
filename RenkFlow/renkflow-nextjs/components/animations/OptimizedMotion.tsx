@@ -1,19 +1,19 @@
 'use client';
 
-import { motion, useReducedMotion, Variants, Transition } from 'framer-motion';
+import { MotionConfig, motion, useReducedMotion } from 'framer-motion';
+import type { HTMLMotionProps, MotionProps, TargetAndTransition, Transition, Variants } from 'framer-motion';
 import { ReactNode, useMemo } from 'react';
 
-interface LazyMotionProps {
-  children: ReactNode;
-  className?: string;
-  initial?: object;
-  animate?: object;
-  whileInView?: object;
-  transition?: Transition;
-  viewport?: object;
-  variants?: Variants;
+const DEFAULT_INITIAL: TargetAndTransition = { opacity: 0, y: 20 };
+const DEFAULT_WHILE_IN_VIEW: TargetAndTransition = { opacity: 1, y: 0 };
+const DEFAULT_TRANSITION: Transition = { duration: 0.5, ease: [0.4, 0, 0.2, 1] };
+const DEFAULT_VIEWPORT: NonNullable<MotionProps['viewport']> = { once: true, margin: '-50px' };
+
+type OptimizedMotionProps = {
   once?: boolean;
-}
+  viewport?: MotionProps['viewport'];
+  children: ReactNode;
+} & Omit<HTMLMotionProps<'div'>, 'children' | 'viewport'>;
 
 /**
  * Optimized Motion Wrapper
@@ -24,30 +24,41 @@ interface LazyMotionProps {
 export function OptimizedMotion({
   children,
   className,
-  initial = { opacity: 0, y: 20 },
+  initial = DEFAULT_INITIAL,
   animate,
-  whileInView = { opacity: 1, y: 0 },
-  transition = { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
-  viewport = { once: true, margin: '-50px' },
+  whileInView = DEFAULT_WHILE_IN_VIEW,
+  transition = DEFAULT_TRANSITION,
+  viewport = DEFAULT_VIEWPORT,
   variants,
   once = true,
-}: LazyMotionProps) {
+  ...rest
+}: OptimizedMotionProps) {
   const prefersReducedMotion = useReducedMotion();
 
-  const memoizedTransition = useMemo(() => transition, [JSON.stringify(transition)]);
+  const viewportOptions = useMemo(() => {
+    if (typeof viewport === 'boolean') return viewport;
+    return { ...viewport, once };
+  }, [viewport, once]);
 
   if (prefersReducedMotion) {
-    return <div className={className}>{children}</div>;
+    return (
+      <MotionConfig reducedMotion="always">
+        <motion.div className={className} {...rest}>
+          {children}
+        </motion.div>
+      </MotionConfig>
+    );
   }
 
   return (
     <motion.div
       className={className}
+      {...rest}
       initial={initial}
       animate={animate}
       whileInView={whileInView}
-      transition={memoizedTransition}
-      viewport={{ ...viewport, once }}
+      transition={transition}
+      viewport={viewportOptions}
       variants={variants}
     >
       {children}

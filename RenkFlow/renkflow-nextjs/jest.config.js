@@ -32,7 +32,7 @@ const customJestConfig = {
     '**/__tests__/**/*.[jt]s?(x)',
     '**/?(*.)+(spec|test).[jt]s?(x)',
   ],
-  testPathIgnorePatterns: ['<rootDir>/e2e/'],
+  testPathIgnorePatterns: ['<rootDir>/e2e/', '<rootDir>/__tests__/helpers/'],
   modulePathIgnorePatterns: ['<rootDir>/.next/'],
   watchPathIgnorePatterns: ['<rootDir>/.next/'],
   

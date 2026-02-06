@@ -120,7 +120,7 @@ export async function POST(request: Request) {
       { success: true, message: 'Mesajınız başarıyla gönderildi!' },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Contact form error:', error);
     return NextResponse.json(
       { error: 'Mesaj gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.' },

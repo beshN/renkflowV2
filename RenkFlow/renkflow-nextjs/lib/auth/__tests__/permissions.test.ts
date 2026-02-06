@@ -162,7 +162,7 @@ describe('Sanitizer', () => {
     orderNumber: 'ORD001',
     customerName: 'Test Customer',
     totalAmount: 1000,
-    currency: '₺',
+    currency: 'TRY',
     status: 'pending' as const,
     date: '2024-01-01',
     createdAt: '2024-01-01T00:00:00Z',
@@ -173,7 +173,7 @@ describe('Sanitizer', () => {
     it('should not modify order for non-worker roles', () => {
       const result = sanitizeOrderForRole(mockOrder, 'owner');
       expect(result.totalAmount).toBe(1000);
-      expect(result.currency).toBe('₺');
+      expect(result.currency).toBe('TRY');
     });
 
     it('should remove financial fields for worker role', () => {

@@ -24,3 +24,4 @@ export { CalendarView } from './CalendarView';
 export { OrderHoverCard } from './OrderHoverCard';
 export { OrderTimeline } from './OrderTimeline';
 export { FilterPresets } from './FilterPresets';
+export { ExportJobsDialog } from './ExportJobsDialog';

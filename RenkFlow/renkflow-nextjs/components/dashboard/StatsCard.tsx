@@ -1,8 +1,9 @@
 import { StatsCardData } from '@/lib/types';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { memo } from 'react';
 import Link from 'next/link';
 import { LucideIcon, TrendingUp, TrendingDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 // Color configuration map for better maintainability
 const colorConfig = {
@@ -30,10 +31,14 @@ interface StatsCardProps extends Omit<StatsCardData, 'icon'> {
 }
 
 function StatsCardComponent({ title, value, icon: Icon, trend, color, href }: StatsCardProps) {
+  const prefersReducedMotion = useReducedMotion();
   const { base: baseColorClass, gradient: gradientFrom, iconBg } = getColorConfig(color);
 
   const CardContent = (
-    <div className="relative overflow-hidden p-6 rounded-2xl glass-panel shadow-premium hover:shadow-glow-primary transition-all duration-300 group cursor-pointer">
+    <div className={cn(
+      "relative overflow-hidden p-6 rounded-2xl glass-panel shadow-premium hover:shadow-glow-primary transition-all duration-300 group cursor-pointer",
+      "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+    )}>
          {/* Aurora Gradient Hover Effect */}
         <div className={`absolute inset-0 bg-gradient-to-br ${gradientFrom} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
         
@@ -79,10 +84,14 @@ function StatsCardComponent({ title, value, icon: Icon, trend, color, href }: St
 
   return (
     <motion.div
-      whileHover={{ y: -5 }}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+      whileHover={prefersReducedMotion ? {} : { 
+        y: -5,
+        scale: 1.02
+      }}
+      initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+      animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+      style={{ willChange: prefersReducedMotion ? 'auto' : 'transform, opacity' }}
       role="article"
       aria-label={`${title} istatistiği`}
     >

@@ -334,6 +334,30 @@ export class ActionExecutor {
     context: ExecutionContext
   ): Promise<{ success: boolean; result?: unknown; error?: string }> {
     const { url, method = 'POST', headers, body } = config;
+
+    try {
+      const parsed = new URL(String(url));
+      const host = parsed.hostname.toLowerCase();
+      const isIpLiteral = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host);
+      const isLocalhost = host === 'localhost' || host.endsWith('.localhost');
+      const isPrivateIp =
+        isIpLiteral &&
+        (host.startsWith('10.') ||
+          host.startsWith('127.') ||
+          host.startsWith('169.254.') ||
+          host.startsWith('192.168.') ||
+          /^172\.(1[6-9]|2\d|3[0-1])\./.test(host));
+
+      if (parsed.protocol !== 'https:') {
+        return { success: false, error: 'Webhook URL must use https' };
+      }
+
+      if (isLocalhost || isPrivateIp) {
+        return { success: false, error: 'Webhook URL is not allowed' };
+      }
+    } catch {
+      return { success: false, error: 'Invalid webhook URL' };
+    }
     
     try {
       const response = await fetch(url as string, {

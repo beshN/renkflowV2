@@ -9,6 +9,7 @@ import { sql } from '@/lib/db';
 import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { normalizeCurrencyInput } from '@/lib/utils/currency';
 import { 
   InventoryItemSchema, 
   StockMovementSchema,
@@ -498,7 +499,7 @@ function mapInventoryItem(row: Record<string, unknown>): InventoryItem {
     location: row.location as string | undefined,
     unitCost: parseFloat(row.unit_cost as string) || 0,
     sellingPrice: row.selling_price ? parseFloat(row.selling_price as string) : undefined,
-    currency: (row.currency as string) || 'TRY',
+    currency: normalizeCurrencyInput(row.currency),
     supplierId: row.supplier_id as string | undefined,
     supplierName: row.supplier_name as string | undefined,
     supplierSku: row.supplier_sku as string | undefined,

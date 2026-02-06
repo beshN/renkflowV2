@@ -16,6 +16,7 @@ import { exportOrders, ExportFormat } from '@/lib/utils/export';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ErrorState, SectionSkeleton, SkeletonCard } from '@/components/ui/skeleton';
+import { useExportJobs } from '@/lib/hooks/useExportJobs';
 import {
   TableProperties,
   KanbanSquare,
@@ -32,6 +33,7 @@ import {
   CommandPalette,
   KanbanBoardV2,
   CalendarView,
+  ExportJobsDialog,
 } from '@/components/orders/enterprise';
 import { Order, OrderStatus } from '@/lib/types';
 
@@ -40,6 +42,9 @@ export default function OrdersPage() {
   const { deleteOrder, updateOrderStatus, updateOrder, refresh, error } = useOrders();
   const { showToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const [isExportCenterOpen, setIsExportCenterOpen] = useState(false);
+
+  const exportJobs = useExportJobs({ pollIntervalMs: 5000, listLimit: 20 });
 
   // Zustand store
   const {
@@ -141,6 +146,19 @@ export default function OrdersPage() {
     },
     [selectedIds, getSelectedOrders, filteredOrders, showToast]
   );
+
+  const handleServerExport = useCallback(async () => {
+    setIsExportCenterOpen(true);
+    const job = await exportJobs.createJob({
+      format: 'csv',
+      entityType: 'orders',
+    });
+    if (job) {
+      showToast('Export işi başlatıldı', 'success');
+    } else if (exportJobs.error) {
+      showToast(exportJobs.error, 'error');
+    }
+  }, [exportJobs, showToast]);
 
   // Handle status change
   const handleStatusChange = useCallback(
@@ -467,8 +485,26 @@ export default function OrdersPage() {
             totalFilteredCount={filteredOrders.length}
             filteredIds={filteredIds}
             onExport={handleExport}
+            onServerExport={handleServerExport}
             onBulkUpdateStatus={handleBulkStatusChange}
             onBulkDelete={handleBulkDelete}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isExportCenterOpen && (
+          <ExportJobsDialog
+            isOpen={isExportCenterOpen}
+            jobs={exportJobs.jobs}
+            isLoading={exportJobs.isLoading}
+            error={exportJobs.error}
+            onClose={() => setIsExportCenterOpen(false)}
+            onRefresh={exportJobs.refresh}
+            onCreate={(format) => {
+              exportJobs.createJob({ format, entityType: 'orders' });
+            }}
+            onDownload={exportJobs.downloadJob}
           />
         )}
       </AnimatePresence>

@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { currencyCodeToSymbol, normalizeCurrencyInput } from '@/lib/utils/currency';
 
 /**
  * Utility function to merge Tailwind CSS classes
@@ -12,15 +13,14 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Format currency
  */
-export function formatCurrency(amount: number | null | undefined, currency: string = '₺'): string {
-  if (amount === null || amount === undefined) return `${currency}0,00`;
-  const currencyMap: Record<string, string> = {
-    TRY: '₺',
-    USD: '$',
-    EUR: '€',
-    GBP: '£',
-  };
-  const symbol = currencyMap[currency] || currency;
+export function formatCurrency(amount: number | null | undefined, currency: string = 'TRY'): string {
+  const normalized = normalizeCurrencyInput(currency);
+  const symbol = currencyCodeToSymbol(normalized);
+
+  if (amount === null || amount === undefined) {
+    return `${symbol}0,00`;
+  }
+
   return `${symbol}${amount.toLocaleString('tr-TR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,

@@ -149,21 +149,12 @@ export async function updateTimeEntry(
     const result = await sql`
       UPDATE time_entries
       SET 
-<<<<<<< /Users/beshnovski/RenkFlow V2/RenkFlow/renkflow-nextjs/app/actions/timeTracking.actions.ts
-        description = COALESCE(${validated.description}, description),
-        start_time = COALESCE(${validated.startTime}, start_time),
-        end_time = COALESCE(${validated.endTime}, end_time),
-        duration = COALESCE(${validated.duration}, duration),
-        billable = COALESCE(${validated.billable}, billable),
-        tags = COALESCE(${validated.tags}, tags),
-=======
         description = COALESCE(${description}, description),
         start_time = COALESCE(${startTime}::timestamptz, start_time),
         end_time = COALESCE(${endTime}::timestamptz, end_time),
         duration = COALESCE(${duration}, duration),
         billable = COALESCE(${billable}, billable),
         tags = COALESCE(${tags}::jsonb, tags),
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-98ad306b/RenkFlow/renkflow-nextjs/app/actions/timeTracking.actions.ts
         updated_at = NOW()
       WHERE id = ${entryId}
         AND tenant_id = ${session.user.tenantId}

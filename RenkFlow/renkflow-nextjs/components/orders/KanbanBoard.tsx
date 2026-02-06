@@ -589,7 +589,7 @@ export function KanbanBoard({ orders, onOrderStatusChange, onOrderDelete }: Kanb
                 isCollapsed={collapsedColumns.has(column.status)}
                 onToggleCollapse={() => toggleColumnCollapse(column.status)}
                 totalAmount={columnTotals[column.status]}
-                currency={columnOrders[0]?.currency || '₺'}
+                currency={columnOrders[0]?.currency || 'TRY'}
                 presenceUsers={presenceByStatus[column.status] || []}
               >
                 <SortableContext

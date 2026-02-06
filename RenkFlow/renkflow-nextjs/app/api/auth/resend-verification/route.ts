@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Doğrulama e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Resend verification error:', error);
     return NextResponse.json(
       { error: 'Bir hata oluştu. Lütfen daha sonra tekrar deneyin.', field: 'general' },

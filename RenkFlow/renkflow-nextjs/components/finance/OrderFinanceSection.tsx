@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { canAccessFinance, hasPermission } from '@/lib/auth/permissions';
 import { formatCurrency } from '@/lib/utils';
+import { safeParseCurrency } from '@/lib/types';
 import {
   CreditCard,
   FileText,
@@ -103,7 +104,7 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
       const newPayment = await createPayment({
         orderId,
         amount,
-        currency: currency || 'TRY',
+        currency: safeParseCurrency(currency),
         method: paymentMethod,
         note: paymentNote || undefined,
       });

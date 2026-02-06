@@ -10,9 +10,10 @@
  * - Alerts Widget: Critical notifications
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { useMotionSafe } from '@/hooks/useReducedMotion';
 import { Order, OrderStatus } from '@/lib/types';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { calculateOrderPriority, getAttentionRequired } from '@/lib/utils/dataGridUtils';
@@ -51,7 +52,9 @@ interface ActivityFeedProps {
   maxItems?: number;
 }
 
-export function ActivityFeed({ orders, maxItems = 8 }: ActivityFeedProps) {
+const ActivityFeedComponent = ({ orders, maxItems = 8 }: ActivityFeedProps) => {
+  const { prefersReducedMotion, transition } = useMotionSafe();
+  
   const activities = useMemo(() => {
     const items: ActivityItem[] = orders.slice(0, maxItems).map(order => ({
       id: order.id,
@@ -87,9 +90,9 @@ export function ActivityFeed({ orders, maxItems = 8 }: ActivityFeedProps) {
         {activities.map((activity, index) => (
           <motion.div
             key={activity.id}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.05 }}
+            initial={prefersReducedMotion ? {} : { opacity: 0, x: -20 }}
+            animate={prefersReducedMotion ? {} : { opacity: 1, x: 0 }}
+            transition={transition}
             className="group"
           >
             <Link
@@ -121,7 +124,9 @@ export function ActivityFeed({ orders, maxItems = 8 }: ActivityFeedProps) {
       )}
     </div>
   );
-}
+};
+
+export const ActivityFeed = memo(ActivityFeedComponent);
 
 // ============================================
 // Quick Actions Widget
@@ -183,15 +188,18 @@ const defaultActions: QuickAction[] = [
   },
 ];
 
-export function QuickActions({ actions = defaultActions }: { actions?: QuickAction[] }) {
+const QuickActionsComponent = ({ actions = defaultActions }: { actions?: QuickAction[] }) => {
+  const prefersReducedMotion = useReducedMotion();
+  
   return (
     <div className="grid grid-cols-3 gap-3">
       {actions.map((action, index) => (
         <motion.div
           key={action.id}
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: index * 0.05 }}
+          initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.9 }}
+          animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1 }}
+          transition={{ delay: index * 0.05, ease: [0.4, 0, 0.2, 1] }}
+          style={{ willChange: prefersReducedMotion ? 'auto' : 'transform, opacity' }}
         >
           <Link
             href={action.href}
@@ -211,7 +219,9 @@ export function QuickActions({ actions = defaultActions }: { actions?: QuickActi
       ))}
     </div>
   );
-}
+};
+
+export const QuickActions = memo(QuickActionsComponent);
 
 // ============================================
 // Alerts Widget
@@ -222,7 +232,7 @@ interface AlertsWidgetProps {
   maxAlerts?: number;
 }
 
-export function AlertsWidget({ orders, maxAlerts = 5 }: AlertsWidgetProps) {
+const AlertsWidgetComponent = ({ orders, maxAlerts = 5 }: AlertsWidgetProps) => {
   const alerts = useMemo(() => {
     const attentionOrders = getAttentionRequired(orders);
     
@@ -252,7 +262,8 @@ export function AlertsWidget({ orders, maxAlerts = 5 }: AlertsWidgetProps) {
           key={order.id}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.1 }}
+          transition={{ delay: index * 0.05, ease: [0.4, 0, 0.2, 1] }}
+          style={{ willChange: 'transform, opacity' }}
         >
           <Link
             href={`/orders/${order.id}`}
@@ -310,7 +321,9 @@ export function AlertsWidget({ orders, maxAlerts = 5 }: AlertsWidgetProps) {
       )}
     </div>
   );
-}
+};
+
+export const AlertsWidget = memo(AlertsWidgetComponent);
 
 // ============================================
 // Upcoming Deliveries Widget
@@ -321,7 +334,7 @@ interface UpcomingDeliveriesProps {
   days?: number;
 }
 
-export function UpcomingDeliveries({ orders, days = 7 }: UpcomingDeliveriesProps) {
+const UpcomingDeliveriesComponent = ({ orders, days = 7 }: UpcomingDeliveriesProps) => {
   const upcoming = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -371,7 +384,8 @@ export function UpcomingDeliveries({ orders, days = 7 }: UpcomingDeliveriesProps
           key={order.id}
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: index * 0.05 }}
+          transition={{ delay: index * 0.03, ease: [0.4, 0, 0.2, 1] }}
+          style={{ willChange: 'transform, opacity' }}
         >
           <Link
             href={`/orders/${order.id}`}
@@ -401,7 +415,9 @@ export function UpcomingDeliveries({ orders, days = 7 }: UpcomingDeliveriesProps
       ))}
     </div>
   );
-}
+};
+
+export const UpcomingDeliveries = memo(UpcomingDeliveriesComponent);
 
 // ============================================
 // Status Overview Widget
@@ -411,7 +427,7 @@ interface StatusOverviewProps {
   orders: Order[];
 }
 
-export function StatusOverview({ orders }: StatusOverviewProps) {
+const StatusOverviewComponent = ({ orders }: StatusOverviewProps) => {
   const stats = useMemo(() => {
     const pending = orders.filter(o => o.status === 'pending').length;
     const inProduction = orders.filter(o => o.status === 'in_production').length;
@@ -448,14 +464,17 @@ export function StatusOverview({ orders }: StatusOverviewProps) {
               className={cn('h-full rounded-full', stat.color)}
               initial={{ width: 0 }}
               animate={{ width: `${stat.percentage || 0}%` }}
-              transition={{ duration: 0.8, delay: index * 0.1, ease: 'easeOut' }}
+              transition={{ duration: 0.6, delay: index * 0.08, ease: [0.4, 0, 0.2, 1] }}
+              style={{ transform: 'translateZ(0)', willChange: 'width' }}
             />
           </div>
         </motion.div>
       ))}
     </div>
   );
-}
+};
+
+export const StatusOverview = memo(StatusOverviewComponent);
 
 export default {
   ActivityFeed,

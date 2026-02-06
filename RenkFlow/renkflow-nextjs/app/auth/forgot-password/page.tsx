@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
 
       setIsSuccess(true);
       toast.success('Şifre sıfırlama linki gönderildi!');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Forgot password error:', error);
       setFormError('Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.');
     } finally {

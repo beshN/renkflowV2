@@ -86,7 +86,7 @@ export default function SignupPage() {
       setTimeout(() => {
         router.push('/auth/login');
       }, 2000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setFormErrors({ general: 'Beklenmeyen bir hata oluştu.' });
     } finally {
       setIsLoading(false);
@@ -96,7 +96,7 @@ export default function SignupPage() {
   const handleSocialSignup = async (provider: 'google' | 'azure-ad') => {
     try {
       await signIn(provider, { callbackUrl: '/orders' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(`${provider} kaydı başarısız.`);
     }
   };

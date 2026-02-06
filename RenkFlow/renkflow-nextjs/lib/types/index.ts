@@ -5,6 +5,7 @@
  */
 
 import { z } from 'zod';
+import { CurrencySchema, type CurrencyCode } from './currency';
 
 // ============================================
 // Branded Types - Compile-time ID Safety
@@ -45,16 +46,17 @@ export type OrderStatus = z.infer<typeof OrderStatusSchema>;
 export const PrioritySchema = z.enum(['low', 'medium', 'high', 'urgent']);
 export type Priority = z.infer<typeof PrioritySchema>;
 
-export const CurrencySchema = z.enum(['₺', '$', '€', '£']);
-export type Currency = z.infer<typeof CurrencySchema>;
+export type Currency = CurrencyCode;
+
+export { CurrencySchema };
 
 /**
  * Safely parse a currency value from string/form data
- * Returns valid Currency or default '₺'
+ * Returns valid currency code or default 'TRY'
  */
 export function safeParseCurrency(value: string | null | undefined): Currency {
-  const result = CurrencySchema.safeParse(value || '₺');
-  return result.success ? result.data : '₺';
+  const result = CurrencySchema.safeParse(value);
+  return result.success ? result.data : 'TRY';
 }
 
 export const ViewModeSchema = z.enum(['grid', 'kanban', 'calendar', 'timeline']);
@@ -76,9 +78,9 @@ export const OrderSchema = z.object({
   email: z.string().email('Geçerli email giriniz').optional().or(z.literal('')),
   phone: z.string().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD formatı gerekli'),
-  deliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  deliveryDate: z.string().regex(/^(\d{4})-(\d{2})-(\d{2})$/).optional(),
   totalAmount: z.number().nonnegative('Toplam tutar negatif olamaz'),
-  currency: CurrencySchema.default('₺'),
+  currency: CurrencySchema.default('TRY'),
   status: OrderStatusSchema,
   priority: PrioritySchema.optional(),
   notes: z.string().optional(),
@@ -99,8 +101,8 @@ export const NewOrderFormSchema = z.object({
   productName: z.string().min(1, 'Ürün adı gerekli'),
   quantity: z.coerce.number().int().positive('Miktar pozitif olmalı'),
   totalAmount: z.coerce.number().nonnegative('Toplam tutar negatif olamaz'),
-  currency: CurrencySchema.default('₺'),
-  deliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  currency: CurrencySchema.default('TRY'),
+  deliveryDate: z.string().regex(/^(\d{4})-(\d{2})-(\d{2})$/).optional(),
   notes: z.string().optional(),
   customFields: z.record(z.string(), z.string()).optional(),
 });
@@ -172,7 +174,7 @@ export const CompanySettingsSchema = z.object({
   address: z.string(),
   phone: z.string(),
   email: z.string().email(),
-  currency: CurrencySchema.default('₺'),
+  currency: CurrencySchema.default('TRY'),
   language: z.enum(['tr', 'en']).default('tr'),
 });
 export type CompanySettings = z.infer<typeof CompanySettingsSchema>;

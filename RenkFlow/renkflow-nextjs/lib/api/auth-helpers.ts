@@ -15,6 +15,12 @@ if (!JWT_SECRET && !IS_BUILD_TIME) {
 }
 const EFFECTIVE_JWT_SECRET = JWT_SECRET || 'development-only-fallback-secret';
 
+const CORS_ALLOW_ALL = process.env.API_CORS_ALLOW_ALL === 'true';
+const CORS_ALLOWED_ORIGIN =
+  process.env.API_CORS_ALLOWED_ORIGIN ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.NODE_ENV !== 'production' ? '*' : '');
+
 export interface APIUser {
   id: string;
   email: string;
@@ -138,11 +144,22 @@ export function generateAPIToken(user: {
 
 // CORS headers for mobile apps
 export function corsHeaders(): HeadersInit {
-  return {
-    'Access-Control-Allow-Origin': '*',
+  const headers: Record<string, string> = {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   };
+
+  if (CORS_ALLOW_ALL) {
+    headers['Access-Control-Allow-Origin'] = '*';
+    return headers;
+  }
+
+  if (CORS_ALLOWED_ORIGIN) {
+    headers['Access-Control-Allow-Origin'] = CORS_ALLOWED_ORIGIN;
+    headers['Vary'] = 'Origin';
+  }
+
+  return headers;
 }
 
 // Handle OPTIONS request for CORS preflight

@@ -116,10 +116,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ error: 'Unsupported provider type' }, { status: 400 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('SSO Login Error:', error);
     return NextResponse.json(
-      { error: error.message || 'Internal Server Error' },
+      { error: 'SSO login failed. Please try again.' },
       { status: 500 }
     );
   }

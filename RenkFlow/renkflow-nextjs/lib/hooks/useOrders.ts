@@ -55,7 +55,7 @@ function objectToFormData(data: NewOrderFormData): FormData {
   formData.append('productName', data.productName);
   formData.append('quantity', String(data.quantity));
   formData.append('totalAmount', String(data.totalAmount));
-  formData.append('currency', data.currency || '₺');
+  formData.append('currency', data.currency || 'TRY');
   if (data.deliveryDate) formData.append('deliveryDate', data.deliveryDate);
   if (data.notes) formData.append('notes', data.notes);
   if (data.customFields) formData.append('customFields', JSON.stringify(data.customFields));

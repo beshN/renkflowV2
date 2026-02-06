@@ -36,7 +36,7 @@ const DEMO_ORDERS = [
     quantity: 1,
     status: 'pending',
     totalAmount: 15000,
-    currency: '₺',
+    currency: 'TRY',
     notes: 'Gri kumaş, ayaklar krom olacak',
   },
   {
@@ -48,7 +48,7 @@ const DEMO_ORDERS = [
     quantity: 1,
     status: 'in_production',
     totalAmount: 8500,
-    currency: '₺',
+    currency: 'TRY',
     notes: '6 kişilik, ceviz rengi',
   },
   {
@@ -60,7 +60,7 @@ const DEMO_ORDERS = [
     quantity: 1,
     status: 'delivered',
     totalAmount: 25000,
-    currency: '₺',
+    currency: 'TRY',
     notes: 'Beyaz lake, led aydınlatmalı',
   },
 ];

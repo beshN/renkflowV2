@@ -7,11 +7,10 @@
  * - URL validation
  */
 
-import { neon, neonConfig } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless';
 import { ConnectionInfo } from '@/lib/types';
 
 // Enable connection caching for serverless environments
-neonConfig.fetchConnectionCache = true;
 
 // Environment constants
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
@@ -51,7 +50,6 @@ function validateDatabaseUrl(url: string): void {
 function createSqlClient() {
   // During build time, return a dummy function that will be replaced at runtime
   if (typeof process !== 'undefined' && process.env.NEXT_PHASE === 'phase-production-build') {
-    console.log('[RenkFlow DB] Build time - skipping database connection');
     return (() => Promise.resolve([])) as unknown as ReturnType<typeof neon>;
   }
 

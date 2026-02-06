@@ -266,7 +266,7 @@ const WeekView: React.FC<{
           const dateKey = format(day, 'yyyy-MM-dd');
           const dayOrders = ordersByDate.get(dateKey) || [];
           const totalAmount = dayOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-          const currency = dayOrders[0]?.currency || '₺';
+          const currency = dayOrders[0]?.currency || 'TRY';
 
           return (
             <div
@@ -333,7 +333,7 @@ const DayView: React.FC<{
     (o) => o.deliveryDate && format(parseISO(o.deliveryDate), 'yyyy-MM-dd') === dateKey
   );
   const totalAmount = dayOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-  const currency = dayOrders[0]?.currency || '₺';
+  const currency = dayOrders[0]?.currency || 'TRY';
 
   // Group by status
   const ordersByStatus = useMemo(() => {

@@ -3,7 +3,7 @@
  * Provides atomic operations with proper rollback support
  */
 
-import { neon, neonConfig, NeonQueryFunction } from '@neondatabase/serverless';
+import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 
 // Transaction isolation levels
 export type IsolationLevel = 'READ COMMITTED' | 'REPEATABLE READ' | 'SERIALIZABLE';
@@ -46,8 +46,6 @@ export async function withTransaction<T>(
   if (!databaseUrl) {
     throw new Error('DATABASE_URL not configured');
   }
-
-  neonConfig.fetchConnectionCache = true;
 
   // Create a dedicated connection for this transaction
   const sql = neon(databaseUrl);

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CurrencySchema } from '@/lib/types/currency';
 
 /**
  * Type-Safe API Validation Layer
@@ -33,7 +34,7 @@ export const OrderSchema = z.object({
   productName: z.string().min(1, 'Ürün adı gerekli'),
   quantity: z.number().int().positive('Miktar pozitif olmalı'),
   totalAmount: z.number().nonnegative('Toplam tutar negatif olamaz'),
-  currency: z.string().default('₺'),
+  currency: CurrencySchema.default('TRY'),
   status: OrderStatusSchema,
   deliveryDate: z.string().optional(),
   notes: z.string().optional(),
@@ -55,7 +56,7 @@ export const NewOrderFormSchema = z.object({
   productName: z.string().min(1, 'Ürün adı gerekli'),
   quantity: z.coerce.number().int().positive('Miktar pozitif olmalı'),
   totalAmount: z.coerce.number().nonnegative('Toplam tutar negatif olamaz'),
-  currency: z.string().default('₺'),
+  currency: CurrencySchema.default('TRY'),
   deliveryDate: z.string().optional(),
   notes: z.string().optional(),
 });

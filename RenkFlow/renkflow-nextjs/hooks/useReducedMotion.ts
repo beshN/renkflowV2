@@ -40,7 +40,7 @@ export function useMotionSafe() {
     // Transition with reduced motion support
     transition: prefersReducedMotion 
       ? { duration: 0 } 
-      : { duration: 0.3, ease: 'easeOut' },
+      : { duration: 0.3, ease: 'easeOut' as const },
     // Fade only animation for reduced motion
     fadeVariants: {
       hidden: { opacity: 0 },

@@ -287,7 +287,7 @@ const KanbanColumn: React.FC<{
   const count = orders.length;
   const isOverWip = count > wipLimit;
   const totalAmount = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-  const currency = orders[0]?.currency || '₺';
+  const currency = orders[0]?.currency || 'TRY';
   const overdueOrders = orders.filter(
     (o) => o.deliveryDate && new Date(o.deliveryDate) < new Date() && o.status !== 'delivered'
   );

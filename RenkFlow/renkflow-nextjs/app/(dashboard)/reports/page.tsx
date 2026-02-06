@@ -28,7 +28,25 @@ export default function ReportsPage() {
     }
   }, [user, isLoading, router]);
 
-  if (isLoading || !user) return null;
+  if (isLoading || !user) {
+    return (
+      <div className="flex-1 flex flex-col">
+        <Navbar title="Raporlar" showSearch={false} />
+        <main className="flex-1 p-4 md:p-8 pt-16 md:pt-8 space-y-6">
+          <div className="h-8 w-48 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-24 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="h-48 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse" />
+            <div className="h-48 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse" />
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   const reportData = useMemo(() => {
     const totalRevenue = orders?.reduce((sum, o) => sum + o.totalAmount, 0) || 0;
@@ -103,7 +121,7 @@ export default function ReportsPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card spotlight className="p-6">
             <p className="text-xs text-slate-500 dark:text-slate-400">Toplam Gelir</p>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(reportData.totalRevenue, '₺')}</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(reportData.totalRevenue, 'TRY')}</p>
           </Card>
           <Card spotlight className="p-6">
             <p className="text-xs text-slate-500 dark:text-slate-400">Teslim Edildi</p>
@@ -119,7 +137,7 @@ export default function ReportsPage() {
           <Card spotlight className="p-6">
             <h3 className="text-lg font-semibold text-text-light dark:text-text-dark mb-4">Özet Trend</h3>
             <div className="space-y-3 text-sm text-subtle-light dark:text-subtle-dark">
-              <p>• Ortalama sipariş tutarı {formatCurrency(Math.round(reportData.avgOrder), '₺')} seviyesinde.</p>
+              <p>• Ortalama sipariş tutarı {formatCurrency(Math.round(reportData.avgOrder), 'TRY')} seviyesinde.</p>
               <p>• Toplam {orders?.length || 0} sipariş bu dönemde işlendi.</p>
               <p>• Üretim yoğunluğu dengede; teslimat oranı yükseliyor.</p>
             </div>
@@ -157,7 +175,7 @@ export default function ReportsPage() {
                       <p className="font-semibold text-slate-900 dark:text-white">{customer.name}</p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">Toplam satış</p>
                     </div>
-                    <p className="font-semibold text-slate-900 dark:text-white">{formatCurrency(customer.total, '₺')}</p>
+                    <p className="font-semibold text-slate-900 dark:text-white">{formatCurrency(customer.total, 'TRY')}</p>
                   </div>
                 ))
               )}

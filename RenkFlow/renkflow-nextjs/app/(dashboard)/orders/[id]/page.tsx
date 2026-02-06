@@ -14,7 +14,7 @@ import { useOrders } from '@/lib/hooks/useOrders';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { formatCurrency, formatDate, getOrderStatusInfo } from '@/lib/utils';
-import { Order, Document, Currency, CurrencySchema } from '@/lib/types';
+import { Order, Document, Currency, CurrencySchema, safeParseCurrency } from '@/lib/types';
 import { 
   ArrowLeft, Calendar, User, Package, CreditCard, 
   FileText, Clock, CheckCircle, Truck, Wallet
@@ -91,11 +91,7 @@ export default function OrderDetailPage() {
         productName: formData.get('productName') as string,
         quantity,
         totalAmount,
-        currency: (() => {
-          const currencyValue = (formData.get('currency') as string) || order?.currency || '₺';
-          const result = CurrencySchema.safeParse(currencyValue);
-          return result.success ? result.data : '₺';
-        })(),
+        currency: safeParseCurrency((formData.get('currency') as string) || order?.currency || 'TRY'),
         notes: (formData.get('notes') as string) || undefined,
         deliveryDate: (formData.get('deliveryDate') as string) || undefined,
         customFields: parsedCustomFields,
@@ -351,7 +347,7 @@ export default function OrderDetailPage() {
                 productName: order.productName || '',
                 quantity: order.quantity || 1,
                 totalAmount: order.totalAmount || 0,
-                currency: order.currency || '₺',
+                currency: order.currency || 'TRY',
                 deliveryDate: order.deliveryDate || '',
                 notes: order.notes || '',
                 customFields: order.customFields || {},

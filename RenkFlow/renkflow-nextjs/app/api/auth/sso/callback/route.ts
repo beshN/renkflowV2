@@ -79,10 +79,10 @@ async function handleCallback(request: NextRequest) {
     
     return NextResponse.redirect(redirectUrl);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('SSO Callback Error:', error);
     return NextResponse.json(
-      { error: error.message || 'Authentication Failed' },
+      { error: 'Authentication failed. Please try again.' },
       { status: 500 }
     );
   }

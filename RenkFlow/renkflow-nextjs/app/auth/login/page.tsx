@@ -87,18 +87,13 @@ function LoginForm() {
     setFormErrors({});
 
     try {
-      console.log('[Login] Attempting signIn with email:', email);
-      
       const result = await signIn('credentials', {
         email: email.trim().toLowerCase(),
         password,
         redirect: false,
       });
       
-      console.log('[Login] signIn result:', { error: result?.error, ok: result?.ok, code: result?.code });
-
       if (result?.error) {
-        console.log('[Login] Error detected:', result.error, 'Code:', result.code);
         if (result.error === 'CredentialsSignin') {
           const code = (result.code || 'credentials').toLowerCase();
           const mapped = CREDENTIALS_ERROR_MAP[code] || CREDENTIALS_ERROR_MAP.credentials;
@@ -132,7 +127,7 @@ function LoginForm() {
         router.push('/orders');
         router.refresh();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
       setFormErrors({ general: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.' });
     } finally {
@@ -143,7 +138,7 @@ function LoginForm() {
   const handleSocialLogin = async (provider: 'google' | 'azure-ad') => {
     try {
       await signIn(provider, { callbackUrl: '/orders' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Social login error:', error);
       toast.error('Sosyal medya girişi başarısız oldu.');
     }

@@ -13,7 +13,7 @@
 
 export { Badge, BadgeGroup } from './Badge';
 export { Button } from './Button';
-export { Card, CardHeader, CardTitle, CardContent, FeatureCard, StatCard as CardStatCard } from './Card';
+export { Card, CardHeader, CardTitle, CardContent } from './Card';
 export { Input } from './Input';
 export { PillNav, PillTabs, SegmentedControl } from './PillNav';
 export { BrandFooter, SimpleFooter } from './BrandFooter';
@@ -31,8 +31,8 @@ export { ErrorBoundary } from './ErrorBoundary';
 export { ConfirmDialog } from './ConfirmDialog';
 export { Pagination } from './Pagination';
 export { DocumentViewer } from './DocumentViewer';
-export { CookieConsent } from './CookieConsent';
+export { default as CookieConsent } from './CookieConsent';
 export { LanguageSelector } from './LanguageSelector';
-export { PWAInstallPrompt } from './PWAInstallPrompt';
+export { default as PWAInstallPrompt } from './PWAInstallPrompt';
 export { ScrollReveal } from './ScrollReveal';
 export { useSpotlight } from './SpotlightEffect';

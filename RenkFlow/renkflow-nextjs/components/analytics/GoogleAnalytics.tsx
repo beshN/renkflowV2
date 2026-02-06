@@ -7,6 +7,10 @@ export default function GoogleAnalytics({ GA_MEASUREMENT_ID }: { GA_MEASUREMENT_
     return null;
   }
 
+  if (!/^G-[A-Z0-9]+$/i.test(GA_MEASUREMENT_ID) && !/^UA-\d+-\d+$/i.test(GA_MEASUREMENT_ID)) {
+    return null;
+  }
+
   return (
     <>
       <Script

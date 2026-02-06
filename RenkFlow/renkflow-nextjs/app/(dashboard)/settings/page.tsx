@@ -21,7 +21,18 @@ export default function SettingsPage() {
   }, [user, isLoading, router]);
 
   if (isLoading || !user) {
-    return null;
+    return (
+      <div className="flex-1 flex flex-col">
+        <Navbar title="Ayarlar" showSearch={false} />
+        <main className="flex-1 p-4 md:p-8 pt-16 md:pt-8 space-y-6">
+          <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse" />
+            <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse" />
+          </div>
+        </main>
+      </div>
+    );
   }
 
   return (

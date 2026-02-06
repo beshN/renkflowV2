@@ -341,6 +341,13 @@ export const registrationLimiter = new RateLimiter({
   keyPrefix: 'register:',
 });
 
+export const exportRateLimiter = new RateLimiter({
+  windowMs: 3600000,
+  maxAttempts: 20,
+  blockDurationMs: 3600000,
+  keyPrefix: 'export:',
+});
+
 // ============================================
 // Middleware Helper
 // ============================================

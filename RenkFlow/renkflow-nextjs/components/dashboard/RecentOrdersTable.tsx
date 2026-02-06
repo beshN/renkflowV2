@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Order } from '@/lib/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { getOrderStatusInfo } from '@/lib/utils';
 import { MoreHorizontal, Inbox } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useOrders } from '@/lib/hooks/useOrders';
@@ -16,7 +16,8 @@ interface RecentOrdersTableProps {
   orders: Order[];
 }
 
-export function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
+function RecentOrdersTableComponent({ orders }: RecentOrdersTableProps) {
+  const prefersReducedMotion = useReducedMotion();
   const { deleteOrder } = useOrders();
   const { user } = useAuth();
   const [deleteTarget, setDeleteTarget] = useState<Order | null>(null);
@@ -98,9 +99,10 @@ export function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
               return (
                 <motion.tr
                   key={order.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                  initial={prefersReducedMotion ? {} : { opacity: 0, y: 10 }}
+                  animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, delay: index * 0.03, ease: [0.4, 0, 0.2, 1] }}
+                  style={{ willChange: prefersReducedMotion ? 'auto' : 'transform, opacity' }}
                   className="group hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors duration-200"
                 >
                   <td className="py-4 px-6">
@@ -188,3 +190,5 @@ export function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
     </div>
   );
 }
+
+export const RecentOrdersTable = memo(RecentOrdersTableComponent);

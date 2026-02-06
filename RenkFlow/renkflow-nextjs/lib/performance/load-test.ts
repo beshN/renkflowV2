@@ -11,7 +11,7 @@ export async function generateStressTestData(count: number): Promise<Order[]> {
     productName: `Ürün ${i % 20}`,
     quantity: Math.max(1, Math.floor(Math.random() * 5)),
     totalAmount: Math.round(Math.random() * 10000),
-    currency: '₺' as const,
+    currency: 'TRY' as const,
     status: statuses[i % statuses.length],
     date: new Date(Date.now() - Math.random() * 86400000 * 365).toISOString().split('T')[0],
     documents: [],

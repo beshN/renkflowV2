@@ -356,8 +356,11 @@ export async function createExportJob(
   };
 }
 
-export async function getExportJob(jobId: string): Promise<ExportJob | null> {
-  const jobResult = await sql`SELECT * FROM export_jobs WHERE id = ${jobId}`;
+export async function getExportJob(jobId: string, tenantId: string): Promise<ExportJob | null> {
+  const jobResult = await sql`
+    SELECT * FROM export_jobs
+    WHERE id = ${jobId} AND tenant_id = ${tenantId}
+  `;
   const jobRows = jobResult as any[];
   const job = jobRows[0];
 
@@ -430,7 +433,7 @@ async function processExportJob(jobId: string, tenantId: string, options: Export
 
     // In production, upload to S3 and store URL
     // For now, mock file URL
-    const fileUrl = `/api/exports/${jobId}/download`;
+    const fileUrl = `/api/export/${jobId}/download`;
 
     await sql`
       UPDATE export_jobs

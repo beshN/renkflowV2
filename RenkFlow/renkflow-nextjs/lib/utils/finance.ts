@@ -4,6 +4,7 @@
  */
 
 import { Payment, OrderWithPayments, EmployeeLedgerEntry, LedgerEntryKind } from '@/lib/types/finance';
+import { normalizeCurrencyInput } from '@/lib/utils/currency';
 
 // ============================================
 // Currency Formatting
@@ -17,7 +18,8 @@ export const CURRENCY_CONFIG: Record<string, { symbol: string; locale: string; p
 };
 
 export function formatFinanceCurrency(amount: number, currency: string = 'TRY'): string {
-  const config = CURRENCY_CONFIG[currency] || CURRENCY_CONFIG.TRY;
+  const normalized = normalizeCurrencyInput(currency);
+  const config = CURRENCY_CONFIG[normalized] || CURRENCY_CONFIG.TRY;
   
   const formatted = new Intl.NumberFormat(config.locale, {
     minimumFractionDigits: 2,
@@ -30,7 +32,8 @@ export function formatFinanceCurrency(amount: number, currency: string = 'TRY'):
 }
 
 export function formatCompactCurrency(amount: number, currency: string = 'TRY'): string {
-  const config = CURRENCY_CONFIG[currency] || CURRENCY_CONFIG.TRY;
+  const normalized = normalizeCurrencyInput(currency);
+  const config = CURRENCY_CONFIG[normalized] || CURRENCY_CONFIG.TRY;
   
   if (amount >= 1000000) {
     return `${(amount / 1000000).toFixed(1)}M ${config.symbol}`;

@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod';
+import { CurrencySchema as CurrencyNormalized } from './currency';
 
 // ============================================
 // Account Types (Hesap Planı)
@@ -31,7 +32,7 @@ export const AccountSchema = z.object({
   isBankAccount: z.boolean().default(false),
   bankName: z.string().optional(),
   bankAccountNumber: z.string().optional(),
-  currency: z.string().default('TRY'),
+  currency: CurrencyNormalized.default('TRY'),
   openingBalance: z.number().default(0),
   currentBalance: z.number().default(0),
   createdAt: z.string().datetime(),
@@ -193,6 +194,7 @@ export const ProfitLossReportSchema = z.object({
   profitBeforeTax: z.number(),
   taxExpense: z.number(),
   netProfit: z.number(),
+  warnings: z.array(z.string()).optional(),
 });
 
 // Bilanço
@@ -236,6 +238,7 @@ export const BalanceSheetSchema = z.object({
     currentYearProfit: z.number(),
     totalEquity: z.number(),
   }),
+  warnings: z.array(z.string()).optional(),
 });
 
 // Nakit Akış Tablosu
@@ -265,6 +268,7 @@ export const CashFlowReportSchema = z.object({
   netChangeInCash: z.number(),
   beginningCash: z.number(),
   endingCash: z.number(),
+  warnings: z.array(z.string()).optional(),
 });
 
 // ============================================
@@ -290,7 +294,7 @@ export const ExpenseSchema = z.object({
   category: ExpenseCategorySchema,
   description: z.string(),
   amount: z.number().positive(),
-  currency: z.string().default('TRY'),
+  currency: CurrencyNormalized.default('TRY'),
   date: z.string().datetime(),
   receiptUrl: z.string().optional(),
   vendor: z.string().optional(),

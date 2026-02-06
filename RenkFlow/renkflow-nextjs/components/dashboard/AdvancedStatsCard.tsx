@@ -12,9 +12,10 @@
  * - Click interactions
  */
 
-import React, { useEffect, useRef, useState } from 'react';
-import { motion, useSpring, useInView, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useRef, useState, memo } from 'react';
+import { motion, useSpring, useInView, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { currencyCodeToSymbol } from '@/lib/utils/currency';
 import {
   TrendingUp,
   TrendingDown,
@@ -76,7 +77,7 @@ const AnimatedCounter: React.FC<{
   format?: 'number' | 'currency' | 'percentage';
   currency?: string;
   duration?: number;
-}> = ({ value, format = 'number', currency = '₺', duration = 1 }) => {
+}> = ({ value, format = 'number', currency = 'TRY', duration = 1 }) => {
   const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true });
   const springValue = useSpring(0, { duration: duration * 1000 });
@@ -98,7 +99,7 @@ const AnimatedCounter: React.FC<{
   const formatValue = (val: number) => {
     switch (format) {
       case 'currency':
-        return `${currency}${Math.round(val).toLocaleString('tr-TR')}`;
+        return `${currencyCodeToSymbol(currency)}${Math.round(val).toLocaleString('tr-TR')}`;
       case 'percentage':
         return `${val.toFixed(1)}%`;
       default:
@@ -253,7 +254,7 @@ const LoadingSkeleton: React.FC<{ size: 'sm' | 'md' | 'lg' }> = ({ size }) => (
 // Main Component
 // ============================================
 
-export function AdvancedStatsCard({
+function AdvancedStatsCardComponent({
   title,
   value,
   subtitle,
@@ -263,7 +264,7 @@ export function AdvancedStatsCard({
   sparkline,
   comparison,
   format = 'number',
-  currency = '₺',
+  currency = 'TRY',
   loading = false,
   error,
   onClick,
@@ -272,6 +273,7 @@ export function AdvancedStatsCard({
   size = 'md',
   variant = 'default',
 }: AdvancedStatsCardProps) {
+  const prefersReducedMotion = useReducedMotion();
   const isNumericValue = typeof value === 'number';
 
   const sizeClasses = {
@@ -323,8 +325,9 @@ export function AdvancedStatsCard({
         (onClick || href) && 'cursor-pointer hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]',
         className
       )}
-      whileHover={onClick || href ? { y: -2 } : undefined}
-      whileTap={onClick || href ? { scale: 0.98 } : undefined}
+      whileHover={!prefersReducedMotion && (onClick || href) ? { y: -2 } : undefined}
+      whileTap={!prefersReducedMotion && (onClick || href) ? { scale: 0.98 } : undefined}
+      style={{ willChange: prefersReducedMotion ? 'auto' : 'transform' }}
     >
       {loading ? (
         <LoadingSkeleton size={size} />
@@ -414,5 +417,7 @@ export function StatsGrid({ children, columns = 4, className }: StatsGridProps) 
     </div>
   );
 }
+
+export const AdvancedStatsCard = memo(AdvancedStatsCardComponent);
 
 export default AdvancedStatsCard;

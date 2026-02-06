@@ -20,7 +20,7 @@ import {
   VisibilityState,
 } from '@tanstack/react-table';
 import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { useViewStore } from '@/lib/stores/view.store';
 import type { Order, OrderStatus, Priority } from '@/lib/types';
 import {
@@ -222,10 +222,10 @@ function createColumns(
       ),
       cell: ({ row }) => {
         const amount = row.getValue('totalAmount') as number;
-        const currency = row.original.currency || '₺';
+        const currency = row.original.currency || 'TRY';
         return (
           <span className="font-medium text-slate-900 dark:text-white">
-            {currency}{amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+            {formatCurrency(amount, currency)}
           </span>
         );
       },

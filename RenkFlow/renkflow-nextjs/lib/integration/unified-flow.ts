@@ -5,7 +5,7 @@ import { useOfflineOrders } from '@/lib/offline/hooks';
 import { useOrderRealtime } from '@/lib/realtime/hooks';
 import { useFacetedSearch, useDashboardStats } from '@/lib/search/hooks';
 import { auditTrail, encryptField } from '@/lib/security';
-import { Order, NewOrderFormData, createOrderId, CurrencySchema } from '@/lib/types';
+import { Order, NewOrderFormData, createOrderId, CurrencySchema, safeParseCurrency } from '@/lib/types';
 
 // Mock/Draft AI Engine (as @/lib/ai doesn't exist yet)
 const aiEngine = {
@@ -44,10 +44,7 @@ export function useUnifiedOrderSystem(tenantId: string) {
       orderNumber: 'PENDING',
       date: new Date().toISOString(),
       status: 'pending',
-      currency: (() => {
-        const result = CurrencySchema.safeParse(data.currency);
-        return result.success ? result.data : '₺';
-      })(),
+      currency: safeParseCurrency(data.currency as any),
       documents: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

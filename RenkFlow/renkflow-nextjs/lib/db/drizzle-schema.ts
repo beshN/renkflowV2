@@ -152,7 +152,7 @@ export const orders = pgTable('orders', {
   quantity: integer('quantity').default(1),
   status: text('status', { enum: ['pending', 'in_production', 'delivered'] }).default('pending'),
   totalAmount: decimal('total_amount', { precision: 10, scale: 2 }).notNull(),
-  currency: text('currency').default('₺'),
+  currency: text('currency').default('TRY'),
   deliveryDate: date('delivery_date'),
   notes: text('notes'),
   customFields: jsonb('custom_fields').default({}),

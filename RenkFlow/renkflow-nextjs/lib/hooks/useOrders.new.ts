@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useCachedQuery, useMutation, optimisticUpdate, requestCache } from '@/lib/api/request-layer';
-import { Order, NewOrderFormData, CurrencySchema } from '@/lib/types';
+import { Order, NewOrderFormData, CurrencySchema, safeParseCurrency } from '@/lib/types';
 import { orderService } from '@/lib/services/orderService.client';
 import { devLog } from '@/lib/utils/logger';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -66,11 +66,7 @@ export function useOrders(): UseOrdersResult {
         productName: formData.get('productName') as string,
         quantity: parseInt(formData.get('quantity') as string) || 1,
         totalAmount: parseFloat(formData.get('totalAmount') as string) || 0,
-        currency: (() => {
-          const currencyValue = formData.get('currency') as string || '₺';
-          const result = CurrencySchema.safeParse(currencyValue);
-          return result.success ? result.data : '₺';
-        })(),
+        currency: safeParseCurrency((formData.get('currency') as string) || 'TRY'),
         deliveryDate: (formData.get('deliveryDate') as string) || undefined,
         notes: (formData.get('notes') as string) || undefined,
       };

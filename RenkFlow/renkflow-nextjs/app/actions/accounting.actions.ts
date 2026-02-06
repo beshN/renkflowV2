@@ -9,6 +9,7 @@ import { sql } from '@/lib/db';
 import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { normalizeCurrencyInput } from '@/lib/utils/currency';
 import {
   AccountSchema,
   JournalEntrySchema,
@@ -63,7 +64,7 @@ export async function getAccounts(): Promise<Account[]> {
       isBankAccount: row.is_bank_account as boolean,
       bankName: row.bank_name as string | undefined,
       bankAccountNumber: row.bank_account_number as string | undefined,
-      currency: (row.currency as string) || 'TRY',
+      currency: normalizeCurrencyInput(row.currency),
       openingBalance: parseFloat(row.opening_balance as string) || 0,
       currentBalance: parseFloat(row.current_balance as string) || 0,
       createdAt: row.created_at as string,
@@ -127,7 +128,7 @@ export async function createAccount(
         isBankAccount: row.is_bank_account as boolean,
         bankName: row.bank_name as string | undefined,
         bankAccountNumber: row.bank_account_number as string | undefined,
-        currency: (row.currency as string) || 'TRY',
+        currency: normalizeCurrencyInput(row.currency),
         openingBalance: parseFloat(row.opening_balance as string) || 0,
         currentBalance: parseFloat(row.current_balance as string) || 0,
         createdAt: row.created_at as string,
@@ -194,7 +195,7 @@ export async function getExpenses(params?: {
       category: row.category as Expense['category'],
       description: row.description as string,
       amount: parseFloat(row.amount as string),
-      currency: (row.currency as string) || 'TRY',
+      currency: normalizeCurrencyInput(row.currency),
       date: row.date as string,
       receiptUrl: row.receipt_url as string | undefined,
       vendor: row.vendor as string | undefined,
@@ -245,7 +246,7 @@ export async function createExpense(
         category: row.category as Expense['category'],
         description: row.description as string,
         amount: parseFloat(row.amount as string),
-        currency: (row.currency as string) || 'TRY',
+        currency: normalizeCurrencyInput(row.currency),
         date: row.date as string,
         receiptUrl: row.receipt_url as string | undefined,
         vendor: row.vendor as string | undefined,
@@ -274,6 +275,8 @@ export async function getProfitLossReport(
   try {
     const session = await getSession();
 
+    const warnings: string[] = [];
+
     // Gelir hesapla
     const revenue = await sql`
       SELECT 
@@ -286,43 +289,95 @@ export async function getProfitLossReport(
         AND created_at <= ${endDate}
     `;
 
-    // Ödemeleri hesapla
-    const payments = await sql`
-      SELECT COALESCE(SUM(amount), 0) as total_payments
-      FROM payments
-      WHERE tenant_id = ${session.user.tenantId}
-        AND paid_at >= ${startDate}
-        AND paid_at <= ${endDate}
-    `;
-
-    // Giderleri hesapla
+    // Giderleri hesapla (expenses table)
     const expenses = await sql`
       SELECT 
         category,
         COALESCE(SUM(amount), 0) as total
       FROM expenses
       WHERE tenant_id = ${session.user.tenantId}
-        AND date >= ${startDate}
-        AND date <= ${endDate}
+        AND date >= ${startDate.slice(0, 10)}
+        AND date <= ${endDate.slice(0, 10)}
       GROUP BY category
     `;
 
-    // Maaşları hesapla
+    // Maaşları hesapla (employee_ledger_entries)
     const salaries = await sql`
       SELECT COALESCE(SUM(amount), 0) as total_salaries
-      FROM employee_ledger
+      FROM employee_ledger_entries
       WHERE tenant_id = ${session.user.tenantId}
-        AND kind = 'salary'
+        AND kind IN ('salary', 'payment')
         AND entry_date >= ${startDate.slice(0, 10)}
         AND entry_date <= ${endDate.slice(0, 10)}
     `;
 
+    // Depreciation (fixed_assets) - straight-line monthly amortization
+    // NOTE: We treat depreciation as the portion that falls into [startDate, endDate]
+    const depreciationResult = await sql`
+      SELECT
+        COALESCE(SUM(
+          CASE
+            WHEN is_active = false THEN 0
+            WHEN disposed_date IS NOT NULL AND disposed_date < ${startDate.slice(0, 10)}::date THEN 0
+            ELSE
+              GREATEST(0, (cost - COALESCE(residual_value, 0)))
+              / NULLIF(useful_life_months, 0)
+          END
+        ), 0) AS monthly_depreciation
+      FROM fixed_assets
+      WHERE tenant_id = ${session.user.tenantId}
+        AND acquisition_date <= ${endDate.slice(0, 10)}::date
+    `;
+
+    const depreciationRows = depreciationResult as any[];
+    const monthlyDepreciation = parseFloat(depreciationRows[0]?.monthly_depreciation || '0');
+
+    // Depreciation for the period = monthlyDepreciation * number_of_months_overlapped
+    // Keep it simple & deterministic: count months between start and end inclusive.
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const months = Math.max(
+      1,
+      (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1
+    );
+    const depreciationForPeriod = monthlyDepreciation * months;
+
+    if (depreciationForPeriod === 0) {
+      warnings.push('Amortisman verisi bulunamadı veya aktif sabit kıymet yok (fixed_assets).');
+    }
+
+    // COGS (stock_movements) - if stock_movements table exists and is used.
+    // We assume type='out' represents consumption/shipment cost and total_price holds cost.
+    // If total_price is null, we fallback to 0 and add warning.
+    let costOfGoodsSold = 0;
+    try {
+      const cogsResult = await sql`
+        SELECT
+          COALESCE(SUM(COALESCE(total_price, 0)), 0) AS cogs,
+          COUNT(*) FILTER (WHERE total_price IS NULL) AS missing_total_price
+        FROM stock_movements
+        WHERE tenant_id = ${session.user.tenantId}
+          AND type IN ('out', 'production', 'waste')
+          AND created_at >= ${startDate}
+          AND created_at <= ${endDate}
+      `;
+
+      const cogsRows = cogsResult as any[];
+      costOfGoodsSold = parseFloat(cogsRows[0]?.cogs || '0');
+
+      const missingCount = parseInt(cogsRows[0]?.missing_total_price || '0');
+      if (missingCount > 0) {
+        warnings.push('COGS hesaplamasında eksik veri: bazı stok hareketlerinde total_price boş.');
+      }
+    } catch {
+      warnings.push('COGS hesaplanamadı: stok hareketleri tablosu (stock_movements) bulunamadı veya erişilemedi.');
+      costOfGoodsSold = 0;
+    }
+
     const revenueRows = revenue as any[];
-    const paymentsRows = payments as any[];
     const salariesRows = salaries as any[];
 
     const grossRevenue = parseFloat(revenueRows[0]?.gross_revenue || '0');
-    const totalPayments = parseFloat(paymentsRows[0]?.total_payments || '0');
     const totalSalaries = parseFloat(salariesRows[0]?.total_salaries || '0');
 
     const expenseMap: Record<string, number> = {};
@@ -335,18 +390,24 @@ export async function getProfitLossReport(
       rent: expenseMap['rent'] || 0,
       utilities: expenseMap['utilities'] || 0,
       marketing: expenseMap['marketing'] || 0,
-      depreciation: 0, // TODO: Calculate depreciation
+      depreciation: depreciationForPeriod,
       other: Object.entries(expenseMap)
         .filter(([k]) => !['rent', 'utilities', 'marketing'].includes(k))
         .reduce((sum, [, v]) => sum + v, 0),
       total: 0,
     };
-    operatingExpenses.total = Object.values(operatingExpenses).reduce((a, b) => a + b, 0) - operatingExpenses.total;
+    operatingExpenses.total =
+      operatingExpenses.salaries +
+      operatingExpenses.rent +
+      operatingExpenses.utilities +
+      operatingExpenses.marketing +
+      operatingExpenses.depreciation +
+      operatingExpenses.other;
 
-    const grossProfit = grossRevenue; // TODO: Subtract COGS
+    const grossProfit = grossRevenue - costOfGoodsSold;
     const operatingProfit = grossProfit - operatingExpenses.total;
     const profitBeforeTax = operatingProfit;
-    const taxExpense = profitBeforeTax * 0.20; // %20 kurumlar vergisi
+    const taxExpense = profitBeforeTax > 0 ? profitBeforeTax * 0.20 : 0; // %20 kurumlar vergisi (negatifte 0)
     const netProfit = profitBeforeTax - taxExpense;
 
     return {
@@ -361,7 +422,7 @@ export async function getProfitLossReport(
         returns: 0,
         netRevenue: grossRevenue,
       },
-      costOfGoodsSold: 0,
+      costOfGoodsSold,
       grossProfit,
       operatingExpenses,
       operatingProfit,
@@ -370,6 +431,7 @@ export async function getProfitLossReport(
       profitBeforeTax,
       taxExpense,
       netProfit,
+      warnings: warnings.length > 0 ? warnings : undefined,
     };
   } catch (error) {
     console.error('[Accounting] Profit/Loss report error:', error);
@@ -382,46 +444,68 @@ export async function getBalanceSheet(asOfDate?: string): Promise<BalanceSheet |
     const session = await getSession();
     const date = asOfDate || new Date().toISOString();
 
+    const warnings: string[] = [];
+
     // Nakit ve banka hesapları
-    const cashAndBank = await sql`
-      SELECT 
-        COALESCE(SUM(current_balance), 0) as total
-      FROM accounts
-      WHERE tenant_id = ${session.user.tenantId}
-        AND type = 'asset'
-        AND (code LIKE '100%' OR code LIKE '102%')
-    `;
+    let cashAndBank: unknown = [{ total: '0' }];
+    try {
+      cashAndBank = await sql`
+        SELECT 
+          COALESCE(SUM(current_balance), 0) as total
+        FROM accounts
+        WHERE tenant_id = ${session.user.tenantId}
+          AND type = 'asset'
+          AND (code LIKE '100%' OR code LIKE '102%')
+      `;
+    } catch {
+      warnings.push('Nakit/Banka hesapları hesaplanamadı: accounts tablosu bulunamadı veya erişilemedi.');
+    }
 
     // Alacaklar
-    const receivables = await sql`
-      SELECT COALESCE(SUM(remaining_amount), 0) as total
-      FROM (
-        SELECT 
-          o.id,
-          o.total_amount - COALESCE(SUM(p.amount), 0) as remaining_amount
-        FROM orders o
-        LEFT JOIN payments p ON o.id = p.order_id
-        WHERE o.tenant_id = ${session.user.tenantId}
-          AND o.status IN ('pending', 'in_production', 'delivered')
-        GROUP BY o.id
-      ) subquery
-    `;
+    let receivables: unknown = [{ total: '0' }];
+    try {
+      receivables = await sql`
+        SELECT COALESCE(SUM(remaining_amount), 0) as total
+        FROM (
+          SELECT 
+            o.id,
+            o.total_amount - COALESCE(SUM(p.amount), 0) as remaining_amount
+          FROM orders o
+          LEFT JOIN payments p ON o.id = p.order_id
+          WHERE o.tenant_id = ${session.user.tenantId}
+            AND o.status IN ('pending', 'in_production', 'delivered')
+          GROUP BY o.id
+        ) subquery
+      `;
+    } catch {
+      warnings.push('Alacaklar hesaplanamadı: orders/payments tabloları bulunamadı veya erişilemedi.');
+    }
 
     // Stok değeri
-    const inventory = await sql`
-      SELECT COALESCE(SUM(current_stock * unit_cost), 0) as total
-      FROM inventory_items
-      WHERE tenant_id = ${session.user.tenantId}
-        AND is_active = true
-    `;
+    let inventory: unknown = [{ total: '0' }];
+    try {
+      inventory = await sql`
+        SELECT COALESCE(SUM(current_stock * unit_cost), 0) as total
+        FROM inventory_items
+        WHERE tenant_id = ${session.user.tenantId}
+          AND is_active = true
+      `;
+    } catch {
+      warnings.push('Stok değeri hesaplanamadı: inventory_items tablosu bulunamadı veya erişilemedi.');
+    }
 
     // Borçlar (Ödenecekler)
-    const payables = await sql`
-      SELECT COALESCE(SUM(amount), 0) as total
-      FROM expenses
-      WHERE tenant_id = ${session.user.tenantId}
-        AND date <= ${date}
-    `;
+    let payables: unknown = [{ total: '0' }];
+    try {
+      payables = await sql`
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM expenses
+        WHERE tenant_id = ${session.user.tenantId}
+          AND date <= ${date.slice(0, 10)}
+      `;
+    } catch {
+      warnings.push('Borçlar hesaplanamadı: expenses tablosu bulunamadı veya erişilemedi.');
+    }
 
     const cashAndBankRows = cashAndBank as any[];
     const receivablesRows = receivables as any[];
@@ -481,6 +565,7 @@ export async function getBalanceSheet(asOfDate?: string): Promise<BalanceSheet |
         currentYearProfit: totalEquity,
         totalEquity,
       },
+      warnings: warnings.length > 0 ? warnings : undefined,
     };
   } catch (error) {
     console.error('[Accounting] Balance sheet error:', error);
@@ -495,33 +580,50 @@ export async function getCashFlowReport(
   try {
     const session = await getSession();
 
+    const warnings: string[] = [];
+
     // İşletme faaliyetlerinden nakit akışı
-    const operatingCash = await sql`
-      SELECT COALESCE(SUM(amount), 0) as total
-      FROM payments
-      WHERE tenant_id = ${session.user.tenantId}
-        AND paid_at >= ${startDate}
-        AND paid_at <= ${endDate}
-    `;
+    let operatingCash: unknown = [{ total: '0' }];
+    try {
+      operatingCash = await sql`
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM payments
+        WHERE tenant_id = ${session.user.tenantId}
+          AND paid_at >= ${startDate}
+          AND paid_at <= ${endDate}
+      `;
+    } catch {
+      warnings.push('Tahsilatlar hesaplanamadı: payments tablosu bulunamadı veya erişilemedi.');
+    }
 
     // Gider ödemeleri
-    const expensePayments = await sql`
-      SELECT COALESCE(SUM(amount), 0) as total
-      FROM expenses
-      WHERE tenant_id = ${session.user.tenantId}
-        AND date >= ${startDate}
-        AND date <= ${endDate}
-    `;
+    let expensePayments: unknown = [{ total: '0' }];
+    try {
+      expensePayments = await sql`
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM expenses
+        WHERE tenant_id = ${session.user.tenantId}
+          AND date >= ${startDate.slice(0, 10)}
+          AND date <= ${endDate.slice(0, 10)}
+      `;
+    } catch {
+      warnings.push('Gider ödemeleri hesaplanamadı: expenses tablosu bulunamadı veya erişilemedi.');
+    }
 
     // Maaş ödemeleri
-    const salaryPayments = await sql`
-      SELECT COALESCE(SUM(amount), 0) as total
-      FROM employee_ledger
-      WHERE tenant_id = ${session.user.tenantId}
-        AND kind = 'salary'
-        AND entry_date >= ${startDate.slice(0, 10)}
-        AND entry_date <= ${endDate.slice(0, 10)}
-    `;
+    let salaryPayments: unknown = [{ total: '0' }];
+    try {
+      salaryPayments = await sql`
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM employee_ledger_entries
+        WHERE tenant_id = ${session.user.tenantId}
+          AND kind IN ('salary', 'payment')
+          AND entry_date >= ${startDate.slice(0, 10)}
+          AND entry_date <= ${endDate.slice(0, 10)}
+      `;
+    } catch {
+      warnings.push('Maaş ödemeleri hesaplanamadı: employee_ledger_entries tablosu bulunamadı veya erişilemedi.');
+    }
 
     const operatingCashRows = operatingCash as any[];
     const expensePaymentsRows = expensePayments as any[];
@@ -563,6 +665,7 @@ export async function getCashFlowReport(
       netChangeInCash: netOperatingCash,
       beginningCash: 0,
       endingCash: netOperatingCash,
+      warnings: warnings.length > 0 ? warnings : undefined,
     };
   } catch (error) {
     console.error('[Accounting] Cash flow report error:', error);

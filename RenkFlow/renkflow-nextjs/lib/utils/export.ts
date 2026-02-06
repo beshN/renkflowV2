@@ -19,6 +19,29 @@ export interface ExportOptions {
 }
 
 // ============================================
+// Guards & Limits
+// ============================================
+
+const MAX_EXPORT_ROWS = 10_000;
+
+function sanitizeFilename(name: string): string {
+  return name
+    .replace(/[^a-zA-Z0-9_\-\sçğıöşüÇĞİÖŞÜ]/g, '')
+    .replace(/\s+/g, '_')
+    .slice(0, 100) || 'export';
+}
+
+function guardExport(orders: Order[]): { ok: true } | { ok: false; message: string } {
+  if (!orders || orders.length === 0) {
+    return { ok: false, message: 'Dışa aktarılacak veri bulunamadı.' };
+  }
+  if (orders.length > MAX_EXPORT_ROWS) {
+    return { ok: false, message: `Maksimum ${MAX_EXPORT_ROWS.toLocaleString('tr-TR')} satır dışa aktarılabilir. Lütfen filtreleri daraltın.` };
+  }
+  return { ok: true };
+}
+
+// ============================================
 // Column Definitions
 // ============================================
 
@@ -45,11 +68,15 @@ const defaultColumns = ['orderNumber', 'customerName', 'productName', 'quantity'
 // ============================================
 
 export function exportToCSV(orders: Order[], options: ExportOptions = {}): void {
+  const guard = guardExport(orders);
+  if (!guard.ok) { alert(guard.message); return; }
+
   const {
     filename = `siparisler_${new Date().toISOString().split('T')[0]}`,
     columns = defaultColumns,
     includeHeaders = true,
   } = options;
+  const safeFilename = sanitizeFilename(filename);
 
   const rows: string[][] = [];
 
@@ -78,7 +105,7 @@ export function exportToCSV(orders: Order[], options: ExportOptions = {}): void 
   const bom = '\uFEFF';
   const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
 
-  downloadBlob(blob, `${filename}.csv`);
+  downloadBlob(blob, `${safeFilename}.csv`);
 }
 
 // ============================================
@@ -86,14 +113,16 @@ export function exportToCSV(orders: Order[], options: ExportOptions = {}): void 
 // ============================================
 
 export function exportToExcel(orders: Order[], options: ExportOptions = {}): void {
+  const guard = guardExport(orders);
+  if (!guard.ok) { alert(guard.message); return; }
+
   const {
     filename = `siparisler_${new Date().toISOString().split('T')[0]}`,
     columns = defaultColumns,
   } = options;
+  const safeFilename = sanitizeFilename(filename);
 
-  // For true Excel export, we'd use a library like xlsx
-  // For now, we'll create a more Excel-friendly CSV with formulas
-
+  // Excel-friendly CSV with BOM and numeric columns preserved
   const rows: string[][] = [];
 
   // Header row
@@ -148,7 +177,7 @@ export function exportToExcel(orders: Order[], options: ExportOptions = {}): voi
   const bom = '\uFEFF';
   const blob = new Blob([bom + csvContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
 
-  downloadBlob(blob, `${filename}.xls`);
+  downloadBlob(blob, `${safeFilename}.xls`);
 }
 
 // ============================================
@@ -156,10 +185,14 @@ export function exportToExcel(orders: Order[], options: ExportOptions = {}): voi
 // ============================================
 
 export function exportToJSON(orders: Order[], options: ExportOptions = {}): void {
+  const guard = guardExport(orders);
+  if (!guard.ok) { alert(guard.message); return; }
+
   const {
     filename = `siparisler_${new Date().toISOString().split('T')[0]}`,
     columns = defaultColumns,
   } = options;
+  const safeFilename = sanitizeFilename(filename);
 
   // Filter order properties based on columns
   const exportData = orders.map((order) => {
@@ -175,7 +208,7 @@ export function exportToJSON(orders: Order[], options: ExportOptions = {}): void
   const jsonContent = JSON.stringify(exportData, null, 2);
   const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
 
-  downloadBlob(blob, `${filename}.json`);
+  downloadBlob(blob, `${safeFilename}.json`);
 }
 
 // ============================================
@@ -183,6 +216,9 @@ export function exportToJSON(orders: Order[], options: ExportOptions = {}): void
 // ============================================
 
 export function exportToPDF(orders: Order[], options: ExportOptions = {}): void {
+  const guard = guardExport(orders);
+  if (!guard.ok) { alert(guard.message); return; }
+
   const {
     filename = `siparisler_${new Date().toISOString().split('T')[0]}`,
     columns = defaultColumns,
@@ -236,7 +272,7 @@ export function exportToPDF(orders: Order[], options: ExportOptions = {}): void 
             ${columns.slice(1).map((col) => {
               if (col === 'totalAmount') {
                 const total = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-                const currency = orders[0]?.currency || '₺';
+                const currency = orders[0]?.currency || 'TRY';
                 return `<td>${formatCurrency(total, currency)}</td>`;
               }
               if (col === 'quantity') {

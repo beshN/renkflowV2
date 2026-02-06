@@ -217,7 +217,6 @@ export async function updateAutomationRule(
         scope = COALESCE(${scope}::jsonb, scope),
         is_enabled = COALESCE(${isEnabled}, is_enabled),
         schedule = COALESCE(${schedule}::jsonb, schedule),
->>>>>>> /Users/beshnovski/.windsurf/worktrees/RenkFlow V2/RenkFlow V2-98ad306b/RenkFlow/renkflow-nextjs/app/actions/automation.actions.ts
         updated_at = NOW()
       WHERE id = ${ruleId}
         AND tenant_id = ${session.user.tenantId}

@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getExportDownload } from '@/lib/export/service';
+import { exportRateLimiter, createRateLimitResponse } from '@/lib/rateLimiter';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
+}
+
+function sanitizeDownloadFilename(filename: string): string {
+  return filename
+    .replace(/[\r\n]/g, '')
+    .replace(/"/g, '')
+    .slice(0, 200);
 }
 
 export async function GET(
@@ -13,6 +21,11 @@ export async function GET(
   const session = await auth();
   if (!session?.user?.tenantId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const rateLimitResult = await exportRateLimiter.check(_request, 'download');
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult);
   }
 
   const { id } = await params;
@@ -30,7 +43,9 @@ export async function GET(
   return new NextResponse(body, {
     headers: {
       'Content-Type': download.contentType,
-      'Content-Disposition': `attachment; filename="${download.filename}"`,
+      'Content-Disposition': `attachment; filename="${sanitizeDownloadFilename(download.filename)}"`,
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
     },
   });
 }

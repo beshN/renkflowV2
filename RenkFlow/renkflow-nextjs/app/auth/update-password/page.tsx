@@ -89,7 +89,7 @@ function UpdatePasswordForm() {
       setTimeout(() => {
         router.push('/auth/login');
       }, 2000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Reset password error:', error);
       setFormErrors({ general: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.' });
     } finally {

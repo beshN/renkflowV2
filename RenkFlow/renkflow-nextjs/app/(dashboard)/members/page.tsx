@@ -35,6 +35,7 @@ export default function MembersPage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'admin' | 'office' | 'worker' | 'member'>('member');
   const [isInviting, setIsInviting] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -62,6 +63,7 @@ export default function MembersPage() {
         }
       } catch (error) {
         console.error('Members fetch error:', error);
+        setFetchError('Ekip verileri yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
       } finally {
         setIsFetching(false);
       }
@@ -121,6 +123,12 @@ export default function MembersPage() {
     <div className="flex-1 flex flex-col">
       <Navbar title="Üyeler" showSearch />
       <main className="flex-1 p-4 md:p-8 pt-16 md:pt-8 space-y-6">
+        {fetchError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20 p-4 text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
+            <span className="shrink-0">⚠</span>
+            {fetchError}
+          </div>
+        )}
         <Card spotlight className="p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>

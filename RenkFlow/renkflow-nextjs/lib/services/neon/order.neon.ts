@@ -1,4 +1,4 @@
-import { Order, NewOrderFormData } from '@/lib/types';
+import { Order, NewOrderFormData, safeParseCurrency } from '@/lib/types';
 import { IOrderService, TenantMismatchError } from '../types';
 import { sql } from '@/lib/db/neon';
 import { sqlQuery } from '@/lib/db';
@@ -65,7 +65,7 @@ export class NeonOrderService implements IOrderService {
           date: new Date(row.created_at).toISOString().split('T')[0],
           deliveryDate: row.delivery_date ? new Date(row.delivery_date).toISOString().split('T')[0] : undefined,
           totalAmount: parseFloat(row.total_amount),
-          currency: row.currency,
+          currency: safeParseCurrency(row.currency),
           status: row.status,
           productName: row.product_name,
           quantity: row.quantity,
@@ -134,7 +134,7 @@ export class NeonOrderService implements IOrderService {
       date: new Date(row.created_at).toISOString().split('T')[0],
       deliveryDate: row.delivery_date ? new Date(row.delivery_date).toISOString().split('T')[0] : undefined,
       totalAmount: parseFloat(row.total_amount),
-      currency: row.currency,
+      currency: safeParseCurrency(row.currency),
       status: row.status,
       productName: row.product_name,
       quantity: row.quantity,
@@ -165,7 +165,7 @@ export class NeonOrderService implements IOrderService {
           )
           VALUES (
             ${orderNumber}, ${formData.customerName}, ${formData.email || null}, ${formData.phone || null},
-            'pending', ${formData.totalAmount}, ${formData.currency || '₺'}, ${formData.deliveryDate || null},
+            'pending', ${formData.totalAmount}, ${safeParseCurrency(formData.currency) || 'TRY'}, ${formData.deliveryDate || null},
             ${formData.notes || null}, ${formData.productName}, ${formData.quantity}, ${tenantId},
             ${formData.customFields ? JSON.stringify(formData.customFields) : null}
           )

@@ -1,6 +1,6 @@
 /**
  * Enterprise Export Helpers
- * Excel (XLSX) and CSV export with Turkish headers and formatting
+ * CSV and Excel-compatible export with Turkish headers and formatting
  */
 
 import { Payment, OrderDocument, Employee, EmployeeLedgerEntry } from '@/lib/types/finance';
@@ -239,13 +239,26 @@ export function downloadCSV(content: string, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
+function downloadExcelCompatibleCSV(content: string, filename: string): void {
+  const bom = '\ufeff';
+  const blob = new Blob([bom + content], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 // ============================================
-// Excel Export (using xlsx library)
+// Excel-compatible Data Generation
 // ============================================
 
 /**
- * Generate Excel workbook data (to be used with xlsx library)
- * Returns array of arrays format compatible with xlsx
+ * Generate tabular data as array of arrays
+ * Returns header + data rows for Excel-compatible CSV export
  */
 export function generateExcelData<T extends Record<string, unknown>>(
   data: T[],
@@ -316,72 +329,45 @@ export function exportLedgerToCSV(
 }
 
 // ============================================
-// Excel Export with xlsx library
-// Note: Requires `npm install xlsx` and dynamic import
+// Excel-compatible Export (CSV with Excel MIME type)
 // ============================================
 
 /**
- * Export to Excel using xlsx library
- * This is a client-side function
+ * Export to Excel-compatible CSV format
+ * Uses CSV with BOM and Excel MIME type for native Excel opening
  */
 export async function exportToExcel<T extends Record<string, unknown>>(
   data: T[],
   columns: ExportColumn<T>[],
   options: ExportOptions
 ): Promise<void> {
-  // Dynamically import xlsx to avoid SSR issues
-  const XLSX = await import('xlsx');
-  
-  // Generate workbook data
-  const wsData = generateExcelData(data, columns);
-  
-  // Create worksheet
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-  
-  // Set column widths
-  ws['!cols'] = getColumnWidths(columns);
-  
-  // Create workbook
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, options.sheetName || 'Data');
-  
-  // Generate filename
+  const csv = generateCSV(data, columns);
   const filename = generateExportFilename(
     options.filename,
-    'xlsx',
+    'xls',
     options.includeTimestamp ?? true
   );
-  
-  // Download file
-  XLSX.writeFile(wb, filename);
+  downloadExcelCompatibleCSV(csv, filename);
 }
 
 /**
  * Export to Excel with multiple sheets
  */
 export async function exportToExcelMultiSheet(options: MultiSheetExportOptions): Promise<void> {
-  const XLSX = await import('xlsx');
-  
-  // Create workbook
-  const wb = XLSX.utils.book_new();
-  
-  // Add each sheet
-  for (const sheet of options.sheets) {
-    const wsData = generateExcelData(sheet.data, sheet.columns);
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws['!cols'] = getColumnWidths(sheet.columns);
-    XLSX.utils.book_append_sheet(wb, ws, sheet.name);
-  }
-  
-  // Generate filename
+  const combined = options.sheets
+    .map((sheet) => {
+      const csv = generateCSV(sheet.data, sheet.columns);
+      return `${sheet.name}\r\n${csv}`;
+    })
+    .join('\r\n\r\n');
+
   const filename = generateExportFilename(
     options.filename,
-    'xlsx',
+    'xls',
     options.includeTimestamp ?? true
   );
-  
-  // Download file
-  XLSX.writeFile(wb, filename);
+
+  downloadExcelCompatibleCSV(combined, filename);
 }
 
 /**

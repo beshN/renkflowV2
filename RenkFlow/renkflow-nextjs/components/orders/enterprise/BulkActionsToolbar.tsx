@@ -35,6 +35,7 @@ interface BulkActionsToolbarProps {
   totalFilteredCount: number;
   filteredIds: string[];
   onExport: (format: 'csv' | 'excel' | 'pdf' | 'json') => void;
+  onServerExport?: () => void;
   onBulkUpdateStatus?: (ids: string[], status: OrderStatus) => Promise<void> | void;
   onBulkDelete?: (ids: string[]) => Promise<void> | void;
 }
@@ -158,6 +159,7 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
   totalFilteredCount,
   filteredIds,
   onExport,
+  onServerExport,
   onBulkUpdateStatus,
   onBulkDelete,
 }) => {
@@ -181,7 +183,7 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
   
   // Calculate total amount of selected orders
   const totalAmount = effectiveOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
-  const currency = effectiveOrders[0]?.currency || '₺';
+  const currency = effectiveOrders[0]?.currency || 'TRY';
 
   // Handle status change
   const handleStatusChange = async (status: OrderStatus) => {
@@ -294,6 +296,15 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
               }
             >
               <div className="py-1">
+                {onServerExport && (
+                  <button
+                    onClick={() => onServerExport()}
+                    className="flex items-center gap-3 w-full px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    <Download className="w-4 h-4 text-blue-600" />
+                    <span className="text-gray-900 dark:text-white">Sunucuda Oluştur (Job)</span>
+                  </button>
+                )}
                 <button
                   onClick={() => onExport('csv')}
                   className="flex items-center gap-3 w-full px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"

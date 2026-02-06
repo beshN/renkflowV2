@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/context/AuthContext';
 import { TEMPLATE_BY_KEY, DEFAULT_TEMPLATE_KEY, TemplateKey } from '@/lib/config/templates';
 import { Input } from '../ui/Input';
+import { formatCurrency } from '@/lib/utils';
+import { currencyCodeToSymbol } from '@/lib/utils/currency';
 import { 
   User, 
   Mail, 
@@ -46,7 +48,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
     productName: '',
     quantity: 1,
     totalAmount: 0,
-    currency: '₺',
+    currency: 'TRY',
     deliveryDate: '',
     notes: '',
     customFields: {},
@@ -320,7 +322,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
           <div>
             <div className="relative">
                <Input
-                label={`${template.totalLabel.replace('(TL)', `(${formData.currency})`)} *`}
+                label={`${template.totalLabel.replace('(TL)', `(${currencyCodeToSymbol(formData.currency)})`)} *`}
                 type="number"
                 name="totalAmount"
                 value={formData.totalAmount}
@@ -432,7 +434,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
           <div className="flex justify-between items-center pt-3 border-t border-slate-200 dark:border-slate-800">
             <span className="font-semibold text-slate-900 dark:text-white">Toplam Tutar</span>
             <span className="text-xl font-bold text-slate-900 dark:text-white font-display">
-              {formData.totalAmount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+              {formatCurrency(formData.totalAmount, formData.currency)}
             </span>
           </div>
         </div>
