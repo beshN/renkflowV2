@@ -28,59 +28,6 @@ function checkRateLimit(userId: string): boolean {
 }
 
 // ============================================
-// Fallback Answer Builder
-// ============================================
-
-function buildFallbackAnswer(message: string, context: {
-  totalOrders: number;
-  activeOrders: number;
-  overdueOrders: number;
-  todayDeliveries: number;
-}) {
-  const query = message.toLowerCase();
-
-  if (query.includes('merhaba') || query.includes('selam') || query.includes('nasıl')) {
-    return {
-      response: 'Merhaba! 👋 Ben RenkAI Asistan. Size sipariş takibi, üretim durumu, finansal raporlar ve daha birçok konuda yardımcı olabilirim. Ne hakkında bilgi almak istersiniz?',
-      suggestions: ['Bugünkü siparişler', 'Geciken işler', 'Ne yapabilirsin?'],
-    };
-  }
-
-  if (query.includes('gecik') || query.includes('overdue')) {
-    return {
-      response: `📊 Geciken sipariş sayısı: **${context.overdueOrders}**. İsterseniz bu siparişleri öncelik sırasına göre çıkarabilirim.\n\nDetaylı bilgi için **Siparişler** (/orders) sayfasına göz atabilirsiniz.`,
-      suggestions: ['Geciken siparişleri listele', 'Müşteriye bilgilendirme metni oluştur', 'Kanban panosunu aç'],
-    };
-  }
-
-  if (query.includes('gelir') || query.includes('ciro') || query.includes('tahsilat') || query.includes('finans')) {
-    return {
-      response: `💰 Mevcut durum: Toplam **${context.totalOrders}** sipariş, **${context.activeOrders}** aktif.\n\nDetaylı gelir/tahsilat kırılımı için **Finans** (/finance) modülüne bakabilirsiniz.`,
-      suggestions: ['Finans sayfasına git', 'Bu ayki sipariş özeti', 'Rapor oluştur'],
-    };
-  }
-
-  if (query.includes('teslim') || query.includes('üretim') || query.includes('kanban')) {
-    return {
-      response: `🏭 Bugünkü teslim planı: **${context.todayDeliveries}** sipariş. Aktif üretimdeki sipariş: **${context.activeOrders}**.\n\nİş akışını **Kanban** (/kanban) panosundan takip edebilirsiniz.`,
-      suggestions: ['Kanban panosunu aç', 'Üretimdeki siparişler', 'Teslim planı'],
-    };
-  }
-
-  if (query.includes('ne yapabilir') || query.includes('yetenek') || query.includes('yardım')) {
-    return {
-      response: '🤖 Size şu konularda yardımcı olabilirim:\n\n- **Sipariş takibi**: Geciken, aktif, tamamlanan siparişler\n- **Üretim durumu**: Kanban, iş akışı, kapasite\n- **Finansal bilgiler**: Gelir, gider, tahsilat\n- **Müşteri bilgileri**: CRM, iletişim geçmişi\n- **Raporlar**: Haftalık/aylık özetler\n- **Navigasyon**: İstediğiniz sayfaya yönlendirme\n- **Matbaa bilgisi**: Baskı türleri, kağıt, son işlemler\n\nBir soru sorun, hemen yanıtlayayım!',
-      suggestions: ['Bugünkü özet', 'Geciken siparişler', 'Sipariş oluştur'],
-    };
-  }
-
-  return {
-    response: `Size yardımcı olabilirim! 📋 Mevcut özet:\n\n- Toplam sipariş: **${context.totalOrders}**\n- Aktif: **${context.activeOrders}**\n- Geciken: **${context.overdueOrders}**\n- Bugünkü teslim: **${context.todayDeliveries}**\n\nDaha detaylı bilgi için bir konu belirtin.`,
-    suggestions: ['Bugünkü öncelikler', 'Geciken işler', 'Ne yapabilirsin?'],
-  };
-}
-
-// ============================================
 // POST Handler
 // ============================================
 
@@ -118,6 +65,8 @@ export async function POST(req: NextRequest) {
       activeOrders: context?.activeOrders || 0,
       overdueOrders: context?.overdueOrders || 0,
       todayDeliveries: context?.todayDeliveries || 0,
+      currentPath: typeof context?.currentPath === 'string' ? context.currentPath : undefined,
+      userName: typeof context?.userName === 'string' ? context.userName : undefined,
       recentTasks: context?.recentTasks || [],
       upcomingDeadlines: context?.upcomingDeadlines || [],
     };
@@ -134,31 +83,20 @@ export async function POST(req: NextRequest) {
       aiService.setConversationHistory(sanitizedHistory);
     }
 
-    try {
-      const result = await aiService.query(message, workspaceContext);
+    const result = await aiService.query(message, workspaceContext);
 
-      return NextResponse.json({
-        success: true,
-        response: result.answer,
-        confidence: result.confidence,
-        suggestions: result.suggestions || ['Detayları gör', 'Rapor oluştur', 'Başka bir soru'],
-      });
-    } catch (aiError: any) {
-      console.error('[AI Chat API] Provider error, fallback active:', aiError?.message || aiError);
-      const fallback = buildFallbackAnswer(message, workspaceContext);
-      return NextResponse.json({
-        success: true,
-        fallback: true,
-        response: fallback.response,
-        confidence: 0.6,
-        suggestions: fallback.suggestions,
-      });
-    }
+    return NextResponse.json({
+      success: true,
+      response: result.answer,
+      confidence: result.confidence,
+      suggestions: result.suggestions || ['Detayları gör', 'Rapor oluştur', 'Başka bir soru'],
+    });
   } catch (error: any) {
     console.error('[AI Chat API] Error:', error?.message || error);
+    const status = error?.message?.includes('API anahtarı') ? 500 : 502;
     return NextResponse.json(
-      { error: 'Bir hata oluştu. Lütfen tekrar deneyin.' },
-      { status: 500 }
+      { error: error?.message || 'AI servisine ulaşılamadı. Lütfen tekrar deneyin.' },
+      { status }
     );
   }
 }

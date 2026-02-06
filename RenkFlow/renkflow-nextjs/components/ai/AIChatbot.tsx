@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -258,6 +258,7 @@ function saveMessages(messages: Message[]) {
 
 export function AIChatbot() {
   const router = useRouter();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -384,7 +385,11 @@ export function AIChatbot() {
         body: JSON.stringify({
           message: trimmed,
           history,
-          context: {},
+          context: {
+            currentPath: pathname,
+            userName: user?.name || '',
+            localTime: new Date().toISOString(),
+          },
         }),
         signal: controller.signal,
       });
@@ -443,7 +448,7 @@ export function AIChatbot() {
       setIsLoading(false);
       abortRef.current = null;
     }
-  }, [isLoading]);
+  }, [isLoading, pathname, user?.name]);
 
   const handleSend = useCallback((content?: string) => {
     sendMessage(content || input);

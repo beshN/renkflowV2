@@ -5,10 +5,8 @@
 
 import type {
   AIMessage,
-  AIConversation,
   AIQueryResult,
   AISuggestion,
-  AICapability,
 } from '@/lib/types/enterprise';
 
 // ============================================
@@ -25,8 +23,18 @@ interface AIConfig {
 
 const DEFAULT_CONFIG: Partial<AIConfig> = {
   maxTokens: 4096,
-  temperature: 0.7,
+  temperature: 0.35,
 };
+
+interface StructuredAIResponse {
+  answer: string;
+  suggestions?: string[];
+  confidence?: number;
+}
+
+interface CallOptions {
+  structured?: boolean;
+}
 
 // ============================================
 // AI Service Class
@@ -49,19 +57,24 @@ export class AIService {
     // Model mapping per provider
     const defaultModels: Record<string, string> = {
       groq: 'llama-3.3-70b-versatile',
-      openai: 'gpt-4-turbo',
-      claude: 'claude-3-sonnet-20240229',
+      openai: 'gpt-4.1-mini',
+      claude: 'claude-3-5-sonnet-latest',
     };
 
     this.config = {
       provider,
       apiKey,
-      model: config.model || defaultModels[provider] || 'llama-3.3-70b-versatile',
+      model:
+        config.model
+        || process.env.AI_MODEL
+        || (provider === 'openai' ? process.env.OPENAI_MODEL : provider === 'groq' ? process.env.GROQ_MODEL : process.env.CLAUDE_MODEL)
+        || defaultModels[provider]
+        || 'llama-3.3-70b-versatile',
       maxTokens: config.maxTokens || DEFAULT_CONFIG.maxTokens!,
       temperature: config.temperature ?? DEFAULT_CONFIG.temperature!,
     };
 
-    console.log(`[AI Service] Provider: ${this.config.provider}, Model: ${this.config.model}, Key: ${this.config.apiKey ? '***' + this.config.apiKey.slice(-4) : 'MISSING'}`);
+    console.log(`[AI Service] Provider: ${this.config.provider}, Model: ${this.config.model}`);
   }
 
   // ============================================
@@ -86,18 +99,19 @@ export class AIService {
     context: WorkspaceContext
   ): Promise<AIQueryResult> {
     const systemPrompt = this.buildSystemPrompt(context);
+    const queryPrompt = this.buildStructuredQueryPrompt(userQuery);
     const messages: AIMessage[] = [
       ...this.conversationHistory.slice(-10), // Keep last 10 messages for context
       {
         id: generateId(),
         role: 'user',
-        content: userQuery,
+        content: queryPrompt,
         timestamp: new Date().toISOString(),
       },
     ];
 
     try {
-      const response = await this.callAPI(systemPrompt, messages);
+      const response = await this.callAPI(systemPrompt, messages, { structured: true });
       
       // Parse response and extract structured data
       const result = this.parseQueryResponse(response, context);
@@ -365,19 +379,19 @@ Sadece JSON döndür, açıklama ekleme.
 
   private async callAPI(
     systemPrompt: string,
-    messages: AIMessage[]
+    messages: AIMessage[],
+    options: CallOptions = {}
   ): Promise<string> {
     if (!this.config.apiKey) {
-      console.warn('[AI Service] No API key configured, returning mock response');
-      return this.getMockResponse(messages[messages.length - 1]?.content || '');
+      throw new Error('AI API anahtarı bulunamadı. Lütfen GROQ_API_KEY, OPENAI_API_KEY veya ANTHROPIC_API_KEY ayarlayın.');
     }
 
     if (this.config.provider === 'claude') {
-      return await this.callClaude(systemPrompt, messages);
+      return await this.callClaude(systemPrompt, messages, options);
     } else if (this.config.provider === 'groq') {
-      return await this.callGroq(systemPrompt, messages);
+      return await this.callGroq(systemPrompt, messages, options);
     } else {
-      return await this.callOpenAI(systemPrompt, messages);
+      return await this.callOpenAI(systemPrompt, messages, options);
     }
   }
 
@@ -398,7 +412,8 @@ Sadece JSON döndür, açıklama ekleme.
 
   private async callClaude(
     systemPrompt: string,
-    messages: AIMessage[]
+    messages: AIMessage[],
+    _options: CallOptions = {}
   ): Promise<string> {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -429,26 +444,33 @@ Sadece JSON döndür, açıklama ekleme.
 
   private async callOpenAI(
     systemPrompt: string,
-    messages: AIMessage[]
+    messages: AIMessage[],
+    options: CallOptions = {}
   ): Promise<string> {
+    const requestBody: Record<string, unknown> = {
+      model: this.config.model,
+      max_tokens: this.config.maxTokens,
+      temperature: this.config.temperature,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+      ],
+    };
+
+    if (options.structured) {
+      requestBody.response_format = { type: 'json_object' };
+    }
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.config.apiKey}`,
       },
-      body: JSON.stringify({
-        model: this.config.model,
-        max_tokens: this.config.maxTokens,
-        temperature: this.config.temperature,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...messages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        ],
-      }),
+      body: JSON.stringify(requestBody),
       signal: this.createTimeoutSignal(),
     });
 
@@ -462,26 +484,33 @@ Sadece JSON döndür, açıklama ekleme.
 
   private async callGroq(
     systemPrompt: string,
-    messages: AIMessage[]
+    messages: AIMessage[],
+    options: CallOptions = {}
   ): Promise<string> {
+    const requestBody: Record<string, unknown> = {
+      model: this.config.model,
+      max_tokens: this.config.maxTokens,
+      temperature: this.config.temperature,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+      ],
+    };
+
+    if (options.structured) {
+      requestBody.response_format = { type: 'json_object' };
+    }
+
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.config.apiKey}`,
       },
-      body: JSON.stringify({
-        model: this.config.model,
-        max_tokens: this.config.maxTokens,
-        temperature: this.config.temperature,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...messages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        ],
-      }),
+      body: JSON.stringify(requestBody),
       signal: this.createTimeoutSignal(),
     });
 
@@ -491,17 +520,6 @@ Sadece JSON döndür, açıklama ekleme.
 
     const data = await response.json();
     return data.choices[0]?.message?.content || '';
-  }
-
-  private getMockResponse(query: string): string {
-    // Mock responses for testing without API key
-    if (query.toLowerCase().includes('geciken')) {
-      return 'Sistemde 3 geciken sipariş bulunuyor: #1234, #1235, #1236. Toplam gecikme 5 gün.';
-    }
-    if (query.toLowerCase().includes('bugün')) {
-      return 'Bugün 8 aktif sipariş var. 3 tanesi teslim için hazır, 5 tanesi üretimde.';
-    }
-    return 'Sorunuzu anladım. Bu konuda size yardımcı olabilirim. Daha spesifik bilgi için lütfen detay verin.';
   }
 
   private buildSystemPrompt(context: WorkspaceContext): string {
@@ -543,6 +561,8 @@ Siparişler şu aşamalardan geçer: Yeni → Tasarım → Baskı Hazırlık →
 - Bugünkü teslimler: ${context.todayDeliveries || 0}
 ${context.recentTasks && context.recentTasks.length > 0 ? `- Son görevler: ${context.recentTasks.map((t: any) => t.title || t).join(', ')}` : ''}
 ${context.upcomingDeadlines && context.upcomingDeadlines.length > 0 ? `- Yaklaşan teslimler: ${context.upcomingDeadlines.map((t: any) => t.title || t).join(', ')}` : ''}
+${context.currentPath ? `- Kullanıcının bulunduğu sayfa: ${context.currentPath}` : ''}
+${context.userName ? `- Kullanıcı adı: ${context.userName}` : ''}
 
 ## Navigasyon Yardımı
 Kullanıcı bir sayfaya gitmek istediğinde, ilgili sayfa yolunu belirt. Örnekler:
@@ -572,19 +592,80 @@ Kullanıcı bir sayfaya gitmek istediğinde, ilgili sayfa yolunu belirt. Örnekl
 12. Kullanıcının ne istediğini tam anlamadıysan, nazikçe açıklama iste`;
   }
 
+  private buildStructuredQueryPrompt(userQuery: string): string {
+    return `KULLANICI SORUSU:
+${userQuery}
+
+ÇIKTI FORMATI:
+Sadece geçerli JSON döndür. Markdown, açıklama veya ek metin yazma.
+{
+  "answer": "Kullanıcıya verilecek nihai yanıt",
+  "suggestions": ["kısa öneri 1", "kısa öneri 2", "kısa öneri 3"],
+  "confidence": 0.0
+}
+
+KURALLAR:
+- "answer" Türkçe olmalı, net ve uygulanabilir bilgi içermeli.
+- "suggestions" 1-4 adet, kısa ve eyleme dönük olmalı.
+- "confidence" 0 ile 1 arasında sayı olmalı.`;
+  }
+
   private parseQueryResponse(
     response: string,
-    context: WorkspaceContext
+    _context: WorkspaceContext
   ): AIQueryResult {
-    // Generate contextual suggestions based on response content
-    const suggestions = this.generateSuggestions(response);
-    
+    const structured = this.tryParseStructuredResponse(response);
+    const answer = structured?.answer?.trim() || response.trim();
+    const suggestions = this.sanitizeSuggestions(
+      structured?.suggestions && structured.suggestions.length > 0
+        ? structured.suggestions
+        : this.generateSuggestions(answer)
+    );
+    const confidence = this.clampConfidence(structured?.confidence ?? this.estimateConfidence(answer));
+
     return {
-      answer: response,
+      answer,
       sources: [],
       suggestions,
-      confidence: 0.85,
+      confidence,
     };
+  }
+
+  private tryParseStructuredResponse(raw: string): StructuredAIResponse | null {
+    try {
+      const parsed = JSON.parse(raw) as StructuredAIResponse;
+      if (!parsed || typeof parsed.answer !== 'string') return null;
+      return parsed;
+    } catch {}
+
+    try {
+      const extracted = this.extractJSON(raw);
+      const parsed = JSON.parse(extracted) as StructuredAIResponse;
+      if (!parsed || typeof parsed.answer !== 'string') return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  private sanitizeSuggestions(items: string[]): string[] {
+    const normalized = items
+      .filter((item) => typeof item === 'string')
+      .map((item) => item.replace(/\s+/g, ' ').trim())
+      .filter((item) => item.length >= 3 && item.length <= 80);
+    return [...new Set(normalized)].slice(0, 4);
+  }
+
+  private clampConfidence(value: number): number {
+    if (Number.isNaN(value)) return 0.75;
+    return Math.max(0, Math.min(1, value));
+  }
+
+  private estimateConfidence(answer: string): number {
+    if (answer.length > 500) return 0.88;
+    if (answer.length > 220) return 0.82;
+    if (answer.length > 80) return 0.76;
+    return 0.7;
   }
 
   private generateSuggestions(response: string): string[] {
@@ -635,6 +716,8 @@ interface WorkspaceContext {
   activeOrders?: number;
   overdueOrders?: number;
   todayDeliveries?: number;
+  currentPath?: string;
+  userName?: string;
   recentTasks?: any[];
   upcomingDeadlines?: any[];
 }

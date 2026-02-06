@@ -417,56 +417,6 @@ export function AIChat({ onClose, initialMessage, context }: AIChatProps) {
 }
 
 // ============================================
-// Mock Response Generator
-// ============================================
-
-function generateMockResponse(query: string): {
-  content: string;
-  suggestions?: string[];
-  metadata?: Message['metadata'];
-} {
-  const lowerQuery = query.toLowerCase();
-
-  if (lowerQuery.includes('gecik') || lowerQuery.includes('overdue')) {
-    return {
-      content: '📊 Şu anda 3 adet gecikmiş sipariş bulunuyor:\n\n• #1234 - ABC Matbaa (2 gün gecikme)\n• #1235 - XYZ Reklam (1 gün gecikme)\n• #1236 - Mega Print (3 saat gecikme)\n\nBu siparişlere öncelik verilmesini öneririm.',
-      suggestions: ['Detayları göster', 'Müşterilere bildirim gönder', 'Üretimi hızlandır'],
-      metadata: { type: 'query', confidence: 0.92 },
-    };
-  }
-
-  if (lowerQuery.includes('bugün') || lowerQuery.includes('görev')) {
-    return {
-      content: '✅ Bugün için planlanmış işleriniz:\n\n1. 5 sipariş üretimde devam ediyor\n2. 2 sipariş kalite kontrolde\n3. 3 sipariş teslime hazır\n\nÖncelikli: #1240 siparişi 14:00\'te teslim edilmeli.',
-      suggestions: ['Üretimdeki siparişler', 'Teslim planı'],
-      metadata: { type: 'query', confidence: 0.88 },
-    };
-  }
-
-  if (lowerQuery.includes('hafta') || lowerQuery.includes('özet')) {
-    return {
-      content: '📈 Bu Hafta Özeti:\n\n• Tamamlanan: 28 sipariş\n• Devam Eden: 15 sipariş\n• Yeni Gelen: 12 sipariş\n\n💰 Toplam Ciro: ₺145,280\n📊 Verimlilik: %87 (geçen haftaya göre +5%)',
-      suggestions: ['Detaylı rapor', 'Karşılaştırma'],
-      metadata: { type: 'query', confidence: 0.95 },
-    };
-  }
-
-  if (lowerQuery.includes('teslim')) {
-    return {
-      content: '📦 Yaklaşan Teslimler:\n\nBugün:\n• #1240 - 14:00 (ABC Matbaa)\n• #1241 - 17:00 (XYZ Ltd.)\n\nYarın:\n• #1242 - 10:00 (Mega Corp)\n• #1243 - 15:00 (Delta Inc.)\n\nTüm teslimatlar için kurye ayarlandı.',
-      suggestions: ['Kurye detayları', 'Teslim rotası'],
-      metadata: { type: 'query', confidence: 0.90 },
-    };
-  }
-
-  return {
-    content: 'Sorunuzu anladım. Şu konularda size yardımcı olabilirim:\n\n• Sipariş durumu sorgulama\n• Üretim planlaması\n• Raporlar ve analizler\n• Görev yönetimi\n\nDaha spesifik bir soru sorarsanız daha iyi yardımcı olabilirim.',
-    suggestions: ['Sipariş durumu', 'Günlük rapor', 'Üretim planı'],
-    metadata: { type: 'query', confidence: 0.7 },
-  };
-}
-
-// ============================================
 // Floating AI Button
 // ============================================
 
