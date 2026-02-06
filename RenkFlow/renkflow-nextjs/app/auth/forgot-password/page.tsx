@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { UnifiedNavbar } from '@/components/landing-new/UnifiedNavbar';
+import { AlertCircle, MailCheck } from 'lucide-react';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -61,9 +62,7 @@ export default function ForgotPasswordPage() {
             {isSuccess ? (
               <div className="text-center">
                 <div className="w-20 h-20 bg-emerald-100/50 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-6 ring-4 ring-emerald-50 dark:ring-emerald-900/10">
-                  <span className="material-symbols-outlined text-4xl text-emerald-600 dark:text-emerald-400">
-                    mark_email_read
-                  </span>
+                  <MailCheck className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <h1 className="text-3xl sm:text-4xl font-black mb-3 bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">E-posta Gönderildi</h1>
                 <p className="text-lg text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
@@ -110,7 +109,7 @@ export default function ForgotPasswordPage() {
                     />
                     {formError && (
                       <p className="mt-2 text-sm text-red-500 font-medium flex items-center gap-2 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-100 dark:border-red-800">
-                        <span className="material-symbols-outlined text-lg">error</span>
+                        <AlertCircle className="h-5 w-5" />
                         {formError}
                       </p>
                     )}

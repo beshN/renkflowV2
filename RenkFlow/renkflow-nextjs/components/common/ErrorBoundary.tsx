@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { AlertCircle } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
@@ -44,9 +45,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-200 dark:border-slate-700">
             <div className="flex flex-col items-center text-center space-y-4">
               <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
-                <span className="material-symbols-outlined text-4xl text-red-600 dark:text-red-400">
-                  error
-                </span>
+                <AlertCircle className="h-10 w-10 text-red-600 dark:text-red-400" />
               </div>
               
               <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">

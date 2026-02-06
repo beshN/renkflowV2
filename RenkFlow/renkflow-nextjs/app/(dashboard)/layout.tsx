@@ -21,7 +21,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <main
         className={cn(
           "flex-1 w-full min-w-0 pb-20 md:pb-0 z-10",
-          "transition-[margin-left,width] duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]",
+          "transition-[margin-left,width] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "md:will-change-[margin-left,width]",
           "md:origin-left",
           isSidebarExpanded
             ? "md:ml-72 md:w-[calc(100%-18rem)]"

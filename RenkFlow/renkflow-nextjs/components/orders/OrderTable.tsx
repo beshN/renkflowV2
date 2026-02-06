@@ -6,7 +6,7 @@ import { Order } from '@/lib/types';
 import { formatCurrency, formatDate, getOrderStatusInfo } from '@/lib/utils';
 import { useAuth } from '@/lib/context/AuthContext';
 import { SortConfig } from '@/lib/hooks/useSort';
-import { MoreVertical, FileText, ArrowUpDown } from 'lucide-react';
+import { MoreVertical, FileText, ArrowUpDown, Trash2 } from 'lucide-react';
 
 interface OrderTableProps {
   orders: Order[];
@@ -150,7 +150,7 @@ export function OrderTable({ orders, onDelete, onStatusChange, onSort, sortConfi
                                     className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                                     title="Sil"
                                 >
-                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                    <Trash2 size={16} />
                                 </button>
                              </div>
                          )}

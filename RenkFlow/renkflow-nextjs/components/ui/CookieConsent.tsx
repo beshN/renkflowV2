@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import { Cookie } from 'lucide-react';
 
 export default function CookieConsent() {
   const [showBanner, setShowBanner] = useState(false);
@@ -52,7 +53,7 @@ export default function CookieConsent() {
               {/* Icon and Text */}
               <div className="flex items-start gap-4 flex-1">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="material-symbols-outlined text-primary text-2xl">cookie</span>
+                  <Cookie className="h-6 w-6 text-primary" />
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-text-light dark:text-text-dark mb-2">

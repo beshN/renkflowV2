@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/context/AuthContext';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { signOut } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
@@ -88,6 +88,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [logoFailed, setLogoFailed] = useState({ compact: false, full: false });
+  const hoverLeaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Filter nav items based on user role and permissions
   const canRenderItem = useCallback((item: NavItem) => {
@@ -140,6 +141,14 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
     onDesktopExpandedChange?.(isHovered);
   }, [isHovered, onDesktopExpandedChange]);
 
+  useEffect(() => {
+    return () => {
+      if (hoverLeaveTimerRef.current) {
+        clearTimeout(hoverLeaveTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleItemClick = useCallback((item: NavItem, e: React.MouseEvent) => {
     if (item.action === 'logout') {
       e.preventDefault();
@@ -147,9 +156,33 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
     }
   }, []);
 
+  const handleDesktopEnter = useCallback(() => {
+    if (hoverLeaveTimerRef.current) {
+      clearTimeout(hoverLeaveTimerRef.current);
+      hoverLeaveTimerRef.current = null;
+    }
+    setIsHovered(true);
+  }, []);
+
+  const handleDesktopLeave = useCallback(() => {
+    if (hoverLeaveTimerRef.current) {
+      clearTimeout(hoverLeaveTimerRef.current);
+    }
+    hoverLeaveTimerRef.current = setTimeout(() => {
+      setIsHovered(false);
+      hoverLeaveTimerRef.current = null;
+    }, 120);
+  }, []);
+
   const sidebarVariants = {
-    collapsed: { width: '5rem' }, // w-20
-    expanded: { width: '18rem' }, // w-72
+    collapsed: {
+      width: '5rem',
+      transition: { type: 'spring' as const, stiffness: 320, damping: 36, mass: 0.75 },
+    },
+    expanded: {
+      width: '18rem',
+      transition: { type: 'spring' as const, stiffness: 320, damping: 36, mass: 0.75 },
+    },
   };
 
   return (
@@ -181,12 +214,12 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
         initial="collapsed"
         animate={isMobileOpen ? "expanded" : (isHovered ? "expanded" : "collapsed")}
         variants={sidebarVariants}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={handleDesktopEnter}
+        onMouseLeave={handleDesktopLeave}
         className={cn(
           "fixed top-0 left-0 h-screen flex flex-col z-[58]",
           "bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-r border-white/20 dark:border-white/5 shadow-2xl",
-          "transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]", // Custom easing
+          "will-change-[width,transform]",
           isMobileOpen ? "translate-x-0 w-72" : "-translate-x-full md:translate-x-0"
         )}
       >
@@ -199,6 +232,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
                scale: isHovered || isMobileOpen ? 0.8 : 1,
                rotate: isHovered || isMobileOpen ? -10 : 0
              }}
+             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
              className="absolute inset-0 flex items-center justify-center pointer-events-none"
           >
               <div className="relative h-14 w-14 flex items-center justify-center">
@@ -224,6 +258,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
                scale: isHovered || isMobileOpen ? 1 : 0.9,
                x: isHovered || isMobileOpen ? 0 : -20
              }}
+             transition={{ type: 'spring', stiffness: 280, damping: 28 }}
              className="absolute inset-0 flex items-center justify-center"
            >
               <div className="relative h-20 w-48 flex items-center justify-center p-1">

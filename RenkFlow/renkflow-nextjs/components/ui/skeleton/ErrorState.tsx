@@ -3,6 +3,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
+import { AlertCircle } from 'lucide-react';
 
 interface ErrorStateProps {
   title?: string;
@@ -23,7 +24,7 @@ export function ErrorState({
       role="alert"
     >
       <div className="flex size-12 items-center justify-center rounded-full bg-red-500/10 text-red-600 dark:text-red-400">
-        <span className="material-symbols-outlined">error</span>
+        <AlertCircle className="h-5 w-5" />
       </div>
       <div>
         <h3 className="text-lg font-semibold text-red-700 dark:text-red-300">{title}</h3>

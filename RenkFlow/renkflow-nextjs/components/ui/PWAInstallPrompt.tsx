@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Download, Share, Smartphone, X } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -97,12 +98,12 @@ export default function PWAInstallPrompt() {
             className="absolute top-3 right-3 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             aria-label="Kapat"
           >
-            <span className="material-symbols-outlined text-lg text-subtle-light dark:text-subtle-dark">close</span>
+            <X className="h-[18px] w-[18px] text-subtle-light dark:text-subtle-dark" />
           </button>
 
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <span className="material-symbols-outlined text-primary text-2xl">install_mobile</span>
+              <Smartphone className="h-6 w-6 text-primary" />
             </div>
             
             <div className="flex-1 pr-6">
@@ -112,7 +113,7 @@ export default function PWAInstallPrompt() {
               
               {isIOS ? (
                 <p className="text-sm text-subtle-light dark:text-subtle-dark mb-3">
-                  Ana ekranınıza ekleyin: <span className="material-symbols-outlined text-sm align-text-bottom">ios_share</span> simgesine dokunun, ardından <strong>&quot;Ana Ekrana Ekle&quot;</strong> seçin.
+                  Ana ekranınıza ekleyin: <Share className="inline h-4 w-4 align-text-bottom" /> simgesine dokunun, ardından <strong>&quot;Ana Ekrana Ekle&quot;</strong> seçin.
                 </p>
               ) : (
                 <p className="text-sm text-subtle-light dark:text-subtle-dark mb-3">
@@ -127,7 +128,7 @@ export default function PWAInstallPrompt() {
                   onClick={handleInstall}
                   className="w-full py-2.5 rounded-lg bg-primary text-white font-medium text-sm hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
                 >
-                  <span className="material-symbols-outlined text-lg">download</span>
+                  <Download className="h-[18px] w-[18px]" />
                   Yükle
                 </motion.button>
               )}

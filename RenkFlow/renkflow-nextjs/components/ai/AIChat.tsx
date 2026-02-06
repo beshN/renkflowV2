@@ -239,10 +239,28 @@ export function AIChat({ onClose, initialMessage, context }: AIChatProps) {
     setMessages((prev) => [...prev, loadingMessage]);
 
     try {
-      // Simulate AI response (in production, call actual AI service)
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Build conversation history for AI context
+      const history = messages
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .filter((m) => !m.isLoading)
+        .slice(-10)
+        .map((m) => ({ role: m.role, content: m.content }));
 
-      const response = generateMockResponse(messageText);
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: messageText,
+          history,
+          context: context || {},
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
 
       // Replace loading message with actual response
       setMessages((prev) => {
@@ -252,14 +270,15 @@ export function AIChat({ onClose, initialMessage, context }: AIChatProps) {
           {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
-            content: response.content,
+            content: data.response || 'Üzgünüm, yanıt oluşturulamadı.',
             timestamp: new Date(),
-            suggestions: response.suggestions,
-            metadata: response.metadata,
+            suggestions: data.suggestions || ['Detayları gör', 'Rapor oluştur', 'Başka bir soru'],
+            metadata: { type: 'query', confidence: data.confidence },
           },
         ];
       });
     } catch (error) {
+      console.error('[AIChat] Error:', error);
       setMessages((prev) => {
         const filtered = prev.filter((m) => !m.isLoading);
         return [
@@ -275,7 +294,7 @@ export function AIChat({ onClose, initialMessage, context }: AIChatProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [input, isLoading]);
+  }, [input, isLoading, messages, context]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

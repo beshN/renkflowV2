@@ -37,13 +37,44 @@ export class AIService {
   private conversationHistory: AIMessage[] = [];
 
   constructor(config: Partial<AIConfig> = {}) {
+    // Determine provider based on available API keys
+    const provider = config.provider
+      || (process.env.GROQ_API_KEY ? 'groq' : process.env.OPENAI_API_KEY ? 'openai' : process.env.ANTHROPIC_API_KEY ? 'claude' : 'groq');
+
+    // Resolve API key for the chosen provider
+    const apiKey = config.apiKey
+      || (provider === 'groq' ? process.env.GROQ_API_KEY : provider === 'openai' ? process.env.OPENAI_API_KEY : process.env.ANTHROPIC_API_KEY)
+      || '';
+
+    // Model mapping per provider
+    const defaultModels: Record<string, string> = {
+      groq: 'llama-3.3-70b-versatile',
+      openai: 'gpt-4-turbo',
+      claude: 'claude-3-sonnet-20240229',
+    };
+
     this.config = {
-      provider: config.provider || 'groq',
-      apiKey: config.apiKey || process.env.GROQ_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || '',
-      model: config.model || (config.provider === 'groq' ? 'llama-3.3-70b-versatile' : config.provider === 'openai' ? 'gpt-4-turbo' : 'claude-3-sonnet-20240229'),
+      provider,
+      apiKey,
+      model: config.model || defaultModels[provider] || 'llama-3.3-70b-versatile',
       maxTokens: config.maxTokens || DEFAULT_CONFIG.maxTokens!,
       temperature: config.temperature ?? DEFAULT_CONFIG.temperature!,
     };
+
+    console.log(`[AI Service] Provider: ${this.config.provider}, Model: ${this.config.model}, Key: ${this.config.apiKey ? '***' + this.config.apiKey.slice(-4) : 'MISSING'}`);
+  }
+
+  // ============================================
+  // Conversation History Management
+  // ============================================
+
+  setConversationHistory(history: { role: string; content: string }[]) {
+    this.conversationHistory = history.map((h) => ({
+      id: generateId(),
+      role: h.role as 'user' | 'assistant',
+      content: h.content,
+      timestamp: new Date().toISOString(),
+    }));
   }
 
   // ============================================
@@ -336,9 +367,6 @@ Sadece JSON döndür, açıklama ekleme.
     systemPrompt: string,
     messages: AIMessage[]
   ): Promise<string> {
-    // This is a mock implementation
-    // In production, this would call the actual API
-
     if (!this.config.apiKey) {
       console.warn('[AI Service] No API key configured, returning mock response');
       return this.getMockResponse(messages[messages.length - 1]?.content || '');
@@ -351,6 +379,21 @@ Sadece JSON döndür, açıklama ekleme.
     } else {
       return await this.callOpenAI(systemPrompt, messages);
     }
+  }
+
+  private createTimeoutSignal(ms: number = 30000): AbortSignal {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), ms);
+    return controller.signal;
+  }
+
+  private async handleAPIError(response: Response, provider: string): Promise<never> {
+    let errorBody = '';
+    try {
+      errorBody = await response.text();
+    } catch {}
+    console.error(`[AI Service] ${provider} API error ${response.status}:`, errorBody);
+    throw new Error(`${provider} API hatası: ${response.status}`);
   }
 
   private async callClaude(
@@ -373,10 +416,11 @@ Sadece JSON döndür, açıklama ekleme.
           content: m.content,
         })),
       }),
+      signal: this.createTimeoutSignal(),
     });
 
     if (!response.ok) {
-      throw new Error(`Claude API error: ${response.status}`);
+      await this.handleAPIError(response, 'Claude');
     }
 
     const data = await response.json();
@@ -405,10 +449,11 @@ Sadece JSON döndür, açıklama ekleme.
           })),
         ],
       }),
+      signal: this.createTimeoutSignal(),
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      await this.handleAPIError(response, 'OpenAI');
     }
 
     const data = await response.json();
@@ -437,10 +482,11 @@ Sadece JSON döndür, açıklama ekleme.
           })),
         ],
       }),
+      signal: this.createTimeoutSignal(),
     });
 
     if (!response.ok) {
-      throw new Error(`Groq API error: ${response.status}`);
+      await this.handleAPIError(response, 'Groq');
     }
 
     const data = await response.json();
@@ -459,18 +505,71 @@ Sadece JSON döndür, açıklama ekleme.
   }
 
   private buildSystemPrompt(context: WorkspaceContext): string {
-    return `
-Sen RenkFlow üretim yönetim sisteminin AI asistanısın. 
-Türkçe yanıt ver. Kısa ve öz ol.
+    return `Sen RenkFlow üretim yönetim sisteminin yapay zeka asistanısın. Adın "RenkAI Asistan".
 
-Mevcut bağlam:
+## RenkFlow Hakkında
+RenkFlow, matbaa ve baskı sektörüne özel geliştirilmiş kapsamlı bir üretim yönetim sistemidir (ERP/MES). Next.js ile geliştirilmiş modern bir web uygulamasıdır. Türkiye merkezli matbaa işletmeleri için tasarlanmıştır.
+
+## Sistemdeki Modüller ve Sayfalar
+- **Dashboard** (/dashboard): Ana kontrol paneli - özet istatistikler, grafikler, hızlı erişim kartları, günlük performans
+- **Siparişler** (/orders): Sipariş listesi, sipariş detayı, yeni sipariş oluşturma (/new-order), fatura görüntüleme (/orders/[id]/invoice)
+- **Kanban** (/kanban): Sürükle-bırak üretim takip panosu - sipariş durumlarını görsel olarak yönetme, iş akışı takibi
+- **CRM** (/crm): Müşteri ilişkileri yönetimi - müşteri bilgileri, iletişim geçmişi, notlar, teklifler
+- **Finans** (/finance): Gelir/gider takibi, faturalar (/finance/invoice), ödemeler (/finance/payments), belgeler (/finance/documents), çalışan yönetimi (/finance/employees)
+- **Muhasebe** (/accounting): Muhasebe işlemleri, defterler, vergi hesaplamaları
+- **Stok/Envanter** (/inventory): Malzeme ve ürün stok takibi, minimum stok uyarıları, tedarik planlaması
+- **Tedarikçiler** (/suppliers): Tedarikçi yönetimi, sipariş geçmişi, fiyat karşılaştırma
+- **Raporlar** (/reports): Detaylı raporlar ve analizler - üretim, satış, performans raporları
+- **Analitik** (/analytics): İş zekası ve veri analizi - trendler, tahminler, KPI'lar
+- **Ekip** (/team): Ekip üyeleri ve görev dağılımı, performans takibi
+- **Üyeler** (/members): Kullanıcı yönetimi, roller ve yetkiler
+- **Bildirimler** (/notifications): Sistem bildirimleri, uyarılar, hatırlatmalar
+- **Arama** (/search): Genel arama - sipariş, müşteri, ürün arama
+- **Ayarlar** (/settings): Sistem ayarları, profil, bildirim tercihleri, tema
+
+## Sipariş Durumları (Workflow)
+Siparişler şu aşamalardan geçer: Yeni → Tasarım → Baskı Hazırlık → Baskıda → Kesim → Katlama → Cilt/Yapıştırma → Kalite Kontrol → Paketleme → Teslime Hazır → Teslim Edildi
+
+## Matbaa Sektörü Bilgisi
+- **Baskı Türleri**: Ofset baskı, dijital baskı, serigrafi, flekso baskı, UV baskı, tampon baskı
+- **Kağıt Türleri**: Kuşe (mat/parlak), kraft, bristol, karton, mukavva, ivory, keten dokulu, özel kağıtlar
+- **Son İşlemler**: Laminasyon (mat/parlak), selofan, UV vernik, kabartma, folyo yaldız, sıcak baskı, kesim, kırım, cilt, yapıştırma, perforaj, numaratör
+- **Ürün Türleri**: Kartvizit, broşür, katalog, afiş, poster, ambalaj, etiket, zarf, antetli kağıt, davetiye, takvim, ajanda, kitap, dergi
+
+## Mevcut Bağlam (Anlık Veriler)
 - Toplam sipariş: ${context.totalOrders || 0}
 - Aktif siparişler: ${context.activeOrders || 0}
 - Geciken siparişler: ${context.overdueOrders || 0}
 - Bugünkü teslimler: ${context.todayDeliveries || 0}
+${context.recentTasks && context.recentTasks.length > 0 ? `- Son görevler: ${context.recentTasks.map((t: any) => t.title || t).join(', ')}` : ''}
+${context.upcomingDeadlines && context.upcomingDeadlines.length > 0 ? `- Yaklaşan teslimler: ${context.upcomingDeadlines.map((t: any) => t.title || t).join(', ')}` : ''}
 
-Kullanıcıya yardımcı ol, soruları yanıtla ve önerilerde bulun.
-`;
+## Navigasyon Yardımı
+Kullanıcı bir sayfaya gitmek istediğinde, ilgili sayfa yolunu belirt. Örnekler:
+- "Siparişleri görmek için **Siparişler** (/orders) sayfasına gidebilirsiniz."
+- "Yeni sipariş oluşturmak için **Yeni Sipariş** (/new-order) sayfasını kullanın."
+- "Kanban panosundan iş akışını takip edebilirsiniz: **Kanban** (/kanban)"
+- "Finansal detaylar için **Finans** (/finance) modülüne bakın."
+
+## Yanıt Formatı
+- Markdown formatını kullan: **kalın**, *italik*, listeler (- veya 1.), başlıklar (## veya ###)
+- Uzun yanıtlarda başlıklar ve listeler ile yapılandır
+- Sayısal verileri vurgula
+- Emoji kullan ama abartma (her cümlede değil, önemli noktalarda)
+
+## Davranış Kuralları
+1. Her zaman Türkçe yanıt ver
+2. Kısa, öz ve doğal bir dille konuş - samimi ama profesyonel ol, robot gibi değil insan gibi konuş
+3. Kullanıcının sorularını bağlama uygun yanıtla
+4. Matbaa/baskı sektörü terminolojisini doğal şekilde kullan
+5. Mevcut verilere dayanarak somut bilgiler ver, veri yoksa bunu belirt
+6. Kullanıcıyı ilgili sayfalara yönlendir
+7. Eğer bir konuda kesin bilgin yoksa, bunu dürüstçe belirt ve alternatif önerilerde bulun
+8. Kullanıcı bir işlem yapmak isterse ilgili sayfaya yönlendir
+9. Sohbet geçmişini dikkate alarak tutarlı ve bağlamsal yanıtlar ver
+10. "Merhaba", "nasılsın" gibi günlük sohbetlere de doğal ve sıcak yanıt ver
+11. Teknik sorulara (baskı, kağıt, son işlem) detaylı ve bilgili yanıtlar ver
+12. Kullanıcının ne istediğini tam anlamadıysan, nazikçe açıklama iste`;
   }
 
   private parseQueryResponse(

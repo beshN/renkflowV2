@@ -99,16 +99,7 @@ export default function RootLayout({
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
           rel="stylesheet"
-          media="print"
-          // @ts-expect-error - onLoad is valid for link elements
-          onLoad="this.media='all'"
         />
-        <noscript>
-          <link
-            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-            rel="stylesheet"
-          />
-        </noscript>
         {/* PWA Meta Tags */}
         <meta name="theme-color" content="#4361ee" />
         <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0B1120" />

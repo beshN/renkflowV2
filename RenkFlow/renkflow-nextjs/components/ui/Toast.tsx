@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { AlertCircle, CheckCircle2, Info, TriangleAlert, X } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -43,11 +44,17 @@ export function Toast({ message, type = 'success', duration = 3000, onClose }: T
     warning: 'bg-amber-50/90 border-amber-200 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-200',
   };
 
-  const icons = {
-    success: 'check_circle',
-    error: 'error',
-    info: 'info',
-    warning: 'warning',
+  const iconMap = {
+    success: CheckCircle2,
+    error: AlertCircle,
+    info: Info,
+    warning: TriangleAlert,
+  } as const;
+  const Icon = iconMap[type];
+
+  const handleClose = () => {
+    setIsVisible(false);
+    setTimeout(onClose, 220);
   };
 
   return (
@@ -59,17 +66,16 @@ export function Toast({ message, type = 'success', duration = 3000, onClose }: T
       )}
     >
       <div className="flex items-start gap-3">
-        <span className="material-symbols-outlined mt-0.5">
-          {icons[type]}
-        </span>
+        <Icon className="mt-0.5 h-5 w-5 shrink-0" />
         <div className="flex-1">
           <p className="font-medium text-sm">{message}</p>
         </div>
         <button 
-          onClick={() => setIsVisible(false)} 
+          onClick={handleClose}
+          aria-label="Bildirimi kapat"
           className="text-current/70 hover:text-current transition-colors"
         >
-          <span className="material-symbols-outlined text-lg">close</span>
+          <X className="h-4 w-4" />
         </button>
       </div>
       

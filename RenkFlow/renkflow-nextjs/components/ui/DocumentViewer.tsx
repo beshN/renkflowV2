@@ -3,6 +3,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
+import {
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Loader2,
+  Minus,
+  Plus,
+  RotateCcw,
+  X,
+} from 'lucide-react';
 
 interface DocumentViewerProps {
   isOpen: boolean;
@@ -175,7 +186,7 @@ export function DocumentViewer({ isOpen, onClose, documentUrl, documentName }: D
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 bg-black/50 backdrop-blur-sm border-b border-white/10">
           <h3 className="text-white font-medium truncate max-w-md">{documentName}</h3>
           <button onClick={onClose} className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg">
-            <span className="material-symbols-outlined text-[24px]">close</span>
+            <X className="h-6 w-6" />
           </button>
         </div>
         <div className="relative max-w-[90vw] max-h-[90vh]">
@@ -210,7 +221,7 @@ export function DocumentViewer({ isOpen, onClose, documentUrl, documentName }: D
               className="p-2 text-text-light dark:text-text-dark hover:bg-card-light dark:hover:bg-card-dark rounded-md"
               title="Uzaklaştır"
             >
-              <span className="material-symbols-outlined text-[20px]">remove</span>
+              <Minus className="h-5 w-5" />
             </button>
             <span className="px-3 text-text-light dark:text-text-dark text-sm font-mono min-w-[60px] text-center">
               {Math.round(scale * 100)}%
@@ -220,7 +231,7 @@ export function DocumentViewer({ isOpen, onClose, documentUrl, documentName }: D
               className="p-2 text-text-light dark:text-text-dark hover:bg-card-light dark:hover:bg-card-dark rounded-md"
               title="Yakınlaştır"
             >
-              <span className="material-symbols-outlined text-[20px]">add</span>
+              <Plus className="h-5 w-5" />
             </button>
             <div className="w-px h-6 bg-border-light dark:bg-border-dark mx-2"></div>
             <button 
@@ -228,7 +239,7 @@ export function DocumentViewer({ isOpen, onClose, documentUrl, documentName }: D
               className="p-2 text-text-light dark:text-text-dark hover:bg-card-light dark:hover:bg-card-dark rounded-md"
               title="Sıfırla"
             >
-              <span className="material-symbols-outlined text-[20px]">restart_alt</span>
+              <RotateCcw className="h-5 w-5" />
             </button>
           </div>
 
@@ -238,7 +249,7 @@ export function DocumentViewer({ isOpen, onClose, documentUrl, documentName }: D
             download={documentName}
             className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium"
           >
-            <span className="material-symbols-outlined text-[20px]">download</span>
+            <Download className="h-5 w-5" />
             İndir
           </a>
 
@@ -247,7 +258,7 @@ export function DocumentViewer({ isOpen, onClose, documentUrl, documentName }: D
             onClick={onClose}
             className="p-2 text-text-light dark:text-text-dark hover:bg-card-light dark:hover:bg-card-dark rounded-lg"
           >
-            <span className="material-symbols-outlined text-[24px]">close</span>
+            <X className="h-6 w-6" />
           </button>
         </div>
       </div>
@@ -257,7 +268,7 @@ export function DocumentViewer({ isOpen, onClose, documentUrl, documentName }: D
         {isLoading && (
           <div className="flex items-center justify-center h-full">
             <div className="flex flex-col items-center gap-4">
-              <span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span>
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
               <p className="text-text-light dark:text-text-dark">PDF yükleniyor...</p>
             </div>
           </div>
@@ -266,7 +277,7 @@ export function DocumentViewer({ isOpen, onClose, documentUrl, documentName }: D
         {error && (
           <div className="flex items-center justify-center h-full">
             <div className="flex flex-col items-center gap-4 text-red-500">
-              <span className="material-symbols-outlined text-4xl">error</span>
+              <AlertCircle className="h-10 w-10" />
               <p>{error}</p>
               <button 
                 onClick={() => loadPDF()}
@@ -294,7 +305,7 @@ export function DocumentViewer({ isOpen, onClose, documentUrl, documentName }: D
             disabled={currentPage === 1}
             className="p-2 text-text-light dark:text-text-dark hover:bg-background-light dark:hover:bg-background-dark rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span className="material-symbols-outlined">chevron_left</span>
+            <ChevronLeft className="h-5 w-5" />
           </button>
           
           <span className="text-text-light dark:text-text-dark text-sm">
@@ -306,7 +317,7 @@ export function DocumentViewer({ isOpen, onClose, documentUrl, documentName }: D
             disabled={currentPage === totalPages}
             className="p-2 text-text-light dark:text-text-dark hover:bg-background-light dark:hover:bg-background-dark rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span className="material-symbols-outlined">chevron_right</span>
+            <ChevronRight className="h-5 w-5" />
           </button>
         </div>
       )}

@@ -6,7 +6,7 @@ import { Order } from '@/lib/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
-import { MoreVertical, Eye, Edit, Copy, Trash2, Calendar, Paperclip } from 'lucide-react';
+import { MoreVertical, Eye, Edit, Copy, Trash2, Calendar, Paperclip, GripVertical } from 'lucide-react';
 
 interface OrderCardProps {
   order: Order;
@@ -45,6 +45,7 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
     attributes,
     listeners,
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     transition,
     isDragging,
@@ -108,13 +109,11 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
     <div
       ref={isDragOverlay ? undefined : setNodeRef}
       style={style}
-      {...(isDragOverlay ? {} : attributes)}
-      {...(isDragOverlay ? {} : listeners)}
       className={`
         group relative overflow-hidden
         bg-white dark:bg-gray-900/95 rounded-xl p-4 
         border ${colors.border}
-        cursor-grab active:cursor-grabbing
+        cursor-default
         transition-all duration-300 ease-out
         ${isDragging 
           ? 'shadow-2xl scale-[1.02] z-50 ring-2 ring-primary/40' 
@@ -148,7 +147,20 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
             </div>
           </div>
           {!isDragOverlay && (
-            <div className="relative">
+            <div className="relative flex items-center gap-1">
+              <button
+                ref={setActivatorNodeRef}
+                {...attributes}
+                {...listeners}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                }}
+                aria-label="Siparişi sürükle"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-grab active:cursor-grabbing touch-none"
+              >
+                <GripVertical size={16} />
+              </button>
+
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -252,7 +264,7 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                alert('Belge ekleme açılacak');
+                showToast('Belge yükleme için sipariş detayına gidin', 'info');
               }}
               onPointerDown={(e) => e.stopPropagation()}
               className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 font-medium"

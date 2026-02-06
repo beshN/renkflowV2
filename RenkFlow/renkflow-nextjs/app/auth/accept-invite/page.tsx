@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { toast } from 'sonner';
 import { UnifiedNavbar } from '@/components/landing-new/UnifiedNavbar';
+import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 interface InvitationData {
   email: string;
@@ -152,9 +153,7 @@ function AcceptInviteForm() {
       <div className="flex min-h-screen w-full pt-20 items-center justify-center">
         <div className="text-center max-w-md px-4">
           <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-            <span className="material-symbols-outlined text-3xl text-red-600 dark:text-red-400">
-              error
-            </span>
+            <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
           </div>
           <h1 className="text-3xl font-black mb-3">Geçersiz Davet</h1>
           <p className="text-subtle-light dark:text-subtle-dark mb-6">{error}</p>
@@ -229,7 +228,7 @@ function AcceptInviteForm() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-subtle-light dark:text-subtle-dark"
                 >
-                  <span className="material-symbols-outlined">{showPassword ? 'visibility' : 'visibility_off'}</span>
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
               {formErrors.password && (

@@ -5,19 +5,21 @@
  * Enhanced with swimlanes, WIP limits, and quick edit
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import {
   DndContext,
   DragOverlay,
+  pointerWithin,
   closestCorners,
+  TouchSensor,
+  type CollisionDetection,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   DragStartEvent,
   DragEndEvent,
-  DragOverEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -29,7 +31,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { Order, OrderStatus } from '@/lib/types';
 import { useOrdersStore } from '@/lib/stores/orders.store';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar as CalendarIcon, 
   Paperclip, 
@@ -365,35 +366,27 @@ const KanbanColumn: React.FC<{
           items={orders.map((o) => o.id)}
           strategy={verticalListSortingStrategy}
         >
-          <AnimatePresence>
-            {orders.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                <Inbox className="w-8 h-8 mb-2" />
-                <p className="text-sm">Sipariş yok</p>
-              </div>
-            ) : (
-              <>
-                {overdueOrders.length > 0 && (
-                  <div className="rounded-lg border border-red-200 bg-red-50/80 px-3 py-2 text-xs text-red-700 dark:border-red-800/40 dark:bg-red-900/20 dark:text-red-300">
-                    {overdueOrders.length} geciken sipariş var
-                  </div>
-                )}
-                {orders.map((order) => (
-                  <motion.div
-                    key={order.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                  >
-                    <SortableOrderCard
-                      order={order}
-                      onClick={() => onOrderClick?.(order)}
-                    />
-                  </motion.div>
-                ))}
-              </>
-            )}
-          </AnimatePresence>
+          {orders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+              <Inbox className="w-8 h-8 mb-2" />
+              <p className="text-sm">Sipariş yok</p>
+            </div>
+          ) : (
+            <>
+              {overdueOrders.length > 0 && (
+                <div className="rounded-lg border border-red-200 bg-red-50/80 px-3 py-2 text-xs text-red-700 dark:border-red-800/40 dark:bg-red-900/20 dark:text-red-300">
+                  {overdueOrders.length} geciken sipariş var
+                </div>
+              )}
+              {orders.map((order) => (
+                <SortableOrderCard
+                  key={order.id}
+                  order={order}
+                  onClick={() => onOrderClick?.(order)}
+                />
+              ))}
+            </>
+          )}
         </SortableContext>
         )}
       </div>
@@ -421,10 +414,24 @@ export const KanbanBoardV2: React.FC<KanbanBoardV2Props> = ({
         distance: 8,
       },
     }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 140,
+        tolerance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  const collisionDetectionStrategy = useCallback<CollisionDetection>((args) => {
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) {
+      return pointerCollisions;
+    }
+    return closestCorners(args);
+  }, []);
 
   const filteredOrders = useMemo(() => {
     if (priorityFilter === 'all') return orders;
@@ -457,11 +464,6 @@ export const KanbanBoardV2: React.FC<KanbanBoardV2Props> = ({
   // Handle drag start
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
-  };
-
-  // Handle drag over (for real-time visual feedback)
-  const handleDragOver = (event: DragOverEvent) => {
-    // Could implement real-time column preview here
   };
 
   // Handle drag end
@@ -540,9 +542,8 @@ export const KanbanBoardV2: React.FC<KanbanBoardV2Props> = ({
 
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={collisionDetectionStrategy}
         onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
         <div className="flex gap-4 p-4 overflow-x-auto min-h-[600px]">

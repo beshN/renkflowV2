@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom';
 import {
   DndContext,
   pointerWithin,
+  closestCorners,
+  type CollisionDetection,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
@@ -24,7 +26,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { OrderCard } from './OrderCard';
 import { Order, OrderStatus } from '@/lib/types';
-import { useToast } from '@/lib/context/ToastContext';
 import { useAuth } from '@/lib/context/AuthContext';
 import { formatCurrency } from '@/lib/utils';
 import { realtime } from '@/lib/realtime/client';
@@ -249,12 +250,11 @@ const DroppableColumn = memo(function DroppableColumn({
 // Measuring configuration for smoother animations
 const measuringConfig = {
   droppable: {
-    strategy: MeasuringStrategy.Always,
+    strategy: MeasuringStrategy.WhileDragging,
   },
 };
 
 export function KanbanBoard({ orders, onOrderStatusChange, onOrderDelete }: KanbanBoardProps) {
-  const { showToast } = useToast();
   const { user } = useAuth();
   const [draggedOrder, setDraggedOrder] = useState<Order | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -269,19 +269,27 @@ export function KanbanBoard({ orders, onOrderStatusChange, onOrderDelete }: Kanb
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5,
+        distance: 8,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 200,
-        tolerance: 5,
+        delay: 140,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  const collisionDetectionStrategy = useCallback<CollisionDetection>((args) => {
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) {
+      return pointerCollisions;
+    }
+    return closestCorners(args);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -446,7 +454,6 @@ export function KanbanBoard({ orders, onOrderStatusChange, onOrderDelete }: Kanb
 
     if (newStatus && activeOrder.status !== newStatus) {
       onOrderStatusChange(activeId, newStatus);
-      showToast(`Sipariş durumu güncellendi!`, 'success');
       // Success haptic feedback
       if (navigator.vibrate) {
         navigator.vibrate([50, 30, 50]);
@@ -457,7 +464,7 @@ export function KanbanBoard({ orders, onOrderStatusChange, onOrderDelete }: Kanb
     if (realtime.isConnected()) {
       realtime.setPresence({ viewingOrderId: undefined });
     }
-  }, [orders, onOrderStatusChange, showToast]);
+  }, [orders, onOrderStatusChange]);
 
   const handleDragCancel = useCallback(() => {
     setDraggedOrder(null);
@@ -489,7 +496,7 @@ export function KanbanBoard({ orders, onOrderStatusChange, onOrderDelete }: Kanb
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={pointerWithin}
+      collisionDetection={collisionDetectionStrategy}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
@@ -596,36 +603,23 @@ export function KanbanBoard({ orders, onOrderStatusChange, onOrderDelete }: Kanb
                   items={columnOrders.map((o) => o.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <AnimatePresence mode="popLayout">
-                    {columnOrders.map((order, orderIndex) => (
-                      <motion.div
-                        key={order.id}
-                        layout
-                        initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.8, y: -20 }}
-                        transition={{
-                          type: 'spring',
-                          stiffness: 500,
-                          damping: 30,
-                          mass: 0.8,
-                          delay: orderIndex * 0.02,
-                        }}
-                        onMouseEnter={() => {
-                          if (realtime.isConnected()) {
-                            realtime.setPresence({ viewingOrderId: order.id, currentPage: '/orders' });
-                          }
-                        }}
-                        onMouseLeave={() => {
-                          if (realtime.isConnected()) {
-                            realtime.setPresence({ viewingOrderId: undefined });
-                          }
-                        }}
-                      >
-                        <OrderCard order={order} onDelete={onOrderDelete} />
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
+                  {columnOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      onMouseEnter={() => {
+                        if (realtime.isConnected()) {
+                          realtime.setPresence({ viewingOrderId: order.id, currentPage: '/orders' });
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        if (realtime.isConnected()) {
+                          realtime.setPresence({ viewingOrderId: undefined });
+                        }
+                      }}
+                    >
+                      <OrderCard order={order} onDelete={onOrderDelete} />
+                    </div>
+                  ))}
                 </SortableContext>
               </DroppableColumn>
             </motion.div>

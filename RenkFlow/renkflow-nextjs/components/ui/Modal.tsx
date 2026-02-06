@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import FocusLock from 'react-focus-lock';
+import { X } from 'lucide-react';
 
 interface ModalProps {
   isOpen: boolean;
@@ -62,7 +63,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
               className="text-subtle-light dark:text-subtle-dark hover:text-text-light dark:hover:text-text-dark transition-colors min-touch"
               aria-label="Kapat"
             >
-              <span className="material-symbols-outlined">close</span>
+              <X size={18} />
             </button>
           </div>
           <div className="p-6">

@@ -17,7 +17,7 @@ import { formatCurrency, formatDate, getOrderStatusInfo } from '@/lib/utils';
 import { Order, Document, Currency, CurrencySchema, safeParseCurrency } from '@/lib/types';
 import { 
   ArrowLeft, Calendar, User, Package, CreditCard, 
-  FileText, Clock, CheckCircle, Truck, Wallet
+  FileText, Clock, CheckCircle, Truck, Wallet, Trash2
 } from 'lucide-react';
 import { OrderFinanceSection } from '@/components/finance/OrderFinanceSection';
 import { canAccessFinance, UserRole } from '@/lib/auth/permissions';
@@ -164,7 +164,7 @@ export default function OrderDetailPage() {
                 </Link>
                 {canEditDelete && (
                     <button onClick={handleDeleteClick} className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                        <span className="material-symbols-outlined">delete</span>
+                        <Trash2 size={18} />
                     </button>
                 )}
             </div>
