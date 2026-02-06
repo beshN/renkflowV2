@@ -8,8 +8,8 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
 } from 'recharts';
+import { SafeResponsiveContainer } from '@/components/charts/SafeResponsiveContainer';
 import { format, subDays, isSameDay, startOfDay } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { Card } from '@/components/ui/Card';
@@ -47,7 +47,7 @@ export function RevenueChart({ orders, days = 7 }: RevenueChartProps) {
     <Card className="p-6 h-[400px]">
       <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Gelir Trendi</h3>
       <div className="h-[300px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <SafeResponsiveContainer width="100%" height="100%" minHeight={300}>
           <AreaChart data={data}>
             <defs>
               <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -94,7 +94,7 @@ export function RevenueChart({ orders, days = 7 }: RevenueChartProps) {
               fill="url(#colorRevenue)"
             />
           </AreaChart>
-        </ResponsiveContainer>
+        </SafeResponsiveContainer>
       </div>
     </Card>
   );

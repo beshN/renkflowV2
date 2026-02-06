@@ -1,9 +1,9 @@
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Twitter, Instagram, Linkedin, Mail, MapPin, Phone, LucideIcon, Github, ArrowUpRight, Heart } from 'lucide-react';
+import { Twitter, Instagram, Linkedin, Mail, MapPin, Phone, LucideIcon, Github, ArrowUpRight, Heart, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
@@ -24,14 +24,48 @@ const footerLinks = {
   ],
   resources: [
     { label: 'Dokümantasyon', href: '/docs' },
-    { label: 'API Referansı', href: '/api' },
-    { label: 'Durum Sayfası', href: '/status', external: true },
+    { label: 'Değişiklik Günlüğü', href: '/changelog' },
+    { label: 'Durum Sayfası', href: '/status' },
     { label: 'Güvenlik', href: '/security' },
   ],
 };
 
 export const Footer: React.FC = memo(() => {
   const currentYear = new Date().getFullYear();
+  const [nlEmail, setNlEmail] = useState('');
+  const [nlStatus, setNlStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [nlMessage, setNlMessage] = useState('');
+
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = nlEmail.trim();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setNlStatus('error');
+      setNlMessage('Geçerli bir e-posta adresi giriniz.');
+      return;
+    }
+    setNlStatus('loading');
+    setNlMessage('');
+    try {
+      const res = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setNlStatus('error');
+        setNlMessage(data.error || 'Bir hata oluştu. Lütfen tekrar deneyin.');
+      } else {
+        setNlStatus('success');
+        setNlMessage(data.message || 'Başarıyla abone oldunuz!');
+        setNlEmail('');
+      }
+    } catch {
+      setNlStatus('error');
+      setNlMessage('Bağlantı hatası. Lütfen tekrar deneyin.');
+    }
+  };
 
   return (
     <footer className="relative w-full overflow-hidden">
@@ -60,34 +94,53 @@ export const Footer: React.FC = memo(() => {
                 Yeni özellikler, güncellemeler ve ipuçları için bültenimize abone olun.
               </p>
             </div>
-            <form className="flex gap-3 w-full lg:w-auto" onSubmit={(e) => e.preventDefault()}>
-              <input
-                type="email"
-                placeholder="E-posta adresiniz"
-                className={cn(
-                  'flex-1 lg:w-72 h-12 px-4 rounded-xl text-sm',
-                  'bg-white dark:bg-slate-900',
-                  'border border-slate-200 dark:border-slate-700',
-                  'placeholder:text-slate-400',
-                  'focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500',
-                  'transition-all duration-200'
+            {nlStatus === 'success' ? (
+              <div className="flex items-center gap-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 size={18} />
+                {nlMessage}
+              </div>
+            ) : (
+              <div className="w-full lg:w-auto">
+                <form className="flex gap-3" onSubmit={handleNewsletterSubmit}>
+                  <input
+                    type="email"
+                    value={nlEmail}
+                    onChange={(e) => { setNlEmail(e.target.value); if (nlStatus === 'error') setNlStatus('idle'); }}
+                    placeholder="E-posta adresiniz"
+                    disabled={nlStatus === 'loading'}
+                    className={cn(
+                      'flex-1 lg:w-72 h-12 px-4 rounded-xl text-sm',
+                      'bg-white dark:bg-slate-900',
+                      'border border-slate-200 dark:border-slate-700',
+                      'placeholder:text-slate-400',
+                      'focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500',
+                      'transition-all duration-200',
+                      'disabled:opacity-50',
+                      nlStatus === 'error' && 'border-red-400 dark:border-red-600'
+                    )}
+                  />
+                  <motion.button
+                    type="submit"
+                    disabled={nlStatus === 'loading'}
+                    className={cn(
+                      'px-6 h-12 rounded-xl text-sm font-semibold',
+                      'bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 text-white',
+                      'shadow-[0_4px_20px_-4px_rgba(14,165,233,0.4)]',
+                      'hover:shadow-[0_8px_30px_-4px_rgba(14,165,233,0.5)]',
+                      'transition-shadow duration-300',
+                      'disabled:opacity-70 disabled:cursor-not-allowed'
+                    )}
+                    whileHover={nlStatus !== 'loading' ? { scale: 1.02 } : undefined}
+                    whileTap={nlStatus !== 'loading' ? { scale: 0.98 } : undefined}
+                  >
+                    {nlStatus === 'loading' ? <Loader2 size={18} className="animate-spin" /> : 'Abone Ol'}
+                  </motion.button>
+                </form>
+                {nlStatus === 'error' && nlMessage && (
+                  <p className="mt-2 text-xs text-red-500 dark:text-red-400">{nlMessage}</p>
                 )}
-              />
-              <motion.button
-                type="submit"
-                className={cn(
-                  'px-6 h-12 rounded-xl text-sm font-semibold',
-                  'bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 text-white',
-                  'shadow-[0_4px_20px_-4px_rgba(14,165,233,0.4)]',
-                  'hover:shadow-[0_8px_30px_-4px_rgba(14,165,233,0.5)]',
-                  'transition-shadow duration-300'
-                )}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                Abone Ol
-              </motion.button>
-            </form>
+              </div>
+            )}
           </div>
         </div>
 
@@ -191,7 +244,7 @@ export const Footer: React.FC = memo(() => {
               <Link href="/cookies" className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
                 Çerez Politikası
               </Link>
-              <Link href="/sitemap" className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+              <Link href="/sitemap.xml" className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
                 Site Haritası
               </Link>
             </div>

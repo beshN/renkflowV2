@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node -r dotenv/config .next/standalone/server.js dotenv_config_path=.env.local",
     "lint": "eslint .",
     "db:push": "node scripts/push-schema.js",
     "db:generate": "drizzle-kit generate",
@@ -16,6 +16,8 @@
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:e2e": "playwright test",
+    "start:standalone": "node -r dotenv/config .next/standalone/server.js dotenv_config_path=.env.local",
+    "start:next": "next start",
     "validate": "npm run type-check && npm run lint && npm test -- --runInBand && npm run build"
   },
   "dependencies": {
@@ -94,6 +96,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
     "@next/bundle-analyzer": "^15.5.11",
+    "@playwright/test": "^1.58.1",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

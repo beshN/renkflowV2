@@ -5,10 +5,10 @@ import {
   PieChart,
   Pie,
   Cell,
-  ResponsiveContainer,
   Legend,
   Tooltip,
 } from 'recharts';
+import { SafeResponsiveContainer } from '@/components/charts/SafeResponsiveContainer';
 import { Card } from '@/components/ui/Card';
 import { Order } from '@/lib/types';
 
@@ -53,7 +53,7 @@ export function OrderStatusChart({ orders }: OrderStatusChartProps) {
     <Card className="p-6 h-[400px]">
       <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Sipariş Durumu</h3>
       <div className="h-[300px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <SafeResponsiveContainer width="100%" height="100%" minHeight={300}>
           <PieChart>
             <Pie
               data={data}
@@ -86,7 +86,7 @@ export function OrderStatusChart({ orders }: OrderStatusChartProps) {
               formatter={(value) => <span className="text-slate-600 dark:text-slate-300 ml-1">{value}</span>}
             />
           </PieChart>
-        </ResponsiveContainer>
+        </SafeResponsiveContainer>
       </div>
     </Card>
   );

@@ -6,6 +6,23 @@ function isValidTokenFormat(token: string): boolean {
   return /^[a-f0-9]{64}$/i.test(token);
 }
 
+function toRequestUrl(request: NextRequest, pathnameWithQuery: string): URL {
+  const forwardedProto = request.headers.get('x-forwarded-proto');
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const host = forwardedHost || request.headers.get('host');
+
+  if (host) {
+    const isLocalHost =
+      host.startsWith('localhost') ||
+      host.startsWith('127.0.0.1') ||
+      host.startsWith('0.0.0.0');
+    const proto = isLocalHost ? 'http' : (forwardedProto || 'https');
+    return new URL(pathnameWithQuery, `${proto}://${host}`);
+  }
+
+  return new URL(pathnameWithQuery, request.url);
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const token = searchParams.get('token')?.trim();
@@ -13,7 +30,7 @@ export async function GET(request: NextRequest) {
   // Validate token presence and format
   if (!token) {
     return NextResponse.redirect(
-      new URL('/auth/login?error=invalid_token', request.url)
+      toRequestUrl(request, '/auth/login?error=invalid_token')
     );
   }
 
@@ -21,7 +38,7 @@ export async function GET(request: NextRequest) {
   if (!isValidTokenFormat(token)) {
     console.warn('Invalid verification token format attempted');
     return NextResponse.redirect(
-      new URL('/auth/login?error=invalid_token', request.url)
+      toRequestUrl(request, '/auth/login?error=invalid_token')
     );
   }
 
@@ -36,7 +53,7 @@ export async function GET(request: NextRequest) {
     const existingUsersRows = existingUsers as any[];
     if (existingUsersRows.length === 0) {
       return NextResponse.redirect(
-        new URL('/auth/login?error=invalid_token', request.url)
+        toRequestUrl(request, '/auth/login?error=invalid_token')
       );
     }
 
@@ -44,7 +61,7 @@ export async function GET(request: NextRequest) {
     if (existingUsersRows[0].email_verified) {
       // Already verified, redirect to login with success
       return NextResponse.redirect(
-        new URL('/auth/login?verified=true', request.url)
+        toRequestUrl(request, '/auth/login?verified=true')
       );
     }
 
@@ -63,7 +80,7 @@ export async function GET(request: NextRequest) {
     const usersRows = users as any[];
     if (usersRows.length === 0) {
       return NextResponse.redirect(
-        new URL('/auth/login?error=invalid_token', request.url)
+        toRequestUrl(request, '/auth/login?error=invalid_token')
       );
     }
 
@@ -72,13 +89,12 @@ export async function GET(request: NextRequest) {
 
     // Success - redirect to login with success message
     return NextResponse.redirect(
-      new URL('/auth/login?verified=true', request.url)
+      toRequestUrl(request, '/auth/login?verified=true')
     );
   } catch (error: unknown) {
     console.error('Verification error:', error);
     return NextResponse.redirect(
-      new URL('/auth/login?error=verification_failed', request.url)
+      toRequestUrl(request, '/auth/login?error=verification_failed')
     );
   }
 }
-

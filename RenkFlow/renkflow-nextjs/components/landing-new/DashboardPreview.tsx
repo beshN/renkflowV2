@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { AreaChart, Area, ResponsiveContainer, BarChart, Bar, Cell, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, Cell, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
+import { SafeResponsiveContainer } from '@/components/charts/SafeResponsiveContainer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   TrendingUp, 
@@ -146,7 +147,7 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                                 </div>
                             </div>
                             <div className="flex-1 min-h-[150px] relative z-10">
-                                <ResponsiveContainer width="100%" height="100%">
+                                <SafeResponsiveContainer width="100%" height="100%" minHeight={150}>
                                     <AreaChart data={dataMode === 'weekly' ? weeklyData : monthlyData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                                         <defs>
                                             <linearGradient id="colorProd" x1="0" y1="0" x2="0" y2="1">
@@ -171,7 +172,7 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                                             animationDuration={1500}
                                         />
                                     </AreaChart>
-                                </ResponsiveContainer>
+                                </SafeResponsiveContainer>
                             </div>
                         </div>
 
@@ -184,7 +185,7 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                                      <div className="text-[10px] text-green-500 bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded">+4.2%</div>
                                 </div>
                                 <div className="flex-1 w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
+                                    <SafeResponsiveContainer width="100%" height="100%" minHeight={100}>
                                         <BarChart data={barData}>
                                             <Bar dataKey="value" radius={[4, 4, 4, 4]} animationDuration={1500}>
                                                 {barData.map((entry, index) => (
@@ -195,7 +196,7 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                                                 ))}
                                             </Bar>
                                         </BarChart>
-                                    </ResponsiveContainer>
+                                    </SafeResponsiveContainer>
                                 </div>
                             </div>
                             
@@ -275,7 +276,7 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                                 <span className="text-[10px] text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">Son 30 gün</span>
                             </div>
                             <div className="flex-1 min-h-[140px]">
-                                <ResponsiveContainer width="100%" height="100%">
+                                <SafeResponsiveContainer width="100%" height="100%" minHeight={140}>
                                     <BarChart data={barData}>
                                         <Bar dataKey="value" radius={[6, 6, 6, 6]} animationDuration={1500}>
                                             {barData.map((entry, index) => (
@@ -286,7 +287,7 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                                             ))}
                                         </Bar>
                                     </BarChart>
-                                </ResponsiveContainer>
+                                </SafeResponsiveContainer>
                             </div>
                         </div>
                         <div className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-border shadow-sm flex flex-col">

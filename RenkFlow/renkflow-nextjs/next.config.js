@@ -202,6 +202,11 @@ const nextConfig = {
         destination: '/dashboard',
         permanent: true,
       },
+      {
+        source: '/sitemap',
+        destination: '/sitemap.xml',
+        permanent: true,
+      },
     ];
   },
 };

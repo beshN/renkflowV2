@@ -46,6 +46,27 @@ function getClientIP(request: NextRequest): string {
   );
 }
 
+function getRequestOrigin(request: NextRequest): string {
+  const forwardedProto = request.headers.get('x-forwarded-proto');
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const host = forwardedHost || request.headers.get('host');
+
+  if (host) {
+    const isLocalHost =
+      host.startsWith('localhost') ||
+      host.startsWith('127.0.0.1') ||
+      host.startsWith('0.0.0.0');
+    const proto = isLocalHost ? 'http' : (forwardedProto || 'https');
+    return `${proto}://${host}`;
+  }
+
+  return request.nextUrl.origin;
+}
+
+function toRequestUrl(request: NextRequest, pathname: string): URL {
+  return new URL(pathname, getRequestOrigin(request));
+}
+
 function checkAuthRateLimit(ip: string): { allowed: boolean; message?: string; retryAfter?: number } {
   const now = Date.now();
   let entry = authRateLimits.get(ip);
@@ -114,7 +135,7 @@ export default auth((request) => {
     pathname.startsWith('/logo');
 
   if (isRenkflowHost && !comingSoonBypass) {
-    return NextResponse.redirect(new URL('/coming-soon', request.url));
+    return NextResponse.redirect(toRequestUrl(request, '/coming-soon'));
   }
 
   // ============================================
@@ -158,11 +179,20 @@ export default auth((request) => {
     '/faq',
     '/terms',
     '/privacy',
+    '/cookies',
     '/coming-soon',
     '/contact',
     '/signup',
+    '/roadmap',
+    '/changelog',
+    '/full-landing',
+    '/press',
+    '/docs',
+    '/security',
+    '/status',
+    '/sitemap',
   ]);
-  const publicPrefixes = ['/public/', '/blog', '/careers'];
+  const publicPrefixes = ['/public/', '/blog', '/careers', '/docs'];
   const isPublicPage =
     publicExactPaths.has(pathname) ||
     publicPrefixes.some((prefix) => pathname.startsWith(prefix));
@@ -174,11 +204,21 @@ export default auth((request) => {
     return NextResponse.next();
   }
 
+  // Auth route redirects (single source of truth — not duplicated in next.config.js)
+  const authRedirects: Record<string, { destination: string; permanent: boolean }> = {
+    '/auth/signup': { destination: '/signup', permanent: true },
+    '/auth/verify-email': { destination: '/auth/verify', permanent: false },
+  };
+  if (authRedirects[pathname]) {
+    const { destination, permanent } = authRedirects[pathname];
+    return NextResponse.redirect(toRequestUrl(request, destination), permanent ? 308 : 307);
+  }
+
   // Allow auth pages for unauthenticated users
   if (isAuthPage) {
     // If user is authenticated and trying to access auth pages, redirect to dashboard
     if (request.auth?.user) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+      return NextResponse.redirect(toRequestUrl(request, '/dashboard'));
     }
     return NextResponse.next();
   }
@@ -190,7 +230,7 @@ export default auth((request) => {
 
   // Protected pages: redirect to login if not authenticated
   if (!request.auth?.user) {
-    const loginUrl = new URL('/auth/login', request.url);
+    const loginUrl = toRequestUrl(request, '/auth/login');
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
   }

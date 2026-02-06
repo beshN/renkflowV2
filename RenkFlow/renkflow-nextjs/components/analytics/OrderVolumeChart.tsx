@@ -8,8 +8,8 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
 } from 'recharts';
+import { SafeResponsiveContainer } from '@/components/charts/SafeResponsiveContainer';
 import { format, subDays, isSameDay } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { Card } from '@/components/ui/Card';
@@ -45,7 +45,7 @@ export function OrderVolumeChart({ orders, days = 7 }: OrderVolumeChartProps) {
     <Card className="p-6 h-[400px]">
       <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Sipariş Hacmi</h3>
       <div className="h-[300px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <SafeResponsiveContainer width="100%" height="100%" minHeight={300}>
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
             <XAxis 
@@ -85,7 +85,7 @@ export function OrderVolumeChart({ orders, days = 7 }: OrderVolumeChartProps) {
               barSize={32}
             />
           </BarChart>
-        </ResponsiveContainer>
+        </SafeResponsiveContainer>
       </div>
     </Card>
   );

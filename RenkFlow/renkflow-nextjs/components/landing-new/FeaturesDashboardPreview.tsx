@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { AreaChart, Area, ResponsiveContainer, BarChart, Bar, Cell, CartesianGrid, XAxis, YAxis, Tooltip, PieChart, Pie } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, Cell, CartesianGrid, XAxis, YAxis, Tooltip, PieChart, Pie } from 'recharts';
+import { SafeResponsiveContainer } from '@/components/charts/SafeResponsiveContainer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   TrendingUp, 
@@ -148,7 +149,7 @@ export const FeaturesDashboardPreview: React.FC<FeaturesDashboardPreviewProps> =
                                 </div>
                             </div>
                             <div className="flex-1 min-h-[150px]">
-                                <ResponsiveContainer width="100%" height="100%">
+                                <SafeResponsiveContainer width="100%" height="100%" minHeight={150}>
                                     <AreaChart data={financeData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                                         <defs>
                                             <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
@@ -171,7 +172,7 @@ export const FeaturesDashboardPreview: React.FC<FeaturesDashboardPreviewProps> =
                                         <Area type="monotone" dataKey="income" name="Gelir" stroke="#10B981" strokeWidth={2} fill="url(#colorIncome)" />
                                         <Area type="monotone" dataKey="expense" name="Gider" stroke="#EF4444" strokeWidth={2} fill="url(#colorExpense)" />
                                     </AreaChart>
-                                </ResponsiveContainer>
+                                </SafeResponsiveContainer>
                             </div>
                         </div>
 
@@ -237,7 +238,7 @@ export const FeaturesDashboardPreview: React.FC<FeaturesDashboardPreviewProps> =
                     <div className="flex-1 p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
                         <h4 className="font-semibold text-slate-900 dark:text-white text-sm mb-4">Haftalık Üretim</h4>
                         <div className="flex-1 w-full">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <SafeResponsiveContainer width="100%" height="100%" minHeight={150}>
                                 <AreaChart data={weeklyData}>
                                     <defs>
                                         <linearGradient id="colorProdMain" x1="0" y1="0" x2="0" y2="1">
@@ -250,7 +251,7 @@ export const FeaturesDashboardPreview: React.FC<FeaturesDashboardPreviewProps> =
                                     <YAxis tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} />
                                     <Area type="monotone" dataKey="value" stroke="#3B82F6" strokeWidth={3} fill="url(#colorProdMain)" />
                                 </AreaChart>
-                            </ResponsiveContainer>
+                            </SafeResponsiveContainer>
                         </div>
                     </div>
                 </div>

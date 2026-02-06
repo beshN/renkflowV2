@@ -23,13 +23,19 @@
 - ✅ `/roadmap` - Yol Haritası
 - ✅ `/changelog` - Güncellemeler
 - ✅ `/full-landing` - Tam Landing Page
+- ✅ `/press` - Basın Kiti
+- ✅ `/docs` - Dokümantasyon
+- ✅ `/security` - Güvenlik
+- ✅ `/status` - Sistem Durumu
 
 ### Auth Pages
 - ✅ `/auth/login` - Giriş Yap
-- ✅ `/auth/signup` - Kayıt Ol (veya `/signup`)
+- ✅ `/signup` - Kayıt Ol
+- ↪️ `/auth/signup` → `/signup`'a yönlendirir (308)
 - ✅ `/auth/forgot-password` - Şifremi Unuttum
 - ✅ `/auth/update-password` - Şifre Güncelle
-- ✅ `/auth/verify-email` - Email Doğrulama
+- ↪️ `/auth/verify-email` → `/auth/verify`'e yönlendirir (307)
+- ✅ `/auth/verify` - Email doğrulama sayfası
 - ✅ `/auth/accept-invite` - Davet Kabul
 
 ---
@@ -66,6 +72,11 @@ const publicRoutes = [
   '/roadmap',
   '/changelog',
   '/full-landing',
+  '/press',
+  '/docs',
+  '/security',
+  '/status',
+  '/sitemap',
 ];
 ```
 
@@ -73,12 +84,15 @@ const publicRoutes = [
 ```typescript
 const authRoutes = [
   '/auth/login',
-  '/auth/signup',
   '/auth/forgot-password',
   '/auth/update-password',
-  '/auth/verify-email',
   '/auth/accept-invite',
+  '/auth/sso-verify',
 ];
+
+// Redirect'ler (proxy.ts middleware — next.config.js'den önce çalışır):
+// /auth/signup → /signup (308 permanent)
+// /auth/verify-email → /auth/verify (307 temporary)
 ```
 
 ### Public API Routes
@@ -249,8 +263,44 @@ RenkFlow
 
 ---
 
-**Middleware Dosyası:** `/middleware.ts`
+**Middleware Dosyası:** `/proxy.ts`
 **Auth Config:** `/auth.config.ts`
 **Auth Handler:** `/auth.ts`
 
 **Tüm site erişilebilir! 🎉**
+
+---
+
+## 🌍 URL / Domain Yönetimi
+
+### Environment Variables
+```bash
+# .env.local (geliştirme)
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+NEXTAUTH_URL="http://localhost:3000"
+
+# .env.production (prod / Vercel)
+NEXT_PUBLIC_APP_URL="https://app.renkflow.com"
+NEXTAUTH_URL="https://app.renkflow.com"
+```
+
+### Önemli Notlar
+- `robots.ts` ve `sitemap.ts` dosyaları `NEXT_PUBLIC_APP_URL` env var'ını kullanır
+- Fallback olarak `https://renkflow.com` kullanılır
+- Hardcoded domain kullanılmaz — tüm dinamik URL'ler env-based'dir
+- `renkflow.com` domain'i middleware tarafından `/coming-soon`'a yönlendirilir
+
+---
+
+## 📦 Standalone Start
+
+```bash
+# Build
+npm run build
+
+# Standalone mode (production)
+npm run start:standalone
+
+# Kalite kontrol (type-check + lint + test + build)
+npm run validate
+```

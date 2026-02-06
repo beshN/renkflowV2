@@ -7,7 +7,7 @@ import path from 'path';
  */
 // require('dotenv').config();
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 4173);
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 /**
@@ -64,9 +64,9 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm run start',
+    command: `PORT=${PORT} AUTH_URL=${BASE_URL} NEXT_PUBLIC_APP_URL=${BASE_URL} npm run start`,
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120 * 1000,
   },
 });
