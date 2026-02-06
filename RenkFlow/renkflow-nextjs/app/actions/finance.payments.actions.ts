@@ -194,6 +194,8 @@ export async function getOrdersWithPayments(): Promise<OrderWithPayments[]> {
       o.order_number,
       o.customer_name,
       o.status,
+      o.date,
+      o.delivery_date,
       o.total_amount,
       o.currency,
       COALESCE(SUM(p.amount), 0) as paid_amount
@@ -210,6 +212,8 @@ export async function getOrdersWithPayments(): Promise<OrderWithPayments[]> {
     orderNumber: row.order_number,
     customerName: row.customer_name,
     status: row.status,
+    date: row.date,
+    deliveryDate: row.delivery_date,
     totalAmount: parseFloat(row.total_amount),
     paidAmount: parseFloat(row.paid_amount),
     remainingAmount: parseFloat(row.total_amount) - parseFloat(row.paid_amount),

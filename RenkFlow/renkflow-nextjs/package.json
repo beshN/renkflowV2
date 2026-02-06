@@ -15,7 +15,8 @@
     "ws:server": "tsx server/index.ts",
     "type-check": "tsc --noEmit",
     "test": "jest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "validate": "npm run type-check && npm run lint && npm test -- --runInBand && npm run build"
   },
   "dependencies": {
     "@auth/core": "^0.41.0",
@@ -86,7 +87,6 @@
     "tsx": "^4.21.0",
     "vaul": "^1.1.2",
     "web-push": "^3.6.7",
-    "xlsx": "^0.18.5",
     "xml2js": "^0.6.2",
     "zod": "^4.3.6",
     "zustand": "^5.0.10"
@@ -117,6 +117,7 @@
     "web-vitals": "^5.1.0"
   },
   "overrides": {
+    "@isaacs/brace-expansion": "^5.0.1",
     "esbuild": "^0.27.2",
     "fast-xml-parser": "^5.3.4"
   }

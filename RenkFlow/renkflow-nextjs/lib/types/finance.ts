@@ -5,6 +5,7 @@
  */
 
 import { z } from 'zod';
+import { CurrencySchema } from '@/lib/types/currency';
 
 // ============================================
 // Common Validation Helpers
@@ -12,7 +13,7 @@ import { z } from 'zod';
 
 const uuidSchema = z.string().uuid('Geçersiz ID formatı');
 const positiveNumberSchema = z.number().positive('Değer pozitif olmalıdır');
-const currencySchema = z.enum(['TRY', 'USD', 'EUR', 'GBP']).default('TRY');
+const currencySchema = CurrencySchema.default('TRY');
 const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Geçersiz tarih formatı (YYYY-MM-DD)');
 const optionalStringSchema = z.string().optional().nullable();
 
@@ -28,7 +29,7 @@ export const PaymentSchema = z.object({
   tenantId: z.string().uuid(),
   orderId: z.string().uuid(),
   amount: z.number().positive(),
-  currency: z.string().default('TRY'),
+  currency: currencySchema,
   method: PaymentMethodSchema,
   paidAt: z.string(),
   note: z.string().nullable().optional(),
@@ -40,7 +41,7 @@ export type Payment = z.infer<typeof PaymentSchema>;
 export const CreatePaymentSchema = z.object({
   orderId: z.string().uuid(),
   amount: z.number().positive('Tutar pozitif olmalı'),
-  currency: z.string().default('TRY'),
+  currency: currencySchema,
   method: PaymentMethodSchema,
   paidAt: z.string().datetime().optional(),
   note: z.string().optional(),
@@ -126,7 +127,7 @@ export const EmployeeLedgerEntrySchema = z.object({
   employeeId: z.string().uuid(),
   kind: LedgerEntryKindSchema,
   amount: z.number().positive(),
-  currency: z.string().default('TRY'),
+  currency: currencySchema,
   entryDate: z.string(), // YYYY-MM-DD
   note: z.string().nullable().optional(),
   createdBy: z.string().uuid().nullable().optional(),
@@ -138,7 +139,7 @@ export const CreateLedgerEntrySchema = z.object({
   employeeId: z.string().uuid(),
   kind: LedgerEntryKindSchema,
   amount: z.number().positive('Tutar pozitif olmalı'),
-  currency: z.string().default('TRY'),
+  currency: currencySchema,
   entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD formatında olmalı'),
   note: z.string().optional(),
 });
@@ -161,6 +162,8 @@ export interface OrderWithPayments {
   orderNumber: string;
   customerName: string;
   status: string;
+  date?: string;
+  deliveryDate?: string;
   totalAmount: number;
   paidAmount: number;
   remainingAmount: number;
