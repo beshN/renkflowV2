@@ -205,7 +205,7 @@ export default function InventoryDashboardPage() {
                 ))
               )}
             </div>
-          </div>
+          </Card>
 
           {/* Stock Alerts */}
           <Card variant="glass" className="p-0 overflow-hidden">
@@ -257,7 +257,7 @@ export default function InventoryDashboardPage() {
                 ))
               )}
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* Quick Actions */}
