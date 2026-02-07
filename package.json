@@ -12,7 +12,7 @@
     "dev:mobile": "cd apps/mobile && npm start",
     "build:web": "cd apps/web && npm run build",
     "build:dashboard": "cd apps/dashboard && npm run build",
-    "vercel-build": "cd apps/web && npm run build",
+    "vercel-build": "cd apps/web && npm run build && cd ../.. && rm -rf .next public && cp -R apps/web/.next .next && cp -R apps/web/public public",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "test": "npm run test --workspaces",
     "clean": "find . -name 'node_modules' -type d -prune -exec rm -rf '{}' + && find . -name '.next' -type d -prune -exec rm -rf '{}' +"
