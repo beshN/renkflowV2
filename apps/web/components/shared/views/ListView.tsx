@@ -137,7 +137,7 @@ function createColumns(
           type="checkbox"
           checked={row.getIsSelected()}
           onChange={row.getToggleSelectedHandler()}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
           className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
         />
       ),
@@ -339,7 +339,7 @@ function ActionMenu({
   return (
     <div className="relative">
       <button
-        onClick={(e) => {
+        onClick={(e: React.MouseEvent) => {
           e.stopPropagation();
           setOpen(!open);
         }}

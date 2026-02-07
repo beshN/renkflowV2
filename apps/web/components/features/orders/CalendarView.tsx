@@ -135,7 +135,7 @@ export function CalendarView({ orders }: CalendarViewProps) {
                             key={order.id}
                             href={`/orders/${order.id}`}
                             className="block"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e: React.MouseEvent) => e.stopPropagation()}
                           >
                             <div
                               className={`text-[10px] px-1.5 py-0.5 rounded truncate ${statusInfo.className} hover:opacity-80 transition-opacity leading-tight`}

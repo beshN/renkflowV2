@@ -196,7 +196,7 @@ export function DocumentViewer({ isOpen, onClose, documentUrl, documentName }: D
             width={1200}
             height={800}
             className="object-contain"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
           />
         </div>
       </div>,

@@ -86,7 +86,7 @@ export function OrderTable({ orders, onDelete, onStatusChange, onSort, sortConfi
                     <Link
                         href={`/orders/${order.id}`}
                         className="font-medium text-slate-900 dark:text-white hover:text-blue-600 transition-colors"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
                     >
                         #{(order.orderNumber || order.id).slice(0, 8)}
                     </Link>
@@ -107,7 +107,7 @@ export function OrderTable({ orders, onDelete, onStatusChange, onSort, sortConfi
                   {formatCurrency(order.totalAmount, order.currency)}
                 </td>
                 <td className="py-4 px-6">
-                  <div onClick={(e) => handleStatusClick(e, order)} className="cursor-pointer hover:scale-105 transition-transform inline-block">
+                  <div onClick={(e: React.MouseEvent) => handleStatusClick(e, order)} className="cursor-pointer hover:scale-105 transition-transform inline-block">
                     <span
                         className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${statusInfo.color.replace('text-', 'border-').replace('600', '200')} ${statusInfo.bgColor} bg-opacity-10`}
                     >
@@ -143,7 +143,7 @@ export function OrderTable({ orders, onDelete, onStatusChange, onSort, sortConfi
                          {onDelete && user?.role === 'admin' && (
                              <div className="absolute right-8 top-1/2 -translate-y-1/2 hidden group-hover/actions:flex bg-white dark:bg-slate-800 shadow-lg rounded-lg border border-slate-100 dark:border-slate-700 p-1">
                                 <button
-                                    onClick={(e) => {
+                                    onClick={(e: React.MouseEvent) => {
                                     e.stopPropagation();
                                     onDelete(order.id);
                                     }}
