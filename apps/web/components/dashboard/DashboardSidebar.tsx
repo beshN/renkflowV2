@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -99,7 +99,7 @@ export function DashboardSidebar() {
               <li key={item.label}>
                 <Link
                   href={item.href}
-                  onClick={(e) => {
+                  onClick={(e: MouseEvent<HTMLAnchorElement>) => {
                     if (item.hasSubmenu) {
                       e.preventDefault();
                       toggleMenu(item.label);
