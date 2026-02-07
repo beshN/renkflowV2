@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { Suspense } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import {
   getSuperDashboardActivityWidget,
@@ -15,21 +14,10 @@ function formatMoney(value: number): string {
   }).format(value || 0);
 }
 
-function WidgetSkeleton({ title }: { title: string }) {
-  return (
-    <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-      <p className="text-sm font-medium text-slate-500 mb-3">{title}</p>
-      <div className="space-y-2">
-        <div className="h-4 rounded bg-slate-200 dark:bg-slate-800 animate-pulse" />
-        <div className="h-4 rounded bg-slate-200 dark:bg-slate-800 animate-pulse" />
-        <div className="h-4 rounded bg-slate-200 dark:bg-slate-800 animate-pulse" />
-      </div>
-    </section>
-  );
-}
+type InventoryWidgetData = Awaited<ReturnType<typeof getSuperDashboardInventoryWidget>>;
+type ActivityWidgetData = Awaited<ReturnType<typeof getSuperDashboardActivityWidget>>;
 
-async function InventoryWidgetSection() {
-  const inventory = await getSuperDashboardInventoryWidget();
+function InventoryWidgetSection({ inventory }: { inventory: InventoryWidgetData }) {
 
   if (!inventory.authorized) {
     return (
@@ -68,8 +56,7 @@ async function InventoryWidgetSection() {
   );
 }
 
-async function ActivityWidgetSection() {
-  const activity = await getSuperDashboardActivityWidget();
+function ActivityWidgetSection({ activity }: { activity: ActivityWidgetData }) {
 
   if (!activity.authorized) {
     return (
@@ -103,7 +90,11 @@ async function ActivityWidgetSection() {
 }
 
 export default async function DashboardPage() {
-  const data = await getSuperDashboardCoreData();
+  const [data, inventory, activity] = await Promise.all([
+    getSuperDashboardCoreData(),
+    getSuperDashboardInventoryWidget(),
+    getSuperDashboardActivityWidget(),
+  ]);
 
   const totalStatus = data.orders.byStatus.pending + data.orders.byStatus.inProduction + data.orders.byStatus.delivered;
   const pendingPct = totalStatus ? Math.round((data.orders.byStatus.pending / totalStatus) * 100) : 0;
@@ -188,13 +179,8 @@ export default async function DashboardPage() {
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Suspense fallback={<WidgetSkeleton title="Envanter" />}>
-            <InventoryWidgetSection />
-          </Suspense>
-
-          <Suspense fallback={<WidgetSkeleton title="Son Aktivite" />}>
-            <ActivityWidgetSection />
-          </Suspense>
+          <InventoryWidgetSection inventory={inventory} />
+          <ActivityWidgetSection activity={activity} />
         </section>
       </main>
     </div>
