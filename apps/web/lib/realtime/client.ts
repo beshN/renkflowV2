@@ -77,7 +77,11 @@ class RealtimeClient {
     this.userId = userId || null;
     this.userName = userName || null;
 
-    const socketUrl = url || process.env.NEXT_PUBLIC_SOCKET_URL || '/';
+    const socketUrl = url || process.env.NEXT_PUBLIC_SOCKET_URL;
+    if (!socketUrl) {
+      this.updateConnectionState('disconnected');
+      return;
+    }
 
     this.socket = io(socketUrl, {
       transports: ['websocket', 'polling'],

@@ -20,6 +20,19 @@ export class NeonOrderService implements IOrderService {
       }
     }
   }
+
+  private async resolveDocumentUrl(filePath: string | null | undefined): Promise<string> {
+    if (!filePath) return '';
+    try {
+      return await getFileUrl(filePath);
+    } catch (error) {
+      console.warn('[NeonOrderService] Document URL resolve fallback:', filePath, error);
+      if (process.env.R2_PUBLIC_URL) {
+        return `${process.env.R2_PUBLIC_URL}/${filePath}`;
+      }
+      return filePath;
+    }
+  }
   
   async getOrders(tenantId: string): Promise<Order[]> {
     // console.log('[NeonOrderService] getOrders called for tenant:', tenantId);
@@ -51,7 +64,7 @@ export class NeonOrderService implements IOrderService {
       const documents = await Promise.all((row.documents || []).map(async (doc: any) => ({
         id: doc.id,
         name: doc.name,
-        url: doc.file_path ? await getFileUrl(doc.file_path) : '',
+        url: await this.resolveDocumentUrl(doc.file_path),
         size: doc.size,
         uploadedAt: doc.uploadedAt
       })));
@@ -120,7 +133,7 @@ export class NeonOrderService implements IOrderService {
     const documents = await Promise.all((row.documents || []).map(async (doc: any) => ({
       id: doc.id,
       name: doc.name,
-      url: doc.file_path ? await getFileUrl(doc.file_path) : '',
+      url: await this.resolveDocumentUrl(doc.file_path),
       size: doc.size,
       uploadedAt: doc.uploadedAt
     })));

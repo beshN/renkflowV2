@@ -16,6 +16,7 @@ import {
   CreateLedgerEntryInput,
   CreateLedgerEntrySchema,
 } from '@/lib/types/finance';
+import { isMissingRelationError, tableExists } from '@/lib/db/schema-guard';
 
 // ============================================
 // Employee Actions
@@ -68,35 +69,47 @@ export async function listEmployees(includeInactive: boolean = false): Promise<E
   const context = await getServerUserContext();
   requirePermission(context, 'finance.employees.view');
 
-  let result;
-  
-  if (includeInactive) {
-    result = await sql`
-      SELECT * FROM employees 
-      WHERE tenant_id = ${context.tenantId}
-      ORDER BY full_name ASC
-    `;
-  } else {
-    result = await sql`
-      SELECT * FROM employees 
-      WHERE tenant_id = ${context.tenantId}
-      AND active = true
-      ORDER BY full_name ASC
-    `;
+  const employeesTableReady = await tableExists('employees');
+  if (!employeesTableReady) {
+    return [];
   }
 
-  const rows = result as any[];
-  return rows.map((row: any) => ({
-    id: row.id,
-    tenantId: row.tenant_id,
-    fullName: row.full_name,
-    title: row.title,
-    email: row.email,
-    phone: row.phone,
-    active: row.active,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
+  try {
+    let result;
+    
+    if (includeInactive) {
+      result = await sql`
+        SELECT * FROM employees 
+        WHERE tenant_id = ${context.tenantId}
+        ORDER BY full_name ASC
+      `;
+    } else {
+      result = await sql`
+        SELECT * FROM employees 
+        WHERE tenant_id = ${context.tenantId}
+        AND active = true
+        ORDER BY full_name ASC
+      `;
+    }
+
+    const rows = result as any[];
+    return rows.map((row: any) => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      fullName: row.full_name,
+      title: row.title,
+      email: row.email,
+      phone: row.phone,
+      active: row.active,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  } catch (error) {
+    if (isMissingRelationError(error, ['employees'])) {
+      return [];
+    }
+    throw error;
+  }
 }
 
 /**

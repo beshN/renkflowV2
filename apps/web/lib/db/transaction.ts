@@ -22,6 +22,26 @@ class RollbackError extends Error {
   }
 }
 
+const ALLOWED_ISOLATION_LEVELS: IsolationLevel[] = [
+  'READ COMMITTED',
+  'REPEATABLE READ',
+  'SERIALIZABLE',
+];
+
+function sanitizeIsolationLevel(level: IsolationLevel): IsolationLevel {
+  if (!ALLOWED_ISOLATION_LEVELS.includes(level)) {
+    throw new Error(`Unsupported isolation level: ${level}`);
+  }
+  return level;
+}
+
+function sanitizeIdentifier(identifier: string): string {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(identifier)) {
+    throw new Error(`Invalid SQL identifier: ${identifier}`);
+  }
+  return identifier;
+}
+
 /**
  * Execute a function within a database transaction
  * Automatically commits on success, rolls back on any error
@@ -49,7 +69,7 @@ export async function withTransaction<T>(
 
   // Create a dedicated connection for this transaction
   const sql = neon(databaseUrl);
-  const isolationLevel = options.isolationLevel || 'READ COMMITTED';
+  const isolationLevel = sanitizeIsolationLevel(options.isolationLevel || 'READ COMMITTED');
   const timeout = options.timeout || 30000; // 30 seconds default
   
   let shouldRollback = false;
@@ -63,7 +83,7 @@ export async function withTransaction<T>(
 
   try {
     // Start transaction with isolation level
-    await sql`BEGIN TRANSACTION ISOLATION LEVEL ${sql(isolationLevel)}`;
+    await sql(`BEGIN TRANSACTION ISOLATION LEVEL ${isolationLevel}`);
     
     // Execute the callback with timeout
     const result = await Promise.race([
@@ -74,7 +94,7 @@ export async function withTransaction<T>(
     ]);
     
     // Commit if no errors
-    await sql`COMMIT`;
+    await sql('COMMIT');
     
     const duration = Date.now() - startTime;
     if (duration > 5000) {
@@ -99,7 +119,7 @@ export async function withTransaction<T>(
     
     // Always rollback on error
     try {
-      await sql`ROLLBACK`;
+      await sql('ROLLBACK');
     } catch (rollbackError) {
       console.error('[Transaction] Rollback failed:', rollbackError);
     }
@@ -121,14 +141,15 @@ export async function withSavepoint<T>(
   name: string,
   callback: () => Promise<T>
 ): Promise<T> {
-  await sql`SAVEPOINT ${sql(name)}`;
+  const safeName = sanitizeIdentifier(name);
+  await sql(`SAVEPOINT ${safeName}`);
   
   try {
     const result = await callback();
-    await sql`RELEASE SAVEPOINT ${sql(name)}`;
+    await sql(`RELEASE SAVEPOINT ${safeName}`);
     return result;
   } catch (error) {
-    await sql`ROLLBACK TO SAVEPOINT ${sql(name)}`;
+    await sql(`ROLLBACK TO SAVEPOINT ${safeName}`);
     throw error;
   }
 }

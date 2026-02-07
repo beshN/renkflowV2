@@ -11,6 +11,7 @@ import {
   requirePermission,
 } from '@/lib/auth/serverAuth';
 import { AuditLogService } from '@/lib/services/auditLog.service';
+import { isMissingRelationError, tableExists } from '@/lib/db/schema-guard';
 
 // ============================================
 // Types
@@ -83,159 +84,216 @@ export async function getFinanceOverview(): Promise<FinanceOverviewData> {
   const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-
-  // Parallel queries for performance
-  const [
-    thisMonthPaymentsResult,
-    lastMonthPaymentsResult,
-    outstandingResult,
-    payrollThisMonth,
-    payrollLastMonth,
-    employeeCounts,
-    orderCounts,
-    documentCounts,
-  ] = await Promise.all([
-    // This month payments
-    sql`
-      SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count
-      FROM payments
-      WHERE tenant_id = ${context.tenantId}
-      AND paid_at >= ${thisMonthStart.toISOString()}
-    `,
-    
-    // Last month payments
-    sql`
-      SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count
-      FROM payments
-      WHERE tenant_id = ${context.tenantId}
-      AND paid_at >= ${lastMonthStart.toISOString()}
-      AND paid_at <= ${lastMonthEnd.toISOString()}
-    `,
-    
-    // Outstanding receivables (orders with remaining balance)
-    sql`
-      SELECT 
-        COALESCE(SUM(o.total_amount), 0) as total_revenue,
-        COALESCE(SUM(COALESCE(p.paid, 0)), 0) as total_paid
-      FROM orders o
-      LEFT JOIN (
-        SELECT order_id, SUM(amount) as paid
-        FROM payments
-        WHERE tenant_id = ${context.tenantId}
-        GROUP BY order_id
-      ) p ON o.id = p.order_id
-      WHERE o.tenant_id = ${context.tenantId}
-    `,
-    
-    // This month payroll
-    sql`
-      SELECT COALESCE(SUM(CASE WHEN kind IN ('salary', 'payment') THEN amount ELSE 0 END), 0) as total
-      FROM employee_ledger_entries
-      WHERE tenant_id = ${context.tenantId}
-      AND entry_date >= ${thisMonthStart.toISOString().split('T')[0]}
-    `,
-    
-    // Last month payroll
-    sql`
-      SELECT COALESCE(SUM(CASE WHEN kind IN ('salary', 'payment') THEN amount ELSE 0 END), 0) as total
-      FROM employee_ledger_entries
-      WHERE tenant_id = ${context.tenantId}
-      AND entry_date >= ${lastMonthStart.toISOString().split('T')[0]}
-      AND entry_date <= ${lastMonthEnd.toISOString().split('T')[0]}
-    `,
-    
-    // Employee counts
-    sql`
-      SELECT 
-        COUNT(*) as total,
-        COUNT(*) FILTER (WHERE active = true) as active
-      FROM employees
-      WHERE tenant_id = ${context.tenantId}
-    `,
-    
-    // Order payment status counts
-    sql`
-      SELECT 
-        COUNT(*) as total,
-        COUNT(*) FILTER (WHERE COALESCE(p.paid, 0) >= o.total_amount) as paid,
-        COUNT(*) FILTER (WHERE COALESCE(p.paid, 0) > 0 AND COALESCE(p.paid, 0) < o.total_amount) as partial,
-        COUNT(*) FILTER (WHERE COALESCE(p.paid, 0) = 0) as unpaid
-      FROM orders o
-      LEFT JOIN (
-        SELECT order_id, SUM(amount) as paid
-        FROM payments
-        WHERE tenant_id = ${context.tenantId}
-        GROUP BY order_id
-      ) p ON o.id = p.order_id
-      WHERE o.tenant_id = ${context.tenantId}
-    `,
-    
-    // Document counts
-    sql`
-      SELECT 
-        COUNT(*) as total,
-        COUNT(*) FILTER (WHERE uploaded_at >= ${thisMonthStart.toISOString()}) as this_month
-      FROM order_documents
-      WHERE tenant_id = ${context.tenantId}
-    `,
+  const [hasPayments, hasLedger, hasEmployees, hasOrderDocuments, hasDocuments] = await Promise.all([
+    tableExists('payments'),
+    tableExists('employee_ledger_entries'),
+    tableExists('employees'),
+    tableExists('order_documents'),
+    tableExists('documents'),
   ]);
 
-  // Cast all results to any[]
-  const thisMonthPaymentsRows = thisMonthPaymentsResult as any[];
-  const lastMonthPaymentsRows = lastMonthPaymentsResult as any[];
-  const outstandingRows = outstandingResult as any[];
-  const payrollThisMonthRows = payrollThisMonth as any[];
-  const payrollLastMonthRows = payrollLastMonth as any[];
-  const employeeCountsRows = employeeCounts as any[];
-  const orderCountsRows = orderCounts as any[];
-  const documentCountsRows = documentCounts as any[];
+  try {
+    const [
+      thisMonthPaymentsResult,
+      lastMonthPaymentsResult,
+      outstandingResult,
+      payrollThisMonth,
+      payrollLastMonth,
+      employeeCounts,
+      orderCounts,
+      documentCounts,
+    ] = await Promise.all([
+      hasPayments
+        ? sql`
+            SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count
+            FROM payments
+            WHERE tenant_id = ${context.tenantId}
+            AND paid_at >= ${thisMonthStart.toISOString()}
+          `
+        : Promise.resolve([{ total: '0', count: '0' }]),
+      hasPayments
+        ? sql`
+            SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count
+            FROM payments
+            WHERE tenant_id = ${context.tenantId}
+            AND paid_at >= ${lastMonthStart.toISOString()}
+            AND paid_at <= ${lastMonthEnd.toISOString()}
+          `
+        : Promise.resolve([{ total: '0', count: '0' }]),
+      hasPayments
+        ? sql`
+            SELECT 
+              COALESCE(SUM(o.total_amount), 0) as total_revenue,
+              COALESCE(SUM(COALESCE(p.paid, 0)), 0) as total_paid
+            FROM orders o
+            LEFT JOIN (
+              SELECT order_id, SUM(amount) as paid
+              FROM payments
+              WHERE tenant_id = ${context.tenantId}
+              GROUP BY order_id
+            ) p ON o.id = p.order_id
+            WHERE o.tenant_id = ${context.tenantId}
+          `
+        : sql`
+            SELECT 
+              COALESCE(SUM(total_amount), 0) as total_revenue,
+              0 as total_paid
+            FROM orders
+            WHERE tenant_id = ${context.tenantId}
+          `,
+      hasLedger
+        ? sql`
+            SELECT COALESCE(SUM(CASE WHEN kind IN ('salary', 'payment') THEN amount ELSE 0 END), 0) as total
+            FROM employee_ledger_entries
+            WHERE tenant_id = ${context.tenantId}
+            AND entry_date >= ${thisMonthStart.toISOString().split('T')[0]}
+          `
+        : Promise.resolve([{ total: '0' }]),
+      hasLedger
+        ? sql`
+            SELECT COALESCE(SUM(CASE WHEN kind IN ('salary', 'payment') THEN amount ELSE 0 END), 0) as total
+            FROM employee_ledger_entries
+            WHERE tenant_id = ${context.tenantId}
+            AND entry_date >= ${lastMonthStart.toISOString().split('T')[0]}
+            AND entry_date <= ${lastMonthEnd.toISOString().split('T')[0]}
+          `
+        : Promise.resolve([{ total: '0' }]),
+      hasEmployees
+        ? sql`
+            SELECT 
+              COUNT(*) as total,
+              COUNT(*) FILTER (WHERE active = true) as active
+            FROM employees
+            WHERE tenant_id = ${context.tenantId}
+          `
+        : Promise.resolve([{ total: '0', active: '0' }]),
+      hasPayments
+        ? sql`
+            SELECT 
+              COUNT(*) as total,
+              COUNT(*) FILTER (WHERE COALESCE(p.paid, 0) >= o.total_amount) as paid,
+              COUNT(*) FILTER (WHERE COALESCE(p.paid, 0) > 0 AND COALESCE(p.paid, 0) < o.total_amount) as partial,
+              COUNT(*) FILTER (WHERE COALESCE(p.paid, 0) = 0) as unpaid
+            FROM orders o
+            LEFT JOIN (
+              SELECT order_id, SUM(amount) as paid
+              FROM payments
+              WHERE tenant_id = ${context.tenantId}
+              GROUP BY order_id
+            ) p ON o.id = p.order_id
+            WHERE o.tenant_id = ${context.tenantId}
+          `
+        : sql`
+            SELECT 
+              COUNT(*) as total,
+              0 as paid,
+              0 as partial,
+              COUNT(*) as unpaid
+            FROM orders
+            WHERE tenant_id = ${context.tenantId}
+          `,
+      hasOrderDocuments
+        ? sql`
+            SELECT 
+              COUNT(*) as total,
+              COUNT(*) FILTER (WHERE uploaded_at >= ${thisMonthStart.toISOString()}) as this_month
+            FROM order_documents
+            WHERE tenant_id = ${context.tenantId}
+          `
+        : hasDocuments
+          ? sql`
+              SELECT
+                COUNT(*) as total,
+                COUNT(*) FILTER (WHERE created_at >= ${thisMonthStart.toISOString()}) as this_month
+              FROM documents
+              WHERE tenant_id = ${context.tenantId}
+            `
+          : Promise.resolve([{ total: '0', this_month: '0' }]),
+    ]);
 
-  const thisMonthPayments = parseFloat(thisMonthPaymentsRows[0]?.total || '0');
-  const lastMonthPayments = parseFloat(lastMonthPaymentsRows[0]?.total || '0');
-  const totalRevenue = parseFloat(outstandingRows[0]?.total_revenue || '0');
-  const totalPaid = parseFloat(outstandingRows[0]?.total_paid || '0');
-  const thisMonthPayrollTotal = parseFloat(payrollThisMonthRows[0]?.total || '0');
-  const lastMonthPayrollTotal = parseFloat(payrollLastMonthRows[0]?.total || '0');
+    // Cast all results to any[]
+    const thisMonthPaymentsRows = thisMonthPaymentsResult as any[];
+    const lastMonthPaymentsRows = lastMonthPaymentsResult as any[];
+    const outstandingRows = outstandingResult as any[];
+    const payrollThisMonthRows = payrollThisMonth as any[];
+    const payrollLastMonthRows = payrollLastMonth as any[];
+    const employeeCountsRows = employeeCounts as any[];
+    const orderCountsRows = orderCounts as any[];
+    const documentCountsRows = documentCounts as any[];
 
-  // Calculate trends
-  const paymentTrend = lastMonthPayments > 0 
-    ? ((thisMonthPayments - lastMonthPayments) / lastMonthPayments) * 100 
-    : 0;
-  
-  const payrollTrend = lastMonthPayrollTotal > 0 
-    ? ((thisMonthPayrollTotal - lastMonthPayrollTotal) / lastMonthPayrollTotal) * 100 
-    : 0;
+    const thisMonthPayments = parseFloat(thisMonthPaymentsRows[0]?.total || '0');
+    const lastMonthPayments = parseFloat(lastMonthPaymentsRows[0]?.total || '0');
+    const totalRevenue = parseFloat(outstandingRows[0]?.total_revenue || '0');
+    const totalPaid = parseFloat(outstandingRows[0]?.total_paid || '0');
+    const thisMonthPayrollTotal = parseFloat(payrollThisMonthRows[0]?.total || '0');
+    const lastMonthPayrollTotal = parseFloat(payrollLastMonthRows[0]?.total || '0');
 
-  // Collection rate
-  const collectionRate = totalRevenue > 0 ? (totalPaid / totalRevenue) * 100 : 0;
+    // Calculate trends
+    const paymentTrend = lastMonthPayments > 0 
+      ? ((thisMonthPayments - lastMonthPayments) / lastMonthPayments) * 100 
+      : 0;
+    
+    const payrollTrend = lastMonthPayrollTotal > 0 
+      ? ((thisMonthPayrollTotal - lastMonthPayrollTotal) / lastMonthPayrollTotal) * 100 
+      : 0;
 
-  return {
-    thisMonthRevenue: totalRevenue,
-    lastMonthRevenue: totalRevenue, // Would need historical tracking
-    thisMonthPayments,
-    lastMonthPayments,
-    outstandingReceivables: Math.max(0, totalRevenue - totalPaid),
-    collectionRate,
-    
-    thisMonthPayroll: thisMonthPayrollTotal,
-    lastMonthPayroll: lastMonthPayrollTotal,
-    employeeCount: parseInt(employeeCountsRows[0]?.total || '0'),
-    activeEmployeeCount: parseInt(employeeCountsRows[0]?.active || '0'),
-    
-    orderCount: parseInt(orderCountsRows[0]?.total || '0'),
-    paidOrderCount: parseInt(orderCountsRows[0]?.paid || '0'),
-    partialPaidOrderCount: parseInt(orderCountsRows[0]?.partial || '0'),
-    unpaidOrderCount: parseInt(orderCountsRows[0]?.unpaid || '0'),
-    
-    documentCount: parseInt(documentCountsRows[0]?.total || '0'),
-    thisMonthDocumentCount: parseInt(documentCountsRows[0]?.this_month || '0'),
-    
-    paymentTrend,
-    payrollTrend,
-    
-    periodStart: thisMonthStart.toISOString(),
-    periodEnd: now.toISOString(),
-  };
+    // Collection rate
+    const collectionRate = totalRevenue > 0 ? (totalPaid / totalRevenue) * 100 : 0;
+
+    return {
+      thisMonthRevenue: totalRevenue,
+      lastMonthRevenue: totalRevenue, // Would need historical tracking
+      thisMonthPayments,
+      lastMonthPayments,
+      outstandingReceivables: Math.max(0, totalRevenue - totalPaid),
+      collectionRate,
+      
+      thisMonthPayroll: thisMonthPayrollTotal,
+      lastMonthPayroll: lastMonthPayrollTotal,
+      employeeCount: parseInt(employeeCountsRows[0]?.total || '0'),
+      activeEmployeeCount: parseInt(employeeCountsRows[0]?.active || '0'),
+      
+      orderCount: parseInt(orderCountsRows[0]?.total || '0'),
+      paidOrderCount: parseInt(orderCountsRows[0]?.paid || '0'),
+      partialPaidOrderCount: parseInt(orderCountsRows[0]?.partial || '0'),
+      unpaidOrderCount: parseInt(orderCountsRows[0]?.unpaid || '0'),
+      
+      documentCount: parseInt(documentCountsRows[0]?.total || '0'),
+      thisMonthDocumentCount: parseInt(documentCountsRows[0]?.this_month || '0'),
+      
+      paymentTrend,
+      payrollTrend,
+      
+      periodStart: thisMonthStart.toISOString(),
+      periodEnd: now.toISOString(),
+    };
+  } catch (error) {
+    if (isMissingRelationError(error, ['payments', 'order_documents', 'documents', 'employees', 'employee_ledger_entries'])) {
+      return {
+        thisMonthRevenue: 0,
+        lastMonthRevenue: 0,
+        thisMonthPayments: 0,
+        lastMonthPayments: 0,
+        outstandingReceivables: 0,
+        collectionRate: 0,
+        thisMonthPayroll: 0,
+        lastMonthPayroll: 0,
+        employeeCount: 0,
+        activeEmployeeCount: 0,
+        orderCount: 0,
+        paidOrderCount: 0,
+        partialPaidOrderCount: 0,
+        unpaidOrderCount: 0,
+        documentCount: 0,
+        thisMonthDocumentCount: 0,
+        paymentTrend: 0,
+        payrollTrend: 0,
+        periodStart: thisMonthStart.toISOString(),
+        periodEnd: now.toISOString(),
+      };
+    }
+    throw error;
+  }
 }
 
 // ============================================
