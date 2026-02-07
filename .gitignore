@@ -9,6 +9,8 @@ node_modules/
 temp/
 tmp/
 .npm/
+**/.npm-cache/
+.npm-cache/
 .eslintcache
 output/
 test-output.css
