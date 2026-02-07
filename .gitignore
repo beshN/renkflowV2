@@ -1,17 +1,33 @@
 # Dependencies
-node_modules
+node_modules/
+*/node_modules/
+**/.DS_Store
+.codex/
+.vscode/
+.idea/
+*.log
+temp/
+tmp/
+.npm/
+.eslintcache
+output/
+test-output.css
+test-results/
+playwright-report/
+email-html-output/
+.vercel
 /.pnp
 .pnp.js
 
 # Testing
 /coverage
 
-# Next.js
+# Build outputs
 /.next/
 /out/
-
-# Production
-/build
+/dist/
+/build/
+*.tsbuildinfo
 
 # Misc
 .DS_Store

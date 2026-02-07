@@ -1,7 +1,0 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "cd RenkFlow/renkflow-nextjs && npm run build",
-  "devCommand": "cd RenkFlow/renkflow-nextjs && npm run dev",
-  "installCommand": "cd RenkFlow/renkflow-nextjs && npm install",
-  "outputDirectory": "RenkFlow/renkflow-nextjs/.next"
-}
