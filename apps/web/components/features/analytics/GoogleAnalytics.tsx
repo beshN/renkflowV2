@@ -2,6 +2,14 @@
 
 import Script from 'next/script';
 
+// Cast Script to any to bypass Vercel's strict Next.js 16 type checking
+const ScriptComponent = Script as React.ComponentType<{
+  id?: string;
+  strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive' | 'worker';
+  src?: string;
+  children?: React.ReactNode;
+}>;
+
 export default function GoogleAnalytics({ GA_MEASUREMENT_ID }: { GA_MEASUREMENT_ID: string }) {
   if (!GA_MEASUREMENT_ID) {
     return null;
@@ -13,16 +21,12 @@ export default function GoogleAnalytics({ GA_MEASUREMENT_ID }: { GA_MEASUREMENT_
 
   return (
     <>
-      {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
-      {/* @ts-ignore - Next.js 16 Script types incompatible with Vercel build */}
-      <Script
+      <ScriptComponent
         id="gtag-external"
         strategy="afterInteractive"
         src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
       />
-      {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
-      {/* @ts-ignore - Next.js 16 Script types incompatible with Vercel build */}
-      <Script
+      <ScriptComponent
         id="google-analytics"
         strategy="afterInteractive"
       >
@@ -34,7 +38,7 @@ export default function GoogleAnalytics({ GA_MEASUREMENT_ID }: { GA_MEASUREMENT_
             page_path: window.location.pathname,
           });
         `}
-      </Script>
+      </ScriptComponent>
     </>
   );
 }
