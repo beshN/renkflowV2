@@ -207,7 +207,7 @@ const CreatePresetModal: React.FC<{
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}
           className="w-full max-w-md glass-panel shadow-2xl overflow-hidden"
         >
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -336,7 +336,7 @@ const PresetCard: React.FC<{
         {!preset.isSystem && (
           <div className="relative">
             <button
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent<HTMLElement>) => {
                 e.stopPropagation();
                 setShowMenu(!showMenu);
               }}
@@ -352,7 +352,7 @@ const PresetCard: React.FC<{
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}
                 >
                   <button
                     onClick={() => { onToggleFavorite?.(); setShowMenu(false); }}

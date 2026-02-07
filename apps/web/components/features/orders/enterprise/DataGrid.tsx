@@ -315,7 +315,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
           type="checkbox"
           checked={selectedIds.has(row.original.id)}
           onChange={() => toggleRowSelection(row.original.id)}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}
           className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
         />
       ),
@@ -327,7 +327,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
       header: '',
       cell: ({ row }) => (
         <button
-          onClick={(e) => {
+          onClick={(e: React.MouseEvent<HTMLElement>) => {
             e.stopPropagation();
             toggleRowExpanded(row.original.id);
           }}
@@ -486,7 +486,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
           <button
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLElement>) => {
               e.stopPropagation();
               // Edit action
             }}
@@ -496,7 +496,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
             <Edit size={16} className="text-neutral-500" />
           </button>
           <button
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLElement>) => {
               e.stopPropagation();
               // Delete action
             }}

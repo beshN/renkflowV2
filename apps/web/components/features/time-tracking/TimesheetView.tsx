@@ -246,7 +246,7 @@ function DayColumn({
             {/* Hover Actions */}
             <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
               <button
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLElement>) => {
                   e.stopPropagation();
                   onEditEntry?.(entry.id);
                 }}
@@ -255,7 +255,7 @@ function DayColumn({
                 <Edit2 size={10} className="text-slate-400" />
               </button>
               <button
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLElement>) => {
                   e.stopPropagation();
                   onDeleteEntry?.(entry.id);
                 }}

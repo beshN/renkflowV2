@@ -2276,7 +2276,7 @@ export default function PDFViewer({
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={(e) => {
+                            onClick={(e: React.MouseEvent<HTMLElement>) => {
                               e.stopPropagation();
                               toggleBookmark(bookmark.page);
                             }}
@@ -2327,7 +2327,7 @@ export default function PDFViewer({
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={(e) => {
+                            onClick={(e: React.MouseEvent<HTMLElement>) => {
                               e.stopPropagation();
                               deleteAnnotation(annotation.id);
                             }}

@@ -308,7 +308,7 @@ export const FeaturesDashboardPreview: React.FC<FeaturesDashboardPreviewProps> =
                 ].map((item) => (
                     <div 
                         key={item.id}
-                        onClick={(e) => { e.stopPropagation(); setActiveTab(item.id); }}
+                        onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); setActiveTab(item.id); }}
                         className={`p-2.5 rounded-lg transition-all cursor-pointer relative z-40 group/item ${activeTab === item.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
                         title={item.label}
                     >

@@ -515,7 +515,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
               >
                 <span className="text-sm text-neutral-900 dark:text-white">{preset.name}</span>
                 <button
-                  onClick={(e) => {
+                  onClick={(e: React.MouseEvent<HTMLElement>) => {
                     e.stopPropagation();
                     deleteFilterPreset(preset.id);
                   }}

@@ -80,7 +80,7 @@ export function QRScanner({ onScan, onClose, isOpen }: QRScannerProps) {
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">

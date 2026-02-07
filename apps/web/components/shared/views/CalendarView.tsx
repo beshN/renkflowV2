@@ -277,7 +277,7 @@ function CalendarDayCell({
           {date.getDate()}
         </span>
         <button
-          onClick={(e) => {
+          onClick={(e: React.MouseEvent<HTMLElement>) => {
             e.stopPropagation();
             onCreateOrder?.(date);
           }}
@@ -294,7 +294,7 @@ function CalendarDayCell({
             key={event.id}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLElement>) => {
               e.stopPropagation();
               onEventClick?.(event.order);
             }}
@@ -311,7 +311,7 @@ function CalendarDayCell({
 
         {!showAll && hiddenCount > 0 && (
           <button
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLElement>) => {
               e.stopPropagation();
               setShowAll(true);
             }}
@@ -402,7 +402,7 @@ function WeekView({
                     dayEvents.slice(0, 3).map((event) => (
                       <button
                         key={event.id}
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent<HTMLElement>) => {
                           e.stopPropagation();
                           onEventClick?.(event.order);
                         }}
@@ -465,7 +465,7 @@ function DayView({
                   dayEvents.map((event) => (
                     <button
                       key={event.id}
-                      onClick={(e) => {
+                      onClick={(e: React.MouseEvent<HTMLElement>) => {
                         e.stopPropagation();
                         onEventClick?.(event.order);
                       }}

@@ -388,7 +388,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
       </div>
 
       {/* CSS for shimmer animation */}
-      <style jsx global>{`
+      <style>{`
         @keyframes shimmer {
           0% {
             background-position: 200% 0;

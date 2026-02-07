@@ -262,11 +262,11 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
         {user?.role === 'admin' && (
           <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <button
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent<HTMLElement>) => {
                 e.stopPropagation();
                 showToast('Belge yükleme için sipariş detayına gidin', 'info');
               }}
-              onPointerDown={(e) => e.stopPropagation()}
+              onPointerDown={(e: React.PointerEvent<HTMLElement>) => e.stopPropagation()}
               className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 font-medium"
             >
               <Paperclip size={14} />

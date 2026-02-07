@@ -160,7 +160,7 @@ export const PDFSidebar: React.FC<PDFSidebarProps> = ({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent<HTMLElement>) => {
                       e.stopPropagation();
                       removeBookmark(bookmark.page);
                     }}
@@ -228,7 +228,7 @@ export const PDFSidebar: React.FC<PDFSidebarProps> = ({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent<HTMLElement>) => {
                       e.stopPropagation();
                       deleteAnnotation(annotation.id);
                     }}

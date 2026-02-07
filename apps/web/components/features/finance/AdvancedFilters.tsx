@@ -147,7 +147,7 @@ export function AdvancedFilters({
           {onRefresh && (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onRefresh(); }}
+              onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); onRefresh(); }}
               disabled={isRefreshing}
               className="p-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
               title="Yenile"
@@ -159,7 +159,7 @@ export function AdvancedFilters({
           {onExport && (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onExport(); }}
+              onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); onExport(); }}
               disabled={isExporting}
               className="p-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
               title="Dışa Aktar"

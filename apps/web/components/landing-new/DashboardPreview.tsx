@@ -424,7 +424,7 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                 ].map((item) => (
                     <div 
                         key={item.id}
-                        onClick={(e) => { e.stopPropagation(); setActiveTab(item.id); }}
+                        onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); setActiveTab(item.id); }}
                         className={`p-2 rounded-lg transition-all cursor-pointer relative z-40 ${activeTab === item.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 scale-105' : 'text-muted-foreground hover:bg-secondary hover:scale-105'}`}
                     >
                         <item.icon size={20} />

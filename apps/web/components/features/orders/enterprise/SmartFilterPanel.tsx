@@ -200,7 +200,7 @@ export function SmartFilterPanel({ uniqueCustomers, uniqueProducts }: SmartFilte
                       {preset.name}
                     </span>
                     <button
-                      onClick={(e) => {
+                      onClick={(e: React.MouseEvent<HTMLElement>) => {
                         e.stopPropagation();
                         deleteFilterPreset(preset.id);
                       }}
