@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo, useState, type MouseEvent, type PointerEvent } from 'react';
 import Link from 'next/link';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -95,7 +95,7 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
     return 'low';
   }, [order.priority, order.totalAmount, deliveryInfo]);
 
-  const handleCopyId = (event: React.MouseEvent) => {
+  const handleCopyId = (event: MouseEvent<HTMLElement>) => {
     event.stopPropagation();
     event.preventDefault();
     if (navigator?.clipboard?.writeText) {
@@ -152,7 +152,7 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
                 ref={setActivatorNodeRef}
                 {...attributes}
                 {...listeners}
-                onPointerDown={(e) => {
+                onPointerDown={(e: PointerEvent<HTMLButtonElement>) => {
                   e.stopPropagation();
                 }}
                 aria-label="Siparişi sürükle"
@@ -162,11 +162,11 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
               </button>
 
               <button
-                onClick={(e) => {
+                onClick={(e: MouseEvent<HTMLButtonElement>) => {
                   e.stopPropagation();
                   setMenuOpen((prev) => !prev);
                 }}
-                onPointerDown={(e) => e.stopPropagation()}
+                onPointerDown={(e: PointerEvent<HTMLButtonElement>) => e.stopPropagation()}
                 className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-subtle-light dark:text-subtle-dark hover:text-primary"
               >
                 <MoreVertical size={18} />
@@ -176,11 +176,11 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
                   <Link
                     href={`/orders/${order.id}`}
                     className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-t-xl"
-                    onClick={(e) => {
+                    onClick={(e: MouseEvent<HTMLAnchorElement>) => {
                       e.stopPropagation();
                       setMenuOpen(false);
                     }}
-                    onPointerDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e: PointerEvent<HTMLAnchorElement>) => e.stopPropagation()}
                   >
                     <Eye size={16} />
                     Görüntüle
@@ -188,18 +188,18 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
                   <Link
                     href={`/orders/${order.id}?edit=true`}
                     className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                    onClick={(e) => {
+                    onClick={(e: MouseEvent<HTMLAnchorElement>) => {
                       e.stopPropagation();
                       setMenuOpen(false);
                     }}
-                    onPointerDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e: PointerEvent<HTMLAnchorElement>) => e.stopPropagation()}
                   >
                     <Edit size={16} />
                     Düzenle
                   </Link>
                   <button
                     onClick={handleCopyId}
-                    onPointerDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e: PointerEvent<HTMLButtonElement>) => e.stopPropagation()}
                     className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                   >
                     <Copy size={16} />
@@ -207,12 +207,12 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
                   </button>
                   {onDelete && (user?.role === 'admin' || user?.role === 'owner') && (
                     <button
-                      onClick={(e) => {
+                      onClick={(e: MouseEvent<HTMLButtonElement>) => {
                         e.stopPropagation();
                         onDelete(order.id);
                         setMenuOpen(false);
                       }}
-                      onPointerDown={(e) => e.stopPropagation()}
+                      onPointerDown={(e: PointerEvent<HTMLButtonElement>) => e.stopPropagation()}
                       className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-b-xl"
                     >
                       <Trash2 size={16} />
