@@ -1,65 +1,98 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const TRACE_FILES = [
-  path.resolve('.next/next-server.js.nft.json'),
-  path.resolve('.next/next-minimal-server.js.nft.json'),
-];
+const NEXT_DIR = path.resolve('.next');
+const APP_NODE_MODULES_DIR = path.resolve('apps/web/node_modules');
+const ROOT_NODE_MODULES_DIR = path.resolve('node_modules');
 
-const FROM_PREFIX = '../../../node_modules/';
-const ROOT_NODE_MODULES_PREFIX = '../node_modules/';
-const APP_NODE_MODULES_PREFIX = '../apps/web/node_modules/';
-
-let updatedCount = 0;
-let unresolvedCount = 0;
-
-for (const traceFile of TRACE_FILES) {
-  if (!fs.existsSync(traceFile)) {
-    continue;
+function listTraceFiles(dir, out = []) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      listTraceFiles(fullPath, out);
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith('.nft.json')) {
+      out.push(fullPath);
+    }
   }
+  return out;
+}
 
+function normalizeSlashes(value) {
+  return value.split(path.sep).join('/');
+}
+
+function extractModuleSuffix(fileRef) {
+  if (typeof fileRef !== 'string') {
+    return null;
+  }
+  let match = fileRef.match(/^(?:\.\.\/)*node_modules\/(.+)$/);
+  if (match) {
+    return match[1];
+  }
+  match = fileRef.match(/^(?:\.\.\/)*apps\/web\/node_modules\/(.+)$/);
+  if (match) {
+    return match[1];
+  }
+  return null;
+}
+
+function resolveTargetAbs(moduleSuffix) {
+  const appTarget = path.resolve(APP_NODE_MODULES_DIR, moduleSuffix);
+  if (fs.existsSync(appTarget)) {
+    return appTarget;
+  }
+  const rootTarget = path.resolve(ROOT_NODE_MODULES_DIR, moduleSuffix);
+  if (fs.existsSync(rootTarget)) {
+    return rootTarget;
+  }
+  return null;
+}
+
+if (!fs.existsSync(NEXT_DIR)) {
+  console.error('Missing .next directory; postbuild trace normalization aborted.');
+  process.exit(1);
+}
+
+const traceFiles = listTraceFiles(NEXT_DIR);
+let updatedFiles = 0;
+let normalizedRefs = 0;
+
+for (const traceFile of traceFiles) {
   const payload = JSON.parse(fs.readFileSync(traceFile, 'utf8'));
   if (!Array.isArray(payload.files)) {
     continue;
   }
 
+  const traceDir = path.dirname(traceFile);
   let changed = false;
-  payload.files = payload.files.map((filePath) => {
-    if (typeof filePath !== 'string') {
-      return filePath;
+  payload.files = payload.files.map((fileRef) => {
+    const moduleSuffix = extractModuleSuffix(fileRef);
+    if (!moduleSuffix) {
+      return fileRef;
     }
-    if (filePath.startsWith(FROM_PREFIX)) {
-      const moduleSuffix = filePath.slice(FROM_PREFIX.length);
-      const rootCandidate = `${ROOT_NODE_MODULES_PREFIX}${moduleSuffix}`;
-      const appCandidate = `${APP_NODE_MODULES_PREFIX}${moduleSuffix}`;
-      const rootCandidateAbs = path.resolve(path.dirname(traceFile), rootCandidate);
-      const appCandidateAbs = path.resolve(path.dirname(traceFile), appCandidate);
 
-      if (fs.existsSync(rootCandidateAbs)) {
-        changed = true;
-        return rootCandidate;
-      }
-      if (fs.existsSync(appCandidateAbs)) {
-        changed = true;
-        return appCandidate;
-      }
+    const targetAbs = resolveTargetAbs(moduleSuffix);
+    if (!targetAbs) {
+      return fileRef;
+    }
 
+    const relativeTarget = normalizeSlashes(path.relative(traceDir, targetAbs));
+    if (relativeTarget !== fileRef) {
       changed = true;
-      unresolvedCount += 1;
-      return rootCandidate;
+      normalizedRefs += 1;
+      return relativeTarget;
     }
-    return filePath;
+
+    return fileRef;
   });
 
   if (changed) {
     fs.writeFileSync(traceFile, JSON.stringify(payload));
-    updatedCount += 1;
+    updatedFiles += 1;
   }
-
 }
 
-if (unresolvedCount > 0) {
-  console.warn(`Trace normalization completed with ${unresolvedCount} unresolved node_modules entries.`);
-}
-
-console.log(`Trace normalization complete. Updated ${updatedCount} root trace file(s).`);
+console.log(`Trace normalization complete. Updated ${updatedFiles} trace file(s), normalized ${normalizedRefs} node_modules reference(s).`);
