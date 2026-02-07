@@ -1,6 +1,9 @@
 'use client';
 
-import Script from 'next/script';
+import Script, { type ScriptProps } from 'next/script';
+
+// Extended props to include standard HTML script attributes
+type ExtendedScriptProps = ScriptProps & React.ScriptHTMLAttributes<HTMLScriptElement>;
 
 export default function GoogleAnalytics({ GA_MEASUREMENT_ID }: { GA_MEASUREMENT_ID: string }) {
   if (!GA_MEASUREMENT_ID) {
@@ -11,11 +14,14 @@ export default function GoogleAnalytics({ GA_MEASUREMENT_ID }: { GA_MEASUREMENT_
     return null;
   }
 
+  const scriptSrc = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
+
   return (
     <>
       <Script
+        id="gtag-external"
         strategy="afterInteractive"
-        src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+        {...({ src: scriptSrc } as ExtendedScriptProps)}
       />
       <Script
         id="google-analytics"
