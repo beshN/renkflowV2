@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { Navbar } from '@/components/layout/Navbar';
 import { listInventoryItems } from '@/app/actions/inventory.actions';
 
@@ -23,13 +24,28 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
   const page = toPositiveInt(getSingleParam(searchParams?.page), 1);
   const limit = toPositiveInt(getSingleParam(searchParams?.limit), 20);
 
-  const result = await listInventoryItems({
-    search: q || undefined,
-    lowStockOnly: low,
-    activeOnly: active,
-    page,
-    limit,
-  });
+  let result;
+  try {
+    result = await listInventoryItems({
+      search: q || undefined,
+      lowStockOnly: low,
+      activeOnly: active,
+      page,
+      limit,
+    });
+  } catch (error: unknown) {
+    // Handle authentication/authorization errors by redirecting to login
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (
+      errorMessage.includes('Oturum açmanız gerekiyor') ||
+      errorMessage.includes('AuthenticationError') ||
+      errorMessage.includes('UNAUTHORIZED')
+    ) {
+      redirect('/auth/login');
+    }
+    // Re-throw other errors to be caught by error boundary
+    throw error;
+  }
 
   const totalPages = Math.max(1, Math.ceil(result.total / result.limit));
 

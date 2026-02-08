@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { Navbar } from '@/components/layout/Navbar';
 import {
   getSuperDashboardActivityWidget,
@@ -90,11 +91,26 @@ function ActivityWidgetSection({ activity }: { activity: ActivityWidgetData }) {
 }
 
 export default async function DashboardPage() {
-  const [data, inventory, activity] = await Promise.all([
-    getSuperDashboardCoreData(),
-    getSuperDashboardInventoryWidget(),
-    getSuperDashboardActivityWidget(),
-  ]);
+  let data, inventory, activity;
+  try {
+    [data, inventory, activity] = await Promise.all([
+      getSuperDashboardCoreData(),
+      getSuperDashboardInventoryWidget(),
+      getSuperDashboardActivityWidget(),
+    ]);
+  } catch (error: unknown) {
+    // Handle authentication/authorization errors by redirecting to login
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (
+      errorMessage.includes('Oturum açmanız gerekiyor') ||
+      errorMessage.includes('AuthenticationError') ||
+      errorMessage.includes('UNAUTHORIZED')
+    ) {
+      redirect('/auth/login');
+    }
+    // Re-throw other errors to be caught by error boundary
+    throw error;
+  }
 
   const totalStatus = data.orders.byStatus.pending + data.orders.byStatus.inProduction + data.orders.byStatus.delivered;
   const pendingPct = totalStatus ? Math.round((data.orders.byStatus.pending / totalStatus) * 100) : 0;
