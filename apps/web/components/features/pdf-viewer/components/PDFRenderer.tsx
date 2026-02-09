@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { usePDFStore } from '@/stores/usePDFStore';
@@ -66,19 +66,24 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
     return () => resizeObserver.disconnect();
   }, []);
   
-  // Calculate effective scale based on container width
-  const effectiveScale = useCallback(() => {
-    if (!containerWidth) return scale;
+  // Keep page fitted to viewport by default while preserving true zoom-in behavior.
+  const fitScale = useMemo(() => {
+    if (!containerWidth) return 1;
     const baseWidth = 612; // Standard PDF page width in points
-    const maxWidth = containerWidth - 32; // Account for padding
-    return Math.min(scale, maxWidth / baseWidth);
-  }, [containerWidth, scale]);
+    const maxWidth = Math.max(containerWidth - 32, 200); // Account for padding and avoid tiny values
+    return Math.min(1, maxWidth / baseWidth);
+  }, [containerWidth]);
+
+  const effectiveScale = useMemo(
+    () => Math.max(0.25, Math.min(scale * fitScale, 4)),
+    [scale, fitScale]
+  );
   
   // Virtualization for continuous mode
   const rowVirtualizer = useVirtualizer({
     count: numPages,
     getScrollElement: () => containerRef.current,
-    estimateSize: () => 842 * effectiveScale() + 32, // A4 height + gap
+    estimateSize: () => 842 * effectiveScale + 32, // A4 height + gap
     overscan: 2,
     enabled: viewMode === 'continuous',
   });
@@ -195,7 +200,7 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
       >
         <Page
           pageNumber={pageNumber}
-          scale={effectiveScale()}
+          scale={effectiveScale}
           rotate={rotation}
           renderTextLayer={enableTextLayer}
           renderAnnotationLayer={enableAnnotationLayer}
@@ -241,7 +246,7 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
               <div className="shadow-2xl rounded-lg overflow-hidden bg-white">
                 <Page
                   pageNumber={pageNum}
-                  scale={effectiveScale()}
+                  scale={effectiveScale}
                   rotate={rotation}
                   renderTextLayer={enableTextLayer}
                   renderAnnotationLayer={enableAnnotationLayer}
@@ -273,7 +278,7 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
         >
           <Page
             pageNumber={leftPage}
-            scale={effectiveScale() * 0.7}
+            scale={effectiveScale * 0.7}
             rotate={rotation}
             renderTextLayer={enableTextLayer}
             renderAnnotationLayer={enableAnnotationLayer}
@@ -293,7 +298,7 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
           >
             <Page
               pageNumber={rightPage}
-              scale={effectiveScale() * 0.7}
+              scale={effectiveScale * 0.7}
               rotate={rotation}
               renderTextLayer={enableTextLayer}
               renderAnnotationLayer={enableAnnotationLayer}

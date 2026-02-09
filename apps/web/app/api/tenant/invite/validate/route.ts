@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
 
 import { sql } from '@/lib/db';
 

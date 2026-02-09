@@ -20,7 +20,7 @@
 
 import { IOrderService } from './types';
 import { MockOrderService } from './mock/order.mock';
-import { NeonOrderService } from './neon/order.neon';
+import { PostgresOrderService } from './postgres/order.postgres';
 import { WebOrderService } from './web/order.web';
 
 /**
@@ -35,7 +35,7 @@ const isDatabaseConfigured = process.env.NEXT_PUBLIC_USE_DATABASE === 'true' || 
 export const orderService: IOrderService = isBrowser
   ? new WebOrderService()
   : isDatabaseConfigured
-    ? new NeonOrderService()
+    ? new PostgresOrderService()
     : new MockOrderService();
 
 console.warn('[DEPRECATION WARNING] Runtime service factory is deprecated. Migrate to server/client split');
@@ -43,7 +43,7 @@ console.warn('[DEPRECATION WARNING] Runtime service factory is deprecated. Migra
 // Re-export types for convenience
 export type { IOrderService } from './types';
 export { MockOrderService } from './mock/order.mock';
-export { NeonOrderService } from './neon/order.neon';
+export { PostgresOrderService } from './postgres/order.postgres';
 export { WebOrderService } from './web/order.web';
 
 // Re-export new entry points for migration

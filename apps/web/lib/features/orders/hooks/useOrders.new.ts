@@ -15,8 +15,8 @@ import { useAuth } from '@/lib/context/AuthContext';
  * - Type-safe mutations
  */
 
-const ORDERS_CACHE_KEY = 'orders';
-const ORDER_CACHE_KEY = (id: string) => `order-${id}`;
+const ORDERS_CACHE_KEY = (tenantId: string) => `orders:${tenantId || 'anonymous'}`;
+const ORDER_CACHE_KEY = (tenantId: string, id: string) => `order:${tenantId || 'anonymous'}:${id}`;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 export interface UseOrdersResult {
@@ -34,6 +34,7 @@ export interface UseOrdersResult {
 export function useOrders(): UseOrdersResult {
   const { user } = useAuth();
   const tenantId = user?.tenantId || '';
+  const ordersCacheKey = React.useMemo(() => ORDERS_CACHE_KEY(tenantId), [tenantId]);
 
   // Cached query for orders list
   const {
@@ -44,9 +45,10 @@ export function useOrders(): UseOrdersResult {
     refetch,
     mutate,
   } = useCachedQuery<Order[]>(
-    ORDERS_CACHE_KEY,
+    ordersCacheKey,
     () => orderService.getOrders(tenantId),
     {
+      enabled: Boolean(tenantId),
       cacheTTL: CACHE_TTL,
       refetchOnMount: true,
       refetchOnWindowFocus: true,
@@ -78,7 +80,7 @@ export function useOrders(): UseOrdersResult {
       onSuccess: (newOrder) => {
         devLog.info('[useOrders] Order created:', newOrder.id);
         // Invalidate and refetch
-        requestCache.invalidate(ORDERS_CACHE_KEY);
+        requestCache.invalidate(ordersCacheKey);
         refetch();
       },
       onError: (err) => {
@@ -104,8 +106,8 @@ export function useOrders(): UseOrdersResult {
       },
       onSuccess: (updatedOrder) => {
         devLog.info('[useOrders] Order updated:', updatedOrder.id);
-        requestCache.invalidate(ORDER_CACHE_KEY(updatedOrder.id));
-        requestCache.invalidate(ORDERS_CACHE_KEY);
+        requestCache.invalidate(ORDER_CACHE_KEY(tenantId, updatedOrder.id));
+        requestCache.invalidate(ordersCacheKey);
         refetch();
       },
       onError: (err, variables, context: { previousOrders?: Order[] } | undefined) => {
@@ -134,8 +136,8 @@ export function useOrders(): UseOrdersResult {
       },
       onSuccess: (updatedOrder) => {
         devLog.info('[useOrders] Order status updated:', updatedOrder.id, updatedOrder.status);
-        requestCache.invalidate(ORDER_CACHE_KEY(updatedOrder.id));
-        requestCache.invalidate(ORDERS_CACHE_KEY);
+        requestCache.invalidate(ORDER_CACHE_KEY(tenantId, updatedOrder.id));
+        requestCache.invalidate(ordersCacheKey);
         refetch();
       },
       onError: (err, variables, context: { previousOrders?: Order[] } | undefined) => {
@@ -161,7 +163,7 @@ export function useOrders(): UseOrdersResult {
       },
       onSuccess: () => {
         devLog.info('[useOrders] Order deleted');
-        requestCache.invalidate(ORDERS_CACHE_KEY);
+        requestCache.invalidate(ordersCacheKey);
         refetch();
       },
       onError: (err, id, context: { previousOrders?: Order[] } | undefined) => {
@@ -223,7 +225,7 @@ export function useOrder(id: string | null) {
   const tenantId = user?.tenantId || '';
 
   return useCachedQuery<Order | null>(
-    id ? ORDER_CACHE_KEY(id) : null,
+    id ? ORDER_CACHE_KEY(tenantId, id) : null,
     () => (id ? orderService.getOrderById(tenantId, id) : Promise.resolve(null)),
     {
       cacheTTL: CACHE_TTL,

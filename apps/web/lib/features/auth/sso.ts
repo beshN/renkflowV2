@@ -242,9 +242,8 @@ async function findOrCreateSSOUser(
 ): Promise<any> {
   // Check if user exists
   const existingUserResult = await sql`
-    SELECT u.*, tm.tenant_id, tm.role
+    SELECT u.*
     FROM users u
-    JOIN tenant_members tm ON tm.user_id = u.id
     WHERE u.email = ${profile.email}
     LIMIT 1
   `;
@@ -260,7 +259,57 @@ async function findOrCreateSSOUser(
         updated_at = NOW()
       WHERE id = ${existingUser.id}
     `;
-    return existingUser;
+
+    const existingMembershipResult = await sql`
+      SELECT tenant_id, role
+      FROM tenant_members
+      WHERE user_id = ${existingUser.id}
+        AND tenant_id = ${provider.tenantId}
+      LIMIT 1
+    `;
+    const existingMembershipRows = existingMembershipResult as any[];
+    const existingMembership = existingMembershipRows[0];
+
+    if (existingMembership) {
+      return {
+        ...existingUser,
+        tenant_id: existingMembership.tenant_id,
+        tenantId: existingMembership.tenant_id,
+        role: existingMembership.role,
+      };
+    }
+
+    if (!provider.allowSignup) {
+      throw new Error('User is not a member of this tenant and automatic signup is disabled');
+    }
+
+    const role = determineRoleFromGroups(profile.groups);
+    await sql`
+      INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
+      VALUES (${provider.tenantId}, ${existingUser.id}, ${role}, NOW())
+      ON CONFLICT (tenant_id, user_id) DO NOTHING
+    `;
+
+    const membershipResult = await sql`
+      SELECT tenant_id, role
+      FROM tenant_members
+      WHERE user_id = ${existingUser.id}
+        AND tenant_id = ${provider.tenantId}
+      LIMIT 1
+    `;
+    const membershipRows = membershipResult as any[];
+    const membership = membershipRows[0];
+
+    if (!membership) {
+      throw new Error('Failed to create tenant membership for SSO user');
+    }
+
+    return {
+      ...existingUser,
+      tenant_id: membership.tenant_id,
+      tenantId: membership.tenant_id,
+      role: membership.role,
+    };
   }
 
   // JIT provisioning - create user if allowed
@@ -293,7 +342,7 @@ async function findOrCreateSSOUser(
     VALUES (${provider.tenantId}, ${userId}, ${role}, NOW())
   `;
 
-  return { ...newUser, tenantId: provider.tenantId, role };
+  return { ...newUser, tenant_id: provider.tenantId, tenantId: provider.tenantId, role };
 }
 
 function determineRoleFromGroups(groups?: string[]): 'owner' | 'admin' | 'member' {

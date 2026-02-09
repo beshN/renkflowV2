@@ -12,6 +12,7 @@ import {
   requirePermission,
 } from '@/lib/auth/serverAuth';
 import { AuditLogService } from '@/lib/services/auditLog.service';
+import { assertPeriodWritable, periodFromDateInput } from '@/lib/features/accounting/period-lock';
 import { 
   ValidationError, 
   NotFoundError,
@@ -71,7 +72,7 @@ export async function batchDeletePayments(
 
   // Get existing payments for audit log
   const existingPaymentsResult = await sql`
-    SELECT id, order_id, amount, currency, method, note
+    SELECT id, order_id, amount, currency, method, note, paid_at
     FROM payments
     WHERE id = ANY(${paymentIds}::uuid[])
     AND tenant_id = ${context.tenantId}
@@ -90,12 +91,22 @@ export async function batchDeletePayments(
           continue;
         }
 
+        const payment = existingPayments.find((p: any) => p.id === paymentId);
+        if (!payment) {
+          result.errors.push({ id: paymentId, error: 'Ödeme bulunamadı' });
+          result.failed++;
+          continue;
+        }
+        await assertPeriodWritable({
+          tenantId: context.tenantId,
+          period: periodFromDateInput(payment.paid_at as string),
+          actionLabel: 'Toplu ödeme silme',
+        });
+
         await tx`
           DELETE FROM payments 
           WHERE id = ${paymentId} AND tenant_id = ${context.tenantId}
         `;
-
-        const payment = existingPayments.find((p: any) => p.id === paymentId);
         
         // Log audit event
         await AuditLogService.log({
@@ -157,7 +168,7 @@ export async function batchDeleteDocuments(
     errors: [],
   };
 
-  // Get existing documents for audit log and R2 deletion
+  // Get existing documents for audit log and object storage deletion
   const existingDocsResult = await sql`
     SELECT id, order_id, file_name, file_url, type
     FROM order_documents
@@ -168,8 +179,8 @@ export async function batchDeleteDocuments(
 
   const existingIds = new Set((existingDocs as { id: string }[]).map(d => d.id));
 
-  // Import R2 helpers
-  const { deleteFile } = await import('@/lib/storage/r2');
+  // Import storage helpers
+  const { deleteFile } = await import('@/lib/storage/gcs');
 
   await withTransaction(async (tx) => {
     for (const docId of documentIds) {
@@ -182,12 +193,12 @@ export async function batchDeleteDocuments(
 
         const doc = (existingDocs as { id: string; order_id?: string; file_name?: string; file_url?: string; type?: string }[]).find(d => d.id === docId);
 
-        // Delete from R2
+        // Delete from object storage
         if (doc?.file_url) {
           try {
             await deleteFile(doc.file_url);
-          } catch (r2Error) {
-            console.error('R2 delete error:', r2Error);
+          } catch (storageError) {
+            console.error('Storage delete error:', storageError);
           }
         }
 

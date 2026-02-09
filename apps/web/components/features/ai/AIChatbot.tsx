@@ -547,7 +547,7 @@ export function AIChatbot() {
                   <Bot className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-sm">Beratın Sikinin Ucu AI</h3>
+                  <h3 className="font-semibold text-sm">RenkFlow AI</h3>
                   <div className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                     <p className="text-xs text-white/70">Çevrimiçi</p>

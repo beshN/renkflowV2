@@ -1,179 +1,107 @@
 # RenkFlow Setup Guide
 
-## 🚀 Quick Start
+## Quick Start
 
-### 1️⃣ Install Dependencies
+1. Install dependencies
 ```bash
 npm install
 ```
 
-### 2️⃣ Setup Environment Variables
-
-Create `.env.local` in project root:
-
+2. Create local env file
 ```bash
 cp .env.example .env.local
 ```
 
-Fill in the required values (see below for where to get them).
+3. Set required variables in `.env.local`
+- `DATABASE_URL`
+- `STORAGE_BACKEND=gcs`
+- `GCS_BUCKET_NAME`
+- `AUTH_SECRET`
+- `NEXTAUTH_SECRET` (same value as `AUTH_SECRET`)
+- `NEXT_PUBLIC_APP_URL`
 
-### 3️⃣ Push Database Schema
+4. Push database schema
 ```bash
 npm run db:push
 ```
 
-### 4️⃣ Run Development Server
+5. Run development server
 ```bash
 npm run dev
 ```
 
----
+## Database Configuration
 
-## 🔑 Getting Your Keys
-
-### 🔵 Neon Database
-
-1. Go to [neon.tech](https://neon.tech)
-2. Create a new project
-3. Copy the connection string
-4. Paste into `DATABASE_URL`
-
-**Format:**
-```
-DATABASE_URL="postgresql://[user]:[password]@[endpoint].neon.tech/[dbname]?sslmode=require"
+### Production (Cloud SQL socket URL)
+Use Cloud SQL socket format:
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@localhost/DB_NAME?host=/cloudsql/PROJECT:REGION:INSTANCE&sslmode=disable"
 ```
 
-### 🟠 Cloudflare R2
+### Local development
+Use one of these:
+- Local PostgreSQL instance
+- Cloud SQL Proxy (`127.0.0.1:<proxy-port>`)
 
-1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com)
-2. Navigate to **R2 Object Storage**
-3. Create a new bucket: `renkflow-documents`
-4. Go to **Manage R2 API Tokens**
-5. Create new token with "Edit" permissions
-6. Copy:
-   - Account ID → `R2_ACCOUNT_ID`
-   - Access Key ID → `R2_ACCESS_KEY_ID`
-   - Secret Access Key → `R2_SECRET_ACCESS_KEY`
+## Storage Configuration
 
-**Optional:** Setup custom domain for public access
-- Go to bucket settings → Public access
-- Add custom domain
-- Update `R2_PUBLIC_URL`
+Only Google Cloud Storage is supported.
 
-### 🟢 Supabase Auth
-
-1. Go to [supabase.com](https://supabase.com)
-2. Create a new project
-3. Go to **Settings** → **API**
-4. Copy:
-   - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
-   - anon/public key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-
-**Setup Authentication:**
-1. Go to **Authentication** → **Providers**
-2. Enable **Email** provider
-3. Optional: Enable social providers (Google, GitHub, etc.)
-
----
-
-## 📁 Project Structure
-
-```
-lib/
-├── auth/
-│   └── supabase.ts          # Supabase Auth client
-├── db/
-│   ├── neon.ts              # Neon DB client
-│   └── schema.sql           # Database schema
-├── storage/
-│   └── r2.ts                # R2 storage helpers
-└── services/
-    ├── index.ts             # Auto-selects Mock or Neon
-    ├── types.ts             # Service interfaces
-    ├── mock/
-    │   └── order.mock.ts    # localStorage implementation
-    └── neon/
-        └── order.neon.ts    # Neon + R2 implementation
+```env
+STORAGE_BACKEND="gcs"
+GCS_BUCKET_NAME="your-gcs-bucket"
+GCS_PUBLIC_URL=""
 ```
 
----
+## Auth Configuration
 
-## 🔄 Service Auto-Selection
+```env
+AUTH_SECRET="<32+ chars>"
+NEXTAUTH_SECRET="<same as AUTH_SECRET>"
+AUTH_URL="http://localhost:3000"
+NEXTAUTH_URL="http://localhost:3000"
+AUTH_TRUST_HOST="false"
+```
 
-The app automatically uses:
-- **MockOrderService** (localStorage) when `DATABASE_URL` is not set
-- **NeonOrderService** (Neon + R2) when `DATABASE_URL` is configured
+OAuth providers are optional:
+```env
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+AZURE_AD_CLIENT_ID=""
+AZURE_AD_CLIENT_SECRET=""
+AZURE_AD_TENANT_ID=""
+```
 
-No code changes needed! Just set your environment variables.
+## Deployment Notes
 
----
+- Cloud Run should receive `DATABASE_URL` from Secret Manager.
+- Runtime env must include `STORAGE_BACKEND=gcs` and `GCS_BUCKET_NAME`.
+- Runtime service account needs access to:
+  - Cloud SQL Client
+  - Secret Manager Secret Accessor
+  - Storage Object Admin (bucket-scoped preferred)
 
-## 🧪 Testing
+## Validation
 
-### Without Database (Mock)
+Run full quality checks:
 ```bash
-# Just run without DATABASE_URL
-npm run dev
+npm run validate
 ```
 
-### With Database (Neon + R2)
+Run coming-soon smoke test:
 ```bash
-# Set up .env.local with all keys
-npm run db:push
-npm run dev
+npm run smoke:coming-soon -- https://<your-cloud-run-url>
 ```
 
----
+## Troubleshooting
 
-## 🚨 Troubleshooting
+### "DATABASE_URL is not defined"
+- Verify Cloud Run secret binding for `DATABASE_URL`
+- Verify `.env.local` contains `DATABASE_URL` for local runs
 
-### "DATABASE_URL not found"
-- Make sure `.env.local` exists
-- Check that variable name is exactly `DATABASE_URL`
-- Restart dev server after adding variables
+### "Production localhost DATABASE_URL requires Cloud SQL socket"
+- Ensure URL includes `host=/cloudsql/<INSTANCE_CONNECTION_NAME>` query param
 
-### "Schema push failed"
-- Verify Neon connection string is correct
-- Check if you have permissions on the database
-- Try running schema manually in Neon SQL Editor
-
-### "R2 upload failed"
-- Verify all R2 credentials are correct
-- Check bucket name matches `R2_BUCKET_NAME`
-- Ensure API token has "Edit" permissions
-
-### "Auth not working"
-- Verify Supabase URL and anon key
-- Check if NEXT_PUBLIC_ prefix is present
-- Restart dev server after adding auth keys
-
----
-
-## 📊 Cost Estimates (Monthly)
-
-| Service | Free Tier | After Free Tier |
-|---------|-----------|-----------------|
-| **Neon** | 500MB, 191h compute | $19/mo pro plan |
-| **R2** | 10GB storage | $0.015/GB |
-| **Supabase Auth** | 50K MAU | Free forever |
-
-**Total for small business:** ~$0-5/month
-
----
-
-## 🎯 Next Steps
-
-1. ✅ Setup environment variables
-2. ✅ Push database schema
-3. ✅ Test with mock data first
-4. 🔄 Configure Neon + R2
-5. 🔄 Setup Supabase Auth policies
-6. 🚀 Deploy to production
-
----
-
-## 📚 Documentation Links
-
-- [Neon Docs](https://neon.tech/docs)
-- [Cloudflare R2 Docs](https://developers.cloudflare.com/r2/)
-- [Supabase Auth Docs](https://supabase.com/docs/guides/auth)
+### "GCS_BUCKET_NAME is not configured"
+- Set `GCS_BUCKET_NAME` in runtime env or `.env.local`
+- Keep `STORAGE_BACKEND=gcs`

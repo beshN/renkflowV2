@@ -1,0 +1,12 @@
+.git
+**/.git
+**/.DS_Store
+**/node_modules
+**/.next
+**/coverage
+**/playwright-report
+**/test-results
+
+apps/mobile
+apps/dashboard
+patterns-demo

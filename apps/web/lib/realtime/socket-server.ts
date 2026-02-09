@@ -10,8 +10,8 @@
 
 import { Server as NetServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import { NextApiRequest } from 'next';
 import jwt from 'jsonwebtoken';
+import { sql } from '@/lib/db';
 
 export const config = {
   api: {
@@ -27,6 +27,15 @@ interface SocketWithIO {
   socket: {
     server: SocketServer;
   };
+}
+
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const SOCKET_JWT_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+
+if (IS_PRODUCTION && !SOCKET_JWT_SECRET) {
+  throw new Error(
+    '[Socket] Missing AUTH_SECRET/NEXTAUTH_SECRET in production runtime'
+  );
 }
 
 // Initialize Socket.IO server
@@ -51,19 +60,40 @@ export function initSocketServer(server: NetServer): SocketIOServer {
         return next(new Error('Authentication error: Token required'));
       }
 
+      if (!SOCKET_JWT_SECRET) {
+        return next(new Error('Authentication error: Server secret misconfigured'));
+      }
+
       // Verify token with JWT
-      const decoded = jwt.verify(token as string, process.env.NEXTAUTH_SECRET!) as {
-        id: string;
+      const decoded = jwt.verify(token as string, SOCKET_JWT_SECRET) as {
+        id?: string;
+        sub?: string;
         tenantId: string;
         email: string;
       };
 
-      if (!decoded) {
+      const userId = decoded?.id || decoded?.sub;
+      if (!decoded || !userId || !decoded.tenantId) {
         return next(new Error('Authentication error: Invalid token'));
       }
 
+      const memberships = await sql`
+        SELECT id
+        FROM tenant_members
+        WHERE user_id = ${userId}
+          AND tenant_id = ${decoded.tenantId}
+        LIMIT 1
+      `;
+      const membershipRows = memberships as Array<{ id: string }>;
+      if (membershipRows.length === 0) {
+        return next(new Error('Authentication error: Tenant membership required'));
+      }
+
       // Attach user data to socket
-      socket.data.user = decoded;
+      socket.data.user = {
+        ...decoded,
+        id: userId,
+      };
       socket.data.tenantId = decoded.tenantId;
       
       next();

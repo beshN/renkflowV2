@@ -7,7 +7,7 @@ The error "Error: new row for relation 'orders' violates check constraint 'order
 3. The database enum might only allow different values
 
 ## Quick Fix:
-Since the user is currently using MockOrderService (USE_DATABASE = false by default), the database error only appears when accidentally using the Neon service.
+Since the user is currently using MockOrderService (USE_DATABASE = false by default), the database error only appears when accidentally using the PostgreSQL service.
 
 The solution is to ensure the app consistently uses MockOrderService by checking that NEXT_PUBLIC_USE_DATABASE is NOT set to 'true' in .env.local.
 

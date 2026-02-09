@@ -8,8 +8,12 @@ import bcrypt from 'bcryptjs';
 import { getSql } from '@/lib/db';
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_BY_KEY } from '@/lib/config/templates';
 
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 const IS_BUILD_TIME = process.env.NEXT_PHASE === 'phase-production-build';
+const AUTH_TRUST_HOST =
+  process.env.AUTH_TRUST_HOST === 'true' ||
+  (!IS_PRODUCTION && process.env.AUTH_TRUST_HOST !== 'false');
 
 if (!AUTH_SECRET && !IS_BUILD_TIME) {
   throw new Error(
@@ -22,7 +26,7 @@ if (AUTH_SECRET && AUTH_SECRET.length < 32) {
   console.warn('[RenkFlow] WARNING: AUTH_SECRET should be at least 32 characters for security');
 }
 
-const DEBUG = process.env.AUTH_DEBUG === 'true' || process.env.NODE_ENV !== 'production';
+const DEBUG = process.env.AUTH_DEBUG === 'true' || !IS_PRODUCTION;
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split('@');
@@ -46,7 +50,6 @@ function mapAuthErrorToCode(message: string) {
     normalized.includes('timeout') ||
     normalized.includes('econn') ||
     normalized.includes('sql') ||
-    normalized.includes('neon') ||
     normalized.includes('db') ||
     normalized.includes('fetch') ||
     normalized.includes('network')
@@ -109,7 +112,22 @@ export const authConfig: NextAuthConfig = {
             const users = await sql`
               SELECT u.*, tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url, t.industry, t.template_key
               FROM users u
-              LEFT JOIN tenant_members tm ON u.id = tm.user_id
+              LEFT JOIN LATERAL (
+                SELECT tenant_id, role
+                FROM tenant_members
+                WHERE user_id = u.id
+                ORDER BY
+                  CASE role
+                    WHEN 'owner' THEN 0
+                    WHEN 'admin' THEN 1
+                    WHEN 'accountant' THEN 2
+                    WHEN 'office' THEN 3
+                    WHEN 'worker' THEN 4
+                    ELSE 5
+                  END,
+                  created_at ASC
+                LIMIT 1
+              ) tm ON true
               LEFT JOIN tenants t ON tm.tenant_id = t.id
               WHERE u.email = ${normalizedEmail}
               AND u.verification_token = ${credentials.ticket as string}
@@ -125,6 +143,10 @@ export const authConfig: NextAuthConfig = {
             const user = usersRows[0];
 
             // Clear the used ticket
+            if (!user.tenant_id) {
+              throw createCredentialsError('tenant_not_found');
+            }
+
             await sql`
               UPDATE users SET verification_token = NULL WHERE id = ${user.id}
             `;
@@ -158,7 +180,22 @@ export const authConfig: NextAuthConfig = {
           const users = await sql`
             SELECT u.*, tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url, t.industry, t.template_key
             FROM users u
-            LEFT JOIN tenant_members tm ON u.id = tm.user_id
+            LEFT JOIN LATERAL (
+              SELECT tenant_id, role
+              FROM tenant_members
+              WHERE user_id = u.id
+              ORDER BY
+                CASE role
+                  WHEN 'owner' THEN 0
+                  WHEN 'admin' THEN 1
+                  WHEN 'accountant' THEN 2
+                  WHEN 'office' THEN 3
+                  WHEN 'worker' THEN 4
+                  ELSE 5
+                END,
+                created_at ASC
+              LIMIT 1
+            ) tm ON true
             LEFT JOIN tenants t ON tm.tenant_id = t.id
             WHERE u.email = ${normalizedEmail}
             LIMIT 1
@@ -193,6 +230,11 @@ export const authConfig: NextAuthConfig = {
           if (!user.email_verified) {
             if (DEBUG) console.log('[AUTH] Email not verified');
             throw createCredentialsError('email_not_verified');
+          }
+
+          if (!user.tenant_id) {
+            if (DEBUG) console.log('[AUTH] User has no tenant membership');
+            throw createCredentialsError('tenant_not_found');
           }
 
           if (DEBUG) console.log('[AUTH] Login successful for:', maskEmail(user.email));
@@ -282,7 +324,7 @@ export const authConfig: NextAuthConfig = {
 
             if (newUsersRows.length === 0) {
               if (DEBUG) console.error('Failed to create OAuth user');
-              return true;
+              return false;
             }
 
             const newUserId = newUsersRows[0].id;
@@ -314,8 +356,47 @@ export const authConfig: NextAuthConfig = {
             // Existing user - update user.id for session
             user.id = existingUsersRows[0].id;
           }
+
+          if (user.id) {
+            const tenantRows = await sql`
+              SELECT tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url, t.industry, t.template_key
+              FROM users u
+              LEFT JOIN LATERAL (
+                SELECT tenant_id, role
+                FROM tenant_members
+                WHERE user_id = u.id
+                ORDER BY
+                  CASE role
+                    WHEN 'owner' THEN 0
+                    WHEN 'admin' THEN 1
+                    WHEN 'accountant' THEN 2
+                    WHEN 'office' THEN 3
+                    WHEN 'worker' THEN 4
+                    ELSE 5
+                  END,
+                  created_at ASC
+                LIMIT 1
+              ) tm ON true
+              LEFT JOIN tenants t ON tm.tenant_id = t.id
+              WHERE u.id = ${user.id}
+              LIMIT 1
+            `;
+            const tenantUser = (tenantRows as any[])[0];
+            if (!tenantUser?.tenant_id) {
+              return false;
+            }
+
+            user.tenantId = tenantUser.tenant_id;
+            user.tenantName = tenantUser.tenant_name;
+            user.role = tenantUser.role;
+            user.brandColor = tenantUser.brand_color;
+            user.logoUrl = tenantUser.logo_url;
+            user.tenantIndustry = tenantUser.industry;
+            user.templateKey = tenantUser.template_key;
+          }
         } catch (error) {
           if (DEBUG) console.error('OAuth signIn error:', error);
+          return false;
         }
       }
 
@@ -326,5 +407,5 @@ export const authConfig: NextAuthConfig = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  trustHost: true,
+  trustHost: AUTH_TRUST_HOST,
 };

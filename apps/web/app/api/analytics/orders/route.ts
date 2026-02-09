@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getOrderMetrics } from '@/lib/analytics/reporting';
+import { orderService } from '@/lib/services/orderService.server';
+import { getOrderHealthSummary, getTopRiskOrders } from '@/lib/features/orders/orderHealth';
 
 function parseDate(value: string | null, fallback: Date) {
   if (!value) return fallback;
@@ -21,6 +23,21 @@ export async function GET(request: Request) {
     new Date(Date.now() - 1000 * 60 * 60 * 24 * 30)
   );
 
-  const data = await getOrderMetrics(session.user.tenantId, { startDate, endDate });
-  return NextResponse.json({ success: true, data });
+  const [data, orders] = await Promise.all([
+    getOrderMetrics(session.user.tenantId, { startDate, endDate }),
+    orderService.getOrders(session.user.tenantId),
+  ]);
+
+  const healthSummary = getOrderHealthSummary(orders);
+  const topRiskOrders = getTopRiskOrders(orders, 5).map(({ order, risk }) => ({
+    id: order.id,
+    orderNumber: order.orderNumber,
+    customerName: order.customerName,
+    productName: order.productName,
+    status: order.status,
+    deliveryDate: order.deliveryDate,
+    risk,
+  }));
+
+  return NextResponse.json({ success: true, data, healthSummary, topRiskOrders });
 }

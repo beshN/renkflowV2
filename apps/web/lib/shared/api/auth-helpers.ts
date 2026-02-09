@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import jwt from 'jsonwebtoken';
+import { sql } from '@/lib/db';
 
 // JWT Secret with strict production enforcement
-const JWT_SECRET = process.env.AUTH_SECRET || process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
+const JWT_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 const IS_PROD = process.env.NODE_ENV === 'production';
 const IS_BUILD_TIME = process.env.NEXT_PHASE === 'phase-production-build';
 if (!JWT_SECRET && !IS_BUILD_TIME) {
   if (IS_PROD) {
-    throw new Error('[SECURITY] Missing JWT secret in production. Set AUTH_SECRET or JWT_SECRET or NEXTAUTH_SECRET.');
+    throw new Error('[SECURITY] Missing JWT secret in production. Set AUTH_SECRET or NEXTAUTH_SECRET.');
   } else {
     console.warn('[SECURITY WARNING] Missing JWT secret. Using development-only fallback.');
   }
@@ -34,6 +35,19 @@ export interface APIResponse<T = unknown> {
   data?: T;
   error?: string;
   message?: string;
+}
+
+async function resolveTenantMembership(userId: string, tenantId: string): Promise<{ role: string } | null> {
+  if (!userId || !tenantId) return null;
+  const memberships = await sql`
+    SELECT role
+    FROM tenant_members
+    WHERE user_id = ${userId}
+      AND tenant_id = ${tenantId}
+    LIMIT 1
+  `;
+  const membershipRows = memberships as Array<{ role: string }>;
+  return membershipRows[0] ?? null;
 }
 
 // Standard API response helpers with CORS headers
@@ -66,15 +80,21 @@ export async function verifyAPIToken(request: NextRequest): Promise<APIUser | nu
     
     try {
       const decoded = jwt.verify(token, EFFECTIVE_JWT_SECRET) as unknown as {
+        id?: string;
         sub: string;
         email: string;
         name: string;
         role: string;
         tenantId: string;
       };
-      
+
+      const userId = decoded.sub || decoded.id || '';
+      if (!userId || !decoded.tenantId) {
+        return null;
+      }
+
       return {
-        id: decoded.sub,
+        id: userId,
         email: decoded.email,
         name: decoded.name,
         role: decoded.role,
@@ -94,18 +114,29 @@ export async function getAPIUser(request: NextRequest): Promise<APIUser | null> 
   // First try JWT from header (for mobile apps)
   const jwtUser = await verifyAPIToken(request);
   if (jwtUser) {
-    return jwtUser;
+    const membership = await resolveTenantMembership(jwtUser.id, jwtUser.tenantId);
+    if (!membership) {
+      return null;
+    }
+    return {
+      ...jwtUser,
+      role: membership.role || jwtUser.role,
+    };
   }
   
   // Fallback to session (for web app)
   const session = await auth();
-  if (session?.user) {
+  if (session?.user?.id && session.user.tenantId) {
+    const membership = await resolveTenantMembership(session.user.id, session.user.tenantId);
+    if (!membership) {
+      return null;
+    }
     return {
-      id: session.user.id || '',
+      id: session.user.id,
       email: session.user.email || '',
       name: session.user.name || '',
-      role: session.user.role || 'member',
-      tenantId: session.user.tenantId || '',
+      role: membership.role || session.user.role || 'member',
+      tenantId: session.user.tenantId,
     };
   }
   

@@ -1,15 +1,59 @@
 import { Order, NewOrderFormData, safeParseCurrency } from '@/lib/types';
 import { IOrderService, TenantMismatchError } from '../types';
-import { sql } from '@/lib/db/neon';
+import { sql } from '@/lib/db';
 import { sqlQuery } from '@/lib/db';
 import { withTransaction } from '@/lib/db/transaction';
-import { uploadFile, deleteFile, generateFilePath, getFileUrl } from '@/lib/storage/r2';
+import { uploadFile, deleteFile, generateFilePath, getFileUrl } from '@/lib/storage/gcs';
 
 /**
- * Neon + R2 Order Service
- * Production-ready implementation using Neon DB and R2 Storage
+ * PostgreSQL + GCS Order Service
+ * Production-ready implementation using Cloud SQL and Google Cloud Storage
  */
-export class NeonOrderService implements IOrderService {
+export class PostgresOrderService implements IOrderService {
+  private generateOrderNumber(): string {
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).slice(2, 6).toUpperCase();
+    return `ORD-${timestamp}-${random}`;
+  }
+
+  private async insertDocumentRecord(
+    tx: { sql: typeof sql },
+    params: {
+      tenantId: string;
+      orderId: string;
+      name: string;
+      filePath: string;
+      fileType?: string;
+      size: number;
+    }
+  ): Promise<void> {
+    try {
+      await tx.sql`
+        INSERT INTO documents (tenant_id, order_id, name, file_path, file_type, size)
+        VALUES (
+          ${params.tenantId},
+          ${params.orderId},
+          ${params.name},
+          ${params.filePath},
+          ${params.fileType || null},
+          ${params.size}
+        )
+      `;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const canFallbackToLegacySchema =
+        message.includes('column "tenant_id"') || message.includes('column "file_type"');
+
+      if (!canFallbackToLegacySchema) {
+        throw error;
+      }
+
+      await tx.sql`
+        INSERT INTO documents (order_id, name, file_path, size)
+        VALUES (${params.orderId}, ${params.name}, ${params.filePath}, ${params.size})
+      `;
+    }
+  }
 
   private async cleanupUploadedFiles(uploadedFiles: { key: string }[]) {
     for (const file of uploadedFiles) {
@@ -26,16 +70,13 @@ export class NeonOrderService implements IOrderService {
     try {
       return await getFileUrl(filePath);
     } catch (error) {
-      console.warn('[NeonOrderService] Document URL resolve fallback:', filePath, error);
-      if (process.env.R2_PUBLIC_URL) {
-        return `${process.env.R2_PUBLIC_URL}/${filePath}`;
-      }
+      console.warn('[PostgresOrderService] Document URL resolve fallback:', filePath, error);
       return filePath;
     }
   }
   
   async getOrders(tenantId: string): Promise<Order[]> {
-    // console.log('[NeonOrderService] getOrders called for tenant:', tenantId);
+    // console.log('[PostgresOrderService] getOrders called for tenant:', tenantId);
 
     const result = await sql`
       SELECT 
@@ -160,15 +201,15 @@ export class NeonOrderService implements IOrderService {
   }
 
   async createOrder(tenantId: string, formData: NewOrderFormData, files?: File[]): Promise<Order> {
-    // console.log('[NeonOrderService] createOrder called', { tenantId, ... });
+    // console.log('[PostgresOrderService] createOrder called', { tenantId, ... });
 
     // Generate unique order number
-    const orderNumber = `ORD${Date.now()}`;
+    const orderNumber = this.generateOrderNumber();
     const uploadedFiles: { key: string }[] = [];
 
     try {
       const orderId = await withTransaction(async (tx) => {
-        // console.log('[NeonOrderService] Starting transaction');
+        // console.log('[PostgresOrderService] Starting transaction');
         
         const orderResult = await tx.sql`
           INSERT INTO orders (
@@ -187,15 +228,13 @@ export class NeonOrderService implements IOrderService {
 
         const orderId = orderResult[0]?.id as string | undefined;
         if (!orderId) {
-          console.error('[NeonOrderService] Order creation failed - no ID returned');
+          console.error('[PostgresOrderService] Order creation failed - no ID returned');
           throw new Error('Order creation failed');
         }
 
-        // console.log('[NeonOrderService] Order created with ID:', orderId);
+        // console.log('[PostgresOrderService] Order created with ID:', orderId);
 
         if (files && files.length > 0) {
-          console.log('[NeonOrderService] Uploading', files.length, 'files');
-          
           for (let i = 0; i < files.length; i++) {
             const file = files[i];
             try {
@@ -203,17 +242,20 @@ export class NeonOrderService implements IOrderService {
               const arrayBuffer = await file.arrayBuffer();
               const buffer = Buffer.from(arrayBuffer);
 
-              console.log('[NeonOrderService] Uploading file', i + 1, '/', files.length, ':', file.name);
               await uploadFile(key, buffer, file.type);
               uploadedFiles.push({ key });
 
-              await tx.sql`
-                INSERT INTO documents (order_id, name, file_path, size)
-                VALUES (${orderId}, ${file.name}, ${key}, ${file.size})
-              `;
-              // console.log('[NeonOrderService] File uploaded successfully:', file.name);
+              await this.insertDocumentRecord(tx, {
+                tenantId,
+                orderId,
+                name: file.name,
+                filePath: key,
+                fileType: file.type,
+                size: file.size,
+              });
+              // console.log('[PostgresOrderService] File uploaded successfully:', file.name);
             } catch (fileError) {
-              console.error('[NeonOrderService] File upload failed for:', file.name, fileError);
+              console.error('[PostgresOrderService] File upload failed for:', file.name, fileError);
               // Don't fail the entire order if file upload fails - just log it
               // throw fileError; // Comment this out to allow order creation even if files fail
             }
@@ -223,10 +265,10 @@ export class NeonOrderService implements IOrderService {
         return orderId;
       }, { timeout: 60000 }); // Increase timeout to 60s for file uploads
 
-      // console.log('[NeonOrderService] Transaction committed successfully');
+      // console.log('[PostgresOrderService] Transaction committed successfully');
       return this.getOrderById(tenantId, orderId) as Promise<Order>;
     } catch (error) {
-      console.error('[NeonOrderService] createOrder failed:', {
+      console.error('[PostgresOrderService] createOrder failed:', {
         error: error instanceof Error ? error.message : String(error),
         orderNumber,
         tenantId,
@@ -288,7 +330,7 @@ export class NeonOrderService implements IOrderService {
       values.push(updates.customFields ? JSON.stringify(updates.customFields) : null);
     }
 
-    // console.log('[NeonOrderService] Updating order:', id);
+    // console.log('[PostgresOrderService] Updating order:', id);
     
     if (setClauses.length > 0) {
       values.push(id);
@@ -296,7 +338,7 @@ export class NeonOrderService implements IOrderService {
       
       const query = `UPDATE orders SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1} RETURNING *`;
       
-      // console.log('[NeonOrderService] Update Query:', query);
+      // console.log('[PostgresOrderService] Update Query:', query);
 
       // Ensure we only update if tenant_id matches
       const result = await sqlQuery(query, values);
@@ -332,18 +374,21 @@ export class NeonOrderService implements IOrderService {
     const existingOrder = await this.getOrderById(tenantId, id);
     if (!existingOrder) throw new Error('Order not found');
 
-    // Get documents to delete from R2
+    // Get documents to delete from object storage
     const docs = await sql`
-      SELECT file_path FROM documents WHERE order_id = ${id}
+      SELECT file_path
+      FROM documents
+      WHERE order_id = ${id}
+        AND tenant_id = ${tenantId}
     `;
 
-    // Delete from R2
+    // Delete from object storage
     const docsRows = docs as any[];
     for (const doc of docsRows) {
       try {
         await deleteFile(doc.file_path);
       } catch (error) {
-        console.error('Error deleting file from R2:', error);
+        console.error('Error deleting file from object storage:', error);
       }
     }
 
@@ -375,10 +420,14 @@ export class NeonOrderService implements IOrderService {
             await uploadFile(key, buffer, file.type);
             uploadedFiles.push({ key });
 
-            await tx.sql`
-              INSERT INTO documents (order_id, name, file_path, size)
-              VALUES (${id}, ${file.name}, ${key}, ${file.size})
-            `;
+            await this.insertDocumentRecord(tx, {
+              tenantId,
+              orderId: id,
+              name: file.name,
+              filePath: key,
+              fileType: file.type,
+              size: file.size,
+            });
           }
         });
       }

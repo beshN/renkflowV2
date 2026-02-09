@@ -3,7 +3,7 @@ import { config } from 'dotenv';
 config({ path: '.env.local' });
 
 async function auditTenancy() {
-  const { sql } = await import('../lib/db/neon');
+  const { sql } = await import('../lib/db');
   console.log('--- USERS & TENANTS ---');
   const users = await sql`
     SELECT u.id, u.email, tm.tenant_id, tm.role

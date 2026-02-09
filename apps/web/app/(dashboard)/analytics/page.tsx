@@ -11,6 +11,7 @@ import { ArrowUpRight, TrendingUp, AlertTriangle, Gauge, CalendarClock } from 'l
 import { RevenueChart } from '@/components/analytics/RevenueChart';
 import { OrderStatusChart } from '@/components/analytics/OrderStatusChart';
 import { OrderVolumeChart } from '@/components/analytics/OrderVolumeChart';
+import { getOrderHealthSummary, getTopRiskOrders } from '@/lib/features/orders/orderHealth';
 
 export default function AnalyticsPage() {
   const { orders } = useOrders();
@@ -41,6 +42,7 @@ export default function AnalyticsPage() {
     }).length;
 
     const completionRate = totalOrders ? Math.round((delivered / totalOrders) * 100) : 0;
+    const health = getOrderHealthSummary(orders || []);
 
     return {
       totalOrders,
@@ -51,8 +53,14 @@ export default function AnalyticsPage() {
       avgOrderValue,
       overdue,
       completionRate,
+      atRisk: health.atRiskCount,
+      critical: health.criticalCount,
+      averageRiskScore: health.averageRiskScore,
+      dueSoon: health.dueSoonCount,
     };
   }, [orders]);
+
+  const topRiskOrders = useMemo(() => getTopRiskOrders(orders || [], 4), [orders]);
 
   return (
     <div className="flex-1 flex flex-col">
@@ -82,7 +90,7 @@ export default function AnalyticsPage() {
           </div>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
           <Card spotlight className="p-5">
             <div className="flex items-center justify-between">
               <div>
@@ -119,8 +127,25 @@ export default function AnalyticsPage() {
           <Card spotlight className="p-5">
             <div className="flex items-center justify-between">
               <div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Riskli Sipariş</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{metrics.atRisk}</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Kritik: {metrics.critical} · Ortalama skor: {metrics.averageRiskScore}
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-500/15 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-300" />
+              </div>
+            </div>
+          </Card>
+          <Card spotlight className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">Toplam Sipariş</p>
                 <p className="text-2xl font-bold text-slate-900 dark:text-white">{metrics.totalOrders}</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Yaklaşan teslim: {metrics.dueSoon}
+                </p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                 <CalendarClock className="w-5 h-5 text-slate-600 dark:text-slate-300" />
@@ -139,19 +164,35 @@ export default function AnalyticsPage() {
 
           <Card spotlight className="p-6 h-[400px]">
             <h3 className="text-lg font-semibold text-text-light dark:text-text-dark mb-4">Operasyon Sağlığı</h3>
-            <div className="space-y-4 text-sm text-subtle-light dark:text-subtle-dark">
-              <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700/60 dark:bg-slate-900/60">
-                <p className="font-semibold text-slate-900 dark:text-white">Teslimat disiplini</p>
-                <p className="text-xs mt-1">Geciken işler için erken uyarı bildirimleri devrede.</p>
-              </div>
-              <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700/60 dark:bg-slate-900/60">
-                <p className="font-semibold text-slate-900 dark:text-white">Üretim dengesi</p>
-                <p className="text-xs mt-1">WIP limitlerini koruyarak darboğazları azaltın.</p>
-              </div>
-              <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700/60 dark:bg-slate-900/60">
-                <p className="font-semibold text-slate-900 dark:text-white">Gelir optimizasyonu</p>
-                <p className="text-xs mt-1">Yüksek değerli siparişler için önceliklendirme yapın.</p>
-              </div>
+            <div className="space-y-3 text-sm text-subtle-light dark:text-subtle-dark">
+              {topRiskOrders.length === 0 ? (
+                <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/70 p-4 text-emerald-700 dark:border-emerald-700/40 dark:bg-emerald-900/20 dark:text-emerald-200">
+                  Aktif riskli sipariş görünmüyor. Akış stabil.
+                </div>
+              ) : (
+                topRiskOrders.map(({ order, risk }) => (
+                  <Link
+                    key={order.id}
+                    href={`/orders/${order.id}`}
+                    className="block rounded-2xl border border-slate-200/70 bg-white/70 p-4 transition hover:border-slate-300 dark:border-slate-700/60 dark:bg-slate-900/60 dark:hover:border-slate-600"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-semibold text-slate-900 dark:text-white truncate">
+                        {order.orderNumber || order.id}
+                      </p>
+                      <span className="text-xs font-semibold rounded-full px-2 py-0.5 bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200">
+                        Risk {risk.score}
+                      </span>
+                    </div>
+                    <p className="text-xs mt-1 text-slate-500 dark:text-slate-400 truncate">
+                      {order.customerName} · {order.productName || 'Ürün'}
+                    </p>
+                    <p className="text-xs mt-2 text-slate-600 dark:text-slate-300">
+                      {risk.recommendedAction}
+                    </p>
+                  </Link>
+                ))
+              )}
             </div>
           </Card>
         </div>

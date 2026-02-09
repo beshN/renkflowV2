@@ -10,6 +10,21 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const membershipResult = await sql`
+      SELECT role
+      FROM tenant_members
+      WHERE tenant_id = ${session.user.tenantId}
+        AND user_id = ${session.user.id}
+      LIMIT 1
+    `;
+    const membershipRows = membershipResult as Array<{ role: string }>;
+    if (membershipRows.length === 0) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!['owner', 'admin'].includes(membershipRows[0].role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const invites = await sql`
       SELECT id, email, role, token, created_at, expires_at
       FROM invitations

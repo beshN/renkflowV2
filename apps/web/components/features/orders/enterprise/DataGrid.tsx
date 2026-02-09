@@ -26,6 +26,7 @@ import { formatCurrency, formatDate, getOrderStatusInfo } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OrderHoverCard } from './OrderHoverCard';
+import { assessOrderRisk, type OrderRiskLevel } from '@/lib/features/orders/orderHealth';
 import {
   ChevronRight,
   ChevronDown,
@@ -144,6 +145,20 @@ const StatusBadge: React.FC<{ status: Order['status'] }> = ({ status }) => {
       {info?.label || status}
     </span>
   );
+};
+
+const RISK_LABELS: Record<OrderRiskLevel, string> = {
+  low: 'Düşük',
+  medium: 'Orta',
+  high: 'Yüksek',
+  critical: 'Kritik',
+};
+
+const RISK_CLASSNAMES: Record<OrderRiskLevel, string> = {
+  low: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+  medium: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
+  high: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300',
+  critical: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
 };
 
 // ============================================
@@ -291,6 +306,14 @@ export const DataGrid: React.FC<DataGridProps> = ({
     });
     return selection;
   }, [selectedIds]);
+
+  const riskByOrderId = useMemo(() => {
+    const riskMap = new Map<string, ReturnType<typeof assessOrderRisk>>();
+    data.forEach((order) => {
+      riskMap.set(order.id, assessOrderRisk(order));
+    });
+    return riskMap;
+  }, [data]);
 
   // Define columns
   const columns = useMemo<ColumnDef<Order>[]>(() => [
@@ -451,6 +474,28 @@ export const DataGrid: React.FC<DataGridProps> = ({
       size: 130,
     },
     {
+      id: 'risk',
+      header: 'SLA Risk',
+      cell: ({ row }) => {
+        const risk = riskByOrderId.get(row.original.id);
+        if (!risk) return <span className="text-xs text-neutral-400">-</span>;
+
+        return (
+          <span
+            className={cn(
+              'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
+              RISK_CLASSNAMES[risk.level]
+            )}
+            title={`${risk.score}/100 · ${risk.recommendedAction}`}
+          >
+            {RISK_LABELS[risk.level]}
+            {risk.isOverdue ? ` · +${risk.overdueDays}g` : ''}
+          </span>
+        );
+      },
+      size: 140,
+    },
+    {
       accessorKey: 'deliveryDate',
       header: 'Teslim Tarihi',
       cell: ({ getValue, row }) => {
@@ -510,7 +555,15 @@ export const DataGrid: React.FC<DataGridProps> = ({
       size: 80,
       enableResizing: false,
     },
-  ], [selectedIds, expandedRowIds, toggleRowSelection, selectAll, clearSelection, toggleRowExpanded]);
+  ], [
+    selectedIds,
+    expandedRowIds,
+    toggleRowSelection,
+    selectAll,
+    clearSelection,
+    toggleRowExpanded,
+    riskByOrderId,
+  ]);
 
   // Create table instance
   const table = useReactTable({
@@ -615,6 +668,9 @@ export const DataGrid: React.FC<DataGridProps> = ({
               const isExpanded = expandedRowIds.has(row.original.id);
               const isDirty = dirtyRows.has(row.original.id);
               const isSelected = selectedIds.has(row.original.id);
+              const rowRisk = riskByOrderId.get(row.original.id);
+              const isCriticalRisk = rowRisk?.level === 'critical';
+              const isHighRisk = rowRisk?.level === 'high';
 
               return (
                 <React.Fragment key={row.id}>
@@ -626,7 +682,9 @@ export const DataGrid: React.FC<DataGridProps> = ({
                       isSelected
                         ? 'bg-primary-50/60 dark:bg-primary-900/10'
                         : 'hover:bg-neutral-50 dark:hover:bg-neutral-800/50',
-                      isDirty && 'bg-amber-50/50 dark:bg-amber-900/10'
+                      isDirty && 'bg-amber-50/50 dark:bg-amber-900/10',
+                      !isSelected && isCriticalRisk && 'bg-red-50/40 dark:bg-red-900/10',
+                      !isSelected && !isCriticalRisk && isHighRisk && 'bg-orange-50/40 dark:bg-orange-900/10'
                     )}
                   >
                     {row.getVisibleCells().map((cell) => {

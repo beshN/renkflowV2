@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ErrorState, SectionSkeleton, SkeletonCard } from '@/components/ui/skeleton';
 import { useExportJobs } from '@/lib/hooks/useExportJobs';
+import { getOrderHealthSummary } from '@/lib/features/orders/orderHealth';
 import {
   TableProperties,
   KanbanSquare,
@@ -119,6 +120,7 @@ export default function OrdersPage() {
   // Get filtered orders
   const filteredOrders = useMemo(() => getFilteredOrders(), [getFilteredOrders, orders, filters]);
   const filteredIds = useMemo(() => filteredOrders.map((order) => order.id), [filteredOrders]);
+  const healthSummary = useMemo(() => getOrderHealthSummary(filteredOrders), [filteredOrders]);
 
   // Keep select-all in sync with current filters
   useEffect(() => {
@@ -333,6 +335,18 @@ export default function OrdersPage() {
                   Son güncelleme: {new Date(lastSyncAt).toLocaleTimeString('tr-TR')}
                 </span>
               )}
+
+              <div className="hidden 2xl:flex items-center gap-2">
+                <span className="text-[11px] rounded-full px-2.5 py-1 bg-red-100 text-red-700 dark:bg-red-900/25 dark:text-red-300">
+                  Kritik {healthSummary.criticalCount}
+                </span>
+                <span className="text-[11px] rounded-full px-2.5 py-1 bg-orange-100 text-orange-700 dark:bg-orange-900/25 dark:text-orange-300">
+                  Riskli {healthSummary.atRiskCount}
+                </span>
+                <span className="text-[11px] rounded-full px-2.5 py-1 bg-amber-100 text-amber-700 dark:bg-amber-900/25 dark:text-amber-300">
+                  Geciken {healthSummary.overdueCount}
+                </span>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">

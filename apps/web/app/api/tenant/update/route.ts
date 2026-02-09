@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
 import { auth } from '@/auth';
 
 import { sql } from '@/lib/db';
@@ -9,16 +8,20 @@ export async function POST(request: Request) {
   try {
     const session = await auth();
     
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !session.user.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { tenantId, name, brandColor, logoUrl, industry, templateKey } = await request.json();
+    const effectiveTenantId = session.user.tenantId;
+    if (tenantId && tenantId !== effectiveTenantId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Verify user has permission to update this tenant
     const members = await sql`
       SELECT role FROM tenant_members
-      WHERE tenant_id = ${tenantId} AND user_id = ${session.user.id}
+      WHERE tenant_id = ${effectiveTenantId} AND user_id = ${session.user.id}
       LIMIT 1
     `;
 
@@ -51,7 +54,7 @@ export async function POST(request: Request) {
     const normalizedIndustry = industry || normalizedTemplate.industry;
 
     // Update tenant
-    await sql`
+    const updated = await sql`
       UPDATE tenants
       SET 
         name = ${name.trim()}, 
@@ -60,8 +63,13 @@ export async function POST(request: Request) {
         industry = ${normalizedIndustry || null},
         template_key = ${normalizedTemplate?.key || null},
         updated_at = NOW()
-      WHERE id = ${tenantId}
+      WHERE id = ${effectiveTenantId}
+      RETURNING id
     `;
+    const updatedRows = updated as Array<{ id: string }>;
+    if (updatedRows.length === 0) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

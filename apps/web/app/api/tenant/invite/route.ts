@@ -7,7 +7,7 @@ import { sendInviteEmail } from '@/lib/email';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Valid roles for invitation
-const VALID_ROLES = ['admin', 'office', 'worker', 'member'];
+const VALID_ROLES = ['admin', 'accountant', 'office', 'worker', 'member'];
 
 // Generate cryptographically secure token using Web Crypto API (Edge compatible)
 function generateSecureToken(): string {
@@ -20,18 +20,19 @@ export async function POST(request: Request) {
   try {
     const session = await auth();
     
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !session.user.tenantId) {
       return NextResponse.json({ error: 'Oturum açmanız gerekiyor' }, { status: 401 });
     }
 
     const body = await request.json();
-    const tenantId = body?.tenantId;
+    const requestedTenantId = body?.tenantId;
+    const tenantId = session.user.tenantId;
     const email = body?.email?.trim().toLowerCase();
     const role = body?.role || 'member';
 
     // Validate inputs
-    if (!tenantId) {
-      return NextResponse.json({ error: 'Şirket kimliği gereklidir' }, { status: 400 });
+    if (requestedTenantId && requestedTenantId !== tenantId) {
+      return NextResponse.json({ error: 'Bu tenant için yetkiniz yok' }, { status: 403 });
     }
 
     if (!email) {
@@ -78,25 +79,20 @@ export async function POST(request: Request) {
       }
     }
 
-    // Check for existing pending invitation
-    const existingInvite = await sql`
-      SELECT id FROM invitations 
-      WHERE tenant_id = ${tenantId} AND email = ${email} AND expires_at > NOW()
-      LIMIT 1
-    `;
-
-    const existingInviteRows = existingInvite as any[];
-    if (existingInviteRows.length > 0) {
-      return NextResponse.json({ error: 'Bu e-posta için zaten bekleyen bir davet var' }, { status: 400 });
-    }
-
     // Create invitation with secure token
     const token = generateSecureToken();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
+    // Keep invitation row unique per tenant/email and rotate token safely.
     await sql`
       INSERT INTO invitations (tenant_id, email, token, role, expires_at, created_at)
       VALUES (${tenantId}, ${email}, ${token}, ${role}, ${expiresAt.toISOString()}, NOW())
+      ON CONFLICT (tenant_id, email)
+      DO UPDATE SET
+        token = EXCLUDED.token,
+        role = EXCLUDED.role,
+        expires_at = EXCLUDED.expires_at,
+        created_at = NOW()
     `;
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -118,4 +114,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Davet oluşturulurken bir hata oluştu' }, { status: 500 });
   }
 }
-

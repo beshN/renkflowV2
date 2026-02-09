@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
 /**
- * Push schema to Neon database
+ * Push schema to PostgreSQL database
  * 
  * Usage: npm run db:push
  */
 
-const { neon } = require('@neondatabase/serverless');
+const postgres = require('postgres');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: '.env.local' });
@@ -16,18 +16,16 @@ async function pushSchema() {
   
   if (!databaseUrl) {
     console.error('❌ DATABASE_URL not found in environment variables');
-    console.log('   Create a .env.local file with your Neon connection string');
+    console.log('   Create a .env.local file with your PostgreSQL connection string');
     process.exit(1);
   }
 
   try {
-    const sql = neon(databaseUrl);
+    const sql = postgres(databaseUrl, { max: 1 });
     const schemaPath = path.join(__dirname, '..', 'lib', 'db', 'schema.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');
 
-    console.log('🔄 Pushing schema to Neon database...');
-    
-    console.log('🔄 Pushing schema to Neon database...');
+    console.log('🔄 Pushing schema to PostgreSQL database...');
     
     // Split schema into individual statements
     // Remove comments and split by semicolon
@@ -50,6 +48,7 @@ async function pushSchema() {
         }
       }
     }
+    await sql.end({ timeout: 5 });
     
     console.log('✅ Schema pushed successfully!');
   } catch (error) {

@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { sql } from '@/lib/db';
-import { uploadFile, generateFilePath } from '@/lib/storage/r2';
+import { uploadFile, generateFilePath } from '@/lib/storage/gcs';
 import { withServerActionTiming } from '@/lib/utils/metrics';
 import {
   getServerUserContext,
@@ -112,7 +112,7 @@ async function findActiveTokenByToken(token: string, tenantId: string) {
       o.status,
       o.delivery_date
     FROM order_qr_tokens t
-    JOIN orders o ON o.id = t.order_id
+    JOIN orders o ON o.id = t.order_id AND o.tenant_id = t.tenant_id
     WHERE t.token = ${token}
       AND t.tenant_id = ${tenantId}
       AND t.active = true

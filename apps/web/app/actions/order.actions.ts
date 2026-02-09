@@ -6,6 +6,14 @@ import { NewOrderFormData, Order, safeParseCurrency } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { withCache, cacheKeys, invalidateCache } from '@/lib/cache/enterprise';
 import { withServerActionTiming } from '@/lib/utils/metrics';
+import {
+  createOrderSchema,
+  updateOrderSchema,
+  statusUpdateSchema,
+  validateFiles,
+  formatValidationErrors,
+} from '@/lib/validations/order.schema';
+import { z } from 'zod';
 
 /**
  * Server Actions for Order Management
@@ -26,6 +34,12 @@ function handleActionError(error: unknown, action: string): never {
   throw new Error(`${action} işlemi başarısız oldu`);
 }
 
+const ALLOWED_STATUS_TRANSITIONS: Record<Order['status'], Order['status'][]> = {
+  pending: ['in_production', 'delivered'],
+  in_production: ['pending', 'delivered'],
+  delivered: ['in_production'],
+};
+
 // Validate session and ensure tenantId is defined
 async function validateSession(): Promise<{ user: { id: string; tenantId: string; email?: string | null; name?: string | null; role?: string }; }> {
   const session = await auth();
@@ -42,6 +56,68 @@ async function validateSession(): Promise<{ user: { id: string; tenantId: string
       role: session.user.role,
     }
   };
+}
+
+function toActionErrorMessage(error: z.ZodError): string {
+  const errors = formatValidationErrors(error);
+  const uniqueMessages = [...new Set(Object.values(errors))];
+  return uniqueMessages.join(', ');
+}
+
+function normalizeCustomFields(
+  value: unknown
+): Record<string, string> | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return {};
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Özel alanlar geçersiz formatta');
+  }
+
+  const normalized = Object.entries(value as Record<string, unknown>).reduce<Record<string, string>>(
+    (acc, [key, rawValue]) => {
+      const cleanKey = String(key).trim();
+      if (!cleanKey) return acc;
+      acc[cleanKey] = String(rawValue ?? '').trim();
+      return acc;
+    },
+    {}
+  );
+
+  return normalized;
+}
+
+function parseCustomFieldsFromFormData(formData: FormData): Record<string, string> | undefined {
+  const customFieldsRaw = formData.get('customFields');
+  if (!customFieldsRaw || typeof customFieldsRaw !== 'string') return undefined;
+
+  try {
+    const parsed = JSON.parse(customFieldsRaw);
+    return normalizeCustomFields(parsed);
+  } catch {
+    throw new Error('Özel alanlar JSON formatında olmalıdır');
+  }
+}
+
+function getFilesFromFormData(formData: FormData): File[] {
+  return formData
+    .getAll('files')
+    .filter((entry): entry is File => entry instanceof File && entry.size > 0);
+}
+
+function validateFilesOrThrow(files: File[]): void {
+  if (files.length === 0) return;
+  const fileValidation = validateFiles(files);
+  if (!fileValidation.valid) {
+    throw new Error(fileValidation.errors.join(', '));
+  }
+}
+
+function invalidateOrderCaches(tenantId: string, orderId?: string): void {
+  invalidateCache(cacheKeys.orders.list(tenantId));
+  invalidateCache(cacheKeys.orders.stats(tenantId));
+  if (orderId) {
+    invalidateCache(cacheKeys.orders.detail(tenantId, orderId));
+  }
 }
 
 /**
@@ -71,7 +147,12 @@ export async function getOrderByIdAction(id: string): Promise<Order | null> {
   return withServerActionTiming('orders.getOrderByIdAction', async () => {
     try {
       const session = await validateSession();
-      return await orderService.getOrderById(session.user.tenantId, id);
+      const cacheKey = cacheKeys.orders.detail(session.user.tenantId, id);
+      return await withCache(
+        cacheKey,
+        () => orderService.getOrderById(session.user.tenantId, id),
+        30000
+      );
     } catch (error) {
       return handleActionError(error, 'getOrderByIdAction');
     }
@@ -85,58 +166,37 @@ export async function createOrderAction(formData: FormData): Promise<Order> {
   return withServerActionTiming('orders.createOrderAction', async () => {
     try {
       const session = await validateSession();
-    
-    // Extract files
-    const files = formData.getAll('files') as File[];
-    
-    // Extract and validate other data
-    const customFieldsRaw = formData.get('customFields') as string | null;
-    let parsedCustomFields: Record<string, string> | undefined;
-    
-    if (customFieldsRaw) {
-      try {
-        parsedCustomFields = JSON.parse(customFieldsRaw);
-      } catch {
-        console.warn('[createOrderAction] Invalid customFields JSON');
+      const files = getFilesFromFormData(formData);
+      validateFilesOrThrow(files);
+
+      const validationResult = createOrderSchema.safeParse({
+        customerName: formData.get('customerName'),
+        email: formData.get('email'),
+        phone: formData.get('phone'),
+        productName: formData.get('productName'),
+        quantity: formData.get('quantity'),
+        totalAmount: formData.get('totalAmount'),
+        currency: formData.get('currency'),
+        deliveryDate: formData.get('deliveryDate'),
+        notes: formData.get('notes'),
+      });
+
+      if (!validationResult.success) {
+        throw new Error(toActionErrorMessage(validationResult.error));
       }
-    }
 
-    const customerName = formData.get('customerName') as string;
-    const productName = formData.get('productName') as string;
-    const quantityStr = formData.get('quantity') as string;
-    const quantity = parseInt(quantityStr);
+      const data: NewOrderFormData = {
+        ...validationResult.data,
+        currency: safeParseCurrency(validationResult.data.currency),
+        customFields: parseCustomFieldsFromFormData(formData),
+      };
 
-    // Validate required fields
-    if (!customerName?.trim()) {
-      throw new Error('Müşteri adı zorunludur');
-    }
-    
-    if (!productName?.trim()) {
-      throw new Error('Ürün adı zorunludur');
-    }
-    
-    if (isNaN(quantity) || quantity <= 0) {
-      throw new Error('Geçerli bir miktar giriniz');
-    }
+      const order = await orderService.createOrder(session.user.tenantId, data, files);
 
-    const data: NewOrderFormData = {
-      customerName: customerName.trim(),
-      email: (formData.get('email') as string)?.trim() || undefined,
-      phone: (formData.get('phone') as string)?.trim() || undefined,
-      productName: productName.trim(),
-      quantity,
-      totalAmount: parseFloat(formData.get('totalAmount') as string) || 0,
-      currency: safeParseCurrency(formData.get('currency') as string | null),
-      deliveryDate: (formData.get('deliveryDate') as string) || undefined,
-      notes: (formData.get('notes') as string)?.trim() || undefined,
-      customFields: parsedCustomFields,
-    };
+      invalidateOrderCaches(session.user.tenantId, order.id);
+      revalidatePath('/orders');
+      revalidatePath('/dashboard');
 
-    const order = await orderService.createOrder(session.user.tenantId, data, files);
-    
-    revalidatePath('/orders');
-    revalidatePath('/dashboard');
-    
       return order;
     } catch (error) {
       return handleActionError(error, 'createOrderAction');
@@ -151,17 +211,33 @@ export async function updateOrderAction(id: string, updates: Partial<Order>): Pr
   return withServerActionTiming('orders.updateOrderAction', async () => {
     try {
       const session = await validateSession();
-    
-    if (!id) {
-      throw new Error('Sipariş ID gerekli');
-    }
-    
-    const order = await orderService.updateOrder(session.user.tenantId, id, updates);
-    
-    revalidatePath('/orders');
-    revalidatePath(`/orders/${id}`);
-    revalidatePath('/dashboard');
-    
+      if (!id) {
+        throw new Error('Sipariş ID gerekli');
+      }
+
+      const { customFields, ...rest } = updates as Partial<Order> & {
+        customFields?: unknown;
+      };
+      const validationResult = updateOrderSchema.safeParse(rest);
+      if (!validationResult.success) {
+        throw new Error(toActionErrorMessage(validationResult.error));
+      }
+
+      const sanitizedUpdates: Partial<Order> = {
+        ...validationResult.data,
+      };
+
+      if (customFields !== undefined) {
+        sanitizedUpdates.customFields = normalizeCustomFields(customFields);
+      }
+
+      const order = await orderService.updateOrder(session.user.tenantId, id, sanitizedUpdates);
+
+      invalidateOrderCaches(session.user.tenantId, id);
+      revalidatePath('/orders');
+      revalidatePath(`/orders/${id}`);
+      revalidatePath('/dashboard');
+
       return order;
     } catch (error) {
       return handleActionError(error, 'updateOrderAction');
@@ -176,22 +252,41 @@ export async function updateOrderStatusAction(id: string, status: Order['status'
   return withServerActionTiming('orders.updateOrderStatusAction', async () => {
     try {
       const session = await validateSession();
-    
-    if (!id) {
-      throw new Error('Sipariş ID gerekli');
-    }
-    
-    if (!status) {
-      throw new Error('Durum bilgisi gerekli');
-    }
-    
-    const order = await orderService.updateOrderStatus(session.user.tenantId, id, status);
-    
-    revalidatePath('/orders');
-    revalidatePath(`/orders/${id}`);
-    revalidatePath('/kanban');
-    revalidatePath('/dashboard');
-    
+      if (!id) {
+        throw new Error('Sipariş ID gerekli');
+      }
+
+      const parsedStatus = statusUpdateSchema.safeParse({ status });
+      if (!parsedStatus.success) {
+        throw new Error(toActionErrorMessage(parsedStatus.error));
+      }
+
+      const existingOrder = await orderService.getOrderById(session.user.tenantId, id);
+      if (!existingOrder) {
+        throw new Error('Sipariş bulunamadı');
+      }
+
+      if (existingOrder.status !== parsedStatus.data.status) {
+        const allowedTransitions = ALLOWED_STATUS_TRANSITIONS[existingOrder.status] || [];
+        if (!allowedTransitions.includes(parsedStatus.data.status)) {
+          throw new Error(
+            `Durum geçişine izin verilmiyor: ${existingOrder.status} -> ${parsedStatus.data.status}`
+          );
+        }
+      }
+
+      const order = await orderService.updateOrderStatus(
+        session.user.tenantId,
+        id,
+        parsedStatus.data.status
+      );
+
+      invalidateOrderCaches(session.user.tenantId, id);
+      revalidatePath('/orders');
+      revalidatePath(`/orders/${id}`);
+      revalidatePath('/kanban');
+      revalidatePath('/dashboard');
+
       return order;
     } catch (error) {
       return handleActionError(error, 'updateOrderStatusAction');
@@ -206,14 +301,14 @@ export async function deleteOrderAction(id: string): Promise<void> {
   return withServerActionTiming('orders.deleteOrderAction', async () => {
     try {
       const session = await validateSession();
-    
-    if (!id) {
-      throw new Error('Sipariş ID gerekli');
-    }
-    
-    await orderService.deleteOrder(session.user.tenantId, id);
-    
-    revalidatePath('/orders');
+      if (!id) {
+        throw new Error('Sipariş ID gerekli');
+      }
+
+      await orderService.deleteOrder(session.user.tenantId, id);
+
+      invalidateOrderCaches(session.user.tenantId, id);
+      revalidatePath('/orders');
       revalidatePath('/dashboard');
     } catch (error) {
       return handleActionError(error, 'deleteOrderAction');
@@ -228,29 +323,21 @@ export async function uploadOrderDocumentsAction(id: string, formData: FormData)
   return withServerActionTiming('orders.uploadOrderDocumentsAction', async () => {
     try {
       const session = await validateSession();
-    
-    if (!id) {
-      throw new Error('Sipariş ID gerekli');
-    }
-    
-    const files = formData.getAll('files') as File[];
-    
-    if (files.length === 0) {
-      console.warn('[uploadOrderDocumentsAction] No files provided');
-      return;
-    }
-    
-    // Validate file sizes and types
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    for (const file of files) {
-      if (file.size > maxSize) {
-        throw new Error(`Dosya çok büyük: ${file.name}. Maksimum 10MB.`);
+      if (!id) {
+        throw new Error('Sipariş ID gerekli');
       }
-    }
-    
-    await orderService.addDocuments(session.user.tenantId, id, files);
-    
-    revalidatePath(`/orders/${id}`);
+
+      const files = getFilesFromFormData(formData);
+      if (files.length === 0) {
+        return;
+      }
+
+      validateFilesOrThrow(files);
+
+      await orderService.addDocuments(session.user.tenantId, id, files);
+
+      invalidateOrderCaches(session.user.tenantId, id);
+      revalidatePath(`/orders/${id}`);
       revalidatePath('/finance/documents');
     } catch (error) {
       return handleActionError(error, 'uploadOrderDocumentsAction');

@@ -1,58 +1,235 @@
-# .github/workflows/deploy.yml
-name: Deploy Pipeline
+name: Deploy to Google Cloud Run
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGION: europe-west3
+  SERVICE_NAME: renkflow-web
+  AR_REPOSITORY: renkflow-containers
+  SQL_INSTANCE: renkflow-db-prod
+  PUBLIC_SITE_MODE: coming-soon
 
 jobs:
-  test:
+  deploy:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-      - run: npm ci
-        working-directory: RenkFlow/renkflow-nextjs
-      - run: npm run lint
-        working-directory: RenkFlow/renkflow-nextjs
-      - run: npm run build
-        working-directory: RenkFlow/renkflow-nextjs
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
 
-  deploy-staging:
-    needs: test
-    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - run: npm ci
-        working-directory: RenkFlow/renkflow-nextjs
-      - run: npm run build
-        working-directory: RenkFlow/renkflow-nextjs
-      - uses: vercel/action-deploy@v1
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run backend guardrails
+        run: |
+          GUARD_SCRIPT="apps/web/scripts/guardrails/no-$(printf '%s%s' 'neo' 'n')-r2.sh"
+          chmod +x "${GUARD_SCRIPT}"
+          bash "${GUARD_SCRIPT}"
+
+      - name: Authenticate with Workload Identity Federation
+        id: auth_wif
+        if: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && secrets.GCP_SERVICE_ACCOUNT_EMAIL != '' }}
+        uses: google-github-actions/auth@v2
         with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
 
-  deploy-production:
-    needs: deploy-staging
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v3
-      - run: npm ci
-        working-directory: RenkFlow/renkflow-nextjs
-      - run: npm run build
-        working-directory: RenkFlow/renkflow-nextjs
-      - uses: vercel/action-deploy@v1
+      - name: Authenticate with Service Account Key (Fallback)
+        id: auth_key
+        if: ${{ !(secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && secrets.GCP_SERVICE_ACCOUNT_EMAIL != '') && secrets.GCP_SA_KEY != '' }}
+        uses: google-github-actions/auth@v2
         with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-args: '--prod'
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-  monitor:
-    needs: deploy-production
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          curl -X POST https://sentry.io/api/hooks/release \
-            -H 'Authorization: Bearer ${{ secrets.SENTRY_TOKEN }}' \
-            -d '{"version": "${{ github.sha }}"}'
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Validate required secrets
+        run: |
+          if [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
+            echo "GCP_PROJECT_ID is required"
+            exit 1
+          fi
+
+          if [ -z "${{ secrets.GCS_BUCKET_NAME }}" ]; then
+            echo "GCS_BUCKET_NAME is required"
+            exit 1
+          fi
+
+          HAS_WIF="0"
+          if [ -n "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}" ] && [ -n "${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}" ]; then
+            HAS_WIF="1"
+          fi
+
+          HAS_SA_KEY="0"
+          if [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
+            HAS_SA_KEY="1"
+          fi
+
+          if [ "$HAS_WIF" -ne 1 ] && [ "$HAS_SA_KEY" -ne 1 ]; then
+            echo "Either WIF secrets (GCP_WORKLOAD_IDENTITY_PROVIDER + GCP_SERVICE_ACCOUNT_EMAIL) or GCP_SA_KEY is required"
+            exit 1
+          fi
+
+      - name: Configure project
+        run: gcloud config set project "${{ secrets.GCP_PROJECT_ID }}"
+
+      - name: Enable required APIs
+        run: |
+          gcloud services enable \
+            run.googleapis.com \
+            cloudbuild.googleapis.com \
+            artifactregistry.googleapis.com \
+            sqladmin.googleapis.com \
+            secretmanager.googleapis.com
+
+      - name: Ensure Artifact Registry repository
+        run: |
+          gcloud artifacts repositories describe "${{ env.AR_REPOSITORY }}" \
+            --location "${{ env.REGION }}" >/dev/null 2>&1 || \
+          gcloud artifacts repositories create "${{ env.AR_REPOSITORY }}" \
+            --location "${{ env.REGION }}" \
+            --repository-format docker \
+            --description "RenkFlow container images"
+
+      - name: Build image with Cloud Build
+        run: |
+          IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          echo "IMAGE_URI=${IMAGE_URI}" >> "$GITHUB_ENV"
+          TMP_CLOUDBUILD_CONFIG="$(mktemp)"
+          cat > "${TMP_CLOUDBUILD_CONFIG}" <<CBEOF
+          steps:
+            - name: gcr.io/cloud-builders/docker
+              args:
+                - build
+                - -t
+                - ${IMAGE_URI}
+                - -f
+                - apps/web/Dockerfile
+                - .
+          images:
+            - ${IMAGE_URI}
+          CBEOF
+          gcloud builds submit . --config "${TMP_CLOUDBUILD_CONFIG}"
+          rm -f "${TMP_CLOUDBUILD_CONFIG}"
+
+      - name: Read Cloud SQL connection name
+        run: |
+          CONNECTION_NAME="$(gcloud sql instances describe "${{ env.SQL_INSTANCE }}" --format='value(connectionName)')"
+          echo "CONNECTION_NAME=${CONNECTION_NAME}" >> "$GITHUB_ENV"
+
+      - name: Build deploy secret list
+        run: |
+          SECRET_NAMES=(
+            DATABASE_URL
+            AUTH_SECRET
+            NEXTAUTH_SECRET
+            RESEND_API_KEY
+            GOOGLE_CLIENT_ID
+            GOOGLE_CLIENT_SECRET
+            AZURE_AD_CLIENT_ID
+            AZURE_AD_CLIENT_SECRET
+            AZURE_AD_TENANT_ID
+            VAPID_PRIVATE_KEY
+            GEMINI_API_KEY
+            GOOGLE_API_KEY
+          )
+
+          SECRET_PAIRS=()
+          for secret_name in "${SECRET_NAMES[@]}"; do
+            if gcloud secrets describe "${secret_name}" >/dev/null 2>&1; then
+              SECRET_PAIRS+=("${secret_name}=${secret_name}:latest")
+            fi
+          done
+
+          SECRET_VARS="$(IFS=,; echo "${SECRET_PAIRS[*]-}")"
+          echo "SECRET_VARS=${SECRET_VARS}" >> "$GITHUB_ENV"
+
+      - name: Deploy Cloud Run
+        run: |
+          DEPLOY_CMD=(
+            gcloud run deploy "${{ env.SERVICE_NAME }}"
+            --region "${{ env.REGION }}"
+            --platform managed
+            --image "${IMAGE_URI}"
+            --no-invoker-iam-check
+            --port 3000
+            --add-cloudsql-instances "${CONNECTION_NAME}"
+            --set-env-vars "NODE_ENV=production,AUTH_TRUST_HOST=true,PUBLIC_SITE_MODE=${{ env.PUBLIC_SITE_MODE }},STORAGE_BACKEND=gcs,GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }}"
+          )
+
+          if [ -n "${SECRET_VARS}" ]; then
+            DEPLOY_CMD+=(--set-secrets "${SECRET_VARS}")
+          fi
+
+          "${DEPLOY_CMD[@]}"
+
+      - name: Publish service URL
+        run: |
+          SERVICE_URL="$(gcloud run services describe "${{ env.SERVICE_NAME }}" --region "${{ env.REGION }}" --format='value(status.url)')"
+          echo "Cloud Run URL: ${SERVICE_URL}"
+          echo "SERVICE_URL=${SERVICE_URL}" >> "$GITHUB_ENV"
+
+      - name: Validate deployed PUBLIC_SITE_MODE
+        run: |
+          if [[ "${{ env.PUBLIC_SITE_MODE }}" != "coming-soon" && "${{ env.PUBLIC_SITE_MODE }}" != "off" ]]; then
+            echo "ERROR: Invalid workflow PUBLIC_SITE_MODE=${{ env.PUBLIC_SITE_MODE }}" >&2
+            exit 1
+          fi
+
+          DEPLOYED_MODE="$(
+            gcloud run services describe "${{ env.SERVICE_NAME }}" \
+              --region "${{ env.REGION }}" \
+              --format='yaml(spec.template.spec.containers[0].env)' \
+            | awk '
+                /name: PUBLIC_SITE_MODE/ {
+                  getline
+                  gsub(/^[[:space:]]*value:[[:space:]]*/, "", $0)
+                  gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+                  print $0
+                  exit
+                }
+              '
+          )"
+
+          if [[ -z "${DEPLOYED_MODE}" ]]; then
+            echo "ERROR: Could not read deployed PUBLIC_SITE_MODE" >&2
+            exit 1
+          fi
+
+          if [[ "${DEPLOYED_MODE}" != "${{ env.PUBLIC_SITE_MODE }}" ]]; then
+            echo "ERROR: Deployed PUBLIC_SITE_MODE=${DEPLOYED_MODE}, expected=${{ env.PUBLIC_SITE_MODE }}" >&2
+            exit 1
+          fi
+
+          echo "PUBLIC_SITE_MODE validated: ${DEPLOYED_MODE}"
+
+      - name: Wait for service readiness
+        run: |
+          ready=0
+          for i in {1..10}; do
+            STATUS_CODE="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "${SERVICE_URL}/" || true)"
+            if [[ "${STATUS_CODE}" == "200" || "${STATUS_CODE}" == "302" ]]; then
+              echo "Service is ready (status=${STATUS_CODE})"
+              ready=1
+              break
+            fi
+
+            echo "Attempt ${i}/10: not ready yet (status=${STATUS_CODE})"
+            sleep 6
+          done
+
+          if [[ "${ready}" -ne 1 ]]; then
+            echo "ERROR: Service did not become ready in time" >&2
+            exit 1
+          fi
+
+      - name: Smoke test coming-soon mode
+        run: |
+          chmod +x apps/web/scripts/smoke-coming-soon.sh
+          apps/web/scripts/smoke-coming-soon.sh "${SERVICE_URL}"

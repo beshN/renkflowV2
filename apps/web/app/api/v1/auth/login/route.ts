@@ -47,7 +47,22 @@ export async function POST(request: NextRequest) {
         tm.role,
         tm.tenant_id
       FROM users u
-      LEFT JOIN tenant_members tm ON tm.user_id = u.id
+      LEFT JOIN LATERAL (
+        SELECT tenant_id, role
+        FROM tenant_members
+        WHERE user_id = u.id
+        ORDER BY
+          CASE role
+            WHEN 'owner' THEN 0
+            WHEN 'admin' THEN 1
+            WHEN 'accountant' THEN 2
+            WHEN 'office' THEN 3
+            WHEN 'worker' THEN 4
+            ELSE 5
+          END,
+          created_at ASC
+        LIMIT 1
+      ) tm ON true
       WHERE u.email = ${email}
       LIMIT 1
     `;
@@ -76,6 +91,10 @@ export async function POST(request: NextRequest) {
       // Record failed attempt for rate limiting
       await authRateLimiter.recordFailure(request, 'login');
       return errorResponse('E-posta veya şifre hatalı', 401);
+    }
+
+    if (!user.tenant_id) {
+      return errorResponse('Kullanıcının aktif tenant üyeliği bulunamadı', 403);
     }
 
     // Clear rate limit on successful login

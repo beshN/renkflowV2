@@ -23,16 +23,6 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'cdn.renkflow.com',
       },
-      {
-        protocol: 'https',
-        hostname: 'pub-*.r2.dev',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'renkflowv2-storage.e133c6a8581c4228807833059082381e.r2.cloudflarestorage.com',
-        pathname: '/**',
-      },
     ],
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],

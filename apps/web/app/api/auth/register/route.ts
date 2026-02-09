@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { sendVerificationEmail } from '@/lib/email';
 import { authLimiter, rateLimitResponse } from '@/lib/api/rate-limit';
-import { sql } from '@/lib/db';
+import { sql, withTransaction } from '@/lib/db';
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_BY_KEY, TemplateKey } from '@/lib/config/templates';
 
 // Email validation regex
@@ -166,21 +166,6 @@ export async function POST(request: NextRequest) {
     // Generate secure verification token
     const verificationToken = generateSecureToken();
 
-    // Create user (email NOT verified yet)
-    const users = await sql`
-      INSERT INTO users (name, email, password, verification_token, created_at, updated_at)
-      VALUES (${name}, ${email}, ${hashedPassword}, ${verificationToken}, NOW(), NOW())
-      RETURNING id
-    `;
-
-    const usersRows = users as any[];
-    if (usersRows.length === 0) {
-      throw new Error('User creation failed');
-    }
-
-    const userId = usersRows[0].id;
-
-    // Create tenant with sanitized name
     const tenantName = companyName || `${name}'in Şirketi`;
     const tenantSlug = tenantName
       .toLowerCase()
@@ -189,20 +174,36 @@ export async function POST(request: NextRequest) {
       .replace(/^-|-$/g, '') + 
       '-' + Date.now().toString(36);
 
-    const tenants = await sql`
-      INSERT INTO tenants (name, slug, industry, template_key, created_at, updated_at)
-      VALUES (${tenantName}, ${tenantSlug}, ${industry}, ${selectedTemplate.key}, NOW(), NOW())
-      RETURNING id
-    `;
-
-    const tenantsRows = tenants as any[];
-    if (tenantsRows.length > 0) {
-      // Link user to tenant as owner
-      await sql`
-        INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
-        VALUES (${tenantsRows[0].id}, ${userId}, 'owner', NOW())
+    const { userId } = await withTransaction(async (tx) => {
+      const users = await tx`
+        INSERT INTO users (name, email, password, verification_token, created_at, updated_at)
+        VALUES (${name}, ${email}, ${hashedPassword}, ${verificationToken}, NOW(), NOW())
+        RETURNING id
       `;
-    }
+
+      const usersRows = users as any[];
+      if (usersRows.length === 0) {
+        throw new Error('User creation failed');
+      }
+      const createdUserId = usersRows[0].id as string;
+
+      const tenants = await tx`
+        INSERT INTO tenants (name, slug, industry, template_key, created_at, updated_at)
+        VALUES (${tenantName}, ${tenantSlug}, ${industry}, ${selectedTemplate.key}, NOW(), NOW())
+        RETURNING id
+      `;
+      const tenantsRows = tenants as any[];
+      if (tenantsRows.length === 0) {
+        throw new Error('Tenant creation failed');
+      }
+
+      await tx`
+        INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
+        VALUES (${tenantsRows[0].id}, ${createdUserId}, 'owner', NOW())
+      `;
+
+      return { userId: createdUserId };
+    });
 
     // Send verification email
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';

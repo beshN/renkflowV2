@@ -9,7 +9,7 @@
  * - Exportable reports (JSON/CSV ready)
  */
 
-import { sql } from '@/lib/db/neon';
+import { sql } from '@/lib/db';
 import { Order, OrderStatus } from '@/lib/types';
 
 // ============================================
