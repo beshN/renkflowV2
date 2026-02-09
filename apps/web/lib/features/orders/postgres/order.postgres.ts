@@ -376,7 +376,10 @@ export class PostgresOrderService implements IOrderService {
 
     // Get documents to delete from object storage
     const docs = await sql`
-      SELECT file_path FROM documents WHERE order_id = ${id}
+      SELECT file_path
+      FROM documents
+      WHERE order_id = ${id}
+        AND tenant_id = ${tenantId}
     `;
 
     // Delete from object storage

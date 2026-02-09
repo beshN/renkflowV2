@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     const normalizedIndustry = industry || normalizedTemplate.industry;
 
     // Update tenant
-    await sql`
+    const updated = await sql`
       UPDATE tenants
       SET 
         name = ${name.trim()}, 
@@ -60,7 +60,12 @@ export async function POST(request: Request) {
         template_key = ${normalizedTemplate?.key || null},
         updated_at = NOW()
       WHERE id = ${tenantId}
+      RETURNING id
     `;
+    const updatedRows = updated as Array<{ id: string }>;
+    if (updatedRows.length === 0) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

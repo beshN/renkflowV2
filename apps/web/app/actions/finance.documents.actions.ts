@@ -140,7 +140,7 @@ export async function listOrderDocuments(orderId: string): Promise<OrderDocument
       ? await sql`
           SELECT od.* 
           FROM order_documents od
-          JOIN orders o ON od.order_id = o.id
+          JOIN orders o ON od.order_id = o.id AND o.tenant_id = od.tenant_id
           WHERE od.order_id = ${orderId} 
           AND od.tenant_id = ${context.tenantId}
           ORDER BY od.uploaded_at DESC
@@ -148,7 +148,7 @@ export async function listOrderDocuments(orderId: string): Promise<OrderDocument
       : await sql`
           SELECT d.*
           FROM documents d
-          JOIN orders o ON d.order_id = o.id
+          JOIN orders o ON d.order_id = o.id AND o.tenant_id = d.tenant_id
           WHERE d.order_id = ${orderId}
           AND d.tenant_id = ${context.tenantId}
           ORDER BY d.created_at DESC
@@ -214,7 +214,7 @@ export async function listAllDocuments(options?: {
         query = sql`
           SELECT od.*, o.order_number, o.customer_name
           FROM order_documents od
-          JOIN orders o ON od.order_id = o.id
+          JOIN orders o ON od.order_id = o.id AND o.tenant_id = od.tenant_id
           WHERE od.tenant_id = ${context.tenantId}
           AND od.type = ${options.type}
           AND od.order_id = ${options.orderId}
@@ -225,7 +225,7 @@ export async function listAllDocuments(options?: {
         query = sql`
           SELECT od.*, o.order_number, o.customer_name
           FROM order_documents od
-          JOIN orders o ON od.order_id = o.id
+          JOIN orders o ON od.order_id = o.id AND o.tenant_id = od.tenant_id
           WHERE od.tenant_id = ${context.tenantId}
           AND od.type = ${options.type}
           ORDER BY od.uploaded_at DESC
@@ -235,7 +235,7 @@ export async function listAllDocuments(options?: {
         query = sql`
           SELECT od.*, o.order_number, o.customer_name
           FROM order_documents od
-          JOIN orders o ON od.order_id = o.id
+          JOIN orders o ON od.order_id = o.id AND o.tenant_id = od.tenant_id
           WHERE od.tenant_id = ${context.tenantId}
           AND od.order_id = ${options.orderId}
           ORDER BY od.uploaded_at DESC
@@ -245,7 +245,7 @@ export async function listAllDocuments(options?: {
         query = sql`
           SELECT od.*, o.order_number, o.customer_name
           FROM order_documents od
-          JOIN orders o ON od.order_id = o.id
+          JOIN orders o ON od.order_id = o.id AND o.tenant_id = od.tenant_id
           WHERE od.tenant_id = ${context.tenantId}
           ORDER BY od.uploaded_at DESC
           LIMIT ${options?.limit || 100}
@@ -255,7 +255,7 @@ export async function listAllDocuments(options?: {
       query = sql`
         SELECT d.*, o.order_number, o.customer_name
         FROM documents d
-        JOIN orders o ON d.order_id = o.id
+        JOIN orders o ON d.order_id = o.id AND o.tenant_id = d.tenant_id
         WHERE d.tenant_id = ${context.tenantId}
         AND d.order_id = ${options.orderId}
         ORDER BY d.created_at DESC
@@ -265,7 +265,7 @@ export async function listAllDocuments(options?: {
       query = sql`
         SELECT d.*, o.order_number, o.customer_name
         FROM documents d
-        JOIN orders o ON d.order_id = o.id
+        JOIN orders o ON d.order_id = o.id AND o.tenant_id = d.tenant_id
         WHERE d.tenant_id = ${context.tenantId}
         ORDER BY d.created_at DESC
         LIMIT ${options?.limit || 100}
@@ -383,7 +383,7 @@ export async function getRecentDocuments(limit: number = 5): Promise<(OrderDocum
       ? await sql`
           SELECT od.*, o.order_number
           FROM order_documents od
-          JOIN orders o ON od.order_id = o.id
+          JOIN orders o ON od.order_id = o.id AND o.tenant_id = od.tenant_id
           WHERE od.tenant_id = ${context.tenantId}
           ORDER BY od.uploaded_at DESC
           LIMIT ${limit}
@@ -391,7 +391,7 @@ export async function getRecentDocuments(limit: number = 5): Promise<(OrderDocum
       : await sql`
           SELECT d.*, o.order_number
           FROM documents d
-          JOIN orders o ON d.order_id = o.id
+          JOIN orders o ON d.order_id = o.id AND o.tenant_id = d.tenant_id
           WHERE d.tenant_id = ${context.tenantId}
           ORDER BY d.created_at DESC
           LIMIT ${limit}

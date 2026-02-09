@@ -10,6 +10,18 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const membershipResult = await sql`
+      SELECT id
+      FROM tenant_members
+      WHERE tenant_id = ${session.user.tenantId}
+        AND user_id = ${session.user.id}
+      LIMIT 1
+    `;
+    const membershipRows = membershipResult as Array<{ id: string }>;
+    if (membershipRows.length === 0) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const members = await sql`
       SELECT 
         tm.id as membership_id,

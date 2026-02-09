@@ -92,7 +92,7 @@ export async function listPaymentsByOrder(orderId: string): Promise<Payment[]> {
   const result = await sql`
     SELECT p.* 
     FROM payments p
-    JOIN orders o ON p.order_id = o.id
+    JOIN orders o ON p.order_id = o.id AND o.tenant_id = p.tenant_id
     WHERE p.order_id = ${orderId} 
     AND p.tenant_id = ${context.tenantId}
     ORDER BY p.paid_at DESC
@@ -231,7 +231,7 @@ export async function getOrdersWithPayments(): Promise<OrderWithPayments[]> {
             o.currency,
             COALESCE(SUM(p.amount), 0) as paid_amount
           FROM orders o
-          LEFT JOIN payments p ON o.id = p.order_id
+          LEFT JOIN payments p ON o.id = p.order_id AND p.tenant_id = o.tenant_id
           WHERE o.tenant_id = ${context.tenantId}
           GROUP BY o.id, o.order_number, o.customer_name, o.status, o.created_at, o.delivery_date, o.total_amount, o.currency
           ORDER BY o.created_at DESC
