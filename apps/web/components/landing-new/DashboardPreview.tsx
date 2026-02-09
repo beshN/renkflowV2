@@ -399,7 +399,7 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
       
       {/* Main Container */}
       <div 
-        className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-[0_20px_60px_-12px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_60px_-12px_rgba(0,0,0,0.5)] border border-slate-200 dark:border-slate-800 overflow-hidden h-[600px] flex transition-transform duration-500 ease-out group-hover:[transform:rotateY(0deg)_rotateX(0deg)]" 
+        className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-[0_20px_60px_-12px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_60px_-12px_rgba(0,0,0,0.5)] border border-slate-200 dark:border-slate-800 overflow-hidden h-[500px] xl:h-[560px] 2xl:h-[600px] flex transition-transform duration-500 ease-out group-hover:[transform:rotateY(0deg)_rotateX(0deg)]" 
         style={{ transform: 'rotateY(-3deg) rotateX(2deg)' }}
       >
         

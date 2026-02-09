@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 
 export default function CookiesPage() {
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16 py-16">
+    <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-16">
       <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-8">Çerez Politikası</h1>
       
       <div className="prose prose-slate dark:prose-invert max-w-none space-y-6">

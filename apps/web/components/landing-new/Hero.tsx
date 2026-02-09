@@ -67,7 +67,7 @@ export const Hero: React.FC = () => {
         <div className="absolute bottom-[-20%] left-[20%] w-[50%] h-[50%] rounded-full bg-gradient-to-t from-emerald-400/15 to-sky-400/15 blur-[60px] animate-blob animation-delay-4000 will-change-transform dark:mix-blend-soft-light" />
       </div>
 
-      <div className="relative z-10 w-full px-4 sm:px-6 lg:px-12 xl:px-16 pt-32 pb-20 lg:pt-48 lg:pb-32">
+      <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 pt-32 pb-20 lg:pt-48 lg:pb-32">
         <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-20">
             
             {/* Left Content */}

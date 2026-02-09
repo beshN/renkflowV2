@@ -31,7 +31,7 @@ const PricingSection = dynamic(() => import('./full/PricingSection').then(mod =>
 // Minimal skeleton for lazy-loaded sections
 const SectionSkeleton = memo(() => (
   <div className="py-16 px-6">
-    <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
+    <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
       <div className="h-8 w-48 bg-slate-200 dark:bg-slate-800 rounded-lg mx-auto mb-8 animate-pulse" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[1, 2, 3].map((i) => (

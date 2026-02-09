@@ -53,7 +53,7 @@ export default function StatusPage() {
   const allOperational = services.every((s) => s.status === 'operational');
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16 py-16">
+    <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-16">
       <div className="text-center mb-10">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-green-100 dark:bg-green-900/30 mb-6">
           <Activity className="w-8 h-8 text-green-600 dark:text-green-400" />

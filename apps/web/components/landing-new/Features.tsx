@@ -74,7 +74,7 @@ export const Features: React.FC<{ showStats?: boolean }> = ({ showStats = true }
       {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-slate-300/70 dark:via-slate-700 to-transparent opacity-60" />
 
-      <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16 relative z-10">
+      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 relative z-10">
         
         {/* Stats Bar */}
         {showStats && (

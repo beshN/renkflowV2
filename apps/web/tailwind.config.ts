@@ -13,8 +13,8 @@ const config: Config = {
       padding: {
         DEFAULT: "1rem",
         sm: "1.5rem",
-        lg: "3rem",
-        xl: "4rem",
+        lg: "2rem",
+        xl: "2.5rem",
       },
       screens: {
         sm: "100%",
