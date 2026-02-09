@@ -10,22 +10,22 @@ async function diagnose() {
   console.log('---------------------------------------');
   
   // 2. Import modules AFTER env load
-  const { orderService } = require('../lib/services/orderService.server');
-  const { NeonOrderService } = require('../lib/services/neon/order.neon');
-  const { MockOrderService } = require('../lib/services/mock/order.mock');
-  const { sql } = require('../lib/db/neon');
+  const { orderService } = require('../lib/features/orders/orderService.server');
+  const { PostgresOrderService } = require('../lib/features/orders/postgres/order.postgres');
+  const { MockOrderService } = require('../lib/features/orders/mock/order.mock');
+  const { sql } = require('../lib/db');
 
   console.log('1️⃣  Environment Variables');
   console.log('   DATABASE_URL:', process.env.DATABASE_URL ? '✅ Defined' : '❌ MISSING');
-  console.log('   R2_BUCKET_NAME:', process.env.R2_BUCKET_NAME);
+  console.log('   GCS_BUCKET_NAME:', process.env.GCS_BUCKET_NAME);
   console.log('   NEXT_PUBLIC_USE_DATABASE:', process.env.NEXT_PUBLIC_USE_DATABASE);
 
   console.log('\n2️⃣  Service Selection Logic');
-  const isNeon = orderService instanceof NeonOrderService;
+  const isPostgres = orderService instanceof PostgresOrderService;
   const isMock = orderService instanceof MockOrderService;
 
-  if (isNeon) {
-    console.log('   ✅ Service Factory selected: NEON (Real DB)');
+  if (isPostgres) {
+    console.log('   ✅ Service Factory selected: POSTGRES (Real DB)');
   } else if (isMock) {
     console.log('   ⚠️  Service Factory selected: MOCK (Memory)');
   } else {

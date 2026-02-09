@@ -194,7 +194,19 @@ export const ComingSoonPage: React.FC = () => {
     { question: 'Hangi sektörlere uygun?', answer: 'Mobilya, tekstil, metal işleme, gıda üretimi, plastik enjeksiyon ve daha birçok üretim sektörüne uygun modüler bir platformdur.' },
     { question: 'Mevcut sistemlerimle entegre olabilir mi?', answer: 'Evet. REST API ve webhook desteği ile mevcut ERP, muhasebe ve e-ticaret sistemlerinizle entegre çalışabilir.' },
     { question: 'Verilerim güvende mi?', answer: 'End-to-end şifreleme, rol bazlı yetkilendirme, otomatik yedekleme ve KVKK uyumlu altyapı ile verileriniz en yüksek güvenlik standartlarında korunur.' },
-    { question: 'Ücretsiz deneme süreci var mı?', answer: 'Bekleme listesine katılan tüm kullanıcılarımıza 3 ay ücretsiz premium üyelik ve %50 lansma indirimi sunuyoruz.' },
+    { question: 'Ücretsiz deneme süreci var mı?', answer: 'Bekleme listesine katılan tüm kullanıcılarımıza 3 ay ücretsiz premium üyelik ve %50 lansman indirimi sunuyoruz.' },
+  ];
+
+  const footerQuickLinks = [
+    { label: 'Bekleme Listesi', href: '#waitlist' },
+    { label: 'Özellikler', href: '#features' },
+    { label: 'SSS', href: '#faq' },
+  ];
+
+  const footerSocialLinks = [
+    { icon: Twitter, href: 'https://twitter.com/renkflow', label: 'Twitter' },
+    { icon: Linkedin, href: 'https://linkedin.com/company/renkflow', label: 'LinkedIn' },
+    { icon: Github, href: 'https://github.com/renkflow', label: 'GitHub' },
   ];
 
   if (!mounted) return null;
@@ -426,7 +438,7 @@ export const ComingSoonPage: React.FC = () => {
       </section>
 
       {/* ─── FEATURES ─── */}
-      <section className="relative py-24">
+      <section id="features" className="relative py-24">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -457,7 +469,7 @@ export const ComingSoonPage: React.FC = () => {
       </section>
 
       {/* ─── HOW IT WORKS ─── */}
-      <section className="relative py-24 bg-slate-50 dark:bg-slate-900/30">
+      <section id="how-it-works" className="relative py-24 bg-slate-50 dark:bg-slate-900/30">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -525,7 +537,7 @@ export const ComingSoonPage: React.FC = () => {
       </section>
 
       {/* ─── FAQ ─── */}
-      <section className="relative py-24 bg-slate-50 dark:bg-slate-900/30">
+      <section id="faq" className="relative py-24 bg-slate-50 dark:bg-slate-900/30">
         <div className="max-w-2xl mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -581,7 +593,7 @@ export const ComingSoonPage: React.FC = () => {
               </p>
 
               <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-                {['%50 lansma indirimi', '3 ay ücretsiz premium', 'Öncelikli destek'].map((b) => (
+                {['%50 lansman indirimi', '3 ay ücretsiz premium', 'Öncelikli destek'].map((b) => (
                   <span key={b} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 dark:bg-slate-900/10 text-white dark:text-slate-900 text-xs font-medium">
                     <CheckCircle2 size={12} />
                     {b}
@@ -605,8 +617,8 @@ export const ComingSoonPage: React.FC = () => {
       {/* ─── FOOTER ─── */}
       <footer className="border-t border-slate-200 dark:border-slate-800 py-12">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
-            <div className="col-span-2 md:col-span-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
+            <div className="sm:col-span-2 lg:col-span-1">
               <Image
                 src="/renkflow-logo-new.png"
                 alt="RenkFlow"
@@ -619,26 +631,44 @@ export const ComingSoonPage: React.FC = () => {
               </p>
             </div>
             <div>
-              <h4 className="text-xs font-semibold text-slate-900 dark:text-white uppercase tracking-wider mb-3">Ürün</h4>
+              <h4 className="text-xs font-semibold text-slate-900 dark:text-white uppercase tracking-wider mb-3">Hızlı Erişim</h4>
               <ul className="space-y-2">
-                {['Özellikler', 'Fiyatlandırma', 'Entegrasyonlar'].map((l) => (
-                  <li key={l}><a href="#" className="text-sm text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">{l}</a></li>
+                {footerQuickLinks.map((link) => (
+                  <li key={link.href}>
+                    <a
+                      href={link.href}
+                      className="text-sm text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                    >
+                      {link.label}
+                    </a>
+                  </li>
                 ))}
               </ul>
             </div>
             <div>
-              <h4 className="text-xs font-semibold text-slate-900 dark:text-white uppercase tracking-wider mb-3">Şirket</h4>
-              <ul className="space-y-2">
-                {['Hakkımızda', 'Blog', 'İletişim'].map((l) => (
-                  <li key={l}><a href="#" className="text-sm text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">{l}</a></li>
-                ))}
-              </ul>
+              <h4 className="text-xs font-semibold text-slate-900 dark:text-white uppercase tracking-wider mb-3">İletişim</h4>
+              <a
+                href="mailto:info@renkflow.com"
+                className="inline-flex text-sm text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+              >
+                info@renkflow.com
+              </a>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                Lansmanda ürün sayfaları açılacak.
+              </p>
             </div>
             <div>
               <h4 className="text-xs font-semibold text-slate-900 dark:text-white uppercase tracking-wider mb-3">Takip Edin</h4>
               <div className="flex items-center gap-2">
-                {[Twitter, Linkedin, Github].map((Icon, i) => (
-                  <a key={i} href="#" className="p-2 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                {footerSocialLinks.map(({ icon: Icon, href, label }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    className="p-2 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
                     <Icon size={16} />
                   </a>
                 ))}
@@ -647,7 +677,9 @@ export const ComingSoonPage: React.FC = () => {
           </div>
           <div className="pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs text-slate-400">© {new Date().getFullYear()} RenkFlow. Tüm hakları saklıdır.</p>
-            <p className="text-xs text-slate-400">Türkiye'de tasarlandı.</p>
+            <a href="/sitemap.xml" className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+              Site Haritası
+            </a>
           </div>
         </div>
       </footer>

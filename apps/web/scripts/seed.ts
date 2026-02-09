@@ -6,7 +6,7 @@
  * Usage: npm run db:seed
  */
 
-import { neon } from '@neondatabase/serverless';
+import postgres from 'postgres';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 
@@ -76,7 +76,7 @@ async function seed() {
   console.log('🌱 Starting database seeding...');
 
   try {
-    const sql = neon(databaseUrl);
+    const sql = postgres(databaseUrl, { max: 1 });
 
     // Check if demo tenant already exists
     const existingTenant = await sql`
@@ -163,6 +163,7 @@ async function seed() {
     console.log(`   Email: ${DEMO_USER.email}`);
     console.log(`   Password: ${DEMO_USER.password}`);
     console.log('');
+    await sql.end({ timeout: 5 });
   } catch (error) {
     console.error('❌ Seeding failed:', error);
     process.exit(1);

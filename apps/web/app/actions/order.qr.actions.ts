@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { sql } from '@/lib/db';
-import { uploadFile, generateFilePath } from '@/lib/storage/r2';
+import { uploadFile, generateFilePath } from '@/lib/storage/gcs';
 import { withServerActionTiming } from '@/lib/utils/metrics';
 import {
   getServerUserContext,

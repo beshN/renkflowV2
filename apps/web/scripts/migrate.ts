@@ -6,11 +6,12 @@
  * Usage: npm run db:migrate
  */
 
-import { neon } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-http';
-import { migrate } from 'drizzle-orm/neon-http/migrator';
+import postgres from 'postgres';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import dotenv from 'dotenv';
 import path from 'path';
+import { ensureBackendSchema } from './ensure-backend-schema';
 
 dotenv.config({ path: '.env.local' });
 
@@ -19,7 +20,7 @@ async function runMigrations() {
 
   if (!databaseUrl) {
     console.error('❌ DATABASE_URL not found in environment variables');
-    console.log('   Create a .env.local file with your Neon connection string');
+    console.log('   Create a .env.local file with your PostgreSQL connection string');
     process.exit(1);
   }
 
@@ -27,12 +28,14 @@ async function runMigrations() {
   console.log('   Database:', databaseUrl.replace(/:[^:]*@/, ':****@'));
 
   try {
-    const sql = neon(databaseUrl);
-    const db = drizzle(sql);
+    const client = postgres(databaseUrl, { max: 1 });
+    const db = drizzle(client);
 
     const migrationsFolder = path.join(__dirname, '..', 'lib', 'db', 'migrations');
 
     await migrate(db, { migrationsFolder });
+    await ensureBackendSchema(client, { baseDir: path.join(__dirname, '..'), logPrefix: '[db:migrate]' });
+    await client.end({ timeout: 5 });
 
     console.log('✅ Migrations completed successfully!');
   } catch (error) {

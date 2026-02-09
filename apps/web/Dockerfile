@@ -1,4 +1,3 @@
-
 FROM node:20-alpine AS base
 
 # Install dependencies only when needed
@@ -12,15 +11,13 @@ COPY package.json package-lock.json ./
 # Copy app package.json (mocking structure)
 COPY apps/web/package.json ./apps/web/
 
-# Install dependencies for the whole workspace (or just what's needed)
-RUN npm install
+# Install dependencies from lockfile for deterministic builds
+RUN npm ci
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/package.json ./package.json
-COPY --from=deps /app/package-lock.json ./package-lock.json
+COPY --from=deps /app/ ./
 
 # Copy all source files (adjust if you want to be more specific)
 COPY . .
@@ -54,6 +51,8 @@ RUN chown -R nextjs:nodejs apps/web/.next
 # Next.js standalone output puts necessary files (including node_modules) safely in .next/standalone
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+# Force-include postgres driver: dynamic import path in db layer is not statically traceable.
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/postgres ./node_modules/postgres
 
 USER nextjs
 
@@ -64,4 +63,3 @@ ENV HOSTNAME "0.0.0.0"
 
 # Start the server (path depends on where standalone puts it, usually apps/web/server.js)
 CMD ["node", "apps/web/server.js"]
-

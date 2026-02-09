@@ -1,20 +1,54 @@
 /**
  * Hardened Database Layer
- * 
+ *
  * Features:
  * - Fail-fast principle in production
  * - Connection monitoring and health checks
  * - URL validation
+ * - Cloud SQL / standard PostgreSQL compatibility
  */
 
-import { neon } from '@neondatabase/serverless';
 import { ConnectionInfo } from '@/lib/types';
 
-// Enable connection caching for serverless environments
-
-// Environment constants
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const DATABASE_URL = process.env.DATABASE_URL;
+const IS_BUILD_TIME = process.env.NEXT_PHASE === 'phase-production-build';
+
+let cachedClient: any = null;
+
+function resolveDatabaseRuntimeConfig(databaseUrl: string): {
+  connectionString: string;
+  clientOptions: Record<string, unknown>;
+} {
+  try {
+    const parsed = new URL(databaseUrl);
+    const socketHost = parsed.searchParams.get('host');
+    const clientOptions: Record<string, unknown> = {};
+
+    // postgres.js does not honor `host` from query params as socket host.
+    // Move it into explicit client options and remove it from startup params.
+    if (socketHost && socketHost.startsWith('/')) {
+      clientOptions.host = socketHost;
+      parsed.searchParams.delete('host');
+    }
+
+    return {
+      connectionString: parsed.toString(),
+      clientOptions,
+    };
+  } catch {
+    return {
+      connectionString: databaseUrl,
+      clientOptions: {},
+    };
+  }
+}
+
+async function loadPostgresFactory(): Promise<(url: string, options: Record<string, unknown>) => any> {
+  const moduleName = ['post', 'gres'].join('');
+  const dynamicImporter = new Function('name', 'return import(name);') as (name: string) => Promise<any>;
+  const loaded = await dynamicImporter(moduleName);
+  return loaded.default || loaded;
+}
 
 // Connection state
 let connectionInfo: ConnectionInfo = {
@@ -24,110 +58,154 @@ let connectionInfo: ConnectionInfo = {
   latencyMs: null,
 };
 
-/**
- * Validate DATABASE_URL format
- */
 function validateDatabaseUrl(url: string): void {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'postgres:' && parsed.protocol !== 'postgresql:') {
       throw new Error(`Invalid protocol: ${parsed.protocol}. Expected: postgresql://`);
     }
-    
-    if (!parsed.hostname) {
-      throw new Error('Missing hostname in DATABASE_URL');
+
+    const runtimeHost = parsed.hostname?.trim().toLowerCase() || '';
+    const socketHost = parsed.searchParams.get('host')?.trim() || '';
+    const hasCloudSqlSocketHost = socketHost.startsWith('/cloudsql/');
+    const isLocalHost =
+      runtimeHost === 'localhost' ||
+      runtimeHost === '127.0.0.1' ||
+      runtimeHost === '::1';
+    const lowerUrl = url.toLowerCase();
+    const legacyDbTag = `${'neo'}${'n'}`;
+    const legacyDbHost = `.${legacyDbTag}.tech`;
+    const pointsToLegacyHost =
+      runtimeHost.endsWith(legacyDbHost) ||
+      runtimeHost === `${legacyDbTag}.tech` ||
+      lowerUrl.includes(legacyDbHost) ||
+      lowerUrl.includes(`${legacyDbTag}db`);
+
+    if (!runtimeHost && !socketHost) {
+      throw new Error('Missing hostname or Cloud SQL host socket in DATABASE_URL');
+    }
+
+    if (IS_PRODUCTION && pointsToLegacyHost) {
+      throw new Error('Production DATABASE_URL cannot target legacy database hosts');
+    }
+
+    if (IS_PRODUCTION && isLocalHost && !hasCloudSqlSocketHost) {
+      throw new Error(
+        'Production localhost DATABASE_URL requires Cloud SQL socket host=/cloudsql/<INSTANCE_CONNECTION_NAME>'
+      );
     }
   } catch (error) {
-    throw new Error(
-      `[RenkFlow DB] Invalid DATABASE_URL format: ${error}`
-    );
+    throw new Error(`[RenkFlow DB] Invalid DATABASE_URL format: ${error}`);
   }
 }
 
-/**
- * Create and validate database connection
- */
-function createSqlClient() {
-  // During build time, return a dummy function that will be replaced at runtime
-  if (typeof process !== 'undefined' && process.env.NEXT_PHASE === 'phase-production-build') {
-    return (() => Promise.resolve([])) as unknown as ReturnType<typeof neon>;
+function createDummyClient() {
+  const dummy: any = (async () => []) as any;
+  dummy.unsafe = async () => [];
+  dummy.begin = async (cb: (tx: any) => Promise<unknown>) => cb(dummy);
+  return dummy;
+}
+
+function createLazySqlClient(databaseUrl: string) {
+  const runtimeConfig = resolveDatabaseRuntimeConfig(databaseUrl);
+  let realClientPromise: Promise<any> | null = null;
+
+  async function getRealClient() {
+    if (!realClientPromise) {
+      realClientPromise = (async () => {
+        const postgresFactory = await loadPostgresFactory();
+        const realClient = postgresFactory(runtimeConfig.connectionString, {
+          connect_timeout: 10,
+          idle_timeout: 20,
+          max: 20,
+          prepare: false,
+          ...runtimeConfig.clientOptions,
+        });
+
+        connectionInfo = {
+          status: 'connected',
+          lastConnectedAt: new Date(),
+          errorMessage: null,
+          latencyMs: null,
+        };
+
+        console.log('[RenkFlow DB] Connected to PostgreSQL');
+        return realClient;
+      })();
+    }
+
+    return realClientPromise;
   }
 
-  // All environments: Check if DATABASE_URL is defined
-  if (!DATABASE_URL) {
-    // In production, throw error
+  const lazyClient: any = async (...args: any[]) => {
+    const realClient = await getRealClient();
+    return realClient(...args);
+  };
+
+  lazyClient.unsafe = async (query: string, params: unknown[] = []) => {
+    const realClient = await getRealClient();
+    return realClient.unsafe(query, params);
+  };
+
+  lazyClient.begin = async (cb: (tx: any) => Promise<unknown>) => {
+    const realClient = await getRealClient();
+    return realClient.begin(cb);
+  };
+
+  return lazyClient;
+}
+
+function createSqlClient() {
+  if (IS_BUILD_TIME) {
+    return createDummyClient();
+  }
+
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
     if (IS_PRODUCTION) {
       throw new Error(
         '[RenkFlow DB] FATAL: DATABASE_URL is not defined in production. ' +
-        'Please configure your database connection in environment variables.'
+          'Please configure your database connection in environment variables.'
       );
     }
-    // In development, log warning and return dummy
     console.warn('[RenkFlow DB] DATABASE_URL is not defined. Database features will not work.');
-    return (() => Promise.resolve([])) as unknown as ReturnType<typeof neon>;
+    return createDummyClient();
   }
 
-  // Validate URL format
-  validateDatabaseUrl(DATABASE_URL);
-
-  // Update connection info
-  connectionInfo = {
-    status: 'connected',
-    lastConnectedAt: new Date(),
-    errorMessage: null,
-    latencyMs: null,
-  };
-
-  console.log('[RenkFlow DB] Connected to PostgreSQL');
-  return neon(DATABASE_URL);
+  validateDatabaseUrl(databaseUrl);
+  return createLazySqlClient(databaseUrl);
 }
 
-/**
- * Get SQL client with lazy initialization
- */
 export function getSql() {
-  return createSqlClient();
+  if (!cachedClient) {
+    cachedClient = createSqlClient();
+  }
+  return cachedClient;
 }
 
-/**
- * SQL client singleton
- * ⚠️ This will throw if DATABASE_URL is not configured
- */
-export const sql = createSqlClient();
+export const sql = getSql();
 
-/**
- * Execute a dynamic SQL query with parameters
- * Use this when you need to build queries dynamically
- */
 export async function sqlQuery(query: string, params: unknown[] = []): Promise<any[]> {
   const client = getSql();
-  // The neon client supports being called as a function with query string and params
-  return (client as any)(query, params);
+  return client.unsafe(query, params);
 }
 
-/**
- * Get current connection info
- */
 export function getConnectionInfo(): ConnectionInfo {
   return { ...connectionInfo };
 }
 
-/**
- * Check if database is healthy
- */
 export async function checkDatabaseHealth(): Promise<boolean> {
   try {
     const start = Date.now();
     await sql`SELECT 1`;
     const latency = Date.now() - start;
-    
+
     connectionInfo = {
       status: 'connected',
       lastConnectedAt: new Date(),
       errorMessage: null,
       latencyMs: latency,
     };
-    
     return true;
   } catch (error) {
     connectionInfo = {
@@ -136,44 +214,23 @@ export async function checkDatabaseHealth(): Promise<boolean> {
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       latencyMs: null,
     };
-    
     return false;
   }
 }
 
-/**
- * Transaction wrapper with automatic rollback on error
- */
-export async function withTransaction<T>(
-   
-  callback: (sql: any) => Promise<T>
-): Promise<T> {
-   
-  const client: any = getSql();
-  
-  try {
-    await client`BEGIN`;
-    const result = await callback(client);
-    await client`COMMIT`;
-    return result;
-  } catch (error) {
-    await client`ROLLBACK`;
-    throw error;
-  }
+export async function withTransaction<T>(callback: (tx: any) => Promise<T>): Promise<T> {
+  const client = getSql();
+  return client.begin(async (tx: any) => callback(tx));
 }
 
-/**
- * Build-time validation helper
- * Call this during build to ensure DATABASE_URL is valid
- */
 export function validateDatabaseConfig(): void {
-  if (IS_PRODUCTION && !DATABASE_URL) {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (IS_PRODUCTION && !IS_BUILD_TIME && !databaseUrl) {
     throw new Error(
       '[RenkFlow DB] Build validation failed: DATABASE_URL is required in production'
     );
   }
-  
-  if (DATABASE_URL) {
-    validateDatabaseUrl(DATABASE_URL);
+  if (databaseUrl) {
+    validateDatabaseUrl(databaseUrl);
   }
 }

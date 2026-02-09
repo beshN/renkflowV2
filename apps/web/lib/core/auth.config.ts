@@ -8,8 +8,12 @@ import bcrypt from 'bcryptjs';
 import { getSql } from '@/lib/db';
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_BY_KEY } from '@/lib/config/templates';
 
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 const IS_BUILD_TIME = process.env.NEXT_PHASE === 'phase-production-build';
+const AUTH_TRUST_HOST =
+  process.env.AUTH_TRUST_HOST === 'true' ||
+  (!IS_PRODUCTION && process.env.AUTH_TRUST_HOST !== 'false');
 
 if (!AUTH_SECRET && !IS_BUILD_TIME) {
   throw new Error(
@@ -22,7 +26,7 @@ if (AUTH_SECRET && AUTH_SECRET.length < 32) {
   console.warn('[RenkFlow] WARNING: AUTH_SECRET should be at least 32 characters for security');
 }
 
-const DEBUG = process.env.AUTH_DEBUG === 'true' || process.env.NODE_ENV !== 'production';
+const DEBUG = process.env.AUTH_DEBUG === 'true' || !IS_PRODUCTION;
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split('@');
@@ -46,7 +50,6 @@ function mapAuthErrorToCode(message: string) {
     normalized.includes('timeout') ||
     normalized.includes('econn') ||
     normalized.includes('sql') ||
-    normalized.includes('neon') ||
     normalized.includes('db') ||
     normalized.includes('fetch') ||
     normalized.includes('network')
@@ -326,5 +329,5 @@ export const authConfig: NextAuthConfig = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  trustHost: true,
+  trustHost: AUTH_TRUST_HOST,
 };

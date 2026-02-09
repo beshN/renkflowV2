@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db';
-import { uploadFile, deleteFile, generateFilePath, getFileUrl } from '@/lib/storage/r2';
+import { uploadFile, deleteFile, generateFilePath, getFileUrl } from '@/lib/storage/gcs';
 import {
   getServerUserContext,
   requirePermission,
@@ -21,9 +21,6 @@ async function resolveDocumentUrl(fileReference: string | null | undefined): Pro
   try {
     return await getFileUrl(fileReference);
   } catch {
-    if (process.env.R2_PUBLIC_URL) {
-      return `${process.env.R2_PUBLIC_URL}/${fileReference}`;
-    }
     return fileReference;
   }
 }
@@ -69,7 +66,7 @@ export async function uploadOrderDocument(
     throw new Error('Sipariş bulunamadı');
   }
 
-  // Upload file to R2
+  // Upload file to GCS
   const key = generateFilePath(orderId, `${type}-${file.name}`);
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
@@ -348,11 +345,11 @@ export async function deleteOrderDocument(documentId: string): Promise<void> {
 
   const doc = docCheck[0];
 
-  // Delete from R2
+  // Delete from object storage
   try {
     await deleteFile(doc.file_url);
   } catch (error) {
-    console.error('Error deleting file from R2:', error);
+    console.error('Error deleting file from object storage:', error);
   }
 
   // Delete from database

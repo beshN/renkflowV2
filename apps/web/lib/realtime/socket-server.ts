@@ -10,7 +10,6 @@
 
 import { Server as NetServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import { NextApiRequest } from 'next';
 import jwt from 'jsonwebtoken';
 
 export const config = {
@@ -27,6 +26,15 @@ interface SocketWithIO {
   socket: {
     server: SocketServer;
   };
+}
+
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const SOCKET_JWT_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+
+if (IS_PRODUCTION && !SOCKET_JWT_SECRET) {
+  throw new Error(
+    '[Socket] Missing AUTH_SECRET/NEXTAUTH_SECRET in production runtime'
+  );
 }
 
 // Initialize Socket.IO server
@@ -51,8 +59,12 @@ export function initSocketServer(server: NetServer): SocketIOServer {
         return next(new Error('Authentication error: Token required'));
       }
 
+      if (!SOCKET_JWT_SECRET) {
+        return next(new Error('Authentication error: Server secret misconfigured'));
+      }
+
       // Verify token with JWT
-      const decoded = jwt.verify(token as string, process.env.NEXTAUTH_SECRET!) as {
+      const decoded = jwt.verify(token as string, SOCKET_JWT_SECRET) as {
         id: string;
         tenantId: string;
         email: string;

@@ -1,5 +1,5 @@
 
-import { neon } from '@neondatabase/serverless';
+import postgres from 'postgres';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -16,7 +16,7 @@ async function testConnection() {
   }
 
   try {
-    const sql = neon(process.env.DATABASE_URL);
+    const sql = postgres(process.env.DATABASE_URL, { max: 1 });
     const result = await sql`SELECT now(), current_database()`;
     console.log('✅ Connection Successful!');
     console.log('Time:', result[0].now);
@@ -30,6 +30,7 @@ async function testConnection() {
     } catch (e) {
         console.error('❌ Orders table access failed:', (e as any).message);
     }
+    await sql.end({ timeout: 5 });
 
   } catch (error) {
     console.error('❌ Connection Failed:', error);

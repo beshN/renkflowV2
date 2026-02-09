@@ -28,7 +28,7 @@ import { useOrderRealtime } from '@/lib/realtime/hooks';
 import { useAuth } from '@/lib/context/AuthContext';
 import { RealtimeEvent } from '@/lib/realtime/types';
 
-const ORDERS_CACHE_KEY = 'orders';
+const ordersCacheKey = (tenantId: string) => `orders:${tenantId || 'anonymous'}`;
 
 export interface UseOrdersResult {
   orders: Order[];
@@ -70,6 +70,7 @@ export function useOrders(): UseOrdersResult {
   const setTotalCount = useOrdersStore((s) => s.setTotalCount);
   const { user } = useAuth();
   const tenantId = user?.tenantId || '';
+  const cacheKey = React.useMemo(() => ordersCacheKey(tenantId), [tenantId]);
 
   // Real-time event handler for WebSocket updates
   const handleRealtimeEvent = React.useCallback((event: RealtimeEvent) => {
@@ -81,7 +82,7 @@ export function useOrders(): UseOrdersResult {
         const newOrder = event.payload as Order;
         // Avoid duplicates
         if (!currentOrders.some((o) => o.id === newOrder.id)) {
-          setOrders([...currentOrders, newOrder]);
+          setOrders([newOrder, ...currentOrders]);
         }
         break;
       }
@@ -101,11 +102,11 @@ export function useOrders(): UseOrdersResult {
       case 'document:added':
       case 'document:removed': {
         // Refetch to get updated documents
-        requestCache.invalidate(ORDERS_CACHE_KEY);
+        requestCache.invalidate(cacheKey);
         break;
       }
     }
-  }, [setOrders]);
+  }, [cacheKey, setOrders]);
 
   // Subscribe to real-time order events
   const { publish: publishRealtimeEvent } = useOrderRealtime(tenantId, handleRealtimeEvent);
@@ -118,11 +119,12 @@ export function useOrders(): UseOrdersResult {
     refetch,
     mutate,
   } = useCachedQuery<Order[]>(
-    ORDERS_CACHE_KEY,
+    cacheKey,
     async () => {
       return await getOrdersAction();
     },
     {
+      enabled: Boolean(tenantId),
       refetchOnMount: true,
       refetchOnWindowFocus: true,
       onError: (err) => {
@@ -135,6 +137,13 @@ export function useOrders(): UseOrdersResult {
   React.useEffect(() => {
     setLoading(isLoading);
   }, [isLoading, setLoading]);
+
+  React.useEffect(() => {
+    if (!tenantId) {
+      setOrders([]);
+      setTotalCount(0);
+    }
+  }, [tenantId, setOrders, setTotalCount]);
 
   // Sync fetched orders with Zustand store
   React.useEffect(() => {
@@ -152,10 +161,10 @@ export function useOrders(): UseOrdersResult {
     {
       onSuccess: (newOrder) => {
         const previous = useOrdersStore.getState().orders;
-        const next = [...previous, newOrder];
+        const next = [newOrder, ...previous];
         setOrders(next);
         setTotalCount(next.length);
-        requestCache.invalidate(ORDERS_CACHE_KEY);
+        requestCache.invalidate(cacheKey);
         // Broadcast to other clients
         publishRealtimeEvent('order:created', newOrder, 1);
       },
@@ -263,7 +272,7 @@ export function useOrders(): UseOrdersResult {
     },
     {
       onSuccess: async () => {
-        requestCache.invalidate(ORDERS_CACHE_KEY);
+        requestCache.invalidate(cacheKey);
         await refetch();
       },
       onError: (err) => {

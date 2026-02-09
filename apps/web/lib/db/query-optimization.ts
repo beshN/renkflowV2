@@ -8,7 +8,7 @@
  * - Performance monitoring
  */
 
-import { sql } from '@/lib/db/neon';
+import { sql } from '@/lib/db';
 
 // ============================================
 // DataLoader Pattern Implementation
@@ -289,7 +289,7 @@ export async function batchInsertDocuments(
 ): Promise<void> {
   if (documents.length === 0) return;
 
-  // Use individual inserts for safety (Neon http client doesn't support bulk insert with sql.unsafe)
+  // Use individual inserts for safety with current SQL client behavior.
   for (const d of documents) {
     await sql`
       INSERT INTO documents (order_id, file_name, file_url, file_type, created_at)

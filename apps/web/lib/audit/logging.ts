@@ -8,7 +8,7 @@
  * - Tamper-evident log storage
  */
 
-import { sql } from '@/lib/db/neon';
+import { sql } from '@/lib/db';
 import { Order } from '@/lib/types';
 import crypto from 'node:crypto';
 

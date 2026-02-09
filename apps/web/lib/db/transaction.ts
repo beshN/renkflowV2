@@ -1,16 +1,16 @@
 /**
- * Database Transaction Utilities for Neon
+ * Database Transaction Utilities for PostgreSQL
  * Provides atomic operations with proper rollback support
  */
 
-import { neon, NeonQueryFunction } from '@neondatabase/serverless';
+import { getSql } from '@/lib/db';
 
 // Transaction isolation levels
 export type IsolationLevel = 'READ COMMITTED' | 'REPEATABLE READ' | 'SERIALIZABLE';
 
 // Transaction context passed to callback
 export interface TransactionContext {
-  sql: NeonQueryFunction<false, false>;
+  sql: any;
   rollback: () => void;
 }
 
@@ -57,44 +57,44 @@ export async function withTransaction<T>(
   callback: (ctx: TransactionContext) => Promise<T>,
   options: { isolationLevel?: IsolationLevel; timeout?: number } = {}
 ): Promise<T> {
-  const databaseUrl = process.env.DATABASE_URL;
-
   if (typeof window !== 'undefined') {
     throw new Error('Transactions cannot be used in the browser');
   }
-  
-  if (!databaseUrl) {
-    throw new Error('DATABASE_URL not configured');
+
+  const sql = getSql();
+  if (typeof sql.begin !== 'function') {
+    throw new Error('Database transaction support is not available');
   }
 
-  // Create a dedicated connection for this transaction
-  const sql = neon(databaseUrl);
   const isolationLevel = sanitizeIsolationLevel(options.isolationLevel || 'READ COMMITTED');
   const timeout = options.timeout || 30000; // 30 seconds default
   
-  let shouldRollback = false;
-  
-  const rollback = () => {
-    shouldRollback = true;
-    throw new RollbackError();
-  };
-
   const startTime = Date.now();
 
   try {
-    // Start transaction with isolation level
-    await sql(`BEGIN TRANSACTION ISOLATION LEVEL ${isolationLevel}`);
-    
-    // Execute the callback with timeout
-    const result = await Promise.race([
-      callback({ sql, rollback }),
-      new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error(`Transaction timeout after ${timeout}ms`)), timeout)
-      )
-    ]);
-    
-    // Commit if no errors
-    await sql('COMMIT');
+    const result = await sql.begin(async (tx: any) => {
+      await tx.unsafe(`SET TRANSACTION ISOLATION LEVEL ${isolationLevel}`);
+      const rollback = () => {
+        throw new RollbackError();
+      };
+
+      return new Promise<T>((resolve, reject) => {
+        const timeoutId = setTimeout(
+          () => reject(new Error(`Transaction timeout after ${timeout}ms`)),
+          timeout
+        );
+
+        callback({ sql: tx, rollback })
+          .then((value) => {
+            clearTimeout(timeoutId);
+            resolve(value);
+          })
+          .catch((error) => {
+            clearTimeout(timeoutId);
+            reject(error);
+          });
+      });
+    });
     
     const duration = Date.now() - startTime;
     if (duration > 5000) {
@@ -117,13 +117,6 @@ export async function withTransaction<T>(
       stack: error instanceof Error ? error.stack : undefined
     });
     
-    // Always rollback on error
-    try {
-      await sql('ROLLBACK');
-    } catch (rollbackError) {
-      console.error('[Transaction] Rollback failed:', rollbackError);
-    }
-    
     // Re-throw unless it was an intentional rollback
     if (error instanceof RollbackError) {
       throw new Error('Transaction was rolled back');
@@ -137,19 +130,19 @@ export async function withTransaction<T>(
  * Savepoint utilities for nested transactions
  */
 export async function withSavepoint<T>(
-  sql: NeonQueryFunction<false, false>,
+  sql: any,
   name: string,
   callback: () => Promise<T>
 ): Promise<T> {
   const safeName = sanitizeIdentifier(name);
-  await sql(`SAVEPOINT ${safeName}`);
+  await sql.unsafe(`SAVEPOINT ${safeName}`);
   
   try {
     const result = await callback();
-    await sql(`RELEASE SAVEPOINT ${safeName}`);
+    await sql.unsafe(`RELEASE SAVEPOINT ${safeName}`);
     return result;
   } catch (error) {
-    await sql(`ROLLBACK TO SAVEPOINT ${safeName}`);
+    await sql.unsafe(`ROLLBACK TO SAVEPOINT ${safeName}`);
     throw error;
   }
 }
@@ -197,7 +190,7 @@ export async function withRetry<T>(
  * More efficient than individual inserts
  */
 export async function batchInsert<T extends Record<string, any>>(
-  sql: NeonQueryFunction<false, false>,
+  sql: any,
   table: string,
   records: T[],
   options: { chunkSize?: number } = {}
@@ -222,6 +215,6 @@ export async function batchInsert<T extends Record<string, any>>(
     
     // Execute insert
     const query = `INSERT INTO ${table} (${columns.join(', ')}) VALUES ${valuesList}`;
-    await sql(query, values);
+    await sql.unsafe(query, values);
   }
 }

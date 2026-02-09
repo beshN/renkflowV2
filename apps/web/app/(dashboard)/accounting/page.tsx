@@ -2,32 +2,33 @@
 
 import { useState } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
-import { AccountingDashboard } from '@/components/accounting/AccountingDashboard';
+import { AccountingDashboard, type AccountingTab } from '@/components/accounting/AccountingDashboard';
 import { 
   BarChart3, 
   PieChart, 
-  FileText, 
   Calculator,
   TrendingUp,
-  Calendar
+  Calendar,
+  Scale,
+  ShieldCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type TabType = 'overview' | 'profit-loss' | 'balance-sheet' | 'cash-flow' | 'taxes';
-
 export default function AccountingPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [activeTab, setActiveTab] = useState<AccountingTab>('overview');
   const [selectedPeriod, setSelectedPeriod] = useState(() => {
     const now = new Date();
     return now.toISOString().slice(0, 7); // YYYY-MM format
   });
 
   const tabs = [
-    { id: 'overview' as TabType, label: 'Genel Bakış', icon: BarChart3 },
-    { id: 'profit-loss' as TabType, label: 'Kâr-Zarar', icon: TrendingUp },
-    { id: 'balance-sheet' as TabType, label: 'Bilanço', icon: PieChart },
-    { id: 'cash-flow' as TabType, label: 'Nakit Akışı', icon: Calendar },
-    { id: 'taxes' as TabType, label: 'Vergiler', icon: Calculator },
+    { id: 'overview' as AccountingTab, label: 'Genel Bakış', icon: BarChart3 },
+    { id: 'profit-loss' as AccountingTab, label: 'Kâr-Zarar', icon: TrendingUp },
+    { id: 'balance-sheet' as AccountingTab, label: 'Bilanço', icon: PieChart },
+    { id: 'cash-flow' as AccountingTab, label: 'Nakit Akışı', icon: Calendar },
+    { id: 'taxes' as AccountingTab, label: 'Vergiler', icon: Calculator },
+    { id: 'control-tower' as AccountingTab, label: 'Kontrol', icon: ShieldCheck },
+    { id: 'benchmark' as AccountingTab, label: 'Kıyas', icon: Scale },
   ];
 
   return (
@@ -80,95 +81,8 @@ export default function AccountingPage() {
           })}
         </div>
 
-        {/* Content */}
         <div className="space-y-6">
-          {activeTab === 'overview' && (
-            <AccountingDashboard period={selectedPeriod} />
-          )}
-          
-          {activeTab === 'profit-loss' && (
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
-                  <TrendingUp className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                    Detaylı Kâr-Zarar Tablosu
-                  </h2>
-                  <p className="text-sm text-slate-500">
-                    {selectedPeriod} dönemi
-                  </p>
-                </div>
-              </div>
-              <p className="text-slate-500 text-center py-8">
-                Detaylı kâr-zarar raporu burada görüntülenecek...
-              </p>
-            </div>
-          )}
-          
-          {activeTab === 'balance-sheet' && (
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600">
-                  <PieChart className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                    Detaylı Bilanço
-                  </h2>
-                  <p className="text-sm text-slate-500">
-                    Varlıklar, borçlar ve öz sermaye
-                  </p>
-                </div>
-              </div>
-              <p className="text-slate-500 text-center py-8">
-                Detaylı bilanço raporu burada görüntülenecek...
-              </p>
-            </div>
-          )}
-          
-          {activeTab === 'cash-flow' && (
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600">
-                  <Calendar className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                    Nakit Akış Tablosu
-                  </h2>
-                  <p className="text-sm text-slate-500">
-                    İşletme, yatırım ve finansman faaliyetleri
-                  </p>
-                </div>
-              </div>
-              <p className="text-slate-500 text-center py-8">
-                Nakit akış raporu burada görüntülenecek...
-              </p>
-            </div>
-          )}
-          
-          {activeTab === 'taxes' && (
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600">
-                  <Calculator className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                    Vergi Yönetimi
-                  </h2>
-                  <p className="text-sm text-slate-500">
-                    KDV, stopaj ve beyanname takibi
-                  </p>
-                </div>
-              </div>
-              <p className="text-slate-500 text-center py-8">
-                    Vergi yönetimi paneli burada görüntülenecek...
-              </p>
-            </div>
-          )}
+          <AccountingDashboard period={selectedPeriod} activeTab={activeTab} />
         </div>
       </main>
     </div>

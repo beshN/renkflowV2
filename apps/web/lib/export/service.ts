@@ -8,7 +8,7 @@
  * - Rate limiting and size limits
  */
 
-import { sql } from '@/lib/db/neon';
+import { sql } from '@/lib/db';
 import { Order } from '@/lib/types';
 
 // ============================================

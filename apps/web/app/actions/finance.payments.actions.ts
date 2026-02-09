@@ -14,6 +14,7 @@ import {
   OrderWithPayments,
 } from '@/lib/types/finance';
 import { isMissingRelationError, tableExists } from '@/lib/db/schema-guard';
+import { assertPeriodWritable, periodFromDateInput } from '@/lib/features/accounting/period-lock';
 
 /**
  * Create a new payment for an order
@@ -37,6 +38,13 @@ export async function createPayment(input: CreatePaymentInput): Promise<Payment>
     throw new Error('Sipariş bulunamadı');
   }
 
+  const paidAtIso = validated.paidAt || new Date().toISOString();
+  await assertPeriodWritable({
+    tenantId: context.tenantId,
+    period: periodFromDateInput(paidAtIso),
+    actionLabel: 'Ödeme kaydı',
+  });
+
   // Insert payment
   const result = await sql`
     INSERT INTO payments (
@@ -47,7 +55,7 @@ export async function createPayment(input: CreatePaymentInput): Promise<Payment>
       ${validated.amount},
       ${validated.currency || 'TRY'},
       ${validated.method},
-      ${validated.paidAt || new Date().toISOString()},
+      ${paidAtIso},
       ${validated.note || null},
       ${context.userId}
     )
@@ -174,7 +182,7 @@ export async function deletePayment(paymentId: string): Promise<void> {
 
   // Verify payment belongs to tenant
   const paymentCheck = await sql`
-    SELECT id, order_id FROM payments 
+    SELECT id, order_id, paid_at FROM payments 
     WHERE id = ${paymentId} AND tenant_id = ${context.tenantId}
     LIMIT 1
   `;
@@ -183,6 +191,12 @@ export async function deletePayment(paymentId: string): Promise<void> {
   if (paymentCheckRows.length === 0) {
     throw new Error('Ödeme bulunamadı');
   }
+
+  await assertPeriodWritable({
+    tenantId: context.tenantId,
+    period: periodFromDateInput(paymentCheckRows[0].paid_at as string),
+    actionLabel: 'Ödeme silme',
+  });
 
   await sql`
     DELETE FROM payments 

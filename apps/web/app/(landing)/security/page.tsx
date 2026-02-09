@@ -26,7 +26,7 @@ const securityFeatures = [
   {
     icon: Server,
     title: 'Altyapı Güvenliği',
-    desc: 'Uygulama Vercel edge network üzerinde çalışır. Veritabanı Neon PostgreSQL ile yönetilir ve otomatik yedekleme yapılır.',
+    desc: 'Uygulama Cloud Run üzerinde çalışır. Veritabanı Cloud SQL PostgreSQL ile yönetilir ve otomatik yedekleme yapılır.',
   },
   {
     icon: Eye,

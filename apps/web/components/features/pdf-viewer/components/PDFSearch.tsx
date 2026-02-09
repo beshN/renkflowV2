@@ -7,14 +7,22 @@ import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 import { Search, X, ChevronUp, ChevronDown, Loader2 } from 'lucide-react';
 import { pdfjs } from 'react-pdf';
+import type { SearchResult } from '@/stores/usePDFStore';
 
 interface PDFSearchProps {
   className?: string;
 }
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export const PDFSearch: React.FC<PDFSearchProps> = ({ className }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [pdfDocument, setPdfDocument] = useState<any>(null);
+  const [flatMatches, setFlatMatches] = useState<Array<{ page: number }>>([]);
+  const pageTextCacheRef = useRef<Map<number, string>>(new Map());
+  const searchJobIdRef = useRef(0);
   
   const fileUrl = usePDFStore((state) => state.fileUrl);
   const numPages = usePDFStore((state) => state.numPages);
@@ -26,29 +34,139 @@ export const PDFSearch: React.FC<PDFSearchProps> = ({ className }) => {
   
   const setSearchText = usePDFStore((state) => state.setSearchText);
   const setSearchResults = usePDFStore((state) => state.setSearchResults);
+  const setCurrentSearchIndex = usePDFStore((state) => state.setCurrentSearchIndex);
   const setIsSearching = usePDFStore((state) => state.setIsSearching);
-  const nextSearchResult = usePDFStore((state) => state.nextSearchResult);
-  const previousSearchResult = usePDFStore((state) => state.previousSearchResult);
   const clearSearch = usePDFStore((state) => state.clearSearch);
   const goToPage = usePDFStore((state) => state.goToPage);
   const setShowSearch = usePDFStore((state) => state.setShowSearch);
   
   // Load PDF document for text extraction
   useEffect(() => {
+    setPdfDocument(null);
+    setFlatMatches([]);
+    pageTextCacheRef.current.clear();
+    searchJobIdRef.current += 1;
+
     if (!fileUrl) return;
     
+    let isCancelled = false;
     const loadDocument = async () => {
+      const loadingTask = pdfjs.getDocument(fileUrl);
       try {
-        const loadingTask = pdfjs.getDocument(fileUrl);
         const pdf = await loadingTask.promise;
-        setPdfDocument(pdf);
+        if (!isCancelled) {
+          setPdfDocument(pdf);
+        }
       } catch (error) {
-        console.error('Failed to load PDF for search:', error);
+        if (!isCancelled) {
+          console.error('Failed to load PDF for search:', error);
+        }
       }
+
+      return loadingTask;
     };
-    
-    loadDocument();
+
+    const loadingTaskPromise = loadDocument();
+
+    return () => {
+      isCancelled = true;
+      loadingTaskPromise.then((task) => {
+        task?.destroy?.();
+      }).catch(() => {
+        // no-op
+      });
+    };
   }, [fileUrl]);
+
+  useEffect(() => {
+    if (!showSearch) {
+      return;
+    }
+    if (searchText.length < 2) {
+      setSearchResults([]);
+      setFlatMatches([]);
+      setCurrentSearchIndex(0);
+    }
+  }, [searchText, showSearch, setSearchResults, setCurrentSearchIndex]);
+
+  const performSearch = useCallback(async (query: string) => {
+    if (!query.trim() || !pdfDocument || numPages === 0) {
+      setSearchResults([]);
+      setFlatMatches([]);
+      setCurrentSearchIndex(0);
+      return;
+    }
+
+    const currentJobId = ++searchJobIdRef.current;
+    setIsSearching(true);
+
+    const groupedResults: SearchResult[] = [];
+    const matches: Array<{ page: number }> = [];
+    const regex = new RegExp(escapeRegex(query), 'gi');
+
+    try {
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        if (currentJobId !== searchJobIdRef.current) return;
+
+        let pageText = pageTextCacheRef.current.get(pageNum);
+        if (pageText === undefined) {
+          const page = await pdfDocument.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          const extractedText = textContent.items.map((item: any) => item.str || '').join(' ');
+          pageTextCacheRef.current.set(pageNum, extractedText);
+          pageText = extractedText;
+        }
+        const textToSearch = pageText ?? '';
+
+        const pageMatches: SearchResult['items'] = [];
+        regex.lastIndex = 0;
+        let match: RegExpExecArray | null;
+        while ((match = regex.exec(textToSearch)) !== null) {
+          pageMatches.push({
+            text: match[0],
+            index: match.index,
+            rect: [0, 0, 0, 0],
+          });
+          matches.push({ page: pageNum });
+        }
+
+        if (pageMatches.length > 0) {
+          groupedResults.push({
+            page: pageNum,
+            matches: pageMatches.length,
+            items: pageMatches,
+          });
+        }
+      }
+
+      if (currentJobId !== searchJobIdRef.current) return;
+      setSearchResults(groupedResults);
+      setFlatMatches(matches);
+
+      if (matches.length > 0) {
+        setCurrentSearchIndex(0);
+        goToPage(matches[0].page);
+      } else {
+        setCurrentSearchIndex(0);
+      }
+    } catch (error) {
+      if (currentJobId === searchJobIdRef.current) {
+        console.error('Search error:', error);
+      }
+    } finally {
+      if (currentJobId === searchJobIdRef.current) {
+        setIsSearching(false);
+      }
+    }
+  }, [
+    pdfDocument,
+    numPages,
+    setSearchResults,
+    setFlatMatches,
+    setCurrentSearchIndex,
+    setIsSearching,
+    goToPage,
+  ]);
   
   // Focus input when search panel opens
   useEffect(() => {
@@ -57,63 +175,6 @@ export const PDFSearch: React.FC<PDFSearchProps> = ({ className }) => {
     }
   }, [showSearch]);
   
-  // Perform search across all pages
-  const performSearch = useCallback(async (query: string) => {
-    if (!query.trim() || !pdfDocument || numPages === 0) {
-      setSearchResults([]);
-      return;
-    }
-    
-    setIsSearching(true);
-    const results: any[] = [];
-    
-    try {
-      // Search through all pages
-      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-        const page = await pdfDocument.getPage(pageNum);
-        const textContent = await page.getTextContent();
-        
-        // Extract text items
-        const textItems = textContent.items.map((item: any) => ({
-          text: item.str,
-          transform: item.transform,
-        }));
-        
-        // Combine text
-        const pageText = textItems.map((item: any) => item.text).join(' ');
-        
-        // Find matches (case-insensitive)
-        const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-        const matches = [...pageText.matchAll(regex)];
-        
-        if (matches.length > 0) {
-          const pageMatches = matches.map((match, index) => ({
-            text: match[0],
-            index: match.index || 0,
-            rect: [0, 0, 0, 0] as [number, number, number, number], // Simplified for now
-          }));
-          
-          results.push({
-            page: pageNum,
-            matches: matches.length,
-            items: pageMatches,
-          });
-        }
-      }
-      
-      setSearchResults(results);
-      
-      // Navigate to first result
-      if (results.length > 0) {
-        goToPage(results[0].page);
-      }
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      setIsSearching(false);
-    }
-  }, [pdfDocument, numPages, setSearchResults, setIsSearching, goToPage]);
-  
   // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -121,36 +182,46 @@ export const PDFSearch: React.FC<PDFSearchProps> = ({ className }) => {
         performSearch(searchText);
       } else {
         setSearchResults([]);
+        setFlatMatches([]);
+        setCurrentSearchIndex(0);
       }
     }, 300);
     
     return () => clearTimeout(timer);
-  }, [searchText, performSearch, setSearchResults]);
+  }, [searchText, performSearch, setSearchResults, setCurrentSearchIndex]);
   
   // Handle navigation to search result
   const handleNavigateToResult = useCallback((index: number) => {
-    if (searchResults.length === 0) return;
-    
-    const result = searchResults[index];
-    if (result) {
-      goToPage(result.page);
-    }
-  }, [searchResults, goToPage]);
-  
-  // Navigate to next result
+    if (flatMatches.length === 0) return;
+
+    const boundedIndex = Math.max(0, Math.min(index, flatMatches.length - 1));
+    const result = flatMatches[boundedIndex];
+    if (!result) return;
+
+    setCurrentSearchIndex(boundedIndex);
+    goToPage(result.page);
+  }, [flatMatches, goToPage, setCurrentSearchIndex]);
+
   const handleNext = useCallback(() => {
-    nextSearchResult();
-    handleNavigateToResult(currentSearchIndex + 1 >= searchResults.length ? 0 : currentSearchIndex + 1);
-  }, [nextSearchResult, handleNavigateToResult, currentSearchIndex, searchResults.length]);
-  
-  // Navigate to previous result
+    if (flatMatches.length === 0) return;
+    const nextIndex = (currentSearchIndex + 1) % flatMatches.length;
+    handleNavigateToResult(nextIndex);
+  }, [currentSearchIndex, flatMatches.length, handleNavigateToResult]);
+
   const handlePrevious = useCallback(() => {
-    const newIndex = currentSearchIndex === 0 ? searchResults.length - 1 : currentSearchIndex - 1;
-    previousSearchResult();
+    if (flatMatches.length === 0) return;
+    const newIndex = currentSearchIndex === 0 ? flatMatches.length - 1 : currentSearchIndex - 1;
     handleNavigateToResult(newIndex);
-  }, [previousSearchResult, handleNavigateToResult, currentSearchIndex, searchResults.length]);
-  
-  // Handle keyboard shortcuts
+  }, [currentSearchIndex, flatMatches.length, handleNavigateToResult]);
+
+  const handleClose = useCallback(() => {
+    setShowSearch(false);
+    clearSearch();
+    setFlatMatches([]);
+    setCurrentSearchIndex(0);
+    searchJobIdRef.current += 1;
+  }, [setShowSearch, clearSearch, setCurrentSearchIndex]);
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       if (e.shiftKey) {
@@ -160,12 +231,12 @@ export const PDFSearch: React.FC<PDFSearchProps> = ({ className }) => {
       }
       e.preventDefault();
     } else if (e.key === 'Escape') {
-      setShowSearch(false);
-      clearSearch();
+      handleClose();
     }
-  }, [handleNext, handlePrevious, setShowSearch, clearSearch]);
-  
-  const totalMatches = searchResults.reduce((sum, result) => sum + result.matches, 0);
+  }, [handleNext, handlePrevious, handleClose]);
+
+  const totalMatches = flatMatches.length;
+  const currentMatchNumber = totalMatches > 0 ? Math.min(currentSearchIndex + 1, totalMatches) : 0;
   
   if (!showSearch) return null;
   
@@ -198,7 +269,7 @@ export const PDFSearch: React.FC<PDFSearchProps> = ({ className }) => {
                   <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
                 ) : totalMatches > 0 ? (
                   <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
-                    {currentSearchIndex + 1} / {totalMatches}
+                    {currentMatchNumber} / {totalMatches}
                   </span>
                 ) : searchText.length >= 2 ? (
                   <span className="text-xs text-red-500">Sonuç yok</span>
@@ -213,7 +284,7 @@ export const PDFSearch: React.FC<PDFSearchProps> = ({ className }) => {
               variant="ghost"
               size="icon"
               onClick={handlePrevious}
-              disabled={searchResults.length === 0 || isSearching}
+              disabled={totalMatches === 0 || isSearching}
               title="Önceki (Shift+Enter)"
               className="h-9 w-9"
             >
@@ -223,7 +294,7 @@ export const PDFSearch: React.FC<PDFSearchProps> = ({ className }) => {
               variant="ghost"
               size="icon"
               onClick={handleNext}
-              disabled={searchResults.length === 0 || isSearching}
+              disabled={totalMatches === 0 || isSearching}
               title="Sonraki (Enter)"
               className="h-9 w-9"
             >
@@ -235,10 +306,7 @@ export const PDFSearch: React.FC<PDFSearchProps> = ({ className }) => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => {
-              setShowSearch(false);
-              clearSearch();
-            }}
+            onClick={handleClose}
             title="Kapat (Esc)"
             className="h-9 w-9"
           >

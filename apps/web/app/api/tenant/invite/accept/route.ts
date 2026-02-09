@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
 
-import { sql } from '@/lib/db';
+import { withTransaction } from '@/lib/db';
 
 // Sanitize name input
 function sanitizeName(name: string): string {
@@ -22,6 +20,16 @@ function validatePassword(password: string): { valid: boolean; error?: string } 
     return { valid: false, error: 'Şifre çok uzun' };
   }
   return { valid: true };
+}
+
+class AcceptInviteError extends Error {
+  status: number;
+
+  constructor(message: string, status: number = 400) {
+    super(message);
+    this.name = 'AcceptInviteError';
+    this.status = status;
+  }
 }
 
 export async function POST(request: Request) {
@@ -54,65 +62,53 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get and validate invitation
-    const invitations = await sql`
-      SELECT id, tenant_id, email, role, expires_at
-      FROM invitations
-      WHERE token = ${token}
-      AND expires_at > NOW()
-      LIMIT 1
-    `;
-
-    const invitationsRows = invitations as any[];
-    if (invitationsRows.length === 0) {
-      return NextResponse.json(
-        { error: 'Bu davet linki geçersiz veya süresi dolmuş.' },
-        { status: 400 }
-      );
-    }
-
-    const invitation = invitationsRows[0];
-
-    // Check if user already exists
-    const existingUsers = await sql`
-      SELECT id FROM users WHERE email = ${invitation.email} LIMIT 1
-    `;
-
-    const existingUsersRows = existingUsers as any[];
-    if (existingUsersRows.length > 0) {
-      return NextResponse.json(
-        { error: 'Bu e-posta adresi zaten kayıtlı.' },
-        { status: 400 }
-      );
-    }
-
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user (already verified via invitation)
-    const users = await sql`
-      INSERT INTO users (name, email, password, email_verified, created_at, updated_at)
-      VALUES (${name}, ${invitation.email}, ${hashedPassword}, NOW(), NOW(), NOW())
-      RETURNING id
-    `;
+    await withTransaction(async (tx) => {
+      const invitations = await tx`
+        SELECT id, tenant_id, email, role, expires_at
+        FROM invitations
+        WHERE token = ${token}
+          AND expires_at > NOW()
+        LIMIT 1
+        FOR UPDATE
+      `;
 
-    const usersRows = users as any[];
-    if (usersRows.length === 0) {
-      throw new Error('User creation failed');
-    }
+      const invitationsRows = invitations as any[];
+      if (invitationsRows.length === 0) {
+        throw new AcceptInviteError('Bu davet linki geçersiz veya süresi dolmuş.', 400);
+      }
+      const invitation = invitationsRows[0];
 
-    const userId = usersRows[0].id;
+      const existingUsers = await tx`
+        SELECT id FROM users WHERE email = ${invitation.email} LIMIT 1
+      `;
+      const existingUsersRows = existingUsers as any[];
+      if (existingUsersRows.length > 0) {
+        throw new AcceptInviteError('Bu e-posta adresi zaten kayıtlı.', 400);
+      }
 
-    // Add user to tenant with the invited role
-    await sql`
-      INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
-      VALUES (${invitation.tenant_id}, ${userId}, ${invitation.role}, NOW())
-    `;
+      const users = await tx`
+        INSERT INTO users (name, email, password, email_verified, created_at, updated_at)
+        VALUES (${name}, ${invitation.email}, ${hashedPassword}, NOW(), NOW(), NOW())
+        RETURNING id
+      `;
+      const usersRows = users as any[];
+      if (usersRows.length === 0) {
+        throw new Error('User creation failed');
+      }
+      const userId = usersRows[0].id;
 
-    // Delete the invitation
-    await sql`
-      DELETE FROM invitations WHERE id = ${invitation.id}
-    `;
+      await tx`
+        INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
+        VALUES (${invitation.tenant_id}, ${userId}, ${invitation.role}, NOW())
+      `;
+
+      await tx`
+        DELETE FROM invitations WHERE id = ${invitation.id}
+      `;
+    });
 
     // Log
     // console.log(`User ${invitation.email} accepted invitation to tenant ${invitation.tenant_id}`);
@@ -122,6 +118,10 @@ export async function POST(request: Request) {
       message: 'Hesabınız oluşturuldu!',
     });
   } catch (error: unknown) {
+    if (error instanceof AcceptInviteError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
     console.error('Accept invite error:', error);
     return NextResponse.json(
       { error: 'Hesap oluşturulurken bir hata oluştu.' },
