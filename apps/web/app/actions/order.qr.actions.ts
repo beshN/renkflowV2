@@ -112,7 +112,7 @@ async function findActiveTokenByToken(token: string, tenantId: string) {
       o.status,
       o.delivery_date
     FROM order_qr_tokens t
-    JOIN orders o ON o.id = t.order_id
+    JOIN orders o ON o.id = t.order_id AND o.tenant_id = t.tenant_id
     WHERE t.token = ${token}
       AND t.tenant_id = ${tenantId}
       AND t.active = true

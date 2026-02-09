@@ -8,16 +8,20 @@ export async function POST(request: Request) {
   try {
     const session = await auth();
     
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !session.user.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { tenantId, name, brandColor, logoUrl, industry, templateKey } = await request.json();
+    const effectiveTenantId = session.user.tenantId;
+    if (tenantId && tenantId !== effectiveTenantId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Verify user has permission to update this tenant
     const members = await sql`
       SELECT role FROM tenant_members
-      WHERE tenant_id = ${tenantId} AND user_id = ${session.user.id}
+      WHERE tenant_id = ${effectiveTenantId} AND user_id = ${session.user.id}
       LIMIT 1
     `;
 
@@ -59,7 +63,7 @@ export async function POST(request: Request) {
         industry = ${normalizedIndustry || null},
         template_key = ${normalizedTemplate?.key || null},
         updated_at = NOW()
-      WHERE id = ${tenantId}
+      WHERE id = ${effectiveTenantId}
       RETURNING id
     `;
     const updatedRows = updated as Array<{ id: string }>;

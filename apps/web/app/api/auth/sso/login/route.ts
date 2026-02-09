@@ -53,7 +53,22 @@ export async function GET(request: NextRequest) {
        const users = await sql`
         SELECT u.id, tm.tenant_id 
         FROM users u
-        JOIN tenant_members tm ON u.id = tm.user_id
+        JOIN LATERAL (
+          SELECT tenant_id
+          FROM tenant_members
+          WHERE user_id = u.id
+          ORDER BY
+            CASE role
+              WHEN 'owner' THEN 0
+              WHEN 'admin' THEN 1
+              WHEN 'accountant' THEN 2
+              WHEN 'office' THEN 3
+              WHEN 'worker' THEN 4
+              ELSE 5
+            END,
+            created_at ASC
+          LIMIT 1
+        ) tm ON true
         WHERE u.email = ${email}
         LIMIT 1
       `;

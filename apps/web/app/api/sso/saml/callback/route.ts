@@ -41,18 +41,51 @@ async function setSessionCookie(user: any) {
   });
 }
 
-async function loadSessionUser(userId: string) {
+async function loadSessionUser(userId: string, preferredTenantId?: string) {
   const sql = getSql();
-  const userResult = await sql`
-    SELECT u.*, tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url, t.industry, t.template_key
-    FROM users u
-    LEFT JOIN tenant_members tm ON u.id = tm.user_id
-    LEFT JOIN tenants t ON tm.tenant_id = t.id
-    WHERE u.id = ${userId}
-    LIMIT 1
-  `;
+  const userResult = preferredTenantId
+    ? await sql`
+        SELECT u.*, tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url, t.industry, t.template_key
+        FROM users u
+        LEFT JOIN LATERAL (
+          SELECT tenant_id, role
+          FROM tenant_members
+          WHERE user_id = u.id
+            AND tenant_id = ${preferredTenantId}
+          LIMIT 1
+        ) tm ON true
+        LEFT JOIN tenants t ON tm.tenant_id = t.id
+        WHERE u.id = ${userId}
+        LIMIT 1
+      `
+    : await sql`
+        SELECT u.*, tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url, t.industry, t.template_key
+        FROM users u
+        LEFT JOIN LATERAL (
+          SELECT tenant_id, role
+          FROM tenant_members
+          WHERE user_id = u.id
+          ORDER BY
+            CASE role
+              WHEN 'owner' THEN 0
+              WHEN 'admin' THEN 1
+              WHEN 'accountant' THEN 2
+              WHEN 'office' THEN 3
+              WHEN 'worker' THEN 4
+              ELSE 5
+            END,
+            created_at ASC
+          LIMIT 1
+        ) tm ON true
+        LEFT JOIN tenants t ON tm.tenant_id = t.id
+        WHERE u.id = ${userId}
+        LIMIT 1
+      `;
   const userRows = userResult as any[];
   const user = userRows[0];
+  if (!user || !user.tenant_id) {
+    throw new Error('SSO user not found or tenant membership missing after callback');
+  }
   return {
     id: user.id,
     email: user.email,
@@ -77,7 +110,7 @@ export async function POST(request: Request) {
   }
 
   const { user, redirectTo } = await handleSAMLCallback(samlResponse, state);
-  const sessionUser = await loadSessionUser(user.id);
+  const sessionUser = await loadSessionUser(user.id, user.tenantId || user.tenant_id);
   await setSessionCookie(sessionUser);
 
   return NextResponse.redirect(redirectTo);

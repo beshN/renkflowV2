@@ -1032,7 +1032,7 @@ export async function getBalanceSheet(asOfDate?: string): Promise<BalanceSheet |
             o.id,
             o.total_amount - COALESCE(SUM(p.amount), 0) as remaining_amount
           FROM orders o
-          LEFT JOIN payments p ON o.id = p.order_id
+          LEFT JOIN payments p ON o.id = p.order_id AND p.tenant_id = o.tenant_id
           WHERE o.tenant_id = ${session.user.tenantId}
             AND o.status IN ('pending', 'in_production', 'delivered')
           GROUP BY o.id
@@ -1293,7 +1293,7 @@ export async function getReceivablesAging(asOfDate?: string): Promise<AgingRepor
             COALESCE(o.delivery_date, (o.created_at::date + ${DEFAULT_PAYMENT_TERM_DAYS} * INTERVAL '1 day')::date) as due_date,
             GREATEST(o.total_amount - COALESCE(SUM(p.amount), 0), 0) as remaining_amount
           FROM orders o
-          LEFT JOIN payments p ON p.order_id = o.id
+          LEFT JOIN payments p ON p.order_id = o.id AND p.tenant_id = o.tenant_id
           WHERE o.tenant_id = ${session.user.tenantId}
             AND o.status IN ('pending', 'in_production', 'delivered')
           GROUP BY o.id, o.order_number, o.customer_name, o.delivery_date, o.created_at, o.total_amount

@@ -7,7 +7,7 @@ import { sendInviteEmail } from '@/lib/email';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Valid roles for invitation
-const VALID_ROLES = ['admin', 'office', 'worker', 'member'];
+const VALID_ROLES = ['admin', 'accountant', 'office', 'worker', 'member'];
 
 // Generate cryptographically secure token using Web Crypto API (Edge compatible)
 function generateSecureToken(): string {
@@ -20,18 +20,19 @@ export async function POST(request: Request) {
   try {
     const session = await auth();
     
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !session.user.tenantId) {
       return NextResponse.json({ error: 'Oturum açmanız gerekiyor' }, { status: 401 });
     }
 
     const body = await request.json();
-    const tenantId = body?.tenantId;
+    const requestedTenantId = body?.tenantId;
+    const tenantId = session.user.tenantId;
     const email = body?.email?.trim().toLowerCase();
     const role = body?.role || 'member';
 
     // Validate inputs
-    if (!tenantId) {
-      return NextResponse.json({ error: 'Şirket kimliği gereklidir' }, { status: 400 });
+    if (requestedTenantId && requestedTenantId !== tenantId) {
+      return NextResponse.json({ error: 'Bu tenant için yetkiniz yok' }, { status: 403 });
     }
 
     if (!email) {

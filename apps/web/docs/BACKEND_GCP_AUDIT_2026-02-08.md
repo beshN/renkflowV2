@@ -126,3 +126,23 @@ Operational exception:
 1. Keep runtime references removed first (completed).
 2. Keep unused secrets documented and detached from runtime (completed).
 3. Execute controlled secret deletion in a dedicated change window with rollback checklist.
+
+## 2026-02-09 Multi-Tenant Hardening Addendum
+
+1. Auth tenant selection made deterministic:
+- `apps/web/lib/core/auth.config.ts` and `apps/web/app/api/v1/auth/login/route.ts` now resolve tenant membership with role-priority ordering (`owner > admin > accountant > office > worker > member`) instead of non-deterministic `LEFT JOIN` + `LIMIT 1`.
+
+2. SSO tenant binding tightened:
+- `apps/web/lib/features/auth/sso.ts` now validates membership against the provider tenant and auto-links only when `allowSignup=true`.
+- `apps/web/app/api/sso/oidc/callback/route.ts` and `apps/web/app/api/sso/saml/callback/route.ts` now load session user with preferred tenant context and fail if tenant membership is missing.
+
+3. API/session tenant membership validation added:
+- `apps/web/lib/shared/api/auth-helpers.ts` now verifies `tenant_members` membership for both bearer-token and session fallback user resolution.
+
+4. Tenant route tamper protection:
+- `apps/web/app/api/tenant/update/route.ts` and `apps/web/app/api/tenant/invite/route.ts` now treat `session.user.tenantId` as authoritative and reject mismatched `tenantId` in request body.
+
+5. Cross-tenant join hardening:
+- `apps/web/app/actions/accounting.actions.ts` payment joins now enforce `p.tenant_id = o.tenant_id`.
+- `apps/web/app/actions/order.qr.actions.ts` token/order join now enforces `o.tenant_id = t.tenant_id`.
+- `apps/web/lib/realtime/socket-server.ts` now verifies tenant membership before joining tenant rooms.
