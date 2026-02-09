@@ -20,7 +20,7 @@ export const ClientsSection: React.FC = () => {
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(14,165,233,0.06),transparent_30%,rgba(16,185,129,0.06))]"
       />
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
         <div className="text-center mb-10">
           <motion.p
             initial={{ opacity: 0, y: 14 }}

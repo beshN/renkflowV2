@@ -62,7 +62,7 @@ const statusConfig = {
 
 export default function RoadmapPage() {
   return (
-    <div className="max-w-4xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
+    <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16 py-16">
       <div className="text-center mb-12">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-sky-100 dark:bg-sky-900/30 mb-6">
           <Rocket className="w-8 h-8 text-sky-600 dark:text-sky-400" />

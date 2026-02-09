@@ -21,7 +21,7 @@ export const HeroSection: React.FC = () => {
         aria-hidden="true"
         className="pointer-events-none absolute right-0 top-10 h-80 w-80 translate-x-1/4 rounded-full bg-gradient-to-br from-emerald-300/25 via-sky-400/10 to-transparent blur-3xl"
       />
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
         <div className="grid md:grid-cols-[1.1fr_0.9fr] gap-16 items-center">
           <motion.div 
             initial={{ opacity: 0, x: -20 }}

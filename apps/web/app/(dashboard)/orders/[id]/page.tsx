@@ -155,7 +155,7 @@ export default function OrderDetailPage() {
     <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-950/50 min-h-screen">
       <Navbar title={`Sipariş #${(order.orderNumber || order.id).slice(0,8)}`} showSearch={false} />
       
-      <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
+      <main className="flex-1 w-full p-4 md:p-8">
         {/* Breadcrumb & Actions */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <Link href="/orders" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors">

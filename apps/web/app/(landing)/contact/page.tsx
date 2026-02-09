@@ -41,7 +41,7 @@ export default function ContactPage() {
 
 
       <main className="flex-grow pt-32 pb-20 px-6 md:px-12 relative z-10">
-        <div className="max-w-6xl mx-auto">
+        <div className="w-full">
           
           <div className="grid md:grid-cols-2 gap-16 items-start">
             

@@ -226,7 +226,7 @@ export const ComingSoonPage: React.FC = () => {
           ? 'bg-white/80 dark:bg-[#0B0B0F]/80 backdrop-blur-lg border-b border-slate-200/60 dark:border-slate-800/60'
           : 'bg-transparent'
       }`}>
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
           <div className="flex items-center justify-between h-16">
             <Image
               src="/renkflow-logo-new.png"
@@ -254,7 +254,7 @@ export const ComingSoonPage: React.FC = () => {
 
       {/* ─── HERO ─── */}
       <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
           <div className="grid lg:grid-cols-2 gap-16 lg:gap-20 items-center">
 
             {/* Left */}
@@ -418,7 +418,7 @@ export const ComingSoonPage: React.FC = () => {
 
       {/* ─── STATS ─── */}
       <section className="relative py-16 border-y border-slate-100 dark:border-slate-800/60">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
             {stats.map((stat, i) => (
               <motion.div
@@ -439,7 +439,7 @@ export const ComingSoonPage: React.FC = () => {
 
       {/* ─── FEATURES ─── */}
       <section id="features" className="relative py-24">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -470,7 +470,7 @@ export const ComingSoonPage: React.FC = () => {
 
       {/* ─── HOW IT WORKS ─── */}
       <section id="how-it-works" className="relative py-24 bg-slate-50 dark:bg-slate-900/30">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -513,7 +513,7 @@ export const ComingSoonPage: React.FC = () => {
 
       {/* ─── TESTIMONIALS ─── */}
       <section className="relative py-24">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -538,7 +538,7 @@ export const ComingSoonPage: React.FC = () => {
 
       {/* ─── FAQ ─── */}
       <section id="faq" className="relative py-24 bg-slate-50 dark:bg-slate-900/30">
-        <div className="max-w-2xl mx-auto px-6">
+        <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -571,7 +571,7 @@ export const ComingSoonPage: React.FC = () => {
 
       {/* ─── CTA ─── */}
       <section className="relative py-24">
-        <div className="max-w-3xl mx-auto px-6">
+        <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -616,7 +616,7 @@ export const ComingSoonPage: React.FC = () => {
 
       {/* ─── FOOTER ─── */}
       <footer className="border-t border-slate-200 dark:border-slate-800 py-12">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
             <div className="sm:col-span-2 lg:col-span-1">
               <Image

@@ -138,7 +138,7 @@ export default function CareersPage() {
           initial={{ opacity: 0, y: 30 }}
           animate={heroInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.8 }}
-          className="container mx-auto px-6 md:px-12 max-w-5xl text-center mb-20"
+          className="w-full px-4 sm:px-6 lg:px-12 xl:px-16 text-center mb-20"
         >
           <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300">
             Kariyer
@@ -154,7 +154,7 @@ export default function CareersPage() {
 
         {/* Values Section */}
         <section className="py-20 mb-20">
-          <div className="container mx-auto px-6 md:px-12 max-w-6xl">
+          <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
             <motion.div
               ref={valuesRef}
               initial={{ opacity: 0, y: 20 }}
@@ -191,7 +191,7 @@ export default function CareersPage() {
         </section>
 
         {/* Benefits Section */}
-        <section className="container mx-auto px-6 md:px-12 max-w-6xl mb-20">
+        <section className="w-full px-4 sm:px-6 lg:px-12 xl:px-16 mb-20">
           <motion.div
             ref={benefitsRef}
             initial={{ opacity: 0, y: 20 }}
@@ -229,7 +229,7 @@ export default function CareersPage() {
         </section>
 
         {/* Open Positions */}
-        <section className="container mx-auto px-6 md:px-12 max-w-4xl">
+        <section className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-text-light dark:text-text-dark mb-4">
               Açık Pozisyonlar

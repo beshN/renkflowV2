@@ -12,7 +12,7 @@ export const OptimizationSection: React.FC = () => {
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(14,165,233,0.1),transparent_55%),radial-gradient(circle_at_20%_60%,rgba(16,185,129,0.1),transparent_55%)]"
       />
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16 relative z-10">
         <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-16 items-center">
           <div className="space-y-6">
             <motion.p

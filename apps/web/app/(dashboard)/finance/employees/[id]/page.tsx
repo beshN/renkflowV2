@@ -203,7 +203,7 @@ export default function EmployeeDetailPage() {
     <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-950/50 min-h-screen">
       <Navbar title={employee.fullName} showSearch={false} />
       
-      <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
+      <main className="flex-1 w-full p-4 md:p-8">
         {/* Breadcrumb */}
         <Link href="/finance/employees" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors mb-6">
           <ArrowLeft size={16} />

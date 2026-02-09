@@ -129,7 +129,7 @@ export default function CareerDetailPage({ params }: { params: { id: string } })
 
   return (
     <div className="min-h-screen bg-[#f7f8fb] dark:bg-slate-950">
-      <main className="mx-auto max-w-5xl px-6 pb-24 pt-32">
+      <main className="w-full px-4 sm:px-6 lg:px-12 xl:px-16 pb-24 pt-32">
         <Link href="/careers" className="text-sm font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
           ← Kariyer sayfasına geri dön
         </Link>

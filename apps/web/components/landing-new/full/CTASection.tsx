@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 export const CTASection: React.FC = () => {
   return (
-    <section className="relative my-24 md:my-32 py-20 px-8 text-center max-w-[1400px] mx-auto overflow-hidden rounded-[36px]">
+    <section className="relative my-24 md:my-32 py-20 text-center w-full px-4 sm:px-6 lg:px-12 xl:px-16 overflow-hidden rounded-[36px]">
       
       {/* Animated Gradient Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-sky-600 via-blue-600 to-emerald-600 animate-gradient-xy z-0"></div>
