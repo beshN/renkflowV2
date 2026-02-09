@@ -239,7 +239,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
           >
               <div className="relative h-14 w-14 flex items-center justify-center">
                 {logoFailed.compact ? (
-                  <span className="text-2xl font-extrabold text-slate-900 dark:text-white">R</span>
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 shadow-md" />
                 ) : (
                   <Image
                     src="/logo-r.png"
@@ -263,15 +263,15 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
              transition={{ type: 'spring', stiffness: 280, damping: 28 }}
              className="absolute inset-0 flex items-center justify-center"
            >
-              <div className="relative h-20 w-48 flex items-center justify-center p-1">
+              <div className="relative h-16 w-16 flex items-center justify-center p-1">
                 {logoFailed.full ? (
-                  <span className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">RenkFlow</span>
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 shadow-md" />
                 ) : (
                   <Image
-                    src="/email-assets/logo-full.png"
-                    alt="RenkFlow"
+                    src="/logo-r.png"
+                    alt="RenkFlow Logo"
                     fill
-                    sizes="192px"
+                    sizes="64px"
                     className="object-contain"
                     onError={() => setLogoFailed((prev) => ({ ...prev, full: true }))}
                   />

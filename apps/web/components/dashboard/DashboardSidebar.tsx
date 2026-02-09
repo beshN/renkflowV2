@@ -3,6 +3,7 @@
 import { useState, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -58,14 +59,16 @@ export function DashboardSidebar() {
     >
       {/* Brand */}
       <div className="flex items-center gap-2 px-6 py-5">
-        <div className="relative w-8 h-8 flex-shrink-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full" />
-          <div className="absolute inset-1 bg-gradient-to-br from-green-400 to-green-600 rounded-full opacity-60" 
-               style={{ clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' }} />
+        <div className="relative h-9 w-9 flex-shrink-0">
+          <Image
+            src="/logo-r.png"
+            alt="RenkFlow Logo"
+            fill
+            sizes="36px"
+            className="object-contain"
+            priority
+          />
         </div>
-        {!collapsed && (
-          <span className="font-semibold text-lg text-gray-900 tracking-tight">RenkFlow</span>
-        )}
         <button 
           onClick={() => setCollapsed(!collapsed)}
           className="ml-auto p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"

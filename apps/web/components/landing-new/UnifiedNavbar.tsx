@@ -90,18 +90,18 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
                 className={cn(
                   'relative overflow-hidden transition-all duration-500',
                   largeLogo 
-                    ? 'h-24 w-64 md:h-28 md:w-96' 
-                    : 'h-12 w-40 md:h-14 md:w-48'
+                    ? 'h-16 w-16 md:h-20 md:w-20' 
+                    : 'h-10 w-10 md:h-12 md:w-12'
                 )}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
                 <Image
-                  src="/renkflow-logo-new.png"
-                  alt="Renkflow"
+                  src="/logo-r.png"
+                  alt="RenkFlow Logo"
                   fill
-                  sizes={largeLogo ? "(max-width: 768px) 70vw, 480px" : "(max-width: 768px) 40vw, 250px"}
-                  className="object-contain object-left"
+                  sizes={largeLogo ? "(max-width: 768px) 64px, 80px" : "(max-width: 768px) 40px, 48px"}
+                  className="object-contain"
                   priority
                 />
               </motion.div>
