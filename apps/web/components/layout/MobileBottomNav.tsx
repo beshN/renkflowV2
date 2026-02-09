@@ -27,7 +27,7 @@ export function MobileBottomNav() {
   });
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass border-t-0 safe-bottom">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 rf-topbar border-t border-slate-200/70 dark:border-slate-800/70 safe-bottom">
       <div className="flex items-center justify-around py-2 px-1">
         {visibleItems.map((item) => {
           const isActive = pathname === item.href || 

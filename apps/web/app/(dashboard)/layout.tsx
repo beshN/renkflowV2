@@ -12,7 +12,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
 
   return (
-    <div className="flex min-h-screen relative overflow-hidden">
+    <div className="rf-app-shell flex min-h-screen relative overflow-hidden">
       {/* Premium Surface Background */}
       <div className="fixed inset-0 pointer-events-none z-[-1] dashboard-surface" />
       <div className="fixed inset-0 pointer-events-none z-[-1] dashboard-grid opacity-60" />

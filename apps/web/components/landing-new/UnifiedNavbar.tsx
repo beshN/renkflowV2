@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, Sun, Menu, X, ChevronRight, Sparkles } from 'lucide-react';
+import { Moon, Sun, Menu, X, ChevronRight } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { cn } from '@/lib/utils';
@@ -53,13 +53,8 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
   ];
 
   const [mounted, setMounted] = useState(false);
-  const [themeState, setThemeState] = useState<"light" | "dark">("light");
-
   useEffect(() => {
     setMounted(true);
-    const storedTheme = localStorage.getItem("theme") || 
-      (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    setThemeState(storedTheme as "light" | "dark");
   }, []);
 
   const toggleTheme = useCallback(() => {
@@ -72,11 +67,11 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
         className={cn(
           'fixed top-0 left-0 right-0 z-50 transition-all duration-500',
           isScrolled 
-            ? 'bg-white/80 dark:bg-slate-950/80 backdrop-blur-2xl shadow-[0_1px_0_0_rgba(0,0,0,0.05),0_4px_20px_-4px_rgba(0,0,0,0.1)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.05),0_4px_20px_-4px_rgba(0,0,0,0.3)]'
+            ? 'rf-topbar shadow-[0_1px_0_0_rgba(0,0,0,0.05),0_4px_20px_-4px_rgba(0,0,0,0.1)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.05),0_4px_20px_-4px_rgba(0,0,0,0.3)]'
             : transparent ? 'bg-transparent' : 'bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm'
         )}
       >
-        <div className="w-full px-4 sm:px-6 lg:px-12">
+        <div className="rf-page-wrap">
           <div className="flex justify-between items-center h-20 lg:h-24">
             {/* Logo */}
             <Link 
@@ -295,7 +290,7 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
                             onClick={toggleTheme}
                             className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-slate-600 dark:text-slate-300"
                           >
-                            {themeState === "light" ? <Sun size={20} /> : <Moon size={20} />}
+                            {resolvedTheme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
                           </button>
                         ) : (
                           <div className="w-6 h-6" />

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { Mail, ShieldCheck, CheckCircle2, ArrowRight, ChevronDown, Star } from 'lucide-react';
+import { Mail, ShieldCheck, CheckCircle2, ArrowRight, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { DashboardPreview } from './DashboardPreview';
@@ -58,7 +58,7 @@ export const Hero: React.FC = () => {
   }, [email]);
 
   return (
-    <section className="relative min-h-screen w-full overflow-hidden bg-[#f7f8fb] dark:bg-slate-950" aria-label="Hero Section">
+    <section className="relative min-h-[calc(100svh-4.5rem)] w-full overflow-hidden bg-[#f7f8fb] dark:bg-slate-950" aria-label="Hero Section">
       
       {/* Aurora Background Effect */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
@@ -67,12 +67,12 @@ export const Hero: React.FC = () => {
         <div className="absolute bottom-[-20%] left-[20%] w-[50%] h-[50%] rounded-full bg-gradient-to-t from-emerald-400/15 to-sky-400/15 blur-[60px] animate-blob animation-delay-4000 will-change-transform dark:mix-blend-soft-light" />
       </div>
 
-      <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 pt-32 pb-20 lg:pt-48 lg:pb-32">
-        <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-20">
+      <div className="relative z-10 rf-page-wrap pt-24 pb-16 lg:pt-32 lg:pb-20">
+        <div className="rf-hero-grid">
             
             {/* Left Content */}
             <motion.div
-                className="flex-1 max-w-2xl text-center lg:text-left z-20"
+                className="w-full text-center lg:text-left z-20"
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
@@ -170,14 +170,14 @@ export const Hero: React.FC = () => {
 
             {/* Right Visual - 3D Dashboard */}
             <motion.div
-                className="flex-1 w-full max-w-2xl lg:max-w-none relative perspective-[2000px]"
+                className="w-full lg:-mr-[3vw] 2xl:-mr-[4vw] relative perspective-[2000px] flex justify-end"
                 initial={{ opacity: 0, x: 50, rotateY: 20 }}
                 animate={{ opacity: 1, x: 0, rotateY: -5 }}
                 transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
                 style={{ transformStyle: 'preserve-3d' }}
             >
                 {/* Main Dashboard Preview */}
-                <div className="relative z-20">
+                <div className="relative z-20 w-full lg:w-[min(62vw,980px)] max-w-[980px]">
                     <DashboardPreview isDark={isDark} />
                 </div>
                 
@@ -187,22 +187,6 @@ export const Hero: React.FC = () => {
             </motion.div>
         </div>
 
-        {/* Scroll Indicator */}
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1 }}
-            className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 cursor-pointer"
-            onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
-        >
-            <span className="text-xs text-muted-foreground">Keşfet</span>
-            <motion.div
-                animate={{ y: [0, 8, 0] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-            >
-                <ChevronDown size={20} className="text-muted-foreground" />
-            </motion.div>
-        </motion.div>
       </div>
     </section>
   );

@@ -220,7 +220,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
         onMouseLeave={handleDesktopLeave}
         className={cn(
           "fixed top-0 left-0 h-screen flex flex-col z-[58]",
-          "bg-neutral-50/80 dark:bg-neutral-900/80 backdrop-blur-md border-r border-neutral-200 dark:border-neutral-800",
+          "rf-panel-soft bg-neutral-50/80 dark:bg-neutral-900/80 backdrop-blur-md border-r border-neutral-200 dark:border-neutral-800",
           "will-change-[width,transform]",
           isMobileOpen ? "translate-x-0 w-72" : "-translate-x-full md:translate-x-0"
         )}

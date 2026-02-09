@@ -12,7 +12,7 @@ export const HeroSection: React.FC = () => {
   const isDark = resolvedTheme === 'dark';
 
   return (
-    <main className="relative pt-28 md:pt-36 pb-24 overflow-hidden">
+    <main className="relative pt-24 md:pt-28 lg:pt-32 pb-16 lg:pb-20 overflow-hidden min-h-[calc(100svh-4.5rem)] flex items-center">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -left-24 top-24 h-72 w-72 rounded-full bg-gradient-to-br from-sky-400/30 via-cyan-400/10 to-transparent blur-3xl"
@@ -21,8 +21,8 @@ export const HeroSection: React.FC = () => {
         aria-hidden="true"
         className="pointer-events-none absolute right-0 top-10 h-80 w-80 translate-x-1/4 rounded-full bg-gradient-to-br from-emerald-300/25 via-sky-400/10 to-transparent blur-3xl"
       />
-      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
-        <div className="grid md:grid-cols-[1.1fr_0.9fr] gap-16 items-center">
+      <div className="rf-page-wrap">
+        <div className="rf-hero-grid">
           <motion.div 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -82,10 +82,10 @@ export const HeroSection: React.FC = () => {
              initial={{ opacity: 0, x: 20 }}
              animate={{ opacity: 1, x: 0 }}
              transition={{ duration: 0.8, delay: 0.2 }}
-             className="relative flex justify-center items-center perspective-[2000px]"
+             className="relative flex justify-end items-center perspective-[2000px] lg:-mr-[2.5vw]"
           >
              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(14,165,233,0.18),transparent_65%)] dark:bg-[radial-gradient(circle_at_50%_50%,rgba(56,189,248,0.25),transparent_70%)] animate-pulse" style={{ animationDuration: '4s' }}></div>
-              <div className="w-full max-w-[600px]">
+              <div className="w-full lg:w-[min(58vw,900px)] max-w-[900px]">
                 <DashboardPreview isDark={isDark} />
               </div>
           </motion.div>

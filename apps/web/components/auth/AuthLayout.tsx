@@ -12,7 +12,7 @@ interface AuthLayoutProps {
 
 export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, showHomeLink = true }) => {
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-background p-4">
+    <div className="rf-app-shell relative min-h-screen w-full flex items-center justify-center overflow-hidden p-4">
       
       {/* Aurora Background Effect */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -35,7 +35,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, showHomeLink =
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-md glass-panel rounded-3xl overflow-hidden"
+        className="rf-panel relative z-10 w-full max-w-md rounded-3xl overflow-hidden"
       >
         {/* Header Logo */}
         <div className="flex flex-col items-center pt-8 pb-4">

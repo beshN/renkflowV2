@@ -39,29 +39,29 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(({
 
   const variants = {
     default: cn(
-      'border border-neutral-200 dark:border-neutral-700',
-      'bg-white dark:bg-neutral-900',
+      'border border-slate-200/80 dark:border-slate-700/80',
+      'bg-white/90 dark:bg-slate-900/80 backdrop-blur-sm',
       'focus:border-primary-500 dark:focus:border-primary-400',
       'focus:ring-4 focus:ring-primary-500/10 dark:focus:ring-primary-400/10'
     ),
     filled: cn(
       'border border-transparent',
-      'bg-neutral-100 dark:bg-neutral-800',
-      'focus:bg-white dark:focus:bg-neutral-900',
+      'bg-slate-100/80 dark:bg-slate-800/80',
+      'focus:bg-white dark:focus:bg-slate-900',
       'focus:border-primary-500 dark:focus:border-primary-400',
       'focus:ring-4 focus:ring-primary-500/10'
     ),
     ghost: cn(
-      'border-b-2 border-neutral-200 dark:border-neutral-700 rounded-none',
+      'border-b-2 border-slate-200 dark:border-slate-700 rounded-none',
       'bg-transparent',
       'focus:border-primary-500 dark:focus:border-primary-400',
       'focus:ring-0'
     ),
     glass: cn(
-      'border border-neutral-200/50 dark:border-neutral-700/50',
-      'bg-white/40 dark:bg-neutral-900/40',
-      'backdrop-blur-sm',
-      'focus:bg-white/60 dark:focus:bg-neutral-900/60',
+      'border border-slate-200/70 dark:border-slate-700/60',
+      'bg-white/60 dark:bg-slate-900/60',
+      'backdrop-blur-md',
+      'focus:bg-white/80 dark:focus:bg-slate-900/80',
       'focus:border-primary-500/80 dark:focus:border-primary-400/80',
       'focus:ring-4 focus:ring-primary-500/10 dark:focus:ring-primary-400/10'
     ),
@@ -102,9 +102,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(({
           type={inputType}
           data-slot="input"
           className={cn(
-            'w-full rounded-xl outline-none transition-all duration-200',
+            'w-full rounded-2xl outline-none transition-all duration-200',
             'placeholder:text-slate-400 dark:placeholder:text-slate-500',
-            'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-50 dark:disabled:bg-slate-800',
+            'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-50 dark:disabled:bg-slate-800/80',
             variants[variant],
             sizes[inputSize],
             leftIcon && 'pl-10',

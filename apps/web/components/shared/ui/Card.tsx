@@ -27,37 +27,38 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(({
 
   const variants = {
     default: cn(
-      'bg-white dark:bg-neutral-900',
-      'border border-neutral-200 dark:border-neutral-800',
-      'shadow-sm'
+      'bg-white/92 dark:bg-slate-900/85',
+      'backdrop-blur-sm',
+      'border border-slate-200/75 dark:border-slate-700/70',
+      'shadow-[0_12px_34px_-24px_rgba(15,23,42,0.55)]'
     ),
     elevated: cn(
-      'bg-white dark:bg-neutral-900',
-      'shadow-md',
-      'border border-neutral-100 dark:border-neutral-800'
+      'bg-white dark:bg-slate-900',
+      'border border-slate-200/75 dark:border-slate-700/75',
+      'shadow-[0_18px_40px_-24px_rgba(15,23,42,0.6)]'
     ),
     outlined: cn(
       'bg-transparent',
-      'border border-neutral-200 dark:border-neutral-700'
+      'border border-slate-200/80 dark:border-slate-700/80'
     ),
     glass: cn(
-      'bg-white/90 dark:bg-neutral-900/90',
-      'backdrop-blur-sm',
-      'border border-neutral-200/50 dark:border-neutral-700/50',
-      'shadow-sm'
+      'bg-white/70 dark:bg-slate-900/70',
+      'backdrop-blur-md',
+      'border border-slate-200/70 dark:border-slate-700/65',
+      'shadow-[0_14px_36px_-24px_rgba(15,23,42,0.58)]'
     ),
     gradient: cn(
-      'bg-gradient-to-br from-neutral-50 to-neutral-100',
-      'dark:from-neutral-900 dark:to-neutral-800',
-      'border border-neutral-200 dark:border-neutral-700',
-      'shadow-sm'
+      'bg-gradient-to-br from-white via-sky-50/30 to-indigo-50/40',
+      'dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/40',
+      'border border-slate-200/70 dark:border-slate-700/70',
+      'shadow-[0_14px_36px_-24px_rgba(15,23,42,0.58)]'
     ),
   };
 
   const hoverEffects = {
-    lift: 'hover:-translate-y-1 hover:shadow-lg transition-transform',
-    glow: 'hover:border-sky-500 dark:hover:border-sky-400 transition-colors',
-    border: 'hover:border-sky-500 dark:hover:border-sky-400 transition-colors',
+    lift: 'hover:-translate-y-1 hover:shadow-[0_20px_42px_-24px_rgba(15,23,42,0.62)] transition-transform',
+    glow: 'hover:border-sky-500/80 dark:hover:border-sky-400/80 transition-colors',
+    border: 'hover:border-sky-500/80 dark:hover:border-sky-400/80 transition-colors',
   };
 
   const paddings = {

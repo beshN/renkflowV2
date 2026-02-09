@@ -31,7 +31,7 @@ const PricingSection = dynamic(() => import('./full/PricingSection').then(mod =>
 // Minimal skeleton for lazy-loaded sections
 const SectionSkeleton = memo(() => (
   <div className="py-16 px-6">
-    <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
+    <div className="rf-page-wrap">
       <div className="h-8 w-48 bg-slate-200 dark:bg-slate-800 rounded-lg mx-auto mb-8 animate-pulse" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[1, 2, 3].map((i) => (
@@ -45,7 +45,7 @@ SectionSkeleton.displayName = 'SectionSkeleton';
 
 export const FullLandingContent: React.FC = memo(() => {
   return (
-    <div className="relative overflow-hidden bg-[#f7f8fb] dark:bg-slate-950">
+    <div className="rf-app-shell relative overflow-hidden">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute left-0 top-0 h-[520px] w-full bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,0.18),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.18),transparent_40%),linear-gradient(180deg,rgba(15,23,42,0.03),transparent_45%)] dark:bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.15),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(45,212,191,0.14),transparent_40%),linear-gradient(180deg,rgba(15,23,42,0.35),transparent_55%)]"
