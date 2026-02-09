@@ -3,9 +3,19 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { TypeAnimation } from 'react-type-animation';
-import { DashboardPreview } from '../DashboardPreview';
 import { useTheme } from 'next-themes';
+
+const DashboardPreview = dynamic(
+  () => import('../DashboardPreview').then((mod) => ({ default: mod.DashboardPreview })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[500px] xl:h-[560px] 2xl:h-[600px] rounded-2xl border border-slate-200/70 dark:border-slate-800/70 bg-white/70 dark:bg-slate-900/70 animate-pulse" />
+    ),
+  }
+);
 
 export const HeroSection: React.FC = () => {
   const { resolvedTheme } = useTheme();

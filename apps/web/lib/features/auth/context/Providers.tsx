@@ -16,18 +16,22 @@ import { I18nProvider } from '@/lib/i18n';
  */
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <SessionProvider>
-      <I18nProvider>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <AuthProvider>
-            <SettingsProvider>
-              <ToastProvider>
-                {children}
-              </ToastProvider>
-            </SettingsProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </I18nProvider>
+    <I18nProvider>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+        {children}
+      </ThemeProvider>
+    </I18nProvider>
+  );
+}
+
+export function AuthProviders({ children }: { children: ReactNode }) {
+  return (
+    <SessionProvider refetchOnWindowFocus={false}>
+      <AuthProvider>
+        <SettingsProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </SettingsProvider>
+      </AuthProvider>
     </SessionProvider>
   );
 }

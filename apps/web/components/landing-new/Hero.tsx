@@ -3,11 +3,21 @@
 import React, { useState, useCallback } from 'react';
 import { Mail, ShieldCheck, CheckCircle2, ArrowRight, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
+import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
-import { DashboardPreview } from './DashboardPreview';
 import { useTheme } from 'next-themes';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+
+const DashboardPreview = dynamic(
+  () => import('./DashboardPreview').then((mod) => ({ default: mod.DashboardPreview })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[500px] xl:h-[560px] 2xl:h-[600px] rounded-2xl border border-slate-200/70 dark:border-slate-800/70 bg-white/70 dark:bg-slate-900/70 animate-pulse" />
+    ),
+  }
+);
 
 export const Hero: React.FC = () => {
   const [email, setEmail] = useState('');

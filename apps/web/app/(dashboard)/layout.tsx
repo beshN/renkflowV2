@@ -5,6 +5,7 @@ import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { RouteGuard } from '@/components/auth/RouteGuard';
 import { AIChatbot } from '@/components/ai/AIChatbot';
+import { AuthProviders } from '@/lib/context/Providers';
 import { ReactNode, useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -17,26 +18,28 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <div className="fixed inset-0 pointer-events-none z-[-1] dashboard-surface" />
       <div className="fixed inset-0 pointer-events-none z-[-1] dashboard-grid opacity-60" />
 
-      <Sidebar onDesktopExpandedChange={setIsSidebarExpanded} />
-      <main
-        className={cn(
-          "flex-1 w-full min-w-0 pb-20 md:pb-0 z-10",
-          "transition-[margin-left,width] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
-          "md:will-change-[margin-left,width]",
-          "md:origin-left",
-          isSidebarExpanded
-            ? "md:ml-72 md:w-[calc(100%-18rem)]"
-            : "md:ml-20 md:w-[calc(100%-5rem)]"
-        )}
-      >
-        <ErrorBoundary>
-          <RouteGuard>
-            {children}
-          </RouteGuard>
-        </ErrorBoundary>
-      </main>
-      <MobileBottomNav />
-      <AIChatbot />
+      <AuthProviders>
+        <Sidebar onDesktopExpandedChange={setIsSidebarExpanded} />
+        <main
+          className={cn(
+            "flex-1 w-full min-w-0 pb-20 md:pb-0 z-10",
+            "transition-[margin-left,width] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            "md:will-change-[margin-left,width]",
+            "md:origin-left",
+            isSidebarExpanded
+              ? "md:ml-72 md:w-[calc(100%-18rem)]"
+              : "md:ml-20 md:w-[calc(100%-5rem)]"
+          )}
+        >
+          <ErrorBoundary>
+            <RouteGuard>
+              {children}
+            </RouteGuard>
+          </ErrorBoundary>
+        </main>
+        <MobileBottomNav />
+        <AIChatbot />
+      </AuthProviders>
     </div>
   );
 }

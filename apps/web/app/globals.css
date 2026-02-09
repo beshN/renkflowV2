@@ -123,6 +123,7 @@
   .dark [tabindex]:focus-visible {
     outline-color: rgba(56, 189, 248, 0.7);
   }
+
 }
 
 /* Accessibility Utilities */
@@ -557,15 +558,6 @@
 @keyframes aurora3 {
   0%, 100% { transform: translate(0, 0) scale(1); }
   50% { transform: translate(2%, -3%) scale(1.02); }
-}
-
-/* Reduced motion preference */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
 }
 
 /* ===== PERFORMANCE OPTIMIZATIONS ===== */
