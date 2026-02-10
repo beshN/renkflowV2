@@ -4,6 +4,13 @@
 
 This review compares current RenkFlow backend capabilities to workflow leaders such as Trello (collaboration orchestration) and MaintainX (operations + maintenance execution).
 
+## Update (2026-02-10, Iteration 2)
+
+Newly implemented in this cycle:
+- Multi-tenant work order engine (`/api/work-orders*`) with lifecycle, checklist, comments, assignment, and operational summary.
+- Idempotent schema migration for work orders and execution events.
+- Role-aware permissions for operational execution without breaking existing auth/tenant boundaries.
+
 ## Implemented in this cycle
 
 1. Tenant activity feed API

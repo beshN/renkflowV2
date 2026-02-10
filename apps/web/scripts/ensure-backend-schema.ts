@@ -128,6 +128,8 @@ export async function ensureBackendSchema(sql: SqlClient, options: EnsureOptions
     '006_accounting_tables.sql',
     '007_accounting_journal_tables.sql',
     '008_accounting_control_tables.sql',
+    '009_bank_reconciliation_tables.sql',
+    '010_work_orders.sql',
   ]) {
     const raw = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
     await runStatements(sql, file, splitStatements(removeLineComments(raw)), prefix);
