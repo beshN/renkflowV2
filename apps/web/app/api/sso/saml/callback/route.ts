@@ -3,8 +3,11 @@ import { cookies } from 'next/headers';
 import { encode } from 'next-auth/jwt';
 import { handleSAMLCallback } from '@/lib/auth/sso';
 import { getSql } from '@/lib/db';
+import { resolveAuthSecret } from '@/lib/shared/config/runtime-env';
 
-const AUTH_SECRET = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
+const AUTH_SECRET = resolveAuthSecret({
+  context: 'api.sso.saml.callback',
+});
 
 function getSessionCookieName() {
   return process.env.NODE_ENV === 'production' ? '__Secure-authjs.session-token' : 'authjs.session-token';

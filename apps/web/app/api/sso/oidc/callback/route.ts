@@ -3,8 +3,22 @@ import { cookies } from 'next/headers';
 import { encode } from 'next-auth/jwt';
 import { handleOIDCCallback } from '@/lib/auth/sso';
 import { getSql } from '@/lib/db';
+import {
+  resolveAuthSecret,
+  resolveServerBaseUrl,
+} from '@/lib/shared/config/runtime-env';
 
-const AUTH_SECRET = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
+const AUTH_SECRET = resolveAuthSecret({
+  context: 'api.sso.oidc.callback',
+});
+
+function sanitizeRedirectTarget(redirectTo: string | null): string {
+  if (!redirectTo) return '/dashboard';
+  if (!redirectTo.startsWith('/') || redirectTo.startsWith('//')) {
+    return '/dashboard';
+  }
+  return redirectTo;
+}
 
 function getSessionCookieName() {
   return process.env.NODE_ENV === 'production' ? '__Secure-authjs.session-token' : 'authjs.session-token';
@@ -103,7 +117,7 @@ async function loadSessionUser(userId: string, preferredTenantId?: string) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const providerId = searchParams.get('providerId');
-  const redirectTo = searchParams.get('redirectTo') || '/dashboard';
+  const redirectTo = sanitizeRedirectTarget(searchParams.get('redirectTo'));
   const code = searchParams.get('code');
   const state = searchParams.get('state');
 
@@ -111,7 +125,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Invalid callback' }, { status: 400 });
   }
 
-  const redirectUri = `${new URL(request.url).origin}/api/sso/oidc/callback?providerId=${providerId}&redirectTo=${encodeURIComponent(redirectTo)}`;
+  const baseUrl =
+    resolveServerBaseUrl({
+      context: 'api.sso.oidc.callback',
+      fallbackOrigin: new URL(request.url).origin,
+    }) || new URL(request.url).origin;
+  const redirectUri = `${baseUrl}/api/sso/oidc/callback?providerId=${providerId}&redirectTo=${encodeURIComponent(redirectTo)}`;
   const { user } = await handleOIDCCallback(providerId, redirectUri, { code, state });
   const sessionUser = await loadSessionUser(user.id, user.tenantId || user.tenant_id);
   await setSessionCookie(sessionUser);

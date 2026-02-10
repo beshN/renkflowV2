@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { authLimiter, rateLimitResponse } from '@/lib/api/rate-limit';
+import { resolveServerBaseUrl } from '@/lib/shared/config/runtime-env';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -96,7 +97,11 @@ export async function POST(request: NextRequest) {
     `;
 
     // Generate reset URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const baseUrl =
+      resolveServerBaseUrl({
+        context: 'api.auth.forgot-password',
+        fallbackOrigin: request.nextUrl.origin,
+      }) || request.nextUrl.origin;
     const resetUrl = `${baseUrl}/auth/update-password?token=${resetToken}`;
 
     // Send password reset email

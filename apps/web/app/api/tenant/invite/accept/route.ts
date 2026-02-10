@@ -47,25 +47,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!name || name.length < 2) {
-      return NextResponse.json(
-        { error: 'Ad Soyad en az 2 karakter olmalıdır' },
-        { status: 400 }
-      );
-    }
-
-    const passwordValidation = validatePassword(password);
-    if (!passwordValidation.valid) {
-      return NextResponse.json(
-        { error: passwordValidation.error },
-        { status: 400 }
-      );
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    await withTransaction(async (tx) => {
+    const result = await withTransaction(async (tx) => {
       const invitations = await tx`
         SELECT id, tenant_id, email, role, expires_at
         FROM invitations
@@ -84,38 +66,68 @@ export async function POST(request: Request) {
       const existingUsers = await tx`
         SELECT id FROM users WHERE email = ${invitation.email} LIMIT 1
       `;
-      const existingUsersRows = existingUsers as any[];
-      if (existingUsersRows.length > 0) {
-        throw new AcceptInviteError('Bu e-posta adresi zaten kayıtlı.', 400);
+      const existingUsersRows = existingUsers as Array<{ id: string }>;
+      let userId = existingUsersRows[0]?.id || '';
+
+      if (!userId) {
+        if (!name || name.length < 2) {
+          throw new AcceptInviteError('Ad Soyad en az 2 karakter olmalıdır', 400);
+        }
+
+        const passwordValidation = validatePassword(password);
+        if (!passwordValidation.valid) {
+          throw new AcceptInviteError(passwordValidation.error || 'Geçersiz şifre', 400);
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 12);
+        try {
+          const users = await tx`
+            INSERT INTO users (name, email, password, email_verified, created_at, updated_at)
+            VALUES (${name}, ${invitation.email}, ${hashedPassword}, NOW(), NOW(), NOW())
+            RETURNING id
+          `;
+          const usersRows = users as Array<{ id: string }>;
+          if (usersRows.length === 0) {
+            throw new Error('User creation failed');
+          }
+          userId = usersRows[0].id;
+        } catch (error: any) {
+          // Handle race: another flow might have created the user with same email.
+          if (error?.code === '23505') {
+            const raceUsers = await tx`
+              SELECT id FROM users WHERE email = ${invitation.email} LIMIT 1
+            `;
+            const raceRows = raceUsers as Array<{ id: string }>;
+            userId = raceRows[0]?.id || '';
+          } else {
+            throw error;
+          }
+        }
       }
 
-      const users = await tx`
-        INSERT INTO users (name, email, password, email_verified, created_at, updated_at)
-        VALUES (${name}, ${invitation.email}, ${hashedPassword}, NOW(), NOW(), NOW())
-        RETURNING id
-      `;
-      const usersRows = users as any[];
-      if (usersRows.length === 0) {
-        throw new Error('User creation failed');
+      if (!userId) {
+        throw new Error('Could not resolve invited user');
       }
-      const userId = usersRows[0].id;
 
       await tx`
         INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
         VALUES (${invitation.tenant_id}, ${userId}, ${invitation.role}, NOW())
+        ON CONFLICT (tenant_id, user_id) DO NOTHING
       `;
 
       await tx`
         DELETE FROM invitations WHERE id = ${invitation.id}
       `;
-    });
 
-    // Log
-    // console.log(`User ${invitation.email} accepted invitation to tenant ${invitation.tenant_id}`);
+      return { existingUser: Boolean(existingUsersRows[0]?.id) };
+    });
 
     return NextResponse.json({
       success: true,
-      message: 'Hesabınız oluşturuldu!',
+      existingUser: result.existingUser,
+      message: result.existingUser
+        ? 'Davet kabul edildi. Mevcut hesabınız ile giriş yapabilirsiniz.'
+        : 'Hesabınız oluşturuldu!',
     });
   } catch (error: unknown) {
     if (error instanceof AcceptInviteError) {

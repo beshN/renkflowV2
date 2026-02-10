@@ -221,8 +221,10 @@ export const ComingSoonPage: React.FC = () => {
 
       {/* Improved Background - More subtle, "Deep Glass" feel */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-[20%] -right-[10%] w-[60%] h-[60%] bg-gradient-to-bl from-blue-100/40 dark:from-blue-900/20 to-transparent rounded-full blur-[100px]" />
-        <div className="absolute top-[40%] -left-[10%] w-[40%] h-[40%] bg-gradient-to-tr from-cyan-100/40 dark:from-cyan-900/10 to-transparent rounded-full blur-[100px]" />
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-100/20 via-slate-50/20 to-transparent dark:from-blue-900/10 dark:via-slate-900/10" />
+        <div className="absolute -top-[20%] -right-[10%] w-[70%] h-[70%] bg-gradient-to-bl from-blue-200/30 dark:from-blue-800/10 to-transparent rounded-full blur-[120px] animate-blob" />
+        <div className="absolute top-[30%] -left-[10%] w-[50%] h-[50%] bg-gradient-to-tr from-indigo-200/30 dark:from-indigo-800/10 to-transparent rounded-full blur-[100px] animate-blob animation-delay-2000" />
+        <div className="absolute bottom-0 right-[20%] w-[40%] h-[40%] bg-gradient-to-t from-cyan-100/30 dark:from-cyan-900/10 to-transparent rounded-full blur-[100px] animate-blob animation-delay-4000" />
       </div>
 
       <WaitlistNavbar />
@@ -234,38 +236,44 @@ export const ComingSoonPage: React.FC = () => {
 
             {/* Left Content */}
             <div className="text-center lg:text-left w-full">
-               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5 }}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-900/30 bg-blue-50/50 dark:bg-blue-900/10 backdrop-blur-sm text-xs font-semibold text-blue-700 dark:text-blue-300 mb-8"
-              >
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-                </span>
-                Erken Erişim Başvuruları Açık
-              </motion.div>
+                <motion.div
+                 initial={{ opacity: 0, scale: 0.95 }}
+                 animate={{ opacity: 1, scale: 1 }}
+                 transition={{ duration: 0.5 }}
+                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-blue-200/50 dark:border-blue-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md text-xs font-medium text-slate-700 dark:text-slate-300 shadow-sm mb-10 hover:shadow-md transition-all duration-300"
+               >
+                 <span className="relative flex h-2.5 w-2.5">
+                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
+                 </span>
+                 <span className="font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                   Erken Erişim
+                 </span> 
+                 <span className="w-px h-3 bg-slate-200 dark:bg-slate-700 mx-1"></span>
+                 <span>Sınırlı süre ücretsiz</span>
+               </motion.div>
 
-              <motion.h1
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-[1.06] mb-6 text-slate-900 dark:text-white"
-              >
-                Üretim yönetiminde{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 animate-gradient-x">
-                   yeni standart.
-                </span>
-              </motion.h1>
+               <motion.h1
+                 initial={{ opacity: 0, y: 20 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 transition={{ duration: 0.5, delay: 0.1 }}
+                 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-[1.1] mb-8 text-slate-900 dark:text-white"
+               >
+                 Üretim Süreçlerinizi <br className="hidden lg:block"/>
+                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 animate-gradient-xy">
+                    Optimize Edin.
+                 </span>
+                 <br />
+                 Kârlılığınızı Artırın.
+               </motion.h1>
 
               <motion.p
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
-                className="text-lg sm:text-xl text-slate-600 dark:text-slate-400 mb-10 lg:max-w-[36rem] leading-relaxed"
+                className="text-lg sm:text-xl text-slate-600 dark:text-slate-400 mb-12 lg:max-w-[38rem] leading-relaxed font-light"
               >
-                Karmaşık tabloları unutun. RenkFlow ile tüm üretim sürecinizi modern, hızlı ve akıllı bir arayüzden yönetin.
+                Karmaşık Excel tablolarıyla vakit kaybetmeyin. RenkFlow’un yapay zeka destekli üretim yönetim platformu ile verimliliği <span className="font-semibold text-slate-900 dark:text-slate-200">%40 artırın.</span>
               </motion.p>
 
               {/* Email Form */}
@@ -310,14 +318,14 @@ export const ComingSoonPage: React.FC = () => {
                         <Button
                           type="submit"
                           disabled={status === 'loading'}
-                          className="h-12 px-6 rounded-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm w-full sm:w-auto"
+                          className="h-12 px-8 rounded-lg font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300 w-full sm:w-auto text-[15px]"
                         >
                           {status === 'loading' ? (
                             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                           ) : (
                             <>
-                              <span className="mr-2">Yerinizi Ayırtın</span>
-                              <ArrowRight size={16} />
+                              <span className="mr-2">Ücretsiz Erken Erişim</span>
+                              <ArrowRight size={18} />
                             </>
                           )}
                         </Button>
@@ -335,35 +343,35 @@ export const ComingSoonPage: React.FC = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
-                className="mt-12 flex flex-wrap items-center justify-center lg:justify-start gap-8 border-t border-slate-100 dark:border-slate-800/50 pt-8"
+                className="mt-12 flex flex-col sm:flex-row items-center gap-6 lg:gap-8"
               >
-                  <div className="flex flex-col gap-1">
-                    <div className="flex -space-x-2">
+                  {/* New user avatars group */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex -space-x-3">
                          {['AY', 'ED', 'MK', 'SK', 'BT'].map((initials, i) => (
                         <div
                           key={i}
-                          className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-[#0B0B0F] flex items-center justify-center text-[10px] font-bold text-slate-600 dark:text-slate-300 shadow-sm"
+                          className="w-9 h-9 rounded-full bg-white dark:bg-slate-800 border-[2.5px] border-white dark:border-[#0B0B0F] flex items-center justify-center text-[10px] font-extrabold text-slate-600 dark:text-slate-300 shadow-sm"
                         >
                           {initials}
                         </div>
                       ))}
+                      <div className="w-9 h-9 rounded-full bg-blue-600 border-[2.5px] border-white dark:border-[#0B0B0F] flex items-center justify-center text-[10px] font-bold text-white shadow-sm">
+                        +500
+                      </div>
                     </div>
-                     <span className="text-xs font-medium text-slate-500 dark:text-slate-400 pl-1">
-                      500+ ön kayıt
-                     </span>
                   </div>
-
-                  <div className="h-8 w-px bg-slate-200 dark:bg-slate-800"></div>
-
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-0.5">
-                       {[1, 2, 3, 4, 5].map((i) => (
-                        <Star key={i} size={16} className="fill-amber-400 text-amber-400" />
-                      ))}
-                    </div>
-                     <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                      4.9/5 Kullanıcı Puanı
-                     </span>
+                  
+                  {/* Rating / Trust statement */}
+                  <div className="flex flex-col gap-0.5">
+                     <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                         <Star key={i} size={16} fill="#FACC15" className="text-yellow-400" />
+                       ))}
+                     </div>
+                     <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                       <strong className="text-slate-900 dark:text-white">4.9/5</strong> ortalama puan
+                     </p>
                   </div>
               </motion.div>
             </div>
@@ -377,11 +385,11 @@ export const ComingSoonPage: React.FC = () => {
               className="hidden lg:flex justify-end relative lg:-mr-[3vw] 2xl:-mr-[4vw]"
             >
                <div className="w-[min(62vw,980px)]">
-                 <div className="relative rounded-2xl p-2 bg-slate-900/5 dark:bg-white/5 border border-slate-200/50 dark:border-white/10 backdrop-blur-sm shadow-2xl overflow-hidden group">
+                 <div className="relative rounded-2xl p-2 bg-slate-900/5 dark:bg-white/5 ring-1 ring-slate-900/10 dark:ring-white/10 backdrop-blur-md shadow-2xl dark:shadow-blue-900/20 overflow-hidden group transition-all duration-500 hover:scale-[1.01]">
                     <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 via-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                     <DashboardPreview isDark={isDark} />
                      {/* Reflection effect */}
-                     <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none rounded-2xl" />
+                     <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none rounded-2xl mix-blend-overlay" />
                  </div>
                </div>
 

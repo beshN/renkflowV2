@@ -88,6 +88,9 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
                     <div className="grid grid-cols-3 gap-4">
                         {/* Stat Card 1 */}
                         <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
                             whileHover={{ y: -2 }}
                             className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-border shadow-sm"
                         >
@@ -104,6 +107,9 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
 
                          {/* Stat Card 2 */}
                          <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
                             whileHover={{ y: -2 }}
                             className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-border shadow-sm"
                         >
@@ -118,6 +124,9 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
 
                          {/* Stat Card 3 */}
                          <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3 }}
                             whileHover={{ y: -2 }}
                             className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-border shadow-sm"
                         >
@@ -397,11 +406,14 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark }) =>
   return (
     <div className="relative group" style={{ perspective: '1200px' }}>
       
-      {/* Main Container */}
       <div 
-        className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-[0_20px_60px_-12px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_60px_-12px_rgba(0,0,0,0.5)] border border-slate-200 dark:border-slate-800 overflow-hidden h-[500px] xl:h-[560px] 2xl:h-[600px] flex transition-transform duration-500 ease-out group-hover:[transform:rotateY(0deg)_rotateX(0deg)]" 
+        className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200/60 dark:border-slate-800 overflow-hidden h-[500px] xl:h-[560px] 2xl:h-[600px] flex transition-transform duration-500 ease-out group-hover:[transform:rotateY(0deg)_rotateX(0deg)] z-10" 
         style={{ transform: 'rotateY(-3deg) rotateX(2deg)' }}
       >
+        {/* Sheen Effect */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-[70]">
+            <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/20 dark:via-white/5 to-transparent skew-x-[-20deg] animate-[sheen_3s_infinite]" />
+        </div>
         
         {/* Sidebar */}
         <div className="w-16 border-r border-border flex flex-col items-center py-6 gap-6 bg-secondary/50 backdrop-blur-sm z-[60] relative pointer-events-auto">

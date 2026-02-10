@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { sendVerificationEmail } from '@/lib/email';
 import { authLimiter, rateLimitResponse } from '@/lib/api/rate-limit';
+import { resolveServerBaseUrl } from '@/lib/shared/config/runtime-env';
 
 /**
  * Resend Verification Email
@@ -67,7 +68,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Send verification email
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const baseUrl =
+      resolveServerBaseUrl({
+        context: 'api.auth.resend-verification',
+        fallbackOrigin: request.nextUrl.origin,
+      }) || request.nextUrl.origin;
     const verificationUrl = `${baseUrl}/auth/verify?token=${token}`;
 
     const emailResult = await sendVerificationEmail(user.email, user.name || 'Kullanıcı', verificationUrl);

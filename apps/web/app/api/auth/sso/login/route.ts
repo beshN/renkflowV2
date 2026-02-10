@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSSOProviders, initiateSAMLLogin, initiateOIDCLogin, SSOProvider } from '@/lib/auth/sso';
 import { sql } from '@/lib/db';
+import { resolveServerBaseUrl } from '@/lib/shared/config/runtime-env';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +10,12 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const email = searchParams.get('email');
     const tenantSlug = searchParams.get('slug'); // Option to login by tenant slug directly
-    const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/sso/callback`;
+    const baseUrl =
+      resolveServerBaseUrl({
+        context: 'api.auth.sso.login',
+        fallbackOrigin: request.nextUrl.origin,
+      }) || request.nextUrl.origin;
+    const callbackUrl = `${baseUrl}/api/auth/sso/callback`;
 
     if (!email && !tenantSlug) {
       return NextResponse.json(

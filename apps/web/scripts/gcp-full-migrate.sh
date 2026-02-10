@@ -289,6 +289,9 @@ if [[ -z "$AUTH_SECRET_VALUE" && -z "$NEXTAUTH_SECRET_VALUE" ]]; then
   NEXTAUTH_SECRET_VALUE="$(openssl rand -base64 48)"
   AUTH_SECRET_VALUE="$NEXTAUTH_SECRET_VALUE"
 fi
+if [[ -n "$AUTH_SECRET_VALUE" && -n "$NEXTAUTH_SECRET_VALUE" && "$AUTH_SECRET_VALUE" != "$NEXTAUTH_SECRET_VALUE" ]]; then
+  fail "AUTH_SECRET and NEXTAUTH_SECRET must be identical to avoid auth/session drift"
+fi
 
 upsert_secret AUTH_SECRET "$AUTH_SECRET_VALUE"
 upsert_secret NEXTAUTH_SECRET "$NEXTAUTH_SECRET_VALUE"
@@ -578,3 +581,43 @@ log "Migration completed."
 log "Cloud Run URL: ${SERVICE_URL}"
 log "Cloud SQL instance: ${INSTANCE_CONNECTION_NAME}"
 log "GCS bucket: gs://${GCS_BUCKET_NAME}"
+
+RUNTIME_SECRET_ALLOWLIST=(
+  DATABASE_URL
+  AUTH_SECRET
+  NEXTAUTH_SECRET
+  DB_PASSWORD
+  RESEND_API_KEY
+  GOOGLE_CLIENT_ID
+  GOOGLE_CLIENT_SECRET
+  AZURE_AD_CLIENT_ID
+  AZURE_AD_CLIENT_SECRET
+  AZURE_AD_TENANT_ID
+  VAPID_PRIVATE_KEY
+  GEMINI_API_KEY
+  GOOGLE_API_KEY
+)
+
+UNUSED_SECRETS="$(
+  gcloud secrets list --project "$PROJECT_ID" --format='value(name)' \
+    | while read -r secret_name; do
+        skip="0"
+        for allowed_secret in "${RUNTIME_SECRET_ALLOWLIST[@]}"; do
+          if [[ "$secret_name" == "$allowed_secret" ]]; then
+            skip="1"
+            break
+          fi
+        done
+        if [[ "$skip" == "0" ]]; then
+          printf '%s\n' "$secret_name"
+        fi
+      done
+)"
+
+if [[ -n "$UNUSED_SECRETS" ]]; then
+  warn "Unused Secret Manager entries detected (safe-phaseout candidates):"
+  while read -r secret_name; do
+    [[ -z "$secret_name" ]] && continue
+    warn "  - ${secret_name}"
+  done <<<"$UNUSED_SECRETS"
+fi

@@ -8,9 +8,14 @@
  * - Tamper-evident log storage
  */
 
+import crypto from 'node:crypto';
 import { sql } from '@/lib/db';
 import { Order } from '@/lib/types';
-import crypto from 'node:crypto';
+import {
+  IS_BUILD_TIME,
+  IS_PRODUCTION,
+  resolveAuthSecret,
+} from '@/lib/shared/config/runtime-env';
 
 // ============================================
 // Types
@@ -335,7 +340,15 @@ function generateAuditId(): string {
 }
 
 function generateLogHash(entry: any): string {
-  const secret = process.env.AUDIT_LOG_SECRET || process.env.AUTH_SECRET || 'renkflow-audit-secret';
+  const secret =
+    process.env.AUDIT_LOG_SECRET ||
+    resolveAuthSecret({
+      context: 'audit.logging',
+      allowMissing: IS_BUILD_TIME,
+      allowDevelopmentFallback: !IS_PRODUCTION && !IS_BUILD_TIME,
+      developmentFallback: 'development-only-audit-secret',
+    }) ||
+    'development-only-audit-secret';
   const data = JSON.stringify({
     tenantId: entry.tenantId,
     userId: entry.userId,

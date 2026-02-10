@@ -20,7 +20,8 @@
     "start:standalone": "node -r dotenv/config .next/standalone/server.js dotenv_config_path=.env.local",
     "start:next": "next start",
     "guard:legacy-backends": "bash scripts/guardrails/no-$(printf '%s%s' 'neo' 'n')-r2.sh",
-    "validate": "npm run guard:legacy-backends && npm run type-check && npm run lint && npm test -- --runInBand && npm run build",
+    "env:audit": "tsx scripts/guardrails/env-contract-audit.ts",
+    "validate": "npm run guard:legacy-backends && npm run env:audit && npm run type-check && npm run lint && npm test -- --runInBand && npm run build",
     "smoke:coming-soon": "bash scripts/smoke-coming-soon.sh",
     "deploy:vercel:prod": "bash scripts/vercel-prod-launch-deploy.sh"
   },
