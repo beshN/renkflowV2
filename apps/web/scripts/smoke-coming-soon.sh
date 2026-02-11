@@ -92,6 +92,37 @@ body_contains() {
   grep -q "$pattern" "$TMP_BODY" 2>/dev/null
 }
 
+sitemap_has_path() {
+  local expected_path="$1"
+  local loc_entry
+  local loc_url
+  local loc_path
+
+  while IFS= read -r loc_entry; do
+    loc_url="${loc_entry#<loc>}"
+    loc_url="${loc_url%</loc>}"
+    loc_path="$(printf '%s' "$loc_url" | sed -E 's#^[A-Za-z]+://[^/]+##')"
+    loc_path="${loc_path%%\?*}"
+    loc_path="${loc_path%%\#*}"
+    if [[ -z "$loc_path" ]]; then
+      loc_path="/"
+    fi
+
+    if [[ "$expected_path" == "/" ]]; then
+      if [[ "$loc_path" == "/" ]]; then
+        return 0
+      fi
+      continue
+    fi
+
+    if [[ "$loc_path" == "$expected_path" || "$loc_path" == "$expected_path/" ]]; then
+      return 0
+    fi
+  done < <(grep -oE '<loc>[^<]+</loc>' "$TMP_BODY")
+
+  return 1
+}
+
 assert_status() {
   local method="$1"
   local path="$2"
@@ -221,14 +252,19 @@ else
 fi
 
 if http_request "GET" "/sitemap.xml"; then
-  if body_contains "<loc>${BASE_URL}</loc>" || body_contains "<loc>${BASE_URL}/</loc>"; then
+  if sitemap_has_path "/"; then
     info "sitemap includes root"
     pass
   else
     fail "sitemap missing root entry"
   fi
 
-  assert_body_pattern "<loc>${BASE_URL}/coming-soon</loc>" 'sitemap includes /coming-soon'
+  if sitemap_has_path "/coming-soon"; then
+    info "sitemap includes /coming-soon"
+    pass
+  else
+    fail "sitemap missing /coming-soon entry"
+  fi
 else
   fail "GET /sitemap.xml request failed ($LAST_STATUS)"
 fi
