@@ -250,6 +250,7 @@ export function isFinanceRole(role: UserRole): boolean {
  */
 export const ROUTE_PERMISSIONS: Record<string, Permission[]> = {
   '/orders': ['orders.view'],
+  '/work-orders': ['orders.view'],
   '/kanban': ['kanban.view'],
   '/reports': ['reports.view'],
   '/finance': ['finance.view'],

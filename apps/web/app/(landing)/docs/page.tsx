@@ -63,7 +63,7 @@ const colorMap: Record<string, { bg: string; text: string; iconBg: string }> = {
 
 export default function DocsPage() {
   return (
-    <div className="max-w-5xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-16">
       <div className="text-center mb-12">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-100 dark:bg-blue-900/30 mb-6">
           <BookOpen className="w-8 h-8 text-blue-600 dark:text-blue-400" />

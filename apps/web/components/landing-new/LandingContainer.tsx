@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, memo } from 'react';
+import React, { memo } from 'react';
 import { WaitlistNavbar } from '@/components/landing-new/WaitlistNavbar';
 import { Hero } from '@/components/landing-new/Hero';
 import { Features } from '@/components/landing-new/Features';
@@ -11,16 +11,8 @@ import { CTA } from '@/components/landing-new/CTA';
 import { Footer } from '@/components/landing-new/Footer';
 
 const LandingContainerComponent = ({ compact = false }: { compact?: boolean }) => {
-  const [mounted, setMounted] = useState(false);
-  
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
-
   return (
-    <div className="flex min-h-screen flex-col bg-[#f7f8fb] dark:bg-slate-950 relative overflow-hidden">
+    <div className="rf-app-shell flex min-h-[100svh] flex-col relative overflow-hidden">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(14,165,233,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_40%)]"

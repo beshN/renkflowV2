@@ -2,8 +2,8 @@
 
 import { ReactNode, useEffect } from 'react';
 import { I18nextProvider } from 'react-i18next';
-import { i18n, initI18n } from './client';
-import { isRTL, Locale } from './config';
+import { i18n, initI18n, normalizeLocale } from './client';
+import { isRTL } from './config';
 
 interface I18nProviderProps {
   children: ReactNode;
@@ -15,13 +15,13 @@ export function I18nProvider({ children }: I18nProviderProps) {
     initI18n();
 
     // Set initial direction based on language
-    const currentLocale = i18n.language as Locale;
+    const currentLocale = normalizeLocale(i18n.language);
     document.documentElement.dir = isRTL(currentLocale) ? 'rtl' : 'ltr';
     document.documentElement.lang = currentLocale;
 
     // Listen for language changes
     const handleLanguageChange = (lng: string) => {
-      const locale = lng as Locale;
+      const locale = normalizeLocale(lng);
       document.documentElement.dir = isRTL(locale) ? 'rtl' : 'ltr';
       document.documentElement.lang = locale;
     };

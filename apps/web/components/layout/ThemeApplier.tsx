@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useAuth } from '@/lib/context/AuthContext';
+import { useOptionalAuth } from '@/lib/context/AuthContext';
 
 export function ThemeApplier() {
-  const { user } = useAuth();
+  const auth = useOptionalAuth();
+  const user = auth?.user;
 
   useEffect(() => {
     if (user?.brandColor) {

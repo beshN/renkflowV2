@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import type { FormEvent } from 'react';
 import { Mail, MapPin, Phone, Send } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -9,14 +9,7 @@ import { Button } from '@/components/ui/Button';
 export const dynamic = 'force-dynamic';
 
 export default function ContactPage() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const firstName = String(formData.get('firstName') || '').trim();
@@ -41,7 +34,7 @@ export default function ContactPage() {
 
 
       <main className="flex-grow pt-32 pb-20 px-6 md:px-12 relative z-10">
-        <div className="max-w-6xl mx-auto">
+        <div className="w-full">
           
           <div className="grid md:grid-cols-2 gap-16 items-start">
             

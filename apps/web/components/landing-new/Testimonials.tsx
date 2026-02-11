@@ -29,7 +29,7 @@ export const Testimonials: React.FC = () => {
 
   return (
     <section className="py-24 bg-slate-50 dark:bg-slate-900 border-y border-slate-200 dark:border-slate-800">
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
         
         <div className="text-center mb-16">
             <span className="text-blue-600 font-semibold text-sm tracking-wider uppercase mb-2 block">Başarı Hikayeleri</span>

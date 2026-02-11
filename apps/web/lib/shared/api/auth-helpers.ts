@@ -1,12 +1,24 @@
+import 'server-only';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import jwt from 'jsonwebtoken';
 import { sql } from '@/lib/db';
+import {
+  IS_BUILD_TIME,
+  IS_PRODUCTION,
+  resolveAuthSecret,
+  resolveServerBaseUrl,
+} from '@/lib/shared/config/runtime-env';
 
 // JWT Secret with strict production enforcement
-const JWT_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
-const IS_PROD = process.env.NODE_ENV === 'production';
-const IS_BUILD_TIME = process.env.NEXT_PHASE === 'phase-production-build';
+const JWT_SECRET = resolveAuthSecret({
+  context: 'api.auth-helpers',
+  allowMissing: IS_BUILD_TIME,
+  allowDevelopmentFallback: !IS_PRODUCTION && !IS_BUILD_TIME,
+  developmentFallback: 'development-only-fallback-secret',
+});
+const IS_PROD = IS_PRODUCTION;
 if (!JWT_SECRET && !IS_BUILD_TIME) {
   if (IS_PROD) {
     throw new Error('[SECURITY] Missing JWT secret in production. Set AUTH_SECRET or NEXTAUTH_SECRET.');
@@ -17,9 +29,13 @@ if (!JWT_SECRET && !IS_BUILD_TIME) {
 const EFFECTIVE_JWT_SECRET = JWT_SECRET || 'development-only-fallback-secret';
 
 const CORS_ALLOW_ALL = process.env.API_CORS_ALLOW_ALL === 'true';
+const SERVER_BASE_URL = resolveServerBaseUrl({
+  context: 'api.auth-helpers',
+  allowMissing: true,
+});
 const CORS_ALLOWED_ORIGIN =
   process.env.API_CORS_ALLOWED_ORIGIN ||
-  process.env.NEXT_PUBLIC_APP_URL ||
+  SERVER_BASE_URL ||
   (process.env.NODE_ENV !== 'production' ? '*' : '');
 
 export interface APIUser {

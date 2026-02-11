@@ -12,6 +12,12 @@ import { Server as NetServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { sql } from '@/lib/db';
+import {
+  IS_BUILD_TIME,
+  IS_PRODUCTION,
+  resolveAuthSecret,
+  resolveServerBaseUrl,
+} from '@/lib/shared/config/runtime-env';
 
 export const config = {
   api: {
@@ -29,8 +35,15 @@ interface SocketWithIO {
   };
 }
 
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const SOCKET_JWT_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+const SOCKET_JWT_SECRET = resolveAuthSecret({
+  context: 'socket-server',
+  allowMissing: IS_BUILD_TIME,
+});
+const SOCKET_ORIGIN =
+  resolveServerBaseUrl({
+    context: 'socket-server',
+    allowMissing: !IS_PRODUCTION || IS_BUILD_TIME,
+  }) || '*';
 
 if (IS_PRODUCTION && !SOCKET_JWT_SECRET) {
   throw new Error(
@@ -44,7 +57,7 @@ export function initSocketServer(server: NetServer): SocketIOServer {
     path: '/api/socket',
     addTrailingSlash: false,
     cors: {
-      origin: process.env.NEXT_PUBLIC_APP_URL || '*',
+      origin: SOCKET_ORIGIN,
       methods: ['GET', 'POST'],
       credentials: true,
     },

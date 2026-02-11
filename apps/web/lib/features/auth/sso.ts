@@ -8,7 +8,7 @@
  * - Multi-tenant SSO configuration
  */
 
-import { sql } from '@/lib/db';
+import { sql, withTransaction } from '@/lib/db';
 import { SAML } from '@node-saml/node-saml';
 import { parseStringPromise } from 'xml2js';
 import crypto from 'node:crypto';
@@ -96,7 +96,7 @@ export async function getSSOProviders(tenantId: string): Promise<SSOProvider[]> 
 export async function createSSOProvider(
   data: Omit<SSOProvider, 'id'>
 ): Promise<SSOProvider> {
-  const id = createId('sso');
+  const id = createUuid();
   
   const providerResult = await sql`
     INSERT INTO sso_providers (
@@ -240,60 +240,67 @@ async function findOrCreateSSOUser(
   profile: { email: string; name?: string; surname?: string; groups?: string[]; attributes?: Record<string, unknown> },
   provider: SSOProvider
 ): Promise<any> {
-  // Check if user exists
-  const existingUserResult = await sql`
-    SELECT u.*
-    FROM users u
-    WHERE u.email = ${profile.email}
-    LIMIT 1
-  `;
-  const existingUserRows = existingUserResult as any[];
-  const existingUser = existingUserRows[0];
-
-  if (existingUser) {
-    // Update user info if changed
-    await sql`
-      UPDATE users
-      SET 
-        name = COALESCE(${profile.name || null}, name),
-        updated_at = NOW()
-      WHERE id = ${existingUser.id}
-    `;
-
-    const existingMembershipResult = await sql`
-      SELECT tenant_id, role
-      FROM tenant_members
-      WHERE user_id = ${existingUser.id}
-        AND tenant_id = ${provider.tenantId}
+  return withTransaction(async (tx) => {
+    const existingUserResult = await tx`
+      SELECT u.*
+      FROM users u
+      WHERE u.email = ${profile.email}
       LIMIT 1
+      FOR UPDATE
     `;
-    const existingMembershipRows = existingMembershipResult as any[];
-    const existingMembership = existingMembershipRows[0];
+    const existingUserRows = existingUserResult as any[];
+    let user = existingUserRows[0];
 
-    if (existingMembership) {
-      return {
-        ...existingUser,
-        tenant_id: existingMembership.tenant_id,
-        tenantId: existingMembership.tenant_id,
-        role: existingMembership.role,
-      };
+    if (user) {
+      await tx`
+        UPDATE users
+        SET
+          name = COALESCE(${profile.name || null}, name),
+          updated_at = NOW()
+        WHERE id = ${user.id}
+      `;
+    } else {
+      if (!provider.allowSignup) {
+        throw new Error('User not found and automatic signup is disabled');
+      }
+
+      const createdUsers = await tx`
+        INSERT INTO users (id, email, name, email_verified, created_at, updated_at)
+        VALUES (
+          ${createUuid()},
+          ${profile.email},
+          ${profile.name || profile.email.split('@')[0]},
+          true,
+          NOW(),
+          NOW()
+        )
+        ON CONFLICT (email)
+        DO UPDATE SET
+          name = COALESCE(EXCLUDED.name, users.name),
+          updated_at = NOW()
+        RETURNING *
+      `;
+      const createdRows = createdUsers as any[];
+      user = createdRows[0];
     }
 
-    if (!provider.allowSignup) {
-      throw new Error('User is not a member of this tenant and automatic signup is disabled');
+    if (!user?.id) {
+      throw new Error('Failed to resolve SSO user');
     }
 
-    const role = determineRoleFromGroups(profile.groups);
-    await sql`
-      INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
-      VALUES (${provider.tenantId}, ${existingUser.id}, ${role}, NOW())
-      ON CONFLICT (tenant_id, user_id) DO NOTHING
-    `;
+    if (provider.allowSignup) {
+      const role = determineRoleFromGroups(profile.groups);
+      await tx`
+        INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
+        VALUES (${provider.tenantId}, ${user.id}, ${role}, NOW())
+        ON CONFLICT (tenant_id, user_id) DO NOTHING
+      `;
+    }
 
-    const membershipResult = await sql`
+    const membershipResult = await tx`
       SELECT tenant_id, role
       FROM tenant_members
-      WHERE user_id = ${existingUser.id}
+      WHERE user_id = ${user.id}
         AND tenant_id = ${provider.tenantId}
       LIMIT 1
     `;
@@ -301,48 +308,16 @@ async function findOrCreateSSOUser(
     const membership = membershipRows[0];
 
     if (!membership) {
-      throw new Error('Failed to create tenant membership for SSO user');
+      throw new Error('User is not a member of this tenant and automatic signup is disabled');
     }
 
     return {
-      ...existingUser,
+      ...user,
       tenant_id: membership.tenant_id,
       tenantId: membership.tenant_id,
       role: membership.role,
     };
-  }
-
-  // JIT provisioning - create user if allowed
-  if (!provider.allowSignup) {
-    throw new Error('User not found and automatic signup is disabled');
-  }
-
-  const userId = createId('user');
-  
-  // Create user
-  const newUserResult = await sql`
-    INSERT INTO users (id, email, name, email_verified, created_at)
-    VALUES (
-      ${userId},
-      ${profile.email},
-      ${profile.name || profile.email.split('@')[0]},
-      true,
-      NOW()
-    )
-    RETURNING *
-  `;
-  const newUserRows = newUserResult as any[];
-  const newUser = newUserRows[0];
-
-  // Add to tenant
-  const role = determineRoleFromGroups(profile.groups);
-  
-  await sql`
-    INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
-    VALUES (${provider.tenantId}, ${userId}, ${role}, NOW())
-  `;
-
-  return { ...newUser, tenant_id: provider.tenantId, tenantId: provider.tenantId, role };
+  });
 }
 
 function determineRoleFromGroups(groups?: string[]): 'owner' | 'admin' | 'member' {
@@ -540,6 +515,10 @@ async function createOidcConfig(provider: any, redirectUri: string): Promise<Con
 
 function createId(prefix: string): string {
   return `${prefix}_${crypto.randomBytes(16).toString('hex')}`;
+}
+
+function createUuid(): string {
+  return crypto.randomUUID();
 }
 
 function mapDbProvider(row: any): SSOProvider {

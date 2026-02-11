@@ -34,54 +34,54 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   const { position, opacity, handleMouseMove, handleMouseEnter, handleMouseLeave } = useSpotlight();
 
   const baseStyles = cn(
-    'group relative inline-flex items-center justify-center gap-2 font-semibold',
+    'group relative inline-flex items-center justify-center gap-2 font-semibold tracking-[0.01em]',
     'transition-all duration-300 ease-out',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60 focus-visible:ring-offset-2',
     'focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950',
     'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
-    'active:scale-[0.97] min-touch select-none'
+    'active:scale-[0.98] min-touch select-none'
   );
 
   const variants = {
     primary: cn(
-      'bg-primary-900 text-white dark:bg-primary-100 dark:text-primary-900',
-      'hover:bg-primary-800 dark:hover:bg-primary-200',
-      'shadow-sm hover:shadow-md'
+      'bg-gradient-to-r from-sky-600 to-blue-700 text-white',
+      'hover:from-sky-500 hover:to-blue-600',
+      'shadow-[0_10px_28px_-18px_rgba(37,99,235,0.9)] hover:shadow-[0_14px_34px_-18px_rgba(37,99,235,0.95)]'
     ),
     default: cn(
-      'bg-primary-900 text-white dark:bg-primary-100 dark:text-primary-900',
-      'hover:bg-primary-800 dark:hover:bg-primary-200',
-      'shadow-sm hover:shadow-md'
+      'bg-gradient-to-r from-sky-600 to-blue-700 text-white',
+      'hover:from-sky-500 hover:to-blue-600',
+      'shadow-[0_10px_28px_-18px_rgba(37,99,235,0.9)] hover:shadow-[0_14px_34px_-18px_rgba(37,99,235,0.95)]'
     ),
     secondary: cn(
-      'bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100',
-      'hover:bg-neutral-50 dark:hover:bg-neutral-700',
-      'border border-neutral-200 dark:border-neutral-700',
-      'shadow-xs hover:shadow-sm'
+      'bg-white/90 text-slate-900 dark:bg-slate-900/85 dark:text-slate-100',
+      'hover:bg-white dark:hover:bg-slate-900',
+      'border border-slate-200/80 dark:border-slate-700/80',
+      'shadow-sm hover:shadow-md'
     ),
     outline: cn(
-      'bg-transparent text-neutral-700 dark:text-neutral-300',
-      'border border-neutral-300 dark:border-neutral-700',
-      'hover:border-neutral-400 dark:hover:border-neutral-600 hover:bg-neutral-50 dark:hover:bg-neutral-900/50'
+      'bg-transparent text-slate-700 dark:text-slate-300',
+      'border border-slate-300/80 dark:border-slate-700/80',
+      'hover:border-sky-400/70 dark:hover:border-sky-500/70 hover:bg-sky-50/70 dark:hover:bg-sky-900/20'
     ),
     ghost: cn(
-      'bg-transparent text-neutral-600 dark:text-neutral-400',
-      'hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+      'bg-transparent text-slate-600 dark:text-slate-400',
+      'hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/80 dark:hover:bg-slate-800/80'
     ),
     danger: cn(
-      'bg-danger-main text-white',
-      'hover:bg-danger-hover',
-      'shadow-sm hover:shadow-md'
+      'bg-gradient-to-r from-rose-600 to-red-700 text-white',
+      'hover:from-rose-500 hover:to-red-600',
+      'shadow-[0_10px_28px_-18px_rgba(220,38,38,0.9)] hover:shadow-[0_14px_34px_-18px_rgba(220,38,38,0.95)]'
     ),
     success: cn(
-      'bg-success-main text-white',
-      'hover:bg-success-hover',
-      'shadow-sm hover:shadow-md'
+      'bg-gradient-to-r from-emerald-600 to-teal-700 text-white',
+      'hover:from-emerald-500 hover:to-teal-600',
+      'shadow-[0_10px_28px_-18px_rgba(5,150,105,0.9)] hover:shadow-[0_14px_34px_-18px_rgba(5,150,105,0.95)]'
     ),
     premium: cn(
-      'bg-accent-600 text-white dark:bg-accent-500',
-      'hover:bg-accent-700 dark:hover:bg-accent-600',
-      'shadow-sm hover:shadow-md'
+      'bg-gradient-to-r from-indigo-600 via-blue-600 to-sky-500 text-white',
+      'hover:from-indigo-500 hover:via-blue-500 hover:to-sky-400',
+      'shadow-[0_12px_30px_-16px_rgba(59,130,246,0.95)] hover:shadow-[0_16px_36px_-16px_rgba(59,130,246,1)]'
     ),
   };
 

@@ -60,25 +60,23 @@ Notes:
 
 ## GCP Secret Manager Inventory
 
-Secrets currently present:
+Secrets currently present (as of 2026-02-11):
 - `AUTH_SECRET`
 - `DATABASE_URL`
 - `DB_PASSWORD`
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
-- `GROQ_API_KEY`
 - `NEXTAUTH_SECRET`
 - `RESEND_API_KEY`
 - `VAPID_PRIVATE_KEY`
-- `renkflowv2-github-oauthtoken-85e305`
 
 ### Used by application runtime
 
 `AUTH_SECRET`, `DATABASE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NEXTAUTH_SECRET`, `RESEND_API_KEY`, `VAPID_PRIVATE_KEY`
 
-### Not referenced by runtime code (safe-phaseout candidates)
+### Not referenced by runtime code
 
-`GROQ_API_KEY`, `renkflowv2-github-oauthtoken-85e305`
+None (after cleanup on 2026-02-11).
 
 Operational exception:
 - `DB_PASSWORD` is required by migration/provisioning script flow and is intentionally retained.
@@ -125,7 +123,12 @@ Operational exception:
 
 1. Keep runtime references removed first (completed).
 2. Keep unused secrets documented and detached from runtime (completed).
-3. Execute controlled secret deletion in a dedicated change window with rollback checklist.
+3. Execute controlled secret deletion in a dedicated change window with rollback checklist (completed on 2026-02-11):
+- Deleted secrets: `GROQ_API_KEY`, `renkflowv2-github-oauthtoken-85e305`.
+- Post-delete checks:
+  - `gcloud secrets list` does not include deleted names.
+  - `gcloud run services describe renkflow-web --region europe-west3` shows no env refs to deleted secrets.
+  - `curl https://renkflow-web-r7mdgubfjq-ey.a.run.app/coming-soon` returned `200`.
 
 ## 2026-02-09 Multi-Tenant Hardening Addendum
 
@@ -146,3 +149,41 @@ Operational exception:
 - `apps/web/app/actions/accounting.actions.ts` payment joins now enforce `p.tenant_id = o.tenant_id`.
 - `apps/web/app/actions/order.qr.actions.ts` token/order join now enforces `o.tenant_id = t.tenant_id`.
 - `apps/web/lib/realtime/socket-server.ts` now verifies tenant membership before joining tenant rooms.
+
+## 2026-02-10 Backend Reliability Addendum
+
+1. Central runtime-env hardening:
+- Added `apps/web/lib/shared/config/runtime-env.ts` for authoritative server-side resolution of:
+  - Auth secret (`AUTH_SECRET` / `NEXTAUTH_SECRET`) with mismatch detection.
+  - Base URL (`AUTH_URL` / `NEXTAUTH_URL` / `NEXT_PUBLIC_APP_URL`) with production localhost guard.
+- Runtime now fails fast in production when secrets are missing or inconsistent.
+
+2. Invite + membership flow made multi-tenant safe:
+- `apps/web/app/api/tenant/invite/route.ts` now runs permission check and invitation upsert inside a DB transaction.
+- `apps/web/app/api/tenant/invite/accept/route.ts` now supports both:
+  - New user provisioning from invite.
+  - Existing user join-to-tenant with idempotent `ON CONFLICT DO NOTHING`.
+- `apps/web/app/api/tenant/invite/validate/route.ts` now allows existing (non-member) users to proceed, and blocks only already-member users.
+
+3. SSO provisioning correctness fixes:
+- `apps/web/lib/features/auth/sso.ts` now uses transaction-based user/membership reconciliation.
+- UUID IDs are now generated for UUID-backed tables (`users`, `sso_providers`) instead of legacy prefixed IDs.
+- Membership linking is idempotent and respects `allowSignup`.
+
+4. OAuth sign-in resilience:
+- `apps/web/lib/core/auth.config.ts` OAuth sign-in callback now upserts user + ensures tenant membership transactionally.
+- Tenant creation path is idempotent and collision-safe for slugs.
+
+5. URL integrity in auth/QR flows:
+- Replaced direct `NEXT_PUBLIC_APP_URL` fallbacks with runtime resolver in:
+  - `apps/web/app/api/auth/register/route.ts`
+  - `apps/web/app/api/auth/forgot-password/route.ts`
+  - `apps/web/app/api/auth/resend-verification/route.ts`
+  - `apps/web/app/api/auth/sso/login/route.ts`
+  - `apps/web/app/api/orders/qr/route.ts`
+  - `apps/web/app/api/sso/oidc/callback/route.ts`
+- OIDC callback now sanitizes `redirectTo` to prevent open redirect vectors.
+
+6. Ops script hardening:
+- `apps/web/scripts/ensure-backend-schema.ts` now supports Cloud SQL socket-style URL parsing and validates production DB URL policy.
+- `apps/web/scripts/gcp-full-migrate.sh` now enforces `AUTH_SECRET == NEXTAUTH_SECRET` and reports Secret Manager safe-phaseout candidates.

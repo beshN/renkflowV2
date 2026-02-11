@@ -39,17 +39,28 @@ export async function GET(request: NextRequest) {
 
     const invitation = invitationsRows[0];
 
-    // Check if user already exists with this email
+    // Existing accounts can still accept invite if they are not yet a member.
     const existingUsers = await sql`
       SELECT id FROM users WHERE email = ${invitation.email} LIMIT 1
     `;
 
-    const existingUsersRows = existingUsers as any[];
-    if (existingUsersRows.length > 0) {
-      return NextResponse.json({ 
-        valid: false, 
-        error: 'Bu e-posta adresi zaten kayıtlı. Lütfen giriş yapın.' 
-      });
+    const existingUsersRows = existingUsers as Array<{ id: string }>;
+    const existingUserId = existingUsersRows[0]?.id;
+    if (existingUserId) {
+      const memberships = await sql`
+        SELECT id
+        FROM tenant_members
+        WHERE tenant_id = ${invitation.tenant_id}
+          AND user_id = ${existingUserId}
+        LIMIT 1
+      `;
+      const membershipRows = memberships as Array<{ id: string }>;
+      if (membershipRows.length > 0) {
+        return NextResponse.json({
+          valid: false,
+          error: 'Bu kullanıcı zaten bu tenant ekibinde.',
+        });
+      }
     }
 
     return NextResponse.json({
@@ -58,6 +69,7 @@ export async function GET(request: NextRequest) {
       role: invitation.role,
       tenantName: invitation.tenant_name,
       inviterName: invitation.inviter_name,
+      existingUser: Boolean(existingUserId),
     });
   } catch (error: unknown) {
     console.error('Invitation validation error:', error);

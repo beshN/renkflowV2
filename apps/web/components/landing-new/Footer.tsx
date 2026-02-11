@@ -82,7 +82,7 @@ export const Footer: React.FC = memo(() => {
         className="pointer-events-none absolute left-1/2 top-0 h-px w-[90%] -translate-x-1/2 bg-gradient-to-r from-transparent via-slate-300/50 dark:via-slate-700/50 to-transparent"
       />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="relative w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
         {/* Newsletter Section */}
         <div className="py-12 lg:py-16 border-b border-slate-200/70 dark:border-slate-800/70">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">

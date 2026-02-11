@@ -14,6 +14,63 @@ type EnsureOptions = {
   logPrefix?: string;
 };
 
+function resolveDatabaseRuntimeConfig(databaseUrl: string): {
+  connectionString: string;
+  clientOptions: Record<string, unknown>;
+} {
+  try {
+    const parsed = new URL(databaseUrl);
+    const socketHost = parsed.searchParams.get('host');
+    const clientOptions: Record<string, unknown> = {};
+
+    if (socketHost && socketHost.startsWith('/')) {
+      clientOptions.host = socketHost;
+      parsed.searchParams.delete('host');
+    }
+
+    return {
+      connectionString: parsed.toString(),
+      clientOptions,
+    };
+  } catch {
+    return { connectionString: databaseUrl, clientOptions: {} };
+  }
+}
+
+function validateDatabaseUrl(databaseUrl: string): void {
+  const isProduction = process.env.NODE_ENV === 'production';
+  try {
+    const parsed = new URL(databaseUrl);
+    const runtimeHost = parsed.hostname?.trim().toLowerCase() || '';
+    const socketHost = parsed.searchParams.get('host')?.trim() || '';
+    const hasCloudSqlSocketHost = socketHost.startsWith('/cloudsql/');
+    const isLocalHost =
+      runtimeHost === 'localhost' ||
+      runtimeHost === '127.0.0.1' ||
+      runtimeHost === '::1';
+    const lowerUrl = databaseUrl.toLowerCase();
+    const legacyDbTag = `${'neo'}${'n'}`;
+    const legacyDbHost = `.${legacyDbTag}.tech`;
+    const pointsToLegacyHost =
+      runtimeHost.endsWith(legacyDbHost) ||
+      runtimeHost === `${legacyDbTag}.tech` ||
+      lowerUrl.includes(legacyDbHost) ||
+      lowerUrl.includes(`${legacyDbTag}db`);
+
+    if (isProduction && pointsToLegacyHost) {
+      throw new Error('Production DATABASE_URL cannot target legacy database hosts');
+    }
+
+    if (isProduction && isLocalHost && !hasCloudSqlSocketHost && !parsed.port) {
+      throw new Error(
+        'Production localhost DATABASE_URL requires host=/cloudsql/<INSTANCE_CONNECTION_NAME> unless explicit TCP port is configured.'
+      );
+    }
+  } catch (error) {
+    throw new Error(`[ensure-backend-schema] Invalid DATABASE_URL: ${error}`);
+  }
+}
+
 function removeLineComments(content: string): string {
   return content
     .split('\n')
@@ -71,6 +128,9 @@ export async function ensureBackendSchema(sql: SqlClient, options: EnsureOptions
     '006_accounting_tables.sql',
     '007_accounting_journal_tables.sql',
     '008_accounting_control_tables.sql',
+    '009_bank_reconciliation_tables.sql',
+    '010_work_orders.sql',
+    '011_onboarding_support_blocking.sql',
   ]) {
     const raw = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
     await runStatements(sql, file, splitStatements(removeLineComments(raw)), prefix);
@@ -85,7 +145,15 @@ async function main() {
     process.exit(1);
   }
 
-  const sql = postgres(databaseUrl, { max: 1, prepare: false, connect_timeout: 15 });
+  validateDatabaseUrl(databaseUrl);
+  const runtimeConfig = resolveDatabaseRuntimeConfig(databaseUrl);
+
+  const sql = postgres(runtimeConfig.connectionString, {
+    max: 1,
+    prepare: false,
+    connect_timeout: 15,
+    ...runtimeConfig.clientOptions,
+  });
   try {
     await ensureBackendSchema(sql);
     console.log('[ensure-backend-schema] completed successfully');

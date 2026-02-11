@@ -4,6 +4,7 @@ import { sendVerificationEmail } from '@/lib/email';
 import { authLimiter, rateLimitResponse } from '@/lib/api/rate-limit';
 import { sql, withTransaction } from '@/lib/db';
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_BY_KEY, TemplateKey } from '@/lib/config/templates';
+import { resolveServerBaseUrl } from '@/lib/shared/config/runtime-env';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -206,7 +207,11 @@ export async function POST(request: NextRequest) {
     });
 
     // Send verification email
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const baseUrl =
+      resolveServerBaseUrl({
+        context: 'api.auth.register',
+        fallbackOrigin: request.nextUrl.origin,
+      }) || request.nextUrl.origin;
     const verificationUrl = `${baseUrl}/auth/verify?token=${verificationToken}`;
     
     const emailResult = await sendVerificationEmail(email, name, verificationUrl);

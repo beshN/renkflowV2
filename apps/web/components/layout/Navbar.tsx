@@ -55,8 +55,8 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
   };
 
   return (
-    <header role="banner" className="sticky top-0 z-40 border-b border-neutral-200 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm shadow-sm transition-all duration-200">
-      <div className="flex h-16 items-center gap-4 px-6" role="navigation" aria-label="Ana navigasyon">
+    <header role="banner" className="rf-topbar sticky top-0 z-40 shadow-sm transition-all duration-200">
+      <div className="rf-page-wrap flex h-16 items-center gap-3" role="navigation" aria-label="Ana navigasyon">
         {/* Title */}
         <h1 className="text-2xl font-semibold text-slate-900 dark:text-white font-display tracking-tight">
           {title}

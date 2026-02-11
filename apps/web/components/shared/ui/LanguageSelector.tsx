@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '@/lib/i18n/client';
-import { locales, localeNames, localeFlags, Locale } from '@/lib/i18n/config';
+import { locales, localeNames, localeFlags, Locale, defaultLocale } from '@/lib/i18n/config';
 import { Globe, Check, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -20,8 +20,15 @@ export function LanguageSelector({
   className = '',
 }: LanguageSelectorProps) {
   const { locale, changeLanguage, t } = useTranslation();
+  const [mounted, setMounted] = useState(false);
+  const activeLocale = locales.includes(locale as Locale) ? (locale as Locale) : defaultLocale;
+  const effectiveLocale = mounted ? activeLocale : defaultLocale;
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -49,7 +56,7 @@ export function LanguageSelector({
             onClick={() => handleLanguageChange(loc)}
             className={`
               px-3 py-1.5 rounded-lg text-sm font-medium transition-all
-              ${locale === loc
+              ${activeLocale === loc
                 ? 'bg-primary text-white shadow-md'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
               }
@@ -68,7 +75,7 @@ export function LanguageSelector({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="
-          flex items-center gap-2 px-3 py-2 rounded-lg
+          flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-lg
           bg-white dark:bg-slate-800 
           border border-slate-200 dark:border-slate-700
           hover:bg-slate-50 dark:hover:bg-slate-700
@@ -76,15 +83,16 @@ export function LanguageSelector({
           transition-all duration-200
           shadow-sm hover:shadow
         "
-        aria-label={t('common.language')}
+        aria-label={mounted ? t('common.language') : 'Language'}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
+        type="button"
       >
         <Globe size={18} className="text-slate-500 dark:text-slate-400" />
-        {showFlag && <span>{localeFlags[locale]}</span>}
+        {showFlag && <span>{localeFlags[effectiveLocale]}</span>}
         {showLabel && (
-          <span className="text-sm font-medium hidden sm:inline">
-            {localeNames[locale]}
+          <span className="text-sm font-medium hidden md:inline">
+            {localeNames[effectiveLocale]}
           </span>
         )}
         <ChevronDown 
@@ -119,17 +127,18 @@ export function LanguageSelector({
                   w-full flex items-center gap-3 px-4 py-2.5
                   text-sm font-medium
                   transition-colors duration-150
-                  ${locale === loc
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'
-                  }
-                `}
+              ${activeLocale === loc
+                ? 'bg-primary/10 text-primary'
+                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'
+              }
+            `}
                 role="option"
-                aria-selected={locale === loc}
+                aria-selected={activeLocale === loc}
+                type="button"
               >
                 <span className="text-lg">{localeFlags[loc]}</span>
                 <span className="flex-1 text-left">{localeNames[loc]}</span>
-                {locale === loc && (
+                {activeLocale === loc && (
                   <Check size={16} className="text-primary" />
                 )}
               </button>

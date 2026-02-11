@@ -33,6 +33,21 @@ const resources = {
   ar: { translation: arTranslations },
 };
 
+const localeSet = new Set<string>(locales);
+
+export function normalizeLocale(locale?: string | null): Locale {
+  if (!locale) return defaultLocale;
+  const normalized = locale.toLowerCase().replace('_', '-');
+  if (localeSet.has(normalized)) {
+    return normalized as Locale;
+  }
+  const baseLocale = normalized.split('-')[0];
+  if (localeSet.has(baseLocale)) {
+    return baseLocale as Locale;
+  }
+  return defaultLocale;
+}
+
 /**
  * Get translations for a locale (sync, SSR-safe)
  */
@@ -49,37 +64,37 @@ let isInitialized = false;
 export function initI18n(): typeof i18n {
   if (isInitialized) return i18n;
 
-  i18n
-    .use(LanguageDetector)
-    .use(initReactI18next)
-    .init({
-      resources,
-      fallbackLng: defaultLocale,
-      supportedLngs: locales,
-      
-      interpolation: {
-        escapeValue: false,
-      },
+  const instance = i18n.use(initReactI18next);
 
-      detection: {
-        order: ['localStorage', 'navigator', 'htmlTag'],
-        caches: ['localStorage'],
-        lookupLocalStorage: 'renkflow-language',
-      },
+  if (typeof window !== 'undefined') {
+    instance.use(LanguageDetector);
+  }
 
-      react: {
-        useSuspense: false,
-      },
-    });
+  instance.init({
+    resources,
+    fallbackLng: defaultLocale,
+    supportedLngs: locales,
+    nonExplicitSupportedLngs: true,
+    load: 'languageOnly',
+    interpolation: {
+      escapeValue: false,
+    },
+    detection: {
+      order: ['localStorage', 'navigator', 'htmlTag'],
+      caches: ['localStorage'],
+      lookupLocalStorage: 'renkflow-language',
+    },
+    react: {
+      useSuspense: false,
+    },
+  });
 
   isInitialized = true;
   return i18n;
 }
 
-// Initialize on import
-if (typeof window !== 'undefined') {
-  initI18n();
-}
+// Initialize on import for both server and client renders.
+initI18n();
 
 // ============================================
 // Hooks
@@ -92,17 +107,18 @@ if (typeof window !== 'undefined') {
 export function useTranslation(namespace?: string) {
   const { t, i18n: i18nInstance, ready } = useI18nTranslation(namespace);
   
-  const currentLocale = (i18nInstance.language as Locale) || defaultLocale;
+  const currentLocale = normalizeLocale(i18nInstance.language);
   const isRtl = isRTL(currentLocale);
 
   const changeLanguage = React.useCallback(async (locale: Locale) => {
     // All locales are already loaded (static imports)
-    await i18nInstance.changeLanguage(locale);
+    const normalizedLocale = normalizeLocale(locale);
+    await i18nInstance.changeLanguage(normalizedLocale);
     
     // Update document direction for RTL languages
     if (typeof document !== 'undefined') {
-      document.documentElement.dir = isRTL(locale) ? 'rtl' : 'ltr';
-      document.documentElement.lang = locale;
+      document.documentElement.dir = isRTL(normalizedLocale) ? 'rtl' : 'ltr';
+      document.documentElement.lang = normalizedLocale;
     }
   }, [i18nInstance]);
 
@@ -137,18 +153,19 @@ function loadRTLStyles(): void {
  */
 export function getCurrentLocale(): Locale {
   if (typeof window === 'undefined') return defaultLocale;
-  return (i18n.language as Locale) || defaultLocale;
+  return normalizeLocale(i18n.language);
 }
 
 /**
  * Change language
  */
 export async function changeLanguage(locale: Locale): Promise<void> {
-  await i18n.changeLanguage(locale);
+  const normalizedLocale = normalizeLocale(locale);
+  await i18n.changeLanguage(normalizedLocale);
   
   if (typeof document !== 'undefined') {
-    document.documentElement.dir = isRTL(locale) ? 'rtl' : 'ltr';
-    document.documentElement.lang = locale;
+    document.documentElement.dir = isRTL(normalizedLocale) ? 'rtl' : 'ltr';
+    document.documentElement.lang = normalizedLocale;
   }
 }
 

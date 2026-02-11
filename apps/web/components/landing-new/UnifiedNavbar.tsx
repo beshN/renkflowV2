@@ -5,10 +5,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, Sun, Menu, X, ChevronRight, Sparkles } from 'lucide-react';
+import { Moon, Sun, Menu, X, ChevronRight } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n/client';
 
 interface UnifiedNavbarProps {
   largeLogo?: boolean;
@@ -17,6 +18,7 @@ interface UnifiedNavbarProps {
 
 export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: UnifiedNavbarProps) => {
   const pathname = usePathname();
+  const { locale } = useTranslation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeItem, setActiveItem] = useState<string | null>(null);
@@ -53,18 +55,21 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
   ];
 
   const [mounted, setMounted] = useState(false);
-  const [themeState, setThemeState] = useState<"light" | "dark">("light");
-
   useEffect(() => {
     setMounted(true);
-    const storedTheme = localStorage.getItem("theme") || 
-      (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    setThemeState(storedTheme as "light" | "dark");
   }, []);
+  const uiLocale = mounted ? locale : 'tr';
 
   const toggleTheme = useCallback(() => {
     setTheme(resolvedTheme === "light" ? "dark" : "light");
   }, [resolvedTheme, setTheme]);
+
+  const labels = {
+    tr: { login: 'Giriş Yap', start: 'Ücretsiz Başlayın', menu: 'Menü' },
+    en: { login: 'Sign In', start: 'Start Free', menu: 'Menu' },
+    ar: { login: 'تسجيل الدخول', start: 'ابدأ مجاناً', menu: 'القائمة' },
+  } as const;
+  const text = labels[uiLocale as keyof typeof labels] ?? labels.tr;
 
   return (
     <>
@@ -72,11 +77,11 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
         className={cn(
           'fixed top-0 left-0 right-0 z-50 transition-all duration-500',
           isScrolled 
-            ? 'bg-white/80 dark:bg-slate-950/80 backdrop-blur-2xl shadow-[0_1px_0_0_rgba(0,0,0,0.05),0_4px_20px_-4px_rgba(0,0,0,0.1)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.05),0_4px_20px_-4px_rgba(0,0,0,0.3)]'
+            ? 'rf-topbar shadow-[0_1px_0_0_rgba(0,0,0,0.05),0_4px_20px_-4px_rgba(0,0,0,0.1)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.05),0_4px_20px_-4px_rgba(0,0,0,0.3)]'
             : transparent ? 'bg-transparent' : 'bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm'
         )}
       >
-        <div className="w-full px-4 sm:px-6 lg:px-12">
+        <div className="rf-page-wrap">
           <div className="flex justify-between items-center h-20 lg:h-24">
             {/* Logo */}
             <Link 
@@ -90,18 +95,19 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
                 className={cn(
                   'relative overflow-hidden transition-all duration-500',
                   largeLogo 
-                    ? 'h-24 w-64 md:h-28 md:w-96' 
-                    : 'h-12 w-40 md:h-14 md:w-48'
+                    ? 'h-10 md:h-12' 
+                    : 'h-8 md:h-9'
                 )}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
                 <Image
-                  src="/renkflow-logo-new.png"
-                  alt="Renkflow"
-                  fill
-                  sizes={largeLogo ? "(max-width: 768px) 70vw, 480px" : "(max-width: 768px) 40vw, 250px"}
-                  className="object-contain object-left"
+                  src="/email-assets/header-logo.png"
+                  alt="RenkFlow"
+                  width={442}
+                  height={88}
+                  sizes={largeLogo ? "(max-width: 768px) 150px, 190px" : "(max-width: 768px) 140px, 170px"}
+                  className="h-full w-auto object-contain"
                   priority
                 />
               </motion.div>
@@ -202,7 +208,7 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
                   'hover:bg-slate-100 dark:hover:bg-slate-800'
                 )}
               >
-                Giriş Yap
+                {text.login}
               </Link>
 
               <Link href="/signup">
@@ -218,7 +224,7 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
                   whileTap={{ scale: 0.98 }}
                 >
                   <span className="relative z-10 flex items-center gap-2">
-                    Ücretsiz Başlayın
+                    {text.start}
                     <ChevronRight size={16} className="transition-transform group-hover:translate-x-0.5" />
                   </span>
                   <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
@@ -259,7 +265,7 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
             >
               <div className="flex flex-col h-full p-6">
                 <div className="flex items-center justify-between mb-8">
-                  <span className="text-lg font-bold text-slate-900 dark:text-white">Menü</span>
+                  <span className="text-lg font-bold text-slate-900 dark:text-white">{text.menu}</span>
                   <button onClick={() => setIsMobileMenuOpen(false)}>
                     <X size={24} className="text-slate-500 hover:text-slate-900 dark:hover:text-white" />
                   </button>
@@ -295,7 +301,7 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
                             onClick={toggleTheme}
                             className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-slate-600 dark:text-slate-300"
                           >
-                            {themeState === "light" ? <Sun size={20} /> : <Moon size={20} />}
+                            {resolvedTheme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
                           </button>
                         ) : (
                           <div className="w-6 h-6" />
@@ -304,12 +310,12 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
                    </div>
                   <Link href="/auth/login" className="block w-full">
                     <button className="w-full py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold text-slate-700 dark:text-slate-200">
-                      Giriş Yap
+                      {text.login}
                     </button>
                   </Link>
                   <Link href="/signup" className="block w-full">
                     <button className="w-full py-3 rounded-xl bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 text-white font-semibold shadow-md">
-                      Ücretsiz Başlayın
+                      {text.start}
                     </button>
                   </Link>
                 </div>

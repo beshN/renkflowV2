@@ -33,7 +33,7 @@ const brandAssets = [
 
 export default function PressPage() {
   return (
-    <div className="max-w-4xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-16">
       <div className="text-center mb-12">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-purple-100 dark:bg-purple-900/30 mb-6">
           <Newspaper className="w-8 h-8 text-purple-600 dark:text-purple-400" />

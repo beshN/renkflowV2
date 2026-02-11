@@ -129,6 +129,7 @@ export default async function DashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link href="/orders" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm">Siparişler</Link>
+            <Link href="/work-orders" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm">İş Emirleri</Link>
             <Link href="/inventory" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm">Envanter</Link>
             <Link href="/finance" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm">Finans</Link>
           </div>

@@ -30,7 +30,7 @@ export const FeaturesGrid: React.FC = () => {
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(14,165,233,0.08),transparent_50%),radial-gradient(circle_at_85%_0%,rgba(16,185,129,0.08),transparent_45%)]"
       />
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
         <div className="text-center max-w-3xl mx-auto">
           <motion.p
             initial={{ opacity: 0, y: 14 }}

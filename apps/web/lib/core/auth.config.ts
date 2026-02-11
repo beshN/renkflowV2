@@ -7,10 +7,16 @@ import bcrypt from 'bcryptjs';
 
 import { getSql } from '@/lib/db';
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_BY_KEY } from '@/lib/config/templates';
+import {
+  IS_BUILD_TIME,
+  IS_PRODUCTION,
+  resolveAuthSecret,
+} from '@/lib/shared/config/runtime-env';
 
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
-const IS_BUILD_TIME = process.env.NEXT_PHASE === 'phase-production-build';
+const AUTH_SECRET = resolveAuthSecret({
+  context: 'auth.config',
+  allowMissing: IS_BUILD_TIME,
+});
 const AUTH_TRUST_HOST =
   process.env.AUTH_TRUST_HOST === 'true' ||
   (!IS_PRODUCTION && process.env.AUTH_TRUST_HOST !== 'false');
@@ -308,54 +314,72 @@ export const authConfig: NextAuthConfig = {
       if (account?.provider !== 'credentials' && user.email) {
         try {
           const sql = getSql();
-          const existingUsers = await sql`
-            SELECT id FROM users WHERE email = ${user.email} LIMIT 1
-          `;
-
-          const existingUsersRows = existingUsers as any[];
-          if (existingUsersRows.length === 0) {
-            // Create user first for OAuth
-            const newUsers = await sql`
+          const normalizedEmail = user.email.trim().toLowerCase();
+          const resolvedUserId = await sql.begin(async (tx: any) => {
+            const upsertedUsers = await tx`
               INSERT INTO users (name, email, email_verified, image, created_at, updated_at)
-              VALUES (${user.name || 'Kullanıcı'}, ${user.email}, NOW(), ${user.image || null}, NOW(), NOW())
+              VALUES (${user.name || 'Kullanıcı'}, ${normalizedEmail}, NOW(), ${user.image || null}, NOW(), NOW())
+              ON CONFLICT (email)
+              DO UPDATE SET
+                name = COALESCE(EXCLUDED.name, users.name),
+                image = COALESCE(EXCLUDED.image, users.image),
+                email_verified = COALESCE(users.email_verified, EXCLUDED.email_verified),
+                updated_at = NOW()
               RETURNING id
             `;
-            const newUsersRows = newUsers as any[];
-
-            if (newUsersRows.length === 0) {
-              if (DEBUG) console.error('Failed to create OAuth user');
-              return false;
+            const upsertedUserRows = upsertedUsers as Array<{ id: string }>;
+            const targetUserId = upsertedUserRows[0]?.id;
+            if (!targetUserId) {
+              throw new Error('Failed to upsert OAuth user');
             }
 
-            const newUserId = newUsersRows[0].id;
-
-            // Create tenant for new user
-            const tenantSlug = (user.name || user.email)
-              .toLowerCase()
-              .replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
-
-            const oauthTemplate = TEMPLATE_BY_KEY[DEFAULT_TEMPLATE_KEY];
-            const tenants = await sql`
-              INSERT INTO tenants (name, slug, industry, template_key, created_at, updated_at)
-              VALUES (${user.name || 'My Company'}, ${tenantSlug}, ${oauthTemplate.industry}, ${oauthTemplate.key}, NOW(), NOW())
-              RETURNING id
+            const memberships = await tx`
+              SELECT tenant_id
+              FROM tenant_members
+              WHERE user_id = ${targetUserId}
+              LIMIT 1
             `;
+            const membershipRows = memberships as Array<{ tenant_id: string }>;
 
-            const tenantsRows = tenants as any[];
-            if (tenantsRows[0]) {
-              // Link user to tenant as owner
-              await sql`
+            if (membershipRows.length === 0) {
+              const oauthTemplate = TEMPLATE_BY_KEY[DEFAULT_TEMPLATE_KEY];
+              const slugSeed = (user.name || normalizedEmail.split('@')[0] || 'tenant')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-|-$/g, '')
+                .slice(0, 36) || 'tenant';
+
+              let tenantId = '';
+              for (let attempt = 0; attempt < 3; attempt += 1) {
+                const tenantSlug = `${slugSeed}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+                const tenants = await tx`
+                  INSERT INTO tenants (name, slug, industry, template_key, created_at, updated_at)
+                  VALUES (${user.name || 'My Company'}, ${tenantSlug}, ${oauthTemplate.industry}, ${oauthTemplate.key}, NOW(), NOW())
+                  ON CONFLICT (slug) DO NOTHING
+                  RETURNING id
+                `;
+                const tenantRows = tenants as Array<{ id: string }>;
+                if (tenantRows[0]?.id) {
+                  tenantId = tenantRows[0].id;
+                  break;
+                }
+              }
+
+              if (!tenantId) {
+                throw new Error('Failed to create OAuth tenant');
+              }
+
+              await tx`
                 INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
-                VALUES (${tenantsRows[0].id}, ${newUserId}, 'owner', NOW())
+                VALUES (${tenantId}, ${targetUserId}, 'owner', NOW())
+                ON CONFLICT (tenant_id, user_id) DO NOTHING
               `;
             }
 
-            // Update user object with new id for session
-            user.id = newUserId;
-          } else {
-            // Existing user - update user.id for session
-            user.id = existingUsersRows[0].id;
-          }
+            return targetUserId;
+          });
+
+          user.id = resolvedUserId;
 
           if (user.id) {
             const tenantRows = await sql`

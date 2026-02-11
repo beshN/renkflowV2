@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { hasPermission, type UserRole } from '@/lib/auth/permissions';
 import { sql } from '@/lib/db';
+import { resolveServerBaseUrl } from '@/lib/shared/config/runtime-env';
 import { z } from 'zod';
 import { toBuffer, toString } from 'qrcode';
 
@@ -54,7 +55,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Token not found' }, { status: 404 });
   }
 
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin).replace(/\/$/, '');
+  const baseUrl = (
+    resolveServerBaseUrl({
+      context: 'api.orders.qr',
+      fallbackOrigin: request.nextUrl.origin,
+    }) || request.nextUrl.origin
+  ).replace(/\/$/, '');
   const qrUrl = `${baseUrl}/q/order?token=${encodeURIComponent(token)}`;
 
   if (format === 'svg') {

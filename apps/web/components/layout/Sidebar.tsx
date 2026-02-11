@@ -26,6 +26,7 @@ import {
   Bell,
   Wallet,
   Boxes,
+  ClipboardList,
 } from 'lucide-react';
 import { canAccessFinance, hasPermission, Permission, UserRole } from '@/lib/auth/permissions';
 
@@ -56,6 +57,7 @@ const navGroups: NavGroup[] = [
     items: [
       { icon: Home, label: 'Ana Sayfa', href: '/dashboard' },
       { icon: Receipt, label: 'Siparişler', href: '/orders', requiresPermission: 'orders.view' },
+      { icon: ClipboardList, label: 'İş Emirleri', href: '/work-orders', requiresPermission: 'orders.view' },
       { icon: PlusCircle, label: 'Yeni Sipariş', href: '/new-order', requiresPermission: 'orders.create' },
       { icon: KanbanSquare, label: 'Üretim Kanban', href: '/kanban', requiresPermission: 'kanban.view' },
       { icon: Search, label: 'Arama', href: '/search' },
@@ -220,7 +222,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
         onMouseLeave={handleDesktopLeave}
         className={cn(
           "fixed top-0 left-0 h-screen flex flex-col z-[58]",
-          "bg-neutral-50/80 dark:bg-neutral-900/80 backdrop-blur-md border-r border-neutral-200 dark:border-neutral-800",
+          "rf-panel-soft bg-neutral-50/80 dark:bg-neutral-900/80 backdrop-blur-md border-r border-neutral-200 dark:border-neutral-800",
           "will-change-[width,transform]",
           isMobileOpen ? "translate-x-0 w-72" : "-translate-x-full md:translate-x-0"
         )}
@@ -239,7 +241,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
           >
               <div className="relative h-14 w-14 flex items-center justify-center">
                 {logoFailed.compact ? (
-                  <span className="text-2xl font-extrabold text-slate-900 dark:text-white">R</span>
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 shadow-md" />
                 ) : (
                   <Image
                     src="/logo-r.png"
@@ -263,15 +265,15 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
              transition={{ type: 'spring', stiffness: 280, damping: 28 }}
              className="absolute inset-0 flex items-center justify-center"
            >
-              <div className="relative h-20 w-48 flex items-center justify-center p-1">
+              <div className="relative h-16 w-16 flex items-center justify-center p-1">
                 {logoFailed.full ? (
-                  <span className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">RenkFlow</span>
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 shadow-md" />
                 ) : (
                   <Image
-                    src="/email-assets/logo-full.png"
-                    alt="RenkFlow"
+                    src="/logo-r.png"
+                    alt="RenkFlow Logo"
                     fill
-                    sizes="192px"
+                    sizes="64px"
                     className="object-contain"
                     onError={() => setLogoFailed((prev) => ({ ...prev, full: true }))}
                   />

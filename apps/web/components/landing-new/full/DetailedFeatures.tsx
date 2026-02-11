@@ -12,7 +12,7 @@ export const DetailedFeatures: React.FC = () => {
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(16,185,129,0.08),transparent_55%),radial-gradient(circle_at_90%_20%,rgba(14,165,233,0.08),transparent_50%)]"
       />
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
         <div className="grid md:grid-cols-2 gap-16 items-center relative z-10">
           <div className="space-y-8">
             <div className="space-y-4">

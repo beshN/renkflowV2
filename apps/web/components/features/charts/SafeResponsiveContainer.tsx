@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, type ReactElement } from 'react';
+import { useState, useEffect, useRef, type ReactElement, type CSSProperties } from 'react';
 import { ResponsiveContainer } from 'recharts';
 
 interface SafeResponsiveContainerProps {
@@ -23,23 +23,52 @@ export function SafeResponsiveContainer({
   minHeight = 100,
 }: SafeResponsiveContainerProps) {
   const [mounted, setMounted] = useState(false);
+  const [hasSize, setHasSize] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return (
-      <div
-        style={{ width: typeof width === 'number' ? width : '100%', minHeight }}
-        className="animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"
-      />
-    );
-  }
+  useEffect(() => {
+    if (!mounted) return;
+    const element = wrapperRef.current;
+    if (!element) return;
+
+    const measure = () => {
+      const rect = element.getBoundingClientRect();
+      setHasSize(rect.width > 1 && rect.height > 1);
+    };
+
+    measure();
+
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [mounted]);
+
+  const resolvedHeight = typeof height === 'number' ? height : minHeight;
+
+  const wrapperStyle: CSSProperties = {
+    width: typeof width === 'number' ? `${width}px` : width,
+    height: `${resolvedHeight}px`,
+    minHeight,
+  };
 
   return (
-    <ResponsiveContainer width={width} height={height} minHeight={minHeight}>
-      {children}
-    </ResponsiveContainer>
+    <div ref={wrapperRef} style={wrapperStyle}>
+      {!mounted || !hasSize ? (
+        <div
+          style={{ width: '100%', minHeight, height: `${resolvedHeight}px` }}
+          className="animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"
+        />
+      ) : (
+        <ResponsiveContainer width="100%" height={resolvedHeight} minHeight={minHeight}>
+          {children}
+        </ResponsiveContainer>
+      )}
+    </div>
   );
 }

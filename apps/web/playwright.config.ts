@@ -1,5 +1,4 @@
 import { defineConfig, devices } from '@playwright/test';
-import path from 'path';
 
 /**
  * Read environment variables from file.
@@ -9,6 +8,14 @@ import path from 'path';
 
 const PORT = Number(process.env.PORT || 4173);
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const runAllBrowsers = process.env.E2E_ALL_BROWSERS === '1';
+const projects = runAllBrowsers
+  ? [
+      { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+      { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+      { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    ]
+  : [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }];
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -35,36 +42,11 @@ export default defineConfig({
   },
 
   /* Configure projects for major browsers */
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
-  ],
+  projects,
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: `PORT=${PORT} AUTH_URL=${BASE_URL} NEXT_PUBLIC_APP_URL=${BASE_URL} npm run start`,
+    command: `PORT=${PORT} AUTH_URL=${BASE_URL} NEXT_PUBLIC_APP_URL=${BASE_URL} PUBLIC_SITE_MODE=off DATABASE_URL='postgresql://postgres:postgres@localhost:5432/renkflow?host=/cloudsql/local-dev' npm run start`,
     url: BASE_URL,
     reuseExistingServer: false,
     timeout: 120 * 1000,
