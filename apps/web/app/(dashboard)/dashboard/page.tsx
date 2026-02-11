@@ -22,7 +22,7 @@ function InventoryWidgetSection({ inventory }: { inventory: InventoryWidgetData 
 
   if (!inventory.authorized) {
     return (
-      <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+      <section className="rf-panel rounded-3xl p-5">
         <h3 className="text-base font-semibold text-slate-900 dark:text-white">Envanter</h3>
         <p className="text-sm text-slate-500 mt-2">Bu widget için yetkiniz bulunmuyor.</p>
       </section>
@@ -30,10 +30,10 @@ function InventoryWidgetSection({ inventory }: { inventory: InventoryWidgetData 
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+    <section className="rf-panel rounded-3xl p-5">
       <div className="flex items-center justify-between">
         <h3 className="text-base font-semibold text-slate-900 dark:text-white">Envanter</h3>
-        <Link href="/inventory?low=1&active=1" className="text-xs text-blue-600 hover:underline">Detay</Link>
+        <Link href="/inventory?low=1&active=1" className="text-xs text-primary-600 hover:underline">Detay</Link>
       </div>
 
       <p className="text-sm text-slate-500 mt-1">Düşük stok kalemi: <span className="font-semibold text-amber-600">{inventory.lowStockCount}</span></p>
@@ -61,7 +61,7 @@ function ActivityWidgetSection({ activity }: { activity: ActivityWidgetData }) {
 
   if (!activity.authorized) {
     return (
-      <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+      <section className="rf-panel rounded-3xl p-5">
         <h3 className="text-base font-semibold text-slate-900 dark:text-white">Son Aktivite</h3>
         <p className="text-sm text-slate-500 mt-2">Bu widget için yetkiniz bulunmuyor.</p>
       </section>
@@ -69,7 +69,7 @@ function ActivityWidgetSection({ activity }: { activity: ActivityWidgetData }) {
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+    <section className="rf-panel rounded-3xl p-5">
       <h3 className="text-base font-semibold text-slate-900 dark:text-white">Son Aktivite</h3>
 
       <div className="mt-3 space-y-2">
@@ -128,37 +128,37 @@ export default async function DashboardPage() {
             <p className="text-sm text-slate-500 mt-1">Tenant-scope aggregate metrikler (45 sn cache)</p>
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/orders" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm">Siparişler</Link>
-            <Link href="/work-orders" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm">İş Emirleri</Link>
-            <Link href="/inventory" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm">Envanter</Link>
-            <Link href="/finance" className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm">Finans</Link>
+            <Link href="/orders" className="rounded-full border border-slate-300/90 dark:border-slate-700 px-3.5 py-2 text-sm bg-white/80 dark:bg-slate-900/70 hover:border-primary-400 hover:text-primary-700 transition-colors">Siparişler</Link>
+            <Link href="/work-orders" className="rounded-full border border-slate-300/90 dark:border-slate-700 px-3.5 py-2 text-sm bg-white/80 dark:bg-slate-900/70 hover:border-primary-400 hover:text-primary-700 transition-colors">İş Emirleri</Link>
+            <Link href="/inventory" className="rounded-full border border-slate-300/90 dark:border-slate-700 px-3.5 py-2 text-sm bg-white/80 dark:bg-slate-900/70 hover:border-primary-400 hover:text-primary-700 transition-colors">Envanter</Link>
+            <Link href="/finance" className="rounded-full border border-slate-300/90 dark:border-slate-700 px-3.5 py-2 text-sm bg-white/80 dark:bg-slate-900/70 hover:border-primary-400 hover:text-primary-700 transition-colors">Finans</Link>
           </div>
         </div>
 
         <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-          <article className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+          <article className="rf-panel rounded-3xl p-4">
             <p className="text-xs uppercase text-slate-500">Bugün Açılan Sipariş</p>
             <p className="text-3xl font-bold mt-2">{data.orders.authorized ? data.orders.createdToday : '-'}</p>
           </article>
 
-          <article className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+          <article className="rf-panel rounded-3xl p-4">
             <p className="text-xs uppercase text-slate-500">Bu Hafta Sipariş</p>
             <p className="text-3xl font-bold mt-2">{data.orders.authorized ? data.orders.createdThisWeek : '-'}</p>
           </article>
 
-          <article className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+          <article className="rf-panel rounded-3xl p-4">
             <p className="text-xs uppercase text-slate-500">Bu Ay Tahsilat</p>
             <p className="text-2xl font-bold mt-2">{data.finance.authorized ? formatMoney(data.finance.paymentsCollectedThisMonth) : '-'}</p>
           </article>
 
-          <article className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+          <article className="rf-panel rounded-3xl p-4">
             <p className="text-xs uppercase text-slate-500">Açık Alacak</p>
             <p className="text-2xl font-bold mt-2">{data.finance.authorized ? formatMoney(data.finance.outstandingReceivables) : '-'}</p>
           </article>
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <article className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+          <article className="rf-panel rounded-3xl p-5">
             <h3 className="text-base font-semibold text-slate-900 dark:text-white">Sipariş Durum Dağılımı</h3>
             {!data.orders.authorized ? (
               <p className="text-sm text-slate-500 mt-2">Bu widget için yetkiniz bulunmuyor.</p>
@@ -170,7 +170,7 @@ export default async function DashboardPage() {
                 </div>
                 <div>
                   <div className="flex items-center justify-between text-sm mb-1"><span>Üretimde</span><span>{data.orders.byStatus.inProduction} ({productionPct}%)</span></div>
-                  <div className="h-2 rounded bg-slate-100 dark:bg-slate-800 overflow-hidden"><div className="h-full bg-blue-500" style={{ width: `${productionPct}%` }} /></div>
+                  <div className="h-2 rounded bg-slate-100 dark:bg-slate-800 overflow-hidden"><div className="h-full bg-primary-500" style={{ width: `${productionPct}%` }} /></div>
                 </div>
                 <div>
                   <div className="flex items-center justify-between text-sm mb-1"><span>Teslim</span><span>{data.orders.byStatus.delivered} ({deliveredPct}%)</span></div>
@@ -181,7 +181,7 @@ export default async function DashboardPage() {
             )}
           </article>
 
-          <article className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+          <article className="rf-panel rounded-3xl p-5">
             <h3 className="text-base font-semibold text-slate-900 dark:text-white">Finans Özeti</h3>
             {!data.finance.authorized ? (
               <p className="text-sm text-slate-500 mt-2">Bu widget için yetkiniz bulunmuyor.</p>

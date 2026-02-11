@@ -292,7 +292,7 @@ function LoginForm() {
         className="hidden lg:flex lg:flex-[0.5] items-center justify-center p-8 bg-gradient-to-br from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 relative overflow-hidden"
       >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] from-indigo-500/5 via-transparent to-transparent"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] from-primary-700/10 via-transparent to-transparent"></div>
         
         <div className="max-w-md text-center relative z-10">
           <motion.div 

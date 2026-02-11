@@ -527,7 +527,7 @@ export function DashboardView({ data, isLoading = false }: DashboardViewProps) {
                   widget={widget}
                   data={[
                     { label: 'Bekliyor', value: data.filter((o) => o.status === 'pending').length, color: '#f59e0b' },
-                    { label: 'Üretimde', value: data.filter((o) => o.status === 'in_production').length, color: '#3b82f6' },
+                    { label: 'Üretimde', value: data.filter((o) => o.status === 'in_production').length, color: '#b87444' },
                     { label: 'Teslim', value: data.filter((o) => o.status === 'delivered').length, color: '#22c55e' },
                   ]}
                 />

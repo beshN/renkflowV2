@@ -32,7 +32,7 @@ export const FAQSection: React.FC = () => {
     <section id="faq" className="py-24 bg-slate-50/70 dark:bg-slate-900/50 relative overflow-hidden">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(14,165,233,0.12),transparent_40%),radial-gradient(circle_at_85%_0%,rgba(16,185,129,0.12),transparent_40%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(184,116,68,0.12),transparent_40%),radial-gradient(circle_at_85%_0%,rgba(16,185,129,0.12),transparent_40%)]"
       />
       <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 relative z-10">
         
@@ -84,7 +84,7 @@ const Accordion = ({ question, answer, index }: { question: string, answer: stri
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: index * 0.1 }}
-            className="border border-slate-200/70 dark:border-slate-800 rounded-2xl overflow-hidden bg-white/90 dark:bg-slate-900/70 shadow-[0_16px_35px_-30px_rgba(15,23,42,0.4)] hover:shadow-[0_24px_50px_-32px_rgba(14,165,233,0.4)] transition-all duration-300 backdrop-blur"
+            className="border border-slate-200/70 dark:border-slate-800 rounded-2xl overflow-hidden bg-white/90 dark:bg-slate-900/70 shadow-[0_16px_35px_-30px_rgba(15,23,42,0.4)] hover:shadow-[0_24px_50px_-32px_rgba(184,116,68,0.4)] transition-all duration-300 backdrop-blur"
         >
             <button 
                 onClick={() => setIsOpen(!isOpen)}

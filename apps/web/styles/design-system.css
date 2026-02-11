@@ -10,29 +10,29 @@
 @layer base {
   :root {
     /* Primary Colors */
-    --color-primary-50: #eff6ff;
-    --color-primary-100: #dbeafe;
-    --color-primary-200: #bfdbfe;
-    --color-primary-300: #93c5fd;
-    --color-primary-400: #60a5fa;
-    --color-primary-500: #3b82f6;
-    --color-primary-600: #2563eb;
-    --color-primary-700: #1d4ed8;
-    --color-primary-800: #1e40af;
-    --color-primary-900: #1e3a8a;
+    --color-primary-50: #faf5f0;
+    --color-primary-100: #f3e8dd;
+    --color-primary-200: #e7d3bf;
+    --color-primary-300: #d6b89a;
+    --color-primary-400: #c0946e;
+    --color-primary-500: #ab7852;
+    --color-primary-600: #8c5e40;
+    --color-primary-700: #6e4932;
+    --color-primary-800: #513625;
+    --color-primary-900: #372217;
 
     /* Neutral Colors */
     --color-neutral-0: #ffffff;
-    --color-neutral-50: #f8fafc;
-    --color-neutral-100: #f1f5f9;
-    --color-neutral-200: #e2e8f0;
-    --color-neutral-300: #cbd5e1;
-    --color-neutral-400: #94a3b8;
-    --color-neutral-500: #64748b;
-    --color-neutral-600: #475569;
-    --color-neutral-700: #334155;
-    --color-neutral-800: #1e293b;
-    --color-neutral-900: #0f172a;
+    --color-neutral-50: #f8f6f2;
+    --color-neutral-100: #f0ece6;
+    --color-neutral-200: #e2dbd1;
+    --color-neutral-300: #cdc2b3;
+    --color-neutral-400: #a99a86;
+    --color-neutral-500: #7f725f;
+    --color-neutral-600: #5f5649;
+    --color-neutral-700: #463f36;
+    --color-neutral-800: #2e2a24;
+    --color-neutral-900: #171511;
 
     /* Semantic Colors */
     --color-success-50: #f0fdf4;
@@ -102,25 +102,25 @@
     --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
 
     /* Dark Mode Overrides */
-    --bg-primary: #fafafa;
-    --bg-secondary: #f1f5f9;
-    --bg-tertiary: #e2e8f0;
-    --text-primary: #1e293b;
-    --text-secondary: #475569;
-    --text-tertiary: #64748b;
-    --border-color: #cbd5e1;
+    --bg-primary: #f7f3ee;
+    --bg-secondary: #efe8de;
+    --bg-tertiary: #e4d8ca;
+    --text-primary: #24201a;
+    --text-secondary: #51483d;
+    --text-tertiary: #786d5f;
+    --border-color: #d4c8b8;
   }
 }
 
 @layer base {
   .dark {
-    --bg-primary: #0f172a;
-    --bg-secondary: #1e293b;
-    --bg-tertiary: #334155;
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-tertiary: #94a3b8;
-    --border-color: #334155;
+    --bg-primary: #12100d;
+    --bg-secondary: #1b1713;
+    --bg-tertiary: #2b241d;
+    --text-primary: #f3ece3;
+    --text-secondary: #d6c9b8;
+    --text-tertiary: #ac9d89;
+    --border-color: #3a3128;
   }
 }
 

@@ -1,5 +1,7 @@
 import { UnifiedNavbar } from '@/components/landing-new/UnifiedNavbar';
 import { Footer } from '@/components/landing-new/Footer';
+import { ExperienceBackdrop } from '@/components/layout/ExperienceBackdrop';
+import { RouteTransition } from '@/components/layout/RouteTransition';
 
 // Force dynamic rendering for all landing pages to prevent Vercel build timeout
 export const dynamic = 'force-dynamic';
@@ -11,10 +13,11 @@ export default function LandingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rf-app-shell flex min-h-screen flex-col">
+    <div className="rf-app-shell relative flex min-h-screen flex-col overflow-x-clip">
+      <ExperienceBackdrop variant="landing" />
       <UnifiedNavbar />
-      <main className="flex-grow">
-        {children}
+      <main className="relative z-10 flex-grow">
+        <RouteTransition>{children}</RouteTransition>
       </main>
       <Footer />
     </div>

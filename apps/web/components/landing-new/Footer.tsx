@@ -75,7 +75,7 @@ export const Footer: React.FC = memo(() => {
       {/* Decorative Elements */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(14,165,233,0.06),transparent_50%),radial-gradient(circle_at_80%_100%,rgba(16,185,129,0.06),transparent_50%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(184,116,68,0.06),transparent_50%),radial-gradient(circle_at_80%_100%,rgba(16,185,129,0.06),transparent_50%)]"
       />
       <div
         aria-hidden="true"
@@ -125,8 +125,8 @@ export const Footer: React.FC = memo(() => {
                     className={cn(
                       'px-6 h-12 rounded-xl text-sm font-semibold',
                       'bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 text-white',
-                      'shadow-[0_4px_20px_-4px_rgba(14,165,233,0.4)]',
-                      'hover:shadow-[0_8px_30px_-4px_rgba(14,165,233,0.5)]',
+                      'shadow-[0_4px_20px_-4px_rgba(184,116,68,0.4)]',
+                      'hover:shadow-[0_8px_30px_-4px_rgba(184,116,68,0.5)]',
                       'transition-shadow duration-300',
                       'disabled:opacity-70 disabled:cursor-not-allowed'
                     )}

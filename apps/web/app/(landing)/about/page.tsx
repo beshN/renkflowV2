@@ -29,7 +29,7 @@ export default function About() {
     <div className="min-h-screen bg-[#f7f8fb] dark:bg-slate-950 relative overflow-hidden">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(14,165,233,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_40%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(184,116,68,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_40%)]"
       />
       
       <main className="flex-grow relative z-10">
@@ -240,7 +240,7 @@ export default function About() {
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
-              className="rounded-[36px] bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 text-white p-8 md:p-12 text-center shadow-[0_30px_60px_-40px_rgba(14,165,233,0.6)]"
+              className="rounded-[36px] bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 text-white p-8 md:p-12 text-center shadow-[0_30px_60px_-40px_rgba(184,116,68,0.6)]"
             >
               <h2 className="text-3xl font-bold leading-tight tracking-tight">Renkflow Topluluğuna Katılın</h2>
               <p className="mt-2 mx-auto max-w-2xl text-white/80">

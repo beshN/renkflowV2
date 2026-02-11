@@ -12,12 +12,12 @@ interface AuthLayoutProps {
 
 export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, showHomeLink = true }) => {
   return (
-    <div className="rf-app-shell relative min-h-screen w-full flex items-center justify-center overflow-hidden p-4">
+    <div className="rf-app-shell relative min-h-screen w-full flex items-center justify-center overflow-hidden p-4 sm:p-6">
       
       {/* Aurora Background Effect */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-blue-500/10 blur-[80px] animate-blob will-change-transform" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-purple-500/10 blur-[80px] animate-blob animation-delay-2000 will-change-transform" />
+        <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-primary-500/10 blur-[80px] animate-blob will-change-transform" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-accent-500/10 blur-[80px] animate-blob animation-delay-2000 will-change-transform" />
         
         {/* Grid Pattern */}
         <div 
@@ -35,7 +35,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, showHomeLink =
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="rf-panel relative z-10 w-full max-w-md rounded-3xl overflow-hidden"
+        className="rf-panel relative z-10 w-full max-w-md rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800/80 shadow-[0_36px_72px_-50px_rgba(31,19,12,0.72)]"
       >
         {/* Header Logo */}
         <div className="flex flex-col items-center pt-8 pb-4">
@@ -59,7 +59,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, showHomeLink =
         {/* Footer/Back Link */}
         {showHomeLink && (
             <div className="px-8 py-4 bg-slate-50/30 dark:bg-slate-800/30 border-t border-white/10 dark:border-white/5 text-center backdrop-blur-sm">
-                <Link href="/" className="text-xs text-slate-500 hover:text-blue-600 transition-colors">
+                <Link href="/" className="text-xs text-slate-500 hover:text-primary-600 transition-colors">
                     ← Ana Sayfaya Dön
                 </Link>
             </div>

@@ -10,7 +10,7 @@ export const OptimizationSection: React.FC = () => {
     <section className="py-24 md:py-32 overflow-hidden relative">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(14,165,233,0.1),transparent_55%),radial-gradient(circle_at_20%_60%,rgba(16,185,129,0.1),transparent_55%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(184,116,68,0.1),transparent_55%),radial-gradient(circle_at_20%_60%,rgba(16,185,129,0.1),transparent_55%)]"
       />
       <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 relative z-10">
         <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-16 items-center">
@@ -77,7 +77,7 @@ export const OptimizationSection: React.FC = () => {
               whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8, ease: "easeOut" }}
-              className="rounded-[32px] bg-gradient-to-br from-sky-200 via-emerald-200 to-white p-[2px] shadow-[0_45px_90px_-60px_rgba(14,165,233,0.7)] transform transition-transform group-hover:scale-[1.01]"
+              className="rounded-[32px] bg-gradient-to-br from-sky-200 via-emerald-200 to-white p-[2px] shadow-[0_45px_90px_-60px_rgba(184,116,68,0.7)] transform transition-transform group-hover:scale-[1.01]"
             >
               <div className="bg-white dark:bg-slate-900/80 p-4 md:p-6 rounded-[30px] border border-slate-200/70 dark:border-slate-700/60 backdrop-blur">
                 <Image 

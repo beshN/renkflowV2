@@ -26,7 +26,7 @@ export const CTA = () => {
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="rounded-[36px] bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 p-8 md:p-16 text-center shadow-[0_40px_90px_-60px_rgba(14,165,233,0.7)] relative"
+          className="rounded-[36px] bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 p-8 md:p-16 text-center shadow-[0_40px_90px_-60px_rgba(184,116,68,0.7)] relative"
         >
           <h2 className="text-3xl font-bold leading-tight tracking-tight text-white md:text-4xl lg:text-5xl">
             Ekibinizin Potansiyelini Ortaya Çıkarın

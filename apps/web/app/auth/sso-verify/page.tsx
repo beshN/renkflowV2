@@ -52,7 +52,7 @@ function SSOVerifyContent() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 dark:bg-slate-950">
       <div className="flex flex-col items-center gap-4 p-8 text-center">
-        <Loader2 className="h-10 w-10 animate-spin text-indigo-600 dark:text-indigo-400" />
+        <Loader2 className="h-10 w-10 animate-spin text-primary-600 dark:text-primary-400" />
         <div>
           <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Giriş Yapılıyor</h2>
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
@@ -68,7 +68,7 @@ export default function SSOVerifyPage() {
   return (
     <Suspense fallback={
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
+        <Loader2 className="h-10 w-10 animate-spin text-primary-600" />
       </div>
     }>
       <SSOVerifyContent />

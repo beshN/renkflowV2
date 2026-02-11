@@ -27,7 +27,7 @@ async function createTemplates() {
           <!-- Header -->
           <tr>
             <td style="padding: 40px 48px 20px; text-align: center;">
-              <h1 style="margin: 0; color: #6366f1; font-size: 28px; font-weight: 700;">Renkflow</h1>
+              <h1 style="margin: 0; color: #8c5e40; font-size: 28px; font-weight: 700;">Renkflow</h1>
             </td>
           </tr>
           
@@ -46,7 +46,7 @@ async function createTemplates() {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center" style="padding: 16px 0;">
-                    <a href="{{{VERIFICATION_URL}}}" style="display: inline-block; padding: 14px 32px; background-color: #6366f1; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">
+                    <a href="{{{VERIFICATION_URL}}}" style="display: inline-block; padding: 14px 32px; background-color: #8c5e40; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">
                       Hesabımı Doğrula
                     </a>
                   </td>
@@ -55,7 +55,7 @@ async function createTemplates() {
               
               <p style="margin: 24px 0 0; color: #718096; font-size: 14px; line-height: 1.6;">
                 Veya bu linki kopyalayarak tarayıcınıza yapıştırın:<br>
-                <a href="{{{VERIFICATION_URL}}}" style="color: #6366f1; word-break: break-all;">{{{VERIFICATION_URL}}}</a>
+                <a href="{{{VERIFICATION_URL}}}" style="color: #8c5e40; word-break: break-all;">{{{VERIFICATION_URL}}}</a>
               </p>
             </td>
           </tr>
@@ -104,7 +104,7 @@ async function createTemplates() {
         <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
           <tr>
             <td style="padding: 40px 48px 20px; text-align: center;">
-              <h1 style="margin: 0; color: #6366f1; font-size: 28px; font-weight: 700;">Renkflow</h1>
+              <h1 style="margin: 0; color: #8c5e40; font-size: 28px; font-weight: 700;">Renkflow</h1>
             </td>
           </tr>
           
@@ -178,7 +178,7 @@ async function createTemplates() {
         <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
           <tr>
             <td style="padding: 40px 48px 20px; text-align: center;">
-              <h1 style="margin: 0; color: #6366f1; font-size: 28px; font-weight: 700;">Renkflow</h1>
+              <h1 style="margin: 0; color: #8c5e40; font-size: 28px; font-weight: 700;">Renkflow</h1>
             </td>
           </tr>
           
@@ -193,7 +193,7 @@ async function createTemplates() {
               </p>
               
               <p style="margin: 0 0 24px; color: #4a5568; font-size: 16px; line-height: 1.6;">
-                Rolünüz: <strong style="color: #6366f1;">{{{ROLE}}}</strong>
+                Rolünüz: <strong style="color: #8c5e40;">{{{ROLE}}}</strong>
               </p>
               
               <table width="100%" cellpadding="0" cellspacing="0">
@@ -257,7 +257,7 @@ async function createTemplates() {
         <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
           <tr>
             <td style="padding: 40px 48px 20px; text-align: center;">
-              <h1 style="margin: 0; color: #6366f1; font-size: 28px; font-weight: 700;">Renkflow</h1>
+              <h1 style="margin: 0; color: #8c5e40; font-size: 28px; font-weight: 700;">Renkflow</h1>
             </td>
           </tr>
           
@@ -307,7 +307,7 @@ async function createTemplates() {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center" style="padding: 16px 0;">
-                    <a href="{{{ORDER_URL}}}" style="display: inline-block; padding: 14px 32px; background-color: #6366f1; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">
+                    <a href="{{{ORDER_URL}}}" style="display: inline-block; padding: 14px 32px; background-color: #8c5e40; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">
                       Siparişi Görüntüle
                     </a>
                   </td>
@@ -385,7 +385,7 @@ async function createTemplates() {
               <!-- Features -->
               <table width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0;">
                 <tr>
-                  <td style="padding: 16px; background-color: #f7fafc; border-left: 4px solid #6366f1; border-radius: 8px; margin-bottom: 16px;">
+                  <td style="padding: 16px; background-color: #f7fafc; border-left: 4px solid #8c5e40; border-radius: 8px; margin-bottom: 16px;">
                     <h3 style="margin: 0 0 8px; color: #1a202c; font-size: 16px; font-weight: 600;">📋 Sipariş Yönetimi</h3>
                     <p style="margin: 0; color: #718096; font-size: 14px;">Tüm siparişlerinizi tek bir yerden takip edin</p>
                   </td>
@@ -407,7 +407,7 @@ async function createTemplates() {
               <table width="100%" cellpadding="0" cellspacing="0" style="margin: 32px 0;">
                 <tr>
                   <td align="center">
-                    <a href="{{{DASHBOARD_URL}}}" style="display: inline-block; padding: 14px 32px; background-color: #6366f1; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">
+                    <a href="{{{DASHBOARD_URL}}}" style="display: inline-block; padding: 14px 32px; background-color: #8c5e40; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">
                       Hemen Başlayın
                     </a>
                   </td>

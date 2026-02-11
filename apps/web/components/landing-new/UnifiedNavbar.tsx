@@ -216,8 +216,8 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
                   className={cn(
                     'group relative px-5 py-2.5 text-sm font-semibold rounded-xl overflow-hidden',
                     'bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 text-white',
-                    'shadow-[0_8px_30px_-8px_rgba(14,165,233,0.5)]',
-                    'hover:shadow-[0_12px_40px_-8px_rgba(14,165,233,0.6)]',
+                    'shadow-[0_8px_30px_-8px_rgba(184,116,68,0.5)]',
+                    'hover:shadow-[0_12px_40px_-8px_rgba(184,116,68,0.6)]',
                     'transition-shadow duration-300'
                   )}
                   whileHover={{ scale: 1.02 }}

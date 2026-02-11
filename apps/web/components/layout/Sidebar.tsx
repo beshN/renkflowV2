@@ -222,7 +222,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
         onMouseLeave={handleDesktopLeave}
         className={cn(
           "fixed top-0 left-0 h-screen flex flex-col z-[58]",
-          "rf-panel-soft bg-neutral-50/80 dark:bg-neutral-900/80 backdrop-blur-md border-r border-neutral-200 dark:border-neutral-800",
+          "rf-panel-soft bg-white/70 dark:bg-neutral-900/80 backdrop-blur-xl border-r border-neutral-200/80 dark:border-neutral-800",
           "will-change-[width,transform]",
           isMobileOpen ? "translate-x-0 w-72" : "-translate-x-full md:translate-x-0"
         )}
@@ -241,7 +241,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
           >
               <div className="relative h-14 w-14 flex items-center justify-center">
                 {logoFailed.compact ? (
-                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 shadow-md" />
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-md" />
                 ) : (
                   <Image
                     src="/logo-r.png"
@@ -267,7 +267,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
            >
               <div className="relative h-16 w-16 flex items-center justify-center p-1">
                 {logoFailed.full ? (
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 shadow-md" />
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-md" />
                 ) : (
                   <Image
                     src="/logo-r.png"
@@ -356,7 +356,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
                     />
                   </div>
                 ) : (
-                   <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                   <div className="w-full h-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-sm">
                       {(user?.name || 'U').charAt(0).toUpperCase()}
                    </div>
                 )}

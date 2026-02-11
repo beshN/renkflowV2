@@ -84,7 +84,7 @@ export const HeroSection: React.FC = () => {
              transition={{ duration: 0.8, delay: 0.2 }}
              className="relative flex justify-end items-center perspective-[2000px] lg:-mr-[2.5vw]"
           >
-             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(14,165,233,0.18),transparent_65%)] dark:bg-[radial-gradient(circle_at_50%_50%,rgba(56,189,248,0.25),transparent_70%)] animate-pulse" style={{ animationDuration: '4s' }}></div>
+             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(184,116,68,0.18),transparent_65%)] dark:bg-[radial-gradient(circle_at_50%_50%,rgba(214,168,133,0.25),transparent_70%)] animate-pulse" style={{ animationDuration: '4s' }}></div>
               <div className="w-full lg:w-[min(58vw,900px)] max-w-[900px]">
                 <DashboardPreview isDark={isDark} />
               </div>

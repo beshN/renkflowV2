@@ -5,29 +5,29 @@
 
 export const COLORS = {
   primary: {
-    main: '#3B82F6',
-    hover: '#2563EB',
-    light: '#DBEAFE',
-    dark: '#1E40AF',
+    main: '#8C5E40',
+    hover: '#6E4932',
+    light: '#F3E8DD',
+    dark: '#372217',
   },
   success: {
-    main: '#10B981',
-    hover: '#059669',
-    light: '#D1FAE5',
+    main: '#2C7158',
+    hover: '#225746',
+    light: '#D4ECE1',
   },
   danger: {
-    main: '#EF4444',
-    hover: '#DC2626',
-    light: '#FEE2E2',
+    main: '#C0503A',
+    hover: '#9B3F2F',
+    light: '#F8DFD9',
   },
   neutral: {
-    50: '#F9FAFB',
-    100: '#F3F4F6',
-    200: '#E5E7EB',
-    300: '#D1D5DB',
-    400: '#9CA3AF',
-    500: '#6B7280',
-    900: '#111827',
+    50: '#F8F6F2',
+    100: '#F0ECE6',
+    200: '#E2DBD1',
+    300: '#CDC2B3',
+    400: '#A99A86',
+    500: '#7F725F',
+    900: '#171511',
   }
 };
 
@@ -49,7 +49,7 @@ export const RADIUS = {
 };
 
 export const TYPOGRAPHY = {
-  family: 'Inter, system-ui, sans-serif',
+  family: 'Plus Jakarta Sans, Outfit, system-ui, sans-serif',
   sizes: {
     h1: '2.25rem',
     h2: '1.875rem',

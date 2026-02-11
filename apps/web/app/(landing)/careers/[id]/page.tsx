@@ -181,7 +181,7 @@ export default function CareerDetailPage({ params }: { params: { id: string } })
           <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
             <a
               href={`mailto:careers@renkflow.com?subject=${encodeURIComponent(position.title)}%20Başvurusu`}
-              className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_30px_-18px_rgba(14,165,233,0.7)] hover:opacity-90"
+              className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_30px_-18px_rgba(184,116,68,0.7)] hover:opacity-90"
             >
               CV Gönder
             </a>

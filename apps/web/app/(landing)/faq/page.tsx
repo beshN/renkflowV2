@@ -137,7 +137,7 @@ export default function FAQPage() {
     <div className="min-h-screen bg-[#f7f8fb] dark:bg-slate-950 font-display relative overflow-hidden">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(14,165,233,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_40%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(184,116,68,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_40%)]"
       />
       
       <main className="pt-32 pb-20 w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 relative z-10">
@@ -208,7 +208,7 @@ export default function FAQPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="mt-16 text-center bg-white/80 dark:bg-slate-900/70 rounded-3xl border border-slate-200/70 dark:border-slate-800 p-10 shadow-[0_24px_50px_-32px_rgba(14,165,233,0.4)]"
+          className="mt-16 text-center bg-white/80 dark:bg-slate-900/70 rounded-3xl border border-slate-200/70 dark:border-slate-800 p-10 shadow-[0_24px_50px_-32px_rgba(184,116,68,0.4)]"
         >
           <h2 className="text-2xl font-bold mb-3 text-text-light dark:text-text-dark">
             Sorunuzun cevabını bulamadınız mı?

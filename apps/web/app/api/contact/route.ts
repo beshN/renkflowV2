@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
         subject: `[İletişim Formu] ${subjectText} - ${safeNameForSubject}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #4361ee;">Yeni İletişim Formu Mesajı</h2>
+            <h2 style="color: #8c5e40;">Yeni İletişim Formu Mesajı</h2>
             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
             
             <p><strong>Ticket ID:</strong> ${supportTicketId || '-'}</p>
@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
         subject: 'Mesajınız Alındı - RenkFlow',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #4361ee;">Mesajınız İçin Teşekkürler!</h2>
+            <h2 style="color: #8c5e40;">Mesajınız İçin Teşekkürler!</h2>
             <p>Merhaba ${safeName},</p>
             <p>Mesajınızı aldık ve en kısa sürede size dönüş yapacağız.</p>
             

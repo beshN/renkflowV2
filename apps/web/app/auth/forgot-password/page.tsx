@@ -69,8 +69,8 @@ export default function ForgotPasswordPage() {
                   Şifre sıfırlama linki <strong className="text-slate-900 dark:text-white font-semibold">{email}</strong> adresine gönderildi. 
                   Lütfen gelen kutunuzu kontrol edin.
                 </p>
-                <div className="p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/30 mb-8">
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                <div className="p-4 bg-primary-50/60 dark:bg-primary-900/20 rounded-xl border border-primary-100 dark:border-primary-900/30 mb-8">
+                  <p className="text-sm text-primary-700 dark:text-primary-300">
                     E-posta gelmedi mi? Spam klasörünü kontrol edin veya birkaç dakika bekleyin.
                   </p>
                 </div>
@@ -120,7 +120,7 @@ export default function ForgotPasswordPage() {
                     whileTap={{ scale: 0.99 }}
                     type="submit"
                     disabled={isLoading}
-                    className="w-full bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-600/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/25 disabled:opacity-70 disabled:cursor-not-allowed text-lg flex items-center justify-center gap-2 transition-all"
+                    className="w-full bg-gradient-to-r from-primary to-primary-700 hover:from-primary/90 hover:to-primary-700/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/25 disabled:opacity-70 disabled:cursor-not-allowed text-lg flex items-center justify-center gap-2 transition-all"
                   >
                     {isLoading ? (
                       <>

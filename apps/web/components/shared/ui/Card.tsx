@@ -91,7 +91,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(({
           className="pointer-events-none absolute -inset-px transition-opacity duration-300 rounded-[inherit] z-10"
           style={{
             opacity,
-            background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, ${spotlightColor || 'rgba(14,165,233,0.08)'}, transparent 40%)`,
+            background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, ${spotlightColor || 'rgba(184,116,68,0.08)'}, transparent 40%)`,
           }}
         />
       )}

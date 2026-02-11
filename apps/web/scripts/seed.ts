@@ -15,7 +15,7 @@ dotenv.config({ path: '.env.local' });
 const DEMO_TENANT = {
   name: 'Demo Mobilya',
   slug: 'demo-mobilya',
-  brandColor: '#6366f1',
+  brandColor: '#8c5e40',
   industry: 'mobilya',
   templateKey: 'mobilya',
 };

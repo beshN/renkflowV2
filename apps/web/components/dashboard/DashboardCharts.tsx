@@ -59,7 +59,7 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
              />
              <Bar dataKey="value" radius={[4, 4, 0, 0]} animationDuration={1000}>
                {data.map((entry, index) => (
-                 <Cell key={`cell-${index}`} fill={index === data.length - 1 ? '#3b82f6' : '#cbd5e1'} className="dark:fill-neutral-700 dark:hover:fill-blue-500 hover:fill-blue-500 transition-colors duration-300" />
+                 <Cell key={`cell-${index}`} fill={index === data.length - 1 ? '#b87444' : '#cbd5e1'} className="dark:fill-neutral-700 dark:hover:fill-blue-500 hover:fill-blue-500 transition-colors duration-300" />
                ))}
              </Bar>
            </BarChart>
@@ -79,7 +79,7 @@ export function StatusDistributionChart({ data, totalOrders }: StatusDistributio
     return data.map(item => ({
        name: item.label,
        value: item.count,
-       color: item.color.includes('blue') ? '#3b82f6' : 
+       color: item.color.includes('blue') ? '#b87444' : 
               item.color.includes('green') ? '#10b981' : 
               item.color.includes('yellow') ? '#f59e0b' : '#94a3b8'
     }));

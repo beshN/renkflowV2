@@ -125,7 +125,7 @@ export const Hero: React.FC = () => {
                                 type="submit"
                                 size="lg"
                                 disabled={status === 'loading'}
-                                className="h-12 rounded-xl px-6 shadow-[0_18px_30px_-18px_rgba(14,165,233,0.7)]"
+                                className="h-12 rounded-xl px-6 shadow-[0_18px_30px_-18px_rgba(184,116,68,0.7)]"
                                 aria-label="Bekleme listesine katıl"
                             >
                                 {status === 'loading' ? (

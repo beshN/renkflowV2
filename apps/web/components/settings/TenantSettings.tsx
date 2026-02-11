@@ -18,7 +18,7 @@ export function TenantSettings() {
 
   const [formData, setFormData] = useState({
     name: user?.tenantName || '',
-    brandColor: user?.brandColor || '#6366f1',
+    brandColor: user?.brandColor || '#8c5e40',
     logoUrl: user?.logoUrl || '',
     industry: user?.tenantIndustry || TEMPLATE_DEFINITIONS.find((t) => t.key === (user?.templateKey as TemplateKey))?.industry || TEMPLATE_DEFINITIONS[0]?.industry,
     templateKey: (user?.templateKey as TemplateKey) || DEFAULT_TEMPLATE_KEY,

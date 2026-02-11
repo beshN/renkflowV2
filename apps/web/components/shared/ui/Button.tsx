@@ -46,12 +46,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
     primary: cn(
       'bg-gradient-to-r from-sky-600 to-blue-700 text-white',
       'hover:from-sky-500 hover:to-blue-600',
-      'shadow-[0_10px_28px_-18px_rgba(37,99,235,0.9)] hover:shadow-[0_14px_34px_-18px_rgba(37,99,235,0.95)]'
+      'shadow-[0_10px_28px_-18px_rgba(156,94,53,0.9)] hover:shadow-[0_14px_34px_-18px_rgba(156,94,53,0.95)]'
     ),
     default: cn(
       'bg-gradient-to-r from-sky-600 to-blue-700 text-white',
       'hover:from-sky-500 hover:to-blue-600',
-      'shadow-[0_10px_28px_-18px_rgba(37,99,235,0.9)] hover:shadow-[0_14px_34px_-18px_rgba(37,99,235,0.95)]'
+      'shadow-[0_10px_28px_-18px_rgba(156,94,53,0.9)] hover:shadow-[0_14px_34px_-18px_rgba(156,94,53,0.95)]'
     ),
     secondary: cn(
       'bg-white/90 text-slate-900 dark:bg-slate-900/85 dark:text-slate-100',
@@ -81,7 +81,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
     premium: cn(
       'bg-gradient-to-r from-indigo-600 via-blue-600 to-sky-500 text-white',
       'hover:from-indigo-500 hover:via-blue-500 hover:to-sky-400',
-      'shadow-[0_12px_30px_-16px_rgba(59,130,246,0.95)] hover:shadow-[0_16px_36px_-16px_rgba(59,130,246,1)]'
+      'shadow-[0_12px_30px_-16px_rgba(184,116,68,0.95)] hover:shadow-[0_16px_36px_-16px_rgba(184,116,68,1)]'
     ),
   };
 

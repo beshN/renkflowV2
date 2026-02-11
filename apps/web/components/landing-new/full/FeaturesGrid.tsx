@@ -28,7 +28,7 @@ export const FeaturesGrid: React.FC = () => {
     <section id="features" className="py-24 md:py-32 relative">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(14,165,233,0.08),transparent_50%),radial-gradient(circle_at_85%_0%,rgba(16,185,129,0.08),transparent_45%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(184,116,68,0.08),transparent_50%),radial-gradient(circle_at_85%_0%,rgba(16,185,129,0.08),transparent_45%)]"
       />
       <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
         <div className="text-center max-w-3xl mx-auto">
@@ -66,7 +66,7 @@ export const FeaturesGrid: React.FC = () => {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.1 + 0.2 }}
-                    className="group bg-white/90 dark:bg-slate-900/70 p-8 rounded-3xl shadow-[0_20px_40px_-30px_rgba(15,23,42,0.3)] hover:shadow-[0_35px_60px_-35px_rgba(14,165,233,0.45)] hover:-translate-y-2 transition-all duration-300 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden"
+                    className="group bg-white/90 dark:bg-slate-900/70 p-8 rounded-3xl shadow-[0_20px_40px_-30px_rgba(15,23,42,0.3)] hover:shadow-[0_35px_60px_-35px_rgba(184,116,68,0.45)] hover:-translate-y-2 transition-all duration-300 border border-slate-200/80 dark:border-slate-800 relative overflow-hidden"
                 >
                     <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-400 via-blue-500 to-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 

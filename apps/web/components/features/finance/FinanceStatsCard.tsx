@@ -43,7 +43,7 @@ export function FinanceStatsCard({
   icon,
   iconBgClass = 'bg-gradient-to-br from-blue-400 to-blue-600',
   sparklineData,
-  sparklineColor = '#3b82f6',
+  sparklineColor = '#b87444',
   subtitle,
   badge,
   badgeColor = 'bg-slate-100 text-slate-600',

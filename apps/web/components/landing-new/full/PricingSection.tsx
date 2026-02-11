@@ -12,7 +12,7 @@ export const PricingSection: React.FC = () => {
     <section id="pricing" className="py-24 bg-white/90 dark:bg-slate-950 relative overflow-hidden">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_10%,rgba(14,165,233,0.12),transparent_45%),radial-gradient(circle_at_20%_20%,rgba(16,185,129,0.1),transparent_45%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_10%,rgba(184,116,68,0.12),transparent_45%),radial-gradient(circle_at_20%_20%,rgba(16,185,129,0.1),transparent_45%)]"
       />
       <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 relative z-10">
         

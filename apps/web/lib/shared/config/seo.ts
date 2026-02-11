@@ -77,7 +77,7 @@ export const defaultMetadata: Metadata = {
   },
   other: {
     'application-name': siteConfig.name,
-    'msapplication-TileColor': '#3b82f6',
+    'msapplication-TileColor': '#b87444',
     'msapplication-config': '/browserconfig.xml',
   },
 };

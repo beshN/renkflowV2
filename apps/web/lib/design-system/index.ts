@@ -18,7 +18,7 @@ export function getSemanticColor(status: string) {
       return 'text-green-600 bg-green-50';
     case 'pending':
     case 'warning':
-      return 'text-blue-600 bg-blue-50';
+      return 'text-amber-700 bg-amber-50';
     case 'failed':
     case 'danger':
       return 'text-red-600 bg-red-50';

@@ -80,7 +80,7 @@ export function OrderVolumeChart({ orders, days = 7 }: OrderVolumeChartProps) {
             />
             <Bar 
               dataKey="count" 
-              fill="#4361ee" 
+              fill="#8c5e40" 
               radius={[4, 4, 0, 0]}
               barSize={32}
             />

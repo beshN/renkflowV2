@@ -8,15 +8,15 @@ import { AIChatbot } from '@/components/ai/AIChatbot';
 import { AuthProviders } from '@/lib/context/Providers';
 import { ReactNode, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { ExperienceBackdrop } from '@/components/layout/ExperienceBackdrop';
+import { RouteTransition } from '@/components/layout/RouteTransition';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
 
   return (
     <div className="rf-app-shell flex min-h-screen relative overflow-hidden">
-      {/* Premium Surface Background */}
-      <div className="fixed inset-0 pointer-events-none z-[-1] dashboard-surface" />
-      <div className="fixed inset-0 pointer-events-none z-[-1] dashboard-grid opacity-60" />
+      <ExperienceBackdrop variant="dashboard" />
 
       <AuthProviders>
         <Sidebar onDesktopExpandedChange={setIsSidebarExpanded} />
@@ -33,7 +33,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         >
           <ErrorBoundary>
             <RouteGuard>
-              {children}
+              <RouteTransition>{children}</RouteTransition>
             </RouteGuard>
           </ErrorBoundary>
         </main>

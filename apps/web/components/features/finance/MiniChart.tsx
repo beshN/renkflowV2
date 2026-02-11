@@ -282,7 +282,7 @@ export function Sparkline({
   data, 
   width = 80, 
   height = 24,
-  color = '#3b82f6',
+  color = '#b87444',
   className 
 }: SparklineProps) {
   const path = useMemo(() => {

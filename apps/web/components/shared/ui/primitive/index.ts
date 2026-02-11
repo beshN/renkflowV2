@@ -3,7 +3,7 @@
 
 export const tokens = {
   colors: {
-    primary: { 50: '#eff6ff', 500: '#3b82f6', 900: '#1e3a8a' },
+    primary: { 50: '#fdf8f3', 500: '#b87444', 900: '#3f2413' },
     danger: { 500: '#ef4444' },
     success: { 500: '#22c55e' }
   },

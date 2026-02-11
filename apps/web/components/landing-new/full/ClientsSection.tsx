@@ -18,7 +18,7 @@ export const ClientsSection: React.FC = () => {
     <section id="integrations" className="py-16 bg-white/80 dark:bg-slate-900/60 border-y border-slate-100 dark:border-slate-800 overflow-hidden relative">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(14,165,233,0.06),transparent_30%,rgba(16,185,129,0.06))]"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(184,116,68,0.06),transparent_30%,rgba(16,185,129,0.06))]"
       />
       <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
         <div className="text-center mb-10">

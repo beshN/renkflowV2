@@ -96,7 +96,7 @@ export const manifest = {
   start_url: '/',
   display: 'standalone',
   background_color: '#ffffff',
-  theme_color: '#3b82f6',
+  theme_color: '#b87444',
   orientation: 'portrait-primary',
   scope: '/',
   icons: [

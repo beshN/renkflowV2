@@ -104,7 +104,7 @@ export const TestimonialSection: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8 p-8 rounded-3xl bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 text-white shadow-[0_30px_60px_-40px_rgba(14,165,233,0.6)]"
+          className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8 p-8 rounded-3xl bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 text-white shadow-[0_30px_60px_-40px_rgba(184,116,68,0.6)]"
         >
           <div className="text-center">
             <div className="text-4xl font-bold mb-2">500+</div>

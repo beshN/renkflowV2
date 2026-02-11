@@ -40,7 +40,7 @@ export function RouteGuard({ children }: RouteGuardProps) {
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-600" />
       </div>
     );
   }

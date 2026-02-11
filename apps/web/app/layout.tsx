@@ -101,7 +101,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
         {/* PWA Meta Tags */}
-        <meta name="theme-color" content="#4361ee" />
+        <meta name="theme-color" content="#8c5e40" />
         <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0B1120" />
         <link rel="canonical" href={baseUrl} />
         
@@ -117,7 +117,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         
         {/* Microsoft Tile */}
-        <meta name="msapplication-TileColor" content="#4361ee" />
+        <meta name="msapplication-TileColor" content="#8c5e40" />
         <meta name="msapplication-TileImage" content="/logo-r.png" />
       </head>
       <body className={`${outfit.variable} ${jakarta.variable} font-sans antialiased`}>

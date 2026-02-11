@@ -177,7 +177,7 @@ const subHeading = {
 };
 
 const buttonStyle = {
-  backgroundColor: '#4361ee',
+  backgroundColor: '#8c5e40',
   borderRadius: '8px',
   color: '#fff',
   fontSize: '18px',
@@ -202,7 +202,7 @@ const fallbackText = {
 
 const link = {
   fontSize: '14px',
-  color: '#4361ee',
+  color: '#8c5e40',
   textDecoration: 'underline',
   wordBreak: 'break-all' as const,
 };

@@ -109,7 +109,7 @@ function JobCard({ position, index }: { position: JobPosition; index: number }) 
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
           <Link
             href={`/careers/${position.id}`}
-            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_30px_-18px_rgba(14,165,233,0.7)] hover:opacity-90 whitespace-nowrap"
+            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_30px_-18px_rgba(184,116,68,0.7)] hover:opacity-90 whitespace-nowrap"
           >
             Başvur
           </Link>
@@ -128,7 +128,7 @@ export default function CareersPage() {
     <div className="min-h-screen bg-[#f7f8fb] dark:bg-slate-950 font-display relative overflow-hidden">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(14,165,233,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_40%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(184,116,68,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_40%)]"
       />
       
       <main className="pt-32 pb-20 relative z-10">
@@ -261,7 +261,7 @@ export default function CareersPage() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 href="mailto:careers@renkflow.com"
-                className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 px-8 py-3 text-sm font-semibold text-white shadow-[0_18px_30px_-18px_rgba(14,165,233,0.7)] hover:opacity-90"
+                className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 px-8 py-3 text-sm font-semibold text-white shadow-[0_18px_30px_-18px_rgba(184,116,68,0.7)] hover:opacity-90"
               >
                 CV Gönder
               </motion.a>
@@ -287,7 +287,7 @@ export default function CareersPage() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               href="mailto:careers@renkflow.com"
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 px-8 py-3 text-sm font-semibold text-white shadow-[0_18px_30px_-18px_rgba(14,165,233,0.7)] hover:opacity-90"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 px-8 py-3 text-sm font-semibold text-white shadow-[0_18px_30px_-18px_rgba(184,116,68,0.7)] hover:opacity-90"
             >
               <span className="material-symbols-outlined">mail</span>
               CV Gönder

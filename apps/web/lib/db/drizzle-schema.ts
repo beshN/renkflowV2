@@ -27,7 +27,7 @@ export const tenants = pgTable('tenants', {
   name: text('name').notNull(),
   slug: text('slug').unique().notNull(),
   logoUrl: text('logo_url'),
-  brandColor: text('brand_color').default('#6366f1'),
+  brandColor: text('brand_color').default('#8c5e40'),
   industry: text('industry'),
   templateKey: text('template_key').default('mobilya'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

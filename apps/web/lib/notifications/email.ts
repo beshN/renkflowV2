@@ -120,13 +120,13 @@ export async function sendPasswordResetEmail(
       </p>
       <div style="text-align: center; margin: 30px 0;">
         <a href="${resetUrl}" 
-           style="display: inline-block; background: linear-gradient(135deg, #3b82f6, #6366f1); color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600;">
+           style="display: inline-block; background: linear-gradient(135deg, #b87444, #3b8f6f); color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600;">
           Şifremi Sıfırla
         </a>
       </div>
       <p style="color: #94a3b8; font-size: 14px;">
         Veya bu linki tarayıcınıza yapıştırın:<br>
-        <a href="${resetUrl}" style="color: #3b82f6;">${resetUrl}</a>
+        <a href="${resetUrl}" style="color: #b87444;">${resetUrl}</a>
       </p>
       <p style="color: #ef4444; font-size: 14px; margin-top: 20px;">
         ⚠️ Bu link 1 saat içinde geçerliliğini yitirecektir.
@@ -244,13 +244,13 @@ export async function sendInviteEmail(
       </p>
       <div style="text-align: center; margin: 30px 0;">
         <a href="${inviteLink}" 
-           style="display: inline-block; background: linear-gradient(135deg, #3b82f6, #6366f1); color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600;">
+           style="display: inline-block; background: linear-gradient(135deg, #b87444, #3b8f6f); color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600;">
           Daveti Kabul Et
         </a>
       </div>
       <p style="color: #94a3b8; font-size: 14px;">
         Veya bu linki tarayıcınıza yapıştırın:<br>
-        <a href="${inviteLink}" style="color: #3b82f6;">${inviteLink}</a>
+        <a href="${inviteLink}" style="color: #b87444;">${inviteLink}</a>
       </p>
       <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;">
       <p style="color: #94a3b8; font-size: 12px; text-align: center;">

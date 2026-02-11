@@ -55,10 +55,10 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
   };
 
   return (
-    <header role="banner" className="rf-topbar sticky top-0 z-40 shadow-sm transition-all duration-200">
+    <header role="banner" className="rf-topbar sticky top-0 z-40 border-b border-[color-mix(in_srgb,var(--rf-border)_85%,transparent)] shadow-[0_12px_28px_-24px_rgba(27,21,14,0.48)] transition-all duration-300">
       <div className="rf-page-wrap flex h-16 items-center gap-3" role="navigation" aria-label="Ana navigasyon">
         {/* Title */}
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white font-display tracking-tight">
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white font-display tracking-[-0.03em]">
           {title}
         </h1>
 
@@ -66,14 +66,14 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
         {showSearch && (
           <div className="flex-1 max-w-md hidden md:block">
             <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4 transition-colors group-focus-within:text-sky-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4 transition-colors group-focus-within:text-primary-500" />
               <input
                 type="text"
                 placeholder="Ara..."
                 aria-label={`${title} içinde ara`}
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                className="w-full rounded-full pl-10 pr-4 py-2 text-sm bg-slate-100/50 dark:bg-slate-900/50 border border-transparent focus:bg-white dark:focus:bg-slate-950 focus:border-sky-500/50 focus:ring-4 focus:ring-sky-500/10 transition-all outline-none placeholder:text-slate-500"
+                className="w-full rounded-full pl-10 pr-4 py-2 text-sm bg-white/70 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-800/70 focus:bg-white dark:focus:bg-slate-950 focus:border-primary-500/50 focus:ring-4 focus:ring-primary-500/10 transition-all outline-none placeholder:text-slate-500"
               />
             </div>
           </div>
@@ -88,7 +88,7 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
           {/* Dark Mode Toggle */}
           <button
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-            className="flex size-9 items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="flex size-9 items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800/80 border border-transparent hover:border-slate-200/70 dark:hover:border-slate-700/70 transition-colors"
             aria-label="Toggle dark mode"
           >
             {resolvedTheme === 'dark' ? (
@@ -100,11 +100,11 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
 
           {/* Notifications */}
           <button
-            className="relative flex size-9 items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="relative flex size-9 items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800/80 border border-transparent hover:border-slate-200/70 dark:hover:border-slate-700/70 transition-colors"
             aria-label="Notifications"
           >
             <Bell size={18} />
-            <span className="absolute top-2 right-2 size-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-950"></span>
+            <span className="absolute top-2 right-2 size-2 rounded-full bg-primary-500 ring-2 ring-white dark:ring-slate-950"></span>
           </button>
 
           <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
@@ -113,7 +113,7 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
           <div className="relative" ref={profileRef}>
             <button 
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className="flex items-center gap-2 rounded-full border border-slate-200/70 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 pl-1 pr-3 py-1 shadow-sm hover:bg-white hover:shadow-md transition-all group"
+              className="flex items-center gap-2 rounded-full border border-slate-200/70 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 pl-1 pr-3 py-1 shadow-[0_8px_24px_-18px_rgba(27,21,14,0.5)] hover:bg-white hover:shadow-[0_14px_28px_-18px_rgba(27,21,14,0.58)] transition-all group"
             >
               <div className="relative size-7 rounded-full overflow-hidden ring-2 ring-white dark:ring-slate-950 shrink-0">
                 {user?.avatar ? (
@@ -125,7 +125,7 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
                     unoptimized 
                   />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+                  <div className="w-full h-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white text-xs font-bold">
                     {(user?.name || 'U').charAt(0).toUpperCase()}
                   </div>
                 )}
@@ -137,7 +137,7 @@ export function Navbar({ title, showSearch = true, onSearch }: NavbarProps) {
 
             {/* Dropdown Menu */}
             {isProfileOpen && (
-              <div className="absolute right-0 top-full mt-2 w-56 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-black/40 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+              <div className="absolute right-0 top-full mt-2 w-56 rounded-xl bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 shadow-xl shadow-[0_28px_42px_-26px_rgba(20,12,7,0.6)] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
                 <div className="p-3 border-b border-slate-100 dark:border-slate-900">
                   <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{user?.name}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.email}</p>
