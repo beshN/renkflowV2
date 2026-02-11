@@ -23,6 +23,14 @@ function isComingSoonPath(pathname: string): boolean {
   return pathname === '/coming-soon' || pathname.startsWith('/coming-soon/');
 }
 
+function isLoginPath(pathname: string): boolean {
+  return pathname === '/auth/login' || pathname.startsWith('/auth/login/');
+}
+
+function isDashboardPath(pathname: string): boolean {
+  return pathname === '/dashboard' || pathname.startsWith('/dashboard/');
+}
+
 function isRootPath(pathname: string): boolean {
   return pathname === '/';
 }
@@ -34,8 +42,8 @@ function isApiPath(pathname: string): boolean {
 export type MiddlewareAction =
   | { type: 'next' }
   | { type: 'subscribeOptions' }
-  | { type: 'rewrite'; destination: '/coming-soon' }
-  | { type: 'redirect'; destination: '/coming-soon' }
+  | { type: 'rewrite'; destination: '/coming-soon' | '/auth/login' }
+  | { type: 'redirect'; destination: '/coming-soon' | '/auth/login' }
   | { type: 'api404' };
 
 export function normalizePublicSiteMode(value: string | null | undefined): string {
@@ -51,30 +59,26 @@ export function evaluateComingSoonRequest(pathname: string, method: string, publ
     return { type: 'next' };
   }
 
+  // Dashboard-only launch mode:
+  // keep auth login + dashboard accessible while all other page routes are gated.
   if (isApiPath(pathname)) {
-    if (pathname === '/api/subscribe') {
-      if (method === 'POST') {
-        return { type: 'next' };
-      }
-      if (method === 'OPTIONS') {
-        return { type: 'subscribeOptions' };
-      }
-    }
-    return { type: 'api404' };
+    return { type: 'next' };
   }
 
   if (
     isNextInternalPath(pathname) ||
     PUBLIC_PATHS.has(pathname) ||
     isPublicFile(pathname) ||
-    isComingSoonPath(pathname)
+    isComingSoonPath(pathname) ||
+    isLoginPath(pathname) ||
+    isDashboardPath(pathname)
   ) {
     return { type: 'next' };
   }
 
   if ((method === 'GET' || method === 'HEAD') && isRootPath(pathname)) {
-    return { type: 'rewrite', destination: '/coming-soon' };
+    return { type: 'rewrite', destination: '/auth/login' };
   }
 
-  return { type: 'redirect', destination: '/coming-soon' };
+  return { type: 'redirect', destination: '/auth/login' };
 }
