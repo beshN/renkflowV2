@@ -13,13 +13,29 @@ import {
   resolveAuthSecret,
 } from '@/lib/shared/config/runtime-env';
 
+const IS_VERCEL_PREVIEW =
+  process.env.VERCEL === '1' && process.env.VERCEL_ENV === 'preview';
+const PREVIEW_AUTH_SECRET =
+  process.env.VERCEL_URL || process.env.VERCEL_BRANCH_URL
+    ? `renkflow-preview-auth-secret-${process.env.VERCEL_URL || process.env.VERCEL_BRANCH_URL}`
+    : undefined;
 const AUTH_SECRET = resolveAuthSecret({
   context: 'auth.config',
-  allowMissing: IS_BUILD_TIME,
-});
+  allowMissing: IS_BUILD_TIME || IS_VERCEL_PREVIEW,
+}) || PREVIEW_AUTH_SECRET;
 const AUTH_TRUST_HOST =
   process.env.AUTH_TRUST_HOST === 'true' ||
+  (process.env.VERCEL === '1' && process.env.AUTH_TRUST_HOST !== 'false') ||
   (!IS_PRODUCTION && process.env.AUTH_TRUST_HOST !== 'false');
+
+if (
+  IS_VERCEL_PREVIEW &&
+  PREVIEW_AUTH_SECRET &&
+  !process.env.AUTH_SECRET &&
+  !process.env.NEXTAUTH_SECRET
+) {
+  console.warn('[RenkFlow] AUTH_SECRET missing on Vercel preview. Using deterministic preview fallback secret.');
+}
 
 if (!AUTH_SECRET && !IS_BUILD_TIME) {
   throw new Error(
