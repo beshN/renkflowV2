@@ -42,6 +42,10 @@
     font-family: var(--font-inter, system-ui, -apple-system, sans-serif);
   }
 
+  html[lang='ar'] body {
+    font-family: 'Noto Sans Arabic', var(--font-jakarta, system-ui), var(--font-inter, system-ui), sans-serif;
+  }
+
   /* Smooth scrolling */
   html {
     scroll-behavior: smooth;

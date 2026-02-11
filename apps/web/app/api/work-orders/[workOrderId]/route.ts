@@ -26,6 +26,8 @@ const mutableFields = new Set([
   'assetTag',
   'estimatedMinutes',
   'actualMinutes',
+  'blockedReasonCategory',
+  'blockedReasonDetail',
 ]);
 
 export async function GET(

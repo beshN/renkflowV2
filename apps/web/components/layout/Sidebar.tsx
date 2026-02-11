@@ -26,6 +26,7 @@ import {
   Bell,
   Wallet,
   Boxes,
+  ClipboardList,
 } from 'lucide-react';
 import { canAccessFinance, hasPermission, Permission, UserRole } from '@/lib/auth/permissions';
 
@@ -56,6 +57,7 @@ const navGroups: NavGroup[] = [
     items: [
       { icon: Home, label: 'Ana Sayfa', href: '/dashboard' },
       { icon: Receipt, label: 'Siparişler', href: '/orders', requiresPermission: 'orders.view' },
+      { icon: ClipboardList, label: 'İş Emirleri', href: '/work-orders', requiresPermission: 'orders.view' },
       { icon: PlusCircle, label: 'Yeni Sipariş', href: '/new-order', requiresPermission: 'orders.create' },
       { icon: KanbanSquare, label: 'Üretim Kanban', href: '/kanban', requiresPermission: 'kanban.view' },
       { icon: Search, label: 'Arama', href: '/search' },

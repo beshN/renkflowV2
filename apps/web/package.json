@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "node -r dotenv/config .next/standalone/server.js dotenv_config_path=.env.local",
+    "start": "if [ -f .next/standalone/server.js ]; then node -r dotenv/config .next/standalone/server.js dotenv_config_path=.env.local; else next start; fi",
     "lint": "eslint .",
     "db:push": "node scripts/push-schema.js",
     "db:generate": "drizzle-kit generate",

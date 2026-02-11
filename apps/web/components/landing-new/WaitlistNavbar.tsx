@@ -5,14 +5,36 @@ import { Moon, Sun } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
+import { useTranslation } from '@/lib/i18n/client';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { Button } from '@/components/ui/Button';
 
 export const WaitlistNavbar = () => {
   const { resolvedTheme, setTheme } = useTheme();
+  const { locale } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const isDark = resolvedTheme === 'dark';
   const [scrolled, setScrolled] = useState(false);
+  const uiLocale = mounted ? locale : 'tr';
+
+  const labels = {
+    tr: {
+      soon: 'Çok Yakında',
+      notify: 'Haberdar Ol',
+      toggleTheme: 'Temayı Değiştir',
+    },
+    en: {
+      soon: 'Coming Soon',
+      notify: 'Notify Me',
+      toggleTheme: 'Toggle Theme',
+    },
+    ar: {
+      soon: 'قريباً',
+      notify: 'أخبرني',
+      toggleTheme: 'تبديل المظهر',
+    },
+  } as const;
+  const text = labels[uiLocale as keyof typeof labels] ?? labels.tr;
 
   // Update scrolled state for conditional styling
   useEffect(() => {
@@ -36,17 +58,17 @@ export const WaitlistNavbar = () => {
       }`}
     >
       <div className="rf-page-wrap h-full flex items-center justify-between">
-        {/* Logo - Fixed Position & Size */}
+        {/* Brand Logo */}
         <Link
           href="/"
-          className="group flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200/70 bg-white/90 shadow-sm transition-all hover:shadow-md dark:border-slate-700/70 dark:bg-slate-900/80"
+          className="group inline-flex items-center rounded-xl py-1 pl-2 sm:pl-3 transition-opacity hover:opacity-90"
         >
           <Image
-            src="/logo-r.png"
-            alt="RenkFlow Logo"
-            width={24}
-            height={24}
-            className="h-6 w-6 object-contain"
+            src="/email-assets/header-logo.png"
+            alt="RenkFlow"
+            width={442}
+            height={88}
+            className="h-7 w-auto sm:h-8 md:h-9 object-contain"
             priority
           />
         </Link>
@@ -59,7 +81,7 @@ export const WaitlistNavbar = () => {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            Çok Yakında
+            {text.soon}
           </span>
 
           {mounted && (
@@ -68,7 +90,7 @@ export const WaitlistNavbar = () => {
               size="icon"
               onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
               className="w-9 h-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
-              aria-label="Temayı Değiştir"
+              aria-label={text.toggleTheme}
             >
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </Button>
@@ -79,7 +101,7 @@ export const WaitlistNavbar = () => {
             className="h-9 px-3 sm:px-4 text-xs font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-300 bg-primary text-primary-foreground hover:bg-primary/90"
             onClick={() => document.getElementById('waitlist')?.scrollIntoView({ behavior: 'smooth' })}
           >
-            Haberdar Ol
+            {text.notify}
           </Button>
         </div>
       </div>

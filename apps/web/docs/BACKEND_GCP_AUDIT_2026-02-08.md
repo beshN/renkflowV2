@@ -60,25 +60,23 @@ Notes:
 
 ## GCP Secret Manager Inventory
 
-Secrets currently present:
+Secrets currently present (as of 2026-02-11):
 - `AUTH_SECRET`
 - `DATABASE_URL`
 - `DB_PASSWORD`
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
-- `GROQ_API_KEY`
 - `NEXTAUTH_SECRET`
 - `RESEND_API_KEY`
 - `VAPID_PRIVATE_KEY`
-- `renkflowv2-github-oauthtoken-85e305`
 
 ### Used by application runtime
 
 `AUTH_SECRET`, `DATABASE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NEXTAUTH_SECRET`, `RESEND_API_KEY`, `VAPID_PRIVATE_KEY`
 
-### Not referenced by runtime code (safe-phaseout candidates)
+### Not referenced by runtime code
 
-`GROQ_API_KEY`, `renkflowv2-github-oauthtoken-85e305`
+None (after cleanup on 2026-02-11).
 
 Operational exception:
 - `DB_PASSWORD` is required by migration/provisioning script flow and is intentionally retained.
@@ -125,7 +123,12 @@ Operational exception:
 
 1. Keep runtime references removed first (completed).
 2. Keep unused secrets documented and detached from runtime (completed).
-3. Execute controlled secret deletion in a dedicated change window with rollback checklist.
+3. Execute controlled secret deletion in a dedicated change window with rollback checklist (completed on 2026-02-11):
+- Deleted secrets: `GROQ_API_KEY`, `renkflowv2-github-oauthtoken-85e305`.
+- Post-delete checks:
+  - `gcloud secrets list` does not include deleted names.
+  - `gcloud run services describe renkflow-web --region europe-west3` shows no env refs to deleted secrets.
+  - `curl https://renkflow-web-r7mdgubfjq-ey.a.run.app/coming-soon` returned `200`.
 
 ## 2026-02-09 Multi-Tenant Hardening Addendum
 

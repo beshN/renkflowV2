@@ -65,6 +65,8 @@ export interface DashboardSummary {
   inProductionOrders: number;
   weeklyGrowth: number; // percentage
   monthlyGrowth: number; // percentage
+  onTimeDeliveryRate: number; // percentage
+  avgWipAgeDays: number;
 }
 
 // ============================================
@@ -351,10 +353,39 @@ export async function getDashboardSummary(tenantId: string): Promise<DashboardSu
   const monthlyRows = monthlyQuery as any[];
   const monthlyResult = monthlyRows[0];
 
+  const deliveryKpiQuery = await sql`
+    SELECT
+      COUNT(*) FILTER (
+        WHERE status = 'delivered'
+          AND delivery_date IS NOT NULL
+      )::int as delivered_with_target,
+      COUNT(*) FILTER (
+        WHERE status = 'delivered'
+          AND delivery_date IS NOT NULL
+          AND DATE(updated_at) <= delivery_date
+      )::int as delivered_on_time,
+      COALESCE(
+        AVG(EXTRACT(EPOCH FROM (NOW() - created_at)) / 86400)
+          FILTER (WHERE status IN ('pending', 'in_production')),
+        0
+      )::numeric(12,2) as avg_wip_age_days
+    FROM orders
+    WHERE tenant_id = ${tenantId}
+  `;
+  const deliveryKpiRows = deliveryKpiQuery as any[];
+  const deliveryKpi = deliveryKpiRows[0] || {};
+
   const thisWeek = parseInt(weeklyResult.this_week) || 0;
   const prevWeek = parseInt(weeklyResult.last_week) || 1;
   const thisMonth = parseInt(monthlyResult.this_month) || 0;
   const prevMonth = parseInt(monthlyResult.last_month) || 1;
+  const deliveredWithTarget = parseInt(deliveryKpi.delivered_with_target) || 0;
+  const deliveredOnTime = parseInt(deliveryKpi.delivered_on_time) || 0;
+  const onTimeDeliveryRate =
+    deliveredWithTarget === 0
+      ? 0
+      : Number(((deliveredOnTime / deliveredWithTarget) * 100).toFixed(2));
+  const avgWipAgeDays = Number(parseFloat(deliveryKpi.avg_wip_age_days || '0').toFixed(2));
 
   return {
     todayOrders: parseInt(todayResult.orders),
@@ -363,6 +394,8 @@ export async function getDashboardSummary(tenantId: string): Promise<DashboardSu
     inProductionOrders: parseInt(statusResult.in_production),
     weeklyGrowth: ((thisWeek - prevWeek) / prevWeek) * 100,
     monthlyGrowth: ((thisMonth - prevMonth) / prevMonth) * 100,
+    onTimeDeliveryRate,
+    avgWipAgeDays,
   };
 }
 

@@ -3,14 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Home, Receipt, PlusCircle, Settings, Search, Boxes } from 'lucide-react';
+import { Home, Receipt, Settings, Search, Boxes, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { hasPermission, type Permission, type UserRole } from '@/lib/auth/permissions';
 
 const navItems = [
   { icon: Home, label: 'Ana Sayfa', href: '/dashboard' },
   { icon: Receipt, label: 'Siparişler', href: '/orders', requiresPermission: 'orders.view' as Permission },
-  { icon: PlusCircle, label: 'Yeni', href: '/new-order', requiresPermission: 'orders.create' as Permission },
+  { icon: ClipboardList, label: 'İş Emri', href: '/work-orders', requiresPermission: 'orders.view' as Permission },
   { icon: Boxes, label: 'Stok', href: '/inventory', requiresPermission: 'inventory.view' as Permission },
   { icon: Search, label: 'Arama', href: '/search' },
   { icon: Settings, label: 'Ayarlar', href: '/settings' },

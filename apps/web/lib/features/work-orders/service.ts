@@ -2,6 +2,7 @@ import 'server-only';
 
 import { z } from 'zod';
 import { sql, withTransaction } from '@/lib/db';
+import { ANALYTICS_EVENTS } from '@/lib/analytics/event-schema';
 import {
   canTransitionWorkOrderStatus,
   isWorkOrderTerminalStatus,
@@ -11,6 +12,12 @@ import {
   WorkOrderStatus,
 } from './status';
 import { WorkOrderActor, WorkOrderApiError } from './security';
+import {
+  normalizeBlockedReasonCategory,
+  normalizeBlockedReasonDetail,
+  validateBlockedReasonForStatus,
+  WorkOrderBlockReasonCategorySchema,
+} from './blocked-reason';
 
 const WorkOrderStatusSchema = z.enum(WORK_ORDER_STATUSES);
 const WorkOrderPrioritySchema = z.enum(WORK_ORDER_PRIORITIES);
@@ -46,6 +53,8 @@ export const UpdateWorkOrderInputSchema = z
     estimatedMinutes: z.number().int().positive().max(24 * 60 * 30).nullable().optional(),
     actualMinutes: z.number().int().min(0).max(24 * 60 * 90).nullable().optional(),
     assignedToUserId: z.string().uuid().nullable().optional(),
+    blockedReasonCategory: WorkOrderBlockReasonCategorySchema.nullable().optional(),
+    blockedReasonDetail: z.string().trim().max(1000).nullable().optional(),
     appendChecklistItems: z.array(ChecklistInputSchema).max(100).optional(),
   })
   .refine((input) => Object.keys(input).length > 0, {
@@ -87,6 +96,9 @@ type WorkOrderRow = {
   completed_at: string | null;
   estimated_minutes: number | null;
   actual_minutes: number | null;
+  blocked_reason_category: string | null;
+  blocked_reason_detail: string | null;
+  blocked_at: string | null;
   source: string;
   created_by: string | null;
   assigned_to: string | null;
@@ -142,6 +154,9 @@ function mapWorkOrderRow(row: WorkOrderRow) {
     completedAt: row.completed_at,
     estimatedMinutes: row.estimated_minutes,
     actualMinutes: row.actual_minutes,
+    blockedReasonCategory: normalizeBlockedReasonCategory(row.blocked_reason_category),
+    blockedReasonDetail: normalizeBlockedReasonDetail(row.blocked_reason_detail),
+    blockedAt: row.blocked_at,
     source: row.source,
     createdBy: row.created_by,
     assignedTo: row.assigned_to,
@@ -504,7 +519,7 @@ export async function createWorkOrder(
     await insertWorkOrderEvent(tx, {
       tenantId: actor.tenantId,
       workOrderId,
-      eventType: 'work_order.created',
+      eventType: ANALYTICS_EVENTS.workOrderCreated,
       payload: {
         title: input.title,
         priority: input.priority,
@@ -577,6 +592,48 @@ export async function updateWorkOrder(
       );
     }
 
+    const hasBlockedReasonMutation =
+      input.blockedReasonCategory !== undefined || input.blockedReasonDetail !== undefined;
+    if (targetStatus !== 'blocked' && hasBlockedReasonMutation) {
+      throw new WorkOrderApiError(
+        'Gecikme nedeni yalnızca iş emri bloke durumundayken güncellenebilir',
+        400
+      );
+    }
+
+    const incomingBlockedReasonCategory =
+      input.blockedReasonCategory === undefined
+        ? undefined
+        : normalizeBlockedReasonCategory(input.blockedReasonCategory);
+    if (input.blockedReasonCategory !== undefined && input.blockedReasonCategory !== null && !incomingBlockedReasonCategory) {
+      throw new WorkOrderApiError('Geçersiz bloke neden kategorisi', 400);
+    }
+
+    const incomingBlockedReasonDetail =
+      input.blockedReasonDetail === undefined
+        ? undefined
+        : normalizeBlockedReasonDetail(input.blockedReasonDetail);
+
+    const blockedReasonCategory =
+      targetStatus === 'blocked'
+        ? incomingBlockedReasonCategory === undefined
+          ? normalizeBlockedReasonCategory(existing.blocked_reason_category)
+          : incomingBlockedReasonCategory
+        : null;
+
+    const blockedReasonDetail =
+      targetStatus === 'blocked'
+        ? incomingBlockedReasonDetail === undefined
+          ? normalizeBlockedReasonDetail(existing.blocked_reason_detail)
+          : incomingBlockedReasonDetail
+        : null;
+
+    try {
+      validateBlockedReasonForStatus(targetStatus, blockedReasonCategory, blockedReasonDetail);
+    } catch (error) {
+      throw new WorkOrderApiError(error instanceof Error ? error.message : 'Geçersiz bloke nedeni', 400);
+    }
+
     let completedAt = existing.completed_at;
     if (input.status && input.status !== existing.status) {
       if (input.status === 'done') {
@@ -584,6 +641,13 @@ export async function updateWorkOrder(
       } else if (!isWorkOrderTerminalStatus(input.status)) {
         completedAt = null;
       }
+    }
+
+    let blockedAt = existing.blocked_at;
+    if (targetStatus === 'blocked') {
+      blockedAt = existing.blocked_at || new Date().toISOString();
+    } else {
+      blockedAt = null;
     }
 
     const nextPayload = {
@@ -598,6 +662,9 @@ export async function updateWorkOrder(
       estimatedMinutes:
         input.estimatedMinutes === undefined ? existing.estimated_minutes : input.estimatedMinutes,
       actualMinutes: input.actualMinutes === undefined ? existing.actual_minutes : input.actualMinutes,
+      blockedReasonCategory,
+      blockedReasonDetail,
+      blockedAt,
       assignedTo:
         input.assignedToUserId === undefined ? existing.assigned_to : input.assignedToUserId,
       completedAt,
@@ -616,6 +683,9 @@ export async function updateWorkOrder(
         asset_tag = ${nextPayload.assetTag},
         estimated_minutes = ${nextPayload.estimatedMinutes},
         actual_minutes = ${nextPayload.actualMinutes},
+        blocked_reason_category = ${nextPayload.blockedReasonCategory},
+        blocked_reason_detail = ${nextPayload.blockedReasonDetail},
+        blocked_at = ${nextPayload.blockedAt},
         assigned_to = ${nextPayload.assignedTo},
         completed_at = ${nextPayload.completedAt},
         updated_at = NOW()
@@ -662,10 +732,17 @@ export async function updateWorkOrder(
     await insertWorkOrderEvent(tx, {
       tenantId: actor.tenantId,
       workOrderId,
-      eventType: 'work_order.updated',
+      eventType: ANALYTICS_EVENTS.workOrderUpdated,
       payload: {
         changedStatus: input.status ? { from: existing.status, to: input.status } : null,
         assignedTo: input.assignedToUserId === undefined ? null : input.assignedToUserId,
+        blockedReason:
+          targetStatus === 'blocked'
+            ? {
+                category: blockedReasonCategory,
+                detail: blockedReasonDetail,
+              }
+            : null,
         appendedChecklistItems: input.appendChecklistItems?.length || 0,
       },
       createdBy: actor.userId,
@@ -729,7 +806,7 @@ export async function addWorkOrderComment(
     await insertWorkOrderEvent(tx, {
       tenantId: actor.tenantId,
       workOrderId,
-      eventType: 'work_order.comment_added',
+      eventType: ANALYTICS_EVENTS.workOrderCommentAdded,
       payload: {
         commentId: inserted.id,
         bodyPreview: body.slice(0, 120),
@@ -797,7 +874,7 @@ export async function toggleWorkOrderChecklistItem(
     await insertWorkOrderEvent(tx, {
       tenantId: actor.tenantId,
       workOrderId,
-      eventType: 'work_order.checklist_toggled',
+      eventType: ANALYTICS_EVENTS.workOrderChecklistToggled,
       payload: {
         itemId: updated.id,
         completed,

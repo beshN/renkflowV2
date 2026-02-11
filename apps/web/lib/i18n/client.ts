@@ -64,39 +64,37 @@ let isInitialized = false;
 export function initI18n(): typeof i18n {
   if (isInitialized) return i18n;
 
-  i18n
-    .use(LanguageDetector)
-    .use(initReactI18next)
-    .init({
-      resources,
-      fallbackLng: defaultLocale,
-      supportedLngs: locales,
-      nonExplicitSupportedLngs: true,
-      load: 'languageOnly',
-      
-      interpolation: {
-        escapeValue: false,
-      },
+  const instance = i18n.use(initReactI18next);
 
-      detection: {
-        order: ['localStorage', 'navigator', 'htmlTag'],
-        caches: ['localStorage'],
-        lookupLocalStorage: 'renkflow-language',
-      },
+  if (typeof window !== 'undefined') {
+    instance.use(LanguageDetector);
+  }
 
-      react: {
-        useSuspense: false,
-      },
-    });
+  instance.init({
+    resources,
+    fallbackLng: defaultLocale,
+    supportedLngs: locales,
+    nonExplicitSupportedLngs: true,
+    load: 'languageOnly',
+    interpolation: {
+      escapeValue: false,
+    },
+    detection: {
+      order: ['localStorage', 'navigator', 'htmlTag'],
+      caches: ['localStorage'],
+      lookupLocalStorage: 'renkflow-language',
+    },
+    react: {
+      useSuspense: false,
+    },
+  });
 
   isInitialized = true;
   return i18n;
 }
 
-// Initialize on import
-if (typeof window !== 'undefined') {
-  initI18n();
-}
+// Initialize on import for both server and client renders.
+initI18n();
 
 // ============================================
 // Hooks

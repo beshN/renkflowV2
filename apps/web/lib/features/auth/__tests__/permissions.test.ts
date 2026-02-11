@@ -146,6 +146,7 @@ describe('Permission System', () => {
       expect(canAccessRoute('accountant', '/finance')).toBe(true);
       expect(canAccessRoute('worker', '/finance')).toBe(false);
       expect(canAccessRoute('worker', '/orders')).toBe(true);
+      expect(canAccessRoute('worker', '/work-orders')).toBe(true);
       expect(canAccessRoute('office', '/orders')).toBe(true);
     });
 
