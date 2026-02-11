@@ -21,6 +21,8 @@ jobs:
       contents: read
       id-token: write
     env:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
       GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
       GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
       GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
@@ -55,23 +57,23 @@ jobs:
 
       - name: Validate required secrets
         run: |
-          if [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
+          if [ -z "${GCP_PROJECT_ID}" ]; then
             echo "GCP_PROJECT_ID is required"
             exit 1
           fi
 
-          if [ -z "${{ secrets.GCS_BUCKET_NAME }}" ]; then
+          if [ -z "${GCS_BUCKET_NAME}" ]; then
             echo "GCS_BUCKET_NAME is required"
             exit 1
           fi
 
           HAS_WIF="0"
-          if [ -n "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}" ] && [ -n "${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}" ]; then
+          if [ -n "${GCP_WORKLOAD_IDENTITY_PROVIDER}" ] && [ -n "${GCP_SERVICE_ACCOUNT_EMAIL}" ]; then
             HAS_WIF="1"
           fi
 
           HAS_SA_KEY="0"
-          if [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
+          if [ -n "${GCP_SA_KEY}" ]; then
             HAS_SA_KEY="1"
           fi
 
@@ -81,7 +83,7 @@ jobs:
           fi
 
       - name: Configure project
-        run: gcloud config set project "${{ secrets.GCP_PROJECT_ID }}"
+        run: gcloud config set project "${{ env.GCP_PROJECT_ID }}"
 
       - name: Enable required APIs
         run: |
@@ -103,7 +105,7 @@ jobs:
 
       - name: Build image with Cloud Build
         run: |
-          IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
           echo "IMAGE_URI=${IMAGE_URI}" >> "$GITHUB_ENV"
           TMP_CLOUDBUILD_CONFIG="$(mktemp)"
           cat > "${TMP_CLOUDBUILD_CONFIG}" <<CBEOF
@@ -164,7 +166,7 @@ jobs:
             --no-invoker-iam-check
             --port 3000
             --add-cloudsql-instances "${CONNECTION_NAME}"
-            --set-env-vars "NODE_ENV=production,AUTH_TRUST_HOST=true,PUBLIC_SITE_MODE=${{ env.PUBLIC_SITE_MODE }},STORAGE_BACKEND=gcs,GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }}"
+            --set-env-vars "NODE_ENV=production,AUTH_TRUST_HOST=true,PUBLIC_SITE_MODE=${{ env.PUBLIC_SITE_MODE }},STORAGE_BACKEND=gcs,GCS_BUCKET_NAME=${{ env.GCS_BUCKET_NAME }}"
           )
 
           if [ -n "${SECRET_VARS}" ]; then
