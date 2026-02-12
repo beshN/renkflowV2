@@ -81,6 +81,20 @@ AZURE_AD_TENANT_ID=""
   - Secret Manager Secret Accessor
   - Storage Object Admin (bucket-scoped preferred)
 
+### Vercel Preview / Production auth contract
+
+For stable NextAuth runtime on Vercel, configure these variables in both Preview and Production:
+
+- `DATABASE_URL`
+- `AUTH_SECRET` (32+ chars)
+- `NEXTAUTH_SECRET` (same value as `AUTH_SECRET`)
+- `AUTH_TRUST_HOST=true`
+
+Recommended for callback/url consistency:
+
+- `AUTH_URL` and/or `NEXTAUTH_URL` to the active deployment domain
+- `NEXT_PUBLIC_APP_URL` to the same public domain
+
 ## Validation
 
 Run full quality checks:

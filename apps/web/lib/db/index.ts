@@ -183,7 +183,36 @@ export function getSql() {
   return cachedClient;
 }
 
-export const sql = getSql();
+type SqlTemplateTag = (...args: any[]) => any;
+
+const sqlTemplateTag: SqlTemplateTag = (...args: any[]) => {
+  const client = getSql();
+  return client(...args);
+};
+
+(sqlTemplateTag as any).unsafe = (query: string, params: unknown[] = []) => {
+  const client = getSql();
+  return client.unsafe(query, params);
+};
+
+(sqlTemplateTag as any).begin = <T>(callback: (tx: any) => Promise<T>) => {
+  const client = getSql();
+  return client.begin(callback) as Promise<T>;
+};
+
+(sqlTemplateTag as any).end = (...args: any[]) => {
+  const client = getSql();
+  if (typeof client.end === 'function') {
+    return client.end(...args);
+  }
+  return undefined;
+};
+
+export const sql = sqlTemplateTag as SqlTemplateTag & {
+  unsafe: (query: string, params?: unknown[]) => Promise<any[]>;
+  begin: <T>(callback: (tx: any) => Promise<T>) => Promise<T>;
+  end: (...args: any[]) => Promise<unknown> | undefined;
+};
 
 export async function sqlQuery(query: string, params: unknown[] = []): Promise<any[]> {
   const client = getSql();
