@@ -43,6 +43,14 @@ function isSubscribeApiPath(pathname: string): boolean {
   return pathname === '/api/subscribe';
 }
 
+function normalizeBranchName(value: string | null | undefined): string {
+  return (value || '').trim().toLowerCase().replace(/^refs\/heads\//, '');
+}
+
+function isDashboardBranch(branchName: string | null | undefined): boolean {
+  return normalizeBranchName(branchName) === 'dashboard';
+}
+
 export type MiddlewareAction =
   | { type: 'next' }
   | { type: 'subscribeOptions' }
@@ -58,7 +66,16 @@ export function isComingSoonMode(value: string | null | undefined): boolean {
   return normalizePublicSiteMode(value) === COMING_SOON_MODE;
 }
 
-export function evaluateComingSoonRequest(pathname: string, method: string, publicSiteMode: string): MiddlewareAction {
+export function evaluateComingSoonRequest(
+  pathname: string,
+  method: string,
+  publicSiteMode: string,
+  branchName?: string | null
+): MiddlewareAction {
+  if (isDashboardBranch(branchName)) {
+    return { type: 'next' };
+  }
+
   if (!isComingSoonMode(publicSiteMode)) {
     return { type: 'next' };
   }

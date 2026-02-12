@@ -6,6 +6,16 @@ describe('Coming soon middleware', () => {
     expect(action).toEqual({ type: 'next' });
   });
 
+  it('bypasses coming-soon gate on dashboard branch', () => {
+    const action = evaluateComingSoonRequest('/dashboard', 'GET', 'coming-soon', 'dashboard');
+    expect(action).toEqual({ type: 'next' });
+  });
+
+  it('does not rewrite root on dashboard branch even in coming-soon mode', () => {
+    const action = evaluateComingSoonRequest('/', 'GET', 'coming-soon', 'dashboard');
+    expect(action).toEqual({ type: 'next' });
+  });
+
   it('rewrites root to coming soon in launch mode', () => {
     const action = evaluateComingSoonRequest('/', 'GET', 'coming-soon');
     expect(action).toEqual({ type: 'rewrite', destination: '/coming-soon' });

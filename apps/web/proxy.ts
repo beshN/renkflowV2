@@ -3,9 +3,11 @@ import { evaluateComingSoonRequest, normalizePublicSiteMode } from '@/lib/launch
 
 export function proxy(request: NextRequest) {
   const publicSiteMode = normalizePublicSiteMode(process.env.PUBLIC_SITE_MODE || 'off');
+  const branchName =
+    process.env.VERCEL_GIT_COMMIT_REF || process.env.GIT_BRANCH || process.env.BRANCH_NAME || '';
   const { pathname } = request.nextUrl;
   const method = request.method.toUpperCase();
-  const action = evaluateComingSoonRequest(pathname, method, publicSiteMode);
+  const action = evaluateComingSoonRequest(pathname, method, publicSiteMode, branchName);
 
   if (action.type === 'next') {
     return NextResponse.next();
