@@ -59,14 +59,10 @@ export function evaluateComingSoonRequest(pathname: string, method: string, publ
     return { type: 'next' };
   }
 
-  // Dashboard branch launch mode:
-  // keep all pages accessible, but hide login page by redirecting to dashboard.
+  // Dashboard branch mode:
+  // keep all pages accessible even if PUBLIC_SITE_MODE is "coming-soon".
   if (isApiPath(pathname)) {
     return { type: 'next' };
-  }
-
-  if (isLoginPath(pathname)) {
-    return { type: 'redirect', destination: '/dashboard' };
   }
 
   if (
@@ -74,6 +70,7 @@ export function evaluateComingSoonRequest(pathname: string, method: string, publ
     PUBLIC_PATHS.has(pathname) ||
     isPublicFile(pathname) ||
     isComingSoonPath(pathname) ||
+    isLoginPath(pathname) ||
     isDashboardPath(pathname)
   ) {
     return { type: 'next' };
