@@ -244,14 +244,14 @@ export default function About() {
             >
               <h2 className="text-3xl font-bold leading-tight tracking-tight">Renkflow Topluluğuna Katılın</h2>
               <p className="mt-2 mx-auto max-w-2xl text-white/80">
-                İş akışınızı iyileştirmeye ve ekibinizin potansiyelini en üst düzeye çıkarmaya bugün başlayın.
+                Uretim operasyonlarini birlikte sekillendirmek icin erken erisim listesine katilin.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
                 <Link
-                  href="/signup"
+                  href="/#waitlist"
                   className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-100"
                 >
-                  Hemen Başlayın
+                  Request Early Access
                 </Link>
                 <Link
                   href="/contact"

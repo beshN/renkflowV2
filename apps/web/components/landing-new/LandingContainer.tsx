@@ -4,7 +4,6 @@ import React, { memo } from 'react';
 import { WaitlistNavbar } from '@/components/landing-new/WaitlistNavbar';
 import { Hero } from '@/components/landing-new/Hero';
 import { Features } from '@/components/landing-new/Features';
-import { TestimonialSection } from '@/components/landing-new/TestimonialSection';
 import { Pricing } from '@/components/landing-new/Pricing';
 import { FAQ } from '@/components/landing-new/FAQ';
 import { CTA } from '@/components/landing-new/CTA';
@@ -20,7 +19,6 @@ const LandingContainerComponent = ({ compact = false }: { compact?: boolean }) =
       <WaitlistNavbar />
       <Hero />
       <Features showStats={!compact} />
-      {!compact && <TestimonialSection />}
       {!compact && <Pricing />}
       <FAQ />
       <CTA />

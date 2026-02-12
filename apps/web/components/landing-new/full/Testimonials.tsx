@@ -2,34 +2,75 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import Image from 'next/image';
+import {
+  Boxes,
+  ClipboardCheck,
+  Network,
+  PackageCheck,
+  ScanLine,
+  UsersRound,
+} from 'lucide-react';
+
+const featureCards = [
+  {
+    title: 'Production Tracking',
+    description:
+      'Track each order by production stage, identify blocked jobs early, and see delay risk before deadlines slip.',
+    icon: ClipboardCheck,
+  },
+  {
+    title: 'Inventory Management',
+    description:
+      'Follow material movement in real time, prevent stockouts on critical lines, and align purchasing with live demand.',
+    icon: Boxes,
+  },
+  {
+    title: 'Team Collaboration',
+    description:
+      'Keep planners, operators, quality and finance on the same workflow with shared status and role-based updates.',
+    icon: UsersRound,
+  },
+  {
+    title: 'Shift Handover Log',
+    description:
+      'Capture open issues, pending actions and machine notes at shift change to avoid repeated context loss.',
+    icon: Network,
+  },
+  {
+    title: 'Quality Gate Control',
+    description:
+      'Attach checks and approvals to stages so defects are contained before they move further down the line.',
+    icon: PackageCheck,
+  },
+  {
+    title: 'Traceable Operations',
+    description:
+      'Record who changed what and when across orders, inventory and scheduling for audit-ready process history.',
+    icon: ScanLine,
+  },
+];
 
 export const Testimonials: React.FC = () => {
   return (
-    <section className="py-24 md:py-32 relative overflow-hidden">
-      {/* Background Decor */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden -z-10 bg-slate-50/60 dark:bg-slate-900/30">
-         <div className="absolute top-[10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-sky-500/10 blur-[120px]" />
-         <div className="absolute bottom-[0%] right-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-500/10 blur-[120px]" />
-      </div>
-
-      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 relative z-10">
-        <div className="text-center max-w-3xl mx-auto mb-16">
+    <section className="relative overflow-hidden py-24 md:py-32">
+      <div className="absolute left-0 top-0 -z-10 h-full w-full bg-slate-50/50 dark:bg-slate-900/30" />
+      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
+        <div className="mx-auto mb-14 max-w-3xl text-center">
           <motion.p
             initial={{ opacity: 0, y: 14 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300"
           >
-            Referanslar
+            Core Features
           </motion.p>
-          <motion.h2 
+          <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="mt-6 text-4xl md:text-5xl font-bold text-slate-900 dark:text-white"
+            className="mt-6 text-4xl font-bold text-slate-900 dark:text-white md:text-5xl"
           >
-            Müşterilerimiz Ne Diyor?
+            Built for real factory operations
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 16 }}
@@ -38,103 +79,31 @@ export const Testimonials: React.FC = () => {
             transition={{ delay: 0.1 }}
             className="mt-4 text-lg text-slate-600 dark:text-slate-400"
           >
-            Ekiplerin karar alma hızını artıran, netlik sağlayan ve işleri sadeleştiren bir deneyim.
+            RenkFlow replaces spreadsheets and disconnected tools with one system for production speed, visibility
+            and control.
           </motion.p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            whileHover={{ y: -5 }}
-            className="bg-white/90 dark:bg-slate-900/70 backdrop-blur-lg p-8 rounded-3xl shadow-[0_20px_45px_-35px_rgba(15,23,42,0.4)] border border-slate-200/70 dark:border-slate-800 flex flex-col justify-between"
-          >
-            <div className="mb-6">
-                <div className="flex gap-1 mb-4 text-amber-400 text-sm">
-                    {'★★★★★'}
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {featureCards.map((feature, index) => {
+            const Icon = feature.icon;
+            return (
+              <motion.article
+                key={feature.title}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.06 }}
+                className="rounded-3xl border border-slate-200/75 bg-white/90 p-7 shadow-[0_20px_42px_-34px_rgba(15,23,42,0.4)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/70"
+              >
+                <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300">
+                  <Icon size={22} />
                 </div>
-                <p className="text-lg text-slate-800 dark:text-slate-200">&quot;Renkflow, ekibimizin proje teslim hızını iki katına çıkardı. Artık her şey daha organize ve şeffaf.&quot;</p>
-            </div>
-            <div className="flex items-center mt-auto">
-              <Image 
-                src="https://ui-avatars.com/api/?name=Azse+V&background=0284c7&color=fff" 
-                alt="Azse V." 
-                width={48} 
-                height={48} 
-                className="rounded-full mr-4 object-cover border border-slate-200 dark:border-slate-700"
-                unoptimized
-              />
-              <div>
-                <p className="font-bold text-slate-900 dark:text-white">Azse V.</p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Proje Müdürü, X97 Corp.</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-            whileHover={{ scale: 1.05 }}
-            className="bg-gradient-to-br from-sky-600 via-blue-600 to-emerald-600 text-white p-8 rounded-3xl shadow-2xl shadow-sky-500/20 flex flex-col justify-between scale-100 md:scale-105 relative overflow-hidden"
-          >
-             {/* Shine effect */}
-             <div className="absolute top-0 right-0 -mr-16 -mt-16 w-32 h-32 bg-white opacity-10 blur-3xl rounded-full pointer-events-none"></div>
-
-            <div className="mb-6 relative z-10">
-                <div className="flex gap-1 mb-4 text-yellow-300 text-sm">
-                    {'★★★★★'}
-                </div>
-                <p className="text-lg">&quot;Daha önce kullandığımız tüm araçları tek bir platformda birleştirdi. Verimliliğimizdeki artış inanılmaz.&quot;</p>
-            </div>
-            <div className="flex items-center mt-auto relative z-10">
-              <Image 
-                src="https://ui-avatars.com/api/?name=Soma+N&background=10b981&color=fff" 
-                alt="Soma N." 
-                width={48} 
-                height={48} 
-                className="rounded-full mr-4 border-2 border-white/30 object-cover"
-                unoptimized
-              />
-              <div>
-                <p className="font-bold">Soma N.</p>
-                <p className="text-sm opacity-80">CEO, S12 Corp.</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            whileHover={{ y: -5 }}
-            className="bg-white/90 dark:bg-slate-900/70 backdrop-blur-lg p-8 rounded-3xl shadow-[0_20px_45px_-35px_rgba(15,23,42,0.4)] border border-slate-200/70 dark:border-slate-800 flex flex-col justify-between"
-          >
-             <div className="mb-6">
-                <div className="flex gap-1 mb-4 text-amber-400 text-sm">
-                    {'★★★★★'}
-                </div>
-                <p className="text-lg text-slate-800 dark:text-slate-200">&quot;Yaratıcı ekibimiz için mükemmel bir araç. Fikir paylaşımı ve geri bildirim süreci hiç bu kadar kolay olmamıştı.&quot;</p>
-             </div>
-            <div className="flex items-center mt-auto">
-              <Image 
-                src="https://ui-avatars.com/api/?name=Lama+L&background=7c3aed&color=fff" 
-                alt="Lama L." 
-                width={48} 
-                height={48} 
-                className="rounded-full mr-4 object-cover border border-slate-200 dark:border-slate-700"
-                unoptimized
-              />
-              <div>
-                <p className="font-bold text-slate-900 dark:text-white">Lama L.</p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Tasarım Lideri, 017 Companies</p>
-              </div>
-            </div>
-          </motion.div>
-
+                <h3 className="text-xl font-semibold text-slate-900 dark:text-white">{feature.title}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{feature.description}</p>
+              </motion.article>
+            );
+          })}
         </div>
       </div>
     </section>

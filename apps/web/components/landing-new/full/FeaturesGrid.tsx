@@ -3,24 +3,24 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Layers, Repeat, Palette } from 'lucide-react';
+import { Boxes, ClipboardCheck, UsersRound } from 'lucide-react';
 
 export const FeaturesGrid: React.FC = () => {
   const features = [
     {
-      icon: <Layers className="w-8 h-8" />,
-      title: 'Proje Yönetimi',
-      desc: 'Görevleri atayın, son tarihleri belirleyin ve projelerinizin ilerlemesini tek bir yerden görsel olarak takip edin.'
+      icon: <ClipboardCheck className="h-8 w-8" />,
+      title: 'Production Tracking',
+      desc: 'Follow every work order by stage and detect bottlenecks with live stage-level visibility.'
     },
     {
-      icon: <Repeat className="w-8 h-8" />,
-      title: 'Çevik Geliştirme',
-      desc: 'Sprint planlaması, backlog yönetimi ve Kanban panoları ile çevik metodolojileri kolayca uygulayın.'
+      icon: <Boxes className="h-8 w-8" />,
+      title: 'Inventory Management',
+      desc: 'Track materials and components in real time to prevent line stoppages and emergency purchasing.'
     },
     {
-      icon: <Palette className="w-8 h-8" />,
-      title: 'Yaratıcı Süreçler',
-      desc: 'Fikir aşamasından son tasarıma kadar tüm yaratıcı projelerinizi ve geri bildirim döngülerini yönetin.'
+      icon: <UsersRound className="h-8 w-8" />,
+      title: 'Team Collaboration',
+      desc: 'Keep planners, operators and supervisors aligned with shared updates, comments and assignments.'
     }
   ];
 
@@ -38,7 +38,7 @@ export const FeaturesGrid: React.FC = () => {
             viewport={{ once: true }}
             className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-600 dark:bg-sky-500/10 dark:text-sky-300"
           >
-            Çözümler
+            Platform
           </motion.p>
           <motion.h2 
             initial={{ opacity: 0, y: 20 }}
@@ -46,7 +46,7 @@ export const FeaturesGrid: React.FC = () => {
             viewport={{ once: true }}
             className="mt-6 text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-6"
           >
-            Her Ekip İçin Güçlü Çözümler
+            Built for production teams, not generic task boards
           </motion.h2>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
@@ -55,7 +55,7 @@ export const FeaturesGrid: React.FC = () => {
             transition={{ delay: 0.1 }}
             className="text-lg text-slate-600 dark:text-slate-400"
           >
-            Renkflow, iş akışınızı ne olursa olsun, ekibinizin potansiyelini en üst düzeye çıkarmak için tasarlanmıştır. Sizin için nasıl çalıştığını keşfedin.
+            RenkFlow helps manufacturers control production speed, inventory risk and cross-team execution from one system.
           </motion.p>
         </div>
         <div className="mt-16 grid md:grid-cols-3 gap-8 relative z-10">
@@ -76,8 +76,8 @@ export const FeaturesGrid: React.FC = () => {
                     </div>
                     <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white relative z-10">{feature.title}</h3>
                     <p className="text-slate-600 dark:text-slate-400 mb-6 relative z-10">{feature.desc}</p>
-                    <Link href="/features" className="font-semibold text-sky-600 hover:text-emerald-500 flex items-center cursor-pointer relative z-10 transition-colors">
-                        Daha Fazla Bilgi <span className="material-symbols-outlined ml-1 group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                    <Link href="/features" className="relative z-10 flex cursor-pointer items-center font-semibold text-sky-600 transition-colors hover:text-emerald-500">
+                        Learn more <span className="material-symbols-outlined ml-1 transition-transform group-hover:translate-x-1">arrow_forward</span>
                     </Link>
                 </motion.div>
             ))}

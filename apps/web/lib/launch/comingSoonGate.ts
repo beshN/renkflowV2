@@ -39,6 +39,10 @@ function isApiPath(pathname: string): boolean {
   return pathname.startsWith('/api/');
 }
 
+function isSubscribeApiPath(pathname: string): boolean {
+  return pathname === '/api/subscribe';
+}
+
 export type MiddlewareAction =
   | { type: 'next' }
   | { type: 'subscribeOptions' }
@@ -59,26 +63,35 @@ export function evaluateComingSoonRequest(pathname: string, method: string, publ
     return { type: 'next' };
   }
 
-  // Dashboard branch mode:
-  // keep all pages accessible even if PUBLIC_SITE_MODE is "coming-soon".
   if (isApiPath(pathname)) {
-    return { type: 'next' };
+    if (isSubscribeApiPath(pathname)) {
+      if (method === 'POST') {
+        return { type: 'next' };
+      }
+      if (method === 'OPTIONS') {
+        return { type: 'subscribeOptions' };
+      }
+    }
+
+    return { type: 'api404' };
   }
 
   if (
     isNextInternalPath(pathname) ||
     PUBLIC_PATHS.has(pathname) ||
     isPublicFile(pathname) ||
-    isComingSoonPath(pathname) ||
-    isLoginPath(pathname) ||
-    isDashboardPath(pathname)
+    isComingSoonPath(pathname)
   ) {
     return { type: 'next' };
   }
 
   if ((method === 'GET' || method === 'HEAD') && isRootPath(pathname)) {
-    return { type: 'next' };
+    return { type: 'rewrite', destination: '/coming-soon' };
   }
 
-  return { type: 'next' };
+  if (isLoginPath(pathname) || isDashboardPath(pathname) || method === 'GET' || method === 'HEAD') {
+    return { type: 'redirect', destination: '/coming-soon' };
+  }
+
+  return { type: 'redirect', destination: '/coming-soon' };
 }

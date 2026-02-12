@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import type { FormEvent } from 'react';
-import { Mail, MapPin, Phone, Send } from 'lucide-react';
+import { Mail, MapPin, Send } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
@@ -65,16 +65,6 @@ export default function ContactPage() {
                     <p className="text-muted-foreground">support@renkflow.com</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-4 group">
-                  <div className="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
-                    <Phone size={24} />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg text-foreground mb-1">Telefon</h3>
-                    <p className="text-muted-foreground">+90 (212) 000 00 00</p>
-                    <p className="text-sm text-muted-foreground mt-1">Hafta içi 09:00 - 18:00</p>
-                  </div>
-                </div>
 
                 <div className="flex items-start gap-4 group">
                   <div className="w-12 h-12 rounded-xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center text-green-600 group-hover:bg-green-600 group-hover:text-white transition-colors">
@@ -82,7 +72,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg text-foreground mb-1">Ofis</h3>
-                    <p className="text-muted-foreground">Güngören İstanbul</p>
+                    <p className="text-muted-foreground">Istanbul, Turkiye</p>
                   </div>
                 </div>
               </div>

@@ -3,7 +3,7 @@
 import React, { memo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Twitter, Instagram, Linkedin, Mail, MapPin, Phone, LucideIcon, Github, ArrowUpRight, Heart, Loader2, CheckCircle2 } from 'lucide-react';
+import { Twitter, Instagram, Linkedin, Mail, MapPin, LucideIcon, Github, ArrowUpRight, Heart, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
@@ -222,7 +222,7 @@ export const Footer: React.FC = memo(() => {
               </a>
               <div className="flex items-start gap-2 text-sm text-slate-500 dark:text-slate-400">
                 <MapPin size={14} className="mt-0.5 flex-shrink-0" />
-                <span>Güngören, İstanbul</span>
+                <span>Istanbul, Turkiye</span>
               </div>
             </div>
           </div>

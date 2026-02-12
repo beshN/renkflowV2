@@ -17,11 +17,6 @@ interface UnifiedNavbarProps {
   transparent?: boolean;
 }
 
-const MOBILE_QUICK_LINKS = [
-  { label: 'Sign in', href: '/auth/login' },
-  { label: 'Create account', href: '/signup' },
-];
-
 export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: UnifiedNavbarProps) => {
   const pathname = usePathname();
   const { setTheme, resolvedTheme } = useTheme();
@@ -61,6 +56,13 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
     }
     return pathname === href || pathname.startsWith(`${href}/`);
   };
+
+  const waitlistHref = pathname === '/coming-soon' ? '#waitlist' : '/#waitlist';
+  const ctaHref = PRIMARY_NAV_CTA.href === '#waitlist' ? waitlistHref : PRIMARY_NAV_CTA.href;
+  const mobileQuickLinks = [
+    { label: 'Join Waitlist', href: waitlistHref },
+    { label: 'Request Early Access', href: waitlistHref },
+  ];
 
   return (
     <>
@@ -126,7 +128,7 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
                 </button>
               )}
               <Link
-                href={PRIMARY_NAV_CTA.href}
+                href={ctaHref}
                 className="inline-flex h-11 items-center justify-center rounded-2xl border border-[color-mix(in_srgb,var(--rf-border)_94%,transparent)] bg-[color-mix(in_srgb,var(--rf-surface)_96%,transparent)] px-6 text-[15px] font-semibold text-[var(--rf-text)] shadow-[0_12px_32px_-26px_rgba(27,21,14,0.6)] transition-all hover:translate-y-[-1px] hover:shadow-[0_18px_36px_-24px_rgba(27,21,14,0.68)]"
               >
                 {PRIMARY_NAV_CTA.label}
@@ -191,9 +193,9 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
               </nav>
 
               <div className="mt-6 grid grid-cols-2 gap-2">
-                {MOBILE_QUICK_LINKS.map((link) => (
+                {mobileQuickLinks.map((link) => (
                   <Link
-                    key={link.href}
+                    key={`${link.label}-${link.href}`}
                     href={link.href}
                     className="inline-flex h-10 items-center justify-center rounded-xl border border-[color-mix(in_srgb,var(--rf-border)_88%,transparent)] text-sm font-medium text-[var(--rf-text-muted)]"
                   >
@@ -203,7 +205,7 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
               </div>
 
               <Link
-                href={PRIMARY_NAV_CTA.href}
+                href={ctaHref}
                 className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-2xl border border-[color-mix(in_srgb,var(--rf-border)_94%,transparent)] bg-[color-mix(in_srgb,var(--rf-surface)_96%,transparent)] px-4 text-sm font-semibold text-[var(--rf-text)]"
               >
                 {PRIMARY_NAV_CTA.label}

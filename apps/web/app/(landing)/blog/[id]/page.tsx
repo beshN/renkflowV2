@@ -161,14 +161,14 @@ export default function BlogDetailPage({ params }: { params: { id: string } }) {
             Daha fazlası için RenkFlow'u keşfedin
           </h2>
           <p className="mt-3 text-slate-600 dark:text-slate-400">
-            İş akışınızı optimize etmek ve ekibinizi hızlandırmak için RenkFlow çözümlerini deneyin.
+            Uretim odakli platformumuzu erken asamada denemek icin waitlist'e katilin.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
             <Link
-              href="/signup"
+              href="/#waitlist"
               className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_30px_-18px_rgba(184,116,68,0.7)] hover:opacity-90"
             >
-              Ücretsiz Başlayın
+              Join Waitlist
             </Link>
             <Link
               href="/contact"

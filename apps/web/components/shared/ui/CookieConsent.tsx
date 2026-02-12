@@ -73,24 +73,24 @@ export default function CookieConsent() {
     <AnimatePresence>
       {showBanner && (
         <motion.div
-          initial={{ y: 100, opacity: 0 }}
+          initial={{ y: 72, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="fixed bottom-0 left-0 right-0 z-50 p-3 md:p-5"
+          exit={{ y: 72, opacity: 0 }}
+          transition={{ duration: 0.35, ease: 'easeOut' }}
+          className="fixed bottom-3 left-0 right-0 z-50 px-3 sm:bottom-4 sm:px-4"
         >
-          <div className="max-w-5xl mx-auto bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-border-light dark:border-border-dark p-5 md:p-7">
-            <div className={`flex flex-col ${isRtl ? 'md:flex-row-reverse text-right' : 'md:flex-row text-left'} items-start md:items-center gap-6`}>
+          <div className="mx-auto max-w-4xl rounded-2xl border border-border-light bg-white/96 p-4 shadow-[0_30px_55px_-38px_rgba(12,18,32,0.75)] backdrop-blur-md dark:border-border-dark dark:bg-gray-900/92 sm:p-5">
+            <div className={`flex flex-col ${isRtl ? 'md:flex-row-reverse text-right' : 'md:flex-row text-left'} items-start gap-4 md:items-center md:gap-5`}>
               {/* Icon and Text */}
               <div className="flex items-start gap-4 flex-1">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <Cookie className="h-6 w-6 text-primary" />
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                  <Cookie className="h-5 w-5 text-primary" />
                 </div>
                 <div className={isRtl ? 'text-right' : 'text-left'}>
-                  <h3 className="font-bold text-lg text-text-light dark:text-text-dark mb-2">
+                  <h3 className="mb-1 font-semibold text-base text-text-light dark:text-text-dark sm:text-lg">
                     {text.title}
                   </h3>
-                  <p className="text-subtle-light dark:text-subtle-dark text-sm leading-relaxed">
+                  <p className="max-w-2xl text-sm leading-relaxed text-subtle-light dark:text-subtle-dark">
                     {text.description}{' '}
                     <Link href="/privacy" className="text-primary hover:underline">
                       {text.policy}
@@ -100,12 +100,12 @@ export default function CookieConsent() {
               </div>
 
               {/* Buttons */}
-              <div className={`flex flex-col sm:flex-row gap-3 w-full md:w-auto ${isRtl ? 'md:flex-row-reverse' : ''}`}>
+              <div className={`grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:w-auto ${isRtl ? 'md:flex-row-reverse' : ''}`}>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={acceptNecessary}
-                  className="px-6 py-3 rounded-lg border border-border-light dark:border-border-dark font-medium text-text-light dark:text-text-dark hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-sm whitespace-nowrap"
+                  className="h-10 rounded-lg border border-border-light px-4 text-sm font-medium text-text-light transition-colors hover:bg-gray-100 dark:border-border-dark dark:text-text-dark dark:hover:bg-gray-800 whitespace-nowrap"
                 >
                   {text.necessary}
                 </motion.button>
@@ -113,7 +113,7 @@ export default function CookieConsent() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={acceptAll}
-                  className="px-6 py-3 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors text-sm whitespace-nowrap"
+                  className="h-10 rounded-lg bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary/90 whitespace-nowrap"
                 >
                   {text.acceptAll}
                 </motion.button>

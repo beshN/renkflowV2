@@ -12,6 +12,6 @@ export const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
 ];
 
 export const PRIMARY_NAV_CTA = {
-  label: 'Request a quote',
-  href: '/contact?intent=quote',
+  label: 'Request Early Access',
+  href: '#waitlist',
 };

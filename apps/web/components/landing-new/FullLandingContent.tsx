@@ -3,7 +3,6 @@
 import React, { Suspense, memo } from 'react';
 import dynamic from 'next/dynamic';
 import { HeroSection } from './full/HeroSection';
-import { ClientsSection } from './full/ClientsSection';
 
 // Lazy load below-the-fold sections for faster initial page load
 const FeaturesGrid = dynamic(() => import('./full/FeaturesGrid').then(mod => ({ default: mod.FeaturesGrid })), {
@@ -58,9 +57,6 @@ export const FullLandingContent: React.FC = memo(() => {
       </div>
 
       <HeroSection />
-      <div className="cv-auto">
-        <ClientsSection />
-      </div>
       <Suspense fallback={<SectionSkeleton />}>
         <div className="cv-auto">
           <FeaturesGrid />
