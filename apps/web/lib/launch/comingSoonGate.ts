@@ -42,8 +42,8 @@ function isApiPath(pathname: string): boolean {
 export type MiddlewareAction =
   | { type: 'next' }
   | { type: 'subscribeOptions' }
-  | { type: 'rewrite'; destination: '/coming-soon' | '/auth/login' }
-  | { type: 'redirect'; destination: '/coming-soon' | '/auth/login' }
+  | { type: 'rewrite'; destination: '/coming-soon' | '/auth/login' | '/dashboard' }
+  | { type: 'redirect'; destination: '/coming-soon' | '/auth/login' | '/dashboard' }
   | { type: 'api404' };
 
 export function normalizePublicSiteMode(value: string | null | undefined): string {
@@ -59,10 +59,14 @@ export function evaluateComingSoonRequest(pathname: string, method: string, publ
     return { type: 'next' };
   }
 
-  // Dashboard-only launch mode:
-  // keep auth login + dashboard accessible while all other page routes are gated.
+  // Dashboard branch launch mode:
+  // keep all pages accessible, but hide login page by redirecting to dashboard.
   if (isApiPath(pathname)) {
     return { type: 'next' };
+  }
+
+  if (isLoginPath(pathname)) {
+    return { type: 'redirect', destination: '/dashboard' };
   }
 
   if (
@@ -70,15 +74,14 @@ export function evaluateComingSoonRequest(pathname: string, method: string, publ
     PUBLIC_PATHS.has(pathname) ||
     isPublicFile(pathname) ||
     isComingSoonPath(pathname) ||
-    isLoginPath(pathname) ||
     isDashboardPath(pathname)
   ) {
     return { type: 'next' };
   }
 
   if ((method === 'GET' || method === 'HEAD') && isRootPath(pathname)) {
-    return { type: 'rewrite', destination: '/auth/login' };
+    return { type: 'next' };
   }
 
-  return { type: 'redirect', destination: '/auth/login' };
+  return { type: 'next' };
 }
