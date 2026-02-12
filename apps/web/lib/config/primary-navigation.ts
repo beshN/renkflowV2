@@ -4,14 +4,14 @@ export type PrimaryNavItem = {
 };
 
 export const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
-  { label: 'About us', href: '/about' },
-  { label: 'Services', href: '/features' },
-  { label: 'Use Cases', href: '/docs' },
-  { label: 'Pricing', href: '/pricing' },
+  { label: 'Hakkimizda', href: '/about' },
+  { label: 'Ozellikler', href: '/features' },
+  { label: 'Kullanim Senaryolari', href: '/docs' },
+  { label: 'Fiyatlandirma', href: '/pricing' },
   { label: 'Blog', href: '/blog' },
 ];
 
 export const PRIMARY_NAV_CTA = {
-  label: 'Request Early Access',
-  href: '#waitlist',
+  label: 'Giris Yap',
+  href: '/auth/login',
 };

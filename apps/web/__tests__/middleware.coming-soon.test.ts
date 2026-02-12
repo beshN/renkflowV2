@@ -16,6 +16,11 @@ describe('Coming soon middleware', () => {
     expect(action).toEqual({ type: 'next' });
   });
 
+  it('bypasses coming-soon gate on dashboard preview host', () => {
+    const action = evaluateComingSoonRequest('/pricing', 'GET', 'coming-soon', '', 'renkflow-dashboard-preview.vercel.app');
+    expect(action).toEqual({ type: 'next' });
+  });
+
   it('rewrites root to coming soon in launch mode', () => {
     const action = evaluateComingSoonRequest('/', 'GET', 'coming-soon');
     expect(action).toEqual({ type: 'rewrite', destination: '/coming-soon' });
@@ -28,6 +33,11 @@ describe('Coming soon middleware', () => {
 
   it('allows direct coming-soon page access', () => {
     const action = evaluateComingSoonRequest('/coming-soon', 'GET', 'coming-soon');
+    expect(action).toEqual({ type: 'next' });
+  });
+
+  it('allows login path in coming-soon mode', () => {
+    const action = evaluateComingSoonRequest('/auth/login', 'GET', 'coming-soon');
     expect(action).toEqual({ type: 'next' });
   });
 

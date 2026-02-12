@@ -9,11 +9,7 @@ export const Pricing: React.FC = () => {
   const [annual, setAnnual] = useState(true);
 
   return (
-    <section className="py-24 bg-white/90 dark:bg-slate-950 relative overflow-hidden" id="pricing">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_10%,rgba(184,116,68,0.12),transparent_45%),radial-gradient(circle_at_20%_20%,rgba(16,185,129,0.1),transparent_45%)]"
-      />
+    <section className="relative overflow-hidden bg-white py-24 dark:bg-slate-950" id="pricing">
       <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 relative z-10">
         
         {/* Header */}
@@ -54,8 +50,8 @@ export const Pricing: React.FC = () => {
                     <span className="text-4xl font-bold text-slate-900 dark:text-white">₺{annual ? '490' : '590'}</span>
                     <span className="text-slate-500">/ay</span>
                 </div>
-                <Link href="/#waitlist" className="block rounded-xl border border-slate-300 px-4 py-3 text-center text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800">
-                  Join Waitlist
+                <Link href="/auth/login" className="block rounded-xl border border-slate-300 px-4 py-3 text-center text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800">
+                  Giris Yap
                 </Link>
                 <ul className="mt-8 space-y-4 text-sm text-slate-600 dark:text-slate-400">
                     <li className="flex gap-3"><Check size={18} className="text-sky-600" /> 5 Kullanıcı</li>
@@ -76,8 +72,8 @@ export const Pricing: React.FC = () => {
                     <span className="text-4xl font-bold">₺{annual ? '990' : '1190'}</span>
                     <span className="text-slate-300">/ay</span>
                 </div>
-                <Link href="/#waitlist" className="block rounded-xl bg-white px-4 py-3 text-center text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-100">
-                  Request Early Access
+                <Link href="/contact" className="block rounded-xl bg-white px-4 py-3 text-center text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-100">
+                  Demo Talep Et
                 </Link>
                 <ul className="mt-8 space-y-4 text-sm text-slate-100">
                     <li className="flex gap-3"><Check size={18} className="text-white/80" /> 20 Kullanıcı</li>

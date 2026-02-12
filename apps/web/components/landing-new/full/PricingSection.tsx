@@ -85,8 +85,8 @@ export const PricingSection: React.FC = () => {
                     <span className="text-4xl font-bold text-slate-900 dark:text-white">₺{annual ? '490' : '590'}</span>
                     <span className="text-slate-500">/ay</span>
                 </div>
-                <Link href="#waitlist" className="block w-full rounded-xl border border-slate-300 py-3 text-center font-semibold transition-colors hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800">
-                    Join Waitlist
+                <Link href="/auth/login" className="block w-full rounded-xl border border-slate-300 py-3 text-center font-semibold transition-colors hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800">
+                    Giris Yap
                 </Link>
                 <ul className="mt-8 space-y-4 text-sm text-slate-600 dark:text-slate-400">
                     <li className="flex gap-3"><Check size={18} className="text-sky-600 flex-shrink-0" /> 5 Kullanıcı</li>
@@ -113,8 +113,8 @@ export const PricingSection: React.FC = () => {
                     <span className="text-4xl font-bold">₺{annual ? '990' : '1190'}</span>
                     <span className="text-slate-300">/ay</span>
                 </div>
-                <Link href="#waitlist" className="block w-full rounded-xl bg-white py-3 text-center font-semibold text-slate-900 shadow-lg shadow-blue-900/20 transition-colors hover:bg-slate-100">
-                    Request Early Access
+                <Link href="/contact" className="block w-full rounded-xl bg-white py-3 text-center font-semibold text-slate-900 shadow-lg shadow-blue-900/20 transition-colors hover:bg-slate-100">
+                    Demo Talep Et
                 </Link>
                 <ul className="mt-8 space-y-4 text-sm text-slate-100">
                     <li className="flex gap-3"><Check size={18} className="text-white/80 flex-shrink-0" /> 20 Kullanıcı</li>

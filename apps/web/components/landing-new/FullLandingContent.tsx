@@ -44,17 +44,7 @@ SectionSkeleton.displayName = 'SectionSkeleton';
 
 export const FullLandingContent: React.FC = memo(() => {
   return (
-    <div className="rf-app-shell relative overflow-hidden">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute left-0 top-0 h-[520px] w-full bg-[radial-gradient(circle_at_20%_20%,rgba(184,116,68,0.18),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.18),transparent_40%),linear-gradient(180deg,rgba(15,23,42,0.03),transparent_45%)] dark:bg-[radial-gradient(circle_at_20%_20%,rgba(214,168,133,0.15),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(45,212,191,0.14),transparent_40%),linear-gradient(180deg,rgba(15,23,42,0.35),transparent_55%)]"
-      />
-      {/* Aurora Blobs - GPU accelerated */}
-      <div className="absolute top-0 left-0 w-full h-[500px] overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-400/30 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob will-change-transform" />
-        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-400/30 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000 will-change-transform" />
-        <div className="absolute bottom-[-20%] left-[20%] w-[40%] h-[40%] bg-emerald-400/30 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000 will-change-transform" />
-      </div>
+    <div className="rf-app-shell relative overflow-hidden bg-slate-50 dark:bg-slate-950">
 
       <HeroSection />
       <Suspense fallback={<SectionSkeleton />}>

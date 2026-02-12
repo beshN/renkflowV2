@@ -57,11 +57,10 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
-  const waitlistHref = pathname === '/coming-soon' ? '#waitlist' : '/#waitlist';
-  const ctaHref = PRIMARY_NAV_CTA.href === '#waitlist' ? waitlistHref : PRIMARY_NAV_CTA.href;
+  const ctaHref = PRIMARY_NAV_CTA.href;
   const mobileQuickLinks = [
-    { label: 'Join Waitlist', href: waitlistHref },
-    { label: 'Request Early Access', href: waitlistHref },
+    { label: 'Giris Yap', href: '/auth/login' },
+    { label: 'Demo Talep Et', href: '/contact' },
   ];
 
   return (
@@ -86,12 +85,12 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
               )}
             >
               <Image
-                src="/email-assets/header-logo.png"
+                src="/renkflow-logo-new.png"
                 alt="RenkFlow"
-                width={442}
-                height={88}
-                sizes={largeLogo ? '(max-width: 768px) 150px, 190px' : '(max-width: 768px) 150px, 180px'}
-                className="h-8 w-auto object-contain md:h-9"
+                width={210}
+                height={56}
+                sizes={largeLogo ? '(max-width: 768px) 150px, 190px' : '(max-width: 768px) 140px, 180px'}
+                className="h-9 w-auto object-contain"
                 priority
               />
             </Link>

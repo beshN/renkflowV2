@@ -11,64 +11,51 @@ export const HeroSection: React.FC = () => {
   const isDark = resolvedTheme === 'dark';
 
   return (
-    <main className="relative flex min-h-[calc(100svh-4.5rem)] items-center overflow-hidden pb-16 pt-24 md:pt-28 lg:pb-20 lg:pt-32">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -left-24 top-24 h-72 w-72 rounded-full bg-gradient-to-br from-sky-400/30 via-cyan-400/10 to-transparent blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute right-0 top-10 h-80 w-80 translate-x-1/4 rounded-full bg-gradient-to-br from-emerald-300/25 via-sky-400/10 to-transparent blur-3xl"
-      />
+    <main className="relative flex min-h-[calc(100svh-4.5rem)] items-center pb-14 pt-24 md:pt-28 lg:pb-20 lg:pt-32">
       <div className="rf-page-wrap">
-        <div className="rf-hero-grid">
+        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-            className="relative z-10 text-center md:text-left"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+            className="text-center lg:text-left"
           >
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/70 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-600 shadow-sm shadow-sky-200/40 backdrop-blur dark:border-sky-500/20 dark:bg-slate-900/70 dark:text-slate-300">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Currently in Private Beta
+            <div className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+              Uretim Operasyon Platformu
             </div>
 
-            <h1 className="mt-6 text-balance text-5xl font-bold leading-[1.03] tracking-[-0.03em] text-slate-900 dark:text-white md:text-6xl lg:text-7xl">
-              RenkFlow: The Operating System for Modern Production.
+            <h1 className="mt-5 text-balance text-4xl font-bold leading-tight text-slate-900 dark:text-white sm:text-5xl lg:text-6xl">
+              Uretim, stok ve ekip yonetimini tek platformda birlestirin.
             </h1>
 
-            <p className="mx-auto mt-6 max-w-xl text-lg text-slate-600 dark:text-slate-400 md:mx-0 md:text-xl">
-              Streamline your production workflows, track inventory, and manage teams in one visual platform.
-              The flexibility of Trello, built for manufacturers.
+            <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-slate-600 dark:text-slate-300 lg:mx-0 lg:text-lg">
+              RenkFlow; siparisten sevkiyata kadar sureci gorunur hale getirir, ekipler arasi koordinasyonu
+              hizlandirir ve operasyonu sade bir yapida toplar.
             </p>
 
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-4 md:justify-start">
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
               <Link
-                href="#waitlist"
-                className="rounded-full bg-slate-900 px-10 py-4 text-lg font-semibold text-white shadow-[0_20px_45px_-18px_rgba(15,23,42,0.6)] transition-transform hover:scale-[1.03]"
+                href="/auth/login"
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-slate-900 px-6 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                Join Waitlist
+                Giris Yap
               </Link>
               <Link
-                href="#waitlist"
-                className="font-semibold text-slate-700 transition-colors hover:text-emerald-500 dark:text-slate-300 dark:hover:text-emerald-400"
+                href="/contact"
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 px-6 text-sm font-semibold text-slate-800 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
               >
-                Request Early Access
+                Demo Talep Et
               </Link>
             </div>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="relative flex items-center justify-end perspective-[2000px] lg:-mr-[2.5vw]"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.05 }}
+            className="relative"
           >
-            <div
-              className="absolute inset-0 animate-pulse bg-[radial-gradient(circle_at_50%_50%,rgba(184,116,68,0.18),transparent_65%)] dark:bg-[radial-gradient(circle_at_50%_50%,rgba(214,168,133,0.25),transparent_70%)]"
-              style={{ animationDuration: '4s' }}
-            />
-            <div className="w-full max-w-[900px] lg:w-[min(58vw,900px)]">
+            <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <DashboardPreview isDark={isDark} />
             </div>
           </motion.div>

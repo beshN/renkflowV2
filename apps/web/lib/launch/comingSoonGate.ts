@@ -51,6 +51,15 @@ function isDashboardBranch(branchName: string | null | undefined): boolean {
   return normalizeBranchName(branchName) === 'dashboard';
 }
 
+function normalizeHostName(value: string | null | undefined): string {
+  return (value || '').trim().toLowerCase();
+}
+
+function isDashboardPreviewHost(hostName: string | null | undefined): boolean {
+  const normalized = normalizeHostName(hostName);
+  return normalized.includes('dashboard');
+}
+
 export type MiddlewareAction =
   | { type: 'next' }
   | { type: 'subscribeOptions' }
@@ -70,9 +79,10 @@ export function evaluateComingSoonRequest(
   pathname: string,
   method: string,
   publicSiteMode: string,
-  branchName?: string | null
+  branchName?: string | null,
+  hostName?: string | null
 ): MiddlewareAction {
-  if (isDashboardBranch(branchName)) {
+  if (isDashboardBranch(branchName) || isDashboardPreviewHost(hostName)) {
     return { type: 'next' };
   }
 
@@ -97,7 +107,8 @@ export function evaluateComingSoonRequest(
     isNextInternalPath(pathname) ||
     PUBLIC_PATHS.has(pathname) ||
     isPublicFile(pathname) ||
-    isComingSoonPath(pathname)
+    isComingSoonPath(pathname) ||
+    isLoginPath(pathname)
   ) {
     return { type: 'next' };
   }
@@ -106,7 +117,7 @@ export function evaluateComingSoonRequest(
     return { type: 'rewrite', destination: '/coming-soon' };
   }
 
-  if (isLoginPath(pathname) || isDashboardPath(pathname) || method === 'GET' || method === 'HEAD') {
+  if (isDashboardPath(pathname) || method === 'GET' || method === 'HEAD') {
     return { type: 'redirect', destination: '/coming-soon' };
   }
 
