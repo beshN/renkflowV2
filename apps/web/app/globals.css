@@ -104,6 +104,133 @@
     border-bottom: 1px solid color-mix(in srgb, var(--rf-border) 86%, transparent);
     backdrop-filter: blur(14px);
   }
+
+  .rf-dashboard-shell {
+    --rf-bg: #f3f6fb;
+    --rf-bg-muted: #eef2f8;
+    --rf-surface: #ffffff;
+    --rf-surface-soft: #f8fafc;
+    --rf-border: #d8e1ec;
+    --rf-text: #0f172a;
+    --rf-text-muted: #475569;
+    --rf-accent: #0f4c81;
+    --rf-accent-strong: #0b2f53;
+    --rf-brand-50: #edf4fb;
+    --rf-brand-100: #dceaf7;
+    --rf-brand-500: #3b78ad;
+    --rf-brand-600: #2f6898;
+    --rf-brand-700: #25557d;
+    --rf-brand-900: #16324d;
+    --rf-success: #0f8f61;
+    --rf-warning: #b7791f;
+    --rf-danger: #c03e3e;
+    --rf-focus-ring: rgba(59, 120, 173, 0.24);
+    --rf-shadow: 0 24px 54px -42px rgba(15, 23, 42, 0.28);
+    --rf-shadow-soft: 0 16px 34px -28px rgba(15, 23, 42, 0.18);
+    --rf-radius: 0.875rem;
+  }
+
+  .dark .rf-dashboard-shell {
+    --rf-bg: #0b1220;
+    --rf-bg-muted: #111a2a;
+    --rf-surface: #131c2b;
+    --rf-surface-soft: #172234;
+    --rf-border: #253247;
+    --rf-text: #e6edf7;
+    --rf-text-muted: #9fb0c7;
+    --rf-accent: #74a8dd;
+    --rf-accent-strong: #98c5f0;
+    --rf-brand-50: #1a2b40;
+    --rf-brand-100: #233751;
+    --rf-brand-500: #4c90c7;
+    --rf-brand-600: #3f7dae;
+    --rf-brand-700: #31618c;
+    --rf-brand-900: #d6e7f7;
+    --rf-success: #5fd0a3;
+    --rf-warning: #e7b86a;
+    --rf-danger: #f08c8c;
+    --rf-focus-ring: rgba(76, 144, 199, 0.28);
+    --rf-shadow: 0 28px 56px -38px rgba(2, 6, 23, 0.76);
+    --rf-shadow-soft: 0 18px 34px -26px rgba(2, 6, 23, 0.6);
+  }
+
+  .rf-dashboard-shell .rf-panel {
+    background-color: var(--rf-surface);
+    border-color: color-mix(in srgb, var(--rf-border) 92%, transparent);
+    box-shadow: var(--rf-shadow-soft);
+  }
+
+  .rf-dashboard-shell .rf-panel-soft {
+    background-color: var(--rf-surface-soft);
+    border-color: color-mix(in srgb, var(--rf-border) 90%, transparent);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--rf-surface) 42%, transparent);
+  }
+
+  .rf-dashboard-shell .rf-topbar {
+    background-color: color-mix(in srgb, var(--rf-surface) 94%, transparent);
+    border-bottom-color: color-mix(in srgb, var(--rf-border) 88%, transparent);
+    box-shadow: 0 10px 24px -22px rgba(15, 23, 42, 0.5);
+    backdrop-filter: saturate(145%) blur(8px);
+  }
+
+  .rf-dashboard-shell .glass,
+  .rf-dashboard-shell .glass-panel,
+  .rf-dashboard-shell .glass-button,
+  .rf-dashboard-shell .glass-card {
+    backdrop-filter: none;
+    background: var(--rf-surface);
+    border-color: color-mix(in srgb, var(--rf-border) 92%, transparent);
+    box-shadow: var(--rf-shadow-soft);
+  }
+
+  .rf-dashboard-shell .rf-btn-brand {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.625rem;
+    border: 1px solid color-mix(in srgb, var(--rf-brand-700) 54%, transparent);
+    background: linear-gradient(180deg, var(--rf-brand-600) 0%, var(--rf-brand-700) 100%);
+    color: #fff;
+    font-weight: 600;
+    line-height: 1.15;
+    box-shadow: 0 12px 20px -18px color-mix(in srgb, var(--rf-brand-900) 70%, transparent);
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .rf-dashboard-shell .rf-btn-brand:hover {
+    border-color: color-mix(in srgb, var(--rf-brand-700) 66%, transparent);
+    transform: translateY(-1px);
+    box-shadow: 0 14px 24px -18px color-mix(in srgb, var(--rf-brand-900) 72%, transparent);
+  }
+
+  .rf-dashboard-shell .rf-btn-subtle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.625rem;
+    border: 1px solid color-mix(in srgb, var(--rf-border) 85%, transparent);
+    background: color-mix(in srgb, var(--rf-surface) 96%, transparent);
+    color: color-mix(in srgb, var(--rf-text) 88%, transparent);
+    font-weight: 600;
+    line-height: 1.15;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+
+  .rf-dashboard-shell .rf-btn-subtle:hover {
+    background: color-mix(in srgb, var(--rf-brand-50) 64%, var(--rf-surface) 36%);
+    border-color: color-mix(in srgb, var(--rf-brand-600) 30%, var(--rf-border) 70%);
+    color: color-mix(in srgb, var(--rf-brand-700) 78%, var(--rf-text) 22%);
+  }
+
+  .rf-dashboard-shell .rf-badge-brand {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--rf-brand-600) 30%, var(--rf-border) 70%);
+    background: color-mix(in srgb, var(--rf-brand-50) 56%, var(--rf-surface) 44%);
+    color: color-mix(in srgb, var(--rf-brand-700) 85%, var(--rf-text) 15%);
+    font-weight: 600;
+  }
 }
 
 @layer base {
@@ -114,7 +241,7 @@
   select:focus-visible,
   [role="button"]:focus-visible,
   [tabindex]:focus-visible {
-    outline: 2px solid rgba(140, 94, 64, 0.58);
+    outline: 2px solid color-mix(in srgb, var(--rf-accent) 65%, transparent);
     outline-offset: 4px;
   }
 
@@ -125,7 +252,7 @@
   .dark select:focus-visible,
   .dark [role="button"]:focus-visible,
   .dark [tabindex]:focus-visible {
-    outline-color: rgba(221, 177, 143, 0.65);
+    outline-color: color-mix(in srgb, var(--rf-accent-strong) 62%, transparent);
   }
 
 }

@@ -19,36 +19,51 @@ type InventoryWidgetData = Awaited<ReturnType<typeof getSuperDashboardInventoryW
 type ActivityWidgetData = Awaited<ReturnType<typeof getSuperDashboardActivityWidget>>;
 
 function InventoryWidgetSection({ inventory }: { inventory: InventoryWidgetData }) {
-
   if (!inventory.authorized) {
     return (
-      <section className="rf-panel rounded-3xl p-5">
-        <h3 className="text-base font-semibold text-slate-900 dark:text-white">Envanter</h3>
-        <p className="text-sm text-slate-500 mt-2">Bu widget için yetkiniz bulunmuyor.</p>
+      <section className="rf-panel rounded-xl p-6">
+        <h3 className="text-base font-semibold text-slate-900 dark:text-white">Envanter İzleme</h3>
+        <p className="mt-2 text-sm text-slate-500">Bu widget için yetkiniz bulunmuyor.</p>
       </section>
     );
   }
 
   return (
-    <section className="rf-panel rounded-3xl p-5">
-      <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold text-slate-900 dark:text-white">Envanter</h3>
-        <Link href="/inventory?low=1&active=1" className="text-xs text-primary-600 hover:underline">Detay</Link>
+    <section className="rf-panel rounded-xl p-6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-slate-900 dark:text-white">Envanter İzleme</h3>
+          <p className="mt-1 text-xs uppercase tracking-[0.08em] text-slate-500">Kritik stok listesi</p>
+        </div>
+        <Link
+          href="/inventory?low=1&active=1"
+          className="rounded-md border border-slate-300/80 dark:border-slate-700/80 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+        >
+          Detaylar
+        </Link>
       </div>
 
-      <p className="text-sm text-slate-500 mt-1">Düşük stok kalemi: <span className="font-semibold text-amber-600">{inventory.lowStockCount}</span></p>
+      <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">
+        Düşük stok kalemi:{' '}
+        <span className="font-semibold text-amber-700 dark:text-amber-400">{inventory.lowStockCount}</span>
+      </p>
 
-      <div className="mt-4 space-y-2">
+      <div className="mt-4 space-y-2.5">
         {inventory.topLowStock.length === 0 ? (
           <p className="text-sm text-slate-500">Düşük stok kaydı bulunmuyor.</p>
         ) : (
           inventory.topLowStock.map((item) => (
-            <div key={item.itemId} className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-slate-800 px-3 py-2">
+            <div
+              key={item.itemId}
+              className="flex items-center justify-between rounded-lg border border-slate-200/80 dark:border-slate-700/70 bg-slate-50/65 dark:bg-slate-900/40 px-3.5 py-3"
+            >
               <div>
                 <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{item.name}</p>
-                <p className="text-xs text-slate-500 font-mono">{item.sku}</p>
+                <p className="font-mono text-xs text-slate-500">{item.sku}</p>
               </div>
-              <p className="text-sm text-amber-700 dark:text-amber-400">{item.currentStock} / {item.minStock}</p>
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                {item.currentStock} / {item.minStock}
+              </p>
             </div>
           ))
         )}
@@ -58,28 +73,35 @@ function InventoryWidgetSection({ inventory }: { inventory: InventoryWidgetData 
 }
 
 function ActivityWidgetSection({ activity }: { activity: ActivityWidgetData }) {
-
   if (!activity.authorized) {
     return (
-      <section className="rf-panel rounded-3xl p-5">
+      <section className="rf-panel rounded-xl p-6">
         <h3 className="text-base font-semibold text-slate-900 dark:text-white">Son Aktivite</h3>
-        <p className="text-sm text-slate-500 mt-2">Bu widget için yetkiniz bulunmuyor.</p>
+        <p className="mt-2 text-sm text-slate-500">Bu widget için yetkiniz bulunmuyor.</p>
       </section>
     );
   }
 
   return (
-    <section className="rf-panel rounded-3xl p-5">
-      <h3 className="text-base font-semibold text-slate-900 dark:text-white">Son Aktivite</h3>
+    <section className="rf-panel rounded-xl p-6">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-base font-semibold text-slate-900 dark:text-white">Son Aktivite</h3>
+        <span className="rounded-md border border-slate-300/75 dark:border-slate-700/80 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+          {activity.events.length} kayıt
+        </span>
+      </div>
 
-      <div className="mt-3 space-y-2">
+      <div className="mt-4 space-y-2.5">
         {activity.events.length === 0 ? (
           <p className="text-sm text-slate-500">Aktivite bulunmuyor.</p>
         ) : (
           activity.events.map((event) => (
-            <div key={event.id} className="rounded-lg border border-slate-100 dark:border-slate-800 p-3">
+            <div
+              key={event.id}
+              className="rounded-lg border border-slate-200/80 dark:border-slate-700/70 bg-slate-50/65 dark:bg-slate-900/40 p-3.5"
+            >
               <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{event.action}</p>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="mt-1 text-xs text-slate-500">
                 {event.userEmail || 'Sistem'} • {new Date(event.createdAt).toLocaleString('tr-TR')}
               </p>
             </div>
@@ -99,7 +121,6 @@ export default async function DashboardPage() {
       getSuperDashboardActivityWidget(),
     ]);
   } catch (error: unknown) {
-    // Handle authentication/authorization errors by redirecting to login
     const errorMessage = error instanceof Error ? error.message : String(error);
     if (
       errorMessage.includes('Oturum açmanız gerekiyor') ||
@@ -108,7 +129,7 @@ export default async function DashboardPage() {
     ) {
       redirect('/auth/login');
     }
-    // Re-throw other errors to be caught by error boundary
+
     throw error;
   }
 
@@ -117,85 +138,163 @@ export default async function DashboardPage() {
   const productionPct = totalStatus ? Math.round((data.orders.byStatus.inProduction / totalStatus) * 100) : 0;
   const deliveredPct = totalStatus ? Math.round((data.orders.byStatus.delivered / totalStatus) * 100) : 0;
 
+  const updatedAt = new Intl.DateTimeFormat('tr-TR', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  }).format(new Date());
+
+  const quickLinks = [
+    { href: '/orders', label: 'Siparişler', emphasis: true },
+    { href: '/work-orders', label: 'İş Emirleri' },
+    { href: '/inventory', label: 'Envanter' },
+    { href: '/finance', label: 'Finans' },
+  ];
+
   return (
-    <div className="flex-1 flex flex-col min-h-screen">
+    <div className="flex min-h-screen flex-1 flex-col">
       <Navbar title="Dashboard" showSearch={false} />
 
-      <main className="flex-1 p-4 md:p-8 pt-16 md:pt-8 space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Super Dashboard</h1>
-            <p className="text-sm text-slate-500 mt-1">Tenant-scope aggregate metrikler (45 sn cache)</p>
+      <main className="flex-1 space-y-6 p-4 pt-16 md:p-8 md:pt-8">
+        <section className="rf-panel rounded-xl p-5 md:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[color-mix(in_srgb,var(--rf-brand-700)_84%,var(--rf-text)_16%)]">
+                Operasyon Kontrol Merkezi
+              </p>
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                Genel Operasyon Özeti
+              </h1>
+              <p className="max-w-2xl text-sm text-slate-600 dark:text-slate-400">
+                Sipariş, finans, envanter ve aktivite metrikleri tek ekranda konsolide edilmiştir.
+              </p>
+            </div>
+
+            <div className="rf-badge-brand px-3.5 py-2 text-xs">
+              Son güncelleme: {updatedAt}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/orders" className="rounded-full border border-slate-300/90 dark:border-slate-700 px-3.5 py-2 text-sm bg-white/80 dark:bg-slate-900/70 hover:border-primary-400 hover:text-primary-700 transition-colors">Siparişler</Link>
-            <Link href="/work-orders" className="rounded-full border border-slate-300/90 dark:border-slate-700 px-3.5 py-2 text-sm bg-white/80 dark:bg-slate-900/70 hover:border-primary-400 hover:text-primary-700 transition-colors">İş Emirleri</Link>
-            <Link href="/inventory" className="rounded-full border border-slate-300/90 dark:border-slate-700 px-3.5 py-2 text-sm bg-white/80 dark:bg-slate-900/70 hover:border-primary-400 hover:text-primary-700 transition-colors">Envanter</Link>
-            <Link href="/finance" className="rounded-full border border-slate-300/90 dark:border-slate-700 px-3.5 py-2 text-sm bg-white/80 dark:bg-slate-900/70 hover:border-primary-400 hover:text-primary-700 transition-colors">Finans</Link>
+
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            {quickLinks.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`px-3 py-1.5 text-sm ${item.emphasis ? 'rf-btn-brand' : 'rf-btn-subtle'}`}
+              >
+                {item.label}
+              </Link>
+            ))}
           </div>
-        </div>
+        </section>
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-          <article className="rf-panel rounded-3xl p-4">
-            <p className="text-xs uppercase text-slate-500">Bugün Açılan Sipariş</p>
-            <p className="text-3xl font-bold mt-2">{data.orders.authorized ? data.orders.createdToday : '-'}</p>
+        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <article className="rf-panel rounded-xl p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Bugün Açılan Sipariş</p>
+            <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              {data.orders.authorized ? data.orders.createdToday.toLocaleString('tr-TR') : '-'}
+            </p>
+            <p className="mt-2 text-xs text-slate-500">Günlük operasyon giriş hacmi</p>
           </article>
 
-          <article className="rf-panel rounded-3xl p-4">
-            <p className="text-xs uppercase text-slate-500">Bu Hafta Sipariş</p>
-            <p className="text-3xl font-bold mt-2">{data.orders.authorized ? data.orders.createdThisWeek : '-'}</p>
+          <article className="rf-panel rounded-xl p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Bu Hafta Sipariş</p>
+            <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              {data.orders.authorized ? data.orders.createdThisWeek.toLocaleString('tr-TR') : '-'}
+            </p>
+            <p className="mt-2 text-xs text-slate-500">Haftalık üretim planlama girdisi</p>
           </article>
 
-          <article className="rf-panel rounded-3xl p-4">
-            <p className="text-xs uppercase text-slate-500">Bu Ay Tahsilat</p>
-            <p className="text-2xl font-bold mt-2">{data.finance.authorized ? formatMoney(data.finance.paymentsCollectedThisMonth) : '-'}</p>
+          <article className="rf-panel rounded-xl p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Bu Ay Tahsilat</p>
+            <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              {data.finance.authorized ? formatMoney(data.finance.paymentsCollectedThisMonth) : '-'}
+            </p>
+            <p className="mt-2 text-xs text-slate-500">Cari dönem tahsilat performansı</p>
           </article>
 
-          <article className="rf-panel rounded-3xl p-4">
-            <p className="text-xs uppercase text-slate-500">Açık Alacak</p>
-            <p className="text-2xl font-bold mt-2">{data.finance.authorized ? formatMoney(data.finance.outstandingReceivables) : '-'}</p>
+          <article className="rf-panel rounded-xl p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Açık Alacak</p>
+            <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              {data.finance.authorized ? formatMoney(data.finance.outstandingReceivables) : '-'}
+            </p>
+            <p className="mt-2 text-xs text-slate-500">Tahsilat aksiyon öncelik listesi</p>
           </article>
         </section>
 
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <article className="rf-panel rounded-3xl p-5">
-            <h3 className="text-base font-semibold text-slate-900 dark:text-white">Sipariş Durum Dağılımı</h3>
+        <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+          <article className="rf-panel rounded-xl p-6 xl:col-span-7">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white">Sipariş Durum Dağılımı</h3>
+              <span className="rounded-md border border-slate-300/75 dark:border-slate-700/80 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+                Toplam: {totalStatus}
+              </span>
+            </div>
+
             {!data.orders.authorized ? (
-              <p className="text-sm text-slate-500 mt-2">Bu widget için yetkiniz bulunmuyor.</p>
+              <p className="mt-3 text-sm text-slate-500">Bu widget için yetkiniz bulunmuyor.</p>
             ) : (
-              <div className="mt-4 space-y-3">
+              <div className="mt-5 space-y-4">
                 <div>
-                  <div className="flex items-center justify-between text-sm mb-1"><span>Beklemede</span><span>{data.orders.byStatus.pending} ({pendingPct}%)</span></div>
-                  <div className="h-2 rounded bg-slate-100 dark:bg-slate-800 overflow-hidden"><div className="h-full bg-amber-500" style={{ width: `${pendingPct}%` }} /></div>
+                  <div className="mb-1.5 flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
+                    <span>Beklemede</span>
+                    <span className="font-medium">{data.orders.byStatus.pending} ({pendingPct}%)</span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                    <div className="h-full" style={{ width: `${pendingPct}%`, backgroundColor: 'var(--rf-warning)' }} />
+                  </div>
                 </div>
+
                 <div>
-                  <div className="flex items-center justify-between text-sm mb-1"><span>Üretimde</span><span>{data.orders.byStatus.inProduction} ({productionPct}%)</span></div>
-                  <div className="h-2 rounded bg-slate-100 dark:bg-slate-800 overflow-hidden"><div className="h-full bg-primary-500" style={{ width: `${productionPct}%` }} /></div>
+                  <div className="mb-1.5 flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
+                    <span>Üretimde</span>
+                    <span className="font-medium">{data.orders.byStatus.inProduction} ({productionPct}%)</span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                    <div className="h-full" style={{ width: `${productionPct}%`, backgroundColor: 'var(--rf-brand-600)' }} />
+                  </div>
                 </div>
+
                 <div>
-                  <div className="flex items-center justify-between text-sm mb-1"><span>Teslim</span><span>{data.orders.byStatus.delivered} ({deliveredPct}%)</span></div>
-                  <div className="h-2 rounded bg-slate-100 dark:bg-slate-800 overflow-hidden"><div className="h-full bg-emerald-500" style={{ width: `${deliveredPct}%` }} /></div>
+                  <div className="mb-1.5 flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
+                    <span>Teslim</span>
+                    <span className="font-medium">{data.orders.byStatus.delivered} ({deliveredPct}%)</span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                    <div className="h-full" style={{ width: `${deliveredPct}%`, backgroundColor: 'var(--rf-success)' }} />
+                  </div>
                 </div>
-                <div className="pt-2 text-sm text-red-600">Geciken teslim: {data.orders.overdueDeliveries}</div>
+
+                <div className="rounded-md border px-3 py-2 text-sm" style={{ borderColor: 'color-mix(in srgb, var(--rf-danger) 40%, var(--rf-border) 60%)', color: 'var(--rf-danger)', backgroundColor: 'color-mix(in srgb, var(--rf-danger) 10%, transparent)' }}>
+                  Geciken teslim: {data.orders.overdueDeliveries}
+                </div>
               </div>
             )}
           </article>
 
-          <article className="rf-panel rounded-3xl p-5">
+          <article className="rf-panel rounded-xl p-6 xl:col-span-5">
             <h3 className="text-base font-semibold text-slate-900 dark:text-white">Finans Özeti</h3>
             {!data.finance.authorized ? (
-              <p className="text-sm text-slate-500 mt-2">Bu widget için yetkiniz bulunmuyor.</p>
+              <p className="mt-3 text-sm text-slate-500">Bu widget için yetkiniz bulunmuyor.</p>
             ) : (
-              <div className="mt-4 space-y-3 text-sm">
-                <div className="flex items-center justify-between"><span>Bu ay tahsilat</span><strong>{formatMoney(data.finance.paymentsCollectedThisMonth)}</strong></div>
-                <div className="flex items-center justify-between"><span>Açık alacak</span><strong>{formatMoney(data.finance.outstandingReceivables)}</strong></div>
-                <div className="flex items-center justify-between"><span>Bu ay bordro</span><strong>{formatMoney(data.finance.payrollCostThisMonth)}</strong></div>
+              <div className="mt-5 divide-y divide-slate-200/75 dark:divide-slate-700/70 text-sm">
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-slate-600 dark:text-slate-400">Bu ay tahsilat</span>
+                  <strong className="text-slate-900 dark:text-slate-100">{formatMoney(data.finance.paymentsCollectedThisMonth)}</strong>
+                </div>
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-slate-600 dark:text-slate-400">Açık alacak</span>
+                  <strong className="text-slate-900 dark:text-slate-100">{formatMoney(data.finance.outstandingReceivables)}</strong>
+                </div>
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-slate-600 dark:text-slate-400">Bu ay bordro</span>
+                  <strong className="text-slate-900 dark:text-slate-100">{formatMoney(data.finance.payrollCostThisMonth)}</strong>
+                </div>
               </div>
             )}
           </article>
         </section>
 
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <InventoryWidgetSection inventory={inventory} />
           <ActivityWidgetSection activity={activity} />
         </section>

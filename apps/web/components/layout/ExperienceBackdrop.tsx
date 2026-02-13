@@ -128,6 +128,7 @@ function getMood(variant: SurfaceVariant, pathname: string): MoodLayer {
 export function ExperienceBackdrop({ variant }: ExperienceBackdropProps) {
   const pathname = usePathname();
   const mood = useMemo(() => getMood(variant, pathname), [variant, pathname]);
+  const isDashboard = variant === 'dashboard';
 
   return (
     <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
@@ -138,7 +139,9 @@ export function ExperienceBackdrop({ variant }: ExperienceBackdropProps) {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
         style={{
-          background: `linear-gradient(180deg, ${mood.base} 0%, color-mix(in srgb, ${mood.base} 80%, #ffffff 20%) 100%)`,
+          background: isDashboard
+            ? 'linear-gradient(180deg, color-mix(in srgb, var(--rf-bg) 94%, #ffffff 6%) 0%, color-mix(in srgb, var(--rf-bg-muted) 96%, #ffffff 4%) 100%)'
+            : `linear-gradient(180deg, ${mood.base} 0%, color-mix(in srgb, ${mood.base} 80%, #ffffff 20%) 100%)`,
         }}
       />
       <motion.div
@@ -148,16 +151,20 @@ export function ExperienceBackdrop({ variant }: ExperienceBackdropProps) {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
         style={{
-          background: `radial-gradient(55% 45% at 15% 10%, ${mood.accentA}, transparent 70%), radial-gradient(46% 40% at 82% 2%, ${mood.accentB}, transparent 72%), radial-gradient(38% 42% at 50% 100%, ${mood.accentA}, transparent 75%)`,
+          background: isDashboard
+            ? 'radial-gradient(58% 46% at 12% 4%, color-mix(in srgb, var(--rf-accent) 22%, transparent), transparent 72%), radial-gradient(44% 34% at 88% 0%, color-mix(in srgb, var(--rf-accent-strong) 14%, transparent), transparent 72%), linear-gradient(180deg, color-mix(in srgb, var(--rf-surface) 44%, transparent) 0%, transparent 60%)'
+            : `radial-gradient(55% 45% at 15% 10%, ${mood.accentA}, transparent 70%), radial-gradient(46% 40% at 82% 2%, ${mood.accentB}, transparent 72%), radial-gradient(38% 42% at 50% 100%, ${mood.accentA}, transparent 75%)`,
         }}
       />
       <div
         className="absolute inset-0"
         style={{
-          opacity: mood.grainOpacity,
+          opacity: isDashboard ? 0.1 : mood.grainOpacity,
           backgroundImage:
-            'radial-gradient(circle at 1px 1px, rgba(67, 55, 44, 0.14) 1px, transparent 0)',
-          backgroundSize: '22px 22px',
+            isDashboard
+              ? 'radial-gradient(circle at 1px 1px, rgba(15, 23, 42, 0.13) 1px, transparent 0)'
+              : 'radial-gradient(circle at 1px 1px, rgba(67, 55, 44, 0.14) 1px, transparent 0)',
+          backgroundSize: isDashboard ? '24px 24px' : '22px 22px',
           maskImage: 'linear-gradient(180deg, black 0%, rgba(0,0,0,0.25) 100%)',
         }}
       />
