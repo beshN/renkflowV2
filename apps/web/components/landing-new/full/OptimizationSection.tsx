@@ -1,97 +1,102 @@
 'use client';
 
-import React from 'react';
-import { motion } from 'framer-motion';
-import Image from 'next/image';
-import { TrendingUp } from 'lucide-react';
+import { useMemo } from 'react';
+import { useTranslation } from '@/lib/i18n/client';
+import { getLandingCopy } from './copy';
+
+function stateClass(state: string): string {
+  if (state === 'critical') {
+    return 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300';
+  }
+  if (state === 'warning') {
+    return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300';
+  }
+  return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300';
+}
 
 export const OptimizationSection: React.FC = () => {
+  const { locale, isRtl } = useTranslation();
+  const copy = useMemo(() => getLandingCopy(locale), [locale]);
+  const labels = useMemo(() => {
+    if (locale === 'ar') {
+      return {
+        stage: 'المرحلة',
+        plan: 'الخطة',
+        actual: 'الفعلي',
+        status: 'الحالة',
+        critical: 'حرج',
+        warning: 'تحذير',
+        ok: 'طبيعي',
+      };
+    }
+    if (locale === 'en') {
+      return {
+        stage: 'Stage',
+        plan: 'Plan',
+        actual: 'Actual',
+        status: 'Status',
+        critical: 'Critical',
+        warning: 'Warning',
+        ok: 'OK',
+      };
+    }
+    return {
+      stage: 'Aşama',
+      plan: 'Plan',
+      actual: 'Gerçekleşen',
+      status: 'Durum',
+      critical: 'Kritik',
+      warning: 'Uyarı',
+      ok: 'Normal',
+    };
+  }, [locale]);
+
   return (
-    <section className="py-24 md:py-32 overflow-hidden relative">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(184,116,68,0.1),transparent_55%),radial-gradient(circle_at_20%_60%,rgba(16,185,129,0.1),transparent_55%)]"
-      />
-      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 relative z-10">
-        <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-16 items-center">
-          <div className="space-y-6">
-            <motion.p
-              initial={{ opacity: 0, y: 12 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-600 dark:bg-sky-500/10 dark:text-sky-300"
-            >
-              Akış hızlandırıcı
-            </motion.p>
-            <motion.h2 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white"
-            >
-              İş akışınızı görünür, ölçülebilir ve hızlı hale getirin.
-            </motion.h2>
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="text-lg text-slate-600 dark:text-slate-400"
-            >
-              RenkFlow ile süreçlerinizdeki tıkanma noktalarını keşfedin, ekiplerinizi doğru zamanda doğru işe yönlendirin.
-            </motion.p>
-            <div className="grid sm:grid-cols-2 gap-4 pt-2">
-              {[
-                { title: 'Gerçek zamanlı görünürlük', desc: 'Her ekip aynı veriyi görür.' },
-                { title: 'Akıllı önceliklendirme', desc: 'Kritik işler öne çıkar.' },
-                { title: 'Süreç şeffaflığı', desc: 'Her adım netleşir.' },
-                { title: 'Hızlı geri bildirim', desc: 'Kararlar gecikmez.' },
-              ].map((item) => (
-                <div key={item.title} className="rounded-2xl border border-slate-200/70 bg-white/90 px-4 py-3 shadow-sm dark:border-slate-800/70 dark:bg-slate-900/60">
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.title}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{item.desc}</p>
+    <section className="py-16 lg:py-20">
+      <div className="rf-page-wrap">
+        <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">
+          <div className={isRtl ? 'text-right' : 'text-left'}>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-700 dark:text-indigo-300">
+              {copy.timeline.overline}
+            </p>
+            <h2 className="mt-3 text-3xl font-bold text-slate-950 dark:text-white sm:text-4xl">{copy.timeline.title}</h2>
+            <p className="mt-4 text-base leading-relaxed text-slate-600 dark:text-slate-300 sm:text-lg">
+              {copy.timeline.description}
+            </p>
+            <p className="mt-6 rounded-xl border border-slate-200 bg-white/85 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-300">
+              {copy.timeline.footer}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-[0_16px_35px_-30px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900/85 sm:p-6">
+            <div className="grid grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr] items-center gap-2 border-b border-slate-200 pb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
+              <span>{labels.stage}</span>
+              <span className="text-center">{labels.plan}</span>
+              <span className="text-center">{labels.actual}</span>
+              <span className="text-center">{labels.status}</span>
+            </div>
+
+            <div className="space-y-2 pt-3">
+              {copy.timeline.rows.map((row) => (
+                <div
+                  key={row.stage}
+                  className="grid grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr] items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-3 text-sm dark:border-slate-800 dark:bg-slate-950/50"
+                >
+                  <span className="font-medium text-slate-900 dark:text-slate-100">{row.stage}</span>
+                  <span className="text-center text-slate-600 dark:text-slate-300">{row.planned}</span>
+                  <span className="text-center text-slate-900 dark:text-slate-100">{row.actual}</span>
+                  <span className="flex justify-center">
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${stateClass(row.state)}`}>
+                      {row.state === 'critical'
+                        ? labels.critical
+                        : row.state === 'warning'
+                          ? labels.warning
+                          : labels.ok}
+                    </span>
+                  </span>
                 </div>
               ))}
             </div>
-          </div>
-          
-          <div className="relative group perspective-[1000px]">
-            <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-              className="absolute top-[8%] left-[6%] z-20 bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 flex items-center gap-3"
-            >
-              <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center text-emerald-600">
-                <TrendingUp size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Takip</p>
-                <p className="font-bold text-slate-900 dark:text-white">Canlı Akış</p>
-              </div>
-            </motion.div>
-
-            <motion.div 
-              initial={{ opacity: 0, y: 30, rotateX: 10 }}
-              whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="rounded-[32px] bg-gradient-to-br from-sky-200 via-emerald-200 to-white p-[2px] shadow-[0_45px_90px_-60px_rgba(184,116,68,0.7)] transform transition-transform group-hover:scale-[1.01]"
-            >
-              <div className="bg-white dark:bg-slate-900/80 p-4 md:p-6 rounded-[30px] border border-slate-200/70 dark:border-slate-700/60 backdrop-blur">
-                <Image 
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuA8xcb_5ay_Dg7O_K8tRw9sIy4zkyfjB1B7FDu7iEydQ7AuOWqP8UXjZ5rmELVbveOOUwx3aPnlv0IugOdKickucfBH7hlXtxAjzYVHI6cUFl9bMrxhe2YoDfJN2ZVkA1kE-bOcvQBVgLNtqbwhvIpJ5NgIE3G01K9crbl8zrxp9XB38F3GSqyxPiDTam76hMwU7GkyZP9qVPcYTakG_DVDMehfSrRKeAG286_Op4BruH5raEKq1H3wRD0TaB28qalc1MTZxBXcNijY" 
-                  alt="Optimization diagram" 
-                  width={1200}
-                  height={600}
-                  className="w-full h-auto rounded-2xl shadow-lg"
-                  unoptimized
-                />
-              </div>
-            </motion.div>
-            
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-[55%] bg-sky-500/20 blur-[120px] rounded-full -z-10" />
           </div>
         </div>
       </div>

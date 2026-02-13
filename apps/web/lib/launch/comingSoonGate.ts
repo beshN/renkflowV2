@@ -2,6 +2,7 @@ const COMING_SOON_MODE = 'coming-soon';
 
 const PUBLIC_PATHS = new Set([
   '/coming-soon',
+  '/auth/login',
   '/robots.txt',
   '/sitemap.xml',
   '/favicon.ico',
@@ -23,12 +24,20 @@ function isComingSoonPath(pathname: string): boolean {
   return pathname === '/coming-soon' || pathname.startsWith('/coming-soon/');
 }
 
+function isAuthLoginPath(pathname: string): boolean {
+  return pathname === '/auth/login' || pathname.startsWith('/auth/login/');
+}
+
 function isRootPath(pathname: string): boolean {
   return pathname === '/';
 }
 
 function isApiPath(pathname: string): boolean {
   return pathname.startsWith('/api/');
+}
+
+function isAuthApiPath(pathname: string): boolean {
+  return pathname === '/api/auth' || pathname.startsWith('/api/auth/');
 }
 
 export type MiddlewareAction =
@@ -51,15 +60,22 @@ export function evaluateComingSoonRequest(pathname: string, method: string, publ
     return { type: 'next' };
   }
 
+  const normalizedMethod = method.toUpperCase();
+
   if (isApiPath(pathname)) {
     if (pathname === '/api/subscribe') {
-      if (method === 'POST') {
+      if (normalizedMethod === 'POST') {
         return { type: 'next' };
       }
-      if (method === 'OPTIONS') {
+      if (normalizedMethod === 'OPTIONS') {
         return { type: 'subscribeOptions' };
       }
     }
+
+    if (isAuthApiPath(pathname)) {
+      return { type: 'next' };
+    }
+
     return { type: 'api404' };
   }
 
@@ -67,12 +83,13 @@ export function evaluateComingSoonRequest(pathname: string, method: string, publ
     isNextInternalPath(pathname) ||
     PUBLIC_PATHS.has(pathname) ||
     isPublicFile(pathname) ||
-    isComingSoonPath(pathname)
+    isComingSoonPath(pathname) ||
+    isAuthLoginPath(pathname)
   ) {
     return { type: 'next' };
   }
 
-  if ((method === 'GET' || method === 'HEAD') && isRootPath(pathname)) {
+  if ((normalizedMethod === 'GET' || normalizedMethod === 'HEAD') && isRootPath(pathname)) {
     return { type: 'rewrite', destination: '/coming-soon' };
   }
 

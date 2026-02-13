@@ -20,10 +20,12 @@
     "start:standalone": "node -r dotenv/config .next/standalone/server.js dotenv_config_path=.env.local",
     "start:next": "next start",
     "guard:legacy-backends": "bash scripts/guardrails/no-$(printf '%s%s' 'neo' 'n')-r2.sh",
+    "guard:tenant-scope": "bash scripts/guardrails/tenant-scope.sh",
     "env:audit": "tsx scripts/guardrails/env-contract-audit.ts",
-    "validate": "npm run guard:legacy-backends && npm run env:audit && npm run type-check && npm run lint && npm test -- --runInBand && npm run build",
+    "validate": "npm run guard:legacy-backends && npm run guard:tenant-scope && npm run env:audit && npm run type-check && npm run lint && npm test -- --runInBand && npm run build",
+    "smoke:live": "bash scripts/smoke-live.sh",
     "smoke:coming-soon": "bash scripts/smoke-coming-soon.sh",
-    "deploy:vercel:prod": "bash scripts/vercel-prod-launch-deploy.sh"
+    "deploy:cloud-run": "bash scripts/gcp-full-migrate.sh"
   },
   "dependencies": {
     "@auth/core": "^0.41.0",

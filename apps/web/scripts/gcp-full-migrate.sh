@@ -16,7 +16,7 @@ DB_NAME="${DB_NAME:-renkflow_db}"
 DB_USER="${DB_USER:-renkflow_user}"
 RUNTIME_SA_NAME="${RUNTIME_SA_NAME:-renkflow-runtime}"
 GCS_BUCKET_NAME="${GCS_BUCKET_NAME:-}"
-PUBLIC_SITE_MODE="${PUBLIC_SITE_MODE:-coming-soon}"
+PUBLIC_SITE_MODE="${PUBLIC_SITE_MODE:-off}"
 SKIP_DB_IMPORT="${SKIP_DB_IMPORT:-0}"
 
 PG_DUMP_BIN="${PG_DUMP_BIN:-/opt/homebrew/opt/libpq/bin/pg_dump}"
@@ -398,8 +398,10 @@ if [[ "$ENSURE_PROXY_READY" -ne 1 ]]; then
 fi
 
 ENSURE_DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD_ENCODED}@127.0.0.1:${PROXY_PORT}/${DB_NAME}?sslmode=disable"
-DATABASE_URL="$ENSURE_DATABASE_URL" \
-  npm exec --workspace=apps/web -- tsx scripts/ensure-backend-schema.ts
+(
+  cd "$APP_DIR"
+  DATABASE_URL="$ENSURE_DATABASE_URL" npm exec -- tsx scripts/ensure-backend-schema.ts
+)
 
 kill "${ENSURE_PROXY_PID}" >/dev/null 2>&1 || true
 trap - EXIT
@@ -554,11 +556,10 @@ print("0")
 fi
 
 if [[ "$SERVICE_IS_PUBLIC" == "1" ]]; then
-  HTTP_CODE="$(curl --max-time 20 -sSI -o /dev/null -w "%{http_code}" "$SERVICE_URL" || true)"
-  if [[ "$HTTP_CODE" -lt 200 || "$HTTP_CODE" -ge 500 ]]; then
-    warn "Smoke check returned HTTP ${HTTP_CODE} for ${SERVICE_URL}"
+  if [[ "$PUBLIC_SITE_MODE" == "coming-soon" ]]; then
+    bash "$APP_DIR/scripts/smoke-coming-soon.sh" "$SERVICE_URL"
   else
-    log "Smoke check passed with HTTP ${HTTP_CODE}"
+    bash "$APP_DIR/scripts/smoke-live.sh" "$SERVICE_URL"
   fi
 else
   warn "Service is not publicly invokable (likely due organization policy). Running authenticated smoke check."

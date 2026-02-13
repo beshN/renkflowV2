@@ -1,41 +1,25 @@
 'use client';
 
-import React, { Suspense, memo } from 'react';
+import React, { memo, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { HeroSection } from './full/HeroSection';
-import { ClientsSection } from './full/ClientsSection';
 
-// Lazy load below-the-fold sections for faster initial page load
-const FeaturesGrid = dynamic(() => import('./full/FeaturesGrid').then(mod => ({ default: mod.FeaturesGrid })), {
-  loading: () => <SectionSkeleton />,
-});
-const DetailedFeatures = dynamic(() => import('./full/DetailedFeatures').then(mod => ({ default: mod.DetailedFeatures })), {
-  loading: () => <SectionSkeleton />,
-});
-const OptimizationSection = dynamic(() => import('./full/OptimizationSection').then(mod => ({ default: mod.OptimizationSection })), {
-  loading: () => <SectionSkeleton />,
-});
-const Testimonials = dynamic(() => import('./full/Testimonials').then(mod => ({ default: mod.Testimonials })), {
-  loading: () => <SectionSkeleton />,
-});
-const FAQSection = dynamic(() => import('./full/FAQSection').then(mod => ({ default: mod.FAQSection })), {
-  loading: () => <SectionSkeleton />,
-});
-const CTASection = dynamic(() => import('./full/CTASection').then(mod => ({ default: mod.CTASection })), {
-  loading: () => <SectionSkeleton />,
-});
-const PricingSection = dynamic(() => import('./full/PricingSection').then(mod => ({ default: mod.PricingSection })), {
-  loading: () => <SectionSkeleton />,
-});
+const FeaturesGrid = dynamic(() => import('./full/FeaturesGrid').then((mod) => ({ default: mod.FeaturesGrid })));
+const DetailedFeatures = dynamic(() => import('./full/DetailedFeatures').then((mod) => ({ default: mod.DetailedFeatures })));
+const OptimizationSection = dynamic(() => import('./full/OptimizationSection').then((mod) => ({ default: mod.OptimizationSection })));
+const FAQSection = dynamic(() => import('./full/FAQSection').then((mod) => ({ default: mod.FAQSection })));
+const CTASection = dynamic(() => import('./full/CTASection').then((mod) => ({ default: mod.CTASection })));
 
-// Minimal skeleton for lazy-loaded sections
 const SectionSkeleton = memo(() => (
-  <div className="py-16 px-6">
+  <div className="py-14">
     <div className="rf-page-wrap">
-      <div className="h-8 w-48 bg-slate-200 dark:bg-slate-800 rounded-lg mx-auto mb-8 animate-pulse" />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-48 bg-slate-100 dark:bg-slate-900 rounded-xl animate-pulse" />
+      <div className="h-7 w-52 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
+      <div className="mt-5 grid gap-4 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            key={index}
+            className="h-40 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-900"
+          />
         ))}
       </div>
     </div>
@@ -45,60 +29,35 @@ SectionSkeleton.displayName = 'SectionSkeleton';
 
 export const FullLandingContent: React.FC = memo(() => {
   return (
-    <div className="rf-app-shell relative overflow-hidden">
+    <div className="rf-app-shell relative overflow-x-hidden">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute left-0 top-0 h-[520px] w-full bg-[radial-gradient(circle_at_20%_20%,rgba(184,116,68,0.18),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.18),transparent_40%),linear-gradient(180deg,rgba(15,23,42,0.03),transparent_45%)] dark:bg-[radial-gradient(circle_at_20%_20%,rgba(214,168,133,0.15),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(45,212,191,0.14),transparent_40%),linear-gradient(180deg,rgba(15,23,42,0.35),transparent_55%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(circle_at_14%_16%,rgba(59,130,246,0.12),transparent_42%),radial-gradient(circle_at_85%_0%,rgba(34,197,94,0.1),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.3),transparent_58%)] dark:bg-[radial-gradient(circle_at_14%_16%,rgba(59,130,246,0.2),transparent_45%),radial-gradient(circle_at_85%_0%,rgba(20,184,166,0.12),transparent_45%),linear-gradient(180deg,rgba(2,6,23,0.42),transparent_58%)]"
       />
-      {/* Aurora Blobs - GPU accelerated */}
-      <div className="absolute top-0 left-0 w-full h-[500px] overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-400/30 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob will-change-transform" />
-        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-400/30 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000 will-change-transform" />
-        <div className="absolute bottom-[-20%] left-[20%] w-[40%] h-[40%] bg-emerald-400/30 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000 will-change-transform" />
-      </div>
 
       <HeroSection />
-      <div className="cv-auto">
-        <ClientsSection />
-      </div>
+
       <Suspense fallback={<SectionSkeleton />}>
-        <div className="cv-auto">
-          <FeaturesGrid />
-        </div>
+        <FeaturesGrid />
       </Suspense>
+
       <Suspense fallback={<SectionSkeleton />}>
-        <div className="cv-auto">
-          <DetailedFeatures />
-        </div>
+        <DetailedFeatures />
       </Suspense>
+
       <Suspense fallback={<SectionSkeleton />}>
-        <div className="cv-auto">
-          <OptimizationSection />
-        </div>
+        <OptimizationSection />
       </Suspense>
+
       <Suspense fallback={<SectionSkeleton />}>
-        <div className="cv-auto">
-          <Testimonials />
-        </div>
+        <FAQSection />
       </Suspense>
+
       <Suspense fallback={<SectionSkeleton />}>
-        <div className="cv-auto">
-          <PricingSection />
-        </div>
+        <CTASection />
       </Suspense>
-      <Suspense fallback={<SectionSkeleton />}>
-        <div className="cv-auto">
-          <FAQSection />
-        </div>
-      </Suspense>
-      <Suspense fallback={<SectionSkeleton />}>
-        <div className="cv-auto">
-          <CTASection />
-        </div>
-      </Suspense>
-      
-      <div id="contact"></div>
     </div>
   );
 });
+
 FullLandingContent.displayName = 'FullLandingContent';

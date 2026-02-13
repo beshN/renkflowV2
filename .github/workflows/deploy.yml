@@ -11,7 +11,7 @@ env:
   SERVICE_NAME: renkflow-web
   AR_REPOSITORY: renkflow-containers
   SQL_INSTANCE: renkflow-db-prod
-  PUBLIC_SITE_MODE: coming-soon
+  PUBLIC_SITE_MODE: off
 
 jobs:
   deploy:
@@ -36,6 +36,8 @@ jobs:
           GUARD_SCRIPT="apps/web/scripts/guardrails/no-$(printf '%s%s' 'neo' 'n')-r2.sh"
           chmod +x "${GUARD_SCRIPT}"
           bash "${GUARD_SCRIPT}"
+          chmod +x apps/web/scripts/guardrails/tenant-scope.sh
+          bash apps/web/scripts/guardrails/tenant-scope.sh
 
       - name: Authenticate with Workload Identity Federation
         id: auth_wif
@@ -235,7 +237,12 @@ jobs:
             exit 1
           fi
 
-      - name: Smoke test coming-soon mode
+      - name: Smoke test deployed mode
         run: |
-          chmod +x apps/web/scripts/smoke-coming-soon.sh
-          apps/web/scripts/smoke-coming-soon.sh "${SERVICE_URL}"
+          if [[ "${{ env.PUBLIC_SITE_MODE }}" == "coming-soon" ]]; then
+            chmod +x apps/web/scripts/smoke-coming-soon.sh
+            apps/web/scripts/smoke-coming-soon.sh "${SERVICE_URL}"
+          else
+            chmod +x apps/web/scripts/smoke-live.sh
+            apps/web/scripts/smoke-live.sh "${SERVICE_URL}"
+          fi

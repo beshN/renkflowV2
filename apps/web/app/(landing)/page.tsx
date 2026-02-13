@@ -4,8 +4,9 @@ import { Metadata } from 'next';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Renkflow - İş Akışınızı Dönüştürün',
-  description: 'Proje yönetimi, ekip iş birliği ve otomasyon için hepsi bir arada platform. Ücretsiz başlayın.',
+  title: 'RenkFlow - Modern Üretim için Operasyon Sistemi',
+  description:
+    'RenkFlow ile üretim akışınızı, stok görünürlüğünü ve ekip koordinasyonunu tek platformda yönetin. Fabrikalar için tasarlanmış operasyon yazılımı.',
   alternates: {
     canonical: 'https://renkflow.com',
   },

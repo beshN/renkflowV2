@@ -2,208 +2,106 @@
 
 ## Overview
 
-RenkFlow uses a **launch gate** mechanism controlled by the `PUBLIC_SITE_MODE` environment variable. This document covers operational procedures for managing the coming-soon mode.
+RenkFlow launch gate is controlled by `PUBLIC_SITE_MODE` and runs on **Cloud Run only**.
 
----
+## Environment Contract
 
-## Environment Variable
-
-| Variable | Values | Description |
-|----------|--------|-------------|
-| `PUBLIC_SITE_MODE` | `coming-soon` | Blocks all routes except `/`, `/coming-soon`, `/api/subscribe`, and static assets |
-| `PUBLIC_SITE_MODE` | `off` | Full site access (production mode) |
-
----
+| Variable | Value | Behavior |
+|---|---|---|
+| `PUBLIC_SITE_MODE` | `off` | Default production mode. Full site access. |
+| `PUBLIC_SITE_MODE` | `coming-soon` | Teaser mode. Keeps `/`, `/coming-soon`, `/auth/login`, `/api/auth/*`, `/api/subscribe`, static assets reachable. |
 
 ## Quick Commands
 
-### Check Current Mode
+### Read current mode
 
-**Vercel:**
 ```bash
-npx vercel env ls --token $VERCEL_TOKEN
+gcloud run services describe renkflow-web \
+  --region europe-west3 \
+  --format='value(spec.template.spec.containers[0].env)'
 ```
 
-**Cloud Run:**
-```bash
-gcloud run services describe renkflow-web --region europe-west3 --format='value(spec.template.spec.containers[0].env)'
-```
+### Enable coming-soon mode
 
-### Enable Coming-Soon Mode
-
-**Vercel:**
-```bash
-export VERCEL_TOKEN="your-token"
-export PUBLIC_SITE_MODE="coming-soon"
-./apps/web/scripts/vercel-prod-launch-deploy.sh
-```
-
-**Cloud Run (manual):**
 ```bash
 gcloud run services update renkflow-web \
   --region europe-west3 \
   --set-env-vars "PUBLIC_SITE_MODE=coming-soon"
 ```
 
-### Disable Coming-Soon Mode (Full Launch)
+### Disable coming-soon mode (full launch)
 
-**Vercel:**
-```bash
-export VERCEL_TOKEN="your-token"
-export PUBLIC_SITE_MODE="off"
-./apps/web/scripts/vercel-prod-launch-deploy.sh
-```
-
-**Cloud Run (manual):**
 ```bash
 gcloud run services update renkflow-web \
   --region europe-west3 \
   --set-env-vars "PUBLIC_SITE_MODE=off"
 ```
 
----
-
 ## Smoke Tests
 
-### Run Smoke Tests
+### Live mode (`PUBLIC_SITE_MODE=off`)
 
 ```bash
-# Against production
+./apps/web/scripts/smoke-live.sh https://renkflow.com
+```
+
+### Coming-soon mode (`PUBLIC_SITE_MODE=coming-soon`)
+
+```bash
 ./apps/web/scripts/smoke-coming-soon.sh https://renkflow.com
-
-# Against staging/Cloud Run
-./apps/web/scripts/smoke-coming-soon.sh https://renkflow-web-xxxxx.a.run.app
-
-# Verbose mode
-./apps/web/scripts/smoke-coming-soon.sh https://renkflow.com --verbose
 ```
 
-### What Smoke Tests Check
+### Coverage summary
 
-| Category | Tests |
-|----------|-------|
-| Core Routes | `GET /` → 200, `HEAD /` → 200, `GET /coming-soon` → 200 |
-| Redirects | `/dashboard`, `/pricing`, `/orders`, `/settings` → 302 to `/coming-soon` |
-| API Security | `/api/auth/*`, `/api/orders` → 404 |
-| Subscribe API | `OPTIONS` → 204, `POST` → 400/200, `DELETE/PUT` → 404 |
-| Static Assets | `/favicon.ico`, `/robots.txt`, `/sitemap.xml` → 200 |
-| SEO | robots.txt allows `/coming-soon`, disallows `/dashboard` |
+| Category | Expectation |
+|---|---|
+| Root | `GET /` and `HEAD /` return `200` |
+| Auth surface | `/auth/login` and `/api/auth/session` reachable |
+| Protected routes | `/dashboard` redirects to `/auth/login` (live) or `/coming-soon` (launch) |
+| Public routes | `/features`, `/pricing`, `/blog` return `200` in live mode |
+| SEO | `/robots.txt` and `/sitemap.xml` return `200` |
 
----
-
-## Rollback Procedures
-
-### Vercel Rollback
+## Rollback
 
 ```bash
-# List recent deployments
-npx vercel ls --token $VERCEL_TOKEN
-
-# Rollback to previous deployment
-npx vercel rollback --token $VERCEL_TOKEN
-
-# Or promote a specific deployment
-npx vercel promote <deployment-url> --token $VERCEL_TOKEN
-```
-
-### Cloud Run Rollback
-
-```bash
-# List revisions
 gcloud run revisions list --service renkflow-web --region europe-west3
 
-# Rollback to previous revision
 gcloud run services update-traffic renkflow-web \
   --region europe-west3 \
   --to-revisions=<previous-revision>=100
 ```
 
----
+## Common Issues
 
-## Common Issues & Solutions
+### Site still shows coming-soon
 
-### Issue: Site shows full content instead of coming-soon
+1. Confirm Cloud Run has `PUBLIC_SITE_MODE=off`.
+2. Redeploy latest revision.
+3. Run `smoke-live.sh`.
 
-**Cause:** `PUBLIC_SITE_MODE` is not set or set to `off`
+### `/api/auth/session` fails
 
-**Solution:**
-1. Check env variable: `npx vercel env ls` or check Cloud Run config
-2. Set to `coming-soon` and redeploy
-3. Run smoke tests to verify
+1. Check proxy route policy (`apps/web/proxy.ts`).
+2. Confirm `AUTH_SECRET` and `NEXTAUTH_SECRET` are set and equal.
+3. Validate NextAuth route health: `/api/auth/[...nextauth]`.
 
-### Issue: `/api/subscribe` returns 404
+### Smoke tests fail right after deploy
 
-**Cause:** API route not deployed or middleware misconfigured
-
-**Solution:**
-1. Check that `apps/web/app/api/subscribe/route.ts` exists
-2. Verify middleware is not blocking the route
-3. Check `comingSoonGate.ts` logic
-
-### Issue: Smoke tests fail with "Connection failed"
-
-**Cause:** Service not ready or DNS not propagated
-
-**Solution:**
-1. Wait 30-60 seconds after deployment
-2. Check service health: `curl -I https://renkflow.com`
-3. Verify DNS: `dig renkflow.com`
-
-### Issue: `PUBLIC_SITE_MODE` has newline/whitespace
-
-**Cause:** Copy-paste error or env file encoding issue
-
-**Solution:**
-1. Use the deploy script which sanitizes the value
-2. Or manually: `echo -n "coming-soon" | vercel env add PUBLIC_SITE_MODE production`
-
-### Issue: robots.txt or sitemap.xml incorrect
-
-**Cause:** Dynamic generation based on `PUBLIC_SITE_MODE`
-
-**Solution:**
-1. Verify `apps/web/app/robots.ts` and `apps/web/app/sitemap.ts`
-2. Clear CDN cache if applicable
-3. Redeploy
-
----
+1. Wait 30-60 seconds for revision warmup.
+2. Retry smoke.
+3. Check Cloud Run logs for startup/config errors.
 
 ## Pre-Launch Checklist
 
-- [ ] `PUBLIC_SITE_MODE=coming-soon` set in all environments
-- [ ] Smoke tests pass on staging
-- [ ] Smoke tests pass on production
-- [ ] `/api/subscribe` accepts POST requests
-- [ ] Email notifications working (test with real email)
-- [ ] robots.txt blocks private routes
-- [ ] sitemap.xml only includes public routes
-- [ ] SSL certificate valid
-- [ ] DNS configured correctly
+- [ ] `PUBLIC_SITE_MODE=coming-soon` confirmed when campaign mode is intended.
+- [ ] `smoke-coming-soon.sh` green.
+- [ ] `DATABASE_URL` bound from Secret Manager.
+- [ ] `STORAGE_BACKEND=gcs` and `GCS_BUCKET_NAME` set.
 
 ## Full Launch Checklist
 
-- [ ] All features tested and approved
-- [ ] Database migrations complete
-- [ ] Set `PUBLIC_SITE_MODE=off`
-- [ ] Deploy to production
-- [ ] Verify all routes accessible
-- [ ] Update robots.txt to allow all routes
-- [ ] Submit new sitemap to search engines
-- [ ] Monitor error rates for 24 hours
-
----
-
-## Contacts
-
-| Role | Contact |
-|------|---------|
-| On-call Engineer | TBD |
-| Platform Team | TBD |
-
----
-
-## Revision History
-
-| Date | Author | Change |
-|------|--------|--------|
-| 2024-01-XX | Platform Team | Initial runbook |
+- [ ] `PUBLIC_SITE_MODE=off`.
+- [ ] `smoke-live.sh` green.
+- [ ] Login and `/api/auth/session` verified.
+- [ ] Protected route redirect behavior verified.
+- [ ] 30 minute post-release monitoring completed.

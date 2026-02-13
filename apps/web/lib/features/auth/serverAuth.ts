@@ -80,6 +80,30 @@ export async function getServerUserContext(): Promise<ServerUserContext> {
 }
 
 /**
+ * Strict tenant-scoped context helper for actions and route handlers.
+ */
+export async function requireTenantContext(): Promise<ServerUserContext> {
+  const context = await getServerUserContext();
+  if (!context.tenantId) {
+    throw new AuthenticationError('Tenant bilgisi bulunamadı');
+  }
+  return context;
+}
+
+/**
+ * Enforce that request-scoped tenant access matches authenticated tenant.
+ */
+export function assertTenantAccess(
+  context: Pick<ServerUserContext, 'tenantId'>,
+  tenantId: string,
+  message: string = 'Bu tenant için yetkiniz yok'
+): void {
+  if (!tenantId || context.tenantId !== tenantId) {
+    throw new AuthorizationError(message);
+  }
+}
+
+/**
  * Require a specific permission - throws if not authorized
  */
 export function requirePermission(

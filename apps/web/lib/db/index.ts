@@ -58,7 +58,7 @@ let connectionInfo: ConnectionInfo = {
   latencyMs: null,
 };
 
-function validateDatabaseUrl(url: string): void {
+export function validateDatabaseUrl(url: string): void {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'postgres:' && parsed.protocol !== 'postgresql:') {

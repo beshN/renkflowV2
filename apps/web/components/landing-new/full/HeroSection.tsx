@@ -1,94 +1,157 @@
 'use client';
 
-import React from 'react';
-import { motion } from 'framer-motion';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { TypeAnimation } from 'react-type-animation';
 import { useTheme } from 'next-themes';
-import { DashboardPreview } from '../DashboardPreview';
+import { ArrowRight, Loader2, Mail } from 'lucide-react';
+import { DashboardPreview } from '@/components/landing-new/DashboardPreview';
+import { useTranslation } from '@/lib/i18n/client';
+import { cn } from '@/lib/utils';
+import { getLandingCopy, getLandingLocale } from './copy';
 
 export const HeroSection: React.FC = () => {
+  const { locale, isRtl } = useTranslation();
   const { resolvedTheme } = useTheme();
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+  const copy = useMemo(() => getLandingCopy(locale), [locale]);
+  const visualLocale = useMemo(() => getLandingLocale(locale), [locale]);
   const isDark = resolvedTheme === 'dark';
 
+  const submitWaitlist = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const normalized = email.trim().toLowerCase();
+    const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
+    if (!isValid) {
+      setStatus('error');
+      return;
+    }
+
+    setStatus('loading');
+    try {
+      const response = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalized }),
+      });
+
+      if (!response.ok) {
+        setStatus('error');
+        return;
+      }
+
+      setStatus('success');
+      setEmail('');
+    } catch {
+      setStatus('error');
+    }
+  };
+
   return (
-    <main className="relative pt-24 md:pt-28 lg:pt-32 pb-16 lg:pb-20 overflow-hidden min-h-[calc(100svh-4.5rem)] flex items-center">
+    <main className="relative min-h-[calc(100svh-5rem)] pt-24 pb-16 lg:pt-28 lg:pb-20">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -left-24 top-24 h-72 w-72 rounded-full bg-gradient-to-br from-sky-400/30 via-cyan-400/10 to-transparent blur-3xl"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(59,130,246,0.12),transparent_40%),radial-gradient(circle_at_88%_12%,rgba(14,116,144,0.1),transparent_45%)]"
       />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute right-0 top-10 h-80 w-80 translate-x-1/4 rounded-full bg-gradient-to-br from-emerald-300/25 via-sky-400/10 to-transparent blur-3xl"
-      />
+
       <div className="rf-page-wrap">
-        <div className="rf-hero-grid">
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center md:text-left relative z-10"
-          >
-            <div className="inline-flex items-center gap-3 rounded-full border border-sky-200/70 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 shadow-sm shadow-sky-200/40 backdrop-blur dark:border-sky-500/20 dark:bg-slate-900/70 dark:text-slate-300">
-              Yeni nesil iş akışı
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              RenkFlow OS
+        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+          <section className={cn('max-w-2xl', isRtl && 'text-right lg:justify-self-end')}>
+            <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/70 bg-white/85 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 shadow-sm dark:border-sky-500/20 dark:bg-slate-900/80 dark:text-sky-200">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {copy.hero.badge}
             </div>
-            <h1 className="mt-6 text-5xl md:text-6xl lg:text-7xl font-bold text-slate-900 dark:text-white leading-tight min-h-[160px] md:min-h-[auto]">
-              <span className="block">Ekiplerinizi</span>
-              <span className="block bg-gradient-to-r from-sky-500 via-blue-600 to-emerald-500 bg-clip-text text-transparent h-[1.2em]">
-                <TypeAnimation
-                  sequence={[
-                    'İş Akışınızı',
-                    2000,
-                    'Projelerinizi',
-                    2000,
-                    'Ekibinizi',
-                    2000
-                  ]}
-                  wrapper="span"
-                  speed={50}
-                  repeat={Infinity}
-                />
+
+            <h1 className="mt-6 text-4xl font-black leading-[1.03] tracking-tight text-slate-950 dark:text-white sm:text-5xl lg:text-6xl">
+              {copy.hero.titleTop}
+              <span className="mt-2 block bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent">
+                {copy.hero.titleAccent}
               </span>
-              <span className="block">tek merkezden yönetin.</span>
             </h1>
-            <p className="mt-6 text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-xl mx-auto md:mx-0">
-              Görsel planlama, otomasyon ve ekip iş birliğini aynı platformda birleştirin. Karmaşayı netliğe, fikirleri somut çıktılara çevirin.
+
+            <p className="mt-6 text-base leading-relaxed text-slate-600 dark:text-slate-300 sm:text-lg">
+              {copy.hero.description}
             </p>
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-4 md:justify-start">
-              <Link href="/signup" className="bg-slate-900 text-white font-semibold py-4 px-10 rounded-full transition-transform hover:scale-[1.03] shadow-[0_20px_45px_-18px_rgba(15,23,42,0.6)] text-lg">
-                Ücretsiz Deneyin
+
+            <div className={cn('mt-8 flex flex-wrap gap-3', isRtl && 'justify-end')}>
+              <Link
+                href="/auth/login"
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+              >
+                {copy.hero.ctaPrimary}
+                <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link href="/contact" className="font-semibold text-slate-700 dark:text-slate-300 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">
-                Demo Talep Et
-              </Link>
+              <button
+                type="button"
+                onClick={() => document.getElementById('waitlist')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                className="inline-flex items-center rounded-xl border border-slate-300 bg-white/90 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-500"
+              >
+                {copy.hero.ctaSecondary}
+              </button>
             </div>
-            <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
-              {[
-                { title: 'Canlı panolar', desc: 'İşinizi anlık görün.' },
-                { title: 'Otomasyon', desc: 'Tekrarlayan işleri azaltın.' },
-                { title: 'İş birliği', desc: 'Ekip içi netlik kazanın.' },
-              ].map((item) => (
-                <div key={item.title} className="rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-3 shadow-sm backdrop-blur dark:border-slate-800/70 dark:bg-slate-900/60">
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.title}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{item.desc}</p>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-          
-          <motion.div 
-             initial={{ opacity: 0, x: 20 }}
-             animate={{ opacity: 1, x: 0 }}
-             transition={{ duration: 0.8, delay: 0.2 }}
-             className="relative flex justify-end items-center perspective-[2000px] lg:-mr-[2.5vw]"
-          >
-             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(184,116,68,0.18),transparent_65%)] dark:bg-[radial-gradient(circle_at_50%_50%,rgba(214,168,133,0.25),transparent_70%)] animate-pulse" style={{ animationDuration: '4s' }}></div>
-              <div className="w-full lg:w-[min(58vw,900px)] max-w-[900px]">
-                <DashboardPreview isDark={isDark} />
+
+            <form
+              id="waitlist"
+              onSubmit={submitWaitlist}
+              className="mt-8 rounded-2xl border border-slate-200/80 bg-white/90 p-2 shadow-[0_16px_40px_-30px_rgba(15,23,42,0.35)] dark:border-slate-800 dark:bg-slate-900/85"
+            >
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <label className="relative flex-1">
+                  <Mail className={cn('pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400', isRtl ? 'right-3' : 'left-3')} />
+                  <input
+                    value={email}
+                    onChange={(event) => {
+                      setEmail(event.target.value);
+                      if (status === 'error') setStatus('idle');
+                    }}
+                    type="email"
+                    autoComplete="email"
+                    placeholder={copy.hero.formPlaceholder}
+                    className={cn(
+                      'h-12 w-full rounded-xl border border-transparent bg-slate-50/80 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:bg-white dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-sky-700',
+                      isRtl ? 'pr-10 pl-3 text-right' : 'pl-10 pr-3'
+                    )}
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={status === 'loading'}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {status === 'loading' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {copy.hero.formSubmit}
+                </button>
               </div>
-          </motion.div>
+
+              <p className="mt-2 px-1 text-xs text-slate-500 dark:text-slate-400">{copy.hero.note}</p>
+              {status === 'success' ? (
+                <p className="mt-2 px-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">{copy.hero.formSuccess}</p>
+              ) : null}
+              {status === 'error' ? (
+                <p className="mt-2 px-1 text-xs font-medium text-rose-600 dark:text-rose-400">{copy.hero.formError}</p>
+              ) : null}
+            </form>
+
+            <ul className={cn('mt-6 flex flex-wrap gap-2', isRtl && 'justify-end')}>
+              {copy.hero.chips.map((chip) => (
+                <li
+                  key={chip}
+                  className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300"
+                >
+                  {chip}
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="relative">
+            <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-blue-500/10 to-cyan-500/10 blur-2xl" />
+            <div className="relative rounded-[2rem] border border-slate-200/80 bg-white/70 p-2 shadow-[0_30px_70px_-45px_rgba(15,23,42,0.55)] dark:border-slate-700/70 dark:bg-slate-950/70">
+              <DashboardPreview isDark={isDark} locale={visualLocale} />
+            </div>
+          </section>
         </div>
       </div>
     </main>

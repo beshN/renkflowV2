@@ -26,11 +26,22 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://renkflow.com';
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: 'Renkflow - İş Akışınızı Dönüştürün',
+    default: 'RenkFlow - Modern Üretim Operasyon Platformu',
     template: '%s | Renkflow',
   },
-  description: 'Ekibinizin potansiyelini ortaya çıkaran modern iş akışı ve proje yönetim platformu. Kanban panoları, otomasyon ve gerçek zamanlı iş birliği ile verimliliğinizi artırın.',
-  keywords: ['proje yönetimi', 'kanban', 'iş akışı', 'ekip yönetimi', 'verimlilik', 'otomasyon', 'scrum', 'agile', 'task management', 'collaboration'],
+  description:
+    'RenkFlow, üretim hattı takibi, envanter görünürlüğü ve ekip koordinasyonunu tek platformda sunan modern üretim operasyon yazılımıdır.',
+  keywords: [
+    'üretim yönetimi',
+    'fabrika operasyonu',
+    'üretim takibi',
+    'envanter yönetimi',
+    'iş emri takibi',
+    'multi-tenant saas',
+    'manufacturing software',
+    'production tracking',
+    'inventory management',
+  ],
   authors: [{ name: 'Renkflow' }],
   creator: 'Renkflow A.Ş.',
   publisher: 'Renkflow A.Ş.',
@@ -56,8 +67,9 @@ export const metadata: Metadata = {
     locale: 'tr_TR',
     url: baseUrl,
     siteName: 'Renkflow',
-    title: 'Renkflow - İş Akışınızı Dönüştürün',
-    description: 'Ekibinizin potansiyelini ortaya çıkaran modern iş akışı ve proje yönetim platformu.',
+    title: 'RenkFlow - Modern Üretim Operasyon Platformu',
+    description:
+      'Üretim takibi, envanter yönetimi ve ekip koordinasyonu için tek platform.',
     images: [
       {
         url: '/dashboard-preview.png',
@@ -69,8 +81,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Renkflow - İş Akışınızı Dönüştürün',
-    description: 'Ekibinizin potansiyelini ortaya çıkaran modern iş akışı ve proje yönetim platformu.',
+    title: 'RenkFlow - Modern Üretim Operasyon Platformu',
+    description:
+      'Üretim takibi, envanter yönetimi ve ekip koordinasyonu için tek platform.',
     images: ['/dashboard-preview.png'],
     creator: '@renkflow',
   },

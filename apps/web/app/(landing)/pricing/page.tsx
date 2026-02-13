@@ -27,7 +27,7 @@ export default function PricingPage() {
                 Planlar ve Fiyatlandırma
             </motion.h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                30 gün ücretsiz deneyin. Kredi kartı gerekmez.
+                Üretim ölçeğinize uygun paket yapısını karşılaştırın ve pilot süreci planlayın.
             </p>
       </div>
 

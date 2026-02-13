@@ -98,7 +98,7 @@ export default function SignupPage() {
 
   const handleSocialSignup = async (provider: 'google' | 'azure-ad') => {
     try {
-      await signIn(provider, { callbackUrl: '/orders' });
+      await signIn(provider, { callbackUrl: '/dashboard' });
     } catch (error: unknown) {
       toast.error(`${provider} kaydı başarısız.`);
     }
@@ -108,7 +108,7 @@ export default function SignupPage() {
     <AuthLayout>
       <div className="text-center mb-8">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Aramıza Katılın</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">30 gün boyunca ücretsiz deneyin</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">İşletmenize uygun tenant ortamını dakikalar içinde kurun</p>
       </div>
 
       <form onSubmit={handleSignup} className="space-y-4">

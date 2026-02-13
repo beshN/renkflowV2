@@ -1,80 +1,36 @@
 'use client';
 
-import React from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
 
 export const CTA = () => {
   return (
-    <section className="py-24 bg-transparent relative overflow-hidden">
-      
-      {/* Animated Background */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl animate-blob" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl animate-blob animation-delay-2000" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-white rounded-full blur-3xl animate-blob animation-delay-4000" />
-      </div>
-      
-      {/* Grid Pattern */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:32px_32px]" />
-      
-      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-          className="rounded-[36px] bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 p-8 md:p-16 text-center shadow-[0_40px_90px_-60px_rgba(184,116,68,0.7)] relative"
-        >
-          <h2 className="text-3xl font-bold leading-tight tracking-tight text-white md:text-4xl lg:text-5xl">
-            Ekibinizin Potansiyelini Ortaya Çıkarın
+    <section className="py-16">
+      <div className="rf-page-wrap">
+        <div className="rounded-3xl border border-slate-200 bg-white/95 p-8 text-center shadow-[0_20px_45px_-35px_rgba(15,23,42,0.38)] dark:border-slate-800 dark:bg-slate-900/85 md:p-10">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white sm:text-3xl">
+            Plan seçimi ve pilot kapsamı için ekibimizle konuşun
           </h2>
-          <p className="mt-6 mx-auto max-w-2xl text-lg text-white/90">
-            Renkflow ile projelerinizi daha hızlı, daha akıllı ve daha işbirlikçi bir şekilde yönetin. 
-            Bugün ücretsiz başlayın, kredi kartı gerekmez.
+          <p className="mx-auto mt-4 max-w-2xl text-base text-slate-600 dark:text-slate-300">
+            Tesis yapınıza uygun rollout planını birlikte belirleyelim. İletişim: info@renkflow.com
           </p>
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/signup">
-              <motion.div whileHover={{ scale: 1.05, boxShadow: "0 20px 60px rgba(255,255,255,0.25)" }} whileTap={{ scale: 0.95 }}>
-                <Button variant="ghost" size="lg" className="bg-white text-slate-900 hover:bg-slate-100 rounded-xl px-8 py-4 text-lg">
-                  Ücretsiz Başlayın
-                  <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </motion.div>
+
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link
+              href="/contact"
+              className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+            >
+              Satış Ekibiyle Görüş
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
-            <Link href="/contact">
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button variant="outline" size="lg" className="border-white/70 text-white hover:bg-white/10 rounded-xl px-8 py-4 text-lg">
-                  Satış Ekibiyle Görüş
-                </Button>
-              </motion.div>
+            <Link
+              href="/auth/login"
+              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-500"
+            >
+              Giriş Yap
             </Link>
           </div>
-          
-          {/* Trust Indicators */}
-          <div className="mt-12 flex flex-wrap items-center justify-center gap-8 text-white/80 text-sm">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span>Kredi kartı gerekmez</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span>30 gün ücretsiz deneme</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span>İstediğiniz zaman iptal</span>
-            </div>
-          </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

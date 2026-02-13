@@ -1,462 +1,192 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useTheme } from 'next-themes';
+import { ArrowRight, CheckCircle2, Factory, Mail, ShieldCheck, Timer } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  Mail,
-  CheckCircle2,
-  Star,
-  Github,
-  Twitter,
-  Linkedin,
-  ArrowRight,
-} from 'lucide-react';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
-import { useTranslation } from '@/lib/i18n/client';
 import { WaitlistNavbar } from './WaitlistNavbar';
 import { DashboardPreview } from './DashboardPreview';
+import { useTranslation } from '@/lib/i18n/client';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/utils';
 
-// ─── Countdown Timer ───
-const LAUNCH_DATE = new Date('2026-03-15T00:00:00+03:00');
-
-function useCountdown(targetDate: Date) {
-  const calcTimeLeft = useCallback(() => {
-    const diff = targetDate.getTime() - Date.now();
-    if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
-    return {
-      days: Math.floor(diff / (1000 * 60 * 60 * 24)),
-      hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
-      minutes: Math.floor((diff / (1000 * 60)) % 60),
-      seconds: Math.floor((diff / 1000) % 60),
-    };
-  }, [targetDate]);
-
-  const [timeLeft, setTimeLeft] = useState(calcTimeLeft);
-
-  useEffect(() => {
-    const id = setInterval(() => setTimeLeft(calcTimeLeft()), 1000);
-    return () => clearInterval(id);
-  }, [calcTimeLeft]);
-
-  return timeLeft;
-}
-
-const CountdownBlock = ({ value, label }: { value: number; label: string }) => (
-  <div className="flex flex-col items-center">
-    <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/80 dark:bg-white/5 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 flex items-center justify-center shadow-lg overflow-hidden">
-      <AnimatePresence mode="popLayout">
-        <motion.span
-          key={value}
-          initial={{ y: -24, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 24, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-          className="text-2xl sm:text-3xl font-bold tabular-nums text-slate-900 dark:text-white"
-        >
-          {String(value).padStart(2, '0')}
-        </motion.span>
-      </AnimatePresence>
-    </div>
-    <span className="mt-2 text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-      {label}
-    </span>
-  </div>
-);
-
-const Separator = () => (
-  <span className="text-2xl sm:text-3xl font-bold text-slate-300 dark:text-slate-600 self-start mt-4 sm:mt-5 select-none">
-    :
-  </span>
-);
-
-// ─── Main Component ───
+const COPY = {
+  tr: {
+    badge: 'Private Beta Doğrulama Sürecinde',
+    title: 'RenkFlow üretim operasyonları için hazırlanıyor.',
+    description:
+      'Pilot saha doğrulamaları devam ediyor. Ürün erişimi kademeli açılacak. Erken erişim listesine katılarak bilgilendirilen ilk ekiplerden olun.',
+    emailPlaceholder: 'İş e-posta adresiniz',
+    submit: 'Erken Erişim Talep Et',
+    success: 'Talebiniz alındı. Uygun olduğunda ekibimiz sizinle iletişime geçecek.',
+    invalid: 'Lütfen geçerli bir e-posta adresi girin.',
+    error: 'Talep gönderilemedi. Lütfen tekrar deneyin.',
+    highlights: ['Canlı üretim akış görünürlüğü', 'Gecikme erken uyarı kuralları', 'Tenant bazlı veri izolasyonu'],
+    footer: 'Üretim erişim talepleri için: info@renkflow.com',
+    login: 'Giriş Sayfası',
+  },
+  en: {
+    badge: 'Private Beta Validation in Progress',
+    title: 'RenkFlow is preparing for production teams.',
+    description:
+      'Field pilots are currently running. Access will be opened in phases. Join the early access list to be notified first.',
+    emailPlaceholder: 'Your work email',
+    submit: 'Request Early Access',
+    success: 'Request received. Our team will contact you when a slot is available.',
+    invalid: 'Please enter a valid email address.',
+    error: 'Unable to submit request. Please try again.',
+    highlights: ['Live production flow visibility', 'Delay early warning rules', 'Tenant-level data isolation'],
+    footer: 'For production access requests: info@renkflow.com',
+    login: 'Login Page',
+  },
+  ar: {
+    badge: 'التحقق من النسخة التجريبية الخاصة قيد التنفيذ',
+    title: 'RenkFlow يستعد لفرق الإنتاج.',
+    description:
+      'تجارب التشغيل الميدانية مستمرة حالياً. سيتم فتح الوصول على مراحل. انضم لقائمة الوصول المبكر ليتم إشعارك أولاً.',
+    emailPlaceholder: 'بريد العمل الإلكتروني',
+    submit: 'طلب وصول مبكر',
+    success: 'تم استلام الطلب. سيتواصل فريقنا معك عند توفر مقعد.',
+    invalid: 'يرجى إدخال بريد إلكتروني صالح.',
+    error: 'تعذر إرسال الطلب. حاول مرة أخرى.',
+    highlights: ['رؤية مباشرة لتدفق الإنتاج', 'قواعد إنذار مبكر للتأخير', 'عزل بيانات على مستوى المستأجر'],
+    footer: 'لطلبات وصول الإنتاج: info@renkflow.com',
+    login: 'صفحة تسجيل الدخول',
+  },
+} as const;
 
 export const ComingSoonPage: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
-  const [mounted, setMounted] = useState(false);
   const { locale, isRtl } = useTranslation();
   const { resolvedTheme } = useTheme();
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const isDark = resolvedTheme === 'dark';
 
-  useEffect(() => { setMounted(true); }, []);
+  const text = useMemo(() => COPY[(locale as keyof typeof COPY) || 'tr'] ?? COPY.tr, [locale]);
 
-  const uiLocale = mounted && (locale === 'en' || locale === 'ar') ? locale : 'tr';
-  const localeIsRtl = mounted ? isRtl : false;
+  const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
-  const timeLeft = useCountdown(LAUNCH_DATE);
+    const normalized = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+      setStatus('error');
+      toast.error(text.invalid);
+      return;
+    }
 
-  const copy = useMemo(() => ({
-    tr: {
-      validation: {
-        emailRequired: 'Lütfen e-posta adresinizi girin.',
-        emailInvalid: 'Lütfen geçerli bir e-posta adresi girin.',
-        genericError: 'Bir hata oluştu.',
-        networkError: 'Bağlantı hatası. Lütfen tekrar deneyin.',
-        waitlistSuccess: 'Bekleme listesine eklendiniz!',
-      },
-      badge: 'Erken Erişim • Çok Yakında',
-      titleLine1: 'Üretim Süreçlerinizi',
-      titleAccent: 'Dönüştürün.',
-      subtitle: 'Yapay zeka destekli üretim yönetim platformu ile karmaşık süreçleri otomatize edin, verimliliği %40 artırın.',
-      placeholder: 'İş e-posta adresiniz',
-      cta: 'Erken Erişim Al',
-      formSuccess: 'Listeye eklendi! Sizi haberdar edeceğiz.',
-      launchNote: 'Lansmana özel %50 indirim • Kredi kartı gerekmez',
-      countdown: { days: 'Gün', hours: 'Saat', minutes: 'Dakika', seconds: 'Saniye' },
-      ratingText: 'ortalama puan',
-      betaUsers: 'beta kullanıcısı',
-      footer: {
-        about: 'RenkFlow, modern üretim tesisleri için tasarlanmış yeni nesil bir yönetim platformudur.',
-        rights: 'Tüm hakları saklıdır.',
-        privacy: 'Gizlilik Politikası',
-        terms: 'Kullanım Koşulları',
-      },
-    },
-    en: {
-      validation: {
-        emailRequired: 'Please enter your email address.',
-        emailInvalid: 'Please enter a valid email address.',
-        genericError: 'Something went wrong.',
-        networkError: 'Network error. Please try again.',
-        waitlistSuccess: 'You are on the waitlist!',
-      },
-      badge: 'Early Access • Coming Soon',
-      titleLine1: 'Transform Your',
-      titleAccent: 'Production.',
-      subtitle: 'Automate complex processes with our AI-powered manufacturing management platform. Increase efficiency by 40%.',
-      placeholder: 'Your work email',
-      cta: 'Get Early Access',
-      formSuccess: 'You\'re on the list! We\'ll keep you posted.',
-      launchNote: 'Launch offer: 50% off • No credit card required',
-      countdown: { days: 'Days', hours: 'Hours', minutes: 'Minutes', seconds: 'Seconds' },
-      ratingText: 'average rating',
-      betaUsers: 'beta users',
-      footer: {
-        about: 'RenkFlow is a modern operating platform built for real manufacturing environments.',
-        rights: 'All rights reserved.',
-        privacy: 'Privacy Policy',
-        terms: 'Terms of Service',
-      },
-    },
-    ar: {
-      validation: {
-        emailRequired: 'يرجى إدخال بريدك الإلكتروني.',
-        emailInvalid: 'يرجى إدخال بريد إلكتروني صحيح.',
-        genericError: 'حدث خطأ غير متوقع.',
-        networkError: 'خطأ في الشبكة. حاول مرة أخرى.',
-        waitlistSuccess: 'تمت إضافتك إلى قائمة الانتظار.',
-      },
-      badge: 'وصول مبكر • قريباً',
-      titleLine1: 'حوّل تدفق',
-      titleAccent: 'الإنتاج.',
-      subtitle: 'أتمتة العمليات المعقدة بمنصة إدارة تصنيع مدعومة بالذكاء الاصطناعي. ارفع الكفاءة بنسبة 40%.',
-      placeholder: 'بريد العمل الإلكتروني',
-      cta: 'احصل على الوصول المبكر',
-      formSuccess: 'تم التسجيل بنجاح. سنبقيك على اطلاع.',
-      launchNote: 'عرض الإطلاق: خصم 50% • بدون بطاقة ائتمان',
-      countdown: { days: 'يوم', hours: 'ساعة', minutes: 'دقيقة', seconds: 'ثانية' },
-      ratingText: 'متوسط التقييم',
-      betaUsers: 'مستخدم تجريبي',
-      footer: {
-        about: 'RenkFlow منصة تشغيل حديثة مصممة خصيصاً لبيئات التصنيع الواقعية.',
-        rights: 'جميع الحقوق محفوظة.',
-        privacy: 'سياسة الخصوصية',
-        terms: 'شروط الاستخدام',
-      },
-    },
-  }), []);
-
-  const text = copy[uiLocale];
-
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) { toast.error(text.validation.emailRequired); return; }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) { toast.error(text.validation.emailInvalid); return; }
     setStatus('loading');
     try {
       const response = await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: normalized }),
       });
-      const data = await response.json();
-      if (response.ok) {
-        setStatus('success');
-        toast.success(data.message || text.validation.waitlistSuccess);
-        setEmail('');
-      } else {
-        setStatus('idle');
-        toast.error(data.error || text.validation.genericError);
+
+      if (!response.ok) {
+        setStatus('error');
+        toast.error(text.error);
+        return;
       }
+
+      setStatus('success');
+      setEmail('');
+      toast.success(text.success);
     } catch {
-      setStatus('idle');
-      toast.error(text.validation.networkError);
+      setStatus('error');
+      toast.error(text.error);
     }
-  }, [email, text.validation]);
-
-  // Stagger animation variants
-  const container = {
-    hidden: {},
-    show: { transition: { staggerChildren: 0.12 } },
   };
-  const fadeUp = {
-    hidden: { opacity: 0, y: 30 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] as const } },
-  };
-
-  const footerSocialLinks = [
-    { icon: Twitter, href: 'https://twitter.com/renkflow', label: 'Twitter' },
-    { icon: Linkedin, href: 'https://linkedin.com/company/renkflow', label: 'LinkedIn' },
-    { icon: Github, href: 'https://github.com/renkflow', label: 'GitHub' },
-  ];
 
   return (
-    <div className="rf-app-shell min-h-[100svh] relative selection:bg-blue-100 dark:selection:bg-blue-900/40 overflow-hidden">
-
-      {/* ─── Animated Background ─── */}
-      <div className="fixed inset-0 pointer-events-none">
-        {/* Dot grid pattern */}
-        <div className="absolute inset-0 coming-soon-grid" />
-
-        {/* Aurora blobs */}
-        <div className="absolute -top-[30%] -left-[20%] w-[80%] h-[80%] bg-gradient-to-br from-blue-400/20 via-indigo-400/15 to-transparent rounded-full blur-[140px] animate-aurora" />
-        <div className="absolute -bottom-[20%] -right-[20%] w-[70%] h-[70%] bg-gradient-to-tl from-purple-400/15 via-cyan-400/10 to-transparent rounded-full blur-[120px] animate-aurora" style={{ animationDelay: '-8s' }} />
-        <div className="absolute top-[20%] right-[10%] w-[40%] h-[40%] bg-gradient-to-bl from-emerald-300/10 via-blue-300/10 to-transparent rounded-full blur-[100px] animate-aurora" style={{ animationDelay: '-14s' }} />
-
-        {/* Top fade */}
-        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-white/80 dark:from-[#0B0B0F]/80 to-transparent" />
-      </div>
-
+    <div className="rf-app-shell min-h-[100svh]">
       <WaitlistNavbar />
 
-      {/* ─── HERO — Full Viewport ─── */}
-      <section className="relative min-h-[100svh] flex flex-col items-center justify-center px-4 sm:px-6 pt-20 pb-8">
-        <motion.div
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="relative z-10 w-full max-w-4xl mx-auto text-center flex flex-col items-center"
-        >
-          {/* Badge */}
-          <motion.div variants={fadeUp}>
-            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-blue-200/60 dark:border-blue-700/40 bg-white/70 dark:bg-white/5 backdrop-blur-xl text-xs font-medium text-slate-600 dark:text-slate-300 shadow-sm mb-8">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
-              </span>
-              <span className="font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                {text.badge}
-              </span>
-            </div>
-          </motion.div>
-
-          {/* Headline */}
-          <motion.h1
-            variants={fadeUp}
-            className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-extrabold tracking-tight leading-[1.05] mb-6 text-slate-900 dark:text-white"
-          >
-            {text.titleLine1}
-            <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 animate-gradient-xy">
-              {text.titleAccent}
+      <main className="rf-page-wrap pb-16 pt-28 lg:pb-20 lg:pt-32">
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:gap-10">
+          <section className={cn('space-y-5', isRtl && 'text-right')}>
+            <span className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-sky-700 shadow-sm dark:border-sky-500/30 dark:bg-slate-900/70 dark:text-sky-300">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {text.badge}
             </span>
-          </motion.h1>
 
-          {/* Subtitle */}
-          <motion.p
-            variants={fadeUp}
-            className="text-base sm:text-lg lg:text-xl text-slate-500 dark:text-slate-400 mb-10 max-w-2xl leading-relaxed font-light"
-          >
-            {text.subtitle}
-          </motion.p>
+            <h1 className="text-3xl font-black leading-tight text-slate-950 dark:text-white sm:text-4xl lg:text-5xl">
+              {text.title}
+            </h1>
 
-          {/* ─── Countdown Timer ─── */}
-          <motion.div variants={fadeUp} className="flex items-start gap-3 sm:gap-5 mb-10">
-            <CountdownBlock value={timeLeft.days} label={text.countdown.days} />
-            <Separator />
-            <CountdownBlock value={timeLeft.hours} label={text.countdown.hours} />
-            <Separator />
-            <CountdownBlock value={timeLeft.minutes} label={text.countdown.minutes} />
-            <Separator />
-            <CountdownBlock value={timeLeft.seconds} label={text.countdown.seconds} />
-          </motion.div>
+            <p className="max-w-2xl text-base leading-relaxed text-slate-600 dark:text-slate-300 sm:text-lg">
+              {text.description}
+            </p>
 
-          {/* ─── Email Form ─── */}
-          <motion.div
-            variants={fadeUp}
-            id="waitlist"
-            className="w-full max-w-lg mx-auto"
-          >
-            <div className="relative p-1.5 rounded-2xl bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 shadow-xl animate-glow-pulse">
-              <AnimatePresence mode="wait">
-                {status === 'success' ? (
-                  <motion.div
-                    key="success"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center gap-3 p-4 text-emerald-600 dark:text-emerald-400 font-medium justify-center"
+            <ul className="space-y-2">
+              {text.highlights.map((item, index) => {
+                const Icon = index === 0 ? Factory : index === 1 ? Timer : ShieldCheck;
+                return (
+                  <li
+                    key={item}
+                    className={cn(
+                      'flex items-center gap-3 rounded-xl border border-slate-200 bg-white/85 px-3 py-2.5 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-200',
+                      isRtl && 'flex-row-reverse'
+                    )}
                   >
-                    <CheckCircle2 size={20} />
-                    <p>{text.formSuccess}</p>
-                  </motion.div>
-                ) : (
-                  <motion.form
-                    key="form"
-                    initial={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onSubmit={handleSubmit}
-                    className="flex flex-col sm:flex-row gap-2"
-                  >
-                    <div className="relative flex-1">
-                      <Mail
-                        className="absolute top-1/2 -translate-y-1/2 text-slate-400"
-                        style={localeIsRtl ? { right: '0.875rem' } : { left: '0.875rem' }}
-                        size={18}
-                      />
-                      <Input
-                        type="email"
-                        placeholder={text.placeholder}
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        disabled={status === 'loading'}
-                        className={`h-12 rounded-xl bg-transparent border-none focus-visible:ring-0 text-slate-900 dark:text-white placeholder:text-slate-400 shadow-none ${localeIsRtl ? 'pr-11 pl-4 text-right' : 'pl-11 pr-4 text-left'}`}
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      disabled={status === 'loading'}
-                      className="h-12 px-6 sm:px-8 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300 w-full sm:w-auto text-sm sm:text-[15px]"
-                    >
-                      {status === 'loading' ? (
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <span className={localeIsRtl ? 'ml-2' : 'mr-2'}>{text.cta}</span>
-                          <ArrowRight size={16} className={localeIsRtl ? 'rotate-180' : ''} />
-                        </>
-                      )}
-                    </Button>
-                  </motion.form>
-                )}
-              </AnimatePresence>
-            </div>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-3">
-              {text.launchNote}
-            </p>
-          </motion.div>
+                    <Icon className="h-4 w-4 text-sky-600 dark:text-sky-300" />
+                    <span>{item}</span>
+                  </li>
+                );
+              })}
+            </ul>
 
-          {/* ─── Social Proof ─── */}
-          <motion.div
-            variants={fadeUp}
-            className="mt-10 flex flex-col sm:flex-row items-center gap-5"
-          >
-            <div className="flex -space-x-2.5">
-              {['AY', 'ED', 'MK', 'SK', 'BT'].map((initials, i) => (
-                <div
-                  key={i}
-                  className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border-2 border-white dark:border-[#0B0B0F] flex items-center justify-center text-[9px] font-bold text-slate-500 dark:text-slate-400 shadow-sm"
-                >
-                  {initials}
-                </div>
-              ))}
-              <div className="w-8 h-8 rounded-full bg-blue-600 border-2 border-white dark:border-[#0B0B0F] flex items-center justify-center text-[9px] font-bold text-white shadow-sm">
-                +500
+            <form id="waitlist" onSubmit={onSubmit} className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.4)] dark:border-slate-800 dark:bg-slate-900/85">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <label className="relative flex-1">
+                  <Mail
+                    className={cn('pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400', isRtl ? 'right-3' : 'left-3')}
+                  />
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(event) => {
+                      setEmail(event.target.value);
+                      if (status === 'error') setStatus('idle');
+                    }}
+                    placeholder={text.emailPlaceholder}
+                    className={cn(
+                      'h-12 border-transparent bg-slate-50/80',
+                      isRtl ? 'pr-10 text-right' : 'pl-10',
+                      status === 'error' && 'border-rose-300 focus-visible:ring-rose-300'
+                    )}
+                    disabled={status === 'loading'}
+                  />
+                </label>
+                <Button type="submit" className="h-12 px-5 text-sm font-semibold" disabled={status === 'loading'}>
+                  {text.submit}
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
               </div>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
-              <div className="flex gap-0.5">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Star key={i} size={14} fill="#FACC15" className="text-yellow-400" />
-                ))}
-              </div>
-              <span>
-                <strong className="text-slate-800 dark:text-white">500+</strong> {text.betaUsers} •{' '}
-                <strong className="text-slate-800 dark:text-white">4.9/5</strong> {text.ratingText}
-              </span>
-            </div>
-          </motion.div>
-        </motion.div>
-      </section>
+              {status === 'success' ? (
+                <p className="mt-2 px-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">{text.success}</p>
+              ) : null}
+            </form>
 
-      {/* ─── DASHBOARD PREVIEW — Floating Below ─── */}
-      <section className="relative pb-24 lg:pb-32 px-4 sm:px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 60 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 1, ease: [0.22, 1, 0.36, 1] }}
-          className="relative max-w-6xl mx-auto"
-        >
-          {/* Glow behind dashboard */}
-          <div className="absolute -inset-8 bg-gradient-to-t from-blue-500/10 via-indigo-500/5 to-transparent blur-3xl rounded-3xl pointer-events-none" />
-
-          {/* Dashboard container */}
-          <div className="relative animate-float">
-            <div className="relative rounded-2xl p-1.5 bg-white/40 dark:bg-white/5 ring-1 ring-slate-900/10 dark:ring-white/10 backdrop-blur-sm shadow-2xl dark:shadow-blue-900/20 overflow-hidden">
-              {/* Sheen overlay */}
-              <div className="absolute inset-0 overflow-hidden pointer-events-none z-[70]">
-                <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/15 dark:via-white/5 to-transparent skew-x-[-20deg] animate-[sheen_4s_ease-in-out_infinite]" />
-              </div>
-              <DashboardPreview isDark={isDark} locale={uiLocale} />
-            </div>
-          </div>
-        </motion.div>
-      </section>
-
-      {/* ─── FOOTER — Minimal ─── */}
-      <footer className="relative border-t border-slate-200 dark:border-slate-800/60 pt-12 pb-8 bg-white/30 dark:bg-[#0B0B0F]/50 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-8">
-            <div className="flex items-center gap-3">
-              <div className="relative h-6 w-24">
-                <Image
-                  src="/renkflow-logo-new.png"
-                  alt="RenkFlow"
-                  fill
-                  className="object-contain object-left"
-                />
-              </div>
-            </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md text-center md:text-left">
-              {text.footer.about}
-            </p>
-            <div className="flex items-center gap-3">
-              {footerSocialLinks.map(({ icon: Icon, href, label }) => (
-                <a
-                  key={label}
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={label}
-                  className="p-2 rounded-full bg-white dark:bg-white/5 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                >
-                  <Icon size={16} />
-                </a>
-              ))}
-            </div>
-          </div>
-
-          <div className="pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-slate-400">
-              © {new Date().getFullYear()} RenkFlow Teknoloji A.Ş. {text.footer.rights}
-            </p>
-            <div className="flex items-center gap-6">
-              <a href="#" className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
-                {text.footer.privacy}
-              </a>
-              <a href="#" className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
-                {text.footer.terms}
+            <div className={cn('flex flex-wrap items-center gap-3 text-sm text-slate-600 dark:text-slate-300', isRtl && 'justify-end')}>
+              <Link
+                href="/auth/login"
+                className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              >
+                {text.login}
+              </Link>
+              <a href="mailto:info@renkflow.com" className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
+                {text.footer}
               </a>
             </div>
-          </div>
+          </section>
+
+          <section className="rounded-[1.5rem] border border-slate-200 bg-white/75 p-2 shadow-[0_30px_65px_-45px_rgba(15,23,42,0.55)] dark:border-slate-700 dark:bg-slate-950/70">
+            <DashboardPreview isDark={isDark} locale={locale === 'en' || locale === 'ar' ? locale : 'tr'} />
+          </section>
         </div>
-      </footer>
+      </main>
     </div>
   );
 };

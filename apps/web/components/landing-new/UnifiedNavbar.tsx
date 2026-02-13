@@ -47,13 +47,6 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
     };
   }, [isMobileMenuOpen]);
 
-  const navItems = [
-    { label: 'Özellikler', href: '/features', description: 'Güçlü özelliklerimizi keşfedin' },
-    { label: 'Fiyatlandırma', href: '/pricing', description: 'Size uygun planı bulun' },
-    { label: 'Entegrasyonlar', href: '/integrations', description: 'Mevcut araçlarınızla entegre edin' },
-    { label: 'İletişim', href: '/contact', description: 'Bizimle iletişime geçin' },
-  ];
-
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
@@ -65,11 +58,47 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
   }, [resolvedTheme, setTheme]);
 
   const labels = {
-    tr: { login: 'Giriş Yap', start: 'Ücretsiz Başlayın', menu: 'Menü' },
-    en: { login: 'Sign In', start: 'Start Free', menu: 'Menu' },
-    ar: { login: 'تسجيل الدخول', start: 'ابدأ مجاناً', menu: 'القائمة' },
+    tr: {
+      login: 'Giriş Yap',
+      start: 'Erken Erişim',
+      menu: 'Menü',
+      features: 'Özellikler',
+      pricing: 'Fiyatlandırma',
+      integrations: 'Entegrasyonlar',
+      contact: 'İletişim',
+      faq: 'SSS',
+      blog: 'Blog',
+    },
+    en: {
+      login: 'Sign In',
+      start: 'Request Access',
+      menu: 'Menu',
+      features: 'Features',
+      pricing: 'Pricing',
+      integrations: 'Integrations',
+      contact: 'Contact',
+      faq: 'FAQ',
+      blog: 'Blog',
+    },
+    ar: {
+      login: 'تسجيل الدخول',
+      start: 'طلب الوصول',
+      menu: 'القائمة',
+      features: 'الميزات',
+      pricing: 'الأسعار',
+      integrations: 'التكاملات',
+      contact: 'تواصل',
+      faq: 'الأسئلة الشائعة',
+      blog: 'المدونة',
+    },
   } as const;
   const text = labels[uiLocale as keyof typeof labels] ?? labels.tr;
+  const navItems = [
+    { label: text.features, href: '/features' },
+    { label: text.pricing, href: '/pricing' },
+    { label: text.integrations, href: '/integrations' },
+    { label: text.contact, href: '/contact' },
+  ];
 
   return (
     <>
@@ -286,8 +315,8 @@ export const UnifiedNavbar = memo(({ largeLogo = false, transparent = false }: U
                     </Link>
                   ))}
                   <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                      <Link href="/faq" className="block text-lg font-medium text-slate-600 dark:text-slate-300 py-2">SSS</Link>
-                      <Link href="/blog" className="block text-lg font-medium text-slate-600 dark:text-slate-300 py-2">Blog</Link>
+                      <Link href="/faq" className="block text-lg font-medium text-slate-600 dark:text-slate-300 py-2">{text.faq}</Link>
+                      <Link href="/blog" className="block text-lg font-medium text-slate-600 dark:text-slate-300 py-2">{text.blog}</Link>
                   </div>
                 </nav>
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, Share, Smartphone, X } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -10,12 +11,27 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function PWAInstallPrompt() {
+  const pathname = usePathname();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
+    const suppressOnPublicPages =
+      pathname === '/' ||
+      pathname.startsWith('/coming-soon') ||
+      pathname.startsWith('/auth/') ||
+      pathname.startsWith('/signup') ||
+      pathname.startsWith('/pricing') ||
+      pathname.startsWith('/features') ||
+      pathname.startsWith('/about') ||
+      pathname.startsWith('/contact');
+
+    if (suppressOnPublicPages) {
+      return;
+    }
+
     // Check if already installed
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsStandalone(true);
@@ -40,21 +56,21 @@ export default function PWAInstallPrompt() {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      // Show prompt after 30 seconds
-      setTimeout(() => setShowPrompt(true), 30000);
+      // Show prompt after user has spent enough time in app surfaces
+      setTimeout(() => setShowPrompt(true), 45000);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     // For iOS, show instruction prompt after delay
     if (isIOSDevice) {
-      setTimeout(() => setShowPrompt(true), 60000);
+      setTimeout(() => setShowPrompt(true), 90000);
     }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, []);
+  }, [pathname]);
 
   const handleInstall = async () => {
     if (!deferredPrompt) return;

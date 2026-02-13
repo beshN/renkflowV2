@@ -40,7 +40,12 @@ describe('Coming soon middleware', () => {
 
   it('returns api404 for non-public APIs in launch mode', () => {
     const action = evaluateComingSoonRequest('/api/auth/session', 'GET', 'coming-soon');
-    expect(action).toEqual({ type: 'api404' });
+    expect(action).toEqual({ type: 'next' });
+  });
+
+  it('allows /auth/login in launch mode', () => {
+    const action = evaluateComingSoonRequest('/auth/login', 'GET', 'coming-soon');
+    expect(action).toEqual({ type: 'next' });
   });
 
   it('allows next internal and public static assets', () => {

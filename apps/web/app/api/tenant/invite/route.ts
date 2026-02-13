@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { withTransaction } from '@/lib/db';
 import { sendInviteEmail } from '@/lib/email';
 import { resolveServerBaseUrl } from '@/lib/shared/config/runtime-env';
+import { AuthenticationError, AuthorizationError, assertTenantAccess, requireTenantContext } from '@/lib/auth/serverAuth';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -29,21 +29,17 @@ class InviteError extends Error {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    
-    if (!session?.user?.id || !session.user.tenantId) {
-      return NextResponse.json({ error: 'Oturum açmanız gerekiyor' }, { status: 401 });
-    }
+    const context = await requireTenantContext();
 
     const body = await request.json();
     const requestedTenantId = body?.tenantId;
-    const tenantId = session.user.tenantId;
+    const tenantId = context.tenantId;
     const email = body?.email?.trim().toLowerCase();
     const role = body?.role || 'member';
 
     // Validate inputs
-    if (requestedTenantId && requestedTenantId !== tenantId) {
-      return NextResponse.json({ error: 'Bu tenant için yetkiniz yok' }, { status: 403 });
+    if (requestedTenantId) {
+      assertTenantAccess(context, requestedTenantId);
     }
 
     if (!email) {
@@ -61,7 +57,7 @@ export async function POST(request: NextRequest) {
     const token = await withTransaction(async (tx) => {
       const members = await tx`
         SELECT role FROM tenant_members
-        WHERE tenant_id = ${tenantId} AND user_id = ${session.user.id}
+        WHERE tenant_id = ${tenantId} AND user_id = ${context.userId}
         LIMIT 1
         FOR UPDATE
       `;
@@ -130,6 +126,14 @@ export async function POST(request: NextRequest) {
       message: 'Davet linki oluşturuldu ve e-posta gönderildi'
     });
   } catch (error: unknown) {
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+
     if (error instanceof InviteError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }

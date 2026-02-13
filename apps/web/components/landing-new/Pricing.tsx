@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Check, Star, Quote } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Check, Factory, Boxes, Users2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 
@@ -115,62 +114,41 @@ export const Pricing: React.FC = () => {
 
         </div>
 
-        {/* Testimonials */}
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="mt-24"
-        >
-            <h3 className="text-2xl font-bold text-center text-slate-900 dark:text-white mb-12">
-                Müşterilerimiz Ne Diyor?
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {[
-                    {
-                        name: 'Ahmet Yılmaz',
-                        role: 'Üretim Müdürü, ABC Mobilya',
-                        text: 'RenkFlow sayesinde sipariş takibimiz %80 hızlandı. Artık hiçbir detay gözden kaçmıyor.',
-                        rating: 5
-                    },
-                    {
-                        name: 'Zeynep Kaya',
-                        role: 'CEO, XYZ Tekstil',
-                        text: 'Ekip koordinasyonu çok kolaylaştı. Herkes ne yapacağını biliyor, e-posta trafiği bitti.',
-                        rating: 5
-                    },
-                    {
-                        name: 'Mehmet Demir',
-                        role: 'İşletme Sahibi, DEF Metal',
-                        text: 'Raporlama özellikleri harika. Hangi ürün ne kadar kar getiriyor artık net görüyorum.',
-                        rating: 5
-                    }
-                ].map((testimonial, i) => (
-                    <motion.div
-                        key={i}
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: i * 0.1 }}
-                        className="p-6 rounded-2xl bg-white/90 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 relative shadow-[0_18px_40px_-30px_rgba(15,23,42,0.35)]"
-                    >
-                        <Quote className="absolute top-4 right-4 text-sky-600/10" size={48} />
-                        <div className="flex gap-1 mb-4">
-                            {[...Array(testimonial.rating)].map((_, i) => (
-                                <Star key={i} size={16} className="fill-yellow-400 text-yellow-400" />
-                            ))}
-                        </div>
-                        <p className="text-slate-600 dark:text-slate-400 mb-6 relative z-10">
-                            &quot;{testimonial.text}&quot;
-                        </p>
-                        <div>
-                            <p className="font-semibold text-slate-900 dark:text-white">{testimonial.name}</p>
-                            <p className="text-sm text-slate-500">{testimonial.role}</p>
-                        </div>
-                    </motion.div>
-                ))}
-            </div>
-        </motion.div>
+        <div className="mt-20 rounded-3xl border border-slate-200/70 bg-white/90 p-6 dark:border-slate-800 dark:bg-slate-900/70">
+          <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Tüm planlarda üretim odaklı çekirdek modüller</h3>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            Plan farkları kullanıcı/adet ve ileri seviye kapasite seviyesindedir. Çekirdek operasyon modülleri tüm planlarda bulunur.
+          </p>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {[
+              {
+                icon: Factory,
+                title: 'Production Tracking',
+                description: 'Siparişlerin aşama bazında canlı takibi ve gecikme görünürlüğü.',
+              },
+              {
+                icon: Boxes,
+                title: 'Inventory Management',
+                description: 'Hammadde / yarı mamul stok seviyeleri ve kritik eşik uyarıları.',
+              },
+              {
+                icon: Users2,
+                title: 'Team Collaboration',
+                description: 'Operatör, planlama ve yönetim ekiplerini aynı akışta hizalama.',
+              },
+            ].map((item) => (
+              <article
+                key={item.title}
+                className="rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/40"
+              >
+                <item.icon className="h-5 w-5 text-sky-600 dark:text-sky-300" />
+                <h4 className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">{item.title}</h4>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{item.description}</p>
+              </article>
+            ))}
+          </div>
+        </div>
 
       </div>
     </section>

@@ -1,27 +1,23 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
 
 import { sql } from '@/lib/db';
 import { TEMPLATE_BY_KEY, DEFAULT_TEMPLATE_KEY, TemplateKey } from '@/lib/config/templates';
+import { AuthenticationError, AuthorizationError, assertTenantAccess, requireTenantContext } from '@/lib/auth/serverAuth';
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    
-    if (!session?.user?.id || !session.user.tenantId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const context = await requireTenantContext();
 
     const { tenantId, name, brandColor, logoUrl, industry, templateKey } = await request.json();
-    const effectiveTenantId = session.user.tenantId;
-    if (tenantId && tenantId !== effectiveTenantId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const effectiveTenantId = context.tenantId;
+    if (tenantId) {
+      assertTenantAccess(context, tenantId, 'Forbidden');
     }
 
     // Verify user has permission to update this tenant
     const members = await sql`
       SELECT role FROM tenant_members
-      WHERE tenant_id = ${effectiveTenantId} AND user_id = ${session.user.id}
+      WHERE tenant_id = ${effectiveTenantId} AND user_id = ${context.userId}
       LIMIT 1
     `;
 
@@ -73,6 +69,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
     console.error('Update tenant error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

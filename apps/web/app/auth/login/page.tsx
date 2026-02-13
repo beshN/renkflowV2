@@ -69,6 +69,11 @@ function LoginForm() {
   }>({});
   const router = useRouter();
   const searchParams = useSearchParams();
+  const callbackUrlParam = searchParams.get('callbackUrl');
+  const redirectTarget =
+    callbackUrlParam && callbackUrlParam.startsWith('/') && !callbackUrlParam.startsWith('//')
+      ? callbackUrlParam
+      : '/dashboard';
 
   // Show verification messages
   useEffect(() => {
@@ -94,6 +99,7 @@ function LoginForm() {
         email: email.trim().toLowerCase(),
         password,
         redirect: false,
+        callbackUrl: redirectTarget,
       });
       
       if (result?.error) {
@@ -127,7 +133,7 @@ function LoginForm() {
 
       if (result?.ok) {
         toast.success('Giriş başarılı! Yönlendiriliyorsunuz...');
-        router.push('/orders');
+        router.push(redirectTarget);
         router.refresh();
       }
     } catch (error: unknown) {
@@ -140,7 +146,7 @@ function LoginForm() {
 
   const handleSocialLogin = async (provider: 'google' | 'azure-ad') => {
     try {
-      await signIn(provider, { callbackUrl: '/orders' });
+      await signIn(provider, { callbackUrl: redirectTarget });
     } catch (error: unknown) {
       console.error('Social login error:', error);
       toast.error('Sosyal medya girişi başarısız oldu.');

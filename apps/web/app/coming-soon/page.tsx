@@ -2,11 +2,12 @@ import { ComingSoonPage } from '@/components/landing-new/ComingSoonPage';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'RenkFlow - Çok Yakında | Üretim Yönetiminin Geleceği',
-  description: 'RenkFlow, üretim yönetiminde yeni bir çağ başlatıyor. Modern, güçlü ve kullanıcı dostu platform ile tanışmaya hazır olun. Bekleme listesine katılın!',
+  title: 'RenkFlow - Private Beta',
+  description:
+    'RenkFlow private beta sürecinde. Üretim operasyonları için erken erişim talebi bırakabilir ve ürün güncellemelerini takip edebilirsiniz.',
   openGraph: {
-    title: 'RenkFlow - Çok Yakında',
-    description: 'Üretim yönetiminde devrim niteliğinde bir platform geliyor.',
+    title: 'RenkFlow - Private Beta',
+    description: 'Private beta doğrulama sürecindeki üretim operasyon platformu.',
     type: 'website',
   },
 };

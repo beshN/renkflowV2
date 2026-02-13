@@ -1,11 +1,11 @@
 'use server';
 
-import { auth } from '@/auth';
 import { orderService } from '@/lib/services/orderService.server';
 import { NewOrderFormData, Order, safeParseCurrency } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { withCache, cacheKeys, invalidateCache } from '@/lib/cache/enterprise';
 import { withServerActionTiming } from '@/lib/utils/metrics';
+import { requireTenantContext } from '@/lib/auth/serverAuth';
 import {
   createOrderSchema,
   updateOrderSchema,
@@ -42,18 +42,16 @@ const ALLOWED_STATUS_TRANSITIONS: Record<Order['status'], Order['status'][]> = {
 
 // Validate session and ensure tenantId is defined
 async function validateSession(): Promise<{ user: { id: string; tenantId: string; email?: string | null; name?: string | null; role?: string }; }> {
-  const session = await auth();
-  if (!session?.user?.tenantId) {
-    throw new Error('Yetkilendirme gereklidir');
-  }
+  const context = await requireTenantContext();
+
   // Return with guaranteed tenantId
   return {
     user: {
-      id: session.user.id,
-      tenantId: session.user.tenantId,
-      email: session.user.email,
-      name: session.user.name,
-      role: session.user.role,
+      id: context.userId,
+      tenantId: context.tenantId,
+      email: context.email,
+      name: context.name,
+      role: context.role,
     }
   };
 }

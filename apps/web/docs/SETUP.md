@@ -88,7 +88,12 @@ Run full quality checks:
 npm run validate
 ```
 
-Run coming-soon smoke test:
+Run live-mode smoke test:
+```bash
+npm run smoke:live -- https://<your-cloud-run-url>
+```
+
+Run coming-soon smoke test (campaign mode only):
 ```bash
 npm run smoke:coming-soon -- https://<your-cloud-run-url>
 ```

@@ -14,6 +14,7 @@ export default function CookieConsent() {
   const labels = {
     tr: {
       title: 'Çerez Kullanımı',
+      short: 'Deneyimi iyileştirmek için çerez kullanıyoruz.',
       description:
         'Web sitemizde deneyiminizi iyileştirmek için çerezler kullanıyoruz. Gerekli çerezler sitenin çalışması için zorunludur. Analitik ve pazarlama çerezleri ise size daha iyi hizmet vermemize yardımcı olur. Daha fazla bilgi için',
       policy: 'Gizlilik Politikamızı',
@@ -22,6 +23,7 @@ export default function CookieConsent() {
     },
     en: {
       title: 'Cookie Usage',
+      short: 'We use cookies to improve your experience.',
       description:
         'We use cookies to improve your experience. Essential cookies are required for the site to work. Analytics and marketing cookies help us serve you better. For more details, see our',
       policy: 'Privacy Policy',
@@ -30,6 +32,7 @@ export default function CookieConsent() {
     },
     ar: {
       title: 'استخدام ملفات الارتباط',
+      short: 'نستخدم ملفات الارتباط لتحسين تجربتك.',
       description:
         'نستخدم ملفات الارتباط لتحسين تجربتك. الملفات الضرورية مطلوبة لعمل الموقع. ملفات التحليلات والتسويق تساعدنا على تقديم خدمة أفضل. لمزيد من التفاصيل راجع',
       policy: 'سياسة الخصوصية',
@@ -44,7 +47,7 @@ export default function CookieConsent() {
     const consent = localStorage.getItem('cookie-consent');
     if (!consent) {
       // Small delay to avoid hydration issues and improve UX
-      const timer = setTimeout(() => setShowBanner(true), 1500);
+      const timer = setTimeout(() => setShowBanner(true), 2500);
       return () => clearTimeout(timer);
     }
   }, []);
@@ -77,9 +80,9 @@ export default function CookieConsent() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="fixed bottom-0 left-0 right-0 z-50 p-3 md:p-5"
+          className="fixed bottom-0 left-0 right-0 z-50 p-2.5 md:p-5"
         >
-          <div className="max-w-5xl mx-auto bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-border-light dark:border-border-dark p-5 md:p-7">
+          <div className="max-w-4xl mx-auto bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-border-light dark:border-border-dark p-4 md:p-6">
             <div className={`flex flex-col ${isRtl ? 'md:flex-row-reverse text-right' : 'md:flex-row text-left'} items-start md:items-center gap-6`}>
               {/* Icon and Text */}
               <div className="flex items-start gap-4 flex-1">
@@ -90,7 +93,10 @@ export default function CookieConsent() {
                   <h3 className="font-bold text-lg text-text-light dark:text-text-dark mb-2">
                     {text.title}
                   </h3>
-                  <p className="text-subtle-light dark:text-subtle-dark text-sm leading-relaxed">
+                  <p className="text-subtle-light dark:text-subtle-dark text-sm leading-relaxed sm:hidden">
+                    {text.short}
+                  </p>
+                  <p className="hidden sm:block text-subtle-light dark:text-subtle-dark text-sm leading-relaxed">
                     {text.description}{' '}
                     <Link href="/privacy" className="text-primary hover:underline">
                       {text.policy}
