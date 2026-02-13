@@ -12,6 +12,7 @@ env:
   AR_REPOSITORY: renkflow-containers
   SQL_INSTANCE: renkflow-db-prod
   PUBLIC_SITE_MODE: off
+  APP_BASE_URL: https://renkflow.com
 
 jobs:
   deploy:
@@ -182,6 +183,21 @@ jobs:
           SERVICE_URL="$(gcloud run services describe "${{ env.SERVICE_NAME }}" --region "${{ env.REGION }}" --format='value(status.url)')"
           echo "Cloud Run URL: ${SERVICE_URL}"
           echo "SERVICE_URL=${SERVICE_URL}" >> "$GITHUB_ENV"
+
+      - name: Set runtime public URLs
+        run: |
+          TARGET_URL="${{ env.APP_BASE_URL }}"
+          TARGET_URL="${TARGET_URL%/}"
+          if [[ -z "${TARGET_URL}" ]]; then
+            TARGET_URL="${SERVICE_URL}"
+          fi
+
+          gcloud run services update "${{ env.SERVICE_NAME }}" \
+            --region "${{ env.REGION }}" \
+            --no-invoker-iam-check \
+            --update-env-vars "NEXTAUTH_URL=${TARGET_URL},AUTH_URL=${TARGET_URL},NEXT_PUBLIC_APP_URL=${TARGET_URL}" >/dev/null
+
+          echo "Runtime public URL set to ${TARGET_URL}"
 
       - name: Validate deployed PUBLIC_SITE_MODE
         run: |

@@ -102,6 +102,13 @@ function getFilesFromFormData(formData: FormData): File[] {
     .filter((entry): entry is File => entry instanceof File && entry.size > 0);
 }
 
+function getOptionalFormString(formData: FormData, key: string): string | undefined {
+  const value = formData.get(key);
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 function validateFilesOrThrow(files: File[]): void {
   if (files.length === 0) return;
   const fileValidation = validateFiles(files);
@@ -169,14 +176,14 @@ export async function createOrderAction(formData: FormData): Promise<Order> {
 
       const validationResult = createOrderSchema.safeParse({
         customerName: formData.get('customerName'),
-        email: formData.get('email'),
-        phone: formData.get('phone'),
+        email: getOptionalFormString(formData, 'email'),
+        phone: getOptionalFormString(formData, 'phone'),
         productName: formData.get('productName'),
         quantity: formData.get('quantity'),
         totalAmount: formData.get('totalAmount'),
         currency: formData.get('currency'),
-        deliveryDate: formData.get('deliveryDate'),
-        notes: formData.get('notes'),
+        deliveryDate: getOptionalFormString(formData, 'deliveryDate'),
+        notes: getOptionalFormString(formData, 'notes'),
       });
 
       if (!validationResult.success) {

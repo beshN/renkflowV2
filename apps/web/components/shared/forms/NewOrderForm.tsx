@@ -36,6 +36,7 @@ interface FormErrors {
   productName?: string;
   quantity?: string;
   totalAmount?: string;
+  deliveryDate?: string;
 }
 
 export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
@@ -67,6 +68,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
     const key = (user?.templateKey as TemplateKey) || DEFAULT_TEMPLATE_KEY;
     return TEMPLATE_BY_KEY[key] || TEMPLATE_BY_KEY[DEFAULT_TEMPLATE_KEY];
   }, [user?.templateKey]);
+  const todayISO = useMemo(() => new Date().toISOString().split('T')[0], []);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -82,6 +84,10 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
 
     if (formData.quantity < 1) {
       newErrors.quantity = 'Miktar en az 1 olmalıdır';
+    }
+
+    if (formData.deliveryDate && formData.deliveryDate < todayISO) {
+      newErrors.deliveryDate = 'Teslimat tarihi geçmiş olamaz';
     }
 
     let customFieldError = false;
@@ -130,7 +136,8 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
       await onSubmit(data);
       toast.success('Sipariş başarıyla oluşturuldu!', { id: toastId });
     } catch (error) {
-      toast.error('Sipariş oluşturulurken bir hata oluştu.', { id: toastId });
+      const message = error instanceof Error ? error.message : 'Sipariş oluşturulurken bir hata oluştu.';
+      toast.error(message, { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
@@ -295,6 +302,8 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
               name="deliveryDate"
               value={formData.deliveryDate}
               onChange={handleChange}
+              min={todayISO}
+              errorMessage={errors.deliveryDate}
             />
           </div>
           <div>

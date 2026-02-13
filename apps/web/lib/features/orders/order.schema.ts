@@ -108,6 +108,11 @@ const optionalPhone = z.preprocess(
     .optional()
 );
 
+const optionalNotes = z.preprocess(
+  (val) => (val === '' || val === null ? undefined : val),
+  sanitizedString.pipe(z.string().max(2000, 'Notlar çok uzun')).optional()
+);
+
 // ============================================
 // Order Schemas
 // ============================================
@@ -135,7 +140,7 @@ export const createOrderSchema = z.object({
   totalAmount: safeNonNegativeNumber,
   currency: CurrencySchema.default('TRY'),
   deliveryDate: optionalDate,
-  notes: sanitizedString.pipe(z.string().max(2000, 'Notlar çok uzun')).optional(),
+  notes: optionalNotes,
 });
 
 export const updateOrderSchema = z.object({
@@ -147,7 +152,7 @@ export const updateOrderSchema = z.object({
   totalAmount: safeNonNegativeNumber.optional(),
   currency: CurrencySchema.optional(),
   deliveryDate: optionalDate,
-  notes: sanitizedString.pipe(z.string().max(2000)).optional(),
+  notes: optionalNotes,
   status: z.enum(['pending', 'in_production', 'delivered']).optional(),
 });
 

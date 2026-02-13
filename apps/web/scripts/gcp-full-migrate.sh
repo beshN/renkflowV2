@@ -17,6 +17,7 @@ DB_USER="${DB_USER:-renkflow_user}"
 RUNTIME_SA_NAME="${RUNTIME_SA_NAME:-renkflow-runtime}"
 GCS_BUCKET_NAME="${GCS_BUCKET_NAME:-}"
 PUBLIC_SITE_MODE="${PUBLIC_SITE_MODE:-off}"
+APP_BASE_URL="${APP_BASE_URL:-https://renkflow.com}"
 SKIP_DB_IMPORT="${SKIP_DB_IMPORT:-0}"
 
 PG_DUMP_BIN="${PG_DUMP_BIN:-/opt/homebrew/opt/libpq/bin/pg_dump}"
@@ -513,12 +514,17 @@ SERVICE_URL="$(gcloud run services describe "$SERVICE_NAME" \
   --region "$REGION" \
   --format='value(status.url)')"
 
+APP_BASE_URL="${APP_BASE_URL%/}"
+if [[ -z "$APP_BASE_URL" ]]; then
+  APP_BASE_URL="$SERVICE_URL"
+fi
+
 log "Updating runtime URL variables..."
 gcloud run services update "$SERVICE_NAME" \
   --project "$PROJECT_ID" \
   --region "$REGION" \
   --no-invoker-iam-check \
-  --update-env-vars "NEXTAUTH_URL=${SERVICE_URL},AUTH_URL=${SERVICE_URL},NEXT_PUBLIC_APP_URL=${SERVICE_URL}" >/dev/null
+  --update-env-vars "NEXTAUTH_URL=${APP_BASE_URL},AUTH_URL=${APP_BASE_URL},NEXT_PUBLIC_APP_URL=${APP_BASE_URL}" >/dev/null
 
 INVOKER_IAM_DISABLED="$(gcloud run services describe "$SERVICE_NAME" \
   --project "$PROJECT_ID" \
