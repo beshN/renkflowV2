@@ -53,20 +53,7 @@ export function normalizePublicSiteMode(value: string | null | undefined): strin
 
 export function isComingSoonMode(value: string | null | undefined): boolean {
   const normalizedMode = normalizePublicSiteMode(value);
-  if (normalizedMode !== COMING_SOON_MODE) {
-    return false;
-  }
-
-  // Safety guard:
-  // If a legacy Vercel deployment still serves the domain with stale env vars,
-  // do not lock the entire site in coming-soon mode unless explicitly allowed.
-  const isVercelRuntime = process.env.VERCEL === '1' || process.env.VERCEL === 'true';
-  const allowComingSoonOnVercel = process.env.ALLOW_COMING_SOON_ON_VERCEL === 'true';
-  if (isVercelRuntime && !allowComingSoonOnVercel) {
-    return false;
-  }
-
-  return true;
+  return normalizedMode === COMING_SOON_MODE;
 }
 
 export function evaluateComingSoonRequest(pathname: string, method: string, publicSiteMode: string): MiddlewareAction {

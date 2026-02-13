@@ -1,5 +1,4 @@
 import { ThemeApplier } from '@/components/layout/ThemeApplier'
-import { Analytics } from "@vercel/analytics/react"
 import GoogleAnalytics from '@/components/analytics/GoogleAnalytics'
 import { Toaster } from 'sonner'
 import '@/styles/design-system.css'
@@ -143,7 +142,6 @@ export default function RootLayout({
             <ClientComponents />
           </ErrorBoundary>
         </Providers>
-        <Analytics />
         <GoogleAnalytics GA_MEASUREMENT_ID={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || ''} />
       </body>
     </html>

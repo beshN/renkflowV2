@@ -26,6 +26,7 @@ guard_script_path="$(printf '%s%s%s' 'apps/web/scripts/guardrails/no-' "$legacy_
 
 if git grep -nI -E "$pattern" -- apps/web .github \
   ':!apps/web/package-lock.json' \
+  ':!apps/web/__tests__/lib/db-url-policy.test.ts' \
   ":!$guard_script_path"
 then
   echo "[guard] Legacy backend patterns detected."

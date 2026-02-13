@@ -2,7 +2,7 @@
 
 import Script from 'next/script';
 
-// Cast Script to any to bypass Vercel's strict Next.js 16 type checking
+// Cast Script to a narrowed type to keep TS happy with inline analytics snippets.
 const ScriptComponent = Script as React.ComponentType<{
   id?: string;
   strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive' | 'worker';

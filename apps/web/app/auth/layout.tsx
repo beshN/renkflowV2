@@ -1,7 +1,7 @@
 import { ExperienceBackdrop } from '@/components/layout/ExperienceBackdrop';
 import { RouteTransition } from '@/components/layout/RouteTransition';
 
-// Force dynamic rendering for all auth pages to prevent Vercel build timeout
+// Keep auth pages dynamic to prevent stale cache/session artifacts.
 // This layout applies to all routes under /auth/*
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';

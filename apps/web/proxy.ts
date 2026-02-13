@@ -21,6 +21,7 @@ const AUTH_RATE_LIMIT_WINDOW_MS = 60_000;
 const AUTH_RATE_LIMIT_MAX_ATTEMPTS = 5;
 const AUTH_RATE_LIMIT_BLOCK_MS = 60_000;
 const authRateLimits = new Map<string, AuthRateLimitEntry>();
+const CLOUD_RUN_CANONICAL_ORIGIN = 'https://renkflow-web-1066707793215.europe-west3.run.app';
 
 const AUTH_REDIRECTS: Record<string, { destination: string; permanent: boolean }> = {
   '/auth/signup': { destination: '/signup', permanent: true },
@@ -141,7 +142,33 @@ function buildLoginRedirect(request: NextRequest): NextResponse {
   return NextResponse.redirect(loginUrl, 302);
 }
 
+function shouldForceCloudRunRedirect(request: NextRequest): boolean {
+  const isVercelRuntime = process.env.VERCEL === '1' || process.env.VERCEL === 'true';
+  if (!isVercelRuntime) {
+    return false;
+  }
+
+  try {
+    const targetHost = new URL(CLOUD_RUN_CANONICAL_ORIGIN).host.toLowerCase();
+    const currentHost = request.nextUrl.host.toLowerCase();
+    return currentHost !== targetHost;
+  } catch {
+    return false;
+  }
+}
+
+function buildCloudRunRedirect(request: NextRequest): NextResponse {
+  const destination = new URL(CLOUD_RUN_CANONICAL_ORIGIN);
+  destination.pathname = request.nextUrl.pathname;
+  destination.search = request.nextUrl.search;
+  return NextResponse.redirect(destination, 307);
+}
+
 export async function proxy(request: NextRequest) {
+  if (shouldForceCloudRunRedirect(request)) {
+    return buildCloudRunRedirect(request);
+  }
+
   const publicSiteMode = normalizePublicSiteMode(process.env.PUBLIC_SITE_MODE || 'off');
   const { pathname } = request.nextUrl;
   const method = request.method.toUpperCase();

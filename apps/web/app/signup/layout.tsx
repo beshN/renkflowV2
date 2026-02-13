@@ -1,7 +1,7 @@
 import { ExperienceBackdrop } from '@/components/layout/ExperienceBackdrop';
 import { RouteTransition } from '@/components/layout/RouteTransition';
 
-// Force dynamic rendering for signup page to prevent Vercel build timeout
+// Keep signup dynamic to avoid stale auth/session artifacts.
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 

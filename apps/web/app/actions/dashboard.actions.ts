@@ -136,46 +136,78 @@ async function queryFinanceWidget(tenantId: string): Promise<DashboardFinanceWid
 
   try {
     const result = hasPayments
-      ? await sql`
-          WITH month_bounds AS (
+      ? hasLedger
+        ? await sql`
+            WITH month_bounds AS (
+              SELECT
+                date_trunc('month', NOW()) as month_start,
+                date_trunc('month', NOW()) + interval '1 month' as month_end
+            ),
+            payments_month AS (
+              SELECT COALESCE(SUM(p.amount), 0) as payments_collected_this_month
+              FROM payments p, month_bounds b
+              WHERE p.tenant_id = ${tenantId}
+                AND p.paid_at >= b.month_start
+                AND p.paid_at < b.month_end
+            ),
+            order_totals AS (
+              SELECT COALESCE(SUM(o.total_amount), 0) as total_order_amount
+              FROM orders o
+              WHERE o.tenant_id = ${tenantId}
+            ),
+            paid_totals AS (
+              SELECT COALESCE(SUM(p.amount), 0) as total_paid
+              FROM payments p
+              WHERE p.tenant_id = ${tenantId}
+            ),
+            payroll_month AS (
+              SELECT COALESCE(SUM(l.amount), 0) as payroll_cost_this_month
+              FROM employee_ledger_entries l, month_bounds b
+              WHERE l.tenant_id = ${tenantId}
+                AND l.entry_date >= b.month_start::date
+                AND l.entry_date < b.month_end::date
+                AND l.kind IN ('salary', 'payment')
+            )
             SELECT
-              date_trunc('month', NOW()) as month_start,
-              date_trunc('month', NOW()) + interval '1 month' as month_end
-          ),
-          payments_month AS (
-            SELECT COALESCE(SUM(p.amount), 0) as payments_collected_this_month
-            FROM payments p, month_bounds b
-            WHERE p.tenant_id = ${tenantId}
-              AND p.paid_at >= b.month_start
-              AND p.paid_at < b.month_end
-          ),
-          order_totals AS (
-            SELECT COALESCE(SUM(o.total_amount), 0) as total_order_amount
-            FROM orders o
-            WHERE o.tenant_id = ${tenantId}
-          ),
-          paid_totals AS (
-            SELECT COALESCE(SUM(p.amount), 0) as total_paid
-            FROM payments p
-            WHERE p.tenant_id = ${tenantId}
-          ),
-          payroll_month AS (
-            SELECT COALESCE(SUM(l.amount), 0) as payroll_cost_this_month
-            FROM employee_ledger_entries l, month_bounds b
-            WHERE l.tenant_id = ${tenantId}
-              AND l.entry_date >= b.month_start::date
-              AND l.entry_date < b.month_end::date
-              AND l.kind IN ('salary', 'payment')
-          )
-          SELECT
-            pm.payments_collected_this_month,
-            GREATEST(ot.total_order_amount - pt.total_paid, 0) as outstanding_receivables,
-            ${hasLedger ? sql`py.payroll_cost_this_month` : sql`0::numeric`} as payroll_cost_this_month
-          FROM payments_month pm
-          CROSS JOIN order_totals ot
-          CROSS JOIN paid_totals pt
-          ${hasLedger ? sql`CROSS JOIN payroll_month py` : sql``}
-        `
+              pm.payments_collected_this_month,
+              GREATEST(ot.total_order_amount - pt.total_paid, 0) as outstanding_receivables,
+              py.payroll_cost_this_month
+            FROM payments_month pm
+            CROSS JOIN order_totals ot
+            CROSS JOIN paid_totals pt
+            CROSS JOIN payroll_month py
+          `
+        : await sql`
+            WITH month_bounds AS (
+              SELECT
+                date_trunc('month', NOW()) as month_start,
+                date_trunc('month', NOW()) + interval '1 month' as month_end
+            ),
+            payments_month AS (
+              SELECT COALESCE(SUM(p.amount), 0) as payments_collected_this_month
+              FROM payments p, month_bounds b
+              WHERE p.tenant_id = ${tenantId}
+                AND p.paid_at >= b.month_start
+                AND p.paid_at < b.month_end
+            ),
+            order_totals AS (
+              SELECT COALESCE(SUM(o.total_amount), 0) as total_order_amount
+              FROM orders o
+              WHERE o.tenant_id = ${tenantId}
+            ),
+            paid_totals AS (
+              SELECT COALESCE(SUM(p.amount), 0) as total_paid
+              FROM payments p
+              WHERE p.tenant_id = ${tenantId}
+            )
+            SELECT
+              pm.payments_collected_this_month,
+              GREATEST(ot.total_order_amount - pt.total_paid, 0) as outstanding_receivables,
+              0::numeric as payroll_cost_this_month
+            FROM payments_month pm
+            CROSS JOIN order_totals ot
+            CROSS JOIN paid_totals pt
+          `
       : await sql`
           SELECT
             0::numeric as payments_collected_this_month,

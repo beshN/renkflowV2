@@ -3,7 +3,7 @@ import { Footer } from '@/components/landing-new/Footer';
 import { ExperienceBackdrop } from '@/components/layout/ExperienceBackdrop';
 import { RouteTransition } from '@/components/layout/RouteTransition';
 
-// Force dynamic rendering for all landing pages to prevent Vercel build timeout
+// Keep landing pages dynamic so locale/theme and launch state stay current.
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
