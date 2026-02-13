@@ -400,7 +400,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
                       <Link
                         key={`compact-${group.id}-${item.label}`}
                         href={item.href}
-                        onClick={(e) => handleItemClick(item, e)}
+                        onClick={(e: MouseEvent<HTMLElement>) => handleItemClick(item, e)}
                         title={item.label}
                         aria-label={item.label}
                         className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-[color-mix(in_srgb,var(--rf-brand-50)_60%,var(--rf-surface)_40%)] hover:text-[var(--rf-brand-700)] dark:text-slate-400 dark:hover:text-[var(--rf-brand-500)]"
