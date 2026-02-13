@@ -425,7 +425,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
                       <Link
                         key={itemKey}
                         href={item.href}
-                        onClick={(e) => handleItemClick(item, e)}
+                        onClick={(e: MouseEvent<HTMLElement>) => handleItemClick(item, e)}
                         onMouseEnter={() => {
                           if (!showExpandedContent) handleCollapsedItemHoverStart(itemKey);
                         }}
