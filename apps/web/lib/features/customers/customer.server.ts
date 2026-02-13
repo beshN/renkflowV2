@@ -66,19 +66,19 @@ export async function getCustomers(params?: {
       status: row.status,
       category: row.category,
       priority: row.priority,
-      creditLimit: parseFloat(row.credit_limit),
-      currentBalance: parseFloat(row.current_balance),
-      totalRevenue: parseFloat(row.total_revenue),
+      creditLimit: parseFloat(row.credit_limit) || 0,
+      currentBalance: parseFloat(row.current_balance) || 0,
+      totalRevenue: parseFloat(row.total_revenue) || 0,
       assignedTo: row.assigned_to,
       assignedToName: row.assigned_to_name,
       source: row.source,
       notes: row.notes,
       tags: row.tags || [],
       totalOrders: row.total_orders,
-      lastOrderDate: row.last_order_date,
-      lastContactDate: row.last_contact_date,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
+      lastOrderDate: row.last_order_date instanceof Date ? row.last_order_date.toISOString() : row.last_order_date,
+      lastContactDate: row.last_contact_date instanceof Date ? row.last_contact_date.toISOString() : row.last_contact_date,
+      createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at
     }));
   } catch (error) {
     console.error('[CustomerService] Get customers error:', error);

@@ -77,26 +77,26 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
           </Link>
         </div>
 
-        <form className="grid grid-cols-1 md:grid-cols-4 gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3" method="GET">
+        <form className="grid grid-cols-1 md:grid-cols-4 gap-4 rounded-2xl border border-white/50 dark:border-white/5 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl shadow-[0_2px_12px_-4px_rgba(0,0,0,0.04)] p-4" method="GET">
           <input
             type="text"
             name="q"
             defaultValue={q}
             placeholder="SKU veya ad ile ara"
-            className="rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-2 text-sm"
+            className="rounded-xl border border-transparent bg-slate-100/50 dark:bg-slate-800/50 px-4 py-2.5 text-sm outline-none focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-slate-500"
           />
 
-          <label className="inline-flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm">
-            <input type="checkbox" name="low" value="1" defaultChecked={low} />
-            Sadece düşük stok
+          <label className="inline-flex items-center gap-3 rounded-xl border border-transparent bg-slate-100/50 dark:bg-slate-800/50 px-4 py-2.5 text-sm cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-800/80 transition-colors">
+            <input type="checkbox" name="low" value="1" defaultChecked={low} className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/20" />
+            <span className="text-slate-700 dark:text-slate-200 font-medium">Sadece düşük stok</span>
           </label>
 
-          <label className="inline-flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm">
-            <input type="checkbox" name="active" value="1" defaultChecked={active} />
-            Sadece aktif
+          <label className="inline-flex items-center gap-3 rounded-xl border border-transparent bg-slate-100/50 dark:bg-slate-800/50 px-4 py-2.5 text-sm cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-800/80 transition-colors">
+            <input type="checkbox" name="active" value="1" defaultChecked={active} className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/20" />
+            <span className="text-slate-700 dark:text-slate-200 font-medium">Sadece aktif</span>
           </label>
 
-          <button className="rounded-lg bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 px-3 py-2 text-sm font-medium">
+          <button className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white px-4 py-2.5 text-sm font-semibold shadow-lg shadow-slate-900/10 transition-all transform active:scale-95">
             Filtrele
           </button>
 
@@ -104,23 +104,23 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
           <input type="hidden" name="page" value="1" />
         </form>
 
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900">
+        <div className="rounded-2xl border border-white/50 dark:border-white/5 overflow-hidden bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl shadow-[0_2px_12px_-4px_rgba(0,0,0,0.04)]">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px]">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/60">
-                  <th className="text-left text-xs font-semibold tracking-wide uppercase px-4 py-3">SKU</th>
-                  <th className="text-left text-xs font-semibold tracking-wide uppercase px-4 py-3">Ad</th>
-                  <th className="text-left text-xs font-semibold tracking-wide uppercase px-4 py-3">Lokasyon</th>
-                  <th className="text-right text-xs font-semibold tracking-wide uppercase px-4 py-3">Güncel Stok</th>
-                  <th className="text-right text-xs font-semibold tracking-wide uppercase px-4 py-3">Min Stok</th>
-                  <th className="text-left text-xs font-semibold tracking-wide uppercase px-4 py-3">Durum</th>
+              <thead className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border-b border-white/40 dark:border-slate-700/40">
+                <tr>
+                  <th className="text-left text-xs font-bold tracking-wider uppercase px-6 py-4 text-slate-500 dark:text-slate-400">SKU</th>
+                  <th className="text-left text-xs font-bold tracking-wider uppercase px-6 py-4 text-slate-500 dark:text-slate-400">Ad</th>
+                  <th className="text-left text-xs font-bold tracking-wider uppercase px-6 py-4 text-slate-500 dark:text-slate-400">Lokasyon</th>
+                  <th className="text-right text-xs font-bold tracking-wider uppercase px-6 py-4 text-slate-500 dark:text-slate-400">Güncel Stok</th>
+                  <th className="text-right text-xs font-bold tracking-wider uppercase px-6 py-4 text-slate-500 dark:text-slate-400">Min Stok</th>
+                  <th className="text-left text-xs font-bold tracking-wider uppercase px-6 py-4 text-slate-500 dark:text-slate-400">Durum</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="bg-transparent divide-y divide-slate-100/50 dark:divide-slate-800/50">
                 {result.items.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500">
+                    <td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500 italic">
                       Kayıt bulunamadı.
                     </td>
                   </tr>
@@ -128,23 +128,23 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
                   result.items.map((item) => {
                     const isLow = item.currentStock < item.minStock;
                     return (
-                      <tr key={item.id} className="border-t border-slate-100 dark:border-slate-800">
-                        <td className="px-4 py-3 text-sm font-mono">{item.sku}</td>
-                        <td className="px-4 py-3 text-sm">
-                          <Link href={`/inventory/${item.id}`} className="font-medium text-blue-600 hover:underline">
+                      <tr key={item.id} className="group transition-colors duration-200 hover:bg-white/60 dark:hover:bg-slate-800/40">
+                        <td className="px-6 py-4 text-sm font-mono text-indigo-600 dark:text-indigo-400">{item.sku}</td>
+                        <td className="px-6 py-4 text-sm">
+                          <Link href={`/inventory/${item.id}`} className="font-semibold text-slate-900 dark:text-white hover:text-indigo-600 transition-colors">
                             {item.name}
                           </Link>
                         </td>
-                        <td className="px-4 py-3 text-sm text-slate-600">{item.location || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-right font-semibold">{item.currentStock} {item.unit}</td>
-                        <td className="px-4 py-3 text-sm text-right">{item.minStock}</td>
-                        <td className="px-4 py-3 text-sm">
+                        <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">{item.location || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-right font-bold text-slate-700 dark:text-slate-200">{item.currentStock} <span className="text-slate-400 font-normal text-xs">{item.unit}</span></td>
+                        <td className="px-6 py-4 text-sm text-right text-slate-500">{item.minStock}</td>
+                        <td className="px-6 py-4 text-sm">
                           {!item.active ? (
-                            <span className="inline-flex rounded-full px-2 py-1 text-xs bg-slate-100 text-slate-600">Pasif</span>
+                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">Pasif</span>
                           ) : isLow ? (
-                            <span className="inline-flex rounded-full px-2 py-1 text-xs bg-amber-100 text-amber-700">Düşük</span>
+                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 ring-1 ring-amber-600/20">Düşük</span>
                           ) : (
-                            <span className="inline-flex rounded-full px-2 py-1 text-xs bg-emerald-100 text-emerald-700">Normal</span>
+                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 ring-1 ring-emerald-600/20">Normal</span>
                           )}
                         </td>
                       </tr>

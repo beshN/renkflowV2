@@ -160,9 +160,9 @@ function LoginForm() {
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
-        className="flex-1 lg:flex-[0.5] flex items-center justify-center p-4 sm:p-8"
+        className="flex-1 lg:flex-[0.5] flex items-center justify-center p-4 sm:p-8 relative z-10"
       >
-        <div className="w-full max-w-md bg-white dark:bg-neutral-900 p-8 rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-800">
+        <div className="w-full max-w-md bg-white/70 dark:bg-slate-900/70 p-8 rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/50 border border-white/50 dark:border-slate-800 backdrop-blur-xl">
           <header className="text-center lg:text-left mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-neutral-900 dark:text-white">Tekrar Hoş Geldiniz</h1>
             <p className="text-sm text-neutral-500 dark:text-neutral-400">Hesabınıza giriş yaparak devam edin</p>
@@ -295,10 +295,11 @@ function LoginForm() {
         initial={{ opacity: 0, x: 50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
-        className="hidden lg:flex lg:flex-[0.5] items-center justify-center p-8 bg-gradient-to-br from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 relative overflow-hidden"
+        className="hidden lg:flex lg:flex-[0.5] items-center justify-center p-8 bg-slate-50 dark:bg-slate-950 relative overflow-hidden"
       >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] from-primary-700/10 via-transparent to-transparent"></div>
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-violet-500/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/10 to-transparent backdrop-blur-[1px]"></div>
         
         <div className="max-w-md text-center relative z-10">
           <motion.div 

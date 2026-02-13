@@ -126,8 +126,8 @@ export class PostgresOrderService implements IOrderService {
           notes: row.notes,
           customFields: row.custom_fields || undefined,
           documents: documents,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at,
+          createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+          updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
         };
     }));
 
@@ -195,8 +195,8 @@ export class PostgresOrderService implements IOrderService {
       notes: row.notes,
       customFields: row.custom_fields || undefined,
       documents: documents,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
     };
   }
 

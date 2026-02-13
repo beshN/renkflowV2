@@ -1583,7 +1583,7 @@ export default function PDFViewer({
     >
       <div className="h-full w-full flex flex-col p-2 sm:p-4 md:p-6">
         {/* Header */}
-        <header className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-lg border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg mb-2 sm:mb-4 flex items-center justify-between p-2 sm:p-3 gap-2 sm:gap-4 flex-wrap">
+        <header className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border border-white/40 dark:border-slate-700/50 rounded-lg shadow-lg mb-2 sm:mb-4 flex items-center justify-between p-2 sm:p-3 gap-2 sm:gap-4 flex-wrap">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Button
               variant="ghost"

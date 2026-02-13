@@ -65,7 +65,7 @@ const recentOrders = [
   { id: '#RF-4829', customer: 'Ahmet Yılmaz', product: 'Kartvizit 1000 Adet', status: 'completed', amount: '₺2,450', time: '2dk önce', avatar: 'AY' },
   { id: '#RF-4830', customer: 'Mehmet Demir', product: 'Broşür A4 500 Adet', status: 'production', amount: '₺1,890', time: '15dk önce', avatar: 'MD' },
   { id: '#RF-4831', customer: 'Ayşe Kaya', product: 'Afiş 70x100 50 Adet', status: 'pending', amount: '₺3,200', time: '45dk önce', avatar: 'AK' },
-  { id: '#RF-4832', customer: 'Fatma Öz', product: 'Katalog 20 Sayfa', status: 'completed', amount: '₺5,600', time: '1s önce', avatar: 'FÖ' },
+  { id: '#RF-4832', customer: 'Fatma Öz', product: 'Katalog 20 Sayfa', status: 'completed', amount: '₺5,600', time: '1 sa. önce', avatar: 'FÖ' },
 ];
 
 const activityFeed = [

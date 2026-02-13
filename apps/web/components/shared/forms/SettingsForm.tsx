@@ -157,7 +157,7 @@ export function SettingsForm({ initialSettings, onSave }: SettingsFormProps) {
                     value={settings.address}
                     onChange={(e) => handleChange('address', e.target.value)}
                     rows={3}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200/50 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-sky-500/10 focus:border-sky-500/80 transition-all text-sm resize-none"
+                    className="w-full px-4 py-3 rounded-xl border border-white/40 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl text-slate-900 dark:text-white placeholder:text-slate-500 focus:outline-none focus:ring-4 focus:ring-sky-500/10 focus:border-sky-500/50 transition-all text-sm resize-none shadow-sm"
                     placeholder="Tam şirket adresi"
                   />
                 </div>
@@ -232,7 +232,7 @@ export function SettingsForm({ initialSettings, onSave }: SettingsFormProps) {
                   value={newStatus.name}
                   onChange={(e) => setNewStatus({ ...newStatus, name: e.target.value })}
                   placeholder="Yeni durum adı"
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-white/40 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-4 focus:ring-sky-500/10 focus:border-sky-500/50 transition-all shadow-sm placeholder:text-slate-500"
                 />
                 <div className="relative w-14 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
                    <input
@@ -291,7 +291,7 @@ export function SettingsForm({ initialSettings, onSave }: SettingsFormProps) {
                   value={newDepartment.name}
                   onChange={(e) => setNewDepartment({ ...newDepartment, name: e.target.value })}
                   placeholder="Yeni bölüm adı"
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-white/40 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500/50 transition-all shadow-sm placeholder:text-slate-500"
                 />
                  <div className="relative w-14 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
                    <input

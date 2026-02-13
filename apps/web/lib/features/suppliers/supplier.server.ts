@@ -65,16 +65,16 @@ export async function getSuppliers(params?: {
       fulfillmentRate: row.fulfillment_rate,
       qualityRating: row.quality_rating,
       paymentTerms: row.payment_terms,
-      creditLimit: parseFloat(row.credit_limit),
-      currentBalance: parseFloat(row.current_balance),
+      creditLimit: parseFloat(row.credit_limit) || 0,
+      currentBalance: parseFloat(row.current_balance) || 0,
       assignedTo: row.assigned_to,
       notes: row.notes,
       tags: row.tags || [],
       totalOrders: row.total_orders,
-      lastOrderDate: row.last_order_date,
-      lastInteractionDate: row.last_interaction_date,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
+      lastOrderDate: row.last_order_date instanceof Date ? row.last_order_date.toISOString() : row.last_order_date,
+      lastInteractionDate: row.last_interaction_date instanceof Date ? row.last_interaction_date.toISOString() : row.last_interaction_date,
+      createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at
     }));
   } catch (error) {
     console.error('[SupplierService] Get suppliers error:', error);

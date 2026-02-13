@@ -120,7 +120,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
       if (formData.phone) data.append('phone', formData.phone);
       data.append('productName', formData.productName);
       data.append('quantity', formData.quantity.toString());
-      if (formData.totalAmount) data.append('totalAmount', formData.totalAmount.toString());
+      if (formData.totalAmount != null) data.append('totalAmount', formData.totalAmount.toString());
       data.append('currency', formData.currency);
       data.append('deliveryDate', formData.deliveryDate || '');
       if (formData.notes) data.append('notes', formData.notes);

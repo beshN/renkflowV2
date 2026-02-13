@@ -609,7 +609,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg shadow-sm overflow-hidden">
+    <div className="flex flex-col h-full bg-white/40 dark:bg-slate-900/40 border border-white/50 dark:border-white/5 rounded-2xl shadow-[0_2px_12px_-4px_rgba(0,0,0,0.04)] backdrop-blur-xl overflow-hidden">
       {/* Table Container */}
       <div
         ref={tableContainerRef}
@@ -620,7 +620,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
           style={{ width: table.getCenterTotalSize() }}
         >
           {/* Header */}
-          <thead className="sticky top-0 z-10 bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
+          <thead className="sticky top-0 z-10 bg-white/60 dark:bg-slate-900/60 border-b border-white/40 dark:border-slate-700/40 backdrop-blur-md">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
@@ -629,9 +629,9 @@ export const DataGrid: React.FC<DataGridProps> = ({
                     <th
                       key={header.id}
                       className={cn(
-                        'relative px-4 py-3 text-left text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider border-b border-neutral-200 dark:border-neutral-800',
-                        isFrozen && 'sticky left-0 bg-neutral-50 dark:bg-neutral-900 z-20 shadow-[1px_0_0_0_rgba(0,0,0,0.05)] dark:shadow-[1px_0_0_0_rgba(255,255,255,0.05)]',
-                        header.column.getCanSort() && 'cursor-pointer select-none hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                        'relative px-4 py-3.5 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-white/40 dark:border-slate-700/40',
+                        isFrozen && 'sticky left-0 bg-white/70 dark:bg-slate-900/70 z-20 shadow-[1px_0_0_0_rgba(0,0,0,0.05)] dark:shadow-[1px_0_0_0_rgba(255,255,255,0.05)] backdrop-blur-xl',
+                        header.column.getCanSort() && 'cursor-pointer select-none hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors'
                       )}
                       style={{ width: header.getSize() }}
                       onClick={header.column.getToggleSortingHandler()}
@@ -641,7 +641,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
                           ? null
                           : flexRender(header.column.columnDef.header, header.getContext())}
                         {header.column.getIsSorted() && (
-                          <span className="text-primary-600 dark:text-primary-400">
+                          <span className="text-indigo-600 dark:text-indigo-400">
                             {header.column.getIsSorted() === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
                           </span>
                         )}
@@ -657,7 +657,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
           </thead>
 
           {/* Body */}
-          <tbody className="bg-white dark:bg-neutral-900">
+          <tbody className="bg-transparent">
             {paddingTop > 0 && (
               <tr>
                 <td style={{ height: `${paddingTop}px` }} />
@@ -678,10 +678,10 @@ export const DataGrid: React.FC<DataGridProps> = ({
                     onClick={() => onRowClick?.(row.original)}
                     onDoubleClick={() => onRowDoubleClick?.(row.original)}
                     className={cn(
-                      'group border-b border-neutral-100 dark:border-neutral-800 transition-colors',
+                      'group border-b border-slate-100/50 dark:border-slate-800/50 transition-colors duration-200',
                       isSelected
-                        ? 'bg-primary-50/60 dark:bg-primary-900/10'
-                        : 'hover:bg-neutral-50 dark:hover:bg-neutral-800/50',
+                        ? 'bg-indigo-50/60 dark:bg-indigo-900/20'
+                        : 'hover:bg-white/60 dark:hover:bg-slate-800/40',
                       isDirty && 'bg-amber-50/50 dark:bg-amber-900/10',
                       !isSelected && isCriticalRisk && 'bg-red-50/40 dark:bg-red-900/10',
                       !isSelected && !isCriticalRisk && isHighRisk && 'bg-orange-50/40 dark:bg-orange-900/10'
@@ -693,10 +693,10 @@ export const DataGrid: React.FC<DataGridProps> = ({
                         <td
                           key={cell.id}
                           className={cn(
-                            'px-4 py-3 text-sm text-neutral-900 dark:text-neutral-200',
-                            isFrozen && 'sticky left-0 z-10 bg-white dark:bg-neutral-900 shadow-[1px_0_0_0_rgba(0,0,0,0.05)] dark:shadow-[1px_0_0_0_rgba(255,255,255,0.05)]',
-                            isFrozen && isSelected && 'bg-primary-50/60 dark:bg-primary-900/10',
-                            isFrozen && !isSelected && 'group-hover:bg-neutral-50 dark:group-hover:bg-neutral-800/50'
+                            'px-4 py-3.5 text-sm text-slate-700 dark:text-slate-300',
+                            isFrozen && 'sticky left-0 z-1 bg-white/70 dark:bg-slate-900/70 shadow-[1px_0_0_0_rgba(0,0,0,0.05)] dark:shadow-[1px_0_0_0_rgba(255,255,255,0.05)] backdrop-blur-xl',
+                            isFrozen && isSelected && 'bg-indigo-50/80 dark:bg-indigo-900/30',
+                            isFrozen && !isSelected && 'group-hover:bg-white/60 dark:group-hover:bg-slate-800/60'
                           )}
                           style={{ width: cell.column.getSize() }}
                         >
@@ -728,7 +728,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
       </div>
 
       {/* Footer with pagination info */}
-      <div className="flex items-center justify-between px-4 py-3 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900">
+      <div className="flex items-center justify-between px-4 py-3 border-t border-white/40 dark:border-slate-800/60 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md">
         <div className="text-sm text-neutral-500 dark:text-neutral-400">
           {selectedIds.size > 0 ? (
             <span className="font-medium text-primary-600 dark:text-primary-400">

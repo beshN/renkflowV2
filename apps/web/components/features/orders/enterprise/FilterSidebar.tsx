@@ -265,13 +265,13 @@ const AmountRangeSlider: React.FC<{
   const [localMax, setLocalMax] = useState(value.max ?? max);
 
   const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseInt(e.target.value);
+    const val = e.target.value === '' ? 0 : parseInt(e.target.value);
     setLocalMin(val);
     onChange(val === min ? null : val, localMax === max ? null : localMax);
   };
 
   const handleMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseInt(e.target.value);
+    const val = e.target.value === '' ? 0 : parseInt(e.target.value);
     setLocalMax(val);
     onChange(localMin === min ? null : localMin, val === max ? null : val);
   };
@@ -438,15 +438,15 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
       initial={{ x: -300, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: -300, opacity: 0 }}
-      className="w-80 glass border-r border-neutral-200/50 dark:border-neutral-700/50 flex flex-col h-full"
+      className="w-80 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border-r border-white/50 dark:border-slate-800/50 flex flex-col h-full shadow-[2px_0_24px_-12px_rgba(0,0,0,0.1)]"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200/50 dark:border-neutral-700/50">
+      <div className="flex items-center justify-between px-4 py-3.5 border-b border-white/40 dark:border-slate-800/50">
         <div className="flex items-center gap-2">
-          <Filter size={20} className="text-neutral-500" />
-          <h2 className="font-semibold text-neutral-900 dark:text-white">Filtreler</h2>
+          <Filter size={20} className="text-indigo-600 dark:text-indigo-400" />
+          <h2 className="font-semibold text-slate-900 dark:text-white font-display">Filtreler</h2>
           {activeFilterCount > 0 && (
-            <span className="px-2 py-0.5 bg-primary-100 dark:bg-blue-900/30 text-primary-800 dark:text-blue-200 text-xs rounded-full">
+            <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-bold rounded-full">
               {activeFilterCount}
             </span>
           )}
@@ -455,7 +455,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
           {activeFilterCount > 0 && (
             <button
               onClick={resetFilters}
-              className="p-1.5 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded"
+              className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
               title="Filtreleri Temizle"
             >
               <RotateCcw size={18} />
@@ -463,7 +463,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
           )}
           <button
             onClick={toggleSidebar}
-            className="p-1.5 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded"
+            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
           >
             <X size={20} />
           </button>
@@ -472,7 +472,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
 
       {/* Active Filter Chips */}
       {activeChips.length > 0 && (
-        <div className="px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
+        <div className="px-4 py-3 border-b border-white/40 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-900/30">
           <div className="flex flex-wrap gap-2">
             <AnimatePresence>
               {activeChips.map((chip) => (
@@ -486,15 +486,15 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
       {/* Filter Sections */}
       <div className="flex-1 overflow-y-auto">
         {/* Search */}
-        <div className="px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
+        <div className="px-4 py-4 border-b border-white/40 dark:border-slate-800/50">
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={filters.search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Sipariş, müşteri, ürün ara..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-neutral-300 dark:border-neutral-600 rounded-lg bg-transparent focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full pl-9 pr-4 py-2.5 text-sm border border-transparent bg-slate-100/50 dark:bg-slate-800/50 rounded-xl focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-slate-400"
             />
           </div>
         </div>
@@ -531,7 +531,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
                   type="text"
                   value={presetName}
                   onChange={(e) => setPresetName(e.target.value)}
-                  placeholder="Preset adı..."
+                  placeholder="Filtre grubu adı..."
                   className="flex-1 px-2 py-1.5 text-sm border border-neutral-300 dark:border-neutral-600 rounded bg-transparent focus:outline-none focus:ring-2 focus:ring-primary-500"
                   autoFocus
                 />

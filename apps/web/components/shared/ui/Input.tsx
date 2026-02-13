@@ -39,31 +39,35 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(({
 
   const variants = {
     default: cn(
-      'border border-slate-200/80 dark:border-slate-700/80',
-      'bg-white/90 dark:bg-slate-900/80 backdrop-blur-sm',
-      'focus:border-primary-500 dark:focus:border-primary-400',
-      'focus:ring-4 focus:ring-primary-500/10 dark:focus:ring-primary-400/10'
+      'border border-slate-200/60 dark:border-slate-700/60',
+      'bg-slate-50/50 dark:bg-slate-900/50',
+      'backdrop-blur-sm',
+      'focus:bg-white dark:focus:bg-slate-950',
+      'focus:border-indigo-500/50 dark:focus:border-indigo-400/50',
+      'focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-400/10',
+      'shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] focus:shadow-[0_4px_20px_-4px_rgba(79,70,229,0.1)]'
     ),
     filled: cn(
       'border border-transparent',
       'bg-slate-100/80 dark:bg-slate-800/80',
       'focus:bg-white dark:focus:bg-slate-900',
-      'focus:border-primary-500 dark:focus:border-primary-400',
-      'focus:ring-4 focus:ring-primary-500/10'
+      'focus:border-indigo-500 dark:focus:border-indigo-400',
+      'focus:ring-4 focus:ring-indigo-500/10'
     ),
     ghost: cn(
       'border-b-2 border-slate-200 dark:border-slate-700 rounded-none',
       'bg-transparent',
-      'focus:border-primary-500 dark:focus:border-primary-400',
-      'focus:ring-0'
+      'focus:border-indigo-500 dark:focus:border-indigo-400',
+      'focus:ring-0 px-0'
     ),
     glass: cn(
-      'border border-slate-200/70 dark:border-slate-700/60',
-      'bg-white/60 dark:bg-slate-900/60',
-      'backdrop-blur-md',
+      'border border-white/40 dark:border-slate-700/40',
+      'bg-white/40 dark:bg-slate-900/40',
+      'backdrop-blur-xl',
       'focus:bg-white/80 dark:focus:bg-slate-900/80',
-      'focus:border-primary-500/80 dark:focus:border-primary-400/80',
-      'focus:ring-4 focus:ring-primary-500/10 dark:focus:ring-primary-400/10'
+      'focus:border-indigo-500/50 dark:focus:border-indigo-400/50',
+      'focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-400/10',
+      'shadow-[0_4px_24px_-4px_rgba(0,0,0,0.05)]'
     ),
   };
 

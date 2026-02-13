@@ -23,23 +23,23 @@ type OnboardingSessionRow = {
   id: string;
   tenant_id: string;
   started_by: string | null;
-  started_at: string;
-  activated_at: string | null;
+  started_at: string | Date;
+  activated_at: string | Date | null;
   last_step_key: string | null;
   progress_percent: number;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
 };
 
 type OnboardingStepRow = {
   id: string;
   step_key: string;
   completed: boolean;
-  completed_at: string;
+  completed_at: string | Date;
   completed_by: string | null;
   metadata: Record<string, unknown> | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
 };
 
 export type OnboardingStep = {
@@ -85,11 +85,11 @@ function mapStep(row: OnboardingStepRow): OnboardingStep {
     id: row.id,
     stepKey: row.step_key as (typeof ONBOARDING_STEP_KEYS)[number],
     completed: row.completed,
-    completedAt: row.completed_at,
+    completedAt: row.completed_at instanceof Date ? row.completed_at.toISOString() : row.completed_at,
     completedBy: row.completed_by,
     metadata: (row.metadata || {}) as Record<string, unknown>,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+    updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
   };
 }
 
@@ -149,8 +149,8 @@ function buildSession(row: OnboardingSessionRow, stepRows: OnboardingStepRow[]):
     id: row.id,
     tenantId: row.tenant_id,
     startedBy: row.started_by,
-    startedAt: row.started_at,
-    activatedAt: row.activated_at,
+    startedAt: row.started_at instanceof Date ? row.started_at.toISOString() : row.started_at,
+    activatedAt: row.activated_at instanceof Date ? row.activated_at.toISOString() : row.activated_at,
     lastStepKey: normalizeStepKey(row.last_step_key),
     progressPercent: computedProgress,
     isActivated,
@@ -159,8 +159,8 @@ function buildSession(row: OnboardingSessionRow, stepRows: OnboardingStepRow[]):
     completedStepKeys,
     missingStepKeys,
     steps,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+    updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
   };
 }
 

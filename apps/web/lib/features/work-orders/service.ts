@@ -92,18 +92,18 @@ type WorkOrderRow = {
   priority: WorkOrderPriority;
   location: string | null;
   asset_tag: string | null;
-  due_at: string | null;
-  completed_at: string | null;
+  due_at: string | Date | null;
+  completed_at: string | Date | null;
   estimated_minutes: number | null;
   actual_minutes: number | null;
   blocked_reason_category: string | null;
   blocked_reason_detail: string | null;
-  blocked_at: string | null;
+  blocked_at: string | Date | null;
   source: string;
   created_by: string | null;
   assigned_to: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
   assignee_name?: string | null;
   creator_name?: string | null;
   checklist_total?: number;
@@ -117,11 +117,11 @@ type ChecklistItemRow = {
   title: string;
   required: boolean;
   completed: boolean;
-  completed_at: string | null;
+  completed_at: string | Date | null;
   completed_by: string | null;
   position: number;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
   completed_by_name?: string | null;
 };
 
@@ -130,8 +130,8 @@ type WorkOrderCommentRow = {
   work_order_id: string;
   body: string;
   created_by: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
   author_name?: string | null;
 };
 
@@ -150,13 +150,13 @@ function mapWorkOrderRow(row: WorkOrderRow) {
     priority: row.priority,
     location: row.location,
     assetTag: row.asset_tag,
-    dueAt: row.due_at,
-    completedAt: row.completed_at,
+    dueAt: row.due_at instanceof Date ? row.due_at.toISOString() : row.due_at,
+    completedAt: row.completed_at instanceof Date ? row.completed_at.toISOString() : row.completed_at,
     estimatedMinutes: row.estimated_minutes,
     actualMinutes: row.actual_minutes,
     blockedReasonCategory: normalizeBlockedReasonCategory(row.blocked_reason_category),
     blockedReasonDetail: normalizeBlockedReasonDetail(row.blocked_reason_detail),
-    blockedAt: row.blocked_at,
+    blockedAt: row.blocked_at instanceof Date ? row.blocked_at.toISOString() : row.blocked_at,
     source: row.source,
     createdBy: row.created_by,
     assignedTo: row.assigned_to,
@@ -165,8 +165,8 @@ function mapWorkOrderRow(row: WorkOrderRow) {
     checklistTotal: Number(row.checklist_total || 0),
     checklistCompleted: Number(row.checklist_completed || 0),
     commentTotal: Number(row.comment_total || 0),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+    updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
   };
 }
 
@@ -177,12 +177,12 @@ function mapChecklistItemRow(row: ChecklistItemRow) {
     title: row.title,
     required: row.required,
     completed: row.completed,
-    completedAt: row.completed_at,
+    completedAt: row.completed_at instanceof Date ? row.completed_at.toISOString() : row.completed_at,
     completedBy: row.completed_by,
     completedByName: row.completed_by_name || null,
     position: row.position,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+    updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
   };
 }
 
@@ -193,8 +193,8 @@ function mapWorkOrderCommentRow(row: WorkOrderCommentRow) {
     body: row.body,
     createdBy: row.created_by,
     authorName: row.author_name || null,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+    updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
   };
 }
 

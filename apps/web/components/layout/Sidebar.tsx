@@ -313,58 +313,61 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
             </AnimatePresence>
           </motion.button>
 
-          <AnimatePresence mode="wait" initial={false}>
-            {showExpandedContent ? (
-              <motion.div
-                key="expanded-logo"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.25, ease: 'easeOut' }}
-                className="flex w-full items-center"
-              >
-                <div className="relative h-10 w-[152px] max-w-[calc(100%-2.5rem)]">
-                  {fullLogoFailed ? (
-                    <div className="flex h-full items-center text-base font-semibold tracking-tight text-slate-900 dark:text-slate-100">RenkFlow</div>
-                  ) : (
-                    <Image
-                      src="/logo-full.png"
-                      alt="RenkFlow"
-                      fill
-                      sizes="152px"
-                      className="object-contain object-left"
-                      onError={() => setFullLogoFailed(true)}
-                      priority
-                    />
-                  )}
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="collapsed-logo"
-                initial={{ opacity: 0, scale: 0.88 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.88 }}
-                transition={{ duration: 0.24, ease: 'easeOut' }}
-                className="flex items-center justify-center"
-              >
-                <div className="relative h-11 w-11 overflow-hidden rounded-lg border border-[color-mix(in_srgb,var(--rf-border)_76%,transparent)] bg-[var(--rf-surface)] shadow-sm">
-                  {markLogoFailed ? (
-                    <div className="flex h-full w-full items-center justify-center bg-[var(--rf-brand-600)] text-sm font-bold text-white">R</div>
-                  ) : (
-                    <Image
-                      src="/logo-r.png"
-                      alt="RenkFlow"
-                      fill
-                      sizes="44px"
-                      className="object-contain p-1"
-                      onError={() => setMarkLogoFailed(true)}
-                    />
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <div className="relative flex h-10 w-full items-center justify-center">
+            {/* R Logo (Collapsed State) */}
+            <motion.div
+              className="absolute inset-0 flex items-center justify-center"
+              initial={false}
+              animate={{
+                opacity: showExpandedContent ? 0 : 1,
+                x: showExpandedContent ? -20 : 0,
+                scale: showExpandedContent ? 0.9 : 1,
+              }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }} 
+            >
+              <div className="relative h-11 w-11 overflow-hidden rounded-lg border border-[color-mix(in_srgb,var(--rf-border)_76%,transparent)] bg-[var(--rf-surface)] shadow-sm">
+                {markLogoFailed ? (
+                  <div className="flex h-full w-full items-center justify-center bg-[var(--rf-brand-600)] text-sm font-bold text-white">R</div>
+                ) : (
+                  <Image
+                    src="/logo-r.png"
+                    alt="RenkFlow"
+                    fill
+                    sizes="44px"
+                    className="object-contain p-1"
+                    onError={() => setMarkLogoFailed(true)}
+                  />
+                )}
+              </div>
+            </motion.div>
+
+            {/* Full Logo (Expanded State - Wipe Effect) */}
+            <motion.div
+              className="absolute left-0 top-0 flex h-full w-full items-center"
+              initial={false}
+              animate={{
+                clipPath: showExpandedContent ? 'inset(0 0 0 0)' : 'inset(0 100% 0 0)',
+                x: showExpandedContent ? 0 : -10,
+              }}
+              transition={{ duration: 0.4, ease: [0.25, 1, 0.5, 1] }} 
+            >
+              <div className="relative h-10 w-[152px] max-w-[calc(100%-2.5rem)] px-2">
+                {fullLogoFailed ? (
+                  <div className="flex h-full items-center text-base font-semibold tracking-tight text-slate-900 dark:text-slate-100">RenkFlow</div>
+                ) : (
+                  <Image
+                    src="/logo-full.png"
+                    alt="RenkFlow"
+                    fill
+                    sizes="152px"
+                    className="object-contain object-left"
+                    onError={() => setFullLogoFailed(true)}
+                    priority
+                  />
+                )}
+              </div>
+            </motion.div>
+          </div>
         </div>
 
         <nav className="flex-1 overflow-y-auto overflow-x-visible px-3 py-4">
@@ -438,7 +441,7 @@ export function Sidebar({ onDesktopExpandedChange }: SidebarProps) {
                         aria-current={isActive ? 'page' : undefined}
                         aria-label={!showExpandedContent ? item.label : undefined}
                         className={cn(
-                          'group relative flex rounded-md border text-sm font-medium transition-all duration-300',
+                          'group relative flex rounded-xl border text-sm font-medium transition-all duration-300',
                           showExpandedContent ? 'items-center gap-3 px-3.5 py-2.5' : 'mx-auto h-10 w-10 items-center justify-center',
                           isActive
                             ? 'border-[color-mix(in_srgb,var(--rf-brand-600)_36%,var(--rf-border)_64%)] bg-[color-mix(in_srgb,var(--rf-brand-50)_55%,var(--rf-surface)_45%)] text-slate-900 dark:text-slate-100'

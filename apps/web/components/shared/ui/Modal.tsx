@@ -52,10 +52,10 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className="bg-white/90 dark:bg-slate-900/90 rounded-2xl shadow-[0_40px_90px_-60px_rgba(15,23,42,0.7)] w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200 border border-slate-200/70 dark:border-slate-800 backdrop-blur"
+          className="bg-white/70 dark:bg-slate-900/70 rounded-3xl shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200 border border-white/40 dark:border-white/10 backdrop-blur-xl"
         >
-          <div className="flex items-center justify-between p-6 border-b border-slate-200/70 dark:border-slate-800 sticky top-0 bg-white/80 dark:bg-slate-900/80 z-10 backdrop-blur">
-            <h2 id={titleId} className="text-xl font-semibold text-text-light dark:text-text-dark">
+          <div className="flex items-center justify-between p-6 border-b border-white/20 dark:border-slate-700/40 sticky top-0 bg-white/50 dark:bg-slate-900/50 z-10 backdrop-blur-md">
+            <h2 id={titleId} className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400">
               {title}
             </h2>
             <button

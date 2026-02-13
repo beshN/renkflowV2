@@ -140,7 +140,7 @@ export function TenantSettings() {
                 <select
                   value={formData.templateKey}
                   onChange={(e) => setFormData({ ...formData, templateKey: e.target.value as TemplateKey })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200/50 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm text-slate-900 dark:text-white appearance-none focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/80 transition-all text-sm"
+                  className="w-full h-11 px-4 rounded-xl border border-slate-200/50 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm text-slate-900 dark:text-white appearance-none focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all text-sm shadow-sm"
                 >
                   {TEMPLATE_DEFINITIONS.map((template) => (
                     <option key={template.key} value={template.key}>

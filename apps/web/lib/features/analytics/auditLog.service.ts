@@ -219,7 +219,7 @@ export class AuditLogService {
       userAgent: row.user_agent,
       requestId: row.request_id,
       metadata: row.metadata,
-      createdAt: row.created_at,
+      createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
     }));
 
     return { logs, total };
@@ -259,7 +259,7 @@ export class AuditLogService {
       userAgent: row.user_agent,
       requestId: row.request_id,
       metadata: row.metadata,
-      createdAt: row.created_at,
+      createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
     }));
   }
 
@@ -344,7 +344,7 @@ export class AuditLogService {
         userAgent: row.user_agent,
         requestId: row.request_id,
         metadata: row.metadata,
-        createdAt: row.created_at,
+        createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
       })),
     };
   }

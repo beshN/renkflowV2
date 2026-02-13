@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createStockMovement, type StockMovementType } from '@/app/actions/inventory.actions';
 import { Modal } from '@/components/shared/ui/Modal';
 import { Button } from '@/components/shared/ui/Button';
+import { Input } from '@/components/shared/ui/Input';
 import { useToast } from '@/lib/context/ToastContext';
 import { useAuth } from '@/lib/context/AuthContext';
 import { hasPermission, type UserRole } from '@/lib/auth/permissions';
@@ -60,29 +61,54 @@ export function AddStockMovementModal({ itemId }: AddStockMovementModalProps) {
 
       <Modal isOpen={open} onClose={() => setOpen(false)} title="Stok Hareketi Ekle">
         <form onSubmit={onSubmit} className="space-y-4">
-          <label className="space-y-1 block text-sm">
-            <span className="font-medium">Tip</span>
-            <select name="type" className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-2">
-              <option value="IN">IN (Giriş)</option>
-              <option value="OUT">OUT (Çıkış)</option>
-              <option value="ADJUST">ADJUST (Düzeltme / Delta)</option>
-            </select>
+          <label className="space-y-1.5 block text-sm">
+            <span className="font-semibold text-slate-700 dark:text-slate-300">Hareket Tipi</span>
+            <div className="relative">
+              <select 
+                name="type" 
+                className="w-full h-11 px-4 rounded-xl border border-white/40 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 text-slate-900 dark:text-white ring-offset-transparent placeholder:text-slate-500 focus:bg-white/80 dark:focus:bg-slate-900/80 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 backdrop-blur-xl transition-all outline-none appearance-none"
+              >
+                <option value="IN">📥 Stok Girişi (IN)</option>
+                <option value="OUT">📤 Stok Çıkışı (OUT)</option>
+                <option value="ADJUST">🔄 Düzeltme / Sayım (ADJUST)</option>
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
           </label>
 
-          <label className="space-y-1 block text-sm">
-            <span className="font-medium">Miktar</span>
-            <input name="quantity" type="number" step="0.01" min={0.01} required className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-2" />
-          </label>
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Miktar</label>
+            <Input 
+              name="quantity" 
+              type="number" 
+              step="0.01" 
+              min={0.01} 
+              required 
+              variant="glass"
+              placeholder="0.00"
+            />
+          </div>
 
-          <label className="space-y-1 block text-sm">
-            <span className="font-medium">Sipariş ID (opsiyonel)</span>
-            <input name="orderId" className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-2" />
-          </label>
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Sipariş ID (opsiyonel)</label>
+            <Input 
+              name="orderId" 
+              variant="glass"
+              placeholder="İlgili sipariş numarası"
+            />
+          </div>
 
-          <label className="space-y-1 block text-sm">
-            <span className="font-medium">Not</span>
-            <textarea name="note" rows={3} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-2" />
-          </label>
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Not</label>
+            <textarea 
+              name="note" 
+              rows={3} 
+              className="w-full rounded-xl border border-white/40 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 px-4 py-3 text-sm text-slate-900 dark:text-white ring-offset-transparent placeholder:text-slate-500 focus:bg-white/80 dark:focus:bg-slate-900/80 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 backdrop-blur-xl transition-all outline-none resize-none"
+              placeholder="Hareket ile ilgili açıklama..."
+            />
+          </div>
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>İptal</Button>

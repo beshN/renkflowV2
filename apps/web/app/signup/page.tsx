@@ -106,166 +106,177 @@ export default function SignupPage() {
 
   return (
     <AuthLayout>
-      <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Aramıza Katılın</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">İşletmenize uygun tenant ortamını dakikalar içinde kurun</p>
-      </div>
-
-      <form onSubmit={handleSignup} className="space-y-4">
-        
-        {/* Name Input */}
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 ml-1">Ad Soyad</label>
-          <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-            <Input
-              type="text"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
-              }}
-              className={cn("pl-10", formErrors.name ? 'border-red-500 focus-visible:ring-red-500' : '')}
-              placeholder="Adınız Soyadınız"
-              required
-            />
+      <div className="text-center mb-8 relative z-10 w-full max-w-md mx-auto">
+        <div className="bg-white/70 dark:bg-slate-900/70 p-8 rounded-3xl shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] backdrop-blur-xl border border-white/40 dark:border-white/10">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400">Aramıza Katılın</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">İşletmenize uygun tenant ortamını dakikalar içinde kurun</p>
           </div>
-          {formErrors.name && <p className="text-xs text-red-500 ml-1">{formErrors.name}</p>}
-        </div>
 
-        {/* Company Input */}
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 ml-1">Şirket Adı</label>
-          <div className="relative">
-            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-            <Input
-              type="text"
-              value={companyName}
-              onChange={(e) => {
-                setCompanyName(e.target.value);
-                if (formErrors.companyName) setFormErrors({ ...formErrors, companyName: undefined });
-              }}
-              className={cn("pl-10", formErrors.companyName ? 'border-red-500 focus-visible:ring-red-500' : '')}
-              placeholder="Şirketinizin Adı (opsiyonel)"
-            />
-          </div>
-        </div>
-
-        {/* Industry Template */}
-        <div className="space-y-2">
-          <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 ml-1">Meslek / Sektör</label>
-          <div className="relative">
-            <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-            <select
-              value={templateKey}
-              onChange={(e) => setTemplateKey(e.target.value as TemplateKey)}
-              className="flex h-10 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:ring-offset-neutral-950 dark:placeholder:text-neutral-400 dark:focus-visible:ring-neutral-300 pl-10"
-            >
-              {TEMPLATE_DEFINITIONS.map((template) => (
-                <option key={template.key} value={template.key}>
-                  {template.industry}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900/50 dark:text-neutral-400">
-            {TEMPLATE_DEFINITIONS.find((t) => t.key === templateKey)?.description}
-          </div>
-        </div>
-
-        {/* Email Input */}
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 ml-1">E-posta</label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (formErrors.email) setFormErrors({ ...formErrors, email: undefined });
-              }}
-              className={cn("pl-10", formErrors.email ? 'border-red-500 focus-visible:ring-red-500' : '')}
-              placeholder="ornek@sirket.com"
-              required
-            />
-          </div>
-          {formErrors.email && <p className="text-xs text-red-500 ml-1">{formErrors.email}</p>}
-        </div>
-
-        {/* Password Input */}
-        <div className="space-y-1">
-            <label className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 ml-1">Şifre</label>
-            <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+          <form onSubmit={handleSignup} className="space-y-4 text-left">
+            
+            {/* Name Input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 ml-1">Ad Soyad</label>
+              <div className="relative group">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
                 <Input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (formErrors.password) setFormErrors({ ...formErrors, password: undefined });
-                }}
-                className={cn("pl-10 pr-10", formErrors.password ? 'border-red-500 focus-visible:ring-red-500' : '')}
-                placeholder="En az 6 karakter"
-                required
-                minLength={6}
+                  type="text"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
+                  }}
+                  className={cn("pl-10", formErrors.name ? 'border-red-500 focus-visible:ring-red-500' : '')}
+                  placeholder="Adınız Soyadınız"
+                  required
+                  variant="glass"
                 />
-                <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+              </div>
+              {formErrors.name && <p className="text-xs text-red-500 ml-1">{formErrors.name}</p>}
+            </div>
+
+            {/* Company Input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 ml-1">Şirket Adı</label>
+              <div className="relative group">
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                <Input
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => {
+                    setCompanyName(e.target.value);
+                    if (formErrors.companyName) setFormErrors({ ...formErrors, companyName: undefined });
+                  }}
+                  className={cn("pl-10", formErrors.companyName ? 'border-red-500 focus-visible:ring-red-500' : '')}
+                  placeholder="Şirketinizin Adı (opsiyonel)"
+                  variant="glass"
+                />
+              </div>
+            </div>
+
+            {/* Industry Template */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 ml-1">Meslek / Sektör</label>
+              <div className="relative group">
+                <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none z-10" />
+                <select
+                  value={templateKey}
+                  onChange={(e) => setTemplateKey(e.target.value as TemplateKey)}
+                  className="flex h-11 w-full rounded-2xl border border-white/40 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 px-3 pl-10 py-2 text-sm ring-offset-transparent placeholder:text-slate-500 focus:bg-white/80 dark:focus:bg-slate-900/80 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 backdrop-blur-xl transition-all outline-none appearance-none"
                 >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+                  {TEMPLATE_DEFINITIONS.map((template) => (
+                    <option key={template.key} value={template.key}>
+                      {template.industry}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+              </div>
+              <div className="rounded-xl border border-indigo-100/50 bg-indigo-50/30 p-3 text-xs text-indigo-700/80 dark:border-indigo-900/30 dark:bg-indigo-900/10 dark:text-indigo-300/80">
+                {TEMPLATE_DEFINITIONS.find((t) => t.key === templateKey)?.description}
+              </div>
             </div>
-            {formErrors.password && <p className="text-xs text-red-500 ml-1">{formErrors.password}</p>}
+
+            {/* Email Input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 ml-1">E-posta</label>
+              <div className="relative group">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (formErrors.email) setFormErrors({ ...formErrors, email: undefined });
+                  }}
+                  className={cn("pl-10", formErrors.email ? 'border-red-500 focus-visible:ring-red-500' : '')}
+                  placeholder="ornek@sirket.com"
+                  required
+                  variant="glass"
+                />
+              </div>
+              {formErrors.email && <p className="text-xs text-red-500 ml-1">{formErrors.email}</p>}
+            </div>
+
+            {/* Password Input */}
+            <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 ml-1">Şifre</label>
+                <div className="relative group">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                    <Input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (formErrors.password) setFormErrors({ ...formErrors, password: undefined });
+                    }}
+                    className={cn("pl-10 pr-10", formErrors.password ? 'border-red-500 focus-visible:ring-red-500' : '')}
+                    placeholder="En az 6 karakter"
+                    required
+                    minLength={6}
+                    variant="glass"
+                    />
+                    <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                </div>
+                {formErrors.password && <p className="text-xs text-red-500 ml-1">{formErrors.password}</p>}
+            </div>
+
+            {formErrors.general && (
+                <div className="p-3 bg-red-50/50 backdrop-blur-sm text-red-600 dark:bg-red-900/20 dark:text-red-400 text-xs rounded-xl border border-red-100 dark:border-red-900/30 flex items-center gap-2">
+                    <AlertCircle size={14} /> {formErrors.general}
+                </div>
+            )}
+
+            <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-12 text-sm font-semibold shadow-xl shadow-indigo-500/20 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 border-0"
+            >
+                {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Hesap Oluştur'}
+            </Button>
+          </form>
+
+          {/* Divider */}
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200/60 dark:border-slate-700/60"></div></div>
+            <div className="relative flex justify-center text-[10px] uppercase tracking-widest font-medium"><span className="bg-white/0 backdrop-blur-xl px-2 text-slate-400">veya devam et</span></div>
+          </div>
+
+           {/* Social Buttons (Compact) */}
+           <div className="grid grid-cols-2 gap-3 mb-6">
+            <button 
+                onClick={() => handleSocialSignup('google')}
+                className="flex items-center justify-center gap-2 py-3 border border-white/40 dark:border-slate-700/40 rounded-xl hover:bg-white/60 dark:hover:bg-slate-800/60 transition-all bg-white/40 dark:bg-slate-900/40 backdrop-blur-md shadow-sm hover:shadow-md group"
+            >
+                <Image src="https://authjs.dev/img/providers/google.svg" width={18} height={18} alt="Google" className="group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Google</span>
+            </button>
+            <button 
+                 onClick={() => handleSocialSignup('azure-ad')}
+                 className="flex items-center justify-center gap-2 py-3 border border-white/40 dark:border-slate-700/40 rounded-xl hover:bg-white/60 dark:hover:bg-slate-800/60 transition-all bg-white/40 dark:bg-slate-900/40 backdrop-blur-md shadow-sm hover:shadow-md group"
+            >
+                 <Image src="https://authjs.dev/img/providers/microsoft-entra-id.svg" width={18} height={18} alt="Microsoft" className="group-hover:scale-110 transition-transform" />
+                 <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Microsoft</span>
+            </button>
+          </div>
+
+          <p className="text-center text-xs text-slate-500">
+            Zaten hesabınız var mı?{' '}
+            <Link href="/auth/login" className="text-indigo-600 hover:text-indigo-700 hover:underline font-bold transition-colors">
+              Giriş Yap
+            </Link>
+          </p>
         </div>
-
-        {formErrors.general && (
-            <div className="p-3 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 text-xs rounded-lg border border-red-100 dark:border-red-900/30 flex items-center gap-2">
-                <AlertCircle size={14} /> {formErrors.general}
-            </div>
-        )}
-
-        <Button
-            type="submit"
-            disabled={isLoading}
-            className="w-full h-11 text-sm font-semibold shadow-lg shadow-primary/20"
-        >
-            {isLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Hesap Oluştur'}
-        </Button>
-      </form>
-
-      {/* Divider */}
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200 dark:border-slate-700"></div></div>
-        <div className="relative flex justify-center text-xs uppercase"><span className="bg-white dark:bg-slate-900 px-2 text-slate-400">veya</span></div>
       </div>
-
-       {/* Social Buttons (Compact) */}
-       <div className="grid grid-cols-2 gap-3 mb-6">
-        <button 
-            onClick={() => handleSocialSignup('google')}
-            className="flex items-center justify-center gap-2 py-2.5 border border-slate-200/50 dark:border-slate-700/50 rounded-xl hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm"
-        >
-            <Image src="https://authjs.dev/img/providers/google.svg" width={18} height={18} alt="Google" />
-            <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Google</span>
-        </button>
-        <button 
-             onClick={() => handleSocialSignup('azure-ad')}
-             className="flex items-center justify-center gap-2 py-2.5 border border-slate-200/50 dark:border-slate-700/50 rounded-xl hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm"
-        >
-             <Image src="https://authjs.dev/img/providers/microsoft-entra-id.svg" width={18} height={18} alt="Microsoft" />
-             <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Microsoft</span>
-        </button>
-      </div>
-
-      <p className="text-center text-xs text-slate-500">
-        Zaten hesabınız var mı?{' '}
-        <Link href="/auth/login" className="text-primary-600 hover:underline font-semibold">
-          Giriş Yap
-        </Link>
-      </p>
     </AuthLayout>
   );
 }

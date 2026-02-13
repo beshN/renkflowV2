@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 const COPY = {
   tr: {
     badge: 'Private Beta Doğrulama Sürecinde',
-    title: 'RenkFlow üretim operasyonları için hazırlanıyor.',
+    title: 'RenkFlow, üretim operasyonları için hazırlanıyor.',
     description:
       'Pilot saha doğrulamaları devam ediyor. Ürün erişimi kademeli açılacak. Erken erişim listesine katılarak bilgilendirilen ilk ekiplerden olun.',
     emailPlaceholder: 'İş e-posta adresiniz',
