@@ -623,7 +623,7 @@ export const DashboardPreviewEnhanced: React.FC<DashboardPreviewEnhancedProps> =
                     {activeTab === 'settings' && 'Sistem Ayarları'}
                   </h3>
                   <p className="text-sm text-slate-500 max-w-xs">
-                    Bu modül yakında aktif olacak. Bekleme listesine katılarak ilk haberdar olan siz olun.
+                    Bu modül yol haritasında planlanmıştır. Önceliklendirme talebinizi paylaşarak süreci hızlandırabilirsiniz.
                   </p>
                 </motion.div>
               )}

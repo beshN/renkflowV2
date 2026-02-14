@@ -1,353 +1,192 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Eye, FileText, Printer, Search } from 'lucide-react';
+
 import { Navbar } from '@/components/layout/Navbar';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
-import { canAccessFinance, hasPermission, UserRole } from '@/lib/auth/permissions';
-import { formatCurrency } from '@/lib/utils';
-import { normalizeCurrencyInput } from '@/lib/utils/currency';
+import { canAccessFinance, type UserRole } from '@/lib/auth/permissions';
 import { getOrdersWithPayments } from '@/app/actions/finance.payments.actions';
-import { OrderWithPayments } from '@/lib/types/finance';
-import { 
-  ArrowLeft,
-  FileText,
-  Plus,
-  Search,
-  Filter,
-  Download,
-  Printer,
-  MoreHorizontal,
-  CheckCircle,
-  Clock,
-  AlertCircle,
-  ChevronRight,
-  Calendar,
-  Eye,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { type OrderWithPayments } from '@/lib/types/finance';
+import { formatCurrency } from '@/lib/utils';
 
-// Invoice types
-interface Invoice {
-  id: string;
-  invoiceNumber: string;
-  orderId: string;
-  orderNumber: string;
-  customerName: string;
-  issueDate: string;
-  dueDate: string;
-  totalAmount: number;
-  paidAmount: number;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
-  currency: string;
-  notes?: string;
+type InvoiceStatus = 'paid' | 'partial' | 'unpaid';
+
+function getInvoiceStatus(order: OrderWithPayments): InvoiceStatus {
+  if (order.remainingAmount <= 0) return 'paid';
+  if (order.paidAmount > 0) return 'partial';
+  return 'unpaid';
 }
 
-const STATUS_CONFIG: Record<Invoice['status'], { label: string; color: string; icon: typeof CheckCircle }> = {
-  draft: { label: 'Taslak', color: 'bg-slate-100 text-slate-700', icon: Clock },
-  sent: { label: 'Gönderildi', color: 'bg-blue-100 text-blue-700', icon: CheckCircle },
-  paid: { label: 'Ödendi', color: 'bg-green-100 text-green-700', icon: CheckCircle },
-  overdue: { label: 'Gecikmiş', color: 'bg-red-100 text-red-700', icon: AlertCircle },
-  cancelled: { label: 'İptal', color: 'bg-gray-100 text-gray-700', icon: AlertCircle },
+const STATUS_LABEL: Record<InvoiceStatus, string> = {
+  paid: 'Kapandı',
+  partial: 'Kısmi Tahsil',
+  unpaid: 'Açık Bakiye',
 };
 
-const DEFAULT_DUE_DAYS = 30;
-
-function toInvoiceStatus(order: OrderWithPayments, dueDate: Date): Invoice['status'] {
-  if (order.remainingAmount <= 0) return 'paid';
-  if (dueDate < new Date()) return 'overdue';
-  if (order.status === 'pending') return 'draft';
-  return 'sent';
-}
-
-function mapOrderToInvoice(order: OrderWithPayments): Invoice {
-  const issueDate = order.date || new Date().toISOString();
-  const dueDate = order.deliveryDate || new Date(new Date(issueDate).getTime() + (DEFAULT_DUE_DAYS * 24 * 60 * 60 * 1000)).toISOString();
-  const dueDateObj = new Date(dueDate);
-
-  return {
-    id: `inv-${order.id}`,
-    invoiceNumber: `FAT-${order.orderNumber}`,
-    orderId: order.id,
-    orderNumber: order.orderNumber,
-    customerName: order.customerName,
-    issueDate,
-    dueDate,
-    totalAmount: order.totalAmount,
-    paidAmount: order.paidAmount,
-    status: toInvoiceStatus(order, dueDateObj),
-    currency: normalizeCurrencyInput(order.currency),
-  };
-}
+const STATUS_CLASS: Record<InvoiceStatus, string> = {
+  paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  partial: 'bg-amber-50 text-amber-700 border-amber-200',
+  unpaid: 'bg-rose-50 text-rose-700 border-rose-200',
+};
 
 export default function FinanceInvoicePage() {
   const { user } = useAuth();
   const { showToast } = useToast();
-  
+
+  const [orders, setOrders] = useState<OrderWithPayments[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [query, setQuery] = useState('');
+
+  const hasAccess = Boolean(user?.role && canAccessFinance(user.role as UserRole));
 
   useEffect(() => {
-    if (!user) return;
-    
-    if (!canAccessFinance(user.role as UserRole)) {
-      showToast('Finans modülüne erişim yetkiniz bulunmuyor', 'error');
+    if (!hasAccess) {
+      setIsLoading(false);
       return;
     }
 
-    loadData();
-  }, [user]);
+    const load = async () => {
+      try {
+        setIsLoading(true);
+        const data = await getOrdersWithPayments();
+        setOrders(data);
+      } catch (error) {
+        console.error('Invoice list error:', error);
+        showToast('Fatura kayıtları alınamadı.', 'error');
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const loadData = async () => {
-    try {
-      setIsLoading(true);
-      const orders = await getOrdersWithPayments();
-      setInvoices(orders.map(mapOrderToInvoice));
-    } catch (error) {
-      console.error('Error loading invoices:', error);
-      showToast('Faturalar yüklenirken hata oluştu', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    void load();
+  }, [hasAccess]);
 
-  const filteredInvoices = invoices.filter(invoice => {
-    const matchesSearch = 
-      invoice.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      invoice.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      invoice.orderNumber.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  const filtered = useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+    if (!keyword) return orders;
 
-  const totalAmount = invoices.reduce((sum, i) => sum + i.totalAmount, 0);
-  const paidAmount = invoices.reduce((sum, i) => sum + i.paidAmount, 0);
-  const outstandingAmount = totalAmount - paidAmount;
-  const overdueCount = invoices.filter(i => i.status === 'overdue').length;
+    return orders.filter((order) => {
+      const fields = [order.orderNumber, order.customerName];
+      return fields.some((field) => field.toLowerCase().includes(keyword));
+    });
+  }, [orders, query]);
 
-  if (!user || !canAccessFinance(user.role as UserRole)) {
+  if (!hasAccess) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-slate-500">Finans modülüne erişim yetkiniz bulunmuyor</p>
+      <div className="flex min-h-screen items-center justify-center p-6">
+        <div className="rf-panel rounded-2xl p-8 text-center">
+          <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">Fatura ekranına erişim yetkin bulunmuyor.</p>
+          <Link href="/finance" className="mt-4 inline-block text-sm font-medium text-sky-600 hover:underline">
+            Finans ekranına dön
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-950/50 min-h-screen">
-      <Navbar 
-        title="Faturalar" 
-        showSearch={false}
-      />
-      
-      <main className="flex-1 w-full p-4 md:p-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Fatura Yönetimi</h1>
-            <p className="text-sm text-slate-500 mt-1">
-              {invoices.length} fatura • {formatCurrency(outstandingAmount)} tahsilat bekliyor
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/finance"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-            >
+    <div className="flex min-h-screen flex-1 flex-col bg-slate-50/50 dark:bg-slate-950/50">
+      <Navbar title="Fatura Listesi" showSearch={false} />
+
+      <main className="w-full flex-1 p-4 md:p-8">
+        <section className="rf-panel rounded-2xl p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Fatura ve Tahsilat Takibi</h1>
+              <p className="mt-1 text-sm text-slate-500">Sipariş bazlı finans kapanış durumunu tek listede yönetin.</p>
+            </div>
+
+            <Link href="/finance" className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900">
               <ArrowLeft size={16} />
-              Geri
+              Finans özetine dön
             </Link>
-            {hasPermission(user.role as UserRole, 'finance.documents.upload') && (
-              <button
-                onClick={() => showToast('Yeni fatura özelliği yakında geliyor', 'info')}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary rounded-xl hover:bg-primary/90 transition-colors"
-              >
-                <Plus size={16} />
-                Yeni Fatura
-              </button>
-            )}
           </div>
-        </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-100 dark:border-slate-800">
-            <p className="text-sm text-slate-500 dark:text-slate-400">Toplam Fatura</p>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-              {invoices.length}
-            </p>
-          </div>
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-100 dark:border-slate-800">
-            <p className="text-sm text-slate-500 dark:text-slate-400">Toplam Tutar</p>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-              {formatCurrency(totalAmount)}
-            </p>
-          </div>
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-100 dark:border-slate-800">
-            <p className="text-sm text-slate-500 dark:text-slate-400">Tahsil Edilen</p>
-            <p className="text-2xl font-bold text-green-600 mt-1">
-              {formatCurrency(paidAmount)}
-            </p>
-          </div>
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-100 dark:border-slate-800">
-            <p className="text-sm text-slate-500 dark:text-slate-400">Gecikmiş</p>
-            <p className={cn(
-              'text-2xl font-bold mt-1',
-              overdueCount > 0 ? 'text-red-600' : 'text-slate-900 dark:text-white'
-            )}>
-              {overdueCount}
-            </p>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <div className="mt-4 relative max-w-md">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Müşteri, fatura veya sipariş no ara..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Müşteri veya sipariş numarası ara"
+              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             />
           </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="pl-9 pr-8 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
-              >
-                <option value="all">Tüm Durumlar</option>
-                <option value="draft">Taslak</option>
-                <option value="sent">Gönderildi</option>
-                <option value="paid">Ödendi</option>
-                <option value="overdue">Gecikmiş</option>
-                <option value="cancelled">İptal</option>
-              </select>
-              <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 pointer-events-none" size={14} />
-            </div>
-          </div>
-        </div>
 
-        {/* Invoices Table */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
-          {isLoading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4" />
-              <p className="text-slate-500">Faturalar yükleniyor...</p>
-            </div>
-          ) : filteredInvoices.length === 0 ? (
-            <div className="p-8 text-center">
-              <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-500">Fatura bulunamadı</p>
-              <p className="text-sm text-slate-400 mt-1">
-                {searchQuery ? 'Arama kriterlerini değiştirmeyi deneyin' : 'Henüz fatura oluşturulmamış'}
-              </p>
-            </div>
-          ) : (
+          <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-100/80 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900/70">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Fatura No</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Sipariş</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Müşteri</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Tarih</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Tutar</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Durum</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">İşlemler</th>
+                    <th className="px-4 py-3">Fatura No</th>
+                    <th className="px-4 py-3">Müşteri</th>
+                    <th className="px-4 py-3">Toplam</th>
+                    <th className="px-4 py-3">Tahsil Edilen</th>
+                    <th className="px-4 py-3">Durum</th>
+                    <th className="px-4 py-3 text-right">Aksiyon</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredInvoices.map((invoice) => {
-                    const statusConfig = STATUS_CONFIG[invoice.status];
-                    const StatusIcon = statusConfig.icon;
-                    
-                    return (
-                      <tr key={invoice.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <FileText size={16} className="text-slate-400" />
-                            <span className="font-medium text-slate-900 dark:text-white">{invoice.invoiceNumber}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
-                          {invoice.orderNumber}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-sm font-medium text-slate-900 dark:text-white">{invoice.customerName}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col">
-                            <span className="text-sm text-slate-600 dark:text-slate-400">
-                              {new Date(invoice.issueDate).toLocaleDateString('tr-TR')}
+                <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-slate-500">Fatura kayıtları yükleniyor...</td>
+                    </tr>
+                  ) : filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-slate-500">Filtreye uygun kayıt bulunamadı.</td>
+                    </tr>
+                  ) : (
+                    filtered.map((order) => {
+                      const status = getInvoiceStatus(order);
+                      return (
+                        <tr key={order.id}>
+                          <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-100">FAT-{order.orderNumber}</td>
+                          <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{order.customerName}</td>
+                          <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{formatCurrency(order.totalAmount, order.currency)}</td>
+                          <td className="px-4 py-3 font-medium text-emerald-600">{formatCurrency(order.paidAmount, order.currency)}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${STATUS_CLASS[status]}`}>
+                              {STATUS_LABEL[status]}
                             </span>
-                            <span className="text-xs text-slate-400">
-                              Vade: {new Date(invoice.dueDate).toLocaleDateString('tr-TR')}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-slate-900 dark:text-white">
-                              {formatCurrency(invoice.totalAmount, invoice.currency)}
-                            </span>
-                            {invoice.paidAmount > 0 && (
-                              <span className="text-xs text-green-600">
-                                {formatCurrency(invoice.paidAmount, invoice.currency)} tahsil edildi
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={cn(
-                            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
-                            statusConfig.color
-                          )}>
-                            <StatusIcon size={12} />
-                            {statusConfig.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-2">
-                            <Link
-                              href={`/finance/invoice/print?orderId=${invoice.orderId}`}
-                              className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                              title="Görüntüle ve Yazdır"
-                            >
-                              <Eye size={16} />
-                            </Link>
-                            <button
-                              onClick={() => showToast('İndirme özelliği yakında geliyor', 'info')}
-                              className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                              title="İndir"
-                            >
-                              <Download size={16} />
-                            </button>
-                            <button
-                              onClick={() => showToast('Diğer işlemler yakında geliyor', 'info')}
-                              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                            >
-                              <MoreHorizontal size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-2">
+                              <Link
+                                href={`/finance/invoice/print?orderId=${order.id}`}
+                                className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                                title="Önizleme"
+                              >
+                                <Eye size={14} />
+                              </Link>
+                              <Link
+                                href={`/finance/invoice/print?orderId=${order.id}&print=true`}
+                                target="_blank"
+                                className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                                title="Yazdır"
+                              >
+                                <Printer size={14} />
+                              </Link>
+                              <Link
+                                href={`/orders/${order.id}`}
+                                className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                                title="Sipariş detay"
+                              >
+                                <FileText size={14} />
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
+          </div>
+        </section>
       </main>
     </div>
   );

@@ -1,65 +1,10 @@
-'use client';
+import { ModulePlaceholder } from '@/components/dashboard-core/ModulePlaceholder';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Navbar } from '@/components/layout/Navbar';
-import { SettingsForm } from '@/components/forms/SettingsForm';
-import { useSettings } from '@/lib/context/SettingsContext';
-import { useAuth } from '@/lib/context/AuthContext';
-import { TenantSettings } from '@/components/settings/TenantSettings';
-import { Card } from '@/components/ui/Card';
-
-export default function SettingsPage() {
-  const { user, isLoading } = useAuth();
-  const { settings, updateSettings } = useSettings();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/auth/login');
-    }
-  }, [user, isLoading, router]);
-
-  if (isLoading || !user) {
-    return (
-      <div className="flex-1 flex flex-col">
-        <Navbar title="Ayarlar" showSearch={false} />
-        <main className="flex-1 p-4 md:p-8 pt-16 md:pt-8 space-y-6">
-          <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse" />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse" />
-            <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse" />
-          </div>
-        </main>
-      </div>
-    );
-  }
-
+export default function Page() {
   return (
-    <div className="flex-1 flex flex-col">
-      <Navbar title="Ayarlar" showSearch={false} />
-      
-      <main className="flex-1 p-4 md:p-8 pt-16 md:pt-8 space-y-6">
-        <Card spotlight variant="glass" className="p-6">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Ayarlar</p>
-          <h2 className="text-2xl font-bold text-text-light dark:text-text-dark">Hesap ve şirket yapılandırması</h2>
-          <p className="text-sm text-subtle-light dark:text-subtle-dark">
-            Marka görünümü, ekip rolleri ve operasyon detaylarını buradan yönetin.
-          </p>
-        </Card>
-
-        <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6">
-          <Card spotlight variant="glass" className="p-6">
-            <h3 className="text-lg font-semibold text-text-light dark:text-text-dark mb-4">Profil & Tercihler</h3>
-            <SettingsForm initialSettings={settings} onSave={updateSettings} />
-          </Card>
-
-          <Card spotlight variant="glass" className="p-6">
-            <h3 className="text-lg font-semibold text-text-light dark:text-text-dark mb-4">Şirket Bilgileri</h3>
-            <TenantSettings />
-          </Card>
-        </div>
-      </main>
-    </div>
+    <ModulePlaceholder
+      title="Ayarlar"
+      description="Ayarlar ekranı yeni sürüm standardına taşınıyor. Bir sonraki iterasyonda canlı veri bağları, rol bazlı aksiyonlar ve operasyon metrikleri bu modülde aktif edilecek."
+    />
   );
 }

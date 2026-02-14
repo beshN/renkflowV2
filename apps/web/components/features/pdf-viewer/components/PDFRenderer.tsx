@@ -8,12 +8,24 @@ import { cn } from '@/lib/utils';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 
+type OnDocumentLoadSuccess = NonNullable<React.ComponentProps<typeof Document>['onLoadSuccess']>;
+
+function toMetadataString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function toMetadataDate(value: unknown): Date | undefined {
+  if (typeof value !== 'string') return undefined;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
 // Configure PDF.js worker
 if (typeof window !== 'undefined') {
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.mjs',
-    import.meta.url
-  ).toString();
+  // Prefer locally served worker to avoid bundler/runtime mismatches in production.
+  pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 }
 
 interface PDFRendererProps {
@@ -117,8 +129,8 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
   }, [viewMode, pageNumber, setPageNumber, onPageChange]);
   
   // Document load handlers
-  const handleDocumentLoadSuccess = useCallback(
-    async (pdf: any) => {
+  const handleDocumentLoadSuccess: OnDocumentLoadSuccess = useCallback(
+    async (pdf) => {
       setNumPages(pdf.numPages);
       setLoading(false);
       setLoadingStage('complete');
@@ -126,16 +138,17 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
       // Extract metadata
       try {
         const metadata = await pdf.getMetadata();
-        if (metadata?.info) {
+        const info = metadata?.info as Record<string, unknown> | undefined;
+        if (info) {
           setMetadata({
-            title: metadata.info.Title,
-            author: metadata.info.Author,
-            subject: metadata.info.Subject,
-            keywords: metadata.info.Keywords,
-            creator: metadata.info.Creator,
-            producer: metadata.info.Producer,
-            creationDate: metadata.info.CreationDate ? new Date(metadata.info.CreationDate) : undefined,
-            modificationDate: metadata.info.ModDate ? new Date(metadata.info.ModDate) : undefined,
+            title: toMetadataString(info.Title),
+            author: toMetadataString(info.Author),
+            subject: toMetadataString(info.Subject),
+            keywords: toMetadataString(info.Keywords),
+            creator: toMetadataString(info.Creator),
+            producer: toMetadataString(info.Producer),
+            creationDate: toMetadataDate(info.CreationDate),
+            modificationDate: toMetadataDate(info.ModDate),
           });
         }
       } catch (err) {
@@ -150,6 +163,7 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
   const handleDocumentLoadError = useCallback(
     (error: Error) => {
       console.error('PDF load error:', error);
+      const normalizedMessage = error.message.toLowerCase();
       
       let errorType: 'network' | 'corrupt' | 'password' | 'not-found' | 'unknown' = 'unknown';
       let errorMessage = 'PDF yüklenemedi';
@@ -157,6 +171,12 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
       if (error.message.includes('404') || error.message.includes('Not Found')) {
         errorType = 'not-found';
         errorMessage = 'PDF dosyası bulunamadı';
+      } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+        errorType = 'network';
+        errorMessage = 'Belgeye erişmek için yeniden giriş yapmanız gerekiyor';
+      } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
+        errorType = 'network';
+        errorMessage = 'Bu belgeyi görüntüleme yetkiniz bulunmuyor';
       } else if (error.message.includes('password') || error.message.includes('encrypted')) {
         errorType = 'password';
         errorMessage = 'PDF şifre korumalı';
@@ -166,6 +186,8 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
       } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
         errorType = 'network';
         errorMessage = 'Ağ hatası: PDF indirilemedi';
+      } else if (normalizedMessage.includes('worker') || normalizedMessage.includes('setting up fake worker')) {
+        errorMessage = 'PDF görüntüleyici başlatılamadı. Yeni sekmede açıp tekrar deneyin.';
       }
       
       setError(errorMessage, errorType);
@@ -177,7 +199,7 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
   
   const handleLoadProgress = useCallback(
     ({ loaded, total }: { loaded: number; total: number }) => {
-      const progress = Math.round((loaded / total) * 100);
+      const progress = total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : 0;
       setLoadProgress(progress);
       
       if (progress < 30) {
@@ -332,7 +354,13 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
       )}
     >
       <Document
-        file={fileUrl}
+        file={{
+          url: fileUrl,
+        }}
+        options={{
+          withCredentials: true,
+          httpHeaders: { 'Cache-Control': 'no-cache' },
+        }}
         onLoadSuccess={handleDocumentLoadSuccess}
         onLoadError={handleDocumentLoadError}
         onLoadProgress={handleLoadProgress}

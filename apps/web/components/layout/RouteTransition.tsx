@@ -21,9 +21,9 @@ export function RouteTransition({ children, className }: RouteTransitionProps) {
     <motion.div
       key={pathname}
       className={className}
-      initial={{ opacity: 0, y: 14, filter: 'blur(4px)' }}
+      initial={{ opacity: 0, y: 10, filter: 'blur(2px)' }}
       animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-      transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
     </motion.div>

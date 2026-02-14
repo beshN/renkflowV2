@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { usePathname } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
 type SurfaceVariant = 'landing' | 'dashboard' | 'auth';
 
@@ -127,34 +127,54 @@ function getMood(variant: SurfaceVariant, pathname: string): MoodLayer {
 
 export function ExperienceBackdrop({ variant }: ExperienceBackdropProps) {
   const pathname = usePathname();
+  const prefersReducedMotion = useReducedMotion();
   const mood = useMemo(() => getMood(variant, pathname), [variant, pathname]);
   const isDashboard = variant === 'dashboard';
+  const baseBackground = isDashboard
+    ? 'linear-gradient(180deg, color-mix(in srgb, var(--rf-bg) 94%, #ffffff 6%) 0%, color-mix(in srgb, var(--rf-bg-muted) 96%, #ffffff 4%) 100%)'
+    : `linear-gradient(180deg, ${mood.base} 0%, color-mix(in srgb, ${mood.base} 80%, #ffffff 20%) 100%)`;
+  const radialBackground = isDashboard
+    ? 'radial-gradient(58% 46% at 12% 4%, color-mix(in srgb, var(--rf-accent) 22%, transparent), transparent 72%), radial-gradient(44% 34% at 88% 0%, color-mix(in srgb, var(--rf-accent-strong) 14%, transparent), transparent 72%), linear-gradient(180deg, color-mix(in srgb, var(--rf-surface) 44%, transparent) 0%, transparent 60%)'
+    : `radial-gradient(55% 45% at 15% 10%, ${mood.accentA}, transparent 70%), radial-gradient(46% 40% at 82% 2%, ${mood.accentB}, transparent 72%), radial-gradient(38% 42% at 50% 100%, ${mood.accentA}, transparent 75%)`;
+
+  if (prefersReducedMotion) {
+    return (
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute inset-0" style={{ background: baseBackground }} />
+        <div className="absolute inset-0" style={{ background: radialBackground }} />
+        <div
+          className="absolute inset-0"
+          style={{
+            opacity: isDashboard ? 0.1 : mood.grainOpacity,
+            backgroundImage:
+              isDashboard
+                ? 'radial-gradient(circle at 1px 1px, rgba(15, 23, 42, 0.13) 1px, transparent 0)'
+                : 'radial-gradient(circle at 1px 1px, rgba(67, 55, 44, 0.14) 1px, transparent 0)',
+            backgroundSize: isDashboard ? '24px 24px' : '22px 22px',
+            maskImage: 'linear-gradient(180deg, black 0%, rgba(0,0,0,0.25) 100%)',
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
       <motion.div
         key={`${variant}-${pathname}-base`}
         className="absolute inset-0"
-        initial={{ opacity: 0.35 }}
+        initial={{ opacity: 0.45 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-        style={{
-          background: isDashboard
-            ? 'linear-gradient(180deg, color-mix(in srgb, var(--rf-bg) 94%, #ffffff 6%) 0%, color-mix(in srgb, var(--rf-bg-muted) 96%, #ffffff 4%) 100%)'
-            : `linear-gradient(180deg, ${mood.base} 0%, color-mix(in srgb, ${mood.base} 80%, #ffffff 20%) 100%)`,
-        }}
+        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+        style={{ background: baseBackground }}
       />
       <motion.div
         key={`${variant}-${pathname}-radial`}
         className="absolute inset-0"
-        initial={{ opacity: 0.2, scale: 1.04 }}
+        initial={{ opacity: 0.35, scale: 1.015 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
-        style={{
-          background: isDashboard
-            ? 'radial-gradient(58% 46% at 12% 4%, color-mix(in srgb, var(--rf-accent) 22%, transparent), transparent 72%), radial-gradient(44% 34% at 88% 0%, color-mix(in srgb, var(--rf-accent-strong) 14%, transparent), transparent 72%), linear-gradient(180deg, color-mix(in srgb, var(--rf-surface) 44%, transparent) 0%, transparent 60%)'
-            : `radial-gradient(55% 45% at 15% 10%, ${mood.accentA}, transparent 70%), radial-gradient(46% 40% at 82% 2%, ${mood.accentB}, transparent 72%), radial-gradient(38% 42% at 50% 100%, ${mood.accentA}, transparent 75%)`,
-        }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        style={{ background: radialBackground }}
       />
       <div
         className="absolute inset-0"

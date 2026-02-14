@@ -1,7 +1,5 @@
-'use client';
-
-import { FullLandingContent } from '@/components/landing-new/FullLandingContent';
+import { redirect } from 'next/navigation';
 
 export default function FullLandingPage() {
-  return <FullLandingContent />;
+  redirect('/');
 }

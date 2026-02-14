@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
-import { canAccessFinance, hasPermission } from '@/lib/auth/permissions';
+import { canAccessFinance, hasPermission, type UserRole } from '@/lib/auth/permissions';
 import { formatCurrency } from '@/lib/utils';
 import { safeParseCurrency } from '@/lib/types';
 import {
@@ -41,6 +41,74 @@ interface OrderFinanceSectionProps {
   currency: string;
 }
 
+const MAX_FINANCE_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024;
+
+const ALLOWED_FINANCE_DOCUMENT_MIME_TYPES = new Set([
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+]);
+
+const ALLOWED_FINANCE_DOCUMENT_EXTENSIONS = new Set(['pdf', 'png', 'jpg', 'jpeg', 'webp']);
+
+const PAYMENT_METHOD_OPTIONS: ReadonlyArray<{ value: PaymentMethod; label: string }> = [
+  { value: 'cash', label: PAYMENT_METHOD_LABELS.cash },
+  { value: 'bank_transfer', label: PAYMENT_METHOD_LABELS.bank_transfer },
+  { value: 'credit_card', label: PAYMENT_METHOD_LABELS.credit_card },
+  { value: 'check', label: PAYMENT_METHOD_LABELS.check },
+  { value: 'other', label: PAYMENT_METHOD_LABELS.other },
+];
+
+const DOCUMENT_TYPE_OPTIONS: ReadonlyArray<{ value: OrderDocumentType; label: string }> = [
+  { value: 'invoice', label: DOCUMENT_TYPE_LABELS.invoice },
+  { value: 'delivery_note', label: DOCUMENT_TYPE_LABELS.delivery_note },
+  { value: 'receipt', label: DOCUMENT_TYPE_LABELS.receipt },
+  { value: 'contract', label: DOCUMENT_TYPE_LABELS.contract },
+  { value: 'other', label: DOCUMENT_TYPE_LABELS.other },
+];
+
+function parseLocalizedAmount(value: string): number | null {
+  const normalized = value
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/\.(?=\d{3}(?:\D|$))/g, '')
+    .replace(',', '.');
+
+  if (!normalized) return null;
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatBytes(sizeBytes?: number | null): string {
+  if (!sizeBytes || sizeBytes <= 0) return '';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const index = Math.min(Math.floor(Math.log(sizeBytes) / Math.log(1024)), units.length - 1);
+  const value = sizeBytes / Math.pow(1024, index);
+  return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+function getDocumentViewerUrl(documentId: string): string {
+  return `/api/orders/documents/${encodeURIComponent(documentId)}/content`;
+}
+
+function isPaymentMethod(value: string): value is PaymentMethod {
+  return PAYMENT_METHOD_OPTIONS.some((option) => option.value === value);
+}
+
+function isOrderDocumentType(value: string): value is OrderDocumentType {
+  return DOCUMENT_TYPE_OPTIONS.some((option) => option.value === value);
+}
+
+function isAllowedDocument(file: File): boolean {
+  if (file.type && ALLOWED_FINANCE_DOCUMENT_MIME_TYPES.has(file.type)) {
+    return true;
+  }
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  if (!extension) return false;
+  return ALLOWED_FINANCE_DOCUMENT_EXTENSIONS.has(extension);
+}
+
 export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFinanceSectionProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -65,17 +133,15 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
 
-  const canCreatePayment = user && hasPermission(user.role as any, 'finance.payments.create');
-  const canDeletePayment = user && hasPermission(user.role as any, 'finance.payments.delete');
-  const canUploadDoc = user && hasPermission(user.role as any, 'finance.documents.upload');
-  const canDeleteDoc = user && hasPermission(user.role as any, 'finance.documents.delete');
+  const role = user?.role as UserRole | undefined;
+  const hasFinanceAccess = Boolean(role && canAccessFinance(role));
 
-  useEffect(() => {
-    if (!user || !canAccessFinance(user.role as any)) return;
-    loadData();
-  }, [user, orderId]);
+  const canCreatePayment = Boolean(role && hasPermission(role, 'finance.payments.create'));
+  const canDeletePayment = Boolean(role && hasPermission(role, 'finance.payments.delete'));
+  const canUploadDoc = Boolean(role && hasPermission(role, 'finance.documents.upload'));
+  const canDeleteDoc = Boolean(role && hasPermission(role, 'finance.documents.delete'));
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       const [paymentsData, docsData] = await Promise.all([
@@ -90,11 +156,19 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [orderId, showToast]);
+
+  useEffect(() => {
+    if (!hasFinanceAccess) {
+      setIsLoading(false);
+      return;
+    }
+    void loadData();
+  }, [hasFinanceAccess, loadData]);
 
   const handleAddPayment = async () => {
-    const amount = parseFloat(paymentAmount);
-    if (!amount || amount <= 0) {
+    const amount = parseLocalizedAmount(paymentAmount);
+    if (amount === null || amount <= 0) {
       showToast('Geçerli bir tutar girin', 'error');
       return;
     }
@@ -106,11 +180,12 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
         amount,
         currency: safeParseCurrency(currency),
         method: paymentMethod,
-        note: paymentNote || undefined,
+        note: paymentNote.trim() || undefined,
       });
       setPayments(prev => [newPayment, ...prev]);
       setShowPaymentForm(false);
       setPaymentAmount('');
+      setPaymentMethod('bank_transfer');
       setPaymentNote('');
       showToast('Ödeme kaydedildi', 'success');
     } catch (error) {
@@ -140,6 +215,16 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
   const handleUploadDocument = async () => {
     if (!selectedFile) {
       showToast('Dosya seçin', 'error');
+      return;
+    }
+
+    if (selectedFile.size > MAX_FINANCE_DOCUMENT_SIZE_BYTES) {
+      showToast('Belge boyutu 10MB sınırını aşıyor.', 'error');
+      return;
+    }
+
+    if (!isAllowedDocument(selectedFile)) {
+      showToast('Sadece PDF, PNG, JPG veya WEBP dosyası yüklenebilir.', 'error');
       return;
     }
 
@@ -174,13 +259,14 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
     }
   };
 
-  if (!user || !canAccessFinance(user.role as any)) {
+  if (!hasFinanceAccess) {
     return null;
   }
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const remaining = orderTotal - totalPaid;
   const isPaid = remaining <= 0;
+  const selectedFileSizeLabel = formatBytes(selectedFile?.size ?? null);
 
   return (
     <div className="space-y-6">
@@ -275,21 +361,28 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
             <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <input
-                  type="number"
-                  placeholder="Tutar"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Tutar (örn: 12.450,75)"
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
                   className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <select
                   value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                  onChange={(event) => {
+                    const nextMethod = event.target.value;
+                    if (isPaymentMethod(nextMethod)) {
+                      setPaymentMethod(nextMethod);
+                    }
+                  }}
                   className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="cash">Nakit</option>
-                  <option value="bank_transfer">Banka Transferi</option>
-                  <option value="card">Kredi Kartı</option>
-                  <option value="other">Diğer</option>
+                  {PAYMENT_METHOD_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <input
@@ -354,16 +447,20 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
                       {doc.fileName}
                     </p>
                     <p className="text-xs text-slate-500">
-                      {DOCUMENT_TYPE_LABELS[doc.type]} • {new Date(doc.uploadedAt).toLocaleDateString('tr-TR')}
+                      {DOCUMENT_TYPE_LABELS[doc.type]}
+                      {doc.sizeBytes ? ` • ${formatBytes(doc.sizeBytes)}` : ''}
+                      {' • '}
+                      {new Date(doc.uploadedAt).toLocaleDateString('tr-TR')}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <a
-                    href={doc.fileUrl}
+                    href={getDocumentViewerUrl(doc.id)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                    title="Belgeyi yeni sekmede aç"
                   >
                     <ExternalLink size={14} />
                   </a>
@@ -394,20 +491,32 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
             <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-3">
               <select
                 value={docType}
-                onChange={(e) => setDocType(e.target.value as OrderDocumentType)}
+                onChange={(event) => {
+                  const nextType = event.target.value;
+                  if (isOrderDocumentType(nextType)) {
+                    setDocType(nextType);
+                  }
+                }}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="invoice">Fatura</option>
-                <option value="delivery_note">İrsaliye</option>
-                <option value="receipt">Makbuz</option>
-                <option value="contract">Sözleşme</option>
-                <option value="other">Diğer</option>
+                {DOCUMENT_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
               <input
                 type="file"
+                accept=".pdf,image/png,image/jpeg,image/webp"
                 onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                 className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               />
+              {selectedFile ? (
+                <p className="text-xs text-slate-500">
+                  {selectedFile.name}
+                  {selectedFileSizeLabel ? ` • ${selectedFileSizeLabel}` : ''}
+                </p>
+              ) : null}
               <div className="flex gap-2">
                 <button
                   onClick={() => {

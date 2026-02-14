@@ -1,302 +1,38 @@
-'use client';
-
-import { motion } from 'framer-motion';
-import { useInView } from 'react-intersection-observer';
 import Link from 'next/link';
 
-export const dynamic = 'force-dynamic';
-
-interface JobPosition {
-  id: string;
-  title: string;
-  department: string;
-  location: string;
-  type: string;
-  description: string;
-}
-
-const openPositions: JobPosition[] = [
-  {
-    id: '1',
-    title: 'Senior Full-Stack Developer',
-    department: 'Mühendislik',
-    location: 'İstanbul / Uzaktan',
-    type: 'Tam Zamanlı',
-    description: 'React, Next.js ve Node.js teknolojileri ile ürün geliştirme ekibimize katılın.'
-  },
-  {
-    id: '2',
-    title: 'Product Designer',
-    department: 'Tasarım',
-    location: 'İstanbul / Uzaktan',
-    type: 'Tam Zamanlı',
-    description: 'Kullanıcı deneyimini şekillendiren, yenilikçi tasarım çözümleri üretin.'
-  },
-  {
-    id: '3',
-    title: 'DevOps Engineer',
-    department: 'Mühendislik',
-    location: 'Uzaktan',
-    type: 'Tam Zamanlı',
-    description: 'Cloud altyapımızı yönetin ve CI/CD süreçlerimizi optimize edin.'
-  },
-  {
-    id: '4',
-    title: 'Customer Success Manager',
-    department: 'Müşteri Başarısı',
-    location: 'İstanbul',
-    type: 'Tam Zamanlı',
-    description: 'Müşterilerimizin başarılı olmalarını sağlayın ve uzun vadeli ilişkiler kurun.'
-  },
-  {
-    id: '5',
-    title: 'Content Marketing Specialist',
-    department: 'Pazarlama',
-    location: 'Uzaktan',
-    type: 'Tam Zamanlı',
-    description: 'Blog yazıları, e-kitaplar ve sosyal medya içerikleri ile marka bilinirliğimizi artırın.'
-  }
-];
-
-const benefits = [
-  { icon: 'home', title: 'Esnek Çalışma', desc: 'Ofis veya evden çalışma seçeneği' },
-  { icon: 'flight', title: 'Sınırsız İzin', desc: 'Sorumlu bir şekilde kullanılan sınırsız yıllık izin' },
-  { icon: 'health_and_safety', title: 'Sağlık Sigortası', desc: 'Kapsamlı özel sağlık sigortası' },
-  { icon: 'school', title: 'Eğitim Bütçesi', desc: 'Yıllık kişisel gelişim bütçesi' },
-  { icon: 'devices', title: 'En İyi Ekipman', desc: 'İstediğiniz MacBook veya PC' },
-  { icon: 'celebration', title: 'Şirket Etkinlikleri', desc: 'Düzenli takım buluşmaları ve aktiviteler' }
-];
-
-const values = [
-  { icon: 'diversity_3', title: 'Çeşitlilik ve Dahil Edicilik', desc: 'Her sesin duyulduğu, farklı perspektiflerin değer gördüğü bir çalışma ortamı.' },
-  { icon: 'rocket_launch', title: 'Sürekli Büyüme', desc: 'Öğrenmeye ve gelişmeye adanmış bir ekip. Hatalardan ders çıkarır, başarıları kutlarız.' },
-  { icon: 'handshake', title: 'Şeffaflık', desc: 'Açık iletişim ve dürüstlük değerlerimizin temelini oluşturur.' },
-  { icon: 'psychology', title: 'Kullanıcı Odaklılık', desc: 'Her kararımızda kullanıcılarımızın ihtiyaçlarını ön planda tutarız.' }
-];
-
-function JobCard({ position, index }: { position: JobPosition; index: number }) {
-  const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 });
-
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 30 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ delay: index * 0.1, duration: 0.5 }}
-      className="bg-white/90 dark:bg-slate-900/70 rounded-2xl p-6 border border-slate-200/70 dark:border-slate-800 hover:border-sky-300/80 hover:shadow-[0_24px_50px_-35px_rgba(15,23,42,0.5)] transition-all group"
-    >
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex-1">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="text-xs font-medium bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300 px-2 py-1 rounded">
-              {position.department}
-            </span>
-            <span className="text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded">
-              {position.type}
-            </span>
-          </div>
-          <h3 className="text-xl font-bold text-text-light dark:text-text-dark mb-2 group-hover:text-sky-600 transition-colors">
-            {position.title}
-          </h3>
-          <p className="text-subtle-light dark:text-subtle-dark text-sm mb-2">
-            {position.description}
-          </p>
-          <div className="flex items-center gap-2 text-sm text-subtle-light dark:text-subtle-dark">
-            <span className="material-symbols-outlined text-lg">location_on</span>
-            <span>{position.location}</span>
-          </div>
-        </div>
-        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-          <Link
-            href={`/careers/${position.id}`}
-            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_30px_-18px_rgba(184,116,68,0.7)] hover:opacity-90 whitespace-nowrap"
-          >
-            Başvur
-          </Link>
-        </motion.div>
-      </div>
-    </motion.div>
-  );
-}
+import { MarketingShell } from '@/components/app-core/MarketingShell';
+import { careers } from '@/lib/core/marketing-content';
 
 export default function CareersPage() {
-  const [heroRef, heroInView] = useInView({ triggerOnce: true, threshold: 0.1 });
-  const [valuesRef, valuesInView] = useInView({ triggerOnce: true, threshold: 0.1 });
-  const [benefitsRef, benefitsInView] = useInView({ triggerOnce: true, threshold: 0.1 });
-
   return (
-    <div className="min-h-screen bg-[#f7f8fb] dark:bg-slate-950 font-display relative overflow-hidden">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(184,116,68,0.12),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_40%)]"
-      />
-      
-      <main className="pt-32 pb-20 relative z-10">
-        {/* Hero Section */}
-        <motion.section
-          ref={heroRef}
-          initial={{ opacity: 0, y: 30 }}
-          animate={heroInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8 }}
-          className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 text-center mb-20"
-        >
-          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300">
-            Kariyer
-          </span>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 text-text-light dark:text-text-dark">
-            Geleceği Birlikte <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-emerald-500">İnşa Edelim</span>
-          </h1>
-          <p className="text-lg md:text-xl text-subtle-light dark:text-subtle-dark max-w-3xl mx-auto">
-            Renkflow&apos;ta, her gün milyonlarca insanın çalışma şeklini değiştiriyoruz. 
-            Tutkulu, yaratıcı ve işbirlikçi ekibimize katılın.
-          </p>
-        </motion.section>
-
-        {/* Values Section */}
-        <section className="py-20 mb-20">
-          <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
-            <motion.div
-              ref={valuesRef}
-              initial={{ opacity: 0, y: 20 }}
-              animate={valuesInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6 }}
-              className="text-center mb-12"
-            >
-              <h2 className="text-3xl font-bold text-text-light dark:text-text-dark mb-4">
-                Değerlerimiz
-              </h2>
-              <p className="text-subtle-light dark:text-subtle-dark">
-                Renkflow kültürünü şekillendiren temel prensipler
-              </p>
-            </motion.div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {values.map((value, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={valuesInView ? { opacity: 1, y: 0 } : {}}
-                  transition={{ delay: i * 0.1, duration: 0.5 }}
-                  className="bg-white/90 dark:bg-slate-900/70 rounded-2xl p-6 text-center border border-slate-200/70 dark:border-slate-800 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.35)]"
-                >
-                  <div className="w-14 h-14 rounded-2xl bg-sky-50 dark:bg-sky-500/10 flex items-center justify-center mx-auto mb-4 text-sky-600 dark:text-sky-300">
-                    <span className="material-symbols-outlined text-2xl">{value.icon}</span>
-                  </div>
-                  <h3 className="font-bold text-text-light dark:text-text-dark mb-2">{value.title}</h3>
-                  <p className="text-sm text-subtle-light dark:text-subtle-dark">{value.desc}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Benefits Section */}
-        <section className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 mb-20">
-          <motion.div
-            ref={benefitsRef}
-            initial={{ opacity: 0, y: 20 }}
-            animate={benefitsInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl font-bold text-text-light dark:text-text-dark mb-4">
-              Yan Haklar
-            </h2>
-            <p className="text-subtle-light dark:text-subtle-dark">
-              Çalışanlarımıza sunduğumuz avantajlar
+    <MarketingShell
+      badge="Kariyer"
+      title="RenkFlow ekibinde yüksek sahiplik kültürüyle çalış"
+      description="Ürün, tasarım ve platform ekipleri birlikte karar alır, birlikte teslim eder. Açık pozisyonlarımız aşağıda yer alır."
+      actions={[
+        { href: '/contact', label: 'Başvuru Gönder' },
+        { href: '/about', label: 'Kültürümüz', variant: 'secondary' },
+      ]}
+      spotlight={[
+        { label: 'Çalışma Modeli', value: 'Hybrid + Remote' },
+        { label: 'Merkez', value: 'Istanbul' },
+        { label: 'Yaklaşım', value: 'Ownership' },
+      ]}
+    >
+      <div className="grid gap-4">
+        {careers.map((job) => (
+          <article key={job.id} className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-950">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+              {job.team} • {job.location} • {job.mode}
             </p>
-          </motion.div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {benefits.map((benefit, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                animate={benefitsInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ delay: i * 0.1, duration: 0.5 }}
-                className="flex items-start gap-4 p-5 rounded-2xl border border-slate-200/70 bg-white/80 shadow-[0_16px_35px_-30px_rgba(15,23,42,0.3)] dark:border-slate-800 dark:bg-slate-900/70"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center flex-shrink-0 text-emerald-600 dark:text-emerald-300">
-                  <span className="material-symbols-outlined text-xl">{benefit.icon}</span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-text-light dark:text-text-dark mb-1">{benefit.title}</h3>
-                  <p className="text-sm text-subtle-light dark:text-subtle-dark">{benefit.desc}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </section>
-
-        {/* Open Positions */}
-        <section className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-text-light dark:text-text-dark mb-4">
-              Açık Pozisyonlar
-            </h2>
-            <p className="text-subtle-light dark:text-subtle-dark">
-              Kariyerinizin bir sonraki adımını bizimle atın
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {openPositions.map((position, index) => (
-              <JobCard key={position.id} position={position} index={index} />
-            ))}
-          </div>
-
-          {/* No Open Positions Fallback */}
-          {openPositions.length === 0 && (
-            <div className="text-center py-16">
-              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
-                <span className="material-symbols-outlined text-primary text-4xl">work_off</span>
-              </div>
-              <h3 className="text-xl font-bold text-text-light dark:text-text-dark mb-2">
-                Şu An Açık Pozisyon Yok
-              </h3>
-              <p className="text-subtle-light dark:text-subtle-dark mb-6">
-                Yeni pozisyonlardan haberdar olmak için bize e-posta gönderin.
-              </p>
-              <motion.a
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                href="mailto:careers@renkflow.com"
-                className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 px-8 py-3 text-sm font-semibold text-white shadow-[0_18px_30px_-18px_rgba(184,116,68,0.7)] hover:opacity-90"
-              >
-                CV Gönder
-              </motion.a>
-            </div>
-          )}
-
-          {/* Spontaneous Application CTA */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="mt-16 text-center bg-primary/10 dark:bg-primary/20 rounded-2xl p-10"
-          >
-            <h2 className="text-2xl font-bold mb-3 text-text-light dark:text-text-dark">
-              Aradığınız pozisyon yok mu?
-            </h2>
-            <p className="text-subtle-light dark:text-subtle-dark mb-6 max-w-lg mx-auto">
-              Yetenekli insanlarla tanışmak bizi heyecanlandırıyor. CV&apos;nizi bize gönderin, 
-              uygun bir pozisyon açıldığında sizinle iletişime geçelim.
-            </p>
-            <motion.a
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              href="mailto:careers@renkflow.com"
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 px-8 py-3 text-sm font-semibold text-white shadow-[0_18px_30px_-18px_rgba(184,116,68,0.7)] hover:opacity-90"
-            >
-              <span className="material-symbols-outlined">mail</span>
-              CV Gönder
-            </motion.a>
-          </motion.div>
-        </section>
-      </main>
-
-      
-    </div>
+            <h2 className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">{job.title}</h2>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{job.summary}</p>
+            <Link href={`/careers/${job.id}`} className="mt-4 inline-flex text-sm font-semibold text-slate-900 hover:underline dark:text-slate-100">
+              Rol detaylarını gör
+            </Link>
+          </article>
+        ))}
+      </div>
+    </MarketingShell>
   );
 }

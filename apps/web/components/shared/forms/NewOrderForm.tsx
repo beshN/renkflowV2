@@ -1,483 +1,362 @@
+'use client';
+
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '../ui/Button';
-import { NewOrderFormData } from '@/lib/types';
-import { toast } from 'sonner';
-import { useAuth } from '@/lib/context/AuthContext';
-import { TEMPLATE_BY_KEY, DEFAULT_TEMPLATE_KEY, TemplateKey } from '@/lib/config/templates';
-import { Input } from '../ui/Input';
+import { FileText, Plus, Trash2 } from 'lucide-react';
+
+import { Button } from '@/components/ui/Button';
 import { formatCurrency } from '@/lib/utils';
-import { currencyCodeToSymbol } from '@/lib/utils/currency';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  Package, 
-  Calendar, 
-  Building2, 
-  CreditCard, 
-  UploadCloud, 
-  FileText, 
-  X, 
-  CheckCircle, 
-  Loader2,
-  Info 
-} from 'lucide-react';
+import { type Currency, type NewOrderFormData } from '@/lib/types';
+import {
+  ORDER_FORM_ALLOWED_FILE_TYPES,
+  ORDER_MAX_UPLOAD_COUNT,
+  ORDER_MAX_UPLOAD_SIZE_BYTES,
+} from '@/lib/features/orders/constants';
 
 interface NewOrderFormProps {
   onSubmit: (data: FormData) => Promise<void>;
   initialData?: NewOrderFormData;
 }
 
-interface FormErrors {
-  customerName?: string;
-  email?: string;
-  phone?: string;
-  productName?: string;
-  quantity?: string;
-  totalAmount?: string;
-  deliveryDate?: string;
+type FieldErrors = Partial<Record<'customerName' | 'productName' | 'quantity' | 'totalAmount', string>>;
+
+type UploadEntry = {
+  id: string;
+  file: File;
+};
+
+const ALLOWED_UPLOAD_TYPES: ReadonlySet<string> = new Set(ORDER_FORM_ALLOWED_FILE_TYPES);
+
+function parseLocalizedNumber(value: string): number | null {
+  const normalized = value
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/\.(?=\d{3}(?:\D|$))/g, '')
+    .replace(',', '.');
+
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildTodayISO(): string {
+  return new Date().toISOString().split('T')[0];
 }
 
 export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
   const router = useRouter();
-  const { user } = useAuth();
-  const [formData, setFormData] = useState<NewOrderFormData>(initialData || {
-    customerName: '',
-    email: '',
-    phone: '',
-    productName: '',
-    quantity: 1,
-    totalAmount: 0,
-    currency: 'TRY',
-    deliveryDate: '',
-    notes: '',
-    customFields: {},
-  });
-  
-  const [department, setDepartment] = useState<string>('');
-  const [customFields, setCustomFields] = useState<Record<string, string>>(
-    (initialData?.customFields as Record<string, string>) || {}
+
+  const [form, setForm] = useState<NewOrderFormData>(
+    initialData ?? {
+      customerName: '',
+      email: '',
+      phone: '',
+      productName: '',
+      quantity: 1,
+      totalAmount: 0,
+      currency: 'TRY',
+      deliveryDate: '',
+      notes: '',
+      customFields: {},
+    },
   );
-  
-  const [files, setFiles] = useState<{ id: string, file: File }[]>([]);
-  const [errors, setErrors] = useState<FormErrors>({});
+
+  const [rawTotalAmount, setRawTotalAmount] = useState(String(initialData?.totalAmount ?? ''));
+  const [files, setFiles] = useState<UploadEntry[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const template = useMemo(() => {
-    const key = (user?.templateKey as TemplateKey) || DEFAULT_TEMPLATE_KEY;
-    return TEMPLATE_BY_KEY[key] || TEMPLATE_BY_KEY[DEFAULT_TEMPLATE_KEY];
-  }, [user?.templateKey]);
-  const todayISO = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayISO = useMemo(buildTodayISO, []);
+  const summaryAmount = parseLocalizedNumber(rawTotalAmount);
+  const summaryAmountValue = summaryAmount ?? 0;
 
-  const validateForm = (): boolean => {
-    const newErrors: FormErrors = {};
+  const validate = (): boolean => {
+    const nextErrors: FieldErrors = {};
 
-    // Required fields
-    if (!formData.customerName.trim()) {
-      newErrors.customerName = 'Müşteri adı gereklidir';
+    if (!form.customerName.trim()) {
+      nextErrors.customerName = 'Müşteri adı zorunlu alandır.';
     }
 
-    if (!formData.productName.trim()) {
-      newErrors.productName = 'Ürün adı gereklidir';
+    if (!form.productName.trim()) {
+      nextErrors.productName = 'Ürün adı zorunlu alandır.';
     }
 
-    if (formData.quantity < 1) {
-      newErrors.quantity = 'Miktar en az 1 olmalıdır';
+    if (!Number.isInteger(form.quantity) || form.quantity < 1) {
+      nextErrors.quantity = 'Miktar en az 1 olmalıdır.';
     }
 
-    if (formData.deliveryDate && formData.deliveryDate < todayISO) {
-      newErrors.deliveryDate = 'Teslimat tarihi geçmiş olamaz';
+    if (!rawTotalAmount.trim() || summaryAmount === null) {
+      nextErrors.totalAmount = 'Toplam tutar gecersiz.';
+    } else if (summaryAmount <= 0) {
+      nextErrors.totalAmount = 'Toplam tutar sifirdan buyuk olmali.';
+    } else if (summaryAmount > 99999999.99) {
+      nextErrors.totalAmount = 'Toplam tutar limitin uzerinde.';
     }
 
-    let customFieldError = false;
-    template.extraFields.forEach((field) => {
-      if (field.required && !customFields[field.key]?.trim()) {
-        customFieldError = true;
-        toast.error(`${field.label} alani gereklidir.`);
-      }
-    });
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0 && !customFieldError;
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      toast.error('Lütfen zorunlu alanları doldurunuz.');
-      return;
-    }
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!validate()) return;
 
     setIsSubmitting(true);
-    const toastId = toast.loading('Sipariş oluşturuluyor...');
-
     try {
-      const data = new FormData();
-      data.append('customerName', formData.customerName);
-      if (formData.email) data.append('email', formData.email);
-      if (formData.phone) data.append('phone', formData.phone);
-      data.append('productName', formData.productName);
-      data.append('quantity', formData.quantity.toString());
-      if (formData.totalAmount != null) data.append('totalAmount', formData.totalAmount.toString());
-      data.append('currency', formData.currency);
-      data.append('deliveryDate', formData.deliveryDate || '');
-      if (formData.notes) data.append('notes', formData.notes);
-      if (department) data.append('department', department);
-      if (Object.keys(customFields).length > 0) {
-        data.append('customFields', JSON.stringify(customFields));
-      }
-      
-      files.forEach(({ file }) => {
-        data.append('files', file);
-      });
+      const payload = new FormData();
+      payload.append('customerName', form.customerName.trim());
+      if (form.email?.trim()) payload.append('email', form.email.trim());
+      if (form.phone?.trim()) payload.append('phone', form.phone.trim());
+      payload.append('productName', form.productName.trim());
+      payload.append('quantity', String(form.quantity));
+      payload.append('totalAmount', String(summaryAmountValue));
+      payload.append('currency', (form.currency || 'TRY') as Currency);
+      if (form.deliveryDate) payload.append('deliveryDate', form.deliveryDate);
+      if (form.notes?.trim()) payload.append('notes', form.notes.trim());
 
-      await onSubmit(data);
-      toast.success('Sipariş başarıyla oluşturuldu!', { id: toastId });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Sipariş oluşturulurken bir hata oluştu.';
-      toast.error(message, { id: toastId });
+      files.forEach((entry) => payload.append('files', entry.file));
+
+      await onSubmit(payload);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === 'quantity' || name === 'totalAmount' ? parseFloat(value) || 0 : value,
-    }));
-    
-    // Clear error when user types
-    if (errors[name as keyof FormErrors]) {
-      setErrors((prev) => ({ ...prev, [name]: undefined }));
-    }
-  };
+  const addFiles = (inputFiles: FileList | null) => {
+    if (!inputFiles || inputFiles.length === 0) return;
 
-  const handleCustomFieldChange = (key: string, value: string) => {
-    setCustomFields((prev) => ({ ...prev, [key]: value }));
+    const selected = Array.from(inputFiles);
+    const nextErrors: string[] = [];
+
+    setFiles((prev) => {
+      const existingKeys = new Set(prev.map((entry) => `${entry.file.name}-${entry.file.size}-${entry.file.lastModified}`));
+      const accepted: UploadEntry[] = [];
+
+      for (const file of selected) {
+        const key = `${file.name}-${file.size}-${file.lastModified}`;
+
+        if (existingKeys.has(key)) {
+          nextErrors.push(`${file.name}: Dosya zaten eklendi.`);
+          continue;
+        }
+
+        if (file.size > ORDER_MAX_UPLOAD_SIZE_BYTES) {
+          nextErrors.push(`${file.name}: 10MB limitini asiyor.`);
+          continue;
+        }
+
+        if (!ALLOWED_UPLOAD_TYPES.has(file.type)) {
+          nextErrors.push(`${file.name}: Dosya tipi desteklenmiyor.`);
+          continue;
+        }
+
+        existingKeys.add(key);
+        accepted.push({ id: crypto.randomUUID(), file });
+      }
+
+      const merged = [...prev, ...accepted];
+      if (merged.length > ORDER_MAX_UPLOAD_COUNT) {
+        nextErrors.push(`En fazla ${ORDER_MAX_UPLOAD_COUNT} dosya yukleyebilirsiniz.`);
+      }
+
+      return merged.slice(0, ORDER_MAX_UPLOAD_COUNT);
+    });
+
+    setFileError(nextErrors.length > 0 ? nextErrors[0] : null);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Customer Information */}
-      <div className="glass-panel p-6 rounded-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-600 dark:text-blue-400">
-            <User size={24} />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-              Müşteri Bilgileri
-            </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Siparişi veren müşteri veya firma detayları.
-            </p>
-          </div>
-        </div>
+      <section className="rf-panel rounded-2xl p-6">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Müşteri Profili</h2>
+        <p className="mt-1 text-sm text-slate-500">Siparişin bağlı olduğu müşteri bilgisini eksiksiz girin.</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="md:col-span-2">
-            <Input
-              label="Müşteri Adı *"
-              name="customerName"
-              value={formData.customerName}
-              onChange={handleChange}
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label className="md:col-span-2">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Müşteri adı *</span>
+            <input
+              type="text"
+              value={form.customerName}
+              onChange={(event) => setForm((prev) => ({ ...prev, customerName: event.target.value }))}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               placeholder="Örn: Ahmet Yılmaz"
-              errorMessage={errors.customerName}
             />
-          </div>
-          <div>
-            <Input
-              label="E-posta"
+            {errors.customerName && <span className="mt-1 block text-xs text-rose-600">{errors.customerName}</span>}
+          </label>
+
+          <label>
+            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">E-posta</span>
+            <input
               type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="ahmet@example.com"
+              value={form.email || ''}
+              onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              placeholder="ornek@firma.com"
             />
-          </div>
-          <div>
-            <Input
-              label="Telefon"
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
+          </label>
+
+          <label>
+            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Telefon</span>
+            <input
+              type="text"
+              value={form.phone || ''}
+              onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               placeholder="+90 5XX XXX XX XX"
             />
-          </div>
+          </label>
         </div>
-        
-        {template.extraFields.length > 0 && (
-          <div className="mt-8 border-t border-slate-100 dark:border-slate-800 pt-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Info size={16} className="text-slate-400" />
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
-                Sektörel Alanlar
-              </h4>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {template.extraFields.map((field) => (
-                <div key={field.key}>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                    {field.label} {field.required ? '*' : ''}
-                  </label>
-                  {field.type === 'select' ? (
-                    <div className="relative">
-                      <select
-                        value={customFields[field.key] || ''}
-                        onChange={(e) => handleCustomFieldChange(field.key, e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
-                      >
-                        <option value="">Seçiniz</option>
-                        {field.options?.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                      </div>
-                    </div>
-                  ) : (
-                    <Input
-                      type={field.type}
-                      value={customFields[field.key] || ''}
-                      onChange={(e) => handleCustomFieldChange(field.key, e.target.value)}
-                      placeholder={field.placeholder}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      </section>
 
-      {/* Product Details */}
-      <div className="glass-panel p-6 rounded-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl text-indigo-600 dark:text-indigo-400">
-            <Package size={24} />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-              {template.title}
-            </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Ürün, miktar ve teslimat bilgileri.
-            </p>
-          </div>
-        </div>
+      <section className="rf-panel rounded-2xl p-6">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Sipariş Kapsamı</h2>
+        <p className="mt-1 text-sm text-slate-500">Ürün, miktar ve toplam tutar bilgisini operasyon standardına uygun girin.</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="md:col-span-2">
-            <Input
-              label={`${template.productLabel} *`}
-              name="productName"
-              value={formData.productName}
-              onChange={handleChange}
-              placeholder={template.productPlaceholder}
-              errorMessage={errors.productName}
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label className="md:col-span-2">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Ürün adı *</span>
+            <input
+              type="text"
+              value={form.productName}
+              onChange={(event) => setForm((prev) => ({ ...prev, productName: event.target.value }))}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              placeholder="Örn: Kartvizit"
             />
-          </div>
-          <div>
-            <Input
-              label={`${template.quantityLabel} *`}
+            {errors.productName && <span className="mt-1 block text-xs text-rose-600">{errors.productName}</span>}
+          </label>
+
+          <label>
+            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Miktar *</span>
+            <input
               type="number"
-              name="quantity"
-              value={formData.quantity}
-              onChange={handleChange}
               min={1}
+              step={1}
+              value={form.quantity}
+              onChange={(event) => setForm((prev) => ({ ...prev, quantity: Number.parseInt(event.target.value, 10) || 0 }))}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             />
-          </div>
-          <div>
-            <Input
-              label={template.deliveryLabel}
-              type="date"
-              name="deliveryDate"
-              value={formData.deliveryDate}
-              onChange={handleChange}
-              min={todayISO}
-              errorMessage={errors.deliveryDate}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              {template.departmentLabel}
-            </label>
-            <div className="relative">
-              <select
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
-              >
-                <option value="">Seçiniz</option>
-                {template.departments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </option>
-                ))}
-              </select>
-               <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-              </div>
-            </div>
-          </div>
-          <div>
-            <div className="relative">
-               <Input
-                label={`${template.totalLabel.replace('(TL)', `(${currencyCodeToSymbol(formData.currency)})`)} *`}
-                type="number"
-                name="totalAmount"
-                value={formData.totalAmount}
-                onChange={handleChange}
-                min={0}
-                step="0.01"
-              />
-            </div>
-          </div>
-        </div>
+            {errors.quantity && <span className="mt-1 block text-xs text-rose-600">{errors.quantity}</span>}
+          </label>
 
-        {/* Document Attachment */}
-        <div className="mt-8 border-t border-slate-100 dark:border-slate-800 pt-6">
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-            <UploadCloud size={16} className="text-slate-500" />
-            Belgeler
-          </h3>
-          
-          <div className="group border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-8 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 hover:border-slate-300 dark:hover:border-slate-700 transition-all text-center cursor-pointer relative">
-            <input 
-              type="file" 
-              multiple 
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          <label>
+            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Toplam tutar ({form.currency})</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={rawTotalAmount}
+              onChange={(event) => setRawTotalAmount(event.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              placeholder="Örn: 33.329,97"
+            />
+            {errors.totalAmount && <span className="mt-1 block text-xs text-rose-600">{errors.totalAmount}</span>}
+          </label>
+
+          <label>
+            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Teslimat tarihi</span>
+            <input
+              type="date"
+              min={todayISO}
+              value={form.deliveryDate || ''}
+              onChange={(event) => setForm((prev) => ({ ...prev, deliveryDate: event.target.value }))}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            />
+          </label>
+
+          <label>
+            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Para birimi</span>
+            <select
+              value={form.currency}
+              onChange={(event) => setForm((prev) => ({ ...prev, currency: event.target.value as Currency }))}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            >
+              <option value="TRY">TRY</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+            </select>
+          </label>
+
+          <label className="md:col-span-2">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Operasyon notları</span>
+            <textarea
+              rows={3}
+              value={form.notes || ''}
+              onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              placeholder="Üretim veya sevkiyat için gerekli notlar"
+            />
+          </label>
+        </div>
+      </section>
+
+      <section className="rf-panel rounded-2xl p-6">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Teknik Belgeler</h2>
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+            <Plus size={14} />
+            Dosya ekle
+            <input
+              type="file"
+              multiple
+              className="hidden"
               accept="image/*,.pdf"
-              onChange={(e) => {
-                const selectedFiles = e.target.files;
-                if (selectedFiles && selectedFiles.length > 0) {
-                  const newFiles = Array.from(selectedFiles).map(file => ({
-                    id: Math.random().toString(36).substr(2, 9),
-                    file
-                  }));
-                  setFiles(prev => [...prev, ...newFiles]);
-                  toast.success(`${newFiles.length} dosya eklendi`);
-                }
+              onChange={(event) => {
+                addFiles(event.target.files);
+                event.currentTarget.value = '';
               }}
             />
-            <div className="flex flex-col items-center gap-2 pointer-events-none">
-              <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-400 group-hover:text-blue-500 transition-colors">
-                 <UploadCloud size={24} />
-              </div>
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                <span className="text-blue-600 dark:text-blue-400">Dosya seçin</span> veya buraya bırakın
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {template.documentHint} · PNG, JPG, PDF (max. 10MB)
-              </p>
-            </div>
-          </div>
-            
-          {/* File Preview List */}
-          {files.length > 0 && (
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {files.map((fileItem) => (
-                <div key={fileItem.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl group/file">
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="p-2 bg-white dark:bg-slate-800 rounded-lg text-slate-500">
-                      <FileText size={20} />
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate pr-2">
-                        {fileItem.file.name}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        {(fileItem.file.size / 1024 / 1024).toFixed(2)} MB
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFiles(prev => prev.filter(f => f.id !== fileItem.id));
-                      toast.info('Dosya kaldırıldı');
-                    }}
-                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                  >
-                    <X size={18} />
-                  </button>
+          </label>
+        </div>
+
+        {files.length > 0 ? (
+          <div className="mt-4 space-y-2">
+            {files.map((entry) => (
+              <div key={entry.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+                <div className="flex min-w-0 items-center gap-2">
+                  <FileText size={16} className="text-slate-500" />
+                  <span className="truncate text-sm text-slate-700 dark:text-slate-200">{entry.file.name}</span>
                 </div>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-6">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              {template.notesLabel}
-            </label>
-            <textarea
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              rows={3}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm resize-none"
-              placeholder="Sipariş ile ilgili özel notlar..."
-            />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFiles((prev) => prev.filter((item) => item.id !== entry.id));
+                    setFileError(null);
+                  }}
+                  className="rounded-lg p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/10"
+                  aria-label="Dosyayi kaldir"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
           </div>
-        </div>
-      </div>
+        ) : (
+          <p className="mt-4 text-sm text-slate-500">Henüz belge yüklenmedi.</p>
+        )}
 
-      {/* Summary */}
-      <div className="glass-panel p-6 rounded-2xl border border-white/20 dark:border-white/5 shadow-xl shadow-slate-200/20 dark:shadow-black/20">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-          Sipariş Özeti
-        </h3>
-        <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 space-y-3">
-          <div className="flex justify-between text-slate-600 dark:text-slate-400 text-sm">
+        {fileError ? <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">{fileError}</p> : null}
+      </section>
+
+      <section className="rf-panel rounded-2xl p-6">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Sipariş Özeti</h2>
+        <div className="mt-3 rounded-xl bg-slate-50 p-4 dark:bg-slate-900/50">
+          <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
             <span>Miktar</span>
-            <span className="font-medium text-slate-900 dark:text-slate-200">{formData.quantity} adet</span>
+            <span>{form.quantity} adet</span>
           </div>
-          <div className="flex justify-between items-center pt-3 border-t border-slate-200 dark:border-slate-800">
-            <span className="font-semibold text-slate-900 dark:text-white">Toplam Tutar</span>
-            <span className="text-xl font-bold text-slate-900 dark:text-white font-display">
-              {formatCurrency(formData.totalAmount, formData.currency)}
-            </span>
+          <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3 dark:border-slate-700">
+            <span className="font-semibold text-slate-900 dark:text-slate-100">Genel toplam</span>
+            <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{formatCurrency(summaryAmountValue, form.currency)}</span>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Actions */}
-      <div className="flex gap-4 pt-2">
-        <Button 
-          type="submit" 
-          variant="primary" 
-          size="lg" 
-          className="flex-1 text-base h-12" 
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 animate-spin" size={20} />
-              Kaydediliyor...
-            </>
-          ) : (
-            <>
-              <CheckCircle className="mr-2" size={20} />
-              Siparişi Kaydet
-            </>
-          )}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button type="submit" variant="primary" size="lg" className="sm:flex-1" isLoading={isSubmitting} loadingText="Sipariş kaydediliyor...">
+          Siparişi Kaydet
         </Button>
-        <Button 
-          type="button" 
-          variant="secondary" 
-          size="lg" 
-          className="h-12 px-8"
-          onClick={() => router.back()}
-        >
-          İptal
+        <Button type="button" variant="secondary" size="lg" onClick={() => router.back()}>
+          Vazgeç
         </Button>
       </div>
     </form>

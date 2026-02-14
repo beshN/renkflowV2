@@ -231,6 +231,21 @@
     color: color-mix(in srgb, var(--rf-brand-700) 85%, var(--rf-text) 15%);
     font-weight: 600;
   }
+
+  .rf-sidebar-shell {
+    --rf-sidebar-collapsed: 5.5rem;
+    --rf-sidebar-expanded: 18rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rf-sidebar-shell,
+  .rf-sidebar-shell * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @layer base {

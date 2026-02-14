@@ -29,10 +29,8 @@ export const PDFViewerV2: React.FC<PDFViewerV2Props> = ({
   const loadProgress = usePDFStore((state) => state.loadProgress);
   const loadingStage = usePDFStore((state) => state.loadingStage);
   const error = usePDFStore((state) => state.error);
-  const errorType = usePDFStore((state) => state.errorType);
   const retryCount = usePDFStore((state) => state.retryCount);
   const isFullscreen = usePDFStore((state) => state.isFullscreen);
-  const isMobile = usePDFStore((state) => state.isMobile);
   
   // Store actions
   const setDocument = usePDFStore((state) => state.setDocument);
@@ -40,7 +38,6 @@ export const PDFViewerV2: React.FC<PDFViewerV2Props> = ({
   const setLoading = usePDFStore((state) => state.setLoading);
   const setError = usePDFStore((state) => state.setError);
   const incrementRetry = usePDFStore((state) => state.incrementRetry);
-  const resetRetry = usePDFStore((state) => state.resetRetry);
   const setIsMobile = usePDFStore((state) => state.setIsMobile);
   const setFullscreen = usePDFStore((state) => state.setFullscreen);
   const toggleSearch = usePDFStore((state) => state.toggleSearch);
@@ -185,32 +182,52 @@ export const PDFViewerV2: React.FC<PDFViewerV2Props> = ({
   // Handle download
   const handleDownload = useCallback(async () => {
     try {
-      const response = await fetch(fileUrl);
+      const response = await fetch(fileUrl, {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      if (!response.ok) {
+        throw new Error(`Download failed with status ${response.status}`);
+      }
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = fileName;
+      link.rel = 'noopener noreferrer';
       link.click();
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Download error:', err);
+      setError('Belge indirilemedi. Yeni sekmede açmayı deneyin.', 'network');
     }
-  }, [fileUrl, fileName]);
+  }, [fileUrl, fileName, setError]);
   
   // Handle print
   const handlePrint = useCallback(() => {
     window.print();
   }, []);
+
+  const handleOpenInNewTab = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const nextWindow = window.open(fileUrl, '_blank', 'noopener,noreferrer');
+    if (!nextWindow) {
+      console.warn('Could not open PDF in a new tab');
+    }
+  }, [fileUrl]);
   
   // Handle share
   const handleShare = useCallback(async () => {
+    const shareUrl = fileUrl.startsWith('http')
+      ? fileUrl
+      : new URL(fileUrl, window.location.origin).toString();
+
     try {
       if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(fileUrl);
+        await navigator.clipboard.writeText(shareUrl);
       } else {
         const textArea = document.createElement('textarea');
-        textArea.value = fileUrl;
+        textArea.value = shareUrl;
         textArea.style.position = 'fixed';
         textArea.style.left = '-999999px';
         document.body.appendChild(textArea);
@@ -245,6 +262,14 @@ export const PDFViewerV2: React.FC<PDFViewerV2Props> = ({
           message={error}
           onRetry={handleRetry}
           onClose={onClose || (() => {})}
+          additionalActions={
+            <button
+              onClick={handleOpenInNewTab}
+              className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-slate-400/50"
+            >
+              Yeni Sekmede Aç
+            </button>
+          }
           retryCount={retryCount}
         />
       )}

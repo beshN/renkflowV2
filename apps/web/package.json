@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "if [ -f .next/standalone/server.js ]; then node -r dotenv/config .next/standalone/server.js dotenv_config_path=.env.local; else next start; fi",
+    "start": "if [ -f .next/standalone/server.js ]; then node -r dotenv/config .next/standalone/server.js dotenv_config_path=.env.local; elif [ -f .next/standalone/apps/web/server.js ]; then node -r dotenv/config .next/standalone/apps/web/server.js dotenv_config_path=.env.local; else next start; fi",
     "lint": "eslint .",
     "db:push": "node scripts/push-schema.js",
     "db:generate": "drizzle-kit generate",
@@ -17,7 +17,7 @@
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:e2e": "playwright test",
-    "start:standalone": "node -r dotenv/config .next/standalone/server.js dotenv_config_path=.env.local",
+    "start:standalone": "if [ -f .next/standalone/server.js ]; then node -r dotenv/config .next/standalone/server.js dotenv_config_path=.env.local; elif [ -f .next/standalone/apps/web/server.js ]; then node -r dotenv/config .next/standalone/apps/web/server.js dotenv_config_path=.env.local; else echo 'Standalone server output not found. Run npm run build first.' && exit 1; fi",
     "start:next": "next start",
     "guard:legacy-backends": "bash scripts/guardrails/no-$(printf '%s%s' 'neo' 'n')-r2.sh",
     "guard:tenant-scope": "bash scripts/guardrails/tenant-scope.sh",

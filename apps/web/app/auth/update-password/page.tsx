@@ -2,273 +2,159 @@
 
 export const dynamic = 'force-dynamic';
 
-import { motion } from 'framer-motion';
-import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useEffect, Suspense } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { toast } from 'sonner';
-import { UnifiedNavbar } from '@/components/landing-new/UnifiedNavbar';
-import { AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
-function UpdatePasswordForm() {
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [isValidToken, setIsValidToken] = useState<boolean | null>(null);
-  const [formErrors, setFormErrors] = useState<{
-    password?: string;
-    confirmPassword?: string;
-    general?: string;
-  }>({});
+import { AuthFrame } from '@/components/app-core/AuthFrame';
+import { requestJson } from '@/lib/shared/network';
 
+type VerifyState = 'checking' | 'ready' | 'invalid';
+
+export default function UpdatePasswordPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get('token');
+  const token = useMemo(() => searchParams.get('token') || '', [searchParams]);
+
+  const [state, setState] = useState<VerifyState>('checking');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    // Verify token on mount
     if (!token) {
-      setIsValidToken(false);
+      setState('invalid');
       return;
     }
 
-    const verifyToken = async () => {
-      try {
-        const response = await fetch(`/api/auth/verify-reset-token?token=${token}`);
-        const data = await response.json();
-        setIsValidToken(data.valid);
-      } catch (error) {
-        setIsValidToken(false);
-      }
-    };
+    let active = true;
 
-    verifyToken();
+    (async () => {
+      const result = await requestJson<{ valid?: boolean }>(`/api/auth/verify-reset-token?token=${token}`, undefined, {
+        timeoutMs: 15000,
+      });
+      if (!active) return;
+      setState(Boolean(result.data?.valid) ? 'ready' : 'invalid');
+    })();
+
+    return () => {
+      active = false;
+    };
   }, [token]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormErrors({});
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
-    // Validate passwords
     if (password.length < 6) {
-      setFormErrors({ password: 'Şifre en az 6 karakter olmalıdır' });
+      setError('Şifre en az 6 karakter olmalıdır.');
       return;
     }
 
     if (password !== confirmPassword) {
-      setFormErrors({ confirmPassword: 'Şifreler eşleşmiyor' });
+      setError('Şifre alanları eşleşmiyor.');
       return;
     }
 
-    setIsLoading(true);
+    setLoading(true);
+    setError('');
 
-    try {
-      const response = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password }),
-      });
+    const result = await requestJson('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, password }),
+    }, {
+      timeoutMs: 20000,
+      fallbackError: 'Sifre guncelleme istegi tamamlanamadi.',
+    });
+    setLoading(false);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (data.error === 'token_expired') {
-          setFormErrors({ general: 'Bu link süresi dolmuş. Lütfen yeni bir şifre sıfırlama talebi oluşturun.' });
-        } else {
-          setFormErrors({ general: data.error || 'Bir hata oluştu. Lütfen tekrar deneyin.' });
-        }
-        return;
-      }
-
-      setIsSuccess(true);
-      toast.success('Şifreniz başarıyla güncellendi!');
-      
-      // Redirect to login after 2 seconds
-      setTimeout(() => {
-        router.push('/auth/login');
-      }, 2000);
-    } catch (error: unknown) {
-      console.error('Reset password error:', error);
-      setFormErrors({ general: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.' });
-    } finally {
-      setIsLoading(false);
+    if (!result.ok) {
+      setError(
+        result.error === 'token_expired'
+          ? 'Baglantinin suresi dolmus.'
+          : result.error || 'Sifre guncellenemedi.',
+      );
+      return;
     }
+
+    setSuccess('Şifre güncellendi. Giriş ekranına yönlendiriliyorsun.');
+    setTimeout(() => {
+      router.push('/auth/login');
+    }, 1200);
   };
 
-  // Loading state while verifying token
-  if (isValidToken === null) {
+  if (state === 'checking') {
     return (
-      <div className="flex min-h-screen w-full pt-20 items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4" />
-          <p className="text-subtle-light dark:text-subtle-dark">Link doğrulanıyor...</p>
-        </div>
-      </div>
+      <AuthFrame title="Bağlantı Doğrulanıyor" description="Güvenli sıfırlama bağlantın kontrol ediliyor.">
+        <p className="text-sm text-slate-600 dark:text-slate-400">Lütfen bekleyin...</p>
+      </AuthFrame>
     );
   }
 
-  // Invalid or expired token
-  if (isValidToken === false) {
+  if (state === 'invalid') {
     return (
-      <div className="flex min-h-screen w-full pt-20 items-center justify-center">
-        <div className="text-center max-w-md px-4">
-          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-            <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
-          </div>
-          <h1 className="text-3xl font-black mb-3">Geçersiz Link</h1>
-          <p className="text-subtle-light dark:text-subtle-dark mb-6">
-            Bu şifre sıfırlama linki geçersiz veya süresi dolmuş. 
-            Lütfen yeni bir şifre sıfırlama talebi oluşturun.
-          </p>
-          <Link href="/auth/forgot-password">
-            <button className="w-full bg-primary text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity shadow-sm">
-              Yeni Talep Oluştur
-            </button>
+      <AuthFrame
+        title="Bağlantı Geçersiz"
+        description="Bu şifre sıfırlama bağlantısı kullanılamıyor. Yeni bir talep başlatmalısın."
+        footer={
+          <Link href="/auth/forgot-password" className="font-semibold text-slate-900 hover:underline dark:text-slate-100">
+            Yeni bağlantı talep et
           </Link>
-        </div>
-      </div>
+        }
+      >
+        <p className="text-sm text-slate-600 dark:text-slate-400">Eski veya tek kullanımlık linkler güvenlik gereği tekrar açılamaz.</p>
+      </AuthFrame>
     );
   }
 
   return (
-    <div className="flex min-h-screen w-full pt-20">
-      {/* Left - Form */}
-      <motion.div
-        initial={{ opacity: 0, x: -50 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6 }}
-        className="flex-1 lg:flex-[0.5] flex items-center justify-center p-4 sm:p-8"
-      >
-        <div className="w-full max-w-md glass-panel p-8 rounded-2xl overflow-hidden">
-          {isSuccess ? (
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
-              </div>
-              <h1 className="text-3xl sm:text-4xl font-black mb-3">Şifre Güncellendi</h1>
-              <p className="text-subtle-light dark:text-subtle-dark mb-6">
-                Şifreniz başarıyla güncellendi. Giriş sayfasına yönlendiriliyorsunuz...
-              </p>
-            </div>
-          ) : (
-            <>
-              <header className="text-center lg:text-left mb-6">
-                <h1 className="text-3xl sm:text-4xl font-black mb-3">Yeni Şifre Belirleyin</h1>
-                <p className="text-subtle-light dark:text-subtle-dark">
-                  Hesabınız için yeni bir şifre oluşturun.
-                </p>
-              </header>
+    <AuthFrame
+      title="Yeni Şifre Oluştur"
+      description="Hesabın için güçlü bir şifre belirleyerek erişimini yenile."
+      footer={
+        <Link href="/auth/login" className="font-semibold text-slate-900 hover:underline dark:text-slate-100">
+          Giriş sayfasına dön
+        </Link>
+      }
+    >
+      <form className="space-y-3" onSubmit={handleSubmit}>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+          Yeni şifre
+          <input
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            type="password"
+            minLength={6}
+            required
+            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-500 dark:border-slate-700 dark:bg-slate-900"
+          />
+        </label>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Yeni Şifre</label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        if (formErrors.password) setFormErrors({ ...formErrors, password: undefined });
-                      }}
-                      className={`w-full px-4 py-3.5 pr-12 rounded-xl border bg-white/40 dark:bg-slate-900/40 backdrop-blur-md focus:ring-4 focus:ring-primary/10 transition-all outline-none ${formErrors.password ? 'border-red-500' : 'border-slate-200/50 dark:border-slate-700/50 focus:border-primary'}`}
-                      placeholder="En az 6 karakter"
-                      required
-                      minLength={6}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                    >
-                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </button>
-                  </div>
-                  {formErrors.password && (
-                    <p className="mt-1 text-sm text-red-500">{formErrors.password}</p>
-                  )}
-                </div>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+          Şifre tekrar
+          <input
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+            type="password"
+            minLength={6}
+            required
+            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-500 dark:border-slate-700 dark:bg-slate-900"
+          />
+        </label>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Şifre Tekrar</label>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => {
-                      setConfirmPassword(e.target.value);
-                      if (formErrors.confirmPassword) setFormErrors({ ...formErrors, confirmPassword: undefined });
-                    }}
-                    className={`w-full px-4 py-3.5 rounded-xl border bg-white/40 dark:bg-slate-900/40 backdrop-blur-md focus:ring-4 focus:ring-primary/10 transition-all outline-none ${formErrors.confirmPassword ? 'border-red-500' : 'border-slate-200/50 dark:border-slate-700/50 focus:border-primary'}`}
-                    placeholder="Şifreyi tekrar girin"
-                    required
-                  />
-                  {formErrors.confirmPassword && (
-                    <p className="mt-1 text-sm text-red-500">{formErrors.confirmPassword}</p>
-                  )}
-                </div>
+        {error ? <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p> : null}
+        {success ? <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">{success}</p> : null}
 
-                {formErrors.general && (
-                  <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-                    <p className="text-sm text-red-600 dark:text-red-400">{formErrors.general}</p>
-                  </div>
-                )}
-
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-gradient-to-r from-primary to-primary-700 hover:from-primary/90 hover:to-primary-700/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/25 disabled:opacity-70 disabled:cursor-not-allowed mt-4 transition-all"
-                >
-                  {isLoading ? 'Güncelleniyor...' : 'Şifreyi Güncelle'}
-                </motion.button>
-              </form>
-            </>
-          )}
-        </div>
-      </motion.div>
-
-      {/* Right - Hero Image */}
-      <motion.div
-        initial={{ opacity: 0, x: 50 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6 }}
-        className="hidden lg:flex lg:flex-[0.5] items-center justify-center p-8 bg-gradient-to-br from-primary/10 to-primary/5"
-      >
-        <div className="max-w-md text-center">
-          <div className="mb-8">
-            <Image
-              src="/logo-full.png"
-              alt="Renkflow Logo"
-              width={1000}
-              height={260}
-              className="mx-auto"
-              priority
-            />
-          </div>
-          <h2 className="text-2xl font-black mb-4">Güvenliğiniz Önemli</h2>
-          <p className="text-subtle-light dark:text-subtle-dark">
-            Güçlü bir şifre seçerek hesabınızı koruyun. En az 6 karakter kullanın.
-          </p>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-export default function UpdatePasswordPage() {
-  return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark relative font-display">
-      <UnifiedNavbar />
-      <Suspense fallback={
-        <div className="flex min-h-screen w-full pt-20 items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
-        </div>
-      }>
-        <UpdatePasswordForm />
-      </Suspense>
-    </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
+        >
+          {loading ? 'Şifre güncelleniyor...' : 'Şifreyi Güncelle'}
+        </button>
+      </form>
+    </AuthFrame>
   );
 }

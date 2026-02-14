@@ -2,325 +2,214 @@
 
 export const dynamic = 'force-dynamic';
 
-import { motion } from 'framer-motion';
-import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useEffect, Suspense } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { toast } from 'sonner';
-import { UnifiedNavbar } from '@/components/landing-new/UnifiedNavbar';
-import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 
-interface InvitationData {
+import { AuthFrame } from '@/components/app-core/AuthFrame';
+import { requestJson } from '@/lib/shared/network';
+
+type InvitationData = {
   email: string;
   tenantName: string;
   role: string;
-  inviterName?: string;
-}
+  existingUser: boolean;
+};
 
-function AcceptInviteForm() {
-  const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isValidating, setIsValidating] = useState(true);
-  const [invitation, setInvitation] = useState<InvitationData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [formErrors, setFormErrors] = useState<{
-    name?: string;
-    password?: string;
-    confirmPassword?: string;
-    general?: string;
-  }>({});
+type ValidationState = 'checking' | 'valid' | 'invalid';
 
+export default function AcceptInvitePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get('token');
+  const token = useMemo(() => searchParams.get('token') || '', [searchParams]);
+
+  const [status, setStatus] = useState<ValidationState>('checking');
+  const [invitation, setInvitation] = useState<InvitationData | null>(null);
+  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!token) {
-      setError('Geçersiz davet linki');
-      setIsValidating(false);
+      setStatus('invalid');
+      setError('Davet bağlantısı eksik veya geçersiz.');
       return;
     }
 
-    const validateInvitation = async () => {
-      try {
-        const response = await fetch(`/api/tenant/invite/validate?token=${token}`);
-        const data = await response.json();
+    let active = true;
 
-        if (!response.ok || !data.valid) {
-          setError(data.error || 'Bu davet linki geçersiz veya süresi dolmuş.');
-          setIsValidating(false);
-          return;
-        }
-
-        setInvitation({
-          email: data.email,
-          tenantName: data.tenantName,
-          role: data.role,
-          inviterName: data.inviterName,
-        });
-        setIsValidating(false);
-      } catch (err) {
-        setError('Davet doğrulanırken bir hata oluştu.');
-        setIsValidating(false);
-      }
-    };
-
-    validateInvitation();
-  }, [token]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormErrors({});
-
-    // Validate
-    if (!name.trim() || name.length < 2) {
-      setFormErrors({ name: 'Ad Soyad en az 2 karakter olmalıdır' });
-      return;
-    }
-
-    if (password.length < 6) {
-      setFormErrors({ password: 'Şifre en az 6 karakter olmalıdır' });
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setFormErrors({ confirmPassword: 'Şifreler eşleşmiyor' });
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const response = await fetch('/api/tenant/invite/accept', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token,
-          name: name.trim(),
-          password,
-        }),
+    (async () => {
+      const result = await requestJson<{
+        valid?: boolean;
+        error?: string;
+        email?: string;
+        tenantName?: string;
+        role?: string;
+        existingUser?: boolean;
+      }>(`/api/tenant/invite/validate?token=${token}`, undefined, {
+        timeoutMs: 15000,
+        fallbackError: 'Davet dogrulanamadi.',
       });
+      if (!active) return;
 
-      const data = await response.json();
+      const payload = result.data;
 
-      if (!response.ok) {
-        setFormErrors({ general: data.error || 'Davet kabul edilirken bir hata oluştu.' });
-        setIsLoading(false);
+      if (!payload?.valid) {
+        setStatus('invalid');
+        setError(result.error || payload?.error || 'Davet baglantisi dogrulanamadi.');
         return;
       }
 
-      toast.success('Hesabınız oluşturuldu!');
-
-      // Auto sign in
-      const signInResult = await signIn('credentials', {
-        email: invitation?.email,
-        password,
-        redirect: false,
+      setInvitation({
+        email: payload.email || '',
+        tenantName: payload.tenantName || '',
+        role: payload.role || 'member',
+        existingUser: Boolean(payload.existingUser),
       });
+      setStatus('valid');
+    })();
 
-      if (signInResult?.ok) {
-        router.push('/orders');
-      } else {
-        router.push('/auth/login');
-      }
-    } catch (err) {
-      console.error('Accept invite error:', err);
-      setFormErrors({ general: 'Beklenmeyen bir hata oluştu.' });
-      setIsLoading(false);
+    return () => {
+      active = false;
+    };
+  }, [token]);
+
+  const handleAccept = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!invitation) {
+      setError('Davet verisi bulunamadı.');
+      return;
     }
+
+    if (!invitation.existingUser && name.trim().length < 2) {
+      setError('Ad soyad en az 2 karakter olmalı.');
+      return;
+    }
+
+    if (!invitation.existingUser && password.length < 6) {
+      setError('Şifre en az 6 karakter olmalı.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    const result = await requestJson('/api/tenant/invite/accept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, name: name.trim(), password }),
+    }, {
+      timeoutMs: 20000,
+      fallbackError: 'Davet kabul islemi tamamlanamadi.',
+    });
+
+    if (!result.ok) {
+      setLoading(false);
+      setError(result.error || 'Davet kabul edilemedi.');
+      return;
+    }
+
+    if (invitation.existingUser) {
+      router.push('/auth/login');
+      return;
+    }
+
+    const signInResult = await signIn('credentials', {
+      email: invitation.email,
+      password,
+      redirect: false,
+    });
+
+    setLoading(false);
+
+    if (!signInResult || signInResult.error) {
+      router.push('/auth/login');
+      return;
+    }
+
+    router.push('/dashboard');
+    router.refresh();
   };
 
-  // Loading state
-  if (isValidating) {
+  if (status === 'checking') {
     return (
-      <div className="flex min-h-screen w-full pt-20 items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4" />
-          <p className="text-subtle-light dark:text-subtle-dark">Davet doğrulanıyor...</p>
-        </div>
-      </div>
+      <AuthFrame title="Davet Kontrolü" description="Davet bağlantısı ve üyelik bilgileri doğrulanıyor.">
+        <p className="text-sm text-slate-600 dark:text-slate-400">Lütfen bekleyin...</p>
+      </AuthFrame>
     );
   }
 
-  // Error state
-  if (error) {
+  if (status === 'invalid' || !invitation) {
     return (
-      <div className="flex min-h-screen w-full pt-20 items-center justify-center">
-        <div className="text-center max-w-md px-4">
-          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-            <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
-          </div>
-          <h1 className="text-3xl font-black mb-3">Geçersiz Davet</h1>
-          <p className="text-subtle-light dark:text-subtle-dark mb-6">{error}</p>
-          <Link href="/auth/login">
-            <button className="w-full bg-primary text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity shadow-sm">
-              Giriş Sayfasına Git
-            </button>
+      <AuthFrame
+        title="Davet Kullanılamıyor"
+        description={error || 'Bu davet bağlantısı geçersiz veya süresi dolmuş durumda.'}
+        footer={
+          <Link href="/auth/login" className="font-semibold text-slate-900 hover:underline dark:text-slate-100">
+            Giriş ekranına git
           </Link>
-        </div>
-      </div>
+        }
+      >
+        <p className="text-sm text-slate-600 dark:text-slate-400">Yeni bir davet bağlantısı oluşturulmalıdır.</p>
+      </AuthFrame>
     );
   }
 
   return (
-    <div className="flex min-h-screen w-full pt-20">
-      <motion.div
-        initial={{ opacity: 0, x: -50 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6 }}
-        className="flex-1 lg:flex-[0.5] flex items-center justify-center p-4 sm:p-8"
-      >
-        <div className="w-full max-w-md">
-          <header className="text-center lg:text-left mb-6">
-            <h1 className="text-3xl sm:text-4xl font-black mb-3">Daveti Kabul Et</h1>
-            <p className="text-subtle-light dark:text-subtle-dark">
-              <strong>{invitation?.tenantName}</strong> ekibine <strong>{getRoleName(invitation?.role || 'member')}</strong> olarak davet edildiniz.
-            </p>
-          </header>
-
-          <div className="p-4 bg-primary/10 rounded-lg mb-6">
-            <p className="text-sm">
-              <span className="font-medium">E-posta:</span> {invitation?.email}
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Ad Soyad</label>
+    <AuthFrame
+      title="Davetini Tamamla"
+      description={`${invitation.tenantName} ekibine ${invitation.role} rolüyle katılmak üzeresin.`}
+      footer={
+        <p className="text-sm text-slate-600 dark:text-slate-400">
+          Davet edilen e-posta: <span className="font-semibold text-slate-900 dark:text-slate-100">{invitation.email}</span>
+        </p>
+      }
+    >
+      <form className="space-y-3" onSubmit={handleAccept}>
+        {!invitation.existingUser ? (
+          <>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+              Ad Soyad
               <input
-                type="text"
                 value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
-                }}
-                className={`input-professional ${formErrors.name ? 'border-red-500' : ''}`}
-                placeholder="Adınız Soyadınız"
+                onChange={(event) => setName(event.target.value)}
+                type="text"
                 required
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-500 dark:border-slate-700 dark:bg-slate-900"
               />
-              {formErrors.name && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
-              )}
-            </div>
+            </label>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Şifre</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (formErrors.password) setFormErrors({ ...formErrors, password: undefined });
-                  }}
-                  className={`input-professional pr-10 ${formErrors.password ? 'border-red-500' : ''}`}
-                  placeholder="En az 6 karakter"
-                  required
-                  minLength={6}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-subtle-light dark:text-subtle-dark"
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
-              </div>
-              {formErrors.password && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.password}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Şifre Tekrar</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+              Şifre
               <input
-                type={showPassword ? 'text' : 'password'}
-                value={confirmPassword}
-                onChange={(e) => {
-                  setConfirmPassword(e.target.value);
-                  if (formErrors.confirmPassword) setFormErrors({ ...formErrors, confirmPassword: undefined });
-                }}
-                className={`input-professional ${formErrors.confirmPassword ? 'border-red-500' : ''}`}
-                placeholder="Şifreyi tekrar girin"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                type="password"
+                minLength={6}
                 required
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-500 dark:border-slate-700 dark:bg-slate-900"
               />
-              {formErrors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.confirmPassword}</p>
-              )}
-            </div>
-
-            {formErrors.general && (
-              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-                <p className="text-sm text-red-600 dark:text-red-400">{formErrors.general}</p>
-              </div>
-            )}
-
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-primary text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity mt-2 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Hesap Oluşturuluyor...' : 'Daveti Kabul Et'}
-            </motion.button>
-          </form>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, x: 50 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6 }}
-        className="hidden lg:flex lg:flex-[0.5] items-center justify-center p-8 bg-gradient-to-br from-primary/10 to-primary/5"
-      >
-        <div className="max-w-md text-center">
-          <div className="mb-8">
-              <Image
-                src="/logo-full.png"
-                alt="Renkflow Logo"
-                width={1000}
-                height={260}
-                className="mx-auto"
-                priority
-              />
-          </div>
-          <h2 className="text-2xl font-black mb-4">Ekibe Katılın</h2>
-          <p className="text-subtle-light dark:text-subtle-dark">
-            Hesabınızı oluşturun ve hemen işbirliği yapmaya başlayın.
+            </label>
+          </>
+        ) : (
+          <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+            Mevcut hesabın bulundu. Daveti onayladıktan sonra normal giriş adımıyla devam edebilirsin.
           </p>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
+        )}
 
-function getRoleName(role: string): string {
-  const roleNames: Record<string, string> = {
-    admin: 'Yönetici',
-    office: 'Ofis Çalışanı',
-    worker: 'İşçi',
-    member: 'Üye',
-  };
-  return roleNames[role] || 'Üye';
-}
+        {error ? <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p> : null}
 
-export default function AcceptInvitePage() {
-  return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark relative font-display">
-      <UnifiedNavbar />
-      <Suspense fallback={
-        <div className="flex min-h-screen w-full pt-20 items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
-        </div>
-      }>
-        <AcceptInviteForm />
-      </Suspense>
-    </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
+        >
+          {loading ? 'Davet işleniyor...' : 'Davetle Katıl'}
+        </button>
+      </form>
+    </AuthFrame>
   );
 }

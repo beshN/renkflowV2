@@ -1,533 +1,183 @@
 'use client';
 
-/**
- * Enterprise Orders Page
- * Full-featured data management platform
- */
-
-import { useEffect, useMemo, useCallback, useState } from 'react';
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Plus, RefreshCw, Search } from 'lucide-react';
+
 import { Navbar } from '@/components/layout/Navbar';
+import { Button } from '@/components/ui/Button';
 import { useOrders } from '@/lib/hooks/useOrders';
 import { useToast } from '@/lib/context/ToastContext';
-import { useOrdersStore, ViewMode } from '@/lib/stores/orders.store';
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { exportOrders, ExportFormat } from '@/lib/utils/export';
-import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ErrorState, SectionSkeleton, SkeletonCard } from '@/components/ui/skeleton';
-import { useExportJobs } from '@/lib/hooks/useExportJobs';
-import { getOrderHealthSummary } from '@/lib/features/orders/orderHealth';
-import {
-  TableProperties,
-  KanbanSquare,
-  Calendar,
-  Activity,
-  Plus
-} from 'lucide-react';
+import { formatCurrency, formatDate } from '@/lib/utils';
 
-// Enterprise Components
-import {
-  DataGrid,
-  FilterSidebar,
-  BulkActionsToolbar,
-  CommandPalette,
-  KanbanBoardV2,
-  CalendarView,
-  ExportJobsDialog,
-} from '@/components/features/orders/enterprise';
-import { Order, OrderStatus } from '@/lib/types';
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Beklemede',
+  in_production: 'Üretimde',
+  delivered: 'Teslim Edildi',
+};
+
+const STATUS_BADGE: Record<string, string> = {
+  pending: 'bg-amber-50 text-amber-700 border-amber-200',
+  in_production: 'bg-sky-50 text-sky-700 border-sky-200',
+  delivered: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+};
 
 export default function OrdersPage() {
   const router = useRouter();
-  const { deleteOrder, updateOrderStatus, updateOrder, refresh, error } = useOrders();
   const { showToast } = useToast();
-  const [isSaving, setIsSaving] = useState(false);
-  const [isExportCenterOpen, setIsExportCenterOpen] = useState(false);
+  const { orders, isLoading, refresh, deleteOrder } = useOrders();
 
-  const exportJobs = useExportJobs({ pollIntervalMs: 5000, listLimit: 20 });
+  const [query, setQuery] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
 
-  // Zustand store
-  const {
-    viewMode,
-    setViewMode,
-    orders,
-    isLoading,
-    setTotalCount,
-    filters,
-    setSearch,
-    isSidebarOpen,
-    selectedIds,
-    selectAllMode,
-    selectAll,
-    clearSelection,
-    getFilteredOrders,
-    getSelectedOrders,
-    isConnected,
-    setConnected,
-    setOffline,
-    lastSyncAt,
-    setLastSyncAt,
-    autoRefreshInterval,
-    setAutoRefreshInterval,
-    dirtyRows,
-    clearDirtyRow,
-    discardDirtyRows,
-    setCalendarView,
-  } = useOrdersStore();
+  const filteredOrders = useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+    if (!keyword) return orders;
 
-  useEffect(() => {
-    setTotalCount(orders.length);
-  }, [orders.length, setTotalCount]);
-
-  // Online/offline detection for connection status
-  useEffect(() => {
-    const updateConnection = () => {
-      const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
-      setConnected(online);
-      setOffline(!online);
-    };
-
-    updateConnection();
-    window.addEventListener('online', updateConnection);
-    window.addEventListener('offline', updateConnection);
-
-    return () => {
-      window.removeEventListener('online', updateConnection);
-      window.removeEventListener('offline', updateConnection);
-    };
-  }, [setConnected, setOffline]);
-
-  // Auto-refresh polling
-  useEffect(() => {
-    if (!autoRefreshInterval) return;
-
-    const intervalId = setInterval(async () => {
-      await refresh();
-      setLastSyncAt(new Date());
-    }, autoRefreshInterval);
-
-    return () => clearInterval(intervalId);
-  }, [autoRefreshInterval, refresh, setLastSyncAt]);
-
-  // Update last sync on successful load
-  useEffect(() => {
-    if (!isLoading) {
-      setLastSyncAt(new Date());
-    }
-  }, [isLoading, orders, setLastSyncAt]);
-
-  // Get filtered orders
-  const filteredOrders = useMemo(() => getFilteredOrders(), [getFilteredOrders, orders, filters]);
-  const filteredIds = useMemo(() => filteredOrders.map((order) => order.id), [filteredOrders]);
-  const healthSummary = useMemo(() => getOrderHealthSummary(filteredOrders), [filteredOrders]);
-
-  // Keep select-all in sync with current filters
-  useEffect(() => {
-    if (selectAllMode === 'all') {
-      selectAll('all', filteredIds);
-    }
-  }, [selectAllMode, filteredIds, selectAll]);
-
-  // Extract unique customers and products for filter autocomplete
-  const uniqueCustomers = useMemo(
-    () => [...new Set(orders.map((o) => o.customerName).filter(Boolean))] as string[],
-    [orders]
-  );
-  const uniqueProducts = useMemo(
-    () => [...new Set(orders.map((o) => o.productName).filter(Boolean))] as string[],
-    [orders]
-  );
-
-  // Handle export
-  const handleExport = useCallback(
-    (format: ExportFormat) => {
-      const ordersToExport = selectedIds.size > 0 ? getSelectedOrders() : filteredOrders;
-      exportOrders(ordersToExport, format);
-      showToast(`${ordersToExport.length} sipariş ${format.toUpperCase()} olarak dışa aktarıldı`, 'success');
-    },
-    [selectedIds, getSelectedOrders, filteredOrders, showToast]
-  );
-
-  const handleServerExport = useCallback(async () => {
-    setIsExportCenterOpen(true);
-    const job = await exportJobs.createJob({
-      format: 'csv',
-      entityType: 'orders',
+    return orders.filter((order) => {
+      const fields = [order.orderNumber, order.customerName, order.productName || '', order.email || ''];
+      return fields.some((field) => field.toLowerCase().includes(keyword));
     });
-    if (job) {
-      showToast('Export işi başlatıldı', 'success');
-    } else if (exportJobs.error) {
-      showToast(exportJobs.error, 'error');
-    }
-  }, [exportJobs, showToast]);
+  }, [orders, query]);
 
-  // Handle status change
-  const handleStatusChange = useCallback(
-    async (orderId: string, status: OrderStatus) => {
-      try {
-        await updateOrderStatus(orderId, status);
-        showToast('Sipariş durumu güncellendi', 'success');
-      } catch (error) {
-        showToast('Durum güncellenirken hata oluştu', 'error');
-      }
-    },
-    [updateOrderStatus, showToast]
-  );
-
-  // Handle order click
-  const handleOrderClick = useCallback(
-    (order: { id: string }) => {
-      router.push(`/orders/${order.id}`);
-    },
-    [router]
-  );
-
-  // Bulk delete
-  const handleBulkDelete = useCallback(
-    async (ids?: string[]) => {
-      const targetIds = ids && ids.length > 0 ? ids : Array.from(selectedIds);
-      if (targetIds.length === 0) return;
-
-      try {
-        for (const id of targetIds) {
-          await deleteOrder(id);
-        }
-        clearSelection();
-        showToast(`${targetIds.length} sipariş silindi`, 'success');
-      } catch (error) {
-        showToast('Siparişler silinirken hata oluştu', 'error');
-      }
-    },
-    [selectedIds, deleteOrder, showToast]
-  );
-
-  // Bulk status change
-  const handleBulkStatusChange = useCallback(
-    async (ids: string[], status: OrderStatus) => {
-      if (ids.length === 0) return;
-
-      try {
-        for (const id of ids) {
-          await updateOrderStatus(id, status);
-        }
-        showToast('Sipariş durumu güncellendi', 'success');
-      } catch (error) {
-        showToast('Toplu güncelleme sırasında hata oluştu', 'error');
-      }
-    },
-    [updateOrderStatus, showToast]
-  );
-
-  // Save dirty rows (inline edits)
-  const handleSaveDirtyRows = useCallback(async () => {
-    if (dirtyRows.size === 0 || isSaving) return;
-    setIsSaving(true);
-
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
     try {
-      const dirtyEntries = Array.from(dirtyRows.values());
-      for (const dirty of dirtyEntries) {
-        const updates: Partial<Order> = {};
-        Object.entries(dirty.changes).forEach(([key, change]) => {
-          (updates as Record<string, unknown>)[key] = change.current;
-        });
-        await updateOrder(dirty.rowId, updates);
-        clearDirtyRow(dirty.rowId);
-      }
-      showToast('Değişiklikler kaydedildi', 'success');
-    } catch (error) {
-      showToast('Değişiklikler kaydedilemedi', 'error');
+      await refresh();
+      showToast('Siparis listesi guncellendi.', 'success');
+    } catch {
+      showToast('Siparisler yenilenemedi.', 'error');
     } finally {
-      setIsSaving(false);
+      setIsRefreshing(false);
     }
-  }, [dirtyRows, isSaving, updateOrder, clearDirtyRow, showToast]);
-
-  // View mode components
-  const viewModeConfig: { mode: ViewMode; icon: React.ComponentType<{ className?: string }>; label: string }[] = [
-    { mode: 'grid', icon: TableProperties, label: 'Tablo' },
-    { mode: 'kanban', icon: KanbanSquare, label: 'Kanban' },
-    { mode: 'calendar', icon: Calendar, label: 'Takvim' },
-    { mode: 'timeline', icon: Activity, label: 'Timeline' },
-  ];
-
-  const handleViewModeChange = useCallback(
-    (mode: ViewMode) => {
-      setViewMode(mode);
-      if (mode === 'timeline') {
-        setCalendarView('timeline');
-      }
-      if (mode === 'calendar') {
-        setCalendarView('month');
-      }
-    },
-    [setViewMode, setCalendarView]
-  );
-
-  // Auto-refresh options
-  const refreshOptions = [
-    { value: null, label: 'Manuel' },
-    { value: 30000, label: '30 sn' },
-    { value: 60000, label: '1 dk' },
-    { value: 300000, label: '5 dk' },
-  ];
-
-  // Global keyboard shortcuts
-  useKeyboardShortcuts({
-    onBulkDelete: handleBulkDelete,
-    onExport: () => handleExport('csv'),
-  });
+  };
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-transparent">
-      {/* Command Palette */}
-      <CommandPalette />
+    <div className="flex min-h-screen flex-1 flex-col bg-slate-50/50 dark:bg-slate-950/50">
+      <Navbar title="Sipariş Operasyonları" showSearch={false} />
 
-      {/* Navbar */}
-      <Navbar
-        title="Siparişler"
-        showSearch={true}
-        onSearch={setSearch}
-      />
+      <main className="w-full flex-1 p-4 md:p-8">
+        <section className="rf-panel rounded-2xl p-5 md:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Sipariş Yönetim Masası</h1>
+              <p className="mt-1 text-sm text-slate-500">Kayıtlı toplam sipariş: {orders.length}</p>
+            </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden pt-16 md:pt-0">
-        {/* Filter Sidebar */}
-        <AnimatePresence>
-          {isSidebarOpen && (
-            <FilterSidebar
-              customers={uniqueCustomers}
-              products={uniqueProducts}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="secondary" size="sm" onClick={handleRefresh} isLoading={isRefreshing}>
+                <RefreshCw size={14} />
+                Listeyi yenile
+              </Button>
+              <Link href="/new-order">
+                <Button type="button" variant="primary" size="sm">
+                  <Plus size={14} />
+                  Yeni sipariş
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-4 relative max-w-md">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Sipariş no, müşteri veya ürün ara"
+              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             />
-          )}
-        </AnimatePresence>
-
-        {/* Main Area */}
-        <main role="main" className="flex-1 flex flex-col overflow-hidden">
-          {/* Header */}
-          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 px-6 py-4 border-b border-neutral-200/50 dark:border-neutral-800/50 glass sticky top-0 z-10">
-            <div className="flex items-center gap-4">
-              <div>
-                <h1 className="text-xl font-semibold text-neutral-900 dark:text-white">
-                  Siparişler
-                </h1>
-                <p className="text-sm text-neutral-500 dark:text-neutral-400" aria-live="polite">
-                  {filteredOrders.length} / {orders.length} sipariş
-                  {filters.search && ` • "${filters.search}" için sonuçlar`}
-                </p>
-              </div>
-
-              {/* Connection Status */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-full" aria-live="polite">
-                <div
-                  className={cn(
-                    'w-2 h-2 rounded-full',
-                    isConnected ? 'bg-green-500' : 'bg-neutral-400'
-                  )}
-                />
-                <span className="text-xs text-neutral-600 dark:text-neutral-400">
-                  {isConnected ? 'Bağlı' : 'Çevrimdışı'}
-                </span>
-              </div>
-
-              {/* Last Sync */}
-              {lastSyncAt && (
-                <span className="text-xs text-neutral-500">
-                  Son güncelleme: {new Date(lastSyncAt).toLocaleTimeString('tr-TR')}
-                </span>
-              )}
-
-              <div className="hidden 2xl:flex items-center gap-2">
-                <span className="text-[11px] rounded-full px-2.5 py-1 bg-red-100 text-red-700 dark:bg-red-900/25 dark:text-red-300">
-                  Kritik {healthSummary.criticalCount}
-                </span>
-                <span className="text-[11px] rounded-full px-2.5 py-1 bg-orange-100 text-orange-700 dark:bg-orange-900/25 dark:text-orange-300">
-                  Riskli {healthSummary.atRiskCount}
-                </span>
-                <span className="text-[11px] rounded-full px-2.5 py-1 bg-amber-100 text-amber-700 dark:bg-amber-900/25 dark:text-amber-300">
-                  Geciken {healthSummary.overdueCount}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Dirty State Warning */}
-              {dirtyRows.size > 0 && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                  <span className="text-sm text-yellow-700 dark:text-yellow-300">
-                    {dirtyRows.size} kaydedilmemiş değişiklik
-                  </span>
-                  <button
-                    onClick={handleSaveDirtyRows}
-                    disabled={isSaving}
-                    className="text-xs px-2 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-60"
-                  >
-                    Kaydet
-                  </button>
-                  <button
-                    onClick={() => discardDirtyRows()}
-                    className="text-xs px-2 py-1 bg-neutral-200 dark:bg-neutral-700 rounded hover:bg-neutral-300 dark:hover:bg-neutral-600"
-                  >
-                    İptal
-                  </button>
-                </div>
-              )}
-
-              {/* Auto Refresh */}
-              <select
-                value={autoRefreshInterval ?? ''}
-                onChange={(e) => setAutoRefreshInterval(e.target.value ? parseInt(e.target.value) : null)}
-                className="px-3 py-1.5 text-sm bg-neutral-100 dark:bg-neutral-800 rounded-lg border-0 focus:ring-2 focus:ring-primary-500"
-                aria-label="Otomatik yenileme aralığı"
-              >
-                {refreshOptions.map((opt) => (
-                  <option key={opt.label} value={opt.value ?? ''}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-
-              {/* View Mode Toggle */}
-              <div className="flex items-center bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1">
-                {viewModeConfig.map(({ mode, icon: Icon, label }) => (
-                  <button
-                    key={mode}
-                    onClick={() => handleViewModeChange(mode)}
-                    className={cn(
-                      'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors',
-                      viewMode === mode
-                        ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm'
-                        : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
-                    )}
-                    title={label}
-                    aria-pressed={viewMode === mode}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span className="hidden lg:inline">{label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* New Order Button */}
-              <button
-                onClick={() => router.push('/new-order')}
-                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-                <span className="hidden sm:inline">Yeni Sipariş</span>
-              </button>
-            </div>
           </div>
 
-          {/* Content Area */}
-          <div className="flex-1 overflow-auto p-6">
-            <AnimatePresence mode="wait">
-              {error ? (
-                <motion.div
-                  key="error"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="flex items-center justify-center h-full"
-                >
-                  <ErrorState
-                    title="Siparişler yüklenemedi"
-                    description={error.message || 'Bağlantınızı kontrol edip tekrar deneyin.'}
-                    onRetry={refresh}
-                  />
-                </motion.div>
-              ) : isLoading ? (
-                <motion.div
-                  key="loading"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="grid grid-cols-1 xl:grid-cols-3 gap-6 h-full"
-                >
-                  <div className="xl:col-span-2 space-y-6">
-                    <SectionSkeleton rows={6} />
-                    <SectionSkeleton rows={6} />
-                  </div>
-                  <div className="space-y-4">
-                    <SkeletonCard />
-                    <SkeletonCard />
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key={viewMode}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="h-full"
-                >
-                  {viewMode === 'grid' && (
-                    <DataGrid
-                      data={filteredOrders}
-                      onRowClick={handleOrderClick}
-                    />
+          <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-100/80 dark:bg-slate-900/70">
+                  <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                    <th className="px-4 py-3">Sipariş No</th>
+                    <th className="px-4 py-3">Müşteri ve Ürün</th>
+                    <th className="px-4 py-3">Tarih</th>
+                    <th className="px-4 py-3">Durum</th>
+                    <th className="px-4 py-3 text-right">Toplam</th>
+                    <th className="px-4 py-3 text-right">Aksiyon</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-slate-500">Siparişler yükleniyor...</td>
+                    </tr>
+                  ) : filteredOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-slate-500">Arama kriterine uygun kayıt bulunamadı.</td>
+                    </tr>
+                  ) : (
+                    filteredOrders.map((order) => (
+                      <tr
+                        key={order.id}
+                        className="cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-900/40"
+                        onClick={() => router.push(`/orders/${order.id}`)}
+                      >
+                        <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-100">#{order.orderNumber}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-slate-800 dark:text-slate-200">{order.customerName}</p>
+                          {order.productName ? <p className="text-xs text-slate-500">{order.productName}</p> : null}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatDate(order.date)}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${STATUS_BADGE[order.status] || STATUS_BADGE.pending}`}>
+                            {STATUS_LABELS[order.status] || order.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-slate-100">
+                          {formatCurrency(order.totalAmount, order.currency)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                router.push(`/orders/${order.id}`);
+                              }}
+                              className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                            >
+                              Görüntüle
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async (event) => {
+                                event.stopPropagation();
+                                if (!window.confirm('Bu siparis kaydini silmek istediginize emin misiniz?')) return;
+
+                                try {
+                                  setDeletingOrderId(order.id);
+                                  await deleteOrder(order.id);
+                                  showToast('Siparis kaydi kaldirildi.', 'success');
+                                } catch {
+                                  showToast('Siparis kaydi kaldirilamadi.', 'error');
+                                } finally {
+                                  setDeletingOrderId(null);
+                                }
+                              }}
+                              disabled={deletingOrderId === order.id}
+                              className="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 transition hover:bg-rose-50 dark:border-rose-900/40 dark:text-rose-400 dark:hover:bg-rose-900/20"
+                            >
+                              {deletingOrderId === order.id ? 'Siliniyor...' : 'Kaldır'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
                   )}
-                  {viewMode === 'kanban' && (
-                    <KanbanBoardV2
-                      orders={filteredOrders}
-                      onOrderClick={handleOrderClick}
-                      onStatusChange={handleStatusChange}
-                    />
-                  )}
-                  {viewMode === 'calendar' && (
-                    <CalendarView
-                      orders={filteredOrders}
-                      onOrderClick={handleOrderClick}
-                    />
-                  )}
-                  {viewMode === 'timeline' && (
-                    <CalendarView
-                      orders={filteredOrders}
-                      onOrderClick={handleOrderClick}
-                    />
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </main>
-      </div>
-
-      {/* Bulk Actions Toolbar */}
-      <AnimatePresence>
-        {(selectedIds.size > 0 || selectAllMode === 'all') && (
-          <BulkActionsToolbar
-            totalFilteredCount={filteredOrders.length}
-            filteredIds={filteredIds}
-            onExport={handleExport}
-            onServerExport={handleServerExport}
-            onBulkUpdateStatus={handleBulkStatusChange}
-            onBulkDelete={handleBulkDelete}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {isExportCenterOpen && (
-          <ExportJobsDialog
-            isOpen={isExportCenterOpen}
-            jobs={exportJobs.jobs}
-            isLoading={exportJobs.isLoading}
-            error={exportJobs.error}
-            onClose={() => setIsExportCenterOpen(false)}
-            onRefresh={exportJobs.refresh}
-            onCreate={(format) => {
-              exportJobs.createJob({ format, entityType: 'orders' });
-            }}
-            onDownload={exportJobs.downloadJob}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Keyboard Shortcuts Hint */}
-      <div className="fixed bottom-4 right-4 hidden lg:flex items-center gap-2 px-3 py-2 bg-neutral-900/80 text-white text-xs rounded-lg backdrop-blur-sm">
-        <kbd className="px-1.5 py-0.5 bg-neutral-700 rounded">⌘K</kbd>
-        <span>Komut Paleti</span>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }

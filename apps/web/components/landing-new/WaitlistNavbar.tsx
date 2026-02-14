@@ -19,18 +19,18 @@ export const WaitlistNavbar = () => {
 
   const labels = {
     tr: {
-      soon: 'Çok Yakında',
-      notify: 'Haberdar Ol',
+      status: 'Canlı Platform',
+      notify: 'Demo Talebi',
       toggleTheme: 'Temayı Değiştir',
     },
     en: {
-      soon: 'Coming Soon',
-      notify: 'Notify Me',
+      status: 'Live Platform',
+      notify: 'Request Demo',
       toggleTheme: 'Toggle Theme',
     },
     ar: {
-      soon: 'قريباً',
-      notify: 'أخبرني',
+      status: 'منصة فعّالة',
+      notify: 'اطلب عرضاً',
       toggleTheme: 'تبديل المظهر',
     },
   } as const;
@@ -81,7 +81,7 @@ export const WaitlistNavbar = () => {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            {text.soon}
+            {text.status}
           </span>
 
           {mounted && (

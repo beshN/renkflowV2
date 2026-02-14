@@ -1,5 +1,10 @@
 import { z } from 'zod';
 import { CurrencySchema } from '@/lib/types/currency';
+import {
+  ORDER_ALLOWED_FILE_TYPES,
+  ORDER_MAX_UPLOAD_COUNT,
+  ORDER_MAX_UPLOAD_SIZE_BYTES,
+} from '@/lib/features/orders/constants';
 
 // ============================================
 // Sanitization Utilities
@@ -40,6 +45,16 @@ const sanitizedString = z.string().transform(sanitizeString);
 const sanitizedName = z.string().transform(sanitizeName);
 const sanitizedPhone = z.string().transform(sanitizePhone);
 
+function parseLocalizedFloat(value: string): number | undefined {
+  const normalized = value
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/\.(?=\d{3}(?:\D|$))/g, '')
+    .replace(',', '.');
+  const parsed = parseFloat(normalized);
+  return isNaN(parsed) ? undefined : parsed;
+}
+
 const safePositiveInt = z.preprocess(
   (val) => {
     if (typeof val === 'string') {
@@ -58,8 +73,7 @@ const safePositiveInt = z.preprocess(
 const safePositiveNumber = z.preprocess(
   (val) => {
     if (typeof val === 'string') {
-      const parsed = parseFloat(val);
-      return isNaN(parsed) ? undefined : parsed;
+      return parseLocalizedFloat(val);
     }
     return val;
   },
@@ -72,8 +86,7 @@ const safePositiveNumber = z.preprocess(
 const safeNonNegativeNumber = z.preprocess(
   (val) => {
     if (typeof val === 'string') {
-      const parsed = parseFloat(val);
-      return isNaN(parsed) ? undefined : parsed;
+      return parseLocalizedFloat(val);
     }
     return val;
   },
@@ -171,23 +184,10 @@ export const statusUpdateSchema = z.object({
 // File Upload Validation
 // ============================================
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_FILE_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-];
-
 export const fileUploadSchema = z.object({
   name: z.string().min(1).max(255),
-  size: z.number().max(MAX_FILE_SIZE, 'Dosya boyutu 10MB\'dan büyük olamaz'),
-  type: z.string().refine((type) => ALLOWED_FILE_TYPES.includes(type), {
+  size: z.number().max(ORDER_MAX_UPLOAD_SIZE_BYTES, 'Dosya boyutu 10MB\'dan büyük olamaz'),
+  type: z.string().refine((type) => ORDER_ALLOWED_FILE_TYPES.includes(type as (typeof ORDER_ALLOWED_FILE_TYPES)[number]), {
     message: 'Desteklenmeyen dosya türü',
   }),
 });
@@ -195,15 +195,15 @@ export const fileUploadSchema = z.object({
 export function validateFiles(files: File[]): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  if (files.length > 10) {
-    errors.push('En fazla 10 dosya yüklenebilir');
+  if (files.length > ORDER_MAX_UPLOAD_COUNT) {
+    errors.push(`En fazla ${ORDER_MAX_UPLOAD_COUNT} dosya yüklenebilir`);
   }
 
   for (const file of files) {
-    if (file.size > MAX_FILE_SIZE) {
+    if (file.size > ORDER_MAX_UPLOAD_SIZE_BYTES) {
       errors.push(`${file.name}: Dosya boyutu 10MB'dan büyük`);
     }
-    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+    if (!ORDER_ALLOWED_FILE_TYPES.includes(file.type as (typeof ORDER_ALLOWED_FILE_TYPES)[number])) {
       errors.push(`${file.name}: Desteklenmeyen dosya türü`);
     }
     if (/[<>:"/\\|?*]/.test(file.name)) {

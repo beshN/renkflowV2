@@ -1,99 +1,206 @@
 'use client';
 
-/**
- * Invoice Preview & Print Page
- * Displays the invoice template in a modal-like view ready for printing
- */
-
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useReactToPrint } from 'react-to-print';
+import { ArrowLeft, FileWarning, Printer } from 'lucide-react';
+
 import { InvoiceTemplate } from '@/components/finance/InvoiceTemplate';
-import { Printer, X, Download, Share2 } from 'lucide-react';
-import { useToast } from '@/lib/context/ToastContext';
-// In a real app, you'd fetch this data from server
-// import { getOrderDetails } from '@/app/actions/orders';
+import { getOrderByIdAction } from '@/app/actions/order.actions';
+import { listPaymentsByOrder } from '@/app/actions/finance.payments.actions';
+import { normalizeCurrencyInput } from '@/lib/utils/currency';
+import { type Order } from '@/lib/types';
+import { type Payment } from '@/lib/types/finance';
+
+interface InvoiceModel {
+  invoiceNumber: string;
+  date: string;
+  dueDate?: string;
+  from: {
+    name: string;
+    address?: string;
+    taxId?: string;
+    email?: string;
+    phone?: string;
+  };
+  to: {
+    name: string;
+    address?: string;
+    taxId?: string;
+    email?: string;
+    phone?: string;
+  };
+  items: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+  }>;
+  subtotal: number;
+  taxTotal: number;
+  total: number;
+  currency: string;
+  notes?: string;
+  status: 'paid' | 'pending' | 'overdue';
+}
+
+function buildInvoice(order: Order, payments: Payment[]): InvoiceModel {
+  const quantity = Math.max(order.quantity || 1, 1);
+  const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const outstanding = Math.max(0, order.totalAmount - totalPaid);
+
+  const dueDate = order.deliveryDate ? new Date(order.deliveryDate) : null;
+  const isOverdue = Boolean(dueDate && dueDate < new Date() && outstanding > 0);
+
+  return {
+    invoiceNumber: `FAT-${order.orderNumber}`,
+    date: order.createdAt || order.date || new Date().toISOString(),
+    dueDate: order.deliveryDate || undefined,
+    from: {
+      name: 'RenkFlow',
+      email: 'finance@renkflow.com',
+      address: 'Türkiye',
+    },
+    to: {
+      name: order.customerName,
+      email: order.email || undefined,
+      phone: order.phone || undefined,
+    },
+    items: [
+      {
+        description: order.productName || 'Sipariş Kalemi',
+        quantity,
+        unitPrice: order.totalAmount / quantity,
+        total: order.totalAmount,
+      },
+    ],
+    subtotal: order.totalAmount,
+    taxTotal: 0,
+    total: order.totalAmount,
+    currency: normalizeCurrencyInput(order.currency),
+    notes: order.notes || undefined,
+    status: outstanding <= 0 ? 'paid' : isOverdue ? 'overdue' : 'pending',
+  };
+}
 
 export default function InvoicePrintPage() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
-  const printMode = searchParams.get('print') === 'true';
-  const componentRef = useRef<HTMLDivElement>(null);
-  const { showToast } = useToast();
+  const autoPrint = searchParams.get('print') === 'true';
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [order, setOrder] = useState<Order | null>(null);
+  const [payments, setPayments] = useState<Payment[]>([]);
+
+  const ref = useRef<HTMLDivElement>(null);
+
+  const invoice = useMemo(() => {
+    if (!order) return null;
+    return buildInvoice(order, payments);
+  }, [order, payments]);
 
   const handlePrint = useReactToPrint({
-    contentRef: componentRef,
-    documentTitle: `Fatura-${orderId || 'Taslak'}`,
-    onAfterPrint: () => showToast('Yazdırma işlemi tamamlandı', 'success'),
+    contentRef: ref,
+    documentTitle: `Fatura-${invoice?.invoiceNumber || orderId || 'Taslak'}`,
   });
 
   useEffect(() => {
-    if (printMode && componentRef.current) {
-      // Small delay to ensure render
-      setTimeout(handlePrint, 500);
-    }
-  }, [printMode]);
+    let cancelled = false;
 
-  // Mock data - replace with actual data fetching
-  const invoiceData = {
-    invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
-    date: new Date().toISOString(),
-    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    from: {
-      name: 'RenkFlow Teknoloji A.Ş.',
-      address: 'Teknopark İstanbul\nSanayi Mah. Teknoloji Bulvarı No:1\nPendik/İstanbul',
-      taxId: '1234567890',
-      email: 'muhasebe@renkflow.com',
-      phone: '+90 850 123 45 67',
-    },
-    to: {
-      name: 'Müşteri Örnek Ltd. Şti.',
-      address: 'Örnek Mah. Çınar Cad. No:15\nBeşiktaş/İstanbul',
-      taxId: '9876543210',
-      email: 'info@musteri.com',
-    },
-    items: [
-      { description: 'Web Yazılım Geliştirme Hizmeti', quantity: 1, unitPrice: 15000, total: 15000 },
-      { description: 'Sunucu Bakım Hizmeti (Yıllık)', quantity: 1, unitPrice: 2500, total: 2500 },
-      { description: 'Domain Yenileme', quantity: 2, unitPrice: 150, total: 300 },
-    ],
-    subtotal: 17800,
-    taxTotal: 3560, // %20
-    total: 21360,
-    currency: 'TRY',
-    notes: 'Ödemenizi yukarıdaki IBAN numarasına gerçekleştirebilirsiniz.',
-    status: 'pending' as const,
-  };
+    const load = async () => {
+      if (!orderId) {
+        setError('Sipariş parametresi bulunamadı.');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [orderData, paymentData] = await Promise.all([
+          getOrderByIdAction(orderId),
+          listPaymentsByOrder(orderId).catch(() => []),
+        ]);
+
+        if (cancelled) return;
+
+        if (!orderData) {
+          setError('Sipariş kaydı bulunamadı.');
+          return;
+        }
+
+        setOrder(orderData);
+        setPayments(paymentData);
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Invoice print load error:', err);
+          setError('Fatura verileri yüklenemedi.');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId]);
+
+  useEffect(() => {
+    if (!autoPrint || !invoice || loading || error) return;
+    const timer = setTimeout(() => handlePrint(), 450);
+    return () => clearTimeout(timer);
+  }, [autoPrint, invoice, loading, error, handlePrint]);
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-900 p-4 md:p-8 flex flex-col items-center">
-      {/* Toolbar */}
-      <div className="w-full max-w-[210mm] flex items-center justify-between bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm mb-8 print:hidden">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => window.history.back()}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 transition-colors"
-          >
-            <X size={20} />
-          </button>
-          <h1 className="font-semibold text-slate-900 dark:text-white">Fatura Önizleme</h1>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <button 
+    <div className="flex min-h-screen flex-col items-center bg-slate-100 p-4 dark:bg-slate-900 md:p-8">
+      <div className="mb-6 flex w-full max-w-[210mm] items-center justify-between rounded-xl bg-white p-4 shadow-sm print:hidden dark:bg-slate-800">
+        <button
+          type="button"
+          onClick={() => window.history.back()}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
+        >
+          <ArrowLeft size={16} />
+          Önceki ekrana dön
+        </button>
+
+        {!loading && !error && invoice ? (
+          <button
+            type="button"
             onClick={() => handlePrint()}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-500"
           >
-            <Printer size={18} />
-            Yazdır / PDF
+            <Printer size={16} />
+            Yazdır / PDF oluştur
           </button>
-        </div>
+        ) : null}
       </div>
 
-      {/* Invoice Area */}
-      <div className="w-full overflow-auto flex justify-center pb-12">
-        <InvoiceTemplate ref={componentRef} {...invoiceData} />
-      </div>
+      {loading ? (
+        <div className="w-full max-w-[210mm] rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-sky-600 border-t-transparent" />
+          <p className="text-sm text-slate-600">Fatura şablonu hazırlanıyor...</p>
+        </div>
+      ) : null}
+
+      {!loading && error ? (
+        <div className="w-full max-w-[210mm] rounded-xl border border-rose-200 bg-white p-10 text-center shadow-sm">
+          <FileWarning className="mx-auto mb-3 h-8 w-8 text-rose-500" />
+          <p className="text-sm font-medium text-rose-600">{error}</p>
+        </div>
+      ) : null}
+
+      {!loading && !error && invoice ? (
+        <div className="flex w-full justify-center overflow-auto pb-12">
+          <InvoiceTemplate ref={ref} {...invoice} />
+        </div>
+      ) : null}
     </div>
   );
 }
