@@ -39,35 +39,27 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(({
 
   const variants = {
     default: cn(
-      'border border-slate-200/60 dark:border-slate-700/60',
-      'bg-slate-50/50 dark:bg-slate-900/50',
-      'backdrop-blur-sm',
-      'focus:bg-white dark:focus:bg-slate-950',
-      'focus:border-indigo-500/50 dark:focus:border-indigo-400/50',
-      'focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-400/10',
-      'shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] focus:shadow-[0_4px_20px_-4px_rgba(79,70,229,0.1)]'
+      'border border-input bg-white/50 dark:bg-black/50 backdrop-blur-sm',
+      'focus:bg-white dark:focus:bg-black',
+      'focus:border-primary/50 focus:ring-4 focus:ring-primary/10',
+      'shadow-sm transition-all duration-200'
     ),
     filled: cn(
-      'border border-transparent',
-      'bg-slate-100/80 dark:bg-slate-800/80',
-      'focus:bg-white dark:focus:bg-slate-900',
-      'focus:border-indigo-500 dark:focus:border-indigo-400',
-      'focus:ring-4 focus:ring-indigo-500/10'
+      'border-none bg-neutral-100 dark:bg-neutral-800',
+      'focus:bg-white dark:focus:bg-black',
+      'focus:ring-2 focus:ring-primary/20'
     ),
     ghost: cn(
-      'border-b-2 border-slate-200 dark:border-slate-700 rounded-none',
+      'border-b border-input rounded-none px-0',
       'bg-transparent',
-      'focus:border-indigo-500 dark:focus:border-indigo-400',
-      'focus:ring-0 px-0'
+      'focus:border-primary focus:ring-0'
     ),
     glass: cn(
-      'border border-white/40 dark:border-slate-700/40',
-      'bg-white/40 dark:bg-slate-900/40',
-      'backdrop-blur-xl',
-      'focus:bg-white/80 dark:focus:bg-slate-900/80',
-      'focus:border-indigo-500/50 dark:focus:border-indigo-400/50',
-      'focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-400/10',
-      'shadow-[0_4px_24px_-4px_rgba(0,0,0,0.05)]'
+      'border border-white/20 dark:border-white/10',
+      'bg-white/10 dark:bg-black/20 backdrop-blur-xl',
+      'focus:bg-white/20 dark:focus:bg-black/30',
+      'focus:border-primary/50 focus:ring-4 focus:ring-primary/10',
+      'shadow-sm text-foreground placeholder:text-muted-foreground'
     ),
   };
 

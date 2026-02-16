@@ -4,18 +4,12 @@ import { Toaster } from 'sonner'
 import '@/styles/design-system.css'
 import './globals.css'
 import type { Metadata } from 'next'
-import { Outfit, Plus_Jakarta_Sans } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import { ClientComponents } from '@/components/layout/ClientComponents'
 
-const outfit = Outfit({ 
+const inter = Inter({ 
   subsets: ['latin'],
-  variable: '--font-outfit',
-  display: 'swap',
-})
-
-const jakarta = Plus_Jakarta_Sans({ 
-  subsets: ['latin'],
-  variable: '--font-jakarta',
+  variable: '--font-inter',
   display: 'swap',
 })
 
@@ -132,7 +126,7 @@ export default function RootLayout({
         <meta name="msapplication-TileColor" content="#8c5e40" />
         <meta name="msapplication-TileImage" content="/logo-r.png" />
       </head>
-      <body className={`${outfit.variable} ${jakarta.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} font-sans antialiased`}>
         <Providers>
           <ErrorBoundary>
             <SyncStatusBar />
