@@ -40,7 +40,21 @@ const nextConfig = {
   poweredByHeader: false,
   generateEtags: true,
   async generateBuildId() {
-    return process.env.NEXT_BUILD_ID || 'renkflow-build';
+    const manualBuildId = process.env.NEXT_BUILD_ID?.trim();
+    if (manualBuildId) {
+      return manualBuildId;
+    }
+
+    const commitBuildId =
+      process.env.VERCEL_GIT_COMMIT_SHA ||
+      process.env.GITHUB_SHA ||
+      process.env.COMMIT_SHA;
+
+    if (commitBuildId) {
+      return commitBuildId.slice(0, 20);
+    }
+
+    return `renkflow-${Date.now().toString(36)}`;
   },
 
   // Caching and CDN headers
@@ -74,6 +88,24 @@ const nextConfig = {
           {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, max-age=0, must-revalidate',
+          },
+        ],
+      },
+      {
+        source: '/manifest.json',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, max-age=0, must-revalidate',
           },
         ],
       },

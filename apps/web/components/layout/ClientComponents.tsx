@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { ServiceWorkerUnregister } from '@/components/shared/ServiceWorkerUnregister';
 
 // Lazy load non-critical components for better initial load
 // These use ssr: false which requires a Client Component
@@ -24,6 +25,7 @@ const PWAInstallPrompt = dynamic(
 export function ClientComponents() {
   return (
     <>
+      <ServiceWorkerUnregister />
       <CookieConsent />
       <PWAInstallPrompt />
     </>
