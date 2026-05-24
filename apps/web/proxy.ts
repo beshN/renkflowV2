@@ -21,7 +21,7 @@ const AUTH_RATE_LIMIT_WINDOW_MS = 60_000;
 const AUTH_RATE_LIMIT_MAX_ATTEMPTS = 5;
 const AUTH_RATE_LIMIT_BLOCK_MS = 60_000;
 const authRateLimits = new Map<string, AuthRateLimitEntry>();
-const CLOUD_RUN_CANONICAL_ORIGIN = 'https://renkflow-web-r7mdgubfjq-ey.a.run.app';
+const ACME_CHALLENGE_PREFIX = '/.well-known/acme-challenge/';
 
 const AUTH_REDIRECTS: Record<string, { destination: string; permanent: boolean }> = {
   '/auth/signup': { destination: '/signup', permanent: true },
@@ -142,66 +142,85 @@ function buildLoginRedirect(request: NextRequest): NextResponse {
   return NextResponse.redirect(loginUrl, 302);
 }
 
-function shouldProxyToCloudRun(request: NextRequest): boolean {
-  const isVercelRuntime = process.env.VERCEL === '1' || process.env.VERCEL === 'true';
-  if (!isVercelRuntime) {
-    return false;
+const PROXY_SECURITY_HEADERS: Record<string, string> = {
+  'X-DNS-Prefetch-Control': 'on',
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'X-XSS-Protection': '1; mode=block',
+};
+
+function withProxySecurityHeaders(
+  response: NextResponse,
+  options: { isSecureRequest: boolean },
+): NextResponse {
+  Object.entries(PROXY_SECURITY_HEADERS).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+
+  if (options.isSecureRequest) {
+    response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
   }
 
-  try {
-    const targetHost = new URL(CLOUD_RUN_CANONICAL_ORIGIN).host.toLowerCase();
-    const currentHost = request.nextUrl.host.toLowerCase();
-    return currentHost !== targetHost;
-  } catch {
-    return false;
-  }
-}
-
-function buildCloudRunRewrite(request: NextRequest): NextResponse {
-  const destination = new URL(CLOUD_RUN_CANONICAL_ORIGIN);
-  destination.pathname = request.nextUrl.pathname;
-  destination.search = request.nextUrl.search;
-  return NextResponse.rewrite(destination);
+  return response;
 }
 
 export async function proxy(request: NextRequest) {
-  if (shouldProxyToCloudRun(request)) {
-    // Keep renkflow.com in browser while serving everything from Cloud Run.
-    return buildCloudRunRewrite(request);
+  const { pathname } = request.nextUrl;
+  const method = request.method.toUpperCase();
+  const forwardedProto = request.headers.get('x-forwarded-proto');
+  const isSecureRequest = forwardedProto === 'https' || request.nextUrl.protocol === 'https:';
+  const allowInsecureHttp =
+    process.env.NODE_ENV !== 'production' || process.env.ALLOW_INSECURE_HTTP === '1';
+
+  // Healthcheck endpoints must bypass all auth/redirect logic
+  if (pathname === '/api/ready' || pathname === '/api/health') {
+    return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
+  }
+
+  // Keep ACME challenge path on plain HTTP for certificate issuance/renewal.
+  if (!allowInsecureHttp && forwardedProto === 'http' && !pathname.startsWith(ACME_CHALLENGE_PREFIX)) {
+    const httpsUrl = request.nextUrl.clone();
+    const hostHeader = request.headers.get('host');
+    httpsUrl.protocol = 'https:';
+    if (hostHeader) {
+      httpsUrl.host = hostHeader.split(':')[0];
+    }
+    httpsUrl.port = '';
+    return withProxySecurityHeaders(NextResponse.redirect(httpsUrl, 301), { isSecureRequest: false });
   }
 
   const publicSiteMode = normalizePublicSiteMode(process.env.PUBLIC_SITE_MODE || 'off');
-  const { pathname } = request.nextUrl;
-  const method = request.method.toUpperCase();
   if (isComingSoonMode(publicSiteMode)) {
     const action = evaluateComingSoonRequest(pathname, method, publicSiteMode);
 
     if (action.type === 'subscribeOptions') {
-      return new NextResponse(null, {
+      return withProxySecurityHeaders(new NextResponse(null, {
         status: 204,
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         },
-      });
+      }), { isSecureRequest });
     }
 
     if (action.type === 'api404') {
-      return NextResponse.json({ error: 'Not Found' }, { status: 404 });
+      return withProxySecurityHeaders(NextResponse.json({ error: 'Not Found' }, { status: 404 }), { isSecureRequest });
     }
 
     if (action.type === 'rewrite') {
       const rewriteUrl = request.nextUrl.clone();
       rewriteUrl.pathname = action.destination;
-      return NextResponse.rewrite(rewriteUrl);
+      return withProxySecurityHeaders(NextResponse.rewrite(rewriteUrl), { isSecureRequest });
     }
 
     if (action.type === 'redirect') {
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = action.destination;
       redirectUrl.search = '';
-      return NextResponse.redirect(redirectUrl, 302);
+      return withProxySecurityHeaders(NextResponse.redirect(redirectUrl, 302), { isSecureRequest });
     }
   }
 
@@ -209,7 +228,7 @@ export async function proxy(request: NextRequest) {
     const ip = getClientIp(request);
     const limit = checkAuthRateLimit(ip);
     if (!limit.allowed) {
-      return NextResponse.json(
+      return withProxySecurityHeaders(NextResponse.json(
         {
           error: `Çok fazla başarısız deneme. ${limit.retryAfter} saniye sonra tekrar deneyin.`,
           retryAfter: limit.retryAfter,
@@ -221,7 +240,7 @@ export async function proxy(request: NextRequest) {
             'X-RateLimit-Remaining': '0',
           },
         }
-      );
+      ), { isSecureRequest });
     }
   }
 
@@ -230,7 +249,10 @@ export async function proxy(request: NextRequest) {
     const destinationUrl = request.nextUrl.clone();
     destinationUrl.pathname = authRedirect.destination;
     destinationUrl.search = '';
-    return NextResponse.redirect(destinationUrl, authRedirect.permanent ? 308 : 307);
+    return withProxySecurityHeaders(
+      NextResponse.redirect(destinationUrl, authRedirect.permanent ? 308 : 307),
+      { isSecureRequest },
+    );
   }
 
   const authRoute = pathname.startsWith('/auth/') || pathname === '/signup';
@@ -239,24 +261,24 @@ export async function proxy(request: NextRequest) {
       const dashboardUrl = request.nextUrl.clone();
       dashboardUrl.pathname = '/dashboard';
       dashboardUrl.search = '';
-      return NextResponse.redirect(dashboardUrl, 302);
+      return withProxySecurityHeaders(NextResponse.redirect(dashboardUrl, 302), { isSecureRequest });
     }
-    return NextResponse.next();
+    return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
   }
 
   if (pathname.startsWith('/api/')) {
-    return NextResponse.next();
+    return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
   }
 
   if (isStaticAsset(pathname) || isPublicPage(pathname)) {
-    return NextResponse.next();
+    return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
   }
 
   if (!(await isAuthenticated(request))) {
-    return buildLoginRedirect(request);
+    return withProxySecurityHeaders(buildLoginRedirect(request), { isSecureRequest });
   }
 
-  return NextResponse.next();
+  return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
 }
 
 export const config = {

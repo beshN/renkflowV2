@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -26,7 +26,7 @@ COPY . .
 WORKDIR /app/apps/web
 
 # Disable telemetry during build
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN npm run build
 
@@ -34,8 +34,8 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -46,11 +46,14 @@ COPY --from=builder /app/apps/web/public ./apps/web/public
 # Set permissions
 RUN mkdir -p apps/web/.next
 RUN chown -R nextjs:nodejs apps/web/.next
+RUN mkdir -p /app/data/uploads
+RUN chown -R nextjs:nodejs /app/data
 
 # Copy standalone output
 # Next.js standalone output puts necessary files (including node_modules) safely in .next/standalone
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/lib/db/migrations ./apps/web/lib/db/migrations
 # Force-include postgres driver: dynamic import path in db layer is not statically traceable.
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/postgres ./node_modules/postgres
 
@@ -58,8 +61,8 @@ USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 # Start the server (path depends on where standalone puts it, usually apps/web/server.js)
 CMD ["node", "apps/web/server.js"]
