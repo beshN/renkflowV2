@@ -7,6 +7,7 @@ import {
   BarChart3,
   Bell,
   Boxes,
+  Building2,
   Calculator,
   CirclePlus,
   ClipboardList,
@@ -16,6 +17,7 @@ import {
   Search,
   Settings,
   ShoppingBag,
+  Truck,
   Users,
   WalletCards,
 } from "lucide-react";
@@ -51,6 +53,8 @@ const groups: Array<{ label: string; items: NavItem[] }> = [
     label: "Yönetim ve raporlama",
     items: [
       { href: "/panel/finans", label: "Finans Kontrolü", icon: WalletCards, roles: managementRoles },
+      { href: "/panel/crm", label: "CRM ve Müşteriler", icon: Building2, roles: officeRoles },
+      { href: "/panel/tedarikciler", label: "Tedarikçiler", icon: Truck, roles: officeRoles },
       { href: "/panel/envanter", label: "Envanter İhtiyaçları", icon: PackageSearch, roles: officeRoles },
       { href: "/panel/raporlar", label: "Operasyon Raporları", icon: BarChart3, roles: officeRoles },
       { href: "/panel/analitik", label: "Karar Analitiği", icon: Activity, roles: officeRoles },

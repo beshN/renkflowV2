@@ -6,6 +6,14 @@ test("protected pages preserve the intended destination", async ({ page }) => {
   await expect(page.locator('input[name="next"]')).toHaveValue("/panel/uretim");
 });
 
+test("legacy dashboard routes remain compatible", async ({ page }) => {
+  await page.goto("/dashboard");
+  await expect(page).toHaveURL(/\/giris\?next=%2Fpanel$/);
+
+  await page.goto("/orders");
+  await expect(page).toHaveURL(/\/giris\?next=%2Fpanel%2Fsiparisler$/);
+});
+
 test("authentication callback cannot redirect to another origin", async ({ request }) => {
   const response = await request.get("/auth/callback?next=https://example.com", { maxRedirects: 0 });
   expect(response.status()).toBe(307);

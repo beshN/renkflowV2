@@ -9,6 +9,27 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "26mb",
     },
   },
+  async redirects() {
+    return [
+      ["/dashboard", "/panel"],
+      ["/orders", "/panel/siparisler"],
+      ["/new-order", "/panel/siparisler/yeni"],
+      ["/work-orders", "/panel/is-emirleri"],
+      ["/kanban", "/panel/kanban"],
+      ["/inventory", "/panel/envanter"],
+      ["/finance", "/panel/finans"],
+      ["/accounting", "/panel/finans"],
+      ["/crm", "/panel/crm"],
+      ["/suppliers", "/panel/tedarikciler"],
+      ["/reports", "/panel/raporlar"],
+      ["/analytics", "/panel/analitik"],
+      ["/team", "/panel/ekip"],
+      ["/members", "/panel/ekip"],
+      ["/settings", "/panel/ayarlar"],
+      ["/search", "/panel/arama"],
+      ["/notifications", "/panel/bildirimler"],
+    ].map(([source, destination]) => ({ source, destination, permanent: false }));
+  },
   async headers() {
     const scriptPolicy = process.env.NODE_ENV === "development"
       ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
