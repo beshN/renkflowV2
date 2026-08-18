@@ -144,14 +144,14 @@ async function extract(analysisId: string, escalated: boolean): Promise<Extracti
   }
 }
 
-async function persistSuccess(analysisId: string, attempt: ExtractionAttempt) {
+async function persistSuccess(analysisId: string, attempt: ExtractionAttempt, escalationAttempted: boolean) {
   "use step";
   if (!attempt.output) throw new Error("Extraction output is missing.");
   const admin = createAdminClient();
   const { error } = await admin.from("document_analyses").update({
     status: "needs_review",
     model_used: attempt.model,
-    escalated: attempt.model === (process.env.AI_ESCALATION_MODEL ?? "openai/gpt-5.4-mini"),
+    escalated: escalationAttempted,
     raw_output: attempt.output,
     normalized_output: attempt.output,
     provider_generation_id: attempt.generationId,

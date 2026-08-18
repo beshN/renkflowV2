@@ -39,7 +39,6 @@ export function AnalysisReview({
   }
 
   function submit() {
-    const corrections = collectCorrections(initial, value);
     startTransition(async () => {
       try {
         await reviewAnalysis({
@@ -47,7 +46,6 @@ export function AnalysisReview({
           analysisId,
           orderId,
           normalizedOutput: value as unknown as Record<string, unknown>,
-          corrections,
         });
         setMessage("Analiz doğrulandı ve sipariş onaylandı.");
         router.refresh();
@@ -82,7 +80,7 @@ export function AnalysisReview({
         ))}
       </div>
       {!!value.warnings.length && <div className="warning-box"><TriangleAlert size={17} /><div><b>Analiz uyarıları</b>{value.warnings.map((warning) => <span key={warning}>{warning}</span>)}</div></div>}
-      <div className="review-actions"><span>{message}</span><button className="button button-primary" onClick={submit} disabled={pending}><CheckCircle2 size={17} />{pending ? "Kaydediliyor…" : "Doğrula ve onayla"}</button></div>
+      <div className="review-actions"><span aria-live="polite">{message}</span><button type="button" className="button button-primary" onClick={submit} disabled={pending}><CheckCircle2 size={17} />{pending ? "Kaydediliyor…" : "Doğrula ve onayla"}</button></div>
     </section>
   );
 }
@@ -105,21 +103,4 @@ function ReviewInput({
       <input type={type} value={field.value ?? ""} min={type === "number" ? 0 : undefined} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
-}
-
-function collectCorrections(initial: ExtractedOrderFields, current: ExtractedOrderFields) {
-  const corrections: Array<{ fieldPath: string; aiValue: unknown; correctedValue: unknown }> = [];
-  const top: TopField[] = ["customerName", "projectName", "orderReference", "notes"];
-  for (const key of top) {
-    if (!Object.is(initial[key].value, current[key].value)) {
-      corrections.push({ fieldPath: key, aiValue: initial[key].value, correctedValue: current[key].value });
-    }
-  }
-  const fields: ItemField[] = ["quantity", "widthMm", "heightMm", "lightColor", "profileType", "motorType", "notes"];
-  current.items.forEach((item, index) => fields.forEach((key) => {
-    if (!Object.is(initial.items[index]?.[key].value, item[key].value)) {
-      corrections.push({ fieldPath: `items.${index}.${key}`, aiValue: initial.items[index]?.[key].value ?? null, correctedValue: item[key].value });
-    }
-  }));
-  return corrections;
 }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { analysisStatuses, orderStatuses, organizationRoles } from "@/lib/types";
+import { extractedOrderFieldsSchema } from "@/lib/ai/extraction-schema";
 
 export const organizationRoleSchema = z.enum(organizationRoles);
 export const orderStatusSchema = z.enum(orderStatuses);
@@ -13,11 +14,13 @@ export const signUpSchema = z.object({
   fullName: z.string().trim().min(2).max(120),
   email: z.email().transform((value) => value.toLowerCase()),
   password: z.string().min(10, "Parola en az 10 karakter olmalı.").max(128),
+  next: z.string().max(2000).optional(),
 });
 
 export const signInSchema = z.object({
   email: z.email().transform((value) => value.toLowerCase()),
   password: z.string().min(1),
+  next: z.string().max(2000).optional(),
 });
 
 export const createOrderSchema = z.object({
@@ -30,7 +33,6 @@ export const createOrderSchema = z.object({
 
 export const updateOrderSchema = createOrderSchema.extend({
   orderId: z.uuid(),
-  status: orderStatusSchema.optional(),
 });
 
 export const inviteMemberSchema = z.object({
@@ -51,12 +53,7 @@ export const reviewAnalysisSchema = z.object({
   organizationId: z.uuid(),
   analysisId: z.uuid(),
   orderId: z.uuid(),
-  normalizedOutput: z.record(z.string(), z.unknown()),
-  corrections: z.array(z.object({
-    fieldPath: z.string().min(1).max(240),
-    aiValue: z.unknown(),
-    correctedValue: z.unknown(),
-  })).max(100),
+  normalizedOutput: extractedOrderFieldsSchema,
 });
 
 export const analyzeDocumentSchema = z.object({

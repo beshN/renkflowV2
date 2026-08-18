@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, RotateCcw, TriangleAlert } from "lucide-react";
+import { LoaderCircle, Play, RotateCcw, TriangleAlert } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { AnalysisStatus } from "@/lib/types";
@@ -74,6 +74,39 @@ export function AnalysisStatusCard({
           {pending ? "Başlatılıyor…" : "Tekrar dene"}
         </button>
       ) : null}
+    </div>
+  );
+}
+
+export function AnalyzeDocumentAction({ documentId }: { documentId: string }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState("");
+
+  const handleAnalyze = () => startTransition(async () => {
+    setError("");
+    try {
+      const response = await fetch(`/api/documents/${documentId}/analyze`, { method: "POST" });
+      const body = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(body.error || "Analiz başlatılamadı.");
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Analiz başlatılamadı.");
+    }
+  });
+
+  return (
+    <div className="analysis-progress-card analysis-progress-failed" role="status" aria-live="polite">
+      <TriangleAlert aria-hidden="true" />
+      <div>
+        <b>PDF yüklendi, analiz başlatılmadı</b>
+        <p>Dosya korunuyor. Analiz limiti veya geçici servis sorunu giderildiğinde yeniden başlatabilirsiniz.</p>
+        {error ? <small className="inline-error" role="alert">{error}</small> : null}
+      </div>
+      <button type="button" className="small-action" disabled={pending} onClick={handleAnalyze}>
+        <Play size={13} aria-hidden="true" />
+        {pending ? "Başlatılıyor…" : "Analizi başlat"}
+      </button>
     </div>
   );
 }

@@ -285,6 +285,80 @@ begin
 end;
 $$;
 
+do $$
+begin
+  begin
+    perform public.update_production_stages(
+      '10000000-0000-0000-0000-000000000001',
+      '[{"id":"30000000-0000-0000-0000-000000000001","name":"Aşama A","color":"#157347","position":1},{"id":"30000000-0000-0000-0000-000000000003","name":"Aşama A2","color":"#157347","position":2}]'::jsonb
+    );
+    raise exception 'production_user_updated_stage_settings';
+  exception when raise_exception then
+    if sqlerrm = 'production_user_updated_stage_settings' then raise; end if;
+    if sqlerrm <> 'Bu işlem için yetkiniz yok.' then raise; end if;
+  end;
+end;
+$$;
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
+
+do $$
+declare
+  search_count integer;
+  created_order uuid;
+begin
+  select count(*) into search_count
+  from public.search_orders('10000000-0000-0000-0000-000000000001', 'A-1', null);
+  if search_count <> 1 then raise exception 'tenant_order_search_failed'; end if;
+
+  created_order := public.create_order(
+    '10000000-0000-0000-0000-000000000001',
+    'Atomik Müşteri',
+    'Atomik Proje',
+    null,
+    null
+  );
+  if not exists (
+    select 1 from public.audit_logs
+    where organization_id = '10000000-0000-0000-0000-000000000001'
+      and action = 'order.created' and entity_id = created_order::text
+  ) then raise exception 'atomic_order_audit_missing'; end if;
+
+  perform public.update_order_details(
+    '10000000-0000-0000-0000-000000000001', created_order,
+    'Güncel Müşteri', 'Güncel Proje', null, null
+  );
+  perform public.cancel_order('10000000-0000-0000-0000-000000000001', created_order);
+  if (select status from public.orders where id = created_order) <> 'cancelled' then
+    raise exception 'atomic_order_cancel_failed';
+  end if;
+
+  perform public.update_production_stages(
+    '10000000-0000-0000-0000-000000000001',
+    '[{"id":"30000000-0000-0000-0000-000000000001","name":"Hazırlık","color":"#157347","position":1},{"id":"30000000-0000-0000-0000-000000000003","name":"Teslim","color":"#2455aa","position":2}]'::jsonb
+  );
+end;
+$$;
+
+insert into public.calculation_rule_sets (
+  id, organization_id, name, version, rules_ast, created_by
+)
+values
+  ('50000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'Kural A', 1, '{"version":1,"rules":[]}', '00000000-0000-0000-0000-000000000001'),
+  ('50000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'Kural B', 1, '{"version":1,"rules":[]}', '00000000-0000-0000-0000-000000000001');
+
+select public.activate_rule_set('50000000-0000-0000-0000-000000000001');
+select public.activate_rule_set('50000000-0000-0000-0000-000000000002');
+
+do $$
+begin
+  if (
+    select count(*) from public.calculation_rule_sets
+    where organization_id = '10000000-0000-0000-0000-000000000001' and status = 'active'
+  ) <> 1 then raise exception 'multiple_rule_sets_remained_active'; end if;
+end;
+$$;
+
 reset role;
 select 'rls_matrix_passed' as result;
 rollback;

@@ -2,10 +2,13 @@ import { notFound } from "next/navigation";
 import { Calculator, FileText, PackageCheck } from "lucide-react";
 import { uploadDocumentAction } from "@/app/actions/documents";
 import { AnalysisReview } from "@/components/analysis-review";
-import { AnalysisStatusCard } from "@/components/analysis-status-card";
+import { ActionForm } from "@/components/action-form";
+import { AnalysisStatusCard, AnalyzeDocumentAction } from "@/components/analysis-status-card";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { CalculationAction } from "@/components/stage-action";
+import { CancelOrderAction } from "@/components/cancel-order-action";
+import { updateOrderForm } from "@/app/actions/core";
 import { requireOrganization } from "@/lib/auth";
 import type { ExtractedOrderFields } from "@/lib/types";
 
@@ -13,6 +16,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const { supabase, membership } = await requireOrganization();
   const orgId = membership.organization_id;
+  const canManageOrder = membership.role !== "production";
 
   const [{ data: order }, { data: documents }, { data: analyses }, { data: events }, { data: calculations }, { data: activeRule }] = await Promise.all([
     supabase.from("orders").select("*, order_items(*)").eq("id", id).eq("organization_id", orgId).maybeSingle(),
@@ -28,9 +32,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     const { data } = await supabase.storage.from("order-documents").createSignedUrl(document.storage_path, 300);
     return { ...document, signedUrl: data?.signedUrl };
   }));
-  const latestAnalysis = analyses?.[0];
-  const activeAnalysis = latestAnalysis?.status === "needs_review" ? latestAnalysis : undefined;
-  const canUploadDocument = ["draft", "awaiting_review", "approved"].includes(order.status);
+  const latestDocument = signedDocuments[0];
+  const latestAnalysis = analyses?.find((analysis) => analysis.document_id === latestDocument?.id);
+  const activeAnalysis = canManageOrder && latestAnalysis?.status === "needs_review" ? latestAnalysis : undefined;
+  const canUploadDocument = canManageOrder && ["draft", "awaiting_review", "approved"].includes(order.status);
+  const canEditOrder = canManageOrder && ["draft", "awaiting_review", "approved"].includes(order.status);
 
   return (
     <>
@@ -44,14 +50,19 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <div className="pdf-empty"><FileText size={34} /><b>PDF yüklenmedi</b><p>En fazla 25 MB ve 50 sayfa.</p></div>
           )}
           {latestAnalysis ? <AnalysisStatusCard analysisId={latestAnalysis.id} status={latestAnalysis.status} errorMessage={latestAnalysis.error_message} /> : null}
+          {canManageOrder && latestDocument && !latestAnalysis ? <AnalyzeDocumentAction documentId={latestDocument.id} /> : null}
           {canUploadDocument ? (
-            <form action={uploadDocumentAction} className="upload-form">
+            <ActionForm
+              action={uploadDocumentAction}
+              className="upload-form"
+              submitLabel={signedDocuments.length ? "Yeni PDF yükle" : "PDF yükle ve analiz et"}
+              pendingLabel="PDF yükleniyor…"
+            >
               <input type="hidden" name="organizationId" value={orgId} />
               <input type="hidden" name="orderId" value={order.id} />
               <input type="file" name="file" accept="application/pdf" required />
-              <button className="button button-primary">{signedDocuments.length ? "Yeni PDF yükle" : "PDF yükle ve analiz et"}</button>
-            </form>
-          ) : <div className="upload-form upload-locked">Üretime alınmış veya kapanmış siparişlerde PDF değiştirilemez.</div>}
+            </ActionForm>
+          ) : canManageOrder ? <div className="upload-form upload-locked">Üretime alınmış veya kapanmış siparişlerde PDF değiştirilemez.</div> : null}
         </section>
         <aside className="order-summary-card">
           <span>Sipariş özeti</span>
@@ -63,6 +74,18 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <div><dt>PDF</dt><dd>{signedDocuments.length}</dd></div>
           </dl>
           <p>{order.notes || "Sipariş notu yok."}</p>
+          {canEditOrder ? <details className="order-edit-details">
+            <summary>Temel bilgileri düzenle</summary>
+            <ActionForm action={updateOrderForm} className="record-form" submitLabel="Bilgileri kaydet" pendingLabel="Kaydediliyor…">
+              <input type="hidden" name="organizationId" value={orgId} />
+              <input type="hidden" name="orderId" value={order.id} />
+              <label>Müşteri<input name="customerName" defaultValue={order.customer_name ?? ""} maxLength={160} /></label>
+              <label>Proje<input name="projectName" defaultValue={order.project_name ?? ""} maxLength={160} /></label>
+              <label>Referans<input name="customerReference" defaultValue={order.customer_reference ?? ""} maxLength={120} /></label>
+              <label>Notlar<textarea name="notes" defaultValue={order.notes ?? ""} rows={4} maxLength={5000} /></label>
+            </ActionForm>
+            <CancelOrderAction organizationId={orgId} orderId={order.id} />
+          </details> : null}
         </aside>
       </div>
 
@@ -77,7 +100,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
       <div className="lower-detail-grid">
         <section className="content-card">
-          <div className="card-heading"><div><span>Deterministik motor</span><h2>Hesap sonuçları</h2></div>{activeRule && ["approved", "in_production", "ready"].includes(order.status) ? <CalculationAction organizationId={orgId} orderId={order.id} /> : <Calculator size={20} />}</div>
+          <div className="card-heading"><div><span>Deterministik motor</span><h2>Hesap sonuçları</h2></div>{canManageOrder && activeRule && ["approved", "in_production", "ready"].includes(order.status) ? <CalculationAction organizationId={orgId} orderId={order.id} /> : <Calculator size={20} />}</div>
           {calculations?.length ? calculations.map((run) => <pre className="result-json" key={run.id}>{JSON.stringify(run.result_snapshot, null, 2)}</pre>) : <div className="compact-empty"><Calculator size={24} /><p>Onaylanmış veri ve etkin kural seti olduğunda hesap sonucu burada görünür.</p></div>}
         </section>
         <section className="content-card">

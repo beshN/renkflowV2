@@ -1,4 +1,5 @@
 import { createOrganizationAction } from "@/app/actions/auth";
+import { ActionForm } from "@/components/action-form";
 import { getAuthContext } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
@@ -14,10 +15,14 @@ export default async function SetupPage() {
         <span className="step-label">1 / 1 · Çalışma alanı</span>
         <h1>Şirketinizi oluşturun.</h1>
         <p>Verileriniz bu şirket kimliği altında RLS ile diğer şirketlerden tamamen ayrılacak.</p>
-        <form action={createOrganizationAction} className="auth-form">
+        <ActionForm
+          action={createOrganizationAction}
+          className="auth-form"
+          submitLabel="Çalışma alanını oluştur"
+          pendingLabel="Oluşturuluyor…"
+        >
           <label>Şirket adı<input name="name" placeholder="Örn. Renk Perde" minLength={2} maxLength={120} required /></label>
-          <button className="button button-primary">Çalışma alanını oluştur</button>
-        </form>
+        </ActionForm>
       </section>
     </main>
   );

@@ -1,6 +1,6 @@
 "use server";
 
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Resend } from "resend";
@@ -20,64 +20,87 @@ import { validateRuleAst } from "@/lib/rules/engine";
 import { runRuleSet } from "@/lib/rules/engine";
 import type { RuleSet } from "@/lib/types";
 import InviteEmail from "@/emails/invite";
+import type { FormActionState } from "@/lib/action-state";
+import { extractedOrderFieldsSchema } from "@/lib/ai/extraction-schema";
+import { collectAnalysisCorrections } from "@/lib/ai/corrections";
 
-export async function createOrder(formData: FormData) {
+export async function createOrder(_: FormActionState, formData: FormData): Promise<FormActionState> {
   const parsed = createOrderSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Sipariş bilgileri geçersiz.");
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Sipariş bilgileri geçersiz." };
 
-  const { supabase, user } = await requireMembership(parsed.data.organizationId, ["owner", "admin", "office"]);
-  const orderNumber = `RF-${new Date().getFullYear()}-${randomUUID().slice(0, 8).toUpperCase()}`;
-  const { data, error } = await supabase.from("orders").insert({
-    organization_id: parsed.data.organizationId,
-    order_number: orderNumber,
-    customer_name: parsed.data.customerName || null,
-    project_name: parsed.data.projectName || null,
-    customer_reference: parsed.data.customerReference || null,
-    notes: parsed.data.notes || null,
-    created_by: user.id,
-  }).select("id").single();
+  let orderId: string;
+  try {
+    const { supabase } = await requireMembership(parsed.data.organizationId, ["owner", "admin", "office"]);
+    const { data, error } = await supabase.rpc("create_order", {
+      target_organization: parsed.data.organizationId,
+      target_customer_name: parsed.data.customerName || null,
+      target_project_name: parsed.data.projectName || null,
+      target_customer_reference: parsed.data.customerReference || null,
+      target_notes: parsed.data.notes || null,
+    });
+    if (error || !data) return { error: error?.message || "Sipariş oluşturulamadı." };
+    orderId = data;
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Sipariş oluşturulamadı." };
+  }
 
-  if (error || !data) throw new Error("Sipariş oluşturulamadı.");
-  await supabase.from("audit_logs").insert({
-    organization_id: parsed.data.organizationId,
-    actor_id: user.id,
-    action: "order.created",
-    entity_type: "order",
-    entity_id: data.id,
-  });
-
-  redirect(`/panel/siparisler/${data.id}`);
+  redirect(`/panel/siparisler/${orderId}`);
 }
 
 export async function updateOrder(input: unknown) {
   const parsed = updateOrderSchema.parse(input);
-  const { supabase, user } = await requireMembership(parsed.organizationId, ["owner", "admin", "office"]);
-  const { error } = await supabase.from("orders").update({
-    customer_name: parsed.customerName || null,
-    project_name: parsed.projectName || null,
-    customer_reference: parsed.customerReference || null,
-    notes: parsed.notes || null,
-    ...(parsed.status ? { status: parsed.status } : {}),
-  }).eq("id", parsed.orderId).eq("organization_id", parsed.organizationId);
-  if (error) throw new Error("Sipariş güncellenemedi.");
-
-  await supabase.from("audit_logs").insert({
-    organization_id: parsed.organizationId,
-    actor_id: user.id,
-    action: "order.updated",
-    entity_type: "order",
-    entity_id: parsed.orderId,
+  const { supabase } = await requireMembership(parsed.organizationId, ["owner", "admin", "office"]);
+  const { error } = await supabase.rpc("update_order_details", {
+    target_organization: parsed.organizationId,
+    target_order: parsed.orderId,
+    target_customer_name: parsed.customerName || null,
+    target_project_name: parsed.projectName || null,
+    target_customer_reference: parsed.customerReference || null,
+    target_notes: parsed.notes || null,
   });
+  if (error) throw new Error("Sipariş güncellenemedi.");
+  revalidatePath(`/panel/siparisler/${parsed.orderId}`);
+}
+
+export async function updateOrderForm(_: FormActionState, formData: FormData): Promise<FormActionState> {
+  try {
+    await updateOrder(Object.fromEntries(formData));
+    return { success: "Sipariş bilgileri güncellendi." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Sipariş güncellenemedi." };
+  }
+}
+
+export async function cancelOrder(input: unknown) {
+  const parsed = updateOrderSchema.pick({ organizationId: true, orderId: true }).parse(input);
+  const { supabase } = await requireMembership(parsed.organizationId, ["owner", "admin", "office"]);
+  const { error } = await supabase.rpc("cancel_order", {
+    target_organization: parsed.organizationId,
+    target_order: parsed.orderId,
+  });
+  if (error) throw new Error(error.message || "Sipariş iptal edilemedi.");
+  revalidatePath("/panel/siparisler");
   revalidatePath(`/panel/siparisler/${parsed.orderId}`);
 }
 
 export async function reviewAnalysis(input: unknown) {
   const parsed = reviewAnalysisSchema.parse(input);
   const { supabase } = await requireMembership(parsed.organizationId, ["owner", "admin", "office"]);
+  const { data: analysis } = await supabase.from("document_analyses")
+    .select("normalized_output, status")
+    .eq("id", parsed.analysisId)
+    .eq("organization_id", parsed.organizationId)
+    .eq("order_id", parsed.orderId)
+    .maybeSingle();
+  if (!analysis || analysis.status !== "needs_review") throw new Error("Analiz artık onaylanabilir durumda değil.");
+
+  const original = extractedOrderFieldsSchema.safeParse(analysis.normalized_output);
+  if (!original.success) throw new Error("Kaydedilmiş AI çıktısı geçerli değil. Analizi yeniden çalıştırın.");
+  const corrections = collectAnalysisCorrections(original.data, parsed.normalizedOutput);
   const { error } = await supabase.rpc("review_analysis", {
     target_analysis: parsed.analysisId,
     verified_output: parsed.normalizedOutput,
-    corrections: parsed.corrections,
+    corrections,
   });
   if (error) throw new Error("Analiz onaylanamadı.");
   revalidatePath(`/panel/siparisler/${parsed.orderId}`);
@@ -99,73 +122,101 @@ export async function advanceOrderStage(input: unknown) {
   revalidatePath(`/panel/siparisler/${parsed.orderId}`);
 }
 
-export async function inviteMember(formData: FormData) {
+export async function inviteMember(_: FormActionState, formData: FormData): Promise<FormActionState> {
   const parsed = inviteMemberSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) throw new Error("Davet bilgileri geçersiz.");
+  if (!parsed.success) return { error: "Davet bilgileri geçersiz." };
 
-  const { supabase, user } = await requireMembership(parsed.data.organizationId, ["owner", "admin"]);
-  const token = randomBytes(32).toString("base64url");
-  const tokenHash = createHash("sha256").update(token).digest("hex");
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  try {
+    const { supabase, user } = await requireMembership(parsed.data.organizationId, ["owner", "admin"]);
+    const token = randomBytes(32).toString("base64url");
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const { data: organization } = await supabase.from("organizations")
-    .select("name").eq("id", parsed.data.organizationId).single();
-  if (!organization) throw new Error("Şirket bulunamadı.");
+    const { data: organization } = await supabase.from("organizations")
+      .select("name").eq("id", parsed.data.organizationId).single();
+    if (!organization) return { error: "Şirket bulunamadı." };
 
-  const { data: invite, error } = await supabase.from("organization_invites").insert({
-    organization_id: parsed.data.organizationId,
-    email: parsed.data.email,
-    role: parsed.data.role,
-    token_hash: tokenHash,
-    invited_by: user.id,
-    expires_at: expiresAt,
-  }).select("id").single();
-  if (error || !invite) throw new Error("Davet kaydı oluşturulamadı.");
+    await supabase.from("organization_invites")
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("organization_id", parsed.data.organizationId)
+      .eq("email", parsed.data.email)
+      .is("accepted_at", null)
+      .is("revoked_at", null)
+      .lte("expires_at", new Date().toISOString());
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const acceptUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/davet?token=${encodeURIComponent(token)}`;
-  const { error: emailError } = await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL ?? "RenkFlow <onboarding@resend.dev>",
-    to: parsed.data.email,
-    subject: `${organization.name} sizi RenkFlow'a davet etti`,
-    react: InviteEmail({ organizationName: organization.name, acceptUrl, role: parsed.data.role }),
-  }, { headers: { "Idempotency-Key": `organization-invite-${invite.id}` } });
+    const { data: invite, error } = await supabase.from("organization_invites").insert({
+      organization_id: parsed.data.organizationId,
+      email: parsed.data.email,
+      role: parsed.data.role,
+      token_hash: tokenHash,
+      invited_by: user.id,
+      expires_at: expiresAt,
+    }).select("id").single();
+    if (error || !invite) return { error: "Bu adres için bekleyen bir davet zaten olabilir." };
 
-  if (emailError) {
-    await supabase.from("organization_invites").update({ revoked_at: new Date().toISOString() }).eq("id", invite.id);
-    throw new Error("Davet e-postası gönderilemedi.");
+    try {
+      const fromEmail = process.env.RESEND_FROM_EMAIL ?? process.env.RESEND_INFO_EMAIL;
+      if (!process.env.RESEND_API_KEY || !fromEmail) {
+        throw new Error("E-posta servisi yapılandırılmadı.");
+      }
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const acceptUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/davet?token=${encodeURIComponent(token)}`;
+      const { error: emailError } = await resend.emails.send({
+        from: fromEmail,
+        to: parsed.data.email,
+        subject: `${organization.name} sizi RenkFlow'a davet etti`,
+        react: InviteEmail({ organizationName: organization.name, acceptUrl, role: parsed.data.role }),
+      }, { headers: { "Idempotency-Key": `organization-invite-${invite.id}` } });
+      if (emailError) throw emailError;
+    } catch {
+      await supabase.from("organization_invites").update({ revoked_at: new Date().toISOString() }).eq("id", invite.id);
+      return { error: "Davet e-postası gönderilemedi. E-posta servisi ayarlarını kontrol edin." };
+    }
+
+    revalidatePath("/panel/ekip");
+    return { success: "Davet e-postası gönderildi." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Davet gönderilemedi." };
   }
-
-  revalidatePath("/panel/ekip");
 }
 
-export async function createRuleSet(formData: FormData) {
+export async function createRuleSet(_: FormActionState, formData: FormData): Promise<FormActionState> {
   const parsed = createRuleSetSchema.safeParse({
     organizationId: formData.get("organizationId"),
     name: formData.get("name"),
     rulesAst: formData.get("rulesAst"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Kural bilgileri geçersiz.");
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Kural bilgileri geçersiz." };
 
-  const ast = JSON.parse(parsed.data.rulesAst) as unknown;
+  let ast: unknown;
+  try {
+    ast = JSON.parse(parsed.data.rulesAst) as unknown;
+  } catch {
+    return { error: "JSON AST geçerli bir JSON belgesi değil." };
+  }
   const astResult = validateRuleAst(ast);
-  if (!astResult.success) throw new Error("Kural AST biçimi geçersiz.");
+  if (!astResult.success) return { error: astResult.error.issues[0]?.message ?? "Kural AST biçimi geçersiz." };
 
-  const { supabase, user } = await requireMembership(parsed.data.organizationId, ["owner", "admin"]);
-  const { data: latest } = await supabase.from("calculation_rule_sets").select("version")
-    .eq("organization_id", parsed.data.organizationId).eq("name", parsed.data.name)
-    .order("version", { ascending: false }).limit(1).maybeSingle();
+  try {
+    const { supabase, user } = await requireMembership(parsed.data.organizationId, ["owner", "admin"]);
+    const { data: latest } = await supabase.from("calculation_rule_sets").select("version")
+      .eq("organization_id", parsed.data.organizationId).eq("name", parsed.data.name)
+      .order("version", { ascending: false }).limit(1).maybeSingle();
 
-  const { error } = await supabase.from("calculation_rule_sets").insert({
-    organization_id: parsed.data.organizationId,
-    name: parsed.data.name,
-    version: (latest?.version ?? 0) + 1,
-    status: "draft",
-    rules_ast: ast,
-    created_by: user.id,
-  });
-  if (error) throw new Error("Kural taslağı oluşturulamadı.");
-  revalidatePath("/panel/hesap-kurallari");
+    const { error } = await supabase.from("calculation_rule_sets").insert({
+      organization_id: parsed.data.organizationId,
+      name: parsed.data.name,
+      version: (latest?.version ?? 0) + 1,
+      status: "draft",
+      rules_ast: ast,
+      created_by: user.id,
+    });
+    if (error) return { error: "Kural taslağı oluşturulamadı." };
+    revalidatePath("/panel/hesap-kurallari");
+    return { success: "Kural taslağı kaydedildi." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Kural taslağı oluşturulamadı." };
+  }
 }
 
 export async function activateRuleSet(input: unknown) {
@@ -207,7 +258,8 @@ export async function runCalculation(input: unknown) {
     rules: ast.rules,
   };
 
-  for (const item of order.order_items ?? []) {
+  if (!order.order_items?.length) throw new Error("Hesaplanacak onaylanmış ürün satırı yok.");
+  const calculationRows = order.order_items.map((item) => {
     const inputSnapshot = {
       quantity: item.quantity,
       widthMm: item.width_mm === null ? null : Number(item.width_mm),
@@ -219,7 +271,7 @@ export async function runCalculation(input: unknown) {
     };
     const inputHash = createHash("sha256").update(JSON.stringify(inputSnapshot)).digest("hex");
     const result = runRuleSet(ruleSet, inputSnapshot);
-    const { error } = await supabase.from("calculation_runs").upsert({
+    return {
       organization_id: parsed.organizationId,
       order_id: order.id,
       order_item_id: item.id,
@@ -230,13 +282,17 @@ export async function runCalculation(input: unknown) {
       result_snapshot: result.outputs,
       validation_errors: result.errors,
       created_by: user.id,
-    }, { onConflict: "order_item_id,rule_set_id,input_hash", ignoreDuplicates: true });
-    if (error) throw new Error("Hesap sonucu kaydedilemedi.");
-  }
+    };
+  });
+  const { error } = await supabase.from("calculation_runs").upsert(calculationRows, {
+    onConflict: "order_item_id,rule_set_id,input_hash",
+    ignoreDuplicates: true,
+  });
+  if (error) throw new Error("Hesap sonuçları kaydedilemedi.");
   revalidatePath(`/panel/siparisler/${parsed.orderId}`);
 }
 
-export async function updateProductionStages(formData: FormData) {
+export async function updateProductionStages(_: FormActionState, formData: FormData): Promise<FormActionState> {
   const ids = formData.getAll("stageId").map(String);
   const names = formData.getAll("stageName").map(String);
   const colors = formData.getAll("stageColor").map(String);
@@ -244,17 +300,19 @@ export async function updateProductionStages(formData: FormData) {
     organizationId: formData.get("organizationId"),
     stages: ids.map((id, index) => ({ id, name: names[index], color: colors[index], position: index + 1 })),
   });
-  if (!parsed.success) throw new Error("Üretim aşamaları geçersiz.");
+  if (!parsed.success) return { error: "Üretim aşamaları geçersiz." };
 
-  const { supabase } = await requireMembership(parsed.data.organizationId, ["owner", "admin"]);
-  for (const stage of parsed.data.stages) {
-    const { error } = await supabase.from("production_stages").update({
-      name: stage.name,
-      color: stage.color,
-      position: stage.position,
-    }).eq("id", stage.id).eq("organization_id", parsed.data.organizationId);
-    if (error) throw new Error("Üretim aşamaları kaydedilemedi.");
+  try {
+    const { supabase } = await requireMembership(parsed.data.organizationId, ["owner", "admin"]);
+    const { error } = await supabase.rpc("update_production_stages", {
+      target_organization: parsed.data.organizationId,
+      stage_payload: parsed.data.stages,
+    });
+    if (error) return { error: error.message || "Üretim aşamaları kaydedilemedi." };
+    revalidatePath("/panel/uretim");
+    revalidatePath("/panel/ayarlar");
+    return { success: "Üretim aşamaları kaydedildi." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Üretim aşamaları kaydedilemedi." };
   }
-  revalidatePath("/panel/uretim");
-  revalidatePath("/panel/ayarlar");
 }

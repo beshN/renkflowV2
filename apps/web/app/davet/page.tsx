@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { InviteAcceptForm } from "@/components/invite-accept-form";
 
 export default async function InvitePage({
   searchParams,
@@ -13,18 +14,14 @@ export default async function InvitePage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/giris?next=${encodeURIComponent(`/davet?token=${token}`)}`);
 
-  const { data, error } = await supabase.rpc("accept_organization_invite", { raw_token: token });
-  if (error || !data) {
-    return (
-      <main className="setup-page">
-        <section className="setup-card">
-          <span className="step-label">Davet</span>
-          <h1>Bağlantı geçersiz.</h1>
-          <p>Davet süresi dolmuş, iptal edilmiş veya farklı bir e-posta adresine ait olabilir.</p>
-        </section>
-      </main>
-    );
-  }
-
-  redirect("/panel");
+  return (
+    <main className="setup-page">
+      <section className="setup-card">
+        <span className="step-label">Ekip daveti</span>
+        <h1>Çalışma alanına katılın.</h1>
+        <p>Davet, oturum açtığınız <b>{user.email}</b> adresi için doğrulanacak.</p>
+        <InviteAcceptForm token={token} />
+      </section>
+    </main>
+  );
 }

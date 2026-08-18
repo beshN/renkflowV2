@@ -38,4 +38,14 @@ describe("analysis confidence gate", () => {
     value.items = [];
     expect(needsEscalation(value, 0.72)).toBe(true);
   });
+
+  it("escalates a missing production field", () => {
+    const value = output();
+    value.items[0].motorType.value = null;
+    expect(needsEscalation(value, 0.72)).toBe(true);
+  });
+
+  it("falls back to the safe threshold when configuration is invalid", () => {
+    expect(needsEscalation(output(0.6), Number.NaN)).toBe(true);
+  });
 });

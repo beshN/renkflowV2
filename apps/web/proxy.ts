@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isSupabaseConfigured } from "@/lib/env";
+import { safeAppPath } from "@/lib/navigation";
 
 export async function proxy(request: NextRequest) {
   if (!isSupabaseConfigured()) return NextResponse.next();
@@ -35,7 +36,10 @@ export async function proxy(request: NextRequest) {
 
   if (user && isAuthPage) {
     const url = request.nextUrl.clone();
-    url.pathname = "/panel";
+    const next = safeAppPath(request.nextUrl.searchParams.get("next"));
+    const destination = new URL(next, request.url);
+    url.pathname = destination.pathname;
+    url.search = destination.search;
     return NextResponse.redirect(url);
   }
 

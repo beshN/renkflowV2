@@ -32,22 +32,24 @@ export function ActivateRuleAction({ organizationId, ruleSetId }: { organization
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const router = useRouter();
-  return <div><button className="small-action" disabled={pending} onClick={() => startTransition(async () => {
+  return <div><button type="button" className="small-action" disabled={pending} onClick={() => startTransition(async () => {
+    setError("");
     try {
       await activateRuleSet({ organizationId, ruleSetId });
       router.refresh();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "İşlem başarısız."); }
-  })}>{pending ? "Etkinleştiriliyor…" : "Etkinleştir"}</button>{error && <small className="inline-error">{error}</small>}</div>;
+  })}>{pending ? "Etkinleştiriliyor…" : "Etkinleştir"}</button>{error ? <small className="inline-error" role="alert">{error}</small> : null}</div>;
 }
 
 export function CalculationAction({ organizationId, orderId }: { organizationId: string; orderId: string }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const router = useRouter();
-  return <div><button className="small-action" disabled={pending} onClick={() => startTransition(async () => {
+  return <div><button type="button" className="small-action" disabled={pending} onClick={() => startTransition(async () => {
+    setError("");
     try {
       await runCalculation({ organizationId, orderId });
       router.refresh();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Hesaplama başarısız."); }
-  })}>{pending ? "Hesaplanıyor…" : "Hesap motorunu çalıştır"}</button>{error && <small className="inline-error">{error}</small>}</div>;
+  })}>{pending ? "Hesaplanıyor…" : "Hesap motorunu çalıştır"}</button>{error ? <small className="inline-error" role="alert">{error}</small> : null}</div>;
 }

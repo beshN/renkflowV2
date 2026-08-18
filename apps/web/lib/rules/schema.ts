@@ -70,4 +70,16 @@ export const ruleDefinitionSchema = z.object({
 export const ruleAstSchema = z.object({
   version: z.literal(1),
   rules: z.array(ruleDefinitionSchema).min(1).max(200),
+}).superRefine((value, context) => {
+  const keys = new Set<string>();
+  value.rules.forEach((rule, index) => {
+    if (keys.has(rule.key)) {
+      context.addIssue({
+        code: "custom",
+        path: ["rules", index, "key"],
+        message: `Kural anahtarı benzersiz olmalı: ${rule.key}`,
+      });
+    }
+    keys.add(rule.key);
+  });
 });

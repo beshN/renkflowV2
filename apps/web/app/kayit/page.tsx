@@ -4,15 +4,16 @@ import { SignUpForm } from "@/components/auth-form";
 
 export const metadata = { title: "Kurucu hesabı oluştur" };
 
-export default function SignUpPage() {
+export default async function SignUpPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+  const { next } = await searchParams;
   return (
     <AuthShell
-      eyebrow="Temiz başlangıç"
-      title="Şirketinizi RenkFlow'a taşıyın."
-      description="E-posta doğrulamasından sonra şirketinizi oluşturup ekibinizi davet edebilirsiniz."
-      footer={<span>Zaten hesabınız var mı? <Link href="/giris">Giriş yapın</Link></span>}
+      eyebrow={next?.startsWith("/davet") ? "Ekip daveti" : "Temiz başlangıç"}
+      title={next?.startsWith("/davet") ? "Davetinizi kabul etmek için hesap oluşturun." : "Şirketinizi RenkFlow'a taşıyın."}
+      description="E-posta doğrulamasından sonra güvenli çalışma alanınıza yönlendirileceksiniz."
+      footer={<span>Zaten hesabınız var mı? <Link href={next ? `/giris?next=${encodeURIComponent(next)}` : "/giris"}>Giriş yapın</Link></span>}
     >
-      <SignUpForm />
+      <SignUpForm next={next} />
     </AuthShell>
   );
 }

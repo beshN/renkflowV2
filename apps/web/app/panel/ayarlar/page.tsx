@@ -2,9 +2,12 @@ import { Database, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { requireOrganization } from "@/lib/auth";
 import { updateProductionStages } from "@/app/actions/core";
+import { ActionForm } from "@/components/action-form";
+import { redirect } from "next/navigation";
 
 export default async function SettingsPage() {
   const { supabase, membership } = await requireOrganization();
+  if (membership.role !== "owner" && membership.role !== "admin") redirect("/panel");
   const { data: organization } = await supabase.from("organizations").select("*").eq("id", membership.organization_id).single();
   const { data: stages } = await supabase.from("production_stages").select("*").eq("organization_id", membership.organization_id).order("position");
 
@@ -17,11 +20,10 @@ export default async function SettingsPage() {
       </div>
       <section className="form-card stages-settings">
         <div className="card-heading"><div><span>Şirkete özel akış</span><h2>Üretim aşamaları</h2></div></div>
-        <form action={updateProductionStages} className="record-form">
+        <ActionForm action={updateProductionStages} className="record-form" submitLabel="Aşamaları kaydet" pendingLabel="Aşamalar kaydediliyor…">
           <input type="hidden" name="organizationId" value={membership.organization_id} />
           <div className="stage-edit-list">{(stages ?? []).map((stage) => <label key={stage.id}><input type="hidden" name="stageId" value={stage.id} /><span>{stage.position}</span><input name="stageName" defaultValue={stage.name} required /><input name="stageColor" type="color" defaultValue={stage.color} /></label>)}</div>
-          <button className="button button-primary">Aşamaları kaydet</button>
-        </form>
+        </ActionForm>
       </section>
     </>
   );

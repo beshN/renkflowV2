@@ -7,18 +7,19 @@ import { requireOrganization } from "@/lib/auth";
 export default async function OverviewPage() {
   const { supabase, membership } = await requireOrganization();
   const orgId = membership.organization_id;
-  const [orders, activeProduction, waitingReview, documents] = await Promise.all([
+  const canManageOrders = membership.role !== "production";
+  const [orders, activeProduction, waitingReview, documents, orderCount] = await Promise.all([
     supabase.from("orders").select("id, order_number, customer_name, project_name, status, updated_at")
       .eq("organization_id", orgId).order("updated_at", { ascending: false }).limit(6),
     supabase.from("orders").select("id", { count: "exact", head: true }).eq("organization_id", orgId).eq("status", "in_production"),
     supabase.from("document_analyses").select("id", { count: "exact", head: true }).eq("organization_id", orgId).eq("status", "needs_review"),
     supabase.from("documents").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
+    supabase.from("orders").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
   ]);
-  const orderCount = await supabase.from("orders").select("id", { count: "exact", head: true }).eq("organization_id", orgId);
 
   return (
     <>
-      <PageHeader eyebrow="Operasyon merkezi" title="Genel Bakış" description="Sipariş, PDF inceleme ve üretim akışının güncel durumu." action={<Link className="button button-primary" href="/panel/siparisler/yeni">Yeni sipariş</Link>} />
+      <PageHeader eyebrow="Operasyon merkezi" title="Genel Bakış" description="Sipariş, PDF inceleme ve üretim akışının güncel durumu." action={canManageOrders ? <Link className="button button-primary" href="/panel/siparisler/yeni">Yeni sipariş</Link> : undefined} />
       <section className="metrics-grid">
         <Metric icon={ShoppingBag} label="Toplam sipariş" value={orderCount.count ?? 0} detail="Tüm zamanlar" />
         <Metric icon={FileClock} label="Onay bekleyen analiz" value={waitingReview.count ?? 0} detail="Ofis aksiyonu gerekli" tone="amber" />

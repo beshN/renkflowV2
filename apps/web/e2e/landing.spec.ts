@@ -1,7 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 test("landing and health endpoint are operational", async ({ page, request }) => {
-  await page.goto("/");
+  const pageResponse = await page.goto("/");
+  expect(pageResponse?.status()).toBe(200);
+  expect(pageResponse?.headers()["content-security-policy"]).toContain("frame-ancestors 'none'");
+  expect(pageResponse?.headers()["x-content-type-options"]).toBe("nosniff");
   await expect(page.getByRole("heading", { name: /Sipariş PDF/ })).toBeVisible();
   await expect(page.getByText("Daha küçük kapsam.")).toBeVisible();
 

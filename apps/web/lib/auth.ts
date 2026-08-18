@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { OrganizationRole } from "@/lib/types";
@@ -11,15 +12,18 @@ export const getAuthContext = cache(async () => {
 
   if (error || !user) redirect("/giris");
 
-  const { data: membership } = await supabase
+  const { data: memberships } = await supabase
     .from("organization_members")
     .select("organization_id, role, organizations(id, name, slug)")
     .eq("user_id", user.id)
-    .order("joined_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .order("joined_at", { ascending: true });
 
-  return { supabase, user, membership };
+  const activeOrganizationId = (await cookies()).get("renkflow-organization")?.value;
+  const membership = memberships?.find((item) => item.organization_id === activeOrganizationId)
+    ?? memberships?.[0]
+    ?? null;
+
+  return { supabase, user, membership, memberships: memberships ?? [] };
 });
 
 export async function requireOrganization() {

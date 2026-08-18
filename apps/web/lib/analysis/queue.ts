@@ -70,6 +70,17 @@ export async function queueDocumentAnalysis(documentId: string) {
         created_by: user.id,
       }).select("id").single();
 
+      if (cloneError?.code === "23505") {
+        const { data: concurrentClone } = await supabase.from("document_analyses")
+          .select("id, status, workflow_run_id")
+          .eq("organization_id", document.organization_id)
+          .eq("document_id", document.id)
+          .eq("dedupe_key", dedupeKey)
+          .maybeSingle();
+        if (concurrentClone) {
+          return { analysisId: concurrentClone.id, status: concurrentClone.status, reused: true, runId: concurrentClone.workflow_run_id };
+        }
+      }
       if (cloneError || !cloned) throw cloneError ?? new Error("Önceki analiz sonucu kullanılamadı.");
       return { analysisId: cloned.id, status: "needs_review", reused: true, runId: null };
     }
@@ -100,6 +111,7 @@ export async function queueDocumentAnalysis(documentId: string) {
       status: "queued",
       error_code: null,
       error_message: null,
+      workflow_run_id: null,
       started_at: null,
       completed_at: null,
     }).eq("id", analysisId);
@@ -117,6 +129,17 @@ export async function queueDocumentAnalysis(documentId: string) {
       schema_version: EXTRACTION_SCHEMA_VERSION,
       created_by: user.id,
     }).select("id").single();
+    if (error?.code === "23505") {
+      const { data: concurrentAnalysis } = await supabase.from("document_analyses")
+        .select("id, status, workflow_run_id")
+        .eq("organization_id", document.organization_id)
+        .eq("document_id", document.id)
+        .eq("dedupe_key", dedupeKey)
+        .maybeSingle();
+      if (concurrentAnalysis) {
+        return { analysisId: concurrentAnalysis.id, status: concurrentAnalysis.status, reused: true, runId: concurrentAnalysis.workflow_run_id };
+      }
+    }
     if (error || !analysis) throw error ?? new Error("Analiz kaydı oluşturulamadı.");
     analysisId = analysis.id;
   }

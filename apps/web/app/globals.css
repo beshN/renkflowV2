@@ -237,9 +237,11 @@ button, input, select, textarea { font: inherit; }
 .sidebar-brand .brand-logo { width: 166px; }
 .workspace-switcher { display: grid; grid-template-columns: 32px 1fr auto; gap: 10px; align-items: center; margin: 5px 4px 19px; padding: 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; background: rgba(255,255,255,.045); }
 .workspace-switcher > span { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; color: #1d472f; background: var(--lime); font-weight: 800; }
-.workspace-switcher > div { min-width: 0; display: grid; gap: 2px; }
+.workspace-switcher > label { min-width: 0; display: grid; gap: 2px; }
 .workspace-switcher small { color: #82998b; font-size: 9px; }
-.workspace-switcher b { overflow: hidden; font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
+.workspace-switcher select { width: 100%; padding: 0; border: 0; outline: 0; color: white; background: transparent; font-size: 11px; font-weight: 700; }
+.workspace-switcher option { color: var(--ink); background: white; }
+.workspace-switcher button { padding: 5px 7px; border: 1px solid rgba(255,255,255,.14); border-radius: 7px; color: var(--lime); background: transparent; font-size: 9px; cursor: pointer; }
 .panel-nav { display: grid; gap: 4px; }
 .panel-nav a { min-height: 42px; display: flex; align-items: center; gap: 11px; padding: 0 12px; border-radius: 10px; color: #9bb0a3; font-size: 12px; font-weight: 630; }
 .panel-nav a:hover { color: white; background: rgba(255,255,255,.05); }
@@ -302,7 +304,11 @@ button, input, select, textarea { font: inherit; }
 .empty-state p { margin: 0; font-size: 11px; }
 .compact-empty { min-height: 140px; display: grid; place-items: center; align-content: center; gap: 7px; padding: 22px; color: #7d8b83; text-align: center; font-size: 11px; }
 .list-toolbar { min-height: 57px; display: flex; align-items: center; justify-content: space-between; padding: 10px 19px; border-bottom: 1px solid #edf0ed; color: #86928c; font-size: 9px; }
-.fake-search { width: min(420px, 70%); display: flex; align-items: center; gap: 9px; padding: 9px 11px; border: 1px solid #e1e6e2; border-radius: 9px; background: #fafbf9; }
+.order-search { width: min(420px, 55%); display: flex; align-items: center; gap: 9px; padding: 9px 11px; border: 1px solid #e1e6e2; border-radius: 9px; background: #fafbf9; }
+.order-search:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px rgba(21,115,71,.09); }
+.order-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; font-size: 10px; }
+.list-toolbar > select { padding: 8px 9px; border: 1px solid #e1e6e2; border-radius: 9px; color: #56645d; background: white; font-size: 9px; }
+.list-toolbar > span { margin-left: auto; white-space: nowrap; }
 .form-card { padding: 24px; }
 .record-form { display: grid; gap: 18px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 17px; }
@@ -312,6 +318,7 @@ button, input, select, textarea { font: inherit; }
 .record-form input:focus, .record-form textarea:focus, .record-form select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(21,115,71,.09); }
 .form-actions { display: flex; align-items: center; justify-content: space-between; padding-top: 5px; }
 .form-actions span { color: #89958f; font-size: 10px; }
+.form-submit-row { display: flex; justify-content: flex-end; }
 .order-detail-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(260px, .7fr); gap: 17px; margin-bottom: 17px; }
 .document-card, .order-summary-card, .review-card { border: 1px solid #e0e5e1; border-radius: 16px; background: white; overflow: hidden; }
 .pdf-frame { width: 100%; height: 580px; display: block; border: 0; background: #e8ece8; }
@@ -320,6 +327,8 @@ button, input, select, textarea { font: inherit; }
 .upload-form { display: flex; gap: 12px; align-items: center; padding: 14px 18px; border-top: 1px solid #e8ece8; }
 .upload-form input { min-width: 0; flex: 1; font-size: 10px; }
 .upload-form .button { min-height: 38px; font-size: 10px; }
+.upload-form .form-submit-row { flex: 0 0 auto; }
+.upload-form .form-message { max-width: 360px; padding: 8px 10px; font-size: 9px; }
 .upload-locked { justify-content: center; color: #77847d; background: #fafbf9; font-size: 9px; }
 .analysis-progress-card { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 14px 18px; border-top: 1px solid #e8ece8; color: #675020; background: #fff9ec; }
 .analysis-progress-card > svg { width: 20px; height: 20px; }
@@ -341,6 +350,17 @@ button, input, select, textarea { font: inherit; }
 .order-summary-card dt { color: #7b8881; }
 .order-summary-card dd { margin: 0; font-weight: 700; text-align: right; }
 .order-summary-card > p { color: var(--muted); font-size: 10px; line-height: 1.6; }
+.order-edit-details { margin-top: 18px; padding-top: 15px; border-top: 1px solid #e7ebe8; }
+.order-edit-details summary { color: var(--green); font-size: 10px; font-weight: 750; cursor: pointer; }
+.order-edit-details .record-form { margin-top: 14px; }
+.order-edit-details .form-submit-row { justify-content: stretch; }
+.order-edit-details .button { width: 100%; }
+.danger-action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin-top: 12px; padding: 8px 10px; border: 1px solid #f0caca; border-radius: 8px; color: #a33131; background: #fff5f5; font-size: 9px; font-weight: 750; cursor: pointer; }
+.danger-action:disabled { opacity: .6; cursor: wait; }
+.cancel-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 12px; padding: 10px; border: 1px solid #f0d1d1; border-radius: 10px; background: #fff8f8; }
+.cancel-confirm > span { width: 100%; color: #854141; font-size: 9px; }
+.cancel-confirm .danger-action { margin-top: 0; }
+.cancel-confirm .inline-error { width: 100%; }
 .review-card { margin-bottom: 17px; }
 .review-heading { display: flex; justify-content: space-between; align-items: end; gap: 20px; padding: 20px 22px; border-bottom: 1px solid #edf0ed; }
 .review-heading > div > span { display: flex; align-items: center; gap: 6px; color: var(--green); font-size: 9px; font-weight: 800; }
@@ -463,5 +483,8 @@ button, input, select, textarea { font: inherit; }
   .analysis-progress-card { grid-template-columns: auto 1fr; }
   .analysis-progress-card .small-action { grid-column: 2; justify-self: start; }
   .upload-form, .review-actions { align-items: stretch; flex-direction: column; }
+  .list-toolbar { align-items: stretch; flex-wrap: wrap; gap: 8px; }
+  .order-search { width: 100%; }
+  .list-toolbar > span { margin-left: 0; }
   .pdf-frame { height: 460px; }
 }

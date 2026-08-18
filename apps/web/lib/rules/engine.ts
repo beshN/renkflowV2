@@ -112,6 +112,23 @@ function evaluateCondition(condition: RuleCondition, input: Record<string, unkno
 }
 
 export function validateRuleAst(value: unknown) {
+  const stack: Array<{ value: unknown; depth: number }> = [{ value, depth: 0 }];
+  let nodeCount = 0;
+  while (stack.length) {
+    const current = stack.pop()!;
+    nodeCount += 1;
+    if (current.depth > 64 || nodeCount > 10_000) {
+      return {
+        success: false as const,
+        error: { issues: [{ message: "Kural AST en fazla 64 seviye ve 10.000 düğüm içerebilir." }] },
+      };
+    }
+    if (Array.isArray(current.value)) {
+      for (const child of current.value) stack.push({ value: child, depth: current.depth + 1 });
+    } else if (current.value && typeof current.value === "object") {
+      for (const child of Object.values(current.value)) stack.push({ value: child, depth: current.depth + 1 });
+    }
+  }
   return ruleAstSchema.safeParse(value);
 }
 

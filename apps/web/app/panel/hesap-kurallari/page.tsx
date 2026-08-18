@@ -2,6 +2,7 @@ import { Calculator, LockKeyhole } from "lucide-react";
 import { createRuleSet } from "@/app/actions/core";
 import { ActivateRuleAction } from "@/components/stage-action";
 import { PageHeader } from "@/components/page-header";
+import { ActionForm } from "@/components/action-form";
 import { requireOrganization } from "@/lib/auth";
 
 const sampleAst = "{\n  \"version\": 1,\n  \"rules\": [\n    {\n      \"key\": \"ornekSonuc\",\n      \"label\": \"Örnek sonuç\",\n      \"expression\": {\n        \"type\": \"round\",\n        \"mode\": \"up\",\n        \"digits\": 0,\n        \"value\": {\n          \"type\": \"binary\",\n          \"op\": \"divide\",\n          \"left\": {\n            \"type\": \"input\",\n            \"path\": \"widthMm\"\n          },\n          \"right\": {\n            \"type\": \"literal\",\n            \"value\": 100\n          }\n        }\n      }\n    }\n  ]\n}";
@@ -9,6 +10,7 @@ const sampleAst = "{\n  \"version\": 1,\n  \"rules\": [\n    {\n      \"key\": \
 export default async function RulesPage() {
   const { supabase, membership } = await requireOrganization();
   const orgId = membership.organization_id;
+  const canManage = membership.role === "owner" || membership.role === "admin";
   const { data: ruleSets } = await supabase.from("calculation_rule_sets").select("*")
     .eq("organization_id", orgId).order("created_at", { ascending: false });
 
@@ -20,19 +22,18 @@ export default async function RulesPage() {
         <section className="content-card">
           <div className="card-heading"><div><span>Sürümler</span><h2>Kural setleri</h2></div><Calculator size={20} /></div>
           <div className="rule-list">
-            {(ruleSets ?? []).map((rule) => <article key={rule.id}><div><b>{rule.name}</b><span>v{rule.version} · {rule.status}</span></div>{rule.status === "draft" && <ActivateRuleAction organizationId={orgId} ruleSetId={rule.id} />}</article>)}
+            {(ruleSets ?? []).map((rule) => <article key={rule.id}><div><b>{rule.name}</b><span>v{rule.version} · {rule.status}</span></div>{canManage && rule.status === "draft" && <ActivateRuleAction organizationId={orgId} ruleSetId={rule.id} />}</article>)}
             {!ruleSets?.length && <div className="compact-empty"><p>Henüz kural seti yok.</p></div>}
           </div>
         </section>
-        <section className="form-card">
+        {canManage ? <section className="form-card">
           <div className="card-heading"><div><span>Yeni sürüm</span><h2>Kural taslağı</h2></div></div>
-          <form action={createRuleSet} className="record-form">
+          <ActionForm action={createRuleSet} className="record-form" submitLabel="Taslağı kaydet" pendingLabel="Taslak kaydediliyor…">
             <input type="hidden" name="organizationId" value={orgId} />
             <label>Set adı<input name="name" placeholder="Örn. Standart Zip Perde" required /></label>
             <label>JSON AST<textarea name="rulesAst" defaultValue={sampleAst} rows={18} required /></label>
-            <button className="button button-primary">Taslağı kaydet</button>
-          </form>
-        </section>
+          </ActionForm>
+        </section> : null}
       </div>
     </>
   );

@@ -7,14 +7,19 @@ export async function documentAnalysisWorkflow(analysisId: string) {
   const primary = await documentAnalysisSteps.extract(analysisId, false);
 
   if (primary.ok && !primary.needsEscalation) {
-    await documentAnalysisSteps.persistSuccess(analysisId, primary);
+    await documentAnalysisSteps.persistSuccess(analysisId, primary, false);
     return { analysisId, status: "needs_review", escalated: false };
   }
 
   const escalation = await documentAnalysisSteps.extract(analysisId, true);
   if (escalation.ok) {
-    await documentAnalysisSteps.persistSuccess(analysisId, escalation);
+    await documentAnalysisSteps.persistSuccess(analysisId, escalation, true);
     return { analysisId, status: "needs_review", escalated: true };
+  }
+
+  if (primary.ok) {
+    await documentAnalysisSteps.persistSuccess(analysisId, primary, true);
+    return { analysisId, status: "needs_review", escalated: true, usedPrimaryFallback: true };
   }
 
   await documentAnalysisSteps.persistFailure(

@@ -72,6 +72,19 @@ describe("rule engine", () => {
     }).success).toBe(true);
   });
 
+  it("rejects duplicate rule keys", () => {
+    const rule = { key: "ledCount", label: "LED", expression: { type: "literal", value: 1 } };
+    expect(validateRuleAst({ version: 1, rules: [rule, rule] }).success).toBe(false);
+  });
+
+  it("rejects excessively deep AST input before recursive parsing", () => {
+    let expression: Record<string, unknown> = { type: "literal", value: 1 };
+    for (let index = 0; index < 70; index += 1) {
+      expression = { type: "round", mode: "up", digits: 0, value: expression };
+    }
+    expect(validateRuleAst({ version: 1, rules: [{ key: "deep", label: "Derin", expression }] }).success).toBe(false);
+  });
+
   it("keeps rule version in immutable result snapshot", () => {
     const result = runRuleSet(makeRuleSet({ type: "literal", value: 42 }), {});
     expect(result.ruleSetVersion).toBe(3);
