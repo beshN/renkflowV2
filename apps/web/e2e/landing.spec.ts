@@ -5,8 +5,9 @@ test("landing and health endpoint are operational", async ({ page, request }) =>
   expect(pageResponse?.status()).toBe(200);
   expect(pageResponse?.headers()["content-security-policy"]).toContain("frame-ancestors 'none'");
   expect(pageResponse?.headers()["x-content-type-options"]).toBe("nosniff");
-  await expect(page.getByRole("heading", { name: /Sipariş PDF/ })).toBeVisible();
-  await expect(page.getByText("Daha küçük kapsam.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Üretim operasyonunuz/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Eski kapsam, daha sağlam bir temel/ })).toBeVisible();
+  await expect(page.getByAltText("RenkFlow").first()).toBeVisible();
 
   const response = await request.get("/api/health");
   expect(response.status()).toBe(200);

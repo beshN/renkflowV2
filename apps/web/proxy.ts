@@ -4,7 +4,19 @@ import { isSupabaseConfigured } from "@/lib/env";
 import { safeAppPath } from "@/lib/navigation";
 
 export async function proxy(request: NextRequest) {
-  if (!isSupabaseConfigured()) return NextResponse.next();
+  const pathname = request.nextUrl.pathname;
+  const isProtected = pathname.startsWith("/panel") || pathname.startsWith("/kurulum");
+  const isAuthPage = pathname === "/giris" || pathname === "/kayit";
+
+  if (!isSupabaseConfigured()) {
+    if (isProtected) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/giris";
+      url.searchParams.set("next", pathname);
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(
@@ -23,10 +35,6 @@ export async function proxy(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-  const pathname = request.nextUrl.pathname;
-  const isProtected = pathname.startsWith("/panel") || pathname.startsWith("/kurulum");
-  const isAuthPage = pathname === "/giris" || pathname === "/kayit";
-
   if (!user && isProtected) {
     const url = request.nextUrl.clone();
     url.pathname = "/giris";

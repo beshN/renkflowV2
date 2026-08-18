@@ -2,27 +2,110 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Boxes, Calculator, CirclePlus, LayoutDashboard, Settings, ShoppingBag, Users } from "lucide-react";
+import {
+  Activity,
+  BarChart3,
+  Bell,
+  Boxes,
+  Calculator,
+  CirclePlus,
+  ClipboardList,
+  KanbanSquare,
+  LayoutDashboard,
+  PackageSearch,
+  Search,
+  Settings,
+  ShoppingBag,
+  Users,
+  WalletCards,
+} from "lucide-react";
 import type { OrganizationRole } from "@/lib/types";
 
-const items = [
-  { href: "/panel", label: "Genel Bakış", icon: LayoutDashboard, exact: true, roles: ["owner", "admin", "office", "production"] },
-  { href: "/panel/siparisler", label: "Siparişler", icon: ShoppingBag, exact: true, roles: ["owner", "admin", "office", "production"] },
-  { href: "/panel/siparisler/yeni", label: "Yeni Sipariş", icon: CirclePlus, roles: ["owner", "admin", "office"] },
-  { href: "/panel/uretim", label: "Üretim", icon: Boxes, roles: ["owner", "admin", "office", "production"] },
-  { href: "/panel/hesap-kurallari", label: "Hesap Kuralları", icon: Calculator, roles: ["owner", "admin", "office"] },
-  { href: "/panel/ekip", label: "Ekip", icon: Users, roles: ["owner", "admin"] },
-  { href: "/panel/ayarlar", label: "Ayarlar", icon: Settings, roles: ["owner", "admin"] },
+type NavItem = {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  roles: OrganizationRole[];
+  exact?: boolean;
+};
+
+const allRoles: OrganizationRole[] = ["owner", "admin", "office", "production"];
+const officeRoles: OrganizationRole[] = ["owner", "admin", "office"];
+const managementRoles: OrganizationRole[] = ["owner", "admin"];
+
+const groups: Array<{ label: string; items: NavItem[] }> = [
+  {
+    label: "Operasyon çekirdeği",
+    items: [
+      { href: "/panel", label: "Kontrol Paneli", icon: LayoutDashboard, exact: true, roles: allRoles },
+      { href: "/panel/siparisler", label: "Sipariş Operasyonları", icon: ShoppingBag, exact: true, roles: allRoles },
+      { href: "/panel/siparisler/yeni", label: "Yeni Sipariş Girişi", icon: CirclePlus, roles: officeRoles },
+      { href: "/panel/is-emirleri", label: "İş Emri Takibi", icon: ClipboardList, roles: allRoles },
+      { href: "/panel/kanban", label: "Akış Kanbanı", icon: KanbanSquare, roles: allRoles },
+      { href: "/panel/uretim", label: "Üretim Merkezi", icon: Boxes, roles: allRoles },
+      { href: "/panel/arama", label: "Kayıt Arama", icon: Search, roles: allRoles },
+      { href: "/panel/bildirimler", label: "Bildirim Merkezi", icon: Bell, roles: allRoles },
+    ],
+  },
+  {
+    label: "Yönetim ve raporlama",
+    items: [
+      { href: "/panel/finans", label: "Finans Kontrolü", icon: WalletCards, roles: managementRoles },
+      { href: "/panel/envanter", label: "Envanter İhtiyaçları", icon: PackageSearch, roles: officeRoles },
+      { href: "/panel/raporlar", label: "Operasyon Raporları", icon: BarChart3, roles: officeRoles },
+      { href: "/panel/analitik", label: "Karar Analitiği", icon: Activity, roles: officeRoles },
+      { href: "/panel/hesap-kurallari", label: "Hesap Kuralları", icon: Calculator, roles: officeRoles },
+    ],
+  },
+  {
+    label: "Organizasyon",
+    items: [
+      { href: "/panel/ekip", label: "Takım ve Üyelikler", icon: Users, roles: managementRoles },
+      { href: "/panel/ayarlar", label: "Sistem Ayarları", icon: Settings, roles: managementRoles },
+    ],
+  },
 ];
 
-export function PanelNav({ role }: { role: OrganizationRole }) {
+export function PanelNav({ role, mobile = false }: { role: OrganizationRole; mobile?: boolean }) {
   const pathname = usePathname();
+  const visibleGroups = groups
+    .map((group) => ({ ...group, items: group.items.filter((item) => item.roles.includes(role)) }))
+    .filter((group) => group.items.length > 0);
+
+  if (mobile) {
+    const mobileItems = visibleGroups.flatMap((group) => group.items).filter((item) => [
+      "/panel",
+      "/panel/siparisler",
+      "/panel/is-emirleri",
+      "/panel/uretim",
+      "/panel/arama",
+    ].includes(item.href));
+    return (
+      <nav className="mobile-panel-nav" aria-label="Mobil panel menüsü">
+        {mobileItems.map((item) => <NavLink key={item.href} item={item} pathname={pathname} />)}
+      </nav>
+    );
+  }
+
   return (
-    <nav className="panel-nav">
-      {items.filter((item) => item.roles.includes(role)).map(({ href, label, icon: Icon, exact }) => {
-        const active = exact ? pathname === href : pathname.startsWith(href);
-        return <Link key={href} href={href} className={active ? "active" : ""}><Icon size={18} /><span>{label}</span></Link>;
-      })}
+    <nav className="panel-nav" aria-label="Panel menüsü">
+      {visibleGroups.map((group) => (
+        <div className="panel-nav-group" key={group.label}>
+          <p>{group.label}</p>
+          {group.items.map((item) => <NavLink key={item.href} item={item} pathname={pathname} />)}
+        </div>
+      ))}
     </nav>
+  );
+}
+
+function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
+  const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+  const Icon = item.icon;
+  return (
+    <Link href={item.href} className={active ? "active" : ""} aria-current={active ? "page" : undefined}>
+      <Icon size={18} strokeWidth={active ? 2.35 : 1.8} />
+      <span>{item.label}</span>
+    </Link>
   );
 }
