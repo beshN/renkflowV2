@@ -5,7 +5,10 @@ export const metadata: Metadata = {
   title: { default: "RenkFlow — Siparişten üretime tek akış", template: "%s | RenkFlow" },
   description: "PDF siparişlerini analiz eden, doğrulayan ve üretime aktaran operasyon platformu.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://renkflow.com"),
-  icons: { icon: "/icon.svg" },
+  icons: {
+    icon: [{ url: "/logo-r.png", type: "image/png" }],
+    apple: "/logo-r.png",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
 
 export function AuthShell({
   eyebrow,
@@ -15,7 +16,7 @@ export function AuthShell({
 }) {
   return (
     <main className="auth-page">
-      <Link className="brand auth-brand" href="/"><span className="brand-mark">R</span><span>RenkFlow</span></Link>
+      <Link className="brand auth-brand" href="/" aria-label="RenkFlow ana sayfa"><BrandLogo priority /></Link>
       <section className="auth-card">
         <span className="auth-eyebrow">{eyebrow}</span>
         <h1>{title}</h1>

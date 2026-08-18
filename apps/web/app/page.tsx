@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, FileSearch, Gauge, Layers3, ShieldCheck } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 
 const capabilities = [
   {
@@ -24,8 +25,7 @@ export default function LandingPage() {
     <main className="landing">
       <nav className="landing-nav shell">
         <Link className="brand" href="/" aria-label="RenkFlow ana sayfa">
-          <span className="brand-mark">R</span>
-          <span>RenkFlow</span>
+          <BrandLogo priority />
         </Link>
         <div className="nav-actions">
           <span className="status-pill"><span /> Sistem yenileniyor</span>
@@ -103,7 +103,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="landing-footer shell">
-        <div className="brand"><span className="brand-mark">R</span><span>RenkFlow</span></div>
+        <Link className="brand" href="/" aria-label="RenkFlow ana sayfa"><BrandLogo /></Link>
         <p>Yeni nesil sipariş ve üretim operasyonu.</p>
         <span>© 2026 RenkFlow</span>
       </footer>
