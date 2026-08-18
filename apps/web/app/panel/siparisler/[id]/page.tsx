@@ -60,7 +60,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             >
               <input type="hidden" name="organizationId" value={orgId} />
               <input type="hidden" name="orderId" value={order.id} />
-              <input type="file" name="file" accept="application/pdf" required />
+              <label className="file-input-label">PDF dosyası<input type="file" name="file" accept="application/pdf" required /></label>
             </ActionForm>
           ) : canManageOrder ? <div className="upload-form upload-locked">Üretime alınmış veya kapanmış siparişlerde PDF değiştirilemez.</div> : null}
         </section>

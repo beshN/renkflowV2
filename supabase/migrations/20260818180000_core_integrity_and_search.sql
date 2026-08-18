@@ -17,6 +17,12 @@ create unique index one_active_rule_set_per_organization_idx
   on public.calculation_rule_sets (organization_id)
   where status = 'active';
 
+-- Covers the tenant-consistent self-reference used when a previous extraction
+-- is reused for another document in the same organization.
+create index if not exists analyses_tenant_reused_from_idx
+  on public.document_analyses (organization_id, reused_from_analysis_id)
+  where reused_from_analysis_id is not null;
+
 create or replace function public.activate_rule_set(target_rule_set uuid)
 returns uuid
 language plpgsql
