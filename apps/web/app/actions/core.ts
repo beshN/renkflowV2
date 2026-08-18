@@ -235,7 +235,7 @@ export async function runCalculation(input: unknown) {
   const parsed = calculationRunSchema.parse(input);
   const { supabase, user } = await requireMembership(parsed.organizationId, ["owner", "admin", "office"]);
   const [{ data: order }, { data: activeRule }] = await Promise.all([
-    supabase.from("orders").select("id, status, order_items(*)")
+    supabase.from("orders").select("id, status, order_items!order_items_order_id_fkey(*)")
       .eq("id", parsed.orderId).eq("organization_id", parsed.organizationId).single(),
     supabase.from("calculation_rule_sets").select("*")
       .eq("organization_id", parsed.organizationId).eq("status", "active")

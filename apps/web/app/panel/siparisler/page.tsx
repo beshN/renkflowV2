@@ -27,7 +27,7 @@ export default async function OrdersPage({
   const safeQuery = query.replace(/[^\p{L}\p{N}\s-]/gu, " ").replace(/\s+/g, " ").trim();
   const status = orderStatuses.includes(params.status as OrderStatus) ? params.status as OrderStatus : null;
   let ordersQuery = supabase.from("orders")
-    .select("id, order_number, customer_name, project_name, customer_reference, status, created_at, documents(count)")
+    .select("id, order_number, customer_name, project_name, customer_reference, status, created_at, documents!documents_order_id_fkey(count)")
     .eq("organization_id", membership.organization_id)
     .order("created_at", { ascending: false })
     .limit(500);

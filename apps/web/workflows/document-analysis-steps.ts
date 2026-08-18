@@ -38,7 +38,7 @@ async function extract(analysisId: string, escalated: boolean): Promise<Extracti
   const admin = createAdminClient();
   const { data: analysis, error: analysisError } = await admin
     .from("document_analyses")
-    .select("id, organization_id, document_id, documents(storage_path, original_name)")
+    .select("id, organization_id, document_id, documents!document_analyses_document_id_fkey(storage_path, original_name)")
     .eq("id", analysisId)
     .single();
 

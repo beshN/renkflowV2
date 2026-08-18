@@ -18,14 +18,23 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const orgId = membership.organization_id;
   const canManageOrder = membership.role !== "production";
 
-  const [{ data: order }, { data: documents }, { data: analyses }, { data: events }, { data: calculations }, { data: activeRule }] = await Promise.all([
-    supabase.from("orders").select("*, order_items(*)").eq("id", id).eq("organization_id", orgId).maybeSingle(),
-    supabase.from("documents").select("*").eq("order_id", id).order("created_at", { ascending: false }),
-    supabase.from("document_analyses").select("*").eq("order_id", id).order("created_at", { ascending: false }),
-    supabase.from("order_stage_events").select("*, production_stages(name, color), profiles(full_name)").eq("order_id", id).order("created_at"),
-    supabase.from("calculation_runs").select("*, calculation_rule_sets(name)").eq("order_id", id).order("created_at", { ascending: false }),
+  const [orderResult, documentsResult, analysesResult, eventsResult, calculationsResult, activeRuleResult] = await Promise.all([
+    supabase.from("orders").select("*, order_items!order_items_order_id_fkey(*)").eq("id", id).eq("organization_id", orgId).maybeSingle(),
+    supabase.from("documents").select("*").eq("organization_id", orgId).eq("order_id", id).order("created_at", { ascending: false }),
+    supabase.from("document_analyses").select("*").eq("organization_id", orgId).eq("order_id", id).order("created_at", { ascending: false }),
+    supabase.from("order_stage_events").select("*, production_stages!order_stage_events_stage_id_fkey(name, color), profiles(full_name)").eq("organization_id", orgId).eq("order_id", id).order("created_at"),
+    supabase.from("calculation_runs").select("*, calculation_rule_sets!calculation_runs_rule_set_id_fkey(name)").eq("organization_id", orgId).eq("order_id", id).order("created_at", { ascending: false }),
     supabase.from("calculation_rule_sets").select("id").eq("organization_id", orgId).eq("status", "active").limit(1).maybeSingle(),
   ]);
+  const firstError = [orderResult, documentsResult, analysesResult, eventsResult, calculationsResult, activeRuleResult]
+    .find((result) => result.error)?.error;
+  if (firstError) throw new Error("Sipariş ayrıntıları yüklenemedi.", { cause: firstError });
+  const { data: order } = orderResult;
+  const { data: documents } = documentsResult;
+  const { data: analyses } = analysesResult;
+  const { data: events } = eventsResult;
+  const { data: calculations } = calculationsResult;
+  const { data: activeRule } = activeRuleResult;
   if (!order) notFound();
 
   const signedDocuments = await Promise.all((documents ?? []).map(async (document) => {

@@ -10,11 +10,14 @@ test.describe("authenticated order to production flow", () => {
     await page.getByLabel("Parola", { exact: true }).fill(process.env.E2E_PASSWORD!);
     await page.getByRole("button", { name: "Giriş yap" }).click();
 
+    await expect(
+      page.getByLabel("Şirket adı").or(page.getByRole("link", { name: "Yeni Sipariş" })).first(),
+    ).toBeVisible();
     if (new URL(page.url()).pathname === "/kurulum") {
       await page.getByLabel("Şirket adı").fill(`RenkFlow E2E ${Date.now()}`);
       await page.getByRole("button", { name: "Çalışma alanını oluştur" }).click();
+      await expect(page).toHaveURL(/\/panel(?:\/|$)/);
     }
-    await expect(page).toHaveURL(/\/panel(?:\/|$)/);
 
     await page.goto("/panel/siparisler/yeni");
     await page.getByLabel("Müşteri adı").fill("E2E Müşteri");
