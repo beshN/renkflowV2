@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { start } from "workflow/api";
 import { requireMembership } from "@/lib/auth";
 import { EXTRACTION_PROMPT_VERSION, EXTRACTION_SCHEMA_VERSION } from "@/lib/ai/extraction-schema";
@@ -20,11 +21,58 @@ export async function queueDocumentAnalysis(documentId: string) {
   const { data: existing } = await supabase
     .from("document_analyses")
     .select("id, status, workflow_run_id")
+    .eq("organization_id", document.organization_id)
+    .eq("document_id", document.id)
     .eq("dedupe_key", dedupeKey)
     .maybeSingle();
 
   if (existing && existing.status !== "failed") {
+    if (existing.status !== "completed") await markOrderAwaitingReview(supabase, document);
     return { analysisId: existing.id, status: existing.status, reused: true, runId: existing.workflow_run_id };
+  }
+
+  if (!existing) {
+    const { data: reusable } = await supabase
+      .from("document_analyses")
+      .select("id, model_requested, model_used, escalation_model, escalated, raw_output, normalized_output, provider_generation_id")
+      .eq("organization_id", document.organization_id)
+      .eq("dedupe_key", dedupeKey)
+      .in("status", ["needs_review", "completed"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (reusable?.normalized_output) {
+      const now = new Date().toISOString();
+      await markOrderAwaitingReview(supabase, document);
+      const { data: cloned, error: cloneError } = await supabase.from("document_analyses").insert({
+        organization_id: document.organization_id,
+        order_id: document.order_id,
+        document_id: document.id,
+        status: "needs_review",
+        dedupe_key: dedupeKey,
+        model_requested: reusable.model_requested,
+        model_used: reusable.model_used,
+        escalation_model: reusable.escalation_model,
+        escalated: reusable.escalated,
+        prompt_version: EXTRACTION_PROMPT_VERSION,
+        schema_version: EXTRACTION_SCHEMA_VERSION,
+        raw_output: reusable.raw_output,
+        normalized_output: reusable.normalized_output,
+        provider_generation_id: reusable.provider_generation_id,
+        input_tokens: 0,
+        output_tokens: 0,
+        reasoning_tokens: 0,
+        cost_usd: 0,
+        reused_from_analysis_id: reusable.id,
+        started_at: now,
+        completed_at: now,
+        created_by: user.id,
+      }).select("id").single();
+
+      if (cloneError || !cloned) throw cloneError ?? new Error("Önceki analiz sonucu kullanılamadı.");
+      return { analysisId: cloned.id, status: "needs_review", reused: true, runId: null };
+    }
   }
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -46,6 +94,7 @@ export async function queueDocumentAnalysis(documentId: string) {
   }
 
   let analysisId = existing?.id as string | undefined;
+  await markOrderAwaitingReview(supabase, document);
   if (analysisId) {
     const { error } = await supabase.from("document_analyses").update({
       status: "queued",
@@ -96,7 +145,29 @@ async function requireDocumentAccess(documentId: string) {
     .eq("id", documentId)
     .single();
   if (error || !document) throw new Error("PDF bulunamadı.");
+  const { data: order } = await supabase.from("orders")
+    .select("status")
+    .eq("id", document.order_id)
+    .eq("organization_id", document.organization_id)
+    .maybeSingle();
+  if (!order || !["draft", "awaiting_review", "approved"].includes(order.status)) {
+    throw new Error("Üretime alınmış, teslim edilmiş veya iptal edilmiş sipariş yeniden analiz edilemez.");
+  }
   return { supabase, user, document };
+}
+
+async function markOrderAwaitingReview(
+  supabase: SupabaseClient,
+  document: { organization_id: string; order_id: string },
+) {
+  const { data, error } = await supabase.from("orders")
+    .update({ status: "awaiting_review" })
+    .eq("id", document.order_id)
+    .eq("organization_id", document.organization_id)
+    .in("status", ["draft", "awaiting_review", "approved"])
+    .select("id")
+    .maybeSingle();
+  if (error || !data) throw new Error("Sipariş durumu değişti. Sayfayı yenileyip tekrar deneyin.");
 }
 
 async function requireMembershipForDocument(documentId: string) {

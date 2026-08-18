@@ -320,6 +320,19 @@ button, input, select, textarea { font: inherit; }
 .upload-form { display: flex; gap: 12px; align-items: center; padding: 14px 18px; border-top: 1px solid #e8ece8; }
 .upload-form input { min-width: 0; flex: 1; font-size: 10px; }
 .upload-form .button { min-height: 38px; font-size: 10px; }
+.upload-locked { justify-content: center; color: #77847d; background: #fafbf9; font-size: 9px; }
+.analysis-progress-card { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 14px 18px; border-top: 1px solid #e8ece8; color: #675020; background: #fff9ec; }
+.analysis-progress-card > svg { width: 20px; height: 20px; }
+.analysis-progress-card > div { min-width: 0; }
+.analysis-progress-card b { display: block; font-size: 10px; }
+.analysis-progress-card p { margin: 3px 0 0; color: #7d6c49; font-size: 9px; line-height: 1.5; }
+.analysis-progress-card small { display: block; overflow-wrap: anywhere; margin-top: 5px; color: #9a3838; font-size: 8px; }
+.analysis-progress-card .small-action { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.analysis-progress-failed { color: #9a3838; background: #fff3f3; }
+.analysis-progress-failed p { color: #875f5f; }
+.analysis-spinner { animation: analysis-spin 1s linear infinite; }
+@keyframes analysis-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .analysis-spinner { animation: none; } }
 .order-summary-card { padding: 24px; }
 .order-summary-card > span { color: var(--green); font-size: 8px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .order-summary-card h2 { margin: 8px 0 24px; font: 500 27px Georgia, serif; letter-spacing: -.035em; }
@@ -447,6 +460,8 @@ button, input, select, textarea { font: inherit; }
   .form-grid, .item-fields, .review-top-grid { grid-template-columns: 1fr; }
   .stage-edit-list { grid-template-columns: 1fr; }
   .stage-strip { grid-template-columns: repeat(2, 1fr); }
+  .analysis-progress-card { grid-template-columns: auto 1fr; }
+  .analysis-progress-card .small-action { grid-column: 2; justify-self: start; }
   .upload-form, .review-actions { align-items: stretch; flex-direction: column; }
   .pdf-frame { height: 460px; }
 }

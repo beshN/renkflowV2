@@ -22,6 +22,85 @@ values
   ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'A-1', 'approved', '00000000-0000-0000-0000-000000000001'),
   ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002', 'B-1', 'approved', '00000000-0000-0000-0000-000000000002');
 
+insert into public.documents (
+  id, organization_id, order_id, original_name, storage_path, size_bytes,
+  page_count, sha256, uploaded_by
+)
+values
+  (
+    '21000000-0000-0000-0000-000000000001',
+    '10000000-0000-0000-0000-000000000001',
+    '20000000-0000-0000-0000-000000000001',
+    'a.pdf',
+    '10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/a.pdf',
+    10,
+    1,
+    repeat('a', 64),
+    '00000000-0000-0000-0000-000000000001'
+  ),
+  (
+    '21000000-0000-0000-0000-000000000002',
+    '10000000-0000-0000-0000-000000000002',
+    '20000000-0000-0000-0000-000000000002',
+    'b.pdf',
+    '10000000-0000-0000-0000-000000000002/20000000-0000-0000-0000-000000000002/b.pdf',
+    10,
+    1,
+    repeat('a', 64),
+    '00000000-0000-0000-0000-000000000002'
+  );
+
+insert into public.document_analyses (
+  id, organization_id, order_id, document_id, dedupe_key, model_requested,
+  prompt_version, schema_version, created_by
+)
+values
+  (
+    '22000000-0000-0000-0000-000000000001',
+    '10000000-0000-0000-0000-000000000001',
+    '20000000-0000-0000-0000-000000000001',
+    '21000000-0000-0000-0000-000000000001',
+    repeat('d', 64),
+    'test/model',
+    'test-prompt',
+    'test-schema',
+    '00000000-0000-0000-0000-000000000001'
+  ),
+  (
+    '22000000-0000-0000-0000-000000000002',
+    '10000000-0000-0000-0000-000000000002',
+    '20000000-0000-0000-0000-000000000002',
+    '21000000-0000-0000-0000-000000000002',
+    repeat('d', 64),
+    'test/model',
+    'test-prompt',
+    'test-schema',
+    '00000000-0000-0000-0000-000000000002'
+  );
+
+do $$
+begin
+  begin
+    insert into public.document_analyses (
+      organization_id, order_id, document_id, dedupe_key, model_requested,
+      prompt_version, schema_version, created_by
+    ) values (
+      '10000000-0000-0000-0000-000000000001',
+      '20000000-0000-0000-0000-000000000001',
+      '21000000-0000-0000-0000-000000000001',
+      repeat('d', 64),
+      'test/model',
+      'test-prompt',
+      'test-schema',
+      '00000000-0000-0000-0000-000000000001'
+    );
+    raise exception 'same_document_dedupe_was_allowed';
+  exception when unique_violation then
+    null;
+  end;
+end;
+$$;
+
 insert into public.production_stages (id, organization_id, name, position)
 values
   ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'Aşama A', 1),
@@ -68,6 +147,26 @@ begin
     );
     raise exception 'cross_tenant_order_insert_was_allowed';
   exception when insufficient_privilege then
+    null;
+  end;
+
+  begin
+    insert into public.document_analyses (
+      organization_id, order_id, document_id, dedupe_key, model_requested,
+      prompt_version, schema_version, reused_from_analysis_id, created_by
+    ) values (
+      '10000000-0000-0000-0000-000000000001',
+      '20000000-0000-0000-0000-000000000001',
+      '21000000-0000-0000-0000-000000000001',
+      repeat('x', 64),
+      'test/model',
+      'test-prompt',
+      'test-schema',
+      '22000000-0000-0000-0000-000000000002',
+      '00000000-0000-0000-0000-000000000001'
+    );
+    raise exception 'cross_tenant_analysis_reuse_was_allowed';
+  exception when foreign_key_violation then
     null;
   end;
 

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Calculator, FileText, PackageCheck } from "lucide-react";
 import { uploadDocumentAction } from "@/app/actions/documents";
 import { AnalysisReview } from "@/components/analysis-review";
+import { AnalysisStatusCard } from "@/components/analysis-status-card";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { CalculationAction } from "@/components/stage-action";
@@ -27,8 +28,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     const { data } = await supabase.storage.from("order-documents").createSignedUrl(document.storage_path, 300);
     return { ...document, signedUrl: data?.signedUrl };
   }));
-  const activeAnalysis = analyses?.find((analysis) => analysis.status === "needs_review");
   const latestAnalysis = analyses?.[0];
+  const activeAnalysis = latestAnalysis?.status === "needs_review" ? latestAnalysis : undefined;
+  const canUploadDocument = ["draft", "awaiting_review", "approved"].includes(order.status);
 
   return (
     <>
@@ -41,12 +43,15 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           ) : (
             <div className="pdf-empty"><FileText size={34} /><b>PDF yüklenmedi</b><p>En fazla 25 MB ve 50 sayfa.</p></div>
           )}
-          <form action={uploadDocumentAction} className="upload-form">
-            <input type="hidden" name="organizationId" value={orgId} />
-            <input type="hidden" name="orderId" value={order.id} />
-            <input type="file" name="file" accept="application/pdf" required />
-            <button className="button button-primary">{signedDocuments.length ? "Yeni PDF yükle" : "PDF yükle ve analiz et"}</button>
-          </form>
+          {latestAnalysis ? <AnalysisStatusCard analysisId={latestAnalysis.id} status={latestAnalysis.status} errorMessage={latestAnalysis.error_message} /> : null}
+          {canUploadDocument ? (
+            <form action={uploadDocumentAction} className="upload-form">
+              <input type="hidden" name="organizationId" value={orgId} />
+              <input type="hidden" name="orderId" value={order.id} />
+              <input type="file" name="file" accept="application/pdf" required />
+              <button className="button button-primary">{signedDocuments.length ? "Yeni PDF yükle" : "PDF yükle ve analiz et"}</button>
+            </form>
+          ) : <div className="upload-form upload-locked">Üretime alınmış veya kapanmış siparişlerde PDF değiştirilemez.</div>}
         </section>
         <aside className="order-summary-card">
           <span>Sipariş özeti</span>

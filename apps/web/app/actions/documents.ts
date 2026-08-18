@@ -19,9 +19,12 @@ export async function uploadDocumentAction(formData: FormData) {
   if (file.size <= 0 || file.size > MAX_PDF_BYTES) throw new Error("PDF en fazla 25 MB olabilir.");
 
   const { supabase, user } = await requireMembership(organizationId, ["owner", "admin", "office"]);
-  const { data: order } = await supabase.from("orders").select("id")
+  const { data: order } = await supabase.from("orders").select("id, status")
     .eq("id", orderId).eq("organization_id", organizationId).maybeSingle();
   if (!order) throw new Error("Sipariş bulunamadı.");
+  if (!["draft", "awaiting_review", "approved"].includes(order.status)) {
+    throw new Error("Üretime alınmış, teslim edilmiş veya iptal edilmiş siparişe yeni PDF yüklenemez.");
+  }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
   let pageCount: number;
