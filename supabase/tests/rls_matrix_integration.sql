@@ -25,6 +25,7 @@ values
 insert into public.production_stages (id, organization_id, name, position)
 values
   ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'Aşama A', 1),
+  ('30000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', 'Aşama A2', 2),
   ('30000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002', 'Aşama B', 1);
 
 insert into storage.objects (bucket_id, name)
@@ -110,15 +111,63 @@ begin
     null;
   end;
 
-  insert into public.order_stage_events (
-    organization_id, order_id, stage_id, event_type, created_by
-  ) values (
+  perform public.advance_order_stage(
     '10000000-0000-0000-0000-000000000001',
     '20000000-0000-0000-0000-000000000001',
     '30000000-0000-0000-0000-000000000001',
     'started',
-    '00000000-0000-0000-0000-000000000003'
+    null
   );
+
+  begin
+    perform public.advance_order_stage(
+      '10000000-0000-0000-0000-000000000001',
+      '20000000-0000-0000-0000-000000000001',
+      '30000000-0000-0000-0000-000000000003',
+      'started',
+      null
+    );
+    raise exception 'production_stage_skip_was_allowed';
+  exception when raise_exception then
+    if sqlerrm = 'production_stage_skip_was_allowed' then
+      raise;
+    end if;
+    if sqlerrm <> 'Üretim sırası değişti. Sayfayı yenileyip tekrar deneyin.' then
+      raise;
+    end if;
+  end;
+
+  perform public.advance_order_stage(
+    '10000000-0000-0000-0000-000000000001',
+    '20000000-0000-0000-0000-000000000001',
+    '30000000-0000-0000-0000-000000000001',
+    'completed',
+    null
+  );
+
+  if (select status from public.orders where id = '20000000-0000-0000-0000-000000000001') <> 'ready' then
+    raise exception 'penultimate_stage_did_not_mark_order_ready';
+  end if;
+
+  perform public.advance_order_stage(
+    '10000000-0000-0000-0000-000000000001',
+    '20000000-0000-0000-0000-000000000001',
+    '30000000-0000-0000-0000-000000000003',
+    'started',
+    null
+  );
+
+  perform public.advance_order_stage(
+    '10000000-0000-0000-0000-000000000001',
+    '20000000-0000-0000-0000-000000000001',
+    '30000000-0000-0000-0000-000000000003',
+    'completed',
+    null
+  );
+
+  if (select status from public.orders where id = '20000000-0000-0000-0000-000000000001') <> 'delivered' then
+    raise exception 'final_stage_did_not_mark_order_delivered';
+  end if;
 
   begin
     insert into public.order_stage_events (

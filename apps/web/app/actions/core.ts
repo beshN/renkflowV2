@@ -85,21 +85,16 @@ export async function reviewAnalysis(input: unknown) {
 
 export async function advanceOrderStage(input: unknown) {
   const parsed = advanceStageSchema.parse(input);
-  const { supabase, user } = await requireMembership(parsed.organizationId, ["owner", "admin", "office", "production"]);
-  const { error } = await supabase.from("order_stage_events").insert({
-    organization_id: parsed.organizationId,
-    order_id: parsed.orderId,
-    stage_id: parsed.stageId,
-    event_type: parsed.eventType,
-    note: parsed.note || null,
-    created_by: user.id,
+  const { supabase } = await requireMembership(parsed.organizationId, ["owner", "admin", "office", "production"]);
+  const { error } = await supabase.rpc("advance_order_stage", {
+    target_organization: parsed.organizationId,
+    target_order: parsed.orderId,
+    target_stage: parsed.stageId,
+    requested_event: parsed.eventType,
+    event_note: parsed.note || null,
   });
-  if (error) throw new Error("Üretim aşaması güncellenemedi.");
+  if (error) throw new Error(error.message || "Üretim aşaması güncellenemedi.");
 
-  if (parsed.eventType === "started") {
-    await supabase.from("orders").update({ status: "in_production" })
-      .eq("id", parsed.orderId).in("status", ["approved", "in_production"]);
-  }
   revalidatePath("/panel/uretim");
   revalidatePath(`/panel/siparisler/${parsed.orderId}`);
 }
