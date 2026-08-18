@@ -1,286 +1,47 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
-import { evaluateComingSoonRequest, isComingSoonMode, normalizePublicSiteMode } from '@/lib/launch/comingSoonGate';
-import { resolveAuthSecret } from '@/lib/shared/config/runtime-env';
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+import { isSupabaseConfigured } from "@/lib/env";
 
-type AuthRateLimitEntry = {
-  attempts: number;
-  firstAttemptAt: number;
-  blockedUntil: number;
-};
+export async function proxy(request: NextRequest) {
+  if (!isSupabaseConfigured()) return NextResponse.next();
 
-const AUTH_SECRET =
-  resolveAuthSecret({
-    context: 'proxy',
-    allowMissing: process.env.NODE_ENV !== 'production',
-    allowDevelopmentFallback: process.env.NODE_ENV !== 'production',
-    developmentFallback: 'development-only-fallback-secret',
-  }) || undefined;
-
-const AUTH_RATE_LIMIT_WINDOW_MS = 60_000;
-const AUTH_RATE_LIMIT_MAX_ATTEMPTS = 5;
-const AUTH_RATE_LIMIT_BLOCK_MS = 60_000;
-const authRateLimits = new Map<string, AuthRateLimitEntry>();
-const ACME_CHALLENGE_PREFIX = '/.well-known/acme-challenge/';
-
-const AUTH_REDIRECTS: Record<string, { destination: string; permanent: boolean }> = {
-  '/auth/signup': { destination: '/signup', permanent: true },
-  '/auth/verify-email': { destination: '/auth/verify', permanent: false },
-};
-
-const PUBLIC_EXACT_PATHS = new Set([
-  '/',
-  '/about',
-  '/pricing',
-  '/features',
-  '/integrations',
-  '/faq',
-  '/terms',
-  '/privacy',
-  '/cookies',
-  '/coming-soon',
-  '/contact',
-  '/roadmap',
-  '/changelog',
-  '/full-landing',
-  '/press',
-  '/docs',
-  '/blog',
-  '/careers',
-  '/security',
-  '/status',
-]);
-
-const PUBLIC_PREFIXES = ['/blog/', '/careers/', '/docs/', '/public/'];
-const AUTH_ENTRY_PAGES = new Set(['/auth/login', '/auth/forgot-password', '/auth/update-password', '/signup']);
-
-function getClientIp(request: NextRequest): string {
-  const requestIp = (request as { ip?: string }).ip;
-  return (
-    request.headers.get('cf-connecting-ip') ||
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    request.headers.get('x-real-ip') ||
-    requestIp ||
-    'unknown'
+  let response = NextResponse.next({ request });
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll: () => request.cookies.getAll(),
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        },
+      },
+    },
   );
-}
 
-function isRateLimitedAuthEndpoint(pathname: string): boolean {
-  return (
-    pathname.startsWith('/api/auth/callback/credentials') ||
-    pathname.startsWith('/api/auth/signin')
-  );
-}
+  const { data: { user } } = await supabase.auth.getUser();
+  const pathname = request.nextUrl.pathname;
+  const isProtected = pathname.startsWith("/panel") || pathname.startsWith("/kurulum");
+  const isAuthPage = pathname === "/giris" || pathname === "/kayit";
 
-function checkAuthRateLimit(ip: string): { allowed: true } | { allowed: false; retryAfter: number } {
-  const now = Date.now();
-  const existing = authRateLimits.get(ip);
-
-  if (existing) {
-    if (existing.blockedUntil > now) {
-      return {
-        allowed: false,
-        retryAfter: Math.max(1, Math.ceil((existing.blockedUntil - now) / 1000)),
-      };
-    }
-    if (now - existing.firstAttemptAt > AUTH_RATE_LIMIT_WINDOW_MS) {
-      authRateLimits.delete(ip);
-    }
+  if (!user && isProtected) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/giris";
+    url.searchParams.set("next", pathname);
+    return NextResponse.redirect(url);
   }
 
-  const current = authRateLimits.get(ip) || {
-    attempts: 0,
-    firstAttemptAt: now,
-    blockedUntil: 0,
-  };
-
-  current.attempts += 1;
-
-  if (current.attempts > AUTH_RATE_LIMIT_MAX_ATTEMPTS) {
-    current.blockedUntil = now + AUTH_RATE_LIMIT_BLOCK_MS;
-    authRateLimits.set(ip, current);
-    return {
-      allowed: false,
-      retryAfter: Math.ceil(AUTH_RATE_LIMIT_BLOCK_MS / 1000),
-    };
-  }
-
-  authRateLimits.set(ip, current);
-  return { allowed: true };
-}
-
-function isPublicPage(pathname: string): boolean {
-  if (PUBLIC_EXACT_PATHS.has(pathname)) {
-    return true;
-  }
-  return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-}
-
-function isStaticAsset(pathname: string): boolean {
-  return pathname.startsWith('/_next/') || /\.[a-zA-Z0-9]+$/.test(pathname);
-}
-
-async function isAuthenticated(request: NextRequest): Promise<boolean> {
-  try {
-    const token = await getToken({
-      req: request,
-      secret: AUTH_SECRET,
-      secureCookie: request.nextUrl.protocol === 'https:',
-    });
-    return Boolean(token?.sub || token?.id);
-  } catch {
-    return false;
-  }
-}
-
-function buildLoginRedirect(request: NextRequest): NextResponse {
-  const loginUrl = request.nextUrl.clone();
-  loginUrl.pathname = '/auth/login';
-  loginUrl.search = '';
-  const callbackUrl = `${request.nextUrl.pathname}${request.nextUrl.search}`;
-  loginUrl.searchParams.set('callbackUrl', callbackUrl);
-  return NextResponse.redirect(loginUrl, 302);
-}
-
-const PROXY_SECURITY_HEADERS: Record<string, string> = {
-  'X-DNS-Prefetch-Control': 'on',
-  'X-Frame-Options': 'DENY',
-  'X-Content-Type-Options': 'nosniff',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-  'X-XSS-Protection': '1; mode=block',
-};
-
-function withProxySecurityHeaders(
-  response: NextResponse,
-  options: { isSecureRequest: boolean },
-): NextResponse {
-  Object.entries(PROXY_SECURITY_HEADERS).forEach(([key, value]) => {
-    response.headers.set(key, value);
-  });
-
-  if (options.isSecureRequest) {
-    response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+  if (user && isAuthPage) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/panel";
+    return NextResponse.redirect(url);
   }
 
   return response;
 }
 
-export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const method = request.method.toUpperCase();
-  const forwardedProto = request.headers.get('x-forwarded-proto');
-  const isSecureRequest = forwardedProto === 'https' || request.nextUrl.protocol === 'https:';
-  const allowInsecureHttp =
-    process.env.NODE_ENV !== 'production' || process.env.ALLOW_INSECURE_HTTP === '1';
-
-  // Healthcheck endpoints must bypass all auth/redirect logic
-  if (pathname === '/api/ready' || pathname === '/api/health') {
-    return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
-  }
-
-  // Keep ACME challenge path on plain HTTP for certificate issuance/renewal.
-  if (!allowInsecureHttp && forwardedProto === 'http' && !pathname.startsWith(ACME_CHALLENGE_PREFIX)) {
-    const httpsUrl = request.nextUrl.clone();
-    const hostHeader = request.headers.get('host');
-    httpsUrl.protocol = 'https:';
-    if (hostHeader) {
-      httpsUrl.host = hostHeader.split(':')[0];
-    }
-    httpsUrl.port = '';
-    return withProxySecurityHeaders(NextResponse.redirect(httpsUrl, 301), { isSecureRequest: false });
-  }
-
-  const publicSiteMode = normalizePublicSiteMode(process.env.PUBLIC_SITE_MODE || 'off');
-  if (isComingSoonMode(publicSiteMode)) {
-    const action = evaluateComingSoonRequest(pathname, method, publicSiteMode);
-
-    if (action.type === 'subscribeOptions') {
-      return withProxySecurityHeaders(new NextResponse(null, {
-        status: 204,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        },
-      }), { isSecureRequest });
-    }
-
-    if (action.type === 'api404') {
-      return withProxySecurityHeaders(NextResponse.json({ error: 'Not Found' }, { status: 404 }), { isSecureRequest });
-    }
-
-    if (action.type === 'rewrite') {
-      const rewriteUrl = request.nextUrl.clone();
-      rewriteUrl.pathname = action.destination;
-      return withProxySecurityHeaders(NextResponse.rewrite(rewriteUrl), { isSecureRequest });
-    }
-
-    if (action.type === 'redirect') {
-      const redirectUrl = request.nextUrl.clone();
-      redirectUrl.pathname = action.destination;
-      redirectUrl.search = '';
-      return withProxySecurityHeaders(NextResponse.redirect(redirectUrl, 302), { isSecureRequest });
-    }
-  }
-
-  if (isRateLimitedAuthEndpoint(pathname)) {
-    const ip = getClientIp(request);
-    const limit = checkAuthRateLimit(ip);
-    if (!limit.allowed) {
-      return withProxySecurityHeaders(NextResponse.json(
-        {
-          error: `Çok fazla başarısız deneme. ${limit.retryAfter} saniye sonra tekrar deneyin.`,
-          retryAfter: limit.retryAfter,
-        },
-        {
-          status: 429,
-          headers: {
-            'Retry-After': String(limit.retryAfter),
-            'X-RateLimit-Remaining': '0',
-          },
-        }
-      ), { isSecureRequest });
-    }
-  }
-
-  const authRedirect = AUTH_REDIRECTS[pathname];
-  if (authRedirect) {
-    const destinationUrl = request.nextUrl.clone();
-    destinationUrl.pathname = authRedirect.destination;
-    destinationUrl.search = '';
-    return withProxySecurityHeaders(
-      NextResponse.redirect(destinationUrl, authRedirect.permanent ? 308 : 307),
-      { isSecureRequest },
-    );
-  }
-
-  const authRoute = pathname.startsWith('/auth/') || pathname === '/signup';
-  if (authRoute) {
-    if (AUTH_ENTRY_PAGES.has(pathname) && (await isAuthenticated(request))) {
-      const dashboardUrl = request.nextUrl.clone();
-      dashboardUrl.pathname = '/dashboard';
-      dashboardUrl.search = '';
-      return withProxySecurityHeaders(NextResponse.redirect(dashboardUrl, 302), { isSecureRequest });
-    }
-    return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
-  }
-
-  if (pathname.startsWith('/api/')) {
-    return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
-  }
-
-  if (isStaticAsset(pathname) || isPublicPage(pathname)) {
-    return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
-  }
-
-  if (!(await isAuthenticated(request))) {
-    return withProxySecurityHeaders(buildLoginRedirect(request), { isSecureRequest });
-  }
-
-  return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
-}
-
 export const config = {
-  matcher: '/:path*',
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|.well-known/workflow/).*)"],
 };

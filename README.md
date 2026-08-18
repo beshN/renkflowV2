@@ -1,36 +1,21 @@
 # RenkFlow V2
 
-Professional ERP & Order Management Platform
+RenkFlow; sipariş, PDF analizi ve üretim sürecini tek akışta yöneten çok şirketli üretim operasyon platformudur.
 
-## Monorepo Structure
+## Teknoloji
 
-```
-RenkFlow V2/
-├── apps/              # Applications
-│   ├── web/           # Next.js Web App (renkflow-nextjs)
-│   ├── mobile/        # React Native Mobile App
-│   └── dashboard/     # Dashboard Application
-├── packages/          # Shared packages (empty - for future shared code)
-├── .github/           # GitHub workflows
-├── package.json       # Root monorepo config
-└── .gitignore         # Global ignore patterns
-```
+- Next.js 16 + React 19
+- Supabase Auth, Postgres, Storage ve RLS
+- Vercel AI Gateway + Workflow
+- Resend SMTP / işlem e-postaları
+- Saf TypeScript JSON AST hesap motoru
 
-## Quick Start
+## Yerel geliştirme
 
 ```bash
-# Web App
-npm run dev:web
-
-# Mobile App  
-npm run dev:mobile
-
-# Dashboard
-npm run build:dashboard
+pnpm install
+cp apps/web/.env.example apps/web/.env.local
+pnpm dev
 ```
 
-## Apps
-
-- **Web**: Next.js 15, TypeScript, Tailwind CSS, Drizzle ORM
-- **Mobile**: React Native / Expo
-- **Dashboard**: Analytics & Reporting Interface
+Supabase şeması `supabase/migrations` altındadır. Canlı anahtarlar yalnızca `.env.local`, Supabase ve Vercel ortam değişkenlerinde tutulur.

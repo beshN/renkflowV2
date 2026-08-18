@@ -1,0 +1,6 @@
+{
+  "kind": "scanned",
+  "minimumSamples": 10,
+  "criticalFields": ["quantity", "widthMm", "heightMm", "lightColor", "profileType", "motorType"],
+  "samples": []
+}

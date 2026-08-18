@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "functions": {
+    "app/api/documents/[id]/analyze/route.ts": { "maxDuration": 300 }
+  },
+  "redirects": [
+    { "source": "/:path*", "has": [{ "type": "host", "value": "www.renkflow.com" }], "destination": "https://renkflow.com/:path*", "permanent": true }
+  ]
+}

@@ -1,31 +1,23 @@
-name: Validate Web App
+name: Validate RenkFlow Core
 
 on:
   pull_request:
-    branches:
-      - main
+    branches: [main]
   push:
-    branches:
-      - codex/**
+    branches: [main, "revamp/**"]
 
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
-
+    timeout-minutes: 25
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
-
-      - name: Install dependencies
-        run: npm --prefix apps/web ci
-
-      - name: Run backend and frontend validation gate
-        run: npm --prefix apps/web run validate
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm validate
