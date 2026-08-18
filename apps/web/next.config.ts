@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
       ["/new-order", "/panel/siparisler/yeni"],
       ["/work-orders", "/panel/is-emirleri"],
       ["/kanban", "/panel/kanban"],
+      ["/calendar", "/panel/takvim"],
       ["/inventory", "/panel/envanter"],
       ["/finance", "/panel/finans"],
       ["/accounting", "/panel/finans"],

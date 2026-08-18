@@ -28,6 +28,7 @@ export const createOrderSchema = z.object({
   customerName: z.string().trim().max(160).optional().default(""),
   projectName: z.string().trim().max(160).optional().default(""),
   customerReference: z.string().trim().max(120).optional().default(""),
+  plannedDeliveryDate: z.union([z.literal(""), z.iso.date()]).optional().default(""),
   notes: z.string().trim().max(5000).optional().default(""),
 });
 

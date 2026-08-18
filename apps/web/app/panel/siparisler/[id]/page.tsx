@@ -79,6 +79,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           <dl>
             <div><dt>Proje</dt><dd>{order.project_name || "—"}</dd></div>
             <div><dt>Referans</dt><dd>{order.customer_reference || "—"}</dd></div>
+            <div><dt>Planlanan teslim</dt><dd>{order.planned_delivery_date ? new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${order.planned_delivery_date}T00:00:00Z`)) : "—"}</dd></div>
             <div><dt>Ürün satırı</dt><dd>{order.order_items?.length ?? 0}</dd></div>
             <div><dt>PDF</dt><dd>{signedDocuments.length}</dd></div>
           </dl>
@@ -91,6 +92,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               <label>Müşteri<input name="customerName" defaultValue={order.customer_name ?? ""} maxLength={160} /></label>
               <label>Proje<input name="projectName" defaultValue={order.project_name ?? ""} maxLength={160} /></label>
               <label>Referans<input name="customerReference" defaultValue={order.customer_reference ?? ""} maxLength={120} /></label>
+              <label>Planlanan teslim<input type="date" name="plannedDeliveryDate" defaultValue={order.planned_delivery_date ?? ""} /></label>
               <label>Notlar<textarea name="notes" defaultValue={order.notes ?? ""} rows={4} maxLength={5000} /></label>
             </ActionForm>
             <CancelOrderAction organizationId={orgId} orderId={order.id} />

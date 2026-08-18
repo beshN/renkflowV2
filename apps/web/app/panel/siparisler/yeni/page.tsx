@@ -23,6 +23,7 @@ export default async function NewOrderPage() {
             <label>Müşteri adı<input name="customerName" placeholder="PDF'den otomatik doldurulabilir" /></label>
             <label>Proje adı<input name="projectName" placeholder="Örn. Kuzey Cephe" /></label>
             <label>Müşteri referansı<input name="customerReference" placeholder="Sipariş / teklif numarası" /></label>
+            <label>Planlanan teslim<input type="date" name="plannedDeliveryDate" /></label>
             <label className="full">Notlar<textarea name="notes" rows={5} placeholder="Sipariş geneli notları" /></label>
           </div>
         </ActionForm>

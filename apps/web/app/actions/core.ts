@@ -36,6 +36,7 @@ export async function createOrder(_: FormActionState, formData: FormData): Promi
       target_customer_name: parsed.data.customerName || null,
       target_project_name: parsed.data.projectName || null,
       target_customer_reference: parsed.data.customerReference || null,
+      target_planned_delivery_date: parsed.data.plannedDeliveryDate || null,
       target_notes: parsed.data.notes || null,
     });
     if (error || !data) return { error: error?.message || "Sipariş oluşturulamadı." };
@@ -56,10 +57,12 @@ export async function updateOrder(input: unknown) {
     target_customer_name: parsed.customerName || null,
     target_project_name: parsed.projectName || null,
     target_customer_reference: parsed.customerReference || null,
+    target_planned_delivery_date: parsed.plannedDeliveryDate || null,
     target_notes: parsed.notes || null,
   });
   if (error) throw new Error("Sipariş güncellenemedi.");
   revalidatePath(`/panel/siparisler/${parsed.orderId}`);
+  revalidatePath("/panel/takvim");
 }
 
 export async function updateOrderForm(_: FormActionState, formData: FormData): Promise<FormActionState> {
