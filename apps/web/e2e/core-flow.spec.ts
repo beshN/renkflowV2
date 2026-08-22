@@ -22,20 +22,18 @@ test.describe("authenticated order to production flow", () => {
     await page.goto("/panel/siparisler/yeni");
     await page.getByLabel("Müşteri adı").fill("E2E Müşteri");
     await page.getByLabel("Proje adı").fill("E2E Proje");
-    await page.getByRole("button", { name: "Siparişi oluştur" }).click();
-    await expect(page).toHaveURL(/\/panel\/siparisler\/[a-f0-9-]+/);
-    await expect(page.getByText("PDF yüklenmedi")).toBeVisible();
-
     const pdf = await PDFDocument.create();
     pdf.addPage([595, 842]);
     const bytes = await pdf.save();
-    await page.getByLabel("PDF dosyası").setInputFiles({
+    await page.getByLabel("Kaynak sipariş PDF’i").setInputFiles({
       name: "e2e-siparis.pdf",
       mimeType: "application/pdf",
       buffer: Buffer.from(bytes),
     });
-    await page.getByRole("button", { name: "PDF yükle ve analiz et" }).click();
+    await page.getByRole("button", { name: "Siparişi oluştur" }).click();
+    await expect(page).toHaveURL(/\/panel\/siparisler\/[a-f0-9-]+\?created=1&upload=(queued|attention)/);
     await expect(page.locator("iframe[title='e2e-siparis.pdf']")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Belge geçmişi")).toBeVisible();
   });
 
   test("review extracted fields and start production", async ({ page }) => {

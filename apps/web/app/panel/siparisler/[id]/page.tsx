@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Calculator, FileText, PackageCheck } from "lucide-react";
+import { Calculator, CircleCheck, ExternalLink, FileText, PackageCheck, TriangleAlert } from "lucide-react";
 import { uploadDocumentAction } from "@/app/actions/documents";
 import { AnalysisReview } from "@/components/analysis-review";
 import { ActionForm } from "@/components/action-form";
@@ -12,8 +12,15 @@ import { updateOrderForm } from "@/app/actions/core";
 import { requireOrganization } from "@/lib/auth";
 import type { ExtractedOrderFields } from "@/lib/types";
 
-export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function OrderDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ created?: string; upload?: string }>;
+}) {
   const { id } = await params;
+  const creationState = await searchParams;
   const { supabase, membership } = await requireOrganization();
   const orgId = membership.organization_id;
   const canManageOrder = membership.role !== "production";
@@ -50,6 +57,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   return (
     <>
       <PageHeader eyebrow="Sipariş detayı" title={order.order_number} description={[order.customer_name, order.project_name].filter(Boolean).join(" · ") || "PDF analiziyle bilgiler doldurulacak."} action={<StatusBadge value={order.status} />} />
+      {creationState.created === "1" ? <CreationNotice upload={creationState.upload} /> : null}
       <div className="order-detail-grid">
         <section className="document-card">
           <div className="card-heading"><div><span>Kaynak belge</span><h2>PDF görüntüleyici</h2></div>{latestAnalysis && <StatusBadge value={latestAnalysis.status} kind="analysis" />}</div>
@@ -72,6 +80,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               <label className="file-input-label">PDF dosyası<input type="file" name="file" accept="application/pdf" required /></label>
             </ActionForm>
           ) : canManageOrder ? <div className="upload-form upload-locked">Üretime alınmış veya kapanmış siparişlerde PDF değiştirilemez.</div> : null}
+          {signedDocuments.length ? <div className="document-history"><header><span>Belge geçmişi</span><b>{signedDocuments.length} sürüm</b></header>{signedDocuments.map((document, index) => <article key={document.id}><FileText size={15} /><div><b>{document.original_name}</b><small>{document.page_count} sayfa · {(Number(document.size_bytes) / 1024 / 1024).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} MB · {new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(document.created_at))}</small></div>{index === 0 ? <em>Güncel</em> : null}{document.signedUrl ? <a href={document.signedUrl} target="_blank" rel="noreferrer" aria-label={`${document.original_name} belgesini aç`}><ExternalLink size={14} /></a> : null}</article>)}</div> : null}
         </section>
         <aside className="order-summary-card">
           <span>Sipariş özeti</span>
@@ -127,4 +136,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
       </div>
     </>
   );
+}
+
+function CreationNotice({ upload }: { upload?: string }) {
+  if (upload === "queued") return <div className="operation-banner operation-success"><CircleCheck size={19} /><div><b>Sipariş ve PDF kaydedildi</b><p>PDF analizi otomatik olarak sıraya alındı. Sonuç hazır olduğunda bu ekran yenilenecek.</p></div></div>;
+  if (upload === "attention") return <div className="operation-banner operation-warning"><TriangleAlert size={19} /><div><b>Sipariş ve PDF kaydedildi</b><p>PDF korundu ancak analiz şu anda başlayamadı. Belge bölümündeki “Analizi başlat” işlemini kullanabilirsiniz.</p></div></div>;
+  if (upload === "failed") return <div className="operation-banner operation-danger"><TriangleAlert size={19} /><div><b>Sipariş oluşturuldu, PDF yüklenemedi</b><p>Dosyayı kontrol edip bu sayfadaki PDF yükleme alanından yeniden deneyin.</p></div></div>;
+  return <div className="operation-banner operation-success"><CircleCheck size={19} /><div><b>Sipariş taslağı oluşturuldu</b><p>Kaynak PDF’yi ekleyerek otomatik analiz akışını başlatabilirsiniz.</p></div></div>;
 }

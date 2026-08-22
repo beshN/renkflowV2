@@ -27,12 +27,14 @@ import InviteEmail from "@/emails/invite";
 import type { FormActionState } from "@/lib/action-state";
 import { extractedOrderFieldsSchema } from "@/lib/ai/extraction-schema";
 import { collectAnalysisCorrections } from "@/lib/ai/corrections";
+import { uploadOrderDocument } from "@/lib/documents/upload";
 
 export async function createOrder(_: FormActionState, formData: FormData): Promise<FormActionState> {
   const parsed = createOrderSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Sipariş bilgileri geçersiz." };
 
   let orderId: string;
+  let uploadStatus: "queued" | "attention" | "failed" | "none" = "none";
   try {
     const { supabase } = await requireMembership(parsed.data.organizationId, ["owner", "admin", "office"]);
     const { data, error } = await supabase.rpc("create_order", {
@@ -45,11 +47,25 @@ export async function createOrder(_: FormActionState, formData: FormData): Promi
     });
     if (error || !data) return { error: error?.message || "Sipariş oluşturulamadı." };
     orderId = data;
+
+    const file = formData.get("file");
+    if (file instanceof File && file.size > 0) {
+      try {
+        const upload = await uploadOrderDocument({
+          organizationId: parsed.data.organizationId,
+          orderId,
+          file,
+        });
+        uploadStatus = upload.analysisQueued ? "queued" : "attention";
+      } catch {
+        uploadStatus = "failed";
+      }
+    }
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Sipariş oluşturulamadı." };
   }
 
-  redirect(`/panel/siparisler/${orderId}`);
+  redirect(`/panel/siparisler/${orderId}?created=1&upload=${uploadStatus}`);
 }
 
 export async function updateOrder(input: unknown) {
@@ -91,7 +107,11 @@ export async function cancelOrder(input: unknown) {
 }
 
 export async function reviewAnalysis(input: unknown) {
-  const parsed = reviewAnalysisSchema.parse(input);
+  const parsedResult = reviewAnalysisSchema.safeParse(input);
+  if (!parsedResult.success) {
+    throw new Error("Doğrulanan sipariş alanlarını kontrol edin. En az bir geçerli ürün satırı bulunmalı.");
+  }
+  const parsed = parsedResult.data;
   const { supabase } = await requireMembership(parsed.organizationId, ["owner", "admin", "office"]);
   const { data: analysis } = await supabase.from("document_analyses")
     .select("normalized_output, status")

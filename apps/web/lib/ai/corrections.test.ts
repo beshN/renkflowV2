@@ -40,4 +40,18 @@ describe("analysis corrections", () => {
       correctedValue: null,
     });
   });
+
+  it("records fields from a manually added item row", () => {
+    const original = output();
+    const verified = output();
+    const added = structuredClone(verified.items[0]);
+    added.quantity.value = 2;
+    added.widthMm.value = 850;
+    verified.items.push(added);
+
+    expect(collectAnalysisCorrections(original, verified)).toEqual(expect.arrayContaining([
+      { fieldPath: "items.1.quantity", aiValue: null, correctedValue: 2 },
+      { fieldPath: "items.1.widthMm", aiValue: null, correctedValue: 850 },
+    ]));
+  });
 });
