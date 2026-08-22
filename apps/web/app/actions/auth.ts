@@ -35,7 +35,7 @@ export async function signUpAction(_: AuthActionState, formData: FormData): Prom
     },
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: "Hesap oluşturulamadı. E-posta adresini ve parola kurallarını kontrol edin." };
   return { success: "Doğrulama bağlantısını e-posta adresinize gönderdik." };
 }
 
@@ -50,7 +50,7 @@ export async function requestPasswordResetAction(
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/auth/callback?next=${encodeURIComponent("/parola-yenile")}`,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: "Parola yenileme isteği gönderilemedi. Biraz sonra yeniden deneyin." };
   return { success: "Parola yenileme bağlantısı gönderildi." };
 }
 

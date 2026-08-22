@@ -15,6 +15,9 @@ test("legacy dashboard routes remain compatible", async ({ page }) => {
 
   await page.goto("/calendar");
   await expect(page).toHaveURL(/\/giris\?next=%2Fpanel%2Ftakvim$/);
+
+  await page.goto("/audit");
+  await expect(page).toHaveURL(/\/giris\?next=%2Fpanel%2Fdenetim$/);
 });
 
 test("authentication callback cannot redirect to another origin", async ({ request }) => {

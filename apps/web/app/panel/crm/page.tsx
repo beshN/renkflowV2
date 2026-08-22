@@ -1,6 +1,6 @@
 import { Building2, Mail, Phone, ShoppingBag, UserRound } from "lucide-react";
 import { redirect } from "next/navigation";
-import { createCustomer } from "@/app/actions/business";
+import { createCustomer, updateCustomerStatus } from "@/app/actions/business";
 import { ActionForm } from "@/components/action-form";
 import { PageHeader } from "@/components/page-header";
 import { requireOrganization } from "@/lib/auth";
@@ -11,10 +11,11 @@ export default async function CrmPage() {
   const { supabase, membership } = await requireOrganization();
   if (membership.role === "production") redirect("/panel");
   const orgId = membership.organization_id;
-  const [{ data: customers }, { data: orders }] = await Promise.all([
+  const [{ data: customers, error: customersError }, { data: orders, error: ordersError }] = await Promise.all([
     supabase.from("crm_customers").select("*").eq("organization_id", orgId).order("updated_at", { ascending: false }),
     supabase.from("orders").select("customer_name, status").eq("organization_id", orgId).not("customer_name", "is", null),
   ]);
+  if (customersError || ordersError) throw new Error("CRM verileri yüklenemedi.");
   const ordersByCustomer = new Map<string, { total: number; active: number }>();
   for (const order of orders ?? []) {
     const name = order.customer_name?.trim(); if (!name) continue;
@@ -29,7 +30,7 @@ export default async function CrmPage() {
       <div className="business-layout">
         <section className="content-card">
           <div className="card-heading"><div><span>Müşteri portföyü</span><h2>Kayıtlı müşteriler</h2></div><Building2 size={20} /></div>
-          <div className="business-list">{(customers ?? []).map((customer) => { const stats = ordersByCustomer.get(customer.name.toLocaleLowerCase("tr-TR")) ?? { total: 0, active: 0 }; return <article key={customer.id}><span>{customer.name.slice(0, 1).toUpperCase()}</span><div><b>{customer.name}</b><small>{customer.contact_person || "Yetkili belirtilmedi"}</small><p>{customer.email ? <em><Mail size={11} />{customer.email}</em> : null}{customer.phone ? <em><Phone size={11} />{customer.phone}</em> : null}</p></div><dl><div><dt>Toplam sipariş</dt><dd>{stats.total}</dd></div><div><dt>Aktif iş</dt><dd>{stats.active}</dd></div></dl><i className={`business-status status-${customer.status}`}>{statusLabels[customer.status]}</i></article>; })}{!customers?.length && <div className="compact-empty"><UserRound size={25} /><p>Henüz müşteri kartı yok. Siparişlerdeki müşterileri kartlaştırarak başlayın.</p></div>}</div>
+          <div className="business-list">{(customers ?? []).map((customer) => { const stats = ordersByCustomer.get(customer.name.toLocaleLowerCase("tr-TR")) ?? { total: 0, active: 0 }; return <article key={customer.id}><span>{customer.name.slice(0, 1).toUpperCase()}</span><div><b>{customer.name}</b><small>{customer.contact_person || "Yetkili belirtilmedi"}</small><p>{customer.email ? <em><Mail size={11} />{customer.email}</em> : null}{customer.phone ? <em><Phone size={11} />{customer.phone}</em> : null}</p></div><dl><div><dt>Toplam sipariş</dt><dd>{stats.total}</dd></div><div><dt>Aktif iş</dt><dd>{stats.active}</dd></div></dl><div className="business-record-actions"><i className={`business-status status-${customer.status}`}>{statusLabels[customer.status]}</i><ActionForm action={updateCustomerStatus} className="inline-status-form" submitLabel="Güncelle" pendingLabel="…"><input type="hidden" name="organizationId" value={orgId} /><input type="hidden" name="customerId" value={customer.id} /><select name="status" defaultValue={customer.status} aria-label={`${customer.name} durumu`}><option value="prospect">Potansiyel</option><option value="active">Aktif</option><option value="inactive">Pasif</option></select></ActionForm></div></article>; })}{!customers?.length && <div className="compact-empty"><UserRound size={25} /><p>Henüz müşteri kartı yok. Siparişlerdeki müşterileri kartlaştırarak başlayın.</p></div>}</div>
         </section>
         <section className="form-card business-form-card">
           <div className="card-heading"><div><span>Yeni CRM kaydı</span><h2>Müşteri kartı oluştur</h2></div></div>

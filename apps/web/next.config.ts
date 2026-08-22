@@ -29,6 +29,7 @@ const nextConfig: NextConfig = {
       ["/settings", "/panel/ayarlar"],
       ["/search", "/panel/arama"],
       ["/notifications", "/panel/bildirimler"],
+      ["/audit", "/panel/denetim"],
     ].map(([source, destination]) => ({ source, destination, permanent: false }));
   },
   async headers() {

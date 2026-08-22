@@ -14,6 +14,10 @@ import {
   inviteMemberSchema,
   reviewAnalysisSchema,
   updateOrderSchema,
+  manageMemberSchema,
+  removeMemberSchema,
+  revokeInviteSchema,
+  organizationSettingsSchema,
 } from "@/lib/server-schemas";
 import { requireMembership } from "@/lib/auth";
 import { validateRuleAst } from "@/lib/rules/engine";
@@ -180,6 +184,83 @@ export async function inviteMember(_: FormActionState, formData: FormData): Prom
     return { success: "Davet e-postası gönderildi." };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Davet gönderilemedi." };
+  }
+}
+
+export async function updateMemberRole(_: FormActionState, formData: FormData): Promise<FormActionState> {
+  const parsed = manageMemberSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "Ekip üyesi veya rol bilgisi geçersiz." };
+  try {
+    const { supabase } = await requireMembership(parsed.data.organizationId, ["owner", "admin"]);
+    const { error } = await supabase.rpc("manage_organization_member", {
+      target_organization: parsed.data.organizationId,
+      target_user: parsed.data.userId,
+      requested_action: "update_role",
+      requested_role: parsed.data.role,
+    });
+    if (error) return { error: error.message || "Üye rolü güncellenemedi." };
+    revalidatePath("/panel/ekip");
+    revalidatePath("/panel/denetim");
+    return { success: "Üye rolü güncellendi." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Üye rolü güncellenemedi." };
+  }
+}
+
+export async function removeMember(_: FormActionState, formData: FormData): Promise<FormActionState> {
+  const parsed = removeMemberSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "Ekip üyesi bilgisi geçersiz." };
+  try {
+    const { supabase } = await requireMembership(parsed.data.organizationId, ["owner", "admin"]);
+    const { error } = await supabase.rpc("manage_organization_member", {
+      target_organization: parsed.data.organizationId,
+      target_user: parsed.data.userId,
+      requested_action: "remove",
+      requested_role: null,
+    });
+    if (error) return { error: error.message || "Üye ekipten çıkarılamadı." };
+    revalidatePath("/panel/ekip");
+    revalidatePath("/panel/denetim");
+    return { success: "Üye ekipten çıkarıldı." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Üye ekipten çıkarılamadı." };
+  }
+}
+
+export async function revokeInvite(_: FormActionState, formData: FormData): Promise<FormActionState> {
+  const parsed = revokeInviteSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "Davet bilgisi geçersiz." };
+  try {
+    const { supabase } = await requireMembership(parsed.data.organizationId, ["owner", "admin"]);
+    const { error } = await supabase.rpc("revoke_organization_invite", {
+      target_organization: parsed.data.organizationId,
+      target_invite: parsed.data.inviteId,
+    });
+    if (error) return { error: error.message || "Davet iptal edilemedi." };
+    revalidatePath("/panel/ekip");
+    revalidatePath("/panel/denetim");
+    return { success: "Davet iptal edildi." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Davet iptal edilemedi." };
+  }
+}
+
+export async function updateOrganizationSettings(_: FormActionState, formData: FormData): Promise<FormActionState> {
+  const parsed = organizationSettingsSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "Şirket adı 2–120 karakter arasında olmalı." };
+  try {
+    const { supabase } = await requireMembership(parsed.data.organizationId, ["owner", "admin"]);
+    const { error } = await supabase.rpc("update_organization_settings", {
+      target_organization: parsed.data.organizationId,
+      target_name: parsed.data.name,
+    });
+    if (error) return { error: error.message || "Şirket bilgileri güncellenemedi." };
+    revalidatePath("/panel", "layout");
+    revalidatePath("/panel/ayarlar");
+    revalidatePath("/panel/denetim");
+    return { success: "Şirket bilgileri güncellendi." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Şirket bilgileri güncellenemedi." };
   }
 }
 

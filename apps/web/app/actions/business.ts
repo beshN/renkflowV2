@@ -30,6 +30,32 @@ const financialSchema = z.object({
   amount: numberField, currency: z.enum(["TRY", "EUR", "USD"]), issueDate: z.iso.date(), dueDate: z.union([z.literal(""), z.iso.date()]).transform((value) => value || null), notes: optionalText,
 });
 
+const inventoryMovementSchema = z.object({
+  organizationId: z.uuid(),
+  inventoryItemId: z.uuid(),
+  movementType: z.enum(["receipt", "consumption", "increase_adjustment", "decrease_adjustment"]),
+  quantity: z.coerce.number().positive().max(999_999_999),
+  notes: z.string().trim().max(1000).optional().transform((value) => value || null),
+});
+
+const customerStatusSchema = z.object({
+  organizationId: z.uuid(),
+  customerId: z.uuid(),
+  status: z.enum(["prospect", "active", "inactive"]),
+});
+
+const supplierStatusSchema = z.object({
+  organizationId: z.uuid(),
+  supplierId: z.uuid(),
+  status: z.enum(["active", "paused", "inactive"]),
+});
+
+const financialStatusSchema = z.object({
+  organizationId: z.uuid(),
+  recordId: z.uuid(),
+  status: z.enum(["draft", "issued", "paid", "overdue", "cancelled"]),
+});
+
 export async function createCustomer(_: FormActionState, formData: FormData): Promise<FormActionState> {
   const parsed = customerSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Müşteri bilgileri geçersiz." };
@@ -72,4 +98,73 @@ export async function createFinancialRecord(_: FormActionState, formData: FormDa
     if (error) return { error: error.code === "23505" ? "Bu kayıt numarası zaten kullanılıyor." : "Finans kaydı oluşturulamadı." };
     revalidatePath("/panel/finans"); return { success: "Finans kaydı oluşturuldu." };
   } catch (error) { return { error: error instanceof Error ? error.message : "Finans kaydı oluşturulamadı." }; }
+}
+
+export async function recordInventoryMovement(_: FormActionState, formData: FormData): Promise<FormActionState> {
+  const parsed = inventoryMovementSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Stok hareketi geçersiz." };
+  try {
+    const { supabase } = await requireMembership(parsed.data.organizationId, ["owner", "admin", "office", "production"]);
+    const { error } = await supabase.rpc("record_inventory_movement", {
+      target_organization: parsed.data.organizationId,
+      target_inventory_item: parsed.data.inventoryItemId,
+      target_movement_type: parsed.data.movementType,
+      target_quantity: parsed.data.quantity,
+      target_notes: parsed.data.notes,
+    });
+    if (error) return { error: error.message || "Stok hareketi kaydedilemedi." };
+    revalidatePath("/panel/envanter");
+    revalidatePath("/panel/denetim");
+    return { success: "Stok hareketi işlendi." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Stok hareketi kaydedilemedi." };
+  }
+}
+
+export async function updateCustomerStatus(_: FormActionState, formData: FormData): Promise<FormActionState> {
+  const parsed = customerStatusSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "Müşteri durumu geçersiz." };
+  try {
+    const { supabase } = await requireMembership(parsed.data.organizationId, ["owner", "admin", "office"]);
+    const { data, error } = await supabase.from("crm_customers").update({ status: parsed.data.status })
+      .eq("organization_id", parsed.data.organizationId).eq("id", parsed.data.customerId).select("id").maybeSingle();
+    if (error || !data) return { error: "Müşteri durumu güncellenemedi." };
+    revalidatePath("/panel/crm");
+    revalidatePath("/panel/denetim");
+    return { success: "Müşteri durumu güncellendi." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Müşteri durumu güncellenemedi." };
+  }
+}
+
+export async function updateSupplierStatus(_: FormActionState, formData: FormData): Promise<FormActionState> {
+  const parsed = supplierStatusSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "Tedarikçi durumu geçersiz." };
+  try {
+    const { supabase } = await requireMembership(parsed.data.organizationId, ["owner", "admin", "office"]);
+    const { data, error } = await supabase.from("suppliers").update({ status: parsed.data.status })
+      .eq("organization_id", parsed.data.organizationId).eq("id", parsed.data.supplierId).select("id").maybeSingle();
+    if (error || !data) return { error: "Tedarikçi durumu güncellenemedi." };
+    revalidatePath("/panel/tedarikciler");
+    revalidatePath("/panel/denetim");
+    return { success: "Tedarikçi durumu güncellendi." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Tedarikçi durumu güncellenemedi." };
+  }
+}
+
+export async function updateFinancialStatus(_: FormActionState, formData: FormData): Promise<FormActionState> {
+  const parsed = financialStatusSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "Finans durumu geçersiz." };
+  try {
+    const { supabase } = await requireMembership(parsed.data.organizationId, ["owner", "admin"]);
+    const { data, error } = await supabase.from("financial_records").update({ status: parsed.data.status })
+      .eq("organization_id", parsed.data.organizationId).eq("id", parsed.data.recordId).select("id").maybeSingle();
+    if (error || !data) return { error: "Finans durumu güncellenemedi." };
+    revalidatePath("/panel/finans");
+    revalidatePath("/panel/denetim");
+    return { success: "Finans durumu güncellendi." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Finans durumu güncellenemedi." };
+  }
 }

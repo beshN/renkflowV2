@@ -34,3 +34,24 @@ export const productionStagesSchema = z.object({
     position: z.number().int().min(1).max(50),
   })).min(1).max(50),
 });
+
+export const manageMemberSchema = z.object({
+  organizationId: z.uuid(),
+  userId: z.uuid(),
+  role: z.enum(["admin", "office", "production"]),
+});
+
+export const removeMemberSchema = manageMemberSchema.pick({
+  organizationId: true,
+  userId: true,
+});
+
+export const revokeInviteSchema = z.object({
+  organizationId: z.uuid(),
+  inviteId: z.uuid(),
+});
+
+export const organizationSettingsSchema = z.object({
+  organizationId: z.uuid(),
+  name: z.string().trim().min(2).max(120),
+});
