@@ -11,6 +11,19 @@ import { CancelOrderAction } from "@/components/cancel-order-action";
 import { updateOrderForm } from "@/app/actions/core";
 import { requireOrganization } from "@/lib/auth";
 import type { ExtractedOrderFields } from "@/lib/types";
+import { ManualOrderItemsEditor, ReadonlyOrderItems, type ManualOrderItemValue } from "@/components/manual-order-items-editor";
+
+type OrderItemRow = {
+  id: string;
+  line_number: number;
+  quantity: number;
+  width_mm: number | string | null;
+  height_mm: number | string | null;
+  light_color: string | null;
+  profile_type: string | null;
+  motor_type: string | null;
+  notes: string | null;
+};
 
 export default async function OrderDetailPage({
   params,
@@ -51,8 +64,21 @@ export default async function OrderDetailPage({
   const latestDocument = signedDocuments[0];
   const latestAnalysis = analyses?.find((analysis) => analysis.document_id === latestDocument?.id);
   const activeAnalysis = canManageOrder && latestAnalysis?.status === "needs_review" ? latestAnalysis : undefined;
+  const runningAnalysis = analyses?.find((analysis) => analysis.status === "queued" || analysis.status === "running");
   const canUploadDocument = canManageOrder && ["draft", "awaiting_review", "approved"].includes(order.status);
   const canEditOrder = canManageOrder && ["draft", "awaiting_review", "approved"].includes(order.status);
+  const orderItems: ManualOrderItemValue[] = (order.order_items as OrderItemRow[] | undefined ?? [])
+    .toSorted((left, right) => left.line_number - right.line_number)
+    .map((item) => ({
+      id: item.id,
+      quantity: Number(item.quantity),
+      widthMm: item.width_mm === null ? null : Number(item.width_mm),
+      heightMm: item.height_mm === null ? null : Number(item.height_mm),
+      lightColor: item.light_color ?? "",
+      profileType: item.profile_type ?? "",
+      motorType: item.motor_type ?? "",
+      notes: item.notes ?? "",
+    }));
 
   return (
     <>
@@ -91,8 +117,10 @@ export default async function OrderDetailPage({
             <div><dt>Planlanan teslim</dt><dd>{order.planned_delivery_date ? new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${order.planned_delivery_date}T00:00:00Z`)) : "—"}</dd></div>
             <div><dt>Ürün satırı</dt><dd>{order.order_items?.length ?? 0}</dd></div>
             <div><dt>PDF</dt><dd>{signedDocuments.length}</dd></div>
+            {order.delivered_at ? <div><dt>Teslim edildi</dt><dd>{new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(order.delivered_at))}</dd></div> : null}
           </dl>
           <p>{order.notes || "Sipariş notu yok."}</p>
+          {order.delivery_note ? <p className="delivery-note"><b>Teslim notu</b>{order.delivery_note}</p> : null}
           {canEditOrder ? <details className="order-edit-details">
             <summary>Temel bilgileri düzenle</summary>
             <ActionForm action={updateOrderForm} className="record-form" submitLabel="Bilgileri kaydet" pendingLabel="Kaydediliyor…">
@@ -117,6 +145,16 @@ export default async function OrderDetailPage({
           initial={activeAnalysis.normalized_output as ExtractedOrderFields}
         />
       )}
+
+      {canEditOrder && !activeAnalysis ? (
+        <ManualOrderItemsEditor
+          organizationId={orgId}
+          orderId={order.id}
+          orderStatus={order.status as "draft" | "awaiting_review" | "approved"}
+          initialItems={orderItems}
+          approvalBlockedReason={runningAnalysis ? "PDF analizi şu anda çalışıyor. Manuel taslağı kaydedebilirsiniz; üretim onayı analiz tamamlandıktan sonra açılır." : undefined}
+        />
+      ) : !activeAnalysis ? <ReadonlyOrderItems items={orderItems} /> : null}
 
       <div className="lower-detail-grid">
         <section className="content-card">

@@ -55,4 +55,28 @@ test.describe("authenticated order to production flow", () => {
     await page.getByRole("button", { name: "Hazırlık aşamasını başlat" }).click();
     await expect(page.getByText("Hazırlık devam ediyor.")).toBeVisible();
   });
+
+  test("create and approve an order without PDF or AI", async ({ page }) => {
+    await page.goto("/giris");
+    await page.getByLabel("E-posta").fill(process.env.E2E_EMAIL!);
+    await page.getByLabel("Parola", { exact: true }).fill(process.env.E2E_PASSWORD!);
+    await page.getByRole("button", { name: "Giriş yap" }).click();
+
+    await page.goto("/panel/siparisler/yeni");
+    const customerName = `Manuel E2E ${Date.now()}`;
+    await page.getByLabel("Müşteri adı").fill(customerName);
+    await page.getByRole("button", { name: "Siparişi oluştur" }).click();
+    await expect(page).toHaveURL(/\/panel\/siparisler\/[a-f0-9-]+\?created=1&upload=none/);
+
+    const editor = page.locator(".manual-items-card");
+    await expect(editor.getByRole("heading", { name: "Ürün satırları" })).toBeVisible();
+    await editor.getByLabel("Adet").fill("2");
+    await editor.getByLabel("Genişlik (mm)").fill("1250");
+    await editor.getByLabel("Yükseklik (mm)").fill("2100");
+    await editor.getByLabel("Motor tipi").fill("Somfy");
+    await editor.getByRole("button", { name: "Kaydet ve üretime onayla" }).click();
+
+    await expect(page.getByText("Onaylandı", { exact: true })).toBeVisible();
+    await expect(page.getByText("1250 × 2100 mm", { exact: true })).toBeVisible();
+  });
 });

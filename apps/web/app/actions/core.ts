@@ -18,6 +18,8 @@ import {
   removeMemberSchema,
   revokeInviteSchema,
   organizationSettingsSchema,
+  saveManualOrderItemsSchema,
+  markOrderDeliveredSchema,
 } from "@/lib/server-schemas";
 import { requireMembership } from "@/lib/auth";
 import { validateRuleAst } from "@/lib/rules/engine";
@@ -147,6 +149,43 @@ export async function advanceOrderStage(input: unknown) {
 
   revalidatePath("/panel/uretim");
   revalidatePath(`/panel/siparisler/${parsed.orderId}`);
+}
+
+export async function saveManualOrderItems(input: unknown) {
+  const parsedResult = saveManualOrderItemsSchema.safeParse(input);
+  if (!parsedResult.success) {
+    throw new Error(parsedResult.error.issues[0]?.message ?? "Ürün satırlarını kontrol edin.");
+  }
+  const parsed = parsedResult.data;
+  const { supabase } = await requireMembership(parsed.organizationId, ["owner", "admin", "office"]);
+  const { error } = await supabase.rpc("save_manual_order_items", {
+    target_organization: parsed.organizationId,
+    target_order: parsed.orderId,
+    item_payload: parsed.items,
+    approve_order: parsed.approve,
+  });
+  if (error) throw new Error(error.message || "Ürün satırları kaydedilemedi.");
+
+  revalidatePath("/panel");
+  revalidatePath("/panel/siparisler");
+  revalidatePath(`/panel/siparisler/${parsed.orderId}`);
+  revalidatePath("/panel/uretim");
+}
+
+export async function markOrderDelivered(input: unknown) {
+  const parsed = markOrderDeliveredSchema.parse(input);
+  const { supabase } = await requireMembership(parsed.organizationId, ["owner", "admin", "office"]);
+  const { error } = await supabase.rpc("mark_order_delivered", {
+    target_organization: parsed.organizationId,
+    target_order: parsed.orderId,
+    delivery_note: parsed.note || null,
+  });
+  if (error) throw new Error(error.message || "Teslim kaydı oluşturulamadı.");
+
+  revalidatePath("/panel");
+  revalidatePath("/panel/siparisler");
+  revalidatePath(`/panel/siparisler/${parsed.orderId}`);
+  revalidatePath("/panel/uretim");
 }
 
 export async function inviteMember(_: FormActionState, formData: FormData): Promise<FormActionState> {

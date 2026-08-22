@@ -55,3 +55,26 @@ export const organizationSettingsSchema = z.object({
   organizationId: z.uuid(),
   name: z.string().trim().min(2).max(120),
 });
+
+export const manualOrderItemSchema = z.object({
+  quantity: z.number().int().min(1).max(1_000_000),
+  widthMm: z.number().positive().max(9_999_999_999.99).nullable(),
+  heightMm: z.number().positive().max(9_999_999_999.99).nullable(),
+  lightColor: z.string().trim().max(120),
+  profileType: z.string().trim().max(120),
+  motorType: z.string().trim().max(120),
+  notes: z.string().trim().max(2000),
+});
+
+export const saveManualOrderItemsSchema = z.object({
+  organizationId: z.uuid(),
+  orderId: z.uuid(),
+  items: z.array(manualOrderItemSchema).min(1).max(250),
+  approve: z.boolean(),
+});
+
+export const markOrderDeliveredSchema = z.object({
+  organizationId: z.uuid(),
+  orderId: z.uuid(),
+  note: z.string().trim().max(1000).optional().default(""),
+});

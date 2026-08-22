@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { Boxes } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { StageAction } from "@/components/stage-action";
+import { DeliveryAction, StageAction } from "@/components/stage-action";
 import { StatusBadge } from "@/components/status-badge";
 import { requireOrganization } from "@/lib/auth";
 import { deriveProductionProgress } from "@/lib/production/progression";
@@ -10,6 +10,7 @@ import { deriveProductionProgress } from "@/lib/production/progression";
 export default async function ProductionPage() {
   const { supabase, membership } = await requireOrganization();
   const orgId = membership.organization_id;
+  const canConfirmDelivery = membership.role !== "production";
   const [{ data: stages }, { data: orders }, { data: events }] = await Promise.all([
     supabase.from("production_stages").select("*").eq("organization_id", orgId).eq("is_active", true).order("position"),
     supabase.from("orders").select("id, order_number, customer_name, project_name, status")
@@ -44,7 +45,10 @@ export default async function ProductionPage() {
               </div>
               <div className="production-progress" style={stageGridStyle} aria-label={progress.message}>{stageList.map((stage) => <i key={stage.id} className={completedStageIds.has(stage.id) ? "done" : progress.activeStageId === stage.id ? "active" : ""} title={stage.name} aria-hidden="true" />)}</div>
               <p className="production-message">{progress.message}</p>
-              <div className="production-footer"><Link href={`/panel/siparisler/${order.id}`}>Siparişi aç</Link>{progress.action ? <StageAction organizationId={orgId} orderId={order.id} stageId={progress.action.stageId} eventType={progress.action.eventType} label={progress.action.label} /> : null}</div>
+              <div className="production-footer">
+                <Link href={`/panel/siparisler/${order.id}`}>Siparişi aç</Link>
+                {progress.action ? <StageAction organizationId={orgId} orderId={order.id} stageId={progress.action.stageId} eventType={progress.action.eventType} label={progress.action.label} /> : order.status === "ready" && canConfirmDelivery ? <DeliveryAction organizationId={orgId} orderId={order.id} /> : order.status === "ready" ? <small className="delivery-office-note">Teslim kaydını ofis kapatır.</small> : null}
+              </div>
             </article>
           );
         })}
