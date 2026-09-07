@@ -9,7 +9,8 @@ import type { LucideIcon } from 'lucide-react';
 import { 
   Home, Receipt, PlusCircle, ClipboardList, KanbanSquare, Search, 
   Bell, Wallet, Boxes, BarChart3, Activity, Users, UserRound, 
-  Settings, LogOut, ChevronLeft, ChevronRight, LayoutGrid
+  Settings, LogOut, ChevronLeft, ChevronRight, LayoutGrid,
+  FileText, Building2, Truck, MessageSquare, ShoppingCart
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -21,12 +22,16 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   dashboard: Home,
   orders: Receipt,
   'new-order': PlusCircle,
+  quotations: FileText,
   'work-orders': ClipboardList,
   kanban: KanbanSquare,
   search: Search,
   notifications: Bell,
   finance: Wallet,
   inventory: Boxes,
+  suppliers: Building2,
+  shipments: Truck,
+  crm: ShoppingCart,
   reports: BarChart3,
   analytics: Activity,
   team: Users,

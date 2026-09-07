@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { sql, withTransaction } from '@/lib/db';
 import { withServerActionTiming } from '@/lib/utils/metrics';
 import { getServerUserContext, requirePermission } from '@/lib/auth/serverAuth';
+import { isNativeInventoryEnabled } from '@/lib/features/manufacturing/mode';
 
 export type StockMovementType = 'IN' | 'OUT' | 'ADJUST';
 
@@ -328,6 +329,10 @@ export async function createStockMovement(
   return withServerActionTiming('inventory.createStockMovement', async () => {
     const context = await getServerUserContext();
     requirePermission(context, 'inventory.movements.create');
+
+    if (isNativeInventoryEnabled()) {
+      throw new Error('Eski stok hareketi girişi native stok pilotunda salt okunurdur. /api/v1/inventory uçlarını kullanın.');
+    }
 
     const validated = CreateStockMovementSchema.parse(input);
     const movement = await withTransaction(async (tx) => {

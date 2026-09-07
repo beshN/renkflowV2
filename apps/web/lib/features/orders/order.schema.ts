@@ -136,6 +136,13 @@ export const orderItemSchema = z.object({
   unitPrice: safePositiveNumber.optional(),
   totalPrice: safePositiveNumber.optional(),
   description: sanitizedString.pipe(z.string().max(1000, 'Açıklama çok uzun')).optional(),
+  color: sanitizedString.optional(),
+  widthMm: safePositiveNumber.optional(),
+  heightMm: safePositiveNumber.optional(),
+  motorType: sanitizedString.optional(),
+  ledType: sanitizedString.optional(),
+  fabricType: sanitizedString.optional(),
+  notes: sanitizedString.optional(),
 });
 
 export const createOrderSchema = z.object({
@@ -154,6 +161,8 @@ export const createOrderSchema = z.object({
   currency: CurrencySchema.default('TRY'),
   deliveryDate: optionalDate,
   notes: optionalNotes,
+  specialNotes: optionalNotes,
+  items: z.array(orderItemSchema).optional(),
 });
 
 export const updateOrderSchema = z.object({

@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "types/**/*.d.ts",
+    "lib/features/manufacturing/**/*.ts",
+    "lib/features/work-orders/service.ts",
+    "lib/features/work-orders/security.ts",
+    "lib/features/work-orders/status.ts",
+    "lib/features/work-orders/blocked-reason.ts",
+    "app/api/v1/boms/**/*.ts",
+    "app/api/v1/inventory/**/*.ts",
+    "app/api/v1/manufacturing/**/*.ts",
+    "app/api/v1/procurement/**/*.ts",
+    "app/api/v1/goods-receipts/**/*.ts",
+    "app/api/v1/purchase-orders/**/*.ts",
+    "app/actions/inventory.actions.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "scripts"
+  ]
+}

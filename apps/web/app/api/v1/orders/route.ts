@@ -83,7 +83,17 @@ export async function POST(request: NextRequest) {
         currency: formData.get('currency') || undefined,
         deliveryDate: formData.get('deliveryDate'),
         notes: formData.get('notes') || undefined,
+        specialNotes: formData.get('specialNotes') || undefined,
       };
+      
+      const itemsRaw = formData.get('items');
+      if (itemsRaw && typeof itemsRaw === 'string') {
+        try {
+          rawData.items = JSON.parse(itemsRaw);
+        } catch (e) {
+          console.error('Failed to parse items from FormData', e);
+        }
+      }
     } else {
       // Handle JSON body
       rawData = await request.json();

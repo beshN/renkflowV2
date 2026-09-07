@@ -124,8 +124,8 @@ export const DashboardPreview: React.FC<DashboardPreviewProps> = ({ isDark, loca
     },
   } as const;
   const text = localizedCopy[uiLocale];
-  const weeklyData = weeklyBase.map((value, index) => ({ name: text.weeklyLabels[index] ?? '', value }));
-  const monthlyData = monthlyBase.map((value, index) => ({ name: text.monthlyLabels[index] ?? '', value }));
+  const weeklyData: Array<{ name: string; value: number }> = weeklyBase.map((value, index) => ({ name: text.weeklyLabels[index] ?? '', value }));
+  const monthlyData: Array<{ name: string; value: number }> = monthlyBase.map((value, index) => ({ name: text.monthlyLabels[index] ?? '', value }));
   const currencyNumber = new Intl.NumberFormat(uiLocale === 'tr' ? 'tr-TR' : uiLocale === 'ar' ? 'ar-EG' : 'en-US');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [dataMode, setDataMode] = useState<'weekly' | 'monthly'>('weekly');

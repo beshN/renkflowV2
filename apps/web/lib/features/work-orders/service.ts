@@ -12,6 +12,8 @@ import {
   WorkOrderStatus,
 } from './status';
 import { WorkOrderActor, WorkOrderApiError } from './security';
+import { createProductionWorkOrder } from '@/lib/features/manufacturing/manufacturing.service';
+import { CreateProductionWorkOrderInputSchema } from '@/lib/features/manufacturing/types';
 import {
   normalizeBlockedReasonCategory,
   normalizeBlockedReasonDetail,
@@ -38,6 +40,11 @@ export const CreateWorkOrderInputSchema = z.object({
   estimatedMinutes: z.number().int().positive().max(24 * 60 * 30).optional(),
   assignedToUserId: z.string().uuid().optional(),
   checklist: z.array(ChecklistInputSchema).max(100).default([]),
+  manufacturing: CreateProductionWorkOrderInputSchema.omit({
+    title: true,
+    priority: true,
+    dueAt: true,
+  }).optional(),
 });
 
 export const UpdateWorkOrderInputSchema = z
@@ -109,6 +116,17 @@ type WorkOrderRow = {
   checklist_total?: number;
   checklist_completed?: number;
   comment_total?: number;
+  order_id?: string | null;
+  bom_id?: string | null;
+  production_item_id?: string | null;
+  planned_qty?: string | number | null;
+  produced_qty?: string | number;
+  production_uom?: string | null;
+  source_warehouse_id?: string | null;
+  wip_warehouse_id?: string | null;
+  target_warehouse_id?: string | null;
+  scrap_warehouse_id?: string | null;
+  reservation_status?: string;
 };
 
 type ChecklistItemRow = {
@@ -165,6 +183,19 @@ function mapWorkOrderRow(row: WorkOrderRow) {
     checklistTotal: Number(row.checklist_total || 0),
     checklistCompleted: Number(row.checklist_completed || 0),
     commentTotal: Number(row.comment_total || 0),
+    manufacturing: row.bom_id ? {
+      orderId: row.order_id || null,
+      bomId: row.bom_id,
+      productionItemId: row.production_item_id || null,
+      plannedQty: row.planned_qty == null ? null : Number(row.planned_qty),
+      producedQty: Number(row.produced_qty || 0),
+      productionUom: row.production_uom || null,
+      sourceWarehouseId: row.source_warehouse_id || null,
+      wipWarehouseId: row.wip_warehouse_id || null,
+      targetWarehouseId: row.target_warehouse_id || null,
+      scrapWarehouseId: row.scrap_warehouse_id || null,
+      reservationStatus: row.reservation_status || 'not_reserved',
+    } : null,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
   };
@@ -439,6 +470,17 @@ export async function createWorkOrder(
   actor: WorkOrderActor,
   input: z.infer<typeof CreateWorkOrderInputSchema>
 ) {
+  if (input.manufacturing) {
+    const created = await createProductionWorkOrder(actor, {
+      ...input.manufacturing,
+      title: input.title,
+      priority: input.priority,
+      dueAt: input.dueAt,
+    });
+    const workOrder = await loadWorkOrderById(actor.tenantId, created.id);
+    if (!workOrder) throw new Error('Oluşturulan üretim emri yüklenemedi');
+    return workOrder;
+  }
   return withTransaction(async (tx) => {
     if (input.assignedToUserId) {
       await ensureTenantMember(tx, actor.tenantId, input.assignedToUserId);
@@ -565,10 +607,30 @@ export async function getWorkOrderDetails(tenantId: string, workOrderId: string)
     ORDER BY c.created_at ASC
   `;
 
+  const materialsResult = workOrder.manufacturing ? await sql`
+    SELECT
+      wom.id,
+      wom.item_id,
+      i.sku,
+      i.name AS item_name,
+      wom.source_warehouse_id,
+      wom.required_qty,
+      wom.reserved_qty,
+      wom.transferred_qty,
+      wom.consumed_qty,
+      wom.uom,
+      wom.snapshot
+    FROM work_order_materials wom
+    JOIN inventory_items i ON i.id = wom.item_id AND i.tenant_id = wom.tenant_id
+    WHERE wom.tenant_id = ${tenantId} AND wom.work_order_id = ${workOrderId}
+    ORDER BY i.name
+  ` : [];
+
   return {
     ...workOrder,
     checklist: (checklistResult as ChecklistItemRow[]).map(mapChecklistItemRow),
     comments: (commentsResult as WorkOrderCommentRow[]).map(mapWorkOrderCommentRow),
+    manufacturingMaterials: materialsResult,
   };
 }
 

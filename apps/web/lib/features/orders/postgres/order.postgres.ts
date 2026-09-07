@@ -232,6 +232,22 @@ export class PostgresOrderService implements IOrderService {
           throw new Error('Order creation failed');
         }
 
+        if (formData.items && formData.items.length > 0) {
+          for (const item of formData.items) {
+            await tx.sql`
+              INSERT INTO order_items (
+                order_id, product_name, quantity, unit_price, total_price,
+                color, width_mm, height_mm, motor_type, led_type, fabric_type, notes
+              )
+              VALUES (
+                ${orderId}, ${item.productName}, ${item.quantity}, ${item.unitPrice || 0}, ${item.totalPrice || 0},
+                ${item.color || null}, ${item.widthMm || null}, ${item.heightMm || null}, 
+                ${item.motorType || null}, ${item.ledType || null}, ${item.fabricType || null}, ${item.notes || null}
+              )
+            `;
+          }
+        }
+
         // console.log('[PostgresOrderService] Order created with ID:', orderId);
 
         if (files && files.length > 0) {

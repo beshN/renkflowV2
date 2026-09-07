@@ -1,0 +1,66 @@
+import { z } from 'zod';
+import { CurrencySchema } from '@/lib/types/currency';
+
+export const QuotationItemSchema = z.object({
+  id: z.string().uuid().optional(),
+  productName: z.string().min(1, 'Ürün adı gerekli'),
+  description: z.string().optional(),
+  color: z.string().optional(),
+  widthMm: z.coerce.number().positive().optional(),
+  heightMm: z.coerce.number().positive().optional(),
+  quantity: z.coerce.number().int().positive('Miktar pozitif olmalı').default(1),
+  unitPrice: z.coerce.number().nonnegative().default(0),
+  discountPercent: z.coerce.number().min(0).max(100).default(0),
+  totalPrice: z.coerce.number().nonnegative().default(0),
+  notes: z.string().optional(),
+});
+
+export const QuotationSchema = z.object({
+  id: z.string().uuid(),
+  tenantId: z.string().uuid(),
+  quotationNumber: z.string(),
+  customerId: z.string().uuid().optional().nullable(),
+  customerName: z.string(),
+  status: z.enum(['draft', 'sent', 'accepted', 'rejected', 'expired', 'converted']),
+  validUntil: z.string().optional().nullable(),
+  currency: CurrencySchema,
+  discountPercent: z.number().default(0),
+  subtotal: z.number().default(0),
+  discountAmount: z.number().default(0),
+  taxAmount: z.number().default(0),
+  totalAmount: z.number().default(0),
+  notes: z.string().optional().nullable(),
+  internalNotes: z.string().optional().nullable(),
+  termsAndConditions: z.string().optional().nullable(),
+  convertedToOrderId: z.string().uuid().optional().nullable(),
+  createdAt: z.string().or(z.date()),
+  updatedAt: z.string().or(z.date()),
+  items: z.array(QuotationItemSchema).default([]),
+});
+
+export type Quotation = z.infer<typeof QuotationSchema>;
+export type QuotationItem = z.infer<typeof QuotationItemSchema>;
+
+export const CreateQuotationSchema = z.object({
+  customerId: z.string().uuid().optional(),
+  customerName: z.string().min(1, 'Müşteri adı gerekli'),
+  validUntil: z.string().regex(/^(\d{4})-(\d{2})-(\d{2})$/).optional(),
+  currency: CurrencySchema.default('TRY'),
+  discountPercent: z.coerce.number().min(0).max(100).default(0),
+  notes: z.string().optional(),
+  internalNotes: z.string().optional(),
+  termsAndConditions: z.string().optional(),
+  items: z.array(QuotationItemSchema).default([]),
+});
+
+export type CreateQuotationInput = z.infer<typeof CreateQuotationSchema>;
+
+export interface IQuotationService {
+  getQuotations(tenantId: string): Promise<Quotation[]>;
+  getQuotationById(tenantId: string, id: string): Promise<Quotation | null>;
+  createQuotation(tenantId: string, data: CreateQuotationInput, createdBy?: string): Promise<Quotation>;
+  updateQuotation(tenantId: string, id: string, data: Partial<CreateQuotationInput>): Promise<Quotation>;
+  updateStatus(tenantId: string, id: string, status: Quotation['status']): Promise<Quotation>;
+  convertToOrder(tenantId: string, id: string, createdBy?: string): Promise<{ orderId: string }>;
+  deleteQuotation(tenantId: string, id: string): Promise<void>;
+}

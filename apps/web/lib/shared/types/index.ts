@@ -94,6 +94,21 @@ export const OrderSchema = z.object({
 });
 export type Order = z.infer<typeof OrderSchema>;
 
+export const NewOrderItemSchema = z.object({
+  productName: z.string().min(1, 'Ürün adı gerekli'),
+  quantity: z.coerce.number().int().positive('Miktar pozitif olmalı').default(1),
+  unitPrice: z.coerce.number().nonnegative().optional(),
+  totalPrice: z.coerce.number().nonnegative().default(0),
+  color: z.string().optional(),
+  widthMm: z.coerce.number().positive().optional(),
+  heightMm: z.coerce.number().positive().optional(),
+  motorType: z.string().optional(),
+  ledType: z.string().optional(),
+  fabricType: z.string().optional(),
+  notes: z.string().optional(),
+});
+export type NewOrderItemData = z.infer<typeof NewOrderItemSchema>;
+
 export const NewOrderFormSchema = z.object({
   customerName: z.string().min(1, 'Müşteri adı gerekli'),
   email: z.string().email('Geçerli email giriniz').optional().or(z.literal('')),
@@ -104,6 +119,8 @@ export const NewOrderFormSchema = z.object({
   currency: CurrencySchema.default('TRY'),
   deliveryDate: z.string().regex(/^(\d{4})-(\d{2})-(\d{2})$/).optional(),
   notes: z.string().optional(),
+  specialNotes: z.string().optional(),
+  items: z.array(NewOrderItemSchema).optional(),
   customFields: z.record(z.string(), z.string()).optional(),
 });
 export type NewOrderFormData = z.infer<typeof NewOrderFormSchema>;
