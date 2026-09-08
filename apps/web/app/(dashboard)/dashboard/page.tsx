@@ -331,9 +331,9 @@ export default function DashboardPage() {
             {[
               { status: 'new', label: 'Yeni', count: orders.filter(o => ['new', 'pending'].includes(o.status)).length, color: 'bg-blue-500' },
               { status: 'approved', label: 'Onaylı', count: orders.filter(o => ['approved', 'pending_approval'].includes(o.status)).length, color: 'bg-emerald-500' },
-              { status: 'preparing_materials', label: 'Malzeme', count: orders.filter(o => o.status === 'preparing_materials').length, color: 'bg-purple-500' },
+              { status: 'preparing_materials', label: 'Malzeme', count: orders.filter(o => String(o.status) === 'preparing_materials').length, color: 'bg-purple-500' },
               { status: 'in_production', label: 'Üretim', count: productionCount, color: 'bg-sky-500' },
-              { status: 'quality_check', label: 'Kalite KT.', count: orders.filter(o => o.status === 'quality_check').length, color: 'bg-orange-500' },
+              { status: 'quality_check', label: 'Kalite KT.', count: orders.filter(o => String(o.status) === 'quality_check').length, color: 'bg-orange-500' },
               { status: 'ready_for_shipment', label: 'Sevkiyat', count: readyCount, color: 'bg-teal-500' },
             ].map(({ status, label, count, color }) => (
               <Link key={status} href={`/orders?status=${status}`}>

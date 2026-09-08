@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Search, Bell, Sun, Moon, Command } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -8,9 +8,11 @@ import { cn } from '@/lib/utils';
 
 interface AppleNavbarProps {
   title: string;
+  showSearch?: boolean;
+  action?: ReactNode;
 }
 
-export function AppleNavbar({ title }: AppleNavbarProps) {
+export function AppleNavbar({ title, showSearch = true, action }: AppleNavbarProps) {
   const { setTheme, theme } = useTheme();
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
@@ -33,26 +35,29 @@ export function AppleNavbar({ title }: AppleNavbarProps) {
 
       {/* Right Actions */}
       <div className="flex items-center gap-4">
+        {action}
         {/* Search Bar */}
-        <div 
-          className={cn(
-            "relative hidden md:flex items-center transition-all duration-300 ease-out",
-            isSearchFocused ? "w-80" : "w-64"
-          )}
-        >
-          <Search className="absolute left-3 w-4 h-4 text-muted-foreground" />
-          <input 
-            type="text" 
-            placeholder="Search..." 
-            className="w-full h-9 pl-9 pr-4 rounded-lg bg-black/5 dark:bg-white/10 border-none outline-none text-sm focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-muted-foreground/70"
-            onFocus={() => setIsSearchFocused(true)}
-            onBlur={() => setIsSearchFocused(false)}
-          />
-          <div className="absolute right-3 hidden md:flex items-center gap-1 opacity-50">
-            <Command className="w-3 h-3" />
-            <span className="text-[10px]">K</span>
+        {showSearch && (
+          <div
+            className={cn(
+              "relative hidden md:flex items-center transition-all duration-300 ease-out",
+              isSearchFocused ? "w-80" : "w-64"
+            )}
+          >
+            <Search className="absolute left-3 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search..."
+              className="w-full h-9 pl-9 pr-4 rounded-lg bg-black/5 dark:bg-white/10 border-none outline-none text-sm focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-muted-foreground/70"
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
+            />
+            <div className="absolute right-3 hidden md:flex items-center gap-1 opacity-50">
+              <Command className="w-3 h-3" />
+              <span className="text-[10px]">K</span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Theme Toggle */}
         <button

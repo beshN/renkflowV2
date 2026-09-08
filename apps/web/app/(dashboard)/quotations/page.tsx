@@ -11,6 +11,12 @@ import { Quotation } from '@/lib/features/quotations/types';
 import { formatCurrency } from '@/lib/utils';
 import { Navbar } from '@/components/layout/Navbar';
 
+type QuotationListResponse = {
+  success: boolean;
+  data: Quotation[];
+  message?: string;
+};
+
 export default function QuotationsPage() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
@@ -30,7 +36,7 @@ export default function QuotationsPage() {
   const fetchQuotations = async () => {
     setIsFetching(true);
     try {
-      const res = await requestJson('/api/v1/quotations');
+      const res = await requestJson<QuotationListResponse>('/api/v1/quotations');
       if (res.ok && res.data?.success) {
         setQuotations(res.data.data);
       } else {

@@ -12,6 +12,12 @@ import { FileText, ArrowRight, Printer, AlertCircle, Save } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 
+type QuotationResponse<T> = {
+  success: boolean;
+  data: T;
+  message?: string;
+};
+
 export default function QuotationDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { user, isLoading } = useAuth();
@@ -43,10 +49,21 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
   const fetchQuotation = async () => {
     setIsFetching(true);
     try {
-      const res = await requestJson(`/api/v1/quotations/${params.id}`);
+      const res = await requestJson<QuotationResponse<Quotation>>(`/api/v1/quotations/${params.id}`);
       if (res.ok && res.data?.success) {
-        setQuotation(res.data.data);
-        setForm(res.data.data);
+        const loadedQuotation = res.data.data;
+        setQuotation(loadedQuotation);
+        setForm({
+          customerId: loadedQuotation.customerId ?? undefined,
+          customerName: loadedQuotation.customerName,
+          validUntil: loadedQuotation.validUntil ?? undefined,
+          currency: loadedQuotation.currency,
+          discountPercent: loadedQuotation.discountPercent,
+          notes: loadedQuotation.notes ?? undefined,
+          internalNotes: loadedQuotation.internalNotes ?? undefined,
+          termsAndConditions: loadedQuotation.termsAndConditions ?? undefined,
+          items: loadedQuotation.items,
+        });
       } else {
         throw new Error(res.data?.message || res.error || 'Teklif alınamadı');
       }
@@ -67,7 +84,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
     setIsSaving(true);
     try {
       if (isNew) {
-        const res = await requestJson('/api/v1/quotations', {
+        const res = await requestJson<QuotationResponse<Quotation>>('/api/v1/quotations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form)
@@ -79,7 +96,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
           throw new Error(res.data?.message || res.error || 'Kaydedilemedi');
         }
       } else {
-        const res = await requestJson(`/api/v1/quotations/${params.id}`, {
+        const res = await requestJson<QuotationResponse<Quotation>>(`/api/v1/quotations/${params.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form)
@@ -102,7 +119,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
     if (!confirm('Bu teklifi siparişe dönüştürmek istediğinize emin misiniz?')) return;
     
     try {
-      const res = await requestJson(`/api/v1/quotations/${params.id}`, {
+      const res = await requestJson<QuotationResponse<{ orderId: string }>>(`/api/v1/quotations/${params.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'convert' })
@@ -172,7 +189,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
               <Button type="button" variant="secondary" size="sm" onClick={() => {
                 setForm(prev => ({
                   ...prev,
-                  items: [...(prev.items || []), { productName: '', quantity: 1, unitPrice: 0, totalPrice: 0 }]
+                  items: [...(prev.items || []), { productName: '', quantity: 1, unitPrice: 0, discountPercent: 0, totalPrice: 0 }]
                 }))
               }}>Satır Ekle</Button>
             )}

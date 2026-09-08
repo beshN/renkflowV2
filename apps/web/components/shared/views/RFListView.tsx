@@ -27,6 +27,8 @@ export interface RFFilter {
 export interface RFListViewProps<T extends { id: string }> {
   title: string;
   subtitle?: string;
+  description?: string;
+  icon?: ReactNode;
   data: T[];
   columns: RFColumn<T>[];
   filters?: RFFilter[];
@@ -36,6 +38,7 @@ export interface RFListViewProps<T extends { id: string }> {
   pageSize?: number;
   onPageChange?: (page: number) => void;
   onSearch?: (query: string) => void;
+  searchKeys?: string[];
   onRowClick?: (row: T) => void;
   onRowSelect?: (selected: T[]) => void;
   primaryAction?: {
@@ -88,6 +91,8 @@ function TableSkeleton({ cols, rows = 8 }: { cols: number; rows?: number }) {
 export function RFListView<T extends { id: string }>({
   title,
   subtitle,
+  description,
+  icon,
   data,
   columns,
   filters = [],
@@ -148,8 +153,13 @@ export function RFListView<T extends { id: string }>({
       {/* Header */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
-          {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
+          <div className="flex items-center gap-2">
+            {icon}
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
+          </div>
+          {(subtitle || description) && (
+            <p className="mt-1 text-sm text-muted-foreground">{subtitle || description}</p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {selectedCount > 0 && secondaryActions.map((action) => (

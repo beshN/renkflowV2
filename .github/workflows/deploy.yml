@@ -1,9 +1,8 @@
 name: Deploy to Google Cloud Run
 
 on:
-  push:
-    branches:
-      - main
+  # Cloud Run is kept as a manual deployment target while GCP billing is disabled.
+  # Vercel remains the automatic deployment target for pushes to main.
   workflow_dispatch:
 
 env:

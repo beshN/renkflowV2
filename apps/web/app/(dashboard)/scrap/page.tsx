@@ -7,7 +7,13 @@ import { Trash2, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 export default function ScrapPage() {
-  const [scrapRecords, setScrapRecords] = useState([]);
+  const [scrapRecords, setScrapRecords] = useState<Array<{
+    id: string;
+    item_name: string;
+    length_m: number;
+    weight_kg: number;
+    created_at: string;
+  }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

@@ -115,7 +115,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const orderData: NewOrderFormData = validationResult.data;
+    const orderData: NewOrderFormData = {
+      ...validationResult.data,
+      items: validationResult.data.items?.map((item) => ({
+        ...item,
+        totalPrice: item.totalPrice ?? (item.unitPrice ?? 0) * item.quantity,
+      })),
+    };
 
     const order = await orderService.createOrder(user.tenantId, orderData, files);
     

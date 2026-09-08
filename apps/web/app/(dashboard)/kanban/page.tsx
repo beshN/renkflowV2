@@ -61,19 +61,41 @@ export default function KanbanPage() {
     badges: [wo.category]
   }));
 
+  const kanbanColumns = columns.map((column) => ({
+    ...column,
+    items: kanbanItems.filter((item) => item.columnId === column.id),
+  }));
+
   if (isLoading || !user) return null;
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-slate-50/50 dark:bg-slate-950/50">
       <Navbar title="Akış Kanbanı" />
       <main className="w-full flex-1 p-4 md:p-8">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold tracking-tight">Üretim İş Emirleri</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Sürükle bırak ile iş emirlerini yönetin.</p>
+        </div>
         <RFKanbanView
-          title="Üretim İş Emirleri"
-          description="Sürükle bırak ile iş emirlerini yönetin."
-          columns={columns}
-          items={kanbanItems}
-          onCardMove={handleCardMove}
-          onCardClick={(item) => router.push(`/work-orders/${item.id}`)}
+          columns={kanbanColumns}
+          onDragEnd={(itemId, sourceColumnId, destinationColumnId) =>
+            handleCardMove(itemId, sourceColumnId, destinationColumnId)
+          }
+          renderCard={(item) => (
+            <button
+              type="button"
+              onClick={() => router.push(`/work-orders/${item.id}`)}
+              className="w-full rounded-xl border border-neutral-200 bg-white p-4 text-left shadow-sm transition hover:border-primary/40 dark:border-neutral-800 dark:bg-neutral-950"
+            >
+              <p className="font-semibold text-foreground">{item.title}</p>
+              {item.description && <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>}
+              <div className="mt-3 flex flex-wrap gap-1">
+                {item.badges.map((badge) => (
+                  <span key={badge} className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs dark:bg-neutral-800">{badge}</span>
+                ))}
+              </div>
+            </button>
+          )}
         />
       </main>
     </div>

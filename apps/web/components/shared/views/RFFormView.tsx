@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { ArrowLeft, Save, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -8,20 +8,38 @@ import { useRouter } from 'next/navigation';
 export interface RFFormViewProps {
   title: string;
   subtitle?: string;
+  icon?: ReactNode;
+  breadcrumbs?: { label: string; href?: string }[];
   backUrl?: string;
+  onBack?: () => void;
   isLoading?: boolean;
   isSaving?: boolean;
   onSave?: () => void;
   onCancel?: () => void;
   onDelete?: () => void;
   aside?: ReactNode; // For Chatter or StatusStepper
-  children: ReactNode; // Form content
+  children?: ReactNode; // Form content
+  primaryAction?: {
+    label: string;
+    icon?: ReactNode;
+    onClick: () => void | Promise<void>;
+  };
+  secondaryActions?: {
+    label: string;
+    icon?: ReactNode;
+    onClick: () => void | Promise<void>;
+    hidden?: boolean;
+  }[];
+  tabs?: { id: string; label: string; content: ReactNode }[];
 }
 
 export function RFFormView({
   title,
   subtitle,
+  icon,
+  breadcrumbs,
   backUrl,
+  onBack,
   isLoading,
   isSaving,
   onSave,
@@ -29,13 +47,22 @@ export function RFFormView({
   onDelete,
   aside,
   children,
+  primaryAction,
+  secondaryActions = [],
+  tabs = [],
 }: RFFormViewProps) {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState(tabs[0]?.id || '');
 
   const handleBack = () => {
-    if (backUrl) router.push(backUrl);
+    if (onBack) onBack();
+    else if (backUrl) router.push(backUrl);
     else router.back();
   };
+
+  const content = tabs.length > 0
+    ? tabs.find((tab) => tab.id === activeTab)?.content ?? tabs[0].content
+    : children;
 
   return (
     <div className="flex flex-col h-full gap-6">
@@ -49,12 +76,44 @@ export function RFFormView({
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
+            {breadcrumbs && breadcrumbs.length > 0 && (
+              <div className="mb-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                {breadcrumbs.map((crumb, index) => (
+                  <span key={`${crumb.label}-${index}`}>
+                    {crumb.href ? <a href={crumb.href} className="hover:text-foreground">{crumb.label}</a> : crumb.label}
+                    {index < breadcrumbs.length - 1 && <span className="mx-1">/</span>}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              {icon}
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
+            </div>
             {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {secondaryActions.filter((action) => !action.hidden).map((action) => (
+            <button
+              key={action.label}
+              onClick={action.onClick}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-4 py-2 text-sm font-medium text-foreground hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+            >
+              {action.icon}
+              {action.label}
+            </button>
+          ))}
+          {primaryAction && (
+            <button
+              onClick={primaryAction.onClick}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-white shadow-md shadow-primary/20 hover:bg-primary/90 transition-all"
+            >
+              {primaryAction.icon}
+              {primaryAction.label}
+            </button>
+          )}
           {onDelete && (
             <button
               onClick={onDelete}
@@ -90,6 +149,25 @@ export function RFFormView({
         </div>
       </div>
 
+      {tabs.length > 1 && (
+        <div className="flex gap-1 border-b border-neutral-200 dark:border-neutral-800">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+                activeTab === tab.id
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Content area */}
       <div className="flex flex-col xl:flex-row gap-6 pb-12">
         {/* Main form section */}
@@ -104,7 +182,7 @@ export function RFFormView({
               </div>
             </div>
           ) : (
-            children
+            content
           )}
         </div>
 

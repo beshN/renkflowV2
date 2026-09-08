@@ -9,6 +9,8 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'icon';
   isLoading?: boolean;
   loadingText?: string;
+  /** Backward-compatible alias for leftIcon. */
+  icon?: ReactNode;
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
   rounded?: 'default' | 'full' | 'none';
@@ -21,6 +23,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   children,
   isLoading = false,
   loadingText,
+  icon,
   leftIcon,
   rightIcon,
   rounded = 'default',
@@ -87,7 +90,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
         </>
       ) : (
         <>
-          {leftIcon && <span className="inline-flex shrink-0">{leftIcon}</span>}
+          {(leftIcon || icon) && <span className="inline-flex shrink-0">{leftIcon || icon}</span>}
           {children}
           {rightIcon && <span className="inline-flex shrink-0">{rightIcon}</span>}
         </>

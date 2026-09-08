@@ -15,7 +15,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (!user || !user.tenantId) return errorResponse('Yetkilendirme gereklidir', 401);
 
     const role = (user.role as UserRole) || 'member';
-    if (!hasPermission(role, 'quotations', 'view')) return errorResponse('Yetkiniz yok', 403);
+    if (!hasPermission(role, 'quotations', 'read')) return errorResponse('Yetkiniz yok', 403);
 
     const { id } = await params;
     const quotation = await quotationService.getQuotationById(user.tenantId, id);
@@ -33,7 +33,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (!user || !user.tenantId) return errorResponse('Yetkilendirme gereklidir', 401);
 
     const role = (user.role as UserRole) || 'member';
-    if (!hasPermission(role, 'quotations', 'edit')) return errorResponse('Yetkiniz yok', 403);
+    if (!hasPermission(role, 'quotations', 'update')) return errorResponse('Yetkiniz yok', 403);
 
     const body = await request.json();
     
@@ -54,7 +54,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const quotation = await quotationService.updateQuotation(user.tenantId, id, parsedData);
     return successResponse(quotation, 'Teklif güncellendi');
   } catch (error: any) {
-    if (error instanceof ZodError) return errorResponse('Geçersiz veri: ' + error.errors.map(e => e.message).join(', '), 400);
+    if (error instanceof ZodError) return errorResponse('Geçersiz veri: ' + error.issues.map((issue) => issue.message).join(', '), 400);
     return errorResponse(error.message, 500);
   }
 }

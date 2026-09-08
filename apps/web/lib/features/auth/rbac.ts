@@ -15,6 +15,7 @@ export type Resource =
   | 'users'
   | 'tenants'
   | 'analytics'
+  | 'quotations'
   | 'settings'
   | 'billing';
 
@@ -56,6 +57,7 @@ const PERMISSION_MATRIX: Record<UserRole, Permission[]> = {
     { resource: 'users', actions: ['create', 'read', 'update', 'delete', 'list', 'assign', 'manage'] },
     { resource: 'tenants', actions: ['read', 'update', 'manage'] },
     { resource: 'analytics', actions: ['read', 'export'] },
+    { resource: 'quotations', actions: ['create', 'read', 'update', 'delete', 'list', 'export', 'manage'] },
     { resource: 'settings', actions: ['read', 'update', 'manage'] },
     { resource: 'billing', actions: ['read', 'update', 'manage'] },
   ],
@@ -67,6 +69,7 @@ const PERMISSION_MATRIX: Record<UserRole, Permission[]> = {
     { resource: 'users', actions: ['create', 'read', 'update', 'list', 'assign'] },
     { resource: 'tenants', actions: ['read'] },
     { resource: 'analytics', actions: ['read', 'export'] },
+    { resource: 'quotations', actions: ['create', 'read', 'update', 'delete', 'list', 'export'] },
     { resource: 'settings', actions: ['read', 'update'] },
     { resource: 'billing', actions: ['read'] },
   ],
@@ -78,6 +81,7 @@ const PERMISSION_MATRIX: Record<UserRole, Permission[]> = {
     { resource: 'users', actions: ['read', 'list'] },
     { resource: 'tenants', actions: ['read'] },
     { resource: 'analytics', actions: ['read', 'export'] },
+    { resource: 'quotations', actions: ['read', 'list', 'export'] },
     { resource: 'settings', actions: ['read'] },
     { resource: 'billing', actions: ['read'] },
   ],
@@ -89,6 +93,7 @@ const PERMISSION_MATRIX: Record<UserRole, Permission[]> = {
     { resource: 'users', actions: ['read', 'list'] },
     { resource: 'tenants', actions: [] },
     { resource: 'analytics', actions: ['read'] },
+    { resource: 'quotations', actions: ['create', 'read', 'update', 'list'] },
     { resource: 'settings', actions: ['read'] },
     { resource: 'billing', actions: [] },
   ],
@@ -100,6 +105,7 @@ const PERMISSION_MATRIX: Record<UserRole, Permission[]> = {
     { resource: 'users', actions: [] },
     { resource: 'tenants', actions: [] },
     { resource: 'analytics', actions: [] },
+    { resource: 'quotations', actions: ['read', 'list'] },
     { resource: 'settings', actions: [] },
     { resource: 'billing', actions: [] },
   ],
@@ -111,6 +117,7 @@ const PERMISSION_MATRIX: Record<UserRole, Permission[]> = {
     { resource: 'users', actions: [] },
     { resource: 'tenants', actions: [] },
     { resource: 'analytics', actions: [] },
+    { resource: 'quotations', actions: ['read', 'list'] },
     { resource: 'settings', actions: [] },
     { resource: 'billing', actions: [] },
   ],

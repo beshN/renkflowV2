@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
 
+type CustomerRouteContext = {
+  params: Promise<{ id: string }>;
+};
+
 async function getTenantId(userId: string): Promise<string | null> {
   const rows = await sql`
     SELECT tenant_id FROM tenant_members WHERE user_id = ${userId} ORDER BY created_at ASC LIMIT 1
@@ -15,7 +19,7 @@ async function getTenantId(userId: string): Promise<string | null> {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: CustomerRouteContext
 ) {
   try {
     const session = await auth();
@@ -26,7 +30,7 @@ export async function GET(
     const tenantId = await getTenantId(session.user.id);
     if (!tenantId) return NextResponse.json({ error: 'Tenant bulunamadı.' }, { status: 403 });
 
-    const customerId = params.id;
+    const { id: customerId } = await params;
 
     const rows = await sql`
       SELECT * FROM customers
@@ -50,7 +54,7 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: CustomerRouteContext
 ) {
   try {
     const session = await auth();
@@ -61,7 +65,7 @@ export async function PUT(
     const tenantId = await getTenantId(session.user.id);
     if (!tenantId) return NextResponse.json({ error: 'Tenant bulunamadı.' }, { status: 403 });
 
-    const customerId = params.id;
+    const { id: customerId } = await params;
     const body = await req.json();
     
     // Yalnızca güncellenen alanları al
@@ -142,7 +146,7 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: CustomerRouteContext
 ) {
   try {
     const session = await auth();
@@ -153,7 +157,7 @@ export async function DELETE(
     const tenantId = await getTenantId(session.user.id);
     if (!tenantId) return NextResponse.json({ error: 'Tenant bulunamadı.' }, { status: 403 });
 
-    const customerId = params.id;
+    const { id: customerId } = await params;
 
     await sql`
       UPDATE customers 

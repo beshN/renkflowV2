@@ -193,6 +193,10 @@ export async function createOrderAction(formData: FormData): Promise<Order> {
       const data: NewOrderFormData = {
         ...validationResult.data,
         currency: safeParseCurrency(validationResult.data.currency),
+        items: validationResult.data.items?.map((item) => ({
+          ...item,
+          totalPrice: item.totalPrice ?? (item.unitPrice ?? 0) * item.quantity,
+        })),
         customFields: parseCustomFieldsFromFormData(formData),
       };
 

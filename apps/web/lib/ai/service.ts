@@ -112,14 +112,15 @@ Cevaplarında kısa ve net ol. Önemli sayıları kalın yaz. Liste varsa madde 
       }
 
       const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || 'Yanıt alınamadı.';
+      const content = String(data.choices?.[0]?.message?.content || 'Yanıt alınamadı.');
 
       // Geçmişe ekle
-      this.conversationHistory = [
+      const nextHistory: AIMessage[] = [
         ...this.conversationHistory,
         { role: 'user', content: userMessage },
         { role: 'assistant', content },
-      ].slice(-20);
+      ];
+      this.conversationHistory = nextHistory.slice(-20);
 
       return {
         answer: content,
@@ -241,4 +242,4 @@ export function getAIService(): ZaiAIService {
   return _aiService;
 }
 
-export { ZaiAIService };
+export { ZaiAIService, ZaiAIService as AIService };
