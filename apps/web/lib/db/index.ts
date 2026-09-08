@@ -106,6 +106,16 @@ function createDummyClient() {
   return dummy;
 }
 
+function createUnavailableClient(message: string) {
+  const fail = async (): Promise<never> => {
+    throw new Error(message);
+  };
+  const unavailable: any = fail;
+  unavailable.unsafe = fail;
+  unavailable.begin = fail;
+  return unavailable;
+}
+
 function createLazySqlClient(databaseUrl: string) {
   const runtimeConfig = resolveDatabaseRuntimeConfig(databaseUrl);
   let realClientPromise: Promise<any> | null = null;
@@ -163,10 +173,11 @@ function createSqlClient() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     if (IS_PRODUCTION) {
-      throw new Error(
+      const message =
         '[RenkFlow DB] FATAL: DATABASE_URL is not defined in production. ' +
-          'Please configure your database connection in environment variables.'
-      );
+        'Please configure your database connection in environment variables.';
+      console.error(message);
+      return createUnavailableClient(message);
     }
     console.warn('[RenkFlow DB] DATABASE_URL is not defined. Database features will not work.');
     return createDummyClient();
