@@ -9,6 +9,7 @@
  */
 
 import { ConnectionInfo } from '@/lib/types';
+import postgres from 'postgres';
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const IS_BUILD_TIME = process.env.NEXT_PHASE === 'phase-production-build';
@@ -41,13 +42,6 @@ function resolveDatabaseRuntimeConfig(databaseUrl: string): {
       clientOptions: {},
     };
   }
-}
-
-async function loadPostgresFactory(): Promise<(url: string, options: Record<string, unknown>) => any> {
-  const moduleName = ['post', 'gres'].join('');
-  const dynamicImporter = new Function('name', 'return import(name);') as (name: string) => Promise<any>;
-  const loaded = await dynamicImporter(moduleName);
-  return loaded.default || loaded;
 }
 
 // Connection state
@@ -124,8 +118,7 @@ function createLazySqlClient(databaseUrl: string) {
   async function getRealClient() {
     if (!realClientPromise) {
       realClientPromise = (async () => {
-        const postgresFactory = await loadPostgresFactory();
-        const realClient = postgresFactory(runtimeConfig.connectionString, {
+        const realClient = postgres(runtimeConfig.connectionString, {
           connect_timeout: 10,
           idle_timeout: 20,
           max: 20,
