@@ -73,6 +73,7 @@ export function validateDatabaseUrl(url: string): void {
       runtimeHost === '127.0.0.1' ||
       runtimeHost === '::1';
     const lowerUrl = url.toLowerCase();
+    const allowsLegacyDatabaseHost = process.env.ALLOW_LEGACY_DATABASE_HOSTS === '1';
     const legacyDbTag = `${'neo'}${'n'}`;
     const legacyDbHost = `.${legacyDbTag}.tech`;
     const pointsToLegacyHost =
@@ -85,7 +86,7 @@ export function validateDatabaseUrl(url: string): void {
       throw new Error('Missing hostname or Cloud SQL host socket in DATABASE_URL');
     }
 
-    if (IS_PRODUCTION && pointsToLegacyHost) {
+    if (IS_PRODUCTION && pointsToLegacyHost && !allowsLegacyDatabaseHost) {
       throw new Error('Production DATABASE_URL cannot target legacy database hosts');
     }
 

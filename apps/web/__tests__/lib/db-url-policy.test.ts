@@ -29,6 +29,20 @@ describe('database URL policy', () => {
     ).toThrow('legacy database hosts');
   });
 
+  it('allows a legacy host only with the explicit migration compatibility flag', () => {
+    const db = loadDbModule({
+      NODE_ENV: 'production',
+      NEXT_PHASE: 'phase-production-build',
+      ALLOW_LEGACY_DATABASE_HOSTS: '1',
+      AUTH_SECRET: 'a'.repeat(32),
+      NEXTAUTH_SECRET: 'a'.repeat(32),
+    });
+
+    expect(() =>
+      db.validateDatabaseUrl('postgresql://user:pass@sample.neon.tech/renkflow')
+    ).not.toThrow();
+  });
+
   it('rejects localhost TCP URL without cloudsql socket in production', () => {
     const db = loadDbModule({
       NODE_ENV: 'production',
