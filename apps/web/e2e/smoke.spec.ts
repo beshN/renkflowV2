@@ -6,7 +6,6 @@ import { test, expect } from '@playwright/test';
  */
 
 const publicRoutes = [
-  '/',
   '/about',
   '/pricing',
   '/features',
@@ -39,6 +38,12 @@ test.describe('Smoke: Public Routes', () => {
 });
 
 test.describe('Smoke: Auth Redirects', () => {
+  test('/ should redirect into the panel flow', async ({ request }) => {
+    const response = await request.fetch('/', { method: 'HEAD', maxRedirects: 0 });
+    expect([302, 303, 307, 308]).toContain(response.status());
+    expect(response.headers()['location'] || '').toContain('/dashboard');
+  });
+
   test('/auth/signup should redirect to /signup', async ({ request }) => {
     const response = await request.fetch('/auth/signup', { method: 'HEAD', maxRedirects: 0 });
     expect([302, 307, 308, 404]).toContain(response.status());
