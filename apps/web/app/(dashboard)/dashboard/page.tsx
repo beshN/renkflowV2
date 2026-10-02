@@ -32,7 +32,7 @@ interface DashboardSummary {
     open: string;
     blocked: string;
   };
-  criticalStock: { critical_count: string };
+  criticalStock: { critical_count: string } | null;
   overdue: { overdue_count: string };
 }
 
@@ -61,7 +61,7 @@ function MetricCard({
     <AppleCard
       variant="glass"
       className={cn(
-        'relative overflow-hidden group transition-all duration-300 hover:scale-[1.02] hover:shadow-lg cursor-pointer',
+        'relative overflow-hidden group transition-colors duration-150 hover:border-blue-300',
         alert ? 'ring-1 ring-rose-500/30' : ''
       )}
     >
@@ -80,9 +80,6 @@ function MetricCard({
         </h3>
         {subLabel && <p className="text-xs text-muted-foreground mt-1">{subLabel}</p>}
       </div>
-      {alert && (
-        <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-      )}
     </AppleCard>
   );
 
@@ -140,7 +137,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function loadSummary() {
       try {
-        // Use the AI tools endpoint to get dashboard summary
+        // Operational metrics come from the server, not from AI.
         const res = await fetch('/api/v1/dashboard/summary');
         if (res.ok) {
           const data = await res.json();
@@ -161,15 +158,17 @@ export default function DashboardPage() {
   const readyCount = orders.filter((o) => ['ready_for_shipment', 'ready'].includes(o.status)).length;
   const totalVolume = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
   const overdueOrders = orders.filter((o) => {
-    if (!o.deliveryDate && !o.date) return false;
-    const date = new Date(o.deliveryDate || o.date);
-    return date < new Date() && !['completed', 'delivered', 'shipped', 'cancelled'].includes(o.status);
+    if (!o.deliveryDate) return false;
+    const date = new Date(o.deliveryDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today && !['completed', 'delivered', 'shipped', 'cancelled'].includes(o.status);
   });
 
-  const activeCount = parseInt(summary?.orders?.active_count || '') || orders.filter((o) => !['completed', 'delivered', 'cancelled'].includes(o.status)).length;
-  const overdueCount = parseInt(summary?.overdue?.overdue_count || '') || overdueOrders.length;
+  const activeCount = summary?.orders ? Number(summary.orders.active_count) : orders.filter((o) => !['completed', 'delivered', 'cancelled'].includes(o.status)).length;
+  const overdueCount = summary?.overdue ? Number(summary.overdue.overdue_count) : overdueOrders.length;
   const blockedCount = parseInt(summary?.production?.blocked || '') || 0;
-  const criticalStockCount = parseInt(summary?.criticalStock?.critical_count || '') || 0;
+  const criticalStockCount = summary?.criticalStock ? Number(summary.criticalStock.critical_count) : null;
 
   const metrics = [
     {
@@ -191,8 +190,8 @@ export default function DashboardPage() {
     },
     {
       label: 'Üretimde',
-      value: isLoading ? '...' : productionCount + (parseInt(summary?.production?.in_progress || '') || 0),
-      subLabel: blockedCount > 0 ? `${blockedCount} bloke` : 'Aktif üretim',
+      value: isLoading ? '...' : productionCount,
+      subLabel: blockedCount > 0 ? `${blockedCount} iş emri bloke` : 'Üretimdeki siparişler',
       icon: Factory,
       color: blockedCount > 0 ? 'bg-amber-500' : 'bg-purple-500',
       href: '/work-orders',
@@ -200,12 +199,12 @@ export default function DashboardPage() {
     },
     {
       label: 'Kritik Stok',
-      value: isLoading ? '...' : criticalStockCount,
-      subLabel: criticalStockCount > 0 ? 'Satın alma gerekiyor' : 'Stok seviyeleri normal',
+      value: isSummaryLoading ? '...' : criticalStockCount ?? '—',
+      subLabel: criticalStockCount === null ? 'Stok özeti yüklenemedi' : criticalStockCount > 0 ? 'Satın alma gerekiyor' : 'Minimum stok uyarısı yok',
       icon: Boxes,
-      color: criticalStockCount > 0 ? 'bg-orange-500' : 'bg-teal-500',
+      color: criticalStockCount !== null && criticalStockCount > 0 ? 'bg-orange-500' : 'bg-slate-500',
       href: '/inventory',
-      alert: criticalStockCount > 0,
+      alert: criticalStockCount !== null && criticalStockCount > 0,
     },
   ];
 
@@ -213,7 +212,7 @@ export default function DashboardPage() {
   const quickActions = [
     { label: 'Yeni Sipariş', desc: 'Müşteri talebi gir', href: '/new-order', icon: PlusCircle, primary: true },
     { label: 'Sipariş Listesi', desc: 'Tüm siparişleri gör', href: '/orders', icon: ClipboardList, primary: false },
-    { label: 'Envanter', desc: 'Stok durumunu kontrol et', href: '/inventory', icon: Boxes, primary: false },
+    { label: 'Profil & malzeme', desc: 'Stok ve rezervasyonları gör', href: '/inventory', icon: Boxes, primary: false },
     { label: 'Üretim Emirleri', desc: 'İş emirlerini yönet', href: '/work-orders', icon: Factory, primary: false },
     { label: 'Müşteriler', desc: 'CRM ve iletişim', href: '/crm', icon: ShoppingCart, primary: false },
     { label: 'Raporlar', desc: 'Analiz ve raporlama', href: '/reports', icon: BarChart3, primary: false },
@@ -228,17 +227,18 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-black">
-      <AppleNavbar title="Kontrol Paneli" />
+      <AppleNavbar title="Genel bakış" />
 
-      <main className="w-full max-w-[1600px] mx-auto flex-1 p-5 md:p-8 space-y-8 animate-fade-in">
+      <main className="w-full max-w-[1440px] mx-auto flex-1 p-4 md:p-6 space-y-6">
 
         {/* Hero */}
         <section className="space-y-1">
-          <h2 className="text-3xl font-display font-bold tracking-tight text-foreground">
-            {greeting()}, <span className="text-muted-foreground">{user?.name?.split(' ')[0] || 'Hoş geldiniz'}</span>
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">Renk Alüminyum</p>
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+            Üretimin bugünkü durumu
           </h2>
           <p className="text-base text-muted-foreground max-w-2xl">
-            Bugünün operasyon özeti — {new Date().toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            Sipariş, profil stoğu ve atölye takibi · {new Date().toLocaleDateString('tr-TR', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
         </section>
 
@@ -283,7 +283,7 @@ export default function DashboardPage() {
               {quickActions.map(({ label, desc, href, icon: Icon, primary }) => (
                 <Link key={label} href={href}>
                   <div className={cn(
-                    'flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer',
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors',
                     primary
                       ? 'bg-primary text-white shadow-md shadow-primary/20 hover:bg-primary/90'
                       : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'

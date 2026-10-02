@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useOrders } from '@/lib/hooks/useOrders';
 import { useToast } from '@/lib/context/ToastContext';
@@ -17,6 +17,10 @@ export default function OrdersPage() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const status = new URLSearchParams(window.location.search).get('status');
+    if (status) setFilterValues({ status: status === 'new' ? 'pending' : status });
+  }, []);
 
   const handleRefresh = async () => {
     try {
@@ -109,8 +113,8 @@ export default function OrdersPage() {
   return (
     <div className="flex-1 p-4 md:p-6 lg:p-8 h-full bg-slate-50/50 dark:bg-slate-950/50">
       <RFListView
-        title="Sipariş Yönetimi"
-        subtitle="Müşteri siparişlerini ve üretim süreçlerini takip edin"
+        title="Alüminyum siparişleri"
+        subtitle="Ürün, müşteri ve termin bazında sipariş takibi"
         data={filteredOrders}
         columns={columns}
         filters={filters}
@@ -129,6 +133,7 @@ export default function OrdersPage() {
           {
             label: 'Yenile',
             icon: <RefreshCw size={14} />,
+              requiresSelection: false,
             onClick: handleRefresh
           },
           {

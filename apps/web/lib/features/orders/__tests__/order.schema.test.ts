@@ -1,10 +1,10 @@
-import { createOrderSchema, validateFiles } from '@/lib/features/orders/order.schema';
+import { createOrderSchema, orderItemSchema, validateFiles } from '@/lib/features/orders/order.schema';
 import { ORDER_MAX_UPLOAD_COUNT, ORDER_MAX_UPLOAD_SIZE_BYTES } from '@/lib/features/orders/constants';
 
 describe('createOrderSchema', () => {
   const basePayload = {
-    customerName: 'Acme Tekstil',
-    productName: 'Numune Baski',
+    customerName: 'Örnek Yapı A.Ş.',
+    productName: 'Alüminyum profil',
     quantity: '10',
     totalAmount: '1500',
     currency: 'TRY',
@@ -20,6 +20,26 @@ describe('createOrderSchema', () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it('preserves legal company names and digits', () => {
+    const result = createOrderSchema.parse({ ...basePayload, customerName: '4040 Yapı A.Ş.' });
+    expect(result.customerName).toBe('4040 Yapı A.Ş.');
+  });
+
+  it('accepts an unpriced incoming aluminum order', () => {
+    const result = createOrderSchema.safeParse({ ...basePayload, totalAmount: 0, items: [
+      { productName: '40×40 alüminyum profil', quantity: 2, unitPrice: 0, totalPrice: 0, widthMm: 1000 },
+    ] });
+    expect(result.success).toBe(true);
+  });
+
+  it.each([-1, 0, Infinity, NaN])('rejects invalid dimensions: %s', widthMm => {
+    expect(orderItemSchema.safeParse({ productName: 'Profil', quantity: 1, widthMm }).success).toBe(false);
+  });
+
+  it('rejects negative line prices', () => {
+    expect(orderItemSchema.safeParse({ productName: 'Profil', quantity: 1, unitPrice: -1 }).success).toBe(false);
   });
 
   it('rejects delivery dates in the past', () => {

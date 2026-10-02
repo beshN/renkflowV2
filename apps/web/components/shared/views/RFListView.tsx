@@ -50,6 +50,7 @@ export interface RFListViewProps<T extends { id: string }> {
     label: string;
     icon?: ReactNode;
     onClick: (selected: T[]) => void;
+    requiresSelection?: boolean;
   }[];
   emptyState?: {
     title: string;
@@ -70,11 +71,11 @@ function TableSkeleton({ cols, rows = 8 }: { cols: number; rows?: number }) {
     <>
       {Array.from({ length: rows }).map((_, i) => (
         <tr key={i} className="border-b border-neutral-100 dark:border-neutral-800">
-          {Array.from({ length: cols + 1 }).map((_, j) => (
+          {Array.from({ length: cols }).map((_, j) => (
             <td key={j} className="px-4 py-3">
               <div
                 className="h-4 rounded-md bg-neutral-200 dark:bg-neutral-800 animate-pulse"
-                style={{ width: j === 0 ? '20px' : `${60 + Math.random() * 30}%` }}
+                style={{ width: j === 0 ? '20px' : '75%' }}
               />
             </td>
           ))}
@@ -102,6 +103,7 @@ export function RFListView<T extends { id: string }>({
   pageSize = 25,
   onPageChange,
   onSearch,
+  searchKeys,
   onRowClick,
   onRowSelect,
   primaryAction,
@@ -114,13 +116,25 @@ export function RFListView<T extends { id: string }>({
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [localSelected, setLocalSelected] = useState<Set<string>>(new Set());
+  const [localPage, setLocalPage] = useState(1);
+  const currentPage = onPageChange ? page : localPage;
+  const filteredData = useMemo(() => {
+    if (onSearch || !searchQuery.trim()) return data;
+    const query = searchQuery.toLocaleLowerCase('tr-TR');
+    const keys = searchKeys || columns.map(column => column.key);
+    return data.filter(row => keys.some(key => String((row as Record<string, unknown>)[key] ?? '').toLocaleLowerCase('tr-TR').includes(query)));
+  }, [data, onSearch, searchQuery, searchKeys, columns]);
 
-  const effectiveTotal = totalCount ?? data.length;
+  const effectiveTotal = onPageChange ? totalCount ?? filteredData.length : filteredData.length;
   const totalPages = Math.ceil(effectiveTotal / pageSize);
-  const allSelected = data.length > 0 && data.every((row) => localSelected.has(row.id));
+  const safePage = Math.max(1, Math.min(currentPage, totalPages || 1));
+  const visibleData = onPageChange ? filteredData : filteredData.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const allSelected = visibleData.length > 0 && visibleData.every((row) => localSelected.has(row.id));
+  const changePage = (next: number) => onPageChange ? onPageChange(next) : setLocalPage(next);
 
   const handleSearch = (value: string) => {
     setSearchQuery(value);
+    setLocalPage(1);
     onSearch?.(value);
   };
 
@@ -129,9 +143,9 @@ export function RFListView<T extends { id: string }>({
       setLocalSelected(new Set());
       onRowSelect?.([]);
     } else {
-      const newSelected = new Set(data.map((r) => r.id));
+      const newSelected = new Set(visibleData.map((r) => r.id));
       setLocalSelected(newSelected);
-      onRowSelect?.(data);
+      onRowSelect?.(visibleData);
     }
   };
 
@@ -162,7 +176,7 @@ export function RFListView<T extends { id: string }>({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {selectedCount > 0 && secondaryActions.map((action) => (
+          {secondaryActions.filter(action => action.requiresSelection === false || selectedCount > 0).map((action) => (
             <button
               key={action.label}
               onClick={() => action.onClick(data.filter((r) => localSelected.has(r.id)))}
@@ -170,9 +184,9 @@ export function RFListView<T extends { id: string }>({
             >
               {action.icon}
               {action.label}
-              <span className="ml-1 rounded-full bg-primary/10 text-primary px-1.5 py-0.5 text-xs font-semibold">
+              {action.requiresSelection !== false && <span className="ml-1 rounded-full bg-primary/10 text-primary px-1.5 py-0.5 text-xs font-semibold">
                 {selectedCount}
-              </span>
+              </span>}
             </button>
           ))}
           {primaryAction && (
@@ -197,6 +211,7 @@ export function RFListView<T extends { id: string }>({
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
             placeholder="Ara..."
+            aria-label={title + ' içinde ara'}
             className="w-full rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 py-2.5 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
           />
         </div>
@@ -269,6 +284,7 @@ export function RFListView<T extends { id: string }>({
                   <th className="w-10 px-4 py-3">
                     <input
                       type="checkbox"
+                      aria-label="Bu sayfadaki tüm kayıtları seç"
                       checked={allSelected}
                       onChange={handleSelectAll}
                       className="rounded border-neutral-300 text-primary focus:ring-primary/20"
@@ -291,8 +307,8 @@ export function RFListView<T extends { id: string }>({
             </thead>
             <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/60">
               {isLoading ? (
-                <TableSkeleton cols={columns.length} />
-              ) : data.length === 0 ? (
+                <TableSkeleton cols={columns.length + (onRowSelect ? 1 : 0)} />
+              ) : visibleData.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length + (onRowSelect ? 1 : 0)} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
@@ -317,7 +333,7 @@ export function RFListView<T extends { id: string }>({
                   </td>
                 </tr>
               ) : (
-                data.map((row) => (
+                visibleData.map((row) => (
                   <tr
                     key={row.id}
                     onClick={() => onRowClick?.(row)}
@@ -331,6 +347,7 @@ export function RFListView<T extends { id: string }>({
                       <td className="w-10 px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
+                          aria-label="Kaydı seç"
                           checked={localSelected.has(row.id)}
                           onChange={(e) => handleSelectRow(row, e.target.checked)}
                           className="rounded border-neutral-300 text-primary focus:ring-primary/20"
@@ -366,25 +383,26 @@ export function RFListView<T extends { id: string }>({
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4 px-1">
           <p className="text-sm text-muted-foreground">
-            {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, effectiveTotal)} / {effectiveTotal} kayıt
+            {((safePage - 1) * pageSize) + 1}–{Math.min(safePage * pageSize, effectiveTotal)} / {effectiveTotal} kayıt
           </p>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => onPageChange?.(page - 1)}
-              disabled={page <= 1}
+              onClick={() => changePage(safePage - 1)}
+              disabled={safePage <= 1}
+              aria-label="Önceki sayfa"
               className="p-2 rounded-lg border border-neutral-200 dark:border-neutral-700 text-muted-foreground hover:text-foreground hover:bg-neutral-50 dark:hover:bg-neutral-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft size={16} />
             </button>
             {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-              const pageNum = i + 1;
+              const pageNum = Math.max(1, Math.min(safePage - 3, totalPages - 6)) + i;
               return (
                 <button
                   key={pageNum}
-                  onClick={() => onPageChange?.(pageNum)}
+                  onClick={() => changePage(pageNum)}
                   className={cn(
                     'w-9 h-9 rounded-lg text-sm font-medium transition-colors',
-                    pageNum === page
+                    pageNum === safePage
                       ? 'bg-primary text-white shadow-md shadow-primary/20'
                       : 'border border-neutral-200 dark:border-neutral-700 text-muted-foreground hover:text-foreground hover:bg-neutral-50 dark:hover:bg-neutral-900'
                   )}
@@ -394,8 +412,9 @@ export function RFListView<T extends { id: string }>({
               );
             })}
             <button
-              onClick={() => onPageChange?.(page + 1)}
-              disabled={page >= totalPages}
+              onClick={() => changePage(safePage + 1)}
+              disabled={safePage >= totalPages}
+              aria-label="Sonraki sayfa"
               className="p-2 rounded-lg border border-neutral-200 dark:border-neutral-700 text-muted-foreground hover:text-foreground hover:bg-neutral-50 dark:hover:bg-neutral-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight size={16} />

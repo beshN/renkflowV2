@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     // Use enriched query with search/filter support
     const rows = await sql`
       SELECT
-        b.item_id AS id,
+        b.item_id::text || ':' || b.warehouse_id::text AS id,
         b.item_id,
         i.sku,
         i.name AS item_name,
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
         AND i.active = true
         ${search ? sql`AND (i.name ILIKE ${'%' + search + '%'} OR i.sku ILIKE ${'%' + search + '%'})` : sql``}
         ${itemType ? sql`AND i.item_type = ${itemType}` : sql``}
-        ${lowStockOnly ? sql`AND b.on_hand_qty - COALESCE(r.reserved_qty, 0) <= i.min_stock` : sql``}
+        ${lowStockOnly ? sql`AND i.min_stock > 0 AND b.on_hand_qty - COALESCE(r.reserved_qty, 0) <= i.min_stock` : sql``}
       ORDER BY i.name, w.code
       LIMIT 200
     `;
@@ -67,6 +67,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     console.error('Inventory balances error:', error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Stok altyapısı şu anda hazır değil. Depo bakiyeleri yüklenemedi.' }, { status: 503 });
   }
 }

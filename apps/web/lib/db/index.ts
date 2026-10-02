@@ -113,50 +113,15 @@ function createUnavailableClient(message: string) {
 
 function createLazySqlClient(databaseUrl: string) {
   const runtimeConfig = resolveDatabaseRuntimeConfig(databaseUrl);
-  let realClientPromise: Promise<any> | null = null;
-
-  async function getRealClient() {
-    if (!realClientPromise) {
-      realClientPromise = (async () => {
-        const realClient = postgres(runtimeConfig.connectionString, {
-          connect_timeout: 10,
-          idle_timeout: 20,
-          max: 20,
-          prepare: false,
-          ...runtimeConfig.clientOptions,
-        });
-
-        connectionInfo = {
-          status: 'connected',
-          lastConnectedAt: new Date(),
-          errorMessage: null,
-          latencyMs: null,
-        };
-
-        console.log('[RenkFlow DB] Connected to PostgreSQL');
-        return realClient;
-      })();
-    }
-
-    return realClientPromise;
-  }
-
-  const lazyClient: any = async (...args: any[]) => {
-    const realClient = await getRealClient();
-    return realClient(...args);
-  };
-
-  lazyClient.unsafe = async (query: string, params: unknown[] = []) => {
-    const realClient = await getRealClient();
-    return realClient.unsafe(query, params);
-  };
-
-  lazyClient.begin = async (cb: (tx: any) => Promise<unknown>) => {
-    const realClient = await getRealClient();
-    return realClient.begin(cb);
-  };
-
-  return lazyClient;
+  // postgres.js opens the socket when a query executes, not when this factory runs.
+  // Preserve its native tagged query objects so nested SQL fragments stay composable.
+  return postgres(runtimeConfig.connectionString, {
+    connect_timeout: 10,
+    idle_timeout: 20,
+    max: 20,
+    prepare: false,
+    ...runtimeConfig.clientOptions,
+  });
 }
 
 function createSqlClient() {

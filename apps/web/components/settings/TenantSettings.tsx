@@ -17,11 +17,11 @@ export function TenantSettings() {
   const [isInviting, setIsInviting] = useState(false);
 
   const [formData, setFormData] = useState({
-    name: user?.tenantName || '',
+    name: user?.tenantName === 'Demo Mobilya' ? 'Renk Alüminyum' : user?.tenantName || 'Renk Alüminyum',
     brandColor: user?.brandColor || '#8c5e40',
     logoUrl: user?.logoUrl || '',
     industry: user?.tenantIndustry || TEMPLATE_DEFINITIONS.find((t) => t.key === (user?.templateKey as TemplateKey))?.industry || TEMPLATE_DEFINITIONS[0]?.industry,
-    templateKey: (user?.templateKey as TemplateKey) || DEFAULT_TEMPLATE_KEY,
+    templateKey: DEFAULT_TEMPLATE_KEY,
   });
 
   const selectedTemplate = useMemo(() => {
@@ -119,7 +119,7 @@ export function TenantSettings() {
             <Building size={24} />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Organizasyon Ayarları</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Renk Alüminyum firma ayarları</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400">Firmanızın temel yapılandırma ve marka ayarları.</p>
           </div>
         </div>
@@ -135,7 +135,7 @@ export function TenantSettings() {
             />
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Sektor / Meslek</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Üretim alanı</label>
               <div className="relative">
                 <select
                   value={formData.templateKey}

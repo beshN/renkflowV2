@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { Navbar } from '@/components/layout/Navbar';
+import { AppleNavbar } from '@/components/layout/AppleNavbar';
 import { NewOrderForm } from '@/components/forms/NewOrderForm';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { requestJson } from '@/lib/shared/network';
 import { NewOrderFormData } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
+import { ORDER_MAX_UPLOAD_SIZE_BYTES } from '@/lib/features/orders/constants';
 
 async function createOrderViaApi(payload: FormData): Promise<{ ok: boolean; status: number; message?: string }> {
   const result = await requestJson('/api/v1/orders', {
@@ -75,6 +76,11 @@ export default function NewOrderPage() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > ORDER_MAX_UPLOAD_SIZE_BYTES || !['application/pdf', 'image/png', 'image/jpeg'].includes(file.type)) {
+      showToast('PDF, JPG veya PNG seçin. Dosya en fazla 10 MB olabilir.', 'error');
+      e.target.value = '';
+      return;
+    }
     
     try {
       setIsExtracting(true);
@@ -106,11 +112,11 @@ export default function NewOrderPage() {
             quantity: parseInt(extracted.adet || extracted.quantity || extracted.Adet) || 1,
             totalAmount: parseFloat(String(extracted.tutar || extracted.fiyat || extracted.total || extracted.Tutar || 0).replace(',', '.')) || 0,
             currency: 'TRY',
-            notes: `--- AI Çıkarımı ---\nÖlçüler: ${extracted.ölçüler || extracted.ölçü || '-'}\nRenk: ${extracted.renk || '-'}\nMotor: ${extracted.motor || '-'}\nLED: ${extracted.led || '-'}\nKumaş: ${extracted.kumaş || '-'}\nDiğer: ${extracted.notlar || '-'}`,
+            notes: `--- Belge taslağı · kullanıcı doğrulaması gerekli ---\nÖlçüler (mm): ${extracted.ölçüler || extracted.ölçü || '-'}\nRAL / yüzey: ${extracted.renk || '-'}\nProfil / seri: ${extracted.profil || extracted.seri || '-'}\nDiğer: ${extracted.notlar || '-'}`,
           };
           
           setAiFormData(parsedData);
-          showToast('Analiz tamamlandı, form otomatik dolduruldu.', 'success');
+          showToast('Belge taslağı hazır. Kaydetmeden önce ölçü ve ürün bilgilerini doğrulayın.', 'success');
         } catch (err: any) {
           showToast(err.message || 'Analiz tamamlanamadı.', 'error');
         } finally {
@@ -133,13 +139,18 @@ export default function NewOrderPage() {
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-slate-50/50 dark:bg-slate-950/50">
-      <Navbar title="Yeni Sipariş Girişi" showSearch={false} />
+      <AppleNavbar title="Yeni sipariş" showSearch={false} />
 
-      <main className="w-full flex-1 p-4 md:p-8">
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+      <main className="mx-auto w-full max-w-[1440px] flex-1 p-4 md:p-6">
+        <div className="mb-6">
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">Renk Alüminyum</p>
+          <h2 className="mt-1 text-2xl font-semibold tracking-tight">Siparişi üretime hazırlayın</h2>
+          <p className="mt-1 text-sm text-slate-500">Müşteri, ürün, ölçü ve renk bilgilerini tek kayıtta toplayın.</p>
+        </div>
+        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
           <NewOrderForm onSubmit={handleSubmit} initialData={aiFormData} />
 
-          <aside className="space-y-6">
+          <aside className="space-y-4 xl:sticky xl:top-20">
             <section className="rf-panel rounded-2xl p-6 bg-gradient-to-br from-sky-50 to-indigo-50 dark:from-sky-950/40 dark:to-indigo-950/40 border-sky-100 dark:border-sky-900/50 relative overflow-hidden">
               {isExtracting && (
                 <div className="absolute inset-0 bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
@@ -152,10 +163,10 @@ export default function NewOrderPage() {
                 <div className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
                 </div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">AI Sipariş Asistanı</h2>
+                <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">PDF’ten sipariş taslağı</h2>
               </div>
               <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400 mb-5 relative z-0">
-                Müşteriden gelen PDF sipariş formunu veya irsaliyeyi yükleyin. RenkFlow AI, belgeyi analiz ederek formu sizin yerinize otomatik doldursun.
+                Sipariş PDF’ini yükleyin. Belgedeki alanlar taslağa aktarılır; ölçü, ürün ve adet bilgilerini kontrol ettikten sonra kaydedin.
               </p>
               
               <div className="relative border-2 border-dashed border-sky-200 dark:border-sky-800 rounded-xl p-8 text-center hover:bg-sky-50/50 dark:hover:bg-sky-900/20 transition-colors cursor-pointer group z-0">
@@ -163,25 +174,26 @@ export default function NewOrderPage() {
                   type="file" 
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
                   accept="application/pdf,image/png,image/jpeg"
-                  title="PDF veya Görsel Yükle"
+                  title="Sipariş belgesi seç"
+                  aria-label="Sipariş belgesi seç"
                   onChange={handleFileUpload}
                   disabled={isExtracting}
                 />
                 <div className="w-12 h-12 mx-auto rounded-full bg-white dark:bg-slate-900 shadow-sm flex items-center justify-center text-sky-500 mb-3 group-hover:scale-110 transition-transform">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
                 </div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Belgeyi buraya sürükleyin</p>
-                <p className="text-xs text-slate-500 mt-1">veya seçmek için tıklayın (PDF, JPG, PNG)</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Belge seçin</p>
+                <p className="text-xs text-slate-500 mt-1">PDF, JPG, PNG · En fazla 10 MB</p>
               </div>
             </section>
 
             <section className="rf-panel rounded-2xl p-6">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Standart İş Akışı</h2>
+              <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Üretime geçmeden önce</h2>
               <ol className="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                <li>1. Müşteri profilini doğrula.</li>
-                <li>2. Ürün ve fiyat bilgisini netleştir.</li>
-                <li>3. Gerekli teknik belgeleri ekle.</li>
-                <li>4. Siparişi kaydet ve operasyona aktar.</li>
+                <li>1. Ölçüleri mm olarak doğrulayın.</li>
+                <li>2. Profil serisi ve RAL rengini belirtin.</li>
+                <li>3. Teknik çizim ve müşteri onayını ekleyin.</li>
+                <li>4. Termin ve sevkiyat notlarını kontrol edin.</li>
               </ol>
             </section>
           </aside>

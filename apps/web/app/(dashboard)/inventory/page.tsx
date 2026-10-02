@@ -74,9 +74,11 @@ export default function InventoryPage() {
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [showCriticalOnly, setShowCriticalOnly] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const loadInventory = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams({
         ...(searchQuery ? { search: searchQuery } : {}),
@@ -84,12 +86,12 @@ export default function InventoryPage() {
         ...(filterValues.itemType ? { itemType: filterValues.itemType } : {}),
       });
       const res = await fetch(`/api/v1/inventory/balances?${params}`);
-      if (!res.ok) throw new Error('Stok yüklenemedi');
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Stok yüklenemedi');
       setItems(data.items || []);
       setTotal(data.total || 0);
     } catch (err) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : 'Stok yüklenemedi.');
     } finally {
       setIsLoading(false);
     }
@@ -101,10 +103,16 @@ export default function InventoryPage() {
   const criticalCount = items.filter((item) => {
     const available = parseFloat(item.available_qty) || 0;
     const min = parseFloat(item.min_stock || '0') || 0;
-    return available <= min;
+    return min > 0 && available <= min;
   }).length;
 
-  const totalOnHand = items.reduce((sum, item) => sum + (parseFloat(item.on_hand_qty) || 0), 0);
+  const stockByUnit = items.reduce<Record<string, number>>((totals, item) => {
+    totals[item.stock_uom] = (totals[item.stock_uom] || 0) + (Number(item.on_hand_qty) || 0);
+    return totals;
+  }, {});
+  const stockUnitSummary = Object.entries(stockByUnit).map(([unit, quantity]) =>
+    quantity.toLocaleString('tr-TR', { maximumFractionDigits: 2 }) + ' ' + unit
+  ).join(' · ') || '—';
 
   const filters: RFFilter[] = [
     {
@@ -178,33 +186,34 @@ export default function InventoryPage() {
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950/80">
-      <AppleNavbar title="Envanter Yönetimi" showSearch={false} />
+      <AppleNavbar title="Profil & malzeme stoğu" showSearch={false} />
 
       <main className="flex-1 p-4 md:p-8">
+        {error && <div role="alert" className="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error} <button type="button" onClick={loadInventory} className="ml-3 underline">Tekrar dene</button></div>}
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
           {[
             {
               label: 'Toplam Malzeme',
-              value: total,
+              value: error ? '—' : total,
               icon: Boxes,
               color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20',
             },
             {
               label: 'Kritik Stok',
-              value: criticalCount,
+              value: error ? '—' : criticalCount,
               icon: AlertTriangle,
               color: criticalCount > 0 ? 'text-rose-600 bg-rose-50 dark:bg-rose-900/20' : 'text-neutral-600 bg-neutral-50 dark:bg-neutral-900',
             },
             {
               label: 'Stok Kalemleri (Bu Sayfa)',
-              value: items.length,
+              value: error ? '—' : items.length,
               icon: Package,
               color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20',
             },
             {
-              label: 'Toplam Fiziksel',
-              value: totalOnHand.toLocaleString('tr-TR', { maximumFractionDigits: 0 }),
+              label: 'Fiziksel stok (birimine göre)',
+              value: stockUnitSummary,
               icon: ArrowUpDown,
               color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20',
             },
@@ -239,8 +248,8 @@ export default function InventoryPage() {
 
         <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm">
           <RFListView<InventoryItem>
-            title="Stok Dengesi"
-            subtitle="Fiziksel stok, rezervasyon ve kullanılabilir miktarlar"
+            title="Depo bakiyeleri"
+            subtitle="Profil metreyle, hurda kg ile takip edilir. Rezervasyon fiziksel stoğu değiştirmez."
             data={items}
             columns={columns}
             filters={filters}
@@ -250,8 +259,8 @@ export default function InventoryPage() {
             onFilterChange={(key, value) => setFilterValues((prev) => ({ ...prev, [key]: value }))}
             filterValues={filterValues}
             emptyState={{
-              title: 'Stok kaydı bulunamadı',
-              description: 'Envanter kalemleri ve depolar tanımlandığında stok hareketleri burada görünecek.',
+              title: error ? 'Stok verisi yüklenemedi' : 'Stok kaydı bulunamadı',
+              description: error ? 'Depo bakiyeleri alınamadı. Stok kurulumu ve veritabanı bağlantısı kontrol edilmeli.' : 'Envanter kalemleri ve depolar tanımlandığında stok hareketleri burada görünecek.',
             }}
           />
         </div>

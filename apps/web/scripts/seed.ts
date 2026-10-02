@@ -9,15 +9,17 @@
 import postgres from 'postgres';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 dotenv.config({ path: '.env.local' });
 
 const DEMO_TENANT = {
-  name: 'Demo Mobilya',
-  slug: 'demo-mobilya',
-  brandColor: '#8c5e40',
-  industry: 'mobilya',
-  templateKey: 'mobilya',
+  name: 'Renk Alüminyum',
+  slug: 'renk-aluminyum-demo',
+  brandColor: '#2563eb',
+  industry: 'Alüminyum üretimi',
+  templateKey: 'aluminyum',
 };
 
 const DEMO_USER = {
@@ -29,39 +31,39 @@ const DEMO_USER = {
 const DEMO_ORDERS = [
   {
     orderNumber: 'RF-001',
-    customerName: 'Ahmet Yılmaz',
+    customerName: 'Örnek Yapı A.Ş.',
     email: 'ahmet@example.com',
     phone: '+90 532 123 4567',
-    productName: 'Modern Köşe Koltuk',
+    productName: 'Alüminyum sürme doğrama',
     quantity: 1,
     status: 'pending',
     totalAmount: 15000,
     currency: 'TRY',
-    notes: 'Gri kumaş, ayaklar krom olacak',
+    notes: 'DEMO · 2400 × 2100 mm · RAL 7016 mat. Profil serisi ve aksesuarlar müşteri onayında doğrulanacak.',
   },
   {
     orderNumber: 'RF-002',
-    customerName: 'Fatma Demir',
+    customerName: 'Örnek Cephe Ltd.',
     email: 'fatma@example.com',
     phone: '+90 533 234 5678',
-    productName: 'Yemek Masası Seti',
+    productName: 'Alüminyum pencere sistemi',
     quantity: 1,
     status: 'in_production',
     totalAmount: 8500,
     currency: 'TRY',
-    notes: '6 kişilik, ceviz rengi',
+    notes: 'DEMO · 1200 × 1500 mm · RAL 9016. Kesim ölçüleri teknik çizime göre doğrulanacak.',
   },
   {
     orderNumber: 'RF-003',
-    customerName: 'Mehmet Kaya',
+    customerName: 'Örnek Proje',
     email: 'mehmet@example.com',
     phone: '+90 534 345 6789',
-    productName: 'Yatak Odası Takımı',
+    productName: '40×40 alüminyum profil çerçeve',
     quantity: 1,
     status: 'delivered',
     totalAmount: 25000,
     currency: 'TRY',
-    notes: 'Beyaz lake, led aydınlatmalı',
+    notes: 'DEMO · 1000 × 1000 mm çerçeve. 6 m ticari profil boyu; gerçek kg/m değeri malzeme kartında doğrulanacak.',
   },
 ];
 
@@ -80,14 +82,31 @@ async function seed() {
 
     // Check if demo tenant already exists
     const existingTenant = await sql`
-      SELECT id FROM tenants WHERE slug = ${DEMO_TENANT.slug}
+      SELECT * FROM tenants WHERE slug IN (${DEMO_TENANT.slug}, 'demo-mobilya')
+      ORDER BY CASE WHEN slug = ${DEMO_TENANT.slug} THEN 0 ELSE 1 END LIMIT 1
     `;
 
     let tenantId: string;
 
     if (existingTenant.length > 0) {
-      console.log('ℹ️  Demo tenant already exists, skipping creation');
       tenantId = existingTenant[0].id;
+      const oldSamples = await sql`
+        SELECT * FROM orders WHERE tenant_id = ${tenantId}
+        AND order_number IN ('RF-001', 'RF-002', 'RF-003')
+      `;
+      const backupDirectory = resolve(process.cwd(), '../../../outputs');
+      await mkdir(backupDirectory, { recursive: true });
+      await writeFile(resolve(backupDirectory, 'renkflow-demo-before-' + Date.now() + '.json'),
+        JSON.stringify({ tenant: existingTenant[0], orders: oldSamples }, null, 2));
+      if (existingTenant[0].name === 'Demo Mobilya') {
+        await sql`
+          UPDATE tenants SET name = ${DEMO_TENANT.name}, slug = ${DEMO_TENANT.slug},
+            brand_color = ${DEMO_TENANT.brandColor}, industry = ${DEMO_TENANT.industry},
+            template_key = ${DEMO_TENANT.templateKey}
+          WHERE id = ${tenantId} AND name = 'Demo Mobilya'
+        `;
+      }
+      console.log('✅ Existing demo company located; sample backup saved');
     } else {
       // Create demo tenant
       const [tenant] = await sql`
@@ -152,7 +171,16 @@ async function seed() {
         `;
         console.log(`✅ Order ${order.orderNumber} created`);
       } else {
-        console.log(`ℹ️  Order ${order.orderNumber} already exists, skipping`);
+        const legacyProducts: Record<string, string> = {
+          'RF-001': 'Modern Köşe Koltuk', 'RF-002': 'Yemek Masası Seti', 'RF-003': 'Yatak Odası Takımı',
+        };
+        const updated = await sql`
+          UPDATE orders SET customer_name = ${order.customerName}, product_name = ${order.productName}, notes = ${order.notes}
+          WHERE tenant_id = ${tenantId} AND order_number = ${order.orderNumber}
+            AND product_name = ${legacyProducts[order.orderNumber]}
+          RETURNING id
+        `;
+        console.log(updated.length ? `✅ Legacy demo ${order.orderNumber} updated` : `ℹ️  Order ${order.orderNumber} preserved`);
       }
     }
 

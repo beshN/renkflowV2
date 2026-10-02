@@ -3,6 +3,9 @@ const path = require('node:path');
 
 const workspaceRoot = path.resolve(__dirname, '../..');
 const outputFileTracingRoot = workspaceRoot;
+const assetCacheControl = process.env.NODE_ENV === 'production'
+  ? 'public, max-age=31536000, immutable'
+  : 'no-store, max-age=0';
 const nextConfig = {
   // Output configuration for production
   output: 'standalone',
@@ -114,7 +117,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
+            value: assetCacheControl,
           },
         ],
       },
@@ -123,7 +126,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
+            value: assetCacheControl,
           },
         ],
       },
@@ -207,7 +210,6 @@ const nextConfig = {
       '@dnd-kit/sortable',
       'framer-motion',
     ],
-    optimizeCss: true,
     scrollRestoration: true,
   },
 

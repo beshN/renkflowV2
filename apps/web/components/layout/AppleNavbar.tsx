@@ -1,10 +1,10 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
+import { type ReactNode, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { Search, Bell, Sun, Moon, Command } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
+import { Search, Bell, Sun, Moon } from 'lucide-react';
 
 interface AppleNavbarProps {
   title: string;
@@ -13,69 +13,32 @@ interface AppleNavbarProps {
 }
 
 export function AppleNavbar({ title, showSearch = true, action }: AppleNavbarProps) {
-  const { setTheme, theme } = useTheme();
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-
+  const { setTheme, resolvedTheme } = useTheme();
+  const router = useRouter();
+  const [query, setQuery] = useState('');
   return (
-    <motion.header
-      className={cn(
-        "sticky top-0 z-40 h-16 px-6 flex items-center justify-between",
-        "bg-white/70 dark:bg-black/60 backdrop-blur-2xl border-b border-black/5 dark:border-white/5",
-        "transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
-      )}
-      initial={{ y: -20, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-    >
-      {/* Title / Breadcrumbs */}
-      <div className="flex items-center gap-4">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground font-display">
-          {title}
-        </h1>
+    <header className="sticky top-0 z-40 flex min-h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-950 md:px-6">
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 md:hidden">Renk Alüminyum</p>
+        <h1 className="truncate text-lg font-semibold tracking-tight">{title}</h1>
       </div>
-
-      {/* Right Actions */}
-      <div className="flex items-center gap-4">
+      <div className="flex shrink-0 items-center gap-2">
         {action}
-        {/* Search Bar */}
         {showSearch && (
-          <div
-            className={cn(
-              "relative hidden md:flex items-center transition-all duration-300 ease-out",
-              isSearchFocused ? "w-80" : "w-64"
-            )}
-          >
-            <Search className="absolute left-3 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="w-full h-9 pl-9 pr-4 rounded-lg bg-black/5 dark:bg-white/10 border-none outline-none text-sm focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-muted-foreground/70"
-              onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setIsSearchFocused(false)}
-            />
-            <div className="absolute right-3 hidden md:flex items-center gap-1 opacity-50">
-              <Command className="w-3 h-3" />
-              <span className="text-[10px]">K</span>
-            </div>
-          </div>
+          <form className="relative hidden lg:block" role="search"
+            onSubmit={(event) => { event.preventDefault(); if (query.trim()) router.push('/search?q=' + encodeURIComponent(query.trim())); }}>
+            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <input aria-label="Sipariş ve müşteri ara" placeholder="Sipariş, ürün, müşteri ara…" value={query}
+              onChange={event => setQuery(event.target.value)}
+              className="h-9 w-64 rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 dark:border-slate-800 dark:bg-slate-900" />
+          </form>
         )}
-
-        {/* Theme Toggle */}
-        <button
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-all"
-        >
-          <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">Toggle theme</span>
+        <button type="button" onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+          aria-label="Temayı değiştir" className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 dark:hover:bg-slate-900">
+          {resolvedTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
-
-        {/* Notifications */}
-        <button className="relative w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-all">
-          <Bell size={20} />
-          <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-black" />
-        </button>
-
+        <Link href="/notifications" aria-label="Bildirimler" className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900"><Bell size={18} /></Link>
       </div>
-    </motion.header>
+    </header>
   );
 }

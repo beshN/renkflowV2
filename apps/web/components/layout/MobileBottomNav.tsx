@@ -8,11 +8,10 @@ import { useAuth } from '@/lib/context/AuthContext';
 import { hasPermission, type Permission, type UserRole } from '@/lib/auth/permissions';
 
 const navItems = [
-  { icon: Home, label: 'Ana Sayfa', href: '/dashboard' },
+  { icon: Home, label: 'Genel bakış', href: '/dashboard' },
   { icon: Receipt, label: 'Siparişler', href: '/orders', requiresPermission: 'orders.view' as Permission },
   { icon: ClipboardList, label: 'İş Emri', href: '/work-orders', requiresPermission: 'orders.view' as Permission },
   { icon: Boxes, label: 'Stok', href: '/inventory', requiresPermission: 'inventory.view' as Permission },
-  { icon: Search, label: 'Arama', href: '/search' },
   { icon: Settings, label: 'Ayarlar', href: '/settings' },
 ];
 
@@ -38,7 +37,7 @@ export function MobileBottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all min-touch',
+                'flex min-w-0 flex-1 flex-col items-center gap-0.5 py-1.5 px-1 rounded-lg transition-colors min-touch',
                 isActive
                   ? 'text-primary bg-primary/10'
                   : 'text-subtle-light dark:text-subtle-dark'

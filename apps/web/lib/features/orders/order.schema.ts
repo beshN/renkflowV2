@@ -133,8 +133,8 @@ const optionalNotes = z.preprocess(
 export const orderItemSchema = z.object({
   productName: sanitizedString.pipe(z.string().min(1, 'Ürün adı gereklidir').max(200, 'Ürün adı çok uzun')),
   quantity: safePositiveInt,
-  unitPrice: safePositiveNumber.optional(),
-  totalPrice: safePositiveNumber.optional(),
+  unitPrice: safeNonNegativeNumber.optional(),
+  totalPrice: safeNonNegativeNumber.optional(),
   description: sanitizedString.pipe(z.string().max(1000, 'Açıklama çok uzun')).optional(),
   color: sanitizedString.optional(),
   widthMm: safePositiveNumber.optional(),
@@ -146,7 +146,7 @@ export const orderItemSchema = z.object({
 });
 
 export const createOrderSchema = z.object({
-  customerName: sanitizedName.pipe(
+  customerName: sanitizedString.pipe(
     z.string().min(2, 'Müşteri adı en az 2 karakter olmalıdır').max(100, 'Müşteri adı çok uzun')
   ),
   email: optionalEmail,
@@ -166,7 +166,7 @@ export const createOrderSchema = z.object({
 });
 
 export const updateOrderSchema = z.object({
-  customerName: sanitizedName.pipe(z.string().min(2).max(100)).optional(),
+  customerName: sanitizedString.pipe(z.string().min(2).max(100)).optional(),
   email: optionalEmail,
   phone: optionalPhone,
   productName: sanitizedString.pipe(z.string().min(1).max(200)).optional(),

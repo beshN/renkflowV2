@@ -27,6 +27,13 @@ type UploadEntry = {
 
 const ALLOWED_UPLOAD_TYPES: ReadonlySet<string> = new Set(ORDER_FORM_ALLOWED_FILE_TYPES);
 
+function initialItems(data?: NewOrderFormData): NewOrderItemData[] {
+  if (data?.items?.length) return data.items;
+  const quantity = data?.quantity || 1;
+  const totalPrice = data?.totalAmount || 0;
+  return [{ productName: data?.productName || '', quantity, unitPrice: totalPrice / quantity, totalPrice }];
+}
+
 function buildTodayISO(): string {
   return new Date().toISOString().split('T')[0];
 }
@@ -52,7 +59,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
   );
 
   const [rawTotalAmount, setRawTotalAmount] = useState(String(initialData?.totalAmount ?? '0'));
-  const [items, setItems] = useState<NewOrderItemData[]>(initialData?.items ?? []);
+  const [items, setItems] = useState<NewOrderItemData[]>(() => initialItems(initialData));
 
   useEffect(() => {
     if (initialData) {
@@ -60,9 +67,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
       if (initialData.totalAmount !== undefined) {
         setRawTotalAmount(String(initialData.totalAmount));
       }
-      if (initialData.items) {
-        setItems(initialData.items);
-      }
+      setItems(initialItems(initialData));
     }
   }, [initialData]);
 
@@ -95,13 +100,18 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
       nextErrors.productName = 'Ürün adı zorunlu alandır.';
     }
 
-    if (calculatedTotal <= 0) {
-      nextErrors.totalAmount = 'Toplam tutar sıfırdan büyük olmalı.';
+    if (!Number.isFinite(calculatedTotal) || calculatedTotal < 0) {
+      nextErrors.totalAmount = 'Geçerli bir sipariş tutarı girin.';
     }
 
     items.forEach((item, idx) => {
       if (!item.productName.trim()) {
         nextErrors[`items.${idx}.productName`] = 'Kalem adı zorunlu.';
+      }
+      if (!Number.isInteger(item.quantity) || item.quantity < 1) nextErrors[`items.${idx}.quantity`] = 'Adet, sıfırdan büyük tam sayı olmalı.';
+      if (item.unitPrice !== undefined && (!Number.isFinite(item.unitPrice) || item.unitPrice < 0)) nextErrors[`items.${idx}.unitPrice`] = 'Birim fiyat negatif olamaz.';
+      for (const field of ['widthMm', 'heightMm'] as const) {
+        if (item[field] !== undefined && (!Number.isFinite(item[field]) || item[field]! <= 0)) nextErrors[`items.${idx}.${field}`] = 'Ölçü, sıfırdan büyük olmalı.';
       }
     });
 
@@ -188,7 +198,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
     ]);
   };
 
-  const updateItem = (index: number, field: keyof NewOrderItemData, value: any) => {
+  const updateItem = (index: number, field: keyof NewOrderItemData, value: string | number | undefined) => {
     setItems((prev) => {
       const newItems = [...prev];
       newItems[index] = { ...newItems[index], [field]: value };
@@ -205,19 +215,22 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
   };
 
   const removeItem = (index: number) => {
-    setItems((prev) => prev.filter((_, i) => i !== index));
+    setItems((prev) => prev.length > 1 ? prev.filter((_, i) => i !== index) : prev);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <section className="rf-panel rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Müşteri Profili</h2>
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">1. Müşteri ve proje</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <label className="md:col-span-2">
-            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Müşteri adı *</span>
+            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Müşteri / firma adı *</span>
             <input
               type="text"
               value={form.customerName}
+              required
+              placeholder="Firma veya müşteri adı"
+              autoComplete="organization"
               onChange={(e) => setForm((prev) => ({ ...prev, customerName: e.target.value }))}
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
             />
@@ -247,8 +260,8 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
       <section className="rf-panel rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Sipariş Kalemleri</h2>
-            <p className="mt-1 text-sm text-slate-500">Ürün, ölçü ve fiyat detaylarını girin.</p>
+            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">2. Ürün ve teknik ölçüler</h2>
+            <p className="mt-1 text-sm text-slate-500">Her farklı ürün, ölçü ve renk için ayrı kalem ekleyin. Ölçüler mm cinsindedir.</p>
           </div>
           <Button type="button" variant="secondary" size="sm" onClick={addItem} className="gap-2">
             <Plus size={14} /> Kalem Ekle
@@ -295,16 +308,20 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                 <button
                   type="button"
                   onClick={() => removeItem(idx)}
-                  className="absolute top-4 right-4 text-slate-400 hover:text-rose-500 transition-colors"
+                  disabled={items.length === 1}
+                  aria-label={`${idx + 1}. kalemi sil`}
+                  className="absolute top-4 right-4 text-slate-400 hover:text-rose-500 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                 >
                   <Trash2 size={16} />
                 </button>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pr-8">
                   <label className="md:col-span-2">
-                    <span className="mb-1.5 block text-xs font-medium text-slate-500">Ürün Adı *</span>
+                    <span className="mb-1.5 block text-xs font-medium text-slate-500">Ürün / sistem *</span>
                     <input
                       type="text"
                       value={item.productName}
+                      required
+                      placeholder="Örn: Alüminyum sürme doğrama"
                       onChange={(e) => updateItem(idx, 'productName', e.target.value)}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
                     />
@@ -314,8 +331,11 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                     <span className="mb-1.5 block text-xs font-medium text-slate-500">Genişlik (mm)</span>
                     <input
                       type="number"
-                      value={item.widthMm || ''}
-                      onChange={(e) => updateItem(idx, 'widthMm', parseFloat(e.target.value))}
+                      min={1}
+                      step="any"
+                      placeholder="2400"
+                      value={item.widthMm ?? ''}
+                      onChange={(e) => updateItem(idx, 'widthMm', e.target.value ? Number(e.target.value) : undefined)}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
                     />
                   </label>
@@ -323,35 +343,42 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                     <span className="mb-1.5 block text-xs font-medium text-slate-500">Yükseklik (mm)</span>
                     <input
                       type="number"
-                      value={item.heightMm || ''}
-                      onChange={(e) => updateItem(idx, 'heightMm', parseFloat(e.target.value))}
+                      min={1}
+                      step="any"
+                      placeholder="2100"
+                      value={item.heightMm ?? ''}
+                      onChange={(e) => updateItem(idx, 'heightMm', e.target.value ? Number(e.target.value) : undefined)}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
                     />
                   </label>
                   <label>
-                    <span className="mb-1.5 block text-xs font-medium text-slate-500">Renk</span>
+                    <span className="mb-1.5 block text-xs font-medium text-slate-500">RAL renk / yüzey</span>
                     <input
                       type="text"
                       value={item.color || ''}
+                      placeholder="RAL 7016 mat"
                       onChange={(e) => updateItem(idx, 'color', e.target.value)}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
                     />
                   </label>
                   <label>
-                    <span className="mb-1.5 block text-xs font-medium text-slate-500">Miktar</span>
+                    <span className="mb-1.5 block text-xs font-medium text-slate-500">Adet *</span>
                     <input
                       type="number"
                       min={1}
                       value={item.quantity}
+                      required
                       onChange={(e) => updateItem(idx, 'quantity', parseInt(e.target.value) || 0)}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
                     />
                   </label>
                   <label>
-                    <span className="mb-1.5 block text-xs font-medium text-slate-500">Birim Fiyat</span>
+                    <span className="mb-1.5 block text-xs font-medium text-slate-500">Birim fiyat ({form.currency})</span>
                     <input
                       type="number"
                       step="0.01"
+                      min={0}
+                      placeholder="0,00"
                       value={item.unitPrice || ''}
                       onChange={(e) => updateItem(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
@@ -364,6 +391,13 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                     </div>
                   </label>
                 </div>
+                <label className="mt-3 block">
+                  <span className="mb-1.5 block text-xs font-medium text-slate-500">Profil kodu / seri ve kalem notu</span>
+                  <input value={item.notes || ''} onChange={(e) => updateItem(idx, 'notes', e.target.value)}
+                    placeholder="Örn: 40×40 profil · bağlantı ve aksesuar detayları"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900" />
+                </label>
+                {Object.entries(errors).filter(([key]) => key.startsWith(`items.${idx}.`) && !key.endsWith('productName')).map(([key, message]) => <p key={key} role="alert" className="mt-1 text-xs text-rose-600">{message}</p>)}
               </div>
             ))}
           </div>
@@ -371,7 +405,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
 
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <label>
-            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Teslimat tarihi</span>
+            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Termin tarihi</span>
             <input
               type="date"
               min={todayISO}
@@ -394,9 +428,10 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
             </select>
           </label>
           <label className="md:col-span-2">
-            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Notlar (AI Çıkarımları)</span>
+            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Üretim ve montaj notları</span>
             <textarea
               rows={3}
+              placeholder="Kesim, işleme, aksesuar, montaj veya sevkiyat talimatları…"
               value={form.notes || ''}
               onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
@@ -407,7 +442,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
 
       <section className="rf-panel rounded-2xl p-6">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Teknik Belgeler</h2>
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">3. Teknik belgeler</h2>
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
             <Plus size={14} />
             Dosya ekle
@@ -431,6 +466,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                 <button
                   type="button"
                   onClick={() => setFiles((prev) => prev.filter((item) => item.id !== entry.id))}
+                  aria-label={`${entry.file.name} dosyasını kaldır`}
                   className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/10"
                 >
                   <Trash2 size={14} />
@@ -466,6 +502,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
           Vazgeç
         </Button>
       </div>
+      <p className="text-xs text-slate-500">Siparişi kaydetmek stoktan düşüm yapmaz. Malzeme üretim emrinde rezerve edilir; gerçek tüketim üretim tamamlandığında işlenir.</p>
     </form>
   );
 }

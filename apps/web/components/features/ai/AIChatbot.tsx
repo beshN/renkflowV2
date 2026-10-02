@@ -515,7 +515,7 @@ export function AIChatbot() {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-2xl shadow-blue-500/30 flex items-center justify-center hover:shadow-blue-500/50 transition-shadow"
+            className="fixed bottom-24 right-4 md:bottom-6 md:right-6 z-50 w-12 h-12 md:w-14 md:h-14 rounded-xl bg-blue-600 text-white shadow-lg flex items-center justify-center hover:bg-blue-700 transition-colors"
             aria-label="AI Asistanı Aç"
           >
             <Sparkles className="w-6 h-6" />
@@ -536,8 +536,8 @@ export function AIChatbot() {
             }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             className={cn(
-              "fixed bottom-6 right-6 z-50 w-[420px] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col",
-              isMinimized && "w-[300px]"
+              "fixed bottom-24 right-4 md:bottom-6 md:right-6 z-50 w-[calc(100vw-2rem)] max-w-[420px] max-h-[calc(100dvh-8rem)] md:max-h-[calc(100dvh-3rem)] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col",
+              isMinimized && "md:w-[300px]"
             )}
           >
             {/* Header */}
@@ -549,8 +549,7 @@ export function AIChatbot() {
                 <div>
                   <h3 className="font-semibold text-sm">RenkFlow AI</h3>
                   <div className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                    <p className="text-xs text-white/70">Çevrimiçi</p>
+                    <p className="text-xs text-white/70">Belge ve operasyon yardımcısı</p>
                   </div>
                 </div>
               </div>

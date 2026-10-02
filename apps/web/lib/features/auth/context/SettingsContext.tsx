@@ -10,10 +10,10 @@ interface SettingsContextType {
 }
 
 const defaultSettings: CompanySettings = {
-  companyName: 'RenkFlow Mobilya',
-  taxNumber: '1234567890',
-  address: 'İstanbul, Türkiye',
-  phone: '+90 555 123 45 67',
+  companyName: 'Renk Alüminyum',
+  taxNumber: '',
+  address: '',
+  phone: '',
   email: 'info@renkflow.com',
   currency: 'TRY',
   language: 'tr',

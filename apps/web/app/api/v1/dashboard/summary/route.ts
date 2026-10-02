@@ -26,7 +26,6 @@ export async function GET() {
           COUNT(*) FILTER (WHERE delivery_date::date = CURRENT_DATE) AS today_deliveries
         FROM orders
         WHERE tenant_id = ${tenantId}
-          AND created_at >= now() - interval '90 days'
       `,
       sql`
         SELECT
@@ -44,7 +43,10 @@ export async function GET() {
           AND i.active = true
           AND COALESCE(b.on_hand_qty, 0) <= i.min_stock
           AND i.min_stock > 0
-      `,
+      `.catch((error: unknown) => {
+        console.error('[Dashboard Stock Summary]', error);
+        return null;
+      }),
       sql`
         SELECT COUNT(*) AS overdue_count
         FROM orders
@@ -58,7 +60,7 @@ export async function GET() {
       summary: {
         orders: orders[0],
         production: production[0],
-        criticalStock: stock[0],
+        criticalStock: stock?.[0] ?? null,
         overdue: overdue[0],
       },
     });

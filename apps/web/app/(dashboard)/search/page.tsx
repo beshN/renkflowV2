@@ -1,10 +1,6 @@
-import { ModulePlaceholder } from '@/components/dashboard-core/ModulePlaceholder';
+import { OrderSearch } from '@/components/features/orders/OrderSearch';
 
-export default function Page() {
-  return (
-    <ModulePlaceholder
-      title="Arama"
-      description="Arama ekranı yeni sürüm standardına taşınıyor. Bir sonraki iterasyonda canlı veri bağları, rol bazlı aksiyonlar ve operasyon metrikleri bu modülde aktif edilecek."
-    />
-  );
+export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const { q } = await searchParams;
+  return <OrderSearch initialQuery={q || ''} />;
 }

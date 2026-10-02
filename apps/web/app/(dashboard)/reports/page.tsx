@@ -1,65 +1,49 @@
 'use client';
 
+import { useMemo } from 'react';
+import { Download } from 'lucide-react';
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
-import { BarChart3, TrendingUp, PieChart, Activity } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { AppleCard } from '@/components/shared/ui/AppleCard';
+import { useOrders } from '@/lib/hooks/useOrders';
+import { StatusBadge } from '@/components/shared/ui/StatusStepper';
 
+function csvCell(value: unknown) {
+  const text = String(value ?? '');
+  const safe = /^[=+@-]/.test(text) ? "'" + text : text;
+  return '"' + safe.replaceAll('"', '""') + '"';
+}
 export default function ReportsPage() {
-  return (
-    <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950/80">
-      <AppleNavbar title="Gelişmiş Raporlama" showSearch={false} />
-      
-      <main className="flex-1 p-4 md:p-8 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-emerald-50 rounded-lg"><TrendingUp className="w-5 h-5 text-emerald-600" /></div>
-              <h3 className="font-medium text-slate-700">Aylık Üretim</h3>
-            </div>
-            <p className="text-3xl font-bold">1,245</p>
-            <p className="text-sm text-emerald-600 mt-1">+15% geçen aya göre</p>
-          </div>
-          <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-rose-50 rounded-lg"><Activity className="w-5 h-5 text-rose-600" /></div>
-              <h3 className="font-medium text-slate-700">Fire Oranı</h3>
-            </div>
-            <p className="text-3xl font-bold">3.2%</p>
-            <p className="text-sm text-rose-600 mt-1">Hedefin 0.2% üzerinde</p>
-          </div>
-          <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-sky-50 rounded-lg"><BarChart3 className="w-5 h-5 text-sky-600" /></div>
-              <h3 className="font-medium text-slate-700">Teslimat Performansı</h3>
-            </div>
-            <p className="text-3xl font-bold">96%</p>
-            <p className="text-sm text-sky-600 mt-1">Zamanında teslimat</p>
-          </div>
-          <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-amber-50 rounded-lg"><PieChart className="w-5 h-5 text-amber-600" /></div>
-              <h3 className="font-medium text-slate-700">Kapasite Kullanımı</h3>
-            </div>
-            <p className="text-3xl font-bold">82%</p>
-            <p className="text-sm text-slate-500 mt-1">Optimum aralıkta</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm flex flex-col items-center justify-center min-h-[300px]">
-             <BarChart3 className="w-12 h-12 text-slate-300 mb-4" />
-             <h3 className="text-lg font-medium">Sipariş Trendleri</h3>
-             <p className="text-slate-500 text-center max-w-sm mt-2">Detaylı sipariş ve ciro analizleri için grafik altyapısı bir sonraki güncellemede eklenecektir.</p>
-             <Button variant="outline" className="mt-4">Raporu İndir (PDF)</Button>
-          </div>
-          <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm flex flex-col items-center justify-center min-h-[300px]">
-             <PieChart className="w-12 h-12 text-slate-300 mb-4" />
-             <h3 className="text-lg font-medium">Ürün Dağılımı</h3>
-             <p className="text-slate-500 text-center max-w-sm mt-2">Hangi ürün gruplarının daha çok satıldığına dair pasta grafik görünümü.</p>
-             <Button variant="outline" className="mt-4">Excel'e Aktar</Button>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
+  const { orders, isLoading } = useOrders();
+  const stats = useMemo(() => ({
+    pending: orders.filter(order => order.status === 'pending').length,
+    production: orders.filter(order => order.status === 'in_production').length,
+    delivered: orders.filter(order => order.status === 'delivered').length,
+  }), [orders]);
+  function downloadCsv() {
+    const rows = [['Sipariş', 'Müşteri', 'Ürün', 'Adet', 'Durum', 'Termin', 'Tutar', 'Para birimi'],
+      ...orders.map(order => [order.orderNumber, order.customerName, order.productName || '', order.quantity || 0, order.status, order.deliveryDate || '', order.totalAmount, order.currency])];
+    const url = URL.createObjectURL(new Blob(['\uFEFF' + rows.map(row => row.map(csvCell).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a'); link.href = url; link.download = 'renk-aluminyum-siparisler.csv'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  return <div className="min-h-screen">
+    <AppleNavbar title="Operasyon raporu" showSearch={false} />
+    <main className="mx-auto max-w-[1440px] space-y-5 p-4 md:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 className="text-xl font-semibold">Renk Alüminyum sipariş özeti</h2><p className="mt-1 text-sm text-slate-500">Aşağıdaki değerler kayıtlı siparişlerden hesaplanır.</p></div>
+        <button type="button" disabled={isLoading || !orders.length} onClick={downloadCsv} className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm disabled:opacity-40 dark:bg-slate-900"><Download size={16} /> CSV indir</button>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[['Toplam sipariş', orders.length], ['Planlama bekliyor', stats.pending], ['Üretimde', stats.production], ['Teslim edildi', stats.delivered]].map(([label, value]) => <AppleCard key={label}><p className="text-sm text-slate-500">{label}</p><p className="mt-2 text-3xl font-semibold">{isLoading ? '…' : value}</p></AppleCard>)}
+      </div>
+      <AppleCard>
+        <h3 className="font-semibold">Sipariş durum dağılımı</h3>
+        <div className="mt-4 space-y-4">{(['pending', 'in_production', 'delivered'] as const).map(status => {
+          const count = orders.filter(order => order.status === status).length;
+          return <div key={status}><div className="mb-2 flex justify-between text-sm"><StatusBadge status={status} /><span>{count} sipariş</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full bg-blue-600" style={{ width: orders.length ? count / orders.length * 100 + '%' : '0%' }} /></div></div>;
+        })}</div>
+      </AppleCard>
+      <p className="text-sm text-slate-500">Fire oranı ve kapasite raporları, gerçek tüketim ve üretim süresi kayıtları tamamlandığında hesaplanabilir.</p>
+    </main>
+  </div>;
 }

@@ -1,83 +1,35 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { RFListView } from '@/components/shared/views/RFListView';
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
-import { Trash2, TrendingDown } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { RFListView } from '@/components/shared/views/RFListView';
 
+type Balance = { id: string; sku: string; item_name: string; stock_uom: string; warehouse_code: string; warehouse_name: string; on_hand_qty: string; available_qty: string };
 export default function ScrapPage() {
-  const [scrapRecords, setScrapRecords] = useState<Array<{
-    id: string;
-    item_name: string;
-    length_m: number;
-    weight_kg: number;
-    created_at: string;
-  }>>([]);
+  const [rows, setRows] = useState<Balance[]>([]);
   const [loading, setLoading] = useState(true);
-
+  const [error, setError] = useState('');
   useEffect(() => {
-    // Stub data for now, since API for scrap records needs to be built next
-    setScrapRecords([
-      { id: '1', item_name: 'A-Profil 60mm', length_m: 0.45, weight_kg: 0.8, created_at: new Date().toISOString() },
-      { id: '2', item_name: 'B-Profil 40mm', length_m: 0.15, weight_kg: 0.2, created_at: new Date(Date.now() - 86400000).toISOString() }
-    ]);
-    setLoading(false);
+    const controller = new AbortController();
+    fetch('/api/v1/inventory/balances', { signal: controller.signal }).then(async response => {
+      if (!response.ok) throw new Error('Hurda ve artık stoğu yüklenemedi.');
+      const data = await response.json();
+      setRows((data.items as Balance[]).filter(row => ['SCRAP', 'REUSABLE_REMNANTS'].includes(row.warehouse_code)));
+    }).catch(err => { if (err.name !== 'AbortError') setError(err.message); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
   }, []);
-
-  return (
-    <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950/80">
-      <AppleNavbar title="Hurda ve Fire Yönetimi" showSearch={false} />
-      
-      <main className="flex-1 p-4 md:p-8 space-y-6">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-rose-50 rounded-lg"><TrendingDown className="w-5 h-5 text-rose-600" /></div>
-              <h3 className="font-medium text-slate-700">Aylık Toplam Hurda</h3>
-            </div>
-            <p className="text-3xl font-bold">145.5 kg</p>
-            <p className="text-sm text-rose-600 mt-1">Geçen aya göre +12%</p>
-          </div>
-          <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-amber-50 rounded-lg"><Trash2 className="w-5 h-5 text-amber-600" /></div>
-              <h3 className="font-medium text-slate-700">Geri Dönüştürülebilir</h3>
-            </div>
-            <p className="text-3xl font-bold">85.0 kg</p>
-            <p className="text-sm text-slate-500 mt-1">Ergitmeye uygun temiz profil</p>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm">
-          <RFListView
-            data={scrapRecords}
-            title="Fire ve Hurda Kayıtları"
-            description="Üretim bantlarından çıkan profil fireleri"
-            icon={<Trash2 className="h-5 w-5 text-rose-500" />}
-            isLoading={loading}
-            columns={[
-              { key: 'item_name', label: 'Profil Cinsi' },
-              { 
-                key: 'length_m', 
-                label: 'Uzunluk (m)',
-                render: (val) => `${val} m`
-              },
-              { 
-                key: 'weight_kg', 
-                label: 'Ağırlık (kg)',
-                render: (val) => `${val} kg`
-              },
-              {
-                key: 'created_at',
-                label: 'Kayıt Tarihi',
-                render: (val) => new Date(val).toLocaleString('tr-TR')
-              }
-            ]}
-          />
-        </div>
-      </main>
-    </div>
-  );
+  return <div className="min-h-screen">
+    <AppleNavbar title="Hurda & kullanılabilir artık" showSearch={false} />
+    <main className="mx-auto max-w-[1440px] space-y-4 p-4 md:p-6">
+      <div className="rf-panel p-4 text-sm text-slate-500">Kullanılabilir profil artıkları yeniden kullanılabilir stoktur. Gerçek hurda ayrı depoda kg olarak tutulur; ağırlık, kaynak metre × profil kg/m katsayısıyla hesaplanır.</div>
+      {error && <p role="alert" className="rounded-lg bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
+      <RFListView title="Artık ve hurda depo bakiyeleri" data={rows} isLoading={loading}
+        columns={[
+          { key: 'item_name', label: 'Profil / malzeme' }, { key: 'sku', label: 'Stok kodu' },
+          { key: 'warehouse_name', label: 'Depo' },
+          { key: 'on_hand_qty', label: 'Fiziksel stok', render: (value, row) => Number(value).toLocaleString('tr-TR', { maximumFractionDigits: 4 }) + ' ' + row.stock_uom },
+          { key: 'available_qty', label: 'Kullanılabilir', render: (value, row) => Number(value).toLocaleString('tr-TR', { maximumFractionDigits: 4 }) + ' ' + row.stock_uom },
+        ]} emptyState={{ title: 'Henüz artık veya hurda kaydı yok', description: 'Üretimde işlenen gerçek artık ve hurda bakiyeleri burada görünür.' }} />
+    </main>
+  </div>;
 }
