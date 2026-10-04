@@ -1,3 +1,4 @@
+import { privateAccessEmail } from '@/lib/features/auth/private-access';
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { sendVerificationEmail } from '@/lib/email';
@@ -84,6 +85,7 @@ function mapRegistrationError(error: unknown) {
 }
 
 export async function POST(request: NextRequest) {
+  if (privateAccessEmail()) return NextResponse.json({error: 'Bu çalışma alanı özel erişime açık. Yeni hesap kaydı kapalı.'}, {status:403});
   // Rate limiting check
   const { allowed, remaining, resetIn } = authLimiter.check(request);
   if (!allowed) {

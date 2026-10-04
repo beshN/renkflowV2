@@ -123,7 +123,7 @@ export async function reserveWorkOrderMaterials(
       INSERT INTO work_order_events (tenant_id, work_order_id, event_type, payload, created_by)
       VALUES (
         ${actor.tenantId}, ${workOrderId}, 'materials_reserved',
-        ${JSON.stringify({ reservationId: reservation.id })}::jsonb, ${actor.userId}
+        ${JSON.stringify({ reservationId: reservation.id })}::text::jsonb, ${actor.userId}
       )
     `;
     return loadReservation(tx, actor.tenantId, reservation.id);

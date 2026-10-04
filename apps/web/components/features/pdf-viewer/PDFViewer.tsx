@@ -77,11 +77,10 @@ import 'react-pdf/dist/esm/Page/TextLayer.css';
 // ============================================================================
 
 // Use dynamic import for better performance
-const PDFJS_VERSION = '4.9.155';
 
 if (typeof window !== 'undefined') {
   // Use CDN worker with fallback
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.mjs`;
+  pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 }
 
 // ============================================================================

@@ -39,9 +39,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   );
 
   const variants = {
-    default: 'bg-[#007AFF] hover:bg-[#0071E3] text-white shadow-sm hover:shadow-md border border-transparent',
+    default: 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm border border-transparent',
     // Apple Style: Solid Blue (System Blue)
-    primary: 'bg-[#007AFF] hover:bg-[#0071E3] text-white shadow-sm hover:shadow-md border border-transparent',
+    primary: 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm border border-transparent',
     // Apple Style: Gray/Neutral background
     secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-sm border border-transparent',
     // Apple Style: White with border

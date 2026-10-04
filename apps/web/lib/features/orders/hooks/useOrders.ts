@@ -15,7 +15,6 @@ import React from 'react';
 import { useCachedQuery, useMutation, requestCache } from '@/lib/api/request-layer';
 import {
   createOrderAction,
-  deleteOrderAction,
   getOrdersAction,
   updateOrderAction,
   updateOrderStatusAction,
@@ -27,6 +26,7 @@ import { devLog } from '@/lib/utils/logger';
 import { useOrderRealtime } from '@/lib/realtime/hooks';
 import { useAuth } from '@/lib/context/AuthContext';
 import { RealtimeEvent } from '@/lib/realtime/types';
+import { requestJson } from '@/lib/shared/network';
 
 const ordersCacheKey = (tenantId: string) => `orders:${tenantId || 'anonymous'}`;
 
@@ -58,6 +58,7 @@ function objectToFormData(data: NewOrderFormData): FormData {
   formData.append('currency', data.currency || 'TRY');
   if (data.deliveryDate) formData.append('deliveryDate', data.deliveryDate);
   if (data.notes) formData.append('notes', data.notes);
+  if (data.items) formData.append('items', JSON.stringify(data.items));
   if (data.customFields) formData.append('customFields', JSON.stringify(data.customFields));
   return formData;
 }
@@ -70,11 +71,16 @@ export function useOrders(): UseOrdersResult {
   const setTotalCount = useOrdersStore((s) => s.setTotalCount);
   const { user } = useAuth();
   const tenantId = user?.tenantId || '';
-  const cacheKey = React.useMemo(() => ordersCacheKey(tenantId), [tenantId]);
+  const cacheKey = React.useMemo(() => ordersCacheKey(`${tenantId}:${user?.id || ''}:${user?.role || ''}`), [tenantId, user?.id, user?.role]);
+  const fetchOrders = React.useCallback(() => getOrdersAction(), []);
+  const handleFetchError = React.useCallback((err: Error) => {
+    devLog.error('[useOrders] Failed to fetch orders:', err);
+  }, []);
 
   // Real-time event handler for WebSocket updates
   const handleRealtimeEvent = React.useCallback((event: RealtimeEvent) => {
     devLog.info('[useOrders] Realtime event received:', event.type);
+    if (user?.role === 'worker') { requestCache.invalidate(cacheKey); return; }
     const currentOrders = useOrdersStore.getState().orders;
     
     switch (event.type) {
@@ -106,10 +112,10 @@ export function useOrders(): UseOrdersResult {
         break;
       }
     }
-  }, [cacheKey, setOrders]);
+  }, [cacheKey, setOrders, user?.role]);
 
   // Subscribe to real-time order events
-  const { publish: publishRealtimeEvent } = useOrderRealtime(tenantId, handleRealtimeEvent);
+  const { publish: publishRealtimeEvent } = useOrderRealtime(user?.role === 'worker' ? '' : tenantId, handleRealtimeEvent);
 
   const {
     data: fetchedOrders,
@@ -120,16 +126,12 @@ export function useOrders(): UseOrdersResult {
     mutate,
   } = useCachedQuery<Order[]>(
     cacheKey,
-    async () => {
-      return await getOrdersAction();
-    },
+    fetchOrders,
     {
       enabled: Boolean(tenantId),
       refetchOnMount: true,
       refetchOnWindowFocus: true,
-      onError: (err) => {
-        devLog.error('[useOrders] Failed to fetch orders:', err);
-      },
+      onError: handleFetchError,
     }
   );
 
@@ -139,11 +141,9 @@ export function useOrders(): UseOrdersResult {
   }, [isLoading, setLoading]);
 
   React.useEffect(() => {
-    if (!tenantId) {
-      setOrders([]);
-      setTotalCount(0);
-    }
-  }, [tenantId, setOrders, setTotalCount]);
+    setOrders([]);
+    setTotalCount(0);
+  }, [cacheKey, setOrders, setTotalCount]);
 
   // Sync fetched orders with Zustand store
   React.useEffect(() => {
@@ -237,7 +237,8 @@ export function useOrders(): UseOrdersResult {
   // Delete Order Mutation with Optimistic Update
   const deleteOrderMutation = useMutation<void, string, { previous: Order[]; deletedId: string }>(
     async (id) => {
-      await deleteOrderAction(id);
+      const result = await requestJson(`/api/v1/orders/${encodeURIComponent(id)}`, {method:'DELETE'}, {timeoutMs:20000});
+      if (!result.ok) throw new Error(result.error || 'Sipariş silinemedi.');
     },
     {
       onMutate: async (id) => {

@@ -70,7 +70,7 @@ export class AIService {
 
     const defaultModels: Record<string, string> = {
       gemini: 'gemini-2.5-flash',
-      openai: 'gpt-4.1-mini',
+      openai: 'gpt-6-luna',
       claude: 'claude-3-5-sonnet-latest',
     };
 
@@ -517,39 +517,16 @@ Sadece JSON döndür, açıklama ekleme.
     messages: AIMessage[],
     options: CallOptions = {}
   ): Promise<string> {
-    const requestBody: Record<string, unknown> = {
-      model: this.config.model,
-      max_tokens: this.config.maxTokens,
-      temperature: this.config.temperature,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
-      ],
-    };
-
-    if (options.structured) {
-      requestBody.response_format = { type: 'json_object' };
-    }
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.config.apiKey}`,
-      },
-      body: JSON.stringify(requestBody),
-      signal: this.createTimeoutSignal(),
+    const { default: OpenAI } = await import('openai');
+    const client = new OpenAI({ apiKey: this.config.apiKey });
+    const response = await client.responses.create({
+      model: this.config.model, reasoning: { effort: 'low' }, store: false,
+      max_output_tokens: this.config.maxTokens, instructions: systemPrompt,
+      input: messages.map(m => ({ role: m.role === 'assistant' ? 'assistant' as const : 'user' as const, content: m.content })),
+      ...(options.structured ? { text: { format: { type: 'json_object' as const } } } : {}),
     });
-
-    if (!response.ok) {
-      await this.handleAPIError(response, 'OpenAI');
-    }
-
-    const data = await response.json();
-    return data.choices[0]?.message?.content || '';
+    if (response.status !== 'completed') throw new Error('AI yanıtı tamamlanamadı');
+    return response.output_text;
   }
 
   private async callGemini(
@@ -868,11 +845,6 @@ function generateId(): string {
 // Singleton Instance
 // ============================================
 
-let aiServiceInstance: AIService | null = null;
-
 export function getAIService(): AIService {
-  if (!aiServiceInstance) {
-    aiServiceInstance = new AIService();
-  }
-  return aiServiceInstance;
+  return new AIService({ provider: 'openai', model: process.env.OPENAI_MODEL || 'gpt-6-luna' });
 }

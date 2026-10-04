@@ -1,299 +1,243 @@
-import { IQuotationService, Quotation, CreateQuotationInput, QuotationItem } from './types';
-import { sql, sqlQuery } from '@/lib/db';
-import { withTransaction } from '@/lib/db/transaction';
-import { TenantMismatchError } from '../orders/types';
-import { safeParseCurrency } from '@/lib/types';
+import { WorkOrderApiError } from "@/lib/features/work-orders/security";
+import { applyAwning } from "../awning/configuration";
+import { createHash } from "node:crypto";
+import { IQuotationService, Quotation, CreateQuotationInput } from "./types";
+import { sql } from "@/lib/db";
+import { withTransaction } from "@/lib/db/transaction";
+import { safeParseCurrency } from "@/lib/types";
 
+const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+export function quotationTotals(
+  items: CreateQuotationInput["items"],
+  discountPercent = 0,
+) {
+  const subtotal = money(
+    items.reduce(
+      (sum, i) =>
+        sum + money(i.quantity * i.unitPrice * (1 - i.discountPercent / 100)),
+      0,
+    ),
+  );
+  const discountAmount = money((subtotal * discountPercent) / 100),
+    taxAmount = money((subtotal - discountAmount) * 0.2);
+  return {
+    subtotal,
+    discountAmount,
+    taxAmount,
+    totalAmount: money(subtotal - discountAmount + taxAmount),
+  };
+}
 export class PostgresQuotationService implements IQuotationService {
-  private generateQuotationNumber(): string {
-    const timestamp = Date.now().toString(36).toUpperCase();
-    const random = Math.random().toString(36).slice(2, 6).toUpperCase();
-    return `TEK-${timestamp}-${random}`;
+  async getQuotations(tenantId: string) {
+    const rows =
+      await sql`SELECT * FROM quotations WHERE tenant_id=${tenantId} ORDER BY created_at DESC`;
+    return rows.map((r: any) => this.map(r, []));
   }
-
-  async getQuotations(tenantId: string): Promise<Quotation[]> {
-    const result = await sql`
-      SELECT 
-        q.*,
-        json_agg(
-          DISTINCT jsonb_build_object(
-            'id', qi.id,
-            'productName', qi.product_name,
-            'quantity', qi.quantity,
-            'unitPrice', qi.unit_price,
-            'totalPrice', qi.total_price,
-            'discountPercent', qi.discount_percent
+  async getQuotationById(
+    tenantId: string,
+    id: string,
+  ): Promise<Quotation | null> {
+    const rows =
+      await sql`SELECT * FROM quotations WHERE tenant_id=${tenantId} AND id=${id}`;
+    if (!rows[0]) return null;
+    const items =
+      await sql`SELECT * FROM quotation_items WHERE tenant_id=${tenantId} AND quotation_id=${id} ORDER BY position,id`;
+    return this.map(rows[0], items);
+  }
+  private async insertItems(
+    tx: any,
+    tenantId: string,
+    id: string,
+    items: CreateQuotationInput["items"],
+  ) {
+    for (const [position, rawItem] of items.entries()) {
+      const i = rawItem.awningConfiguration
+        ? applyAwning(rawItem, rawItem.awningConfiguration)
+        : rawItem;
+      await tx`INSERT INTO quotation_items (tenant_id,quotation_id,product_name,description,color,width_mm,height_mm,projection_mm,mounting_height_mm,awning_configuration,awning_preview,quantity,unit_price,discount_percent,total_price,notes,position)
+   VALUES (${tenantId},${id},${i.productName},${i.description || null},${i.color || null},${i.widthMm || null},${i.heightMm || null},${i.projectionMm || null},${i.mountingHeightMm || null},${i.awningConfiguration ? JSON.stringify(i.awningConfiguration) : null}::text::jsonb,${i.awningPreview || null},${i.quantity},${i.unitPrice},${i.discountPercent},${money(i.quantity * i.unitPrice * (1 - i.discountPercent / 100))},${i.notes || null},${position})`;
+    }
+  }
+  async createQuotation(
+    tenantId: string,
+    data: CreateQuotationInput,
+    createdBy?: string,
+  ) {
+    const totals = quotationTotals(data.items, data.discountPercent);
+    const { idempotencyKey, expectedVersion: _version, ...content } = data;
+    const hash = createHash("sha256")
+      .update(JSON.stringify(content))
+      .digest("hex");
+    const id = await withTransaction(async ({ sql: tx }) => {
+      if (idempotencyKey) {
+        await tx`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId + ":quote:" + idempotencyKey},0))`;
+        const [old] =
+          await tx`SELECT id,creation_hash,created_by FROM quotations WHERE tenant_id=${tenantId} AND creation_key=${idempotencyKey}`;
+        if (old) {
+          if (
+            old.creation_hash !== hash ||
+            old.created_by !== (createdBy || null)
           )
-        ) FILTER (WHERE qi.id IS NOT NULL) as items
-      FROM quotations q
-      LEFT JOIN quotation_items qi ON q.id = qi.quotation_id
-      WHERE q.tenant_id = ${tenantId}
-      GROUP BY q.id
-      ORDER BY q.created_at DESC
-    `;
-
-    if (!result) return [];
-    
-    return (result as any[]).map(row => this.mapRowToQuotation(row));
-  }
-
-  async getQuotationById(tenantId: string, id: string): Promise<Quotation | null> {
-    const result = await sql`
-      SELECT 
-        q.*,
-        json_agg(
-          jsonb_build_object(
-            'id', qi.id,
-            'productName', qi.product_name,
-            'description', qi.description,
-            'color', qi.color,
-            'widthMm', qi.width_mm,
-            'heightMm', qi.height_mm,
-            'quantity', qi.quantity,
-            'unitPrice', qi.unit_price,
-            'totalPrice', qi.total_price,
-            'discountPercent', qi.discount_percent,
-            'notes', qi.notes
-          )
-        ) FILTER (WHERE qi.id IS NOT NULL) as items
-      FROM quotations q
-      LEFT JOIN quotation_items qi ON q.id = qi.quotation_id
-      WHERE q.id = ${id} AND q.tenant_id = ${tenantId}
-      GROUP BY q.id
-    `;
-
-    const rows = result as any[];
-    if (rows.length === 0) return null;
-    return this.mapRowToQuotation(rows[0]);
-  }
-
-  async createQuotation(tenantId: string, data: CreateQuotationInput, createdBy?: string): Promise<Quotation> {
-    const quotationNumber = this.generateQuotationNumber();
-    
-    // Calculate totals
-    const subtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-    const discountAmount = subtotal * (data.discountPercent / 100);
-    const taxableAmount = subtotal - discountAmount;
-    const taxAmount = taxableAmount * 0.20; // Default 20% KDV for TR
-    const totalAmount = taxableAmount + taxAmount;
-
-    const id = await withTransaction(async (tx) => {
-      const qResult = await tx.sql`
-        INSERT INTO quotations (
-          tenant_id, quotation_number, customer_id, customer_name,
-          valid_until, currency, discount_percent, subtotal,
-          discount_amount, tax_amount, total_amount, notes,
-          internal_notes, terms_and_conditions, created_by
-        ) VALUES (
-          ${tenantId}, ${quotationNumber}, ${data.customerId || null}, ${data.customerName},
-          ${data.validUntil || null}, ${data.currency}, ${data.discountPercent}, ${subtotal},
-          ${discountAmount}, ${taxAmount}, ${totalAmount}, ${data.notes || null},
-          ${data.internalNotes || null}, ${data.termsAndConditions || null}, ${createdBy || null}
-        ) RETURNING id
-      `;
-
-      const quotationId = qResult[0].id;
-
-      if (data.items && data.items.length > 0) {
-        let position = 0;
-        for (const item of data.items) {
-          const itemTotal = item.quantity * item.unitPrice;
-          const itemDiscount = itemTotal * (item.discountPercent / 100);
-          const finalItemTotal = itemTotal - itemDiscount;
-
-          await tx.sql`
-            INSERT INTO quotation_items (
-              tenant_id, quotation_id, product_name, description, color,
-              width_mm, height_mm, quantity, unit_price, discount_percent,
-              total_price, notes, position
-            ) VALUES (
-              ${tenantId}, ${quotationId}, ${item.productName}, ${item.description || null}, ${item.color || null},
-              ${item.widthMm || null}, ${item.heightMm || null}, ${item.quantity}, ${item.unitPrice}, ${item.discountPercent},
-              ${finalItemTotal}, ${item.notes || null}, ${position++}
-            )
-          `;
+            throw new WorkOrderApiError("Tekrar anahtarı farklı teklif için kullanılamaz", 409);
+          return old.id;
         }
       }
-
-      return quotationId;
+      if (
+        data.customerId &&
+        !(
+          await tx`SELECT id FROM customers WHERE tenant_id=${tenantId} AND id=${data.customerId}`
+        ).length
+      )
+        throw new WorkOrderApiError("Müşteri bulunamadı", 409);
+      const rows =
+        await tx`INSERT INTO quotations (tenant_id,quotation_number,customer_id,customer_name,valid_until,currency,discount_percent,subtotal,discount_amount,tax_amount,total_amount,notes,internal_notes,terms_and_conditions,created_by,creation_key,creation_hash)
+     VALUES (${tenantId},${"TEK-" + Date.now().toString(36).toUpperCase() + "-" + crypto.randomUUID().slice(0, 6)},${data.customerId || null},${data.customerName},${data.validUntil || null},${data.currency},${data.discountPercent},${totals.subtotal},${totals.discountAmount},${totals.taxAmount},${totals.totalAmount},${data.notes || null},${data.internalNotes || null},${data.termsAndConditions || null},${createdBy || null},${idempotencyKey || null},${idempotencyKey ? hash : null}) RETURNING id`;
+      await this.insertItems(tx, tenantId, rows[0].id, data.items);
+      return rows[0].id;
     });
-
-    return this.getQuotationById(tenantId, id as string) as Promise<Quotation>;
+    return (await this.getQuotationById(tenantId, id))!;
   }
-
-  async updateQuotation(tenantId: string, id: string, data: Partial<CreateQuotationInput>): Promise<Quotation> {
-    const existing = await this.getQuotationById(tenantId, id);
-    if (!existing) throw new Error('Quotation not found');
-    if (existing.status !== 'draft') throw new Error('Only draft quotations can be edited');
-
-    await withTransaction(async (tx) => {
-      const setClauses = [];
-      const values: any[] = [];
-      let paramIndex = 1;
-
-      if (data.customerName !== undefined) {
-        setClauses.push(`customer_name = $${paramIndex++}`);
-        values.push(data.customerName);
+  async updateQuotation(
+    tenantId: string,
+    id: string,
+    updates: Partial<CreateQuotationInput>,
+  ) {
+    await withTransaction(async ({ sql: tx }) => {
+      const rows =
+        await tx`SELECT * FROM quotations WHERE tenant_id=${tenantId} AND id=${id} FOR UPDATE`;
+      if (!rows[0]) throw new WorkOrderApiError("Teklif bulunamadı", 409);
+      if (
+        updates.expectedVersion !== undefined &&
+        rows[0].version !== updates.expectedVersion
+      )
+        throw new WorkOrderApiError("Teklif başka cihazda değişti. Güncel kaydı açın.", 409);
+      if (rows[0].status !== "draft")
+        throw new WorkOrderApiError("Yalnız taslak teklifler düzenlenebilir", 409);
+      const oldItems =
+        await tx`SELECT * FROM quotation_items WHERE tenant_id=${tenantId} AND quotation_id=${id} ORDER BY position`;
+      const old = this.map(rows[0], oldItems),
+        data = { ...old, ...updates };
+      const totals = quotationTotals(data.items, data.discountPercent);
+      if (updates.customerId) {
+        const customers =
+          await tx`SELECT id FROM customers WHERE tenant_id=${tenantId} AND id=${updates.customerId}`;
+        if (!customers[0]) throw new WorkOrderApiError("Müşteri bulunamadı", 409);
       }
-      if (data.validUntil !== undefined) {
-        setClauses.push(`valid_until = $${paramIndex++}`);
-        values.push(data.validUntil);
-      }
-      if (data.notes !== undefined) {
-        setClauses.push(`notes = $${paramIndex++}`);
-        values.push(data.notes);
-      }
-
-      // If items changed, recalculate totals and replace items
-      if (data.items) {
-        const subtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-        const discountPercent = data.discountPercent ?? existing.discountPercent;
-        const discountAmount = subtotal * (discountPercent / 100);
-        const taxableAmount = subtotal - discountAmount;
-        const taxAmount = taxableAmount * 0.20; 
-        const totalAmount = taxableAmount + taxAmount;
-
-        setClauses.push(`subtotal = $${paramIndex++}`); values.push(subtotal);
-        setClauses.push(`discount_percent = $${paramIndex++}`); values.push(discountPercent);
-        setClauses.push(`discount_amount = $${paramIndex++}`); values.push(discountAmount);
-        setClauses.push(`tax_amount = $${paramIndex++}`); values.push(taxAmount);
-        setClauses.push(`total_amount = $${paramIndex++}`); values.push(totalAmount);
-
-        // Delete old items
-        await tx.sql`DELETE FROM quotation_items WHERE quotation_id = ${id} AND tenant_id = ${tenantId}`;
-        
-        // Insert new items
-        let position = 0;
-        for (const item of data.items) {
-          const itemTotal = item.quantity * item.unitPrice;
-          const itemDiscount = itemTotal * (item.discountPercent / 100);
-          const finalItemTotal = itemTotal - itemDiscount;
-
-          await tx.sql`
-            INSERT INTO quotation_items (
-              tenant_id, quotation_id, product_name, description, color,
-              width_mm, height_mm, quantity, unit_price, discount_percent,
-              total_price, notes, position
-            ) VALUES (
-              ${tenantId}, ${id}, ${item.productName}, ${item.description || null}, ${item.color || null},
-              ${item.widthMm || null}, ${item.heightMm || null}, ${item.quantity}, ${item.unitPrice}, ${item.discountPercent},
-              ${finalItemTotal}, ${item.notes || null}, ${position++}
-            )
-          `;
-        }
-      }
-
-      if (setClauses.length > 0) {
-        values.push(id);
-        values.push(tenantId);
-        await sqlQuery(`UPDATE quotations SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1}`, values);
+      await tx`UPDATE quotations SET customer_name=${data.customerName},customer_id=${data.customerId || null},valid_until=${data.validUntil || null},currency=${data.currency},discount_percent=${data.discountPercent},subtotal=${totals.subtotal},discount_amount=${totals.discountAmount},tax_amount=${totals.taxAmount},total_amount=${totals.totalAmount},notes=${data.notes || null},internal_notes=${data.internalNotes || null},terms_and_conditions=${data.termsAndConditions || null},version=version+1,updated_at=now() WHERE tenant_id=${tenantId} AND id=${id}`;
+      if (updates.items) {
+        await tx`DELETE FROM quotation_items WHERE tenant_id=${tenantId} AND quotation_id=${id}`;
+        await this.insertItems(tx, tenantId, id, updates.items);
       }
     });
-
-    return this.getQuotationById(tenantId, id) as Promise<Quotation>;
+    return (await this.getQuotationById(tenantId, id))!;
   }
-
-  async updateStatus(tenantId: string, id: string, status: Quotation['status']): Promise<Quotation> {
-    const existing = await this.getQuotationById(tenantId, id);
-    if (!existing) throw new Error('Quotation not found');
-
-    await sql`UPDATE quotations SET status = ${status}, updated_at = NOW() WHERE id = ${id} AND tenant_id = ${tenantId}`;
-    return this.getQuotationById(tenantId, id) as Promise<Quotation>;
-  }
-
-  async convertToOrder(tenantId: string, id: string, createdBy?: string): Promise<{ orderId: string }> {
-    const quotation = await this.getQuotationById(tenantId, id);
-    if (!quotation) throw new Error('Quotation not found');
-    if (quotation.status === 'converted') throw new Error('Quotation already converted to order');
-
-    const orderId = await withTransaction(async (tx) => {
-      // 1. Create order
-      const timestamp = Date.now().toString(36).toUpperCase();
-      const random = Math.random().toString(36).slice(2, 6).toUpperCase();
-      const orderNumber = `ORD-${timestamp}-${random}`;
-
-      const oResult = await tx.sql`
-        INSERT INTO orders (
-          tenant_id, order_number, customer_id, customer_name,
-          status, total_amount, currency, notes, custom_fields,
-          assigned_to
-        ) VALUES (
-          ${tenantId}, ${orderNumber}, ${quotation.customerId || null}, ${quotation.customerName},
-          'pending', ${quotation.totalAmount}, ${quotation.currency}, ${'Tekliften dönüştürüldü: ' + quotation.quotationNumber}, '{}',
-          ${createdBy || null}
-        ) RETURNING id
-      `;
-      const newOrderId = oResult[0].id;
-
-      // 2. Create order items
-      if (quotation.items && quotation.items.length > 0) {
-        for (const item of quotation.items) {
-          await tx.sql`
-            INSERT INTO order_items (
-              order_id, product_name, quantity, unit_price, total_price,
-              description, color, width_mm, height_mm, notes
-            ) VALUES (
-              ${newOrderId}, ${item.productName}, ${item.quantity}, ${item.unitPrice}, ${item.totalPrice},
-              ${item.description || null}, ${item.color || null}, ${item.widthMm || null}, ${item.heightMm || null}, ${item.notes || null}
-            )
-          `;
-        }
-      }
-
-      // 3. Update quotation status
-      await tx.sql`
-        UPDATE quotations 
-        SET status = 'converted', converted_to_order_id = ${newOrderId}, updated_at = NOW() 
-        WHERE id = ${id} AND tenant_id = ${tenantId}
-      `;
-
-      return newOrderId;
+  async updateStatus(
+    tenantId: string,
+    id: string,
+    status: Quotation["status"],
+    expectedVersion?: number,
+  ) {
+    if (status === "converted")
+      throw new WorkOrderApiError("Siparişe dönüşüm komutunu kullanın", 409);
+    const allowed: Record<string, string[]> = {
+      draft: ["sent"],
+      sent: ["accepted", "rejected", "expired"],
+      accepted: [],
+      rejected: [],
+      expired: [],
+    };
+    await withTransaction(async ({ sql: tx }) => {
+      const rows =
+        await tx`SELECT status,version FROM quotations WHERE tenant_id=${tenantId} AND id=${id} FOR UPDATE`;
+      if (!rows[0]) throw new WorkOrderApiError("Teklif bulunamadı", 409);
+      if (expectedVersion !== undefined && rows[0].version !== expectedVersion)
+        throw new WorkOrderApiError("Teklif başka cihazda değişti. Güncel kaydı açın.", 409);
+      if (rows[0].status === status) return;
+      if (!allowed[rows[0].status]?.includes(status))
+        throw new WorkOrderApiError("Bu durum geçişi yapılamaz", 409);
+      await tx`UPDATE quotations SET status=${status},version=version+1,updated_at=now() WHERE tenant_id=${tenantId} AND id=${id}`;
     });
-
-    return { orderId: orderId as string };
+    return (await this.getQuotationById(tenantId, id))!;
   }
-
-  async deleteQuotation(tenantId: string, id: string): Promise<void> {
-    const existing = await this.getQuotationById(tenantId, id);
-    if (!existing) throw new Error('Quotation not found');
-    if (existing.status === 'converted') throw new Error('Cannot delete converted quotation');
-
-    await sql`DELETE FROM quotations WHERE id = ${id} AND tenant_id = ${tenantId}`;
+  async convertToOrder(
+    tenantId: string,
+    id: string,
+    createdBy?: string,
+    expectedVersion?: number,
+  ) {
+    return withTransaction(async ({ sql: tx }) => {
+      const rows =
+        await tx`SELECT * FROM quotations WHERE tenant_id=${tenantId} AND id=${id} FOR UPDATE`;
+      const q = rows[0];
+      if (!q) throw new WorkOrderApiError("Teklif bulunamadı", 409);
+      if (q.status === "converted")
+        return { orderId: q.converted_to_order_id as string };
+      if (expectedVersion !== undefined && q.version !== expectedVersion)
+        throw new WorkOrderApiError("Teklif başka cihazda değişti. Güncel kaydı açın.", 409);
+      if (!["draft", "sent", "accepted"].includes(q.status))
+        throw new WorkOrderApiError("Bu teklif siparişe dönüştürülemez", 409);
+      const items =
+        await tx`SELECT * FROM quotation_items WHERE tenant_id=${tenantId} AND quotation_id=${id} ORDER BY position`;
+      if (!items.length) throw new WorkOrderApiError("Teklif kalemi gerekli", 409);
+      const orders =
+        await tx`INSERT INTO orders (tenant_id,order_number,customer_id,customer_name,status,total_amount,currency,notes,custom_fields,assigned_to,product_name,quantity)
+     VALUES (${tenantId},${"ORD-" + Date.now().toString(36).toUpperCase() + "-" + crypto.randomUUID().slice(0, 6)},${q.customer_id},${q.customer_name},'pending',${q.total_amount},${q.currency},${"Tekliften dönüştürüldü: " + q.quotation_number},'{}',${createdBy || null},${items[0].product_name},${items.reduce((sum: number, i: any) => sum + Number(i.quantity), 0)}) RETURNING id`;
+      for (const i of items)
+        await tx`INSERT INTO order_items (order_id,product_name,quantity,unit_price,total_price,description,color,width_mm,height_mm,projection_mm,mounting_height_mm,awning_configuration,awning_preview,motor_type,led_type,fabric_type,notes)
+       VALUES (${orders[0].id},${i.product_name},${i.quantity},${i.unit_price},${i.total_price},${i.description},${i.color},${i.width_mm},${i.height_mm},${i.projection_mm},${i.mounting_height_mm},${i.awning_configuration ? JSON.stringify(i.awning_configuration) : null}::text::jsonb,${i.awning_preview},${i.awning_configuration?.motor || null},${i.awning_configuration?.led || null},${i.awning_configuration?.fabricName || null},${i.notes})`;
+      await tx`UPDATE quotations SET version=version+1,status='converted',converted_to_order_id=${orders[0].id},updated_at=now() WHERE tenant_id=${tenantId} AND id=${id}`;
+      return { orderId: orders[0].id as string };
+    });
   }
-
-  private mapRowToQuotation(row: any): Quotation {
+  async deleteQuotation(tenantId: string, id: string) {
+    const rows =
+      await sql`DELETE FROM quotations WHERE tenant_id=${tenantId} AND id=${id} AND status='draft' RETURNING id`;
+    if (!rows[0]) throw new WorkOrderApiError("Yalnız taslak teklifler silinebilir", 409);
+  }
+  private map(row: any, items: any[]): Quotation {
     return {
       id: row.id,
       tenantId: row.tenant_id,
       quotationNumber: row.quotation_number,
+      version: row.version ?? 1,
       customerId: row.customer_id,
       customerName: row.customer_name,
       status: row.status,
-      validUntil: row.valid_until ? new Date(row.valid_until).toISOString().split('T')[0] : null,
+      validUntil: row.valid_until
+        ? new Date(row.valid_until).toISOString().slice(0, 10)
+        : null,
       currency: safeParseCurrency(row.currency),
-      discountPercent: parseFloat(row.discount_percent || '0'),
-      subtotal: parseFloat(row.subtotal || '0'),
-      discountAmount: parseFloat(row.discount_amount || '0'),
-      taxAmount: parseFloat(row.tax_amount || '0'),
-      totalAmount: parseFloat(row.total_amount || '0'),
+      discountPercent: Number(row.discount_percent),
+      subtotal: Number(row.subtotal),
+      discountAmount: Number(row.discount_amount),
+      taxAmount: Number(row.tax_amount),
+      totalAmount: Number(row.total_amount),
       notes: row.notes,
       internalNotes: row.internal_notes,
       termsAndConditions: row.terms_and_conditions,
       convertedToOrderId: row.converted_to_order_id,
-      createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
-      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
-      items: (row.items || []).map((item: any) => ({
-        id: item.id,
-        productName: item.productName || item.product_name,
-        description: item.description,
-        color: item.color,
-        widthMm: item.widthMm ? parseFloat(item.widthMm) : undefined,
-        heightMm: item.heightMm ? parseFloat(item.heightMm) : undefined,
-        quantity: parseInt(item.quantity) || 1,
-        unitPrice: parseFloat(item.unitPrice || '0'),
-        discountPercent: parseFloat(item.discountPercent || '0'),
-        totalPrice: parseFloat(item.totalPrice || '0'),
-        notes: item.notes
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      items: items.map((i) => ({
+        id: i.id,
+        productName: i.product_name,
+        description: i.description || undefined,
+        color: i.color || undefined,
+        widthMm: i.width_mm == null ? undefined : Number(i.width_mm),
+        heightMm: i.height_mm == null ? undefined : Number(i.height_mm),
+        projectionMm:
+          i.projection_mm == null ? undefined : Number(i.projection_mm),
+        mountingHeightMm:
+          i.mounting_height_mm == null
+            ? undefined
+            : Number(i.mounting_height_mm),
+        awningConfiguration: i.awning_configuration || undefined,
+        awningPreview: i.awning_preview || undefined,
+        quantity: Number(i.quantity),
+        unitPrice: Number(i.unit_price),
+        discountPercent: Number(i.discount_percent),
+        totalPrice: Number(i.total_price),
+        notes: i.notes || undefined,
       })),
     };
   }

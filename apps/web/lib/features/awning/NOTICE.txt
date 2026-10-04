@@ -1,0 +1,2 @@
+WINMAX geometry supplied by the project owner in Winmax-Makasli-Tente-3D-Konfigurator.zip.
+Three.js r170: Copyright 2010-2024 Three.js Authors, MIT license (node_modules/three/LICENSE).

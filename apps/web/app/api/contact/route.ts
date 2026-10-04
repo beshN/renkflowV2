@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
     if (resend) {
       // Send email to support team
       await resend.emails.send({
-        from: 'RenkFlow <noreply@renkflow.com>',
+        from: process.env.EMAIL_FROM || 'RenkFlow <noreply@renkflow.com>',
         to: ['support@renkflow.com'],
         replyTo: email,
         subject: `[İletişim Formu] ${subjectText} - ${safeNameForSubject}`,
@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
 
       // Send confirmation email to user
       await resend.emails.send({
-        from: 'RenkFlow <noreply@renkflow.com>',
+        from: process.env.EMAIL_FROM || 'RenkFlow <noreply@renkflow.com>',
         to: [email],
         subject: 'Mesajınız Alındı - RenkFlow',
         html: `

@@ -78,6 +78,7 @@ jest.mock('framer-motion', () => ({
   }),
 }));
 
+if (typeof window !== "undefined") {
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
@@ -127,6 +128,7 @@ const localStorageMock = {
   clear: jest.fn(),
 };
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+}
 
 // Mock fetch
 global.fetch = jest.fn(() =>

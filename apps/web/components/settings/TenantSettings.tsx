@@ -15,6 +15,7 @@ export function TenantSettings() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'admin' | 'office' | 'worker' | null>(null);
   const [isInviting, setIsInviting] = useState(false);
+  const [lastInviteLink,setLastInviteLink]=useState('');
 
   const [formData, setFormData] = useState({
     name: user?.tenantName === 'Demo Mobilya' ? 'Renk Alüminyum' : user?.tenantName || 'Renk Alüminyum',
@@ -85,11 +86,9 @@ export function TenantSettings() {
         return;
       }
 
-      toast.success('Davet oluşturuldu! Link panoya kopyalandı.');
-      
-      // Copy to clipboard
-      navigator.clipboard.writeText(data.inviteLink);
-      toast.info('Davet linki panoya kopyalandı');
+      setLastInviteLink(data.inviteLink);
+      toast.success(data.message || 'Davet bağlantısı oluşturuldu');
+      try {await navigator.clipboard.writeText(data.inviteLink);toast.info('Davet bağlantısı panoya kopyalandı');}catch{toast.info('Bağlantıyı aşağıdaki alandan kopyalayabilirsiniz');}
 
       setInviteEmail('');
       setInviteRole(null);
@@ -207,7 +206,7 @@ export function TenantSettings() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {/* Admin Invite */}
           <div 
-            onClick={() => { setInviteRole('admin'); setInviteEmail(''); }}
+            role="button" tabIndex={0} aria-pressed={inviteRole==='admin'} onKeyDown={e=>{if(e.key==='Enter' || e.key===' '){e.preventDefault();setInviteRole('admin');setInviteEmail('');}}} onClick={() => { setInviteRole('admin'); setInviteEmail(''); }}
             className={`cursor-pointer border rounded-xl p-4 transition-all duration-200 ${
             inviteRole === 'admin' 
               ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-900/20 ring-1 ring-purple-500' 
@@ -231,7 +230,7 @@ export function TenantSettings() {
 
           {/* Office Invite */}
           <div 
-             onClick={() => { setInviteRole('office'); setInviteEmail(''); }}
+             role="button" tabIndex={0} aria-pressed={inviteRole==='office'} onKeyDown={e=>{if(e.key==='Enter' || e.key===' '){e.preventDefault();setInviteRole('office');setInviteEmail('');}}} onClick={() => { setInviteRole('office'); setInviteEmail(''); }}
              className={`cursor-pointer border rounded-xl p-4 transition-all duration-200 ${
              inviteRole === 'office' 
                ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 ring-1 ring-blue-500' 
@@ -255,7 +254,7 @@ export function TenantSettings() {
 
           {/* Worker Invite */}
           <div 
-             onClick={() => { setInviteRole('worker'); setInviteEmail(''); }}
+             role="button" tabIndex={0} aria-pressed={inviteRole==='worker'} onKeyDown={e=>{if(e.key==='Enter' || e.key===' '){e.preventDefault();setInviteRole('worker');setInviteEmail('');}}} onClick={() => { setInviteRole('worker'); setInviteEmail(''); }}
              className={`cursor-pointer border rounded-xl p-4 transition-all duration-200 ${
              inviteRole === 'worker' 
                ? 'border-orange-500 bg-orange-50/50 dark:bg-orange-900/20 ring-1 ring-orange-500' 
@@ -278,6 +277,7 @@ export function TenantSettings() {
           </div>
         </div>
 
+        {lastInviteLink && <div className="mb-4 rounded border border-border p-4"><label className="block text-xs">Oluşturulan davet bağlantısı<input readOnly value={lastInviteLink} className="rf-input mt-2 w-full" onFocus={e=>e.currentTarget.select()}/></label></div>}
         <AnimatePresence>
           {inviteRole && (
             <motion.form

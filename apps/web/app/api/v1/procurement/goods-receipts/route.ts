@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
+import { requireProcurementWrite } from '@/lib/features/manufacturing/purchasing.service';
 import { z } from 'zod';
 import { submitGoodsReceipt } from '@/lib/features/manufacturing/procurement.service';
 import { GoodsReceiptInputSchema } from '@/lib/features/manufacturing/types';
@@ -10,8 +12,9 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
+    requireSameOriginJson(request, 100000);
     const actor = await requireWorkOrderActor();
-    requireWorkOrderPermission(actor, 'create');
+    requireProcurementWrite(actor);
     const parsed = GoodsReceiptInputSchema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid payload', details: z.flattenError(parsed.error) }, { status: 400 });

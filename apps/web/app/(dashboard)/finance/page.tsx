@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, FileText, RefreshCw, Wallet } from 'lucide-react';
 
 import { Navbar } from '@/components/layout/Navbar';
@@ -17,50 +17,59 @@ export default function FinanceOverviewPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
 
+  const [currency,setCurrency]=useState('TRY');
+  const [loadError,setLoadError]=useState('');
   const [orders, setOrders] = useState<OrderWithPayments[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const requestSequence=useRef(0);
 
   const hasAccess = Boolean(user?.role && canAccessFinance(user.role as UserRole));
 
   const totals = useMemo(() => {
-    const totalAmount = orders.reduce((sum, order) => sum + order.totalAmount, 0);
-    const paidAmount = orders.reduce((sum, order) => sum + order.paidAmount, 0);
+    const currencyOrders=orders.filter(order=>order.currency===currency);
+    const totalAmount = currencyOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const paidAmount = currencyOrders.reduce((sum, order) => sum + order.paidAmount, 0);
     const remainingAmount = Math.max(0, totalAmount - paidAmount);
-    const closedOrderCount = orders.filter((order) => order.remainingAmount <= 0).length;
+    const closedOrderCount = currencyOrders.filter((order) => order.remainingAmount <= 0).length;
 
     return {
       totalAmount,
       paidAmount,
       remainingAmount,
       closedOrderCount,
-      orderCount: orders.length,
+      orderCount: currencyOrders.length,
     };
-  }, [orders]);
+  }, [orders,currency]);
 
   const load = async (silent = false) => {
+    const requestId=++requestSequence.current;
     try {
       if (silent) setIsRefreshing(true);
       else setIsLoading(true);
 
       const data = await getOrdersWithPayments();
-      setOrders(data);
+      if(requestId!==requestSequence.current)return;
+      setOrders(data);setLoadError('');
     } catch (error) {
+      if(requestId!==requestSequence.current)return;
       console.error('Finance load error:', error);
+      setLoadError('Finans verileri alınamadı. Listeyi yenileyin.');
       showToast('Finans verileri alınamadı.', 'error');
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      if(requestId===requestSequence.current){setIsLoading(false);setIsRefreshing(false);}
     }
   };
 
   useEffect(() => {
+    setOrders([]);setLoadError('');
     if (!hasAccess) {
       setIsLoading(false);
       return;
     }
     void load(false);
-  }, [hasAccess]);
+    return()=>{requestSequence.current++;};
+  }, [hasAccess,user?.tenantId,user?.id]);
 
   if (!hasAccess) {
     return (
@@ -80,6 +89,7 @@ export default function FinanceOverviewPage() {
       <Navbar title="Finans Kontrolü" showSearch={false} />
 
       <main className="w-full flex-1 p-4 md:p-8">
+        {loadError && <p role="alert" className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{loadError}</p>}
         <section className="rf-panel rounded-2xl p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -100,29 +110,30 @@ export default function FinanceOverviewPage() {
             </div>
           </div>
 
+          <label className="mt-4 flex items-center gap-3 text-xs">Özet para birimi<select value={currency} onChange={e=>setCurrency(e.target.value)} className="rf-input">{[...new Set(['TRY',...orders.map(order=>order.currency)])].map(value=><option key={value}>{value}</option>)}</select><span className="text-muted-foreground">Farklı para birimleri birbiriyle toplanmaz.</span></label>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <article className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Toplam işlem hacmi</p>
               <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {isLoading ? '-' : formatCurrency(totals.totalAmount)}
+                {isLoading || loadError ? '-' : formatCurrency(totals.totalAmount,currency)}
               </p>
             </article>
             <article className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tahsil edilen</p>
               <p className="mt-2 text-2xl font-bold text-emerald-600">
-                {isLoading ? '-' : formatCurrency(totals.paidAmount)}
+                {isLoading || loadError ? '-' : formatCurrency(totals.paidAmount,currency)}
               </p>
             </article>
             <article className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Kalan bakiye</p>
               <p className="mt-2 text-2xl font-bold text-amber-600">
-                {isLoading ? '-' : formatCurrency(totals.remainingAmount)}
+                {isLoading || loadError ? '-' : formatCurrency(totals.remainingAmount,currency)}
               </p>
             </article>
             <article className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tam kapanan sipariş</p>
               <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {isLoading ? '-' : totals.closedOrderCount}
+                {isLoading || loadError ? '-' : totals.closedOrderCount}
               </p>
             </article>
           </div>

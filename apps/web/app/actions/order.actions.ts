@@ -1,9 +1,10 @@
 'use server';
 
+import { resolveUploadedFile, UploadReferenceSchema } from '@/lib/storage/upload-reference';
 import { orderService } from '@/lib/services/orderService.server';
 import { NewOrderFormData, Order, safeParseCurrency } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
-import { withCache, cacheKeys, invalidateCache } from '@/lib/cache/enterprise';
+import { cacheKeys, invalidateCache } from '@/lib/cache/enterprise';
 import { withServerActionTiming } from '@/lib/utils/metrics';
 import { requireTenantContext } from '@/lib/auth/serverAuth';
 import {
@@ -14,6 +15,8 @@ import {
   formatValidationErrors,
 } from '@/lib/validations/order.schema';
 import { z } from 'zod';
+import { hasPermission, type Permission, type UserRole } from '@/lib/features/auth/permissions';
+import { visibleOrdersForActor } from '@/lib/features/orders/access';
 
 /**
  * Server Actions for Order Management
@@ -41,8 +44,9 @@ const ALLOWED_STATUS_TRANSITIONS: Record<Order['status'], Order['status'][]> = {
 };
 
 // Validate session and ensure tenantId is defined
-async function validateSession(): Promise<{ user: { id: string; tenantId: string; email?: string | null; name?: string | null; role?: string }; }> {
+async function validateSession(permission: Permission = 'orders.view'): Promise<{ user: { id: string; tenantId: string; email?: string | null; name?: string | null; role?: string }; }> {
   const context = await requireTenantContext();
+  if (!hasPermission(context.role, permission)) throw new Error('Bu işlem için yetkiniz bulunmuyor');
 
   // Return with guaranteed tenantId
   return {
@@ -96,10 +100,22 @@ function parseCustomFieldsFromFormData(formData: FormData): Record<string, strin
   }
 }
 
-function getFilesFromFormData(formData: FormData): File[] {
-  return formData
-    .getAll('files')
-    .filter((entry): entry is File => entry instanceof File && entry.size > 0);
+function parseItems(formData: FormData): unknown {
+  const value = formData.get('items');
+  if (!value) return undefined;
+  if (typeof value !== 'string') throw new Error('Sipariş kalemleri geçersiz');
+  try { return JSON.parse(value); } catch { throw new Error('Sipariş kalemleri geçersiz'); }
+}
+
+async function getFilesFromFormData(formData: FormData, actor:{tenantId:string;userId:string}): Promise<File[]> {
+ const files=formData.getAll('files').filter((entry):entry is File=>entry instanceof File && entry.size>0);
+ const value=formData.get('uploadedFiles');
+ if(value){
+  const references=z.array(UploadReferenceSchema).max(10).parse(JSON.parse(String(value)));
+  for(const reference of references) files.push(await resolveUploadedFile(actor,reference));
+ }
+ if(files.length>10) throw new Error('En fazla 10 dosya yüklenebilir');
+ return files;
 }
 
 function getOptionalFormString(formData: FormData, key: string): string | undefined {
@@ -132,13 +148,8 @@ export async function getOrdersAction(): Promise<Order[]> {
   return withServerActionTiming('orders.getOrdersAction', async () => {
     try {
       const session = await validateSession();
-      const cacheKey = cacheKeys.orders.list(session.user.tenantId);
-      
-      return await withCache(
-        cacheKey,
-        () => orderService.getOrders(session.user.tenantId),
-        60000 // 1 minute cache
-      );
+      const orders = await orderService.getOrders(session.user.tenantId);
+      return visibleOrdersForActor(orders, { tenantId: session.user.tenantId, userId: session.user.id, role: session.user.role as UserRole });
     } catch (error) {
       return handleActionError(error, 'getOrdersAction');
     }
@@ -152,12 +163,9 @@ export async function getOrderByIdAction(id: string): Promise<Order | null> {
   return withServerActionTiming('orders.getOrderByIdAction', async () => {
     try {
       const session = await validateSession();
-      const cacheKey = cacheKeys.orders.detail(session.user.tenantId, id);
-      return await withCache(
-        cacheKey,
-        () => orderService.getOrderById(session.user.tenantId, id),
-        30000
-      );
+      const order = await orderService.getOrderById(session.user.tenantId, id);
+      if (!order) return null;
+      return (await visibleOrdersForActor([order], { tenantId: session.user.tenantId, userId: session.user.id, role: session.user.role as UserRole }))[0] || null;
     } catch (error) {
       return handleActionError(error, 'getOrderByIdAction');
     }
@@ -170,8 +178,8 @@ export async function getOrderByIdAction(id: string): Promise<Order | null> {
 export async function createOrderAction(formData: FormData): Promise<Order> {
   return withServerActionTiming('orders.createOrderAction', async () => {
     try {
-      const session = await validateSession();
-      const files = getFilesFromFormData(formData);
+      const session = await validateSession('orders.create');
+      const files = await getFilesFromFormData(formData, {tenantId:session.user.tenantId,userId:session.user.id});
       validateFilesOrThrow(files);
 
       const validationResult = createOrderSchema.safeParse({
@@ -184,6 +192,7 @@ export async function createOrderAction(formData: FormData): Promise<Order> {
         currency: formData.get('currency'),
         deliveryDate: getOptionalFormString(formData, 'deliveryDate'),
         notes: getOptionalFormString(formData, 'notes'),
+        items: parseItems(formData),
       });
 
       if (!validationResult.success) {
@@ -219,7 +228,7 @@ export async function createOrderAction(formData: FormData): Promise<Order> {
 export async function updateOrderAction(id: string, updates: Partial<Order>): Promise<Order> {
   return withServerActionTiming('orders.updateOrderAction', async () => {
     try {
-      const session = await validateSession();
+      const session = await validateSession('orders.edit');
       if (!id) {
         throw new Error('Sipariş ID gerekli');
       }
@@ -260,7 +269,7 @@ export async function updateOrderAction(id: string, updates: Partial<Order>): Pr
 export async function updateOrderStatusAction(id: string, status: Order['status']): Promise<Order> {
   return withServerActionTiming('orders.updateOrderStatusAction', async () => {
     try {
-      const session = await validateSession();
+      const session = await validateSession('orders.edit');
       if (!id) {
         throw new Error('Sipariş ID gerekli');
       }
@@ -309,7 +318,7 @@ export async function updateOrderStatusAction(id: string, status: Order['status'
 export async function deleteOrderAction(id: string): Promise<void> {
   return withServerActionTiming('orders.deleteOrderAction', async () => {
     try {
-      const session = await validateSession();
+      const session = await validateSession('orders.delete');
       if (!id) {
         throw new Error('Sipariş ID gerekli');
       }
@@ -331,12 +340,12 @@ export async function deleteOrderAction(id: string): Promise<void> {
 export async function uploadOrderDocumentsAction(id: string, formData: FormData): Promise<void> {
   return withServerActionTiming('orders.uploadOrderDocumentsAction', async () => {
     try {
-      const session = await validateSession();
+      const session = await validateSession('orders.edit');
       if (!id) {
         throw new Error('Sipariş ID gerekli');
       }
 
-      const files = getFilesFromFormData(formData);
+      const files = await getFilesFromFormData(formData, {tenantId:session.user.tenantId,userId:session.user.id});
       if (files.length === 0) {
         return;
       }

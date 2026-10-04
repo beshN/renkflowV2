@@ -49,3 +49,9 @@ yarn-error.log*
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Environment secrets across every workspace
+**/.env*
+!**/.env.example
+!**/.env.*.example
+**/.data/

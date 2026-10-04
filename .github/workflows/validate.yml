@@ -25,7 +25,7 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
 
       - name: Install dependencies
-        run: npm --prefix apps/web ci
+        run: npm --prefix apps/web ci --workspaces=false --legacy-peer-deps
 
       - name: Run backend and frontend validation gate
         run: npm --prefix apps/web run validate

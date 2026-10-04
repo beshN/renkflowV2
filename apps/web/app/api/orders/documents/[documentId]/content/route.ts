@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { sql } from '@/lib/db';
-import { getFileUrl } from '@/lib/storage/gcs';
+import { readFile } from '@/lib/storage';
 import {
   AuthenticationError,
   AuthorizationError,
@@ -90,13 +90,6 @@ async function findDocumentForTenant(
   }
 }
 
-function resolveSourceUrl(fileReference: string): Promise<string> {
-  if (/^https?:\/\//i.test(fileReference)) {
-    return Promise.resolve(fileReference);
-  }
-  return getFileUrl(fileReference);
-}
-
 export const runtime = 'nodejs';
 
 export async function GET(
@@ -106,6 +99,7 @@ export async function GET(
   try {
     const context = await requireTenantContext();
     requirePermission(context, 'orders.view');
+    if (context.role === 'worker') throw new AuthorizationError('Ticari sipariş belgelerine erişim yetkiniz yok. Teknik fotoğraflar için usta ekranını kullanın.');
 
     const { documentId } = await params;
     if (!documentId) {
@@ -117,21 +111,24 @@ export async function GET(
       return NextResponse.json({ error: 'Belge bulunamadı' }, { status: 404 });
     }
 
-    const sourceUrl = await resolveSourceUrl(document.fileReference);
-    const upstream = await fetch(sourceUrl, { cache: 'no-store' });
-
-    if (!upstream.ok || !upstream.body) {
-      return NextResponse.json(
-        { error: 'Belge içeriği okunamadı' },
-        { status: upstream.status || 502 },
-      );
+    let content: ReadableStream<Uint8Array>;
+    let contentType = document.fileType || 'application/octet-stream';
+    let contentLength: string | undefined;
+    if (document.fileReference.startsWith('/api/v1/production/files/')) {
+      const fileId = document.fileReference.split('/').pop();
+      const [file] = await sql`SELECT * FROM production_files WHERE tenant_id=${context.tenantId} AND id=${fileId!}`;
+      if (!file) return NextResponse.json({error: 'Belge bulunamadı'}, {status: 404});
+      if (file.file_path) {
+        const stored = await readFile(file.file_path);
+        content = stored.body; contentType = stored.contentType; contentLength = String(stored.size);
+      } else {
+        content = new Blob([new Uint8Array(file.body)]).stream();
+        contentType = file.mime;
+      }
+    } else {
+      const stored = await readFile(document.fileReference);
+      content = stored.body; contentType = stored.contentType; contentLength = String(stored.size);
     }
-
-    const contentType =
-      upstream.headers.get('content-type') ||
-      document.fileType ||
-      'application/octet-stream';
-    const contentLength = upstream.headers.get('content-length');
 
     const responseHeaders = new Headers();
     responseHeaders.set('Content-Type', contentType);
@@ -142,7 +139,7 @@ export async function GET(
       responseHeaders.set('Content-Length', contentLength);
     }
 
-    return new NextResponse(upstream.body, {
+    return new NextResponse(content, {
       status: 200,
       headers: responseHeaders,
     });

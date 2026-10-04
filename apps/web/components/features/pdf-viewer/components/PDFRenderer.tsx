@@ -46,6 +46,8 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
   
   // Store selectors
   const fileUrl = usePDFStore((state) => state.fileUrl);
+  const documentFile = useMemo(() => fileUrl ? { url: fileUrl } : null, [fileUrl]);
+  const documentOptions = useMemo(() => ({ withCredentials: true }), []);
   const numPages = usePDFStore((state) => state.numPages);
   const pageNumber = usePDFStore((state) => state.pageNumber);
   const scale = usePDFStore((state) => state.scale);
@@ -76,7 +78,7 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
     
     resizeObserver.observe(containerRef.current);
     return () => resizeObserver.disconnect();
-  }, []);
+  }, [fileUrl]);
   
   // Keep page fitted to viewport by default while preserving true zoom-in behavior.
   const fitScale = useMemo(() => {
@@ -354,13 +356,8 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
       )}
     >
       <Document
-        file={{
-          url: fileUrl,
-        }}
-        options={{
-          withCredentials: true,
-          httpHeaders: { 'Cache-Control': 'no-cache' },
-        }}
+        file={documentFile}
+        options={documentOptions}
         onLoadSuccess={handleDocumentLoadSuccess}
         onLoadError={handleDocumentLoadError}
         onLoadProgress={handleLoadProgress}

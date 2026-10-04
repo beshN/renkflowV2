@@ -90,7 +90,7 @@ export async function createProductionWorkOrder(
             bomVersion: bom.version,
             baseQuantity: Number(material.quantity),
             scrapRate: Number(material.scrap_rate),
-          })}::jsonb
+          })}::text::jsonb
         )
       `;
     }
@@ -98,7 +98,7 @@ export async function createProductionWorkOrder(
       INSERT INTO work_order_events (tenant_id, work_order_id, event_type, payload, created_by)
       VALUES (
         ${actor.tenantId}, ${workOrder.id}, 'production_work_order_created',
-        ${JSON.stringify({ orderId: input.orderId, bomId: input.bomId, plannedQty: input.plannedQty })}::jsonb,
+        ${JSON.stringify({ orderId: input.orderId, bomId: input.bomId, plannedQty: input.plannedQty })}::text::jsonb,
         ${actor.userId}
       )
     `;
@@ -188,7 +188,7 @@ export async function transferWorkOrderMaterials(
     await tx`
       INSERT INTO work_order_events (tenant_id, work_order_id, event_type, payload, created_by)
       VALUES (${actor.tenantId}, ${workOrderId}, 'materials_transferred_to_wip',
-        ${JSON.stringify({ stockEntryId: stockEntry.id })}::jsonb, ${actor.userId})
+        ${JSON.stringify({ stockEntryId: stockEntry.id })}::text::jsonb, ${actor.userId})
     `;
     return stockEntry;
   }, { isolationLevel: 'SERIALIZABLE' });
@@ -381,7 +381,7 @@ export async function completeProductionRun(
       INSERT INTO work_order_events (tenant_id, work_order_id, event_type, payload, created_by)
       VALUES (
         ${actor.tenantId}, ${input.workOrderId}, 'production_run_completed',
-        ${JSON.stringify({ runId: run.id, stockEntryId: stockEntry.id, producedQty: input.producedQty, scrapWeightKg })}::jsonb,
+        ${JSON.stringify({ runId: run.id, stockEntryId: stockEntry.id, producedQty: input.producedQty, scrapWeightKg })}::text::jsonb,
         ${actor.userId}
       )
     `;

@@ -1,28 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useApiCollection } from '@/lib/hooks/useApiCollection';
 import { RFListView } from '@/components/shared/views/RFListView';
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
 import { Truck, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 export default function ShipmentsPage() {
-  const [shipments, setShipments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: shipments, loading, error, reload: loadShipments } = useApiCollection('/api/v1/shipments', 'Sevkiyat kayıtları alınamadı. Bağlantıyı kontrol edin veya tekrar deneyin.');
 
-  const loadShipments = () => {
-    setLoading(true);
-    fetch('/api/v1/shipments')
-      .then(r => r.json())
-      .then(d => {
-        if (d.success) setShipments(d.data);
-      })
-      .finally(() => setLoading(false));
-  };
 
-  useEffect(() => {
-    loadShipments();
-  }, []);
 
   const statusMap: Record<string, string> = {
     'draft': 'Hazırlanıyor',
@@ -39,21 +27,19 @@ export default function ShipmentsPage() {
       <AppleNavbar 
         title="Sevkiyat Yönetimi" 
         showSearch={true}
-        action={
-          <Button variant="primary" icon={<Plus className="w-4 h-4"/>}>
-            Yeni Sevkiyat
-          </Button>
-        }
+
       />
       
       <main className="flex-1 p-4 md:p-8 space-y-6">
-        <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm">
+        <div className="rf-panel border border-border p-6 shadow-sm">
           <RFListView
             data={shipments}
             title="Sevkiyat Kayıtları"
             description="Müşterilere gönderilen siparişler ve teslimat durumları"
             icon={<Truck className="h-5 w-5 text-indigo-500" />}
             isLoading={loading}
+            error={error}
+            onRetry={loadShipments}
             columns={[
               { key: 'shipment_number', label: 'Sevkiyat No' },
               { key: 'customer_name', label: 'Müşteri' },

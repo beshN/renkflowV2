@@ -1,3 +1,5 @@
+import { WorkOrderApiError } from "@/lib/features/work-orders/security";
+import { requireSameOriginJson } from "@/lib/features/manufacturing/http-security";
 import { NextRequest } from 'next/server';
 import { getAPIUser, successResponse, errorResponse } from '@/lib/api/auth-helpers';
 import { quotationService } from '@/lib/features/quotations/service';
@@ -20,13 +22,15 @@ export async function GET(request: NextRequest) {
     const quotations = await quotationService.getQuotations(user.tenantId);
     return successResponse(quotations, 'Teklifler başarıyla getirildi');
   } catch (error: any) {
+    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);
     if (error instanceof AuthorizationError) return errorResponse(error.message, 403);
-    return errorResponse(error.message || 'Hata oluştu', 500);
+    return errorResponse("Teklif işlemi tamamlanamadı. Lütfen tekrar deneyin.", 500);
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    requireSameOriginJson(request, 2000000);
     const user = await getAPIUser(request);
     if (!user || !user.tenantId) {
       return errorResponse('Yetkilendirme gereklidir', 401);
@@ -43,8 +47,9 @@ export async function POST(request: NextRequest) {
     const quotation = await quotationService.createQuotation(user.tenantId, parsedData, user.id);
     return successResponse(quotation, 'Teklif başarıyla oluşturuldu');
   } catch (error: any) {
+    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);
     if (error instanceof ZodError) return errorResponse('Geçersiz veri: ' + error.issues.map((issue) => issue.message).join(', '), 400);
     if (error instanceof AuthorizationError) return errorResponse(error.message, 403);
-    return errorResponse(error.message || 'Hata oluştu', 500);
+    return errorResponse("Teklif işlemi tamamlanamadı. Lütfen tekrar deneyin.", 500);
   }
 }

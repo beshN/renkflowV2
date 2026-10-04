@@ -10,7 +10,7 @@ import {
 } from './types';
 import { assertNativeInventoryEnabled } from './mode';
 
-type PostOptions = { allowReservedStock?: boolean; reversalOfId?: string };
+type PostOptions = { allowPhysicalTransfer?: boolean; allowReservedStock?: boolean; reversalOfId?: string };
 
 function entryNumber() {
   return `STK-${Date.now()}-${randomUUID().slice(0, 8).toUpperCase()}`;
@@ -101,7 +101,7 @@ export async function postStockEntryInTransaction(
     WHERE tenant_id = ${actor.tenantId} AND id = ANY(${itemIds}::uuid[]) AND active = true
   `;
   const warehouseRows = await tx`
-    SELECT id FROM warehouses
+    SELECT id, warehouse_type FROM warehouses
     WHERE tenant_id = ${actor.tenantId} AND id = ANY(${warehouseIds}::uuid[]) AND active = true
   `;
   const itemUom = new Map(itemRows.map((row: any) => [row.id, row.stock_uom]));
@@ -115,6 +115,17 @@ export async function postStockEntryInTransaction(
     }
   }
 
+  for (const line of input.lines) {
+    if (options.allowPhysicalTransfer || line.quantityDelta >= 0 || line.uom !== 'm' || ['cutting_plan', 'stock_entry_reversal'].includes(input.referenceType || '')) continue;
+    const warehouse = warehouseRows.find((row: any) => row.id === line.warehouseId);
+    if (['RAW', 'REUSABLE_REMNANTS'].includes(warehouse?.warehouse_type)) {
+      const physical = await tx`SELECT id FROM stock_lots WHERE tenant_id=${actor.tenantId} AND item_id=${line.itemId} AND warehouse_id=${line.warehouseId} LIMIT 1`;
+      if (physical.length) throw new Error('Fiziksel profil için onaylı kesim planı kullanın');
+    }
+  }
+  if(input.entryType==='STOCK_RECONCILIATION' && !input.referenceType){
+    for(const line of input.lines)if(line.quantityDelta<0 && (await tx`SELECT id FROM stock_lots WHERE tenant_id=${actor.tenantId} AND item_id=${line.itemId} AND warehouse_id=${line.warehouseId} LIMIT 1`).length)throw new Error('Lotlu stok farkını toplu miktarla düzeltmeyin; fiziksel lot kaydını inceleyin');
+  }
   const deltas = new Map<string, number>();
   for (const line of input.lines) {
     const key = `${line.itemId}:${line.warehouseId}`;
@@ -163,7 +174,7 @@ export async function postStockEntryInTransaction(
         quantity_delta, uom, unit_cost, metadata
       ) VALUES (
         ${actor.tenantId}, ${entry.id}, ${line.itemId}, ${line.warehouseId}, ${line.lotId || null},
-        ${line.quantityDelta}, ${line.uom}, ${line.unitCost ?? null}, ${JSON.stringify(line.metadata)}::jsonb
+        ${line.quantityDelta}, ${line.uom}, ${line.unitCost ?? null}, ${JSON.stringify(line.metadata)}::text::jsonb
       )
     `;
     await tx`
@@ -196,12 +207,17 @@ export async function reverseStockEntry(
       FOR SHARE
     `;
     if (!headers[0]) throw new Error('Stok kaydı bulunamadı');
+    if (['warehouse_transfer', 'warehouse_count', 'cutting_plan', 'shipment', 'goods_receipt'].includes(headers[0].reference_type)) throw new Error('Kesim, sevkiyat veya satın alma kabulü ilgili işlem ekranından düzeltilmelidir');
     const lines = await tx`
       SELECT item_id, warehouse_id, lot_id, quantity_delta, uom, unit_cost, metadata
       FROM stock_entry_lines
       WHERE tenant_id = ${actor.tenantId} AND stock_entry_id = ${stockEntryId}
     `;
-    return postStockEntryInTransaction(tx, actor, {
+    for (const line of lines) if (line.lot_id) {
+      const lots = await tx`SELECT * FROM stock_lots WHERE tenant_id=${actor.tenantId} AND id=${line.lot_id} FOR UPDATE`;
+      if (headers[0].entry_type !== 'MATERIAL_RECEIPT' || !lots[0] || lots[0].status !== 'available' || Number(lots[0].remaining_qty) !== Number(lots[0].original_qty)) throw new Error('Tüketilmiş veya rezerve fiziksel lot geri alınamaz');
+    }
+    const reversed = await postStockEntryInTransaction(tx, actor, {
       entryType: 'REVERSAL',
       idempotencyKey,
       referenceType: 'stock_entry_reversal',
@@ -216,5 +232,7 @@ export async function reverseStockEntry(
         metadata: { ...line.metadata, reversalOf: stockEntryId },
       })),
     }, { reversalOfId: stockEntryId });
+    for (const line of lines) if (line.lot_id) await tx`UPDATE stock_lots SET remaining_qty=0,status='consumed',updated_at=now()WHERE tenant_id=${actor.tenantId} AND id=${line.lot_id}`;
+    return reversed;
   }, { isolationLevel: 'SERIALIZABLE' });
 }

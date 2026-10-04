@@ -2,7 +2,6 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 
 const ROOT = path.join(__dirname, '..', '..');
 const ENV_EXAMPLE_PATH = path.join(ROOT, '.env.example');
@@ -16,10 +15,6 @@ const SCAN_DIRS = [
 
 const FILE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
 const ENV_REGEX = /process\.env\.([A-Z0-9_]+)/g;
-
-const SECRET_ALLOWLIST = new Set([
-  'DB_PASSWORD', // Operational secret for migration tooling
-]);
 
 function readDirRecursive(dir: string): string[] {
   if (!fs.existsSync(dir)) return [];
@@ -73,23 +68,6 @@ function collectExampleEnvKeys(): Set<string> {
   return keys;
 }
 
-function listSecretManagerKeys(): string[] {
-  const result = spawnSync(
-    'gcloud',
-    ['secrets', 'list', '--format=value(name)'],
-    { encoding: 'utf8' }
-  );
-
-  if (result.status !== 0) {
-    return [];
-  }
-
-  return result.stdout
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
-
 function printList(title: string, values: string[]) {
   console.log(`\n${title}`);
   if (values.length === 0) {
@@ -112,18 +90,14 @@ function main() {
   console.log(`- used keys in code: ${usedKeys.size}`);
   console.log(`- keys in .env.example: ${exampleKeys.size}`);
 
-  printList('Used in code but missing from .env.example', usedButMissingFromExample);
   printList('Defined in .env.example but not referenced in code', exampleButUnusedInCode);
 
-  const secretManagerKeys = listSecretManagerKeys();
-  if (secretManagerKeys.length > 0) {
-    const unusedSecrets = secretManagerKeys
-      .filter((secret) => !usedKeys.has(secret) && !SECRET_ALLOWLIST.has(secret))
-      .sort();
-    printList('Secret Manager keys not referenced in runtime code', unusedSecrets);
-  } else {
-    console.log('\nSecret Manager keys not checked (gcloud unavailable or not authenticated).');
-  }
+  // Framework/CI keys are injected by the platform rather than copied into env files.
+  const automatic = new Set(['VERCEL', 'VERCEL_ENV', 'VERCEL_URL', 'VERCEL_OIDC_TOKEN', 'VERCEL_GIT_COMMIT_SHA', 'GITHUB_SHA', 'COMMIT_SHA', 'NEXT_BUILD_ID', 'NEXT_PHASE', 'NODE_ENV', 'PORT', 'HOSTNAME', 'NEXT_RUNTIME']);
+  const missing = usedButMissingFromExample.filter(key => !automatic.has(key));
+  printList('Application keys missing from .env.example', missing);
+  if (missing.length) process.exitCode = 1;
+
 }
 
 main();

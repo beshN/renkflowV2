@@ -1,176 +1,117 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
-import { sql } from '@/lib/db';
-
-// ============================================
-// GET — Aktivite kayıtlarını listele
-// ============================================
-
+import { NextRequest, NextResponse } from "next/server";
+import { z, ZodError } from "zod";
+import { sql, withTransaction } from "@/lib/db";
+import {
+  requireWorkOrderActor,
+  WorkOrderApiError,
+  type WorkOrderActor,
+} from "@/lib/features/work-orders/security";
+import { requireSameOriginJson } from "@/lib/features/manufacturing/http-security";
+import { hasPermission } from "@/lib/features/auth/permissions";
+const entity = z.enum(["order", "customer"]);
+const querySchema = z.object({
+  entityType: entity,
+  entityId: z.uuid(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+const noteSchema = z
+  .object({
+    entityType: entity,
+    entityId: z.uuid(),
+    action: z.literal("note_added"),
+    note: z.string().trim().min(1).max(2000),
+  })
+  .strict();
+async function entityAccess(
+  db: any,
+  a: WorkOrderActor,
+  type: "order" | "customer",
+  id: string,
+  write = false,
+) {
+  if (
+    a.role === "worker" ||
+    !hasPermission(
+      a.role,
+      type === "order"
+        ? write
+          ? "orders.edit"
+          : "orders.view"
+        : write
+          ? "customers.edit"
+          : "customers.view",
+    )
+  )
+    throw new WorkOrderApiError("Bu aktivite kaydına erişim yetkiniz yok", 403);
+  const rows =
+    type === "order"
+      ? await db`SELECT id FROM orders WHERE tenant_id=${a.tenantId} AND id=${id} FOR SHARE`
+      : await db`SELECT id FROM customers WHERE tenant_id=${a.tenantId} AND id=${id} FOR SHARE`;
+  if (!rows.length) throw new WorkOrderApiError("Kayıt bulunamadı", 404);
+}
+function failure(e: unknown) {
+  if (e instanceof WorkOrderApiError)
+    return NextResponse.json({ error: e.message }, { status: e.status });
+  if (e instanceof ZodError || e instanceof SyntaxError)
+    return NextResponse.json(
+      { error: "Aktivite bilgileri geçersiz" },
+      { status: 400 },
+    );
+  console.error("[ActivityLogs]", e instanceof Error ? e.message : "failed");
+  return NextResponse.json(
+    { error: "Aktivite işlemi tamamlanamadı" },
+    { status: 500 },
+  );
+}
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Oturum açmanız gerekiyor.' }, { status: 401 });
-    }
-
-    // Tenant ID al
-    const memberRows = await sql`
-      SELECT tenant_id FROM tenant_members
-      WHERE user_id = ${session.user.id}
-      ORDER BY created_at ASC LIMIT 1
-    `;
-    const tenantId = (memberRows[0] as any)?.tenant_id;
-    if (!tenantId) {
-      return NextResponse.json({ error: 'Tenant bulunamadı.' }, { status: 403 });
-    }
-
-    const { searchParams } = new URL(req.url);
-    const entityType = searchParams.get('entityType');
-    const entityId = searchParams.get('entityId');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 100);
-
-    if (!entityType || !entityId) {
-      return NextResponse.json({ error: 'entityType ve entityId gereklidir.' }, { status: 400 });
-    }
-
-    const rows = await sql`
-      SELECT
-        al.id,
-        al.action,
-        al.actor_name,
-        al.actor_id,
-        al.note,
-        al.changes,
-        al.metadata,
-        al.created_at,
-        u.name AS actor_display_name
-      FROM activity_logs al
-      LEFT JOIN users u ON u.id = al.actor_id
-      WHERE al.tenant_id = ${tenantId}
-        AND al.entity_type = ${entityType}
-        AND al.entity_id = ${entityId}
-      ORDER BY al.created_at ASC
-      LIMIT ${limit}
-    `;
-
-    const logs = rows.map((row: any) => ({
-      id: row.id,
-      action: row.action,
-      actorName: row.actor_display_name || row.actor_name || 'Sistem',
-      actorId: row.actor_id,
-      note: row.note,
-      changes: row.changes,
-      metadata: row.metadata,
-      createdAt: row.created_at,
-    }));
-
-    return NextResponse.json({ logs, total: logs.length });
-  } catch (error: any) {
-    console.error('[ActivityLogs GET]', error);
-    return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
+    const a = await requireWorkOrderActor(),
+      p = querySchema.parse({
+        entityType: req.nextUrl.searchParams.get("entityType"),
+        entityId: req.nextUrl.searchParams.get("entityId"),
+        limit: req.nextUrl.searchParams.get("limit") || undefined,
+      });
+    await entityAccess(sql, a, p.entityType, p.entityId);
+    const rows =
+      await sql`SELECT al.*,u.name AS actor_display_name FROM activity_logs al LEFT JOIN users u ON u.id=al.actor_id
+ WHERE al.tenant_id=${a.tenantId} AND al.entity_type=${p.entityType} AND al.entity_id=${p.entityId} ORDER BY al.created_at DESC,al.id DESC LIMIT ${p.limit}`;
+    const logs = [...rows]
+      .reverse()
+      .map((row: any) => ({
+        id: row.id,
+        action: row.action,
+        actorName: row.actor_display_name || row.actor_name || "Sistem",
+        actorId: row.actor_id,
+        note: row.note,
+        changes: row.changes,
+        metadata: row.metadata,
+        createdAt: row.created_at,
+      }));
+    return NextResponse.json(
+      { logs, total: logs.length },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
+  } catch (e) {
+    return failure(e);
   }
 }
-
-// ============================================
-// POST — Yeni not veya aktivite ekle
-// ============================================
-
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Oturum açmanız gerekiyor.' }, { status: 401 });
-    }
-
-    // Tenant ID + user name
-    const memberRows = await sql`
-      SELECT tm.tenant_id, u.name AS user_name
-      FROM tenant_members tm
-      JOIN users u ON u.id = tm.user_id
-      WHERE tm.user_id = ${session.user.id}
-      ORDER BY tm.created_at ASC LIMIT 1
-    `;
-    const tenantId = (memberRows[0] as any)?.tenant_id;
-    const actorName = (memberRows[0] as any)?.user_name || session.user.name || session.user.email;
-
-    if (!tenantId) {
-      return NextResponse.json({ error: 'Tenant bulunamadı.' }, { status: 403 });
-    }
-
-    const body = await req.json();
-    const { entityType, entityId, action, note, changes, metadata } = body;
-
-    if (!entityType || !entityId || !action) {
-      return NextResponse.json({ error: 'entityType, entityId ve action gereklidir.' }, { status: 400 });
-    }
-
-    if (action === 'note_added' && (!note || !note.trim())) {
-      return NextResponse.json({ error: 'Not içeriği boş olamaz.' }, { status: 400 });
-    }
-
-    if (note && note.length > 2000) {
-      return NextResponse.json({ error: 'Not en fazla 2000 karakter olabilir.' }, { status: 400 });
-    }
-
-    const rows = await sql`
-      INSERT INTO activity_logs (
-        tenant_id, entity_type, entity_id, action,
-        actor_id, actor_name, note, changes, metadata
-      ) VALUES (
-        ${tenantId}, ${entityType}, ${entityId}, ${action},
-        ${session.user.id}, ${actorName},
-        ${note || null},
-        ${changes ? JSON.stringify(changes) : '{}'}::jsonb,
-        ${metadata ? JSON.stringify(metadata) : '{}'}::jsonb
-      )
-      RETURNING *
-    `;
-
-    return NextResponse.json({ log: rows[0] }, { status: 201 });
-  } catch (error: any) {
-    console.error('[ActivityLogs POST]', error);
-    return NextResponse.json({ error: 'Not eklenemedi.' }, { status: 500 });
+    requireSameOriginJson(req, 16000);
+    const a = await requireWorkOrderActor(),
+      body = await req.text();
+    if (Buffer.byteLength(body) > 16000)
+      throw new WorkOrderApiError("İstek çok büyük", 413);
+    const p = noteSchema.parse(JSON.parse(body));
+    const log = await withTransaction(async (tx) => {
+      await entityAccess(tx, a, p.entityType, p.entityId, true);
+      const [user] = await tx`SELECT name FROM users WHERE id=${a.userId}`;
+      return (
+        await tx`INSERT INTO activity_logs(tenant_id,entity_type,entity_id,action,actor_id,actor_name,note)VALUES(${a.tenantId},${p.entityType},${p.entityId},'note_added',${a.userId},${user?.name || "Kullanıcı"},${p.note})RETURNING *`
+      )[0];
+    });
+    return NextResponse.json({ log }, { status: 201 });
+  } catch (e) {
+    return failure(e);
   }
-}
-
-// ============================================
-// Utility — Server-side activity logging (import edilecek)
-// ============================================
-
-export async function logActivity({
-  tenantId,
-  entityType,
-  entityId,
-  action,
-  actorId,
-  actorName,
-  note,
-  changes,
-  metadata,
-  tx,
-}: {
-  tenantId: string;
-  entityType: string;
-  entityId: string;
-  action: string;
-  actorId?: string | null;
-  actorName?: string | null;
-  note?: string | null;
-  changes?: Record<string, { from: string; to: string }> | null;
-  metadata?: Record<string, unknown> | null;
-  tx?: any;
-}) {
-  const db = tx || sql;
-  await db`
-    INSERT INTO activity_logs (
-      tenant_id, entity_type, entity_id, action,
-      actor_id, actor_name, note, changes, metadata
-    ) VALUES (
-      ${tenantId}, ${entityType}, ${entityId}, ${action},
-      ${actorId || null}, ${actorName || null},
-      ${note || null},
-      ${changes ? JSON.stringify(changes) : '{}'}::jsonb,
-      ${metadata ? JSON.stringify(metadata) : '{}'}::jsonb
-    )
-  `;
 }

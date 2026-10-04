@@ -1,8 +1,10 @@
 'use server';
 
+import { resolveUploadedFile, verifiedFileKey } from '@/lib/storage/upload-reference';
+import type { UploadedFileReference } from '@/lib/storage/client';
 import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db';
-import { uploadFile, deleteFile, generateFilePath, getFileUrl } from '@/lib/storage/gcs';
+import { uploadFile, deleteFile, generateFilePath, getFileUrl } from '@/lib/storage';
 import {
   getServerUserContext,
   requirePermission,
@@ -16,6 +18,7 @@ import { isMissingRelationError, tableExists } from '@/lib/db/schema-guard';
 
 async function resolveDocumentUrl(fileReference: string | null | undefined): Promise<string> {
   if (!fileReference) return '';
+  if (fileReference.startsWith('/api/')) return fileReference;
   if (/^https?:\/\//i.test(fileReference)) return fileReference;
 
   try {
@@ -46,10 +49,11 @@ function mapLegacyDocumentRow(row: any): Omit<OrderDocument, 'fileUrl'> & { file
 export async function uploadOrderDocument(
   orderId: string,
   type: OrderDocumentType,
-  file: File
+  rawFile: File | UploadedFileReference
 ): Promise<OrderDocument> {
   const context = await getServerUserContext();
   requirePermission(context, 'finance.documents.upload');
+  const file = rawFile instanceof File ? rawFile : await resolveUploadedFile(context, rawFile);
 
   // Validate type
   OrderDocumentTypeSchema.parse(type);
@@ -67,11 +71,11 @@ export async function uploadOrderDocument(
   }
 
   // Upload file to GCS
-  const key = generateFilePath(orderId, `${type}-${file.name}`);
+  const key = verifiedFileKey(file) || generateFilePath(orderId, `${type}-${file.name}`);
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
   
-  await uploadFile(key, buffer, file.type);
+  if (!verifiedFileKey(file)) await uploadFile(key, buffer, file.type);
 
   const hasOrderDocuments = await tableExists('order_documents');
   const result = hasOrderDocuments

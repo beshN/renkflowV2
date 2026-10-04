@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -21,6 +22,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { cn } from '@/lib/utils';
+import { useAssistantInsights } from '@/lib/hooks/useAssistantInsights';
+import { safeAssistantHref, type AssistantAction } from '@/lib/ai/assistant-contract';
+import { BusinessDialog } from '@/components/shared/ui/BusinessDialog';
 
 // ============================================
 // Types
@@ -34,6 +38,7 @@ interface Message {
   suggestions?: string[];
   feedback?: 'positive' | 'negative' | null;
   isError?: boolean;
+  actions?: AssistantAction[];
 }
 
 interface QuickAction {
@@ -59,7 +64,7 @@ const quickActions: QuickAction[] = [
 const MAX_INPUT_LENGTH = 1000;
 const MAX_HISTORY = 20;
 const STORAGE_KEY = 'renkflow_ai_chat';
-const API_TIMEOUT = 30000;
+const API_TIMEOUT = 55000;
 
 // ============================================
 // Markdown Renderer
@@ -227,9 +232,9 @@ interface StoredMessage {
   isError?: boolean;
 }
 
-function loadMessages(): Message[] {
+function loadMessages(storageKey: string): Message[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return [];
     const stored: StoredMessage[] = JSON.parse(raw);
     return stored.map((m) => ({ ...m, timestamp: new Date(m.timestamp) }));
@@ -238,7 +243,7 @@ function loadMessages(): Message[] {
   }
 }
 
-function saveMessages(messages: Message[]) {
+function saveMessages(messages: Message[], storageKey: string) {
   try {
     const toStore: StoredMessage[] = messages.slice(-50).map((m) => ({
       id: m.id,
@@ -248,7 +253,7 @@ function saveMessages(messages: Message[]) {
       suggestions: m.suggestions,
       isError: m.isError,
     }));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+    localStorage.setItem(storageKey, JSON.stringify(toStore));
   } catch {}
 }
 
@@ -257,6 +262,15 @@ function saveMessages(messages: Message[]) {
 // ============================================
 
 export function AIChatbot() {
+  const {insights,brief} = useAssistantInsights();
+  const [pendingAction,setPendingAction]=useState<{action:AssistantAction;commandId:string}|null>(null);
+  const [actionBusy,setActionBusy]=useState(false);
+  const [actionError,setActionError]=useState('');
+  const [dismissedAdvice,setDismissedAdvice]=useState('');
+  const [adviceSlot,setAdviceSlot]=useState<HTMLElement|null>(null);
+  useEffect(()=>{setAdviceSlot(document.getElementById('assistant-context-slot'));},[]);
+  const actionLock=useRef(false);
+  const actionIds=useRef(new Map<string,string>());
   const router = useRouter();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
@@ -272,6 +286,10 @@ export function AIChatbot() {
   const messagesRef = useRef<Message[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const { user } = useAuth();
+  const storageKey = user?.id ? `${STORAGE_KEY}:${user.tenantId}:${user.id}:${user.role}` : '';
+  const scopeRef=useRef(storageKey);
+  scopeRef.current=storageKey;
+  const [messagesScope, setMessagesScope] = useState('');
 
   // Keep messagesRef in sync (avoids stale closures)
   useEffect(() => {
@@ -280,18 +298,25 @@ export function AIChatbot() {
 
   // Load messages from localStorage on mount
   useEffect(() => {
-    const saved = loadMessages();
-    if (saved.length > 0) setMessages(saved);
-  }, []);
+    abortRef.current?.abort();
+    abortRef.current=null;
+    setIsLoading(false);
+    setPendingAction(null);
+    setActionError('');
+    actionIds.current.clear();
+    setMessages(storageKey ? loadMessages(storageKey) : []);
+    setMessagesScope(storageKey);
+  }, [storageKey]);
 
   // Save messages to localStorage on change
   useEffect(() => {
+    if (!storageKey || messagesScope !== storageKey) return;
     if (messages.length > 0) {
-      saveMessages(messages);
+      saveMessages(messages, storageKey);
     } else {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(storageKey);
     }
-  }, [messages]);
+  }, [messages, storageKey, messagesScope]);
 
   // Auto-scroll to bottom
   const scrollToBottom = useCallback(() => {
@@ -332,8 +357,21 @@ export function AIChatbot() {
 
   // Navigate to internal page
   const handleNavigate = useCallback((path: string) => {
-    router.push(path);
+    const href=safeAssistantHref(path);if(href)router.push(href);
   }, [router]);
+
+  const applyAction=async()=>{
+    if(!pendingAction || actionLock.current)return;
+    const requestedScope=storageKey;
+    actionLock.current=true;setActionBusy(true);setActionError('');
+    try{
+      const res=await fetch('/api/ai/actions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pendingAction)});
+      const body=await res.json();if(!res.ok)throw new Error(body.error || 'İşlem tamamlanamadı.');
+      if(scopeRef.current!==requestedScope)return;
+      setPendingAction(null);setMessages(prev=>[...prev,{id:crypto.randomUUID(),role:'assistant',content:body.message || 'İşlem tamamlandı.',timestamp:new Date()}]);
+      const href=safeAssistantHref(body.href);if(href)router.push(href);
+    }catch(e){if(scopeRef.current===requestedScope)setActionError(e instanceof Error?e.message:'İşlem tamamlanamadı.');}finally{actionLock.current=false;setActionBusy(false);}
+  };
 
   // Greeting message
   const greeting = useMemo(() => {
@@ -408,6 +446,7 @@ export function AIChatbot() {
       }
 
       const data = await response.json();
+      if(controller.signal.aborted || abortRef.current!==controller)return;
       
       const assistantMessage: Message = {
         id: `ai_${Date.now()}`,
@@ -415,11 +454,13 @@ export function AIChatbot() {
         content: data.response || 'Üzgünüm, yanıt oluşturulamadı.',
         timestamp: new Date(),
         suggestions: data.suggestions,
+        actions: data.actions,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error: any) {
       clearTimeout(timeoutId);
+      if(abortRef.current!==controller)return;
 
       // Don't show error if request was intentionally aborted
       if (error?.name === 'AbortError') {
@@ -445,8 +486,7 @@ export function AIChatbot() {
         setMessages((prev) => [...prev, errorMessage]);
       }
     } finally {
-      setIsLoading(false);
-      abortRef.current = null;
+      if(abortRef.current===controller){setIsLoading(false);abortRef.current = null;}
     }
   }, [isLoading, pathname, user?.name]);
 
@@ -498,13 +538,24 @@ export function AIChatbot() {
 
   const handleClearChat = useCallback(() => {
     setMessages([]);
-    localStorage.removeItem(STORAGE_KEY);
-  }, []);
+    localStorage.removeItem(storageKey);
+  }, [storageKey]);
 
   if (!user) return null;
+  const adviceKey=storageKey+':'+pathname+':'+insights.map(i=>i.id+i.detail).join('|');
 
   return (
     <>
+      {!isOpen && adviceSlot && insights.length>0 && dismissedAdvice!==adviceKey && createPortal(<aside aria-label="Asistanın otomatik önerisi" className="m-4 w-auto max-w-xs rounded-lg border border-border bg-card p-3 shadow-sm print:hidden">
+        <button aria-label="Öneriyi gizle" onClick={()=>setDismissedAdvice(adviceKey)} className="float-right p-1"><X size={14}/></button>
+        <p className="text-xs font-semibold">Sizin için kontrol ettim</p><p className="mt-2 text-xs leading-5 text-muted-foreground">{brief || insights[0].detail}</p>
+        <button onClick={()=>setIsOpen(true)} className="mt-2 text-xs text-primary">{insights[0].title} →</button>
+      </aside>,adviceSlot)}
+      {pendingAction && <BusinessDialog title={pendingAction.action.title} open onClose={()=>setPendingAction(null)} busy={actionBusy} error={actionError}>
+        <p className="text-sm mb-4">{pendingAction.action.kind==='orderNote'?'Aşağıdaki not sipariş geçmişine eklenecek.':'Sipariş taslağı hazırlanacak. Ölçü, fiyat ve ürün kalemlerini sonraki ekranda kontrol edip onaylayacaksınız.'}</p>
+        <pre className="whitespace-pre-wrap rounded border p-3 text-xs max-h-64 overflow-auto">{pendingAction.action.note || JSON.stringify(pendingAction.action.draft,null,2)}</pre>
+        <div className="flex justify-end gap-2 mt-4"><button className="rf-secondary-button" disabled={actionBusy} onClick={()=>setPendingAction(null)}>Vazgeç</button><button className="rf-primary-button" disabled={actionBusy} onClick={()=>void applyAction()}>{actionBusy?'Kaydediliyor…':'Onayla ve uygula'}</button></div>
+      </BusinessDialog>}
       {/* Floating Action Button */}
       <AnimatePresence>
         {!isOpen && (
@@ -515,10 +566,11 @@ export function AIChatbot() {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-24 right-4 md:bottom-6 md:right-6 z-50 w-12 h-12 md:w-14 md:h-14 rounded-xl bg-blue-600 text-white shadow-lg flex items-center justify-center hover:bg-blue-700 transition-colors"
+            className={cn("fixed right-4 md:right-6 z-50 w-11 h-11 md:w-12 md:h-12 rounded-lg bg-[#243e55] text-white shadow-sm border border-white/15 flex items-center justify-center hover:bg-[#315570] transition-colors print:hidden", pathname === "/new-order" ? "bottom-40 md:bottom-24" : "bottom-24 md:bottom-6")}
             aria-label="AI Asistanı Aç"
           >
             <Sparkles className="w-6 h-6" />
+            {insights.some(i=>i.priority==='high') && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-amber-500 border-2 border-white" aria-label="Operasyon önerisi var"/>}
           </motion.button>
         )}
       </AnimatePresence>
@@ -536,12 +588,12 @@ export function AIChatbot() {
             }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             className={cn(
-              "fixed bottom-24 right-4 md:bottom-6 md:right-6 z-50 w-[calc(100vw-2rem)] max-w-[420px] max-h-[calc(100dvh-8rem)] md:max-h-[calc(100dvh-3rem)] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col",
+              "fixed bottom-24 right-4 md:bottom-6 md:right-6 z-50 w-[calc(100vw-2rem)] max-w-[420px] max-h-[calc(100dvh-8rem)] md:max-h-[calc(100dvh-3rem)] bg-white dark:bg-slate-900 rounded-lg shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col",
               isMinimized && "md:w-[300px]"
             )}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+            <div className="flex items-center justify-between px-4 py-3 bg-[#243e55] text-white">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
                   <Bot className="w-4 h-4" />
@@ -584,10 +636,15 @@ export function AIChatbot() {
             {!isMinimized && (
               <>
                 {/* Welcome + Quick Actions */}
+                {insights.length>0 && <div className="p-3 border-b text-xs space-y-2" aria-label="Otomatik operasyon önerileri">
+                  <p className="font-semibold">Sizin için kontrol ettim</p>
+                  {brief && <p className="leading-5 text-muted-foreground">{brief}</p>}
+                  {insights.slice(0,2).map(insight=><button key={insight.id} onClick={()=>handleNavigate(insight.href)} className="block w-full rounded border p-2 text-left"><strong>{insight.title}</strong><span className="block mt-1 text-muted-foreground">{insight.detail}</span><span className="block mt-1 text-primary">{insight.action} →</span></button>)}
+                </div>}
                 {messages.length === 0 && (
                   <div className="p-4 border-b border-slate-200 dark:border-slate-800">
                     <div className="text-center mb-4">
-                      <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center">
+                      <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                         <Sparkles className="w-7 h-7 text-blue-600" />
                       </div>
                       <h4 className="font-semibold text-slate-900 dark:text-white">
@@ -639,7 +696,7 @@ export function AIChatbot() {
                           ? "bg-blue-600 text-white" 
                           : message.isError
                             ? "bg-red-500 text-white"
-                            : "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                            : "bg-[#243e55] text-white"
                       )}>
                         {message.role === 'user' ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
                       </div>
@@ -666,6 +723,7 @@ export function AIChatbot() {
                         </div>
 
                         {/* Suggestions */}
+                        {message.actions?.map((action,index)=><button key={index} className="rf-secondary-button mt-2 text-xs" disabled={actionBusy} onClick={()=>{if(action.kind==='navigate'){const href=safeAssistantHref(action.href);if(href)handleNavigate(href);}else {setActionError('');const key=message.id+':'+index;let commandId=actionIds.current.get(key);if(!commandId){commandId=crypto.randomUUID();actionIds.current.set(key,commandId);}setPendingAction({action,commandId});}}}>{action.title}</button>)}
                         {message.role === 'assistant' && message.suggestions && message.suggestions.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {message.suggestions.map((suggestion, idx) => (
@@ -750,7 +808,7 @@ export function AIChatbot() {
                       animate={{ opacity: 1, y: 0 }}
                       className="flex gap-2.5"
                     >
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white flex items-center justify-center">
+                      <div className="w-7 h-7 rounded-full bg-[#243e55] text-white flex items-center justify-center">
                         <Bot className="w-3.5 h-3.5" />
                       </div>
                       <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-bl-md px-4 py-3">

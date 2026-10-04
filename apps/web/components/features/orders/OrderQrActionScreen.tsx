@@ -1,4 +1,5 @@
 'use client';
+import { prepareBrowserFile } from '@/lib/storage/client';
 
 import { useMemo, useState } from 'react';
 import { executeOrderQrAction, type ResolvedOrderQrToken } from '@/app/actions/order.qr.actions';
@@ -118,14 +119,15 @@ export function OrderQrActionScreen({ token, resolved }: OrderQrActionScreenProp
         return;
       }
       setSubmitting(true);
-      const base64Data = await fileToBase64(file);
+      const prepared = await prepareBrowserFile(file,"qr",token);
+      const source = prepared instanceof File ? {base64Data:await fileToBase64(prepared)} : {blobPath:prepared.blobPath};
       const result = await executeOrderQrAction({
         token,
         actionKey: 'photo.upload',
         payload: {
           fileName: file.name,
           mimeType: file.type || 'application/octet-stream',
-          base64Data,
+          ...source,
           note: photoNote || undefined,
         },
       });

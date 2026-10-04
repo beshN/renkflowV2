@@ -1,5 +1,7 @@
 # RenkFlow native stok ve üretim pilotu
 
+> Bu dosya arşivlenmiş ilk 012 migration pilotunu açıklar. `pilot:manufacturing` fiziksel lotları temsil etmediği için yazmadan durur; güncel doğrulama komutu `npm run test:production` olarak değişmiştir. Aşağıdaki komutlar tarihsel kayıttır. 014 ile eklenen makaslı tente, fiziksel toplu kesim/artık, usta, rework ve iletişim akışı için [güncel üretim platformu rehberini](production-platform.md) kullanın.
+
 Bu modül ERPNext/Frappe çalıştırmaz ve ERPNext kaynak kodu içermez. Belge yaşam döngüsü,
 değiştirilemeyen stok defteri, rezervasyon ve WIP yaklaşımı bağımsız RenkFlow koduyla
 uygulanmıştır. İlk sürüm tek şirket ve web uygulaması içindir.
@@ -15,6 +17,18 @@ uygulanmıştır. İlk sürüm tek şirket ve web uygulaması içindir.
   `SERIALIZABLE` transaction ve satır kilitleriyle korunur.
 
 ## Pilot akışı
+
+Önce bağlı veritabanını yazma yapmadan kontrol edin:
+
+```sh
+npm run db:check-manufacturing
+```
+
+Komut `.env.local` dosyasını okur, salt okunur transaction içinde eksik tabloları ve
+stok/iş emri alanlarını listeler. Eksik şemada çıkış kodu 1 döner. Tabloların mevcut
+olması pilotun tamamlandığı veya veri bütünlüğünün doğrulandığı anlamına gelmez.
+Migration ve aşağıdaki yazma yapan pilotu **ayrı geliştirme/test veritabanında**
+çalıştırın; yerel ortamın canlı veritabanına bağlı olabileceğini kontrol edin.
 
 1. `012_native_manufacturing.sql` göçünü çalıştırın.
 2. Mevcut bir RenkFlow siparişinin, tenant'ın ve işlemi yapacak kullanıcının UUID'sini seçin.

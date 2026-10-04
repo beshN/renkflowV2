@@ -42,6 +42,7 @@ export function useUnifiedOrderSystem(tenantId: string) {
       ...data,
       id: createOrderId(`temp-${Date.now()}`),
       orderNumber: 'PENDING',
+      items: data.items?.map((item, index) => ({ ...item, id: `temp-item-${index}`, unitPrice: item.unitPrice ?? item.totalPrice / item.quantity })),
       date: new Date().toISOString(),
       status: 'pending',
       currency: safeParseCurrency(data.currency as any),

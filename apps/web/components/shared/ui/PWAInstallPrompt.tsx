@@ -18,6 +18,8 @@ export default function PWAInstallPrompt() {
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
+    let promptTimer: ReturnType<typeof setTimeout> | undefined;
+    setShowPrompt(false);
     const suppressOnPublicPages =
       pathname === '/' ||
       pathname.startsWith('/coming-soon') ||
@@ -26,7 +28,7 @@ export default function PWAInstallPrompt() {
       pathname.startsWith('/pricing') ||
       pathname.startsWith('/features') ||
       pathname.startsWith('/about') ||
-      pathname.startsWith('/contact');
+      pathname.startsWith('/contact') || pathname.startsWith('/track/') || pathname.startsWith('/factory') || pathname.startsWith('/quotations/');
 
     if (suppressOnPublicPages) {
       return;
@@ -57,18 +59,20 @@ export default function PWAInstallPrompt() {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       // Show prompt after user has spent enough time in app surfaces
-      setTimeout(() => setShowPrompt(true), 45000);
+      if (promptTimer) clearTimeout(promptTimer);
+      promptTimer = setTimeout(() => setShowPrompt(true), 45000);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     // For iOS, show instruction prompt after delay
     if (isIOSDevice) {
-      setTimeout(() => setShowPrompt(true), 90000);
+      promptTimer = setTimeout(() => setShowPrompt(true), 90000);
     }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      if (promptTimer) clearTimeout(promptTimer);
     };
   }, [pathname]);
 
@@ -103,11 +107,12 @@ export default function PWAInstallPrompt() {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
-        className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50"
+        role="region"
+        aria-label="RenkFlow uygulamasını yükleyin"
+        className="fixed bottom-24 left-4 right-4 md:bottom-20 md:left-auto md:right-4 md:w-96 z-50 print:hidden"
       >
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-border-light dark:border-border-dark p-5 relative overflow-hidden">
-          {/* Gradient accent */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-secondary" />
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-border-light dark:border-border-dark p-5 relative overflow-hidden">
+
           
           <button
             onClick={handleDismiss}
@@ -123,9 +128,9 @@ export default function PWAInstallPrompt() {
             </div>
             
             <div className="flex-1 pr-6">
-              <h3 className="font-bold text-text-light dark:text-text-dark mb-1">
+              <h2 className="font-bold text-text-light dark:text-text-dark mb-1">
                 Renkflow Uygulaması
-              </h3>
+              </h2>
               
               {isIOS ? (
                 <p className="text-sm text-subtle-light dark:text-subtle-dark mb-3">
@@ -133,7 +138,7 @@ export default function PWAInstallPrompt() {
                 </p>
               ) : (
                 <p className="text-sm text-subtle-light dark:text-subtle-dark mb-3">
-                  Daha hızlı erişim için uygulamayı yükleyin. İnternet olmadan da kullanabilirsiniz.
+                  Çalışma alanınıza doğrudan erişmek için RenkFlow’u uygulama olarak yükleyin. Canlı veriler için internet bağlantısı gerekir.
                 </p>
               )}
 
@@ -142,7 +147,7 @@ export default function PWAInstallPrompt() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleInstall}
-                  className="w-full py-2.5 rounded-lg bg-primary text-white font-medium text-sm hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-2.5 rounded-lg bg-[#2d4e6f] text-white font-medium text-sm hover:bg-[#24415e] transition-colors flex items-center justify-center gap-2"
                 >
                   <Download className="h-[18px] w-[18px]" />
                   Yükle

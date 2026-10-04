@@ -1,3 +1,4 @@
+import { AwningConfigurationSchema, AwningPreviewSchema } from '@/lib/features/awning/configuration';
 /**
  * Type Definitions for RenkFlow
  * Hybrid Solution: Branded Types + Zod Inference
@@ -72,6 +73,10 @@ export const DocumentSchema = z.object({
 export type Document = z.infer<typeof DocumentSchema>;
 
 export const OrderSchema = z.object({
+  financialHidden: z.boolean().optional(),
+  productionManaged: z.boolean().optional(),
+  version: z.number().int().positive().optional(),
+  items: z.array(z.object({ id: z.string(), productName:z.string(), customParameters:z.record(z.string(),z.union([z.string(),z.number(),z.boolean()])).optional(), quantityUnit:z.string().optional(), quantity:z.number(), unitPrice:z.number(), totalPrice:z.number(), color:z.string().nullable().optional(), widthMm:z.number().nullable().optional(), heightMm:z.number().nullable().optional(), projectionMm:z.number().nullable().optional(), mountingHeightMm:z.number().nullable().optional(), awningConfiguration:AwningConfigurationSchema.nullable().optional(), awningPreview:z.string().nullable().optional(), motorType:z.string().nullable().optional(), ledType:z.string().nullable().optional(), fabricType:z.string().nullable().optional(), notes:z.string().nullable().optional() })).optional(),
   id: z.string().transform(createOrderId),
   orderNumber: z.string().min(1),
   customerName: z.string().min(1, 'Müşteri adı gerekli'),
@@ -95,6 +100,12 @@ export const OrderSchema = z.object({
 export type Order = z.infer<typeof OrderSchema>;
 
 export const NewOrderItemSchema = z.object({
+  quantityUnit: z.string().trim().min(1).max(24).optional(),
+  customParameters: z.record(z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,59}$/), z.union([z.string().max(500), z.number().finite(), z.boolean()])).refine(v => Object.keys(v).length <= 30).optional(),
+  awningConfiguration: AwningConfigurationSchema.optional(),
+  awningPreview: AwningPreviewSchema.optional(),
+  projectionMm: z.number().positive().optional(),
+  mountingHeightMm: z.number().positive().optional(),
   productName: z.string().min(1, 'Ürün adı gerekli'),
   quantity: z.coerce.number().int().positive('Miktar pozitif olmalı').default(1),
   unitPrice: z.coerce.number().nonnegative().optional(),

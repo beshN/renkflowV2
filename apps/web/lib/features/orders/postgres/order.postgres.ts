@@ -1,9 +1,13 @@
+import { verifiedFileKey } from "@/lib/storage/upload-reference";
+import { WorkOrderApiError } from '@/lib/features/work-orders/security';
+import { deleteUnlinkedOrder } from '../deletion.service';
+import { applyAwning } from "../../awning/configuration";
 import { Order, NewOrderFormData, safeParseCurrency } from '@/lib/types';
 import { IOrderService, TenantMismatchError } from '../types';
 import { sql } from '@/lib/db';
 import { sqlQuery } from '@/lib/db';
 import { withTransaction } from '@/lib/db/transaction';
-import { uploadFile, deleteFile, generateFilePath, getFileUrl } from '@/lib/storage/gcs';
+import { uploadFile, deleteFile, generateFilePath, getFileUrl } from '@/lib/storage';
 
 /**
  * PostgreSQL + GCS Order Service
@@ -67,6 +71,7 @@ export class PostgresOrderService implements IOrderService {
 
   private async resolveDocumentUrl(filePath: string | null | undefined): Promise<string> {
     if (!filePath) return '';
+    if (filePath.startsWith('/api/v1/production/files/')) return filePath;
     try {
       return await getFileUrl(filePath);
     } catch (error) {
@@ -81,6 +86,7 @@ export class PostgresOrderService implements IOrderService {
     const result = await sql`
       SELECT 
         o.*,
+        EXISTS(SELECT 1 FROM work_orders w WHERE w.order_id=o.id AND w.tenant_id=o.tenant_id AND w.recipe_id IS NOT NULL) AS production_managed,
         json_agg(
           DISTINCT jsonb_build_object(
             'id', d.id,
@@ -112,6 +118,8 @@ export class PostgresOrderService implements IOrderService {
 
         return {
           id: row.id,
+          version: row.version,
+      productionManaged: row.production_managed,
           orderNumber: row.order_number,
           customerName: row.customer_name,
           email: row.email,
@@ -150,6 +158,7 @@ export class PostgresOrderService implements IOrderService {
     const result = await sql`
       SELECT 
         o.*,
+        EXISTS(SELECT 1 FROM work_orders w WHERE w.order_id=o.id AND w.tenant_id=o.tenant_id AND w.recipe_id IS NOT NULL) AS production_managed,
         json_agg(
           DISTINCT jsonb_build_object(
             'id', d.id,
@@ -169,6 +178,8 @@ export class PostgresOrderService implements IOrderService {
     if (resultRows.length === 0) return null;
 
     const row = resultRows[0];
+    const itemRows = await sql`SELECT * FROM order_items WHERE order_id = ${id} ORDER BY created_at, id`;
+    const items = itemRows.map((i:any) => ({id:i.id,productName:i.product_name,quantity:Number(i.quantity),unitPrice:Number(i.unit_price),totalPrice:Number(i.total_price),color:i.color,widthMm:i.width_mm==null?null:Number(i.width_mm),heightMm:i.height_mm==null?null:Number(i.height_mm),projectionMm:i.projection_mm==null?null:Number(i.projection_mm),mountingHeightMm:i.mounting_height_mm==null?null:Number(i.mounting_height_mm),awningConfiguration:i.awning_configuration,awningPreview:i.awning_preview,motorType:i.motor_type,ledType:i.led_type,fabricType:i.fabric_type,notes:i.notes,customParameters:i.custom_parameters || {},quantityUnit:i.quantity_unit || "adet"}));
     
     // Generate signed URLs for documents
     const documents = await Promise.all((row.documents || []).map(async (doc: any) => ({
@@ -180,7 +191,10 @@ export class PostgresOrderService implements IOrderService {
     })));
 
     return {
+      items,
       id: row.id,
+      version: row.version,
+      productionManaged: row.production_managed,
       orderNumber: row.order_number,
       customerName: row.customer_name,
       email: row.email,
@@ -221,7 +235,7 @@ export class PostgresOrderService implements IOrderService {
             ${orderNumber}, ${formData.customerName}, ${formData.email || null}, ${formData.phone || null},
             'pending', ${formData.totalAmount}, ${safeParseCurrency(formData.currency) || 'TRY'}, ${formData.deliveryDate || null},
             ${formData.notes || null}, ${formData.productName}, ${formData.quantity}, ${tenantId},
-            ${formData.customFields ? JSON.stringify(formData.customFields) : null}
+            ${formData.customFields ? JSON.stringify(formData.customFields) : null}::text::jsonb
           )
           RETURNING id
         `;
@@ -233,16 +247,17 @@ export class PostgresOrderService implements IOrderService {
         }
 
         if (formData.items && formData.items.length > 0) {
-          for (const item of formData.items) {
+          for (const sourceItem of formData.items) {
+            const item = sourceItem.awningConfiguration ? applyAwning(sourceItem, sourceItem.awningConfiguration) : sourceItem;
             await tx.sql`
               INSERT INTO order_items (
                 order_id, product_name, quantity, unit_price, total_price,
-                color, width_mm, height_mm, motor_type, led_type, fabric_type, notes
+                color, width_mm, height_mm, motor_type, led_type, fabric_type, notes, projection_mm, mounting_height_mm, awning_configuration, awning_preview, custom_parameters, quantity_unit
               )
               VALUES (
                 ${orderId}, ${item.productName}, ${item.quantity}, ${item.unitPrice || 0}, ${item.totalPrice || 0},
                 ${item.color || null}, ${item.widthMm || null}, ${item.heightMm || null}, 
-                ${item.motorType || null}, ${item.ledType || null}, ${item.fabricType || null}, ${item.notes || null}
+                ${item.motorType || null}, ${item.ledType || null}, ${item.fabricType || null}, ${item.notes || null}, ${item.projectionMm || null}, ${item.mountingHeightMm || null}, ${item.awningConfiguration ? JSON.stringify(item.awningConfiguration) : null}::text::jsonb, ${item.awningPreview || null}, ${JSON.stringify(item.customParameters || {})}::text::jsonb, ${item.quantityUnit || "adet"}
               )
             `;
           }
@@ -254,12 +269,11 @@ export class PostgresOrderService implements IOrderService {
           for (let i = 0; i < files.length; i++) {
             const file = files[i];
             try {
-              const key = generateFilePath(orderId, file.name);
+              const key = verifiedFileKey(file) || generateFilePath(orderId, file.name);
               const arrayBuffer = await file.arrayBuffer();
               const buffer = Buffer.from(arrayBuffer);
 
-              await uploadFile(key, buffer, file.type);
-              uploadedFiles.push({ key });
+              if (!verifiedFileKey(file)) { await uploadFile(key, buffer, file.type); uploadedFiles.push({ key }); }
 
               await this.insertDocumentRecord(tx, {
                 tenantId,
@@ -272,8 +286,7 @@ export class PostgresOrderService implements IOrderService {
               // console.log('[PostgresOrderService] File uploaded successfully:', file.name);
             } catch (fileError) {
               console.error('[PostgresOrderService] File upload failed for:', file.name, fileError);
-              // Don't fail the entire order if file upload fails - just log it
-              // throw fileError; // Comment this out to allow order creation even if files fail
+              throw fileError;
             }
           }
         }
@@ -352,7 +365,7 @@ export class PostgresOrderService implements IOrderService {
       values.push(id);
       values.push(tenantId);
       
-      const query = `UPDATE orders SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1} RETURNING *`;
+      const query = `UPDATE orders SET ${setClauses.join(', ')}, version = version + 1, updated_at = NOW() WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1} RETURNING *`;
       
       // console.log('[PostgresOrderService] Update Query:', query);
 
@@ -372,50 +385,19 @@ export class PostgresOrderService implements IOrderService {
   }
 
   async updateOrderStatus(tenantId: string, id: string, status: Order['status']): Promise<Order> {
-    // Ensure order belongs to tenant (throws TenantMismatchError on cross-tenant)
-    const existingOrder = await this.getOrderById(tenantId, id);
-    if (!existingOrder) throw new Error('Order not found');
-
-    await sql`
-      UPDATE orders 
-      SET status = ${status}, updated_at = NOW() 
-      WHERE id = ${id} AND tenant_id = ${tenantId}
-    `;
-
+    await withTransaction(async ({sql: tx}) => {
+      await tx`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId},0))`;
+      const [order] = await tx`SELECT status FROM orders WHERE id=${id} AND tenant_id=${tenantId} FOR UPDATE`;
+      if (!order) throw new WorkOrderApiError('Sipariş bulunamadı',404);
+      if ((await tx`SELECT id FROM work_orders WHERE tenant_id=${tenantId} AND order_id=${id} AND recipe_id IS NOT NULL LIMIT 1`).length)
+        throw new WorkOrderApiError('Üretim durumunu ilgili operasyon ekranından değiştirin.',409);
+      await tx`UPDATE orders SET status=${status},version=version+1,updated_at=now() WHERE id=${id} AND tenant_id=${tenantId}`;
+    });
     return this.getOrderById(tenantId, id) as Promise<Order>;
   }
 
   async deleteOrder(tenantId: string, id: string): Promise<void> {
-    // Verify ownership first (throws TenantMismatchError on cross-tenant)
-    const existingOrder = await this.getOrderById(tenantId, id);
-    if (!existingOrder) throw new Error('Order not found');
-
-    // Get documents to delete from object storage
-    const docs = await sql`
-      SELECT file_path
-      FROM documents
-      WHERE order_id = ${id}
-        AND tenant_id = ${tenantId}
-    `;
-
-    // Delete from object storage
-    const docsRows = docs as any[];
-    for (const doc of docsRows) {
-      try {
-        await deleteFile(doc.file_path);
-      } catch (error) {
-        console.error('Error deleting file from object storage:', error);
-      }
-    }
-
-    // Delete order (documents will cascade)
-    // Extra safety: enforce tenant_id check
-    const deleteResult = await sql`DELETE FROM orders WHERE id = ${id} AND tenant_id = ${tenantId} RETURNING id`;
-    const deleteRows = deleteResult as any[];
-    
-    if (deleteRows.length === 0) {
-       throw new Error('Delete failed: Order not found');
-    }
+    await deleteUnlinkedOrder(tenantId, id);
   }
 
   async addDocuments(tenantId: string, id: string, files: File[]): Promise<Order> {
@@ -429,12 +411,11 @@ export class PostgresOrderService implements IOrderService {
       if (files && files.length > 0) {
         await withTransaction(async (tx) => {
           for (const file of files) {
-            const key = generateFilePath(id, file.name);
+            const key = verifiedFileKey(file) || generateFilePath(id, file.name);
             const arrayBuffer = await file.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
 
-            await uploadFile(key, buffer, file.type);
-            uploadedFiles.push({ key });
+            if (!verifiedFileKey(file)) { await uploadFile(key, buffer, file.type); uploadedFiles.push({ key }); }
 
             await this.insertDocumentRecord(tx, {
               tenantId,

@@ -24,7 +24,7 @@ export function resolveAuthSecret(options: ResolveAuthSecretOptions = {}): strin
   if (authSecret && nextAuthSecret && authSecret !== nextAuthSecret) {
     const message =
       `[${context}] AUTH_SECRET and NEXTAUTH_SECRET must match. ` +
-      'Use a single shared secret value in all environments.';
+      'Use the same alias within this environment.';
     if (IS_PRODUCTION && !IS_BUILD_TIME) {
       throw new Error(message);
     }
@@ -70,7 +70,9 @@ export function resolveServerBaseUrl(options: ResolveBaseUrlOptions = {}): strin
     .map(readEnvValue)
     .find(Boolean);
   const fallbackOrigin = readEnvValue(options.fallbackOrigin);
-  const rawUrl = envUrl || fallbackOrigin;
+  const deploymentUrl = process.env.VERCEL_URL?.trim();
+  const vercelOrigin = deploymentUrl ? `https://${deploymentUrl}` : undefined;
+  const rawUrl = process.env.VERCEL_ENV === "preview" ? (vercelOrigin || envUrl || fallbackOrigin) : (envUrl || vercelOrigin || fallbackOrigin);
 
   if (!rawUrl) {
     if (!options.allowMissing && IS_PRODUCTION && !IS_BUILD_TIME) {
@@ -100,7 +102,7 @@ export function resolveServerBaseUrl(options: ResolveBaseUrlOptions = {}): strin
 
   if (IS_PRODUCTION && !IS_BUILD_TIME && isLocalhost && !options.allowLocalhostInProduction) {
     throw new Error(
-      `[${context}] Production URL cannot point to localhost. Configure Cloud Run URL via AUTH_URL/NEXTAUTH_URL.`
+      `[${context}] Production URL cannot point to localhost. Configure APP_URL for the production domain.`
     );
   }
 

@@ -1,91 +1,24 @@
 'use client';
-
-import { FormEvent, useState } from 'react';
+import { useRef,useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createInventoryItem } from '@/app/actions/inventory.actions';
-import { Button } from '@/components/shared/ui/Button';
-import { useToast } from '@/lib/context/ToastContext';
+import Link from 'next/link';
 import { useAuth } from '@/lib/context/AuthContext';
-import { hasPermission, type UserRole } from '@/lib/auth/permissions';
-
-export function NewInventoryItemForm() {
-  const router = useRouter();
-  const { showToast } = useToast();
-  const { user } = useAuth();
-  const [submitting, setSubmitting] = useState(false);
-  const canCreate = user?.role ? hasPermission(user.role as UserRole, 'inventory.edit') : false;
-
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!canCreate) {
-      showToast('Bu işlem için yetkiniz bulunmuyor', 'error');
-      return;
-    }
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-
-    try {
-      setSubmitting(true);
-      const created = await createInventoryItem({
-        sku: String(formData.get('sku') || '').trim(),
-        name: String(formData.get('name') || '').trim(),
-        unit: String(formData.get('unit') || 'adet').trim() || 'adet',
-        minStock: Number(formData.get('minStock') || 0),
-        location: String(formData.get('location') || '').trim() || undefined,
-        active: formData.get('active') === 'on',
-      });
-
-      showToast('Stok kalemi oluşturuldu', 'success');
-      router.push(`/inventory/${created.id}`);
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Stok kalemi oluşturulamadı', 'error');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <form onSubmit={onSubmit} className="space-y-4 rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900">
-      {!canCreate && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-800 px-3 py-2 text-sm">
-          Envanter kalemi oluşturmak için yetkiniz yok.
-        </div>
-      )}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <label className="space-y-1.5 text-sm">
-          <span className="font-medium">SKU</span>
-          <input name="sku" required disabled={!canCreate} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-2 disabled:opacity-60" />
-        </label>
-
-        <label className="space-y-1.5 text-sm">
-          <span className="font-medium">Ad</span>
-          <input name="name" required disabled={!canCreate} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-2 disabled:opacity-60" />
-        </label>
-
-        <label className="space-y-1.5 text-sm">
-          <span className="font-medium">Birim</span>
-          <input name="unit" defaultValue="adet" disabled={!canCreate} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-2 disabled:opacity-60" />
-        </label>
-
-        <label className="space-y-1.5 text-sm">
-          <span className="font-medium">Minimum Stok</span>
-          <input name="minStock" type="number" min={0} step="0.01" defaultValue={0} disabled={!canCreate} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-2 disabled:opacity-60" />
-        </label>
-      </div>
-
-      <label className="space-y-1.5 text-sm block">
-        <span className="font-medium">Lokasyon (opsiyonel)</span>
-        <input name="location" disabled={!canCreate} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-2 disabled:opacity-60" />
-      </label>
-
-      <label className="inline-flex items-center gap-2 text-sm">
-        <input type="checkbox" name="active" defaultChecked disabled={!canCreate} />
-        Aktif
-      </label>
-
-      <div className="flex justify-end">
-        <Button type="submit" isLoading={submitting} disabled={!canCreate}>Kaydet</Button>
-      </div>
-    </form>
-  );
+import { requestJson } from '@/lib/shared/network';
+import { BusinessField as Field } from '@/components/shared/ui/BusinessDialog';
+export function NewInventoryItemForm(){
+  const {user}=useAuth(),router=useRouter(),allowed=!!user && ['owner','admin'].includes(user.role);
+  const [unit,setUnit]=useState('adet'),[busy,setBusy]=useState(false),[error,setError]=useState('');
+  const key=useRef<{hash:string;id:string}|null>(null),lock=useRef(false);
+  return <form className="rf-panel space-y-5 p-5" onSubmit={async e=>{
+    e.preventDefault();if(!allowed || lock.current)return;lock.current=true;setBusy(true);setError('');
+    const f=new FormData(e.currentTarget),data={sku:f.get('sku'),name:f.get('name'),itemType:f.get('itemType'),uom:unit,minStock:Number(f.get('minStock')),standardLengthMm:unit==='m'?Number(f.get('length')):0,weightPerMeterKg:unit==='m'?Number(f.get('weight')):0};
+    const hash=JSON.stringify(data);if(key.current?.hash!==hash)key.current={hash,id:crypto.randomUUID()};
+    const result=await requestJson<{data:{id:string}}>('/api/v1/production',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({commandId:key.current.id,action:'material.save',data})});
+    lock.current=false;setBusy(false);if(result.ok && result.data)router.push('/inventory/'+result.data.data.id);else setError(result.error || 'Malzeme kaydedilemedi');
+  }}>
+    {!allowed && <p role="alert" className="text-sm text-amber-700">Malzeme kartını firma yöneticisi oluşturabilir.</p>}{error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+    <fieldset disabled={!allowed || busy} className="grid gap-4 sm:grid-cols-2"><Field label="Stok kodu · SKU" name="sku" required maxLength={180}/><Field label="Malzeme adı" name="name" required maxLength={180}/><label className="text-xs">Malzeme türü<select className="rf-input mt-2 w-full" name="itemType"><option value="raw_material">Hammadde / profil</option><option value="consumable">Sarf malzeme</option><option value="finished_good">Mamul</option></select></label><label className="text-xs">Stok birimi<select className="rf-input mt-2 w-full" value={unit} onChange={e=>setUnit(e.target.value)}><option value="adet">Adet</option><option value="m">Metre · fiziksel profil</option><option value="m2">Metrekare</option><option value="kg">Kilogram</option></select></label><Field label="Minimum stok seviyesi" name="minStock" required type="number" min={0} max={1000000} step="any" defaultValue={0}/>{unit==='m' && <><Field label="Standart profil boyu · mm" name="length" required type="number" min={100} max={30000} step={1} defaultValue={6000}/><Field label="Doğrulanmış profil ağırlığı · kg/m" name="weight" required type="number" min="0.000001" step="any"/></>}</fieldset>
+    <p className="text-xs text-muted-foreground">Kart oluşturmak stok girişi yapmaz. Gerçek malzeme girişi, depo ve fiziksel profil boyuyla mal kabul ekranından kaydedilir.</p>
+    <div className="flex justify-end gap-2"><Link className="rf-secondary-button" href="/inventory">Vazgeç</Link><button type="submit" className="rf-primary-button" disabled={!allowed || busy}>{busy?'Kaydediliyor…':'Malzemeyi kaydet'}</button></div>
+  </form>;
 }

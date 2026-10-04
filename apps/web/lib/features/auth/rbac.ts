@@ -98,9 +98,9 @@ const PERMISSION_MATRIX: Record<UserRole, Permission[]> = {
     { resource: 'billing', actions: [] },
   ],
 
-  // Worker: Limited to assigned orders, can update status
+  // Worker: Assigned technical orders; production changes use operation commands.
   worker: [
-    { resource: 'orders', actions: ['read', 'update', 'list'] }, // Can only update status of assigned orders
+    { resource: 'orders', actions: ['read', 'list'] }, // Production changes use assigned operation commands.
     { resource: 'documents', actions: ['read', 'list'] },
     { resource: 'users', actions: [] },
     { resource: 'tenants', actions: [] },

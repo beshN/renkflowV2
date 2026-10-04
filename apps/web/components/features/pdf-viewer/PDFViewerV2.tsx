@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { usePDFStore } from '@/stores/usePDFStore';
 import { PDFRenderer } from './components/PDFRenderer';
 import { PDFToolbar } from './components/PDFToolbar';
@@ -24,11 +24,13 @@ export const PDFViewerV2: React.FC<PDFViewerV2Props> = ({
   onClose,
   className,
 }) => {
+  const [attempt, setAttempt] = useState(0);
   // Store selectors
   const loading = usePDFStore((state) => state.loading);
   const loadProgress = usePDFStore((state) => state.loadProgress);
   const loadingStage = usePDFStore((state) => state.loadingStage);
   const error = usePDFStore((state) => state.error);
+  const errorType = usePDFStore((state) => state.errorType);
   const retryCount = usePDFStore((state) => state.retryCount);
   const isFullscreen = usePDFStore((state) => state.isFullscreen);
   
@@ -58,6 +60,15 @@ export const PDFViewerV2: React.FC<PDFViewerV2Props> = ({
       resetDocument();
     };
   }, [fileUrl, fileName, setDocument, setLoading, resetDocument]);
+
+  useEffect(() => {
+    if (!loading || error) return;
+    const timer = setTimeout(() => {
+      setError('Belge beklenen sürede açılamadı. Bağlantınızı kontrol ederek yeniden deneyin.', 'network');
+      setLoading(false);
+    }, 45_000);
+    return () => clearTimeout(timer);
+  }, [loading, error, attempt, setError, setLoading]);
   
   // Detect mobile
   useEffect(() => {
@@ -175,9 +186,9 @@ export const PDFViewerV2: React.FC<PDFViewerV2Props> = ({
       incrementRetry();
       setError(null);
       setLoading(true);
-      setDocument(fileUrl, fileName);
+      setAttempt(value => value + 1);
     }
-  }, [retryCount, incrementRetry, setError, setLoading, setDocument, fileUrl, fileName]);
+  }, [retryCount, incrementRetry, setError, setLoading]);
   
   // Handle download
   const handleDownload = useCallback(async () => {
@@ -243,16 +254,17 @@ export const PDFViewerV2: React.FC<PDFViewerV2Props> = ({
   return (
     <div
       className={cn(
-        'fixed inset-0 z-50 bg-slate-900/95 backdrop-blur-sm flex flex-col',
+        'fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-sm flex flex-col',
         isFullscreen && 'bg-black',
         className
       )}
     >
       {/* Loading Overlay */}
-      {loading && (
+      {loading && !error && (
         <LoadingOverlay
-          progress={loadProgress}
+          actualProgress={loadProgress}
           stage={loadingStage}
+          onClose={onClose}
         />
       )}
       
@@ -260,6 +272,7 @@ export const PDFViewerV2: React.FC<PDFViewerV2Props> = ({
       {error && (
         <ErrorOverlay
           message={error}
+          errorType={errorType}
           onRetry={handleRetry}
           onClose={onClose || (() => {})}
           additionalActions={
@@ -275,7 +288,7 @@ export const PDFViewerV2: React.FC<PDFViewerV2Props> = ({
       )}
       
       {/* Main Content */}
-      {!loading && !error && (
+      {!error && (
         <>
           {/* Toolbar */}
           <PDFToolbar
@@ -296,6 +309,7 @@ export const PDFViewerV2: React.FC<PDFViewerV2Props> = ({
             
             {/* PDF Renderer */}
             <PDFRenderer
+              key={`${fileUrl}:${attempt}`}
               onDocumentLoadSuccess={(numPages) => {
                 console.log(`PDF loaded: ${numPages} pages`);
               }}

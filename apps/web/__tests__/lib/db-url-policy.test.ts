@@ -16,33 +16,10 @@ describe('database URL policy', () => {
     process.env = originalEnv;
   });
 
-  it('rejects legacy host in production', () => {
-    const db = loadDbModule({
-      NODE_ENV: 'production',
-      NEXT_PHASE: 'phase-production-build',
-      AUTH_SECRET: 'a'.repeat(32),
-      NEXTAUTH_SECRET: 'a'.repeat(32),
-    });
-
-    expect(() =>
-      db.validateDatabaseUrl('postgresql://user:pass@sample.neon.tech/renkflow')
-    ).toThrow('legacy database hosts');
+  it('accepts the Vercel Marketplace PostgreSQL provider in production', () => {
+    const db = loadDbModule({NODE_ENV:'production',NEXT_PHASE:'phase-production-build'});
+    expect(() => db.validateDatabaseUrl('postgresql://user:pass@sample-pooler.eu-central-1.aws.neon.tech/renkflow?sslmode=require')).not.toThrow();
   });
-
-  it('allows a legacy host only with the explicit migration compatibility flag', () => {
-    const db = loadDbModule({
-      NODE_ENV: 'production',
-      NEXT_PHASE: 'phase-production-build',
-      ALLOW_LEGACY_DATABASE_HOSTS: '1',
-      AUTH_SECRET: 'a'.repeat(32),
-      NEXTAUTH_SECRET: 'a'.repeat(32),
-    });
-
-    expect(() =>
-      db.validateDatabaseUrl('postgresql://user:pass@sample.neon.tech/renkflow')
-    ).not.toThrow();
-  });
-
   it('rejects localhost TCP URL without cloudsql socket in production', () => {
     const db = loadDbModule({
       NODE_ENV: 'production',
@@ -53,7 +30,13 @@ describe('database URL policy', () => {
 
     expect(() =>
       db.validateDatabaseUrl('postgresql://user:pass@localhost/renkflow?sslmode=disable')
-    ).toThrow('requires Cloud SQL socket');
+    ).toThrow('cannot target localhost');
+  });
+
+  it('accepts explicit local pilot TCP only with the local database flag', () => {
+    const db = loadDbModule({NODE_ENV:'production',NEXT_PHASE:'phase-production-build',ALLOW_LOCAL_DATABASE:'1',AUTH_SECRET:'a'.repeat(32),NEXTAUTH_SECRET:'a'.repeat(32)});
+    expect(()=>db.validateDatabaseUrl('postgres://user:pass@127.0.0.1:55432/renkflow_test')).not.toThrow();
+    expect(()=>db.validateDatabaseUrl('postgres://user:pass@localhost/renkflow_test')).toThrow('cannot target localhost');
   });
 
   it('accepts localhost URL when cloudsql socket query exists in production', () => {

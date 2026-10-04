@@ -180,7 +180,7 @@ export async function batchDeleteDocuments(
   const existingIds = new Set((existingDocs as { id: string }[]).map(d => d.id));
 
   // Import storage helpers
-  const { deleteFile } = await import('@/lib/storage/gcs');
+  const { deleteFile } = await import('@/lib/storage');
 
   await withTransaction(async (tx) => {
     for (const docId of documentIds) {

@@ -23,6 +23,8 @@ function resolveDatabaseRuntimeConfig(databaseUrl: string): {
   try {
     const parsed = new URL(databaseUrl);
     const socketHost = parsed.searchParams.get('host');
+    // Neon URLs can include this libpq option; postgres.js manages TLS itself.
+    parsed.searchParams.delete('channel_binding');
     const clientOptions: Record<string, unknown> = {};
 
     // postgres.js does not honor `host` from query params as socket host.
@@ -66,27 +68,13 @@ export function validateDatabaseUrl(url: string): void {
       runtimeHost === 'localhost' ||
       runtimeHost === '127.0.0.1' ||
       runtimeHost === '::1';
-    const lowerUrl = url.toLowerCase();
-    const allowsLegacyDatabaseHost = process.env.ALLOW_LEGACY_DATABASE_HOSTS === '1';
-    const legacyDbTag = `${'neo'}${'n'}`;
-    const legacyDbHost = `.${legacyDbTag}.tech`;
-    const pointsToLegacyHost =
-      runtimeHost.endsWith(legacyDbHost) ||
-      runtimeHost === `${legacyDbTag}.tech` ||
-      lowerUrl.includes(legacyDbHost) ||
-      lowerUrl.includes(`${legacyDbTag}db`);
-
     if (!runtimeHost && !socketHost) {
       throw new Error('Missing hostname or Cloud SQL host socket in DATABASE_URL');
     }
 
-    if (IS_PRODUCTION && pointsToLegacyHost && !allowsLegacyDatabaseHost) {
-      throw new Error('Production DATABASE_URL cannot target legacy database hosts');
-    }
-
-    if (IS_PRODUCTION && isLocalHost && !hasCloudSqlSocketHost) {
+    if (IS_PRODUCTION && isLocalHost && !hasCloudSqlSocketHost && !(process.env.ALLOW_LOCAL_DATABASE === '1' && parsed.port)) {
       throw new Error(
-        'Production localhost DATABASE_URL requires Cloud SQL socket host=/cloudsql/<INSTANCE_CONNECTION_NAME>'
+        'Production DATABASE_URL cannot target localhost without an explicit local test flag'
       );
     }
   } catch (error) {
@@ -118,7 +106,8 @@ function createLazySqlClient(databaseUrl: string) {
   return postgres(runtimeConfig.connectionString, {
     connect_timeout: 10,
     idle_timeout: 20,
-    max: 20,
+    max: process.env.VERCEL ? 3 : 10,
+    max_lifetime: 300,
     prepare: false,
     ...runtimeConfig.clientOptions,
   });

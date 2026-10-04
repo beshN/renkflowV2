@@ -1,7 +1,7 @@
 'use client';
 
-import { ReactNode, useState, useMemo } from 'react';
-import { Search, Filter, SlidersHorizontal, Download, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ReactNode, useState, useMemo, useId } from 'react';
+import { Search, SlidersHorizontal, Plus, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, X, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ============================================
@@ -33,6 +33,10 @@ export interface RFListViewProps<T extends { id: string }> {
   columns: RFColumn<T>[];
   filters?: RFFilter[];
   isLoading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
+  searchValue?: string;
+  hideHeader?: boolean;
   totalCount?: number;
   page?: number;
   pageSize?: number;
@@ -98,6 +102,10 @@ export function RFListView<T extends { id: string }>({
   columns,
   filters = [],
   isLoading = false,
+  error,
+  onRetry,
+  searchValue,
+  hideHeader = false,
   totalCount,
   page = 1,
   pageSize = 25,
@@ -109,7 +117,7 @@ export function RFListView<T extends { id: string }>({
   primaryAction,
   secondaryActions = [],
   emptyState,
-  selectedRows = [],
+  selectedRows,
   onFilterChange,
   filterValues = {},
 }: RFListViewProps<T>) {
@@ -117,19 +125,30 @@ export function RFListView<T extends { id: string }>({
   const [showFilters, setShowFilters] = useState(false);
   const [localSelected, setLocalSelected] = useState<Set<string>>(new Set());
   const [localPage, setLocalPage] = useState(1);
+  const [sort, setSort] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const filterId = useId();
+  const queryValue = searchValue ?? searchQuery;
+  const selectedIds = selectedRows ? new Set(selectedRows.map(row => row.id)) : localSelected;
+  const presentSelected = new Set(data.filter(row => selectedIds.has(row.id)).map(row => row.id));
   const currentPage = onPageChange ? page : localPage;
   const filteredData = useMemo(() => {
-    if (onSearch || !searchQuery.trim()) return data;
-    const query = searchQuery.toLocaleLowerCase('tr-TR');
+    const query = queryValue.trim().toLocaleLowerCase('tr-TR');
     const keys = searchKeys || columns.map(column => column.key);
-    return data.filter(row => keys.some(key => String((row as Record<string, unknown>)[key] ?? '').toLocaleLowerCase('tr-TR').includes(query)));
-  }, [data, onSearch, searchQuery, searchKeys, columns]);
+    const result = onSearch || !query ? [...data] : data.filter(row => keys.some(key => String((row as Record<string, unknown>)[key] ?? '').toLocaleLowerCase('tr-TR').includes(query)));
+    if (sort) result.sort((a, b) => {
+      const first = (a as Record<string, unknown>)[sort.key];
+      const second = (b as Record<string, unknown>)[sort.key];
+      const comparison = typeof first === 'number' && typeof second === 'number' ? first - second : String(first ?? '').localeCompare(String(second ?? ''), 'tr', { numeric: true });
+      return sort.direction === 'asc' ? comparison : -comparison;
+    });
+    return result;
+  }, [data, onSearch, queryValue, searchKeys, columns, sort]);
 
   const effectiveTotal = onPageChange ? totalCount ?? filteredData.length : filteredData.length;
   const totalPages = Math.ceil(effectiveTotal / pageSize);
   const safePage = Math.max(1, Math.min(currentPage, totalPages || 1));
   const visibleData = onPageChange ? filteredData : filteredData.slice((safePage - 1) * pageSize, safePage * pageSize);
-  const allSelected = visibleData.length > 0 && visibleData.every((row) => localSelected.has(row.id));
+  const allSelected = visibleData.length > 0 && visibleData.every((row) => presentSelected.has(row.id));
   const changePage = (next: number) => onPageChange ? onPageChange(next) : setLocalPage(next);
 
   const handleSearch = (value: string) => {
@@ -139,18 +158,14 @@ export function RFListView<T extends { id: string }>({
   };
 
   const handleSelectAll = () => {
-    if (allSelected) {
-      setLocalSelected(new Set());
-      onRowSelect?.([]);
-    } else {
-      const newSelected = new Set(visibleData.map((r) => r.id));
-      setLocalSelected(newSelected);
-      onRowSelect?.(visibleData);
-    }
+    const next = new Set(presentSelected);
+    visibleData.forEach(row => allSelected ? next.delete(row.id) : next.add(row.id));
+    setLocalSelected(next);
+    onRowSelect?.(data.filter(row => next.has(row.id)));
   };
 
   const handleSelectRow = (row: T, checked: boolean) => {
-    const next = new Set(localSelected);
+    const next = new Set(presentSelected);
     if (checked) {
       next.add(row.id);
     } else {
@@ -160,12 +175,12 @@ export function RFListView<T extends { id: string }>({
     onRowSelect?.(data.filter((r) => next.has(r.id)));
   };
 
-  const selectedCount = localSelected.size;
+  const selectedCount = presentSelected.size;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="rf-data-view flex flex-col h-full">
       {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-6">
+      {!hideHeader && <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-6">
         <div>
           <div className="flex items-center gap-2">
             {icon}
@@ -179,7 +194,8 @@ export function RFListView<T extends { id: string }>({
           {secondaryActions.filter(action => action.requiresSelection === false || selectedCount > 0).map((action) => (
             <button
               key={action.label}
-              onClick={() => action.onClick(data.filter((r) => localSelected.has(r.id)))}
+              disabled={isLoading}
+              onClick={() => action.onClick(data.filter((r) => presentSelected.has(r.id)))}
               className="inline-flex items-center gap-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3.5 py-2 text-sm font-medium text-foreground hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
             >
               {action.icon}
@@ -199,7 +215,9 @@ export function RFListView<T extends { id: string }>({
             </button>
           )}
         </div>
-      </div>
+      </div>}
+
+      {error && <div role="alert" className="rf-alert mb-4"><TriangleAlert size={18} className="shrink-0" /><div className="flex-1 text-xs"><p className="font-medium">{error}</p>{data.length > 0 && <p className="mt-1">Son alınan kayıtlar gösteriliyor.</p>}</div>{onRetry && <button type="button" onClick={onRetry} className="text-xs font-medium underline underline-offset-2">Tekrar dene</button>}</div>}
 
       {/* Toolbar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center mb-4">
@@ -208,17 +226,21 @@ export function RFListView<T extends { id: string }>({
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
-            value={searchQuery}
+            value={queryValue}
             onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Ara..."
+            placeholder="Kayıtlarda ara…"
             aria-label={title + ' içinde ara'}
-            className="w-full rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 py-2.5 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            className="w-full rounded-md border border-border bg-card py-2.5 pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-colors"
           />
+          {queryValue && <button type="button" aria-label="Aramayı temizle" onClick={() => handleSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground"><X size={14} /></button>}
         </div>
 
         {/* Filter Toggle */}
         {filters.length > 0 && (
           <button
+            type="button"
+            aria-expanded={showFilters}
+            aria-controls={filterId}
             onClick={() => setShowFilters(!showFilters)}
             className={cn(
               'inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-sm font-medium transition-colors',
@@ -245,12 +267,13 @@ export function RFListView<T extends { id: string }>({
 
       {/* Filter Bar */}
       {showFilters && filters.length > 0 && (
-        <div className="flex flex-wrap gap-3 mb-4 p-4 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900/50">
+        <div id={filterId} className="flex flex-wrap gap-3 mb-4 p-4 rounded-lg border border-border bg-accent/40">
           {filters.map((filter) => (
             <div key={filter.key} className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-muted-foreground">{filter.label}</label>
+              <label htmlFor={filterId + filter.key} className="text-xs font-medium text-muted-foreground">{filter.label}</label>
               {filter.type === 'select' ? (
                 <select
+                  id={filterId + filter.key}
                   value={filterValues[filter.key] || ''}
                   onChange={(e) => onFilterChange?.(filter.key, e.target.value)}
                   className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary transition-colors min-w-[140px]"
@@ -262,6 +285,7 @@ export function RFListView<T extends { id: string }>({
                 </select>
               ) : (
                 <input
+                  id={filterId + filter.key}
                   type={filter.type}
                   value={filterValues[filter.key] || ''}
                   onChange={(e) => onFilterChange?.(filter.key, e.target.value)}
@@ -275,7 +299,7 @@ export function RFListView<T extends { id: string }>({
       )}
 
       {/* Table */}
-      <div className="flex-1 overflow-hidden rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 shadow-sm">
+      <div className="rf-table-container flex-1 overflow-hidden rounded-lg border border-border bg-card shadow-sm" aria-busy={isLoading}>
         <div className="overflow-x-auto h-full">
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 bg-neutral-50/90 dark:bg-neutral-900/90 backdrop-blur-sm">
@@ -294,13 +318,15 @@ export function RFListView<T extends { id: string }>({
                 {columns.map((col) => (
                   <th
                     key={col.key}
+                    scope="col"
+                    aria-sort={col.sortable ? sort?.key === col.key ? sort.direction === 'asc' ? 'ascending' : 'descending' : 'none' : undefined}
                     className={cn(
                       'px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground',
                       col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left',
                       col.width
                     )}
                   >
-                    {col.label}
+                    {col.sortable ? <button type="button" onClick={() => { setSort({ key: col.key, direction: sort?.key === col.key && sort.direction === 'asc' ? 'desc' : 'asc' }); setLocalPage(1); }} className="inline-flex items-center gap-1.5 uppercase tracking-wider">{col.label}{sort?.key === col.key ? sort.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} /> : <ArrowUpDown size={12} className="opacity-40" />}</button> : col.label}
                   </th>
                 ))}
               </tr>
@@ -316,10 +342,10 @@ export function RFListView<T extends { id: string }>({
                         <Search size={20} className="text-muted-foreground/50" />
                       </div>
                       <p className="font-semibold text-foreground">
-                        {emptyState?.title || 'Kayıt bulunamadı'}
+                        {error ? 'Kayıtlar yüklenemedi' : emptyState?.title || 'Kayıt bulunamadı'}
                       </p>
                       <p className="text-sm text-muted-foreground max-w-sm">
-                        {emptyState?.description || 'Arama kriterlerinize uygun kayıt yok.'}
+                        {error ? 'Tekrar deneyin veya bağlantınızı kontrol edin.' : emptyState?.description || 'Arama kriterlerinize uygun kayıt yok.'}
                       </p>
                       {emptyState?.action && (
                         <button
@@ -337,10 +363,12 @@ export function RFListView<T extends { id: string }>({
                   <tr
                     key={row.id}
                     onClick={() => onRowClick?.(row)}
+                    tabIndex={onRowClick ? 0 : undefined}
+                    onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onRowClick?.(row); } }}
                     className={cn(
                       'group transition-colors',
                       onRowClick ? 'cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-900/50' : '',
-                      localSelected.has(row.id) ? 'bg-primary/5 dark:bg-primary/10' : ''
+                      presentSelected.has(row.id) ? 'bg-primary/5 dark:bg-primary/10' : ''
                     )}
                   >
                     {onRowSelect && (
@@ -348,7 +376,7 @@ export function RFListView<T extends { id: string }>({
                         <input
                           type="checkbox"
                           aria-label="Kaydı seç"
-                          checked={localSelected.has(row.id)}
+                          checked={presentSelected.has(row.id)}
                           onChange={(e) => handleSelectRow(row, e.target.checked)}
                           className="rounded border-neutral-300 text-primary focus:ring-primary/20"
                         />

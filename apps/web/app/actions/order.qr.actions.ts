@@ -1,10 +1,11 @@
 'use server';
 
+import { resolveUploadedFile, verifiedFileKey } from '@/lib/storage/upload-reference';
 import crypto from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { sql } from '@/lib/db';
-import { uploadFile, generateFilePath } from '@/lib/storage/gcs';
+import { uploadFile, generateFilePath } from '@/lib/storage';
 import { withServerActionTiming } from '@/lib/utils/metrics';
 import {
   getServerUserContext,
@@ -400,15 +401,14 @@ const qrActionHandlers: Record<OrderQrActionKey, QrActionHandler> = {
     const photoPayload = payload as {
       fileName: string;
       mimeType: string;
-      base64Data: string;
+      base64Data?: string;
+      blobPath?: string;
       note?: string;
     };
 
-    const base64Part = photoPayload.base64Data.includes(',')
-      ? photoPayload.base64Data.split(',')[1]
-      : photoPayload.base64Data;
-
-    const buffer = Buffer.from(base64Part, 'base64');
+    const uploaded = photoPayload.blobPath ? await resolveUploadedFile(context,{name:photoPayload.fileName,mime:photoPayload.mimeType,blobPath:photoPayload.blobPath}) : undefined;
+    const base64Part = photoPayload.base64Data?.includes(',') ? photoPayload.base64Data.split(',')[1] : photoPayload.base64Data;
+    const buffer = uploaded ? Buffer.from(await uploaded.arrayBuffer()) : Buffer.from(base64Part || '', 'base64');
     if (!buffer || buffer.length === 0) {
       throw new Error('Yükleme verisi okunamadı');
     }
@@ -417,8 +417,8 @@ const qrActionHandlers: Record<OrderQrActionKey, QrActionHandler> = {
     }
 
     const safeName = sanitizeUploadedFileName(photoPayload.fileName);
-    const key = generateFilePath(orderId, safeName);
-    await uploadFile(key, buffer, photoPayload.mimeType);
+    const key = uploaded ? verifiedFileKey(uploaded)! : generateFilePath(orderId, safeName);
+    if (!uploaded) await uploadFile(key, buffer, photoPayload.mimeType);
 
     await sql`
       INSERT INTO documents (
@@ -477,6 +477,8 @@ export async function executeOrderQrAction(input: {
 
     const parsedPayload = definition.payloadSchema.parse(validated.payload ?? {});
     const orderId = String(row.order_id);
+    if (context.role === 'worker' && !(await sql`SELECT id FROM work_orders w WHERE tenant_id=${context.tenantId} AND order_id=${orderId} AND (assigned_to=${context.userId} OR EXISTS(SELECT 1 FROM production_operations p WHERE p.work_order_id=w.id AND p.tenant_id=${context.tenantId} AND p.assigned_to=${context.userId}))`).length) throw new AuthorizationError('Bu sipariş size atanmamış');
+    if (validated.actionKey.startsWith('status.') && (await sql`SELECT id FROM work_orders WHERE tenant_id=${context.tenantId} AND order_id=${orderId} AND recipe_id IS NOT NULL`).length) throw new AuthorizationError('Üretim durumunu ilgili operasyon ekranından değiştirin');
     const handler = qrActionHandlers[validated.actionKey];
     const message = await handler({
       context,

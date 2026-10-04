@@ -27,9 +27,10 @@ const PhotoPayloadSchema = z.object({
         /^image\/(jpeg|jpg|png|webp|gif|heic|heif)$/.test(value),
       'Yalnızca görsel veya PDF yüklenebilir'
     ),
-  base64Data: z.string().trim().min(1),
+  base64Data: z.string().trim().min(1).max(14_000_000).optional(),
+  blobPath: z.string().max(700).optional(),
   note: z.string().trim().max(500).optional(),
-});
+}).refine(d => Boolean(d.base64Data) !== Boolean(d.blobPath), "Bir dosya kaynağı gerekli");
 
 const EmptyPayloadSchema = z.object({}).passthrough();
 

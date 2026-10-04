@@ -1,3 +1,4 @@
+import { isPrivateAccessAllowed, privateAccessEmail } from '@/lib/features/auth/private-access';
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { evaluateComingSoonRequest, isComingSoonMode, normalizePublicSiteMode } from '@/lib/launch/comingSoonGate';
@@ -51,7 +52,7 @@ const PUBLIC_EXACT_PATHS = new Set([
   '/status',
 ]);
 
-const PUBLIC_PREFIXES = ['/blog/', '/careers/', '/docs/', '/public/'];
+const PUBLIC_PREFIXES = ['/blog/', '/careers/', '/docs/', '/public/', '/track/'];
 const AUTH_ENTRY_PAGES = new Set(['/auth/login', '/auth/forgot-password', '/auth/update-password', '/signup']);
 
 function getClientIp(request: NextRequest): string {
@@ -127,7 +128,7 @@ async function isAuthenticated(request: NextRequest): Promise<boolean> {
       secret: AUTH_SECRET,
       secureCookie: request.nextUrl.protocol === 'https:',
     });
-    return Boolean(token?.sub || token?.id);
+    return Boolean(token?.sub || token?.id) && isPrivateAccessAllowed(token?.email);
   } catch {
     return false;
   }
@@ -147,7 +148,7 @@ const PROXY_SECURITY_HEADERS: Record<string, string> = {
   'X-Frame-Options': 'DENY',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Permissions-Policy': 'camera=(self), microphone=(), geolocation=()',
   'X-XSS-Protection': '1; mode=block',
 };
 
@@ -266,8 +267,15 @@ export async function proxy(request: NextRequest) {
     return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
   }
 
+  if(privateAccessEmail() && (pathname==='/signup' || pathname.startsWith('/track/') || pathname.startsWith('/q/'))) {
+    if(!(await isAuthenticated(request))) return withProxySecurityHeaders(buildLoginRedirect(request), {isSecureRequest});
+  }
+
   if (pathname.startsWith('/api/')) {
-    return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
+    if(privateAccessEmail() && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/cron/') && !(await isAuthenticated(request))) return withProxySecurityHeaders(NextResponse.json({error:'Oturum açmanız gerekiyor.'},{status:401}),{isSecureRequest});
+    const response = withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
+    if (pathname.startsWith('/api/v1/production/files/') || pathname === '/api/storage/content' || /^\/api\/orders\/documents\/[^/]+\/content$/.test(pathname)) response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+    return response;
   }
 
   if (isStaticAsset(pathname) || isPublicPage(pathname)) {

@@ -76,7 +76,7 @@ export default function SignupPage() {
                 <p className="text-sm text-muted-foreground mt-2">İşletmenizi yönetmeye dakikalar içinde başlayın.</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form method="post" onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input
                         type="text"

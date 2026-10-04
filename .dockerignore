@@ -10,3 +10,9 @@
 apps/mobile
 apps/dashboard
 patterns-demo
+
+**/.env*
+!**/.env.example
+**/.data
+**/*.pem
+**/*service-account*.json

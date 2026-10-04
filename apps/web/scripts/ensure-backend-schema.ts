@@ -21,6 +21,7 @@ function resolveDatabaseRuntimeConfig(databaseUrl: string): {
   try {
     const parsed = new URL(databaseUrl);
     const socketHost = parsed.searchParams.get('host');
+    parsed.searchParams.delete('channel_binding');
     const clientOptions: Record<string, unknown> = {};
 
     if (socketHost && socketHost.startsWith('/')) {
@@ -48,19 +49,6 @@ function validateDatabaseUrl(databaseUrl: string): void {
       runtimeHost === 'localhost' ||
       runtimeHost === '127.0.0.1' ||
       runtimeHost === '::1';
-    const lowerUrl = databaseUrl.toLowerCase();
-    const legacyDbTag = `${'neo'}${'n'}`;
-    const legacyDbHost = `.${legacyDbTag}.tech`;
-    const pointsToLegacyHost =
-      runtimeHost.endsWith(legacyDbHost) ||
-      runtimeHost === `${legacyDbTag}.tech` ||
-      lowerUrl.includes(legacyDbHost) ||
-      lowerUrl.includes(`${legacyDbTag}db`);
-
-    if (isProduction && pointsToLegacyHost) {
-      throw new Error('Production DATABASE_URL cannot target legacy database hosts');
-    }
-
     if (isProduction && isLocalHost && !hasCloudSqlSocketHost && !parsed.port) {
       throw new Error(
         'Production localhost DATABASE_URL requires host=/cloudsql/<INSTANCE_CONNECTION_NAME> unless explicit TCP port is configured.'
@@ -69,20 +57,6 @@ function validateDatabaseUrl(databaseUrl: string): void {
   } catch (error) {
     throw new Error(`[ensure-backend-schema] Invalid DATABASE_URL: ${error}`);
   }
-}
-
-function removeLineComments(content: string): string {
-  return content
-    .split('\n')
-    .filter((line) => !line.trim().startsWith('--'))
-    .join('\n');
-}
-
-function splitStatements(content: string): string[] {
-  return content
-    .split(';')
-    .map((statement) => statement.trim())
-    .filter((statement) => statement.length > 0);
 }
 
 async function runStatements(sql: SqlClient, label: string, statements: string[], prefix: string) {
@@ -108,7 +82,7 @@ export async function ensureBackendSchema(sql: SqlClient, options: EnsureOptions
   await runStatements(
     sql,
     '001_finance_tables (core)',
-    splitStatements(removeLineComments(financeCoreRaw)),
+    [financeCoreRaw],
     prefix
   );
 
@@ -133,15 +107,32 @@ export async function ensureBackendSchema(sql: SqlClient, options: EnsureOptions
     '011_onboarding_support_blocking.sql',
     '012_native_manufacturing.sql',
     '013_erp_core.sql',
+    '014_production_platform.sql',
+    '015_procurement_workflows.sql',
+    '016_quality_inspections.sql',
+    '017_finance_workflows.sql',
+    '018_workspace_notifications.sql',
+    '019_workspace_views_cleanup.sql',
+    '020_vercel_storage.sql',
+    '021_warehouse_barcodes.sql',
+    '022_assistant_drafts.sql',
+    '023_intake_provenance.sql',
+    '024_recipe_parameters.sql',
+    '025_production_resources.sql',
+    '026_production_analytics.sql',
+    '027_quality_traceability.sql',
   ]) {
     const raw = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
-    await runStatements(sql, file, splitStatements(removeLineComments(raw)), prefix);
+    // postgres.js unsafe() uses the simple protocol when there are no parameters.
+    // Send the whole file so PostgreSQL parses DO blocks, functions and quoted
+    // semicolons, and rolls back the file's statements together on an error.
+    await runStatements(sql, file, [raw], prefix);
   }
 }
 
 async function main() {
   dotenv.config({ path: '.env.local' });
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
   if (!databaseUrl) {
     console.error('[ensure-backend-schema] DATABASE_URL not found');
     process.exit(1);

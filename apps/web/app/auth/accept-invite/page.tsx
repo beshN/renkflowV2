@@ -168,7 +168,7 @@ export default function AcceptInvitePage() {
         </p>
       }
     >
-      <form className="space-y-3" onSubmit={handleAccept}>
+      <form method="post" className="space-y-3" onSubmit={handleAccept}>
         {!invitation.existingUser ? (
           <>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">

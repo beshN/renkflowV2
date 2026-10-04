@@ -1,4 +1,5 @@
 import 'server-only';
+import { createHash } from 'node:crypto';
 
 import { withTransaction } from '@/lib/db/transaction';
 import { postStockEntryInTransaction } from './inventory.service';
@@ -14,12 +15,14 @@ export async function submitGoodsReceipt(
 ) {
   const input = GoodsReceiptInputSchema.parse(rawInput);
   return withTransaction(async ({ sql: tx }) => {
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${actor.tenantId},0))`;
+    const requestHash = createHash('sha256').update(JSON.stringify(input)).digest('hex');
     const existing = await tx`
       SELECT * FROM goods_receipts
       WHERE tenant_id = ${actor.tenantId} AND idempotency_key = ${input.idempotencyKey}
     `;
     if (existing[0]) {
-      if (existing[0].receipt_number !== input.receiptNumber) {
+      if (existing[0].receipt_number !== input.receiptNumber || existing[0].notes !== 'legacy-hash:'+requestHash) {
         throw new Error('Idempotency anahtarı farklı bir mal kabulde kullanılmış');
       }
       return existing[0];
@@ -31,7 +34,7 @@ export async function submitGoodsReceipt(
         WHERE tenant_id = ${actor.tenantId} AND id = ${input.purchaseOrderId}
         FOR UPDATE
       `;
-      if (!purchaseOrders[0] || purchaseOrders[0].status === 'cancelled') {
+      if (!purchaseOrders[0] || !['submitted','partially_received'].includes(purchaseOrders[0].status)) {
         throw new Error('Geçerli satın alma siparişi bulunamadı');
       }
     }
@@ -39,16 +42,25 @@ export async function submitGoodsReceipt(
     const receiptRows = await tx`
       INSERT INTO goods_receipts (
         tenant_id, receipt_number, purchase_order_id, status,
-        idempotency_key, received_by
+        idempotency_key, received_by, notes
       ) VALUES (
         ${actor.tenantId}, ${input.receiptNumber}, ${input.purchaseOrderId || null},
-        'draft', ${input.idempotencyKey}, ${actor.userId}
+        'draft', ${input.idempotencyKey}, ${actor.userId}, ${'legacy-hash:'+requestHash}
       ) RETURNING *
     `;
     const receipt = receiptRows[0];
     const stockLines: Array<any> = [];
 
+    if (new Set(input.lines.map(l=>l.purchaseOrderLineId || l.itemId)).size !== input.lines.length) throw new Error('Mal kabul kalemi yinelenemez');
     for (const line of input.lines) {
+      if (line.uom === 'm') throw new Error('Fiziksel profil kabulü için Satın alma / Mal kabul ekranını kullanın');
+      if (input.purchaseOrderId) {
+        if (!line.purchaseOrderLineId) throw new Error('Satın alma kalemi gerekli');
+        const [poLine] = await tx`SELECT * FROM purchase_order_lines WHERE tenant_id=${actor.tenantId} AND purchase_order_id=${input.purchaseOrderId} AND id=${line.purchaseOrderLineId} FOR UPDATE`;
+        if (!poLine || poLine.item_id !== line.itemId || poLine.uom !== line.uom || poLine.warehouse_id !== line.acceptedWarehouseId || Number(poLine.received_qty)+line.acceptedQty+line.rejectedQty > Number(poLine.ordered_qty)) throw new Error('Mal kabul kalemi veya miktarı siparişle uyuşmuyor');
+      }
+      if (!(await tx`SELECT 1 FROM warehouses WHERE tenant_id=${actor.tenantId} AND id=${line.acceptedWarehouseId} AND warehouse_type='RAW' AND active=true`).length) throw new Error('Aktif hammadde deposu gerekli');
+      if (line.rejectedQty && !(await tx`SELECT 1 FROM warehouses WHERE tenant_id=${actor.tenantId} AND id=${line.rejectedWarehouseId || null} AND warehouse_type='REJECTED' AND active=true`).length) throw new Error('Aktif red deposu gerekli');
       await tx`
         INSERT INTO goods_receipt_lines (
           tenant_id, goods_receipt_id, purchase_order_line_id, item_id,
@@ -112,6 +124,7 @@ export async function submitGoodsReceipt(
           ) THEN 'received'
           ELSE 'partially_received'
         END
+        , version = version + 1, updated_at = now()
         WHERE po.tenant_id = ${actor.tenantId} AND po.id = ${input.purchaseOrderId}
       `;
     }

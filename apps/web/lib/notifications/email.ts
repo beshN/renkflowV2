@@ -7,13 +7,13 @@ const resend = process.env.RESEND_API_KEY
 
 // Email sender addresses for different purposes
 const getUpdatesEmail = () => 
-  process.env.RESEND_UPDATES_EMAIL || 'RenkFlow <updates@renkflow.com>';
+  process.env.RESEND_UPDATES_EMAIL || process.env.EMAIL_FROM || 'RenkFlow <updates@renkflow.com>';
 
 const getSupportEmail = () => 
-  process.env.RESEND_SUPPORT_EMAIL || 'RenkFlow <support@renkflow.com>';
+  process.env.RESEND_SUPPORT_EMAIL || process.env.EMAIL_FROM || 'RenkFlow <support@renkflow.com>';
 
 const getInfoEmail = () => 
-  process.env.RESEND_INFO_EMAIL || 'RenkFlow <info@renkflow.com>';
+  process.env.RESEND_INFO_EMAIL || process.env.EMAIL_FROM || 'RenkFlow <info@renkflow.com>';
 
 /**
  * Generic send email function
@@ -222,7 +222,6 @@ export async function sendInviteEmail(
 ) {
   if (!resend) {
     console.warn('Resend is not configured. Invite email not sent.');
-    console.log('[EMAIL] Invite URL for', email, ':', inviteLink);
     return { success: false, error: 'Email service not configured' };
   }
 

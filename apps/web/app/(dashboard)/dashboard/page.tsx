@@ -1,354 +1,116 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { 
-  ClipboardList, Package, Truck, AlertTriangle, Activity, 
-  PlusCircle, Boxes, ArrowRight, TrendingUp, Clock, CheckCircle2,
-  Factory, ShoppingCart, ChevronRight, BarChart3
-} from 'lucide-react';
-
-import { AppleNavbar } from '@/components/layout/AppleNavbar';
-import { AppleCard } from '@/components/shared/ui/AppleCard';
+import { useCallback, useEffect, useState } from 'react';
+import { ArrowRight, ArrowUpRight, Boxes, CalendarDays, ChevronRight, Clock3, Factory, FileText, Plus, RefreshCw, TriangleAlert, ClipboardList, PackageCheck, ScanLine, Warehouse } from 'lucide-react';
 import { useOrders } from '@/lib/hooks/useOrders';
 import { useAuth } from '@/lib/context/AuthContext';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { hasPermission } from '@/lib/auth/permissions';
 import { StatusBadge } from '@/components/shared/ui/StatusStepper';
-import { cn } from '@/lib/utils';
+import { formatDate, cn } from '@/lib/utils';
+import { businessDate, filterWorkspaceOrders, isOpenOrder, isOverdueOrder, normalizeOrderStatus } from '@/lib/features/orders/workspace';
 
-// ============================================
-// Types
-// ============================================
-
-interface DashboardSummary {
-  orders: {
-    active_count: string;
-    pending_count: string;
-    ready_for_shipment: string;
-    today_deliveries: string;
-  };
-  production: {
-    in_progress: string;
-    open: string;
-    blocked: string;
-  };
-  criticalStock: { critical_count: string } | null;
-  overdue: { overdue_count: string };
-}
-
-// ============================================
-// Metric Card
-// ============================================
-
-function MetricCard({
-  label,
-  value,
-  subLabel,
-  icon: Icon,
-  color,
-  href,
-  alert,
-}: {
-  label: string;
-  value: string | number;
-  subLabel?: string;
-  icon: any;
-  color: string;
-  href?: string;
-  alert?: boolean;
-}) {
-  const content = (
-    <AppleCard
-      variant="glass"
-      className={cn(
-        'relative overflow-hidden group transition-colors duration-150 hover:border-blue-300',
-        alert ? 'ring-1 ring-rose-500/30' : ''
-      )}
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div className={cn('p-2.5 rounded-xl', color)}>
-          <Icon size={20} className="text-white" />
-        </div>
-        {href && (
-          <ChevronRight size={16} className="text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-        )}
-      </div>
-      <div>
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
-        <h3 className={cn('text-3xl font-bold mt-1 tracking-tight', alert ? 'text-rose-600 dark:text-rose-400' : 'text-foreground')}>
-          {value}
-        </h3>
-        {subLabel && <p className="text-xs text-muted-foreground mt-1">{subLabel}</p>}
-      </div>
-    </AppleCard>
-  );
-
-  return href ? <Link href={href}>{content}</Link> : content;
-}
-
-// ============================================
-// Recent Orders Widget
-// ============================================
-
-function RecentOrdersWidget({ orders }: { orders: any[] }) {
-  if (orders.length === 0) {
-    return (
-      <div className="py-8 text-center">
-        <ClipboardList size={28} className="mx-auto text-muted-foreground/30 mb-2" />
-        <p className="text-sm text-muted-foreground">Henüz sipariş yok</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {orders.slice(0, 6).map((order) => (
-        <Link key={order.id} href={`/orders/${order.id}`}>
-          <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-900/50 transition-colors group cursor-pointer">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
-              #{order.orderNumber?.slice(-3) || '?'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">{order.customerName}</p>
-              <p className="text-xs text-muted-foreground truncate">{order.productName || 'Ürün belirtilmedi'}</p>
-            </div>
-            <div className="flex-shrink-0 text-right">
-              <StatusBadge status={order.status} />
-              <p className="text-xs text-muted-foreground mt-1">{formatDate(order.date || order.createdAt)}</p>
-            </div>
-          </div>
-        </Link>
-      ))}
-    </div>
-  );
-}
-
-// ============================================
-// Dashboard Page
-// ============================================
+type Summary = { orders: { active_count: string; pending_count: string; ready_for_shipment: string; today_deliveries: string }; production: { in_progress: string; open: string; blocked: string }; criticalStock: { critical_count: string } | null; overdue: { overdue_count: string } };
+const pipeline = [
+  { label: 'Yeni talepler', statuses: ['new', 'pending_approval'], color: '#8ca4bb', href: '/orders?stage=intake' },
+  { label: 'Hazırlık', statuses: ['approved', 'preparing_materials', 'ready_for_production'], color: '#bb9b74', href: '/orders?stage=preparation' },
+  { label: 'Üretim', statuses: ['in_production'], color: '#456d8d', href: '/orders?status=in_production' },
+  { label: 'Kalite kontrol', statuses: ['quality_check'], color: '#b88949', href: '/orders?status=quality_check' },
+  { label: 'Sevkiyat', statuses: ['ready_for_shipment', 'shipped'], color: '#5e9484', href: '/orders?stage=shipping' },
+  { label: 'Tamamlanan', statuses: ['completed'], color: '#b5bec7', href: '/orders?view=completed' },
+];
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { orders, isLoading } = useOrders();
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [isSummaryLoading, setIsSummaryLoading] = useState(true);
-
-  // Load live dashboard summary
-  useEffect(() => {
-    async function loadSummary() {
-      try {
-        // Operational metrics come from the server, not from AI.
-        const res = await fetch('/api/v1/dashboard/summary');
-        if (res.ok) {
-          const data = await res.json();
-          setSummary(data.summary);
-        }
-      } catch {
-        // Fallback to client-side calculation from orders
-      } finally {
-        setIsSummaryLoading(false);
-      }
-    }
-    loadSummary();
+  const { orders, isLoading, error, refresh, isValidating } = useOrders();
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const loadSummary = useCallback(async (signal?: AbortSignal) => {
+    setSummaryLoading(true);
+    try {
+      const response = await fetch('/api/v1/dashboard/summary', { signal, cache: 'no-store' });
+      if (!response.ok) throw new Error('Özet yüklenemedi');
+      const result = await response.json();
+      setSummary(result.summary); setUpdatedAt(new Date()); setSummaryError(false);
+    } catch (err) { if (!(err instanceof Error && err.name === 'AbortError')) setSummaryError(true); }
+    finally { if (!signal?.aborted) setSummaryLoading(false); }
   }, []);
+  useEffect(() => { const controller = new AbortController(); void loadSummary(controller.signal); return () => controller.abort(); }, [loadSummary]);
+  async function reload() { setRefreshing(true); try { await Promise.all([refresh(), loadSummary()]); } finally { setRefreshing(false); } }
 
-  // Fallback stats from client orders
-  const pendingCount = orders.filter((o) => ['pending', 'new', 'pending_approval'].includes(o.status)).length;
-  const productionCount = orders.filter((o) => o.status === 'in_production').length;
-  const readyCount = orders.filter((o) => ['ready_for_shipment', 'ready'].includes(o.status)).length;
-  const totalVolume = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-  const overdueOrders = orders.filter((o) => {
-    if (!o.deliveryDate) return false;
-    const date = new Date(o.deliveryDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return date < today && !['completed', 'delivered', 'shipped', 'cancelled'].includes(o.status);
-  });
-
-  const activeCount = summary?.orders ? Number(summary.orders.active_count) : orders.filter((o) => !['completed', 'delivered', 'cancelled'].includes(o.status)).length;
-  const overdueCount = summary?.overdue ? Number(summary.overdue.overdue_count) : overdueOrders.length;
-  const blockedCount = parseInt(summary?.production?.blocked || '') || 0;
-  const criticalStockCount = summary?.criticalStock ? Number(summary.criticalStock.critical_count) : null;
-
+  const today = businessDate();
+  const openOrders = orders.filter(isOpenOrder);
+  const overdue = orders.filter(order => isOverdueOrder(order, today));
+  const production = orders.filter(order => normalizeOrderStatus(order.status) === 'in_production');
+  const upcoming = filterWorkspaceOrders(orders.filter(order => isOpenOrder(order) && order.deliveryDate), { sort: 'delivery', today }).slice(0, 5);
+  const recent = filterWorkspaceOrders(orders, { sort: 'newest' }).slice(0, 5);
+  const buckets = pipeline.map(stage => ({ ...stage, count: orders.filter(order => stage.statuses.includes(normalizeOrderStatus(order.status))).length }));
+  const totalInPipeline = buckets.reduce((sum, stage) => sum + stage.count, 0);
+  const hasOrders = !error || orders.length > 0;
   const metrics = [
-    {
-      label: 'Aktif Sipariş',
-      value: isLoading ? '...' : activeCount,
-      subLabel: 'Açık operasyonlar',
-      icon: ClipboardList,
-      color: 'bg-blue-500',
-      href: '/orders',
-    },
-    {
-      label: 'Geciken Sipariş',
-      value: isLoading ? '...' : overdueCount,
-      subLabel: overdueCount > 0 ? 'Acil müdahale gerekiyor' : 'Her şey yolunda',
-      icon: Clock,
-      color: overdueCount > 0 ? 'bg-rose-500' : 'bg-emerald-500',
-      href: '/orders',
-      alert: overdueCount > 0,
-    },
-    {
-      label: 'Üretimde',
-      value: isLoading ? '...' : productionCount,
-      subLabel: blockedCount > 0 ? `${blockedCount} iş emri bloke` : 'Üretimdeki siparişler',
-      icon: Factory,
-      color: blockedCount > 0 ? 'bg-amber-500' : 'bg-purple-500',
-      href: '/work-orders',
-      alert: blockedCount > 0,
-    },
-    {
-      label: 'Kritik Stok',
-      value: isSummaryLoading ? '...' : criticalStockCount ?? '—',
-      subLabel: criticalStockCount === null ? 'Stok özeti yüklenemedi' : criticalStockCount > 0 ? 'Satın alma gerekiyor' : 'Minimum stok uyarısı yok',
-      icon: Boxes,
-      color: criticalStockCount !== null && criticalStockCount > 0 ? 'bg-orange-500' : 'bg-slate-500',
-      href: '/inventory',
-      alert: criticalStockCount !== null && criticalStockCount > 0,
-    },
+    { label: 'Aktif siparişler', value: hasOrders ? openOrders.length : '—', description: 'Tamamlanmayı bekleyen işler', icon: FileText, href: '/orders?view=active', warning: false },
+    { label: 'Üretimdeki siparişler', value: hasOrders ? production.length : '—', description: summary && !summaryError ? `${summary.production.in_progress} devam eden iş emri` : 'Atölyedeki siparişler', icon: Factory, href: '/orders?status=in_production', warning: false },
+    { label: 'Geciken teslimatlar', value: hasOrders ? overdue.length : '—', description: overdue.length ? 'Termin planını gözden geçirin' : 'Geciken açık sipariş yok', icon: Clock3, href: '/orders?view=overdue', warning: overdue.length > 0 },
+    { label: 'Bugünkü teslimatlar', value: hasOrders ? openOrders.filter(order => order.deliveryDate === today).length : '—', description: 'Bugün terminli açık siparişler', icon: PackageCheck, href: '/orders?view=today', warning: false },
   ];
-
-  // Quick actions
-  const quickActions = [
-    { label: 'Yeni Sipariş', desc: 'Müşteri talebi gir', href: '/new-order', icon: PlusCircle, primary: true },
-    { label: 'Sipariş Listesi', desc: 'Tüm siparişleri gör', href: '/orders', icon: ClipboardList, primary: false },
-    { label: 'Profil & malzeme', desc: 'Stok ve rezervasyonları gör', href: '/inventory', icon: Boxes, primary: false },
-    { label: 'Üretim Emirleri', desc: 'İş emirlerini yönet', href: '/work-orders', icon: Factory, primary: false },
-    { label: 'Müşteriler', desc: 'CRM ve iletişim', href: '/crm', icon: ShoppingCart, primary: false },
-    { label: 'Raporlar', desc: 'Analiz ve raporlama', href: '/reports', icon: BarChart3, primary: false },
-  ];
-
-  const greeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Günaydın';
-    if (hour < 18) return 'İyi öğleden sonralar';
-    return 'İyi akşamlar';
-  };
-
-  return (
-    <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-black">
-      <AppleNavbar title="Genel bakış" />
-
-      <main className="w-full max-w-[1440px] mx-auto flex-1 p-4 md:p-6 space-y-6">
-
-        {/* Hero */}
-        <section className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">Renk Alüminyum</p>
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-            Üretimin bugünkü durumu
-          </h2>
-          <p className="text-base text-muted-foreground max-w-2xl">
-            Sipariş, profil stoğu ve atölye takibi · {new Date().toLocaleDateString('tr-TR', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </p>
+  const greetingDate = new Intl.DateTimeFormat('tr-TR', { timeZone: 'Europe/Istanbul', day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' }).format(new Date());
+  return <div className="rf-page space-y-6">
+    <section className="flex flex-wrap items-end justify-between gap-4">
+      <div><p className="rf-eyebrow">Operasyon merkezi</p><h1 className="rf-page-title">Genel bakış<span className="text-muted-foreground/40">.</span></h1><p className="mt-2 text-xs text-muted-foreground">Renk Alüminyum · {greetingDate}</p></div>
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={reload} disabled={refreshing || isValidating} className="flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium disabled:opacity-50"><RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} /> Yenile</button>
+        {user && hasPermission(user.role, 'orders.create') && <Link href="/new-order" className="rf-primary-button h-9 items-center gap-2 px-3 text-xs"><Plus size={14} /> Sipariş oluştur</Link>}
+      </div>
+    </section>
+    {user && ["owner","admin","office"].includes(user.role) && <div className="rf-quick-operations"><Link href="/production"><span className="rf-result-icon"><Factory size={22}/></span><div className="min-w-0"><p className="text-sm font-semibold">Üretim kontrolü</p><p className="mt-1 text-xs text-muted-foreground">İşler, kapasite ve kesim planları</p></div><ArrowUpRight className="ml-auto shrink-0 text-muted-foreground" size={16}/></Link><Link href="/warehouse"><span className="rf-result-icon"><Warehouse size={22}/></span><div className="min-w-0"><p className="text-sm font-semibold">Depo & raflar</p><p className="mt-1 text-xs text-muted-foreground">Malzemenin fiziksel konumu</p></div><ArrowUpRight className="ml-auto shrink-0 text-muted-foreground" size={16}/></Link><Link href="/warehouse/scan"><span className="rf-result-icon"><ScanLine size={22}/></span><div className="min-w-0"><p className="text-sm font-semibold">QR / barkod terminali</p><p className="mt-1 text-xs text-muted-foreground">Okut, doğrula ve işle</p></div><ArrowUpRight className="ml-auto shrink-0 text-muted-foreground" size={16}/></Link></div>}
+    {(error || summaryError) && <div role="alert" className="rf-alert"><TriangleAlert size={18} className="shrink-0" /><div><p className="text-sm font-medium">{error ? 'Siparişler güncellenemedi' : 'Operasyon özeti güncellenemedi'}</p><p className="mt-1 text-xs">{orders.length ? 'Son alınan siparişler gösteriliyor. Yenile düğmesiyle tekrar deneyin.' : 'Bağlantıyı kontrol edip tekrar deneyin.'}</p></div></div>}
+    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{metrics.map(metric => <Link href={metric.href} key={metric.label} className="rf-metric group">
+      <div className="mb-5 flex items-center justify-between gap-2"><span className="text-xs font-medium text-muted-foreground">{metric.label}</span><metric.icon size={17} className={metric.warning ? 'text-amber-600' : 'text-muted-foreground/70'} /></div>
+      <p className={cn('rf-metric-value', metric.warning && 'text-amber-700 dark:text-amber-400')}>{isLoading ? <span className="block h-9 w-12 animate-pulse rounded bg-muted" /> : metric.value}</p>
+      <p className="mt-3 flex items-center justify-between gap-2 text-[10px] text-muted-foreground"><span>{metric.description}</span><ArrowUpRight size={13} className="shrink-0 opacity-40 group-hover:opacity-100" /></p>
+    </Link>)}</div>
+    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">
+      <div className="space-y-5">
+        <section className="rf-panel overflow-hidden">
+          <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4"><div><h2 className="rf-section-title">Sipariş akışı</h2><p className="mt-1 text-[11px] text-muted-foreground">Talepten tamamlanmaya, mevcut kayıtların dağılımı</p></div><Link href="/kanban" className="flex items-center gap-1 text-[11px] font-medium text-primary">Üretim panosu <ArrowUpRight size={13} /></Link></div>
+          <div className="p-5">
+            <div className="mb-6 flex h-2.5 overflow-hidden rounded-sm bg-muted" role="img" aria-label={`${totalInPipeline} siparişin aşamalara dağılımı`}>
+              {buckets.filter(bucket => bucket.count).map(bucket => <div key={bucket.label} style={{ width: `${bucket.count / totalInPipeline * 100}%`, backgroundColor: bucket.color }} title={`${bucket.label}: ${bucket.count}`} />)}
+            </div>
+            <div className="grid grid-cols-2 gap-y-5 sm:grid-cols-3 lg:grid-cols-6">{buckets.map((bucket, index) => <Link key={bucket.label} href={bucket.href} className={cn('group px-3 first:pl-0', index > 0 && 'lg:border-l lg:border-border')}>
+              <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground"><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: bucket.color }} />{bucket.label}</p><p className="mt-3 text-2xl font-semibold tabular-nums tracking-tight">{isLoading ? '…' : error && !orders.length ? '—' : bucket.count}</p>
+            </Link>)}</div>
+          </div>
         </section>
-
-        {/* Metric Cards */}
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-          {metrics.map((m) => (
-            <MetricCard key={m.label} {...m} />
-          ))}
-        </div>
-
-        {/* Overdue Alert */}
-        {overdueOrders.length > 0 && (
-          <div className="flex items-start gap-3 rounded-2xl border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-900/10 p-4">
-            <AlertTriangle size={18} className="text-rose-600 dark:text-rose-400 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-rose-700 dark:text-rose-400">
-                {overdueOrders.length} sipariş gecikmiş!
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {overdueOrders.slice(0, 5).map((o) => (
-                  <Link key={o.id} href={`/orders/${o.id}`}>
-                    <span className="text-xs rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 px-2 py-1 hover:bg-rose-200 transition-colors">
-                      #{o.orderNumber} · {o.customerName}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-            <Link href="/orders" className="text-xs text-rose-600 dark:text-rose-400 underline underline-offset-2 flex-shrink-0">
-              Tümünü gör
-            </Link>
+        <section className="rf-panel overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4"><h2 className="rf-section-title">Son siparişler</h2><Link href="/orders" className="flex items-center gap-1 text-[11px] font-medium text-primary">Tüm siparişler <ArrowRight size={13} /></Link></div>
+          <div className="overflow-x-auto"><table className="w-full min-w-[540px] text-xs"><thead className="bg-accent text-[9px] uppercase tracking-wider text-muted-foreground"><tr><th className="px-5 py-3 text-left font-medium">Sipariş / müşteri</th><th className="px-3 py-3 text-left font-medium">Ürün</th><th className="px-3 py-3 text-left font-medium">Termin</th><th className="px-5 py-3 text-right font-medium">Durum</th></tr></thead><tbody className="divide-y divide-border">
+            {isLoading ? [1, 2, 3].map(index => <tr key={index}><td colSpan={4} className="p-5"><div className="h-6 animate-pulse rounded bg-muted" /></td></tr>) : recent.map(order => <tr key={order.id} className="hover:bg-accent/60"><td className="px-5 py-4"><Link href={'/orders/' + order.id} className="font-semibold text-primary hover:underline">{order.orderNumber}</Link><p className="mt-1 text-[11px] text-muted-foreground">{order.customerName}</p></td><td className="max-w-[200px] px-3 py-4"><span className="block truncate">{order.productName || '—'}</span></td><td className="whitespace-nowrap px-3 py-4 text-muted-foreground">{order.deliveryDate ? formatDate(order.deliveryDate) : 'Belirlenmedi'}</td><td className="px-5 py-4 text-right"><StatusBadge status={order.status} /></td></tr>)}
+            {!isLoading && !recent.length && <tr><td colSpan={4} className="p-10 text-center text-muted-foreground">{error ? 'Sipariş verisi alınamadı.' : 'İlk siparişinizi oluşturarak operasyonu başlatın.'}</td></tr>}
+          </tbody></table></div>
+        </section>
+      </div>
+      <div className="space-y-5">
+        <section className="rf-panel overflow-hidden">
+          <div className="flex items-center gap-2 border-b border-border px-5 py-4"><CalendarDays size={16} className="text-muted-foreground" /><h2 className="rf-section-title">Teslimat gündemi</h2></div>
+          <div className="divide-y divide-border">{isLoading ? <div className="m-5 h-32 animate-pulse rounded bg-muted" /> : upcoming.map(order => {
+            const late = isOverdueOrder(order, today);
+            return <Link key={order.id} href={'/orders/' + order.id} className="flex items-start gap-3 px-5 py-4 hover:bg-accent/50"><span className={cn('mt-1 h-2 w-2 shrink-0 rounded-full', late ? 'bg-amber-500' : 'bg-slate-400')} /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium">{order.customerName}</p><p className="mt-1 truncate text-[10px] text-muted-foreground">{order.orderNumber} · {order.productName}</p><p className={cn('mt-2 text-[10px]', late ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground')}>{late ? 'Termin geçti · ' : ''}{formatDate(order.deliveryDate)}</p></div><ChevronRight size={14} className="mt-1 shrink-0 text-muted-foreground" /></Link>;
+          })}{!isLoading && !upcoming.length && <div className="px-5 py-8 text-center"><CalendarDays size={24} className="mx-auto mb-3 text-muted-foreground/40" /><p className="text-xs text-muted-foreground">{error ? 'Teslimat verisi alınamadı.' : 'Planlanmış açık teslimat yok.'}</p></div>}</div>
+          <Link href="/orders?sort=delivery&view=active" className="flex items-center justify-between border-t border-border bg-accent/30 px-5 py-3 text-[11px] font-medium text-primary">Termin planını aç <ArrowRight size={13} /></Link>
+        </section>
+        <section className="rf-panel p-5"><h2 className="rf-section-title">Operasyon kontrolleri</h2>
+          <div className="mt-4 space-y-4">
+            <Link href="/work-orders" className="flex items-center gap-3"><ClipboardList size={17} className="text-muted-foreground" /><div className="flex-1"><p className="text-xs font-medium">İş emirleri</p><p className="mt-1 text-[10px] text-muted-foreground">{summaryLoading ? 'Kontrol ediliyor…' : summaryError || !summary ? 'Özet alınamadı' : `${summary.production.open} açık · ${summary.production.blocked} bloke`}</p></div><ArrowUpRight size={14} className="text-muted-foreground" /></Link>
+            <Link href="/inventory" className="flex items-center gap-3"><Boxes size={17} className="text-muted-foreground" /><div className="flex-1"><p className="text-xs font-medium">Profil ve malzeme</p><p className="mt-1 text-[10px] text-muted-foreground">{summaryLoading ? 'Kontrol ediliyor…' : summaryError || !summary?.criticalStock ? 'Depo bakiyeleri alınamadı' : `${summary.criticalStock.critical_count} minimum stok uyarısı`}</p></div><ArrowUpRight size={14} className="text-muted-foreground" /></Link>
           </div>
-        )}
-
-        {/* Main Grid */}
-        <div className="grid gap-6 lg:grid-cols-3">
-
-          {/* Quick Actions */}
-          <AppleCard className="lg:col-span-1">
-            <h3 className="text-base font-semibold text-foreground mb-4">Hızlı Erişim</h3>
-            <div className="space-y-1.5">
-              {quickActions.map(({ label, desc, href, icon: Icon, primary }) => (
-                <Link key={label} href={href}>
-                  <div className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors',
-                    primary
-                      ? 'bg-primary text-white shadow-md shadow-primary/20 hover:bg-primary/90'
-                      : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
-                  )}>
-                    <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0', primary ? 'bg-white/20' : 'bg-primary/10')}>
-                      <Icon size={16} className={primary ? 'text-white' : 'text-primary'} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={cn('text-sm font-semibold', primary ? 'text-white' : 'text-foreground')}>{label}</p>
-                      <p className={cn('text-xs', primary ? 'text-white/70' : 'text-muted-foreground')}>{desc}</p>
-                    </div>
-                    <ArrowRight size={14} className={primary ? 'text-white/70' : 'text-muted-foreground'} />
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </AppleCard>
-
-          {/* Recent Orders */}
-          <AppleCard className="lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold text-foreground">Son Siparişler</h3>
-              <Link href="/orders" className="text-xs text-primary hover:underline flex items-center gap-1">
-                Tümünü gör <ArrowRight size={12} />
-              </Link>
-            </div>
-            {isLoading ? (
-              <div className="space-y-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="h-14 rounded-xl bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
-                ))}
-              </div>
-            ) : (
-              <RecentOrdersWidget orders={orders} />
-            )}
-          </AppleCard>
-        </div>
-
-        {/* Status Overview */}
-        <AppleCard>
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="text-base font-semibold text-foreground">Sipariş Durum Özeti</h3>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {[
-              { status: 'new', label: 'Yeni', count: orders.filter(o => ['new', 'pending'].includes(o.status)).length, color: 'bg-blue-500' },
-              { status: 'approved', label: 'Onaylı', count: orders.filter(o => ['approved', 'pending_approval'].includes(o.status)).length, color: 'bg-emerald-500' },
-              { status: 'preparing_materials', label: 'Malzeme', count: orders.filter(o => String(o.status) === 'preparing_materials').length, color: 'bg-purple-500' },
-              { status: 'in_production', label: 'Üretim', count: productionCount, color: 'bg-sky-500' },
-              { status: 'quality_check', label: 'Kalite KT.', count: orders.filter(o => String(o.status) === 'quality_check').length, color: 'bg-orange-500' },
-              { status: 'ready_for_shipment', label: 'Sevkiyat', count: readyCount, color: 'bg-teal-500' },
-            ].map(({ status, label, count, color }) => (
-              <Link key={status} href={`/orders?status=${status}`}>
-                <div className="flex flex-col items-center gap-2 p-3 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group">
-                  <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold text-white shadow-md', color)}>
-                    {count}
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors text-center">{label}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </AppleCard>
-
-      </main>
+          {!summaryLoading && !summary?.criticalStock && <p className="mt-5 border-t border-border pt-3 text-[10px] leading-relaxed text-muted-foreground">Stok görünürlüğü sınırlı. Depo ekranında bağlantı durumunu inceleyin.</p>}
+        </section>
+      </div>
     </div>
-  );
+    <footer className="rf-workspace-footer"><span>RENKFLOW / Renk Alüminyum</span><span>{updatedAt ? 'Özet güncellendi · ' + updatedAt.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' }) : 'Operasyon çalışma alanı'}</span></footer>
+  </div>;
 }

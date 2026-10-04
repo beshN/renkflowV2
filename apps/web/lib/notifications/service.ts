@@ -115,6 +115,7 @@ export async function createNotification(
 
 export async function getUserNotifications(
   userId: string,
+  tenantId: string,
   options: {
     unreadOnly?: boolean;
     limit?: number;
@@ -127,7 +128,7 @@ export async function getUserNotifications(
   const unreadCountResult = await sql`
     SELECT COUNT(*) as count
     FROM notifications
-    WHERE user_id = ${userId} AND read = false
+    WHERE user_id = ${userId} AND tenant_id = ${tenantId} AND read = false
   `;
   const unreadRows = unreadCountResult as any[];
   const unreadResult = unreadRows[0];
@@ -136,7 +137,7 @@ export async function getUserNotifications(
   let query = sql`
     SELECT *
     FROM notifications
-    WHERE user_id = ${userId}
+    WHERE user_id = ${userId} AND tenant_id = ${tenantId}
   `;
 
   if (unreadOnly) {
@@ -153,7 +154,7 @@ export async function getUserNotifications(
   const totalCountResult = await sql`
     SELECT COUNT(*) as count
     FROM notifications
-    WHERE user_id = ${userId}
+    WHERE user_id = ${userId} AND tenant_id = ${tenantId}
   `;
   const totalRows = totalCountResult as any[];
   const totalResult = totalRows[0];
@@ -168,30 +169,32 @@ export async function getUserNotifications(
 
 export async function markNotificationAsRead(
   notificationId: string,
-  userId: string
+  userId: string,
+  tenantId: string
 ): Promise<void> {
   await sql`
     UPDATE notifications
     SET read = true, read_at = NOW()
-    WHERE id = ${notificationId} AND user_id = ${userId}
+    WHERE id = ${notificationId} AND user_id = ${userId} AND tenant_id = ${tenantId}
   `;
 }
 
-export async function markAllNotificationsAsRead(userId: string): Promise<void> {
+export async function markAllNotificationsAsRead(userId: string, tenantId: string): Promise<void> {
   await sql`
     UPDATE notifications
     SET read = true, read_at = NOW()
-    WHERE user_id = ${userId} AND read = false
+    WHERE user_id = ${userId} AND tenant_id = ${tenantId} AND read = false
   `;
 }
 
 export async function deleteNotification(
   notificationId: string,
-  userId: string
+  userId: string,
+  tenantId: string
 ): Promise<void> {
   await sql`
     DELETE FROM notifications
-    WHERE id = ${notificationId} AND user_id = ${userId}
+    WHERE id = ${notificationId} AND user_id = ${userId} AND tenant_id = ${tenantId}
   `;
 }
 

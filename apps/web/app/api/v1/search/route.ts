@@ -1,3 +1,4 @@
+import { visibleOrdersForActor } from '@/lib/features/orders/access';
 /**
  * Global Search API
  * Provides unified search across orders with Elasticsearch or fallback
@@ -48,18 +49,18 @@ export async function GET(request: NextRequest) {
     const statusFilter = searchParams.get('status')?.split(',').filter(Boolean) || [];
     const dateFrom = searchParams.get('dateFrom') || undefined;
     const dateTo = searchParams.get('dateTo') || undefined;
-    const amountMin = searchParams.get('amountMin') ? parseFloat(searchParams.get('amountMin')!) : undefined;
-    const amountMax = searchParams.get('amountMax') ? parseFloat(searchParams.get('amountMax')!) : undefined;
+    const amountMin = userRole !== 'worker' && searchParams.get('amountMin') ? parseFloat(searchParams.get('amountMin')!) : undefined;
+    const amountMax = userRole !== 'worker' && searchParams.get('amountMax') ? parseFloat(searchParams.get('amountMax')!) : undefined;
     const suggestionsOnly = searchParams.get('suggestionsOnly') === 'true';
 
     // Suggestions only mode
     if (suggestionsOnly) {
-      if (isElasticsearchConfigured()) {
+      if (userRole !== 'worker' && isElasticsearchConfigured()) {
         const suggestions = await getSearchSuggestions(query, user.tenantId, 10);
         return successResponse({ suggestions }, 'Öneriler getirildi');
       } else {
         // Fallback: simple prefix matching
-        const orders = await orderService.getOrders(user.tenantId);
+        const orders = await visibleOrdersForActor(await orderService.getOrders(user.tenantId), { tenantId:user.tenantId,userId:user.id,role:userRole });
         const normalizedOrders: SearchOrderDocument[] = orders.map((o: Order) => ({
           ...o,
           id: String(o.id),
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Full search
-    if (isElasticsearchConfigured()) {
+    if (userRole !== 'worker' && isElasticsearchConfigured()) {
       // Use Elasticsearch
       const searchOptions: ElasticSearchOptions = {
         query,
@@ -103,7 +104,7 @@ export async function GET(request: NextRequest) {
       }, 'Arama tamamlandı');
     } else {
       // Fallback: In-memory search
-      const orders = await orderService.getOrders(user.tenantId);
+      const orders = await visibleOrdersForActor(await orderService.getOrders(user.tenantId), { tenantId:user.tenantId,userId:user.id,role:userRole });
       const normalizedOrders: SearchOrderDocument[] = orders.map((o: Order) => ({
         ...o,
         id: String(o.id),

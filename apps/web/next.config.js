@@ -151,7 +151,7 @@ const nextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
+            value: 'camera=(self), microphone=(), geolocation=()',
           },
           {
             key: 'Strict-Transport-Security',
@@ -202,6 +202,7 @@ const nextConfig = {
 
   // Experimental features
   experimental: {
+    serverActions: { bodySizeLimit: process.env.VERCEL ? "4mb" : "25mb" },
     optimizePackageImports: [
       'lucide-react',
       'recharts',

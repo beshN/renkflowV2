@@ -5,7 +5,7 @@ import { ThemeProvider } from 'next-themes';
 import { AuthProvider } from './AuthContext';
 import { SettingsProvider } from './SettingsContext';
 import { ToastProvider } from './ToastContext';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { I18nProvider } from '@/lib/i18n';
 
 /**
@@ -25,8 +25,19 @@ export function Providers({ children }: { children: ReactNode }) {
 }
 
 export function AuthProviders({ children }: { children: ReactNode }) {
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    const sync = () => setOnline(navigator.onLine);
+    sync();
+    window.addEventListener('online', sync);
+    window.addEventListener('offline', sync);
+    return () => {
+      window.removeEventListener('online', sync);
+      window.removeEventListener('offline', sync);
+    };
+  }, []);
   return (
-    <SessionProvider refetchOnWindowFocus={false}>
+    <SessionProvider refetchOnWindowFocus={online} refetchInterval={60} refetchWhenOffline={false}>
       <AuthProvider>
         <SettingsProvider>
           <ToastProvider>{children}</ToastProvider>

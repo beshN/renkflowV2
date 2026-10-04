@@ -1,3 +1,4 @@
+import { visibleOrdersForActor } from '@/lib/features/orders/access';
 import { NextRequest } from 'next/server';
 import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
 import { orderService } from '@/lib/services/orderService.server';
@@ -8,7 +9,8 @@ import {
   validateFiles, 
   formatValidationErrors 
 } from '@/lib/validations/order.schema';
-import { ZodError } from 'zod';
+import { ZodError, z } from 'zod';
+import { UploadReferenceSchema, resolveUploadedFile } from '@/lib/storage/upload-reference';
 
 // CORS preflight
 export async function OPTIONS() {
@@ -36,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     const orders = await orderService.getOrders(user.tenantId);
     
-    return successResponse(orders, 'Siparişler başarıyla getirildi');
+    return successResponse(await visibleOrdersForActor(orders, { tenantId: user.tenantId, userId: user.id, role: userRole }), 'Siparişler başarıyla getirildi');
   } catch (error: unknown) {
     console.error('Get orders error:', error);
     if (error instanceof AuthorizationError) {
@@ -49,6 +51,7 @@ export async function GET(request: NextRequest) {
 // POST /api/v1/orders - Create new order
 export async function POST(request: NextRequest) {
   let files: File[] = [];
+  let references: z.infer<typeof UploadReferenceSchema>[] = [];
   try {
     const user = await getAPIUser(request);
     
@@ -71,7 +74,16 @@ export async function POST(request: NextRequest) {
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await request.formData();
-      files = formData.getAll('files') as File[];
+      files = formData.getAll('files').filter((entry): entry is File => entry instanceof File && entry.size > 0);
+      const uploadedFiles = formData.get('uploadedFiles');
+      if (uploadedFiles) {
+        try {
+          references = z.array(UploadReferenceSchema).max(10).parse(JSON.parse(String(uploadedFiles)));
+        } catch {
+          return errorResponse('Geçersiz dosya referansı', 400);
+        }
+      }
+      if (files.length + references.length > 10) return errorResponse('En fazla 10 dosya yüklenebilir', 400);
       
       rawData = {
         customerName: formData.get('customerName'),
@@ -81,7 +93,7 @@ export async function POST(request: NextRequest) {
         quantity: formData.get('quantity'),
         totalAmount: formData.get('totalAmount'),
         currency: formData.get('currency') || undefined,
-        deliveryDate: formData.get('deliveryDate'),
+        deliveryDate: formData.get('deliveryDate') || undefined,
         notes: formData.get('notes') || undefined,
         specialNotes: formData.get('specialNotes') || undefined,
       };
@@ -91,7 +103,7 @@ export async function POST(request: NextRequest) {
         try {
           rawData.items = JSON.parse(itemsRaw);
         } catch (e) {
-          console.error('Failed to parse items from FormData', e);
+          return errorResponse('Geçersiz sipariş kalemleri', 400);
         }
       }
     } else {
@@ -105,6 +117,14 @@ export async function POST(request: NextRequest) {
     if (!validationResult.success) {
       const errors = formatValidationErrors(validationResult.error);
       return errorResponse('Geçersiz veri: ' + Object.values(errors).join(', '), 400);
+    }
+
+    for (const reference of references) {
+      try {
+        files.push(await resolveUploadedFile({tenantId:user.tenantId,userId:user.id},reference));
+      } catch {
+        return errorResponse('Dosya doğrulanamadı. Dosyayı yeniden seçip yükleyin.', 400);
+      }
     }
 
     // Validate files

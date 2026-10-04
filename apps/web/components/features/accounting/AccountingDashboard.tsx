@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -30,6 +30,7 @@ import {
 } from '@/app/actions/accounting.actions';
 import type { AccountingCapabilities, AccountingWorkspace, AgingReport } from '@/lib/types/accounting';
 import { formatCurrency } from '@/lib/utils';
+import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { cn } from '@/lib/utils';
 
@@ -174,22 +175,6 @@ function toMonthLabel(period: string): string {
   return date.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });
 }
 
-function getTaxDeadlines(period: string): Array<{ label: string; date: string }> {
-  const [yearRaw, monthRaw] = period.split('-');
-  const year = Number(yearRaw);
-  const month = Number(monthRaw) - 1;
-  const nextMonth = new Date(year, month + 1, 1);
-  const kdvBeyan = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 24);
-  const kdvOdeme = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 26);
-  const muhtasar = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 26);
-
-  return [
-    { label: 'KDV Beyan', date: kdvBeyan.toLocaleDateString('tr-TR') },
-    { label: 'KDV Ödeme', date: kdvOdeme.toLocaleDateString('tr-TR') },
-    { label: 'Muhtasar/Stopaj', date: muhtasar.toLocaleDateString('tr-TR') },
-  ];
-}
-
 function toBudgetDraft(workspace: AccountingWorkspace): BudgetDraft {
   return {
     plannedRevenue: String(workspace.budget.plannedRevenue || 0),
@@ -272,6 +257,9 @@ function AgingDetails({ title, data }: { title: string; data: AgingReport }) {
 
 export function AccountingDashboard({ period, activeTab = 'overview' }: AccountingDashboardProps) {
   const { showToast } = useToast();
+  const {user}=useAuth();
+  const sequence=useRef(0);
+  const [loadError,setLoadError]=useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [workspace, setWorkspace] = useState<AccountingWorkspace | null>(null);
   const [budgetDraft, setBudgetDraft] = useState<BudgetDraft>({
@@ -301,21 +289,26 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
   }, [period]);
 
   const loadWorkspace = useCallback(async () => {
+    const requestId=++sequence.current;setLoadError('');
     try {
       setIsLoading(true);
       const result = await getAccountingWorkspace(normalizedPeriod);
+      if(requestId!==sequence.current)return;
       setWorkspace(result);
       setBudgetDraft(toBudgetDraft(result));
     } catch (error) {
+      if(requestId!==sequence.current)return;
+      setWorkspace(null);setLoadError('Muhasebe verileri alınamadı.');
       console.error('Error loading accounting workspace:', error);
       showToast('Muhasebe çalışma alanı yüklenirken hata oluştu', 'error');
     } finally {
-      setIsLoading(false);
+      if(requestId===sequence.current)setIsLoading(false);
     }
-  }, [normalizedPeriod, showToast]);
+  }, [normalizedPeriod, showToast,user?.id,user?.tenantId]);
 
   useEffect(() => {
-    void loadWorkspace();
+    setWorkspace(null);void loadWorkspace();
+    return()=>{sequence.current++;};
   }, [loadWorkspace]);
 
   const saveBudget = async () => {
@@ -473,7 +466,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
   }
 
   if (!workspace) {
-    return <EmptyPanel title="Muhasebe verisi" message="Veri yüklenemedi." />;
+    return <div role="alert" className="rf-panel space-y-3 p-5"><p>{loadError || "Muhasebe verisi alınamadı."}</p><button className="rf-secondary-button" onClick={()=>void loadWorkspace()}>Tekrar dene</button></div>;
   }
 
   const completionRate = Math.round(
@@ -511,7 +504,6 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
     },
   ];
 
-  const taxDeadlines = getTaxDeadlines(workspace.period);
 
   return (
     <div className="space-y-6">
@@ -842,15 +834,8 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
-            <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Beyan Hatırlatmaları</h4>
-            <div className="space-y-3">
-              {taxDeadlines.map((deadline) => (
-                <div key={deadline.label} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{deadline.label}</p>
-                  <p className="text-xs text-slate-500 mt-1">{deadline.date}</p>
-                </div>
-              ))}
-            </div>
+            <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Beyan takvimi</h4>
+            <p className="text-sm leading-6 text-muted-foreground">Bu özet, firma kayıtlarındaki vergi tutarlarını gösterir. Beyan ve ödeme tarihleri bu ekranda tanımlı değildir; güncel takvim muhasebe sorumlusu tarafından doğrulanmalıdır.</p>
           </div>
         </div>
       )}
@@ -894,7 +879,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                 <button
                   type="button"
                   onClick={() => updateCloseStatus('open')}
-                  disabled={isUpdatingClose}
+                  disabled={isUpdatingClose || !["owner","admin"].includes(user?.role || "")}
                   className="text-xs px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
                 >
                   Open
@@ -902,7 +887,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                 <button
                   type="button"
                   onClick={() => updateCloseStatus('soft_closed')}
-                  disabled={isUpdatingClose}
+                  disabled={isUpdatingClose || !["owner","admin"].includes(user?.role || "")}
                   className="text-xs px-2 py-2 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/20 disabled:opacity-50"
                 >
                   Soft Close
@@ -910,7 +895,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                 <button
                   type="button"
                   onClick={() => updateCloseStatus('hard_closed')}
-                  disabled={isUpdatingClose}
+                  disabled={isUpdatingClose || !["owner","admin"].includes(user?.role || "")}
                   className="text-xs px-2 py-2 rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/20 disabled:opacity-50"
                 >
                   Hard Close

@@ -1,3 +1,4 @@
+import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { NextRequest } from 'next/server';
 import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
 import { orderService } from '@/lib/services/orderService.server';
@@ -28,8 +29,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return errorResponse('Yetkilendirme gereklidir', 401);
     }
 
-    // RBAC Check: Workers can update status (for mobile app)
-    // But only on orders assigned to them (enforced at service level)
+    // Commercial status changes require order editing; workers use assigned operation commands.
     const userRole = (user.role as UserRole) || 'member';
     if (!hasPermission(userRole, 'orders', 'update')) {
       return errorResponse('Durum güncelleme yetkiniz bulunmuyor', 403);
@@ -64,6 +64,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     
     return successResponse(order, `Sipariş durumu "${status}" olarak güncellendi`);
   } catch (error: unknown) {
+    if (error instanceof WorkOrderApiError) return errorResponse(error.message,error.status);
     console.error('Update order status error:', error);
     
     if (error instanceof TenantMismatchError) {

@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
         </Link>
       }
     >
-      <form className="space-y-3" onSubmit={handleSubmit}>
+      <form method="post" className="space-y-3" onSubmit={handleSubmit}>
         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
           E-posta adresi
           <input

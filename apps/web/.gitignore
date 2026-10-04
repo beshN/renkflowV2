@@ -41,3 +41,13 @@ scripts/service-account-key.json
 
 .vercel
 .env*.local
+
+.data/
+.env.test.local
+
+# Environment secrets across every workspace
+**/.env*
+!**/.env.example
+!**/.env.*.example
+**/.data/
+.env*

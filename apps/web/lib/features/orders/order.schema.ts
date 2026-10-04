@@ -1,3 +1,4 @@
+import { AwningConfigurationSchema, AwningPreviewSchema } from '@/lib/features/awning/configuration';
 import { z } from 'zod';
 import { CurrencySchema } from '@/lib/types/currency';
 import {
@@ -131,6 +132,10 @@ const optionalNotes = z.preprocess(
 // ============================================
 
 export const orderItemSchema = z.object({
+  awningConfiguration: AwningConfigurationSchema.optional(),
+  awningPreview: AwningPreviewSchema.optional(),
+  projectionMm: z.coerce.number().positive().optional(),
+  mountingHeightMm: z.coerce.number().positive().optional(),
   productName: sanitizedString.pipe(z.string().min(1, 'Ürün adı gereklidir').max(200, 'Ürün adı çok uzun')),
   quantity: safePositiveInt,
   unitPrice: safeNonNegativeNumber.optional(),

@@ -1,27 +1,20 @@
 'use client';
-
-import { useEffect, useState } from 'react';
+import { useCallback,useEffect,useRef,useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { RefreshCw,CheckCheck } from 'lucide-react';
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
 import { formatDate } from '@/lib/utils';
-type Notice = { id: string; title: string; message: string; createdAt: string; read: boolean };
-export default function NotificationsPage() {
-  const [rows, setRows] = useState<Notice[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let active = true;
-    fetch('/api/notifications').then(async response => {
-      if (!response.ok) throw new Error('Bildirimler yüklenemedi.');
-      const data = await response.json();
-      if (active) setRows(data.notifications || []);
-    }).catch(err => { if (active) setError(err.message); }).finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, []);
-  return <div className="min-h-screen"><AppleNavbar title="Bildirimler" showSearch={false} />
-    <main className="mx-auto max-w-4xl space-y-3 p-4 md:p-6">
-      {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
-      {loading ? <p role="status" className="text-sm text-slate-500">Bildirimler yükleniyor…</p> : !rows.length && !error ? <div className="rf-panel p-8 text-center"><h2 className="font-semibold">Yeni bildirim yok</h2><p className="mt-2 text-sm text-slate-500">Sipariş ve operasyon bildirimleri burada görünür.</p></div> : rows.map(row =>
-        <article key={row.id} className="rf-panel p-4"><h2 className="font-semibold">{row.title}</h2><p className="mt-1 text-sm text-slate-500">{row.message}</p><time className="mt-2 block text-xs text-slate-400">{formatDate(row.createdAt)}</time></article>)}
-    </main>
-  </div>;
+import { requestJson } from '@/lib/shared/network';
+type Notice={id:string;title:string;message:string;createdAt:string;read:boolean};
+type Data={notifications:Notice[];total:number;unreadCount:number};
+export default function NotificationsPage(){
+ const {data:session}=useSession(),scope=(session?.user?.tenantId || '')+':'+(session?.user?.id || '');
+ const [data,setData]=useState<Data|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[busy,setBusy]=useState(false),[unread,setUnread]=useState(false),[offset,setOffset]=useState(0),[revision,setRevision]=useState(0);
+ const lock=useRef(false),active=useRef(scope);active.current=scope;
+ const reload=useCallback(()=>setRevision(r=>r+1),[]);
+ useEffect(()=>{setData(null);setOffset(0);},[scope]);
+ useEffect(()=>{const ac=new AbortController();setLoading(true);setError('');void requestJson<Data>('/api/notifications?limit=20&offset='+offset+'&unread='+unread,{signal:ac.signal,cache:'no-store'}).then(r=>{if(ac.signal.aborted)return;if(r.ok && r.data)setData(r.data);else{setError(r.error || 'Bildirimler alınamadı');if([401,403].includes(r.status))setData(null);}setLoading(false);});return()=>ac.abort();},[scope,unread,offset,revision]);
+ const mark=async(id?:string)=>{if(lock.current)return;lock.current=true;setBusy(true);const r=await requestJson('/api/notifications'+(id?'/'+encodeURIComponent(id):''),{method:'PATCH',headers:{'Content-Type':'application/json'},body:'{}'});lock.current=false;setBusy(false);if(active.current!==scope)return;if(r.ok){setOffset(0);reload();}else setError(r.error || 'Bildirim güncellenemedi');};
+ const total=unread?data?.unreadCount || 0:data?.total || 0;
+ return <div className="min-h-screen"><AppleNavbar title="Bildirimler" showSearch={false}/><main className="mx-auto max-w-4xl space-y-4 p-4 md:p-6"><div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-semibold">Bildirim merkezi</h1><p className="mt-2 text-xs text-muted-foreground">{loading?'Yükleniyor…':(data?.unreadCount ?? '—')+' okunmamış bildirim'} · geçerli firma ve kullanıcı</p></div><div className="flex flex-wrap gap-2"><button className="rf-icon-button" aria-label="Bildirimleri yenile" onClick={reload} disabled={loading || busy}><RefreshCw size={16}/></button><button className="rf-secondary-button" disabled={busy || loading || !data?.unreadCount} onClick={()=>void mark()}><CheckCheck size={16}/>Tümünü okundu işaretle</button></div></div><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={unread} onChange={e=>{setUnread(e.target.checked);setOffset(0);}}/>Yalnız okunmamış bildirimler</label>{error && <p role="alert" className="rounded border border-red-300 p-3 text-sm text-red-700">{error}<button className="ml-3 underline" onClick={reload}>Tekrar dene</button></p>}{loading?<p role="status" className="text-sm text-muted-foreground">Bildirimler yükleniyor…</p>:!data?.notifications.length && !error?<div className="rf-panel p-8 text-center"><h2 className="font-semibold">{unread?'Okunmamış bildirim yok':'Henüz bildirim yok'}</h2><p className="mt-2 text-sm text-muted-foreground">Bu kullanıcıya ait firma bildirimleri burada görünür.</p></div>:data?.notifications.map(n=><article key={n.id} className="rf-panel p-4"><div className="flex items-start justify-between gap-3"><h2 className="font-semibold">{n.title}{!n.read && <span className="ml-2 text-xs text-sky-700">Yeni</span>}</h2>{!n.read && <button className="rf-secondary-button" disabled={busy} aria-label={n.title+' bildirimini okundu işaretle'} onClick={()=>void mark(n.id)}>Okundu işaretle</button>}</div><p className="mt-2 text-sm text-muted-foreground">{n.message}</p><time className="mt-3 block text-xs text-muted-foreground">{formatDate(n.createdAt)}</time></article>)}{data && total>20 && <div className="flex items-center justify-between gap-2 text-xs"><button className="rf-secondary-button" disabled={loading || offset===0} onClick={()=>setOffset(o=>Math.max(0,o-20))}>Önceki</button><span>{offset+1}–{Math.min(offset+20,total)} / {total}</span><button className="rf-secondary-button" disabled={loading || offset+20>=total} onClick={()=>setOffset(o=>o+20)}>Sonraki</button></div>}</main></div>;
 }

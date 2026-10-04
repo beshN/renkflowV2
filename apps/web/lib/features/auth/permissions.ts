@@ -288,6 +288,7 @@ export function getRoutePermissions(pathname: string): Permission[] {
  * Check if user can access a specific route
  */
 export function canAccessRoute(role: UserRole, pathname: string): boolean {
+  if (pathname === '/warehouse' || pathname.startsWith('/warehouse/')) return ['owner','admin','office','accountant','worker'].includes(role);
   const requiredPermissions = getRoutePermissions(pathname);
   if (requiredPermissions.length === 0) return true; // No permissions required
   return hasAnyPermission(role, requiredPermissions);

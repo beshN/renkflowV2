@@ -1,0 +1,24 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "npm ci --workspaces=false --legacy-peer-deps",
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": ".next",
+  "regions": [
+    "fra1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/notifications",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/inbound",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/storage-cleanup",
+      "schedule": "* * * * *"
+    }
+  ]
+}

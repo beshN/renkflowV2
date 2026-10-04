@@ -6,7 +6,8 @@
  */
 
 import { sql } from '@/lib/db';
-import { auth } from '@/auth';
+import { z } from 'zod';
+import { getServerUserContext,requirePermission } from '@/lib/features/auth/serverAuth';
 import { revalidatePath } from 'next/cache';
 import { normalizeCurrencyInput } from '@/lib/utils/currency';
 import { isMissingRelationError, tableExists } from '@/lib/db/schema-guard';
@@ -41,7 +42,6 @@ import type {
   PeriodCloseState,
 } from '@/lib/types/accounting';
 
-const CORPORATE_TAX_RATE = 0.2;
 const DEFAULT_PAYMENT_TERM_DAYS = 30;
 const MAX_CASH_RUNWAY_MONTHS = 24;
 const FORECAST_MONTHS_DEFAULT = 6;
@@ -51,6 +51,7 @@ type SessionWithTenant = {
     id: string;
     name?: string | null;
     tenantId: string;
+    role: string;
   };
 };
 
@@ -261,11 +262,9 @@ function bucketAging(items: AgingItem[], asOfDateIso: string): AgingReport {
 }
 
 async function getSession(): Promise<SessionWithTenant> {
-  const session = await auth();
-  if (!session?.user?.tenantId || !session.user.id) {
-    throw new Error('Yetkilendirme gerekli');
-  }
-  return session as SessionWithTenant;
+  const context=await getServerUserContext();
+  requirePermission(context,'finance.view');
+  return {user:{id:context.userId,name:context.name,tenantId:context.tenantId,role:context.role}};
 }
 
 // ============================================
@@ -864,6 +863,7 @@ export async function getProfitLossReport(
         COALESCE(SUM(total_amount), 0) as gross_revenue
       FROM orders
       WHERE tenant_id = ${session.user.tenantId}
+          AND currency = 'TRY'
         AND status = 'delivered'
         AND created_at >= ${startDate}
         AND created_at <= ${endDate}
@@ -875,6 +875,7 @@ export async function getProfitLossReport(
         COALESCE(SUM(amount), 0) as total
       FROM expenses
       WHERE tenant_id = ${session.user.tenantId}
+          AND currency = 'TRY'
         AND date >= ${startDate.slice(0, 10)}
         AND date <= ${endDate.slice(0, 10)}
       GROUP BY category
@@ -884,7 +885,8 @@ export async function getProfitLossReport(
       SELECT COALESCE(SUM(amount), 0) as total_salaries
       FROM employee_ledger_entries
       WHERE tenant_id = ${session.user.tenantId}
-        AND kind IN ('salary', 'payment')
+          AND currency = 'TRY'
+        AND kind = 'salary'
         AND entry_date >= ${startDate.slice(0, 10)}
         AND entry_date <= ${endDate.slice(0, 10)}
     `;
@@ -921,23 +923,22 @@ export async function getProfitLossReport(
     try {
       const cogsResult = await sql`
         SELECT
-          COALESCE(SUM(COALESCE(total_price, 0)), 0) AS cogs,
-          COUNT(*) FILTER (WHERE total_price IS NULL) AS missing_total_price
-        FROM stock_movements
-        WHERE tenant_id = ${session.user.tenantId}
-          AND type IN ('out', 'production', 'waste')
-          AND created_at >= ${startDate}
-          AND created_at <= ${endDate}
+          COALESCE(SUM(-l.quantity_delta * COALESCE(l.unit_cost,0)),0) AS cogs,
+          COUNT(*) FILTER (WHERE l.unit_cost IS NULL OR l.unit_cost=0) AS missing_total_price
+        FROM stock_entry_lines l
+        JOIN stock_entries e ON e.id=l.stock_entry_id AND e.tenant_id=l.tenant_id
+        WHERE e.tenant_id=${session.user.tenantId} AND e.reference_type='shipment' AND l.quantity_delta<0
+          AND e.created_at>=${startDate} AND e.created_at<=${endDate}
       `;
 
       const cogsRows = cogsResult as any[];
       costOfGoodsSold = toNumber(cogsRows[0]?.cogs);
       const missingCount = Number(cogsRows[0]?.missing_total_price || 0);
       if (missingCount > 0) {
-        warnings.push('COGS hesaplamasında eksik veri: bazı stok hareketlerinde total_price boş.');
+        warnings.push('Sevkiyat maliyetlerinde birim maliyeti girilmemiş hareketler var; satış maliyeti eksik olabilir.');
       }
     } catch {
-      warnings.push('COGS hesaplanamadı: stok hareketleri tablosu (stock_movements) bulunamadı veya erişilemedi.');
+      warnings.push('Satış maliyeti hesaplanamadı: native stok defterine erişilemedi.');
       costOfGoodsSold = 0;
     }
 
@@ -956,7 +957,7 @@ export async function getProfitLossReport(
       marketing: expenseMap.marketing || 0,
       depreciation: depreciationForPeriod,
       other: Object.entries(expenseMap)
-        .filter(([category]) => !['rent', 'utilities', 'marketing'].includes(category))
+        .filter(([category]) => !['rent', 'utilities', 'marketing', 'tax'].includes(category))
         .reduce((sum, [, value]) => sum + value, 0),
       total: 0,
     };
@@ -972,7 +973,8 @@ export async function getProfitLossReport(
     const grossProfit = round2(grossRevenue - costOfGoodsSold);
     const operatingProfit = round2(grossProfit - operatingExpenses.total);
     const profitBeforeTax = operatingProfit;
-    const taxExpense = round2(profitBeforeTax > 0 ? profitBeforeTax * CORPORATE_TAX_RATE : 0);
+    const taxExpense = round2(expenseMap.tax || 0);
+    warnings.push('Vergi gideri kayıtlı tax kategorisinden alınır; sabit kurumlar vergisi oranıyla tahmin yapılmaz.');
     const netProfit = round2(profitBeforeTax - taxExpense);
 
     return {
@@ -1016,6 +1018,7 @@ export async function getBalanceSheet(asOfDate?: string): Promise<BalanceSheet |
         SELECT COALESCE(SUM(current_balance), 0) as total
         FROM accounts
         WHERE tenant_id = ${session.user.tenantId}
+          AND currency = 'TRY'
           AND type = 'asset'
           AND (code LIKE '100%' OR code LIKE '102%')
       `;
@@ -1032,9 +1035,10 @@ export async function getBalanceSheet(asOfDate?: string): Promise<BalanceSheet |
             o.id,
             o.total_amount - COALESCE(SUM(p.amount), 0) as remaining_amount
           FROM orders o
-          LEFT JOIN payments p ON o.id = p.order_id AND p.tenant_id = o.tenant_id
+          LEFT JOIN payments p ON o.id = p.order_id AND p.tenant_id = o.tenant_id AND p.currency = o.currency
           WHERE o.tenant_id = ${session.user.tenantId}
-            AND o.status IN ('pending', 'in_production', 'delivered')
+          AND o.currency = 'TRY'
+            AND o.status NOT IN ('cancelled','canceled','draft')
           GROUP BY o.id
         ) subquery
       `;
@@ -1045,13 +1049,19 @@ export async function getBalanceSheet(asOfDate?: string): Promise<BalanceSheet |
     let inventory: unknown = [{ total: '0' }];
     try {
       inventory = await sql`
-        SELECT COALESCE(SUM(current_stock * unit_cost), 0) as total
-        FROM inventory_items
-        WHERE tenant_id = ${session.user.tenantId}
-          AND is_active = true
+        SELECT COALESCE(SUM(b.on_hand_qty * COALESCE(c.unit_cost,0)),0) AS total
+        FROM stock_balances b
+        JOIN inventory_items i ON i.id=b.item_id AND i.tenant_id=b.tenant_id
+        LEFT JOIN LATERAL (
+          SELECT l.unit_cost FROM stock_entry_lines l
+          JOIN stock_entries e ON e.id=l.stock_entry_id AND e.tenant_id=l.tenant_id
+          WHERE l.tenant_id=b.tenant_id AND l.item_id=b.item_id AND l.quantity_delta>0 AND l.unit_cost IS NOT NULL
+          ORDER BY e.created_at DESC,l.id DESC LIMIT 1
+        ) c ON true
+        WHERE b.tenant_id=${session.user.tenantId} AND i.active=true
       `;
     } catch {
-      warnings.push('Stok değeri hesaplanamadı: inventory_items tablosu bulunamadı veya erişilemedi.');
+      warnings.push('Stok değeri hesaplanamadı: native stok defterine erişilemedi.');
     }
 
     let payables: unknown = [{ total: '0' }];
@@ -1060,12 +1070,14 @@ export async function getBalanceSheet(asOfDate?: string): Promise<BalanceSheet |
         SELECT COALESCE(SUM(amount), 0) as total
         FROM expenses
         WHERE tenant_id = ${session.user.tenantId}
+          AND currency = 'TRY'
           AND date <= ${date.slice(0, 10)}
       `;
     } catch {
       warnings.push('Borçlar hesaplanamadı: expenses tablosu bulunamadı veya erişilemedi.');
     }
 
+    warnings.push('Stok değeri mevcut native bakiyeyi son kayıtlı birim maliyetle değerler; muhasebe maliyetleme yöntemi değildir.');
     const totalCash = toNumber((cashAndBank as any[])[0]?.total);
     const totalReceivables = toNumber((receivables as any[])[0]?.total);
     const totalInventory = toNumber((inventory as any[])[0]?.total);
@@ -1141,6 +1153,7 @@ export async function getCashFlowReport(
         SELECT COALESCE(SUM(amount), 0) as total
         FROM payments
         WHERE tenant_id = ${session.user.tenantId}
+          AND currency = 'TRY'
           AND paid_at >= ${startDate}
           AND paid_at <= ${endDate}
       `;
@@ -1154,6 +1167,7 @@ export async function getCashFlowReport(
         SELECT COALESCE(SUM(amount), 0) as total
         FROM expenses
         WHERE tenant_id = ${session.user.tenantId}
+          AND currency = 'TRY'
           AND date >= ${startDate.slice(0, 10)}
           AND date <= ${endDate.slice(0, 10)}
       `;
@@ -1167,7 +1181,8 @@ export async function getCashFlowReport(
         SELECT COALESCE(SUM(amount), 0) as total
         FROM employee_ledger_entries
         WHERE tenant_id = ${session.user.tenantId}
-          AND kind IN ('salary', 'payment')
+          AND currency = 'TRY'
+          AND kind IN ('payment', 'advance')
           AND entry_date >= ${startDate.slice(0, 10)}
           AND entry_date <= ${endDate.slice(0, 10)}
       `;
@@ -1293,9 +1308,10 @@ export async function getReceivablesAging(asOfDate?: string): Promise<AgingRepor
             COALESCE(o.delivery_date, (o.created_at::date + ${DEFAULT_PAYMENT_TERM_DAYS} * INTERVAL '1 day')::date) as due_date,
             GREATEST(o.total_amount - COALESCE(SUM(p.amount), 0), 0) as remaining_amount
           FROM orders o
-          LEFT JOIN payments p ON p.order_id = o.id AND p.tenant_id = o.tenant_id
+          LEFT JOIN payments p ON p.order_id = o.id AND p.tenant_id = o.tenant_id AND p.currency = o.currency
           WHERE o.tenant_id = ${session.user.tenantId}
-            AND o.status IN ('pending', 'in_production', 'delivered')
+          AND o.currency = 'TRY'
+            AND o.status NOT IN ('cancelled','canceled','draft')
           GROUP BY o.id, o.order_number, o.customer_name, o.delivery_date, o.created_at, o.total_amount
           HAVING GREATEST(o.total_amount - COALESCE(SUM(p.amount), 0), 0) > 0
           ORDER BY due_date ASC
@@ -1310,7 +1326,8 @@ export async function getReceivablesAging(asOfDate?: string): Promise<AgingRepor
             o.total_amount as remaining_amount
           FROM orders o
           WHERE o.tenant_id = ${session.user.tenantId}
-            AND o.status IN ('pending', 'in_production', 'delivered')
+          AND o.currency = 'TRY'
+            AND o.status NOT IN ('cancelled','canceled','draft')
             AND o.total_amount > 0
           ORDER BY due_date ASC
           LIMIT 300
@@ -1318,7 +1335,7 @@ export async function getReceivablesAging(asOfDate?: string): Promise<AgingRepor
 
     const asOf = new Date(asOfDateOnly);
     const items: AgingItem[] = (result as any[]).map((row) => {
-      const dueDate = new Date(`${row.due_date as string}T00:00:00.000Z`);
+      const dueDate = new Date(toIsoDate(row.due_date));
       return {
         id: row.id as string,
         name: row.customer_name as string,
@@ -1366,7 +1383,7 @@ export async function getPayablesAging(asOfDate?: string): Promise<AgingReport> 
 
     const asOf = new Date(`${asOfDateOnly}T00:00:00.000Z`);
     const items: AgingItem[] = (result as any[]).map((row) => {
-      const dueDate = new Date(`${row.due_date as string}T00:00:00.000Z`);
+      const dueDate = new Date(toIsoDate(row.due_date));
       return {
         id: row.id as string,
         name: row.vendor_name as string,
@@ -1865,6 +1882,7 @@ export async function getCashFlowForecast(
               COALESCE(SUM(amount), 0) as total
             FROM payments
             WHERE tenant_id = ${session.user.tenantId}
+          AND currency = 'TRY'
               AND paid_at >= ${historyRange.startDateIso}
               AND paid_at <= ${currentRange.endDateIso}
             GROUP BY 1
@@ -1877,6 +1895,7 @@ export async function getCashFlowForecast(
               COALESCE(SUM(amount), 0) as total
             FROM expenses
             WHERE tenant_id = ${session.user.tenantId}
+          AND currency = 'TRY'
               AND date >= ${historyRange.startDate}
               AND date <= ${currentRange.endDate}
             GROUP BY 1
@@ -1889,7 +1908,8 @@ export async function getCashFlowForecast(
               COALESCE(SUM(amount), 0) as total
             FROM employee_ledger_entries
             WHERE tenant_id = ${session.user.tenantId}
-              AND kind IN ('salary', 'payment')
+          AND currency = 'TRY'
+              AND kind IN ('payment', 'advance')
               AND entry_date >= ${historyRange.startDate}
               AND entry_date <= ${currentRange.endDate}
             GROUP BY 1
@@ -2004,7 +2024,7 @@ async function findBankMatchSuggestion(
 ): Promise<BankMatchSuggestion | null> {
   const amount = round2(toNumber(line.amount));
   const absAmount = round2(Math.abs(amount));
-  const statementDate = line.statement_date.slice(0, 10);
+  const statementDate = toIsoDate(line.statement_date).slice(0, 10);
   if (absAmount < 0.01) {
     return null;
   }
@@ -2020,6 +2040,7 @@ async function findBankMatchSuggestion(
         AND bsl.matched_payment_id = p.id
         AND bsl.reconciliation_status = 'matched'
       WHERE p.tenant_id = ${session.user.tenantId}
+          AND p.currency = 'TRY'
         AND bsl.id IS NULL
         AND abs(p.amount - ${absAmount}) < 0.01
         AND p.paid_at::date BETWEEN (${statementDate}::date - INTERVAL '3 day')
@@ -2050,6 +2071,7 @@ async function findBankMatchSuggestion(
         AND bsl.matched_expense_id = e.id
         AND bsl.reconciliation_status = 'matched'
       WHERE e.tenant_id = ${session.user.tenantId}
+          AND e.currency = 'TRY'
         AND bsl.id IS NULL
         AND abs(e.amount - ${absAmount}) < 0.01
         AND e.date BETWEEN (${statementDate}::date - INTERVAL '3 day')
@@ -2063,7 +2085,7 @@ async function findBankMatchSuggestion(
       return {
         matchType: 'expense',
         matchId: expense.id as string,
-        label: `${expense.label as string} · ${new Date(`${expense.date as string}T00:00:00.000Z`).toLocaleDateString('tr-TR')}`,
+        label: `${expense.label as string} · ${new Date(toIsoDate(expense.date)).toLocaleDateString('tr-TR')}`,
       };
     }
   }
@@ -2290,6 +2312,7 @@ export async function autoMatchBankStatementLines(
         reconciliation_status
       FROM bank_statement_lines
       WHERE tenant_id = ${session.user.tenantId}
+        AND currency = 'TRY'
         AND statement_date >= ${range.startDate}
         AND statement_date <= ${range.endDate}
         AND reconciliation_status = 'unmatched'
@@ -2346,6 +2369,7 @@ export async function setBankStatementLineMatch(
       FROM bank_statement_lines
       WHERE id = ${input.lineId}
         AND tenant_id = ${session.user.tenantId}
+        AND currency = 'TRY'
       LIMIT 1
     `;
     const line = (lineResult as any[])[0];
@@ -2404,6 +2428,7 @@ export async function setBankStatementLineMatch(
         FROM payments
         WHERE id = ${input.matchId}
           AND tenant_id = ${session.user.tenantId}
+          AND currency = 'TRY'
         LIMIT 1
       `;
       const payment = (paymentResult as any[])[0];
@@ -2433,6 +2458,7 @@ export async function setBankStatementLineMatch(
         FROM expenses
         WHERE id = ${input.matchId}
           AND tenant_id = ${session.user.tenantId}
+          AND currency = 'TRY'
         LIMIT 1
       `;
       const expense = (expenseResult as any[])[0];
@@ -2493,6 +2519,7 @@ export async function getBankReconciliationSummary(period?: string): Promise<Ban
           reconciliation_status
         FROM bank_statement_lines
         WHERE tenant_id = ${session.user.tenantId}
+        AND currency = 'TRY'
           AND statement_date >= ${range.startDate}
           AND statement_date <= ${range.endDate}
         ORDER BY statement_date DESC, created_at DESC
@@ -2503,6 +2530,7 @@ export async function getBankReconciliationSummary(period?: string): Promise<Ban
             SELECT COALESCE(SUM(amount), 0) as total
             FROM payments
             WHERE tenant_id = ${session.user.tenantId}
+          AND currency = 'TRY'
               AND paid_at >= ${range.startDateIso}
               AND paid_at <= ${range.endDateIso}
           `
@@ -2512,6 +2540,7 @@ export async function getBankReconciliationSummary(period?: string): Promise<Ban
             SELECT COALESCE(SUM(amount), 0) as total
             FROM expenses
             WHERE tenant_id = ${session.user.tenantId}
+          AND currency = 'TRY'
               AND date >= ${range.startDate}
               AND date <= ${range.endDate}
           `
@@ -2521,7 +2550,8 @@ export async function getBankReconciliationSummary(period?: string): Promise<Ban
             SELECT COALESCE(SUM(amount), 0) as total
             FROM employee_ledger_entries
             WHERE tenant_id = ${session.user.tenantId}
-              AND kind IN ('salary', 'payment')
+          AND currency = 'TRY'
+              AND kind IN ('payment', 'advance')
               AND entry_date >= ${range.startDate}
               AND entry_date <= ${range.endDate}
           `
@@ -2637,6 +2667,8 @@ export async function setPeriodCloseStatus(
 ): Promise<{ success: boolean; state?: PeriodCloseState; error?: string }> {
   try {
     const session = await getSession();
+    if (!['owner','admin'].includes(session.user.role)) return {success:false,error:'Dönem durumunu firma yöneticisi değiştirebilir.'};
+    input=z.object({period:z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),status:z.enum(['open','soft_closed','hard_closed']),note:z.string().max(2000).optional()}).parse(input);
     const period = normalizePeriod(input.period);
     const closeTableReady = await tableExists('accounting_period_closes');
     if (!closeTableReady) {
@@ -2806,7 +2838,7 @@ function buildComplianceSummary(input: {
 
 export async function getAccountingWorkspace(period?: string): Promise<AccountingWorkspace> {
   const range = getPeriodRange(period);
-  const notes: string[] = [];
+  const notes: string[] = ['Bu çalışma alanı TRY kayıtlarını raporlar; USD ve EUR tahsilatları kendi para birimleriyle Finans ekranında izlenir.', 'Operasyonel mali özetler yasal bilanço veya vergi beyannamesi yerine geçmez.'];
   const session = await getSession();
 
   const capabilityChecks = await Promise.all([

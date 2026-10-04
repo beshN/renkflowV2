@@ -32,6 +32,7 @@ const CORS_ALLOW_ALL = process.env.API_CORS_ALLOW_ALL === 'true';
 const SERVER_BASE_URL = resolveServerBaseUrl({
   context: 'api.auth-helpers',
   allowMissing: true,
+  allowLocalhostInProduction: process.env.ALLOW_INSECURE_HTTP === '1' && process.env.ALLOW_LOCAL_DATABASE === '1',
 });
 const CORS_ALLOWED_ORIGIN =
   process.env.API_CORS_ALLOWED_ORIGIN ||

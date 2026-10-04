@@ -1,10 +1,2 @@
-import { ModulePlaceholder } from '@/components/dashboard-core/ModulePlaceholder';
-
-export default function Page() {
-  return (
-    <ModulePlaceholder
-      title="Yeni Envanter Kalemi"
-      description="Yeni Envanter Kalemi ekranı yeni sürüm standardına taşınıyor. Bir sonraki iterasyonda canlı veri bağları, rol bazlı aksiyonlar ve operasyon metrikleri bu modülde aktif edilecek."
-    />
-  );
-}
+import {NewInventoryItemForm} from '@/components/features/inventory/NewInventoryItemForm';
+export default function Page(){return <main className="rf-page space-y-5"><div><p className="rf-eyebrow">MALZEME KARTLARI</p><h1 className="rf-page-title">Yeni malzeme</h1></div><NewInventoryItemForm/></main>;}

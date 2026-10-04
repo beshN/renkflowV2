@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { reverseStockEntry } from '@/lib/features/manufacturing/inventory.service';
+import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import {
   requireWorkOrderActor,
-  requireWorkOrderPermission,
   WorkOrderApiError,
 } from '@/lib/features/work-orders/security';
 
@@ -15,7 +15,8 @@ export async function POST(
 ) {
   try {
     const actor = await requireWorkOrderActor();
-    requireWorkOrderPermission(actor, 'edit');
+    if (!['owner', 'admin'].includes(actor.role)) throw new WorkOrderApiError('Stok düzeltmesini firma yöneticisi onaylamalıdır', 403);
+    requireSameOriginJson(request);
     const { id } = await params;
     const parsed = BodySchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });

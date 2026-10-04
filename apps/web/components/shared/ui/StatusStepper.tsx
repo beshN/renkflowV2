@@ -48,6 +48,20 @@ export const LEGACY_STATUS_MAP: Record<string, string> = {
   pending: 'new',
   in_production: 'in_production',
   delivered: 'completed',
+  ready: 'ready_for_shipment',
+};
+
+const BADGE_CLASSES: Record<string, string> = {
+  blue: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  amber: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300',
+  emerald: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300',
+  purple: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  indigo: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  sky: 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-300',
+  orange: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300',
+  teal: 'border-teal-200 bg-teal-50 text-teal-800 dark:border-teal-900 dark:bg-teal-950 dark:text-teal-300',
+  cyan: 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-300',
+  green: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300',
 };
 
 // Color classes
@@ -76,20 +90,18 @@ export function StatusBadge({ status, steps }: { status: string; steps?: StatusS
   if (!step) {
     return (
       <span className="inline-flex items-center rounded-full border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-2.5 py-1 text-xs font-semibold text-neutral-600 dark:text-neutral-400">
-        {status}
+        {{ cancelled: 'İptal edildi', on_hold: 'Beklemede' }[status] || status}
       </span>
     );
   }
 
-  const colors = COLOR_CLASSES[step.color || 'blue'];
+  const colors = COLOR_CLASSES[step.color || 'blue'] || COLOR_CLASSES.blue;
 
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold',
-        `border-${step.color}-200 dark:border-${step.color}-900/40`,
-        `bg-${step.color}-50 dark:bg-${step.color}-900/20`,
-        `text-${step.color}-700 dark:text-${step.color}-400`
+        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-2 py-1 text-[10px] font-medium',
+        BADGE_CLASSES[step.color || 'blue'] || BADGE_CLASSES.blue
       )}
     >
       <span className={cn('w-1.5 h-1.5 rounded-full', colors.bg)} />
@@ -179,6 +191,8 @@ export function StatusStepper({
 
               {/* Step circle */}
               <button
+                aria-label={step.label}
+                aria-current={isCurrent ? "step" : undefined}
                 onClick={() => isTransitionable && onTransition?.(step.key)}
                 disabled={!isTransitionable || isTransitioning}
                 className={cn(

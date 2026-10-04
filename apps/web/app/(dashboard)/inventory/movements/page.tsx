@@ -1,24 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useApiCollection } from '@/lib/hooks/useApiCollection';
 import { RFListView } from '@/components/shared/views/RFListView';
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
 import { Activity } from 'lucide-react';
 
 export default function InventoryMovementsPage() {
-  const [movements, setMovements] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch('/api/v1/inventory/movements')
-      .then(r => r.json())
-      .then(d => {
-        if (d.success) setMovements(d.data);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const {data:movements,loading,error,reload}=useApiCollection('/api/v1/inventory/movements','Stok hareketleri alınamadı.');
 
   const typeMap: Record<string, string> = {
+    'MATERIAL_RECEIPT':'Malzeme kabulü',
+    'MATERIAL_TRANSFER':'Malzeme transferi',
+    'MANUFACTURE':'Üretim',
+    'MATERIAL_ISSUE':'Malzeme çıkışı',
     'IN': 'Giriş (IN)',
     'OUT': 'Çıkış (OUT)',
     'TRANSFER': 'Transfer',
@@ -36,6 +30,8 @@ export default function InventoryMovementsPage() {
             description="Envanter üzerindeki tüm giriş, çıkış ve transfer işlemleri"
             icon={<Activity className="h-5 w-5 text-sky-500" />}
             isLoading={loading}
+            error={error}
+            onRetry={reload}
             columns={[
               { key: 'entry_number', label: 'Fiş No' },
               { 

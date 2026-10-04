@@ -3,157 +3,99 @@
 export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn } from 'next-auth/react';
-import { AppleCard } from '@/components/shared/ui/AppleCard';
+import { getProviders, signIn } from 'next-auth/react';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
-import { Lock, Mail } from 'lucide-react';
+import { ArrowRight, Layers3, LockKeyhole, ShieldCheck } from 'lucide-react';
 
 function sanitizeCallback(input: string | null): string {
-  if (!input) return '/dashboard';
-  if (!input.startsWith('/') || input.startsWith('//')) return '/dashboard';
+  if (!input || !input.startsWith('/') || input.startsWith('//') || input.includes('\\')) return '/dashboard';
   return input;
 }
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = useMemo(() => sanitizeCallback(searchParams.get('callbackUrl')), [searchParams]);
-
+  const callbackUrl = sanitizeCallback(searchParams.get('callbackUrl'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [ready, setReady] = useState(false);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    let active = true;
+    setReady(true);
+    getProviders().then(providers => { if (active) setGoogleEnabled(Boolean(providers?.google)); }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError('');
-
-    const result = await signIn('credentials', {
-      email: email.trim().toLowerCase(),
-      password,
-      redirect: false,
-      callbackUrl,
-    });
-
-    setLoading(false);
-
-    if (!result || result.error) {
-      setError('Giriş bilgileri doğrulanamadı.');
-      return;
+    try {
+      const result = await signIn('credentials', { email: email.trim().toLowerCase(), password, redirect: false, callbackUrl });
+      if (!result || result.error) {
+        setError('E-posta veya şifre doğrulanamadı. Bilgilerinizi kontrol edip tekrar deneyin.');
+        return;
+      }
+      router.push(callbackUrl);
+      router.refresh();
+    } catch {
+      setError('Giriş hizmetine ulaşılamadı. Lütfen tekrar deneyin.');
+    } finally {
+      setLoading(false);
     }
-
-    router.push(callbackUrl);
-    router.refresh();
-  };
+  }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#F2F2F7] dark:bg-black relative overflow-hidden">
-        {/* Abstract Background */}
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-            <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-400/20 blur-[120px] rounded-full mix-blend-multiply dark:mix-blend-normal" />
-            <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-purple-400/20 blur-[120px] rounded-full mix-blend-multiply dark:mix-blend-normal" />
+    <div className="rf-auth-shell grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
+      <aside className="relative hidden min-h-screen flex-col overflow-hidden bg-[#13212e] px-12 py-10 text-slate-100 lg:flex xl:px-16">
+        <Link href="/" className="relative z-10 flex w-fit items-center gap-3" aria-label="RenkFlow ana sayfa">
+          <span className="rf-brand-mark flex h-9 w-9 items-center justify-center rounded-md text-lg font-semibold text-white">R</span>
+          <span className="text-sm font-semibold tracking-[0.16em]">RENKFLOW</span>
+        </Link>
+        <div className="relative z-10 my-auto py-16">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#d39970]">Renk Alüminyum · Operasyon merkezi</p>
+          <h1 className="mt-7 max-w-lg text-5xl font-medium leading-[1.15] tracking-[-0.04em] xl:text-[56px]">Üretimin her adımı,<br /><span className="text-slate-400">aynı çalışma alanında.</span></h1>
+          <p className="mt-6 max-w-md text-sm leading-7 text-slate-400">Müşteri taleplerini, üretim emirlerini ve sevkiyat sürecini ekibinizle birlikte takip edin.</p>
+          <div className="mt-12 max-w-md border-y border-white/10 py-5">
+            <div className="flex items-center gap-3 text-xs text-slate-300"><Layers3 size={17} className="text-[#d39970]" /> Sipariş<span className="text-slate-600">/</span>Üretim<span className="text-slate-600">/</span>Sevkiyat</div>
+          </div>
         </div>
-
-        <AppleCard variant="glass" className="w-full max-w-md p-8 relative z-10 shadow-2xl">
-            <div className="text-center mb-8">
-                <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary/30 mx-auto mb-6">
-                  R
-                </div>
-                <h1 className="text-2xl font-display font-bold tracking-tight text-foreground">Tekrar Hoş Geldiniz</h1>
-                <p className="text-sm text-muted-foreground mt-2">Hesabınıza erişmek için giriş yapın</p>
-            </div>
-
-            <div className="space-y-4 mb-6">
-                 <button
-                  type="button"
-                  onClick={() => signIn('google', { callbackUrl })}
-                  className="w-full relative flex items-center justify-center gap-2 rounded-xl bg-white dark:bg-neutral-800 border border-input py-2.5 text-sm font-medium text-foreground transition hover:bg-neutral-50 dark:hover:bg-neutral-700"
-                >
-                  <svg className="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24">
-                    <path
-                      d="M12.0003 20.45c4.656 0 8.556-3.213 9.77-7.6h-9.77v-3.8h13.84c.15 1.075.24 2.175.24 3.3 0 7.738-5.32 13.65-14.07 13.65-8.284 0-15-6.716-15-15s6.716-15 15-15c3.99 0 7.64 1.463 10.43 3.863l-4.16 3.425c-1.638-1.125-3.838-1.788-6.27-1.788-6.075 0-11.088 4.413-12.925 10.05h.01zm0 0"
-                      fill="currentColor"
-                      className="text-foreground"
-                    />
-                  </svg>
-                  Google ile devam et
-                </button>
-            </div>
-
-            <div className="relative mb-6">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-input" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground bg-white/50 dark:bg-black/50 backdrop-blur-md">veya e-posta ile</span>
-                </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <Input
-                    type="email"
-                    label="E-posta"
-                    placeholder="ornek@sirket.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    leftIcon={<Mail size={18} />}
-                    variant="default"
-                />
-                
-                <div className="space-y-1">
-                     <Input
-                        type="password"
-                        label="Şifre"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        leftIcon={<Lock size={18} />}
-                        variant="default"
-                    />
-                     <div className="flex justify-end">
-                        <Link href="/auth/forgot-password" className="text-xs font-medium text-primary hover:underline">
-                            Şifremi unuttum
-                        </Link>
-                    </div>
-                </div>
-
-                {error && (
-                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm font-medium">
-                        {error}
-                    </div>
-                )}
-
-                <Button 
-                    type="submit" 
-                    variant="primary" 
-                    className="w-full h-11 text-base shadow-lg shadow-primary/25"
-                    isLoading={loading}
-                    loadingText="Giriş yapılıyor..."
-                >
-                    Giriş Yap
-                </Button>
-            </form>
-            
-             <p className="mt-8 text-center text-sm text-muted-foreground">
-                Hesabınız yok mu?{' '}
-                <Link href="/signup" className="font-semibold text-primary hover:underline transition-colors">
-                  Kayıt Olun
-                </Link>
-              </p>
-        </AppleCard>
-
-        {/* Footer */}
-        <div className="absolute bottom-6 text-center w-full">
-            <p className="text-xs text-muted-foreground/60">
-                &copy; 2024 RenkFlow. Tüm hakları saklıdır.
-            </p>
+        <div className="pointer-events-none absolute -right-24 top-[22%] h-[620px] w-[400px] rotate-[24deg] opacity-[0.08]" aria-hidden="true">
+          {[0, 1, 2, 3, 4, 5].map(index => <div key={index} className="absolute inset-y-0 w-10 border-x border-white bg-white/10" style={{ left: index * 62 }} />)}
         </div>
+        <p className="relative z-10 text-[10px] tracking-wide text-slate-500">RENK ALÜMİNYUM · ÜRETİM YÖNETİM SİSTEMİ</p>
+      </aside>
+      <main className="flex min-h-screen flex-col px-6 py-8 sm:px-12">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <Link href="/" className="flex items-center gap-2 font-semibold tracking-wide lg:invisible"><span className="rf-brand-mark flex h-7 w-7 items-center justify-center rounded text-white">R</span>RENKFLOW</Link>
+          <span className="flex items-center gap-1.5"><ShieldCheck size={14} /> Kurumsal erişim</span>
+        </div>
+        <div className="mx-auto my-auto w-full max-w-[370px] py-12">
+          <div className="mb-8 flex h-10 w-10 items-center justify-center rounded-md border border-border bg-card text-primary"><LockKeyhole size={19} /></div>
+          <p className="rf-eyebrow">Çalışma alanınıza erişin</p>
+          <h2 className="mt-3 text-[30px] font-semibold tracking-[-0.035em]">Hesabınıza giriş yapın</h2>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">Devam etmek için kurumsal hesap bilgilerinizi kullanın.</p>
+          <form method="post" onSubmit={handleSubmit} className="mt-8 space-y-5" aria-busy={!ready || loading}>
+            <Input type="email" name="email" autoComplete="username" label="E-posta adresi" placeholder="ad@sirket.com" value={email} onChange={e => setEmail(e.target.value)} required disabled={!ready || loading} />
+            <div className="space-y-3">
+              <Input type="password" name="password" autoComplete="current-password" label="Şifre" value={password} onChange={e => setPassword(e.target.value)} required disabled={!ready || loading} />
+              <div className="flex justify-end"><Link href="/auth/forgot-password" className="text-xs font-medium text-primary hover:underline">Şifremi unuttum</Link></div>
+            </div>
+            {error && <p role="alert" className="rounded-md border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300">{error}</p>}
+            <Button type="submit" variant="primary" className="h-11 w-full gap-2" disabled={!ready} isLoading={loading} loadingText="Giriş yapılıyor…">Çalışma alanına gir <ArrowRight size={16} /></Button>
+          </form>
+          {googleEnabled && <Button type="button" variant="secondary" className="mt-3 h-11 w-full" disabled={loading} onClick={async () => { try { await signIn('google', { callbackUrl }); } catch { setError('Google ile giriş başlatılamadı.'); } }}>Google ile devam et</Button>}
+          <p className="mt-8 border-t border-border pt-6 text-xs leading-6 text-muted-foreground">Yeni bir hesap mı gerekiyor? <Link href="/signup" className="font-medium text-primary hover:underline">Hesap oluşturun</Link></p>
+        </div>
+        <p className="text-center text-[10px] text-muted-foreground">© {new Date().getFullYear()} RenkFlow · Renk Alüminyum</p>
+      </main>
     </div>
   );
 }

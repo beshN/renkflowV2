@@ -39,6 +39,7 @@ export const PaymentSchema = z.object({
 export type Payment = z.infer<typeof PaymentSchema>;
 
 export const CreatePaymentSchema = z.object({
+  commandId: z.string().uuid().optional(),
   orderId: z.string().uuid(),
   amount: z.number().positive('Tutar pozitif olmalı'),
   currency: currencySchema,
@@ -136,6 +137,7 @@ export const EmployeeLedgerEntrySchema = z.object({
 export type EmployeeLedgerEntry = z.infer<typeof EmployeeLedgerEntrySchema>;
 
 export const CreateLedgerEntrySchema = z.object({
+  commandId: z.string().uuid().optional(),
   employeeId: z.string().uuid(),
   kind: LedgerEntryKindSchema,
   amount: z.number().positive('Tutar pozitif olmalı'),

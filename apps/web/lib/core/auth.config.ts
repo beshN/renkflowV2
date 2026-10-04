@@ -1,3 +1,5 @@
+import { isPrivateAccessAllowed } from '@/lib/features/auth/private-access';
+import { refreshSessionIdentity } from '@/lib/features/auth/session-identity';
 import type { NextAuthConfig } from 'next-auth';
 import { CredentialsSignin } from 'next-auth';
 import Google from 'next-auth/providers/google';
@@ -18,7 +20,7 @@ const AUTH_SECRET = resolveAuthSecret({
   allowMissing: IS_BUILD_TIME,
 });
 const AUTH_TRUST_HOST =
-  process.env.AUTH_TRUST_HOST === 'true' ||
+  Boolean(process.env.VERCEL) || process.env.AUTH_TRUST_HOST === 'true' ||
   (!IS_PRODUCTION && process.env.AUTH_TRUST_HOST !== 'false');
 
 if (!AUTH_SECRET && !IS_BUILD_TIME) {
@@ -111,6 +113,8 @@ export const authConfig: NextAuthConfig = {
             ? (credentials.email as string).trim().toLowerCase()
             : '';
           
+          if (!isPrivateAccessAllowed(normalizedEmail)) throw createCredentialsError('invalid_credentials');
+
           // Ticket-based Login (SSO/Magic Link)
           if (credentials?.ticket && normalizedEmail) {
             if (DEBUG) console.log('[AUTH] Attempting ticket login for:', normalizedEmail);
@@ -277,7 +281,7 @@ export const authConfig: NextAuthConfig = {
     async authorized({ auth }) {
       return !!auth?.user;
     },
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.tenantId = user.tenantId;
@@ -289,19 +293,14 @@ export const authConfig: NextAuthConfig = {
         token.templateKey = user.templateKey;
       }
 
-      // Update session data on refresh
-      if (trigger === 'update' && session) {
-        token = { ...token, ...session.user };
-      }
-
-      return token;
+      return refreshSessionIdentity(token);
     },
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.tenantId = token.tenantId as string;
         session.user.tenantName = token.tenantName as string;
-        session.user.role = token.role as 'owner' | 'admin' | 'member' | 'office' | 'worker';
+        session.user.role = token.role as 'owner' | 'admin' | 'accountant' | 'member' | 'office' | 'worker';
         session.user.brandColor = token.brandColor as string;
         session.user.logoUrl = token.logoUrl as string;
         session.user.tenantIndustry = token.tenantIndustry as string;
@@ -310,6 +309,7 @@ export const authConfig: NextAuthConfig = {
       return session;
     },
     async signIn({ user, account, profile }) {
+      if (!isPrivateAccessAllowed(user.email)) return false;
       // For OAuth providers, create user and tenant if first time
       if (account?.provider !== 'credentials' && user.email) {
         try {

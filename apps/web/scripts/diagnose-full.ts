@@ -17,7 +17,7 @@ async function diagnose() {
 
   console.log('1️⃣  Environment Variables');
   console.log('   DATABASE_URL:', process.env.DATABASE_URL ? '✅ Defined' : '❌ MISSING');
-  console.log('   GCS_BUCKET_NAME:', process.env.GCS_BUCKET_NAME);
+  console.log('   Blob storage:', Boolean(process.env.BLOB_READ_WRITE_TOKEN) ? 'configured' : 'missing');
   console.log('   NEXT_PUBLIC_USE_DATABASE:', process.env.NEXT_PUBLIC_USE_DATABASE);
 
   console.log('\n2️⃣  Service Selection Logic');

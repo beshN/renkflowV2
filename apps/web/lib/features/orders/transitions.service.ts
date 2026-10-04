@@ -1,0 +1,96 @@
+import "server-only";
+import { createHash } from "node:crypto";
+import { z } from "zod";
+import { withTransaction } from "@/lib/db";
+import { hasPermission } from "../auth/permissions";
+import {
+  WorkOrderApiError,
+  type WorkOrderActor,
+} from "../work-orders/security";
+const transitions: Record<string, string[]> = {
+  new: ["pending_approval", "approved", "cancelled"],
+  pending: ["pending_approval", "approved", "cancelled"],
+  pending_approval: ["approved", "cancelled", "on_hold"],
+  approved: ["preparing_materials", "cancelled", "on_hold"],
+  preparing_materials: ["ready_for_production", "on_hold"],
+  ready_for_production: ["in_production", "on_hold"],
+  in_production: ["quality_check", "ready_for_shipment", "on_hold"],
+  quality_check: ["ready_for_shipment", "in_production"],
+  ready: ["shipped", "delivered"],
+  ready_for_shipment: ["shipped", "delivered"],
+  shipped: ["completed", "delivered"],
+  delivered: ["completed"],
+  on_hold: [
+    "approved",
+    "preparing_materials",
+    "ready_for_production",
+    "in_production",
+    "cancelled",
+  ],
+  completed: [],
+  cancelled: [],
+};
+export const TransitionCommandSchema = z
+  .object({
+    commandId: z.uuid(),
+    version: z.number().int().positive(),
+    newStatus: z.string().max(40),
+    note: z.string().trim().max(2000).default(""),
+  })
+  .strict();
+export async function transitionOrder(
+  a: WorkOrderActor,
+  id: string,
+  raw: unknown,
+) {
+  if (!hasPermission(a.role, "orders.edit"))
+    throw new WorkOrderApiError("Sipariş durumu değiştirme yetkiniz yok", 403);
+  z.uuid().parse(id);
+  const d = TransitionCommandSchema.parse(raw),
+    hash = createHash("sha256")
+      .update(JSON.stringify({ id, ...d }))
+      .digest("hex");
+  return withTransaction(async (tx) => {
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${a.tenantId},0))`;
+    const [prior] =
+      await tx`SELECT actor_id,request_hash,result FROM order_transition_commands WHERE tenant_id=${a.tenantId} AND command_id=${d.commandId}`;
+    if (prior) {
+      if (prior.actor_id !== a.userId || prior.request_hash !== hash)
+        throw new WorkOrderApiError(
+          "İşlem anahtarı başka bir istekte kullanılmış",
+          409,
+        );
+      return prior.result;
+    }
+    const [order] =
+      await tx`SELECT id,status,version FROM orders WHERE tenant_id=${a.tenantId} AND id=${id} FOR UPDATE`;
+    if (!order) throw new WorkOrderApiError("Sipariş bulunamadı", 404);
+    if (order.version !== d.version)
+      throw new WorkOrderApiError(
+        "Sipariş başka bir cihazda değişti. Güncel kaydı açın.",
+        409,
+      );
+    if (
+      (
+        await tx`SELECT id FROM work_orders WHERE tenant_id=${a.tenantId} AND order_id=${id} AND recipe_id IS NOT NULL LIMIT 1`
+      ).length
+    )
+      throw new WorkOrderApiError(
+        "Bu siparişin durumu üretim ve sevkiyat kayıtlarından hesaplanır. İlgili operasyon ekranını kullanın.",
+        409,
+      );
+    if (!(transitions[order.status] || []).includes(d.newStatus))
+      throw new WorkOrderApiError("Bu durum geçişine izin verilmiyor", 409);
+    await tx`UPDATE orders SET status=${d.newStatus},version=version+1,updated_at=now()WHERE tenant_id=${a.tenantId} AND id=${id}`;
+    const [actor] = await tx`SELECT name FROM users WHERE id=${a.userId}`;
+    await tx`INSERT INTO activity_logs(tenant_id,entity_type,entity_id,action,actor_id,actor_name,note,changes)VALUES(${a.tenantId},'order',${id},'status_changed',${a.userId},${actor?.name || "Kullanıcı"},${d.note || null},${JSON.stringify({ durum: { from: order.status, to: d.newStatus } })}::text::jsonb)`;
+    const result = {
+      orderId: id,
+      previousStatus: order.status,
+      newStatus: d.newStatus,
+      version: order.version + 1,
+    };
+    await tx`INSERT INTO order_transition_commands(tenant_id,command_id,actor_id,order_id,request_hash,result)VALUES(${a.tenantId},${d.commandId},${a.userId},${id},${hash},${JSON.stringify(result)}::text::jsonb)`;
+    return result;
+  });
+}

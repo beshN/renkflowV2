@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { useAuth } from '@/lib/context/AuthContext';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Package, AlertTriangle, TrendingDown, Boxes, ArrowUpDown } from 'lucide-react';
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
@@ -44,9 +46,9 @@ const ITEM_TYPE_LABELS: Record<string, { label: string; color: string }> = {
 function StockBar({ onHand, reserved, min }: { onHand: number; reserved: number; min: number }) {
   const available = onHand - reserved;
   const max = Math.max(onHand, min * 2, 1);
-  const availablePercent = (available / max) * 100;
+  const availablePercent = Math.max(0, available / max) * 100;
   const reservedPercent = (reserved / max) * 100;
-  const isCritical = available <= min;
+  const isCritical = min > 0 && available <= min;
 
   return (
     <div className="w-24">
@@ -68,6 +70,7 @@ function StockBar({ onHand, reserved, min }: { onHand: number; reserved: number;
 // ============================================
 
 export default function InventoryPage() {
+  const {user}=useAuth();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -130,7 +133,7 @@ export default function InventoryPage() {
       render: (sku, row) => (
         <div>
           <p className="text-xs font-mono text-muted-foreground">{sku}</p>
-          <p className="text-sm font-semibold text-foreground">{row.item_name}</p>
+          <Link href={"/inventory/"+row.item_id} className="text-sm font-semibold text-sky-700 hover:underline">{row.item_name}</Link>
           <span className={cn('inline-block mt-0.5 rounded-full px-2 py-0.5 text-xs font-medium', ITEM_TYPE_LABELS[row.item_type]?.color || 'bg-neutral-100 text-neutral-600')}>
             {ITEM_TYPE_LABELS[row.item_type]?.label || row.item_type}
           </span>
@@ -186,21 +189,22 @@ export default function InventoryPage() {
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950/80">
-      <AppleNavbar title="Profil & malzeme stoğu" showSearch={false} />
+      <AppleNavbar title="Profil & malzeme stoğu" showSearch={false} action={user && ["owner","admin"].includes(user.role)?<Link href="/inventory/new" className="rf-primary-button">Yeni malzeme</Link>:undefined} />
 
       <main className="flex-1 p-4 md:p-8">
+        <div className="rf-panel mb-6 flex flex-wrap items-center justify-between gap-4"><div><p className="rf-eyebrow">FİZİKSEL STOK BAĞLANTISI</p><h2 className="mt-2 text-lg font-semibold">Malzemeyi raftan üretime takip edin.</h2><p className="mt-2 text-sm text-muted-foreground">Lot ve raf etiketleriyle konum, transfer ve sayım işlemleri.</p></div><div className="flex flex-wrap gap-2"><Link href="/warehouse" className="rf-secondary-button">Depo & raflar</Link><Link href="/warehouse/scan" className="rf-primary-button">QR / barkod okut</Link></div></div>
         {error && <div role="alert" className="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error} <button type="button" onClick={loadInventory} className="ml-3 underline">Tekrar dene</button></div>}
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
           {[
             {
-              label: 'Toplam Malzeme',
-              value: error ? '—' : total,
+              label: 'Malzeme (bu görünüm)',
+              value: error || isLoading ? '—' : new Set(items.map(i=>i.item_id)).size,
               icon: Boxes,
               color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20',
             },
             {
-              label: 'Kritik Stok',
+              label: 'Kritik depo bakiyesi',
               value: error ? '—' : criticalCount,
               icon: AlertTriangle,
               color: criticalCount > 0 ? 'text-rose-600 bg-rose-50 dark:bg-rose-900/20' : 'text-neutral-600 bg-neutral-50 dark:bg-neutral-900',

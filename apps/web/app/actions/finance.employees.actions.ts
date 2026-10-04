@@ -1,5 +1,7 @@
 'use server';
 
+import { randomUUID } from 'node:crypto';
+import { productionCommand } from '@/lib/features/manufacturing/platform.service';
 import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db';
 import {
@@ -174,6 +176,7 @@ export async function updateEmployee(
       email = COALESCE(${validated.email}, email),
       phone = COALESCE(${validated.phone}, phone),
       active = COALESCE(${validated.active}, active),
+      version = version + 1,
       updated_at = NOW()
     WHERE id = ${employeeId} AND tenant_id = ${context.tenantId}
     RETURNING *
@@ -198,7 +201,7 @@ export async function updateEmployee(
 }
 
 /**
- * Delete an employee (owner/admin only)
+ * Deactivate an employee while preserving financial history (owner/admin only).
  */
 export async function deleteEmployee(employeeId: string): Promise<void> {
   const context = await getServerUserContext();
@@ -217,7 +220,7 @@ export async function deleteEmployee(employeeId: string): Promise<void> {
   }
 
   await sql`
-    DELETE FROM employees 
+    UPDATE employees SET active=false, version=version+1, updated_at=NOW()
     WHERE id = ${employeeId} AND tenant_id = ${context.tenantId}
   `;
 
@@ -238,40 +241,12 @@ export async function addLedgerEntry(input: CreateLedgerEntryInput): Promise<Emp
   // Validate input
   const validated = CreateLedgerEntrySchema.parse(input);
 
-  // Verify employee belongs to tenant
-  const empCheck = await sql`
-    SELECT id FROM employees 
-    WHERE id = ${validated.employeeId} AND tenant_id = ${context.tenantId}
-    LIMIT 1
-  `;
-  const empCheckRows = empCheck as any[];
-
-  if (empCheckRows.length === 0) {
-    throw new Error('Çalışan bulunamadı');
-  }
-
-  const result = await sql`
-    INSERT INTO employee_ledger_entries (
-      tenant_id, employee_id, kind, amount, currency, entry_date, note, created_by
-    ) VALUES (
-      ${context.tenantId},
-      ${validated.employeeId},
-      ${validated.kind},
-      ${validated.amount},
-      ${validated.currency || 'TRY'},
-      ${validated.entryDate},
-      ${validated.note || null},
-      ${context.userId}
-    )
-    RETURNING *
-  `;
+  const row=await productionCommand({userId:context.userId,tenantId:context.tenantId,role:context.role},{commandId:validated.commandId || randomUUID(),action:'finance.ledger.create',data:{employeeId:validated.employeeId,kind:validated.kind,amount:validated.amount,currency:validated.currency,entryDate:validated.entryDate,note:validated.note || ''}});
 
   revalidatePath('/finance');
   revalidatePath('/finance/employees');
   revalidatePath(`/finance/employees/${validated.employeeId}`);
 
-  const rows = result as any[];
-  const row = rows[0];
   return {
     id: row.id,
     tenantId: row.tenant_id,

@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     const inviteLink = `${baseUrl}/auth/accept-invite?token=${token}`;
 
     // Send the email
-    await sendInviteEmail(email, inviteLink, role);
+    const emailResult = await sendInviteEmail(email, inviteLink, role);
 
     // Log
     console.log(`Invitation created for ${email} with role ${role}`);
@@ -123,7 +123,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       inviteLink,
-      message: 'Davet linki oluşturuldu ve e-posta gönderildi'
+      emailSent: emailResult.success,
+      message: emailResult.success ? 'Davet bağlantısı oluşturuldu ve e-posta gönderildi' : 'Davet bağlantısı oluşturuldu; e-posta teslimi yapılamadı. Bağlantıyı paylaşabilirsiniz.'
     });
   } catch (error: unknown) {
     if (error instanceof AuthenticationError) {

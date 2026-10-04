@@ -1,308 +1,496 @@
-'use client';
+"use client";
+import { use, useEffect, useState, useRef } from "react";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
+import { ArrowLeft, Plus, Trash2, Save, FileText } from "lucide-react";
+import { AwningDialog } from "@/components/features/awning/AwningConfigurator";
+import {
+  applyAwning,
+  awningSummary,
+} from "@/lib/features/awning/configuration";
+import {
+  CreateQuotationInput,
+  Quotation,
+  QuotationItem,
+} from "@/lib/features/quotations/types";
+import { canEditQuotation } from "@/lib/features/quotations/permissions";
+import { formatCurrency } from "@/lib/utils";
+import { requestJson } from "@/lib/shared/network";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/context/AuthContext';
-import { useToast } from '@/lib/context/ToastContext';
-import { requestJson } from '@/lib/shared/network';
-import { Quotation, CreateQuotationInput } from '@/lib/features/quotations/types';
-import { Navbar } from '@/components/layout/Navbar';
-import { RFFormView } from '@/components/shared/views/RFFormView';
-import { FileText, ArrowRight, Printer, AlertCircle, Save } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
-import { Button } from '@/components/ui/Button';
-
-type QuotationResponse<T> = {
-  success: boolean;
-  data: T;
-  message?: string;
-};
-
-export default function QuotationDetailPage({ params }: { params: { id: string } }) {
-  const router = useRouter();
-  const { user, isLoading } = useAuth();
-  const { showToast } = useToast();
-  
-  const isNew = params.id === 'new';
-  const [quotation, setQuotation] = useState<Quotation | null>(null);
-  const [isFetching, setIsFetching] = useState(!isNew);
-  const [isSaving, setIsSaving] = useState(false);
-
-  // Form State
-  const [form, setForm] = useState<Partial<CreateQuotationInput>>({
-    customerName: '',
-    validUntil: '',
-    currency: 'TRY',
+const emptyItem = (): QuotationItem => ({
+  productName: "WINMAX Makaslı Tente",
+  quantity: 1,
+  unitPrice: 0,
+  discountPercent: 0,
+  totalPrice: 0,
+});
+export default function QuotationPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const creationKey = useRef(crypto.randomUUID());
+  const { id } = use(params),
+    isNew = id === "new";
+  const { data: session } = useSession();
+  const [quotation, setQuotation] = useState<Quotation | null>(null),
+    [loading, setLoading] = useState(!isNew),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [message, setMessage] = useState("");
+  const [form, setForm] = useState<CreateQuotationInput>({
+    customerName: "",
+    currency: "TRY",
     discountPercent: 0,
-    notes: '',
-    items: [],
+    items: [emptyItem()],
   });
-
+  const role = session?.user?.role as any,
+    editable =
+      (isNew || quotation?.status === "draft") && canEditQuotation(role);
   useEffect(() => {
-    if (!isLoading && !user) router.replace('/auth/login');
-  }, [isLoading, router, user]);
-
-  useEffect(() => {
-    if (user && !isNew) fetchQuotation();
-  }, [user, isNew]);
-
-  const fetchQuotation = async () => {
-    setIsFetching(true);
-    try {
-      const res = await requestJson<QuotationResponse<Quotation>>(`/api/v1/quotations/${params.id}`);
-      if (res.ok && res.data?.success) {
-        const loadedQuotation = res.data.data;
-        setQuotation(loadedQuotation);
-        setForm({
-          customerId: loadedQuotation.customerId ?? undefined,
-          customerName: loadedQuotation.customerName,
-          validUntil: loadedQuotation.validUntil ?? undefined,
-          currency: loadedQuotation.currency,
-          discountPercent: loadedQuotation.discountPercent,
-          notes: loadedQuotation.notes ?? undefined,
-          internalNotes: loadedQuotation.internalNotes ?? undefined,
-          termsAndConditions: loadedQuotation.termsAndConditions ?? undefined,
-          items: loadedQuotation.items,
-        });
-      } else {
-        throw new Error(res.data?.message || res.error || 'Teklif alınamadı');
-      }
-    } catch (err: any) {
-      showToast(err.message, 'error');
-      router.push('/quotations');
-    } finally {
-      setIsFetching(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!form.customerName) {
-      showToast('Müşteri adı zorunludur', 'error');
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      if (isNew) {
-        const res = await requestJson<QuotationResponse<Quotation>>('/api/v1/quotations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form)
-        });
-        if (res.ok && res.data?.success) {
-          showToast('Teklif oluşturuldu', 'success');
-          router.push(`/quotations/${res.data.data.id}`);
-        } else {
-          throw new Error(res.data?.message || res.error || 'Kaydedilemedi');
-        }
-      } else {
-        const res = await requestJson<QuotationResponse<Quotation>>(`/api/v1/quotations/${params.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form)
-        });
-        if (res.ok && res.data?.success) {
-          showToast('Teklif güncellendi', 'success');
-          setQuotation(res.data.data);
-        } else {
-          throw new Error(res.data?.message || res.error || 'Kaydedilemedi');
-        }
-      }
-    } catch (err: any) {
-      showToast(err.message, 'error');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleConvertToOrder = async () => {
-    if (!confirm('Bu teklifi siparişe dönüştürmek istediğinize emin misiniz?')) return;
-    
-    try {
-      const res = await requestJson<QuotationResponse<{ orderId: string }>>(`/api/v1/quotations/${params.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'convert' })
+    if (isNew || !session) return;
+    const controller = new AbortController();
+    requestJson<{ success: boolean; data: Quotation }>(
+      `/api/v1/quotations/${id}`,
+      { signal: controller.signal },
+    )
+      .then((r) => {
+        if (controller.signal.aborted) return;
+        if (r.ok && r.data?.data) {
+          setError("");
+          setQuotation(r.data.data);
+          setForm({
+            ...r.data.data,
+            customerId: r.data.data.customerId || undefined,
+            validUntil: r.data.data.validUntil || undefined,
+            notes: r.data.data.notes || undefined,
+            internalNotes: r.data.data.internalNotes || undefined,
+            termsAndConditions: r.data.data.termsAndConditions || undefined,
+          });
+        } else setError(r.error || "Teklif alınamadı");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
       });
-      if (res.ok && res.data?.success) {
-        showToast('Siparişe dönüştürüldü', 'success');
-        router.push(`/orders/${res.data.data.orderId}`);
-      } else {
-        throw new Error(res.data?.message || res.error || 'Dönüştürülemedi');
+    return () => controller.abort();
+  }, [id, isNew, session?.user?.tenantId, session?.user?.id]);
+  function updateItem(index: number, key: keyof QuotationItem, value: unknown) {
+    setForm((prev) => ({
+      ...prev,
+      items: prev.items.map((item, i) =>
+        i === index ? { ...item, [key]: value } : item,
+      ),
+    }));
+  }
+  async function save() {
+    setError("");
+    setMessage("");
+    setBusy(true);
+    try {
+      const r = await requestJson<{ data: Quotation }>(
+        isNew ? "/api/v1/quotations" : `/api/v1/quotations/${id}`,
+        {
+          method: isNew ? "POST" : "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...form,
+            idempotencyKey: isNew ? creationKey.current : undefined,
+            expectedVersion: quotation?.version,
+          }),
+        },
+      );
+      if (!r.ok || !r.data?.data)
+        throw new Error(r.error || "Teklif kaydedilemedi");
+      if (isNew) window.location.assign(`/quotations/${r.data.data.id}`);
+      else {
+        setQuotation(r.data.data);
+        setMessage("Teklif kaydedildi.");
       }
-    } catch (err: any) {
-      showToast(err.message, 'error');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "İşlem tamamlanamadı");
+    } finally {
+      setBusy(false);
     }
-  };
-
-  if (isLoading || !user) return null;
-  if (isFetching) return <div className="p-8 text-center">Yükleniyor...</div>;
-
-  const isEditable = isNew || quotation?.status === 'draft';
-
-  const renderContent = () => {
+  }
+  async function action(action: string, status?: string) {
+    setBusy(true);
+    setError("");
+    try {
+      const r = await requestJson<{ data: any }>(`/api/v1/quotations/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          action === "convert"
+            ? { action, expectedVersion: quotation?.version }
+            : { status, expectedVersion: quotation?.version },
+        ),
+      });
+      if (!r.ok || !r.data?.data)
+        throw new Error(r.error || "İşlem tamamlanamadı");
+      if (action === "convert")
+        window.location.assign(`/orders/${r.data.data.orderId}`);
+      else setQuotation(r.data.data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "İşlem tamamlanamadı");
+    } finally {
+      setBusy(false);
+    }
+  }
+  const subtotal = form.items.reduce(
+      (sum, i) =>
+        sum + i.quantity * i.unitPrice * (1 - i.discountPercent / 100),
+      0,
+    ),
+    discount = (subtotal * form.discountPercent) / 100,
+    total = (subtotal - discount) * 1.2;
+  if (loading)
     return (
-      <div className="space-y-6">
-        <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
-          <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-4">Genel Bilgiler</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <label>
-              <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Müşteri Adı *</span>
-              <input
-                type="text"
-                disabled={!isEditable}
-                value={form.customerName || ''}
-                onChange={e => setForm({...form, customerName: e.target.value})}
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm disabled:opacity-50"
-              />
-            </label>
-            <label>
-              <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Geçerlilik Tarihi</span>
-              <input
-                type="date"
-                disabled={!isEditable}
-                value={form.validUntil || ''}
-                onChange={e => setForm({...form, validUntil: e.target.value})}
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm disabled:opacity-50"
-              />
-            </label>
-            <label>
-              <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Para Birimi</span>
-              <select
-                disabled={!isEditable}
-                value={form.currency || 'TRY'}
-                onChange={e => setForm({...form, currency: e.target.value as any})}
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm disabled:opacity-50"
-              >
-                <option value="TRY">TRY</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-              </select>
-            </label>
-          </div>
-        </section>
-
-        <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">Teklif Kalemleri</h3>
-            {isEditable && (
-              <Button type="button" variant="secondary" size="sm" onClick={() => {
-                setForm(prev => ({
-                  ...prev,
-                  items: [...(prev.items || []), { productName: '', quantity: 1, unitPrice: 0, discountPercent: 0, totalPrice: 0 }]
-                }))
-              }}>Satır Ekle</Button>
-            )}
-          </div>
-          
-          <div className="space-y-4">
-            {form.items?.map((item, idx) => (
-              <div key={idx} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end bg-slate-50 dark:bg-slate-950/50 p-4 rounded-lg border border-slate-100 dark:border-slate-800 relative">
-                {isEditable && (
-                  <button onClick={() => {
-                    const newItems = [...(form.items || [])];
-                    newItems.splice(idx, 1);
-                    setForm({...form, items: newItems});
-                  }} className="absolute top-2 right-2 text-rose-500 hover:text-rose-700">Sil</button>
-                )}
-                
-                <label className="md:col-span-2">
-                  <span className="block text-xs text-slate-500 mb-1">Ürün Adı</span>
-                  <input type="text" disabled={!isEditable} value={item.productName}
-                    onChange={e => {
-                      const newItems = [...(form.items || [])];
-                      newItems[idx].productName = e.target.value;
-                      setForm({...form, items: newItems});
-                    }}
-                    className="w-full rounded border px-2 py-1 text-sm disabled:opacity-50" />
-                </label>
-                <label>
-                  <span className="block text-xs text-slate-500 mb-1">Miktar</span>
-                  <input type="number" disabled={!isEditable} value={item.quantity}
-                    onChange={e => {
-                      const newItems = [...(form.items || [])];
-                      newItems[idx].quantity = parseInt(e.target.value) || 0;
-                      setForm({...form, items: newItems});
-                    }}
-                    className="w-full rounded border px-2 py-1 text-sm disabled:opacity-50" />
-                </label>
-                <label>
-                  <span className="block text-xs text-slate-500 mb-1">Birim Fiyat</span>
-                  <input type="number" disabled={!isEditable} value={item.unitPrice}
-                    onChange={e => {
-                      const newItems = [...(form.items || [])];
-                      newItems[idx].unitPrice = parseFloat(e.target.value) || 0;
-                      setForm({...form, items: newItems});
-                    }}
-                    className="w-full rounded border px-2 py-1 text-sm disabled:opacity-50" />
-                </label>
-                <div>
-                  <span className="block text-xs text-slate-500 mb-1">Toplam</span>
-                  <div className="font-semibold text-sm py-1">{formatCurrency(item.quantity * (item.unitPrice || 0), form.currency || 'TRY')}</div>
-                </div>
-              </div>
-            ))}
-            {form.items?.length === 0 && <p className="text-sm text-slate-500">Kalem eklenmemiş.</p>}
-          </div>
-
-          <div className="mt-6 flex justify-end">
-            <div className="w-64 space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Ara Toplam:</span>
-                <span>{formatCurrency(form.items?.reduce((acc, it) => acc + (it.quantity * (it.unitPrice||0)), 0) || 0, form.currency || 'TRY')}</span>
-              </div>
-              {quotation && (
-                <div className="flex justify-between font-bold text-lg pt-2 border-t">
-                  <span>Genel Toplam:</span>
-                  <span>{formatCurrency(quotation.totalAmount, quotation.currency)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {isEditable && (
-          <div className="flex justify-end pt-4">
-            <Button variant="primary" onClick={handleSave} isLoading={isSaving} icon={<Save className="w-4 h-4"/>}>
-              Kaydet
-            </Button>
-          </div>
-        )}
+      <div className="rf-page" role="status">
+        Teklif yükleniyor…
       </div>
     );
-  };
-
   return (
-    <div className="flex min-h-screen flex-1 flex-col bg-slate-50/50 dark:bg-slate-950/50">
-      <Navbar title={isNew ? 'Yeni Teklif' : `Teklif: ${quotation?.quotationNumber}`} />
-      <main className="w-full flex-1 p-4 md:p-8">
-        <RFFormView
-          title={isNew ? 'Yeni Teklif' : quotation?.quotationNumber || ''}
-          subtitle={quotation?.customerName}
-          icon={<FileText className="h-5 w-5 text-sky-500" />}
-          breadcrumbs={[
-            { label: 'Teklifler', href: '/quotations' },
-            { label: isNew ? 'Yeni' : quotation?.quotationNumber || '' }
-          ]}
-          onBack={() => router.push('/quotations')}
-          primaryAction={!isNew && quotation?.status !== 'converted' ? {
-            label: "Siparişe Dönüştür",
-            icon: <ArrowRight className="h-4 w-4" />,
-            onClick: handleConvertToOrder
-          } : undefined}
-          secondaryActions={[
-            {
-              label: "Yazdır",
-              icon: <Printer className="h-4 w-4" />,
-              onClick: () => window.print(),
-              hidden: isNew
+    <div className="rf-page space-y-6">
+      <Link
+        href="/quotations"
+        className="inline-flex items-center gap-2 text-xs text-muted-foreground"
+      >
+        <ArrowLeft size={14} /> Tekliflere dön
+      </Link>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="rf-eyebrow">SATIŞ / TEKLİF</p>
+          <h1 className="rf-page-title">
+            {isNew ? "Yeni teklif" : quotation?.quotationNumber || "Teklif"}
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Ölçü ve donanımı 3D hazırlayın, teklif fiyatını belirleyin.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {!isNew && (
+            <Link
+              className="rf-primary-button"
+              href={`/quotations/${id}/print`}
+            >
+              <FileText size={15} /> Yazdır / PDF
+            </Link>
+          )}
+          {editable && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={save}
+              className="rf-primary-button"
+            >
+              <Save size={15} />
+              {busy ? "Kaydediliyor…" : "Teklifi kaydet"}
+            </button>
+          )}
+        </div>
+      </div>
+      {error && (
+        <div
+          role="alert"
+          className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm"
+        >
+          {error}
+        </div>
+      )}
+      {message && (
+        <p role="status" className="text-sm text-primary">
+          {message}
+        </p>
+      )}
+      <section className="rf-panel grid gap-4 md:grid-cols-4">
+        <label className="text-xs md:col-span-2">
+          Müşteri / firma
+          <input
+            disabled={!editable}
+            className="rf-input mt-2 w-full"
+            value={form.customerName}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, customerName: e.target.value }))
             }
-          ]}
-          tabs={[
-            { id: 'details', label: 'Teklif Detayı', content: renderContent() }
-          ]}
-        />
-      </main>
+          />
+        </label>
+        <label className="text-xs">
+          Geçerlilik tarihi
+          <input
+            disabled={!editable}
+            type="date"
+            className="rf-input mt-2 w-full"
+            value={form.validUntil || ""}
+            onChange={(e) =>
+              setForm((prev) => ({
+                ...prev,
+                validUntil: e.target.value || undefined,
+              }))
+            }
+          />
+        </label>
+        <label className="text-xs">
+          Para birimi
+          <select
+            disabled={!editable}
+            className="rf-input mt-2 w-full"
+            value={form.currency}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, currency: e.target.value as any }))
+            }
+          >
+            {["TRY", "EUR", "USD", "GBP"].map((v) => (
+              <option key={v}>{v}</option>
+            ))}
+          </select>
+        </label>
+      </section>
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="rf-section-title">Teklif kalemleri</h2>
+          {editable && (
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 text-xs text-primary"
+              onClick={() =>
+                setForm((prev) => ({
+                  ...prev,
+                  items: [...prev.items, emptyItem()],
+                }))
+              }
+            >
+              <Plus size={15} /> Kalem ekle
+            </button>
+          )}
+        </div>
+        {form.items.map((item, index) => (
+          <article key={index} className="rf-panel space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="rounded bg-muted px-2 py-1 text-xs tabular-nums">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <input
+                aria-label={`Kalem ${index + 1} ürün adı`}
+                disabled={!editable}
+                value={item.productName}
+                className="rf-input flex-1"
+                onChange={(e) =>
+                  updateItem(index, "productName", e.target.value)
+                }
+              />
+              {editable && form.items.length > 1 && (
+                <button
+                  type="button"
+                  className="rf-icon-button"
+                  aria-label={`Kalem ${index + 1} sil`}
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      items: prev.items.filter((_, i) => i !== index),
+                    }))
+                  }
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-4">
+              {(
+                [
+                  ["quantity", "Adet"],
+                  ["unitPrice", "Birim fiyat"],
+                  ["discountPercent", "Kalem indirimi (%)"],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key} className="text-xs">
+                  {label}
+                  <input
+                    disabled={!editable}
+                    type="number"
+                    min={key === "quantity" ? 1 : 0}
+                    max={key === "discountPercent" ? 100 : undefined}
+                    step={key === "quantity" ? 1 : 0.01}
+                    className="rf-input mt-2 w-full"
+                    value={item[key]}
+                    onChange={(e) =>
+                      updateItem(index, key, Number(e.target.value))
+                    }
+                  />
+                </label>
+              ))}
+              <div className="text-xs">
+                Kalem toplamı
+                <p className="mt-3 font-semibold tabular-nums">
+                  {formatCurrency(
+                    item.quantity *
+                      item.unitPrice *
+                      (1 - item.discountPercent / 100),
+                    form.currency,
+                  )}
+                </p>
+              </div>
+            </div>
+            {item.awningConfiguration && (
+              <p className="rounded-md bg-muted p-3 text-xs leading-5">
+                {awningSummary(item.awningConfiguration)}
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-3">
+              <AwningDialog
+                configuration={item.awningConfiguration}
+                previewImage={item.awningPreview}
+                readOnly={!editable}
+                label={editable ? "3D yapılandır" : "3D görünüm"}
+                onApply={(c, image) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    items: prev.items.map((entry, i) =>
+                      i === index ? applyAwning(entry, c, image) : entry,
+                    ),
+                  }))
+                }
+              />
+              <span className="text-[11px] text-muted-foreground">
+                Teklif fiyatını satış çalışanı belirler.
+              </span>
+            </div>
+            <label className="block text-xs">
+              Kalem notu
+              <input
+                disabled={!editable}
+                className="rf-input mt-2 w-full"
+                value={item.notes || ""}
+                onChange={(e) => updateItem(index, "notes", e.target.value)}
+              />
+            </label>
+          </article>
+        ))}
+      </section>
+      <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+        <section className="rf-panel space-y-4">
+          <label className="block text-xs">
+            Teklif notları
+            <textarea
+              disabled={!editable}
+              className="rf-input mt-2 min-h-24 w-full"
+              value={form.notes || ""}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, notes: e.target.value }))
+              }
+            />
+          </label>
+          <label className="block text-xs">
+            Ödeme, teslimat ve montaj koşulları
+            <textarea
+              disabled={!editable}
+              className="rf-input mt-2 min-h-24 w-full"
+              value={form.termsAndConditions || ""}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  termsAndConditions: e.target.value,
+                }))
+              }
+            />
+          </label>
+        </section>
+        <section className="rf-panel space-y-3 text-sm">
+          <p className="flex justify-between">
+            <span>Ara toplam</span>
+            <span>{formatCurrency(subtotal, form.currency)}</span>
+          </p>
+          <label className="flex items-center justify-between gap-3 text-xs">
+            Genel indirim (%)
+            <input
+              disabled={!editable}
+              type="number"
+              min={0}
+              max={100}
+              value={form.discountPercent}
+              className="rf-input w-24"
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  discountPercent: +e.target.value,
+                }))
+              }
+            />
+          </label>
+          <p className="flex justify-between text-muted-foreground">
+            <span>KDV (%20)</span>
+            <span>
+              {formatCurrency((subtotal - discount) * 0.2, form.currency)}
+            </span>
+          </p>
+          <p className="flex justify-between border-t border-border pt-4 font-semibold">
+            <span>Genel toplam</span>
+            <span>{formatCurrency(total, form.currency)}</span>
+          </p>
+        </section>
+      </div>
+      {!isNew && canEditQuotation(role) && (
+        <section className="rf-panel flex flex-wrap items-center gap-3">
+          <span className="mr-auto text-xs text-muted-foreground">
+            Durum:{" "}
+            {
+              (
+                {
+                  draft: "Taslak",
+                  sent: "Gönderildi",
+                  accepted: "Kabul edildi",
+                  rejected: "Reddedildi",
+                  expired: "Süresi doldu",
+                  converted: "Siparişe dönüştü",
+                } as any
+              )[quotation?.status || "draft"]
+            }
+          </span>
+          {quotation?.status === "draft" && (
+            <button
+              disabled={busy}
+              className="rf-primary-button"
+              onClick={() => action("status", "sent")}
+            >
+              Gönderildi olarak işaretle
+            </button>
+          )}
+          {quotation?.status === "sent" && (
+            <>
+              <button
+                disabled={busy}
+                className="rf-primary-button"
+                onClick={() => action("status", "accepted")}
+              >
+                Kabul edildi
+              </button>
+              <button
+                disabled={busy}
+                className="rf-input"
+                onClick={() => action("status", "rejected")}
+              >
+                Reddedildi
+              </button>
+            </>
+          )}
+          {["draft", "sent", "accepted"].includes(quotation?.status || "") && (
+            <button
+              disabled={busy}
+              className="rf-primary-button"
+              onClick={() => action("convert")}
+            >
+              Siparişe dönüştür
+            </button>
+          )}
+          {quotation?.convertedToOrderId && (
+            <Link
+              href={`/orders/${quotation.convertedToOrderId}`}
+              className="text-sm text-primary"
+            >
+              Siparişi aç →
+            </Link>
+          )}
+        </section>
+      )}
     </div>
   );
 }

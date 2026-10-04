@@ -19,7 +19,7 @@ export const AppleCard = forwardRef<HTMLDivElement, AppleCardProps>(
       <div
         ref={ref}
         className={cn(
-          "rounded-xl transition-colors duration-150",
+          "rounded-lg transition-colors duration-150",
           variants[variant],
           noPadding ? "p-0" : "p-6",
           className

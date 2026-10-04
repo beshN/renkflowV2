@@ -1,6 +1,7 @@
 'use client';
+import { prepareBrowserFile } from '@/lib/storage/client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { canAccessFinance, hasPermission, type UserRole } from '@/lib/auth/permissions';
@@ -123,6 +124,8 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('bank_transfer');
   const [paymentNote, setPaymentNote] = useState('');
   const [isAddingPayment, setIsAddingPayment] = useState(false);
+  const paymentKey = useRef<{ hash: string; id: string; paidAt: string } | null>(null);
+  const paymentLock = useRef(false);
   
   // Document upload state
   const [showUploadForm, setShowUploadForm] = useState(false);
@@ -167,6 +170,7 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
   }, [hasFinanceAccess, loadData]);
 
   const handleAddPayment = async () => {
+    if (paymentLock.current) return;
     const amount = parseLocalizedAmount(paymentAmount);
     if (amount === null || amount <= 0) {
       showToast('Geçerli bir tutar girin', 'error');
@@ -174,8 +178,13 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
     }
 
     try {
+      paymentLock.current = true;
+      const hash = JSON.stringify({ orderId, amount, currency, method: paymentMethod, note: paymentNote });
+      if (paymentKey.current?.hash !== hash) paymentKey.current = { hash, id: crypto.randomUUID(), paidAt: new Date().toISOString() };
       setIsAddingPayment(true);
       const newPayment = await createPayment({
+        commandId: paymentKey.current.id,
+        paidAt: paymentKey.current.paidAt,
         orderId,
         amount,
         currency: safeParseCurrency(currency),
@@ -183,6 +192,7 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
         note: paymentNote.trim() || undefined,
       });
       setPayments(prev => [newPayment, ...prev]);
+      paymentKey.current = null;
       setShowPaymentForm(false);
       setPaymentAmount('');
       setPaymentMethod('bank_transfer');
@@ -190,8 +200,9 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
       showToast('Ödeme kaydedildi', 'success');
     } catch (error) {
       console.error('Error adding payment:', error);
-      showToast('Ödeme eklenirken hata oluştu', 'error');
+      showToast(error instanceof Error ? error.message : 'Ödeme eklenirken hata oluştu', 'error');
     } finally {
+      paymentLock.current = false;
       setIsAddingPayment(false);
     }
   };
@@ -230,7 +241,7 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
 
     try {
       setIsUploading(true);
-      const newDoc = await uploadOrderDocument(orderId, docType, selectedFile);
+      const newDoc = await uploadOrderDocument(orderId, docType, await prepareBrowserFile(selectedFile, "finance"));
       setDocuments(prev => [newDoc, ...prev]);
       setShowUploadForm(false);
       setSelectedFile(null);

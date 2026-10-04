@@ -30,18 +30,18 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(({
   ...props 
 }, ref) => {
   const [showPassword, setShowPassword] = React.useState(false);
-  const errorId = errorMessage ? `${id || 'input'}-error` : undefined
-  const hintId = hint ? `${id || 'input'}-hint` : undefined
-  const inputId = id || React.useId();
+  const generatedId = React.useId();
+  const inputId = id || generatedId;
+  const errorId = errorMessage ? `${inputId}-error` : undefined
+  const hintId = !errorMessage && hint ? `${inputId}-hint` : undefined
   
   const isPasswordType = type === 'password';
   const inputType = isPasswordType && showPassword ? 'text' : type;
 
   const variants = {
     default: cn(
-      'border border-input bg-white/50 dark:bg-black/50 backdrop-blur-sm',
-      'focus:bg-white dark:focus:bg-black',
-      'focus:border-primary/50 focus:ring-4 focus:ring-primary/10',
+      'border border-input bg-card',
+      'focus:border-primary focus:ring-2 focus:ring-primary/10',
       'shadow-sm transition-all duration-200'
     ),
     filled: cn(
@@ -98,7 +98,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(({
           type={inputType}
           data-slot="input"
           className={cn(
-            'w-full rounded-2xl outline-none transition-all duration-200',
+            'w-full rounded-md outline-none transition-colors duration-150',
             'placeholder:text-slate-400 dark:placeholder:text-slate-500',
             'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-50 dark:disabled:bg-slate-800/80',
             variants[variant],
@@ -109,9 +109,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(({
             hasSuccess && 'border-emerald-500 dark:border-emerald-400 focus:border-emerald-500 focus:ring-emerald-500/10',
             className,
           )}
-          aria-invalid={hasError || props['aria-invalid']}
-          aria-describedby={cn(errorId, hintId) || props['aria-describedby']}
           {...props}
+          aria-invalid={hasError || props['aria-invalid']}
+          aria-describedby={[errorId, hintId, props['aria-describedby']].filter(Boolean).join(' ') || undefined}
         />
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
           {isPasswordType && (
@@ -119,7 +119,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(({
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1"
-              tabIndex={-1}
+              aria-label={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
+              aria-pressed={showPassword}
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>

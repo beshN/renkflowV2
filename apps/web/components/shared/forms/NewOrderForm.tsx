@@ -1,12 +1,16 @@
 'use client';
+import { prepareBrowserFile, type UploadedFileReference } from '@/lib/storage/client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, Plus, Trash2 } from 'lucide-react';
+import { AwningDialog } from '@/components/features/awning/AwningConfigurator';
+import { applyAwning } from '@/lib/features/awning/configuration';
 
 import { Button } from '@/components/ui/Button';
 import { formatCurrency } from '@/lib/utils';
 import { type Currency, type NewOrderFormData, type NewOrderItemData } from '@/lib/types';
+import { businessDate } from '@/lib/features/orders/workspace';
 import {
   ORDER_FORM_ALLOWED_FILE_TYPES,
   ORDER_MAX_UPLOAD_COUNT,
@@ -16,6 +20,7 @@ import {
 interface NewOrderFormProps {
   onSubmit: (data: FormData) => Promise<void>;
   initialData?: NewOrderFormData;
+  submitError?: string;
 }
 
 type FieldErrors = Partial<Record<'customerName' | 'productName' | 'quantity' | 'totalAmount' | string, string>>;
@@ -34,12 +39,9 @@ function initialItems(data?: NewOrderFormData): NewOrderItemData[] {
   return [{ productName: data?.productName || '', quantity, unitPrice: totalPrice / quantity, totalPrice }];
 }
 
-function buildTodayISO(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
-export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
+export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFormProps) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<NewOrderFormData>(
     initialData ?? {
@@ -76,7 +78,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const todayISO = useMemo(buildTodayISO, []);
+  const todayISO = businessDate();
 
   // Calculate total amount from items if items exist
   const calculatedTotal = useMemo(() => {
@@ -86,7 +88,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
 
   const calculatedQuantity = useMemo(() => {
     if (items.length === 0) return form.quantity;
-    return items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+    return items.reduce((sum, item) => sum + (item.quantity || 0), 0);
   }, [items, form.quantity]);
 
   const validate = (): boolean => {
@@ -145,9 +147,17 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
         payload.append('items', JSON.stringify(items));
       }
 
-      files.forEach((entry) => payload.append('files', entry.file));
+      const uploaded: UploadedFileReference[] = [];
+      for (const entry of files) {
+        const prepared = await prepareBrowserFile(entry.file);
+        if (prepared instanceof File) payload.append('files', prepared);
+        else uploaded.push(prepared);
+      }
+      if (uploaded.length) payload.append('uploadedFiles', JSON.stringify(uploaded));
 
       await onSubmit(payload);
+    } catch (error) {
+      setFileError(error instanceof Error ? error.message : 'Dosya yüklenemedi. Lütfen tekrar deneyin.');
     } finally {
       setIsSubmitting(false);
     }
@@ -158,8 +168,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
     const selected = Array.from(inputFiles);
     const nextErrors: string[] = [];
 
-    setFiles((prev) => {
-      const existingKeys = new Set(prev.map((entry) => `${entry.file.name}-${entry.file.size}-${entry.file.lastModified}`));
+      const existingKeys = new Set(files.map((entry) => `${entry.file.name}-${entry.file.size}-${entry.file.lastModified}`));
       const accepted: UploadEntry[] = [];
 
       for (const file of selected) {
@@ -180,13 +189,12 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
         accepted.push({ id: crypto.randomUUID(), file });
       }
 
-      const merged = [...prev, ...accepted];
+      const merged = [...files, ...accepted];
       if (merged.length > ORDER_MAX_UPLOAD_COUNT) {
         nextErrors.push(`En fazla ${ORDER_MAX_UPLOAD_COUNT} dosya yukleyebilirsiniz.`);
       }
 
-      return merged.slice(0, ORDER_MAX_UPLOAD_COUNT);
-    });
+      setFiles(merged.slice(0, ORDER_MAX_UPLOAD_COUNT));
 
     setFileError(nextErrors.length > 0 ? nextErrors[0] : null);
   };
@@ -219,8 +227,8 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <section className="rf-panel rounded-2xl p-6">
+    <form onSubmit={handleSubmit} className="space-y-5" aria-busy={isSubmitting}>
+      <section className="rf-panel p-5">
         <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">1. Müşteri ve proje</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <label className="md:col-span-2">
@@ -232,7 +240,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
               placeholder="Firma veya müşteri adı"
               autoComplete="organization"
               onChange={(e) => setForm((prev) => ({ ...prev, customerName: e.target.value }))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
+              className="w-full rounded-md border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
             />
             {errors.customerName && <span className="mt-1 block text-xs text-rose-600">{errors.customerName}</span>}
           </label>
@@ -242,7 +250,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
               type="email"
               value={form.email || ''}
               onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
+              className="w-full rounded-md border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
             />
           </label>
           <label>
@@ -251,13 +259,13 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
               type="text"
               value={form.phone || ''}
               onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
+              className="w-full rounded-md border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
             />
           </label>
         </div>
       </section>
 
-      <section className="rf-panel rounded-2xl p-6">
+      <section className="rf-panel p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">2. Ürün ve teknik ölçüler</h2>
@@ -269,14 +277,14 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
         </div>
 
         {items.length === 0 ? (
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-md border border-slate-100 dark:border-slate-800">
             <label className="md:col-span-2">
               <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Ürün adı (Tekli Sipariş) *</span>
               <input
                 type="text"
                 value={form.productName}
                 onChange={(e) => setForm((prev) => ({ ...prev, productName: e.target.value }))}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
+                className="w-full rounded-md border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
               />
               {errors.productName && <span className="mt-1 block text-xs text-rose-600">{errors.productName}</span>}
             </label>
@@ -287,7 +295,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                 min={1}
                 value={form.quantity}
                 onChange={(e) => setForm((prev) => ({ ...prev, quantity: Number.parseInt(e.target.value, 10) || 0 }))}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
+                className="w-full rounded-md border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
               />
             </label>
             <label>
@@ -297,14 +305,14 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                 inputMode="decimal"
                 value={rawTotalAmount}
                 onChange={(e) => setRawTotalAmount(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
+                className="w-full rounded-md border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
               />
             </label>
           </div>
         ) : (
           <div className="space-y-4">
             {items.map((item, idx) => (
-              <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 relative group">
+              <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-md border border-slate-200 dark:border-slate-800 relative group">
                 <button
                   type="button"
                   onClick={() => removeItem(idx)}
@@ -323,7 +331,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                       required
                       placeholder="Örn: Alüminyum sürme doğrama"
                       onChange={(e) => updateItem(idx, 'productName', e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
                     />
                     {errors[`items.${idx}.productName`] && <span className="mt-1 block text-xs text-rose-600">{errors[`items.${idx}.productName`]}</span>}
                   </label>
@@ -334,13 +342,14 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                       min={1}
                       step="any"
                       placeholder="2400"
+                      disabled={Boolean(item.awningConfiguration)}
                       value={item.widthMm ?? ''}
                       onChange={(e) => updateItem(idx, 'widthMm', e.target.value ? Number(e.target.value) : undefined)}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
                     />
                   </label>
                   <label>
-                    <span className="mb-1.5 block text-xs font-medium text-slate-500">Yükseklik (mm)</span>
+                    <span className="mb-1.5 block text-xs font-medium text-slate-500">Ürün yüksekliği (mm)</span>
                     <input
                       type="number"
                       min={1}
@@ -348,17 +357,18 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                       placeholder="2100"
                       value={item.heightMm ?? ''}
                       onChange={(e) => updateItem(idx, 'heightMm', e.target.value ? Number(e.target.value) : undefined)}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
                     />
                   </label>
                   <label>
                     <span className="mb-1.5 block text-xs font-medium text-slate-500">RAL renk / yüzey</span>
                     <input
                       type="text"
+                      disabled={Boolean(item.awningConfiguration)}
                       value={item.color || ''}
                       placeholder="RAL 7016 mat"
                       onChange={(e) => updateItem(idx, 'color', e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
                     />
                   </label>
                   <label>
@@ -369,7 +379,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                       value={item.quantity}
                       required
                       onChange={(e) => updateItem(idx, 'quantity', parseInt(e.target.value) || 0)}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
                     />
                   </label>
                   <label>
@@ -381,7 +391,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                       placeholder="0,00"
                       value={item.unitPrice || ''}
                       onChange={(e) => updateItem(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
                     />
                   </label>
                   <label>
@@ -395,8 +405,12 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
                   <span className="mb-1.5 block text-xs font-medium text-slate-500">Profil kodu / seri ve kalem notu</span>
                   <input value={item.notes || ''} onChange={(e) => updateItem(idx, 'notes', e.target.value)}
                     placeholder="Örn: 40×40 profil · bağlantı ve aksesuar detayları"
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900" />
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900" />
                 </label>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <AwningDialog configuration={item.awningConfiguration} previewImage={item.awningPreview} onApply={(c,image)=>setItems(prev=>prev.map((entry,i)=>i===idx?applyAwning({...entry,productName:entry.productName||'WINMAX Makaslı Tente'},c,image):entry))}/>
+                  {item.awningConfiguration && <span className="text-xs text-muted-foreground">Açılım: {item.awningConfiguration.projectionMm} mm · Montaj: {item.awningConfiguration.mountingHeightMm} mm</span>}
+                </div>
                 {Object.entries(errors).filter(([key]) => key.startsWith(`items.${idx}.`) && !key.endsWith('productName')).map(([key, message]) => <p key={key} role="alert" className="mt-1 text-xs text-rose-600">{message}</p>)}
               </div>
             ))}
@@ -411,7 +425,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
               min={todayISO}
               value={form.deliveryDate || ''}
               onChange={(e) => setForm((prev) => ({ ...prev, deliveryDate: e.target.value }))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
+              className="w-full rounded-md border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
             />
           </label>
           <label>
@@ -419,7 +433,7 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
             <select
               value={form.currency}
               onChange={(e) => setForm((prev) => ({ ...prev, currency: e.target.value as Currency }))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
+              className="w-full rounded-md border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
             >
               <option value="TRY">TRY</option>
               <option value="USD">USD</option>
@@ -434,31 +448,30 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
               placeholder="Kesim, işleme, aksesuar, montaj veya sevkiyat talimatları…"
               value={form.notes || ''}
               onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-900"
+              className="w-full rounded-md border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
             />
           </label>
         </div>
       </section>
 
-      <section className="rf-panel rounded-2xl p-6">
+      <section className="rf-panel p-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">3. Teknik belgeler</h2>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
-            <Plus size={14} />
-            Dosya ekle
+          <Button type="button" variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-2"><Plus size={14} />Dosya ekle</Button>
             <input
+              ref={fileInputRef}
               type="file"
               multiple
               className="hidden"
+              aria-label="Teknik belge seç"
               accept="image/*,.pdf"
               onChange={(e) => { addFiles(e.target.files); e.currentTarget.value = ''; }}
             />
-          </label>
         </div>
         {files.length > 0 ? (
           <div className="mt-4 space-y-2">
             {files.map((entry) => (
-              <div key={entry.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+              <div key={entry.id} className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
                 <div className="flex min-w-0 items-center gap-2">
                   <FileText size={16} className="text-slate-500" />
                   <span className="truncate text-sm text-slate-700 dark:text-slate-200">{entry.file.name}</span>
@@ -477,12 +490,13 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
         ) : (
           <p className="mt-4 text-sm text-slate-500">Henüz belge yüklenmedi.</p>
         )}
-        {fileError && <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">{fileError}</p>}
+        <p className="mt-3 text-xs text-muted-foreground">PDF, JPG, PNG veya WebP · Dosya başına 10 MB · En fazla {ORDER_MAX_UPLOAD_COUNT} belge</p>
+        {fileError && <p role="alert" className="mt-2 text-xs text-amber-700 dark:text-amber-400">{fileError}</p>}
       </section>
 
-      <section className="rf-panel rounded-2xl p-6">
+      <section className="rf-panel p-5">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Sipariş Özeti</h2>
-        <div className="mt-3 rounded-xl bg-slate-50 p-4 dark:bg-slate-900/50">
+        <div className="mt-3 rounded-md bg-slate-50 p-4 dark:bg-slate-900/50">
           <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
             <span>Toplam Miktar</span>
             <span>{calculatedQuantity} adet</span>
@@ -494,15 +508,18 @@ export function NewOrderForm({ onSubmit, initialData }: NewOrderFormProps) {
         </div>
       </section>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <Button type="submit" variant="primary" size="lg" className="sm:flex-1" isLoading={isSubmitting} loadingText="Sipariş kaydediliyor...">
-          Siparişi Kaydet
-        </Button>
-        <Button type="button" variant="secondary" size="lg" onClick={() => router.back()}>
+      {submitError && <p role="alert" className="rf-alert text-sm">{submitError} Girdiğiniz bilgiler korunuyor.</p>}
+      {Object.keys(errors).length > 0 && <p role="alert" className="rf-alert text-sm">Kaydetmeden önce işaretlenen alanları kontrol edin.</p>}
+      <div className="sticky bottom-20 z-20 flex items-center justify-end gap-3 rounded-lg border border-border bg-card p-3 sm:p-4 md:bottom-4">
+        <span className="mr-auto hidden text-xs text-muted-foreground sm:block">{items.length} kalem · <span className="font-medium tabular-nums text-foreground">{calculatedQuantity} adet</span></span>
+        <Button type="button" variant="secondary" disabled={isSubmitting} onClick={() => router.back()}>
           Vazgeç
         </Button>
+        <Button type="submit" variant="primary" isLoading={isSubmitting} loadingText="Sipariş kaydediliyor...">
+          Siparişi Kaydet
+        </Button>
       </div>
-      <p className="text-xs text-slate-500">Siparişi kaydetmek stoktan düşüm yapmaz. Malzeme üretim emrinde rezerve edilir; gerçek tüketim üretim tamamlandığında işlenir.</p>
+      <p className="text-xs text-muted-foreground">Siparişi kaydetmek stoktan düşüm yapmaz. Malzeme üretim emrinde rezerve edilir; gerçek tüketim üretim tamamlandığında işlenir.</p>
     </form>
   );
 }

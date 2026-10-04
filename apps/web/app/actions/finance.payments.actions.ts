@@ -1,5 +1,7 @@
 'use server';
 
+import { randomUUID } from 'node:crypto';
+import { productionCommand } from '@/lib/features/manufacturing/platform.service';
 import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db';
 import {
@@ -26,48 +28,14 @@ export async function createPayment(input: CreatePaymentInput): Promise<Payment>
   // Validate input
   const validated = CreatePaymentSchema.parse(input);
 
-  // Verify order belongs to tenant
-  const orderCheck = await sql`
-    SELECT id, tenant_id FROM orders 
-    WHERE id = ${validated.orderId} AND tenant_id = ${context.tenantId}
-    LIMIT 1
-  `;
-
-  const orderCheckRows = orderCheck as any[];
-  if (orderCheckRows.length === 0) {
-    throw new Error('Sipariş bulunamadı');
-  }
-
-  const paidAtIso = validated.paidAt || new Date().toISOString();
-  await assertPeriodWritable({
-    tenantId: context.tenantId,
-    period: periodFromDateInput(paidAtIso),
-    actionLabel: 'Ödeme kaydı',
-  });
-
-  // Insert payment
-  const result = await sql`
-    INSERT INTO payments (
-      tenant_id, order_id, amount, currency, method, paid_at, note, created_by
-    ) VALUES (
-      ${context.tenantId},
-      ${validated.orderId},
-      ${validated.amount},
-      ${validated.currency || 'TRY'},
-      ${validated.method},
-      ${paidAtIso},
-      ${validated.note || null},
-      ${context.userId}
-    )
-    RETURNING *
-  `;
+  const [previous] = validated.commandId ? await sql`SELECT result->>'paid_at' AS paid_at FROM production_commands WHERE tenant_id=${context.tenantId} AND actor_id=${context.userId} AND command_id=${validated.commandId}` : [];
+  const paidAt=validated.paidAt || previous?.paid_at || new Date().toISOString();
+  const row = await productionCommand({userId:context.userId,tenantId:context.tenantId,role:context.role},{commandId:validated.commandId || randomUUID(),action:'finance.payment.create',data:{orderId:validated.orderId,amount:validated.amount,currency:validated.currency,method:validated.method,paidAt,note:validated.note || ''}});
 
   revalidatePath('/finance');
   revalidatePath('/finance/payments');
   revalidatePath(`/orders/${validated.orderId}`);
 
-  const rows = result as any[];
-  const row = rows[0];
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -231,7 +199,7 @@ export async function getOrdersWithPayments(): Promise<OrderWithPayments[]> {
             o.currency,
             COALESCE(SUM(p.amount), 0) as paid_amount
           FROM orders o
-          LEFT JOIN payments p ON o.id = p.order_id AND p.tenant_id = o.tenant_id
+          LEFT JOIN payments p ON o.id = p.order_id AND p.tenant_id = o.tenant_id AND p.currency = o.currency
           WHERE o.tenant_id = ${context.tenantId}
           GROUP BY o.id, o.order_number, o.customer_name, o.status, o.created_at, o.delivery_date, o.total_amount, o.currency
           ORDER BY o.created_at DESC

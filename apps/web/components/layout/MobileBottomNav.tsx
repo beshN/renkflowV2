@@ -30,12 +30,13 @@ export function MobileBottomNav() {
       <div className="flex items-center justify-around py-2 px-1">
         {visibleItems.map((item) => {
           const isActive = pathname === item.href || 
-            (item.href !== '/dashboard' && pathname.startsWith(item.href));
+            (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));
           
           return (
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
                 'flex min-w-0 flex-1 flex-col items-center gap-0.5 py-1.5 px-1 rounded-lg transition-colors min-touch',
                 isActive
@@ -45,9 +46,9 @@ export function MobileBottomNav() {
             >
               <div className={cn(
                 'transition-transform',
-                isActive ? 'scale-110' : ''
+                isActive ? '' : ''
               )}>
-                <item.icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
               </div>
               <span className={cn(
                 'text-[10px] font-medium',

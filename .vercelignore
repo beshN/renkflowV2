@@ -1,0 +1,17 @@
+**/.env*
+!**/.env.example
+!**/.env.*.example
+**/.data/**
+**/node_modules/**
+**/.git/**
+**/.next/**
+**/.vercel/**
+**/coverage/**
+**/playwright-report/**
+**/test-results/**
+**/*.log
+**/*.pem
+**/*service-account*.json
+apps/mobile/**
+apps/dashboard/**
+patterns-demo/**
