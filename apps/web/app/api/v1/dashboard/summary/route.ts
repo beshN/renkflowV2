@@ -1,21 +1,10 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { sql } from '@/lib/db';
+import { AuthenticationError, getServerUserContext } from '@/lib/features/auth/serverAuth';
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Oturum gerekli.' }, { status: 401 });
-    }
-
-    const memberRows = await sql`
-      SELECT tenant_id FROM tenant_members
-      WHERE user_id = ${session.user.id}
-      ORDER BY created_at ASC LIMIT 1
-    `;
-    const tenantId = (memberRows[0] as any)?.tenant_id;
-    if (!tenantId) return NextResponse.json({ error: 'Tenant bulunamadı.' }, { status: 403 });
+    const { tenantId } = await getServerUserContext();
 
     const [orders, production, stock, overdue] = await Promise.all([
       sql`
@@ -64,7 +53,8 @@ export async function GET() {
         overdue: overdue[0],
       },
     });
-  } catch (error: any) {
+  } catch (error) {
+    if (error instanceof AuthenticationError) return NextResponse.json({ error: 'Oturum gerekli.' }, { status: 401 });
     console.error('[Dashboard Summary]', error);
     return NextResponse.json({ error: 'Özet yüklenemedi.' }, { status: 500 });
   }
