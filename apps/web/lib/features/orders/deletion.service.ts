@@ -3,15 +3,17 @@ import { randomUUID } from "node:crypto";
 import { sql, withTransaction } from "@/lib/db";
 import { deleteFile } from "@/lib/storage";
 import { WorkOrderApiError } from "../work-orders/security";
+import { recordAudit } from "@/lib/audit/audit-log";
 
 export async function deleteUnlinkedOrder(
   tenantId: string,
   orderId: string,
+  actorId?: string,
 ): Promise<void> {
   await withTransaction(async (tx) => {
     await tx`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId},0))`;
     const [order] =
-      await tx`SELECT id,status FROM orders WHERE tenant_id=${tenantId} AND id=${orderId} FOR UPDATE`;
+      await tx`SELECT id,status,order_number,customer_name FROM orders WHERE tenant_id=${tenantId} AND id=${orderId} FOR UPDATE`;
     if (!order) throw new WorkOrderApiError("Sipariş bulunamadı", 404);
     if (!["new", "pending", "pending_approval"].includes(order.status))
       throw new WorkOrderApiError(
@@ -42,6 +44,15 @@ export async function deleteUnlinkedOrder(
       SELECT tenant_id,order_id,file_path FROM documents WHERE tenant_id=${tenantId} AND order_id=${orderId}
       AND (file_path LIKE ${"orders/" + orderId + "/%"} OR file_path LIKE ${"uploads/" + tenantId + "/%"}) ON CONFLICT(tenant_id,file_path) DO NOTHING`;
     await tx`DELETE FROM orders WHERE tenant_id=${tenantId} AND id=${orderId}`;
+    // The record survives the order: who deleted which order number, committed with the delete.
+    await recordAudit(tx, {
+        tenantId,
+        actorId: actorId ?? null,
+        entityType: "order",
+        entityId: orderId,
+        action: "deleted",
+        metadata: { orderNumber: order.order_number, customerName: order.customer_name, status: order.status },
+      });
   });
 }
 

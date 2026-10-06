@@ -26,7 +26,7 @@ export interface IOrderService {
   /**
    * Create a new order
    */
-  createOrder(tenantId: string, formData: NewOrderFormData, files?: File[]): Promise<Order>;
+  createOrder(tenantId: string, formData: NewOrderFormData, files?: File[], actorId?: string): Promise<Order>;
 
   /**
    * Update an existing order
@@ -41,7 +41,7 @@ export interface IOrderService {
   /**
    * Delete an order
    */
-  deleteOrder(tenantId: string, id: string): Promise<void>;
+  deleteOrder(tenantId: string, id: string, actorId?: string): Promise<void>;
 
   /**
    * Add documents to an existing order

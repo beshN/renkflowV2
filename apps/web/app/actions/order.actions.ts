@@ -17,6 +17,7 @@ import {
 import { z } from 'zod';
 import { hasPermission, type Permission, type UserRole } from '@/lib/features/auth/permissions';
 import { visibleOrdersForActor } from '@/lib/features/orders/access';
+import { changedFields, recordAuditAfterCommit } from '@/lib/audit/audit-log';
 
 /**
  * Server Actions for Order Management
@@ -209,7 +210,7 @@ export async function createOrderAction(formData: FormData): Promise<Order> {
         customFields: parseCustomFieldsFromFormData(formData),
       };
 
-      const order = await orderService.createOrder(session.user.tenantId, data, files);
+      const order = await orderService.createOrder(session.user.tenantId, data, files, session.user.id);
 
       invalidateOrderCaches(session.user.tenantId, order.id);
       revalidatePath('/orders');
@@ -249,7 +250,10 @@ export async function updateOrderAction(id: string, updates: Partial<Order>): Pr
         sanitizedUpdates.customFields = normalizeCustomFields(customFields);
       }
 
+      const before = await orderService.getOrderById(session.user.tenantId, id);
       const order = await orderService.updateOrder(session.user.tenantId, id, sanitizedUpdates);
+      const changes = before ? changedFields(before as unknown as Record<string, unknown>, sanitizedUpdates as Record<string, unknown>) : {};
+      if (Object.keys(changes).length) await recordAuditAfterCommit({ tenantId: session.user.tenantId, actorId: session.user.id, entityType: 'order', entityId: id, action: 'updated', changes });
 
       invalidateOrderCaches(session.user.tenantId, id);
       revalidatePath('/orders');
@@ -323,7 +327,7 @@ export async function deleteOrderAction(id: string): Promise<void> {
         throw new Error('Sipariş ID gerekli');
       }
 
-      await orderService.deleteOrder(session.user.tenantId, id);
+      await orderService.deleteOrder(session.user.tenantId, id, session.user.id);
 
       invalidateOrderCaches(session.user.tenantId, id);
       revalidatePath('/orders');

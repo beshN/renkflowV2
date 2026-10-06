@@ -1,3 +1,4 @@
+import { recordAuditAfterCommit } from '@/lib/audit/audit-log';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
@@ -48,6 +49,7 @@ export async function DELETE(
     if (deletedRows.length === 0) {
       return NextResponse.json({ error: 'Invite not found' }, { status: 404 });
     }
+    await recordAuditAfterCommit({ tenantId: session.user.tenantId, actorId: session.user.id, entityType: 'tenant', entityId: session.user.tenantId, action: 'invite_revoked', metadata: { email: deletedRows[0].email } });
 
     return NextResponse.json({
       success: true,

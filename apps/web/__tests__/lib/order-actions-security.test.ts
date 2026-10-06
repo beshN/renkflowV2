@@ -110,5 +110,6 @@ it("retains each product configuration and negotiated price through the server-a
       ],
     }),
     [],
+    "office", // actor id: the order and its audit record are created together
   );
 });

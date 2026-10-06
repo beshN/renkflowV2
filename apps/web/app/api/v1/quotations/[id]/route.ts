@@ -1,3 +1,4 @@
+import { recordAuditAfterCommit } from "@/lib/audit/audit-log";
 import { WorkOrderApiError } from "@/lib/features/work-orders/security";
 import { requireSameOriginJson } from "@/lib/features/manufacturing/http-security";
 import { NextRequest } from "next/server";
@@ -78,6 +79,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         id,
         validStatus,
         expectedVersion,
+        user.id,
       );
       return successResponse(quotation, "Durum güncellendi");
     }
@@ -88,6 +90,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       id,
       parsedData,
     );
+    await recordAuditAfterCommit({ tenantId: user.tenantId, actorId: user.id, entityType: "quotation", entityId: id, action: "updated", metadata: { fields: Object.keys(body).filter((key) => key !== "expectedVersion") } });
     return successResponse(quotation, "Teklif güncellendi");
   } catch (error: any) {
     if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);
@@ -113,6 +116,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     await quotationService.deleteQuotation(user.tenantId, id);
+    await recordAuditAfterCommit({ tenantId: user.tenantId, actorId: user.id, entityType: "quotation", entityId: id, action: "deleted" });
     return successResponse({ success: true }, "Teklif silindi");
   } catch (error: any) {
     if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);

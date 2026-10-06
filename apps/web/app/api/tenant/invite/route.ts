@@ -1,3 +1,4 @@
+import { recordAudit } from '@/lib/audit/audit-log';
 import { NextRequest, NextResponse } from 'next/server';
 import { withTransaction } from '@/lib/db';
 import { sendInviteEmail } from '@/lib/email';
@@ -103,6 +104,7 @@ export async function POST(request: NextRequest) {
       if (invitationRows.length === 0) {
         throw new Error('Invitation could not be created');
       }
+      await recordAudit(tx, { tenantId, actorId: context.userId, entityType: 'tenant', entityId: tenantId, action: 'member_invited', metadata: { email, role } });
 
       return invitationRows[0].token;
     });

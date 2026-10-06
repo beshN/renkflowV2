@@ -31,6 +31,7 @@ import { evaluateQuality, QualityChecksSchema } from "./quality";
 import { executeWarehouse } from "../warehouse/service";
 import { executeFinance } from "../finance/workspace.service";
 import { executeProcurement } from "./purchasing.service";
+import { recordAudit, UUID_PATTERN } from "@/lib/audit/audit-log";
 const uuid = z.string().uuid();
 const text = z.string().trim().min(1).max(180);
 const num = (v: unknown) => Number(v || 0);
@@ -225,7 +226,30 @@ export async function productionCommand(a: WorkOrderActor, raw: unknown) {
     );
     await tx`INSERT INTO production_commands(tenant_id,command_id,actor_id,request_hash,result)VALUES(${a.tenantId},${command.commandId},${a.userId},${hash},${js(result || { ok: true })}::text::jsonb)`;
     await event(tx, a, command.action, { commandId: command.commandId });
+    // Money movements also go to the firm audit trail; a replayed command returned above without a second record.
+    if (command.action.startsWith("finance.")) await recordFinanceAudit(tx, a, command, result);
     return result || { ok: true };
+  });
+}
+const FINANCE_AUDIT_ENTITY: Record<string, string> = { payment: "payment", employee: "employee", ledger: "employee_ledger_entry" };
+const FINANCE_AUDIT_FIELDS = ["id", "orderId", "employeeId", "amount", "currency", "method", "paidAt", "kind", "entryDate", "fullName", "active"];
+
+/** finance.payment.create → payment / payment.create: the same vocabulary as AuditLogService. */
+async function recordFinanceAudit(tx: any, a: WorkOrderActor, command: { action: string; commandId: string; data: Record<string, unknown> }, result: unknown) {
+  const action = command.action.slice("finance.".length);
+  const id = (result as { id?: unknown } | undefined)?.id;
+  const details: Record<string, unknown> = {};
+  for (const key of FINANCE_AUDIT_FIELDS) {
+    const value = command.data[key];
+    if (["string", "number", "boolean"].includes(typeof value)) details[key] = typeof value === "string" ? value.slice(0, 120) : value;
+  }
+  await recordAudit(tx, {
+    tenantId: a.tenantId,
+    actorId: a.userId,
+    entityType: FINANCE_AUDIT_ENTITY[action.split(".")[0]] || "finance",
+    entityId: typeof id === "string" && UUID_PATTERN.test(id) ? id : a.tenantId,
+    action,
+    metadata: { ...details, commandId: command.commandId },
   });
 }
 async function execute(

@@ -12,6 +12,7 @@ import {
   formatValidationErrors 
 } from '@/lib/validations/order.schema';
 import { ZodError } from 'zod';
+import { changedFields, recordAuditAfterCommit } from '@/lib/audit/audit-log';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -113,6 +114,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const order = await orderService.updateOrder(user.tenantId, id, validationResult.data);
+    const changes = changedFields(existingOrder as unknown as Record<string, unknown>, validationResult.data as Record<string, unknown>);
+    if (Object.keys(changes).length) await recordAuditAfterCommit({ tenantId: user.tenantId, actorId: user.id, entityType: 'order', entityId: id, action: 'updated', changes });
     
     return successResponse(order, 'Sipariş başarıyla güncellendi');
   } catch (error: unknown) {
@@ -170,7 +173,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return errorResponse('Sipariş bulunamadı', 404);
     }
 
-    await orderService.deleteOrder(user.tenantId, id);
+    await orderService.deleteOrder(user.tenantId, id, user.id);
     
     return successResponse({ id }, 'Sipariş başarıyla silindi');
   } catch (error: unknown) {

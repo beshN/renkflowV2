@@ -1,6 +1,7 @@
 import { verifiedFileKey } from "@/lib/storage/upload-reference";
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { deleteUnlinkedOrder } from '../deletion.service';
+import { recordAudit } from '@/lib/audit/audit-log';
 import { applyAwning } from "../../awning/configuration";
 import { Order, NewOrderFormData, safeParseCurrency } from '@/lib/types';
 import { IOrderService, TenantMismatchError } from '../types';
@@ -214,7 +215,8 @@ export class PostgresOrderService implements IOrderService {
     };
   }
 
-  async createOrder(tenantId: string, formData: NewOrderFormData, files?: File[]): Promise<Order> {
+  /** The audit record is written in the same transaction as the order (actor null if unknown). */
+  async createOrder(tenantId: string, formData: NewOrderFormData, files?: File[], actorId?: string): Promise<Order> {
     // console.log('[PostgresOrderService] createOrder called', { tenantId, ... });
 
     // Generate unique order number
@@ -290,6 +292,15 @@ export class PostgresOrderService implements IOrderService {
             }
           }
         }
+
+        await recordAudit(tx.sql, {
+          tenantId,
+          actorId: actorId ?? null,
+          entityType: 'order',
+          entityId: orderId,
+          action: 'created',
+          metadata: { orderNumber, items: formData.items?.length ?? 0, files: files?.length ?? 0 },
+        });
 
         return orderId;
       }, { timeout: 60000 }); // Increase timeout to 60s for file uploads
@@ -396,8 +407,8 @@ export class PostgresOrderService implements IOrderService {
     return this.getOrderById(tenantId, id) as Promise<Order>;
   }
 
-  async deleteOrder(tenantId: string, id: string): Promise<void> {
-    await deleteUnlinkedOrder(tenantId, id);
+  async deleteOrder(tenantId: string, id: string, actorId?: string): Promise<void> {
+    await deleteUnlinkedOrder(tenantId, id, actorId);
   }
 
   async addDocuments(tenantId: string, id: string, files: File[]): Promise<Order> {
