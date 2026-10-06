@@ -1,36 +1,44 @@
 # RenkFlow V2
 
-Professional ERP & Order Management Platform
+Renk Alüminyum için sipariş, üretim, depo ve finans yönetim platformu.
 
-## Monorepo Structure
+## Yapı
 
 ```
-RenkFlow V2/
-├── apps/              # Applications
-│   ├── web/           # Next.js Web App (renkflow-nextjs)
-│   ├── mobile/        # React Native Mobile App
-│   └── dashboard/     # Dashboard Application
-├── packages/          # Shared packages (empty - for future shared code)
-├── .github/           # GitHub workflows
-├── package.json       # Root monorepo config
-└── .gitignore         # Global ignore patterns
+apps/
+├── web/      # Next.js 16 web uygulaması (ana ürün, Vercel'de yayınlanır)
+└── mobile/   # Expo / React Native saha uygulaması
+docs/         # Geliştirici devir notları
 ```
 
-## Quick Start
+## Web uygulaması
+
+Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS, PostgreSQL (`postgres` + Drizzle), NextAuth v5, Vercel Blob.
 
 ```bash
-# Web App
-npm run dev:web
-
-# Mobile App  
-npm run dev:mobile
-
-# Dashboard
-npm run build:dashboard
+cd apps/web
+npm ci --workspaces=false --legacy-peer-deps
+cp .env.example .env.local   # değerleri doldurun
+npm run db:migrate           # şemayı uygular (rate_limit_buckets dahil)
+npm run dev
 ```
 
-## Apps
+### Doğrulama
 
-- **Web**: Next.js 15, TypeScript, Tailwind CSS, Drizzle ORM
-- **Mobile**: React Native / Expo
-- **Dashboard**: Analytics & Reporting Interface
+CI ve yerel kontrol aynı komutu kullanır:
+
+```bash
+npm run validate   # guardrail'ler + type-check + lint + jest + build
+```
+
+### Yayınlama
+
+Yalnızca Vercel kullanılır. `main` dalına yapılan push'lar Vercel Git entegrasyonu ile yayınlanır; veritabanı migration'ları `npm run db:deploy` ile ayrı bir sürüm adımı olarak çalıştırılır. Ayrıntılar: [`apps/web/docs/vercel-deployment.md`](apps/web/docs/vercel-deployment.md).
+
+## Mobil uygulama
+
+```bash
+cd apps/mobile
+npm install
+npm start
+```

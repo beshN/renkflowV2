@@ -2,7 +2,7 @@
   "name": "renkflow-monorepo",
   "private": true,
   "version": "1.0.0",
-  "description": "RenkFlow Monorepo - Web, Mobile & Dashboard Applications",
+  "description": "RenkFlow monorepo - web platform and mobile app",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -11,7 +11,6 @@
     "dev:web": "cd apps/web && npm run dev",
     "dev:mobile": "cd apps/mobile && npm start",
     "build:web": "cd apps/web && npm run build",
-    "build:dashboard": "cd apps/dashboard && npm run build",
     "vercel-build": "cd apps/web && npm run build",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "test": "npm run test --workspaces",
