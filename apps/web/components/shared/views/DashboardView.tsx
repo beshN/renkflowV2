@@ -32,6 +32,7 @@ import {
   PieChart,
   Activity,
 } from 'lucide-react';
+import { CutLoader } from '@/components/brand/CutLoader';
 
 // ============================================
 // Types
@@ -455,9 +456,7 @@ export function DashboardView({ data, isLoading = false }: DashboardViewProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-      </div>
+      <CutLoader variant="area" className="h-full" />
     );
   }
 

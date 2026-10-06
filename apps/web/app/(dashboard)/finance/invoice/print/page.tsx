@@ -11,6 +11,7 @@ import { listPaymentsByOrder } from '@/app/actions/finance.payments.actions';
 import { normalizeCurrencyInput } from '@/lib/utils/currency';
 import { type Order } from '@/lib/types';
 import { type Payment } from '@/lib/types/finance';
+import { CutLoader } from '@/components/brand/CutLoader';
 
 interface InvoiceModel {
   invoiceNumber: string;
@@ -184,8 +185,7 @@ export default function InvoicePrintPage() {
 
       {loading ? (
         <div className="w-full max-w-[210mm] rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-sky-600 border-t-transparent" />
-          <p className="text-sm text-slate-600">Fatura şablonu hazırlanıyor...</p>
+          <CutLoader variant="inline" label="Fatura şablonu hazırlanıyor" />
         </div>
       ) : null}
 

@@ -7,6 +7,7 @@ import { usePDFStore } from '@/stores/usePDFStore';
 import { cn } from '@/lib/utils';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
+import { CutLoader } from '@/components/brand/CutLoader';
 
 type OnDocumentLoadSuccess = NonNullable<React.ComponentProps<typeof Document>['onLoadSuccess']>;
 
@@ -230,8 +231,8 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
           renderAnnotationLayer={enableAnnotationLayer}
           devicePixelRatio={renderQuality}
           loading={
-            <div className="flex items-center justify-center w-full h-[842px] bg-slate-100">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent" />
+            <div className="flex h-[842px] w-full items-center justify-center bg-slate-100">
+              <CutLoader variant="inline" />
             </div>
           }
         />
