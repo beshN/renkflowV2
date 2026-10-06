@@ -263,32 +263,53 @@ export const ROUTE_PERMISSIONS: Record<string, Permission[]> = {
   '/customers': ['customers.view'],
   '/inventory': ['inventory.view'],
   '/inventory/new': ['inventory.edit'],
+  '/crm': ['customers.view'],
+  '/accounting': ['finance.view'],
+  '/new-order': ['orders.create'],
 };
+
+/**
+ * Screens limited by role rather than by a single permission. The menu reads its
+ * `allowedRoles` from here (lib/core/dashboard-nav.ts), proxy.ts enforces it, so a
+ * hidden menu item cannot be opened by typing its address. Exception: the warehouse
+ * menu item is hidden from workers, who still use the warehouse scan/labels screens.
+ * '/work-orders/new' matches the work-order 'create' roles in work-orders/security.ts.
+ */
+export const ROUTE_ROLES: Record<string, UserRole[]> = {
+  '/quotations': ['owner', 'admin', 'office', 'accountant'],
+  '/production': ['owner', 'admin', 'office'],
+  '/factory': ['owner', 'admin', 'office', 'worker'],
+  '/shipments': ['owner', 'admin', 'office'],
+  '/scrap': ['owner', 'admin', 'office', 'accountant'],
+  '/purchases': ['owner', 'admin', 'office', 'accountant'],
+  '/receipts': ['owner', 'admin', 'office', 'accountant'],
+  '/suppliers': ['owner', 'admin', 'office', 'accountant'],
+  '/warehouse': ['owner', 'admin', 'office', 'accountant', 'worker'],
+  '/work-orders/new': ['owner', 'admin', 'office', 'accountant'],
+};
+
+function longestRouteMatch<T>(map: Record<string, T>, pathname: string): T | undefined {
+  let best: string | undefined;
+  for (const route of Object.keys(map)) {
+    if ((pathname === route || pathname.startsWith(route + '/')) && (!best || route.length > best.length)) best = route;
+  }
+  return best === undefined ? undefined : map[best];
+}
 
 /**
  * Get required permissions for a route
  */
 export function getRoutePermissions(pathname: string): Permission[] {
-  // Check exact match first
-  if (ROUTE_PERMISSIONS[pathname]) {
-    return ROUTE_PERMISSIONS[pathname];
-  }
-
-  // Check prefix matches
-  for (const [route, permissions] of Object.entries(ROUTE_PERMISSIONS)) {
-    if (pathname.startsWith(route + '/')) {
-      return permissions;
-    }
-  }
-
-  return [];
+  // The most specific route wins: '/finance/payments/x' needs finance.payments.view, not finance.view.
+  return longestRouteMatch(ROUTE_PERMISSIONS, pathname) ?? [];
 }
 
 /**
  * Check if user can access a specific route
  */
 export function canAccessRoute(role: UserRole, pathname: string): boolean {
-  if (pathname === '/warehouse' || pathname.startsWith('/warehouse/')) return ['owner','admin','office','accountant','worker'].includes(role);
+  const allowedRoles = longestRouteMatch(ROUTE_ROLES, pathname);
+  if (allowedRoles && !allowedRoles.includes(role)) return false;
   const requiredPermissions = getRoutePermissions(pathname);
   if (requiredPermissions.length === 0) return true; // No permissions required
   return hasAnyPermission(role, requiredPermissions);

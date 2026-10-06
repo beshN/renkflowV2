@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { apiContextWithPermission } from '@/lib/features/auth/api-access';
 import { getExportDownload } from '@/lib/export/service';
 import { consumeRateLimit, rateLimitResponse } from '@/lib/security/rate-limit';
 import { isMissingRelationError } from '@/lib/db/schema-guard';
@@ -20,18 +20,16 @@ export async function GET(
   { params }: RouteParams
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.tenantId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { context, denied } = await apiContextWithPermission('reports.view');
+    if (denied) return denied;
 
-    const rateLimitResult = await consumeRateLimit('exportRead', session.user.id || session.user.tenantId);
+    const rateLimitResult = await consumeRateLimit('exportRead', context.userId);
     if (!rateLimitResult.allowed) {
       return rateLimitResponse(rateLimitResult);
     }
 
     const { id } = await params;
-    const download = await getExportDownload(id, session.user.tenantId);
+    const download = await getExportDownload(id, context.tenantId);
     if (!download) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }

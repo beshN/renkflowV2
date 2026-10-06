@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { apiContextWithPermission } from '@/lib/features/auth/api-access';
 import { getCustomerMetrics } from '@/lib/analytics/reporting';
 
 function parseDate(value: string | null, fallback: Date) {
@@ -9,10 +9,8 @@ function parseDate(value: string | null, fallback: Date) {
 }
 
 export async function GET(request: Request) {
-  const session = await auth();
-  if (!session?.user?.tenantId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { context, denied } = await apiContextWithPermission('reports.view');
+  if (denied) return denied;
 
   const { searchParams } = new URL(request.url);
   const endDate = parseDate(searchParams.get('endDate'), new Date());
@@ -21,6 +19,6 @@ export async function GET(request: Request) {
     new Date(Date.now() - 1000 * 60 * 60 * 24 * 30)
   );
 
-  const data = await getCustomerMetrics(session.user.tenantId, { startDate, endDate });
+  const data = await getCustomerMetrics(context.tenantId, { startDate, endDate });
   return NextResponse.json({ success: true, data });
 }
