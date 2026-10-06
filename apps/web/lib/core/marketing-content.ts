@@ -15,13 +15,13 @@ export type MarketingPageEntry = {
 export const marketingPages = {
   about: {
     badge: 'Hakkımızda',
-    title: 'Alüminyum atölyesinin gerçek iş akışından doğan bir yazılım.',
+    title: 'Pergola ve cam sistemleri üretiminin gerçek iş akışından doğan bir yazılım.',
     description:
-      'RenkFlow, Renk Alüminyum’un sipariş masasından kesim tezgâhına kadar yaşadığı günlük sorunları çözmek için geliştirildi. Tablolar, defterler ve mesaj grupları yerine herkesin aynı veriye baktığı tek bir çalışma alanı.',
+      'RenkFlow, Renk Alüminyum’un pergola, giyotin cam, tente ve tavan projelerinde keşiften montaja kadar yaşadığı günlük sorunları çözmek için geliştirildi. Her proje ölçüye özel; tablolar, defterler ve mesaj grupları yerine herkesin aynı veriye baktığı tek bir çalışma alanı.',
     primaryCta: { href: '/contact', label: 'Bizimle görüşün' },
     secondaryCta: { href: '/features', label: 'Özellikleri inceleyin' },
     highlights: [
-      { title: 'Sahadan geliştirildi', detail: 'Her ekran, ofis ve üretim ekibinin gerçek kullanımında test edilerek şekillendi.' },
+      { title: 'Sahadan geliştiriliyor', detail: 'Her ekran önce Renk Alüminyum’un ofis ve üretim ekibinin günlük işinde denenir.' },
       { title: 'Tek kaynak', detail: 'Sipariş, stok ve sevkiyat bilgisi aynı kayıttan okunur; kopya tablo tutulmaz.' },
       { title: 'Uzun vadeli', detail: 'Platform, firmanın büyümesine göre yeni modüllerle genişleyecek şekilde tasarlandı.' },
     ],
@@ -30,14 +30,14 @@ export const marketingPages = {
     badge: 'Özellikler',
     title: 'Siparişten sevkiyata, üretimin her adımı için bir modül.',
     description:
-      'Teklif hazırlamaktan profil kesimine, raf yönetiminden faturaya kadar alüminyum üretiminin bütün halkaları birbirine bağlı çalışır.',
+      'Ölçüye özel her pergola, giyotin cam, tente ve tavan projesinde teklif, profil kesimi, depo ve fatura birbirine bağlı çalışır.',
     primaryCta: { href: '/contact', label: 'Demo talep edin' },
     secondaryCta: { href: '/docs', label: 'Dokümantasyon' },
     highlights: [
-      { title: 'Sipariş yönetimi', detail: 'Ölçüler, RAL/yüzey, seri ve teknik çizimler siparişle birlikte saklanır. Durum her aşamada güncellenir.' },
-      { title: 'Kesim optimizasyonu', detail: 'Profil boylarına göre kesim planı çıkarılır, fire ve artık parçalar kayda geçer.' },
+      { title: 'Sipariş yönetimi', detail: 'Proje ölçüleri, RAL rengi, profil kodları ve teknik çizimler siparişle birlikte saklanır. Durum her aşamada güncellenir.' },
+      { title: 'Kesim optimizasyonu', detail: 'Stoktaki 6–10 metrelik boylar ve artık parçalardan kesim planı çıkarılır; kalan parçalar ölçüsüyle kayda geçer.' },
       { title: 'Üretim ve iş emirleri', detail: 'İstasyon yükü, operasyon süresi ve darboğazlar canlı izlenir. Usta ekranı sahada kullanıma uygundur.' },
-      { title: 'Depo ve raf takibi', detail: 'Her profil ve aksesuar rafıyla birlikte tutulur. QR etiketle giriş, çıkış ve sayım yapılır.' },
+      { title: 'Depo ve raf takibi', detail: 'Profiller kod, renk ve boy bazında, aksesuarlar adet bazında rafıyla birlikte tutulur. Etiketle giriş ve sayım yapılır.' },
       { title: 'Satın alma ve mal kabul', detail: 'Tedarikçi siparişleri, kısmi teslimler ve stok girişleri birbirine bağlıdır.' },
       { title: 'Finans ve raporlama', detail: 'Teklif, fatura, tahsilat ve sipariş kârlılığı aynı ekranda; dışa aktarım CSV olarak alınır.' },
     ],
@@ -64,7 +64,7 @@ export const marketingPages = {
     secondaryCta: { href: '/docs', label: 'API dokümantasyonu' },
     highlights: [
       { title: 'REST API', detail: 'Sipariş, stok ve sevkiyat verisine sürümlenmiş uç noktalardan erişilir.' },
-      { title: 'E-posta ve WhatsApp', detail: 'Gelen talepler taslak siparişe dönüşür; müşteri bildirimleri otomatik gönderilir.' },
+      { title: 'E-posta ve WhatsApp', detail: 'Gelen talepleri taslak siparişe dönüştürmek ve müşteriyi bilgilendirmek için tasarlandı.' },
       { title: 'Etiket ve barkod', detail: 'QR etiketleri doğrudan yazdırılır, el terminali ve kamera ile okutulur.' },
     ],
   },
@@ -86,7 +86,7 @@ export const marketingPages = {
     title: 'Verileriniz yalnızca yetkili kişilere açık.',
     description:
       'Her kullanıcı rolüne göre yalnızca kendi işini görür. Kritik işlemler kayıt altına alınır, oturumlar ve giriş denemeleri sürekli denetlenir.',
-    primaryCta: { href: '/contact', label: 'Güvenlik ekibiyle görüşün' },
+    primaryCta: { href: '/contact', label: 'Güvenlik hakkında sorun' },
     secondaryCta: { href: '/privacy', label: 'Gizlilik politikası' },
     highlights: [
       { title: 'Rol bazlı yetki', detail: 'Yönetici, ofis, muhasebe ve üretim rolleri farklı ekran ve işlemlere erişir.' },
@@ -221,45 +221,31 @@ export type BlogPost = {
 
 export const blogPosts: BlogPost[] = [
   {
-    id: 'operasyon-v2',
-    category: 'Sürüm',
-    title: 'Operasyon Çekirdeği V2: Sayfa mimarisi ve akışlar yeniden kuruldu',
+    id: 'olcuye-ozel-kesim',
+    category: 'Üretim',
+    title: 'Ölçüye özel projelerde kesim planı nasıl çıkıyor?',
     summary:
-      'Dashboard, sipariş ve finans ekranları aynı tasarım ve veri davranışına getirildi. Bu sürüm, günlük operasyon kararlarını hızlandırmak için tasarlandı.',
-    date: '14 Şubat 2026',
-    author: 'Ürün ve Mühendislik Ekibi',
+      'Hiçbir pergola bir öncekiyle aynı ölçüde değil. RenkFlow kesim listesini siparişin kendi ölçülerinden çıkarıyor ve stoktaki farklı boyları birlikte değerlendiriyor.',
+    date: '6 Ekim 2026',
+    author: 'RenkFlow ekibi',
     content: [
-      'Bu sürümde ana öncelik hız değil, sürdürülebilir kaliteydi. Sayfa yapıları modüler şablonlara ayrıldı ve tekrar eden UI davranışları tek bir dilde toplandı.',
-      'Siparişten faturaya uzanan akışta kullanıcıya gösterilen karar noktaları azaltıldı. Böylece operatörlerin kritik aksiyonları daha kısa sürede tamamlaması hedeflendi.',
-      'Bir sonraki adımda, ekran bazlı performans ölçümleri ve rol bazlı kişiselleştirme katmanı devreye alınacak.',
+      'Pergola, giyotin cam ve tente projelerinde standart bir modül yok; her iş keşifte alınan ölçülerle başlıyor. Bu yüzden kesim listesi de her siparişte yeniden hesaplanmalı.',
+      'Profiller depoya 6 ile 10 metre arasında farklı boylarda geliyor. Kesim planı, siparişteki parçaları bu boylara ve önceki işlerden kalan artık parçalara yerleştirerek en az artığı hedefliyor.',
+      'Kesimden sonra kalan parça ölçüsüyle stoğa geri yazılıyor. Böylece bir sonraki projede o artık da plana dahil ediliyor.',
     ],
   },
   {
-    id: 'pdf-guvenilirlik',
-    category: 'Altyapı',
-    title: 'Belge katmanı güçlendirildi: PDF görüntüleme artık daha kararlı',
+    id: 'stok-kod-renk-boy',
+    category: 'Depo',
+    title: 'Stok neden kod, renk ve boy bazında tutulmalı?',
     summary:
-      'Signed URL bağımlılığını azaltan same-origin içerik modeli ile belge akışı daha güvenli ve kesintiye dayanıklı hale getirildi.',
-    date: '12 Şubat 2026',
-    author: 'Platform Ekibi',
+      'Aynı profil farklı renk ve boylarda farklı bir stok kalemidir. Toplam metre tek başına kesim planı için yeterli değil.',
+    date: '6 Ekim 2026',
+    author: 'RenkFlow ekibi',
     content: [
-      'Belge görüntüleme hatalarının önemli kısmı, farklı origin ve geçici URL davranışlarından kaynaklanıyordu. Yeni modelde dokümanlar kontrollü API katmanından servis ediliyor.',
-      'Kullanıcı arayüzünde hata durumları sadeleştirildi; açık mesajlar ve alternatif aksiyonlar tanımlandı.',
-      'Bu temel, ilerleyen sürümlerde doküman versiyonlama ve denetim geçmişi özelliklerini desteklemek için hazırlandı.',
-    ],
-  },
-  {
-    id: 'sidebar-redesign',
-    category: 'Deneyim',
-    title: 'Sidebar deneyimi yeniden tasarlandı: kategori odaklı, tutarlı ve akıcı',
-    summary:
-      'Menü yoğunluğu azaltıldı, hover/pin davranışları netleştirildi ve marka geçiş animasyonları profesyonel bir profile taşındı.',
-    date: '10 Şubat 2026',
-    author: 'Design Systems Ekibi',
-    content: [
-      'Eski menü yapısında aksiyonlar görsel olarak dağınık görünüyordu. Yeni düzen kategori başlıklarıyla okunabilirliği artırıyor.',
-      'Desktop ve mobil davranışları ayrıştırılarak çakışan etkileşimler temizlendi.',
-      'Yeni yapı, bir sonraki fazda kullanıcı rolüne göre menü kişiselleştirmesinin temelini oluşturuyor.',
+      'Sayım listelerinde stok çoğu zaman toplam metre olarak tutulur. Ancak 40 metre stok, dört adet 10 metrelik boy da olabilir, sekiz kısa artık parça da. Kesim planı için ikisi çok farklı sonuç verir.',
+      'RenkFlow’da her kalem profil kodu, renk ve boy bilgisiyle izlenir. Boyalı, delikli veya hazır gibi işlenmiş hâller ayrı kalem olarak takip edilir.',
+      'Gelen paketler raf etiketiyle eşleşir; kesimle birlikte kullanılan boy stoktan düşer, kalan parça yeni kalem olarak eklenir.',
     ],
   },
 ];
@@ -274,47 +260,5 @@ export type CareerPost = {
   responsibilities: string[];
 };
 
-export const careers: CareerPost[] = [
-  {
-    id: 'frontend-engineer',
-    title: 'Senior Frontend Engineer',
-    team: 'Product Engineering',
-    location: 'Istanbul',
-    mode: 'Hybrid',
-    summary:
-      'Dashboard ve operasyon ekranlarında yüksek kalite, performans ve sürdürülebilir component mimarisi geliştirecek kıdemli frontend mühendisi arıyoruz.',
-    responsibilities: [
-      'Next.js ve TypeScript tabanlı üretim ekranlarının teknik yönünü sahiplenmek.',
-      'Tasarım sistemi ile uygulama katmanı arasında güçlü bir sözleşme kurmak.',
-      'Kritik iş akışlarında performans ve erişilebilirlik standartlarını yükseltmek.',
-    ],
-  },
-  {
-    id: 'product-designer',
-    title: 'Product Designer',
-    team: 'Design',
-    location: 'Istanbul',
-    mode: 'Remote',
-    summary:
-      'Operasyon ve finans süreçleri için sade ama güçlü kullanıcı deneyimleri tasarlayacak ürün tasarımcısı arıyoruz.',
-    responsibilities: [
-      'Karmaşık iş akışlarını karar dostu ekranlara çevirmek.',
-      'Araştırma içgörülerini ürün önceliklerine dönüştürmek.',
-      'Design tokens ve component dilini ekip genelinde standartlaştırmak.',
-    ],
-  },
-  {
-    id: 'backend-engineer',
-    title: 'Backend Engineer',
-    team: 'Platform',
-    location: 'Istanbul',
-    mode: 'Hybrid',
-    summary:
-      'Çok kiracılı veri modeli ve güvenli API katmanını ölçekli şekilde geliştirecek backend mühendisi arıyoruz.',
-    responsibilities: [
-      'Tenant izolasyonu ve yetkilendirme modelini güvenli şekilde sürdürmek.',
-      'Sipariş, belge ve finans servislerinde kararlılık odaklı iyileştirmeler yapmak.',
-      'Gözlemlenebilirlik ve hata yönetimi altyapılarını ürünle entegre geliştirmek.',
-    ],
-  },
-];
+// No open positions are published; the careers page invites open applications.
+export const careers: CareerPost[] = [];

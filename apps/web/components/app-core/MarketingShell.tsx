@@ -60,7 +60,7 @@ export function MarketingShell({ badge, title, description, actions = [], childr
           <Reveal>
             <div className="flex flex-wrap items-end justify-between gap-8 rounded-2xl border border-border bg-muted/50 px-8 py-12 md:px-14 md:py-14">
               <div className="max-w-xl">
-                <h2 className="text-[clamp(24px,2.8vw,34px)] font-semibold leading-tight tracking-[-0.035em]">RenkFlow’u kendi siparişlerinizle görün.</h2>
+                <h2 className="text-[clamp(24px,2.8vw,34px)] font-semibold leading-tight tracking-[-0.035em]">RenkFlow’u kendi projelerinizle görün.</h2>
                 <p className="mt-3 text-[15px] leading-7 text-muted-foreground">30 dakikalık bir görüşmede ekibinizin iş akışını birlikte kurgulayalım.</p>
               </div>
               <div className="flex flex-wrap gap-3">

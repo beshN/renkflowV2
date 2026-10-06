@@ -3,7 +3,7 @@ import { BrandMark } from '@/components/brand/BrandMark';
 
 const COLUMNS = [
   { title: 'Ürün', links: [['Özellikler', '/features'], ['Entegrasyonlar', '/integrations'], ['Fiyatlandırma', '/pricing'], ['Yol haritası', '/roadmap'], ['Sürüm notları', '/changelog']] },
-  { title: 'Şirket', links: [['Hakkımızda', '/about'], ['Kariyer', '/careers'], ['Basın', '/press'], ['İletişim', '/contact']] },
+  { title: 'Şirket', links: [['Hakkımızda', '/about'], ['Basın', '/press'], ['İletişim', '/contact']] },
   { title: 'Kaynaklar', links: [['Dokümantasyon', '/docs'], ['Blog', '/blog'], ['Sık sorulanlar', '/faq'], ['Sistem durumu', '/status']] },
   { title: 'Yasal', links: [['Gizlilik', '/privacy'], ['Kullanım koşulları', '/terms'], ['Çerezler', '/cookies'], ['Güvenlik', '/security']] },
 ] as const;
@@ -14,7 +14,7 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-6xl gap-12 px-5 py-14 sm:px-8 md:grid-cols-[1.4fr_repeat(4,1fr)]">
         <div className="max-w-xs">
           <BrandMark href="/" />
-          <p className="mt-4 text-[13px] leading-6 text-muted-foreground">Alüminyum üreticileri için sipariş, üretim, depo ve sevkiyat yönetimi.</p>
+          <p className="mt-4 text-[13px] leading-6 text-muted-foreground">Pergola ve cam sistemleri için keşiften montaja operasyon yönetimi.</p>
           <a href="mailto:info@renkflow.com" className="mt-4 inline-block text-[13px] text-foreground underline-offset-4 hover:underline">info@renkflow.com</a>
         </div>
         {COLUMNS.map((column) => (

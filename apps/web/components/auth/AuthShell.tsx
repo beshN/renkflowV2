@@ -11,16 +11,16 @@ import { Magnifier } from '@/components/spells/Magnifier';
 const EASE = [0.2, 0.8, 0.2, 1] as const;
 
 const EVENTS = [
-  ['09:41', 'RF-1042', 'Kesim tamamlandı', 'İstasyon K-02'],
-  ['09:42', 'RF-1040', 'Kalite onayı verildi', 'QC-1'],
-  ['09:44', 'RAF-0942', 'Stok girişi · 48 boy', 'A blok · B4'],
-  ['09:46', 'RF-1038', 'Sevkiyata hazır', 'Rampa 3'],
+  ['09:41', 'RF-1042', 'Pergola kesimi tamamlandı', 'Kesim K-02'],
+  ['09:42', 'RF-1041', 'Boya onayı · RAL 9016', 'Boyahane'],
+  ['09:44', 'PKT-0942', 'Paket girişi · 24 boy', 'A blok · B4'],
+  ['09:46', 'RF-1038', 'Montaja hazır', 'Rampa 3'],
 ] as const;
 
 const POINTS = [
   { icon: Workflow, label: 'Siparişten sevkiyata tek akış' },
-  { icon: QrCode, label: 'QR ile parça izlenebilirliği' },
-  { icon: Warehouse, label: 'Raf bazında gerçek stok' },
+  { icon: QrCode, label: 'Paket etiketiyle stok girişi' },
+  { icon: Warehouse, label: 'Boy ve artık bazında gerçek stok' },
 ];
 
 /** Short activity feed that advances every couple of seconds. */
@@ -53,13 +53,13 @@ function Showcase() {
       <div className="my-auto max-w-[500px] py-12">
         <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className="text-[13px] font-medium text-primary">Renk Alüminyum operasyon platformu</motion.p>
         <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.05, ease: EASE }} className="mt-4 text-[38px] font-semibold leading-[1.08] tracking-[-0.04em] xl:text-[44px]">
-          Üretimin her adımı, <span className="text-muted-foreground">tek bir çalışma alanında.</span>
+          Ölçüye özel her proje, <span className="text-muted-foreground">tek bir çalışma alanında.</span>
         </motion.h1>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.12, ease: EASE }} className="mt-10 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--rf-shadow)]">
           <Magnifier className="px-10 pb-3 pt-8 text-foreground/70" lens={<div className="px-10 pb-3 pt-8 text-foreground"><ProfileDrawing instant /></div>}><ProfileDrawing delay={0.4} /></Magnifier>
           <div className="grid grid-cols-4 border-t border-border text-[12px]">
-            {[['Proje', 'RF-70 kasa'], ['Kesit', 'A–A'], ['Ölçek', '1:2'], ['Revizyon', '03']].map(([label, value]) => (
+            {[['Profil', '6017 · 100×150'], ['Kesit', 'A–A'], ['Ölçek', '1:1'], ['Revizyon', '03']].map(([label, value]) => (
               <div key={label} className="border-r border-border px-4 py-3 last:border-r-0"><p className="text-[11px] text-muted-foreground">{label}</p><p className="mt-0.5 font-medium">{value}</p></div>
             ))}
           </div>

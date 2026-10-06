@@ -16,15 +16,15 @@ const FEATURES = [
   {
     eyebrow: 'Kesim ve üretim',
     title: 'Her profil boyu, planlanmış bir kesim.',
-    body: 'Siparişteki ölçülerden kesim listesi otomatik çıkar. 6 metrelik boylar en az fireyle bölünür, artık parçalar stoğa geri yazılır. Usta ekranında sıradaki iş, ölçüsü ve istasyonu tek bakışta görünür.',
-    points: ['Boy bazında kesim planı', 'Fire ve artık takibi', 'İstasyon yükü ve darboğaz görünümü'],
+    body: 'Her proje kendi ölçüsüyle gelir. Siparişteki ölçülerden kesim listesi çıkar; stoktaki 6–10 metrelik boylar ve önceki işlerden kalan artıklar birlikte değerlendirilir. Kalan parça ölçüsüyle stoğa geri yazılır.',
+    points: ['Farklı boylardan kesim planı', 'Artık parçaların ölçüsüyle takibi', 'Usta için kesim ve delik listesi'],
     mock: <CuttingMock />,
   },
   {
     eyebrow: 'Depo ve izlenebilirlik',
-    title: 'Hangi profil hangi rafta, kaç boy kaldı.',
-    body: 'Her raf ve malzeme bir QR etiketle eşleşir. Giriş, çıkış ve sayım el terminalinden ya da telefon kamerasından okutularak yapılır; bakiye anında güncellenir.',
-    points: ['Raf ve göz bazında stok', 'Kamera veya el terminaliyle okutma', 'Rezerve ve serbest miktar ayrımı'],
+    title: 'Hangi profil, hangi renkte, kaç boy kaldı.',
+    body: 'Stok profil kodu, renk ve boy bazında tutulur. Gelen paketler raf etiketiyle eşleşir; giriş ve sayım telefon kamerasından okutularak yapılır, bakiye anında güncellenir.',
+    points: ['Kod, renk ve boy bazında stok', 'Paket ve raf etiketi', 'Rezerve ve serbest miktar ayrımı'],
     mock: <WarehouseMock />,
   },
   {
@@ -37,11 +37,11 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { no: '01', title: 'Talep', detail: 'E-posta, WhatsApp veya ofisten gelen talep taslak siparişe dönüşür.' },
-  { no: '02', title: 'Teknik onay', detail: 'Ölçü, seri ve yüzey bilgileri çizimlerle birlikte doğrulanır.' },
-  { no: '03', title: 'Kesim ve üretim', detail: 'Kesim planı çıkar, iş emirleri istasyonlara dağılır.' },
-  { no: '04', title: 'Kalite', detail: 'Kontrol sonuçları parçaya ve siparişe işlenir.' },
-  { no: '05', title: 'Sevkiyat', detail: 'Yükleme listesi hazırlanır, müşteri bilgilendirilir.' },
+  { no: '01', title: 'Talep ve keşif', detail: 'Gelen talep, sahada alınan ölçülerle birlikte taslak siparişe dönüşür.' },
+  { no: '02', title: 'Teklif ve onay', detail: 'Ölçü, renk ve aksesuar bilgileri teklifle birlikte müşteriye onaylatılır.' },
+  { no: '03', title: 'Kesim ve üretim', detail: 'Kesim planı çıkar, usta hangi boydan nereden keseceğini görür.' },
+  { no: '04', title: 'Boya ve kalite', detail: 'Boya ve kontrol adımları siparişe işlenir.' },
+  { no: '05', title: 'Sevkiyat ve montaj', detail: 'Yükleme listesi hazırlanır, montaj ekibi ve müşteri bilgilendirilir.' },
 ];
 
 const TRUST = [
@@ -53,15 +53,16 @@ const TRUST = [
 
 const FAQ = [
   { q: 'Mevcut verilerimizi aktarabilir miyiz?', a: 'Müşteri, ürün ve stok listeleriniz Excel veya CSV dosyalarından içeri alınır. Aktarım sırasında ekibimiz yanınızda olur.' },
-  { q: 'Atölyede kimler kullanabilir?', a: 'Usta ekranı ve QR terminali tablet ve telefonda çalışır. Üretim rolündeki kullanıcı yalnızca kendisine atanan işleri görür.' },
+  { q: 'Standart ölçü olmayan projelerde nasıl çalışır?', a: 'RenkFlow ölçüye özel iş için tasarlandı. Her sipariş kendi ölçüleri, renk ve aksesuar bilgisiyle girilir; kesim listesi bu ölçülerden çıkar.' },
+  { q: 'Atölyede kimler kullanabilir?', a: 'Usta ekranı tablet ve telefonda çalışır. Üretim rolündeki kullanıcı yalnızca kendisine atanan işleri görür.' },
   { q: 'Kurulum ne kadar sürer?', a: 'Listelerinizin hazır olma durumuna göre ekipler genellikle birkaç gün içinde günlük işini RenkFlow’da yapmaya başlar.' },
   { q: 'Muhasebe programımızla çalışır mı?', a: 'Fatura ve tahsilat verisi dışa aktarılabilir; sürümlenmiş API ile doğrudan entegrasyon da kurulabilir.' },
 ];
 
 const SHOWCASE = [
   { key: 'orders', label: 'Siparişler', caption: 'Her siparişin durumu, termini ve teknik bilgisi tek listede.', mock: <WorkspaceMock /> },
-  { key: 'cutting', label: 'Kesim planı', caption: '6 metrelik boylar en az fireyle bölünür, artıklar stoğa döner.', mock: <CuttingMock /> },
-  { key: 'warehouse', label: 'Depo ve QR', caption: 'Raf bazında stok; okut, doğrula, işle.', mock: <WarehouseMock /> },
+  { key: 'cutting', label: 'Kesim planı', caption: 'Farklı boylar en az artıkla bölünür, kalan parçalar stoğa döner.', mock: <CuttingMock /> },
+  { key: 'warehouse', label: 'Depo', caption: 'Kod, renk ve boy bazında stok; paket etiketiyle giriş.', mock: <WarehouseMock /> },
   { key: 'finance', label: 'Finans', caption: 'Teklif, fatura ve tahsilat aynı siparişe bağlı.', mock: <FinanceMock /> },
 ] as const;
 const SHOWCASE_MS = 6500;
@@ -109,14 +110,14 @@ function Hero() {
     <section className="relative overflow-hidden bg-gradient-to-b from-background via-background to-muted/50">
       <div className="relative mx-auto max-w-6xl px-5 pb-20 pt-16 sm:px-8 md:pb-28 md:pt-24">
         <motion.div {...rise(0)}>
-          <Link href="/changelog" className="rf-chip transition-colors hover:text-foreground"><span className="rf-status-dot" aria-hidden /> Alüminyum üreticileri için geliştirildi <ArrowRight size={12} /></Link>
+          <Link href="/changelog" className="rf-chip transition-colors hover:text-foreground"><span className="rf-status-dot" aria-hidden /> Pergola ve cam sistemleri için geliştirildi <ArrowRight size={12} /></Link>
         </motion.div>
         <div className="mt-10 grid items-end gap-10 lg:grid-cols-[1.5fr_0.5fr]">
           <motion.h1 {...rise(0.06)} className="text-[clamp(38px,5.2vw,68px)] font-semibold leading-[1.04] tracking-[-0.045em] [text-wrap:balance]">
-            <span className="block text-muted-foreground">Alüminyum üretimi için</span><span className="block">operasyon altyapısı.</span>
+            <span className="block text-muted-foreground">Ölçüye özel her proje için</span><span className="block">tek operasyon altyapısı.</span>
           </motion.h1>
           <motion.div {...rise(0.14)} className="lg:pb-3">
-            <p className="text-[16px] leading-7 text-muted-foreground">Teklif, kesim planı, depo, iş emri ve fatura aynı veride. Ofis ve atölye her an aynı tabloya bakar.</p>
+            <p className="text-[16px] leading-7 text-muted-foreground">Pergola, giyotin cam, tente ve tavan projelerinde teklif, kesim planı, depo ve fatura aynı veride. Ofis ve atölye her an aynı tabloya bakar.</p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link href="/contact" className="rf-ink-button group h-11 px-5 text-[14px]">Demo talep edin <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" /></Link>
               <Link href="/auth/login" className="rf-secondary-button h-11 px-5 text-[14px]">Giriş yap</Link>
@@ -144,13 +145,13 @@ function ModuleStrip() {
 }
 
 const LIVE = [
-  ['09:41', 'RF-1042', 'Kesim tamamlandı'],
-  ['09:42', 'RF-1040', 'Kalite onayı'],
-  ['09:44', 'RAF-0942', 'Stok girişi · 48 boy'],
-  ['09:46', 'RF-1038', 'Sevkiyata hazır'],
-  ['09:49', 'RF-1043', 'Yeni sipariş · WhatsApp'],
+  ['09:41', 'RF-1042', 'Pergola kesimi tamamlandı'],
+  ['09:42', 'RF-1041', 'Boya onayı · RAL 9016'],
+  ['09:44', 'PKT-0942', 'Paket girişi · 24 boy'],
+  ['09:46', 'RF-1038', 'Montaja hazır'],
+  ['09:49', 'RF-1043', 'Yeni keşif · 4.500 × 3.200'],
 ] as const;
-const FLOW = ['Teklif', 'Sipariş', 'Kesim', 'Üretim', 'Depo', 'Sevkiyat', 'Fatura'];
+const FLOW = ['Keşif', 'Teklif', 'Kesim', 'Boya', 'Montaj', 'Fatura'];
 const ROLES = {
   Usta: ['İş emirleri', 'Usta ekranı', 'QR terminali'],
   Ofis: ['Siparişler', 'Teklifler', 'Sevkiyat', 'Müşteriler'],
@@ -258,9 +259,9 @@ function Bento() {
         <Link href="/features" className="inline-flex items-center gap-1.5 text-[14px] font-medium hover:underline">Tüm özellikler <ArrowUpRight size={15} /></Link>
       </Reveal>
       <Stagger className="mt-14 grid gap-4 md:grid-cols-6">
-        <Tile className="md:col-span-4" label="Canlı" title="Atölyede olan, ofiste aynı anda görünür." detail="Ustanın tamamladığı iş, depodaki okutma ve gelen talep tek akışta toplanır."><LiveLog /></Tile>
-        <Tile className="md:col-span-2" label="İzlenebilirlik" title="Her parça bir QR kodla." detail="Raf, profil ve sipariş aynı etiketle eşleşir."><ScanTile /></Tile>
-        <Tile className="md:col-span-2" label="Teknik detay" title="Çizim siparişle birlikte." detail="Kesit, ölçü ve seri bilgisi kayıtta saklanır."><div className="text-foreground/80"><ProfileDrawing inView delay={0} /></div></Tile>
+        <Tile className="md:col-span-4" label="Canlı" title="Atölyede olan, ofiste aynı anda görünür." detail="Ustanın tamamladığı kesim, depoya giren paket ve yeni keşif tek akışta toplanır."><LiveLog /></Tile>
+        <Tile className="md:col-span-2" label="İzlenebilirlik" title="Her paket bir etiketle." detail="Raf, profil kodu ve renk aynı etiketle eşleşir."><ScanTile /></Tile>
+        <Tile className="md:col-span-2" label="Teknik detay" title="Çizim siparişle birlikte." detail="Profil kodu, ölçü ve renk bilgisi kayıtta saklanır."><div className="text-foreground/80"><ProfileDrawing inView delay={0} /></div></Tile>
         <Tile className="md:col-span-2" label="Tek kayıt" title="Sipariş bir kez girilir." detail="Kesimden faturaya kadar her adım aynı kaydı kullanır."><div className="flex h-full items-center"><FlowChain /></div></Tile>
         <Tile className="md:col-span-2" label="Rol bazlı" title="Herkes kendi işini görür." detail="Usta, ofis ve muhasebe için ayrı, sade ekranlar."><RoleSwitcher /></Tile>
       </Stagger>
@@ -376,8 +377,8 @@ function Closing() {
         <div className="relative overflow-hidden rounded-2xl border border-border bg-muted/50 px-8 py-14 md:px-16 md:py-20">
           <div className="relative max-w-2xl">
             <FileText size={20} strokeWidth={1.75} className="text-muted-foreground" />
-            <h2 className="mt-6 text-[clamp(28px,3.6vw,44px)] font-semibold leading-[1.08] tracking-[-0.04em]">Kendi siparişlerinizle görmek ister misiniz?</h2>
-            <p className="mt-4 text-[16px] leading-7 text-muted-foreground">30 dakikalık bir görüşmede örnek bir siparişinizi baştan sona RenkFlow’da birlikte takip edelim.</p>
+            <h2 className="mt-6 text-[clamp(28px,3.6vw,44px)] font-semibold leading-[1.08] tracking-[-0.04em]">Kendi projelerinizle görmek ister misiniz?</h2>
+            <p className="mt-4 text-[16px] leading-7 text-muted-foreground">30 dakikalık bir görüşmede örnek bir projenizi keşiften montaja RenkFlow’da birlikte takip edelim.</p>
             <div className="mt-9 flex flex-wrap gap-3">
               <Link href="/contact" className="rf-ink-button group h-11 px-5 text-[14px]">Demo talep edin <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" /></Link>
               <Link href="/auth/login" className="rf-secondary-button h-11 px-5 text-[14px]">Panele giriş yap</Link>

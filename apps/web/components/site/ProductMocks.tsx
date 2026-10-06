@@ -22,18 +22,19 @@ export function Frame({ children, className, label = 'renkflow.app' }: { childre
 
 const STATUS = {
   cut: { label: 'Kesimde', cls: 'bg-sky-500/10 text-sky-700 dark:text-sky-300' },
-  press: { label: 'Pres', cls: 'bg-violet-500/10 text-violet-700 dark:text-violet-300' },
+  paint: { label: 'Boyada', cls: 'bg-violet-500/10 text-violet-700 dark:text-violet-300' },
   qc: { label: 'Kalite', cls: 'bg-amber-500/10 text-amber-700 dark:text-amber-300' },
-  ship: { label: 'Sevkiyat', cls: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
+  ship: { label: 'Montaja hazır', cls: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
   new: { label: 'Yeni', cls: 'bg-zinc-500/10 text-zinc-700 dark:text-zinc-300' },
 } as const;
 
+// Every project is custom-sized: product line, measured size and colour.
 const ORDERS = [
-  { id: 'RF-1042', customer: 'Ege Cephe Sistemleri', product: 'Sürme doğrama · 6063 T5', qty: '48', due: '14 Eki', status: 'cut' },
-  { id: 'RF-1041', customer: 'Kuzey Yapı A.Ş.', product: 'Giydirme cephe profili', qty: '120', due: '16 Eki', status: 'press' },
-  { id: 'RF-1040', customer: 'Atlas Mimarlık', product: 'Pencere sistemi · 70 seri', qty: '36', due: '17 Eki', status: 'qc' },
-  { id: 'RF-1038', customer: 'Liman Endüstri', product: 'Kompozit panel çerçeve', qty: '64', due: '18 Eki', status: 'ship' },
-  { id: 'RF-1037', customer: 'Marmara Konut', product: 'Küpeşte ve korkuluk', qty: '22', due: '21 Eki', status: 'new' },
+  { id: 'RF-1042', customer: 'Kıyı Kafe · Bodrum', product: 'Pergola · 5.400 × 4.200 · RAL 7016 Mat', qty: '1', due: '14 Eki', status: 'cut' },
+  { id: 'RF-1041', customer: 'Yalı Restoran', product: 'Motorlu giyotin cam · 3 kanat · RAL 9016', qty: '4', due: '16 Eki', status: 'paint' },
+  { id: 'RF-1040', customer: 'Atlas Mimarlık', product: 'Alüminyum tavan · 6.000 × 3.500', qty: '1', due: '17 Eki', status: 'qc' },
+  { id: 'RF-1038', customer: 'Çam Konutları', product: 'Makaslı tente · 4.800 mm · Kahverengi', qty: '2', due: '18 Eki', status: 'ship' },
+  { id: 'RF-1037', customer: 'Liman Otel', product: 'Pergola + giyotin cam · RAL 7037', qty: '1', due: '21 Eki', status: 'new' },
 ] as const;
 
 export function StatusPill({ status }: { status: keyof typeof STATUS }) {
@@ -91,35 +92,38 @@ export function WorkspaceMock() {
   );
 }
 
-/** 6 m profile bars split into cut pieces, with the remnant marked. */
+/** Stock bars of different lengths split into cut pieces, with the remnant marked. */
 export function CuttingMock() {
   const reduce = useReducedMotion();
+  const KERF = 5;
   const bars = [
-    { profile: '70 seri kasa', cuts: [1450, 1450, 1200, 1200], },
-    { profile: '70 seri kanat', cuts: [1380, 1380, 1380, 1380], },
-    { profile: 'Orta kayıt', cuts: [2100, 2100, 1250], },
+    { profile: '6017 · 100×150 taşıyıcı', length: 7000, cuts: [5400, 1450] },
+    { profile: '5979 · çiftli ray', length: 9000, cuts: [4200, 4200] },
+    { profile: '108 · 40×60 dikme', length: 6000, cuts: [2650, 2650] },
   ];
+  const longest = Math.max(...bars.map((bar) => bar.length));
+  const used = bars.reduce((sum, bar) => sum + bar.cuts.reduce((a, b) => a + b, 0), 0);
+  const stock = bars.reduce((sum, bar) => sum + bar.length, 0);
   return (
     <Frame label="Kesim planı · RF-1042">
       <div className="space-y-4 p-5">
         {bars.map((bar, row) => {
-          const used = bar.cuts.reduce((a, b) => a + b, 0) + bar.cuts.length * 5;
-          const rest = 6000 - used;
+          const rest = bar.length - bar.cuts.reduce((a, b) => a + b, 0) - bar.cuts.length * KERF;
           return (
             <div key={bar.profile}>
-              <div className="mb-1.5 flex justify-between text-[11px]"><span className="font-medium">{bar.profile}</span><span className="font-mono text-muted-foreground">6000 mm · fire {rest} mm</span></div>
-              <div className="flex h-7 gap-[2px] overflow-hidden rounded-md bg-muted">
+              <div className="mb-1.5 flex justify-between gap-3 text-[11px]"><span className="truncate font-medium">{bar.profile}</span><span className="shrink-0 font-mono text-muted-foreground">{bar.length} mm boy · artık {rest} mm</span></div>
+              <div className="flex h-7 gap-[2px] overflow-hidden rounded-md bg-muted" style={{ width: `${(bar.length / longest) * 100}%` }}>
                 {bar.cuts.map((cut, index) => (
-                  <motion.div key={index} className="flex items-center justify-center bg-primary/85 font-mono text-[9.5px] text-primary-foreground first:rounded-l-md" style={{ width: `${(cut / 6000) * 100}%` }} initial={reduce ? false : { scaleX: 0, originX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: row * 0.15 + index * 0.06, ease: EASE }}>
+                  <motion.div key={index} className="flex items-center justify-center bg-primary/85 font-mono text-[9.5px] text-primary-foreground first:rounded-l-md" style={{ width: `${(cut / bar.length) * 100}%` }} initial={reduce ? false : { scaleX: 0, originX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: row * 0.15 + index * 0.06, ease: EASE }}>
                     {cut}
                   </motion.div>
                 ))}
-                <div className="flex flex-1 items-center justify-center bg-[repeating-linear-gradient(135deg,transparent_0_4px,hsl(var(--foreground)/0.08)_4px_5px)] text-[9.5px] text-muted-foreground">{rest > 300 ? 'artık' : ''}</div>
+                <div className="flex flex-1 items-center justify-center bg-[repeating-linear-gradient(135deg,transparent_0_4px,hsl(var(--foreground)/0.08)_4px_5px)] text-[9.5px] text-muted-foreground">{rest >= 500 ? 'stoğa' : ''}</div>
               </div>
             </div>
           );
         })}
-        <div className="flex items-center justify-between border-t border-border pt-3 text-[11px]"><span className="text-muted-foreground">Toplam verim</span><span className="font-mono font-medium">%93,4</span></div>
+        <div className="flex items-center justify-between border-t border-border pt-3 text-[11px]"><span className="text-muted-foreground">Toplam verim · 3 boy</span><span className="font-mono font-medium">%{((used / stock) * 100).toFixed(1).replace('.', ',')}</span></div>
       </div>
     </Frame>
   );
@@ -141,12 +145,13 @@ export function WarehouseMock() {
           ))}
         </div>
         <div className="rounded-lg border border-border p-3">
-          <div className="flex items-center gap-2 text-[11px] font-medium"><QrCode size={14} /> Okutuldu</div>
-          <p className="mt-3 font-mono text-[11px] text-primary">B4 · RAF-0942</p>
-          <p className="mt-1 text-[11.5px]">6063 T5 · 40×40 profil</p>
+          <div className="flex items-center gap-2 text-[11px] font-medium"><QrCode size={14} /> Paket etiketi</div>
+          <p className="mt-3 font-mono text-[11px] text-primary">B4 · PKT-0942</p>
+          <p className="mt-1 text-[11.5px]">6056 Oval Dere · RAL 7016 Mat</p>
           <div className="mt-3 space-y-1.5 text-[10.5px] text-muted-foreground">
-            <p className="flex justify-between"><span>Bakiye</span><span className="font-mono text-foreground">186 boy</span></p>
-            <p className="flex justify-between"><span>Rezerve</span><span className="font-mono text-foreground">48 boy</span></p>
+            <p className="flex justify-between"><span>Boy</span><span className="font-mono text-foreground">7.000 mm</span></p>
+            <p className="flex justify-between"><span>Bakiye</span><span className="font-mono text-foreground">42 boy</span></p>
+            <p className="flex justify-between"><span>Rezerve</span><span className="font-mono text-foreground">6 boy</span></p>
             <p className="flex justify-between"><span>Son hareket</span><span>09:42</span></p>
           </div>
         </div>

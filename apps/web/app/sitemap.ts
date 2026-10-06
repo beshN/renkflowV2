@@ -41,7 +41,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/docs',
     '/security',
     '/status',
-    '/full-landing',
     '/auth/login',
     '/signup',
   ];
