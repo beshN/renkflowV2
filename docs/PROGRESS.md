@@ -36,7 +36,8 @@ Kaynak görev: "RenkFlow paneli: her özelliği gerçekten çalışır hale geti
 | PR | Konu | Durum | Doğrulama | Bilinmeyenler |
 |---|---|---|---|---|
 | #13 | Faz 0 denetimi (AUDIT/PROGRESS) | birleşti | CI `validate` yeşil | — |
-| K1 | Teklif listesi çökmesi: sütun `render(value,row)` imzası; liste `useApiCollection`'a taşındı (iptal, dizi kontrolü, ham sunucu hatası gizli, tekrar dene) | açık | Regresyon testi düzeltmeden önce aynı `TypeError`'ı üretti, sonra geçti; `validate` yeşil | `RFColumn.render` ilk argümanı `any`; diğer listelerde aynı yanlış kullanım yok (grep), tip daraltma ayrı iş |
+| #14 (K1) | Teklif listesi çökmesi: sütun `render(value,row)` imzası; liste `useApiCollection`'a taşındı (iptal, dizi kontrolü, ham sunucu hatası gizli, tekrar dene) | birleşti | Regresyon testi düzeltmeden önce aynı `TypeError`'ı üretti, sonra geçti; `validate` yeşil | `RFColumn.render` ilk argümanı `any`; diğer listelerde aynı yanlış kullanım yok (grep), tip daraltma ayrı iş |
+| K2 | Yeni iş emri her zaman 500: `loadWorkOrderById` transaction içinde global `sql` ile okuyordu (commit edilmemiş satır görünmüyor → hata → rollback). Okuma `tx` ile yapılıyor, istemci zorunlu parametre. Aynı hata güncellemede eski kaydı döndürüyordu. Ayrıca checklist ekleme konum hatası (`max_position || -1`) | açık | 3 regresyon testi eski kodda düşüyor; yerel DB'de formdan oluşturma + PATCH yeni başlığı döndürüyor; `validate` yeşil | Checklist kalemleri satır satır ekleniyor (performans, kapsam dışı) |
 
 ## Bu ortamda yerel çalıştırma (bulut konteyner notu)
 
