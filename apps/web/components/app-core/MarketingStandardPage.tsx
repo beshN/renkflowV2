@@ -9,7 +9,7 @@ type MarketingStandardPageProps = {
 
 const SUMMARIES: Record<MarketingPageKey, { title: string; detail: string }> = {
   about: { title: 'Hakkımızda', detail: 'RenkFlow’un neden ve nasıl geliştirildiği.' },
-  features: { title: 'Özellikler', detail: 'Siparişten sevkiyata tüm modüller.' },
+  features: { title: 'Özellikler', detail: 'Keşiften montaja tüm modüller.' },
   pricing: { title: 'Fiyatlandırma', detail: 'Ölçeğinize göre hazırlanan teklif.' },
   integrations: { title: 'Entegrasyonlar', detail: 'API, e-posta, WhatsApp ve barkod.' },
   docs: { title: 'Dokümantasyon', detail: 'Kullanım rehberleri ve API referansı.' },

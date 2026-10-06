@@ -27,25 +27,25 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://renkflow.com';
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: 'RenkFlow - Modern Üretim Operasyon Platformu',
-    template: '%s | Renkflow',
+    default: 'RenkFlow · Pergola ve cam sistemleri için operasyon platformu',
+    template: '%s | RenkFlow',
   },
   description:
-    'RenkFlow, üretim hattı takibi, envanter görünürlüğü ve ekip koordinasyonunu tek platformda sunan modern üretim operasyon yazılımıdır.',
+    'Pergola, giyotin cam, tente ve alüminyum tavan projelerinde keşiften montaja teklif, kesim planı, depo ve faturayı aynı veride toplayan operasyon platformu.',
   keywords: [
     'üretim yönetimi',
     'fabrika operasyonu',
     'üretim takibi',
     'envanter yönetimi',
     'iş emri takibi',
-    'multi-tenant saas',
-    'manufacturing software',
-    'production tracking',
-    'inventory management',
+    'pergola üretim yazılımı',
+    'giyotin cam',
+    'profil kesim optimizasyonu',
+    'alüminyum stok takibi',
   ],
-  authors: [{ name: 'Renkflow' }],
-  creator: 'Renkflow A.Ş.',
-  publisher: 'Renkflow A.Ş.',
+  authors: [{ name: 'RenkFlow' }],
+  creator: 'Renk Alüminyum',
+  publisher: 'Renk Alüminyum',
   robots: {
     index: true,
     follow: true,
@@ -67,26 +67,16 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'tr_TR',
     url: baseUrl,
-    siteName: 'Renkflow',
-    title: 'RenkFlow - Modern Üretim Operasyon Platformu',
+    siteName: 'RenkFlow',
+    title: 'RenkFlow · Pergola ve cam sistemleri için operasyon platformu',
     description:
-      'Üretim takibi, envanter yönetimi ve ekip koordinasyonu için tek platform.',
-    images: [
-      {
-        url: '/dashboard-preview.png',
-        width: 1200,
-        height: 630,
-        alt: 'Renkflow Dashboard',
-      },
-    ],
+      'Ölçüye özel her proje için teklif, kesim planı, depo ve fatura tek yerde.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'RenkFlow - Modern Üretim Operasyon Platformu',
+    title: 'RenkFlow · Pergola ve cam sistemleri için operasyon platformu',
     description:
-      'Üretim takibi, envanter yönetimi ve ekip koordinasyonu için tek platform.',
-    images: ['/dashboard-preview.png'],
-    creator: '@renkflow',
+      'Ölçüye özel her proje için teklif, kesim planı, depo ve fatura tek yerde.',
   },
   verification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION ? {
     google: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION,

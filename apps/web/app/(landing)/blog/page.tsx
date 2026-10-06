@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ArrowUpRight } from 'lucide-react';
 
 import { MarketingShell } from '@/components/app-core/MarketingShell';
 import { blogPosts } from '@/lib/core/marketing-content';
@@ -6,31 +7,24 @@ import { blogPosts } from '@/lib/core/marketing-content';
 export default function BlogPage() {
   return (
     <MarketingShell
-      badge="Ürün Günlüğü"
-      title="RenkFlow geliştirme notları ve sahadan öğrenimler"
-      description="Mimari kararları, performans kazanımlarını ve kullanıcı geri bildirimlerinden çıkan iyileştirmeleri düzenli olarak paylaşıyoruz."
+      badge="Blog"
+      title="Üretimden notlar."
+      description="Ölçüye özel projelerde kesim, stok ve iş akışı üzerine sahadan öğrendiklerimiz."
       actions={[
-        { href: '/changelog', label: 'Sürüm Notları' },
+        { href: '/changelog', label: 'Sürüm notları' },
         { href: '/docs', label: 'Dokümantasyon', variant: 'secondary' },
       ]}
-      spotlight={[
-        { label: 'Yayın Frekansı', value: 'Haftalık' },
-        { label: 'Kapsam', value: 'Ürün + Altyapı' },
-        { label: 'Biçim', value: 'Operasyon Odaklı' },
-      ]}
     >
-      <div className="grid gap-4">
+      <div className="divide-y divide-border border-y border-border">
         {blogPosts.map((post) => (
-          <article key={post.id} className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-950">
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
-              {post.category} • {post.date} • {post.author}
-            </p>
-            <h2 className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">{post.title}</h2>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{post.summary}</p>
-            <Link href={`/blog/${post.id}`} className="mt-4 inline-flex text-sm font-semibold text-slate-900 hover:underline dark:text-slate-100">
-              Detay yazıyı aç
-            </Link>
-          </article>
+          <Link key={post.id} href={`/blog/${post.id}`} className="group grid gap-2 py-8 md:grid-cols-[180px_1fr_auto] md:gap-8">
+            <p className="text-[13px] text-muted-foreground">{post.category} · {post.date}</p>
+            <div>
+              <h2 className="text-[19px] font-semibold tracking-[-0.025em] group-hover:underline group-hover:underline-offset-4">{post.title}</h2>
+              <p className="mt-2 max-w-2xl text-[14.5px] leading-7 text-muted-foreground">{post.summary}</p>
+            </div>
+            <ArrowUpRight size={18} className="hidden text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 md:block" />
+          </Link>
         ))}
       </div>
     </MarketingShell>

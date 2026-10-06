@@ -40,9 +40,12 @@ const PUBLIC_EXACT_PATHS = new Set([
   '/careers',
   '/security',
   '/status',
+  // Social share cards must be fetchable by link-preview crawlers.
+  '/opengraph-image',
+  '/twitter-image',
 ]);
 
-const PUBLIC_PREFIXES = ['/blog/', '/careers/', '/docs/', '/public/', '/track/'];
+const PUBLIC_PREFIXES = ['/blog/', '/docs/', '/public/', '/track/'];
 const AUTH_ENTRY_PAGES = new Set(['/auth/login', '/auth/forgot-password', '/auth/update-password', '/signup']);
 
 function isPublicPage(pathname: string): boolean {
