@@ -546,11 +546,12 @@ export function AIChatbot() {
 
   return (
     <>
-      {!isOpen && adviceSlot && insights.length>0 && dismissedAdvice!==adviceKey && createPortal(<aside aria-label="Asistanın otomatik önerisi" className="m-4 w-auto max-w-xs rounded-lg border border-border bg-card p-3 shadow-sm print:hidden">
-        <button aria-label="Öneriyi gizle" onClick={()=>setDismissedAdvice(adviceKey)} className="float-right p-1"><X size={14}/></button>
-        <p className="text-xs font-semibold">Sizin için kontrol ettim</p><p className="mt-2 text-xs leading-5 text-muted-foreground">{brief || insights[0].detail}</p>
-        <button onClick={()=>setIsOpen(true)} className="mt-2 text-xs text-primary">{insights[0].title} →</button>
-      </aside>,adviceSlot)}
+      {!isOpen && adviceSlot && insights.length>0 && dismissedAdvice!==adviceKey && createPortal(<div className="mx-auto w-full max-w-[1600px] px-4 pt-4 md:px-7 print:hidden"><aside aria-label="Asistanın otomatik önerisi" className="rf-advice flex items-center gap-3 rounded-lg border border-border px-3 py-2 text-xs shadow-[var(--rf-shadow-soft)]">
+        <span className="rf-icon-chip !h-6 !w-6 !rounded-md" aria-hidden><Sparkles size={13}/></span>
+        <p className="min-w-0 flex-1 leading-5"><span className="font-semibold">Asistan önerisi · </span><span className="text-muted-foreground">{brief || insights[0].detail}</span></p>
+        <button onClick={()=>setIsOpen(true)} className="hidden shrink-0 font-medium text-primary hover:underline sm:inline">{insights[0].title} →</button>
+        <button aria-label="Öneriyi gizle" onClick={()=>setDismissedAdvice(adviceKey)} className="rf-icon-button !h-7 !w-7 shrink-0"><X size={14}/></button>
+      </aside></div>,adviceSlot)}
       {pendingAction && <BusinessDialog title={pendingAction.action.title} open onClose={()=>setPendingAction(null)} busy={actionBusy} error={actionError}>
         <p className="text-sm mb-4">{pendingAction.action.kind==='orderNote'?'Aşağıdaki not sipariş geçmişine eklenecek.':'Sipariş taslağı hazırlanacak. Ölçü, fiyat ve ürün kalemlerini sonraki ekranda kontrol edip onaylayacaksınız.'}</p>
         <pre className="whitespace-pre-wrap rounded border p-3 text-xs max-h-64 overflow-auto">{pendingAction.action.note || JSON.stringify(pendingAction.action.draft,null,2)}</pre>
@@ -566,7 +567,7 @@ export function AIChatbot() {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => setIsOpen(true)}
-            className={cn("fixed right-4 md:right-6 z-50 w-11 h-11 md:w-12 md:h-12 rounded-lg bg-[#243e55] text-white shadow-sm border border-white/15 flex items-center justify-center hover:bg-[#315570] transition-colors print:hidden", pathname === "/new-order" ? "bottom-40 md:bottom-24" : "bottom-24 md:bottom-6")}
+            className={cn("rf-logo fixed right-4 md:right-6 z-50 w-11 h-11 !rounded-full shadow-lg shadow-black/10 transition-transform duration-150 hover:scale-105 active:scale-95 print:hidden", pathname === "/new-order" ? "bottom-40 md:bottom-24" : "bottom-24 md:bottom-6")}
             aria-label="AI Asistanı Aç"
           >
             <Sparkles className="w-6 h-6" />
@@ -588,12 +589,12 @@ export function AIChatbot() {
             }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             className={cn(
-              "fixed bottom-24 right-4 md:bottom-6 md:right-6 z-50 w-[calc(100vw-2rem)] max-w-[420px] max-h-[calc(100dvh-8rem)] md:max-h-[calc(100dvh-3rem)] bg-white dark:bg-slate-900 rounded-lg shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col",
+              "fixed bottom-24 right-4 md:bottom-6 md:right-6 z-50 w-[calc(100vw-2rem)] max-w-[420px] max-h-[calc(100dvh-8rem)] md:max-h-[calc(100dvh-3rem)] bg-popover text-popover-foreground border border-border rounded-xl shadow-2xl shadow-black/10 overflow-hidden flex flex-col",
               isMinimized && "md:w-[300px]"
             )}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 bg-[#243e55] text-white">
+            <div className="flex items-center justify-between px-4 py-3 bg-[hsl(var(--rf-ink))] text-[hsl(var(--rf-ink-foreground))]">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
                   <Bot className="w-4 h-4" />
@@ -696,7 +697,7 @@ export function AIChatbot() {
                           ? "bg-blue-600 text-white" 
                           : message.isError
                             ? "bg-red-500 text-white"
-                            : "bg-[#243e55] text-white"
+                            : "bg-[hsl(var(--rf-ink))] text-[hsl(var(--rf-ink-foreground))]"
                       )}>
                         {message.role === 'user' ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
                       </div>
@@ -808,7 +809,7 @@ export function AIChatbot() {
                       animate={{ opacity: 1, y: 0 }}
                       className="flex gap-2.5"
                     >
-                      <div className="w-7 h-7 rounded-full bg-[#243e55] text-white flex items-center justify-center">
+                      <div className="w-7 h-7 rounded-full bg-[hsl(var(--rf-ink))] text-[hsl(var(--rf-ink-foreground))] flex items-center justify-center">
                         <Bot className="w-3.5 h-3.5" />
                       </div>
                       <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-bl-md px-4 py-3">

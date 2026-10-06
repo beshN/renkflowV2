@@ -41,7 +41,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(({
   const variants = {
     default: cn(
       'border border-input bg-card',
-      'focus:border-primary focus:ring-2 focus:ring-primary/10',
+      'hover:border-primary/40 focus:border-primary focus:ring-4 focus:ring-[var(--rf-focus-ring)]',
       'shadow-sm transition-all duration-200'
     ),
     filled: cn(
@@ -98,9 +98,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(({
           type={inputType}
           data-slot="input"
           className={cn(
-            'w-full rounded-md outline-none transition-colors duration-150',
+            'w-full rounded-[10px] outline-none transition-[border-color,box-shadow] duration-200',
             'placeholder:text-slate-400 dark:placeholder:text-slate-500',
-            'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-50 dark:disabled:bg-slate-800/80',
+            'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-muted',
             variants[variant],
             sizes[inputSize],
             leftIcon && 'pl-10',

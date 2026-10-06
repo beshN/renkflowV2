@@ -32,26 +32,20 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
 }, ref) => {
 
   const baseStyles = cn(
-    'inline-flex items-center justify-center gap-2 font-medium tracking-tight transition-all duration-200 ease-out',
+    'inline-flex items-center justify-center gap-2 font-medium tracking-tight transition-colors duration-150 ease-out',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2',
     'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
-    'active:scale-[0.98] select-none'
+    'active:translate-y-px select-none'
   );
 
   const variants = {
-    default: 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm border border-transparent',
-    // Apple Style: Solid Blue (System Blue)
-    primary: 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm border border-transparent',
-    // Apple Style: Gray/Neutral background
-    secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-sm border border-transparent',
-    // Apple Style: White with border
+    default: 'bg-primary text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.16),0_1px_2px_rgb(17_17_19/0.1)] hover:bg-primary/90',
+    primary: 'bg-primary text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.16),0_1px_2px_rgb(17_17_19/0.1)] hover:bg-primary/90',
+    secondary: 'bg-card text-foreground border border-border shadow-sm hover:bg-accent hover:border-primary/30',
     outline: 'bg-transparent border border-input hover:bg-accent hover:text-accent-foreground',
-    // Apple Style: Text only
     ghost: 'bg-transparent hover:bg-accent hover:text-accent-foreground text-foreground',
-    // Apple Style: Red (Destructive)
     danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm',
-    // Apple Style: Green (Success)
-    success: 'bg-[#34C759] hover:bg-[#2DB84D] text-white shadow-sm',
+    success: 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm',
     link: 'text-primary underline-offset-4 hover:underline px-0 py-0 h-auto',
   };
 
@@ -65,7 +59,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   };
 
   const roundedStyles = {
-    default: 'rounded-lg', // Slightly more rounded than standard, less than full
+    default: 'rounded-lg',
     full: 'rounded-full',
     none: 'rounded-none',
   };
