@@ -289,8 +289,9 @@ async function loadWorkOrderForUpdate(tx: any, tenantId: string, workOrderId: st
   return workOrder;
 }
 
-async function loadWorkOrderById(tenantId: string, workOrderId: string) {
-  const result = await sql`
+/** Inside a transaction pass `tx`: the pooled `sql` cannot see rows the transaction has not committed. */
+async function loadWorkOrderById(db: any, tenantId: string, workOrderId: string) {
+  const result = await db`
     SELECT
       w.*,
       assignee.name as assignee_name,
@@ -477,7 +478,7 @@ export async function createWorkOrder(
       priority: input.priority,
       dueAt: input.dueAt,
     });
-    const workOrder = await loadWorkOrderById(actor.tenantId, created.id);
+    const workOrder = await loadWorkOrderById(sql, actor.tenantId, created.id);
     if (!workOrder) throw new Error('Oluşturulan üretim emri yüklenemedi');
     return workOrder;
   }
@@ -571,7 +572,7 @@ export async function createWorkOrder(
       createdBy: actor.userId,
     });
 
-    const createdWorkOrder = await loadWorkOrderById(actor.tenantId, workOrderId);
+    const createdWorkOrder = await loadWorkOrderById(tx, actor.tenantId, workOrderId);
     if (!createdWorkOrder) {
       throw new Error('Oluşturulan iş emri yüklenemedi');
     }
@@ -580,7 +581,7 @@ export async function createWorkOrder(
 }
 
 export async function getWorkOrderDetails(tenantId: string, workOrderId: string) {
-  const workOrder = await loadWorkOrderById(tenantId, workOrderId);
+  const workOrder = await loadWorkOrderById(sql, tenantId, workOrderId);
   if (!workOrder) {
     throw new WorkOrderApiError('İş emri bulunamadı', 404);
   }
@@ -763,7 +764,7 @@ export async function updateWorkOrder(
           AND work_order_id = ${workOrderId}
       `;
       const lastPositionRows = lastPositionResult as Array<{ max_position: number }>;
-      let position = (lastPositionRows[0]?.max_position || -1) + 1;
+      let position = (lastPositionRows[0]?.max_position ?? -1) + 1;
       for (const item of input.appendChecklistItems) {
         await tx`
           INSERT INTO work_order_checklist_items (
@@ -810,7 +811,7 @@ export async function updateWorkOrder(
       createdBy: actor.userId,
     });
 
-    const updated = await loadWorkOrderById(actor.tenantId, workOrderId);
+    const updated = await loadWorkOrderById(tx, actor.tenantId, workOrderId);
     if (!updated) {
       throw new Error('Güncellenen iş emri yüklenemedi');
     }
