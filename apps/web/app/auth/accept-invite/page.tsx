@@ -148,7 +148,7 @@ export default function AcceptInvitePage() {
         title="Davet Kullanılamıyor"
         description={error || 'Bu davet bağlantısı geçersiz veya süresi dolmuş durumda.'}
         footer={
-          <Link href="/auth/login" className="font-semibold text-slate-900 hover:underline dark:text-slate-100">
+          <Link href="/auth/login" className="font-medium text-primary hover:underline">
             Giriş ekranına git
           </Link>
         }

@@ -14,336 +14,198 @@ export type MarketingPageEntry = {
 
 export const marketingPages = {
   about: {
-    badge: 'Kurumsal Profil',
-    title: 'RenkFlow, üretim ekipleri için inşa edilmiş operasyon yazılımıdır',
+    badge: 'Hakkımızda',
+    title: 'Alüminyum atölyesinin gerçek iş akışından doğan bir yazılım.',
     description:
-      'Sipariş, sevkiyat, finans ve ekip planlamasını tek bir veri çekirdeğinde birleştirir. Amaç, dağınık ekranları sade bir karar altyapısına dönüştürmektir.',
-    primaryCta: { href: '/contact', label: 'Kurumsal Görüşme Planla' },
-    secondaryCta: { href: '/features', label: 'Ürün Detaylarını Gör' },
+      'RenkFlow, Renk Alüminyum’un sipariş masasından kesim tezgâhına kadar yaşadığı günlük sorunları çözmek için geliştirildi. Tablolar, defterler ve mesaj grupları yerine herkesin aynı veriye baktığı tek bir çalışma alanı.',
+    primaryCta: { href: '/contact', label: 'Bizimle görüşün' },
+    secondaryCta: { href: '/features', label: 'Özellikleri inceleyin' },
     highlights: [
-      {
-        title: 'Tek Ekran Mantığı',
-        detail: 'Farklı operasyon birimlerini aynı iş akışında görünür kılar.',
-      },
-      {
-        title: 'Yüksek İzlenebilirlik',
-        detail: 'Sipariş geçmişi, ödeme kayıtları ve belge hareketleri denetlenebilir şekilde tutulur.',
-      },
-      {
-        title: 'Ölçeklenebilir Tenant Yapısı',
-        detail: 'Her firma kendi verisiyle izole şekilde çalışırken merkezi yönetim standardı korunur.',
-      },
+      { title: 'Sahadan geliştirildi', detail: 'Her ekran, ofis ve üretim ekibinin gerçek kullanımında test edilerek şekillendi.' },
+      { title: 'Tek kaynak', detail: 'Sipariş, stok ve sevkiyat bilgisi aynı kayıttan okunur; kopya tablo tutulmaz.' },
+      { title: 'Uzun vadeli', detail: 'Platform, firmanın büyümesine göre yeni modüllerle genişleyecek şekilde tasarlandı.' },
     ],
   },
   features: {
-    badge: 'Ürün Kapsamı',
-    title: 'Saha operasyonundan finans raporuna kadar entegre modül seti',
+    badge: 'Özellikler',
+    title: 'Siparişten sevkiyata, üretimin her adımı için bir modül.',
     description:
-      'RenkFlow; dashboard, sipariş, belge görüntüleme, ödeme izleme ve ekip yönetimi modüllerini tek deneyimde toplar.',
-    primaryCta: { href: '/signup', label: 'Demo Ortamı Aç' },
-    secondaryCta: { href: '/docs', label: 'Teknik Dokümana Git' },
+      'Teklif hazırlamaktan profil kesimine, raf yönetiminden faturaya kadar alüminyum üretiminin bütün halkaları birbirine bağlı çalışır.',
+    primaryCta: { href: '/contact', label: 'Demo talep edin' },
+    secondaryCta: { href: '/docs', label: 'Dokümantasyon' },
     highlights: [
-      {
-        title: 'Sipariş Motoru',
-        detail: 'Yeni sipariş, durum takibi ve doküman bağlantıları tek form akışında çalışır.',
-      },
-      {
-        title: 'Belge Güvenilirliği',
-        detail: 'PDF ve teknik dosyalar same-origin erişim modeliyle kararlı şekilde açılır.',
-      },
-      {
-        title: 'Finans Görünürlüğü',
-        detail: 'Tahsilat, açık bakiye ve fatura aksiyonları operasyon verisiyle ilişkilidir.',
-      },
+      { title: 'Sipariş yönetimi', detail: 'Ölçüler, RAL/yüzey, seri ve teknik çizimler siparişle birlikte saklanır. Durum her aşamada güncellenir.' },
+      { title: 'Kesim optimizasyonu', detail: 'Profil boylarına göre kesim planı çıkarılır, fire ve artık parçalar kayda geçer.' },
+      { title: 'Üretim ve iş emirleri', detail: 'İstasyon yükü, operasyon süresi ve darboğazlar canlı izlenir. Usta ekranı sahada kullanıma uygundur.' },
+      { title: 'Depo ve raf takibi', detail: 'Her profil ve aksesuar rafıyla birlikte tutulur. QR etiketle giriş, çıkış ve sayım yapılır.' },
+      { title: 'Satın alma ve mal kabul', detail: 'Tedarikçi siparişleri, kısmi teslimler ve stok girişleri birbirine bağlıdır.' },
+      { title: 'Finans ve raporlama', detail: 'Teklif, fatura, tahsilat ve sipariş kârlılığı aynı ekranda; dışa aktarım CSV olarak alınır.' },
     ],
   },
   pricing: {
-    badge: 'Ticari Paketler',
-    title: 'Büyümeye göre katmanlanan şeffaf fiyatlandırma modeli',
+    badge: 'Fiyatlandırma',
+    title: 'Firmanızın ölçeğine göre hazırlanan teklif.',
     description:
-      'Paket yapısı kullanıcı sayısı, süreç yoğunluğu ve destek seviyesine göre net biçimde ayrıştırılır. Gizli maliyet veya belirsiz limit bulunmaz.',
-    primaryCta: { href: '/contact', label: 'Teklif İste' },
-    secondaryCta: { href: '/signup', label: '14 Gün Deneme Başlat' },
+      'Kullanıcı sayısı, modüller ve kurulum desteğine göre size özel bir teklif hazırlıyoruz. Gizli ücret veya kullanım başına sürpriz maliyet yok.',
+    primaryCta: { href: '/contact', label: 'Teklif isteyin' },
+    secondaryCta: { href: '/features', label: 'Modülleri karşılaştırın' },
     highlights: [
-      {
-        title: 'Açık Limitler',
-        detail: 'Her planda aktif kullanıcı, depolama ve işlem limitleri görünür şekilde tanımlıdır.',
-      },
-      {
-        title: 'Kademeli Destek',
-        detail: 'Standart, öncelikli ve özel müşteri başarı seviyeleri plan bazında ayrılır.',
-      },
-      {
-        title: 'Sözleşme Esnekliği',
-        detail: 'Aylık veya yıllık modelde ölçek değişimlerine göre güncellenebilir.',
-      },
+      { title: 'Net kapsam', detail: 'Teklifte hangi modüllerin, kaç kullanıcının ve hangi destek seviyesinin dahil olduğu açıkça yazar.' },
+      { title: 'Kurulum dahil', detail: 'Mevcut müşteri, ürün ve stok listelerinizin aktarımında yanınızdayız.' },
+      { title: 'Esnek sözleşme', detail: 'Aylık veya yıllık; ekip büyüdükçe kapsam birlikte güncellenir.' },
     ],
   },
   integrations: {
-    badge: 'Bağlantı Merkezi',
-    title: 'Mevcut sistemlerinizi kırmadan RenkFlow ile eşleştirin',
+    badge: 'Entegrasyonlar',
+    title: 'Kullandığınız sistemlerle konuşan bir altyapı.',
     description:
-      'ERP, muhasebe ve bulut depolama sistemleri için API temelli entegrasyon katmanı ile veri senkronu kontrollü ilerler.',
-    primaryCta: { href: '/docs', label: 'API Kılavuzunu İncele' },
-    secondaryCta: { href: '/contact', label: 'Entegrasyon Toplantısı' },
+      'Muhasebe yazılımı, e-posta ve mesajlaşma kanalları, barkod yazıcıları ve tarayıcılarla çalışacak şekilde tasarlandı. Sürümlenmiş bir API ile kendi araçlarınızı bağlayabilirsiniz.',
+    primaryCta: { href: '/contact', label: 'Entegrasyon görüşmesi' },
+    secondaryCta: { href: '/docs', label: 'API dokümantasyonu' },
     highlights: [
-      {
-        title: 'API-First Yaklaşım',
-        detail: 'Yeni uç noktalar geriye uyumlu versiyonlama standardı ile yayınlanır.',
-      },
-      {
-        title: 'Yetki Sınırları',
-        detail: 'Her entegrasyon tenant ve rol bazlı erişim politikalarıyla sınırlandırılır.',
-      },
-      {
-        title: 'İzleme ve Alarm',
-        detail: 'Entegrasyon hataları ve tekrar deneme akışları kayıt altına alınır.',
-      },
+      { title: 'REST API', detail: 'Sipariş, stok ve sevkiyat verisine sürümlenmiş uç noktalardan erişilir.' },
+      { title: 'E-posta ve WhatsApp', detail: 'Gelen talepler taslak siparişe dönüşür; müşteri bildirimleri otomatik gönderilir.' },
+      { title: 'Etiket ve barkod', detail: 'QR etiketleri doğrudan yazdırılır, el terminali ve kamera ile okutulur.' },
     ],
   },
   docs: {
     badge: 'Dokümantasyon',
-    title: 'Kurulum, kullanım ve API referansı tek bilgi mimarisinde',
+    title: 'Kurulumdan günlük kullanıma kadar rehberler.',
     description:
-      'Ürün kullanım rehberleri, teknik entegrasyon dokümanları ve sürüm geçiş notları sade başlıklar altında toplanır.',
-    primaryCta: { href: '/docs', label: 'Dokümantasyonu Aç' },
-    secondaryCta: { href: '/changelog', label: 'Sürüm Notlarına Git' },
+      'Ofis, üretim ve yönetim kullanıcıları için ayrı rehberler; entegrasyon geliştiricileri için API referansı.',
+    primaryCta: { href: '/contact', label: 'Destek alın' },
+    secondaryCta: { href: '/changelog', label: 'Sürüm notları' },
     highlights: [
-      {
-        title: 'Rol Bazlı Rehberler',
-        detail: 'Operasyon, finans ve yönetici kullanıcılar için ayrı kullanım yolları tanımlanır.',
-      },
-      {
-        title: 'Kopyalanabilir Örnekler',
-        detail: 'API talepleri ve yanıt örnekleri üretim senaryolarına göre paylaşılır.',
-      },
-      {
-        title: 'Sürüm Geçiş Notları',
-        detail: 'Kırıcı değişiklikler, geçiş adımlarıyla birlikte açık şekilde duyurulur.',
-      },
+      { title: 'Rol bazlı rehberler', detail: 'Her kullanıcı yalnızca kendi işini ilgilendiren adımları görür.' },
+      { title: 'API referansı', detail: 'Örnek istekler ve yanıtlarla birlikte uç nokta açıklamaları.' },
+      { title: 'Geçiş notları', detail: 'Davranışı değiştiren her güncelleme adım adım açıklanır.' },
     ],
   },
   security: {
-    badge: 'Bilgi Güvenliği',
-    title: 'Kurumsal güvenlik gereksinimlerine uygun kontrol katmanı',
+    badge: 'Güvenlik',
+    title: 'Verileriniz yalnızca yetkili kişilere açık.',
     description:
-      'Erişim politikaları, tenant izolasyonu ve işlem denetim logları ile platform güvenliği ölçülebilir bir çerçevede yönetilir.',
-    primaryCta: { href: '/security', label: 'Güvenlik Detayları' },
-    secondaryCta: { href: '/contact', label: 'Uyumluluk Görüşmesi' },
+      'Her kullanıcı rolüne göre yalnızca kendi işini görür. Kritik işlemler kayıt altına alınır, oturumlar ve giriş denemeleri sürekli denetlenir.',
+    primaryCta: { href: '/contact', label: 'Güvenlik ekibiyle görüşün' },
+    secondaryCta: { href: '/privacy', label: 'Gizlilik politikası' },
     highlights: [
-      {
-        title: 'Tenant İzolasyonu',
-        detail: 'Firma verileri uygulama ve erişim katmanında ayrıştırılmıştır.',
-      },
-      {
-        title: 'Rol ve Yetki Matrisi',
-        detail: 'Kritik finans ve belge işlemleri izin tabanlı güvence ile korunur.',
-      },
-      {
-        title: 'Denetlenebilir Kayıtlar',
-        detail: 'Önemli aksiyonlar operasyonel denetim için iz bırakacak şekilde saklanır.',
-      },
+      { title: 'Rol bazlı yetki', detail: 'Yönetici, ofis, muhasebe ve üretim rolleri farklı ekran ve işlemlere erişir.' },
+      { title: 'Firma izolasyonu', detail: 'Her sorgu firma kimliğiyle sınırlandırılır; veriler birbirine karışmaz.' },
+      { title: 'Denetim kaydı', detail: 'Sipariş, ödeme ve belge üzerindeki önemli işlemler kim, ne zaman bilgisiyle saklanır.' },
+      { title: 'Giriş koruması', detail: 'Tekrarlanan başarısız denemeler sınırlandırılır, hesap varlığı dışarıya sızdırılmaz.' },
+      { title: 'Güvenli dosyalar', detail: 'Teknik çizimler ve belgeler yalnızca yetkili oturumlarla açılır.' },
+      { title: 'Şifreli bağlantı', detail: 'Tüm trafik HTTPS üzerinden, sıkı güvenlik başlıklarıyla sunulur.' },
     ],
   },
   roadmap: {
-    badge: 'Yol Haritası',
-    title: 'Teslim odaklı ürün planı ve görünür geliştirme takvimi',
-    description:
-      'Yeni modüller; etki, aciliyet ve teknik risk puanına göre sıralanır. Yol haritası vaat değil, teslim takvimi olarak ele alınır.',
-    primaryCta: { href: '/roadmap', label: 'Yol Haritasını İncele' },
-    secondaryCta: { href: '/changelog', label: 'Tamamlananları Gör' },
+    badge: 'Yol haritası',
+    title: 'Sırada ne var?',
+    description: 'Önceliklerimizi sahadan gelen geri bildirimler belirliyor. Planlanan ve üzerinde çalışılan geliştirmeleri burada paylaşıyoruz.',
+    primaryCta: { href: '/contact', label: 'Öneri gönderin' },
+    secondaryCta: { href: '/changelog', label: 'Tamamlananlar' },
     highlights: [
-      {
-        title: 'Net Öncelik Modeli',
-        detail: 'Geliştirmeler kullanıcı etkisi ve operasyonel kazanç skoruna göre seçilir.',
-      },
-      {
-        title: 'Aşamalı Teslimat',
-        detail: 'Büyük özellikler kontrollü release dilimleriyle canlıya alınır.',
-      },
-      {
-        title: 'Geri Bildirim Döngüsü',
-        detail: 'Sahadan toplanan geri bildirimler doğrudan backlog kararına etki eder.',
-      },
+      { title: 'Kapasite planlama', detail: 'İstasyon bazlı haftalık yük ve teslim tarihi tahmini.' },
+      { title: 'Mobil saha uygulaması', detail: 'Usta ve depo ekipleri için çevrimdışı çalışabilen uygulama.' },
+      { title: 'Gelişmiş raporlar', detail: 'Fire, verim ve kârlılık için dönemsel karşılaştırmalar.' },
     ],
   },
   changelog: {
-    badge: 'Sürüm Geçmişi',
-    title: 'Yayınlanan her değişiklik için şeffaf sürüm günlüğü',
-    description:
-      'Sürüm notları; etkilenen modül, davranış değişimi ve gerekli aksiyon bilgisiyle birlikte yayımlanır.',
-    primaryCta: { href: '/blog', label: 'Detay Yazılarını Aç' },
-    secondaryCta: { href: '/docs', label: 'Geçiş Talimatlarını Gör' },
+    badge: 'Sürüm notları',
+    title: 'Neler değişti?',
+    description: 'Yayınlanan her güncelleme, etkilediği modüller ve yapmanız gereken bir şey varsa açıklamasıyla birlikte burada.',
+    primaryCta: { href: '/blog', label: 'Ürün günlüğü' },
+    secondaryCta: { href: '/roadmap', label: 'Yol haritası' },
     highlights: [
-      {
-        title: 'Etkilenen Alanlar',
-        detail: 'Hangi modülün nasıl değiştiği açık başlıklar ile listelenir.',
-      },
-      {
-        title: 'Kırıcı Değişiklik Uyarısı',
-        detail: 'Uygulama etkileyen kararlar geçiş adımlarıyla birlikte açıklanır.',
-      },
-      {
-        title: 'Kapanan Hata Kayıtları',
-        detail: 'Özellikle üretim kritik hatalar sürüm notlarında takip edilir.',
-      },
+      { title: 'Modül bazında', detail: 'Her değişiklik ilgili modül başlığı altında listelenir.' },
+      { title: 'Açık uyarılar', detail: 'Alışkanlıklarınızı etkileyen değişiklikler önceden duyurulur.' },
+      { title: 'Düzeltilen hatalar', detail: 'Bildirdiğiniz sorunların ne zaman çözüldüğünü takip edebilirsiniz.' },
     ],
   },
   press: {
-    badge: 'Basın ve Medya',
-    title: 'Marka varlıkları ve resmi duyurular için kurumsal kaynak merkezi',
-    description:
-      'Basın kitleri, ürün tanıtım metinleri ve kullanım yönergeleri tek yerde düzenli biçimde sunulur.',
-    primaryCta: { href: '/contact', label: 'Basın İletişimi' },
-    secondaryCta: { href: '/about', label: 'Şirket Profili' },
+    badge: 'Basın',
+    title: 'Basın ve medya kaynakları.',
+    description: 'Logo dosyaları, ürün görselleri ve resmi duyurular için iletişim bilgileri.',
+    primaryCta: { href: '/contact', label: 'Basın iletişimi' },
+    secondaryCta: { href: '/about', label: 'Hakkımızda' },
     highlights: [
-      {
-        title: 'Resmi Varlık Paketi',
-        detail: 'Logo, renk ve marka kullanım ilkeleri güncel sürümlerle paylaşılır.',
-      },
-      {
-        title: 'Duyuru Arşivi',
-        detail: 'Önemli ürün ve şirket duyuruları tarihsel sırayla korunur.',
-      },
-      {
-        title: 'Medya İletişim Kanalı',
-        detail: 'Basın talepleri için net bir geri dönüş ve koordinasyon hattı bulunur.',
-      },
+      { title: 'Marka dosyaları', detail: 'Logo ve kullanım kuralları talep üzerine paylaşılır.' },
+      { title: 'Duyurular', detail: 'Ürün ve şirket haberleri tarih sırasıyla arşivlenir.' },
+      { title: 'Röportaj talepleri', detail: 'Basın talepleriniz için doğrudan bir iletişim kanalı.' },
     ],
   },
   contact: {
     badge: 'İletişim',
-    title: 'Satış, destek ve iş ortaklığı ekipleriyle doğrudan temas kurun',
-    description:
-      'Kurumsal satış görüşmesi, teknik destek yönlendirmesi ve stratejik iş birliği talepleri için yapılandırılmış iletişim kanalları sağlanır.',
-    primaryCta: { href: '/contact', label: 'Talep Oluştur' },
-    secondaryCta: { href: '/status', label: 'Sistem Durumunu Gör' },
+    title: 'Konuşalım.',
+    description: 'Demo talebi, teklif veya destek için bize yazın. İş günlerinde aynı gün içinde dönüş yapıyoruz.',
+    primaryCta: { href: 'mailto:info@renkflow.com', label: 'info@renkflow.com' },
+    secondaryCta: { href: '/faq', label: 'Sık sorulanlar' },
     highlights: [
-      {
-        title: 'Satış Hattı',
-        detail: 'Paket, teklif ve dönüşüm görüşmeleri için öncelikli geri dönüş sağlanır.',
-      },
-      {
-        title: 'Teknik Destek',
-        detail: 'Canlı sorunlar için ekip sorumlularına yönlendirilen destek akışı çalışır.',
-      },
-      {
-        title: 'Ortaklık Programı',
-        detail: 'Danışman ve entegrasyon partnerleri için ayrı başvuru yapısı bulunur.',
-      },
+      { title: 'Satış ve demo', detail: 'Ekibinizle birlikte ürünü kendi örnek siparişleriniz üzerinden gösterelim.' },
+      { title: 'Teknik destek', detail: 'Mevcut kullanıcılar panel içindeki asistan veya e-posta ile ulaşabilir.' },
+      { title: 'İş ortaklığı', detail: 'Bayi, danışman ve entegrasyon ortaklarıyla çalışmaya açığız.' },
     ],
   },
   faq: {
-    badge: 'Sık Sorulanlar',
-    title: 'Kullanım sürecinde en çok sorulan konuların net cevapları',
-    description:
-      'Uygulama başlangıcı, yetkilendirme, belge yönetimi ve finans akışlarıyla ilgili sık sorular, operasyonel dilde kısa cevaplarla sunulur.',
-    primaryCta: { href: '/docs', label: 'Detay Kılavuza Geç' },
-    secondaryCta: { href: '/contact', label: 'Destek Talebi Aç' },
+    badge: 'Sık sorulanlar',
+    title: 'Aklınıza takılanlar.',
+    description: 'Kurulum, kullanım ve veri güvenliği hakkında en sık gelen sorular.',
+    primaryCta: { href: '/contact', label: 'Sorunuzu sorun' },
+    secondaryCta: { href: '/docs', label: 'Dokümantasyon' },
     highlights: [
-      {
-        title: 'Hızlı Onboarding',
-        detail: 'İlk tenant kurulumu ve rol atama adımları adım adım açıklanır.',
-      },
-      {
-        title: 'Belge ve PDF Süreci',
-        detail: 'Yükleme, görüntüleme ve paylaşım akışlarının güvenli kullanımı anlatılır.',
-      },
-      {
-        title: 'Finans İşleyişi',
-        detail: 'Fatura, tahsilat ve ödeme ekranlarıyla ilgili kritik sorular yanıtlanır.',
-      },
+      { title: 'Kurulum ne kadar sürer?', detail: 'Mevcut listelerinizin durumuna göre genellikle birkaç gün içinde ekip kullanmaya başlar.' },
+      { title: 'Verilerimi aktarabilir miyim?', detail: 'Müşteri, ürün ve stok listeleri Excel/CSV dosyalarından içeri alınabilir.' },
+      { title: 'Atölyede internet zayıfsa?', detail: 'Saha ekranları düşük bağlantıda çalışacak şekilde hafif tutuldu; çevrimdışı destek yol haritamızda.' },
     ],
   },
   terms: {
-    badge: 'Hukuki Çerçeve',
-    title: 'Hizmet kullanım koşulları ve taraf sorumlulukları',
-    description:
-      'Kullanım şartları ürün kapsamı, hizmet seviyeleri ve taraf yükümlülükleri açısından sade bir yapıda güncellenmiştir.',
-    primaryCta: { href: '/terms', label: 'Koşulları İncele' },
-    secondaryCta: { href: '/privacy', label: 'Gizlilik Politikasına Geç' },
+    badge: 'Kullanım koşulları',
+    title: 'Hizmet kullanım koşulları.',
+    description: 'RenkFlow’u kullanırken tarafların hak ve sorumlulukları.',
+    primaryCta: { href: '/privacy', label: 'Gizlilik politikası' },
+    secondaryCta: { href: '/contact', label: 'Sorularınız için' },
     highlights: [
-      {
-        title: 'Sözleşme Netliği',
-        detail: 'Rol, yetki ve hizmet sınırları açık ifadelerle tanımlanır.',
-      },
-      {
-        title: 'Hizmet Kapsamı',
-        detail: 'Platformun sunduğu modüller ve hariç tutulan senaryolar ayrıştırılır.',
-      },
-      {
-        title: 'Uygun Kullanım İlkeleri',
-        detail: 'Platform güvenliğini koruyan kullanım kuralları net biçimde belirtilir.',
-      },
+      { title: 'Hizmet kapsamı', detail: 'Sunulan modüller ve destek seviyesi sözleşmenizde tanımlanır.' },
+      { title: 'Hesap sorumluluğu', detail: 'Kullanıcı hesapları ve yetkileri firma yöneticisi tarafından yönetilir.' },
+      { title: 'Uygun kullanım', detail: 'Platformun güvenliğini ve diğer kullanıcıları etkileyecek kullanım yasaktır.' },
     ],
   },
   privacy: {
     badge: 'Gizlilik',
-    title: 'Kişisel verilerin işlenmesi ve korunması için şeffaf politika',
-    description:
-      'Toplanan veri türleri, işleme amaçları, saklama süreleri ve kullanıcı hakları anlaşılır bir dille açıklanır.',
-    primaryCta: { href: '/privacy', label: 'Politikayı İncele' },
-    secondaryCta: { href: '/security', label: 'Güvenlik Standartları' },
+    title: 'Kişisel verilerin korunması.',
+    description: 'Hangi verileri neden işlediğimizi, ne kadar sakladığımızı ve haklarınızı açıkça anlatıyoruz.',
+    primaryCta: { href: '/contact', label: 'Veri talebi oluşturun' },
+    secondaryCta: { href: '/cookies', label: 'Çerez politikası' },
     highlights: [
-      {
-        title: 'Veri Minimizasyonu',
-        detail: 'İş akışı için gerekli olmayan veri toplanmaz.',
-      },
-      {
-        title: 'Saklama Politikası',
-        detail: 'Veri türüne göre saklama süreleri ve imha kuralları tanımlıdır.',
-      },
-      {
-        title: 'Hak Yönetimi',
-        detail: 'Erişim, düzeltme ve silme talepleri için işletilebilir bir süreç bulunur.',
-      },
+      { title: 'Gerekli olan kadar', detail: 'Yalnızca iş akışının ihtiyaç duyduğu veriler toplanır.' },
+      { title: 'Belirli süre', detail: 'Her veri türü için saklama süresi ve imha kuralı tanımlıdır.' },
+      { title: 'Haklarınız', detail: 'Erişim, düzeltme ve silme talepleriniz kayıt altına alınarak yanıtlanır.' },
     ],
   },
   cookies: {
     badge: 'Çerezler',
-    title: 'Çerez kullanımı ve tercih yönetimi hakkında açık bilgilendirme',
-    description:
-      'Zorunlu, analitik ve performans odaklı çerez kategorileri ayrıştırılmış; kullanıcı tercihleri yönetilebilir hale getirilmiştir.',
-    primaryCta: { href: '/cookies', label: 'Çerez Tercihleri' },
-    secondaryCta: { href: '/privacy', label: 'Gizlilik Politikası' },
+    title: 'Çerez politikası.',
+    description: 'Oturumunuzu güvenle sürdürmek ve tercihlerinizi hatırlamak için çerez kullanıyoruz.',
+    primaryCta: { href: '/privacy', label: 'Gizlilik politikası' },
+    secondaryCta: { href: '/contact', label: 'Sorularınız için' },
     highlights: [
-      {
-        title: 'Kategori Bazlı Yönetim',
-        detail: 'Her çerez türü işlevine göre ayrı kontrol edilir.',
-      },
-      {
-        title: 'Şeffaf Amaç Tanımı',
-        detail: 'Çerezlerin hangi amaçla kullanıldığı kullanıcıya açıkça gösterilir.',
-      },
-      {
-        title: 'Tercih Güncelleme',
-        detail: 'Kullanıcı çerez ayarlarını dilediği zaman yeniden düzenleyebilir.',
-      },
+      { title: 'Zorunlu çerezler', detail: 'Giriş ve güvenlik için gereklidir; kapatılamaz.' },
+      { title: 'Tercih çerezleri', detail: 'Tema ve menü düzeni gibi ayarlarınızı hatırlar.' },
+      { title: 'Analitik', detail: 'Yalnızca onay vermeniz halinde anonim kullanım ölçümü yapılır.' },
     ],
   },
   status: {
-    badge: 'Sistem İzleme',
-    title: 'Platform servislerinin anlık sağlık ve bakım görünürlüğü',
-    description:
-      'Çalışma durumu, bakım pencereleri ve olası kesintilere ait zaman çizelgesi merkezi bir statü görünümüyle sunulur.',
-    primaryCta: { href: '/status', label: 'Servis Durumunu Gör' },
-    secondaryCta: { href: '/contact', label: 'Destek Ekibine Ulaş' },
+    badge: 'Sistem durumu',
+    title: 'Servis durumu ve bakım duyuruları.',
+    description: 'Planlı bakımlar önceden duyurulur; olası kesintiler ve çözüm süreçleri burada paylaşılır.',
+    primaryCta: { href: '/contact', label: 'Destek ekibine ulaşın' },
+    secondaryCta: { href: '/changelog', label: 'Sürüm notları' },
     highlights: [
-      {
-        title: 'Gerçek Zamanlı Durum',
-        detail: 'Kritik servislerin sağlık bilgisi tek panelde takip edilir.',
-      },
-      {
-        title: 'Planlı Bakım Takvimi',
-        detail: 'Planlı müdahaleler önceden duyurulur ve etki alanı belirtilir.',
-      },
-      {
-        title: 'Olay Sonrası Raporlama',
-        detail: 'Kesinti sonrası özet ve aksiyon raporu paylaşılır.',
-      },
+      { title: 'Planlı bakım', detail: 'Bakım çalışmaları mesai dışına planlanır ve önceden bildirilir.' },
+      { title: 'Olay bildirimi', detail: 'Bir sorun yaşandığında etkisi ve tahmini çözüm süresi paylaşılır.' },
+      { title: 'Sonrası', detail: 'Önemli olayların ardından kısa bir değerlendirme yayımlanır.' },
     ],
   },
-} as const;
+} satisfies Record<string, MarketingPageEntry>;
 
 export type MarketingPageKey = keyof typeof marketingPages;
 

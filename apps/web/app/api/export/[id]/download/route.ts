@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getExportDownload } from '@/lib/export/service';
-import { exportRateLimiter, createRateLimitResponse } from '@/lib/rateLimiter';
+import { consumeRateLimit, rateLimitResponse } from '@/lib/security/rate-limit';
 import { isMissingRelationError } from '@/lib/db/schema-guard';
 
 interface RouteParams {
@@ -25,9 +25,9 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const rateLimitResult = await exportRateLimiter.check(_request, 'download');
+    const rateLimitResult = await consumeRateLimit('exportRead', session.user.id || session.user.tenantId);
     if (!rateLimitResult.allowed) {
-      return createRateLimitResponse(rateLimitResult);
+      return rateLimitResponse(rateLimitResult);
     }
 
     const { id } = await params;

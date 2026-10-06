@@ -1,10 +1,13 @@
 import { redirect } from 'next/navigation';
+import { auth } from '@/auth';
+import { HomeLanding } from '@/components/site/HomeLanding';
 
 /**
- * The public landing page is temporarily disabled while the panel is piloted.
- * Authenticated users continue to the dashboard; unauthenticated users are
- * redirected to the login screen by the application proxy.
+ * Signed-in users go straight to their workspace; everyone else sees the public
+ * product site.
  */
-export default function HomePage() {
-  redirect('/dashboard');
+export default async function HomePage() {
+  const session = await auth().catch(() => null);
+  if (session?.user) redirect('/dashboard');
+  return <HomeLanding />;
 }

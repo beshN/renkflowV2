@@ -3,6 +3,7 @@ import { runCron } from "@/lib/features/manufacturing/cron";
 import { drainNotifications } from "@/lib/features/manufacturing/notification.service";
 import { drainInbound } from "@/lib/features/manufacturing/inbound.service";
 import { drainStorageCleanup } from "@/lib/features/orders/deletion.service";
+jest.mock("@/lib/security/rate-limit",()=>({pruneRateLimitBuckets:jest.fn().mockResolvedValue(0)}));
 jest.mock("@/lib/storage/orphan-cleanup",()=>({sweepAbandonedUploads:jest.fn().mockResolvedValue({deleted:0})}));
 jest.mock("server-only",()=>({}));
 jest.mock("@/lib/features/manufacturing/notification.service",()=>({drainNotifications:jest.fn().mockResolvedValue(0)}));

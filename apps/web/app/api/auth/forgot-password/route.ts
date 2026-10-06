@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { authLimiter, rateLimitResponse } from '@/lib/api/rate-limit';
+import { consumeRateLimit, getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
 import { resolveServerBaseUrl } from '@/lib/shared/config/runtime-env';
 
 // Email validation regex
@@ -22,9 +22,9 @@ async function hashToken(token: string): Promise<string> {
 }
 
 export async function POST(request: NextRequest) {
-  const { allowed, remaining, resetIn } = authLimiter.check(request);
-  if (!allowed) {
-    return rateLimitResponse(remaining, resetIn);
+  const limit = await consumeRateLimit('passwordReset', getClientIp(request.headers));
+  if (!limit.allowed) {
+    return rateLimitResponse(limit);
   }
 
   try {

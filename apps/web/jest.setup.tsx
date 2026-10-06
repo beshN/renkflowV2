@@ -63,20 +63,40 @@ jest.mock('next-auth/react', () => ({
   SessionProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-// Mock framer-motion
-jest.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    span: ({ children, ...props }: any) => <span {...props}>{children}</span>,
-    button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-    tr: ({ children, ...props }: any) => <tr {...props}>{children}</tr>,
-  },
-  AnimatePresence: ({ children }: any) => children,
-  useAnimation: () => ({
-    start: jest.fn(),
-    stop: jest.fn(),
-  }),
-}));
+// Mock framer-motion: every motion.<tag> renders the plain element without
+// animation props, and hooks behave as if the user prefers reduced motion.
+jest.mock('framer-motion', () => {
+  const React = require('react');
+  const MOTION_PROPS = new Set(['initial', 'animate', 'exit', 'transition', 'variants', 'whileInView', 'whileHover', 'whileTap', 'whileFocus', 'whileDrag', 'viewport', 'layout', 'layoutId', 'drag', 'dragConstraints', 'onAnimationComplete', 'transitionEnd']);
+  const cache = new Map();
+  const motion = new Proxy({}, {
+    get: (_target, tag) => {
+      if (!cache.has(tag)) {
+        const Component = React.forwardRef(({ children, style, ...props }: any, ref: any) => {
+          const clean = Object.fromEntries(Object.entries(props).filter(([key]) => !MOTION_PROPS.has(key)));
+          const plainStyle = style && Object.fromEntries(Object.entries(style).filter(([, value]) => typeof value !== 'object' || value === null));
+          return React.createElement(tag, { ...clean, style: plainStyle, ref }, children);
+        });
+        Component.displayName = `motion.${String(tag)}`;
+        cache.set(tag, Component);
+      }
+      return cache.get(tag);
+    },
+  });
+  const value = (initial = 0) => ({ get: () => initial, set: jest.fn(), on: jest.fn(() => jest.fn()) });
+  return {
+    motion,
+    AnimatePresence: ({ children }: any) => children,
+    useAnimation: () => ({ start: jest.fn(), stop: jest.fn() }),
+    useReducedMotion: () => true,
+    useInView: () => true,
+    useScroll: () => ({ scrollY: value(), scrollYProgress: value() }),
+    useTransform: () => value(),
+    useSpring: (input: any) => input,
+    useMotionValue: (initial: number) => value(initial),
+    animate: () => ({ stop: jest.fn() }),
+  };
+});
 
 if (typeof window !== "undefined") {
 // Mock window.matchMedia

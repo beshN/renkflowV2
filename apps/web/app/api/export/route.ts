@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { createExportJob, getExportJob, listExportJobs } from '@/lib/export/service';
-import { exportRateLimiter, createRateLimitResponse } from '@/lib/rateLimiter';
+import { consumeRateLimit, rateLimitResponse } from '@/lib/security/rate-limit';
 import { z } from 'zod';
 import { isMissingRelationError } from '@/lib/db/schema-guard';
 
@@ -25,9 +25,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const rateLimitResult = await exportRateLimiter.check(request as any, 'create');
+    const rateLimitResult = await consumeRateLimit('exportCreate', session.user.id);
     if (!rateLimitResult.allowed) {
-      return createRateLimitResponse(rateLimitResult);
+      return rateLimitResponse(rateLimitResult);
     }
 
     const body = await request.json().catch(() => null);
@@ -60,9 +60,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get('id');
 
-    const rateLimitResult = await exportRateLimiter.check(request as any, 'list');
+    const rateLimitResult = await consumeRateLimit('exportRead', session.user.id || session.user.tenantId);
     if (!rateLimitResult.allowed) {
-      return createRateLimitResponse(rateLimitResult);
+      return rateLimitResponse(rateLimitResult);
     }
 
     if (jobId) {

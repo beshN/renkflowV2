@@ -4,13 +4,20 @@ import { Toaster } from 'sonner'
 import '@/styles/design-system.css'
 import './globals.css'
 import '@/styles/workspace.css'
+import '@/styles/theme.css'
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Geist, Geist_Mono } from 'next/font/google'
 import { ClientComponents } from '@/components/layout/ClientComponents'
 
-const inter = Inter({ 
-  subsets: ['latin'],
-  variable: '--font-inter',
+const geist = Geist({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-sans',
+  display: 'swap',
+})
+
+const geistMono = Geist_Mono({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-mono',
   display: 'swap',
 })
 
@@ -108,8 +115,8 @@ export default function RootLayout({
           rel="stylesheet"
         />
         {/* PWA Meta Tags */}
-        <meta name="theme-color" content="#8c5e40" />
-        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0B1120" />
+        <meta name="theme-color" content="#fbfbfb" />
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0b0c" />
         <link rel="canonical" href={baseUrl} />
         
         {/* iOS PWA Configuration */}
@@ -124,10 +131,10 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         
         {/* Microsoft Tile */}
-        <meta name="msapplication-TileColor" content="#8c5e40" />
+        <meta name="msapplication-TileColor" content="#111113" />
         <meta name="msapplication-TileImage" content="/logo-r.png" />
       </head>
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}>
         <Providers>
           <ErrorBoundary>
             <SyncStatusBar />

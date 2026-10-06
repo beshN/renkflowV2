@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
       title="Şifreni Yenile"
       description="Hesabınla ilişkili e-posta adresini gir; doğrulama bağlantısını güvenli şekilde gönderelim."
       footer={
-        <Link href="/auth/login" className="font-semibold text-slate-900 hover:underline dark:text-slate-100">
+        <Link href="/auth/login" className="font-medium text-primary hover:underline">
           Giriş sayfasına dön
         </Link>
       }

@@ -147,7 +147,7 @@ export default function PWAInstallPrompt() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleInstall}
-                  className="w-full py-2.5 rounded-lg bg-[#2d4e6f] text-white font-medium text-sm hover:bg-[#24415e] transition-colors flex items-center justify-center gap-2"
+                  className="rf-primary-button w-full py-2.5"
                 >
                   <Download className="h-[18px] w-[18px]" />
                   Yükle

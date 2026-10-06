@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { sendVerificationEmail } from '@/lib/email';
-import { authLimiter, rateLimitResponse } from '@/lib/api/rate-limit';
+import { consumeRateLimit, getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
 import { resolveServerBaseUrl } from '@/lib/shared/config/runtime-env';
 
 /**
@@ -10,9 +10,9 @@ import { resolveServerBaseUrl } from '@/lib/shared/config/runtime-env';
  */
 export async function POST(request: NextRequest) {
   // Rate limiting
-  const { allowed, remaining, resetIn } = authLimiter.check(request);
-  if (!allowed) {
-    return rateLimitResponse(remaining, resetIn);
+  const limit = await consumeRateLimit('verificationEmail', getClientIp(request.headers));
+  if (!limit.allowed) {
+    return rateLimitResponse(limit);
   }
 
   try {
@@ -35,22 +35,21 @@ export async function POST(request: NextRequest) {
     `;
 
     const usersRows = users as any[];
-    if (usersRows.length === 0) {
-      // Don't reveal if email exists or not for security
-      return NextResponse.json({
-        success: true,
-        message: 'Eğer bu e-posta adresi kayıtlıysa, doğrulama linki gönderilecektir.',
-      });
+    // Unknown, already verified and throttled addresses get the same answer so the
+    // endpoint cannot be used to discover which emails have accounts.
+    const genericResponse = {
+      success: true,
+      message: 'Eğer bu e-posta adresi kayıtlıysa, doğrulama linki gönderilecektir.',
+    };
+    if (usersRows.length === 0 || usersRows[0].email_verified) {
+      return NextResponse.json(genericResponse);
     }
 
     const user = usersRows[0];
 
-    // Check if already verified
-    if (user.email_verified) {
-      return NextResponse.json(
-        { error: 'Bu e-posta adresi zaten doğrulanmış. Giriş yapabilirsiniz.', field: 'email' },
-        { status: 400 }
-      );
+    const accountLimit = await consumeRateLimit('verificationEmail', `account:${email}`);
+    if (!accountLimit.allowed) {
+      return NextResponse.json(genericResponse);
     }
 
     // Generate new token if needed

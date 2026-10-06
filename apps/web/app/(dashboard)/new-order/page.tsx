@@ -12,6 +12,7 @@ import { requestJson } from '@/lib/shared/network';
 import { NewOrderFormData } from '@/lib/types';
 import { ArrowLeft, FileUp, Loader2, ClipboardCheck, Info } from 'lucide-react';
 import { ORDER_MAX_UPLOAD_SIZE_BYTES } from '@/lib/features/orders/constants';
+import { celebrate } from '@/components/spells/celebrate';
 
 async function createOrderViaApi(payload: FormData): Promise<{ ok: boolean; status: number; message?: string }> {
   const result = await requestJson('/api/v1/orders', {
@@ -85,6 +86,7 @@ export default function NewOrderPage() {
       return;
     }
 
+    celebrate();
     showToast('Sipariş kaydı tamamlandı.', 'success');
     router.push('/orders');
     router.refresh();

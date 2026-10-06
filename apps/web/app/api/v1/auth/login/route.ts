@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
-import bcrypt from 'bcryptjs';
 import { successResponse, errorResponse, handleCORS, generateAPIToken } from '@/lib/api/auth-helpers';
-import { authRateLimiter, createRateLimitResponse } from '@/lib/rateLimiter';
+import { getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
+import { clearLoginAttempts, consumeLoginAttempt, verifyPassword } from '@/lib/features/auth/login-guard';
+import { isPrivateAccessAllowed } from '@/lib/features/auth/private-access';
 import { sessionManager } from '@/lib/redis';
 
 import { sql } from '@/lib/db';
@@ -16,11 +17,7 @@ export async function OPTIONS() {
 
 // POST /api/v1/auth/login - Login and get JWT token
 export async function POST(request: NextRequest) {
-  // Check rate limit with Redis-backed limiter
-  const rateLimitResult = await authRateLimiter.check(request, 'login');
-  if (!rateLimitResult.allowed) {
-    return createRateLimitResponse(rateLimitResult);
-  }
+  const ip = getClientIp(request.headers);
 
   try {
     const body = await request.json();
@@ -34,6 +31,15 @@ export async function POST(request: NextRequest) {
 
     if (!EMAIL_REGEX.test(email)) {
       return errorResponse('Geçerli bir e-posta adresi girin', 400);
+    }
+
+    const rateLimitResult = await consumeLoginAttempt(ip, email);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResponse(rateLimitResult, 'Çok fazla giriş denemesi. Lütfen biraz bekleyip tekrar deneyin.');
+    }
+
+    if (!isPrivateAccessAllowed(email)) {
+      return errorResponse('E-posta veya şifre hatalı', 401);
     }
 
     // Find user
@@ -67,38 +73,24 @@ export async function POST(request: NextRequest) {
       LIMIT 1
     `;
 
-    const usersRows = users as any[];
-    if (usersRows.length === 0) {
-      // Record failed attempt for rate limiting
-      await authRateLimiter.recordFailure(request, 'login');
+    const user = (users as any[])[0];
+
+    // Unknown accounts, OAuth-only accounts and wrong passwords are indistinguishable.
+    const isValidPassword = await verifyPassword(String(password), user?.password);
+    if (!user || !isValidPassword) {
       return errorResponse('E-posta veya şifre hatalı', 401);
     }
 
-    const user = usersRows[0];
-
-    // Check if email is verified
+    // Only reveal verification state after the caller proved they own the password.
     if (!user.email_verified) {
       return errorResponse('Lütfen önce e-posta adresinizi doğrulayın', 401);
-    }
-
-    // Verify password
-    if (!user.password) {
-      return errorResponse('Bu hesap için şifre ile giriş yapılamaz', 401);
-    }
-
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
-      // Record failed attempt for rate limiting
-      await authRateLimiter.recordFailure(request, 'login');
-      return errorResponse('E-posta veya şifre hatalı', 401);
     }
 
     if (!user.tenant_id) {
       return errorResponse('Kullanıcının aktif tenant üyeliği bulunamadı', 403);
     }
 
-    // Clear rate limit on successful login
-    await authRateLimiter.clearLimit(request, 'login');
+    await clearLoginAttempts(email);
 
     // Generate JWT token
     const { accessToken, expiresIn } = generateAPIToken({
@@ -112,9 +104,6 @@ export async function POST(request: NextRequest) {
     // Create session in Redis
     const sessionId = `${user.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const userAgent = request.headers.get('user-agent') || 'unknown';
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 
-               request.headers.get('x-real-ip') || 
-               'unknown';
 
     await sessionManager.createSession(sessionId, {
       userId: user.id,
