@@ -99,7 +99,7 @@ export default function UpdatePasswordPage() {
         title="Bağlantı Geçersiz"
         description="Bu şifre sıfırlama bağlantısı kullanılamıyor. Yeni bir talep başlatmalısın."
         footer={
-          <Link href="/auth/forgot-password" className="font-semibold text-slate-900 hover:underline dark:text-slate-100">
+          <Link href="/auth/forgot-password" className="font-medium text-primary hover:underline">
             Yeni bağlantı talep et
           </Link>
         }
@@ -114,7 +114,7 @@ export default function UpdatePasswordPage() {
       title="Yeni Şifre Oluştur"
       description="Hesabın için güçlü bir şifre belirleyerek erişimini yenile."
       footer={
-        <Link href="/auth/login" className="font-semibold text-slate-900 hover:underline dark:text-slate-100">
+        <Link href="/auth/login" className="font-medium text-primary hover:underline">
           Giriş sayfasına dön
         </Link>
       }
