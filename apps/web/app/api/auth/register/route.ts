@@ -2,7 +2,7 @@ import { privateAccessEmail } from '@/lib/features/auth/private-access';
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { sendVerificationEmail } from '@/lib/email';
-import { authLimiter, rateLimitResponse } from '@/lib/api/rate-limit';
+import { consumeRateLimit, getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
 import { sql, withTransaction } from '@/lib/db';
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_BY_KEY, TemplateKey } from '@/lib/config/templates';
 import { resolveServerBaseUrl } from '@/lib/shared/config/runtime-env';
@@ -87,9 +87,9 @@ function mapRegistrationError(error: unknown) {
 export async function POST(request: NextRequest) {
   if (privateAccessEmail()) return NextResponse.json({error: 'Bu çalışma alanı özel erişime açık. Yeni hesap kaydı kapalı.'}, {status:403});
   // Rate limiting check
-  const { allowed, remaining, resetIn } = authLimiter.check(request);
-  if (!allowed) {
-    return rateLimitResponse(remaining, resetIn);
+  const limit = await consumeRateLimit('register', getClientIp(request.headers));
+  if (!limit.allowed) {
+    return rateLimitResponse(limit);
   }
 
   try {

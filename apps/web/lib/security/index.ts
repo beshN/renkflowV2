@@ -13,19 +13,6 @@ export {
   type AuditQueryResult,
 } from './audit-trail';
 
-// Rate Limiter
-export {
-  rateLimiter,
-  RateLimiter,
-  createRateLimitCheck,
-  checkTenantRateLimit,
-  type RateLimitConfig,
-  type RateLimitResult,
-  type RateLimitInfo,
-  type RateLimitMiddlewareOptions,
-  type TenantRateLimitOptions,
-} from './rate-limiter';
-
 // Encryption
 export {
   encryption,

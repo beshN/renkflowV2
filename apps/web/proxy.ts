@@ -4,12 +4,6 @@ import { getToken } from 'next-auth/jwt';
 import { evaluateComingSoonRequest, isComingSoonMode, normalizePublicSiteMode } from '@/lib/launch/comingSoonGate';
 import { resolveAuthSecret } from '@/lib/shared/config/runtime-env';
 
-type AuthRateLimitEntry = {
-  attempts: number;
-  firstAttemptAt: number;
-  blockedUntil: number;
-};
-
 const AUTH_SECRET =
   resolveAuthSecret({
     context: 'proxy',
@@ -18,10 +12,6 @@ const AUTH_SECRET =
     developmentFallback: 'development-only-fallback-secret',
   }) || undefined;
 
-const AUTH_RATE_LIMIT_WINDOW_MS = 60_000;
-const AUTH_RATE_LIMIT_MAX_ATTEMPTS = 5;
-const AUTH_RATE_LIMIT_BLOCK_MS = 60_000;
-const authRateLimits = new Map<string, AuthRateLimitEntry>();
 const ACME_CHALLENGE_PREFIX = '/.well-known/acme-challenge/';
 
 const AUTH_REDIRECTS: Record<string, { destination: string; permanent: boolean }> = {
@@ -54,61 +44,6 @@ const PUBLIC_EXACT_PATHS = new Set([
 
 const PUBLIC_PREFIXES = ['/blog/', '/careers/', '/docs/', '/public/', '/track/'];
 const AUTH_ENTRY_PAGES = new Set(['/auth/login', '/auth/forgot-password', '/auth/update-password', '/signup']);
-
-function getClientIp(request: NextRequest): string {
-  const requestIp = (request as { ip?: string }).ip;
-  return (
-    request.headers.get('cf-connecting-ip') ||
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    request.headers.get('x-real-ip') ||
-    requestIp ||
-    'unknown'
-  );
-}
-
-function isRateLimitedAuthEndpoint(pathname: string): boolean {
-  return (
-    pathname.startsWith('/api/auth/callback/credentials') ||
-    pathname.startsWith('/api/auth/signin')
-  );
-}
-
-function checkAuthRateLimit(ip: string): { allowed: true } | { allowed: false; retryAfter: number } {
-  const now = Date.now();
-  const existing = authRateLimits.get(ip);
-
-  if (existing) {
-    if (existing.blockedUntil > now) {
-      return {
-        allowed: false,
-        retryAfter: Math.max(1, Math.ceil((existing.blockedUntil - now) / 1000)),
-      };
-    }
-    if (now - existing.firstAttemptAt > AUTH_RATE_LIMIT_WINDOW_MS) {
-      authRateLimits.delete(ip);
-    }
-  }
-
-  const current = authRateLimits.get(ip) || {
-    attempts: 0,
-    firstAttemptAt: now,
-    blockedUntil: 0,
-  };
-
-  current.attempts += 1;
-
-  if (current.attempts > AUTH_RATE_LIMIT_MAX_ATTEMPTS) {
-    current.blockedUntil = now + AUTH_RATE_LIMIT_BLOCK_MS;
-    authRateLimits.set(ip, current);
-    return {
-      allowed: false,
-      retryAfter: Math.ceil(AUTH_RATE_LIMIT_BLOCK_MS / 1000),
-    };
-  }
-
-  authRateLimits.set(ip, current);
-  return { allowed: true };
-}
 
 function isPublicPage(pathname: string): boolean {
   if (PUBLIC_EXACT_PATHS.has(pathname)) {
@@ -225,25 +160,8 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  if (isRateLimitedAuthEndpoint(pathname)) {
-    const ip = getClientIp(request);
-    const limit = checkAuthRateLimit(ip);
-    if (!limit.allowed) {
-      return withProxySecurityHeaders(NextResponse.json(
-        {
-          error: `Çok fazla başarısız deneme. ${limit.retryAfter} saniye sonra tekrar deneyin.`,
-          retryAfter: limit.retryAfter,
-        },
-        {
-          status: 429,
-          headers: {
-            'Retry-After': String(limit.retryAfter),
-            'X-RateLimit-Remaining': '0',
-          },
-        }
-      ), { isSecureRequest });
-    }
-  }
+  // Login throttling lives in the credentials authorize() step, backed by the shared
+  // database limiter; an in-memory counter here would reset per serverless instance.
 
   const authRedirect = AUTH_REDIRECTS[pathname];
   if (authRedirect) {
@@ -267,7 +185,7 @@ export async function proxy(request: NextRequest) {
     return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
   }
 
-  if(privateAccessEmail() && (pathname==='/signup' || pathname.startsWith('/track/') || pathname.startsWith('/q/'))) {
+  if(privateAccessEmail() && (pathname.startsWith('/track/') || pathname.startsWith('/q/'))) {
     if(!(await isAuthenticated(request))) return withProxySecurityHeaders(buildLoginRedirect(request), {isSecureRequest});
   }
 

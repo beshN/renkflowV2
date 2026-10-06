@@ -5,7 +5,8 @@ import { CredentialsSignin } from 'next-auth';
 import Google from 'next-auth/providers/google';
 import AzureAD from 'next-auth/providers/azure-ad';
 import Credentials from 'next-auth/providers/credentials';
-import bcrypt from 'bcryptjs';
+import { clearLoginAttempts, consumeLoginAttempt, verifyPassword } from '@/lib/features/auth/login-guard';
+import { getClientIp } from '@/lib/security/rate-limit';
 
 import { getSql } from '@/lib/db';
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_BY_KEY } from '@/lib/config/templates';
@@ -104,7 +105,7 @@ export const authConfig: NextAuthConfig = {
         password: { label: 'Password', type: 'password' },
         ticket: { label: 'Ticket', type: 'text' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (DEBUG) console.log('[AUTH] Starting authorize...');
         
         try {
@@ -113,6 +114,11 @@ export const authConfig: NextAuthConfig = {
             ? (credentials.email as string).trim().toLowerCase()
             : '';
           
+          if (normalizedEmail) {
+            const attempt = await consumeLoginAttempt(getClientIp(request.headers), normalizedEmail);
+            if (!attempt.allowed) throw createCredentialsError('rate_limited');
+          }
+
           if (!isPrivateAccessAllowed(normalizedEmail)) throw createCredentialsError('invalid_credentials');
 
           // Ticket-based Login (SSO/Magic Link)
@@ -216,25 +222,13 @@ export const authConfig: NextAuthConfig = {
 
           const user = usersRows[0];
 
-          if (!user) {
-            if (DEBUG) console.log('[AUTH] User not found');
-            throw createCredentialsError('user_not_found');
-          }
+          // The error code reaches the client, so unknown accounts, OAuth-only
+          // accounts and wrong passwords must share one code and similar timing.
+          const isPasswordValid = await verifyPassword(credentials.password as string, user?.password);
 
-          if (!user.password) {
-            if (DEBUG) console.log('[AUTH] Password not set (OAuth account)');
-            throw createCredentialsError('oauth_only');
-          }
-
-          // Verify password
-          const isPasswordValid = await bcrypt.compare(
-            credentials.password as string,
-            user.password
-          );
-
-          if (!isPasswordValid) {
-            if (DEBUG) console.log('[AUTH] Invalid password');
-            throw createCredentialsError('invalid_password');
+          if (!user || !isPasswordValid) {
+            if (DEBUG) console.log('[AUTH] Invalid credentials');
+            throw createCredentialsError('invalid_credentials');
           }
 
           if (!user.email_verified) {
@@ -247,6 +241,7 @@ export const authConfig: NextAuthConfig = {
             throw createCredentialsError('tenant_not_found');
           }
 
+          await clearLoginAttempts(normalizedEmail);
           if (DEBUG) console.log('[AUTH] Login successful for:', maskEmail(user.email));
 
           return {

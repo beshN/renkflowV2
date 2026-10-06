@@ -40,7 +40,9 @@ export default function LoginPage() {
     try {
       const result = await signIn('credentials', { email: email.trim().toLowerCase(), password, redirect: false, callbackUrl });
       if (!result || result.error) {
-        setError('E-posta veya şifre doğrulanamadı. Bilgilerinizi kontrol edip tekrar deneyin.');
+        setError(result?.code === 'rate_limited'
+          ? 'Çok fazla giriş denemesi yapıldı. Lütfen birkaç dakika bekleyip tekrar deneyin.'
+          : 'E-posta veya şifre doğrulanamadı. Bilgilerinizi kontrol edip tekrar deneyin.');
         return;
       }
       router.push(callbackUrl);

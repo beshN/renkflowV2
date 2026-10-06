@@ -2,15 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { sql } from '@/lib/db';
 import { sendWaitlistEmail } from '@/lib/email';
-import { authRateLimiter, apiRateLimiter, RateLimiter } from '@/lib/rateLimiter';
-
-// Create a dedicated rate limiter for newsletter subscriptions
-const subscribeRateLimiter = new RateLimiter({
-  windowMs: 3600000, // 1 hour
-  maxAttempts: 5,
-  blockDurationMs: 3600000,
-  keyPrefix: 'subscribe:',
-});
+import { consumeRateLimit, getClientIp, rateLimitHeaders } from '@/lib/security/rate-limit';
 
 const subscribeSchema = z.object({
   email: z.string().email('Geçerli bir e-posta adresi giriniz'),
@@ -19,15 +11,12 @@ const subscribeSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
-               request.headers.get('x-real-ip') || 
-               'unknown';
-    const rateLimit = await subscribeRateLimiter.check(request, 'subscribe');
-    
+    const rateLimit = await consumeRateLimit('subscribe', getClientIp(request.headers));
+
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { error: 'Çok fazla istek gönderdiniz. Lütfen daha sonra tekrar deneyin.' },
-        { status: 429 }
+        { status: 429, headers: rateLimitHeaders(rateLimit) }
       );
     }
 

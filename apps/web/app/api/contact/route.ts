@@ -2,19 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { z } from 'zod';
 import { sql } from '@/lib/db';
-import { RateLimiter } from '@/lib/rateLimiter';
+import { consumeRateLimit, getClientIp, rateLimitHeaders } from '@/lib/security/rate-limit';
 import { ANALYTICS_EVENTS } from '@/lib/analytics/event-schema';
 
 const resend = process.env.RESEND_API_KEY 
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
-
-const contactRateLimiter = new RateLimiter({
-  windowMs: 15 * 60 * 1000,
-  maxAttempts: 10,
-  blockDurationMs: 15 * 60 * 1000,
-  keyPrefix: 'contact:',
-});
 
 const ContactRequestSchema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -66,20 +59,13 @@ function resolveLocale(request: NextRequest, candidate?: string): string | null 
   return primary ? primary.slice(0, 12) : null;
 }
 
-function resolveClientIp(request: NextRequest): string | null {
-  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  const realIp = request.headers.get('x-real-ip')?.trim();
-  const cfIp = request.headers.get('cf-connecting-ip')?.trim();
-  return forwarded || realIp || cfIp || null;
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const limit = await contactRateLimiter.check(request, 'contact-form');
+    const limit = await consumeRateLimit('contact', getClientIp(request.headers));
     if (!limit.allowed) {
       return NextResponse.json(
         { error: 'Çok fazla istek gönderdiniz. Lütfen daha sonra tekrar deneyin.' },
-        { status: 429 }
+        { status: 429, headers: rateLimitHeaders(limit) }
       );
     }
 
@@ -105,7 +91,8 @@ export async function POST(request: NextRequest) {
     const pagePath = resolvePagePath(request, parsedBody.data.pagePath);
     const locale = resolveLocale(request, parsedBody.data.locale);
     const userAgent = (request.headers.get('user-agent') || '').slice(0, 512) || null;
-    const ipAddress = resolveClientIp(request);
+    const clientIp = getClientIp(request.headers);
+    const ipAddress = clientIp === 'unknown' ? null : clientIp;
 
     // Map subject codes to readable names
     const subjectMap: Record<string, string> = {
