@@ -452,6 +452,22 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 .rf-blink { animation: rf-blink 1.4s steps(2) infinite; }
 @media (prefers-reduced-motion: reduce) { .rf-scanline, .rf-blink { animation: none !important; } }
 
+/* Cut loader: a saw line sweeps a profile bar and the pieces part, then close again. */
+.rf-cutload { position: relative; display: flex; width: 100%; height: 10px; gap: 3px; }
+.rf-cutload-seg { height: 100%; border-radius: 3px; background: hsl(var(--primary)); }
+.rf-cutload-seg:nth-child(1) { flex: 38; }
+.rf-cutload-seg:nth-child(2) { flex: 27; }
+.rf-cutload-seg:nth-child(3) { flex: 35; }
+.rf-cutload-saw { position: absolute; top: -7px; bottom: -7px; left: 0; width: 2px; margin-left: -1px; border-radius: 1px; background: hsl(var(--foreground)); opacity: 0; }
+@keyframes rf-saw { 0% { left: 0; opacity: 0; } 6% { opacity: 1; } 68% { left: 100%; opacity: 1; } 74%, 100% { left: 100%; opacity: 0; } }
+@keyframes rf-seg-b { 0%, 25% { transform: translateX(0); } 31%, 72% { transform: translateX(5px); } 84%, 100% { transform: translateX(0); } }
+@keyframes rf-seg-c { 0%, 44% { transform: translateX(0); } 50%, 72% { transform: translateX(10px); } 84%, 100% { transform: translateX(0); } }
+@media (prefers-reduced-motion: no-preference) {
+  .rf-cutload-saw { animation: rf-saw 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+  .rf-cutload-seg:nth-child(2) { animation: rf-seg-b 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+  .rf-cutload-seg:nth-child(3) { animation: rf-seg-c 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+}
+
 /* Warehouse banner: soft surface instead of the old dark panel. */
 .rf-operations-banner { border-radius: var(--rf-radius); background: hsl(var(--muted) / 60%); border: 1px solid hsl(var(--border)); color: hsl(var(--foreground)); }
 .rf-warehouse-illustration { transform: none; }

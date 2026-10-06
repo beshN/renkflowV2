@@ -35,6 +35,7 @@ import {
   PAYMENT_METHOD_LABELS,
   DOCUMENT_TYPE_LABELS,
 } from '@/lib/types/finance';
+import { CutLoader } from '@/components/brand/CutLoader';
 
 interface OrderFinanceSectionProps {
   orderId: string;
@@ -317,9 +318,7 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
 
         {/* Payment List */}
         {isLoading ? (
-          <div className="flex justify-center py-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600" />
-          </div>
+          <CutLoader variant="inline" />
         ) : payments.length > 0 ? (
           <div className="space-y-2 mb-4">
             {payments.map(payment => (
@@ -439,9 +438,7 @@ export function OrderFinanceSection({ orderId, orderTotal, currency }: OrderFina
         </h3>
 
         {isLoading ? (
-          <div className="flex justify-center py-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600" />
-          </div>
+          <CutLoader variant="inline" />
         ) : documents.length > 0 ? (
           <div className="space-y-2 mb-4">
             {documents.map(doc => (

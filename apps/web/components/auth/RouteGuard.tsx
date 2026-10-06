@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { canAccessRoute, UserRole } from '@/lib/auth/permissions';
+import { CutLoader } from '@/components/brand/CutLoader';
 
 interface RouteGuardProps {
   children: React.ReactNode;
@@ -39,9 +40,7 @@ export function RouteGuard({ children }: RouteGuardProps) {
   // Show loading state while checking auth
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-600" />
-      </div>
+      <CutLoader variant="page" className="flex-1" />
     );
   }
 
