@@ -41,13 +41,11 @@ export function SiteHeader() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
   useEffect(() => setOpen(false), [pathname]);
-  // Pages that open on the dark blueprint hero get a light-on-dark header until scrolled.
-  const overDark = pathname === '/' && !scrolled;
 
   return (
-    <header className={cn('sticky top-0 z-50 transition-[background-color,border-color,color] duration-200', scrolled ? 'border-b border-border bg-background/80 backdrop-blur-md' : 'border-b border-transparent', overDark && 'rf-on-dark dark text-white')}>
+    <header className={cn('sticky top-0 z-50 transition-[background-color,border-color,color] duration-200', scrolled ? 'border-b border-border bg-background/80 backdrop-blur-md' : 'border-b border-transparent')}>
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-5 sm:px-8">
-        <BrandMark href="/" tone={overDark ? 'light' : 'auto'} />
+        <BrandMark href="/" />
         <nav aria-label="Ana menü" className="hidden items-center gap-1 md:flex">
           {SITE_NAV.map((item) => {
             const active = pathname === item.href;
@@ -66,7 +64,7 @@ export function SiteHeader() {
           </Link>
           <Dialog.Root open={open} onOpenChange={setOpen}>
             <Dialog.Trigger asChild>
-              <button type="button" aria-label="Menüyü aç" className="rf-icon-button inline-flex h-8 w-8 items-center justify-center md:hidden"><Menu size={18} /></button>
+              <button type="button" aria-label="Menüyü aç" className="rf-icon-button inline-flex h-8 w-8 items-center justify-center md:!hidden"><Menu size={18} /></button>
             </Dialog.Trigger>
             <Dialog.Portal>
               <Dialog.Overlay className="fixed inset-0 z-[70] bg-black/30 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0 md:hidden" />

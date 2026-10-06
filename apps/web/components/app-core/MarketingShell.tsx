@@ -38,8 +38,7 @@ function ActionLink({ action }: { action: ShellAction }) {
 export function MarketingShell({ badge, title, description, actions = [], children, hideClosing = false }: MarketingShellProps) {
   return (
     <>
-      <section className="relative overflow-hidden border-b border-border">
-        <div aria-hidden className="rf-grid-bg pointer-events-none absolute inset-0" />
+      <section className="relative overflow-hidden border-b border-border bg-gradient-to-b from-background to-muted/40">
         <div className="relative mx-auto max-w-6xl px-5 pb-16 pt-20 sm:px-8 md:pb-20 md:pt-28">
           <Reveal y={8}>
             {badge ? <p className="rf-chip">{badge}</p> : null}
@@ -59,17 +58,14 @@ export function MarketingShell({ badge, title, description, actions = [], childr
       {!hideClosing && (
         <section className="mx-auto max-w-6xl px-5 pb-24 sm:px-8">
           <Reveal>
-            <div className="rf-on-dark relative overflow-hidden rounded-2xl bg-[#0b0b0c] px-8 py-12 text-white ring-1 ring-inset ring-white/10 md:px-14 md:py-16 dark:bg-[#141416]">
-              <div aria-hidden className="pointer-events-none absolute inset-0 opacity-70 [background-image:radial-gradient(rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:linear-gradient(to_left,#000,transparent_70%)]" />
-              <div className="relative flex flex-wrap items-end justify-between gap-8">
-                <div className="max-w-xl">
-                  <h2 className="text-[clamp(26px,3vw,36px)] font-semibold leading-tight tracking-[-0.035em]">RenkFlow’u kendi siparişlerinizle görün.</h2>
-                  <p className="mt-3 text-[15px] leading-7 text-zinc-400">30 dakikalık bir görüşmede ekibinizin iş akışını birlikte kurgulayalım.</p>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <Link href="/contact" className="group inline-flex h-10 items-center gap-2 rounded-lg bg-white px-4 text-[13.5px] font-medium text-zinc-900 transition-opacity hover:opacity-90">Demo talep edin <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" /></Link>
-                  <Link href="/auth/login" className="inline-flex h-10 items-center rounded-lg border border-white/15 px-4 text-[13.5px] font-medium text-white transition-colors hover:bg-white/5">Giriş yap</Link>
-                </div>
+            <div className="flex flex-wrap items-end justify-between gap-8 rounded-2xl border border-border bg-muted/50 px-8 py-12 md:px-14 md:py-14">
+              <div className="max-w-xl">
+                <h2 className="text-[clamp(24px,2.8vw,34px)] font-semibold leading-tight tracking-[-0.035em]">RenkFlow’u kendi siparişlerinizle görün.</h2>
+                <p className="mt-3 text-[15px] leading-7 text-muted-foreground">30 dakikalık bir görüşmede ekibinizin iş akışını birlikte kurgulayalım.</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Link href="/contact" className="rf-ink-button group h-10 px-4 text-[13.5px]">Demo talep edin <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" /></Link>
+                <Link href="/auth/login" className="rf-secondary-button h-10 px-4 text-[13.5px]">Giriş yap</Link>
               </div>
             </div>
           </Reveal>

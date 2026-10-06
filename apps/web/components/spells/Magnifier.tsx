@@ -36,7 +36,7 @@ export function Magnifier({ children, lens, zoom = 2.2, size = 132, className }:
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.6 }}
             transition={{ duration: 0.16 }}
-            className="pointer-events-none absolute z-10 overflow-hidden rounded-full border border-white/25 bg-[#0a0a0b] shadow-[0_12px_32px_rgba(0,0,0,0.6),inset_0_0_0_1px_rgba(255,255,255,0.06)]"
+            className="pointer-events-none absolute z-10 overflow-hidden rounded-full border border-border bg-card shadow-[0_12px_32px_-8px_rgb(17_17_19/0.25)]"
             style={{ width: size, height: size, left: point.x - size / 2, top: point.y - size / 2 }}
           >
             <div

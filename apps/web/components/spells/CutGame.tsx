@@ -68,30 +68,30 @@ export function CutGame() {
   const reset = () => { setResults([]); setRound((r) => r + 7); setPos(0); setRunning(false); };
 
   return (
-    <div className="rounded-xl border border-white/10 bg-black/40 p-6 text-left backdrop-blur-[2px]">
+    <div className="rounded-xl border border-border bg-card p-6 text-left shadow-[var(--rf-shadow)]">
       <div className="flex items-center justify-between">
-        <p className="rf-mono-label text-zinc-500">Kesim ustası · Tur {Math.min(results.length + 1, ROUNDS)}/{ROUNDS}</p>
-        <p className="font-mono text-[11px] text-zinc-500">Toplam fire <span className="text-zinc-200">{totalError} mm</span></p>
+        <p className="text-[13px] font-medium text-muted-foreground">Kesim ustası · Tur {Math.min(results.length + 1, ROUNDS)}/{ROUNDS}</p>
+        <p className="text-[12.5px] text-muted-foreground">Toplam fire <span className="font-medium tabular-nums text-foreground">{totalError} mm</span></p>
       </div>
 
       {!done ? (
         <>
-          <p className="mt-5 text-[15px] text-zinc-300">Hedef: <span className="font-mono text-white">{target.toLocaleString('tr-TR')} mm</span></p>
-          <button type="button" onClick={cut} aria-label={running ? 'Kes' : 'Başlat'} className="relative mt-4 block h-14 w-full cursor-crosshair select-none rounded-md bg-zinc-800/80 ring-1 ring-inset ring-white/10">
-            <span aria-hidden className="absolute inset-y-0 left-0 rounded-l-md bg-zinc-600/60" style={{ width: `${pos * 100}%` }} />
+          <p className="mt-5 text-[15px] text-muted-foreground">Hedef: <span className="font-semibold tabular-nums text-foreground">{target.toLocaleString('tr-TR')} mm</span></p>
+          <button type="button" onClick={cut} aria-label={running ? 'Kes' : 'Başlat'} className="relative mt-4 block h-14 w-full cursor-crosshair select-none rounded-md bg-muted ring-1 ring-inset ring-border">
+            <span aria-hidden className="absolute inset-y-0 left-0 rounded-l-md bg-foreground/15" style={{ width: `${pos * 100}%` }} />
             <span aria-hidden className="absolute inset-y-[-6px] w-px bg-[hsl(var(--primary))]" style={{ left: `${(target / BAR) * 100}%` }}>
-              <span className="absolute -top-4 left-1/2 -translate-x-1/2 font-mono text-[9px] text-[hsl(var(--primary))]">▼</span>
+              <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] text-[hsl(var(--primary))]">▼</span>
             </span>
-            <span aria-hidden className="absolute inset-y-[-10px] w-[2px] bg-white shadow-[0_0_0_3px_rgba(255,255,255,0.08)]" style={{ left: `${pos * 100}%` }} />
+            <span aria-hidden className="absolute inset-y-[-10px] w-[2px] bg-foreground" style={{ left: `${pos * 100}%` }} />
             {[0, 1000, 2000, 3000, 4000, 5000, 6000].map((mark) => (
-              <span key={mark} aria-hidden className="absolute bottom-[-18px] -translate-x-1/2 font-mono text-[9px] text-zinc-600" style={{ left: `${(mark / BAR) * 100}%` }}>{mark / 1000}m</span>
+              <span key={mark} aria-hidden className="absolute bottom-[-18px] -translate-x-1/2 text-[10px] tabular-nums text-muted-foreground" style={{ left: `${(mark / BAR) * 100}%` }}>{mark / 1000}m</span>
             ))}
           </button>
           <div className="mt-8 flex h-6 items-center justify-between text-[12px]">
-            <span className="text-zinc-500">{running ? 'Boşluk veya tıklama ile kesin' : 'Başlamak için boşluk tuşuna basın'}</span>
+            <span className="text-muted-foreground">{running ? 'Boşluk veya tıklama ile kesin' : 'Başlamak için boşluk tuşuna basın'}</span>
             <AnimatePresence>
               {flash && (
-                <motion.span initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`font-mono ${Math.abs(flash.cut - flash.target) <= 20 ? 'text-emerald-400' : 'text-amber-300'}`}>
+                <motion.span initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`font-medium tabular-nums ${Math.abs(flash.cut - flash.target) <= 20 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
                   {flash.cut} mm · {flash.cut - flash.target >= 0 ? '+' : ''}{flash.cut - flash.target}
                 </motion.span>
               )}
@@ -100,9 +100,9 @@ export function CutGame() {
         </>
       ) : (
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-5">
-          <p className="text-[22px] font-semibold tracking-[-0.03em] text-white">{title}</p>
-          <p className="mt-1.5 text-[14px] text-zinc-400">{detail}</p>
-          <button type="button" onClick={reset} className="mt-5 inline-flex h-9 items-center rounded-lg border border-white/15 px-3.5 text-[13px] text-white transition-colors hover:bg-white/5">Tekrar oyna</button>
+          <p className="text-[22px] font-semibold tracking-[-0.03em]">{title}</p>
+          <p className="mt-1.5 text-[14px] text-muted-foreground">{detail}</p>
+          <button type="button" onClick={reset} className="rf-secondary-button mt-5 h-9 px-3.5 text-[13px]">Tekrar oyna</button>
         </motion.div>
       )}
     </div>

@@ -79,26 +79,25 @@ function Showcase() {
   const current = SHOWCASE[index];
   return (
     <div onPointerEnter={() => setPaused(true)} onPointerLeave={() => setPaused(false)}>
-      <div role="tablist" aria-label="Ürün turu" className="grid grid-cols-2 border-t border-white/10 sm:grid-cols-4">
+      <div role="tablist" aria-label="Ürün turu" className="grid grid-cols-2 border-t border-border sm:grid-cols-4">
         {SHOWCASE.map((item, i) => (
-          <button key={item.key} role="tab" aria-selected={i === index} onClick={() => setIndex(i)} className="group relative border-b border-white/10 py-4 pr-4 text-left sm:border-b-0">
+          <button key={item.key} role="tab" aria-selected={i === index} onClick={() => setIndex(i)} className="group relative border-b border-border py-4 pr-4 text-left sm:border-b-0">
             <span aria-hidden className="absolute inset-x-0 top-[-1px] h-px overflow-hidden">
-              {i === index && <motion.span key={`${index}-${paused}`} className="block h-full bg-white" initial={{ width: reduce || paused ? '100%' : '0%' }} animate={{ width: '100%' }} transition={{ duration: reduce || paused ? 0 : SHOWCASE_MS / 1000, ease: 'linear' }} />}
+              {i === index && <motion.span key={`${index}-${paused}`} className="block h-full bg-foreground" initial={{ width: reduce || paused ? '100%' : '0%' }} animate={{ width: '100%' }} transition={{ duration: reduce || paused ? 0 : SHOWCASE_MS / 1000, ease: 'linear' }} />}
             </span>
-            <span className="rf-mono-label text-zinc-500">{String(i + 1).padStart(2, '0')}</span>
-            <span className={`mt-1.5 block text-[14px] font-medium transition-colors ${i === index ? 'text-white' : 'text-zinc-500 group-hover:text-zinc-300'}`}>{item.label}</span>
+            <span className="text-[12px] tabular-nums text-muted-foreground">{String(i + 1).padStart(2, '0')}</span>
+            <span className={`mt-1.5 block text-[14px] font-medium transition-colors ${i === index ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>{item.label}</span>
           </button>
         ))}
       </div>
-      <div className="rf-corners relative mt-10">
-        <span className="rf-corner tl" /><span className="rf-corner tr" /><span className="rf-corner bl" /><span className="rf-corner br" />
+      <div className="relative mt-10">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={current.key} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.35, ease: EASE }} className="mx-auto max-w-4xl">
             {current.mock}
           </motion.div>
         </AnimatePresence>
       </div>
-      <p className="mx-auto mt-6 max-w-4xl font-mono text-[11.5px] text-zinc-500" aria-live="polite">— {current.caption}</p>
+      <p className="mx-auto mt-6 max-w-4xl text-center text-[14px] text-muted-foreground" aria-live="polite">{current.caption}</p>
     </div>
   );
 }
@@ -107,25 +106,24 @@ function Hero() {
   const reduce = useReducedMotion();
   const rise = (delay: number) => ({ initial: reduce ? false : { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.7, delay, ease: EASE } });
   return (
-    <section className="rf-on-dark rf-blueprint relative -mt-16 overflow-hidden pt-16 text-white">
-      <div className="relative mx-auto max-w-6xl px-5 pb-20 pt-14 sm:px-8 md:pb-28 md:pt-20">
-        <motion.div {...rise(0)} className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
-          <span className="rf-mono-label text-zinc-500">RenkFlow / Operasyon platformu</span>
-          <Link href="/changelog" className="rf-mono-label inline-flex items-center gap-2 text-zinc-400 hover:text-white"><span className="rf-status-dot" aria-hidden /> Yeni sürüm · Ekim 2026 <ArrowRight size={11} /></Link>
+    <section className="relative overflow-hidden bg-gradient-to-b from-background via-background to-muted/50">
+      <div className="relative mx-auto max-w-6xl px-5 pb-20 pt-16 sm:px-8 md:pb-28 md:pt-24">
+        <motion.div {...rise(0)}>
+          <Link href="/changelog" className="rf-chip transition-colors hover:text-foreground"><span className="rf-status-dot" aria-hidden /> Alüminyum üreticileri için geliştirildi <ArrowRight size={12} /></Link>
         </motion.div>
-        <div className="mt-14 grid items-end gap-10 lg:grid-cols-[1.35fr_0.65fr]">
-          <motion.h1 {...rise(0.06)} className="text-[clamp(44px,7.4vw,104px)] font-semibold leading-[0.95] tracking-[-0.055em]">
-            <span className="text-zinc-500">Alüminyum üretimi için</span><br />operasyon altyapısı.
+        <div className="mt-10 grid items-end gap-10 lg:grid-cols-[1.5fr_0.5fr]">
+          <motion.h1 {...rise(0.06)} className="text-[clamp(38px,5.2vw,68px)] font-semibold leading-[1.04] tracking-[-0.045em] [text-wrap:balance]">
+            <span className="block text-muted-foreground">Alüminyum üretimi için</span><span className="block">operasyon altyapısı.</span>
           </motion.h1>
           <motion.div {...rise(0.14)} className="lg:pb-3">
-            <p className="text-[16px] leading-7 text-zinc-400">Teklif, kesim planı, depo, iş emri ve fatura aynı veride. Ofis ve atölye her an aynı tabloya bakar.</p>
+            <p className="text-[16px] leading-7 text-muted-foreground">Teklif, kesim planı, depo, iş emri ve fatura aynı veride. Ofis ve atölye her an aynı tabloya bakar.</p>
             <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/contact" className="group inline-flex h-11 items-center gap-2 rounded-lg bg-white px-5 text-[14px] font-medium text-zinc-900 transition-opacity hover:opacity-90">Demo talep edin <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" /></Link>
-              <Link href="/auth/login" className="inline-flex h-11 items-center rounded-lg border border-white/15 px-5 text-[14px] font-medium text-white transition-colors hover:bg-white/5">Giriş yap</Link>
+              <Link href="/contact" className="rf-ink-button group h-11 px-5 text-[14px]">Demo talep edin <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" /></Link>
+              <Link href="/auth/login" className="rf-secondary-button h-11 px-5 text-[14px]">Giriş yap</Link>
             </div>
           </motion.div>
         </div>
-        <motion.div {...rise(0.24)} className="mt-20"><Showcase /></motion.div>
+        <motion.div {...rise(0.24)} className="mt-16"><Showcase /></motion.div>
       </div>
     </section>
   );
@@ -175,7 +173,7 @@ function Tile({ className, label, title, detail, children }: { className?: strin
     <StaggerItem className={`flex flex-col overflow-hidden rounded-xl border border-border bg-card ${className || ''}`}>
       <div className="flex-1 p-6">{children}</div>
       <div className="border-t border-border p-6">
-        <p className="rf-mono-label text-muted-foreground">{label}</p>
+        <p className="text-[12px] font-medium text-muted-foreground">{label}</p>
         <h3 className="mt-2 text-[16px] font-semibold tracking-[-0.02em]">{title}</h3>
         <p className="mt-1.5 text-[13.5px] leading-6 text-muted-foreground">{detail}</p>
       </div>
@@ -254,7 +252,7 @@ function Bento() {
     <section className="mx-auto max-w-6xl px-5 py-24 sm:px-8 md:py-32">
       <Reveal className="flex flex-wrap items-end justify-between gap-6">
         <div className="max-w-2xl">
-          <p className="rf-mono-label text-primary">Neden RenkFlow</p>
+          <p className="text-[13px] font-medium text-primary">Neden RenkFlow</p>
           <h2 className="mt-3 text-[clamp(30px,4vw,52px)] font-semibold leading-[1.02] tracking-[-0.045em]">Defter, Excel ve mesaj gruplarında kaybolan bilgi <span className="text-muted-foreground">artık tek yerde.</span></h2>
         </div>
         <Link href="/features" className="inline-flex items-center gap-1.5 text-[14px] font-medium hover:underline">Tüm özellikler <ArrowUpRight size={15} /></Link>
@@ -277,7 +275,7 @@ function FeatureRows() {
         <div key={feature.title} className="border-b border-border">
           <div className={`mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 sm:px-8 md:py-28 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20 ${index % 2 ? 'lg:[&>*:first-child]:order-2' : ''}`}>
             <Reveal>
-              <p className="rf-mono-label text-primary">{feature.eyebrow}</p>
+              <p className="text-[13px] font-medium text-primary">{feature.eyebrow}</p>
               <h2 className="mt-3 text-[clamp(26px,3vw,38px)] font-semibold leading-[1.1] tracking-[-0.035em]">{feature.title}</h2>
               <p className="mt-5 text-[15.5px] leading-7 text-muted-foreground">{feature.body}</p>
               <ul className="mt-7 space-y-3">
@@ -302,7 +300,7 @@ function Workflow() {
   return (
     <section className="mx-auto max-w-6xl px-5 py-24 sm:px-8 md:py-32">
       <Reveal className="max-w-2xl">
-        <p className="rf-mono-label text-primary">İş akışı</p>
+        <p className="text-[13px] font-medium text-primary">İş akışı</p>
         <h2 className="mt-3 text-[clamp(28px,3.6vw,44px)] font-semibold leading-[1.08] tracking-[-0.04em]">Bir siparişin yolculuğu, beş adımda.</h2>
       </Reveal>
       <div ref={ref} className="relative mt-16">
@@ -327,7 +325,7 @@ function Trust() {
     <section className="border-y border-border bg-muted/30">
       <div className="mx-auto grid max-w-6xl gap-14 px-5 py-24 sm:px-8 md:py-28 lg:grid-cols-[0.8fr_1.2fr]">
         <Reveal>
-          <p className="rf-mono-label text-primary">Güvenlik</p>
+          <p className="text-[13px] font-medium text-primary">Güvenlik</p>
           <h2 className="mt-3 text-[clamp(26px,3vw,38px)] font-semibold leading-[1.1] tracking-[-0.035em]">Verileriniz yalnızca yetkili kişilere açık.</h2>
           <p className="mt-5 text-[15.5px] leading-7 text-muted-foreground">Teklif fiyatlarınız, müşteri listeniz ve teknik çizimleriniz firmanızın en değerli bilgileri. RenkFlow her erişimi rol ve firma kimliğiyle sınırlar.</p>
           <Link href="/security" className="mt-7 inline-flex items-center gap-1.5 text-[14px] font-medium hover:underline">Güvenlik yaklaşımımız <ArrowUpRight size={15} /></Link>
@@ -350,7 +348,7 @@ function Faq() {
   return (
     <section className="mx-auto grid max-w-6xl gap-12 px-5 py-24 sm:px-8 md:py-32 lg:grid-cols-[0.8fr_1.2fr]">
       <Reveal>
-        <p className="rf-mono-label text-primary">Sık sorulanlar</p>
+        <p className="text-[13px] font-medium text-primary">Sık sorulanlar</p>
         <h2 className="mt-3 text-[clamp(26px,3vw,38px)] font-semibold leading-[1.1] tracking-[-0.035em]">Aklınıza takılanlar.</h2>
         <p className="mt-5 text-[15.5px] leading-7 text-muted-foreground">Başka bir sorunuz mu var? <Link href="/contact" className="text-foreground underline underline-offset-4">Bize yazın</Link>.</p>
       </Reveal>
@@ -375,15 +373,14 @@ function Closing() {
   return (
     <section className="mx-auto max-w-6xl px-5 pb-24 sm:px-8">
       <Reveal>
-        <div className="rf-on-dark relative overflow-hidden rounded-2xl bg-[#0b0b0c] px-8 py-14 text-white ring-1 ring-inset ring-white/10 md:px-16 md:py-20 dark:bg-[#141416]">
-          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-70 [background-image:radial-gradient(rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:linear-gradient(to_left,#000,transparent_70%)]" />
+        <div className="relative overflow-hidden rounded-2xl border border-border bg-muted/50 px-8 py-14 md:px-16 md:py-20">
           <div className="relative max-w-2xl">
-            <FileText size={20} strokeWidth={1.75} className="text-zinc-400" />
+            <FileText size={20} strokeWidth={1.75} className="text-muted-foreground" />
             <h2 className="mt-6 text-[clamp(28px,3.6vw,44px)] font-semibold leading-[1.08] tracking-[-0.04em]">Kendi siparişlerinizle görmek ister misiniz?</h2>
-            <p className="mt-4 text-[16px] leading-7 text-zinc-400">30 dakikalık bir görüşmede örnek bir siparişinizi baştan sona RenkFlow’da birlikte takip edelim.</p>
+            <p className="mt-4 text-[16px] leading-7 text-muted-foreground">30 dakikalık bir görüşmede örnek bir siparişinizi baştan sona RenkFlow’da birlikte takip edelim.</p>
             <div className="mt-9 flex flex-wrap gap-3">
-              <Link href="/contact" className="group inline-flex h-11 items-center gap-2 rounded-lg bg-white px-5 text-[14px] font-medium text-zinc-900 transition-opacity hover:opacity-90">Demo talep edin <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" /></Link>
-              <Link href="/auth/login" className="inline-flex h-11 items-center rounded-lg border border-white/15 px-5 text-[14px] font-medium text-white transition-colors hover:bg-white/5">Panele giriş yap</Link>
+              <Link href="/contact" className="rf-ink-button group h-11 px-5 text-[14px]">Demo talep edin <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" /></Link>
+              <Link href="/auth/login" className="rf-secondary-button h-11 px-5 text-[14px]">Panele giriş yap</Link>
             </div>
           </div>
         </div>

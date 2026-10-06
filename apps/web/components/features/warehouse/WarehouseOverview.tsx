@@ -98,19 +98,19 @@ export default function WarehouseOverview() {
     <div className="space-y-6">
       <section className="rf-operations-banner">
         <div className="relative z-10">
-          <p className="text-xs font-medium uppercase tracking-widest text-slate-300">
+          <p className="text-[13px] font-medium text-primary">
             Fiziksel stok. Dijital iz.
           </p>
           <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
             Her malzeme doğru yerde.
           </h2>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300">
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
             Rafı ve malzemeyi okutun, işlemi doğrulayın. Üretimden kalan her
             kullanılabilir parça bir sonraki iş için görünür olsun.
           </p>
           <Link
             href="/warehouse/scan"
-            className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-4 text-sm font-semibold text-slate-900"
+            className="rf-primary-button mt-5 min-h-11 px-4 text-sm"
           >
             <ScanLine size={18} />
             Tarama terminalini aç
