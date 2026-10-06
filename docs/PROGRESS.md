@@ -7,7 +7,7 @@ Kaynak görev: "RenkFlow paneli: her özelliği gerçekten çalışır hale geti
 | Faz | Durum | Dal / PR | Not |
 |---|---|---|---|
 | 0 Denetim | **tamamlandı** | `claude/wonderful-faraday-w67fb4` | Sonuç: [`docs/AUDIT.md`](AUDIT.md). Kod değişikliği yok |
-| 1 Temel (kayıt, firma, rol, bildirim, arama) | sırada | — | Önce K1, K2 hızlı düzeltme; sonra K3–K5 güvenlik |
+| 1 Temel (kayıt, firma, rol, bildirim, arama) | **devam ediyor** | PR'lar aşağıda | K1, K2 → K4, K3, K5 (birleştirmeden önce onay) → arama → K6, K7 |
 | 2 Katalog ve stok | bekliyor | — | Sayım PDF'i gerekli |
 | 3 Ölçüye özel sipariş ve teklif | bekliyor | — | Fiyat matrisi değerleri gerekli |
 | 4 Kesim optimizasyonu ve usta PDF'i | bekliyor | — | Kerf, tıraş, minimum artık değerleri gerekli |
@@ -17,13 +17,26 @@ Kaynak görev: "RenkFlow paneli: her özelliği gerçekten çalışır hale geti
 | 8 Görsel ve deneyim | bekliyor | — | — |
 | 9 Kalite ve kapanış | bekliyor | — | — |
 
-## Senden beklenen kararlar / girdiler
+## Kararlar (6 Ekim 2026, onaylandı)
 
-1. **Silme onayı:** AUDIT.md "Ölü kod" bölümündeki yönlendirme sayfaları, kullanılmayan 103 modül, iki SSO uç seti, `support/tickets`, `onboarding/session`, `test-email`. Onay olmadan silinmeyecek.
-2. **Güvenlik düzeltmeleri (K3, K4):** yetkiyi daraltıyor (gevşetmiyor). Worker'ın teklif/müşteri/sevkiyat ekranlarına erişimini kapatmak dahil. Birleştirmeden önce onayın alınacak.
-3. **Sayım PDF'i** (`malzeme_say_m_listesi.pdf`) — Faz 2.
-4. **İş kuralı değerleri:** testere payı (kerf), baş/son tıraş, kullanılabilir artık için minimum boy, standart boylar (6/6,5/7/…/10 m hangileri) — Faz 4.
-5. **Fiyat matrisi** (ürün ailesi × ölçü × renk × donanım) — Faz 3.
+1. Sıra: docs PR → K1 → K2 → K4, K3, K5 → K6, K7 (Faz 3'ü beklemeden). Arama hatası ve müşteri/teklif/stok araması Faz 1 kapsamında.
+2. Güvenlik (K3, K4) onaylı. Şartlar: usta için fiyat ve müşteri alanları **API yanıtında** rol bazlı çıkarılır; usta iş emri, kesim listesi, usta PDF'i ve üretim ekranlarını kullanmaya devam eder (testle); aktif firma oturumdan okunur (çok firmalı test); worker'da 500 dönen server action'lar 403 döner. **K3, K4, K5 birleştirilmeden önce durulup onay alınır.**
+3. Silme onaylı, ayrı PR: yönlendirme sayfaları `next.config` redirects'e; yalnız bağlı olmayan SSO seti; `test-email` ve route'u olmayan istemci kodu; 103 modül build/test/grep doğrulamasıyla gruplar hâlinde. `lib/features/ai/ai.service.ts` (Faz 7) ve kanban/work-orders kararı (Faz 5) dokunulmaz.
+4. Pazarlama metinleri denetimle uyumlu hâle getirilir (ayrı PR); "sonra güçlendir" listesi buraya eklenir.
+5. Her PR: `npm run validate` yeşil + `/code-review`; açıklamada ne değişti / nasıl doğrulandı / bilinmeyenler; bu dosya güncellenir.
+
+## Beklenen girdiler
+
+- **Faz 4 değerleri** (ustadan gelecek): testere kalınlığı, baş/son tıraş, kullanılabilir en kısa artık, kullanılan çubuk boyları. **Faz 2'ye geçmeden hatırlat.**
+- Sayım PDF'i (`malzeme_say_m_listesi.pdf`) bu oturuma yüklendi; Faz 2'de ayrıştırılacak. Gerçek veri olduğu için repoya eklenmeyecek. Kullanıcı ayrıca güncel sürümünü verecek.
+- Fiyat matrisi (Faz 3), e-Fatura entegratörü (Faz 6), AI anahtarları (Faz 7).
+
+## PR günlüğü
+
+| PR | Konu | Durum | Doğrulama | Bilinmeyenler |
+|---|---|---|---|---|
+| #13 | Faz 0 denetimi (AUDIT/PROGRESS) | birleşti | CI `validate` yeşil | — |
+| K1 | Teklif listesi çökmesi: sütun `render(value,row)` imzası; liste `useApiCollection`'a taşındı (iptal, dizi kontrolü, ham sunucu hatası gizli, tekrar dene) | açık | Regresyon testi düzeltmeden önce aynı `TypeError`'ı üretti, sonra geçti; `validate` yeşil | `RFColumn.render` ilk argümanı `any`; diğer listelerde aynı yanlış kullanım yok (grep), tip daraltma ayrı iş |
 
 ## Bu ortamda yerel çalıştırma (bulut konteyner notu)
 

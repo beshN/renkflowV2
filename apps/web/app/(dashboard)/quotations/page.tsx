@@ -1,53 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, Plus } from 'lucide-react';
 import { RFListView } from '@/components/shared/views/RFListView';
 import { useAuth } from '@/lib/context/AuthContext';
-import { useToast } from '@/lib/context/ToastContext';
-import { requestJson } from '@/lib/shared/network';
+import { useApiCollection } from '@/lib/hooks/useApiCollection';
 import { Quotation } from '@/lib/features/quotations/types';
 import { formatCurrency } from '@/lib/utils';
 import { Navbar } from '@/components/layout/Navbar';
 
-type QuotationListResponse = {
-  success: boolean;
-  data: Quotation[];
-  message?: string;
-};
-
 export default function QuotationsPage() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
-  const { showToast } = useToast();
-  
-  const [quotations, setQuotations] = useState<Quotation[]>([]);
-  const [isFetching, setIsFetching] = useState(true);
+  const { data: quotations, loading, error, reload } = useApiCollection<Quotation>('/api/v1/quotations', 'Teklifler alınamadı.');
 
   useEffect(() => {
     if (!isLoading && !user) router.replace('/auth/login');
   }, [isLoading, router, user]);
-
-  useEffect(() => {
-    if (user) fetchQuotations();
-  }, [user]);
-
-  const fetchQuotations = async () => {
-    setIsFetching(true);
-    try {
-      const res = await requestJson<QuotationListResponse>('/api/v1/quotations');
-      if (res.ok && res.data?.success) {
-        setQuotations(res.data.data);
-      } else {
-        throw new Error(res.data?.message || res.error || 'Teklifler alınamadı');
-      }
-    } catch (err: any) {
-      showToast(err.message, 'error');
-    } finally {
-      setIsFetching(false);
-    }
-  };
 
   if (isLoading || !user) return null;
 
@@ -75,14 +45,16 @@ export default function QuotationsPage() {
             icon: <Plus className="h-4 w-4" />,
             onClick: () => router.push('/quotations/new'),
           }}
-          isLoading={isFetching}
+          isLoading={loading}
+          error={error || null}
+          onRetry={reload}
           columns={[
             { key: 'quotationNumber', label: 'Teklif No' },
             { key: 'customerName', label: 'Müşteri' },
             { 
               key: 'status', 
               label: 'Durum',
-              render: (q) => (
+              render: (_status, q) => (
                 <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset ${
                   statusMap[q.status]?.color === 'slate' ? 'bg-slate-50 text-slate-700 ring-slate-600/20' :
                   statusMap[q.status]?.color === 'emerald' ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' :
@@ -98,12 +70,12 @@ export default function QuotationsPage() {
             { 
               key: 'totalAmount', 
               label: 'Toplam Tutar',
-              render: (q) => formatCurrency(q.totalAmount, q.currency)
+              render: (_amount, q) => formatCurrency(q.totalAmount, q.currency)
             },
             {
               key: 'validUntil',
               label: 'Geçerlilik',
-              render: (q) => q.validUntil ? new Date(q.validUntil).toLocaleDateString('tr-TR') : '-'
+              render: (_validUntil, q) => q.validUntil ? new Date(q.validUntil).toLocaleDateString('tr-TR') : '-'
             }
           ]}
           searchKeys={['quotationNumber', 'customerName']}
