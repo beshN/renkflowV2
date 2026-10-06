@@ -443,32 +443,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   .rf-metric-value { font-size: 28px; }
 }
 
-/* ---------- Engineering drawing language ---------- */
-
-/* Blueprint grid for dark showcase surfaces. */
-.rf-blueprint {
-  background-color: #0a0a0b;
-  background-image:
-    linear-gradient(rgb(255 255 255 / 4%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255 255 255 / 4%) 1px, transparent 1px),
-    linear-gradient(rgb(255 255 255 / 2%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255 255 255 / 2%) 1px, transparent 1px);
-  background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
-  background-position: -1px -1px, -1px -1px, -1px -1px, -1px -1px;
-}
-
-/* Corner registration marks, like a drawing sheet. */
-.rf-corners { position: relative; }
-.rf-corners > .rf-corner { position: absolute; width: 11px; height: 11px; pointer-events: none; color: hsl(var(--foreground) / 35%); }
-.rf-corners > .rf-corner::before,
-.rf-corners > .rf-corner::after { content: ''; position: absolute; background: currentColor; }
-.rf-corners > .rf-corner::before { left: 5px; top: 0; width: 1px; height: 11px; }
-.rf-corners > .rf-corner::after { top: 5px; left: 0; height: 1px; width: 11px; }
-.rf-corner.tl { left: -6px; top: -6px; } .rf-corner.tr { right: -6px; top: -6px; }
-.rf-corner.bl { left: -6px; bottom: -6px; } .rf-corner.br { right: -6px; bottom: -6px; }
-.rf-on-dark .rf-corner { color: rgb(255 255 255 / 35%); }
-
-.rf-mono-label { font-family: var(--font-mono), monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* ---------- Small motion details ---------- */
 
 /* Scan line sweeping a QR or label area. */
 @keyframes rf-scan { 0% { transform: translateY(-10%); opacity: 0; } 15%, 85% { opacity: 1; } 100% { transform: translateY(1000%); opacity: 0; } }
@@ -477,8 +452,8 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 .rf-blink { animation: rf-blink 1.4s steps(2) infinite; }
 @media (prefers-reduced-motion: reduce) { .rf-scanline, .rf-blink { animation: none !important; } }
 
-/* Warehouse banner, restated in the drawing language. */
-.rf-operations-banner { border-radius: var(--rf-radius); background: #0a0a0b; border: 1px solid #1f1f23; background-image: linear-gradient(rgb(255 255 255 / 4%) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 4%) 1px, transparent 1px); background-size: 32px 32px; }
+/* Warehouse banner: soft surface instead of the old dark panel. */
+.rf-operations-banner { border-radius: var(--rf-radius); background: hsl(var(--muted) / 60%); border: 1px solid hsl(var(--border)); color: hsl(var(--foreground)); }
 .rf-warehouse-illustration { transform: none; }
-.rf-warehouse-illustration span { color: #71717a; border-color: #27272a; background: #111113; border-radius: 6px; }
-.rf-warehouse-illustration span.active { color: #fff; background: hsl(229 89% 56%); border-color: hsl(229 89% 56%); box-shadow: none; }
+.rf-warehouse-illustration span { color: hsl(var(--muted-foreground)); border-color: hsl(var(--border)); background: hsl(var(--card)); border-radius: 6px; }
+.rf-warehouse-illustration span.active { color: hsl(var(--primary-foreground)); background: hsl(var(--primary)); border-color: hsl(var(--primary)); box-shadow: none; }
