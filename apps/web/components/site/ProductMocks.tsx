@@ -6,14 +6,14 @@ import { cn } from '@/lib/utils';
 
 const EASE = [0.2, 0.8, 0.2, 1] as const;
 
-/** Browser-style frame around a product preview. */
+/** Browser-style frame around a product preview. Every preview shows made-up sample data, labelled as such. */
 export function Frame({ children, className, label = 'renkflow.app' }: { children: React.ReactNode; className?: string; label?: string }) {
   return (
     <div className={cn('overflow-hidden rounded-xl border border-border bg-card shadow-[0_1px_2px_rgb(17_17_19/0.04),0_32px_64px_-32px_rgb(17_17_19/0.28)] dark:shadow-[0_0_0_1px_rgb(255_255_255/0.03),0_40px_80px_-40px_rgb(0_0_0/0.9)]', className)}>
       <div className="flex h-9 items-center gap-2 border-b border-border bg-muted/40 px-3.5">
         <span className="h-2.5 w-2.5 rounded-full bg-foreground/10" /><span className="h-2.5 w-2.5 rounded-full bg-foreground/10" /><span className="h-2.5 w-2.5 rounded-full bg-foreground/10" />
         <span className="mx-auto rounded-md bg-background px-3 py-0.5 font-mono text-[10.5px] text-muted-foreground">{label}</span>
-        <span className="w-[42px]" />
+        <span className="rounded bg-foreground/[0.06] px-1.5 py-0.5 text-[9.5px] font-medium text-muted-foreground">Örnek veri</span>
       </div>
       {children}
     </div>
@@ -176,7 +176,7 @@ export function FinanceMock() {
             </div>
           ))}
         </div>
-        <div className="mt-3 flex gap-4 text-[10.5px] text-muted-foreground"><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-foreground/10 dark:bg-foreground/20" />Faturalanan</span><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-primary" />Tahsil edilen</span></div>
+        <div className="mt-3 flex gap-4 text-[10.5px] text-muted-foreground"><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-foreground/10 dark:bg-foreground/20" />Sipariş tutarı</span><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-primary" />Tahsil edilen</span></div>
       </div>
     </Frame>
   );
