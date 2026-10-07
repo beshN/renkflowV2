@@ -76,6 +76,14 @@ Job photos are normalized to JPEG, downsampled to 1600 pixels and limited to 2 M
 
 ## Verification
 
-`Native Field Apps` CI builds Android, runs API/retry unit tests and lint, and builds/tests iOS on macOS. iOS UI tests exercise the real login screen and attach a screenshot. Artifacts contain the Android debug APK and iOS test results. Web validation includes adapter tests for bearer/session separation, private-pilot access, membership, worker assignment, financial-field projections, production-only transitions, cross-origin writes, body limits and command replay identity.
+`Native Field Apps` CI builds Android, runs API/retry unit tests and lint, exercises login and encrypted persistence on an Android emulator, and builds/tests iOS on macOS. iOS UI tests exercise the real login screen and attach a screenshot. Artifacts contain the Android debug APK, screenshots and iOS test results. Web validation includes adapter tests for bearer/session separation, private-pilot access, membership, worker assignment, financial-field projections, production-only transitions, cross-origin writes, body limits and command replay identity.
+
+The isolated database integration test uses the real password login, bearer verification, membership queries, job services, production state machine and local photo storage:
+
+```sh
+cd apps/web
+npm run db:local      # Keep running in one terminal.
+npm run test:field    # Run in another terminal; uses only local renkflow_test.
+```
 
 Before pilot distribution, run the following with a test company and physical devices: login, restore/expire session, scan an assigned job and a foreign-company label, update a checklist, add a field note, start/pause an operation, complete a partial quantity with passing and failing quality checks, upload a photo, retry a timed-out command, and confirm changes in the web application. Store publishing and signing are separate release steps.

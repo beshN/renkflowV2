@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import UIKit
 
 struct ScanView: View {
     @EnvironmentObject private var store: FieldStore
