@@ -66,8 +66,16 @@ export async function withUsage<T extends { usage?: Tokens }>(meta: AIRequestMet
   } catch (error) {
     if (meta) {
       const errorCode = (error as { code?: string; status?: number })?.code || String((error as { status?: number })?.status ?? '') || (error instanceof Error ? error.name : 'error');
-      const { onUsage: _ignored, ...entry } = meta;
-      await recordAIUsage({ ...entry, provider, model, latencyMs: Date.now() - started, status: 'error', errorCode: errorCode.slice(0, 80) });
+      // An answer that arrived but was unusable still used (and cost) tokens.
+      const usage = (error as { usage?: Tokens })?.usage ?? undefined;
+      const latencyMs = Date.now() - started;
+      const { onUsage, ...entry } = meta;
+      await recordAIUsage({ ...entry, provider, model, usage, latencyMs, status: 'error', errorCode: errorCode.slice(0, 80) });
+      try {
+        onUsage?.({ inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, costUsd: costUsd(model, usage), latencyMs });
+      } catch {
+        // The caller's report must not hide the model error.
+      }
     }
     throw error;
   }
