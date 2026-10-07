@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { apiContextWithPermission } from '@/lib/features/auth/api-access';
 import { getDashboardSummary } from '@/lib/analytics/reporting';
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.tenantId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const { context, denied } = await apiContextWithPermission('reports.view');
+  if (denied) return denied;
 
-  const data = await getDashboardSummary(session.user.tenantId);
+  const data = await getDashboardSummary(context.tenantId);
   return NextResponse.json({ success: true, data });
 }

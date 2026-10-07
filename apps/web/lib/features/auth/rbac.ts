@@ -105,7 +105,7 @@ const PERMISSION_MATRIX: Record<UserRole, Permission[]> = {
     { resource: 'users', actions: [] },
     { resource: 'tenants', actions: [] },
     { resource: 'analytics', actions: [] },
-    { resource: 'quotations', actions: ['read', 'list'] },
+    { resource: 'quotations', actions: [] }, // Quotations carry prices and customer details.
     { resource: 'settings', actions: [] },
     { resource: 'billing', actions: [] },
   ],

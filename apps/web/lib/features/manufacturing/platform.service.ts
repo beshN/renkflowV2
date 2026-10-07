@@ -66,7 +66,7 @@ export async function productionOverview(actor: WorkOrderActor) {
   if (!["owner", "admin", "office", "worker"].includes(actor.role))
     fail("Üretim erişimi yok", 403);
   const jobs =
-    await sql`SELECT w.*,o.order_number,o.customer_name FROM work_orders w JOIN orders o ON o.id=w.order_id AND o.tenant_id=w.tenant_id WHERE w.tenant_id=${t} AND w.recipe_id IS NOT NULL AND (${!worker} OR w.assigned_to=${actor.userId} OR EXISTS(SELECT 1 FROM production_operations p WHERE p.work_order_id=w.id AND p.tenant_id=${t} AND p.assigned_to=${actor.userId})) ORDER BY w.created_at DESC LIMIT 300`;
+    await sql`SELECT w.*,o.order_number,${worker ? sql`NULL::text` : sql`o.customer_name`} AS customer_name FROM work_orders w JOIN orders o ON o.id=w.order_id AND o.tenant_id=w.tenant_id WHERE w.tenant_id=${t} AND w.recipe_id IS NOT NULL AND (${!worker} OR w.assigned_to=${actor.userId} OR EXISTS(SELECT 1 FROM production_operations p WHERE p.work_order_id=w.id AND p.tenant_id=${t} AND p.assigned_to=${actor.userId})) ORDER BY w.created_at DESC LIMIT 300`;
   const ids = jobs.map((j: any) => j.id);
   const operations =
     await sql`SELECT p.*,u.name AS operator_name FROM production_operations p LEFT JOIN users u ON u.id=p.assigned_to WHERE p.tenant_id=${t} AND p.work_order_id=ANY(${ids}::uuid[]) ORDER BY p.work_order_id,p.position`;

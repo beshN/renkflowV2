@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { requireWorkOrderActor, requireWorkOrderPermission, WorkOrderApiError } from '@/lib/features/work-orders/security';
+import { ROUTE_ROLES } from '@/lib/auth/permissions';
+import { requireWorkOrderActor, WorkOrderApiError } from '@/lib/features/work-orders/security';
 
 export async function GET(req: NextRequest) {
   try {
     const actor = await requireWorkOrderActor();
+    // Shipments carry customer names; same roles as the /shipments screen.
+    if (!(ROUTE_ROLES['/shipments'] ?? []).includes(actor.role)) throw new WorkOrderApiError('Sevkiyat kayıtlarına erişim yetkiniz yok', 403);
     
     const rows = await sql`
       SELECT 

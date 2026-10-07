@@ -262,7 +262,7 @@ export default function FactoryWorkspace() {
                 <div>
                   <h2 className="text-lg font-semibold">{j.title}</h2>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {j.customer_name} · {Number(j.planned_qty)} adet ·{" "}
+                    {[j.order_number, j.customer_name].filter(Boolean).join(" · ")} · {Number(j.planned_qty)} adet ·{" "}
                     {j.due_at
                       ? new Date(j.due_at).toLocaleDateString("tr-TR")
                       : "Teslim tarihi girilmedi"}
