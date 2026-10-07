@@ -1,6 +1,8 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { SEARCH_MIN_LENGTH } from '@/lib/features/search/types';
+import { foldText } from '@/lib/shared/text/fold';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useRouter } from 'next/navigation';
 import { ArrowUpRight, Command, Search, X, FileText, CornerDownLeft } from 'lucide-react';
@@ -28,7 +30,9 @@ function CommandResults({ close }: { close: () => void }) {
     const matches = keyword && user && hasPermission(user.role, 'orders.view') ? orders
       .filter(order => [order.orderNumber, order.customerName, order.productName].some(value => value?.toLocaleLowerCase('tr-TR').includes(keyword)))
       .slice(0, 6).map(order => ({ id: order.id, title: order.orderNumber + ' · ' + order.customerName, subtitle: order.productName, href: '/orders/' + order.id, type: 'order' })) : [];
-    return [...matches, ...pages].slice(0, 12);
+    // Customers, quotations and stock are searched on the search page (server side, per role).
+    const all = foldText(query).length >= SEARCH_MIN_LENGTH ? [{ id: 'search-all', title: `“${query.trim()}” için tüm sonuçlar`, subtitle: 'Sipariş, müşteri, teklif ve stokta ara', href: '/search?q=' + encodeURIComponent(query.trim()), type: 'search' }] : [];
+    return [...matches, ...all, ...pages].slice(0, 12);
   }, [query, user, orders]);
 
   const selected = Math.min(active, Math.max(0, entries.length - 1));
@@ -56,7 +60,7 @@ function CommandResults({ close }: { close: () => void }) {
       <p className="px-3 pb-2 pt-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{query ? 'Arama sonuçları' : 'Çalışma alanına git'}</p>
       {entries.map((entry, index) => <button key={entry.id} id={`command-${entry.id}`} ref={node => { buttonRefs.current[index] = node; }} type="button" role="option" aria-selected={selected === index}
         onMouseMove={() => setActive(index)} onClick={() => navigate(entry.href)} className={cn('flex w-full items-center gap-3 rounded-md px-3 py-3 text-left transition-colors', selected === index ? 'bg-accent text-foreground' : 'text-muted-foreground')}>
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-card">{entry.type === 'order' ? <FileText size={17} /> : <Command size={17} />}</span>
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-card">{entry.type === 'order' ? <FileText size={17} /> : entry.type === 'search' ? <Search size={17} /> : <Command size={17} />}</span>
         <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-foreground">{entry.title}</span><span className="block truncate text-xs text-muted-foreground">{entry.subtitle}</span></span>
         <ArrowUpRight size={16} className="shrink-0 opacity-50" />
       </button>)}
