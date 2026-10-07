@@ -1,6 +1,6 @@
-import { OrderSearch } from '@/components/features/orders/OrderSearch';
+import { WorkspaceSearch } from '@/components/features/search/WorkspaceSearch';
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q } = await searchParams;
-  return <OrderSearch initialQuery={q || ''} />;
+  return <WorkspaceSearch initialQuery={q || ''} />;
 }
