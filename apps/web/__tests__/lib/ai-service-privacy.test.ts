@@ -14,7 +14,7 @@ jest.mock('openai', () => jest.fn().mockImplementation(() => ({
     }),
   },
 })));
-jest.mock('openai/helpers/zod', () => ({ zodTextFormat: () => ({ type: 'json_schema' }) }));
+jest.mock('openai/helpers/zod', () => ({ zodTextFormat: () => ({ type: 'json_schema' }), zodResponseFormat: () => ({ type: 'json_schema', json_schema: { schema: {} } }) }));
 const usageRows: unknown[][] = [];
 jest.mock('@/lib/db', () => ({ sql: jest.fn((_s: TemplateStringsArray, ...values: unknown[]) => { usageRows.push(values); return Promise.resolve([]); }) }));
 
