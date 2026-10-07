@@ -151,6 +151,7 @@ export const orderItemSchema = z.object({
 });
 
 export const createOrderSchema = z.object({
+  customerId: z.string().uuid('Geçersiz müşteri').optional(),
   customerName: sanitizedString.pipe(
     z.string().min(2, 'Müşteri adı en az 2 karakter olmalıdır').max(100, 'Müşteri adı çok uzun')
   ),

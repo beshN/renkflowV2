@@ -2,6 +2,7 @@ import { verifiedFileKey } from "@/lib/storage/upload-reference";
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { deleteUnlinkedOrder } from '../deletion.service';
 import { recordAudit } from '@/lib/audit/audit-log';
+import { resolveOrderCustomer } from '@/lib/features/customers/link';
 import { applyAwning } from "../../awning/configuration";
 import { Order, NewOrderFormData, safeParseCurrency } from '@/lib/types';
 import { IOrderService, TenantMismatchError } from '../types';
@@ -227,14 +228,16 @@ export class PostgresOrderService implements IOrderService {
       const orderId = await withTransaction(async (tx) => {
         // console.log('[PostgresOrderService] Starting transaction');
         
+        // K6: every order is linked to a customer card (chosen, matched or created here).
+        const customer = await resolveOrderCustomer(tx.sql, tenantId, formData, actorId);
         const orderResult = await tx.sql`
           INSERT INTO orders (
-            order_number, customer_name, email, phone, 
+            order_number, customer_id, customer_name, email, phone, 
             status, total_amount, currency, delivery_date, 
             notes, product_name, quantity, tenant_id, custom_fields
           )
           VALUES (
-            ${orderNumber}, ${formData.customerName}, ${formData.email || null}, ${formData.phone || null},
+            ${orderNumber}, ${customer.id}, ${formData.customerName}, ${formData.email || null}, ${formData.phone || null},
             'pending', ${formData.totalAmount}, ${safeParseCurrency(formData.currency) || 'TRY'}, ${formData.deliveryDate || null},
             ${formData.notes || null}, ${formData.productName}, ${formData.quantity}, ${tenantId},
             ${formData.customFields ? JSON.stringify(formData.customFields) : null}::text::jsonb

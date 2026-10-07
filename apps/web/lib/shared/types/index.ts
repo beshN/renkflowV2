@@ -121,6 +121,7 @@ export const NewOrderItemSchema = z.object({
 export type NewOrderItemData = z.infer<typeof NewOrderItemSchema>;
 
 export const NewOrderFormSchema = z.object({
+  customerId: z.string().uuid().optional(),
   customerName: z.string().min(1, 'Müşteri adı gerekli'),
   email: z.string().email('Geçerli email giriniz').optional().or(z.literal('')),
   phone: z.string().optional(),

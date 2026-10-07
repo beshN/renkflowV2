@@ -184,6 +184,7 @@ export async function createOrderAction(formData: FormData): Promise<Order> {
       validateFilesOrThrow(files);
 
       const validationResult = createOrderSchema.safeParse({
+        customerId: formData.get('customerId') || undefined,
         customerName: formData.get('customerName'),
         email: getOptionalFormString(formData, 'email'),
         phone: getOptionalFormString(formData, 'phone'),
