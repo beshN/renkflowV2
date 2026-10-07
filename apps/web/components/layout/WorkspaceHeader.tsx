@@ -13,6 +13,9 @@ import { useWorkspaceCommands } from './WorkspaceCommands';
 import { cn } from '@/lib/utils';
 import { BrandMark } from '@/components/brand/BrandMark';
 
+/** Screens reached without a menu item still need their own breadcrumb. */
+const OFF_MENU_SECTIONS: Record<string, string> = { '/search': 'Arama' };
+
 export function WorkspaceHeader() {
   const pathname = usePathname();
   const { user } = useAuth();
@@ -24,7 +27,8 @@ export function WorkspaceHeader() {
   useEffect(() => setMounted(true), []);
   const isDark = mounted && resolvedTheme === 'dark';
   const current = DASHBOARD_QUICK_LINKS.find(item => item.href !== '/dashboard' && (pathname === item.href || pathname.startsWith(item.href + '/')));
-  const section = current?.label || 'Genel bakış';
+  const offMenu = Object.keys(OFF_MENU_SECTIONS).find(href => pathname === href || pathname.startsWith(href + '/'));
+  const section = current?.label || (offMenu && OFF_MENU_SECTIONS[offMenu]) || 'Genel bakış';
   const detail = current && pathname !== current.href;
   return <header className="rf-workspace-header sticky top-0 z-40 flex h-16 shrink-0 items-center gap-3 px-4 md:px-7">
     <Dialog.Root open={mobileOpen} onOpenChange={setMobileOpen}>

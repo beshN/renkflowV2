@@ -2,6 +2,7 @@ import 'server-only';
 
 import { recordAudit } from '@/lib/audit/audit-log';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
+import { foldSql, foldText } from '@/lib/shared/text/fold';
 
 export type OrderCustomerInput = {
   customerId?: string | null;
@@ -10,15 +11,7 @@ export type OrderCustomerInput = {
   phone?: string | null;
 };
 
-/**
- * Name folding identical in JS and SQL, independent of the database locale (a C-locale lower() leaves
- * Ş, İ, Ö… uppercase): single spaces, then the Turkish alphabet mapped explicitly, with İ/I/ı → i so
- * "YAPI", "Yapı" and "yapi" agree.
- */
-const FOLD_FROM = 'ABCÇDEFGĞHIİJKLMNOÖPQRSŞTUÜVWXYZı';
-const FOLD_TO = 'abcçdefgğhiijklmnoöpqrsştuüvwxyzi';
-export const nameKey = (value: string) =>
-  [...value.trim().replace(/\s+/g, ' ')].map((char) => { const at = FOLD_FROM.indexOf(char); return at === -1 ? char : FOLD_TO[at]; }).join('');
+export const nameKey = foldText;
 /** Last 10 digits, so +90 532…, 0532… and 532… are the same number. */
 export const phoneKey = (value?: string | null) => (value || '').replace(/\D/g, '').slice(-10);
 
@@ -66,8 +59,8 @@ export async function resolveOrderCustomer(
         AND (
           ${email ? tx`lower(email) = ${email}` : tx`false`}
           OR ${phone.length === 10 ? tx`right(regexp_replace(coalesce(phone, ''), '\\D', '', 'g'), 10) = ${phone}` : tx`false`}
-          OR translate(regexp_replace(btrim(full_name), '\\s+', ' ', 'g'), ${FOLD_FROM}, ${FOLD_TO}) = ${key}
-          OR translate(regexp_replace(btrim(coalesce(company_name, '')), '\\s+', ' ', 'g'), ${FOLD_FROM}, ${FOLD_TO}) = ${key}
+          OR ${foldSql(tx, tx`full_name`)} = ${key}
+          OR ${foldSql(tx, tx`company_name`)} = ${key}
         )
       ORDER BY created_at ASC
     `;
