@@ -5,6 +5,7 @@ import { IQuotationService, Quotation, CreateQuotationInput } from "./types";
 import { sql } from "@/lib/db";
 import { withTransaction } from "@/lib/db/transaction";
 import { safeParseCurrency } from "@/lib/types";
+import { recordAudit } from "@/lib/audit/audit-log";
 
 const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 export function quotationTotals(
@@ -93,6 +94,8 @@ export class PostgresQuotationService implements IQuotationService {
         await tx`INSERT INTO quotations (tenant_id,quotation_number,customer_id,customer_name,valid_until,currency,discount_percent,subtotal,discount_amount,tax_amount,total_amount,notes,internal_notes,terms_and_conditions,created_by,creation_key,creation_hash)
      VALUES (${tenantId},${"TEK-" + Date.now().toString(36).toUpperCase() + "-" + crypto.randomUUID().slice(0, 6)},${data.customerId || null},${data.customerName},${data.validUntil || null},${data.currency},${data.discountPercent},${totals.subtotal},${totals.discountAmount},${totals.taxAmount},${totals.totalAmount},${data.notes || null},${data.internalNotes || null},${data.termsAndConditions || null},${createdBy || null},${idempotencyKey || null},${idempotencyKey ? hash : null}) RETURNING id`;
       await this.insertItems(tx, tenantId, rows[0].id, data.items);
+      // After the replay check: a repeated idempotency key returns above without a second record.
+      await recordAudit(tx, { tenantId, actorId: createdBy, entityType: "quotation", entityId: rows[0].id, action: "created", metadata: { customerName: data.customerName, items: data.items.length } });
       return rows[0].id;
     });
     return (await this.getQuotationById(tenantId, id))!;
@@ -136,6 +139,7 @@ export class PostgresQuotationService implements IQuotationService {
     id: string,
     status: Quotation["status"],
     expectedVersion?: number,
+    actorId?: string,
   ) {
     if (status === "converted")
       throw new WorkOrderApiError("Siparişe dönüşüm komutunu kullanın", 409);
@@ -156,6 +160,7 @@ export class PostgresQuotationService implements IQuotationService {
       if (!allowed[rows[0].status]?.includes(status))
         throw new WorkOrderApiError("Bu durum geçişi yapılamaz", 409);
       await tx`UPDATE quotations SET status=${status},version=version+1,updated_at=now() WHERE tenant_id=${tenantId} AND id=${id}`;
+      await recordAudit(tx, { tenantId, actorId, entityType: "quotation", entityId: id, action: "status_changed", changes: { status: { from: rows[0].status, to: status } } });
     });
     return (await this.getQuotationById(tenantId, id))!;
   }
@@ -186,6 +191,9 @@ export class PostgresQuotationService implements IQuotationService {
         await tx`INSERT INTO order_items (order_id,product_name,quantity,unit_price,total_price,description,color,width_mm,height_mm,projection_mm,mounting_height_mm,awning_configuration,awning_preview,motor_type,led_type,fabric_type,notes)
        VALUES (${orders[0].id},${i.product_name},${i.quantity},${i.unit_price},${i.total_price},${i.description},${i.color},${i.width_mm},${i.height_mm},${i.projection_mm},${i.mounting_height_mm},${i.awning_configuration ? JSON.stringify(i.awning_configuration) : null}::text::jsonb,${i.awning_preview},${i.awning_configuration?.motor || null},${i.awning_configuration?.led || null},${i.awning_configuration?.fabricName || null},${i.notes})`;
       await tx`UPDATE quotations SET version=version+1,status='converted',converted_to_order_id=${orders[0].id},updated_at=now() WHERE tenant_id=${tenantId} AND id=${id}`;
+      // Only a real conversion reaches here; a replay returned above without a second record.
+      await recordAudit(tx, { tenantId, actorId: createdBy, entityType: "quotation", entityId: id, action: "converted", metadata: { quotationNumber: q.quotation_number, orderId: orders[0].id } });
+      await recordAudit(tx, { tenantId, actorId: createdBy, entityType: "order", entityId: orders[0].id, action: "created", metadata: { fromQuotation: q.quotation_number } });
       return { orderId: orders[0].id as string };
     });
   }

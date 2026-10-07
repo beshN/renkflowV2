@@ -17,6 +17,7 @@ import {
 } from '@/lib/types/finance';
 import { isMissingRelationError, tableExists } from '@/lib/db/schema-guard';
 import { assertPeriodWritable, periodFromDateInput } from '@/lib/features/accounting/period-lock';
+import { recordAuditAfterCommit } from '@/lib/audit/audit-log';
 
 /**
  * Create a new payment for an order
@@ -166,10 +167,14 @@ export async function deletePayment(paymentId: string): Promise<void> {
     actionLabel: 'Ödeme silme',
   });
 
-  await sql`
+  const removed = await sql`
     DELETE FROM payments 
     WHERE id = ${paymentId} AND tenant_id = ${context.tenantId}
+    RETURNING order_id, amount, currency, method, paid_at
   `;
+  if (removed[0]) {
+    await recordAuditAfterCommit({ tenantId: context.tenantId, actorId: context.userId, entityType: 'payment', entityId: paymentId, action: 'payment.delete', metadata: { ...removed[0] } });
+  }
 
   revalidatePath('/finance');
   revalidatePath('/finance/payments');

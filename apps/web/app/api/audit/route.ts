@@ -1,51 +1,47 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
-import { queryAuditLogs, type AuditAction } from '@/lib/audit/logging';
+import { z } from 'zod';
+import { queryAudit } from '@/lib/audit/audit-log';
+import { AuthenticationError, getServerUserContext } from '@/lib/features/auth/serverAuth';
 
-function parseDate(value: string | null) {
-  if (!value) return undefined;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date;
-}
+const AUDIT_ROLES = ['owner', 'admin'];
 
+const QuerySchema = z.object({
+  entityType: z.string().trim().max(60).optional(),
+  entityId: z.string().uuid().optional(),
+  userId: z.string().uuid().optional(),
+  action: z.string().trim().max(80).optional(),
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).max(100_000).default(0),
+});
+
+/** Firm audit trail (activity_logs). Owner and admin only. */
 export async function GET(request: Request) {
-  const session = await auth();
-  if (!session?.user?.tenantId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    const context = await getServerUserContext();
+    if (!AUDIT_ROLES.includes(context.role)) {
+      return NextResponse.json({ error: 'Denetim kaydına erişim yetkiniz yok.' }, { status: 403 });
+    }
+    const params = Object.fromEntries(new URL(request.url).searchParams);
+    const q = QuerySchema.parse(params);
+    // A date-only end date covers that whole day.
+    const to = q.endDate && /^\d{4}-\d{2}-\d{2}$/.test(params.endDate ?? '') ? new Date(q.endDate.getTime() + 86_400_000) : q.endDate;
+    const data = await queryAudit(context.tenantId, {
+      entityType: q.entityType,
+      entityId: q.entityId,
+      actorId: q.userId,
+      action: q.action,
+      from: q.startDate,
+      to,
+      limit: q.limit,
+      offset: q.offset,
+    });
+    return NextResponse.json({ success: true, ...data }, { headers: { 'Cache-Control': 'private, no-store' } });
+  } catch (error) {
+    if (error instanceof AuthenticationError) return NextResponse.json({ error: 'Oturum gerekli.' }, { status: 401 });
+    if (error instanceof z.ZodError) return NextResponse.json({ error: 'Geçersiz filtre.' }, { status: 400 });
+    console.error('[Audit]', error);
+    return NextResponse.json({ error: 'Denetim kaydı alınamadı.' }, { status: 500 });
   }
-
-  const { searchParams } = new URL(request.url);
-  const actionParam = searchParams.get('action');
-  const allowedActions = new Set<AuditAction>([
-    'order:created',
-    'order:updated',
-    'order:deleted',
-    'order:status_changed',
-    'document:uploaded',
-    'document:deleted',
-    'user:login',
-    'user:login_failed',
-    'user:logout',
-    'user:invited',
-    'user:role_changed',
-    'settings:updated',
-    'export:generated',
-    'report:viewed',
-  ]);
-  const action = actionParam && allowedActions.has(actionParam as AuditAction)
-    ? (actionParam as AuditAction)
-    : undefined;
-  const data = await queryAuditLogs({
-    tenantId: session.user.tenantId,
-    action,
-    entityType: searchParams.get('entityType') || undefined,
-    entityId: searchParams.get('entityId') || undefined,
-    userId: searchParams.get('userId') || undefined,
-    startDate: parseDate(searchParams.get('startDate')),
-    endDate: parseDate(searchParams.get('endDate')),
-    limit: Number(searchParams.get('limit') || 50),
-    offset: Number(searchParams.get('offset') || 0),
-  });
-
-  return NextResponse.json({ success: true, ...data });
 }

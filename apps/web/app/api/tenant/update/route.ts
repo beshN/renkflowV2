@@ -1,3 +1,4 @@
+import { changedFields, recordAuditAfterCommit } from '@/lib/audit/audit-log';
 import { NextResponse } from 'next/server';
 
 import { sql } from '@/lib/db';
@@ -49,6 +50,8 @@ export async function POST(request: Request) {
     const normalizedTemplate = TEMPLATE_BY_KEY[(templateKey as TemplateKey) || DEFAULT_TEMPLATE_KEY];
     const normalizedIndustry = industry || normalizedTemplate.industry;
 
+    const [before] = await sql`SELECT name, brand_color, logo_url, industry, template_key FROM tenants WHERE id = ${effectiveTenantId}`;
+
     // Update tenant
     const updated = await sql`
       UPDATE tenants
@@ -65,6 +68,16 @@ export async function POST(request: Request) {
     const updatedRows = updated as Array<{ id: string }>;
     if (updatedRows.length === 0) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    }
+    const changes = changedFields(before || {}, {
+      name: name.trim(),
+      brand_color: brandColor || null,
+      logo_url: logoUrl || null,
+      industry: normalizedIndustry || null,
+      template_key: normalizedTemplate?.key || null,
+    });
+    if (Object.keys(changes).length) {
+      await recordAuditAfterCommit({ tenantId: effectiveTenantId, actorId: context.userId, entityType: 'tenant', entityId: effectiveTenantId, action: 'settings_updated', changes });
     }
 
     return NextResponse.json({ success: true });

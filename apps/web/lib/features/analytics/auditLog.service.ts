@@ -5,7 +5,8 @@
  */
 
 import 'server-only';
-import { sql, getSql } from '@/lib/db';
+import { sql } from '@/lib/db';
+import { recordAudit } from '@/lib/audit/audit-log';
 import { headers } from 'next/headers';
 
 // ============================================
@@ -100,277 +101,69 @@ export interface AuditLogFilters {
 }
 
 // ============================================
-// Audit Log Service
+// Audit Log Service — writes to the single audit trail (activity_logs)
 // ============================================
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class AuditLogService {
   /**
-   * Log an audit event
+   * Record a finance/QR event. Never throws: the business change has already committed,
+   * and a failed audit write is logged instead of undoing it.
    */
-  static async log(input: AuditLogInput): Promise<string> {
+  static async log(input: AuditLogInput): Promise<boolean> {
     try {
-      // Get request metadata from headers
       const headersList = await headers();
-      const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0] || 
-                        headersList.get('x-real-ip') || 
-                        null;
-      const userAgent = headersList.get('user-agent') || null;
-
-      const result = await sql`
-        INSERT INTO audit_logs (
-          tenant_id,
-          user_id,
-          user_email,
-          user_role,
-          action,
-          entity_type,
-          entity_id,
-          old_values,
-          new_values,
-          ip_address,
-          user_agent,
-          request_id,
-          metadata
-        ) VALUES (
-          ${input.tenantId},
-          ${input.userId || null},
-          ${input.userEmail || null},
-          ${input.userRole || null},
-          ${input.action},
-          ${input.entityType},
-          ${input.entityId || null},
-          ${input.oldValues ? JSON.stringify(input.oldValues) : null}::jsonb,
-          ${input.newValues ? JSON.stringify(input.newValues) : null}::jsonb,
-          ${ipAddress}::inet,
-          ${userAgent},
-          ${crypto.randomUUID()},
-          ${JSON.stringify(input.metadata || {})}::jsonb
-        )
-        RETURNING id
-      `;
-
-      const resultRows = result as any[];
-      return resultRows[0].id;
+      const ipAddress = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || headersList.get('x-real-ip') || null;
+      await recordAudit(sql, {
+        tenantId: input.tenantId,
+        actorId: input.userId || null,
+        entityType: input.entityType,
+        entityId: input.entityId && UUID.test(input.entityId) ? input.entityId : input.tenantId,
+        action: input.action,
+        changes: input.oldValues || input.newValues ? { old: input.oldValues ?? null, new: input.newValues ?? null } : null,
+        metadata: {
+          ...(input.metadata || {}),
+          ...(input.entityId && !UUID.test(input.entityId) ? { entityRef: input.entityId } : {}),
+          role: input.userRole || null,
+          email: input.userEmail || null,
+          ip: ipAddress,
+          userAgent: headersList.get('user-agent')?.slice(0, 200) || null,
+        },
+      });
+      return true;
     } catch (error) {
-      console.error('[AuditLogService] Failed to log audit event:', error);
-      // Don't throw - audit logging should not break the main operation
-      return '';
+      console.error('[AuditLogService] Failed to log audit event:', error instanceof Error ? error.message : error);
+      return false;
     }
   }
 
-  /**
-   * Get audit logs for a tenant with optional filters
-   */
-  static async getLogs(
-    tenantId: string,
-    filters: AuditLogFilters = {},
-    limit: number = 50,
-    offset: number = 0
-  ): Promise<{ logs: AuditLogEntry[]; total: number }> {
-    // Use parameterized query with optional filters using COALESCE pattern
-    const action = filters.action || null;
-    const entityType = filters.entityType || null;
-    const entityId = filters.entityId || null;
-    const userId = filters.userId || null;
-    const startDate = filters.startDate || null;
-    const endDate = filters.endDate || null;
-
-    // Get total count
-    const countResult = await sql`
-      SELECT COUNT(*) as total FROM audit_logs
-      WHERE tenant_id = ${tenantId}
-        AND (${action}::text IS NULL OR action = ${action})
-        AND (${entityType}::text IS NULL OR entity_type = ${entityType})
-        AND (${entityId}::text IS NULL OR entity_id = ${entityId})
-        AND (${userId}::text IS NULL OR user_id = ${userId})
-        AND (${startDate}::timestamptz IS NULL OR created_at >= ${startDate}::timestamptz)
-        AND (${endDate}::timestamptz IS NULL OR created_at <= ${endDate}::timestamptz)
-    `;
-    const countRows = countResult as any[];
-    const total = parseInt(countRows[0]?.total || '0', 10);
-
-    // Get paginated results
-    const logsResult = await sql`
-      SELECT * FROM audit_logs
-      WHERE tenant_id = ${tenantId}
-        AND (${action}::text IS NULL OR action = ${action})
-        AND (${entityType}::text IS NULL OR entity_type = ${entityType})
-        AND (${entityId}::text IS NULL OR entity_id = ${entityId})
-        AND (${userId}::text IS NULL OR user_id = ${userId})
-        AND (${startDate}::timestamptz IS NULL OR created_at >= ${startDate}::timestamptz)
-        AND (${endDate}::timestamptz IS NULL OR created_at <= ${endDate}::timestamptz)
-      ORDER BY created_at DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
-
-    const logsRows = logsResult as any[];
-    const logs: AuditLogEntry[] = logsRows.map((row: any) => ({
-      id: row.id,
-      tenantId: row.tenant_id,
-      userId: row.user_id,
-      userEmail: row.user_email,
-      userRole: row.user_role,
-      action: row.action,
-      entityType: row.entity_type,
-      entityId: row.entity_id,
-      oldValues: row.old_values,
-      newValues: row.new_values,
-      ipAddress: row.ip_address,
-      userAgent: row.user_agent,
-      requestId: row.request_id,
-      metadata: row.metadata,
-      createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
-    }));
-
-    return { logs, total };
-  }
-
-  /**
-   * Get audit history for a specific entity
-   */
-  static async getEntityHistory(
-    tenantId: string,
-    entityType: EntityType,
-    entityId: string,
-    limit: number = 20
-  ): Promise<AuditLogEntry[]> {
-    const result = await sql`
-      SELECT * FROM audit_logs
-      WHERE tenant_id = ${tenantId}
-      AND entity_type = ${entityType}
-      AND entity_id = ${entityId}
-      ORDER BY created_at DESC
-      LIMIT ${limit}
-    `;
-
-    const resultRows = result as any[];
-    return resultRows.map((row: any) => ({
-      id: row.id,
-      tenantId: row.tenant_id,
-      userId: row.user_id,
-      userEmail: row.user_email,
-      userRole: row.user_role,
-      action: row.action,
-      entityType: row.entity_type,
-      entityId: row.entity_id,
-      oldValues: row.old_values,
-      newValues: row.new_values,
-      ipAddress: row.ip_address,
-      userAgent: row.user_agent,
-      requestId: row.request_id,
-      metadata: row.metadata,
-      createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
-    }));
-  }
-
-  /**
-   * Get audit summary for dashboard
-   */
-  static async getSummary(
-    tenantId: string,
-    days: number = 7
-  ): Promise<{
-    totalEvents: number;
-    eventsByAction: Record<string, number>;
-    eventsByUser: { userId: string; email: string; count: number }[];
-    recentActivity: AuditLogEntry[];
-  }> {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-
-    // Total events
-    const totalResult = await sql`
-      SELECT COUNT(*) as total FROM audit_logs
-      WHERE tenant_id = ${tenantId}
-      AND created_at >= ${startDate.toISOString()}
-    `;
-
-    // Events by action
-    const actionResult = await sql`
-      SELECT action, COUNT(*) as count FROM audit_logs
-      WHERE tenant_id = ${tenantId}
-      AND created_at >= ${startDate.toISOString()}
-      GROUP BY action
-      ORDER BY count DESC
-    `;
-
-    // Events by user
-    const userResult = await sql`
-      SELECT user_id, user_email, COUNT(*) as count FROM audit_logs
-      WHERE tenant_id = ${tenantId}
-      AND created_at >= ${startDate.toISOString()}
-      AND user_id IS NOT NULL
-      GROUP BY user_id, user_email
-      ORDER BY count DESC
-      LIMIT 10
-    `;
-
-    // Recent activity
-    const recentResult = await sql`
-      SELECT * FROM audit_logs
-      WHERE tenant_id = ${tenantId}
-      ORDER BY created_at DESC
-      LIMIT 10
-    `;
-
-    const totalRows = totalResult as any[];
-    const actionRows = actionResult as any[];
-    const userRows = userResult as any[];
-    const recentRows = recentResult as any[];
-
+  /** Audit summary for the finance dashboard (owner/admin), from activity_logs. */
+  static async getSummary(tenantId: string, days: number = 7) {
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const [totals, byAction, byUser, recent] = await Promise.all([
+      sql`SELECT COUNT(*)::int AS total FROM activity_logs WHERE tenant_id = ${tenantId} AND created_at >= ${startDate}`,
+      sql`SELECT action, COUNT(*)::int AS count FROM activity_logs WHERE tenant_id = ${tenantId} AND created_at >= ${startDate} GROUP BY action ORDER BY count DESC`,
+      sql`SELECT a.actor_id, COALESCE(u.email, '') AS email, COUNT(*)::int AS count FROM activity_logs a LEFT JOIN users u ON u.id = a.actor_id
+        WHERE a.tenant_id = ${tenantId} AND a.created_at >= ${startDate} AND a.actor_id IS NOT NULL GROUP BY a.actor_id, u.email ORDER BY count DESC LIMIT 10`,
+      sql`SELECT id, entity_type, entity_id, action, actor_id, actor_name, changes, metadata, created_at FROM activity_logs WHERE tenant_id = ${tenantId} ORDER BY created_at DESC LIMIT 10`,
+    ]);
     return {
-      totalEvents: parseInt(totalRows[0].total, 10),
-      eventsByAction: actionRows.reduce((acc: Record<string, number>, row: any) => {
-        acc[row.action] = parseInt(row.count, 10);
-        return acc;
-      }, {}),
-      eventsByUser: userRows.map((row: any) => ({
-        userId: row.user_id,
-        email: row.user_email || 'Unknown',
-        count: parseInt(row.count, 10),
-      })),
-      recentActivity: recentRows.map((row: any) => ({
+      totalEvents: Number(totals[0]?.total ?? 0),
+      eventsByAction: Object.fromEntries((byAction as any[]).map((row) => [row.action, Number(row.count)])),
+      eventsByUser: (byUser as any[]).map((row) => ({ userId: row.actor_id, email: row.email || 'Bilinmiyor', count: Number(row.count) })),
+      recentActivity: (recent as any[]).map((row) => ({
         id: row.id,
-        tenantId: row.tenant_id,
-        userId: row.user_id,
-        userEmail: row.user_email,
-        userRole: row.user_role,
-        action: row.action,
         entityType: row.entity_type,
         entityId: row.entity_id,
-        oldValues: row.old_values,
-        newValues: row.new_values,
-        ipAddress: row.ip_address,
-        userAgent: row.user_agent,
-        requestId: row.request_id,
+        action: row.action,
+        userId: row.actor_id,
+        userName: row.actor_name,
+        changes: row.changes,
         metadata: row.metadata,
         createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
       })),
     };
-  }
-
-  /**
-   * Helper to create diff between old and new values
-   */
-  static createDiff(
-    oldObj: Record<string, unknown>,
-    newObj: Record<string, unknown>
-  ): { changed: Record<string, { old: unknown; new: unknown }> } {
-    const changed: Record<string, { old: unknown; new: unknown }> = {};
-
-    // Find changed keys
-    const allKeys = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
-    
-    for (const key of allKeys) {
-      if (JSON.stringify(oldObj[key]) !== JSON.stringify(newObj[key])) {
-        changed[key] = {
-          old: oldObj[key],
-          new: newObj[key],
-        };
-      }
-    }
-
-    return { changed };
   }
 }
 

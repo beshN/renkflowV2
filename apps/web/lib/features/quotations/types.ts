@@ -98,6 +98,7 @@ export interface IQuotationService {
     id: string,
     status: Quotation["status"],
     expectedVersion?: number,
+    actorId?: string,
   ): Promise<Quotation>;
   convertToOrder(
     tenantId: string,

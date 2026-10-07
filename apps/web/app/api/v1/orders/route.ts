@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
       })),
     };
 
-    const order = await orderService.createOrder(user.tenantId, orderData, files);
+    const order = await orderService.createOrder(user.tenantId, orderData, files, user.id);
     
     return successResponse(order, 'Sipariş başarıyla oluşturuldu');
   } catch (error: unknown) {
