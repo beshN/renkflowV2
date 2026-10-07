@@ -262,7 +262,9 @@ function saveMessages(messages: Message[], storageKey: string) {
 // ============================================
 
 export function AIChatbot() {
-  const {insights,brief} = useAssistantInsights();
+  const {insights,brief,modelEnabled} = useAssistantInsights();
+  // Without a model key the chat cannot answer: say so instead of offering a box that only errors.
+  const chatOff = modelEnabled === false;
   const [pendingAction,setPendingAction]=useState<{action:AssistantAction;commandId:string}|null>(null);
   const [actionBusy,setActionBusy]=useState(false);
   const [actionError,setActionError]=useState('');
@@ -642,7 +644,7 @@ export function AIChatbot() {
                   {brief && <p className="leading-5 text-muted-foreground">{brief}</p>}
                   {insights.slice(0,2).map(insight=><button key={insight.id} onClick={()=>handleNavigate(insight.href)} className="block w-full rounded border p-2 text-left"><strong>{insight.title}</strong><span className="block mt-1 text-muted-foreground">{insight.detail}</span><span className="block mt-1 text-primary">{insight.action} →</span></button>)}
                 </div>}
-                {messages.length === 0 && (
+                {messages.length === 0 && !chatOff && (
                   <div className="p-4 border-b border-slate-200 dark:border-slate-800">
                     <div className="text-center mb-4">
                       <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
@@ -836,6 +838,11 @@ export function AIChatbot() {
                 </AnimatePresence>
 
                 {/* Input */}
+                {chatOff ? (
+                  <p role="note" className="p-3 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                    Sohbet bu kurulumda kapalı (model anahtarı tanımlı değil). Yukarıdaki uyarılar kayıtlarınızdan doğrudan hesaplanır.
+                  </p>
+                ) : (
                 <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
                   <div className="flex gap-2 items-end">
                     <textarea
@@ -870,6 +877,7 @@ export function AIChatbot() {
                     </p>
                   </div>
                 </div>
+                )}
               </>
             )}
           </motion.div>

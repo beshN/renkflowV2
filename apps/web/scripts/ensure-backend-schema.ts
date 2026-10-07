@@ -122,6 +122,7 @@ export async function ensureBackendSchema(sql: SqlClient, options: EnsureOptions
     '026_production_analytics.sql',
     '027_quality_traceability.sql',
     '028_rate_limits.sql',
+    '029_ai_suggestions.sql',
   ]) {
     const raw = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
     // postgres.js unsafe() uses the simple protocol when there are no parameters.

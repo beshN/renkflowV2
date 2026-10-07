@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/context/AuthContext';
 import type { AssistantInsight } from '@/lib/ai/workspace';
 export function useAssistantInsights() {
  const {user}=useAuth(),pathname=usePathname(),scope=user?[user.tenantId,user.id,user.role].join(':'):'';
- const [result,setResult]=useState<{scope:string;path:string;insights:AssistantInsight[];brief:string}>({scope:'',path:'',insights:[],brief:''});
+ const [result,setResult]=useState<{scope:string;path:string;insights:AssistantInsight[];brief:string;modelEnabled?:boolean}>({scope:'',path:'',insights:[],brief:''});
  useEffect(()=>{
   if(!scope)return;
   let active=true,controller:AbortController|null=null,fetching=false;
@@ -16,7 +16,7 @@ export function useAssistantInsights() {
     const res=await fetch('/api/ai/insights?path='+encodeURIComponent(pathname),{signal:controller.signal,cache:'no-store'});
     if(!res.ok)return;
     const data=await res.json();if(!active)return;
-    setResult({scope,path:pathname,insights:data.insights || [],brief:''});
+    setResult({scope,path:pathname,insights:data.insights || [],brief:'',modelEnabled:Boolean(data.modelEnabled)});
     // Model review runs automatically, once per scope per three minutes; alerts stay available without it.
     const key='rf.assistant.brief:'+scope;
     let saved:any=null;try{saved=JSON.parse(sessionStorage.getItem(key)||'null');}catch{/* Storage is optional. */}
@@ -33,5 +33,5 @@ export function useAssistantInsights() {
   document.addEventListener('visibilitychange',onVisible);window.addEventListener('online',onVisible);
   return()=>{active=false;controller?.abort();clearInterval(timer);document.removeEventListener('visibilitychange',onVisible);window.removeEventListener('online',onVisible);};
  },[scope,pathname]);
- return result.scope===scope&&result.path===pathname?result:{scope,path:pathname,insights:[],brief:''};
+ return result.scope===scope&&result.path===pathname?result:{scope,path:pathname,insights:[],brief:'',modelEnabled:result.scope===scope?result.modelEnabled:undefined};
 }

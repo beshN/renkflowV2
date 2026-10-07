@@ -25,7 +25,7 @@ export async function extractIntake(actor: WorkOrderActor, raw: unknown) {
   const file = await storeProductionFile(actor, input, bytes);
   let analysis;
   try {
-    analysis = await getAIService().analyzeDocument(bytes.toString("base64"), input.mime);
+    analysis = await getAIService().analyzeDocument(bytes.toString("base64"), input.mime, undefined, { tenantId: actor.tenantId, userId: actor.userId, feature: 'intake.document' });
   } catch {
     // The document stays reviewable even when extraction is unavailable. No invented manufacturing values.
     analysis = {extractedData: {customerName:null,email:null,phone:null,deliveryDate:null,notes:null,items:[],fieldEvidence:[],warnings:["AI belgeyi okuyamadı. Belgeyi inceleyerek kalemleri elle ekleyebilirsiniz."]}};

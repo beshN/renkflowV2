@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { tenantPersonalNames } from '@/lib/ai/known-names';
 import { z, ZodError } from 'zod';
 import { getAIService } from '@/lib/ai/service';
 import { assistantSnapshot, searchAssistant } from '@/lib/ai/workspace';
@@ -17,8 +18,8 @@ export async function POST(req:NextRequest) {
   const text=await req.text();if(Buffer.byteLength(text)>100000)throw new WorkOrderApiError('İstek çok büyük',413);
   const body=input.parse(JSON.parse(text)),path=body.context?.currentPath || '/dashboard';
   const query=body.search || body.message.match(/\bRF[-\s]?\d+\b/i)?.[0] || '';
-  const snapshot=await assistantSnapshot(actor,path,query);
-  const answer=await getAIService().assist(body.message,{currentPath:path},snapshot.data,body.history,(category,query)=>searchAssistant(actor,category,query));
+  const [snapshot,knownNames]=await Promise.all([assistantSnapshot(actor,path,query),tenantPersonalNames(actor.tenantId)]);
+  const answer=await getAIService().assist(body.message,{currentPath:path},snapshot.data,body.history,(category,query)=>searchAssistant(actor,category,query),{tenantId:actor.tenantId,userId:actor.userId,feature:body.mode==='proactive'?'assistant.proactive':'assistant.chat'},knownNames);
   const actions=(body.mode==='proactive'?[]:answer.actions).slice(0,3).filter(action=>{
    if(action.kind==='navigate') {const href=safeAssistantHref(action.href);return !!href && canAccessRoute(actor.role,new URL(href,'https://internal.invalid').pathname);}
    if(action.kind==='orderNote')return hasPermission(actor.role,'orders.edit') && actor.role!=='worker';
