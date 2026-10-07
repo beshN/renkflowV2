@@ -259,7 +259,6 @@ export const ROUTE_PERMISSIONS: Record<string, Permission[]> = {
   '/finance/employees': ['finance.employees.view'],
   '/settings': ['settings.view'],
   '/team': ['team.view'],
-  '/analytics': ['analytics.view'],
   '/customers': ['customers.view'],
   '/inventory': ['inventory.view'],
   '/inventory/new': ['inventory.edit'],

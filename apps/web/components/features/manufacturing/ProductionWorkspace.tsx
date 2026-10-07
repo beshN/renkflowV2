@@ -390,7 +390,7 @@ export default function ProductionWorkspace() {
                       </td>
                       <td>
                         <Link
-                          href={`/production/labels?kind=job&id=${j.id}`}
+                          href={`/warehouse/labels?kind=job&id=${j.id}`}
                           className="text-primary"
                         >
                           Etiket
@@ -712,7 +712,7 @@ export default function ProductionWorkspace() {
                 )}
                 <Link
                   className="rf-input text-xs"
-                  href={`/production/labels?kind=cut&id=${p.id}`}
+                  href={`/warehouse/labels?kind=cut&id=${p.id}`}
                 >
                   Kesim paketi etiketi
                 </Link>
@@ -1147,7 +1147,7 @@ export default function ProductionWorkspace() {
                       </td>
                       <td>
                         <Link
-                          href={`/production/labels?kind=lot&id=${l.id}`}
+                          href={`/warehouse/labels?kind=lot&id=${l.id}`}
                           className="text-primary"
                         >
                           Etiket
