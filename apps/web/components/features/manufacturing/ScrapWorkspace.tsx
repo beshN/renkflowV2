@@ -31,7 +31,7 @@ export default function ScrapWorkspace(){
       {key:'remaining_qty',label:'Kalan boy',render:v=>amount(Number(v)*1000)+' mm'},
       {key:'status',label:'Durum',render:v=>v==='available'?'Kullanılabilir':v==='reserved'?'Rezerve':'Tüketildi'},
       {key:'warehouse_name',label:'Depo'},
-      {key:'id',label:'Etiket',render:(_,l)=>canOpenProduction?<Link className="rf-secondary-button" href={'/production/labels?kind=lot&id='+l.id}><Printer size={14}/>QR / barkod</Link>:<span className="text-xs text-muted-foreground">{l.lot_number}</span>},
+      {key:'id',label:'Etiket',render:(_,l)=>canOpenProduction?<Link className="rf-secondary-button" href={'/warehouse/labels?kind=lot&id='+l.id}><Printer size={14}/>QR / barkod</Link>:<span className="text-xs text-muted-foreground">{l.lot_number}</span>},
     ]} emptyState={{title:'Henüz kullanılabilir artık yok',description:'Onaylı kesim gerçekleştikçe fiziksel artık lotları burada görünür.'}}/>
     <RFListView<Loss> title="Gerçekleşen kesim hurdası" description="En son 300 kayıt; üstteki kg ve maliyet tüm kesim kayıtlarının toplamıdır." data={data?.losses || []} isLoading={loading} error={error || undefined} onRetry={reload} columns={[
       {key:'name',label:'Profil',render:(_,l)=><div>{l.name}<p className="mt-1 text-xs text-muted-foreground">{l.lot_number}</p></div>},

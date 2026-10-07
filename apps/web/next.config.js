@@ -235,6 +235,12 @@ const nextConfig = {
         destination: '/sitemap.xml',
         permanent: true,
       },
+      // Retired screens: old bookmarks land on the screen that replaced them (query strings pass through).
+      { source: '/dashboard/professional', destination: '/dashboard', permanent: false },
+      { source: '/analytics', destination: '/reports', permanent: false },
+      { source: '/cutting-optimizer', destination: '/production?tab=cutting', permanent: false },
+      { source: '/members', destination: '/team', permanent: false },
+      { source: '/production/labels', destination: '/warehouse/labels', permanent: false },
     ];
   },
 };
