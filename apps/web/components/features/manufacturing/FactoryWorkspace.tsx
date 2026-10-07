@@ -269,7 +269,7 @@ export default function FactoryWorkspace() {
                   </p>
                 </div>
                 <Link
-                  href={`/production/labels?kind=job&id=${j.id}`}
+                  href={`/warehouse/labels?kind=job&id=${j.id}`}
                   className="text-xs text-primary"
                 >
                   QR etiketi
@@ -697,7 +697,7 @@ export default function FactoryWorkspace() {
                       <Link
                         key={u.id}
                         className="rounded border border-border px-3 py-2 text-xs text-primary"
-                        href={`/production/labels?kind=product&id=${u.id}`}
+                        href={`/warehouse/labels?kind=product&id=${u.id}`}
                       >
                         Ürün {u.serial} · QR
                       </Link>
