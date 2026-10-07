@@ -19,7 +19,7 @@ struct ScanView: View {
                 Button("Kodu bul") { Task { await store.scan(code) } }.buttonStyle(.bordered).controlSize(.large).disabled(code.isEmpty || code.count > 1000 || store.busy)
                 if let result = store.scanResult {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text(["job": "İş emri", "item": "Malzeme", "lot": "Lot", "location": "Konum", "product": "Mamul", "cut": "Kesim paketi"][result.kind] ?? "Etiket").font(.caption.bold()).foregroundStyle(FieldColor.teal)
+                        Text(["job": "İş emri", "item": "Malzeme", "lot": "Lot", "location": "Konum", "product": "Mamul", "cut": "Kesim paketi"][result.kind] ?? "Etiket").font(.caption.bold()).foregroundStyle(FieldColor.accent)
                         Text(result.title).font(.title2.bold())
                         if let subtitle = result.subtitle { Text(subtitle) }
                         if let amount = result.quantity { Text("\(quantity(amount)) \(result.uom ?? "")") }

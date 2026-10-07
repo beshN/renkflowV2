@@ -105,6 +105,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
     fun closeJob() { mutable.update { it.copy(selectedId = null, detail = null) } }
     fun scan(code: String) = perform { session ->
         require(code.trim().isNotEmpty() && code.length <= 1000) { "Geçerli bir etiket kodu girin." }
+        mutable.update { it.copy(scan = null) }
         val result = api.scan(session, code.trim())
         mutable.update { it.copy(scan = result) }
     }
@@ -112,10 +113,10 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         val id = state.value.selectedId ?: return
         performMutation("work-orders/$id/checklist/${item.id}", buildJsonObject { put("completed", !item.completed) }.toString())
     }
-    fun comment(text: String) {
+    fun comment(text: String, onSaved: () -> Unit = {}) {
         val id = state.value.selectedId ?: return
         if (text.trim().length !in 1..2000) return
-        performMutation("work-orders/$id/comments", buildJsonObject { put("body", text.trim()) }.toString())
+        performMutation("work-orders/$id/comments", buildJsonObject { put("body", text.trim()) }.toString(), onSaved)
     }
     fun transition(status: String, reason: String? = null) {
         val id = state.value.selectedId ?: return
@@ -124,8 +125,9 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
             if (status == "blocked") { put("blockedReasonCategory", "other"); put("blockedReasonDetail", reason.orEmpty().trim()) }
         }.toString())
     }
-    private fun performMutation(path: String, body: String) = perform(writing = true) { session ->
+    private fun performMutation(path: String, body: String, onSaved: () -> Unit = {}) = perform(writing = true) { session ->
         api.raw(session.server, session.token, "field/$path", body)
+        onSaved()
         mutable.update { it.copy(message = "İşlem kaydedildi.") }
         reloadAfterWrite(session)
     }

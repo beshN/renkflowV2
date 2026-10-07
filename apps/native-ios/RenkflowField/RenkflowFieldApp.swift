@@ -10,7 +10,7 @@ import SwiftUI
     }
     var body: some Scene {
         WindowGroup {
-            RootView().environmentObject(store).tint(FieldColor.teal)
+            RootView().environmentObject(store).tint(FieldColor.accent)
                 .task { await store.restore() }
                 .onChange(of: phase) { _, value in if value == .active { Task { await store.foreground() } } }
         }

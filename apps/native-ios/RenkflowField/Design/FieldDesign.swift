@@ -4,7 +4,12 @@ enum FieldColor {
     static let pine = Color(red: 17/255, green: 45/255, blue: 50/255)
     static let lime = Color(red: 198/255, green: 243/255, blue: 106/255)
     static let teal = Color(red: 39/255, green: 104/255, blue: 93/255)
-    static let clay = Color(red: 175/255, green: 85/255, blue: 53/255)
+    static let accent = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark ? UIColor(red: 158/255, green: 209/255, blue: 193/255, alpha: 1) : UIColor(red: 39/255, green: 104/255, blue: 93/255, alpha: 1)
+    })
+    static let clay = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark ? UIColor(red: 240/255, green: 184/255, blue: 157/255, alpha: 1) : UIColor(red: 175/255, green: 85/255, blue: 53/255, alpha: 1)
+    })
     static let background = Color(uiColor: .systemGroupedBackground)
     static let card = Color(uiColor: .secondarySystemGroupedBackground)
 }
@@ -19,7 +24,7 @@ struct Brand: View {
 struct StatusPill: View {
     let status: String
     var body: some View {
-        let color = status == "blocked" ? FieldColor.clay : FieldColor.teal
+        let color = status == "blocked" ? FieldColor.clay : FieldColor.accent
         Text(statusLabel(status)).font(.caption.weight(.semibold)).foregroundStyle(color).padding(.horizontal, 10).padding(.vertical, 7).background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
     }
 }

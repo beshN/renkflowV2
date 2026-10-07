@@ -76,6 +76,7 @@ import Combine
     func scan(_ code: String) async {
         await perform { auth in
             guard !code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, code.count <= 1000 else { throw FieldAPIError(status: 0, message: "Geçerli bir etiket kodu girin.") }
+            self.scanResult = nil
             self.scanResult = try await self.api.scan(auth, code: code.trimmingCharacters(in: .whitespacesAndNewlines))
         }
     }

@@ -18,6 +18,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.Assignment
+import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -63,7 +65,7 @@ import java.util.Locale
         return
     }
     if (state.session == null) { Login(state, model); return }
-    val tabs = listOf("Saha" to Icons.Outlined.SpaceDashboard, "İşler" to Icons.Outlined.Assignment, "Üretim" to Icons.Outlined.PrecisionManufacturing, "Tara" to Icons.Outlined.QrCodeScanner, "Hesap" to Icons.Outlined.PersonOutline)
+    val tabs = listOf("Saha" to Icons.Outlined.SpaceDashboard, "İşler" to Icons.AutoMirrored.Outlined.Assignment, "Üretim" to Icons.Outlined.PrecisionManufacturing, "Tara" to Icons.Outlined.QrCodeScanner, "Hesap" to Icons.Outlined.PersonOutline)
     Scaffold(
         topBar = {
             TopAppBar(title = {
@@ -80,7 +82,7 @@ import java.util.Locale
             Column(Modifier.widthIn(max = 1000.dp).fillMaxWidth()) {
                 if (state.error != null) Notice(state.error, true, model::dismiss)
                 if (state.message != null) Notice(state.message, false, model::dismiss)
-                if (state.stale && state.snapshot != null) Text("Son alınan veriler • İşlem için yenileyin", Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = MaterialTheme.typography.labelMedium, color = Clay)
+                if (state.stale && state.snapshot != null) Text("Son alınan veriler • İşlem için yenileyin", Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
                 if (state.pending != null) Card(Modifier.padding(horizontal = 20.dp, vertical = 8.dp).fillMaxWidth()) {
                     Column(Modifier.padding(16.dp)) {
                         Text("İşlemin sonucu bekleniyor", fontWeight = FontWeight.SemiBold)
@@ -92,7 +94,7 @@ import java.util.Locale
             Box(Modifier.widthIn(max = 1000.dp).weight(1f).fillMaxWidth()) {
                 if (state.selectedId != null) {
                     state.detail?.let { JobDetail(it, state, writable, model, { operation = it }) }
-                        ?: EmptyState("İş emri yükleniyor", "Bağlantıyı kontrol edip yenileyebilirsiniz.", Icons.Outlined.Assignment)
+                        ?: EmptyState("İş emri yükleniyor", "Bağlantıyı kontrol edip yenileyebilirsiniz.", Icons.AutoMirrored.Outlined.Assignment)
                 } else when (tab) {
                     0 -> Home(state, { tab = 3 }, model::openJob, { operation = it })
                     1 -> Jobs(state.snapshot?.workOrders.orEmpty(), model::openJob)
@@ -167,14 +169,14 @@ import java.util.Locale
                 }
             }
         }
-        if (snapshot?.truncated == true) item { Text("Liste sınırına ulaşıldı. Etiket tarayarak belirli bir işe erişebilirsiniz.", color = Clay, style = MaterialTheme.typography.bodyMedium) }
+        if (snapshot?.truncated == true) item { Text("Liste sınırına ulaşıldı. Etiket tarayarak belirli bir işe erişebilirsiniz.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
         item { SectionTitle("Sıradaki operasyonlar", "Başlatmak veya devam etmek için seçin") }
         val actionable = ops.filter { it.status in listOf("running", "ready", "paused", "blocked") }.take(4)
         if (actionable.isEmpty()) item { EmptyState("Hazır operasyon yok", "Size atanan yeni adımlar burada görünecek.", Icons.Outlined.TaskAlt) }
         items(actionable, key = { "op-${it.id}" }) { op -> OperationCard(op, jobs.firstOrNull { it.id == op.workOrderId }?.title, { operation(op) }) }
         item { SectionTitle("Öncelikli işler", "Açık iş emirleriniz") }
         items(jobs.take(5), key = { it.id }) { job -> JobCard(job) { open(job.id) } }
-        if (jobs.isEmpty()) item { EmptyState("İş listeniz boş", "Atanan iş emirleri burada görünecek.", Icons.Outlined.Assignment) }
+        if (jobs.isEmpty()) item { EmptyState("İş listeniz boş", "Atanan iş emirleri burada görünecek.", Icons.AutoMirrored.Outlined.Assignment) }
         snapshot?.let { item { Text("Son güncelleme ${displayDate(it.generatedAt)}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall) } }
     }
 }
@@ -197,7 +199,7 @@ import java.util.Locale
 @Composable private fun JobCard(job: WorkOrder, onClick: () -> Unit) {
     Card(onClick = onClick, shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { StatusPill(job.status); Text(priorityLabel(job.priority), style = MaterialTheme.typography.labelMedium, color = if (job.priority in listOf("high", "critical")) Clay else MaterialTheme.colorScheme.onSurfaceVariant) }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { StatusPill(job.status); Text(priorityLabel(job.priority), style = MaterialTheme.typography.labelMedium, color = if (job.priority in listOf("high", "critical")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) }
             Text(job.title, style = MaterialTheme.typography.titleMedium, maxLines = 3, overflow = TextOverflow.Ellipsis)
             if (!job.location.isNullOrBlank()) Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.Place, null, Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)); Text(job.location, style = MaterialTheme.typography.bodyMedium) }
             if (job.checklistTotal > 0) {
@@ -209,7 +211,7 @@ import java.util.Locale
     }
 }
 @Composable private fun StatusPill(status: String) {
-    val color = when (status) { "blocked" -> Clay; "running", "in_progress" -> Teal; "done" -> Teal; else -> MaterialTheme.colorScheme.onSurfaceVariant }
+    val color = when (status) { "blocked" -> MaterialTheme.colorScheme.error; "running", "in_progress", "done" -> MaterialTheme.colorScheme.secondary; else -> MaterialTheme.colorScheme.onSurfaceVariant }
     Surface(color = color.copy(alpha = 0.12f), shape = RoundedCornerShape(8.dp)) { Text(statusLabel(status), Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = color, style = MaterialTheme.typography.labelMedium) }
 }
 @Composable private fun Production(state: FieldState, open: (Operation) -> Unit) {
@@ -243,7 +245,7 @@ import java.util.Locale
         item { StatusPill(job.status) }
         item { Text(job.title, style = MaterialTheme.typography.headlineMedium) }
         job.description?.let { item { Text(it) } }
-        item { Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) { Text(priorityLabel(job.priority), color = Clay); job.location?.let { Text(it) } } }
+        item { Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) { Text(priorityLabel(job.priority), color = MaterialTheme.colorScheme.error); job.location?.let { Text(it) } } }
         job.blockedReasonDetail?.let { item { Notice(it, true) {} } }
         if (job.productionManaged) item { Text("Bu iş üretim adımları üzerinden ilerler.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         else if (state.snapshot?.permissions?.transition == true) item {
@@ -258,7 +260,7 @@ import java.util.Locale
             Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface) {
                 Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(item.completed, { model.checklist(item) }, enabled = writable && state.snapshot?.permissions?.checklist == true)
-                    Column(Modifier.weight(1f)) { Text(item.title); if (item.required) Text("Zorunlu", style = MaterialTheme.typography.labelSmall, color = Clay) }
+                    Column(Modifier.weight(1f)) { Text(item.title); if (item.required) Text("Zorunlu", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error) }
                 }
             }
         }
@@ -271,7 +273,7 @@ import java.util.Locale
         if (state.snapshot?.permissions?.comment == true) item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(note, { if (it.length <= 2000) note = it }, Modifier.fillMaxWidth(), label = { Text("Saha notu ekle") }, minLines = 3)
-                Button(onClick = { model.comment(note); note = "" }, enabled = writable && note.isNotBlank()) { Text("Notu kaydet") }
+                Button(onClick = { val submitted = note; model.comment(submitted) { if (note == submitted) note = "" } }, enabled = writable && note.isNotBlank()) { Text("Notu kaydet") }
             }
         }
     }
@@ -298,7 +300,7 @@ import java.util.Locale
                 }, enabled = !state.busy, colors = ButtonDefaults.buttonColors(containerColor = Lime, contentColor = Pine), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Kamerayı aç") }
             }
         }
-        scanError?.let { Text(it, color = Clay) }
+        scanError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         OutlinedTextField(code, { if (it.length <= 1000) code = it }, Modifier.fillMaxWidth(), label = { Text("Etiket kodu") }, placeholder = { Text("Barkod veya QR içeriği") }, singleLine = true)
         OutlinedButton(onClick = { model.scan(code) }, enabled = code.isNotBlank() && !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Kodu bul") }
         state.scan?.let { result ->
@@ -328,7 +330,7 @@ import java.util.Locale
             }
         }
         Text("Üretim kayıtları firmanızın Renkflow sistemine kaydedilir. Bağlantı kurulamadığında verileri yenileyin.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedButton(onClick = { logout = true }, enabled = !state.busy && state.pending == null, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Icon(Icons.Outlined.Logout, null); Spacer(Modifier.width(8.dp)); Text("Çıkış yap") }
+        OutlinedButton(onClick = { logout = true }, enabled = !state.busy && state.pending == null, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Icon(Icons.AutoMirrored.Outlined.Logout, null); Spacer(Modifier.width(8.dp)); Text("Çıkış yap") }
         Text("Sürüm 1.0.0", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     if (logout) AlertDialog(onDismissRequest = { logout = false }, title = { Text("Çıkış yapılsın mı?") }, text = { Text("Bu cihazdaki oturumunuz temizlenecek.") }, confirmButton = { TextButton(onClick = { model.logout(); logout = false }) { Text("Çıkış yap") } }, dismissButton = { TextButton(onClick = { logout = false }) { Text("Vazgeç") } })
@@ -361,7 +363,7 @@ import java.util.Locale
             StatusPill(op.status)
             Text(op.name, style = MaterialTheme.typography.headlineMedium)
             Text("${op.workCenterCode} · ${quantity(op.completedQty)} / ${quantity(op.plannedQty)} adet", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            op.reason?.let { Text(it, color = Clay) }
+            op.reason?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             if (op.status in listOf("ready", "paused", "blocked")) Button(onClick = { onCommand(OperationInput(op.id, op.version, "start")) }, enabled = canWrite, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Icon(Icons.Outlined.PlayArrow, null); Text("Üretimi başlat") }
             if (op.status == "running") {
                 OutlinedButton(onClick = { onCommand(OperationInput(op.id, op.version, "pause")) }, enabled = canWrite, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Outlined.Pause, null); Text("Duraklat") }
@@ -372,12 +374,12 @@ import java.util.Locale
                         when (check.kind) {
                             "pass_fail" -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { FilterChip(passes[check.id] == true, { passes[check.id] = true }, label = { Text("Geçti") }); FilterChip(passes[check.id] == false, { passes[check.id] = false }, label = { Text("Kaldı") }) }
                             "measurement" -> { Text("${check.minimum} – ${check.maximum} ${check.unit}", style = MaterialTheme.typography.labelMedium); OutlinedTextField(values[check.id].orEmpty(), { values[check.id] = it }, Modifier.fillMaxWidth(), label = { Text("Ölçüm (${check.unit})") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true) }
-                            "photo" -> Text("Yeni fotoğraf gerekli", color = Clay)
+                            "photo" -> Text("Yeni fotoğraf gerekli", color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
                 OutlinedButton(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, enabled = canWrite) { Icon(Icons.Outlined.AddPhotoAlternate, null); Spacer(Modifier.width(8.dp)); Text(if (photo != null) "Fotoğraf yüklendi ✓" else "Fotoğraf ekle") }
-                photoError?.let { Text(it, color = Clay) }
+                photoError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 OutlinedTextField(note, { if (it.length <= 2000) note = it }, Modifier.fillMaxWidth(), label = { Text("Üretim notu (isteğe bağlı)") }, minLines = 2)
                 Button(onClick = { confirm = true }, enabled = canWrite && validQuantity && qualityValid, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Tamamlanan miktarı kaydet") }
             }

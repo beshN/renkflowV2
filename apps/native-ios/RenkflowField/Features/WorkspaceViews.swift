@@ -94,7 +94,7 @@ struct JobDetailView: View {
                 SectionTitle(title: "Kontrol listesi", caption: "Zorunlu adımları doğrulayın")
                 ForEach(job.checklist ?? []) { item in
                     Button { Task { await store.toggle(item) } } label: {
-                        HStack(spacing: 14) { Image(systemName: item.completed ? "checkmark.circle.fill" : "circle").font(.title2).foregroundStyle(FieldColor.teal); VStack(alignment: .leading, spacing: 4) { Text(item.title).foregroundStyle(.primary); if item.required { Text("Zorunlu").font(.caption).foregroundStyle(FieldColor.clay) } }; Spacer() }
+                        HStack(spacing: 14) { Image(systemName: item.completed ? "checkmark.circle.fill" : "circle").font(.title2).foregroundStyle(FieldColor.accent); VStack(alignment: .leading, spacing: 4) { Text(item.title).foregroundStyle(.primary); if item.required { Text("Zorunlu").font(.caption).foregroundStyle(FieldColor.clay) } }; Spacer() }
                             .padding(16).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 14))
                     }.buttonStyle(.plain).disabled(!store.writable || store.snapshot?.permissions.checklist != true).accessibilityLabel("\(item.title), \(item.completed ? "tamamlandı" : "bekliyor")")
                 }
@@ -127,7 +127,7 @@ struct ProfileView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     Text(store.session?.user.name ?? "Renkflow").font(.title2.bold())
                     Text(store.session?.user.email ?? "")
-                    Text(["worker": "Saha çalışanı", "office": "Operasyon", "owner": "Firma sahibi", "admin": "Yönetici"][store.session?.user.role ?? ""] ?? "Hesap").foregroundStyle(FieldColor.teal)
+                    Text(["worker": "Saha çalışanı", "office": "Operasyon", "owner": "Firma sahibi", "admin": "Yönetici"][store.session?.user.role ?? ""] ?? "Hesap").foregroundStyle(FieldColor.accent)
                     Divider(); Text(store.session?.server ?? "").font(.subheadline)
                 }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 20))
                 Text("Üretim kayıtları firmanızın Renkflow sistemine kaydedilir. Bağlantı kurulamadığında verileri yenileyin.").foregroundStyle(.secondary)
