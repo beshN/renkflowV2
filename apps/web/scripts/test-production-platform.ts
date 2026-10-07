@@ -859,7 +859,7 @@ async function main() {
   await assert.rejects(()=>transitionOrder(actor,transitionDraft.id,{...transitionData,commandId:randomUUID(),newStatus:'approved'}));
   await assert.rejects(()=>transitionOrder(actor,transitionDraft.id,{...transitionData,newStatus:'approved'}));
   assert.equal((await db`SELECT changes FROM activity_logs WHERE tenant_id=${tenant.id} AND entity_id=${transitionDraft.id} AND action='status_changed'`).length,1);
-  assert.equal((await db`SELECT changes FROM activity_logs WHERE tenant_id=${tenant.id} AND entity_id=${transitionDraft.id}`)[0].changes.durum.to,'pending_approval');
+  assert.equal((await db`SELECT changes FROM activity_logs WHERE tenant_id=${tenant.id} AND entity_id=${transitionDraft.id} AND action='status_changed'`)[0].changes.durum.to,'pending_approval');
   await assert.rejects(()=>deleteUnlinkedOrder(tenant.id,transitionDraft.id));
   const [nativeOrder]=await db`SELECT o.id,o.version FROM orders o JOIN work_orders w ON w.order_id=o.id WHERE w.id=${job2.id}`;
   await assert.rejects(()=>transitionOrder(actor,nativeOrder.id,{commandId:randomUUID(),version:nativeOrder.version,newStatus:'shipped'}));

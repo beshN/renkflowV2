@@ -56,3 +56,29 @@ it('shows an upload failure, preserves entered data and allows retry', async () 
   expect(screen.getByLabelText('Müşteri / firma adı *')).toHaveValue('Renk Test');
   expect(screen.getByRole('button',{name:'Siparişi Kaydet'})).toBeEnabled();
 });
+
+it('links the order to a chosen saved customer and releases the link when the name is retyped', async () => {
+  const fetchMock = jest.fn(async (_url: string) => ({ ok: true, json: async () => ({ customers: [{ id: '33333333-3333-4333-8333-333333333333', full_name: 'Örnek Yapı A.Ş.', phone: '0532 000 00 00', email: 'info@ornek.invalid' }] }) }));
+  const previousFetch = global.fetch;
+  global.fetch = fetchMock as unknown as typeof fetch;
+  try {
+    const submit = jest.fn().mockResolvedValue(undefined);
+    render(<NewOrderForm onSubmit={submit} />);
+    fireEvent.change(screen.getByLabelText('Müşteri / firma adı *'), { target: { value: 'Örnek' } });
+    fireEvent.click(await screen.findByRole('button', { name: /Örnek Yapı A\.Ş\./ }));
+    expect(fetchMock.mock.calls[0][0]).toContain('/api/v1/customers?suggest=1&search=%C3%96rnek');
+    expect(screen.getByText('Kayıtlı müşteri kartına bağlanacak.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Ürün / sistem *'), { target: { value: 'Pergola' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Siparişi Kaydet' }));
+    await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+    const data: FormData = submit.mock.calls[0][0];
+    expect(data.get('customerId')).toBe('33333333-3333-4333-8333-333333333333');
+    expect(data.get('customerName')).toBe('Örnek Yapı A.Ş.');
+    expect(data.get('phone')).toBe('0532 000 00 00');
+
+    fireEvent.change(screen.getByLabelText('Müşteri / firma adı *'), { target: { value: 'Başka Firma' } });
+    expect(screen.queryByText('Kayıtlı müşteri kartına bağlanacak.')).not.toBeInTheDocument();
+  } finally {
+    global.fetch = previousFetch;
+  }
+});

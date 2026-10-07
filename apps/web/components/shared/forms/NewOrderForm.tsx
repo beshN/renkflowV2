@@ -39,9 +39,12 @@ function initialItems(data?: NewOrderFormData): NewOrderItemData[] {
   return [{ productName: data?.productName || '', quantity, unitPrice: totalPrice / quantity, totalPrice }];
 }
 
+type CustomerMatch = { id: string; full_name: string; company_name?: string | null; email?: string | null; phone?: string | null };
+
 export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFormProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [customerMatches, setCustomerMatches] = useState<CustomerMatch[]>([]);
 
   const [form, setForm] = useState<NewOrderFormData>(
     initialData ?? {
@@ -59,6 +62,22 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
       customFields: {},
     },
   );
+
+  useEffect(() => {
+    const query = form.customerName.trim();
+    if (form.customerId || query.length < 2) { setCustomerMatches([]); return; }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch('/api/v1/customers?suggest=1&search=' + encodeURIComponent(query), { signal: controller.signal, cache: 'no-store' });
+        const body = response.ok ? await response.json() : null;
+        if (!controller.signal.aborted) setCustomerMatches(Array.isArray(body?.customers) ? body.customers : []);
+      } catch {
+        if (!controller.signal.aborted) setCustomerMatches([]);
+      }
+    }, 250);
+    return () => { controller.abort(); clearTimeout(timer); };
+  }, [form.customerName, form.customerId]);
 
   const [rawTotalAmount, setRawTotalAmount] = useState(String(initialData?.totalAmount ?? '0'));
   const [items, setItems] = useState<NewOrderItemData[]>(() => initialItems(initialData));
@@ -128,6 +147,7 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
     setIsSubmitting(true);
     try {
       const payload = new FormData();
+      if (form.customerId) payload.append('customerId', form.customerId);
       payload.append('customerName', form.customerName.trim());
       if (form.email?.trim()) payload.append('email', form.email.trim());
       if (form.phone?.trim()) payload.append('phone', form.phone.trim());
@@ -231,7 +251,8 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
       <section className="rf-panel p-5">
         <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">1. Müşteri ve proje</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <label className="md:col-span-2">
+          <div className="md:col-span-2">
+          <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Müşteri / firma adı *</span>
             <input
               type="text"
@@ -239,11 +260,38 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
               required
               placeholder="Firma veya müşteri adı"
               autoComplete="organization"
-              onChange={(e) => setForm((prev) => ({ ...prev, customerName: e.target.value }))}
+              onChange={(e) => setForm((prev) => ({ ...prev, customerId: undefined, customerName: e.target.value }))}
               className="w-full rounded-md border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
             />
             {errors.customerName && <span className="mt-1 block text-xs text-rose-600">{errors.customerName}</span>}
           </label>
+            {form.customerId ? (
+              <span className="mt-1 block text-xs text-slate-500">Kayıtlı müşteri kartına bağlanacak.</span>
+            ) : customerMatches.length > 0 ? (
+              <ul aria-label="Kayıtlı müşteriler" className="mt-2 divide-y divide-slate-100 rounded-md border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
+                {customerMatches.map((customer) => (
+                  <li key={customer.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Keep the firm name when the typed text matched the card's company.
+                        const typed = form.customerName.trim().toLocaleLowerCase('tr-TR');
+                        const name = customer.company_name && customer.company_name.toLocaleLowerCase('tr-TR').includes(typed) ? customer.company_name : customer.full_name;
+                        setForm((prev) => ({ ...prev, customerId: customer.id, customerName: name, email: customer.email || prev.email, phone: customer.phone || prev.phone }));
+                        setCustomerMatches([]);
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 focus:bg-slate-50 focus:outline-none dark:hover:bg-slate-800 dark:focus:bg-slate-800"
+                    >
+                      {customer.full_name}
+                      <span className="text-xs text-slate-500">{[customer.company_name, customer.phone, customer.email].filter(Boolean).map((v) => ' · ' + v).join('')}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : form.customerName.trim().length >= 2 ? (
+              <span className="mt-1 block text-xs text-slate-500">Aynı ad, e-posta veya telefonla kayıtlı müşteri varsa ona bağlanır; yoksa yeni müşteri kartı açılır.</span>
+            ) : null}
+          </div>
           <label>
             <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">E-posta</span>
             <input

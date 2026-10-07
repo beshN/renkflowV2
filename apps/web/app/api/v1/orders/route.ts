@@ -1,3 +1,4 @@
+import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { visibleOrdersForActor } from '@/lib/features/orders/access';
 import { NextRequest } from 'next/server';
 import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
@@ -86,6 +87,7 @@ export async function POST(request: NextRequest) {
       if (files.length + references.length > 10) return errorResponse('En fazla 10 dosya yüklenebilir', 400);
       
       rawData = {
+        customerId: formData.get('customerId') || undefined,
         customerName: formData.get('customerName'),
         email: formData.get('email') || undefined,
         phone: formData.get('phone') || undefined,
@@ -156,6 +158,9 @@ export async function POST(request: NextRequest) {
     
     if (error instanceof AuthorizationError) {
       return errorResponse(error.message, 403);
+    }
+    if (error instanceof WorkOrderApiError) {
+      return errorResponse(error.message, error.status);
     }
     
     return errorResponse('Sipariş oluşturulurken bir hata oluştu', 500);
