@@ -2,17 +2,27 @@ import { changedFields, recordAuditAfterCommit } from '@/lib/audit/audit-log';
 import { NextResponse } from 'next/server';
 
 import { sql } from '@/lib/db';
-import { TEMPLATE_BY_KEY, DEFAULT_TEMPLATE_KEY, TemplateKey } from '@/lib/config/templates';
+import { z } from 'zod';
+import { TEMPLATE_BY_KEY, TemplateKey } from '@/lib/config/templates';
 import { AuthenticationError, AuthorizationError, assertTenantAccess, requireTenantContext } from '@/lib/auth/serverAuth';
+
+const UpdateTenantSchema = z.object({
+  tenantId: z.string().uuid().optional(),
+  name: z.string().trim().min(2, 'Şirket adı en az 2 karakter olmalıdır').max(120).optional(),
+  brandColor: z.union([z.literal(''), z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Geçersiz renk kodu')]).optional(),
+  logoUrl: z.union([z.literal(''), z.string().max(2000).url('Geçersiz logo URL')]).optional(),
+  templateKey: z.string().refine((key) => key in TEMPLATE_BY_KEY, 'Geçersiz üretim alanı').optional(),
+  industry: z.string().trim().max(120).optional(),
+});
 
 export async function POST(request: Request) {
   try {
     const context = await requireTenantContext();
 
-    const { tenantId, name, brandColor, logoUrl, industry, templateKey } = await request.json();
+    const input = UpdateTenantSchema.parse(await request.json());
     const effectiveTenantId = context.tenantId;
-    if (tenantId) {
-      assertTenantAccess(context, tenantId, 'Forbidden');
+    if (input.tenantId) {
+      assertTenantAccess(context, input.tenantId, 'Forbidden');
     }
 
     // Verify user has permission to update this tenant
@@ -27,41 +37,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Validate inputs
-    if (!name || typeof name !== 'string' || name.trim().length < 2) {
-      return NextResponse.json({ error: 'Şirket adı en az 2 karakter olmalıdır' }, { status: 400 });
+    // Only the fields the client sent are written: saving the name must not reset the template or industry.
+    const updates: Record<string, string | null> = {};
+    if (input.name !== undefined) updates.name = input.name;
+    if (input.brandColor !== undefined) updates.brand_color = input.brandColor || null;
+    if (input.logoUrl !== undefined) updates.logo_url = input.logoUrl || null;
+    if (input.templateKey !== undefined) updates.template_key = input.templateKey;
+    if (input.industry !== undefined) updates.industry = input.industry || null;
+    else if (input.templateKey !== undefined) updates.industry = TEMPLATE_BY_KEY[input.templateKey as TemplateKey].industry;
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'Güncellenecek alan bulunamadı' }, { status: 400 });
     }
-
-    // Validate Hex Color
-    const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
-    if (brandColor && !hexColorRegex.test(brandColor)) {
-      return NextResponse.json({ error: 'Geçersiz renk kodu' }, { status: 400 });
-    }
-
-    // Validate URL (if provided)
-    if (logoUrl && typeof logoUrl === 'string') {
-      try {
-        new URL(logoUrl);
-      } catch {
-        return NextResponse.json({ error: 'Geçersiz logo URL' }, { status: 400 });
-      }
-    }
-
-    const normalizedTemplate = TEMPLATE_BY_KEY[(templateKey as TemplateKey) || DEFAULT_TEMPLATE_KEY];
-    const normalizedIndustry = industry || normalizedTemplate.industry;
 
     const [before] = await sql`SELECT name, brand_color, logo_url, industry, template_key FROM tenants WHERE id = ${effectiveTenantId}`;
+    const setFragment = Object.entries(updates)
+      .map(([column, value]) => sql`${sql(column)} = ${value}`)
+      .reduce((acc, curr) => sql`${acc}, ${curr}`);
 
-    // Update tenant
     const updated = await sql`
       UPDATE tenants
-      SET 
-        name = ${name.trim()}, 
-        brand_color = ${brandColor || null}, 
-        logo_url = ${logoUrl || null},
-        industry = ${normalizedIndustry || null},
-        template_key = ${normalizedTemplate?.key || null},
-        updated_at = NOW()
+      SET ${setFragment}, updated_at = NOW()
       WHERE id = ${effectiveTenantId}
       RETURNING id
     `;
@@ -69,19 +64,19 @@ export async function POST(request: Request) {
     if (updatedRows.length === 0) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
     }
-    const changes = changedFields(before || {}, {
-      name: name.trim(),
-      brand_color: brandColor || null,
-      logo_url: logoUrl || null,
-      industry: normalizedIndustry || null,
-      template_key: normalizedTemplate?.key || null,
-    });
+    const changes = changedFields(before || {}, updates);
     if (Object.keys(changes).length) {
       await recordAuditAfterCommit({ tenantId: effectiveTenantId, actorId: context.userId, entityType: 'tenant', entityId: effectiveTenantId, action: 'settings_updated', changes });
     }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues[0]?.message || 'Geçersiz firma bilgisi' }, { status: 400 });
+    }
+    if (error instanceof SyntaxError) {
+      return NextResponse.json({ error: 'Geçersiz JSON' }, { status: 400 });
+    }
     if (error instanceof AuthenticationError) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
