@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { COUNT_UNITS, unitLabel } from "@/lib/features/inventory/vocabulary";
 export const LabelKindSchema = z.enum([
   "item",
   "location",
@@ -96,8 +97,8 @@ export function parseScanCode(raw: string) {
   throw new Error("Etiket biçimi desteklenmiyor");
 }
 export function assertQuantityPrecision(q: number, uom: string) {
-  if (uom === "adet" && !Number.isInteger(q))
-    throw new Error("Adet biriminde tam sayı girin");
+  if (COUNT_UNITS.has(uom) && !Number.isInteger(q))
+    throw new Error(`${unitLabel(uom)} biriminde tam sayı girin`);
   if (Math.abs(q * 1e6 - Math.round(q * 1e6)) > 0.0001)
     throw new Error("En fazla altı ondalık basamak kullanın");
 }

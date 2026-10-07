@@ -66,6 +66,8 @@ export async function postStockEntryInTransaction(
   options: PostOptions = {},
 ) {
   assertNativeInventoryEnabled();
+  // Every movement records where it came from; one posted by hand is "manual".
+  input = { ...input, referenceType: input.referenceType || 'manual' };
   const existing = await tx`
     SELECT * FROM stock_entries
     WHERE tenant_id = ${actor.tenantId} AND idempotency_key = ${input.idempotencyKey}
@@ -73,7 +75,8 @@ export async function postStockEntryInTransaction(
   `;
   if (existing[0]) {
     const sameCommand = existing[0].entry_type === input.entryType
-      && (existing[0].reference_type || null) === (input.referenceType || null)
+      // A manual entry posted before sources were required has none stored: that is "manual" too.
+      && (existing[0].reference_type || 'manual') === input.referenceType
       && (existing[0].reference_id || null) === (input.referenceId || null);
     if (!sameCommand) throw new Error('Idempotency anahtarı farklı bir stok komutunda kullanılmış');
     return existing[0];
@@ -123,7 +126,7 @@ export async function postStockEntryInTransaction(
       if (physical.length) throw new Error('Fiziksel profil için onaylı kesim planı kullanın');
     }
   }
-  if(input.entryType==='STOCK_RECONCILIATION' && !input.referenceType){
+  if(input.entryType==='STOCK_RECONCILIATION' && input.referenceType==='manual'){
     for(const line of input.lines)if(line.quantityDelta<0 && (await tx`SELECT id FROM stock_lots WHERE tenant_id=${actor.tenantId} AND item_id=${line.itemId} AND warehouse_id=${line.warehouseId} LIMIT 1`).length)throw new Error('Lotlu stok farkını toplu miktarla düzeltmeyin; fiziksel lot kaydını inceleyin');
   }
   const deltas = new Map<string, number>();
@@ -177,12 +180,18 @@ export async function postStockEntryInTransaction(
         ${line.quantityDelta}, ${line.uom}, ${line.unitCost ?? null}, ${JSON.stringify(line.metadata)}::text::jsonb
       )
     `;
+  }
+  // One update per balance with the summed change: a -1.2 / +0.4 pair in one entry must not dip
+  // below zero halfway (the database refuses a decrease into negative stock).
+  for (const [key, delta] of deltas) {
+    if (delta === 0) continue;
+    const [itemId, warehouseId] = key.split(':');
     await tx`
       UPDATE stock_balances
-      SET on_hand_qty = on_hand_qty + ${line.quantityDelta}, updated_at = now()
+      SET on_hand_qty = on_hand_qty + ${delta}, updated_at = now()
       WHERE tenant_id = ${actor.tenantId}
-        AND item_id = ${line.itemId}
-        AND warehouse_id = ${line.warehouseId}
+        AND item_id = ${itemId}
+        AND warehouse_id = ${warehouseId}
     `;
   }
 

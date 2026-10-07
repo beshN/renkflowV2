@@ -1,5 +1,6 @@
 'use client';
 
+import { unitLabel } from '@/lib/features/inventory/vocabulary';
 import Link from 'next/link';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -153,7 +154,7 @@ export default function InventoryPage() {
       align: 'right',
       render: (val, row) => (
         <span className="text-sm font-semibold text-foreground tabular-nums">
-          {parseFloat(val).toLocaleString('tr-TR', { maximumFractionDigits: 2 })} {row.stock_uom}
+          {parseFloat(val).toLocaleString('tr-TR', { maximumFractionDigits: 2 })} {unitLabel(row.stock_uom)}
         </span>
       ),
     },
@@ -163,7 +164,7 @@ export default function InventoryPage() {
       align: 'right',
       render: (val, row) => (
         <span className={cn('text-sm tabular-nums', parseFloat(val) > 0 ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-muted-foreground')}>
-          {parseFloat(val).toLocaleString('tr-TR', { maximumFractionDigits: 2 })} {row.stock_uom}
+          {parseFloat(val).toLocaleString('tr-TR', { maximumFractionDigits: 2 })} {unitLabel(row.stock_uom)}
         </span>
       ),
     },
@@ -179,7 +180,7 @@ export default function InventoryPage() {
           <div className="flex items-center gap-2 justify-end">
             {isCritical && <AlertTriangle size={13} className="text-rose-500 flex-shrink-0" />}
             <span className={cn('text-sm font-bold tabular-nums', isCritical ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400')}>
-              {available.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} {row.stock_uom}
+              {available.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} {unitLabel(row.stock_uom)}
             </span>
           </div>
         );

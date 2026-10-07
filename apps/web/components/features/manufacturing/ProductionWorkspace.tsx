@@ -22,6 +22,7 @@ import { RecipeEditor } from "./RecipeEditor";
 import { fileData } from "@/lib/features/manufacturing/offline";
 import { AwningDialog } from "@/components/features/awning/AwningConfigurator";
 import { cuttingEstimateNotice } from "@/lib/features/manufacturing/cutting-defaults";
+import { PROCESSED_STATES, STATE_LABELS, STOCK_UNITS, UNIT_LABELS, WAREHOUSE_TYPE_LABELS, warehouseTypeLabel } from "@/lib/features/inventory/vocabulary";
 
 /** Shown wherever a plan made with unconfirmed values appears; it is never presented as exact. */
 function EstimateNotice({ text, onOpenSettings }: { text: string | null; onOpenSettings?: () => void }) {
@@ -905,15 +906,31 @@ export default function ProductionWorkspace() {
               <>
                 <form
                   className="rf-panel space-y-4"
-                  onSubmit={submit("material.save", [
-                    "standardLengthMm",
-                    "weightPerMeterKg",
-                  ])}
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const form = e.currentTarget;
+                    const f = new FormData(form);
+                    const d: any = Object.fromEntries(f);
+                    for (const k of ["standardLengthMm", "weightPerMeterKg", "minStock", "pieceLengthMm"]) {
+                      if (d[k] === "" || d[k] === undefined) delete d[k];
+                      else d[k] = Number(d[k]);
+                    }
+                    d.processedStates = f.getAll("processedStates");
+                    if (await run("material.save", d)) form.reset();
+                  }}
                 >
                   <h2 className="rf-section-title">Malzeme / mamul kartı</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Kalem = profil kodu + ölçü + işlenmiş hâl. Boyalı, boyasız,
+                    delikli ve hazır hâller ayrı kalemdir. Profilin rengi ve
+                    boyu her çubukta (stok girişinde) tutulur; adetli
+                    parçalarda parça boyu kartta.
+                  </p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field name="sku" label="Stok kodu" />
                     <Field name="name" label="Malzeme adı" />
+                    <Field name="profileCode" label="Profil kodu (ör. 108)" required={false} />
+                    <Field name="sizeLabel" label="Ölçü (ör. 40x60)" required={false} />
                     <Select
                       name="itemType"
                       label="Kart türü"
@@ -926,9 +943,9 @@ export default function ProductionWorkspace() {
                     <Select
                       name="uom"
                       label="Stok birimi"
-                      options={["m", "adet", "m2", "kg"].map((v) => ({
+                      options={STOCK_UNITS.map((v) => ({
                         id: v,
-                        name: v,
+                        name: UNIT_LABELS[v],
                       }))}
                     />
                     <Field
@@ -943,7 +960,17 @@ export default function ProductionWorkspace() {
                       type="number"
                       value={0}
                     />
+                    <Field name="pieceLengthMm" label="Parça boyu · mm (adetli parçalar, ör. 4500)" type="number" required={false} />
+                    <Field name="minStock" label="Minimum stok (stok biriminde)" type="number" value={0} />
                   </div>
+                  <fieldset className="flex flex-wrap gap-3 text-xs">
+                    <legend className="mb-1">İşlenmiş hâl</legend>
+                    {PROCESSED_STATES.map((state) => (
+                      <label key={state} className="flex items-center gap-1">
+                        <input type="checkbox" name="processedStates" value={state} /> {STATE_LABELS[state]}
+                      </label>
+                    ))}
+                  </fieldset>
                   <button disabled={busy} className="rf-primary-button">
                     Kartı oluştur
                   </button>
@@ -959,14 +986,7 @@ export default function ProductionWorkspace() {
                     <Select
                       name="type"
                       label="Depo türü"
-                      options={[
-                        "RAW",
-                        "WIP",
-                        "FINISHED",
-                        "REUSABLE_REMNANTS",
-                        "REJECTED",
-                        "SCRAP",
-                      ].map((v) => ({ id: v, name: v }))}
+                      options={Object.entries(WAREHOUSE_TYPE_LABELS).map(([id, name]) => ({ id, name }))}
                     />
                   </div>
                   <button disabled={busy} className="rf-primary-button">
@@ -974,7 +994,7 @@ export default function ProductionWorkspace() {
                   </button>
                   <p className="text-xs text-muted-foreground">
                     {warehouses
-                      .map((w: any) => w.code + " · " + w.warehouse_type)
+                      .map((w: any) => `${w.name || w.code} · ${warehouseTypeLabel(w.warehouse_type)}`)
                       .join(" / ")}
                   </p>
                 </form>
@@ -1016,7 +1036,7 @@ export default function ProductionWorkspace() {
                     />
                     <Field
                       name="color"
-                      label="Profil rengi · 3D seçim adıyla aynı"
+                      label="Profil rengi · profilde zorunlu (boyasız için Boyasız), 3D seçim adıyla aynı"
                       required={false}
                     />
                     <Field

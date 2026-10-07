@@ -18,6 +18,15 @@ export async function GET(req: NextRequest) {
         e.note,
         e.created_at,
         u.name as submitted_by_name,
+        -- The order behind a production movement, so every movement can be traced to its cause.
+        (
+          SELECT o.order_number FROM work_orders w JOIN orders o ON o.id = w.order_id AND o.tenant_id = w.tenant_id
+          WHERE w.tenant_id = e.tenant_id AND w.id = CASE
+            WHEN e.reference_type IN ('work_order', 'shipment') THEN e.reference_id
+            WHEN e.reference_type = 'rework' THEN (SELECT r.work_order_id FROM production_rework r WHERE r.tenant_id = e.tenant_id AND r.id = e.reference_id)
+          END
+        ) as order_number,
+        (SELECT g.receipt_number FROM goods_receipts g WHERE g.tenant_id = e.tenant_id AND g.id = e.reference_id AND e.reference_type = 'goods_receipt') as receipt_number,
         (
           SELECT json_agg(json_build_object(
             'item_id', l.item_id,
@@ -25,6 +34,7 @@ export async function GET(req: NextRequest) {
             'sku', i.sku,
             'warehouse_id', l.warehouse_id,
             'warehouse_name', w.name,
+            'warehouse_type', w.warehouse_type,
             'quantity_delta', l.quantity_delta,
             'uom', l.uom
           ))

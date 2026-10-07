@@ -18,6 +18,7 @@ import {
   CutDemand,
 } from "./cutting-engine";
 import { CUTTING_DEFAULTS, cuttingEstimateNotice, firmCuttingParameters, type CuttingParameterSource } from "./cutting-defaults";
+import { COUNT_UNITS, normalizeStates, PROCESSED_STATES, STOCK_UNITS, unitLabel } from "../inventory/vocabulary";
 import { schedulingSnapshot, scheduleSnapshot } from "./planning.service";
 import {allocateMaterialLots,qualityContext} from "./traceability.service";
 import {executeQuality,qualityAnalytics} from "./quality.service";
@@ -336,17 +337,39 @@ async function execute(
         sku: text,
         name: text,
         itemType: z.enum(["raw_material", "finished_good", "consumable"]),
-        uom: z.enum(["m", "adet", "m2", "kg"]),
+        uom: z.enum(STOCK_UNITS),
         standardLengthMm: z.number().nonnegative().default(0),
         weightPerMeterKg: z.number().nonnegative().default(0),
         minStock: z.number().nonnegative().finite().max(1000000).default(0),
+        // Identity: profile code + size + processed states (+ piece length for counted pieces).
+        profileCode: z.string().trim().max(40).optional().transform((v) => v || null),
+        sizeLabel: z.string().trim().max(40).optional().transform((v) => v || null),
+        processedStates: z.array(z.enum(PROCESSED_STATES)).max(5).default([]),
+        pieceLengthMm: z.number().int().positive().max(30000).nullish(),
       })
       .parse(data);
     if (d.uom === "m" && (!d.standardLengthMm || !d.weightPerMeterKg))
       fail("Profilin boyunu ve kg/m bilgisini doğrulayın", 400);
-    const [row] =
-      await tx`INSERT INTO inventory_items(tenant_id,sku,name,unit,item_type,stock_uom,standard_length_m,weight_per_meter_kg,min_stock)VALUES(${t},${d.sku},${d.name},${d.uom},${d.itemType},${d.uom},${d.standardLengthMm / 1000},${d.weightPerMeterKg},${d.minStock}) RETURNING *`;
-    return row;
+    if (COUNT_UNITS.has(d.uom) && !Number.isInteger(d.minStock))
+      fail(`Minimum stok ${unitLabel(d.uom)} biriminde tam sayı olmalı`, 400);
+    if (d.uom === "m" && d.pieceLengthMm)
+      fail("Metre ile tutulan profilde boy her çubukta girilir, kartta değil", 400);
+    const states = normalizeStates(d.processedStates);
+    if (d.profileCode) {
+      const [same] = await tx`SELECT sku FROM inventory_items WHERE tenant_id=${t} AND lower(profile_code)=lower(${d.profileCode}) AND lower(coalesce(size_label,''))=lower(${d.sizeLabel ?? ""}) AND processed_states=${states}::text[] AND coalesce(piece_length_mm,0)=${d.pieceLengthMm ?? 0}`;
+      if (same) fail(`Bu kod, ölçü ve işlem hâli zaten kayıtlı (${same.sku})`, 409);
+    }
+    try {
+      const [row] =
+        await tx`INSERT INTO inventory_items(tenant_id,sku,name,unit,item_type,stock_uom,standard_length_m,weight_per_meter_kg,min_stock,profile_code,size_label,processed_states,piece_length_mm)VALUES(${t},${d.sku},${d.name},${d.uom},${d.itemType},${d.uom},${d.standardLengthMm / 1000},${d.weightPerMeterKg},${d.minStock},${d.profileCode},${d.sizeLabel},${states}::text[],${d.pieceLengthMm ?? null}) RETURNING *`;
+      return row;
+    } catch (error) {
+      // Two saves of the same item at once: the second meets the unique index, not a server error.
+      const pg = error as { code?: string; constraint_name?: string };
+      if (pg.code === "23505")
+        fail(pg.constraint_name === "inventory_items_identity_idx" ? "Bu kod, ölçü ve işlem hâli zaten kayıtlı" : "Bu stok kodu zaten kayıtlı", 409);
+      throw error;
+    }
   }
   if (action === "warehouse.save") {
     manager(a);
@@ -428,7 +451,7 @@ async function execute(
         warehouseId: uuid,
         quantity: z.number().positive().finite().max(10000),
         lengthMm: z.number().nonnegative().optional(),
-        color: z.string().max(100).default(""),
+        color: z.string().trim().max(100).default(""),
         unitCost: z.number().nonnegative(),
         lotNumber: text,
         currency:z.enum(["TRY","EUR","USD","GBP"]).default("TRY"),
@@ -441,6 +464,8 @@ async function execute(
     if (item.stock_uom === "m") {
       if (!d.lengthMm || !Number.isInteger(d.quantity))
         fail("Profilde çubuk adedi ve fiziksel boy gerekli", 400);
+      // Every bar carries its colour ("Boyasız" for unpainted); the cutting engine matches on it.
+      if (!d.color) fail("Profil çubuğunun rengini girin (boyasız için \"Boyasız\")", 400);
       for (let n = 0; n < d.quantity; n++) {
         const [lot] =
           await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,lot_number,original_qty,remaining_qty,length_m,weight_kg,metadata)VALUES(${t},${d.itemId},${d.warehouseId},${d.lotNumber + "-" + (n + 1)},${d.lengthMm / 1000},${d.lengthMm / 1000},${d.lengthMm / 1000},${(d.lengthMm / 1000) * num(item.weight_per_meter_kg)},${js({ color: d.color, unitCost: d.unitCost, currency:d.currency,isRemnant: false })}::text::jsonb)RETURNING *`;
@@ -455,6 +480,8 @@ async function execute(
         });
       }
     } else {
+      if (COUNT_UNITS.has(item.stock_uom) && !Number.isInteger(d.quantity))
+        fail(`${unitLabel(item.stock_uom)} biriminde tam sayı girin`, 400);
       const [lot]=await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,lot_number,original_qty,remaining_qty,metadata)VALUES(${t},${d.itemId},${d.warehouseId},${d.lotNumber},${d.quantity},${d.quantity},${js({unitCost:d.unitCost,currency:d.currency})}::text::jsonb)RETURNING id`;
       lines.push({
         lotId:lot.id,
@@ -1214,7 +1241,7 @@ async function operation(
       const [card] =
         await tx`SELECT * FROM inventory_items WHERE tenant_id=${t} AND id=${m.itemId}`;
       if (!card || !card.active) fail("Ek malzeme bulunamadı", 400);
-      if(card.stock_uom==="adet" && (!Number.isInteger(m.quantity) || !Number.isInteger(m.scrapQty)))fail("Ek malzeme ve hurda adedi tam sayı olmalı",400);
+      if(COUNT_UNITS.has(card.stock_uom) && (!Number.isInteger(m.quantity) || !Number.isInteger(m.scrapQty)))fail("Ek malzeme ve hurda adedi tam sayı olmalı",400);
       if (card.stock_uom === "m") {
         if (!m.cutLengthMm || !Number.isInteger(m.quantity))
           fail("Ek profil için parça boyu ve tam parça adedi gerekli", 400);

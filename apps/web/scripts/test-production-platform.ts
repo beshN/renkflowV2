@@ -29,6 +29,7 @@ async function main() {
   await db.unsafe(readFileSync("lib/db/migrations/027_quality_traceability.sql", "utf8"));
   await db.unsafe(readFileSync("lib/db/migrations/029_ai_suggestions.sql", "utf8"));
   await db.unsafe(readFileSync("lib/db/migrations/030_cutting_defaults.sql", "utf8"));
+  await db.unsafe(readFileSync("lib/db/migrations/031_stock_model.sql", "utf8"));
   const { productionCommand, productionOverview, publicTracking, cutPlanSheet } =
     await import("../lib/features/manufacturing/platform.service");
   const { PostgresQuotationService } = await import(
@@ -125,6 +126,34 @@ async function main() {
     unitCost: 1,
     lotNumber: "SCREW",
   });
+  // Faz 2 stock model: identity, explicit units, colour on every bar, source on every movement, no negative stock.
+  {
+    const painted = await command("material.save", { sku: "T-108-4060-BOYALI", name: "108 40x60 boyalı", itemType: "raw_material", uom: "m", standardLengthMm: 6000, weightPerMeterKg: 0.897, profileCode: "108", sizeLabel: "40x60", processedStates: ["boyali"] });
+    assert.deepEqual(painted.processed_states, ["boyali"]);
+    await assert.rejects(command("material.save", { sku: "T-108-4060-BOYALI-2", name: "108 aynısı", itemType: "raw_material", uom: "m", standardLengthMm: 6000, weightPerMeterKg: 0.897, profileCode: "108", sizeLabel: "40X60", processedStates: ["boyali"] }), (e: any) => e.status === 409);
+    // Unpainted is a different item, so it is accepted.
+    await command("material.save", { sku: "T-108-4060-BOYASIZ", name: "108 40x60 boyasız", itemType: "raw_material", uom: "m", standardLengthMm: 6000, weightPerMeterKg: 0.897, profileCode: "108", sizeLabel: "40x60", processedStates: ["boyasiz"] });
+    const spring = await command("material.save", { sku: "T-YAY-TAKIM", name: "Borulu yay", itemType: "consumable", uom: "takim", minStock: 10 });
+    await assert.rejects(command("material.save", { sku: "T-YAY-YARIM", name: "Yarım yay", itemType: "consumable", uom: "takim", minStock: 2.5 }), (e: any) => e.status === 400);
+    await assert.rejects(command("stock.receive", { itemId: spring.id, warehouseId: warehouses.RAW.id, quantity: 1.5, unitCost: 1, lotNumber: "YAY-1" }), (e: any) => e.status === 400);
+    await assert.rejects(command("stock.receive", { itemId: painted.id, warehouseId: warehouses.RAW.id, quantity: 1, lengthMm: 6000, color: "", unitCost: 1, lotNumber: "RENKSIZ" }), (e: any) => e.status === 400);
+    const manual = await command("stock.receive", { itemId: spring.id, warehouseId: warehouses.RAW.id, quantity: 3, unitCost: 1, lotNumber: "YAY-2" });
+    assert.equal(manual.reference_type, "manual");
+    await assert.rejects(db`UPDATE stock_balances SET on_hand_qty=-1 WHERE tenant_id=${tenant.id} AND item_id=${spring.id}`, /stock_balances_not_negative/);
+    // A balance already negative from before may be raised towards zero, never lowered further.
+    await db`ALTER TABLE stock_balances DISABLE TRIGGER rf_stock_balance_not_negative`;
+    await db`UPDATE stock_balances SET on_hand_qty=-5 WHERE tenant_id=${tenant.id} AND item_id=${spring.id}`;
+    await db`ALTER TABLE stock_balances ENABLE TRIGGER rf_stock_balance_not_negative`;
+    await command("stock.receive", { itemId: spring.id, warehouseId: warehouses.RAW.id, quantity: 2, unitCost: 1, lotNumber: "YAY-3" });
+    assert.equal(Number((await db`SELECT on_hand_qty FROM stock_balances WHERE tenant_id=${tenant.id} AND item_id=${spring.id}`)[0].on_hand_qty), -3);
+    await assert.rejects(db`UPDATE stock_balances SET on_hand_qty=-4 WHERE tenant_id=${tenant.id} AND item_id=${spring.id}`, /stock_balances_not_negative/);
+    await db`ALTER TABLE stock_balances DISABLE TRIGGER rf_stock_balance_not_negative`;
+    await db`UPDATE stock_balances SET on_hand_qty=5 WHERE tenant_id=${tenant.id} AND item_id=${spring.id}`;
+    await db`ALTER TABLE stock_balances ENABLE TRIGGER rf_stock_balance_not_negative`;
+    await assert.rejects(db`INSERT INTO stock_entries(tenant_id,entry_number,entry_type,status,idempotency_key)VALUES(${tenant.id},${"SE-T-" + randomUUID()},'MATERIAL_RECEIPT','draft',${randomUUID()})`, /stock_entries_source_required/);
+    await assert.rejects(db`UPDATE inventory_items SET stock_uom='paket' WHERE id=${spring.id}`, /inventory_items_stock_uom_known/);
+    console.log("PASS · stock model: profile code + size + processed state identity, explicit counted units, colour required on bars, manual source recorded, database refuses negative stock, sourceless movements and unknown units");
+  }
   await command("quality.cost-settings",{revision:1,laborCostPerHour:120,laborCurrency:"TRY"});
   const definition = {
     code: "TEST",

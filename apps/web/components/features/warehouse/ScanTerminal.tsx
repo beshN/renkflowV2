@@ -1,4 +1,5 @@
 "use client";
+import { COUNT_UNITS } from "@/lib/features/inventory/vocabulary";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -372,11 +373,11 @@ export default function ScanTerminal() {
                   min={
                     mode === "count"
                       ? 0
-                      : item?.stock_uom === "adet"
+                      : COUNT_UNITS.has(item?.stock_uom ?? "")
                         ? 1
                         : 0.000001
                   }
-                  step={item?.stock_uom === "adet" ? 1 : "any"}
+                  step={COUNT_UNITS.has(item?.stock_uom ?? "") ? 1 : "any"}
                   className="rf-input"
                   value={qty}
                   readOnly={mode === "transfer" && !!lot && item?.stock_uom === "m"}
