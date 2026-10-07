@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { sql } from '@/lib/db';
 import { WorkOrderActor, WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { postStockEntryInTransaction } from './inventory.service';
+import { COUNT_UNITS, unitLabel } from '@/lib/features/inventory/vocabulary';
 const uuid = z.string().uuid();
 const qty = z.number().finite().nonnegative().max(1000000);
 const note = z.string().trim().max(2000).default('');
@@ -36,6 +37,8 @@ export const ReceiptInputSchema = z.object({
   purchaseOrderId: uuid, version: z.number().int().positive(), notes: note,
   lines: z.array(z.object({
     lineId: uuid, acceptedQty: qty, rejectedQty: qty.default(0),
+    // For a profile line ordered before colour was required: the colour of the bars received.
+    color: z.string().trim().max(100).optional(),
     rejectedWarehouseId: uuid.optional(), rejectionReason: z.string().trim().max(1000).default(''),
   }).refine(d => d.acceptedQty + d.rejectedQty > 0, 'Kabul veya red miktarı gerekli')
     .refine(d => !d.rejectedQty || (!!d.rejectedWarehouseId && d.rejectionReason.length >= 5), 'Red deposu ve gerekçesi gerekli'))
@@ -99,8 +102,10 @@ export async function executeProcurement(tx: any, actor: WorkOrderActor, action:
       if (!(await tx`SELECT 1 FROM warehouses WHERE tenant_id=${t} AND id=${line.warehouseId} AND warehouse_type='RAW' AND active=true`).length) fail('Geçerli hammadde deposu gerekli',400);
       if (item.stock_uom === 'm' && line.quantity > 10000) fail('Bir kalemde en fazla 10.000 fiziksel çubuk alınabilir',400);
       if (item.stock_uom === 'm' && !line.lengthMm) fail('Metre ile izlenen profil için fiziksel çubuk boyu gerekli',400);
+      // Each bar received from this line carries the colour; a profile bar without one cannot be cut.
+      if (item.stock_uom === 'm' && !String(line.color ?? '').trim()) fail('Profil çubuğunun rengini girin (boyasız için "Boyasız")',400);
       if (item.stock_uom !== 'm' && line.lengthMm) fail('Fiziksel boy yalnız metre ile izlenen profilde kullanılır',400);
-      if (['adet','m'].includes(item.stock_uom) && !Number.isInteger(line.quantity)) fail('Adet veya çubuk miktarı tam sayı olmalı',400);
+      if ((COUNT_UNITS.has(item.stock_uom) || item.stock_uom === 'm') && !Number.isInteger(line.quantity)) fail('Adet, takım veya çubuk miktarı tam sayı olmalı',400);
       const quantity = item.stock_uom === 'm' ? line.quantity * line.lengthMm! / 1000 : line.quantity;
       await tx`INSERT INTO purchase_order_lines(tenant_id,purchase_order_id,item_id,warehouse_id,ordered_qty,uom,unit_price,position,metadata)VALUES(${t},${order.id},${item.id},${line.warehouseId},${quantity},${item.stock_uom},${line.unitPrice},${position},${json({ lengthMm: line.lengthMm, color: line.color, orderedBarCount: item.stock_uom === 'm' ? line.quantity : undefined })}::text::jsonb)`;
     }
@@ -158,9 +163,12 @@ export async function executeProcurement(tx: any, actor: WorkOrderActor, action:
       if (input.acceptedQty + input.rejectedQty > count(line.ordered_qty) - count(line.received_qty) + 0.000001) fail('Kabul ve red toplamı kalan sipariş miktarını aşamaz');
       if (!(await tx`SELECT 1 FROM warehouses WHERE tenant_id=${t} AND id=${line.warehouse_id} AND warehouse_type='RAW' AND active=true`).length) fail('Hammadde deposu aktif değil');
       if (input.rejectedQty && !(await tx`SELECT 1 FROM warehouses WHERE tenant_id=${t} AND id=${input.rejectedWarehouseId!} AND warehouse_type='REJECTED' AND active=true`).length) fail('Red miktarı için firmanın aktif red deposu gerekli',400);
-      if (line.uom === 'adet' && (!Number.isInteger(input.acceptedQty) || !Number.isInteger(input.rejectedQty))) fail('Adet miktarı tam sayı olmalı',400);
+      if (COUNT_UNITS.has(line.uom) && (!Number.isInteger(input.acceptedQty) || !Number.isInteger(input.rejectedQty))) fail(`${unitLabel(line.uom)} miktarı tam sayı olmalı`,400);
       const lengthMm = Number(line.metadata?.lengthMm);
       if (line.uom === 'm' && !lengthMm) fail('Eski profil kaleminde fiziksel boy eksik. Bu sipariş için yeni boy tanımlı kalem oluşturun.',400);
+      // Every profile bar carries a colour; an older order line without one takes it from the receipt.
+      const barColor = String(line.metadata?.color || input.color || '').trim();
+      if (line.uom === 'm' && !barColor) fail('Bu profil satırında renk yok; kabulde çubuk rengini girin (boyasız için "Boyasız")',400);
       await tx`INSERT INTO goods_receipt_lines(tenant_id,goods_receipt_id,purchase_order_line_id,item_id,accepted_warehouse_id,rejected_warehouse_id,accepted_qty,rejected_qty,uom,metadata)VALUES(${t},${receipt.id},${line.id},${line.item_id},${line.warehouse_id},${input.rejectedWarehouseId || null},${input.acceptedQty},${input.rejectedQty},${line.uom},${json({ ...line.metadata, rejectionReason: input.rejectionReason })}::text::jsonb)`;
       for (const disposition of ['accepted','rejected'] as const) {
         const amount = disposition === 'accepted' ? input.acceptedQty : input.rejectedQty;
@@ -171,7 +179,7 @@ export async function executeProcurement(tx: any, actor: WorkOrderActor, action:
           const barCount = amount * 1000 / lengthMm;
           if (Math.abs(barCount - Math.round(barCount)) > 0.000001 || barCount > 10000) fail('Profil kabulü fiziksel çubuk boyunun tam katı olmalı',400);
           for (let n=0;n<Math.round(barCount);n++) {
-            const [lot] = await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,lot_number,original_qty,remaining_qty,length_m,weight_kg,metadata)VALUES(${t},${line.item_id},${warehouseId},${receipt.receipt_number+'-'+line.position+'-'+disposition+'-'+(n+1)},${lengthMm/1000},${lengthMm/1000},${lengthMm/1000},${lengthMm/1000*count(line.weight_per_meter_kg)},${json({ ...metadata, color: line.metadata.color || '', unitCost: count(line.unit_price), isRemnant: false })}::text::jsonb)RETURNING id`;
+            const [lot] = await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,lot_number,original_qty,remaining_qty,length_m,weight_kg,metadata)VALUES(${t},${line.item_id},${warehouseId},${receipt.receipt_number+'-'+line.position+'-'+disposition+'-'+(n+1)},${lengthMm/1000},${lengthMm/1000},${lengthMm/1000},${lengthMm/1000*count(line.weight_per_meter_kg)},${json({ ...metadata, color: barColor, unitCost: count(line.unit_price), isRemnant: false })}::text::jsonb)RETURNING id`;
             stockLines.push({ itemId: line.item_id, warehouseId, lotId: lot.id, quantityDelta: lengthMm/1000, uom: line.uom, unitCost: count(line.unit_price), metadata });
           }
         } else {

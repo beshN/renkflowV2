@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { COUNT_UNITS, STOCK_UNITS } from "../inventory/vocabulary";
 import { QualityChecksSchema } from "./quality";
 const Formula = z.string().trim().min(1).max(400);
 export const RecipeRuleSchema = z
   .object({
     itemId: z.string().uuid(),
     kind: z.enum(["profile", "material"]),
-    uom: z.enum(["m", "adet", "m2", "kg"]),
+    uom: z.enum(STOCK_UNITS),
     quantityFormula: Formula,
     conditionFormula: Formula.optional(),
     cutLengthFormula: Formula.optional(),
@@ -247,7 +248,7 @@ export function calculateRecipe(
       cuts.push({ itemId: r.itemId, lengthMm, quantity });
       quantity = (quantity * lengthMm) / 1000;
     }
-    if (r.uom === "adet" && !Number.isInteger(quantity))
+    if (COUNT_UNITS.has(r.uom) && !Number.isInteger(quantity))
       throw new Error("Adet tam sayı olmalı");
     const old = amounts.get(r.itemId);
     if (old && old.uom !== r.uom)

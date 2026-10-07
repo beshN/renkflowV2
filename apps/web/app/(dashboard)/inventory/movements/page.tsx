@@ -4,6 +4,30 @@ import { useApiCollection } from '@/lib/hooks/useApiCollection';
 import { RFListView } from '@/components/shared/views/RFListView';
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
 import { Activity } from 'lucide-react';
+import Link from 'next/link';
+import { movementSourceLabel, unitLabel, warehouseTypeLabel } from '@/lib/features/inventory/vocabulary';
+
+/** Where a movement came from, with a link to the record when there is one to open. */
+function sourceOf(m: any): { label: string; href?: string } {
+  const label = movementSourceLabel(m.reference_type);
+  const id = m.reference_id as string | null;
+  switch (m.reference_type) {
+    case 'work_order':
+    case 'shipment':
+    case 'rework':
+      return { label: m.order_number ? `${label} · Sipariş ${m.order_number}` : label, href: m.reference_type === 'rework' ? undefined : id ? `/work-orders/${id}` : undefined };
+    case 'cutting_plan':
+      return { label: id ? `${label} ${id.slice(0, 8).toUpperCase()}` : label, href: id ? `/production?tab=cutting&cut=${id}` : undefined };
+    case 'goods_receipt':
+      return { label: m.receipt_number ? `${label} ${m.receipt_number}` : label, href: '/receipts' };
+    case 'warehouse_count':
+      return { label, href: '/warehouse' };
+    case 'manual':
+      return { label: m.submitted_by_name ? `${label} · ${m.submitted_by_name}` : label };
+    default:
+      return { label };
+  }
+}
 
 export default function InventoryMovementsPage() {
   const {data:movements,loading,error,reload}=useApiCollection('/api/v1/inventory/movements','Stok hareketleri alınamadı.');
@@ -17,6 +41,7 @@ export default function InventoryMovementsPage() {
     'OUT': 'Çıkış (OUT)',
     'TRANSFER': 'Transfer',
     'REVERSAL': 'İptal / İade',
+    'STOCK_RECONCILIATION': 'Sayım farkı',
   };
 
   return (
@@ -48,6 +73,14 @@ export default function InventoryMovementsPage() {
                 )
               },
               {
+                key: 'reference_type',
+                label: 'Kaynak',
+                render: (_val, row: any) => {
+                  const source = sourceOf(row);
+                  return source.href ? <Link className="text-xs underline" href={source.href}>{source.label}</Link> : <span className="text-xs">{source.label}</span>;
+                }
+              },
+              {
                 key: 'lines',
                 label: 'Kalemler',
                 render: (val: any[]) => {
@@ -57,7 +90,7 @@ export default function InventoryMovementsPage() {
                       {val.map((l: any, i: number) => (
                         <div key={i}>
                           <span className="font-semibold">{l.item_name}</span> 
-                          <span className="ml-1 text-muted-foreground">({l.quantity_delta > 0 ? '+'+l.quantity_delta : l.quantity_delta} {l.uom})</span>
+                          <span className="ml-1 text-muted-foreground">({l.quantity_delta > 0 ? '+'+l.quantity_delta : l.quantity_delta} {unitLabel(l.uom)} · {[l.warehouse_name, warehouseTypeLabel(l.warehouse_type)].filter(Boolean).join(' · ')})</span>
                         </div>
                       ))}
                     </div>

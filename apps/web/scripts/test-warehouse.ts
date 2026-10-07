@@ -18,6 +18,7 @@ async function main() {
   await db.unsafe(
     readFileSync("lib/db/migrations/021_warehouse_barcodes.sql", "utf8"),
   );
+  await db.unsafe(readFileSync("lib/db/migrations/031_stock_model.sql", "utf8"));
   const { productionCommand } =
     await import("../lib/features/manufacturing/platform.service");
   const { warehouseOverview, resolveLabel } =

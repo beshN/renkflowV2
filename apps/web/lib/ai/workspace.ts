@@ -5,6 +5,7 @@ import { hasPermission,canAccessRoute } from '@/lib/features/auth/permissions';
 import {qualityAnalytics} from '@/lib/features/manufacturing/quality.service';
 import {productionAnalytics} from '@/lib/features/manufacturing/analytics.service';
 import { createHash } from 'node:crypto';
+import { unitLabel } from '@/lib/features/inventory/vocabulary';
 export type AssistantInsight = { id: string; priority: 'high'|'medium'|'info'; title: string; detail: string; href: string; action: string };
 export function assistantArea(path: string) {
  if (/warehouse|inventory|scrap/.test(path)) return 'stock';
@@ -25,7 +26,7 @@ export function buildInsights(data: Record<string, any>, path: string): Assistan
  for(const center of data.productionAnalytics?.centers || [])if(center.bottleneck)add('bottleneck-'+center.code,'high',`${center.name} darboğazı`,`${center.reason}. ${center.queueLength} iş sırada; ${Math.round(center.workloadMinutes)} dk kalan yük. ${center.recommendedAction}`,'/production?tab=overview','Darboğazı incele');
  const late=(data.productionAnalytics?.predictions || []).filter((p:any)=>p.delayMinutes>0);if(late.length)add('forecast-delay','high',`${late.length} siparişte gecikme riski`,'Deterministik çizelge kapasite ve operasyon bağımlılıklarına göre gecikme gösteriyor.','/production?tab=planning','Çizelgeyi incele');
  const critical=(data.stock || []).filter((s:any)=>n(s.min_stock)>0 && n(s.available_qty)<n(s.min_stock));
- if(critical.length) add('critical','high',`${critical.length} malzeme minimum stok altında`,critical.slice(0,3).map((s:any)=>`${s.name}: ${s.available_qty} ${s.stock_uom}`).join(' · '),'/inventory','Stoğu incele');
+ if(critical.length) add('critical','high',`${critical.length} malzeme minimum stok altında`,critical.slice(0,3).map((s:any)=>`${s.name}: ${n(s.available_qty).toLocaleString('tr-TR',{maximumFractionDigits:3})} ${unitLabel(s.stock_uom)} (en az ${n(s.min_stock).toLocaleString('tr-TR',{maximumFractionDigits:3})})`).join(' · '),'/inventory','Stoğu incele');
  if(n(data.counts?.[0]?.pending)>0) add('counts','medium',`${data.counts[0].pending} sayım onay bekliyor`,'Sayım miktarı henüz stoğa işlenmedi. Kaynak rafı doğrulayarak karar verin.','/warehouse','Sayımları incele');
  if(n(data.locations?.[0]?.unplaced)>0) add('unplaced','medium',`${data.locations[0].unplaced} stok kaydı raf bekliyor`,'Yerleştirme bekleyen malzemeleri hedef rafı okutarak taşıyın.','/warehouse/scan?mode=transfer','Rafa yerleştir');
  if(n(metrics.ready)>0) add('ready','medium',`${metrics.ready} sipariş sevkiyata hazır`,'Paketleme ve teslim miktarını doğruladıktan sonra sevkiyat kaydını oluşturun.','/shipments','Sevkiyatı aç');
