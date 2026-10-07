@@ -11,7 +11,7 @@ const UpdateTenantSchema = z.object({
   name: z.string().trim().min(2, 'Şirket adı en az 2 karakter olmalıdır').max(120).optional(),
   brandColor: z.union([z.literal(''), z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Geçersiz renk kodu')]).optional(),
   logoUrl: z.union([z.literal(''), z.string().max(2000).url('Geçersiz logo URL')]).optional(),
-  templateKey: z.string().refine((key) => key in TEMPLATE_BY_KEY, 'Geçersiz üretim alanı').optional(),
+  templateKey: z.string().refine((key) => Object.hasOwn(TEMPLATE_BY_KEY, key), 'Geçersiz üretim alanı').optional(),
   industry: z.string().trim().max(120).optional(),
 });
 
@@ -49,22 +49,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Güncellenecek alan bulunamadı' }, { status: 400 });
     }
 
-    const [before] = await sql`SELECT name, brand_color, logo_url, industry, template_key FROM tenants WHERE id = ${effectiveTenantId}`;
-    const setFragment = Object.entries(updates)
-      .map(([column, value]) => sql`${sql(column)} = ${value}`)
-      .reduce((acc, curr) => sql`${acc}, ${curr}`);
-
-    const updated = await sql`
-      UPDATE tenants
-      SET ${setFragment}, updated_at = NOW()
-      WHERE id = ${effectiveTenantId}
-      RETURNING id
+    // The locked subquery returns the values this update replaced, for the audit record.
+    const [before] = await sql`
+      UPDATE tenants AS t
+      SET ${sql(updates)}, updated_at = NOW()
+      FROM (SELECT id, name, brand_color, logo_url, industry, template_key FROM tenants WHERE id = ${effectiveTenantId} FOR UPDATE) AS old
+      WHERE t.id = old.id
+      RETURNING old.name, old.brand_color, old.logo_url, old.industry, old.template_key
     `;
-    const updatedRows = updated as Array<{ id: string }>;
-    if (updatedRows.length === 0) {
+    if (!before) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
     }
-    const changes = changedFields(before || {}, updates);
+    const changes = changedFields(before, updates);
     if (Object.keys(changes).length) {
       await recordAuditAfterCommit({ tenantId: effectiveTenantId, actorId: context.userId, entityType: 'tenant', entityId: effectiveTenantId, action: 'settings_updated', changes });
     }

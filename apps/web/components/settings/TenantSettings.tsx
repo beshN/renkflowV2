@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,21 +25,27 @@ export function TenantSettings() {
     templateKey: (user?.templateKey as TemplateKey) || DEFAULT_TEMPLATE_KEY,
   }));
   const [formData, setFormData] = useState(savedData);
+  useEffect(() => {
+    const fromSession = {
+      name: user?.tenantName || '',
+      brandColor: user?.brandColor || '#4f46e5',
+      logoUrl: user?.logoUrl || '',
+      templateKey: (user?.templateKey as TemplateKey) || DEFAULT_TEMPLATE_KEY,
+    };
+    setSavedData(fromSession);
+    setFormData(fromSession);
+  }, [user?.tenantId, user?.tenantName, user?.brandColor, user?.logoUrl, user?.templateKey]);
 
-  const selectedTemplate = useMemo(() => {
-    return TEMPLATE_DEFINITIONS.find((t) => t.key === formData.templateKey) || TEMPLATE_DEFINITIONS[0];
-  }, [formData.templateKey]);
+  const selectedTemplate = useMemo(() => TEMPLATE_DEFINITIONS.find((t) => t.key === formData.templateKey), [formData.templateKey]);
 
   const handleUpdateTenant = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.tenantId) return;
 
     // Send only what changed, so saving the name cannot reset the template or industry.
-    const changes: Record<string, string> = {};
-    if (formData.name !== savedData.name) changes.name = formData.name;
-    if (formData.brandColor !== savedData.brandColor) changes.brandColor = formData.brandColor;
-    if (formData.logoUrl !== savedData.logoUrl) changes.logoUrl = formData.logoUrl;
-    if (formData.templateKey !== savedData.templateKey) changes.templateKey = formData.templateKey;
+    const changes = Object.fromEntries(
+      (Object.keys(savedData) as Array<keyof typeof savedData>).filter((key) => formData[key] !== savedData[key]).map((key) => [key, formData[key]]),
+    );
     if (Object.keys(changes).length === 0) {
       toast.success('Değişiklik yok');
       return;
@@ -53,13 +59,16 @@ export function TenantSettings() {
         body: JSON.stringify({ tenantId: user.tenantId, ...changes }),
       });
 
-      if (!response.ok) throw new Error('Update failed');
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error || 'Güncelleme başarısız oldu');
+      }
       setSavedData(formData);
 
       toast.success('Firma bilgileri güncellendi');
       await refreshUser();
     } catch (error: any) {
-      toast.error('Güncelleme başarısız oldu');
+      toast.error(error instanceof Error ? error.message : 'Güncelleme başarısız oldu');
     } finally {
       setIsLoading(false);
     }
@@ -160,7 +169,7 @@ export function TenantSettings() {
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                 </div>
               </div>
-              <p className="text-xs text-slate-500 mt-2">{selectedTemplate?.description}</p>
+              <p className="text-xs text-slate-500 mt-2">{selectedTemplate?.description || 'Firmanın mevcut üretim alanı korunur; değiştirmek için listeden seçin.'}</p>
             </div>
 
             <Input

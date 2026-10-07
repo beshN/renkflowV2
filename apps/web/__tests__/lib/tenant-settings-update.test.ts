@@ -13,12 +13,11 @@ let role = 'owner';
 
 jest.mock('@/lib/db', () => {
   const run = (strings: TemplateStringsArray | string, ...values: unknown[]) => {
-    if (!Array.isArray(strings)) { identifiers.push(strings as string); return { identifier: strings }; }
+    if (!Array.isArray(strings)) { identifiers.push(...(typeof strings === 'string' ? [strings] : Object.keys(strings as object))); return { identifier: strings }; }
     const text = (strings as TemplateStringsArray).join('?');
     const result = (async () => {
       if (/FROM tenant_members/.test(text)) return [{ role }];
-      if (/SELECT name, brand_color/.test(text)) return [{ name: 'Eski Ad', brand_color: '#123456', logo_url: null, industry: 'Mobilya', template_key: 'mobilya' }];
-      if (/UPDATE tenants/.test(text)) { updates.push(values); return [{ id: tenantId }]; }
+      if (/UPDATE tenants/.test(text)) { updates.push(values); return [{ name: 'Eski Ad', brand_color: '#123456', logo_url: null, industry: 'Mobilya', template_key: 'mobilya' }]; }
       return [];
     })();
     return Object.assign(result, { fragment: { text, values } });
@@ -50,6 +49,7 @@ it('changing the template also sets its industry, and nothing else', async () =>
 it('rejects empty, unknown or invalid updates without writing', async () => {
   expect((await post({ tenantId })).status).toBe(400);
   expect((await post({ templateKey: 'yok' })).status).toBe(400);
+  expect((await post({ templateKey: 'constructor' })).status).toBe(400);
   expect((await post({ brandColor: 'kırmızı' })).status).toBe(400);
   expect((await post({ name: 'A' })).status).toBe(400);
   expect(updates).toHaveLength(0);
