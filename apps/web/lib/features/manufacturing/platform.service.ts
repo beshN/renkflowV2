@@ -14,8 +14,10 @@ import {
 import {
   CuttingParametersSchema,
   optimizeCuts,
+  planPurchase,
   CutDemand,
 } from "./cutting-engine";
+import { CUTTING_DEFAULTS, cuttingEstimateNotice, firmCuttingParameters, type CuttingParameterSource } from "./cutting-defaults";
 import { schedulingSnapshot, scheduleSnapshot } from "./planning.service";
 import {allocateMaterialLots,qualityContext} from "./traceability.service";
 import {executeQuality,qualityAnalytics} from "./quality.service";
@@ -47,6 +49,17 @@ function manager(a: WorkOrderActor) {
     fail("Yönetici yetkisi gerekli", 403);
 }
 const js = (v: unknown) => JSON.stringify(v);
+let standardLengthColumn: { ok: boolean; at: number } | null = null;
+/**
+ * True once 030_cutting_defaults.sql is applied (migrations run at release, not on deploy). A
+ * missing column is re-checked every five minutes so an applied migration is noticed without a restart.
+ */
+async function hasStandardLengthColumn(db: any) {
+  if (standardLengthColumn && (standardLengthColumn.ok || Date.now() - standardLengthColumn.at < 300_000)) return standardLengthColumn.ok;
+  const [row] = await db`SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='manufacturing_preferences' AND column_name='standard_length_mm') AS ok`;
+  standardLengthColumn = { ok: Boolean(row?.ok), at: Date.now() };
+  return standardLengthColumn.ok;
+}
 function recipe(row: any) {
   return RecipeSchema.parse({
     code: row.code,
@@ -113,6 +126,7 @@ export async function productionOverview(actor: WorkOrderActor) {
     stockEntries,
     notificationAttempts,
     inboundMessages,
+    standardLengthEditable,
   ] = await Promise.all([
     sql`SELECT * FROM production_recipes WHERE tenant_id=${t} ORDER BY code,version DESC`,
     sql`SELECT * FROM inventory_items WHERE tenant_id=${t} AND active=true ORDER BY name`,
@@ -134,6 +148,7 @@ export async function productionOverview(actor: WorkOrderActor) {
     sql`SELECT * FROM stock_entries WHERE tenant_id=${t} ORDER BY created_at DESC LIMIT 50`,
     sql`SELECT a.* FROM notification_attempts a JOIN notification_outbox n ON n.id=a.notification_id WHERE n.tenant_id=${t} ORDER BY a.created_at DESC LIMIT 200`,
     sql`SELECT id,provider,status,draft_id,attempts,last_error,created_at FROM inbound_messages WHERE tenant_id=${t} ORDER BY created_at DESC LIMIT 100`,
+    hasStandardLengthColumn(sql),
   ]);
   return {
     ...base,
@@ -151,6 +166,11 @@ export async function productionOverview(actor: WorkOrderActor) {
     orders,
     members,
     preferences: preferences[0] || null,
+    cutting: {
+      ...firmCuttingParameters(preferences[0]),
+      defaults: CUTTING_DEFAULTS,
+      standardLengthEditable,
+    },
     notifications,
     drafts,
     tracking,
@@ -370,16 +390,35 @@ async function execute(
   if (action === "preferences.save") {
     manager(a);
     const d = CuttingParametersSchema.extend({
-      cuttingConfirmed: z.literal(true),
+      // Ticked only when someone checked the values on the machine for this save. Unticked, the values
+      // are kept and plans made with them are marked as estimates.
+      cuttingConfirmed: z.boolean(),
+      // Left out: the stored length stays as it is.
+      standardLengthMm: z.number().int().min(1000).max(30000).optional(),
       emailEnabled: z.boolean(),
       whatsappEnabled: z.boolean(),
       whatsappTemplate: z.string().max(100).optional(),
     }).parse(data);
     if (d.whatsappEnabled && !d.whatsappTemplate)
       fail("Onaylı WhatsApp şablon adı gerekli", 400);
-    return (
-      await tx`INSERT INTO manufacturing_preferences(tenant_id,kerf_mm,trim_start_mm,trim_end_mm,minimum_remnant_mm,cutting_confirmed,email_enabled,whatsapp_enabled,whatsapp_template)VALUES(${t},${d.kerfMm},${d.trimStartMm},${d.trimEndMm},${d.minimumRemnantMm},true,${d.emailEnabled},${d.whatsappEnabled},${d.whatsappTemplate || null})ON CONFLICT(tenant_id)DO UPDATE SET kerf_mm=EXCLUDED.kerf_mm,trim_start_mm=EXCLUDED.trim_start_mm,trim_end_mm=EXCLUDED.trim_end_mm,minimum_remnant_mm=EXCLUDED.minimum_remnant_mm,cutting_confirmed=true,email_enabled=EXCLUDED.email_enabled,whatsapp_enabled=EXCLUDED.whatsapp_enabled,whatsapp_template=EXCLUDED.whatsapp_template RETURNING *`
-    )[0];
+    // Saving other settings does not undo an earlier confirmation, as long as the cutting values
+    // themselves are unchanged; changed values need a new tick.
+    const [previous] = await tx`SELECT * FROM manufacturing_preferences WHERE tenant_id=${t} FOR UPDATE`;
+    const columnReady = await hasStandardLengthColumn(tx);
+    const unchanged =
+      previous?.cutting_confirmed === true &&
+      num(previous.kerf_mm) === d.kerfMm &&
+      num(previous.trim_start_mm) === d.trimStartMm &&
+      num(previous.trim_end_mm) === d.trimEndMm &&
+      num(previous.minimum_remnant_mm) === d.minimumRemnantMm &&
+      (d.standardLengthMm === undefined || !columnReady || num(previous.standard_length_mm) === d.standardLengthMm);
+    const confirmed = d.cuttingConfirmed || unchanged;
+    const [saved] =
+      await tx`INSERT INTO manufacturing_preferences(tenant_id,kerf_mm,trim_start_mm,trim_end_mm,minimum_remnant_mm,cutting_confirmed,email_enabled,whatsapp_enabled,whatsapp_template)VALUES(${t},${d.kerfMm},${d.trimStartMm},${d.trimEndMm},${d.minimumRemnantMm},${confirmed},${d.emailEnabled},${d.whatsappEnabled},${d.whatsappTemplate || null})ON CONFLICT(tenant_id)DO UPDATE SET kerf_mm=EXCLUDED.kerf_mm,trim_start_mm=EXCLUDED.trim_start_mm,trim_end_mm=EXCLUDED.trim_end_mm,minimum_remnant_mm=EXCLUDED.minimum_remnant_mm,cutting_confirmed=EXCLUDED.cutting_confirmed,email_enabled=EXCLUDED.email_enabled,whatsapp_enabled=EXCLUDED.whatsapp_enabled,whatsapp_template=EXCLUDED.whatsapp_template RETURNING *`;
+    // The standard bar length is stored once migration 030 is applied; until then the default is used.
+    if (columnReady && d.standardLengthMm !== undefined)
+      return (await tx`UPDATE manufacturing_preferences SET standard_length_mm=${d.standardLengthMm} WHERE tenant_id=${t} RETURNING *`)[0];
+    return saved;
   }
   if (action === "stock.receive") {
     manager(a);
@@ -724,16 +763,9 @@ async function previewCut(
     fail("Kesim havuzunda eksik veya planlanmış iş var");
   const [prefs] =
     await tx`SELECT * FROM manufacturing_preferences WHERE tenant_id=${a.tenantId}`;
-  if (!prefs?.cutting_confirmed)
-    fail(
-      "Testere, düzeltme ve artık sınırları yönetici tarafından doğrulanmalı",
-    );
-  const parameters = CuttingParametersSchema.parse({
-    kerfMm: num(prefs.kerf_mm),
-    trimStartMm: num(prefs.trim_start_mm),
-    trimEndMm: num(prefs.trim_end_mm),
-    minimumRemnantMm: num(prefs.minimum_remnant_mm),
-  });
+  // Until a manager confirms the workshop's values the defaults are used, and the plan says so.
+  const firm = firmCuttingParameters(prefs);
+  const parameters = CuttingParametersSchema.parse(firm.parameters);
   const demand: CutDemand[] = reworkIds.length
     ? requests.flatMap((r: any) =>
         r.profile_cuts.map((c: any) => ({
@@ -767,8 +799,18 @@ async function previewCut(
     })),
     parameters,
   );
+  // Bars to buy for what stock cannot cover, on each profile's own standard length.
+  const missingItems = [...new Set(result.unfulfilled.map((p) => p.itemId))];
+  const standard = new Map<string, number>(
+    missingItems.length
+      ? (await tx`SELECT id,standard_length_m FROM inventory_items WHERE tenant_id=${a.tenantId} AND id=ANY(${missingItems}::uuid[])`).map(
+          (row: any) => [row.id, num(row.standard_length_m) * 1000],
+        )
+      : [],
+  );
+  const purchase = planPurchase(result.unfulfilled, (itemId) => standard.get(itemId) || parameters.standardLengthMm, parameters);
   return (
-    await tx`INSERT INTO cutting_plans(tenant_id,work_order_ids,rework_ids,demand,parameters,result,created_by,idempotency_key)VALUES(${a.tenantId},${ids},${reworkIds},${js(demand)}::text::jsonb,${js(parameters)}::text::jsonb,${js(result)}::text::jsonb,${a.userId},${key})RETURNING *`
+    await tx`INSERT INTO cutting_plans(tenant_id,work_order_ids,rework_ids,demand,parameters,result,created_by,idempotency_key)VALUES(${a.tenantId},${ids},${reworkIds},${js(demand)}::text::jsonb,${js(parameters)}::text::jsonb,${js({ ...result, parameterSource: firm.source, purchase })}::text::jsonb,${a.userId},${key})RETURNING *`
   )[0];
 }
 async function cutAction(
@@ -784,6 +826,8 @@ async function cutAction(
         id: uuid,
         version: z.number().int().positive(),
         confirmed: z.boolean().optional(),
+        // Approving a plan made with default or unconfirmed values must be said explicitly.
+        acceptEstimate: z.boolean().optional(),
         actualBars: z
           .array(
             z.object({
@@ -817,6 +861,8 @@ async function cutAction(
   if (action === "cut.approve") {
     if (plan.status !== "draft" || plan.result.unfulfilled.length)
       fail("Eksik profil olan plan onaylanamaz");
+    if (cuttingEstimateNotice(plan.result.parameterSource) && !d.acceptEstimate)
+      fail("Bu plan doğrulanmamış kesim değerleriyle hesaplandı; tahmini olduğunu kabul ederek onaylayın", 400);
     const jobs =
       await tx`SELECT * FROM work_orders WHERE tenant_id=${t} AND id=ANY(${plan.work_order_ids}::uuid[]) FOR UPDATE`;
     if (
@@ -883,7 +929,9 @@ async function cutAction(
     if (measured > planned.remainingMm + 0.001)
       fail("Ölçülen artık kesim hesabıyla uyuşmuyor");
     const reusable =
-      measured >= num(plan.parameters.minimumRemnantMm) && measured > 0;
+      measured >=
+        num(plan.result.itemParameters?.[planned.source.itemId]?.minimumRemnantMm ?? plan.parameters.minimumRemnantMm) &&
+      measured > 0;
     const bar = {
       ...planned,
       remainingMm: measured,
@@ -1419,6 +1467,63 @@ export async function lookupProductionLabel(
       })),
     };
   fail("Etiket bulunamadı veya bu işe erişim yetkiniz yok", 404);
+}
+
+/**
+ * What the saw operator needs to cut one plan: bars in order, the pieces on each with their job,
+ * what to keep as remnant, and the values used. No costs and no customer names.
+ */
+export async function cutPlanSheet(actor: WorkOrderActor, id: string) {
+  office(actor);
+  if (!uuid.safeParse(id).success) fail("Kesim planı bulunamadı", 404);
+  const t = actor.tenantId;
+  const [plan] = await sql`SELECT id,status,work_order_ids,rework_ids,parameters,result,created_at,approved_at FROM cutting_plans WHERE tenant_id=${t} AND id=${id}`;
+  if (!plan) fail("Kesim planı bulunamadı", 404);
+  const bars: any[] = plan.result.bars;
+  const itemIds = [...new Set<string>([
+    ...bars.map((b) => b.source.itemId),
+    ...(plan.result.purchase?.lines ?? []).map((l: any) => l.itemId),
+    ...(plan.result.purchase?.tooLong ?? []).map((p: any) => p.itemId),
+  ])];
+  const lotIds = bars.map((b) => b.source.id);
+  const [items, jobs, lots] = await Promise.all([
+    itemIds.length ? sql`SELECT id,sku,name FROM inventory_items WHERE tenant_id=${t} AND id=ANY(${itemIds}::uuid[])` : [],
+    sql`SELECT w.id,w.title,o.order_number FROM work_orders w JOIN orders o ON o.id=w.order_id AND o.tenant_id=w.tenant_id WHERE w.tenant_id=${t} AND w.id=ANY(${plan.work_order_ids}::uuid[])`,
+    lotIds.length ? sql`SELECT id,lot_number FROM stock_lots WHERE tenant_id=${t} AND id=ANY(${lotIds}::uuid[])` : [],
+  ]);
+  const item = new Map(items.map((i: any) => [i.id, { sku: i.sku, name: i.name }]));
+  const job = new Map(jobs.map((j: any) => [j.id, { title: j.title, orderNumber: j.order_number }]));
+  const lot = new Map(lots.map((l: any) => [l.id, l.lot_number]));
+  const source: CuttingParameterSource | null = plan.result.parameterSource ?? null;
+  return {
+    id: plan.id,
+    code: String(plan.id).slice(0, 8).toUpperCase(),
+    status: plan.status,
+    rework: plan.rework_ids.length > 0,
+    createdAt: plan.created_at,
+    approvedAt: plan.approved_at,
+    parameters: plan.parameters,
+    parameterSource: source,
+    notice: cuttingEstimateNotice(source),
+    algorithm: plan.result.algorithm,
+    wastePercent: plan.result.wastePercent,
+    reusableMm: plan.result.reusableMm,
+    unfulfilled: plan.result.unfulfilled.length,
+    purchase: (plan.result.purchase?.lines ?? []).map((l: any) => ({ ...l, item: item.get(l.itemId) ?? null })),
+    tooLong: (plan.result.purchase?.tooLong ?? []).map((piece: any) => ({ lengthMm: piece.lengthMm, item: item.get(piece.itemId) ?? null, color: piece.color })),
+    bars: bars.map((b, index) => ({
+      position: index + 1,
+      lotNumber: lot.get(b.source.id) ?? null,
+      item: item.get(b.source.itemId) ?? null,
+      color: b.source.color,
+      lengthMm: b.source.lengthMm,
+      isRemnant: b.source.isRemnant,
+      pieces: b.pieces.map((p: any) => ({ lengthMm: p.lengthMm, job: job.get(p.workOrderId) ?? null })),
+      remainingMm: b.remainingMm,
+      reusable: b.reusable,
+      lossMm: b.lossMm,
+    })),
+  };
 }
 
 function schedulingFingerprint(value:unknown){
