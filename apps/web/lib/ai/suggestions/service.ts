@@ -34,12 +34,23 @@ export async function suggestionsAvailable(): Promise<boolean> {
 }
 
 /** Files a suggestion for people to decide. The same open situation (dedupe key) is filed once. */
-export async function fileSuggestion(db: any, tenantId: string, actorId: string | null, raw: z.input<typeof FileSuggestionSchema>) {
+export async function fileSuggestion(
+  db: any,
+  tenantId: string,
+  actorId: string | null,
+  raw: z.input<typeof FileSuggestionSchema>,
+  options: { notAgainAfterRejection?: boolean } = {},
+) {
   const input = FileSuggestionSchema.parse(raw);
   const definition = suggestionKind(input.kind);
   if (!definition) throw new Error(`Bilinmeyen öneri türü: ${input.kind}`);
   const payload = definition.payloadSchema.parse(input.payload);
   if (input.uncertain && !input.uncertaintyNote) throw new Error('Emin olunmayan öneri, neden emin olunmadığını yazmalı.');
+  // Opt-in per kind: a situation someone rejected is not filed again until it changes (new key).
+  if (options.notAgainAfterRejection && input.dedupeKey) {
+    const [rejected] = await db`SELECT * FROM ai_suggestions WHERE tenant_id = ${tenantId} AND kind = ${input.kind} AND dedupe_key = ${input.dedupeKey} AND status = 'rejected' ORDER BY decided_at DESC NULLS LAST LIMIT 1`;
+    if (rejected) return { suggestion: rejected, created: false };
+  }
   const [row] = await db`
     INSERT INTO ai_suggestions (tenant_id, kind, title, rationale, payload, affected, uncertain, uncertainty_note, source, model, dedupe_key, created_by)
     VALUES (${tenantId}, ${input.kind}, ${input.title}, ${input.rationale}, ${JSON.stringify(payload)}::text::jsonb, ${JSON.stringify(input.affected)}::text::jsonb,
@@ -55,10 +66,43 @@ export async function fileSuggestion(db: any, tenantId: string, actorId: string 
   return { suggestion: row, created: true };
 }
 
+/**
+ * Pending suggestions of another situation of the same kind are out of date once the situation
+ * changed (e.g. a new job joined the cutting pool): they are expired, not left to be approved.
+ */
+export async function expireOtherPending(db: any, tenantId: string, kind: string, keepDedupeKey: string | null) {
+  const expired = await db`
+    UPDATE ai_suggestions SET status = 'expired', decided_at = now(), version = version + 1
+    WHERE tenant_id = ${tenantId} AND kind = ${kind} AND status = 'pending'
+      AND (${keepDedupeKey}::text IS NULL OR dedupe_key IS DISTINCT FROM ${keepDedupeKey})
+    RETURNING id
+  `;
+  for (const row of expired)
+    await recordAudit(db, { tenantId, actorId: null, entityType: 'ai_suggestion', entityId: row.id, action: 'expired', metadata: { kind, reason: 'situation_changed' } });
+  return expired.length;
+}
+
+const lastRefresh = new Map<string, number>();
+/** Lets each kind look at the firm's records; one failing kind never hides the others. */
+async function refreshSuggestions(actor: SuggestionActor, kinds: ReturnType<typeof suggestionKinds>) {
+  for (const kind of kinds) {
+    if (!kind.refresh) continue;
+    const key = actor.tenantId + ':' + kind.kind;
+    if (Date.now() - (lastRefresh.get(key) ?? 0) < 60_000) continue;
+    lastRefresh.set(key, Date.now());
+    try {
+      await kind.refresh(actor);
+    } catch (error) {
+      console.error('[AI suggestions] refresh failed', kind.kind, error instanceof Error ? error.message : error);
+    }
+  }
+}
+
 /** Pending suggestions of the kinds this role may decide, newest first. */
-export async function listPendingSuggestions(actor: SuggestionActor) {
+export async function listPendingSuggestions(actor: SuggestionActor, options: { refresh?: boolean } = {}) {
   const kinds = suggestionKinds().filter((kind) => kind.roles.includes(actor.role));
   if (!kinds.length) return [];
+  if (options.refresh !== false) await refreshSuggestions(actor, kinds);
   const rows = await sql`
     SELECT id, kind, title, rationale, payload, affected, uncertain, uncertainty_note, source, model, edited, version, created_at
     FROM ai_suggestions
@@ -88,6 +132,17 @@ export const DecisionSchema = z.discriminatedUnion('action', [
  */
 export async function decideSuggestion(actor: SuggestionActor, id: string, raw: unknown) {
   const decision = DecisionSchema.parse(raw);
+  try {
+    return await decide(actor, id, decision);
+  } catch (error) {
+    // Refused because the situation changed: the next listing looks at the records again at once.
+    if (error instanceof WorkOrderApiError && error.status === 409)
+      for (const key of lastRefresh.keys()) if (key.startsWith(actor.tenantId + ':')) lastRefresh.delete(key);
+    throw error;
+  }
+}
+
+async function decide(actor: SuggestionActor, id: string, decision: z.infer<typeof DecisionSchema>) {
   return withTransaction(async (tx: any) => {
     const [row] = await tx`SELECT * FROM ai_suggestions WHERE tenant_id = ${actor.tenantId} AND id = ${id} FOR UPDATE`;
     if (!row) throw new WorkOrderApiError('Öneri bulunamadı', 404);

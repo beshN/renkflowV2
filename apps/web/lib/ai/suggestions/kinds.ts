@@ -22,6 +22,12 @@ export type SuggestionKind<P extends Record<string, unknown> = Record<string, un
   roles: readonly UserRole[];
   editableFields?: readonly EditableField[];
   apply: (tx: any, actor: SuggestionActor, payload: P, suggestion: { id: string; title: string }) => Promise<Record<string, unknown>>;
+  /**
+   * Looks at the firm's records and files (or expires) this kind's suggestions. Runs when someone
+   * who may decide the kind opens the queue, at most once a minute per firm; never writes anything
+   * but suggestions.
+   */
+  refresh?: (actor: SuggestionActor) => Promise<void>;
 };
 
 const KINDS = new Map<string, SuggestionKind<any>>();

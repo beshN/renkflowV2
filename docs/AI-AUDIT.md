@@ -18,6 +18,7 @@ Kod okunarak çıkarıldı; production'da çalıştırılmadı. Model anahtarı 
 | `lib/features/ai/ai.service.ts` (gemini/openai/claude) | ölü | hiçbir yerden import edilmiyor | Sabit `confidence: 0.85` gibi uydurma riskleri var. Sağlayıcı katmanı bunun üzerine kurulmayacak; dokunulmadı. |
 | `lib/ai/tools.ts`, `lib/ai/index.ts`, `AIChat.tsx`, `useChat` (iki kopya) | ölü | importer yok | Faz 7 kararına kadar bırakıldı. |
 | `assistant_drafts` | tablo yok | `022_assistant_drafts.sql` | Migration yalnız `intake_drafts.source`'a `'assistant'` değerini ekliyor. |
+| Öneri türü: **Kesim planı** (`production.cutting_plan`) | çalışıyor | `lib/ai/suggestions/kinds/cutting-plan.ts` | Model çağırmaz: sipariş girişte okunur, kesimler reçeteden, hesap kesim motorundan. Kesim bekleyen işler birlikte planlanır; stok yetmiyorsa öneri yapılmaz (satın alma ihtiyacı planda görünür). Onay planı kaydeder ve çubukları ayırır; o arada stok değiştiyse onay reddedilir, öneri bekler. Tahmini değerlerle yapılmışsa "Emin değilim" notu taşır. Reddedilen durum tekrar önerilmez; durum (havuz, stok, boy, değer, yerleşim) değişince eski öneri süresi dolmuş sayılır ve onay, planın parmak izi farklıysa reddedilir. Müşteri adı ve fiyat içermez. |
 | Pazarlama sitesi | AI iddiası yok | `components/site`, `marketing-content.ts` | Yalnız "panel içindeki asistan" geçiyor. |
 
 ## Kişisel veri (KVKK)
