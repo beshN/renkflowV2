@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     template: '%s | RenkFlow',
   },
   description:
-    'Pergola, giyotin cam, tente ve alüminyum tavan projelerinde keşiften montaja teklif, kesim planı, depo ve faturayı aynı veride toplayan operasyon platformu.',
+    'Pergola, giyotin cam, tente ve alüminyum tavan projelerinde keşiften montaja teklif, kesim planı, depo ve tahsilatı aynı veride toplayan operasyon platformu.',
   keywords: [
     'üretim yönetimi',
     'fabrika operasyonu',
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     'iş emri takibi',
     'pergola üretim yazılımı',
     'giyotin cam',
-    'profil kesim optimizasyonu',
+    'profil kesim planı',
     'alüminyum stok takibi',
   ],
   authors: [{ name: 'RenkFlow' }],
@@ -70,13 +70,13 @@ export const metadata: Metadata = {
     siteName: 'RenkFlow',
     title: 'RenkFlow · Pergola ve cam sistemleri için operasyon platformu',
     description:
-      'Ölçüye özel her proje için teklif, kesim planı, depo ve fatura tek yerde.',
+      'Ölçüye özel her proje için teklif, kesim planı, depo ve tahsilat tek yerde.',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'RenkFlow · Pergola ve cam sistemleri için operasyon platformu',
     description:
-      'Ölçüye özel her proje için teklif, kesim planı, depo ve fatura tek yerde.',
+      'Ölçüye özel her proje için teklif, kesim planı, depo ve tahsilat tek yerde.',
   },
   verification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION ? {
     google: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION,

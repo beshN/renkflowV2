@@ -13,7 +13,7 @@ const SUMMARIES: Record<MarketingPageKey, { title: string; detail: string }> = {
   pricing: { title: 'Fiyatlandırma', detail: 'Ölçeğinize göre hazırlanan teklif.' },
   integrations: { title: 'Entegrasyonlar', detail: 'API, e-posta, WhatsApp ve barkod.' },
   docs: { title: 'Dokümantasyon', detail: 'Kullanım rehberleri ve API referansı.' },
-  security: { title: 'Güvenlik', detail: 'Yetkilendirme, izolasyon ve denetim kaydı.' },
+  security: { title: 'Güvenlik', detail: 'Yetkilendirme, firma ayrımı ve işlem geçmişi.' },
   roadmap: { title: 'Yol haritası', detail: 'Üzerinde çalıştığımız geliştirmeler.' },
   changelog: { title: 'Sürüm notları', detail: 'Yayınlanan güncellemeler.' },
   press: { title: 'Basın', detail: 'Marka dosyaları ve duyurular.' },

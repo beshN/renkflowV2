@@ -10,14 +10,14 @@ import { ProfileDrawing } from '@/components/brand/ProfileDrawing';
 
 const EASE = [0.2, 0.8, 0.2, 1] as const;
 
-const MODULES = ['Sipariş yönetimi', 'Teklif ve fiyatlama', 'Kesim optimizasyonu', 'İş emirleri', 'Usta ekranı', 'Depo ve raf', 'QR terminali', 'Satın alma', 'Mal kabul', 'Kalite kontrol', 'Sevkiyat', 'Finans', 'Raporlar'];
+const MODULES = ['Sipariş yönetimi', 'Teklif ve fiyatlama', 'Kesim planı', 'İş emirleri', 'Usta ekranı', 'Depo ve raf', 'QR terminali', 'Satın alma', 'Mal kabul', 'Kalite kontrol', 'Sevkiyat', 'Finans', 'Raporlar'];
 
 const FEATURES = [
   {
     eyebrow: 'Kesim ve üretim',
     title: 'Her profil boyu, planlanmış bir kesim.',
-    body: 'Her proje kendi ölçüsüyle gelir. Siparişteki ölçülerden kesim listesi çıkar; stoktaki 6–10 metrelik boylar ve önceki işlerden kalan artıklar birlikte değerlendirilir. Kalan parça ölçüsüyle stoğa geri yazılır.',
-    points: ['Farklı boylardan kesim planı', 'Artık parçaların ölçüsüyle takibi', 'Usta için kesim ve delik listesi'],
+    body: 'Her proje kendi ölçüsüyle gelir. Siparişteki ölçülerden kesim listesi çıkar; parçalar stoktaki farklı boylara ve önceki işlerden kalan artıklara yerleştirilir. Kullanılabilir artık ölçüsüyle stoğa geri yazılır.',
+    points: ['Farklı boylardan kesim planı', 'Artık parçaların ölçüsüyle takibi', 'Usta için kesim listesi'],
     mock: <CuttingMock />,
   },
   {
@@ -29,9 +29,9 @@ const FEATURES = [
   },
   {
     eyebrow: 'Finans',
-    title: 'Teklif, fatura ve tahsilat aynı siparişe bağlı.',
-    body: 'Sipariş onaylandığında teklif faturaya, fatura tahsilata dönüşür. Açık bakiye, vadesi geçen ödemeler ve sipariş kârlılığı ayrı bir tabloya ihtiyaç duymadan görülür.',
-    points: ['Teklif → fatura → tahsilat', 'Müşteri bazında açık bakiye', 'CSV olarak dışa aktarım'],
+    title: 'Teklif, sipariş ve tahsilat aynı kayıtta.',
+    body: 'Onaylanan teklif tek adımda siparişe dönüşür; tahsilatlar siparişe bağlanır ve kalan bakiye sipariş üzerinde görünür. Sipariş dökümü yazdırılır; e-Fatura ve e-Arşiv gönderimi bu sürümde yok.',
+    points: ['Teklif → sipariş → tahsilat', 'Sipariş bazında kalan bakiye', 'CSV olarak dışa aktarım'],
     mock: <FinanceMock />,
   },
 ];
@@ -46,8 +46,8 @@ const STEPS = [
 
 const TRUST = [
   { icon: Users, title: 'Rol bazlı yetki', detail: 'Yönetici, ofis, muhasebe ve üretim ekipleri yalnızca kendi ekranlarını görür.' },
-  { icon: ShieldCheck, title: 'Firma izolasyonu', detail: 'Her sorgu firma kimliğiyle sınırlanır; veriler birbirine karışmaz.' },
-  { icon: ScrollText, title: 'Denetim kaydı', detail: 'Sipariş, ödeme ve belge işlemleri kim ve ne zaman bilgisiyle saklanır.' },
+  { icon: ShieldCheck, title: 'Firma ayrımı', detail: 'Her kayıt bir firmaya aittir; panel ve API oturumdaki firmanın verisini okur.' },
+  { icon: ScrollText, title: 'İşlem geçmişi', detail: 'Sipariş, teklif, müşteri ve tahsilat işlemleri kim, ne zaman ve neyin değiştiği bilgisiyle kaydedilir.' },
   { icon: Lock, title: 'Giriş koruması', detail: 'Başarısız denemeler sınırlandırılır, oturumlar güvenli çerezlerle tutulur.' },
 ];
 
@@ -56,14 +56,14 @@ const FAQ = [
   { q: 'Standart ölçü olmayan projelerde nasıl çalışır?', a: 'RenkFlow ölçüye özel iş için tasarlandı. Her sipariş kendi ölçüleri, renk ve aksesuar bilgisiyle girilir; kesim listesi bu ölçülerden çıkar.' },
   { q: 'Atölyede kimler kullanabilir?', a: 'Usta ekranı tablet ve telefonda çalışır. Üretim rolündeki kullanıcı yalnızca kendisine atanan işleri görür.' },
   { q: 'Kurulum ne kadar sürer?', a: 'Listelerinizin hazır olma durumuna göre ekipler genellikle birkaç gün içinde günlük işini RenkFlow’da yapmaya başlar.' },
-  { q: 'Muhasebe programımızla çalışır mı?', a: 'Fatura ve tahsilat verisi dışa aktarılabilir; sürümlenmiş API ile doğrudan entegrasyon da kurulabilir.' },
+  { q: 'Muhasebe programımızla çalışır mı?', a: 'Sipariş listesi ve raporlar CSV olarak dışa aktarılır; sürümlenmiş API (v1) ile entegrasyon kurulabilir. e-Fatura ve e-Arşiv gönderimi bu sürümde yok.' },
 ];
 
 const SHOWCASE = [
   { key: 'orders', label: 'Siparişler', caption: 'Her siparişin durumu, termini ve teknik bilgisi tek listede.', mock: <WorkspaceMock /> },
-  { key: 'cutting', label: 'Kesim planı', caption: 'Farklı boylar en az artıkla bölünür, kalan parçalar stoğa döner.', mock: <CuttingMock /> },
+  { key: 'cutting', label: 'Kesim planı', caption: 'Parçalar farklı boylara ve artıklara yerleştirilir; kullanılabilir artık stoğa döner.', mock: <CuttingMock /> },
   { key: 'warehouse', label: 'Depo', caption: 'Kod, renk ve boy bazında stok; paket etiketiyle giriş.', mock: <WarehouseMock /> },
-  { key: 'finance', label: 'Finans', caption: 'Teklif, fatura ve tahsilat aynı siparişe bağlı.', mock: <FinanceMock /> },
+  { key: 'finance', label: 'Finans', caption: 'Teklif, sipariş ve tahsilat aynı kayıtta.', mock: <FinanceMock /> },
 ] as const;
 const SHOWCASE_MS = 6500;
 
@@ -117,7 +117,7 @@ function Hero() {
             <span className="block text-muted-foreground">Ölçüye özel her proje için</span><span className="block">tek operasyon altyapısı.</span>
           </motion.h1>
           <motion.div {...rise(0.14)} className="lg:pb-3">
-            <p className="text-[16px] leading-7 text-muted-foreground">Pergola, giyotin cam, tente ve tavan projelerinde teklif, kesim planı, depo ve fatura aynı veride. Ofis ve atölye her an aynı tabloya bakar.</p>
+            <p className="text-[16px] leading-7 text-muted-foreground">Pergola, giyotin cam, tente ve tavan projelerinde teklif, kesim planı, depo ve tahsilat aynı veride. Ofis ve atölye her an aynı tabloya bakar.</p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link href="/contact" className="rf-ink-button group h-11 px-5 text-[14px]">Demo talep edin <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" /></Link>
               <Link href="/auth/login" className="rf-secondary-button h-11 px-5 text-[14px]">Giriş yap</Link>
@@ -151,7 +151,7 @@ const LIVE = [
   ['09:46', 'RF-1038', 'Montaja hazır'],
   ['09:49', 'RF-1043', 'Yeni keşif · 4.500 × 3.200'],
 ] as const;
-const FLOW = ['Keşif', 'Teklif', 'Kesim', 'Boya', 'Montaj', 'Fatura'];
+const FLOW = ['Keşif', 'Teklif', 'Kesim', 'Boya', 'Montaj', 'Tahsilat'];
 const ROLES = {
   Usta: ['İş emirleri', 'Usta ekranı', 'QR terminali'],
   Ofis: ['Siparişler', 'Teklifler', 'Sevkiyat', 'Müşteriler'],
@@ -262,7 +262,7 @@ function Bento() {
         <Tile className="md:col-span-4" label="Canlı" title="Atölyede olan, ofiste aynı anda görünür." detail="Ustanın tamamladığı kesim, depoya giren paket ve yeni keşif tek akışta toplanır."><LiveLog /></Tile>
         <Tile className="md:col-span-2" label="İzlenebilirlik" title="Her paket bir etiketle." detail="Raf, profil kodu ve renk aynı etiketle eşleşir."><ScanTile /></Tile>
         <Tile className="md:col-span-2" label="Teknik detay" title="Çizim siparişle birlikte." detail="Profil kodu, ölçü ve renk bilgisi kayıtta saklanır."><div className="text-foreground/80"><ProfileDrawing inView delay={0} /></div></Tile>
-        <Tile className="md:col-span-2" label="Tek kayıt" title="Sipariş bir kez girilir." detail="Kesimden faturaya kadar her adım aynı kaydı kullanır."><div className="flex h-full items-center"><FlowChain /></div></Tile>
+        <Tile className="md:col-span-2" label="Tek kayıt" title="Sipariş bir kez girilir." detail="Kesimden tahsilata kadar her adım aynı kaydı kullanır."><div className="flex h-full items-center"><FlowChain /></div></Tile>
         <Tile className="md:col-span-2" label="Rol bazlı" title="Herkes kendi işini görür." detail="Usta, ofis ve muhasebe için ayrı, sade ekranlar."><RoleSwitcher /></Tile>
       </Stagger>
     </section>
