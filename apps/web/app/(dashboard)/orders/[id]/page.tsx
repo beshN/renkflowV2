@@ -258,10 +258,7 @@ export default function OrderDetailPage() {
                   Sipariş #{order.orderNumber}
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {order.customerName}
-                  {order.customerCompany && ` · ${order.customerCompany}`}
-                  {' · '}
-                  {formatDate(order.createdAt)} tarihinde oluşturuldu
+                  {[order.customerName, order.customerCompany, `${formatDate(order.createdAt)} tarihinde oluşturuldu`].filter(Boolean).join(' · ')}
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -324,11 +321,13 @@ export default function OrderDetailPage() {
                 <div className="rf-panel border border-border p-6 shadow-sm">
                   <h3 className="text-sm font-semibold text-foreground mb-4">Sipariş Bilgileri</h3>
                   <div className="space-y-0">
-                    <InfoRow icon={User} label="Müşteri" value={
-                      <span>{order.customerName}{order.customerCompany && <span className="text-muted-foreground"> · {order.customerCompany}</span>}</span>
-                    } />
-                    <InfoRow icon={Phone} label="Telefon" value={order.phone} />
-                    <InfoRow icon={Mail} label="E-posta" value={order.email} />
+                    {!order.financialHidden && <>
+                      <InfoRow icon={User} label="Müşteri" value={
+                        <span>{order.customerName}{order.customerCompany && <span className="text-muted-foreground"> · {order.customerCompany}</span>}</span>
+                      } />
+                      <InfoRow icon={Phone} label="Telefon" value={order.phone} />
+                      <InfoRow icon={Mail} label="E-posta" value={order.email} />
+                    </>}
                     <InfoRow icon={Package} label="Ürün" value={order.productName} />
                     <InfoRow icon={Tag} label="Adet" value={order.quantity ? `${order.quantity} adet` : null} />
                     <InfoRow icon={Palette} label="Renk" value={order.color} />

@@ -1,4 +1,4 @@
-import { getServerUserContext, AuthenticationError, AuthorizationError, requirePermission } from '@/lib/features/auth/serverAuth';
+import { apiContextWithPermission } from '@/lib/features/auth/api-access';
 import { NextResponse } from 'next/server';
 import { getOrderMetrics } from '@/lib/analytics/reporting';
 import { orderService } from '@/lib/services/orderService.server';
@@ -11,9 +11,8 @@ function parseDate(value: string | null, fallback: Date) {
 }
 
 export async function GET(request: Request) {
-  let context;
-  try { context = await getServerUserContext(); requirePermission(context,'reports.view'); }
-  catch (e) { return NextResponse.json({error:'Rapor erişim yetkiniz yok'},{status:e instanceof AuthenticationError?401:e instanceof AuthorizationError?403:500}); }
+  const { context, denied } = await apiContextWithPermission('reports.view');
+  if (denied) return denied;
 
   const { searchParams } = new URL(request.url);
   const endDate = parseDate(searchParams.get('endDate'), new Date());

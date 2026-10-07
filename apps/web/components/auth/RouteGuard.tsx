@@ -44,5 +44,10 @@ export function RouteGuard({ children }: RouteGuardProps) {
     );
   }
 
+  // Never mount a screen (and its data requests / server actions) for a role that cannot use it.
+  if (isAuthenticated && user && !canAccessRoute(user.role as UserRole, pathname)) {
+    return <CutLoader variant="page" className="flex-1" />;
+  }
+
   return <>{children}</>;
 }

@@ -8,7 +8,8 @@ export function technicalOrder(order: Order): Order {
     id: order.id,
     orderNumber: order.orderNumber,
     tenantId: order.tenantId,
-    customerName: order.customerName,
+    // No customer identity: the worker identifies work by order number and technical values.
+    customerName: '',
     date: order.date,
     deliveryDate: order.deliveryDate,
     status: order.status,

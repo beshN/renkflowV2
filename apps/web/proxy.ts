@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { evaluateComingSoonRequest, isComingSoonMode, normalizePublicSiteMode } from '@/lib/launch/comingSoonGate';
 import { resolveAuthSecret } from '@/lib/shared/config/runtime-env';
+import { evaluateRouteAccess } from '@/lib/features/auth/route-access';
 
 const AUTH_SECRET =
   resolveAuthSecret({
@@ -59,17 +60,21 @@ function isStaticAsset(pathname: string): boolean {
   return pathname.startsWith('/_next/') || /\.[a-zA-Z0-9]+$/.test(pathname);
 }
 
-async function isAuthenticated(request: NextRequest): Promise<boolean> {
+async function sessionToken(request: NextRequest) {
   try {
     const token = await getToken({
       req: request,
       secret: AUTH_SECRET,
       secureCookie: request.nextUrl.protocol === 'https:',
     });
-    return Boolean(token?.sub || token?.id) && isPrivateAccessAllowed(token?.email);
+    return token && Boolean(token.sub || token.id) && isPrivateAccessAllowed(token.email) ? token : null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+async function isAuthenticated(request: NextRequest): Promise<boolean> {
+  return Boolean(await sessionToken(request));
 }
 
 function buildLoginRedirect(request: NextRequest): NextResponse {
@@ -203,8 +208,20 @@ export async function proxy(request: NextRequest) {
     return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
   }
 
-  if (!(await isAuthenticated(request))) {
+  const token = await sessionToken(request);
+  if (!token) {
     return withProxySecurityHeaders(buildLoginRedirect(request), { isSecureRequest });
+  }
+
+  const access = evaluateRouteAccess(token.role, pathname, method);
+  if (access.type === 'forbidden') {
+    return withProxySecurityHeaders(NextResponse.json({ error: 'Bu işlem için yetkiniz yok.' }, { status: 403 }), { isSecureRequest });
+  }
+  if (access.type === 'redirect') {
+    const dashboardUrl = request.nextUrl.clone();
+    dashboardUrl.pathname = access.destination;
+    dashboardUrl.search = '';
+    return withProxySecurityHeaders(NextResponse.redirect(dashboardUrl, 302), { isSecureRequest });
   }
 
   return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
