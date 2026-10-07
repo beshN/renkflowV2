@@ -17,8 +17,8 @@ export default function CookieConsent() {
     "/orders",
     "/new-order",
     "/dashboard", "/purchases", "/receipts", "/suppliers", "/inventory",
-    "/scrap", "/finance", "/accounting", "/settings", "/team", "/members",
-    "/reports", "/analytics", "/crm", "/shipments", "/work-orders", "/kanban",
+    "/scrap", "/finance", "/accounting", "/settings", "/team",
+    "/reports", "/crm", "/shipments", "/work-orders", "/kanban",
     "/notifications", "/search", "/auth/",
   ].some((prefix) => pathname.startsWith(prefix));
   const [showBanner, setShowBanner] = useState(false);
