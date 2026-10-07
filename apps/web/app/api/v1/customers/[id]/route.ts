@@ -1,50 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { z } from 'zod';
 import { sql } from '@/lib/db';
+import { requireSameOrigin, requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
+import { customerErrorResponse, parseCustomerUpdate, requireCustomerActor } from '@/lib/features/customers/api';
 
 type CustomerRouteContext = {
   params: Promise<{ id: string }>;
 };
 
-async function getTenantId(userId: string): Promise<string | null> {
-  const rows = await sql`
-    SELECT tenant_id FROM tenant_members WHERE user_id = ${userId} ORDER BY created_at ASC LIMIT 1
-  `;
-  return (rows[0] as any)?.tenant_id || null;
+const notFound = () => NextResponse.json({ error: 'Müşteri bulunamadı.' }, { status: 404 });
+/** numeric columns come back as strings ('1000.00'); compare by value, not by type. */
+function sameValue(stored: unknown, next: unknown) {
+  if (typeof next === 'number') return stored !== null && stored !== undefined && Number(stored) === next;
+  return (stored ?? null) === (next ?? null);
+}
+async function customerId(params: CustomerRouteContext['params']) {
+  const { id } = await params;
+  return z.string().uuid().safeParse(id).success ? id : null;
 }
 
 // ============================================
 // GET — Müşteri detayı
 // ============================================
 
-export async function GET(
-  req: NextRequest,
-  { params }: CustomerRouteContext
-) {
+export async function GET(_req: NextRequest, { params }: CustomerRouteContext) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Oturum gerekli.' }, { status: 401 });
-    }
-
-    const tenantId = await getTenantId(session.user.id);
-    if (!tenantId) return NextResponse.json({ error: 'Tenant bulunamadı.' }, { status: 403 });
-
-    const { id: customerId } = await params;
+    const { tenantId } = await requireCustomerActor('customers.view');
+    const id = await customerId(params);
+    if (!id) return notFound();
 
     const rows = await sql`
       SELECT * FROM customers
-      WHERE id = ${customerId} AND tenant_id = ${tenantId} AND is_active = true
+      WHERE id = ${id} AND tenant_id = ${tenantId} AND is_active = true
     `;
-
-    if (rows.length === 0) {
-      return NextResponse.json({ error: 'Müşteri bulunamadı.' }, { status: 404 });
-    }
-
+    if (rows.length === 0) return notFound();
     return NextResponse.json({ customer: rows[0] });
-  } catch (error: any) {
-    console.error('[Customer GET]', error);
-    return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
+  } catch (error) {
+    return customerErrorResponse(error, 'Müşteri alınamadı.');
   }
 }
 
@@ -52,129 +44,76 @@ export async function GET(
 // PUT — Müşteri güncelle
 // ============================================
 
-export async function PUT(
-  req: NextRequest,
-  { params }: CustomerRouteContext
-) {
+export async function PUT(req: NextRequest, { params }: CustomerRouteContext) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Oturum gerekli.' }, { status: 401 });
-    }
+    requireSameOriginJson(req, 200_000);
+    const actor = await requireCustomerActor('customers.edit');
+    const id = await customerId(params);
+    if (!id) return notFound();
+    const updates = parseCustomerUpdate(await req.json());
 
-    const tenantId = await getTenantId(session.user.id);
-    if (!tenantId) return NextResponse.json({ error: 'Tenant bulunamadı.' }, { status: 403 });
+    const oldRows = await sql`SELECT * FROM customers WHERE id = ${id} AND tenant_id = ${actor.tenantId} AND is_active = true`;
+    if (oldRows.length === 0) return notFound();
+    const oldCustomer = oldRows[0] as Record<string, unknown>;
 
-    const { id: customerId } = await params;
-    const body = await req.json();
-    
-    // Yalnızca güncellenen alanları al
-    const allowedFields = [
-      'full_name', 'company_name', 'email', 'phone', 'address',
-      'tax_number', 'tax_office', 'billing_address', 'shipping_address',
-      'credit_limit', 'payment_terms', 'notes', 'contacts'
-    ];
-
-    const updates: Record<string, any> = {};
-    for (const field of allowedFields) {
-      // Body camelCase geleceği için eşleştirme:
-      const camelCaseField = field.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
-      if (body[camelCaseField] !== undefined) {
-        updates[field] = body[camelCaseField];
-      }
-    }
-
-    if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ error: 'Güncellenecek alan bulunamadı.' }, { status: 400 });
-    }
-
-    // Mevcut kaydı al (log için)
-    const oldRows = await sql`SELECT * FROM customers WHERE id = ${customerId} AND tenant_id = ${tenantId}`;
-    if (oldRows.length === 0) {
-      return NextResponse.json({ error: 'Müşteri bulunamadı.' }, { status: 404 });
-    }
-    const oldCustomer = oldRows[0] as any;
-
-    // Dinamik UPDATE sorgusu
-    const setQuery = Object.entries(updates).map(([k, v]) => {
-        if (k === 'contacts') return sql`${sql(k)} = ${JSON.stringify(v)}::jsonb`;
-        return sql`${sql(k)} = ${v}`;
-    });
-    
-    const setFragment = setQuery.reduce((acc, curr, i) => {
-        if (i === 0) return curr;
-        return sql`${acc}, ${curr}`;
-    });
+    const setFragment = updates
+      .map(([column, value]) => (column === 'contacts' ? sql`${sql(column)} = ${JSON.stringify(value)}::jsonb` : sql`${sql(column)} = ${value as string | number | null}`))
+      .reduce((acc, curr) => sql`${acc}, ${curr}`);
 
     const newRows = await sql`
-      UPDATE customers 
+      UPDATE customers
       SET ${setFragment}, updated_at = now()
-      WHERE id = ${customerId} AND tenant_id = ${tenantId}
+      WHERE id = ${id} AND tenant_id = ${actor.tenantId} AND is_active = true
       RETURNING *
     `;
+    if (newRows.length === 0) return notFound();
 
-    const newCustomer = newRows[0] as any;
-
-    // Değişiklikleri hesapla
-    const changes: Record<string, any> = {};
-    for (const [key, value] of Object.entries(updates)) {
-      if (key === 'contacts') continue; // JSON karşılaştırması karışık olduğu için atlıyoruz
-      if (oldCustomer[key] !== value) {
-        changes[key] = { from: oldCustomer[key], to: value };
-      }
+    const changes: Record<string, { from: unknown; to: unknown }> = {};
+    for (const [column, value] of updates) {
+      if (column === 'contacts') continue;
+      if (!sameValue(oldCustomer[column], value)) changes[column] = { from: oldCustomer[column], to: value };
     }
-
-    // Log activity
     if (Object.keys(changes).length > 0) {
       await sql`
         INSERT INTO activity_logs (tenant_id, entity_type, entity_id, action, actor_id, actor_name, changes)
-        SELECT ${tenantId}, 'customer', ${customerId}, 'field_updated', ${session.user.id}, u.name, ${JSON.stringify(changes)}::jsonb
-        FROM users u WHERE u.id = ${session.user.id}
+        SELECT ${actor.tenantId}, 'customer', ${id}, 'field_updated', ${actor.userId}, u.name, ${JSON.stringify(changes)}::jsonb
+        FROM users u WHERE u.id = ${actor.userId}
       `;
     }
 
-    return NextResponse.json({ customer: newCustomer });
-  } catch (error: any) {
-    console.error('[Customer PUT]', error);
-    return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
+    return NextResponse.json({ customer: newRows[0] });
+  } catch (error) {
+    return customerErrorResponse(error, 'Müşteri güncellenemedi.');
   }
 }
 
 // ============================================
-// DELETE — Müşteriyi inaktif yap
+// DELETE — Müşteriyi pasif yap
 // ============================================
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: CustomerRouteContext
-) {
+export async function DELETE(req: NextRequest, { params }: CustomerRouteContext) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Oturum gerekli.' }, { status: 401 });
-    }
+    requireSameOrigin(req);
+    const actor = await requireCustomerActor('customers.delete');
+    const id = await customerId(params);
+    if (!id) return notFound();
 
-    const tenantId = await getTenantId(session.user.id);
-    if (!tenantId) return NextResponse.json({ error: 'Tenant bulunamadı.' }, { status: 403 });
-
-    const { id: customerId } = await params;
-
-    await sql`
-      UPDATE customers 
+    const rows = await sql`
+      UPDATE customers
       SET is_active = false, updated_at = now()
-      WHERE id = ${customerId} AND tenant_id = ${tenantId}
+      WHERE id = ${id} AND tenant_id = ${actor.tenantId} AND is_active = true
+      RETURNING id
     `;
+    if (rows.length === 0) return notFound();
 
-    // Log activity
     await sql`
       INSERT INTO activity_logs (tenant_id, entity_type, entity_id, action, actor_id, actor_name)
-      SELECT ${tenantId}, 'customer', ${customerId}, 'deleted', ${session.user.id}, u.name
-      FROM users u WHERE u.id = ${session.user.id}
+      SELECT ${actor.tenantId}, 'customer', ${id}, 'deleted', ${actor.userId}, u.name
+      FROM users u WHERE u.id = ${actor.userId}
     `;
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error('[Customer DELETE]', error);
-    return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
+  } catch (error) {
+    return customerErrorResponse(error, 'Müşteri silinemedi.');
   }
 }
