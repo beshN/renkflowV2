@@ -6,6 +6,7 @@ import { sql } from "@/lib/db";
 import { withTransaction } from "@/lib/db/transaction";
 import { safeParseCurrency } from "@/lib/types";
 import { recordAudit } from "@/lib/audit/audit-log";
+import { AmbiguousCustomerError, resolveOrderCustomer } from "@/lib/features/customers/link";
 
 const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 export function quotationTotals(
@@ -184,9 +185,20 @@ export class PostgresQuotationService implements IQuotationService {
       const items =
         await tx`SELECT * FROM quotation_items WHERE tenant_id=${tenantId} AND quotation_id=${id} ORDER BY position`;
       if (!items.length) throw new WorkOrderApiError("Teklif kalemi gerekli", 409);
+      // K6: a quotation typed without a customer card still yields a linked order; when several cards
+      // share its name there is no one to ask here, so the order stays unlinked rather than guessed.
+      let customerId: string | null = q.customer_id;
+      if (!customerId && q.customer_name?.trim()) {
+        try {
+          customerId = (await resolveOrderCustomer(tx, tenantId, { customerName: q.customer_name }, createdBy)).id;
+        } catch (error) {
+          if (!(error instanceof AmbiguousCustomerError)) throw error;
+        }
+        if (customerId) await tx`UPDATE quotations SET customer_id=${customerId} WHERE tenant_id=${tenantId} AND id=${id}`;
+      }
       const orders =
         await tx`INSERT INTO orders (tenant_id,order_number,customer_id,customer_name,status,total_amount,currency,notes,custom_fields,assigned_to,product_name,quantity)
-     VALUES (${tenantId},${"ORD-" + Date.now().toString(36).toUpperCase() + "-" + crypto.randomUUID().slice(0, 6)},${q.customer_id},${q.customer_name},'pending',${q.total_amount},${q.currency},${"Tekliften dönüştürüldü: " + q.quotation_number},'{}',${createdBy || null},${items[0].product_name},${items.reduce((sum: number, i: any) => sum + Number(i.quantity), 0)}) RETURNING id`;
+     VALUES (${tenantId},${"ORD-" + Date.now().toString(36).toUpperCase() + "-" + crypto.randomUUID().slice(0, 6)},${customerId},${q.customer_name},'pending',${q.total_amount},${q.currency},${"Tekliften dönüştürüldü: " + q.quotation_number},'{}',${createdBy || null},${items[0].product_name},${items.reduce((sum: number, i: any) => sum + Number(i.quantity), 0)}) RETURNING id`;
       for (const i of items)
         await tx`INSERT INTO order_items (order_id,product_name,quantity,unit_price,total_price,description,color,width_mm,height_mm,projection_mm,mounting_height_mm,awning_configuration,awning_preview,motor_type,led_type,fabric_type,notes)
        VALUES (${orders[0].id},${i.product_name},${i.quantity},${i.unit_price},${i.total_price},${i.description},${i.color},${i.width_mm},${i.height_mm},${i.projection_mm},${i.mounting_height_mm},${i.awning_configuration ? JSON.stringify(i.awning_configuration) : null}::text::jsonb,${i.awning_preview},${i.awning_configuration?.motor || null},${i.awning_configuration?.led || null},${i.awning_configuration?.fabricName || null},${i.notes})`;

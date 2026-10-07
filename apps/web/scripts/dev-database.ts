@@ -13,6 +13,8 @@ async function main() {
     port: 55432,
     persistent: true,
     postgresFlags: ["-h", "127.0.0.1"],
+    // Same encoding as production (Neon is UTF8); without it the cluster defaults to SQL_ASCII.
+    initdbFlags: ["--encoding=UTF8", "--locale=C"],
     onLog: () => {},
     onError: (e) => {
       if (String(e).includes("FATAL")) console.error(String(e));
@@ -26,8 +28,15 @@ async function main() {
   );
   for (const name of ["renkflow_dev", "renkflow_test"]) {
     if (!(await admin`SELECT 1 FROM pg_database WHERE datname=${name}`).length)
-      await admin.unsafe(`CREATE DATABASE ${name}`);
+      await admin.unsafe(
+        `CREATE DATABASE ${name} ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0`,
+      );
   }
+  const ascii = await admin`SELECT datname FROM pg_database WHERE datname IN ('renkflow_dev', 'renkflow_test') AND pg_encoding_to_char(encoding) <> 'UTF8'`;
+  if (ascii.length)
+    console.warn(
+      `Not UTF8 (created by an older version of this script): ${ascii.map((r) => r.datname).join(", ")}. Drop them and rerun to match production.`,
+    );
   await admin.end();
   for (const name of ["renkflow_dev", "renkflow_test"]) {
     const db = postgres(

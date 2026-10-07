@@ -6,6 +6,7 @@ import { orderService } from '@/lib/services/orderService.server';
 import { resolveUploadedFile } from '@/lib/storage/upload-reference';
 import { hasPermission } from '@/lib/auth/rbac';
 jest.mock('server-only',()=>({}));
+jest.mock('@/auth',()=>({auth:jest.fn()}));
 jest.mock('@/lib/features/orders/access',()=>({visibleOrdersForActor:jest.fn()}));
 jest.mock('@/lib/api/auth-helpers',()=>({getAPIUser:jest.fn(),successResponse:(data:unknown)=>Response.json({success:true,data}),errorResponse:(error:string,status:number)=>Response.json({success:false,error},{status}),handleCORS:jest.fn()}));
 jest.mock('@/lib/services/orderService.server',()=>({orderService:{createOrder:jest.fn()}}));

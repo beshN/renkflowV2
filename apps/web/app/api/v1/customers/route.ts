@@ -16,6 +16,21 @@ export async function GET(req: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
     const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get('pageSize') || '25', 10) || 25));
     const offset = (page - 1) * pageSize;
+    const like = '%' + search.replace(/[\\%_]/g, (c) => '\\' + c) + '%';
+
+    // Typeahead (new order form): names and contacts only, no revenue aggregation.
+    if (searchParams.get('suggest') === '1') {
+      if (search.length < 2) return NextResponse.json({ customers: [] });
+      const customers = await sql`
+        SELECT id, full_name, company_name, email, phone
+        FROM customers
+        WHERE tenant_id = ${tenantId} AND is_active = true
+          AND (full_name ILIKE ${like} OR company_name ILIKE ${like} OR phone ILIKE ${like} OR email ILIKE ${like})
+        ORDER BY full_name ASC
+        LIMIT 6
+      `;
+      return NextResponse.json({ customers });
+    }
 
     const [rows, countRows] = await Promise.all([
       sql`
@@ -34,7 +49,7 @@ export async function GET(req: NextRequest) {
         LEFT JOIN orders o ON o.customer_id = c.id AND o.tenant_id = c.tenant_id
         WHERE c.tenant_id = ${tenantId}
           AND c.is_active = true
-          ${search ? sql`AND (c.full_name ILIKE ${'%' + search + '%'} OR c.company_name ILIKE ${'%' + search + '%'} OR c.phone ILIKE ${'%' + search + '%'})` : sql``}
+          ${search ? sql`AND (c.full_name ILIKE ${like} OR c.company_name ILIKE ${like} OR c.phone ILIKE ${like})` : sql``}
         GROUP BY c.id
         ORDER BY total_revenue DESC NULLS LAST, c.full_name ASC
         LIMIT ${pageSize} OFFSET ${offset}
@@ -44,7 +59,7 @@ export async function GET(req: NextRequest) {
         FROM customers c
         WHERE c.tenant_id = ${tenantId}
           AND c.is_active = true
-          ${search ? sql`AND (c.full_name ILIKE ${'%' + search + '%'} OR c.company_name ILIKE ${'%' + search + '%'} OR c.phone ILIKE ${'%' + search + '%'})` : sql``}
+          ${search ? sql`AND (c.full_name ILIKE ${like} OR c.company_name ILIKE ${like} OR c.phone ILIKE ${like})` : sql``}
       `,
     ]);
 

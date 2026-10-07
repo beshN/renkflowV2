@@ -32,6 +32,7 @@ export class WebOrderService implements IOrderService {
     
     // Core fields
     data.append('customerName', formData.customerName);
+    if (formData.customerId) data.append('customerId', formData.customerId);
     if (formData.email) data.append('email', formData.email);
     if (formData.phone) data.append('phone', formData.phone);
     data.append('productName', formData.productName);
