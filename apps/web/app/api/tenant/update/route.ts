@@ -50,11 +50,12 @@ export async function POST(request: Request) {
     }
 
     // The locked subquery returns the values this update replaced, for the audit record.
+    // No table alias: postgres.js only expands sql(updates) after a plain `UPDATE <table> SET`.
     const [before] = await sql`
-      UPDATE tenants AS t
+      UPDATE tenants
       SET ${sql(updates)}, updated_at = NOW()
       FROM (SELECT id, name, brand_color, logo_url, industry, template_key FROM tenants WHERE id = ${effectiveTenantId} FOR UPDATE) AS old
-      WHERE t.id = old.id
+      WHERE tenants.id = old.id
       RETURNING old.name, old.brand_color, old.logo_url, old.industry, old.template_key
     `;
     if (!before) {
