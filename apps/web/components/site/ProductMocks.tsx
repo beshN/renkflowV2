@@ -13,7 +13,7 @@ export function Frame({ children, className, label = 'renkflow.app' }: { childre
       <div className="flex h-9 items-center gap-2 border-b border-border bg-muted/40 px-3.5">
         <span className="h-2.5 w-2.5 rounded-full bg-foreground/10" /><span className="h-2.5 w-2.5 rounded-full bg-foreground/10" /><span className="h-2.5 w-2.5 rounded-full bg-foreground/10" />
         <span className="mx-auto rounded-md bg-background px-3 py-0.5 font-mono text-[10.5px] text-muted-foreground">{label}</span>
-        <span className="rounded bg-foreground/[0.06] px-1.5 py-0.5 text-[9.5px] font-medium text-muted-foreground">Örnek veri</span>
+        <span className="shrink-0 whitespace-nowrap rounded bg-foreground/[0.06] px-1.5 py-0.5 text-[9.5px] font-medium text-muted-foreground">Örnek veri</span>
       </div>
       {children}
     </div>

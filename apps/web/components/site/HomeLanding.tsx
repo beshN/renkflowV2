@@ -46,7 +46,7 @@ const STEPS = [
 
 const TRUST = [
   { icon: Users, title: 'Rol bazlı yetki', detail: 'Yönetici, ofis, muhasebe ve üretim ekipleri yalnızca kendi ekranlarını görür.' },
-  { icon: ShieldCheck, title: 'Firma ayrımı', detail: 'Sipariş, stok ve ödeme sorguları firma kimliğiyle sınırlanır; kural her sürümde otomatik kontrol edilir.' },
+  { icon: ShieldCheck, title: 'Firma ayrımı', detail: 'Her kayıt bir firmaya aittir; panel ve API oturumdaki firmanın verisini okur.' },
   { icon: ScrollText, title: 'İşlem geçmişi', detail: 'Sipariş, teklif, müşteri ve tahsilat işlemleri kim, ne zaman ve neyin değiştiği bilgisiyle kaydedilir.' },
   { icon: Lock, title: 'Giriş koruması', detail: 'Başarısız denemeler sınırlandırılır, oturumlar güvenli çerezlerle tutulur.' },
 ];
@@ -56,7 +56,7 @@ const FAQ = [
   { q: 'Standart ölçü olmayan projelerde nasıl çalışır?', a: 'RenkFlow ölçüye özel iş için tasarlandı. Her sipariş kendi ölçüleri, renk ve aksesuar bilgisiyle girilir; kesim listesi bu ölçülerden çıkar.' },
   { q: 'Atölyede kimler kullanabilir?', a: 'Usta ekranı tablet ve telefonda çalışır. Üretim rolündeki kullanıcı yalnızca kendisine atanan işleri görür.' },
   { q: 'Kurulum ne kadar sürer?', a: 'Listelerinizin hazır olma durumuna göre ekipler genellikle birkaç gün içinde günlük işini RenkFlow’da yapmaya başlar.' },
-  { q: 'Muhasebe programımızla çalışır mı?', a: 'Sipariş ve tahsilat verisi CSV olarak dışa aktarılır; sürümlenmiş API (v1) ile entegrasyon kurulabilir. e-Fatura ve e-Arşiv gönderimi bu sürümde yok.' },
+  { q: 'Muhasebe programımızla çalışır mı?', a: 'Sipariş listesi ve raporlar CSV olarak dışa aktarılır; sürümlenmiş API (v1) ile entegrasyon kurulabilir. e-Fatura ve e-Arşiv gönderimi bu sürümde yok.' },
 ];
 
 const SHOWCASE = [
@@ -151,7 +151,7 @@ const LIVE = [
   ['09:46', 'RF-1038', 'Montaja hazır'],
   ['09:49', 'RF-1043', 'Yeni keşif · 4.500 × 3.200'],
 ] as const;
-const FLOW = ['Keşif', 'Teklif', 'Kesim', 'Boya', 'Montaj', 'Fatura'];
+const FLOW = ['Keşif', 'Teklif', 'Kesim', 'Boya', 'Montaj', 'Tahsilat'];
 const ROLES = {
   Usta: ['İş emirleri', 'Usta ekranı', 'QR terminali'],
   Ofis: ['Siparişler', 'Teklifler', 'Sevkiyat', 'Müşteriler'],

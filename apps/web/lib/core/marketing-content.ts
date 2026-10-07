@@ -90,7 +90,7 @@ export const marketingPages = {
     secondaryCta: { href: '/privacy', label: 'Gizlilik politikası' },
     highlights: [
       { title: 'Rol bazlı yetki', detail: 'Yönetici, ofis, muhasebe ve üretim rolleri farklı ekran ve işlemlere erişir.' },
-      { title: 'Firma ayrımı', detail: 'Her kayıt bir firmaya aittir. Sipariş, stok ve ödeme sorguları firma kimliğiyle sınırlanır; bu kural her sürümde otomatik olarak kontrol edilir.' },
+      { title: 'Firma ayrımı', detail: 'Her kayıt bir firmaya aittir; panel ve API yalnız oturumdaki firmanın verisini okur.' },
       { title: 'İşlem geçmişi', detail: 'Sipariş, teklif, müşteri, tahsilat ve firma ayarı işlemleri kim, ne zaman ve hangi alanın değiştiği bilgisiyle kaydedilir.' },
       { title: 'Giriş koruması', detail: 'Tekrarlanan başarısız denemeler sınırlandırılır, hesap varlığı dışarıya sızdırılmaz.' },
       { title: 'Güvenli dosyalar', detail: 'Teknik çizimler ve belgeler yalnızca yetkili oturumlarla açılır.' },
@@ -225,12 +225,12 @@ export const blogPosts: BlogPost[] = [
     category: 'Üretim',
     title: 'Ölçüye özel projelerde kesim planı nasıl çıkıyor?',
     summary:
-      'Hiçbir pergola bir öncekiyle aynı ölçüde değil. RenkFlow kesim listesini siparişin kendi ölçülerinden çıkarıyor ve stoktaki farklı boyları birlikte değerlendiriyor.',
+      'Hiçbir pergola bir öncekiyle aynı ölçüde değil. RenkFlow kesim listesini siparişin kendi ölçülerinden çıkarıyor ve parçaları stoktaki farklı boylara ve artıklara yerleştiriyor.',
     date: '6 Ekim 2026',
     author: 'RenkFlow ekibi',
     content: [
       'Pergola, giyotin cam ve tente projelerinde standart bir modül yok; her iş keşifte alınan ölçülerle başlıyor. Bu yüzden kesim listesi de her siparişte yeniden hesaplanmalı.',
-      'Profiller depoya 6 ile 10 metre arasında farklı boylarda geliyor. Kesim planı, siparişteki parçaları bu boylara ve önceki işlerden kalan artık parçalara yerleştiriyor: parçalar büyükten küçüğe en uygun boşluğa konuyor, yeni boy açmak gerekirse sığan en kısa boy seçiliyor. Testere payı ve uç tıraşı hesaba katılıyor.',
+      'Profiller depoya 6 ile 10 metre arasında farklı boylarda geliyor. Kesim planı, siparişteki parçaları bu boylara ve önceki işlerden kalan artık parçalara yerleştiriyor: parçalar büyükten küçüğe en uygun boşluğa konuyor. Plan bir kez artıklar önce, bir kez kısa boylar önce kuruluyor; daha az yeni boy açan ve daha az fire veren seçiliyor. Testere payı ve uç tıraşı hesaba katılıyor.',
       'Kesimden sonra kalan parça ölçüsüyle stoğa geri yazılıyor. Böylece bir sonraki projede o artık da plana dahil ediliyor.',
     ],
   },
