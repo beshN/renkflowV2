@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,43 +17,58 @@ export function TenantSettings() {
   const [isInviting, setIsInviting] = useState(false);
   const [lastInviteLink,setLastInviteLink]=useState('');
 
-  const [formData, setFormData] = useState({
-    name: user?.tenantName === 'Demo Mobilya' ? 'Renk Alüminyum' : user?.tenantName || 'Renk Alüminyum',
+  // Start from the firm's saved values; a legacy template keeps its key until the user picks another one.
+  const [savedData, setSavedData] = useState(() => ({
+    name: user?.tenantName || '',
     brandColor: user?.brandColor || '#4f46e5',
     logoUrl: user?.logoUrl || '',
-    industry: user?.tenantIndustry || TEMPLATE_DEFINITIONS.find((t) => t.key === (user?.templateKey as TemplateKey))?.industry || TEMPLATE_DEFINITIONS[0]?.industry,
-    templateKey: DEFAULT_TEMPLATE_KEY,
-  });
+    templateKey: (user?.templateKey as TemplateKey) || DEFAULT_TEMPLATE_KEY,
+  }));
+  const [formData, setFormData] = useState(savedData);
+  useEffect(() => {
+    const fromSession = {
+      name: user?.tenantName || '',
+      brandColor: user?.brandColor || '#4f46e5',
+      logoUrl: user?.logoUrl || '',
+      templateKey: (user?.templateKey as TemplateKey) || DEFAULT_TEMPLATE_KEY,
+    };
+    setSavedData(fromSession);
+    setFormData(fromSession);
+  }, [user?.tenantId, user?.tenantName, user?.brandColor, user?.logoUrl, user?.templateKey]);
 
-  const selectedTemplate = useMemo(() => {
-    return TEMPLATE_DEFINITIONS.find((t) => t.key === formData.templateKey) || TEMPLATE_DEFINITIONS[0];
-  }, [formData.templateKey]);
+  const selectedTemplate = useMemo(() => TEMPLATE_DEFINITIONS.find((t) => t.key === formData.templateKey), [formData.templateKey]);
 
   const handleUpdateTenant = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.tenantId) return;
+
+    // Send only what changed, so saving the name cannot reset the template or industry.
+    const changes = Object.fromEntries(
+      (Object.keys(savedData) as Array<keyof typeof savedData>).filter((key) => formData[key] !== savedData[key]).map((key) => [key, formData[key]]),
+    );
+    if (Object.keys(changes).length === 0) {
+      toast.success('Değişiklik yok');
+      return;
+    }
 
     setIsLoading(true);
     try {
       const response = await fetch('/api/tenant/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tenantId: user.tenantId,
-          name: formData.name,
-          brandColor: formData.brandColor,
-          logoUrl: formData.logoUrl,
-          industry: selectedTemplate?.industry,
-          templateKey: formData.templateKey,
-        }),
+        body: JSON.stringify({ tenantId: user.tenantId, ...changes }),
       });
 
-      if (!response.ok) throw new Error('Update failed');
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error || 'Güncelleme başarısız oldu');
+      }
+      setSavedData(formData);
 
       toast.success('Firma bilgileri güncellendi');
       await refreshUser();
     } catch (error: any) {
-      toast.error('Güncelleme başarısız oldu');
+      toast.error(error instanceof Error ? error.message : 'Güncelleme başarısız oldu');
     } finally {
       setIsLoading(false);
     }
@@ -141,6 +156,9 @@ export function TenantSettings() {
                   onChange={(e) => setFormData({ ...formData, templateKey: e.target.value as TemplateKey })}
                   className="w-full h-11 px-4 rounded-xl border border-slate-200/50 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm text-slate-900 dark:text-white appearance-none focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all text-sm shadow-sm"
                 >
+                  {!TEMPLATE_DEFINITIONS.some((template) => template.key === savedData.templateKey) && (
+                    <option value={savedData.templateKey}>{user?.tenantIndustry || savedData.templateKey} (mevcut)</option>
+                  )}
                   {TEMPLATE_DEFINITIONS.map((template) => (
                     <option key={template.key} value={template.key}>
                       {template.industry}
@@ -151,7 +169,7 @@ export function TenantSettings() {
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                 </div>
               </div>
-              <p className="text-xs text-slate-500 mt-2">{selectedTemplate?.description}</p>
+              <p className="text-xs text-slate-500 mt-2">{selectedTemplate?.description || 'Firmanın mevcut üretim alanı korunur; değiştirmek için listeden seçin.'}</p>
             </div>
 
             <Input

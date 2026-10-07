@@ -117,7 +117,7 @@ const PERMISSION_MATRIX: Record<UserRole, Permission[]> = {
     { resource: 'users', actions: [] },
     { resource: 'tenants', actions: [] },
     { resource: 'analytics', actions: [] },
-    { resource: 'quotations', actions: ['read', 'list'] },
+    { resource: 'quotations', actions: [] }, // Same roles as the /quotations screen (ROUTE_ROLES).
     { resource: 'settings', actions: [] },
     { resource: 'billing', actions: [] },
   ],
