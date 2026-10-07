@@ -731,11 +731,11 @@ async function createJob(
   await event(tx, a, "job.created", snapshot, job.id);
   return job;
 }
-async function previewCut(
+/** Plans a pool of jobs (or rework) with the engine without saving anything. */
+async function computeCut(
   tx: any,
   a: WorkOrderActor,
   data: Record<string, unknown>,
-  key: string,
 ) {
   const regularIds = z
     .array(uuid)
@@ -809,9 +809,66 @@ async function previewCut(
       : [],
   );
   const purchase = planPurchase(result.unfulfilled, (itemId) => standard.get(itemId) || parameters.standardLengthMm, parameters);
+  return { ids, reworkIds, demand, parameters, result: { ...result, parameterSource: firm.source, purchase } };
+}
+async function previewCut(
+  tx: any,
+  a: WorkOrderActor,
+  data: Record<string, unknown>,
+  key: string,
+) {
+  const { ids, reworkIds, demand, parameters, result } = await computeCut(tx, a, data);
   return (
-    await tx`INSERT INTO cutting_plans(tenant_id,work_order_ids,rework_ids,demand,parameters,result,created_by,idempotency_key)VALUES(${a.tenantId},${ids},${reworkIds},${js(demand)}::text::jsonb,${js(parameters)}::text::jsonb,${js({ ...result, parameterSource: firm.source, purchase })}::text::jsonb,${a.userId},${key})RETURNING *`
+    await tx`INSERT INTO cutting_plans(tenant_id,work_order_ids,rework_ids,demand,parameters,result,created_by,idempotency_key)VALUES(${a.tenantId},${ids},${reworkIds},${js(demand)}::text::jsonb,${js(parameters)}::text::jsonb,${js(result)}::text::jsonb,${a.userId},${key})RETURNING *`
   )[0];
+}
+
+/**
+ * Every job waiting for cutting, planned together by the engine without saving anything: what the
+ * cutting suggestion proposes. Null when no job is waiting.
+ */
+export async function proposeCutForPool(db: any, a: WorkOrderActor) {
+  manager(a);
+  const pool = await db`SELECT w.id,w.title FROM work_orders w WHERE w.tenant_id=${a.tenantId} AND w.recipe_id IS NOT NULL AND w.status IN('open','in_progress') AND w.cut_plan_id IS NULL AND jsonb_typeof(w.bom_snapshot->'cuts')='array' AND jsonb_array_length(w.bom_snapshot->'cuts')>0 AND jsonb_typeof(w.configuration->'bodyName')='string' ORDER BY w.created_at,w.id LIMIT 101`;
+  if (!pool.length) return null;
+  let jobs: Array<{ id: string; title: string }> = pool.slice(0, 100).map((j: any) => ({ id: j.id, title: j.title }));
+  let plan = await computeCut(db, a, { workOrderIds: jobs.map((j) => j.id) });
+  // Jobs that stock cannot fully cover are left out once, so the rest can still be planned.
+  const short = new Set(plan.result.unfulfilled.map((piece) => piece.workOrderId));
+  const leftOut = jobs.filter((j) => short.has(j.id));
+  if (leftOut.length && leftOut.length < jobs.length) {
+    jobs = jobs.filter((j) => !short.has(j.id));
+    plan = await computeCut(db, a, { workOrderIds: jobs.map((j) => j.id) });
+  }
+  return { jobs, leftOut, morePending: pool.length > 100, ...plan };
+}
+
+/**
+ * Saves and approves (reserves the bars of) a plan for these jobs inside the caller's transaction:
+ * what approving a cutting suggestion does. The same checks and the same per-firm lock as a cutting
+ * command by hand apply, and the timeline records both steps. `acceptEstimate` is passed only when
+ * the suggestion the person approved said it was an estimate.
+ */
+export async function planAndReserveCut(
+  tx: any,
+  a: WorkOrderActor,
+  workOrderIds: string[],
+  options: {
+    key: string;
+    acceptEstimate: boolean;
+    suggestionId: string;
+    /** Checks the freshly computed plan before anything is reserved; throw to refuse. */
+    verify?: (draft: any) => void;
+  },
+) {
+  manager(a);
+  await tx`SELECT pg_advisory_xact_lock(hashtextextended(${a.tenantId},0))`;
+  const draft = await previewCut(tx, a, { workOrderIds }, options.key);
+  options.verify?.(draft);
+  await event(tx, a, "cut.preview", { planId: draft.id, suggestionId: options.suggestionId });
+  const approved = await cutAction(tx, a, "cut.approve", { id: draft.id, version: draft.version, acceptEstimate: options.acceptEstimate }, options.key + ":approve");
+  await event(tx, a, "cut.approve", { planId: approved.id, suggestionId: options.suggestionId });
+  return approved;
 }
 async function cutAction(
   tx: any,

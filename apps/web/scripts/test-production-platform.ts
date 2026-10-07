@@ -27,6 +27,7 @@ async function main() {
   await db.unsafe(readFileSync("lib/db/migrations/025_production_resources.sql", "utf8"));
   await db.unsafe(readFileSync("lib/db/migrations/026_production_analytics.sql", "utf8"));
   await db.unsafe(readFileSync("lib/db/migrations/027_quality_traceability.sql", "utf8"));
+  await db.unsafe(readFileSync("lib/db/migrations/029_ai_suggestions.sql", "utf8"));
   await db.unsafe(readFileSync("lib/db/migrations/030_cutting_defaults.sql", "utf8"));
   const { productionCommand, productionOverview, publicTracking, cutPlanSheet } =
     await import("../lib/features/manufacturing/platform.service");
@@ -311,6 +312,63 @@ async function main() {
   const [kept] = await db`SELECT cutting_confirmed,standard_length_mm FROM manufacturing_preferences WHERE tenant_id=${tenant.id}`;
   assert.equal(kept.cutting_confirmed, true);
   assert.equal(Number(kept.standard_length_mm), 6500);
+  // The cutting suggestion: the engine plans the waiting jobs; approving it saves and reserves the plan.
+  {
+    const { listPendingSuggestions, decideSuggestion } = await import("../lib/ai/suggestions/service");
+    const { refreshCuttingSuggestion, CUTTING_PLAN_KIND } = await import("../lib/ai/suggestions/kinds/cutting-plan");
+    const owner = { tenantId: tenant.id, userId: user.id, role: "owner" as const };
+    const pending = async () => (await listPendingSuggestions(owner, { refresh: false })).filter((x: any) => x.kind === CUTTING_PLAN_KIND);
+    await refreshCuttingSuggestion(owner);
+    const [first] = await pending();
+    assert(first, "a cutting suggestion is filed for the waiting jobs");
+    assert.deepEqual([...first.payload.workOrderIds].sort(), [...jobIds].sort());
+    assert.equal(first.source, "system");
+    assert.equal(first.uncertain, false);
+    assert.doesNotMatch(JSON.stringify(first), /unitCost|customer_name|"cost"/i);
+    assert.equal((await listPendingSuggestions({ ...owner, role: "worker" } as any, { refresh: false })).length, 0);
+    await refreshCuttingSuggestion(owner);
+    assert.equal((await pending()).length, 1, "the same situation is filed once");
+    const approved = await decideSuggestion(owner, first.id, { action: "approve", expectedVersion: first.version });
+    assert.equal(approved.status, "approved");
+    const [plan] = await db`SELECT status,work_order_ids FROM cutting_plans WHERE id=${(approved as any).result.planId}`;
+    assert.equal(plan.status, "approved");
+    assert.equal((await db`SELECT count(*)::int AS n FROM stock_lots WHERE id=ANY(${first.payload.lotIds}::uuid[]) AND status='reserved'`)[0].n, first.payload.lotIds.length);
+    await refreshCuttingSuggestion(owner);
+    assert.equal((await pending()).length, 0, "planned jobs leave the pool");
+    const [saved] = await db`SELECT version FROM cutting_plans WHERE id=${(approved as any).result.planId}`;
+    await command("cut.cancel", { id: (approved as any).result.planId, version: saved.version });
+    await refreshCuttingSuggestion(owner);
+    const [again] = await pending();
+    assert(again && again.id !== first.id, "a cancelled plan's jobs are suggested again");
+    // The card said "confirmed values"; if the values become unconfirmed meanwhile, approval is refused.
+    await db`UPDATE manufacturing_preferences SET cutting_confirmed=false WHERE tenant_id=${tenant.id}`;
+    await assert.rejects(decideSuggestion(owner, again.id, { action: "approve", expectedVersion: again.version }), (e: any) => e.status === 409);
+    await db`UPDATE manufacturing_preferences SET cutting_confirmed=true WHERE tenant_id=${tenant.id}`;
+    // A different situation (other values) is filed; if stock changes before approval it is refused.
+    await command("preferences.save", { kerfMm: 4, trimStartMm: 5, trimEndMm: 5, minimumRemnantMm: 500, cuttingConfirmed: true, emailEnabled: false, whatsappEnabled: false });
+    await refreshCuttingSuggestion(owner);
+    const [second] = await pending();
+    assert(second && second.id !== again.id);
+    assert.equal((await db`SELECT status FROM ai_suggestions WHERE id=${again.id}`)[0].status, "expired");
+    const [taken] = second.payload.lotIds;
+    await db`UPDATE stock_lots SET status='reserved' WHERE id=${taken}`;
+    await assert.rejects(decideSuggestion(owner, second.id, { action: "approve", expectedVersion: second.version }), (e: any) => e.status === 409);
+    await db`UPDATE stock_lots SET status='available' WHERE id=${taken}`;
+    assert.equal((await db`SELECT status FROM ai_suggestions WHERE id=${second.id}`)[0].status, "pending");
+    assert.equal((await db`SELECT count(*)::int AS n FROM cutting_plans WHERE idempotency_key=${"ai-suggestion:" + second.id}`)[0].n, 0, "the refused approval left no plan behind");
+    await decideSuggestion(owner, second.id, { action: "reject", expectedVersion: second.version, note: "Elle planlanacak" });
+    await refreshCuttingSuggestion(owner);
+    assert.equal((await pending()).length, 0, "a rejected situation is not filed again");
+    await command("preferences.save", {
+      kerfMm: Number(savedPreferences.kerf_mm), trimStartMm: Number(savedPreferences.trim_start_mm), trimEndMm: Number(savedPreferences.trim_end_mm),
+      minimumRemnantMm: Number(savedPreferences.minimum_remnant_mm), cuttingConfirmed: true, emailEnabled: false, whatsappEnabled: false,
+    });
+    const audit = await db`SELECT action FROM activity_logs WHERE tenant_id=${tenant.id} AND entity_type='ai_suggestion' ORDER BY created_at`;
+    assert.deepEqual(audit.map((r: any) => r.action), ["created", "approved", "created", "expired", "created", "rejected"]);
+    const events = await db`SELECT event_type,payload FROM production_events WHERE tenant_id=${tenant.id} AND payload->>'suggestionId'=${first.id} ORDER BY id`;
+    assert.deepEqual(events.map((e: any) => e.event_type), ["cut.preview", "cut.approve"]);
+    console.log("PASS · cutting suggestion: engine plan filed once, owner-only, approval saves and reserves on the timeline, changed stock or value source refused with full rollback, cancelled plans suggested again, rejected situations not refiled, expiry audited");
+  }
   const preview1 = await command("cut.preview", { workOrderIds: jobIds }),
     preview2 = await command("cut.preview", { workOrderIds: jobIds });
   assert.equal(preview1.result.unfulfilled.length, 0);
