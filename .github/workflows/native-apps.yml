@@ -46,6 +46,7 @@ jobs:
       - name: Test native Android UI and encrypted persistence
         uses: reactivecircus/android-emulator-runner@v2
         with:
+          working-directory: apps/native-android
           api-level: 35
           arch: x86_64
           target: google_apis
@@ -55,7 +56,6 @@ jobs:
           emulator-boot-timeout: 300
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
           script: |
-            cd apps/native-android
             ./gradlew :app:connectedDebugAndroidTest
             adb pull /sdcard/Android/data/com.renkflow.field/files/screenshots app/build/screenshots
       - uses: actions/upload-artifact@v4
