@@ -14,6 +14,7 @@ import { CountUp } from '@/components/motion';
 import { TearCalendar } from '@/components/spells/TearCalendar';
 import { OccasionBadge } from '@/components/spells/OccasionBadge';
 import { CopyChip } from '@/components/spells/CopyChip';
+import { SuggestionsPanel } from '@/components/features/ai/SuggestionsPanel';
 
 type Summary = { orders: { active_count: string; pending_count: string; ready_for_shipment: string; today_deliveries: string }; production: { in_progress: string; open: string; blocked: string }; criticalStock: { critical_count: string } | null; overdue: { overdue_count: string } };
 const pipeline = [
@@ -92,6 +93,7 @@ export default function DashboardPage() {
       <p className={cn('rf-metric-value', metric.warning && 'text-amber-700 dark:text-amber-400')}>{isLoading ? <span className="block h-9 w-12 animate-pulse rounded-md bg-muted" /> : typeof metric.value === 'number' ? <CountUp value={metric.value} /> : metric.value}</p>
       <p className="mt-3 flex items-center justify-between gap-2 text-[10px] text-muted-foreground"><span>{metric.description}</span><ArrowUpRight size={13} className="shrink-0 opacity-40 group-hover:opacity-100" /></p>
     </Link>)}</div>
+    <SuggestionsPanel />
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">
       <div className="space-y-5">
         <section className="rf-panel overflow-hidden">

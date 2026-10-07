@@ -102,7 +102,7 @@ export async function drainInbound(limit = 3) {
           };
           documents.push(await storeProductionFile(actor, f));
           extractions.push(
-            (await ai.analyzeDocument(f.base64, f.mime)).extractedData,
+            (await ai.analyzeDocument(f.base64, f.mime, undefined, { tenantId: actor.tenantId, feature: 'inbound.document' })).extractedData,
           );
         }
       } else {
@@ -137,11 +137,11 @@ export async function drainInbound(limit = 3) {
           };
           documents.push(await storeProductionFile(actor, f));
           extractions.push(
-            (await ai.analyzeDocument(f.base64, f.mime)).extractedData,
+            (await ai.analyzeDocument(f.base64, f.mime, undefined, { tenantId: actor.tenantId, feature: 'inbound.document' })).extractedData,
           );
         }
       }
-      const analysis = await ai.analyzeText(text, extractions);
+      const analysis = await ai.analyzeText(text, extractions, { tenantId: actor.tenantId, feature: 'inbound.text' });
       const draft = await sql.begin(async (tx: any) => {
         const [d] =
           await tx`INSERT INTO intake_drafts(tenant_id,source,source_id,extracted_data,documents,warnings,created_by,source_text)VALUES(${row.tenant_id},${row.provider === "resend" ? "email" : "whatsapp"},${row.provider_message_id},${JSON.stringify(analysis)}::text::jsonb,${JSON.stringify(documents)}::text::jsonb,${JSON.stringify(analysis.warnings)}::text::jsonb,${member.user_id},${text.slice(0, 60000)})ON CONFLICT(tenant_id,source,source_id)DO UPDATE SET source_id=EXCLUDED.source_id RETURNING *`;

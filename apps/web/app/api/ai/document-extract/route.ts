@@ -45,7 +45,8 @@ Eğer belge sipariş veya irsaliye değilse, genel içeriğini özetle ve bulabi
     const result = await aiService.analyzeDocument(
       documentBase64,
       mimeType,
-      prompt || defaultPrompt
+      prompt || defaultPrompt,
+      { tenantId: session.user.tenantId ?? null, userId: session.user.id ?? null, feature: 'document.extract' }
     );
 
     return NextResponse.json({
