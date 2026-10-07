@@ -21,6 +21,18 @@ import { PlanningResources } from "./PlanningResources";
 import { RecipeEditor } from "./RecipeEditor";
 import { fileData } from "@/lib/features/manufacturing/offline";
 import { AwningDialog } from "@/components/features/awning/AwningConfigurator";
+import { cuttingEstimateNotice } from "@/lib/features/manufacturing/cutting-defaults";
+
+/** Shown wherever a plan made with unconfirmed values appears; it is never presented as exact. */
+function EstimateNotice({ text, onOpenSettings }: { text: string | null; onOpenSettings?: () => void }) {
+  if (!text) return null;
+  return (
+    <p role="note" className="rounded border border-amber-400 bg-amber-50 p-3 text-xs font-medium text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
+      {text}
+      {onOpenSettings && <> <button type="button" className="underline" onClick={onOpenSettings}>Kesim ayarlarını aç</button></>}
+    </p>
+  );
+}
 const tabs = [
   ["overview", "Üretim merkezi", Layers],
   ["recipes", "Reçeteler", Box],
@@ -117,6 +129,16 @@ export default function ProductionWorkspace() {
     if (q.has("lot")) setTab("stock");
     qrLoaded.current = true;
   }, [data]);
+  useEffect(() => {
+    if (tab === "stock" && data && window.location.hash === "#cutting-settings")
+      document.getElementById("cutting-settings")?.scrollIntoView({ block: "start" });
+  }, [tab, data]);
+  function openCuttingSettings() {
+    const query = new URLSearchParams(window.location.search);
+    query.set("tab", "stock");
+    window.history.replaceState(null, "", "/production?" + query.toString() + "#cutting-settings");
+    setTab("stock");
+  }
   useEffect(() => {
     if(tab!=="cutting" || !data)return;
     const id=new URLSearchParams(window.location.search).get("cut");
@@ -493,11 +515,17 @@ export default function ProductionWorkspace() {
           <section className="rf-panel">
             <h2 className="rf-section-title mb-4">Ortak kesim havuzu</h2>
             <p className="mb-4 text-xs leading-6 text-muted-foreground">
-              Aynı profil ve renkteki işler birlikte hesaplanır. Fiziksel çubuk
-              ve artık stoğu kullanılır; onaydan önce stok ayrılmaz. Sonuç
-              optimum garantisi olmayan iki deterministik yerleşimin
-              karşılaştırmasıdır.
+              Seçilen siparişlerin aynı profil ve renkteki parçaları birlikte
+              hesaplanır. Fiziksel çubuk ve artık stoğu kullanılır; farklı
+              boylar (ör. 6 m ve 7 m) arasından parçaların en iyi doldurduğu
+              boy seçilir. Dört deterministik yerleşim karşılaştırılır: en az
+              yeni çubuk, sonra en az yeni malzeme, sonra en az fire. Optimum
+              garantisi yoktur. Onaydan önce stok ayrılmaz; onayda çubuklar
+              ayrılır, kalıcı düşüm ölçülen kesimle yapılır.
             </p>
+            <div className="mb-4">
+              <EstimateNotice text={cuttingEstimateNotice(data.cutting?.source)} onOpenSettings={manager ? openCuttingSettings : undefined} />
+            </div>
             <div className="grid gap-2 md:grid-cols-2">
               {available.map((j: any) => (
                 <label
@@ -600,11 +628,37 @@ export default function ProductionWorkspace() {
                 </div>
                 <Badge value={p.status} />
               </div>
+              <EstimateNotice text={cuttingEstimateNotice(p.result.parameterSource)} onOpenSettings={manager && p.status === "draft" ? openCuttingSettings : undefined} />
+              <p className="text-[11px] text-muted-foreground">
+                Kullanılan değerler: testere payı {p.parameters.kerfMm} mm ·
+                tıraş {p.parameters.trimStartMm}/{p.parameters.trimEndMm} mm ·
+                en kısa artık {p.parameters.minimumRemnantMm} mm
+                {p.result.alternatives && <> · {p.result.alternatives.length} yerleşim karşılaştırıldı</>}
+              </p>
               {p.result.unfulfilled.length > 0 && (
-                <p className="text-xs text-destructive">
-                  {p.result.unfulfilled.length} parça için uygun boy veya renkte
-                  profil eksik.
-                </p>
+                <div className="text-xs text-destructive">
+                  <p>
+                    {p.result.unfulfilled.length} parça için uygun boy veya
+                    renkte profil eksik; plan onaylanamaz.
+                  </p>
+                  {p.result.purchase?.lines?.length > 0 && (
+                    <ul className="mt-1 list-disc pl-5 text-foreground">
+                      {p.result.purchase.lines.map((l: any) => (
+                        <li key={l.itemId + l.color}>
+                          Satın alma ihtiyacı:{" "}
+                          {items.find((x: any) => x.id === l.itemId)?.name} ·{" "}
+                          {l.color} · {l.bars} × {l.lengthMm} mm çubuk
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {p.result.purchase?.tooLong?.length > 0 && (
+                    <p className="mt-1">
+                      {p.result.purchase.tooLong.length} parça standart boydan
+                      uzun; tek çubuktan kesilemez.
+                    </p>
+                  )}
+                </div>
               )}
               {p.result.bars.map((bar: any, i: number) => (
                 <div key={bar.source.id}>
@@ -674,10 +728,16 @@ export default function ProductionWorkspace() {
                     disabled={busy || p.result.unfulfilled.length > 0}
                     className="rf-primary-button"
                     onClick={() =>
-                      run("cut.approve", { id: p.id, version: p.version })
+                      run("cut.approve", {
+                        id: p.id,
+                        version: p.version,
+                        acceptEstimate: Boolean(cuttingEstimateNotice(p.result.parameterSource)),
+                      })
                     }
                   >
-                    Onayla ve profilleri ayır
+                    {cuttingEstimateNotice(p.result.parameterSource)
+                      ? "Tahmini değerlerle onayla ve profilleri ayır"
+                      : "Onayla ve profilleri ayır"}
                   </button>
                 )}
                 {manager && p.status === "approved" && (
@@ -709,6 +769,14 @@ export default function ProductionWorkspace() {
                   >
                     Planı iptal et
                   </button>
+                )}
+                {p.status !== "cancelled" && (
+                  <Link
+                    className="rf-input text-xs"
+                    href={`/production/cut-plans/${p.id}/print`}
+                  >
+                    Usta kesim föyü (PDF)
+                  </Link>
                 )}
                 <Link
                   className="rf-input text-xs"
@@ -963,6 +1031,7 @@ export default function ProductionWorkspace() {
                   </button>
                 </form>
                 <form
+                  id="cutting-settings"
                   className="rf-panel space-y-4"
                   onSubmit={async (e) => {
                     e.preventDefault();
@@ -973,8 +1042,11 @@ export default function ProductionWorkspace() {
                       "trimStartMm",
                       "trimEndMm",
                       "minimumRemnantMm",
-                    ].forEach((k) => (d[k] = +d[k]));
-                    d.cuttingConfirmed = true;
+                      "standardLengthMm",
+                    ].forEach((k) => {
+                      if (k in d) d[k] = +d[k];
+                    });
+                    d.cuttingConfirmed = f.has("cuttingConfirmed");
                     d.emailEnabled = f.has("emailEnabled");
                     d.whatsappEnabled = f.has("whatsappEnabled");
                     await run("preferences.save", d);
@@ -993,19 +1065,40 @@ export default function ProductionWorkspace() {
                         "En kısa kullanılabilir artık · mm",
                         "minimum_remnant_mm",
                       ],
-                    ].map(([name, label, key]) => (
+                      ...(data.cutting?.standardLengthEditable
+                        ? [["standardLengthMm", "Standart çubuk boyu · mm", "standard_length_mm"]]
+                        : []),
+                    ].map(([name, label]) => (
                       <Field
                         key={name}
                         name={name}
                         label={label}
                         type="number"
-                        value={data.preferences?.[key] ?? ""}
+                        value={data.cutting?.parameters?.[name] ?? ""}
                       />
                     ))}
                   </div>
+                  <EstimateNotice text={cuttingEstimateNotice(data.cutting?.source)} />
+                  <details className="text-xs text-muted-foreground">
+                    <summary className="cursor-pointer">Varsayılan değerler</summary>
+                    <p className="mt-2">
+                      Atölye değerleri girilip doğrulanana kadar bunlar
+                      kullanılır: testere payı {data.cutting?.defaults?.kerfMm} mm ·
+                      baş/son tıraş {data.cutting?.defaults?.trimStartMm}/
+                      {data.cutting?.defaults?.trimEndMm} mm · en kısa artık{" "}
+                      {data.cutting?.defaults?.minimumRemnantMm} mm · standart
+                      boy {data.cutting?.defaults?.standardLengthMm} mm. Ölçüme
+                      dayanmazlar; bu değerlerle yapılan planlar tahmini diye
+                      işaretlenir. Profil kartındaki standart boy, firmanın
+                      standart boyundan önce gelir.
+                    </p>
+                  </details>
                   <label className="flex gap-2 text-xs">
-                    <input required type="checkbox" /> Değerleri gerçek ekipman
-                    ve malzemeyle doğruladım.
+                    <input name="cuttingConfirmed" type="checkbox" />{" "}
+                    Bu kesim değerlerini gerçek ekipman ve malzemeyle
+                    doğruladım. (İşaretlenmezse değerler kaydedilir; daha önce
+                    doğrulanmış değerler değişmediyse doğrulama korunur, aksi
+                    hâlde planlar tahmini diye işaretlenir.)
                   </label>
                   <label className="flex gap-2 text-xs">
                     <input
@@ -1030,7 +1123,7 @@ export default function ProductionWorkspace() {
                     value={data.preferences?.whatsapp_template || ""}
                   />
                   <button disabled={busy} className="rf-primary-button">
-                    Doğrulanan ayarları kaydet
+                    Ayarları kaydet
                   </button>
                 </form>
                 <form

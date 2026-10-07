@@ -27,7 +27,8 @@ async function main() {
   await db.unsafe(readFileSync("lib/db/migrations/025_production_resources.sql", "utf8"));
   await db.unsafe(readFileSync("lib/db/migrations/026_production_analytics.sql", "utf8"));
   await db.unsafe(readFileSync("lib/db/migrations/027_quality_traceability.sql", "utf8"));
-  const { productionCommand, productionOverview, publicTracking } =
+  await db.unsafe(readFileSync("lib/db/migrations/030_cutting_defaults.sql", "utf8"));
+  const { productionCommand, productionOverview, publicTracking, cutPlanSheet } =
     await import("../lib/features/manufacturing/platform.service");
   const { PostgresQuotationService } = await import(
     "../lib/features/quotations/postgres.service"
@@ -280,10 +281,41 @@ async function main() {
     });
   const job1 = await makeJob(orderItems[0].id),
     job2 = await makeJob(orderItems[1].id);
-  const jobIds = [job1.id, job2.id],
-    preview1 = await command("cut.preview", { workOrderIds: jobIds }),
+  const jobIds = [job1.id, job2.id];
+  // Without the workshop's own values the plan is made with the defaults and says it is an estimate.
+  const savedPreferences = (await db`SELECT * FROM manufacturing_preferences WHERE tenant_id=${tenant.id}`)[0];
+  await db`UPDATE manufacturing_preferences SET kerf_mm=3,trim_start_mm=0,trim_end_mm=0,minimum_remnant_mm=500,standard_length_mm=6000,cutting_confirmed=false WHERE tenant_id=${tenant.id}`;
+  const estimated = await command("cut.preview", { workOrderIds: jobIds });
+  assert.equal(estimated.result.parameterSource, "default");
+  assert.deepEqual(estimated.parameters, { kerfMm: 3, trimStartMm: 0, trimEndMm: 0, minimumRemnantMm: 500, standardLengthMm: 6000 });
+  assert.match((await cutPlanSheet(actor, estimated.id)).notice, /Varsayılan değerler kullanıldı, atölyenize göre ayarlayın/);
+  // Approving an estimate must be said explicitly.
+  await assert.rejects(command("cut.approve", { id: estimated.id, version: estimated.version }), (e: any) => e.status === 400);
+  await command("cut.cancel", { id: estimated.id, version: estimated.version });
+  // Values entered but not confirmed are kept, and plans still say they are estimates.
+  await command("preferences.save", { kerfMm: 4, trimStartMm: 10, trimEndMm: 10, minimumRemnantMm: 600, standardLengthMm: 6500, cuttingConfirmed: false, emailEnabled: false, whatsappEnabled: false });
+  const unconfirmed = await command("cut.preview", { workOrderIds: jobIds });
+  assert.equal(unconfirmed.result.parameterSource, "unconfirmed");
+  assert.equal(unconfirmed.parameters.standardLengthMm, 6500);
+  await command("cut.cancel", { id: unconfirmed.id, version: unconfirmed.version });
+  await command("preferences.save", {
+    kerfMm: Number(savedPreferences.kerf_mm), trimStartMm: Number(savedPreferences.trim_start_mm), trimEndMm: Number(savedPreferences.trim_end_mm),
+    minimumRemnantMm: Number(savedPreferences.minimum_remnant_mm), cuttingConfirmed: true, emailEnabled: false, whatsappEnabled: false,
+  });
+  // Saving again without the tick keeps the confirmation while the cutting values are unchanged,
+  // and leaving the standard length out keeps the stored one.
+  await command("preferences.save", {
+    kerfMm: Number(savedPreferences.kerf_mm), trimStartMm: Number(savedPreferences.trim_start_mm), trimEndMm: Number(savedPreferences.trim_end_mm),
+    minimumRemnantMm: Number(savedPreferences.minimum_remnant_mm), cuttingConfirmed: false, emailEnabled: false, whatsappEnabled: false,
+  });
+  const [kept] = await db`SELECT cutting_confirmed,standard_length_mm FROM manufacturing_preferences WHERE tenant_id=${tenant.id}`;
+  assert.equal(kept.cutting_confirmed, true);
+  assert.equal(Number(kept.standard_length_mm), 6500);
+  const preview1 = await command("cut.preview", { workOrderIds: jobIds }),
     preview2 = await command("cut.preview", { workOrderIds: jobIds });
   assert.equal(preview1.result.unfulfilled.length, 0);
+  assert.equal(preview1.result.parameterSource, "confirmed");
+  assert.equal(preview1.result.alternatives.length, 4);
   const approves = await Promise.allSettled([
     command("cut.approve", { id: preview1.id, version: preview1.version }),
     command("cut.approve", { id: preview2.id, version: preview2.version }),
@@ -314,6 +346,13 @@ async function main() {
     JSON.parse(JSON.stringify(cut)),
   );
   assert.equal(cut.status, "completed");
+  // The operator's sheet: bars, pieces and jobs, without costs or customer names.
+  const sheet = await cutPlanSheet(actor, cut.id);
+  assert.equal(sheet.notice, null);
+  assert.equal(sheet.bars.length, cut.result.bars.length);
+  assert(sheet.bars.every((b: any) => b.pieces.every((p: any) => p.job?.orderNumber)));
+  assert.doesNotMatch(JSON.stringify(sheet), /unitCost|customer|"cost"/i);
+  await assert.rejects(cutPlanSheet({ ...actor, role: "worker" } as any, cut.id), (e: any) => e.status === 403);
   assert(cut.actual.bars.some((b: any) => b.remnantId));
   const stockBefore = (
     await db`SELECT on_hand_qty FROM stock_balances WHERE tenant_id=${tenant.id} AND item_id=${profile.id} AND warehouse_id=${warehouses.WIP.id}`
