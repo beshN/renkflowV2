@@ -1,12 +1,16 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Building2, Phone, Mail, TrendingUp, ShoppingBag } from 'lucide-react';
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
 import { RFListView, type RFColumn, type RFFilter } from '@/components/shared/views/RFListView';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/context/AuthContext';
+import { useToast } from '@/lib/context/ToastContext';
+import { hasPermission } from '@/lib/features/auth/permissions';
+import { NewCustomerDialog } from '@/components/features/customers/NewCustomerDialog';
 
 // ============================================
 // Types
@@ -31,6 +35,10 @@ interface Customer {
 
 export default function CRMPage() {
   const router = useRouter();
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const canCreate = Boolean(user && hasPermission(user.role, 'customers.create'));
+  const [loadError, setLoadError] = useState('');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,8 +48,12 @@ export default function CRMPage() {
 
   const PAGE_SIZE = 25;
 
+  // Latest request wins: a slow earlier search must not overwrite (or fail over) a newer one.
+  const latestLoad = useRef(0);
   const loadCustomers = useCallback(async (p: number, search: string) => {
+    const requestId = ++latestLoad.current;
     setIsLoading(true);
+    setLoadError('');
     try {
       const params = new URLSearchParams({
         page: String(p),
@@ -51,12 +63,15 @@ export default function CRMPage() {
       const res = await fetch(`/api/v1/customers?${params}`);
       if (!res.ok) throw new Error('Müşteriler yüklenemedi');
       const data = await res.json();
+      if (requestId !== latestLoad.current) return;
       setCustomers(data.customers || []);
       setTotal(data.total || 0);
     } catch (err) {
+      if (requestId !== latestLoad.current) return;
       console.error(err);
+      setLoadError('Müşteri listesi yüklenemedi.');
     } finally {
-      setIsLoading(false);
+      if (requestId === latestLoad.current) setIsLoading(false);
     }
   }, []);
 
@@ -147,7 +162,7 @@ export default function CRMPage() {
         <div className="grid gap-4 sm:grid-cols-3 mb-6">
           {[
             { label: 'Toplam Müşteri', value: total, icon: Building2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
-            { label: 'Aktif Siparişli', value: customers.filter(c => parseInt(c.order_count) > 0).length, icon: ShoppingBag, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' },
+            { label: 'Bu Sayfada Siparişli', value: customers.filter(c => parseInt(c.order_count) > 0).length, icon: ShoppingBag, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' },
             { label: 'Bu Sayfada', value: customers.length, icon: TrendingUp, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20' },
           ].map(({ label, value, icon: Icon, color }) => (
             <div key={label} className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-4 flex items-center gap-4 shadow-sm">
@@ -169,24 +184,43 @@ export default function CRMPage() {
             data={customers}
             columns={columns}
             isLoading={isLoading}
+            error={loadError || undefined}
+            onRetry={() => loadCustomers(page, searchQuery)}
             totalCount={total}
             page={page}
             pageSize={PAGE_SIZE}
             onPageChange={setPage}
             onSearch={(q) => { setSearchQuery(q); setPage(1); }}
             onRowClick={(row) => router.push(`/crm/${row.id}`)}
-            primaryAction={{
+            primaryAction={canCreate ? {
               label: 'Yeni Müşteri',
               icon: <Plus size={16} />,
               onClick: () => setShowNewCustomer(true),
-            }}
+            } : undefined}
             emptyState={{
               title: 'Henüz müşteri yok',
-              description: 'İlk müşterinizi ekleyerek siparişleri takip etmeye başlayın.',
-              action: { label: 'Müşteri Ekle', onClick: () => setShowNewCustomer(true) },
+              description: canCreate ? 'İlk müşterinizi ekleyin; siparişler de müşteri kartına bağlanır.' : 'Müşteri kartları siparişlerle birlikte oluşur.',
+              action: canCreate && !loadError ? { label: 'Müşteri Ekle', onClick: () => setShowNewCustomer(true) } : undefined,
             }}
           />
         </div>
+        {canCreate && (
+          <NewCustomerDialog
+            open={showNewCustomer}
+            onClose={() => setShowNewCustomer(false)}
+            onCreated={(customer) => {
+              setShowNewCustomer(false);
+              if (customer) {
+                // The list is sorted by revenue and may be filtered: open the new card instead.
+                showToast(`${customer.full_name} kaydedildi.`, 'success');
+                router.push(`/crm/${customer.id}`);
+              } else {
+                showToast('Müşteri kaydedildi.', 'success');
+                void loadCustomers(page, searchQuery);
+              }
+            }}
+          />
+        )}
       </main>
     </div>
   );
