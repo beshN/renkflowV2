@@ -7,29 +7,7 @@ import {
   WorkOrderApiError,
   type WorkOrderActor,
 } from "../work-orders/security";
-const transitions: Record<string, string[]> = {
-  new: ["pending_approval", "approved", "cancelled"],
-  pending: ["pending_approval", "approved", "cancelled"],
-  pending_approval: ["approved", "cancelled", "on_hold"],
-  approved: ["preparing_materials", "cancelled", "on_hold"],
-  preparing_materials: ["ready_for_production", "on_hold"],
-  ready_for_production: ["in_production", "on_hold"],
-  in_production: ["quality_check", "ready_for_shipment", "on_hold"],
-  quality_check: ["ready_for_shipment", "in_production"],
-  ready: ["shipped", "delivered"],
-  ready_for_shipment: ["shipped", "delivered"],
-  shipped: ["completed", "delivered"],
-  delivered: ["completed"],
-  on_hold: [
-    "approved",
-    "preparing_materials",
-    "ready_for_production",
-    "in_production",
-    "cancelled",
-  ],
-  completed: [],
-  cancelled: [],
-};
+import { ORDER_TRANSITIONS as transitions } from "./transition-rules";
 export const TransitionCommandSchema = z
   .object({
     commandId: z.uuid(),

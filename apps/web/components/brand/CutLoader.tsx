@@ -11,7 +11,7 @@ type CutLoaderProps = {
  * Loading indicator: a saw line sweeps a profile bar and the pieces part, then close
  * again. Pure CSS so it works in server `loading.tsx` files; static under reduced motion.
  */
-export function CutLoader({ variant = 'area', label = 'Yükleniyor', className }: CutLoaderProps) {
+export function CutLoader({ variant = 'area', label = 'Sayfa açılıyor', className }: CutLoaderProps) {
   const bar = (
     <div className={cn('flex flex-col items-center gap-4', variant === 'inline' && 'gap-2')} role="status" aria-live="polite">
       <div className={variant === 'inline' ? 'w-24' : 'w-44'}>
@@ -20,7 +20,7 @@ export function CutLoader({ variant = 'area', label = 'Yükleniyor', className }
           <span className="rf-cutload-saw" />
         </div>
       </div>
-      <p className="text-[13px] text-muted-foreground">{label}</p>
+      <p className="sr-only">{label}</p>
     </div>
   );
   if (variant === 'inline') return <div className={cn('flex justify-center py-4', className)}>{bar}</div>;

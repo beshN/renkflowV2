@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Keyboard, ScanLine, X } from "lucide-react";
 import type { IScannerControls } from "@zxing/browser";
+import { HintTip } from "@/components/kit";
 export default function BarcodeScanner({
   onScan,
   busy = false,
@@ -93,15 +94,10 @@ export default function BarcodeScanner({
   }, [camera]);
   return (
     <section className="rf-scanner-panel" aria-label="QR ve barkod okuyucu">
-      <div className="mb-5 flex items-start justify-between gap-3">
-        <div>
-          <span className="rf-eyebrow">SAHA TERMİNALİ</span>
-          <h2 className="mt-2 text-xl font-semibold">Okut. Doğrula. İşle.</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            QR, Code 128 veya malzeme kodu
-          </p>
-        </div>
-        <ScanLine size={28} className="text-primary" />
+      <div className="mb-4 flex items-center gap-2">
+        <ScanLine size={24} aria-hidden className="text-primary" />
+        <h2 className="text-lg font-semibold">Tara</h2>
+        <HintTip text="QR, Code 128 veya malzeme kodu. Kamera yoksa kodu elle yazın. USB/Bluetooth okuyucuda Enter sonlandırıcısını etkinleştirin. Okutma stok miktarını değiştirmez." />
       </div>
       <form
         className="flex flex-wrap gap-2"
@@ -182,10 +178,6 @@ export default function BarcodeScanner({
           </p>
         </div>
       )}
-      <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-        USB/Bluetooth okuyucuda Enter sonlandırıcısını etkinleştirin. Okutma
-        stok miktarını değiştirmez.
-      </p>
     </section>
   );
 }

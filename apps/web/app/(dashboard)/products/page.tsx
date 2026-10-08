@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { requestJson } from '@/lib/shared/network';
 import { readTextFile } from '@/lib/shared/read-text-file';
+import { SkeletonRows } from '@/components/kit';
 
 type Recipe = { id: string; code: string; name: string; version: number; status: string; rule_count: number; example_count: number; created_at: string };
 type Family = { key: string; label: string; profileCodes: string[]; recipes: Recipe[] };
@@ -48,7 +49,7 @@ export default function ProductsPage() {
     }
   };
 
-  if (!data) return <main className="rf-page"><p role={error ? 'alert' : 'status'}>{error || 'Yükleniyor…'}</p></main>;
+  if (!data) return <main className="rf-page">{error ? <p role="alert">{error}</p> : <SkeletonRows rows={6} />}</main>;
   return (
     <main className="rf-page space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">

@@ -6,6 +6,7 @@ import { requestJson } from '@/lib/shared/network';
 import { ColorPicker } from '@/components/colors/ColorPicker';
 import { ColorChip } from '@/components/colors/ColorSwatch';
 import { colorKey } from '@/lib/features/colors/color-spec';
+import { SkeletonRows } from '@/components/kit';
 
 type Catalog = { available: boolean; colors: string[]; starter: string[] };
 
@@ -47,7 +48,7 @@ export function ColorCatalogSettings() {
     change(next);
   };
 
-  if (!data) return <p role={error ? 'alert' : 'status'} className="text-sm">{error || 'Yükleniyor…'}</p>;
+  if (!data) return error ? <p role="alert" className="text-sm">{error}</p> : <SkeletonRows rows={3} />;
   return (
     <section className="space-y-3" aria-labelledby="color-catalog-title">
       <h2 id="color-catalog-title" className="text-lg font-semibold">Sık kullanılan renkler</h2>

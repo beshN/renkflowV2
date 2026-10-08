@@ -5,6 +5,8 @@ import { requestJson } from '@/lib/shared/network';
 import { readNumber } from '@/lib/features/products/csv';
 import { formatQty } from '@/lib/features/inventory/vocabulary';
 import { ColorPicker } from '@/components/colors/ColorPicker';
+import { ProductDrawing } from '@/components/drawing/ProductDrawing';
+import { SkeletonRows } from '@/components/kit';
 import type { ConfigurationChoice, ProductConfiguration } from '@/lib/features/products/configuration';
 import { formatCurrency } from '@/lib/utils';
 
@@ -112,7 +114,7 @@ export function ProductConfigurator({ family, currency, initial, onApply, onClos
     }
   };
 
-  if (!options) return <div className="rounded-md border border-border p-3 text-xs" role={error ? 'alert' : 'status'}>{error || 'Yükleniyor…'}</div>;
+  if (!options) return error ? <div className="rounded-md border border-border p-3 text-xs" role="alert">{error}</div> : <SkeletonRows rows={3} className="rounded-md border border-border p-3" />;
   if (!options.recipes.length)
     return (
       <div className="rounded-md border border-amber-300 p-3 text-xs text-amber-800 dark:text-amber-200" role="alert">
@@ -147,6 +149,10 @@ export function ProductConfigurator({ family, currency, initial, onApply, onClos
             </label>
           ),
         )}
+      </div>
+      {/* Redraws as the measures are typed; the frame takes the chosen colour. */}
+      <div className="rounded-md border border-border bg-background p-2">
+        <ProductDrawing family={family} widthMm={readNumber(dims.widthMm ?? '')} projectionMm={readNumber(dims.projectionMm ?? '')} heightMm={readNumber(dims.mountingHeightMm ?? '')} color={color} className="h-auto w-full max-h-72" />
       </div>
       <ColorPicker
         value={color}

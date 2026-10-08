@@ -19,6 +19,7 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
       { id: 'dashboard', label: 'Genel bakış', href: '/dashboard' },
       { id: 'orders', label: 'Siparişler', href: '/orders', requiresPermission: 'orders.view' },
       { id: 'new-order', label: 'Yeni sipariş', href: '/new-order', requiresPermission: 'orders.create' },
+      { id: 'calendar', allowedRoles: ROUTE_ROLES['/calendar'], label: 'Takvim', href: '/calendar', requiresPermission: 'orders.view' },
       { id: 'production', allowedRoles: ROUTE_ROLES['/production'], label: 'Üretim merkezi', href: '/production', requiresPermission: 'orders.view' },
       { id: 'factory', allowedRoles: ROUTE_ROLES['/factory'], label: 'Usta ekranı', href: '/factory', requiresPermission: 'orders.view' },
       { id: 'work-orders', label: 'İş emirleri', href: '/work-orders', requiresPermission: 'orders.view' },

@@ -132,7 +132,7 @@ export default function FinanceInvoicePage() {
                 <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950">
                   {isLoading ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-slate-500">Fatura kayıtları yükleniyor...</td>
+                      <td colSpan={6} className="px-4 py-8 text-center text-slate-500"><span role="status" className="inline-block h-4 w-40 animate-pulse rounded bg-muted motion-reduce:animate-none"><span className="sr-only">Fatura kayıtları alınıyor</span></span></td>
                     </tr>
                   ) : filtered.length === 0 ? (
                     <tr>

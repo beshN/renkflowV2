@@ -4,8 +4,10 @@ import { unitLabel } from '@/lib/features/inventory/vocabulary';
 import Link from 'next/link';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Package, AlertTriangle, TrendingDown, Boxes, ArrowUpDown } from 'lucide-react';
-import { AppleNavbar } from '@/components/layout/AppleNavbar';
+import { AlertTriangle, Boxes, ClipboardList, FileUp, Plus, ScanLine } from 'lucide-react';
+import { PageHeader, StatusChip } from '@/components/kit';
+import { StockHeatmap } from '@/components/inventory/StockHeatmap';
+import { MovementDrawer } from '@/components/inventory/MovementDrawer';
 import { RFListView, type RFColumn, type RFFilter } from '@/components/shared/views/RFListView';
 import { cn } from '@/lib/utils';
 import { StockThresholdPanel } from '@/components/inventory/StockThresholdPanel';
@@ -45,24 +47,24 @@ const ITEM_TYPE_LABELS: Record<string, { label: string; color: string }> = {
 // Stock Level Bar
 // ============================================
 
+/**
+ * Level against the minimum: the bar fills with what can be used, the reserved part follows, and a
+ * line marks the minimum. Below it the bar turns red and a "Kritik" chip with an icon appears.
+ */
 function StockBar({ onHand, reserved, min }: { onHand: number; reserved: number; min: number }) {
   const available = onHand - reserved;
   const max = Math.max(onHand, min * 2, 1);
-  const availablePercent = Math.max(0, available / max) * 100;
-  const reservedPercent = (reserved / max) * 100;
   const isCritical = min > 0 && available <= min;
-
   return (
-    <div className="w-24">
-      <div className="h-1.5 w-full rounded-full bg-neutral-200 dark:bg-neutral-800 overflow-hidden flex">
-        <div
-          className={cn('h-full rounded-full transition-all', isCritical ? 'bg-rose-500' : 'bg-emerald-500')}
-          style={{ width: `${Math.min(availablePercent, 100)}%` }}
-        />
-        {reserved > 0 && (
-          <div className="h-full bg-amber-400" style={{ width: `${Math.min(reservedPercent, 100)}%` }} />
-        )}
+    <div className="flex items-center gap-2">
+      <div className="relative h-2.5 w-28 overflow-hidden rounded-full bg-muted" role="img" aria-label={`Kullanılabilir ${available}, en az ${min}`}>
+        <div className="flex h-full">
+          <div className={cn('h-full', isCritical ? 'bg-rose-600' : 'bg-primary')} style={{ width: `${Math.min(100, Math.max(0, available / max) * 100)}%` }} />
+          {reserved > 0 && <div className="h-full bg-primary/35" style={{ width: `${Math.min(100, (reserved / max) * 100)}%` }} />}
+        </div>
+        {min > 0 && <span aria-hidden className="absolute inset-y-0 w-0.5 bg-foreground" style={{ left: `${Math.min(100, (min / max) * 100)}%` }} />}
       </div>
+      {isCritical && <StatusChip tone="danger" label="Kritik" icon={AlertTriangle} />}
     </div>
   );
 }
@@ -80,6 +82,7 @@ export default function InventoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCriticalOnly, setShowCriticalOnly] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [timelineFor, setTimelineFor] = useState<{ id: string; name: string } | null>(null);
 
   const loadInventory = useCallback(async () => {
     setIsLoading(true);
@@ -135,7 +138,7 @@ export default function InventoryPage() {
       render: (sku, row) => (
         <div>
           <p className="text-xs font-mono text-muted-foreground">{sku}</p>
-          <Link href={"/inventory/"+row.item_id} className="text-sm font-semibold text-sky-700 hover:underline">{row.item_name}</Link>
+          <Link href={"/inventory/"+row.item_id} onClick={(e) => e.stopPropagation()} className="text-sm font-semibold text-sky-700 hover:underline">{row.item_name}</Link>
           <span className={cn('inline-block mt-0.5 rounded-full px-2 py-0.5 text-xs font-medium', ITEM_TYPE_LABELS[row.item_type]?.color || 'bg-neutral-100 text-neutral-600')}>
             {ITEM_TYPE_LABELS[row.item_type]?.label || row.item_type}
           </span>
@@ -178,11 +181,11 @@ export default function InventoryPage() {
         const min = parseFloat(row.min_stock || '0') || 0;
         const isCritical = available <= min && min > 0;
         return (
-          <div className="flex items-center gap-2 justify-end">
-            {isCritical && <AlertTriangle size={13} className="text-rose-500 flex-shrink-0" />}
-            <span className={cn('text-sm font-bold tabular-nums', isCritical ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400')}>
+          <div className="flex flex-col items-end gap-1">
+            <span className={cn('text-sm font-bold tabular-nums', isCritical && 'text-rose-700 dark:text-rose-300')}>
               {available.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} {unitLabel(row.stock_uom)}
             </span>
+            <StockBar onHand={parseFloat(row.on_hand_qty) || 0} reserved={parseFloat(row.reserved_qty) || 0} min={min} />
           </div>
         );
       },
@@ -191,52 +194,24 @@ export default function InventoryPage() {
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950/80">
-      <AppleNavbar title="Profil & malzeme stoğu" showSearch={false} action={user && ["owner","admin"].includes(user.role)?<div className="flex gap-2"><Link href="/inventory/count-import" className="rf-secondary-button">Sayım listesi içe aktar</Link><Link href="/inventory/opening-count" className="rf-secondary-button">Çubuk sayımı</Link><Link href="/inventory/new" className="rf-primary-button">Yeni malzeme</Link></div>:undefined} />
-
-      <main className="flex-1 p-4 md:p-8">
-        <div className="rf-panel mb-6 flex flex-wrap items-center justify-between gap-4"><div><p className="rf-eyebrow">FİZİKSEL STOK BAĞLANTISI</p><h2 className="mt-2 text-lg font-semibold">Malzemeyi raftan üretime takip edin.</h2><p className="mt-2 text-sm text-muted-foreground">Lot ve raf etiketleriyle konum, transfer ve sayım işlemleri.</p></div><div className="flex flex-wrap gap-2"><Link href="/warehouse" className="rf-secondary-button">Depo & raflar</Link><Link href="/warehouse/scan" className="rf-primary-button">QR / barkod okut</Link></div></div>
-        {error && <div role="alert" className="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error} <button type="button" onClick={loadInventory} className="ml-3 underline">Tekrar dene</button></div>}
+      <main className="flex-1 space-y-5 p-4 md:p-8">
+        <PageHeader eyebrow="Profil & malzeme" title="Stok" hint="Profil metreyle, hurda kg ile takip edilir. Rezervasyon fiziksel stoğu değiştirmez. Çubuktaki çizgi en az stok seviyesidir. Satıra tıklayınca malzemenin hareketleri açılır."
+          kpis={[
+            { label: 'malzeme', value: error || isLoading ? '·' : new Set(items.map((i) => i.item_id)).size, icon: Boxes },
+            { label: 'kritik', value: error ? '—' : criticalCount, icon: AlertTriangle, tone: criticalCount ? 'danger' : 'neutral' },
+            { label: 'toplam', value: stockUnitSummary },
+          ]}
+          action={<>
+            <Link href="/warehouse/scan" aria-label="QR / barkod okut" className="rf-icon-button grid h-9 w-9 place-items-center border border-border"><ScanLine size={16} /></Link>
+            {user && ["owner","admin"].includes(user.role) && <>
+              <Link href="/inventory/count-import" aria-label="Sayım listesi içe aktar" className="rf-icon-button grid h-9 w-9 place-items-center border border-border"><FileUp size={16} /></Link>
+              <Link href="/inventory/opening-count" aria-label="Çubuk sayımı" className="rf-icon-button grid h-9 w-9 place-items-center border border-border"><ClipboardList size={16} /></Link>
+              <Link href="/inventory/new" className="rf-primary-button h-9 px-3 text-xs"><Plus size={14} /> Malzeme</Link>
+            </>}
+          </>} />
+        {error && <div role="alert" className="rf-alert text-sm">{error} <button type="button" onClick={loadInventory} className="ml-3 underline">Tekrar dene</button></div>}
         {user && ['owner', 'admin', 'office', 'accountant'].includes(user.role) && <StockThresholdPanel />}
-        {/* Stats */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-          {[
-            {
-              label: 'Malzeme (bu görünüm)',
-              value: error || isLoading ? '—' : new Set(items.map(i=>i.item_id)).size,
-              icon: Boxes,
-              color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20',
-            },
-            {
-              label: 'Kritik depo bakiyesi',
-              value: error ? '—' : criticalCount,
-              icon: AlertTriangle,
-              color: criticalCount > 0 ? 'text-rose-600 bg-rose-50 dark:bg-rose-900/20' : 'text-neutral-600 bg-neutral-50 dark:bg-neutral-900',
-            },
-            {
-              label: 'Stok Kalemleri (Bu Sayfa)',
-              value: error ? '—' : items.length,
-              icon: Package,
-              color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20',
-            },
-            {
-              label: 'Fiziksel stok (birimine göre)',
-              value: stockUnitSummary,
-              icon: ArrowUpDown,
-              color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20',
-            },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-4 flex items-center gap-4 shadow-sm">
-              <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0', color)}>
-                <Icon size={18} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground truncate">{label}</p>
-                <p className="text-xl font-bold text-foreground">{value}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
+        <StockHeatmap />
         {/* Critical Stock Alert */}
         {criticalCount > 0 && (
           <div
@@ -244,11 +219,9 @@ export default function InventoryPage() {
             onClick={() => setShowCriticalOnly(!showCriticalOnly)}
           >
             <AlertTriangle size={16} className="text-rose-600 dark:text-rose-400 flex-shrink-0" />
-            <p className="text-sm font-semibold text-rose-700 dark:text-rose-400">
-              {criticalCount} malzeme minimum stok seviyesinin altında!
-            </p>
+            <p className="text-sm font-semibold tabular-nums text-rose-700 dark:text-rose-400">{criticalCount} kritik</p>
             <button className="ml-auto text-xs text-rose-600 dark:text-rose-400 underline underline-offset-2">
-              {showCriticalOnly ? 'Tümünü göster' : 'Sadece kritikleri göster'}
+              {showCriticalOnly ? 'Tümü' : 'Yalnız kritikler'}
             </button>
           </div>
         )}
@@ -256,8 +229,8 @@ export default function InventoryPage() {
         <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm">
           <RFListView<InventoryItem>
             title="Depo bakiyeleri"
-            subtitle="Profil metreyle, hurda kg ile takip edilir. Rezervasyon fiziksel stoğu değiştirmez."
             data={items}
+            onRowClick={(row) => setTimelineFor({ id: row.item_id, name: row.item_name })}
             columns={columns}
             filters={filters}
             isLoading={isLoading}
@@ -265,12 +238,10 @@ export default function InventoryPage() {
             onSearch={(q) => setSearchQuery(q)}
             onFilterChange={(key, value) => setFilterValues((prev) => ({ ...prev, [key]: value }))}
             filterValues={filterValues}
-            emptyState={{
-              title: error ? 'Stok verisi yüklenemedi' : 'Stok kaydı bulunamadı',
-              description: error ? 'Depo bakiyeleri alınamadı. Stok kurulumu ve veritabanı bağlantısı kontrol edilmeli.' : 'Envanter kalemleri ve depolar tanımlandığında stok hareketleri burada görünecek.',
-            }}
+            emptyState={{ title: error ? 'Stok verisi alınamadı' : 'Stok kaydı yok', description: '' }}
           />
         </div>
+        <MovementDrawer item={timelineFor} onClose={() => setTimelineFor(null)} />
       </main>
     </div>
   );

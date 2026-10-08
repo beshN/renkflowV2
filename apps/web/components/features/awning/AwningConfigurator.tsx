@@ -138,7 +138,7 @@ export function AwningConfigurator({
               role="status"
               className="absolute bottom-5 left-5 rounded bg-white/90 px-3 py-2 text-xs text-slate-700"
             >
-              3D görünüm yükleniyor…
+              <span aria-hidden className="inline-block h-2 w-16 animate-pulse rounded bg-slate-300 motion-reduce:animate-none" /><span className="sr-only">3D görünüm hazırlanıyor</span>
             </p>
           )}
           {sceneError && (

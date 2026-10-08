@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { requestJson } from '@/lib/shared/network';
 import { STATE_LABELS, type ProcessedState } from '@/lib/features/inventory/vocabulary';
 import { ColorChip } from '@/components/colors/ColorSwatch';
+import { SkeletonRows } from '@/components/kit';
 
 type Line = { id: string; code: string | null; name: string; color: string | null; quantity: string; item_name: string; sku: string; processed_states: string[] | null; title: string | null; warehouse_id: string };
 type Item = { id: string; sku: string; name: string; processed_states: string[] | null };
@@ -43,7 +44,7 @@ export default function OpeningCountPage() {
   const unpainted = ((line ? line.processed_states : item?.processed_states) ?? []).includes('boyasiz');
   const needsColor = !unpainted && !line?.color && Boolean(line || item);
 
-  if (!data) return <main className="rf-page"><p role={error ? 'alert' : 'status'}>{error || 'Yükleniyor…'}</p></main>;
+  if (!data) return <main className="rf-page">{error ? <p role="alert">{error}</p> : <SkeletonRows rows={6} />}</main>;
   if (!data.available) return <main className="rf-page"><h1 className="rf-page-title">Açılış sayımı</h1><p className="mt-3 text-sm text-muted-foreground">Bu kurulumda çubuk sayımı henüz etkin değil (veritabanı güncellemesi bekleniyor).</p></main>;
 
   const reset = () => { setBars([{ lengthMm: '6000', count: '' }]); setCommandId(crypto.randomUUID()); setTarget(''); setItemId(''); setColor(''); };

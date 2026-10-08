@@ -9,13 +9,27 @@ import {
   RotateCcw,
   Camera,
   Clock,
+  Lock,
+  ListChecks,
+  RefreshCw,
+  ScanLine,
+  Scissors,
+  Volume2,
+  VolumeX,
+  Eye,
+  EyeOff,
+  Activity,
+  Flag,
 } from "lucide-react";
+import { PageHeader, ProgressRing, SkeletonRows, EmptyState } from "@/components/kit";
+import { ProductDrawing } from "@/components/drawing/ProductDrawing";
+import { CutDiagram } from "@/components/drawing/CutDiagram";
+import { feedback, setSound, soundOn } from "@/lib/features/manufacturing/feedback";
 import { useProduction } from "./useProduction";
 import BarcodeScanner from "@/components/features/warehouse/BarcodeScanner";
 import {ReworkCases} from "./QualityIntelligence";
 import { QualityChecklist } from "./QualityChecklist";
 import { AwningDialog } from "@/components/features/awning/AwningConfigurator";
-import { awningSummary } from "@/lib/features/awning/configuration";
 import { ColorChip, WorkshopColor } from "@/components/colors/ColorSwatch";
 import { barColorMismatch } from "@/lib/features/colors/color-spec";
 import {
@@ -46,7 +60,11 @@ export default function FactoryWorkspace() {
     [busy, setBusy] = useState(false),
     [filter, setFilter] = useState("active"),
     [extra, setExtra] = useState<any[]>([]),
+    [sound, setSoundState] = useState(true),
+    [cutFor, setCutFor] = useState<string | null>(null),
+    [quick, setQuick] = useState<string | null>(null),
     fromQr = useRef(false);
+  useEffect(() => setSoundState(soundOn()), []);
   useEffect(() => {
     if (!data || fromQr.current) return;
     const query = new URLSearchParams(window.location.search);
@@ -67,13 +85,9 @@ export default function FactoryWorkspace() {
   }, [data]);
   if (!data)
     return (
-      <div className="rf-page">
-        <p role={error ? "alert" : "status"}>
-          {error || "Atanan işler yükleniyor…"}
-        </p>
-        <button onClick={refresh} className="rf-input mt-4">
-          Tekrar dene
-        </button>
+      <div className="rf-page space-y-4">
+        {error ? <p role="alert" className="rf-alert">{error}</p> : <SkeletonRows rows={4} />}
+        {error && <button onClick={refresh} className="rf-secondary-button h-12 px-5"><RefreshCw size={18} /> Tekrar dene</button>}
       </div>
     );
   const jobs = data.jobs.filter(
@@ -117,6 +131,40 @@ export default function FactoryWorkspace() {
       }
     } catch (e) {
       setLocalError(e instanceof Error ? e.message : "Etiket okunamadı");
+    }
+  }
+  /**
+   * The one big button on a job card: start the next step, or finish the running one with the
+   * pieces left. A step with quality checks opens its panel instead, so the checks are filled in.
+   */
+  async function quickAction(o: any) {
+    if (!o) return;
+    const mine = data.actor.role !== "worker" || o.assigned_to === data.actor.userId;
+    if (!mine) return;
+    if (o.status === "running" && (o.quality_checks || []).length) {
+      setSelected(o.id);
+      setQuantity(Math.max(1, Number(o.planned_qty) - Number(o.completed_qty)));
+      return;
+    }
+    const action = o.status === "running" ? "complete" : "start";
+    setQuick(o.id);
+    setLocalError("");
+    try {
+      await operate({
+        operationId: o.id,
+        version: o.version,
+        action,
+        quantity: action === "complete" ? Math.max(1, Number(o.planned_qty) - Number(o.completed_qty)) : undefined,
+        qualityResults: [],
+        photos: [],
+        additionalMaterials: [],
+      }, []);
+      feedback(action === "complete" ? "done" : "start");
+    } catch (e) {
+      feedback("error");
+      setLocalError(e instanceof Error ? e.message : "İşlem sıraya alınamadı");
+    } finally {
+      setQuick(null);
     }
   }
   async function send(action: string) {
@@ -163,31 +211,18 @@ export default function FactoryWorkspace() {
   }
   return (
     <div className="rf-page space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="rf-eyebrow">RENK ALÜMİNYUM / SAHA</p>
-          <h1 className="rf-page-title">Usta ekranı</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {data.actor.role === "worker"
-              ? "Size atanan işler ve teknik bilgiler"
-              : "Üretimdeki işleri teknik görünümde inceleyin"}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            className="rf-input text-xs"
-            onClick={() => setFilter(filter === "active" ? "all" : "active")}
-          >
-            {filter === "active"
-              ? "Tamamlananları göster"
-              : "Aktif işleri göster"}
-          </button>
-          <Link href="/warehouse/scan" className="rf-secondary-button">QR terminali</Link>
-          <button className="rf-primary-button" onClick={sync}>
-            Eşitle
-          </button>
-        </div>
-      </div>
+      <PageHeader eyebrow="RENK ALÜMİNYUM / SAHA" title="Fabrika"
+        kpis={[
+          { label: "iş", value: data.jobs.filter((j: any) => !["done", "cancelled"].includes(j.status)).length, icon: ListChecks },
+          { label: "çalışıyor", value: ops.filter((o: any) => o.status === "running").length, icon: Activity },
+          { label: "biten", value: data.jobs.filter((j: any) => j.status === "done").length, icon: Flag },
+        ]}
+        action={<>
+          <button type="button" aria-pressed={filter === "all"} aria-label={filter === "active" ? "Bitenleri göster" : "Yalnız aktif işler"} className="grid h-12 w-12 place-items-center rounded-md border border-border" onClick={() => setFilter(filter === "active" ? "all" : "active")}>{filter === "active" ? <Eye size={20} /> : <EyeOff size={20} />}</button>
+          <button type="button" aria-pressed={sound} aria-label={sound ? "Sesi kapat" : "Sesi aç"} className="grid h-12 w-12 place-items-center rounded-md border border-border" onClick={() => { setSound(!sound); setSoundState(!sound); }}>{sound ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
+          <button type="button" aria-label="Eşitle" className="grid h-12 w-12 place-items-center rounded-md border border-border" onClick={sync}><RefreshCw size={20} /></button>
+          <Link href="/warehouse/scan" aria-label="QR terminali" className="grid h-12 w-12 place-items-center rounded-md bg-primary text-primary-foreground"><ScanLine size={22} /></Link>
+        </>} />
       {error && (
         <div className="flex items-center gap-2 rounded border border-amber-500/30 bg-amber-500/5 p-4 text-xs">
           <WifiOff size={16} />{" "}
@@ -198,13 +233,9 @@ export default function FactoryWorkspace() {
       )}
       {pending.length > 0 && (
         <section className="rf-panel border-amber-500/30">
-          <h2 className="text-sm font-medium">
-            {pending.length} işlem sunucu onayı bekliyor
+          <h2 className="flex items-center gap-2 text-sm font-medium">
+            <Clock size={16} aria-hidden /> {pending.length} işlem sırada
           </h2>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Sunucu kabul edene kadar bu işlemler üretim kaydına işlenmiş
-            sayılmaz.
-          </p>
           {pending.map((p) => (
             <div
               key={p.commandId}
@@ -261,43 +292,62 @@ export default function FactoryWorkspace() {
           </p>
         )}
       </section>
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.8fr)]">
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.8fr)]">
         <section className="space-y-4">
           {jobs.map((j: any) => (
-            <article key={j.id} className="rf-panel space-y-4">
-              <div className="flex justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold">{j.title}</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {[j.order_number, j.customer_name].filter(Boolean).join(" · ")} · {Number(j.planned_qty)} adet ·{" "}
-                    {j.due_at
-                      ? new Date(j.due_at).toLocaleDateString("tr-TR")
-                      : "Teslim tarihi girilmedi"}
-                  </p>
-                </div>
-                <Link
-                  href={`/warehouse/labels?kind=job&id=${j.id}`}
-                  className="text-xs text-primary"
-                >
-                  QR etiketi
-                </Link>
-              </div>
-              {j.color && <WorkshopColor color={j.color} className="rounded-md border border-border p-2" />}
-              {j.configuration?.version === 1 && (
-                <div className="rounded bg-muted p-3">
-                  <p className="text-xs leading-6">
-                    {awningSummary(j.configuration)}
-                  </p>
-                  <div className="mt-3">
-                    <AwningDialog
-                      configuration={j.configuration}
-                      previewImage={j.bom_snapshot?.preview}
-                      readOnly
-                      label="Teknik 3D görünüm"
-                    />
-                  </div>
-                </div>
-              )}
+            <article key={j.id} className="rf-panel min-w-0 space-y-4">
+              {(() => {
+                const jobOps = ops.filter((o: any) => o.work_order_id === j.id);
+                const next = jobOps.find((o: any) => o.status === "running") || jobOps.find((o: any) => ["ready", "paused"].includes(o.status)) || jobOps.find((o: any) => o.status !== "done");
+                const planned = Number(j.planned_qty) || 0;
+                const left = next ? Math.max(0, Number(next.planned_qty) - Number(next.completed_qty)) : 0;
+                const mine = next && (data.actor.role !== "worker" || next.assigned_to === data.actor.userId);
+                const blocked = !next || next.status === "waiting" || next.status === "blocked" || !mine;
+                // The job's own plan first; otherwise the newest approved plan that cuts for it.
+                const plans = data.cutPlans || [];
+                const plan = plans.find((p: any) => p.id === j.cut_plan_id) || plans.find((p: any) => p.bars.some((b: any) => b.pieces.some((x: any) => x.workOrderId === j.id)));
+                const cfg = j.configuration || {};
+                return (
+                  <>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h2 className="truncate text-lg font-semibold">{j.order_number || j.title}</h2>
+                        <p className="truncate text-sm text-muted-foreground">{[j.customer_name, j.title].filter(Boolean).join(" · ")}</p>
+                        {j.due_at && (() => {
+                          const due = new Date(j.due_at).toLocaleDateString("sv-SE", { timeZone: "Europe/Istanbul" });
+                          const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Istanbul" });
+                          return <p className={`mt-1 inline-flex items-center gap-1 text-sm font-medium ${due < today ? "text-rose-700 dark:text-rose-300" : ""}`}><Clock size={14} aria-hidden />{new Date(j.due_at).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}{due < today ? " · gecikti" : due === today ? " · bugün" : ""}</p>;
+                        })()}
+                      </div>
+                      <ProgressRing size={64} stroke={7} value={planned - (next ? left : 0)} max={planned || 1} label={`${left} adet kaldı`} center={<span className="text-base">{next ? left : <Check size={20} />}</span>} />
+                    </div>
+                    <div className="grid items-center gap-3 sm:grid-cols-[1fr_180px]">
+                      {j.color ? <WorkshopColor color={j.color} className="rounded-md border border-border p-2" /> : <span />}
+                      {cfg.widthMm && cfg.version !== 1 && <ProductDrawing compact family={cfg.family || "pergola"} widthMm={Number(cfg.widthMm)} projectionMm={Number(cfg.projectionMm)} heightMm={Number(cfg.mountingHeightMm)} color={cfg.bodyName} className="h-24 w-full rounded-md border border-border bg-background p-1" />}
+                    </div>
+                    {cfg.version === 1 && <AwningDialog configuration={cfg} previewImage={j.bom_snapshot?.preview} readOnly label="3D görünüm" />}
+                    {next && (
+                      <button type="button" disabled={blocked || quick === next.id || hasPending(next.id)} onClick={() => void quickAction(next)}
+                        className={`flex min-h-16 w-full items-center justify-center gap-3 rounded-lg text-lg font-semibold disabled:opacity-60 ${next.status === "running" ? "bg-emerald-700 text-white" : "bg-primary text-primary-foreground"}`}>
+                        {blocked ? <Lock size={22} aria-hidden /> : next.status === "running" ? <Check size={24} aria-hidden /> : <Play size={24} aria-hidden />}
+                        {next.name} · {hasPending(next.id) ? "sırada" : next.status === "running" ? "Bitti" : blocked ? (next.status === "waiting" ? "önceki adım" : "kilitli") : "Başla"}
+                      </button>
+                    )}
+                    {plan && (
+                      <button type="button" onClick={() => setCutFor(cutFor === j.id ? null : j.id)} aria-expanded={cutFor === j.id} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-border text-sm font-medium">
+                        <Scissors size={18} aria-hidden /> Kesim şeması
+                      </button>
+                    )}
+                    {plan && cutFor === j.id && (
+                      <CutDiagram plan={plan} focusJobId={j.id} items={data.materialCards}
+                        jobs={data.jobs.filter((x: any) => plan.bars.some((b: any) => b.pieces.some((p: any) => p.workOrderId === x.id))).map((x: any) => ({ id: x.id, title: x.order_number || x.title, color: x.configuration?.bodyName }))} />
+                    )}
+                    <div className="flex justify-end">
+                      <Link href={`/warehouse/labels?kind=job&id=${j.id}`} className="text-xs text-primary">QR etiketi</Link>
+                    </div>
+                  </>
+                );
+              })()}
               <div className="space-y-2">
                 {ops
                   .filter((o: any) => o.work_order_id === j.id)
@@ -350,16 +400,12 @@ export default function FactoryWorkspace() {
             </article>
           ))}
           {!jobs.length && (
-            <section className="rf-panel text-sm text-muted-foreground">
-              Bu görünümde atanmış iş yok.
-            </section>
+            <section className="rf-panel"><EmptyState title="İş yok" icon={ListChecks} /></section>
           )}
         </section>
         <section className="rf-panel space-y-5 lg:sticky lg:top-24">
           {!op ? (
-            <p className="text-sm text-muted-foreground">
-              İşlem yapmak için bir operasyon seçin.
-            </p>
+            <p className="flex items-center gap-2 text-sm text-muted-foreground"><ListChecks size={18} aria-hidden /> Adım seçin</p>
           ) : (
             <>
               <div>

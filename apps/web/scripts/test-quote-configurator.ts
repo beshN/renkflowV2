@@ -193,6 +193,14 @@ async function main() {
   assert.deepEqual(leaks(seen.jobs), [], 'no price or customer field in the worker\'s jobs');
   assert.deepEqual(leaks(workOrder), [], 'no price or customer field in the work order');
   assert(!JSON.stringify([seen, workOrder]).includes('Test müşteri'), 'the customer name never reaches the worker');
+  assert.deepEqual(leaks(seen.cutPlans), [], 'no cost in the cut plans a worker sees');
+  // The wall screen: office and up only; no customer, no price, the colour as code/name/hex.
+  const { wallBoard } = await import('../lib/features/manufacturing/platform.service');
+  await assert.rejects(wallBoard(worker as any), (e: any) => e.status === 403);
+  const wall: any = await wallBoard(office as any);
+  assert(wall.openJobs >= 1 && wall.nextCuts.some((j: any) => j.id === ledJob && j.color?.code === 'RAL 7016'));
+  assert.deepEqual(leaks(wall), [], 'no price or customer field on the wall');
+  assert(!JSON.stringify(wall).includes('Test müşteri'), 'no customer name on the wall');
   await db`DELETE FROM tenant_members WHERE tenant_id = ${tenantId} AND user_id = ${workerId}`;
   assert.equal((await productionSettings(owner as any)).leadLeft, true, 'the settings screen says the lead left');
   const gone: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) })] } as any, officeId);
