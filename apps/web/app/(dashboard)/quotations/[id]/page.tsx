@@ -18,7 +18,7 @@ import { formatCurrency } from "@/lib/utils";
 import { requestJson } from "@/lib/shared/network";
 import { BomTables, ProductConfigurator } from "@/components/features/products/ProductConfigurator";
 import { PRODUCT_FAMILIES } from "@/lib/features/products/families";
-import { configurationSummary, type ProductConfiguration } from "@/lib/features/products/configuration";
+import { configuredLine, configurationSummary, unconfiguredLine, type ProductConfiguration } from "@/lib/features/products/configuration";
 
 const emptyItem = (): QuotationItem => ({
   productName: "WINMAX Makaslı Tente",
@@ -86,27 +86,15 @@ export default function QuotationPage({
       ),
     }));
   }
-  /** A configured product fills the line from the server's calculation; a typed price is kept only when the matrix gave none. */
+  /** A configured product fills the line as the server will on save; a typed price is kept only when the matrix gave none. */
   function applyConfiguration(index: number, c: ProductConfiguration) {
     setForm((prev) => ({
       ...prev,
-      items: prev.items.map((item, i) =>
-        i === index
-          ? {
-              ...item,
-              productName: `${c.familyLabel} · ${c.recipe.name}`,
-              description: configurationSummary(c),
-              color: c.color,
-              widthMm: c.parameters.widthMm,
-              projectionMm: c.parameters.projectionMm,
-              mountingHeightMm: c.parameters.mountingHeightMm,
-              unitPrice: c.price.source === "matrix" ? c.price.matrixUnitPrice! : item.productConfiguration?.price?.source === "matrix" ? 0 : item.unitPrice,
-              awningConfiguration: undefined,
-              awningPreview: undefined,
-              productConfiguration: c,
-            }
-          : item,
-      ),
+      items: prev.items.map((item, i) => {
+        if (i !== index) return item;
+        const wasMatrix = item.productConfiguration?.price?.source === "matrix";
+        return configuredLine(item, c, wasMatrix ? 0 : item.unitPrice);
+      }),
     }));
     setConfiguring(null);
   }
@@ -325,7 +313,11 @@ export default function QuotationPage({
             {item.productConfiguration?.price && (
               <div className="space-y-2 rounded-md bg-muted p-3 text-xs leading-5">
                 <p>{configurationSummary(item.productConfiguration as ProductConfiguration)}</p>
-                {item.productConfiguration.price.source === "matrix" ? (
+                {item.productConfiguration.price.source === "matrix" && item.productConfiguration.price.currency !== form.currency ? (
+                  <p className="font-medium text-amber-700 dark:text-amber-300">
+                    Para birimi değişti: matris fiyatı {item.productConfiguration.price.currency} içindi. Yeniden hesaplayın ya da birim fiyatı elle girin.
+                  </p>
+                ) : item.productConfiguration.price.source === "matrix" ? (
                   <p className="text-muted-foreground">Birim fiyat fiyat matrisinden.</p>
                 ) : (
                   <p className="font-medium text-amber-700 dark:text-amber-300">
@@ -355,7 +347,7 @@ export default function QuotationPage({
                   </button>
                 ))}
                 {item.productConfiguration && (
-                  <button type="button" className="rf-secondary-button" onClick={() => updateItem(index, "productConfiguration", undefined)}>Yapılandırmayı kaldır</button>
+                  <button type="button" className="rf-secondary-button" onClick={() => setForm((prev) => ({ ...prev, items: prev.items.map((entry, i) => (i === index ? unconfiguredLine(entry) : entry)) }))}>Yapılandırmayı kaldır</button>
                 )}
               </div>
             )}
@@ -371,7 +363,7 @@ export default function QuotationPage({
                   {label}
                   <input
                     // A matrix price is set by the server; only an unpriced configuration takes a typed price.
-                    disabled={!editable || (key === "unitPrice" && item.productConfiguration?.price?.source === "matrix")}
+                    disabled={!editable || (key === "unitPrice" && item.productConfiguration?.price?.source === "matrix" && item.productConfiguration.price.currency === form.currency)}
                     type="number"
                     min={key === "quantity" ? 1 : 0}
                     max={key === "discountPercent" ? 100 : undefined}

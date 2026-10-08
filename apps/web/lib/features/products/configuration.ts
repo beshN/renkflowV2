@@ -36,6 +36,8 @@ export type ProductConfiguration = ConfigurationChoice & {
     message: string | null;
     matrixId: string | null;
     matrixUnitPrice: number | null;
+    /** The quote currency the price was worked out for; another currency needs it again. */
+    currency: string;
     lines: Array<{ label: string; amount: number }>;
   };
 };
@@ -45,4 +47,48 @@ export function configurationSummary(c: Pick<ProductConfiguration, 'familyLabel'
   const p = c.parameters;
   const options = [p.motor ? 'motorlu' : null, p.led ? 'LED' : null, ...Object.entries(p.customParameters).filter(([, v]) => v !== false && v !== 0).map(([k, v]) => (v === true ? k : `${k}: ${v}`))].filter(Boolean);
   return `${c.familyLabel} · ${c.recipe.name} · ${p.widthMm} × ${p.projectionMm} mm, yükseklik ${p.mountingHeightMm} mm · ${c.color}${options.length ? ' · ' + options.join(', ') : ''}`;
+}
+
+type LineFields = {
+  productName: string;
+  description?: string;
+  color?: string;
+  widthMm?: number;
+  projectionMm?: number;
+  mountingHeightMm?: number;
+  unitPrice: number;
+  awningConfiguration?: unknown;
+  awningPreview?: unknown;
+  productConfiguration?: unknown;
+};
+
+/** The quote line a configuration makes; the browser preview and the server's save use the same mapping. */
+export function configuredLine<T extends LineFields>(item: T, c: ProductConfiguration, typedPrice: number): T {
+  return {
+    ...item,
+    productName: `${c.familyLabel} · ${c.recipe.name}`,
+    description: configurationSummary(c),
+    color: c.color,
+    widthMm: c.parameters.widthMm,
+    projectionMm: c.parameters.projectionMm,
+    mountingHeightMm: c.parameters.mountingHeightMm,
+    unitPrice: c.price.source === 'matrix' ? c.price.matrixUnitPrice! : typedPrice,
+    awningConfiguration: undefined,
+    awningPreview: undefined,
+    productConfiguration: c,
+  };
+}
+
+/** A plain line again: nothing of the configuration (name, measures, colour, matrix price) is left behind. */
+export function unconfiguredLine<T extends LineFields>(item: T): T {
+  const matrixPriced = (item.productConfiguration as ProductConfiguration | undefined)?.price?.source === 'matrix';
+  return { ...item, productName: '', description: undefined, color: undefined, widthMm: undefined, projectionMm: undefined, mountingHeightMm: undefined, unitPrice: matrixPriced ? 0 : item.unitPrice, productConfiguration: undefined };
+}
+
+/** JSON with keys in a fixed order (the database returns stored objects with its own key order). */
+export function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return '[' + value.map(stableJson).join(',') + ']';
+  if (value && typeof value === 'object')
+    return '{' + Object.keys(value).filter((k) => (value as Record<string, unknown>)[k] !== undefined).sort().map((k) => JSON.stringify(k) + ':' + stableJson((value as Record<string, unknown>)[k])).join(',') + '}';
+  return JSON.stringify(value);
 }

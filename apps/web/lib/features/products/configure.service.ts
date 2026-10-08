@@ -69,7 +69,7 @@ export async function configurationOptions(actor: WorkOrderActor, familyKey: str
  * published recipe, and the unit price from the firm's matrix, or the reason it has none (then the
  * seller types the price and the line says so).
  */
-export async function configureProduct(db: any, tenantId: string, currency: string, raw: unknown): Promise<ProductConfiguration> {
+export async function configureProduct(db: any, tenantId: string, currency: string, raw: unknown, memo = new Map<string, Promise<any>>()): Promise<ProductConfiguration> {
   const choice: ConfigurationChoice = ConfigurationChoiceSchema.parse(raw);
   const family = productFamily(choice.family) ?? fail('Bilinmeyen ürün ailesi');
   if (!(await familyRecipesAvailable())) fail('Ürün reçeteleri bu kurulumda henüz etkin değil (veritabanı güncellemesi bekleniyor)', 409);
@@ -78,7 +78,9 @@ export async function configureProduct(db: any, tenantId: string, currency: stri
     WHERE r.tenant_id = ${tenantId} AND r.id = ${choice.recipeId}`;
   if (!row) fail('Reçete bu ürün ailesine ait değil', 409);
   if (row.status !== 'published') fail(`"${row.code}" reçetesi yayında değil; örneklerle doğrulanıp yayınlanmalı`, 409);
-  const colors = await familyColors(db, tenantId, family);
+  // One quote with several lines of a family reads its colours once.
+  if (!memo.has('colors:' + family.key)) memo.set('colors:' + family.key, familyColors(db, tenantId, family));
+  const colors: string[] = await memo.get('colors:' + family.key);
   const color = colors.find((c) => sameText(c, choice.color)) ?? fail(`"${choice.color}" rengi sayım listesinde ya da stokta yok`);
   let result: ReturnType<typeof calculateRecipe>;
   try {
@@ -117,6 +119,7 @@ export async function configureProduct(db: any, tenantId: string, currency: stri
       message,
       matrixId: priced.status === 'priced' ? priced.matrixId : null,
       matrixUnitPrice: state === 'matrix' && priced.status === 'priced' ? priced.unitPrice : null,
+      currency,
       lines: priced.status === 'priced' ? priced.lines.map((l) => ({ label: l.label, amount: l.amount })) : [],
     },
   };

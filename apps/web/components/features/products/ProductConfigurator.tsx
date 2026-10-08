@@ -5,6 +5,7 @@ import { requestJson } from '@/lib/shared/network';
 import { readNumber } from '@/lib/features/products/csv';
 import { formatQty } from '@/lib/features/inventory/vocabulary';
 import type { ConfigurationChoice, ProductConfiguration } from '@/lib/features/products/configuration';
+import { formatCurrency } from '@/lib/utils';
 
 type ParameterDefinition = { key: string; label: string; type: 'number' | 'boolean'; unit?: string; required?: boolean; defaultValue?: number | boolean; minimum?: number; maximum?: number; integer?: boolean };
 type Options = {
@@ -14,7 +15,7 @@ type Options = {
   matrix: { currency: string } | null;
 };
 
-const money = (n: number, currency: string) => n.toLocaleString('tr-TR', { style: 'currency', currency });
+const money = (n: number, currency: string) => formatCurrency(n, currency as Parameters<typeof formatCurrency>[1]);
 
 /** The bill of materials and cut list a configuration gave, as the quote and the order show it. */
 export function BomTables({ bom }: { bom: ProductConfiguration['bom'] }) {
@@ -67,7 +68,10 @@ export function ProductConfigurator({ family, currency, initial, onApply, onClos
     void requestJson<Options>(`/api/v1/products/configure?family=${family}`).then((r) => {
       if (r.ok && r.data) {
         setOptions(r.data);
-        if (!recipeId && r.data.recipes.length === 1) setRecipeId(r.data.recipes[0].id);
+        if (recipeId && !r.data.recipes.some((x) => x.id === recipeId)) {
+          setRecipeId('');
+          setError('Kalemdeki reçete sürümü artık güncel değil; güncel modeli seçip yeniden hesaplayın.');
+        } else if (!recipeId && r.data.recipes.length === 1) setRecipeId(r.data.recipes[0].id);
       } else setError(r.error || 'Yapılandırma seçenekleri alınamadı');
     });
   }, [family]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -86,7 +90,7 @@ export function ProductConfigurator({ family, currency, initial, onApply, onClos
     const customParameters: Record<string, number | boolean> = {};
     for (const p of recipe?.parameters ?? []) {
       const v = custom[p.key];
-      if (p.type === 'boolean') customParameters[p.key] = Boolean(v);
+      if (p.type === 'boolean') customParameters[p.key] = Boolean(v ?? p.defaultValue);
       else if (v !== undefined && v !== '') {
         const n = typeof v === 'number' ? v : readNumber(String(v));
         if (n === null) return setError(`${p.label}: sayı girin`);

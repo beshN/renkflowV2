@@ -83,13 +83,27 @@ async function main() {
 
   // With the firm's matrix (made-up price) the server sets the price, whatever the browser sent.
   await importPriceMatrix(owner as any, { family: 'pergola', dryRun: false, text: matrixTemplate('pergola') + 'pergola;taban;PRG;1000;6000;1000;5000;;adet;20.000;TRY\r\n' });
-  const updated: any = await quotationService.updateQuotation(tenantId, quote.id, { expectedVersion: quote.version, items: [item(1, { productConfiguration: line.productConfiguration })] } as any);
+  // The stored line sent back as it was stays as it was; a fresh calculation takes the matrix price.
+  const same: any = await quotationService.updateQuotation(tenantId, quote.id, { expectedVersion: quote.version, items: quote.items } as any);
+  assert.deepEqual([same.items[0].unitPrice, same.items[0].productConfiguration.price.source], [5000, 'manual']);
+  const fresh = await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice });
+  const updated: any = await quotationService.updateQuotation(tenantId, quote.id, { expectedVersion: same.version, items: [item(1, { productConfiguration: fresh })] } as any);
   assert.deepEqual([updated.items[0].unitPrice, updated.items[0].productConfiguration.price.source], [20000, 'matrix']);
   assert.equal(updated.subtotal, 40000);
-  // Another currency than the matrix: not converted, typed by hand and flagged.
-  const usd: any = await quotationService.updateQuotation(tenantId, quote.id, { expectedVersion: updated.version, currency: 'USD', items: [item(700, { productConfiguration: line.productConfiguration })] } as any);
+  // An edit that leaves the line alone keeps what was stored, even after its colour left stock.
+  await db`UPDATE stock_lots SET remaining_qty = 0 WHERE tenant_id = ${tenantId}`;
+  const noted: any = await quotationService.updateQuotation(tenantId, quote.id, { expectedVersion: updated.version, notes: 'not', items: updated.items } as any);
+  assert.deepEqual([noted.items[0].unitPrice, noted.items[0].productConfiguration.price.source], [20000, 'matrix']);
+  await db`UPDATE stock_lots SET remaining_qty = 6 WHERE tenant_id = ${tenantId}`;
+  // Another currency than the matrix: the old matrix price is not taken as typed; a typed price is required and flagged.
+  await assert.rejects(quotationService.updateQuotation(tenantId, quote.id, { expectedVersion: noted.version, currency: 'USD' } as any), /Kalem 1: Fiyat matrisi TRY, teklif USD; fiyat çevrilmez; birim fiyatı elle girin/);
+  const usd: any = await quotationService.updateQuotation(tenantId, quote.id, { expectedVersion: noted.version, currency: 'USD', items: [item(700, { productConfiguration: noted.items[0].productConfiguration })] } as any);
   assert.deepEqual([usd.items[0].unitPrice, usd.items[0].productConfiguration.price.state], [700, 'currency_mismatch']);
-  console.log('PASS · quote configurator: worker refused, only published family recipes offered, colours from stock bars and unpainted cards, BOM and cut list from the recipe, limits and unknown colour refused, no matrix means a typed price that is required and flagged, browser BOM/price ignored, matrix price set by the server, other currency not converted');
+  // The order made from the quote keeps the configuration: recipe, cut list and price source.
+  const { orderId } = await quotationService.convertToOrder(tenantId, quote.id, officeId, usd.version);
+  const [orderLine] = await db`SELECT product_configuration FROM order_items WHERE order_id = ${orderId}`;
+  assert.deepEqual([orderLine.product_configuration.recipe.code, orderLine.product_configuration.bom.cuts[0].lengthMm, orderLine.product_configuration.price.source], ['PRG', 2980, 'manual']);
+  console.log('PASS · quote configurator: worker refused, only published family recipes offered, colours from stock bars and unpainted cards, BOM and cut list from the recipe, limits and unknown colour refused, no matrix means a typed price that is required and flagged, browser BOM/price ignored, matrix price set by the server, an untouched line kept as stored, other currency not converted and an old matrix price not taken as typed, the order keeps the configuration');
 
   await db.end();
   await sql.end({ timeout: 5 });

@@ -9,44 +9,50 @@ import { recordAudit } from "@/lib/audit/audit-log";
 import { AmbiguousCustomerError, resolveOrderCustomer } from "@/lib/features/customers/link";
 import { columnExists } from "@/lib/db/schema-guard";
 import { configureProduct } from "@/lib/features/products/configure.service";
-import { configurationSummary } from "@/lib/features/products/configuration";
+import { configuredLine, stableJson, type ConfigurationChoice, type ProductConfiguration } from "@/lib/features/products/configuration";
 
 const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 /**
- * Configured lines are rebuilt on every save from the published recipe and the price matrix: the
- * browser's bill of materials and price are never trusted. A line the matrix does not price keeps
- * the seller's typed price, which must then be given, and says why it was typed.
+ * Configured lines are rebuilt from the published recipe and the price matrix unless the browser
+ * sends back exactly what is stored for the line in the same currency; the browser's own bill of
+ * materials and price are never trusted. So editing a note neither re-prices a quote nor fails
+ * because a colour has since left stock, while a recalculated configuration is priced afresh. A line the matrix does not price keeps the
+ * seller's typed price, which must then be given (a former matrix price does not count as typed).
  */
-async function resolveConfiguredItems(tenantId: string, currency: string, items: CreateQuotationInput["items"]) {
+async function resolveConfiguredItems(
+  tenantId: string,
+  currency: string,
+  items: CreateQuotationInput["items"],
+  stored: CreateQuotationInput["items"] = [],
+) {
   if (!items.some((i) => i.productConfiguration)) return items;
   if (!(await columnExists("quotation_items", "product_configuration")))
     throw new WorkOrderApiError("Ürün yapılandırma bu kurulumda henüz etkin değil (veritabanı güncellemesi bekleniyor)", 409);
+  const kept = new Map<string, ProductConfiguration>();
+  for (const old of stored) {
+    const c = old.productConfiguration as ProductConfiguration | undefined;
+    if (c?.price?.currency === currency) kept.set(stableJson(c), c);
+  }
+  const memo = new Map<string, Promise<any>>();
   const resolved: CreateQuotationInput["items"] = [];
   for (const [index, item] of items.entries()) {
     if (!item.productConfiguration) {
       resolved.push(item);
       continue;
     }
-    const c = await configureProduct(sql, tenantId, currency, item.productConfiguration);
-    if (c.price.source === "manual" && !(item.unitPrice > 0))
-      throw new WorkOrderApiError(`Kalem ${index + 1}: ${c.price.message}; birim fiyatı elle girin`, 400);
-    resolved.push({
-      ...item,
-      productName: `${c.familyLabel} · ${c.recipe.name}`,
-      description: configurationSummary(c),
-      color: c.color,
-      widthMm: c.parameters.widthMm,
-      projectionMm: c.parameters.projectionMm,
-      mountingHeightMm: c.parameters.mountingHeightMm,
-      unitPrice: c.price.source === "matrix" ? c.price.matrixUnitPrice! : item.unitPrice,
-      awningConfiguration: undefined,
-      awningPreview: undefined,
-      productConfiguration: c,
-    });
+    const sent = item.productConfiguration as Partial<ProductConfiguration> & ConfigurationChoice;
+    const c = kept.get(stableJson(sent)) ?? (await configureProduct(sql, tenantId, currency, sent, memo));
+    if (c.price.source === "manual") {
+      const formerMatrixPrice = sent.price?.source === "matrix" && item.unitPrice === sent.price.matrixUnitPrice;
+      if (!(item.unitPrice > 0) || formerMatrixPrice)
+        throw new WorkOrderApiError(`Kalem ${index + 1}: ${c.price.message}; birim fiyatı elle girin`, 400);
+    }
+    resolved.push(configuredLine(item, c, item.unitPrice));
   }
   return resolved;
 }
+
 export function quotationTotals(
   items: CreateQuotationInput["items"],
   discountPercent = 0,
@@ -168,7 +174,7 @@ export class PostgresQuotationService implements IQuotationService {
         data = { ...old, ...updates };
       // A changed currency re-prices configured lines too: the matrix price is only used in its own currency.
       if (updates.items || (updates.currency && updates.currency !== old.currency))
-        data.items = await resolveConfiguredItems(tenantId, data.currency, updates.items ?? data.items);
+        data.items = await resolveConfiguredItems(tenantId, data.currency, updates.items ?? data.items, old.items);
       const totals = quotationTotals(data.items, data.discountPercent);
       if (updates.customerId) {
         const customers =
@@ -247,9 +253,14 @@ export class PostgresQuotationService implements IQuotationService {
       const orders =
         await tx`INSERT INTO orders (tenant_id,order_number,customer_id,customer_name,status,total_amount,currency,notes,custom_fields,assigned_to,product_name,quantity)
      VALUES (${tenantId},${"ORD-" + Date.now().toString(36).toUpperCase() + "-" + crypto.randomUUID().slice(0, 6)},${customerId},${q.customer_name},'pending',${q.total_amount},${q.currency},${"Tekliften dönüştürüldü: " + q.quotation_number},'{}',${createdBy || null},${items[0].product_name},${items.reduce((sum: number, i: any) => sum + Number(i.quantity), 0)}) RETURNING id`;
-      for (const i of items)
-        await tx`INSERT INTO order_items (order_id,product_name,quantity,unit_price,total_price,description,color,width_mm,height_mm,projection_mm,mounting_height_mm,awning_configuration,awning_preview,motor_type,led_type,fabric_type,notes)
-       VALUES (${orders[0].id},${i.product_name},${i.quantity},${i.unit_price},${i.total_price},${i.description},${i.color},${i.width_mm},${i.height_mm},${i.projection_mm},${i.mounting_height_mm},${i.awning_configuration ? JSON.stringify(i.awning_configuration) : null}::text::jsonb,${i.awning_preview},${i.awning_configuration?.motor || null},${i.awning_configuration?.led || null},${i.awning_configuration?.fabricName || null},${i.notes})`;
+      // A configured line carries its recipe, bill of materials and price source onto the order.
+      const configured = await columnExists("order_items", "product_configuration");
+      for (const i of items) {
+        const [line] = await tx`INSERT INTO order_items (order_id,product_name,quantity,unit_price,total_price,description,color,width_mm,height_mm,projection_mm,mounting_height_mm,awning_configuration,awning_preview,motor_type,led_type,fabric_type,notes)
+       VALUES (${orders[0].id},${i.product_name},${i.quantity},${i.unit_price},${i.total_price},${i.description},${i.color},${i.width_mm},${i.height_mm},${i.projection_mm},${i.mounting_height_mm},${i.awning_configuration ? JSON.stringify(i.awning_configuration) : null}::text::jsonb,${i.awning_preview},${i.awning_configuration?.motor || null},${i.awning_configuration?.led || null},${i.awning_configuration?.fabricName || null},${i.notes}) RETURNING id`;
+        if (configured && i.product_configuration)
+          await tx`UPDATE order_items SET product_configuration=${JSON.stringify(i.product_configuration)}::text::jsonb WHERE id=${line.id}`;
+      }
       await tx`UPDATE quotations SET version=version+1,status='converted',converted_to_order_id=${orders[0].id},updated_at=now() WHERE tenant_id=${tenantId} AND id=${id}`;
       // Only a real conversion reaches here; a replay returned above without a second record.
       await recordAudit(tx, { tenantId, actorId: createdBy, entityType: "quotation", entityId: id, action: "converted", metadata: { quotationNumber: q.quotation_number, orderId: orders[0].id } });
