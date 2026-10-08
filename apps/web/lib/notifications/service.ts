@@ -35,6 +35,7 @@ export type NotificationType =
   | 'order:status_changed'
   | 'order:delivered'
   | 'order:delayed'
+  | 'work_order:assigned'
   | 'mention'
   | 'system'
   | 'reminder';
@@ -88,8 +89,8 @@ export async function createNotification(
       id, user_id, tenant_id, type, title, message, data, channels, read, created_at
     ) VALUES (
       ${id}, ${userId}, ${tenantId}, ${type}, ${title}, ${message}, 
-      ${data ? JSON.stringify(data) : null}, 
-      ${JSON.stringify(channels)}, 
+      ${data ? JSON.stringify(data) : null}::text::jsonb,
+      ${JSON.stringify(channels)}::text::jsonb,
       false, 
       NOW()
     )

@@ -3,6 +3,7 @@ import { applyAwning } from "../awning/configuration";
 import { createHash } from "node:crypto";
 import { IQuotationService, Quotation, CreateQuotationInput, type ConversionResult } from "./types";
 import { createJobsForConfiguredOrder } from "@/lib/features/manufacturing/platform.service";
+import { createNotification } from "@/lib/notifications/service";
 import { sql } from "@/lib/db";
 import { withTransaction } from "@/lib/db/transaction";
 import { safeParseCurrency } from "@/lib/types";
@@ -227,7 +228,7 @@ export class PostgresQuotationService implements IQuotationService {
     expectedVersion?: number,
     actorRole?: string,
   ): Promise<ConversionResult> {
-    return withTransaction(async ({ sql: tx }) => {
+    const result: ConversionResult = await withTransaction(async ({ sql: tx }) => {
       // The firm's production lock first, as production commands take it, before any row: converting
       // may open work orders, and the same order of locks cannot deadlock with a production command.
       await tx`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId},0))`;
@@ -276,6 +277,13 @@ export class PostgresQuotationService implements IQuotationService {
       if (!production.created.length && !production.pending.length) return { orderId: orders[0].id as string };
       return { orderId: orders[0].id as string, workOrders: production.created, pendingWorkOrders: production.pending };
     });
+    // After the commit: the people given new work orders hear of it (not the person who just converted).
+    for (const job of result.workOrders ?? [])
+      if (job.assignedTo !== createdBy)
+        await createNotification(job.assignedTo, tenantId, "work_order:assigned", "Yeni üretim emri", `${job.title} size atandı.`, { workOrderId: job.id, href: "/production" }).catch((error) =>
+          console.error("[quote conversion] notification failed", error instanceof Error ? error.message : error),
+        );
+    return result;
   }
   async deleteQuotation(tenantId: string, id: string) {
     const rows =
