@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { requestJson } from '@/lib/shared/network';
 import { STATE_LABELS, type ProcessedState } from '@/lib/features/inventory/vocabulary';
 
-type Line = { id: string; code: string | null; name: string; color: string | null; quantity: string; item_name: string; sku: string; title: string | null; warehouse_id: string };
-type Item = { id: string; sku: string; name: string; processed_states: string[] | null; standard_length_m: string | null };
+type Line = { id: string; code: string | null; name: string; color: string | null; quantity: string; item_name: string; sku: string; processed_states: string[] | null; title: string | null; warehouse_id: string };
+type Item = { id: string; sku: string; name: string; processed_states: string[] | null };
 type Counted = { id: string; name: string; color: string | null; quantity: string; counted_meters: string; counted_bars: number; counted_at: string };
 type Overview = { available: boolean; canCount?: boolean; lines: Line[]; items: Item[]; warehouses: Array<{ id: string; code: string; name: string }>; counted: Counted[] };
 type Bar = { lengthMm: string; count: string };
 
+const MAX_BARS = 1000;
 const metres = (n: number) => `${n.toLocaleString('tr-TR', { maximumFractionDigits: 3 })} m`;
 
 export default function OpeningCountPage() {
@@ -37,6 +38,9 @@ export default function OpeningCountPage() {
   const item = data?.items.find((i) => i.id === itemId) ?? null;
   const entered = useMemo(() => bars.reduce((s, b) => s + (Number(b.lengthMm) || 0) * (Number(b.count) || 0), 0) / 1000, [bars]);
   const barCount = bars.reduce((s, b) => s + (Number(b.count) || 0), 0);
+  // Unpainted profiles' bars are recorded as such; a list line that names its colour needs none.
+  const unpainted = ((line ? line.processed_states : item?.processed_states) ?? []).includes('boyasiz');
+  const needsColor = !unpainted && !line?.color && Boolean(line || item);
 
   if (!data) return <main className="rf-page"><p role={error ? 'alert' : 'status'}>{error || 'Yükleniyor…'}</p></main>;
   if (!data.available) return <main className="rf-page"><h1 className="rf-page-title">Açılış sayımı</h1><p className="mt-3 text-sm text-muted-foreground">Bu kurulumda çubuk sayımı henüz etkin değil (veritabanı güncellemesi bekleniyor).</p></main>;
@@ -65,17 +69,20 @@ export default function OpeningCountPage() {
             setError('');
             setDone('');
             const rows = bars.filter((b) => b.lengthMm || b.count).map((b) => ({ lengthMm: Number(b.lengthMm), count: Number(b.count) }));
-            if (!rows.length || rows.some((b) => !Number.isInteger(b.lengthMm) || !Number.isInteger(b.count) || b.count < 1)) return setError('Her satıra boyu (mm) ve çubuk adedini tam sayı olarak girin');
+            if (!rows.length || rows.some((b) => !Number.isInteger(b.lengthMm) || b.lengthMm < 100 || b.lengthMm > 30000 || !Number.isInteger(b.count) || b.count < 1))
+              return setError('Her satıra boyu (100–30000 mm) ve çubuk adedini tam sayı olarak girin');
+            if (rows.reduce((s, b) => s + b.count, 0) > MAX_BARS) return setError(`Bir girişte en fazla ${MAX_BARS} çubuk; kalanını ayrı girin`);
+            if (needsColor && !color.trim()) return setError('Çubukların rengini girin');
             setBusy(true);
             const r = await requestJson<{ data: { bars: number; countedMeters: number; differenceMeters: number | null } }>('/api/v1/inventory/opening-count', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ commandId, data: line ? { lineId: line.id, color: line.color ? undefined : color || undefined, bars: rows } : { itemId, warehouseId, color: color || undefined, bars: rows } }),
-            }, { fallbackError: 'Açılış sayımı kaydedilemedi' });
+              body: JSON.stringify({ commandId, data: { ...(line ? { lineId: line.id } : { itemId, warehouseId }), color: needsColor ? color.trim() : undefined, bars: rows } }),
+            }, { timeoutMs: 60000, fallbackError: 'Açılış sayımı kaydedilemedi' });
             setBusy(false);
             if (!r.ok || !r.data) return setError(r.error || 'Açılış sayımı kaydedilemedi');
             const d = r.data.data;
-            setDone(`${d.bars} çubuk (${metres(d.countedMeters)}) stoğa yazıldı${d.differenceMeters === null ? '' : ` · listeye göre fark ${d.differenceMeters >= 0 ? '+' : ''}${metres(d.differenceMeters)}`}.`);
+            setDone(`${d.bars} çubuk (${metres(d.countedMeters)}) stoğa yazıldı${d.differenceMeters == null ? '' : ` · listeye göre fark ${d.differenceMeters >= 0 ? '+' : ''}${metres(d.differenceMeters)}`}.`);
             reset();
             await load();
           }}
@@ -90,7 +97,7 @@ export default function OpeningCountPage() {
             {!line && (
               <>
                 <label className="block text-xs">Malzeme (metre ile tutulan)
-                  <select className="rf-input mt-2 w-full" value={itemId} onChange={(e) => setItemId(e.target.value)} required>
+                  <select className="rf-input mt-2 w-full" value={itemId} onChange={(e) => { setItemId(e.target.value); setColor(''); }} required>
                     <option value="">Seçin</option>
                     {data.items.map((i) => <option key={i.id} value={i.id}>{i.name} ({i.sku}){i.processed_states?.length ? ` · ${i.processed_states.map((st) => STATE_LABELS[st as ProcessedState] ?? st).join(', ')}` : ''}</option>)}
                   </select>
@@ -103,7 +110,7 @@ export default function OpeningCountPage() {
                 </label>
               </>
             )}
-            {(!line || !line.color) && !(item?.processed_states ?? []).includes('boyasiz') && (
+            {needsColor && (
               <label className="block text-xs">Renk (her çubukta tutulur)
                 <input className="rf-input mt-2 w-full" value={color} onChange={(e) => setColor(e.target.value)} maxLength={100} placeholder="ör. 7016 Mat" />
               </label>

@@ -110,7 +110,9 @@ async function main() {
   assert.deepEqual([...new Set(lots.map((l: any) => `${Number(l.length_m)}:${l.color}`))].sort(), ['5:Test Mavi', '6:Test Mavi']);
   const [barEntry] = await db`SELECT entry_type, reference_type FROM stock_entries WHERE id = ${counted.entryId}`;
   assert.deepEqual([barEntry.entry_type, barEntry.reference_type], ['MATERIAL_RECEIPT', 'opening_count']);
-  assert.equal((await recordOpeningCount(owner as any, { lineId: blue.id, bars }, key) as any).replay, true, 'a retried request posts nothing twice');
+  const again = await recordOpeningCount(owner as any, { lineId: blue.id, bars }, key);
+  assert.deepEqual([again.replay, again.entryId, again.bars, again.countedMeters, again.differenceMeters], [true, counted.entryId, 21, 120, 0], 'a retried request posts nothing twice and answers the same');
+  await assert.rejects(recordOpeningCount(owner as any, { lineId: plain.id, bars }, key), (e: any) => e.status === 409, 'a key reused for another line is refused');
   assert.equal((await db`SELECT count(*)::int AS n FROM stock_lots WHERE tenant_id = ${tenantId} AND metadata->>'countLineId' = ${blue.id}`)[0].n, 21);
   await assert.rejects(recordOpeningCount(owner as any, { lineId: blue.id, bars }, randomUUID()), (e: any) => e.status === 409);
   // An unpainted profile's bars say so; a short count is entered as counted, with its difference.
@@ -120,16 +122,22 @@ async function main() {
   // A profile missing from the list is counted on its own, with a colour.
   const paintedItem = (await db`SELECT id FROM inventory_items WHERE tenant_id = ${tenantId} AND profile_code = '900' AND 'boyali' = ANY(processed_states)`)[0].id;
   await assert.rejects(recordOpeningCount(owner as any, { itemId: paintedItem, warehouseId: rawId, bars }, randomUUID()), /rengini girin/);
-  await assert.rejects(recordOpeningCount(owner as any, { itemId: paintedItem, warehouseId: rawId, color: 'Test Kırmızı', bars: [{ lengthMm: 6000, count: 5001 }] }, randomUUID()));
+  await assert.rejects(recordOpeningCount(owner as any, { itemId: paintedItem, warehouseId: rawId, color: 'Test Kırmızı', bars: [{ lengthMm: 6000, count: 600 }, { lengthMm: 5000, count: 401 }] }, randomUUID()), /en fazla 1000 çubuk/);
+  await assert.rejects(recordOpeningCount(owner as any, { itemId: paintedItem, warehouseId: rawId, color: 'Test Kırmızı', bars: [{ lengthMm: 50, count: 1 }] }, randomUUID()), /en az 100 mm/);
   await recordOpeningCount(owner as any, { itemId: paintedItem, warehouseId: rawId, color: 'Test Kırmızı', bars: [{ lengthMm: 6500, count: 2 }] }, randomUUID());
   const onHand = Number((await db`SELECT on_hand_qty FROM stock_balances WHERE tenant_id = ${tenantId} AND item_id = ${paintedItem}`)[0].on_hand_qty);
   assert.equal(onHand, 133);
   // A wrong count is reversed and entered again.
   await reverseStockEntry(owner, counted.entryId, `reverse-${counted.entryId}`);
-  assert((await openingCountOverview(owner as any)).lines.some((l: any) => l.id === blue.id), 'a reversed count waits again');
-  await recordOpeningCount(owner as any, { lineId: blue.id, bars: [{ lengthMm: 6000, count: 20 }] }, randomUUID());
+  const afterReversal = await openingCountOverview(owner as any);
+  assert(afterReversal.lines.some((l: any) => l.id === blue.id), 'a reversed count waits again');
+  assert(!afterReversal.counted.some((l: any) => l.id === blue.id));
+  assert.equal((await db`SELECT status FROM stock_count_lines WHERE id = ${blue.id}`)[0].status, 'needs_bars');
+  const recount = await recordOpeningCount(owner as any, { lineId: blue.id, bars: [{ lengthMm: 6000, count: 20 }] }, randomUUID());
+  const [recounted] = await db`SELECT status, stock_entry_id, counted_bars, counted_meters FROM stock_count_lines WHERE id = ${blue.id}`;
+  assert.deepEqual([recounted.status, recounted.stock_entry_id, recounted.counted_bars, Number(recounted.counted_meters)], ['counted', recount.entryId, 20, 120]);
   assert.equal(Number((await db`SELECT on_hand_qty FROM stock_balances WHERE tenant_id = ${tenantId} AND item_id = ${paintedItem}`)[0].on_hand_qty), 133);
-  console.log('PASS · bar-level opening count: one lot per bar with colour and length, difference against the list, worker refused, retried request posts once, a counted line refused, unpainted bars marked, colour required, bar limit, a reversed count can be entered again');
+  console.log('PASS · bar-level opening count: one lot per bar with colour and length, difference against the list, worker refused, retried request posts once and answers the same, a reused key refused, a counted line refused, unpainted bars marked, colour required, bar limit and length range, a reversed count waits again and is entered again');
 
   // Submitted stock entries are immutable by design; the throwaway test tenant stays in the test database.
   await db.end();

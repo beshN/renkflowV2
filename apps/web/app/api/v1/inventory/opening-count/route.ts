@@ -16,10 +16,11 @@ function error(e: unknown) {
 
 export async function GET() {
   try {
+    const actor = await requireWorkOrderActor();
     const { sql } = await import('@/lib/db');
     const [ready] = await sql`SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='stock_count_lines' AND column_name='counted_meters') AS ok`;
     if (!ready?.ok) return NextResponse.json({ available: false }, { headers });
-    return NextResponse.json({ available: true, ...(await openingCountOverview(await requireWorkOrderActor())) }, { headers });
+    return NextResponse.json({ available: true, ...(await openingCountOverview(actor)) }, { headers });
   } catch (e) {
     return error(e);
   }
