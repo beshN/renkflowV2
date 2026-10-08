@@ -11,7 +11,7 @@ type ParameterDefinition = { key: string; label: string; type: 'number' | 'boole
 type Options = {
   family: { key: string; label: string; dimensions: Array<{ key: 'widthMm' | 'projectionMm' | 'mountingHeightMm'; label: string }> };
   recipes: Array<{ id: string; code: string; name: string; version: number; parameters: ParameterDefinition[]; limits: Record<string, number> }>;
-  colors: string[];
+  colors: Array<{ name: string; inStock: boolean }>;
   matrix: { currency: string } | null;
 };
 
@@ -128,10 +128,10 @@ export function ProductConfigurator({ family, currency, initial, onApply, onClos
             {options.recipes.map((r) => <option key={r.id} value={r.id}>{r.name} ({r.code} · s{r.version})</option>)}
           </select>
         </label>
-        <label className="text-xs sm:col-span-2">Renk (sayım listesi ve stoktan)
+        <label className="text-xs sm:col-span-2">Renk (firma renk kataloğu)
           <select className="rf-input mt-2 w-full" value={color} onChange={(e) => { setColor(e.target.value); setPreview(null); }}>
             <option value="">Seçin</option>
-            {options.colors.map((c) => <option key={c} value={c}>{c}</option>)}
+            {options.colors.map((c) => <option key={c.name} value={c.name}>{c.name} · {c.inStock ? 'stokta var' : 'stokta yok'}</option>)}
           </select>
         </label>
         {options.family.dimensions.map((d) => (
@@ -153,7 +153,8 @@ export function ProductConfigurator({ family, currency, initial, onApply, onClos
           ),
         )}
       </div>
-      {!options.colors.length && <p className="text-xs text-amber-700 dark:text-amber-300">Bu ailenin profillerinde renk yok: sayım listesini içe aktarın ya da çubukları renkleriyle girin.</p>}
+      {!options.colors.length && <p className="text-xs text-amber-700 dark:text-amber-300">Firmanın renk kataloğu boş: yönetici Ayarlar → Renk kataloğu bölümünden renkleri eklemeli.</p>}
+      {options.colors.find((c) => c.name === color && !c.inStock) && <p className="text-xs text-muted-foreground">Bu renkte profil stokta yok; teklif verilebilir, malzeme satın almayla gelir.</p>}
       <div className="flex flex-wrap gap-2">
         <button type="button" className="rf-secondary-button" disabled={busy || !recipeId || !color} onClick={() => void calculate()}>{busy ? 'Hesaplanıyor…' : 'Malzeme listesi ve fiyatı hesapla'}</button>
         <button type="button" className="rf-secondary-button" onClick={onClose}>Vazgeç</button>

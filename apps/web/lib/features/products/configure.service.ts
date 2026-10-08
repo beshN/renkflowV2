@@ -10,6 +10,15 @@ import { ConfigurationChoiceSchema, type ConfigurationChoice, type PriceState, t
 import { productFamily, type ProductFamily } from './families';
 import { activeMatrix, quotePrice } from './price-matrix.service';
 import { familyRecipesAvailable } from './recipe-template.service';
+import { firmColors, sameColor } from '@/lib/features/settings/color-catalog.service';
+
+export type ColorOption = { name: string; inStock: boolean };
+
+/** The firm's catalogue, each colour marked with whether the family has it in stock. */
+export async function familyColorOptions(db: any, tenantId: string, family: ProductFamily): Promise<ColorOption[]> {
+  const [catalogue, stock] = await Promise.all([firmColors(db, tenantId), familyStockColors(db, tenantId, family)]);
+  return catalogue.map((name) => ({ name, inStock: stock.some((c) => sameColor(c, name)) }));
+}
 
 const fail = (message: string, status = 400): never => {
   throw new WorkOrderApiError(message, status);
@@ -19,10 +28,11 @@ const UNPAINTED = 'Boyasız';
 const sameText = (a: string, b: string) => a.localeCompare(b, 'tr-TR', { sensitivity: 'base' }) === 0;
 
 /**
- * The colours a family is quoted in: those the count list printed for its profile codes and those
- * on its bars in stock, plus "Boyasız" when the family has unpainted cards. No colour is invented.
+ * The colours a family has on the shelf: those the count list printed for its profile codes and
+ * those on its bars in stock, plus "Boyasız" when the family has unpainted cards. This only tells
+ * whether a colour is in stock; what can be quoted is the firm's colour catalogue.
  */
-export async function familyColors(db: any, tenantId: string, family: ProductFamily): Promise<string[]> {
+export async function familyStockColors(db: any, tenantId: string, family: ProductFamily): Promise<string[]> {
   const codes = [...family.profileCodes];
   const [counted, bars, unpainted] = await Promise.all([
     (await tableExists('stock_count_lines'))
@@ -53,7 +63,7 @@ export async function configurationOptions(actor: WorkOrderActor, familyKey: str
           FROM product_family_recipes m JOIN production_recipes r ON r.tenant_id = m.tenant_id AND r.code = m.recipe_code
           WHERE m.tenant_id = ${actor.tenantId} AND m.family = ${family.key} AND r.status = 'published' ORDER BY r.code, r.version DESC`
       : [],
-    familyColors(sql, actor.tenantId, family),
+    familyColorOptions(sql, actor.tenantId, family),
     activeMatrix(sql, actor.tenantId, family.key),
   ]);
   return {
@@ -78,10 +88,11 @@ export async function configureProduct(db: any, tenantId: string, currency: stri
     WHERE r.tenant_id = ${tenantId} AND r.id = ${choice.recipeId}`;
   if (!row) fail('Reçete bu ürün ailesine ait değil', 409);
   if (row.status !== 'published') fail(`"${row.code}" reçetesi yayında değil; örneklerle doğrulanıp yayınlanmalı`, 409);
-  // One quote with several lines of a family reads its colours once.
-  if (!memo.has('colors:' + family.key)) memo.set('colors:' + family.key, familyColors(db, tenantId, family));
-  const colors: string[] = await memo.get('colors:' + family.key);
-  const color = colors.find((c) => sameText(c, choice.color)) ?? fail(`"${choice.color}" rengi sayım listesinde ya da stokta yok`);
+  // One quote with several lines reads the catalogue once. Stock does not limit the choice.
+  if (!memo.has('colors')) memo.set('colors', firmColors(db, tenantId));
+  const colors: string[] = await memo.get('colors');
+  if (!colors.length) fail("Firmanın renk kataloğu boş: Ayarlar'dan renk ekleyin", 409);
+  const color = colors.find((c) => sameColor(c, choice.color)) ?? fail(`"${choice.color}" firmanın renk kataloğunda yok`);
   let result: ReturnType<typeof calculateRecipe>;
   try {
     result = calculateRecipe(recipeDefinition(row), { ...choice.parameters, quantity: 1 });
