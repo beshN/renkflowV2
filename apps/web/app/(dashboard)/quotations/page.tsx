@@ -10,6 +10,7 @@ import { Quotation } from '@/lib/features/quotations/types';
 import { formatCurrency } from '@/lib/utils';
 import { Navbar } from '@/components/layout/Navbar';
 import Link from 'next/link';
+import { PRICE_MATRIX_READ_ROLES } from '@/lib/features/products/price-matrix';
 
 export default function QuotationsPage() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export default function QuotationsPage() {
       <Navbar title="Teklifler" />
       
       <main className="w-full flex-1 p-4 md:p-8">
-        {['owner', 'admin', 'office', 'accountant'].includes(user.role) && (
+        {PRICE_MATRIX_READ_ROLES.includes(user.role) && (
           <div className="mb-4 flex justify-end"><Link href="/quotations/price-matrix" className="rf-secondary-button">Fiyat matrisi</Link></div>
         )}
         <RFListView

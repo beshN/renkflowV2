@@ -12,6 +12,11 @@ describe('csv', () => {
     expect(parseCsv(toCsv([['a;b', 'c']]))).toEqual([['a;b', 'c']]);
   });
 
+  it('takes the delimiter from the header row, not from a comment or quoted text', () => {
+    expect(parseCsv('"# not; read"\na,b\n1,2')).toEqual([['# not; read'], ['a', 'b'], ['1', '2']]);
+    expect(parseCsv('"x,y";b\n1;2')).toEqual([['x,y', 'b'], ['1', '2']]);
+  });
+
   it('reads numbers as typed in Turkey and refuses the rest', () => {
     expect(readNumber('1.250,50')).toBe(1250.5);
     expect(readNumber('1250,5')).toBe(1250.5);
@@ -55,6 +60,15 @@ describe('price matrix', () => {
     if (!read.ok) throw new Error('expected ok');
     expect(priceFromMatrix(read.matrix, { variant: '*', a: 3500, b: 2000, options: {} })).toMatchObject({ status: 'not_covered' });
     expect(priceFromMatrix(read.matrix, { variant: '*', a: 2000, b: 2000, options: { sineklik: true } })).toMatchObject({ status: 'priced', unitPrice: 10, unpricedOptions: ['sineklik'] });
+  });
+
+  it('counts a chosen option as many times as its number and points errors at the file line', () => {
+    const read = readMatrixCsv(file('pergola;taban;"*";1000;3000;1000;3000;;adet;10;TRY', 'pergola;opsiyon;*;;;;;motor;adet;5;TRY'));
+    if (!read.ok) throw new Error('expected ok');
+    expect(priceFromMatrix(read.matrix, { variant: '*', a: 2000, b: 2000, options: { motor: 2 } })).toMatchObject({ unitPrice: 20, lines: [{}, { label: 'Opsiyon: motor × 2', amount: 10 }] });
+    // A cell with a line break (Alt+Enter in Excel) does not shift the line numbers after it.
+    const broken = readMatrixCsv(file('pergola;taban;"çok\nsatırlı";1000;3000;1000;3000;;adet;10;TRY', 'pergola;taban;*;1000;3000;1000;3000;;adet;;TRY'));
+    expect(broken).toMatchObject({ ok: false, errors: ['Satır 4: birim fiyat boş veya okunamadı'] });
   });
 
   it('rejects the whole file and lists every problem', () => {

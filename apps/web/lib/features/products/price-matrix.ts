@@ -1,4 +1,4 @@
-import { parseCsv, readNumber, toCsv } from './csv';
+import { parseCsvRecords, readNumber, toCsv } from './csv';
 import { PRODUCT_FAMILIES, productFamily } from './families';
 
 /**
@@ -16,6 +16,9 @@ export type PriceMatrix = { family: string; currency: Currency; base: BaseRow[];
 
 export const MATRIX_COLUMNS = ['aile', 'satir_turu', 'varyant', 'en_min_mm', 'en_max_mm', 'acilim_min_mm', 'acilim_max_mm', 'opsiyon', 'fiyat_esasi', 'birim_fiyat', 'para_birimi'] as const;
 const ANY = '*';
+/** Who may see the matrix (and so be pointed to it); importing is for owner and admin only. */
+export const PRICE_MATRIX_READ_ROLES: readonly string[] = ['owner', 'admin', 'office', 'accountant'];
+export const PRICE_MATRIX_IMPORT_ROLES: readonly string[] = ['owner', 'admin'];
 const MAX_ROWS = 5000;
 
 const fold = (s: string) =>
@@ -40,7 +43,7 @@ export type ImportResult = { ok: true; matrix: PriceMatrix } | { ok: false; erro
 
 /** Reads a filled template. Any problem in any row rejects the whole file, with every problem listed. */
 export function readMatrixCsv(text: string, expectedFamily?: string): ImportResult {
-  const rows = parseCsv(text).map((cells, i) => ({ cells, line: i + 1 })).filter((r) => r.cells.some((c) => c) && !r.cells[0].startsWith('#'));
+  const rows = parseCsvRecords(text).filter((r) => r.cells.some((c) => c) && !r.cells[0].startsWith('#'));
   if (!rows.length) return { ok: false, errors: ['Dosyada başlık satırı yok'] };
   const header = rows[0].cells.map(fold);
   const missing = MATRIX_COLUMNS.filter((c) => !header.includes(c));
@@ -140,7 +143,15 @@ export function priceFromMatrix(matrix: PriceMatrix, input: PriceInput): PriceRe
       unpricedOptions.push(key);
       continue;
     }
-    lines.push({ label: `Opsiyon: ${key}`, basis: option.basis, unitPrice: option.unitPrice, amount: amount(option.basis, option.unitPrice), row: option.row });
+    // A number is how many (e.g. 2 motors); true is one.
+    const count = value === true ? 1 : value;
+    lines.push({
+      label: `Opsiyon: ${key}${count === 1 ? '' : ` × ${count}`}`,
+      basis: option.basis,
+      unitPrice: option.unitPrice,
+      amount: money(amount(option.basis, option.unitPrice) * count),
+      row: option.row,
+    });
   }
   return { status: 'priced', currency: matrix.currency, unitPrice: money(lines.reduce((s, l) => s + l.amount, 0)), lines, unpricedOptions };
 }

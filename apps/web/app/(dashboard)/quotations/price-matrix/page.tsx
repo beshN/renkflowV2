@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { requestJson } from '@/lib/shared/network';
+import { readNumber } from '@/lib/features/products/csv';
 
 type Summary = { id: string; family: string; currency: string; status: string; file_name: string | null; base_count: number; option_count: number; created_at: string; imported_by_name: string | null };
 type Overview = { available: boolean; canImport: boolean; families: Array<{ key: string; label: string; active: Summary | null }>; history: Summary[] };
@@ -108,7 +109,9 @@ export default function PriceMatrixPage() {
                 const f = e.target.files?.[0];
                 setPreview(null);
                 setDone('');
-                if (!f) return setFile(null);
+                setError('');
+                setFile(null);
+                if (!f) return;
                 if (f.size > 1_000_000) return setError('Dosya en fazla 1 MB olabilir');
                 setFile({ name: f.name, text: await readText(f) });
               }} />
@@ -150,11 +153,14 @@ export default function PriceMatrixPage() {
         <form className="grid gap-3 sm:grid-cols-5 sm:items-end" onSubmit={async (e) => {
           e.preventDefault();
           const form = new FormData(e.currentTarget);
+          const a = readNumber(String(form.get('a') || '')), b = readNumber(String(form.get('b') || ''));
+          if (a === null || b === null || !Number.isInteger(a) || !Number.isInteger(b)) return setError('En ve açılımı tam sayı mm olarak girin (ör. 3000 ya da 3.000)');
+          setError('');
           const options = Object.fromEntries(String(form.get('options') || '').split(',').map((s) => s.trim()).filter(Boolean).map((k) => [k, true]));
           const r = await requestJson<Check>('/api/v1/products/price-matrix', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'check', family, variant: String(form.get('variant') || '*'), a: Number(form.get('a')), b: Number(form.get('b')), options }),
+            body: JSON.stringify({ action: 'check', family, variant: String(form.get('variant') || '*'), a, b, options }),
           });
           if (r.ok && r.data) setCheck(r.data);
           else setError(r.error || 'Fiyat hesaplanamadı');

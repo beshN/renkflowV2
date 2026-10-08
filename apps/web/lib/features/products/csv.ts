@@ -1,12 +1,23 @@
-/** Reads a CSV the way spreadsheet programs in Turkey save it: ";" or "," separated, quoted cells, a BOM. */
-export function parseCsv(text: string): string[][] {
-  const body = text.replace(/^﻿/, '');
-  const firstLine = body.split(/\r?\n/, 1)[0] ?? '';
-  const delimiter = (firstLine.match(/;/g)?.length ?? 0) >= (firstLine.match(/,/g)?.length ?? 0) ? ';' : ',';
-  const rows: string[][] = [];
+/** The delimiter of the first non-comment line, counting only characters outside quotes. */
+function detectDelimiter(body: string) {
+  const header = body.split(/\r?\n/).find((l) => l.trim() && !l.trim().replace(/^"/, '').startsWith('#')) ?? '';
+  const bare = header.replace(/"(?:[^"]|"")*"/g, '');
+  return (bare.match(/;/g)?.length ?? 0) >= (bare.match(/,/g)?.length ?? 0) ? ';' : ',';
+}
+
+/**
+ * Reads a CSV the way spreadsheet programs in Turkey save it: ";" or "," separated, quoted cells
+ * (which may hold line breaks), a BOM. Each record keeps the file line it starts on.
+ */
+export function parseCsvRecords(text: string): Array<{ cells: string[]; line: number }> {
+  const body = text.replace(/^\uFEFF/, '');
+  const delimiter = detectDelimiter(body);
+  const records: Array<{ cells: string[]; line: number }> = [];
   let row: string[] = [];
   let cell = '';
   let quoted = false;
+  let line = 1;
+  let start = 1;
   for (let i = 0; i < body.length; i++) {
     const c = body[i];
     if (quoted) {
@@ -14,7 +25,10 @@ export function parseCsv(text: string): string[][] {
         cell += '"';
         i++;
       } else if (c === '"') quoted = false;
-      else cell += c;
+      else {
+        if (c === '\n') line++;
+        cell += c;
+      }
     } else if (c === '"' && cell === '') quoted = true;
     else if (c === delimiter) {
       row.push(cell);
@@ -22,17 +36,21 @@ export function parseCsv(text: string): string[][] {
     } else if (c === '\n' || c === '\r') {
       if (c === '\r' && body[i + 1] === '\n') i++;
       row.push(cell);
-      rows.push(row);
+      records.push({ cells: row.map((v) => v.trim()), line: start });
       row = [];
       cell = '';
+      line++;
+      start = line;
     } else cell += c;
   }
   if (cell !== '' || row.length) {
     row.push(cell);
-    rows.push(row);
+    records.push({ cells: row.map((v) => v.trim()), line: start });
   }
-  return rows.map((r) => r.map((v) => v.trim()));
+  return records;
 }
+
+export const parseCsv = (text: string): string[][] => parseCsvRecords(text).map((r) => r.cells);
 
 /** Writes rows with ";" (what Excel in Turkish locale opens directly), quoting where needed, with a BOM. */
 export function toCsv(rows: Array<Array<string | number>>) {
