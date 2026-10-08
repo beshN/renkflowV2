@@ -12,6 +12,7 @@ import {
   WorkOrderStatus,
 } from './status';
 import { WorkOrderActor, WorkOrderApiError } from './security';
+import { colorInfo } from '@/lib/features/colors/color-spec';
 import { createProductionWorkOrder } from '@/lib/features/manufacturing/manufacturing.service';
 import { CreateProductionWorkOrderInputSchema } from '@/lib/features/manufacturing/types';
 import {
@@ -127,6 +128,7 @@ type WorkOrderRow = {
   target_warehouse_id?: string | null;
   scrap_warehouse_id?: string | null;
   reservation_status?: string;
+  configuration?: Record<string, unknown> | null;
 };
 
 type ChecklistItemRow = {
@@ -183,6 +185,8 @@ function mapWorkOrderRow(row: WorkOrderRow) {
     checklistTotal: Number(row.checklist_total || 0),
     checklistCompleted: Number(row.checklist_completed || 0),
     commentTotal: Number(row.comment_total || 0),
+    // Only the colour (code, name, finish, screen hex) leaves the configuration: no price, no customer.
+    color: colorInfo(typeof row.configuration?.bodyName === 'string' ? row.configuration.bodyName : null),
     manufacturing: row.bom_id ? {
       orderId: row.order_id || null,
       bomId: row.bom_id,

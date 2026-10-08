@@ -59,17 +59,20 @@ async function main() {
   await productionCommand(owner as any, { commandId: randomUUID(), action: 'recipe.publish', data: { id: row.id, editRevision: row.edit_revision } });
 
   await assert.rejects(configurationOptions(worker as any, 'pergola'), (e: any) => e.status === 403);
-  // The firm's colour catalogue decides what can be quoted; stock only says whether it is on the shelf.
+  // Every RAL colour can be quoted; the firm's frequently used colours come first in the picker and
+  // stock only says whether a colour is on the shelf. An empty list does not stop a quote.
   const { saveColorCatalog } = await import('../lib/features/settings/color-catalog.service');
-  assert.deepEqual((await configurationOptions(office as any, 'pergola') as any).colors, []);
-  await assert.rejects(previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }), /renk kataloğu boş/);
+  assert.deepEqual((await configurationOptions(office as any, 'pergola') as any).colors, { favorites: [], stock: ['Boyasız', 'Test Gri'] });
+  assert.equal((await previewConfiguration(office as any, { currency: 'TRY', choice: { ...draftChoice, color: '7016' } }) as any).color, 'RAL 7016 Mat', 'any RAL colour, stored in one spelling, with no list');
+  assert.equal((await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) as any).color, 'Test Gri', 'an old name on the shelf still works');
   await assert.rejects(saveColorCatalog(office as any, { colors: ['Test Gri'] }), (e: any) => e.status === 403);
   await assert.rejects(saveColorCatalog(owner as any, { colors: ['Test Gri', 'test gri'] }), /iki kez/);
   await assert.rejects(saveColorCatalog(owner as any, { colors: ['Kirli Beyaz', 'KIRLI BEYAZ'] }), /iki kez/);
-  await saveColorCatalog(owner as any, { colors: ['Test Gri', 'Mor', 'Boyasız'] });
+  await assert.rejects(saveColorCatalog(owner as any, { colors: ['7016 Mat', 'RAL 7016 MAT'] }), /iki kez/);
+  await saveColorCatalog(owner as any, { colors: ['Test Gri', 'Mor', 'Boyasız', '7016 mat'] });
   const options: any = await configurationOptions(office as any, 'pergola');
   assert.deepEqual(options.recipes.map((r: any) => r.code), ['PRG']);
-  assert.deepEqual(options.colors, [{ name: 'Test Gri', inStock: true }, { name: 'Mor', inStock: false }, { name: 'Boyasız', inStock: true }], 'catalogue order; in stock from the bars and the unpainted card');
+  assert.deepEqual(options.colors.favorites, [{ name: 'Test Gri', inStock: true }, { name: 'Mor', inStock: false }, { name: 'Boyasız', inStock: true }, { name: 'RAL 7016 Mat', inStock: false }], 'the firm order, saved in the picker spelling; in stock from the bars and the unpainted card');
   assert.equal(options.matrix, null);
 
   // No matrix: BOM and cut list come out, the price must be typed and says why.
@@ -77,7 +80,8 @@ async function main() {
   assert.deepEqual(preview.bom.cuts.map((c: any) => [c.sku, c.lengthMm, c.quantity]), [['108-BOYALI', 2980, 2]]);
   assert.deepEqual([preview.color, preview.price.state, preview.price.source, preview.price.message], ['Test Gri', 'no_matrix', 'manual', 'Fiyat matrisi tanımlı değil']);
   assert.equal((await previewConfiguration(office as any, { currency: 'TRY', choice: { ...draftChoice, color: 'Mor' } }) as any).color, 'Mor', 'a colour out of stock can be quoted');
-  await assert.rejects(previewConfiguration(office as any, { currency: 'TRY', choice: { ...draftChoice, color: 'Pembe' } }), /firmanın renk kataloğunda yok/);
+  await assert.rejects(previewConfiguration(office as any, { currency: 'TRY', choice: { ...draftChoice, color: 'Pembe' } }), /bir RAL rengi değil/);
+  assert.equal((await previewConfiguration(office as any, { currency: 'TRY', choice: { ...draftChoice, color: 'Özel renk: Bordo metalik (Parlak)' } }) as any).color, 'Özel renk: Bordo metalik (Parlak)');
   await assert.rejects(previewConfiguration(office as any, { currency: 'TRY', choice: { ...draftChoice, parameters: { ...draftChoice.parameters, widthMm: 9000 } } }), /En reçete sınırları dışında/);
 
   const item = (unitPrice: number, extra: object = {}) => ({ productName: 'x', quantity: 2, unitPrice, discountPercent: 0, totalPrice: 0, productConfiguration: draftChoice, ...extra });
@@ -152,19 +156,50 @@ async function main() {
   await assert.rejects(saveProductionLead(owner as any, { leadUserId: randomUUID() }), /üretim ekibinde değil/);
   await saveProductionLead(owner as any, { leadUserId: workerId });
   assert.equal((await productionSettings(owner as any)).leadUserId, workerId);
-  const led: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) })] } as any, officeId);
+  const ralChoice = { ...draftChoice, color: 'RAL 7016 Mat' };
+  const led: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: ralChoice }) })] } as any, officeId);
   const ledDone: any = await quotationService.convertToOrder(tenantId, led.id, officeId, led.version, 'office');
+  const ledJob = ledDone.workOrders[0].id;
   assert.equal(ledDone.workOrders[0].assignedTo, workerId);
-  assert.equal((await db`SELECT assigned_to FROM work_orders WHERE id = ${ledDone.workOrders[0].id}`)[0].assigned_to, workerId);
+  assert.equal((await db`SELECT assigned_to FROM work_orders WHERE id = ${ledJob}`)[0].assigned_to, workerId);
   const [notice] = await db`SELECT type, title, message, data FROM notifications WHERE tenant_id = ${tenantId} AND user_id = ${workerId}`;
-  assert.deepEqual([notice.type, notice.title, notice.data.workOrderIds, notice.data.href], ['work_order:assigned', 'Yeni üretim emri', [ledDone.workOrders[0].id], '/factory']);
+  assert.deepEqual([notice.type, notice.title, notice.data.workOrderIds, notice.data.href, notice.data.colors], ['work_order:assigned', 'Yeni üretim emri', [ledJob], '/factory', ['RAL 7016 Mat']]);
+  assert.match(notice.message, /\(RAL 7016 Mat\) size atandı/);
+  // Bars written before the RAL list ("7016 MAT") are cut for the RAL 7016 Mat job.
+  for (const lot of ['L-7016-A', 'L-7016-B'])
+    await db`INSERT INTO stock_lots (tenant_id, item_id, warehouse_id, lot_number, original_qty, remaining_qty, length_m, metadata) VALUES (${tenantId}, ${p108}, ${rawId}, ${lot}, 6, 6, 6, '{"color":"7016 MAT"}')`;
+  await db`UPDATE stock_balances SET on_hand_qty = on_hand_qty + 12 WHERE tenant_id = ${tenantId} AND item_id = ${p108} AND warehouse_id = ${rawId}`;
+  const ralPool: any = await proposeCutForPool(sql, owner as any);
+  const ralBars = ralPool.result.bars.filter((b: any) => b.pieces.some((p: any) => p.workOrderId === ledJob));
+  assert.deepEqual([ralBars.length, [...new Set(ralBars.map((b: any) => b.source.color))]], [2, ['7016 MAT']], 'the RAL job is cut only from the old-spelling 7016 bars');
+  assert(!ralPool.result.unfulfilled.some((p: any) => p.workOrderId === ledJob));
+  // The worker sees the colour (code, name, finish, screen hex) on the job, and no price or customer.
+  const { productionOverview } = await import('../lib/features/manufacturing/platform.service');
+  const { getWorkOrderDetails, listWorkOrders } = await import('../lib/features/work-orders/service');
+  const seen: any = await productionOverview(worker as any);
+  const workerJob = seen.jobs.find((j: any) => j.id === ledJob);
+  const workOrder: any = await getWorkOrderDetails(tenantId, ledJob);
+  const listed: any = (await listWorkOrders(tenantId, { page: 1, pageSize: 50 } as any)).data.find((w: any) => w.id === ledJob);
+  for (const color of [workerJob.color, workOrder.color, listed.color])
+    assert.deepEqual([color.label, color.code, color.name, color.finish, color.hex], ['RAL 7016 Mat', 'RAL 7016', 'Antrasit gri', 'Mat', '#3B4044']);
+  assert.deepEqual(Object.keys(workOrder.color).sort(), ['code', 'finish', 'finishAssumed', 'hex', 'kind', 'label', 'name', 'note', 'standIn']);
+  const leaks = (value: unknown, path = ''): string[] =>
+    value && typeof value === 'object'
+      ? Object.entries(value).flatMap(([k, v]) => [
+          ...(/price|cost|amount|subtotal|^total$|customer|currency/i.test(k) && v !== null && v !== undefined && !(Array.isArray(v) && !v.length) ? [path + k] : []),
+          ...leaks(v, path + k + '.'),
+        ])
+      : [];
+  assert.deepEqual(leaks(seen.jobs), [], 'no price or customer field in the worker\'s jobs');
+  assert.deepEqual(leaks(workOrder), [], 'no price or customer field in the work order');
+  assert(!JSON.stringify([seen, workOrder]).includes('Test müşteri'), 'the customer name never reaches the worker');
   await db`DELETE FROM tenant_members WHERE tenant_id = ${tenantId} AND user_id = ${workerId}`;
   assert.equal((await productionSettings(owner as any)).leadLeft, true, 'the settings screen says the lead left');
   const gone: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) })] } as any, officeId);
   const goneDone: any = await quotationService.convertToOrder(tenantId, gone.id, officeId, gone.version, 'office');
   assert.match(goneDone.pendingWorkOrders[0].reason, /üretim sorumlusu artık üretim ekibinde değil/);
-  console.log('PASS · quote to order: work order opened at conversion with the quoted recipe, measures and colour, assigned to the person converting, its cuts in the cutting pool; warehouses not guessed, a role that cannot open work orders leaves the line waiting with the reason, another recipe or a changed cut list refused for a configured line, no silent skip without a person; the default production lead gets the work order and a notification, a lead who left is not replaced by a guess');
-  console.log('PASS · quote configurator: worker refused, only published family recipes offered, colours from the firm catalogue (empty catalogue refused, office cannot edit, duplicates refused) with stock only as in/out of stock, an out-of-stock colour quotable, BOM and cut list from the recipe, limits and unknown colour refused, no matrix means a typed price that is required and flagged, browser BOM/price ignored, matrix price set by the server, an untouched line kept as stored, other currency not converted and an old matrix price not taken as typed, the order keeps the configuration');
+  console.log('PASS · quote to order: work order opened at conversion with the quoted recipe, measures and colour, assigned to the person converting, its cuts in the cutting pool; warehouses not guessed, a role that cannot open work orders leaves the line waiting with the reason, another recipe or a changed cut list refused for a configured line, no silent skip without a person; the default production lead gets the work order and a notification naming its colour, old-spelling 7016 bars cut for a RAL 7016 Mat job, the worker sees the colour without prices or the customer, a lead who left is not replaced by a guess');
+  console.log('PASS · quote configurator: worker refused, only published family recipes offered, every RAL colour quotable in one spelling with or without the frequently used list (office cannot edit it, duplicates in any spelling refused), an old name kept when the firm uses it and an unknown name refused, stock only as in/out of stock, an out-of-stock colour quotable, BOM and cut list from the recipe, limits and unknown colour refused, no matrix means a typed price that is required and flagged, browser BOM/price ignored, matrix price set by the server, an untouched line kept as stored, other currency not converted and an old matrix price not taken as typed, the order keeps the configuration');
 
   await db.end();
   await sql.end({ timeout: 5 });

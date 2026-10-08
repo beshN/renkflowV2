@@ -1,6 +1,7 @@
 "use client";
 import { use, useEffect, useState } from "react";
 import { requestJson } from "@/lib/shared/network";
+import { ColorChip } from "@/components/colors/ColorSwatch";
 
 type Sheet = {
   id: string; code: string; status: string; rework: boolean; createdAt: string; approvedAt: string | null;
@@ -65,15 +66,15 @@ export default function CutPlanPrint({ params }: { params: Promise<{ id: string 
       {sheet.unfulfilled > 0 && (
         <div className="mt-4 rounded border border-border p-3 text-xs">
           <p className="font-semibold">{sheet.unfulfilled} parça için stokta uygun profil yok; bu föy onaylanamaz.</p>
-          {sheet.purchase.length > 0 && <ul className="mt-1 list-disc pl-5">{sheet.purchase.map((l, i) => <li key={i}>Satın alma: {l.item ? `${l.item.sku} ${l.item.name}` : "Profil"} · {l.color} · {l.bars} × {l.lengthMm} mm çubuk ({l.pieces} parça)</li>)}</ul>}
-          {sheet.tooLong.length > 0 && <ul className="mt-1 list-disc pl-5">{sheet.tooLong.map((piece, i) => <li key={i}>{piece.item ? `${piece.item.sku} ${piece.item.name}` : "Profil"} · {piece.color} · {piece.lengthMm} mm: standart çubuktan uzun, satın almayla karşılanmaz</li>)}</ul>}
+          {sheet.purchase.length > 0 && <ul className="mt-1 list-disc pl-5">{sheet.purchase.map((l, i) => <li key={i}>Satın alma: {l.item ? `${l.item.sku} ${l.item.name}` : "Profil"} · <ColorChip color={l.color} size={12} /> · {l.bars} × {l.lengthMm} mm çubuk ({l.pieces} parça)</li>)}</ul>}
+          {sheet.tooLong.length > 0 && <ul className="mt-1 list-disc pl-5">{sheet.tooLong.map((piece, i) => <li key={i}>{piece.item ? `${piece.item.sku} ${piece.item.name}` : "Profil"} · <ColorChip color={piece.color} size={12} /> · {piece.lengthMm} mm: standart çubuktan uzun, satın almayla karşılanmaz</li>)}</ul>}
         </div>
       )}
       <ol className="mt-4 space-y-3">
         {sheet.bars.map((bar) => (
           <li key={bar.position} className="cut-bar rounded border border-border p-3">
             <div className="flex flex-wrap justify-between gap-2 font-medium">
-              <span>{bar.position}. {bar.item ? `${bar.item.sku} · ${bar.item.name}` : "Profil"} · {bar.color}</span>
+              <span className="inline-flex flex-wrap items-center gap-1.5">{bar.position}. {bar.item ? `${bar.item.sku} · ${bar.item.name}` : "Profil"} · <ColorChip color={bar.color} size={16} showName /></span>
               <span>{bar.isRemnant ? "Artık" : "Çubuk"} {bar.lengthMm} mm{bar.lotNumber ? ` · Lot ${bar.lotNumber}` : ""}</span>
             </div>
             <table className="mt-2 w-full text-xs">

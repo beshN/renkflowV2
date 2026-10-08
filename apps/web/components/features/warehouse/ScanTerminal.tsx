@@ -11,6 +11,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import BarcodeScanner from "./BarcodeScanner";
+import { WorkshopColor } from "@/components/colors/ColorSwatch";
 import { useWarehouse } from "./useWarehouse";
 import { useAuth } from "@/lib/context/AuthContext";
 import {
@@ -228,9 +229,11 @@ export default function ScanTerminal() {
                 </p>
                 {record.quantity !== undefined && (
                   <p className="mt-3 font-mono text-sm">
-                    {quantity(record.quantity)} {record.uom} · {record.color} ·{" "}
-                    {record.status}
+                    {quantity(record.quantity)} {record.uom} · {record.status}
                   </p>
+                )}
+                {(record.color || record.configuration?.bodyName) && (
+                  <WorkshopColor color={record.color || record.configuration.bodyName} className="mt-3" />
                 )}
                 {record.code && (
                   <p className="mt-3 font-mono text-xs text-muted-foreground">

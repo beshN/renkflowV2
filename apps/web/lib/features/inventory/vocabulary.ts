@@ -50,8 +50,7 @@ export const MOVEMENT_SOURCE_LABELS: Record<string, string> = {
 export const movementSourceLabel = (type: string | null | undefined) => (type && MOVEMENT_SOURCE_LABELS[type]) || (type ? type : 'Kaynak yok');
 
 /**
- * One spelling for a colour name: trimmed, single spaces, lower case without the Turkish dotted /
- * dotless I difference ("7016 MAT", "7016 Mat", " 7016  mat " are one colour). The catalogue's
- * uniqueness, stock matching and the cutting engine all compare colours through this.
+ * Colour comparison lives with the RAL model: "RAL 7016 Mat", "7016 MAT" and " 7016  mat" are one
+ * colour. The catalogue's uniqueness, stock matching and the cutting engine all compare through it.
  */
-export const colorKey = (name: string) => name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('tr-TR').replace(/ı/g, 'i');
+export { colorKey } from '@/lib/features/colors/color-spec';

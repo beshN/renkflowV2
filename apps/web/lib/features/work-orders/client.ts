@@ -60,6 +60,11 @@ const WorkOrderSchema = z.object({
   checklistTotal: z.number().int(),
   checklistCompleted: z.number().int(),
   commentTotal: z.number().int(),
+  /** The job's colour as the workshop sees it (code, name, finish, screen hex); never prices or customers. */
+  color: z.object({
+    label: z.string(), code: z.string(), name: z.string(), finish: z.string().nullable(), finishAssumed: z.boolean(),
+    hex: z.string().nullable(), standIn: z.boolean(), note: z.string().nullable(), kind: z.string(),
+  }).nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

@@ -35,7 +35,7 @@ export const QuotationItemSchema = z.object({
 /** The order made from a quote, and the work orders its configured lines got (or why not yet). */
 export type ConversionResult = {
   orderId: string;
-  workOrders?: Array<{ id: string; orderItemId: string; title: string; assignedTo: string; assigneeRole?: string }>;
+  workOrders?: Array<{ id: string; orderItemId: string; title: string; assignedTo: string; assigneeRole?: string; color?: string | null }>;
   pendingWorkOrders?: Array<{ orderItemId: string; productName: string; reason: string }>;
 };
 

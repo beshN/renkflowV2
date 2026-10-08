@@ -10,24 +10,35 @@ import { ConfigurationChoiceSchema, type ConfigurationChoice, type PriceState, t
 import { productFamily, type ProductFamily } from './families';
 import { activeMatrix, quotePrice } from './price-matrix.service';
 import { familyRecipesAvailable } from './recipe-template.service';
-import { firmColors, sameColor } from '@/lib/features/settings/color-catalog.service';
+import { firmColors } from '@/lib/features/settings/color-catalog.service';
+import { canonicalColor, parseColor, sameColor } from '@/lib/features/colors/color-spec';
 
 export type ColorOption = { name: string; inStock: boolean };
+export type ColorOptions = { favorites: ColorOption[]; stock: string[] };
 
 /**
- * The colours a quote can use: the firm's catalogue. Before the catalogue exists (its migration not
- * yet applied) the colours on the shelf are offered, as before, rather than none.
+ * What the colour picker needs besides the RAL list: the firm's frequently used colours (its
+ * catalogue, first in the picker) and the colours the family has on the shelf, so every colour can
+ * say "stokta var / yok". Neither limits the choice: any RAL colour can be quoted.
  */
-async function quotableColors(db: any, tenantId: string, family: ProductFamily) {
-  return (await firmColors(db, tenantId)) ?? (await familyStockColors(db, tenantId, family));
+export async function familyColorOptions(db: any, tenantId: string, family: ProductFamily): Promise<ColorOptions> {
+  const [favorites, stock] = await Promise.all([firmColors(db, tenantId), familyStockColors(db, tenantId, family)]);
+  return { favorites: (favorites ?? []).map((name) => ({ name, inStock: stock.some((c) => sameColor(c, name)) })), stock };
 }
 
-/** The firm's catalogue, each colour marked with whether the family has it in stock. */
-export async function familyColorOptions(db: any, tenantId: string, family: ProductFamily): Promise<ColorOption[]> {
-  const catalogue = await quotableColors(db, tenantId, family);
-  if (!catalogue.length) return [];
-  const stock = await familyStockColors(db, tenantId, family);
-  return catalogue.map((name) => ({ name, inStock: stock.some((c) => sameColor(c, name)) }));
+/**
+ * The colour a quote line is stored with. Every RAL colour, raw, anodised, wood grain and a named
+ * custom colour are accepted and written in one spelling ("RAL 7016 Mat"). A name outside that
+ * model (written before the RAL list, e.g. "Kahverengi") is accepted only when the firm uses it:
+ * it is in the frequently used list or on the shelf, so old lines can still be recalculated.
+ */
+async function quotableColor(db: any, tenantId: string, family: ProductFamily, text: string, memo: Map<string, Promise<any>>) {
+  const spec = parseColor(text);
+  if (spec.kind !== 'text') return canonicalColor(text);
+  if (!memo.has('colors')) memo.set('colors', familyColorOptions(db, tenantId, family));
+  const { favorites, stock }: ColorOptions = await memo.get('colors');
+  const known = [...favorites.map((f) => f.name), ...stock].find((c) => sameColor(c, text));
+  return known ?? fail(`"${text}" bir RAL rengi değil: listeden RAL rengi seçin ya da "Özel renk" olarak yazın`);
 }
 
 const fail = (message: string, status = 400): never => {
@@ -39,7 +50,7 @@ const UNPAINTED = 'Boyasız';
 /**
  * The colours a family has on the shelf: those the count list printed for its profile codes and
  * those on its bars in stock, plus "Boyasız" when the family has unpainted cards. This only tells
- * whether a colour is in stock; what can be quoted is the firm's colour catalogue.
+ * whether a colour is in stock; it never limits what can be quoted.
  */
 export async function familyStockColors(db: any, tenantId: string, family: ProductFamily): Promise<string[]> {
   const codes = [...family.profileCodes];
@@ -97,11 +108,8 @@ export async function configureProduct(db: any, tenantId: string, currency: stri
     WHERE r.tenant_id = ${tenantId} AND r.id = ${choice.recipeId}`;
   if (!row) fail('Reçete bu ürün ailesine ait değil', 409);
   if (row.status !== 'published') fail(`"${row.code}" reçetesi yayında değil; örneklerle doğrulanıp yayınlanmalı`, 409);
-  // One quote with several lines reads the catalogue once. Stock does not limit the choice.
-  if (!memo.has('colors')) memo.set('colors', quotableColors(db, tenantId, family));
-  const colors: string[] = await memo.get('colors');
-  if (!colors.length) fail("Firmanın renk kataloğu boş: Ayarlar'dan renk ekleyin", 409);
-  const color = colors.find((c) => sameColor(c, choice.color)) ?? fail(`"${choice.color}" firmanın renk kataloğunda yok`);
+  // Stock does not limit the choice; one quote with several lines reads the firm's colours once.
+  const color = await quotableColor(db, tenantId, family, choice.color, memo);
   let result: ReturnType<typeof calculateRecipe>;
   try {
     result = calculateRecipe(recipeDefinition(row), { ...choice.parameters, quantity: 1 });

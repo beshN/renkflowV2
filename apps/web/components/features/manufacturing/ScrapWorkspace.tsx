@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { RefreshCw,Scissors,Printer } from 'lucide-react';
 import { RFListView } from '@/components/shared/views/RFListView';
 import { requestJson } from '@/lib/shared/network';
+import { ColorChip } from '@/components/colors/ColorSwatch';
 type Lot={id:string;lot_number:string;status:string;remaining_qty:string;metadata:{color?:string;unitCost?:number};name:string;sku:string;weight_per_meter_kg:string;warehouse_name:string};
 type Loss={id:string;lot_number:string;name:string;plan_id:string;weight_kg:string;cost:string;created_at:string;length_mm:string};
 type Data={lots:Lot[];losses:Loss[];totals:{weight_kg:string;cost:string;loss_count:string}};
@@ -27,7 +28,7 @@ export default function ScrapWorkspace(){
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{[['Kesim hurdası · toplam',amount(data?.totals.weight_kg)+' kg'],['Kesim kaybı maliyeti',money(data?.totals.cost)],['Listelenen kullanılabilir artık',amount(available.reduce((s,l)=>s+Number(l.remaining_qty),0))+' m'],['Artık lotu · listelenen',amount(available.length)]].map(([label,value])=><div key={label} className="rf-panel p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-2 text-xl font-semibold">{loading?'—':value}</p></div>)}</div>
     <div className="rf-panel p-4 text-xs leading-6 text-muted-foreground">Kullanılabilir artıklar tekrar kesime girebilir. Rezerve lotlar başka kesime ayrılamaz. Hurda kg ve maliyetleri gerçekleşen kesimden hesaplanır; iade veya hurda satış kaydı değildir.</div>
     <RFListView<Lot> title="Fiziksel artık lotları" description="En son 500 lot; mevcut kalan metre ve durum" data={data?.lots || []} isLoading={loading} error={error || undefined} onRetry={reload} columns={[
-      {key:'lot_number',label:'Lot / profil',render:(_,l)=><div><p className="font-medium">{l.lot_number}</p><p className="mt-1 text-xs text-muted-foreground">{l.name} · {l.metadata?.color || 'Renksiz'}</p></div>},
+      {key:'lot_number',label:'Lot / profil',render:(_,l)=><div><p className="font-medium">{l.lot_number}</p><p className="mt-1 text-xs text-muted-foreground">{l.name} · {l.metadata?.color ? <ColorChip color={l.metadata.color} size={12}/> : 'Renksiz'}</p></div>},
       {key:'remaining_qty',label:'Kalan boy',render:v=>amount(Number(v)*1000)+' mm'},
       {key:'status',label:'Durum',render:v=>v==='available'?'Kullanılabilir':v==='reserved'?'Rezerve':'Tüketildi'},
       {key:'warehouse_name',label:'Depo'},
