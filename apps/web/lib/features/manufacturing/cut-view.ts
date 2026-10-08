@@ -19,7 +19,7 @@ export type CutView = { id: string; status: string; wastePercent: number | null;
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v) || 0);
 
-export function cutView(plan: { id: string; status: string; result: any }): CutView {
+export function cutView(plan: { id: string; status: string; result: any }, visibleJobs?: Set<string>): CutView {
   const bars = Array.isArray(plan.result?.bars) ? plan.result.bars : [];
   return {
     id: plan.id,
@@ -31,7 +31,11 @@ export function cutView(plan: { id: string; status: string; result: any }): CutV
       color: String(b.source?.color ?? ''),
       lengthMm: num(b.source?.lengthMm),
       isRemnant: Boolean(b.source?.isRemnant),
-      pieces: (Array.isArray(b.pieces) ? b.pieces : []).map((p: any) => ({ lengthMm: num(p.lengthMm), workOrderId: String(p.workOrderId ?? '') })),
+      // Pieces of jobs the viewer may not see keep their length but lose their work order.
+      pieces: (Array.isArray(b.pieces) ? b.pieces : []).map((p: any) => {
+        const id = String(p.workOrderId ?? '');
+        return { lengthMm: num(p.lengthMm), workOrderId: !visibleJobs || visibleJobs.has(id) ? id : '' };
+      }),
       remainingMm: num(b.remainingMm),
       reusable: Boolean(b.reusable),
       lossMm: num(b.lossMm),

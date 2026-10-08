@@ -12,6 +12,7 @@ import { orderHealth } from '@/lib/features/orders/lifecycle';
 import type { Order } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { HealthBadge, LifecycleStrip, PageHeader, Skeleton, withUndo } from '@/components/kit';
+import { toast } from 'sonner';
 
 const DAY = 86_400_000;
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -73,7 +74,8 @@ export default function CalendarPage() {
     const order = shown.find((o) => o.id === e.active.id);
     const day = e.over?.id as string | undefined;
     if (!order || !day || day === order.deliveryDate) return;
-    const forget = () => setMoved((m) => { const n = { ...m }; delete n[order.id]; return n; });
+    if (moved[order.id]) { toast.warning('Önceki değişiklik kaydediliyor; birkaç saniye sonra tekrar deneyin'); return; }
+    const forget = () => setMoved((m) => { if (m[order.id] !== day) return m; const n = { ...m }; delete n[order.id]; return n; });
     setMoved((m) => ({ ...m, [order.id]: day }));
     withUndo({
       message: `${order.orderNumber} → ${dayName(day)}`,

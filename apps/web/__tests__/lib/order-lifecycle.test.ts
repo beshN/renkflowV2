@@ -23,8 +23,13 @@ describe('order lifecycle', () => {
     expect(dropTarget('approved', 'approval')).toBeNull(); // same step, nothing to do
     // Within three allowed moves, never through hold or cancel.
     expect(dropPath('pending_approval', 'production')).toEqual(['approved', 'preparing_materials']);
-    expect(dropPath('new', 'production')).toEqual(['approved', 'preparing_materials']);
+    expect(dropPath('new', 'approval')).toEqual(['pending_approval']);
+    expect(dropPath('new', 'production')).toBeNull(); // skips Onay
     expect(dropPath('new', 'cutting')).toBeNull();
+    // Never past a step: Kesim → Teslim would skip Montaj, Onay → Kesim would skip Üretim.
+    expect(dropPath('in_production', 'delivery')).toBeNull();
+    expect(dropPath('approved', 'cutting')).toBeNull();
+    expect(dropPath('in_production', 'assembly')).toEqual(['quality_check']);
   });
 
   it('scores order health from time used against steps done', () => {
@@ -46,5 +51,9 @@ describe('cut view for the shop floor', () => {
     } });
     expect(view).toEqual({ id: 'p', status: 'approved', wastePercent: 4.2, bars: [{ id: 'l1', itemId: 'i1', color: '7016 MAT', lengthMm: 6000, isRemnant: false, pieces: [{ lengthMm: 2000, workOrderId: 'w1' }], remainingMm: 3990, reusable: true, lossMm: 10 }] });
     expect(JSON.stringify(view)).not.toMatch(/cost|price|supplier/i);
+  });
+  it('hides which job another piece belongs to from a viewer who may not see that job', () => {
+    const plan = { id: 'p', status: 'approved', result: { bars: [{ source: { id: 'l', lengthMm: 6000 }, pieces: [{ lengthMm: 1000, workOrderId: 'mine' }, { lengthMm: 900, workOrderId: 'theirs' }] }] } };
+    expect(cutView(plan, new Set(['mine'])).bars[0].pieces).toEqual([{ lengthMm: 1000, workOrderId: 'mine' }, { lengthMm: 900, workOrderId: '' }]);
   });
 });

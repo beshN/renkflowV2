@@ -6,7 +6,8 @@ export function Skeleton({ className }: { className?: string }) {
 }
 export function SkeletonRows({ rows = 4, className }: { rows?: number; className?: string }) {
   return (
-    <div className={cn('space-y-2', className)} role="status" aria-label="Veriler alınıyor">
+    <div className={cn('space-y-2', className)} role="status">
+      <span className="sr-only">Veriler alınıyor</span>
       {Array.from({ length: rows }, (_, i) => <Skeleton key={i} className="h-10 w-full" />)}
     </div>
   );

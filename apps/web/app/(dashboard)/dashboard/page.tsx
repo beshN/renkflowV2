@@ -117,7 +117,7 @@ export default function DashboardPage() {
 
   const shortcuts = [
     { href: '/quotations/new', label: 'Yeni teklif', icon: FilePlus2, show: canCreate },
-    { href: '/calendar', label: 'Takvim', icon: CalendarDays, show: true },
+    { href: '/calendar', label: 'Takvim', icon: CalendarDays, show: user && user.role !== 'worker' },
     { href: '/production?tab=cutting', label: 'Kesim', icon: Scissors, show: manager },
     { href: '/inventory/opening-count', label: 'Sayım', icon: ClipboardList, show: manager },
     { href: '/warehouse/scan', label: 'Tara', icon: ScanLine, show: true },

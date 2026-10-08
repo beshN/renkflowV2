@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Maximize2, X } from 'lucide-react';
 import type { CutView } from '@/lib/features/manufacturing/cut-view';
 import { barColorMismatch } from '@/lib/features/colors/color-spec';
@@ -29,6 +29,14 @@ export function CutDiagram({ plan, jobs, items, focusJobId, className }: {
   const jobIndex = new Map(jobs.map((j, i) => [j.id, i]));
   const jobOf = (id: string) => jobs.find((j) => j.id === id);
   const pickedPiece = picked ? plan.bars[picked.bar]?.pieces[picked.piece] : null;
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!full) return;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFull(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [full]);
 
   const body = (
     <div className="space-y-4">
@@ -59,15 +67,17 @@ export function CutDiagram({ plan, jobs, items, focusJobId, className }: {
               </div>
               <div className={cn('flex overflow-hidden rounded border border-border bg-muted', full ? 'h-16' : 'h-11')} role="group" aria-label={`Çubuk ${b + 1}`}>
                 {bar.pieces.map((p, n) => {
-                  const i = jobIndex.get(p.workOrderId) ?? 0;
+                  // A piece of a job not in the list (another person's work) is grey, unnumbered.
+                  const i = jobIndex.get(p.workOrderId);
+                  const other = i === undefined;
                   const dim = focusJobId && focusJobId !== p.workOrderId;
                   const active = picked?.bar === b && picked.piece === n;
                   return (
                     <button key={n} type="button" onClick={() => setPicked(active ? null : { bar: b, piece: n })}
-                      aria-label={`Parça ${p.lengthMm} mm, iş ${i + 1}: ${jobOf(p.workOrderId)?.title ?? ''}`}
+                      aria-label={other ? `Parça ${p.lengthMm} mm, başka iş` : `Parça ${p.lengthMm} mm, iş ${i + 1}: ${jobOf(p.workOrderId)?.title ?? ''}`}
                       className={cn('flex min-w-0 items-center justify-center border-r-2 border-background text-[11px] font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-ring', dim && 'opacity-35', active && 'ring-2 ring-inset ring-white')}
-                      style={{ width: `${(p.lengthMm / bar.lengthMm) * 100}%`, background: JOB_COLORS[i % JOB_COLORS.length] }}>
-                      <span className="truncate px-0.5">{i + 1} · {p.lengthMm}</span>
+                      style={{ width: `${(p.lengthMm / bar.lengthMm) * 100}%`, background: other ? '#71717a' : JOB_COLORS[i % JOB_COLORS.length] }}>
+                      <span className="truncate px-0.5">{other ? p.lengthMm : `${i + 1} · ${p.lengthMm}`}</span>
                     </button>
                   );
                 })}
@@ -85,7 +95,7 @@ export function CutDiagram({ plan, jobs, items, focusJobId, className }: {
       </ol>
       {pickedPiece && (
         <p role="status" className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
-          <strong className="tabular-nums">{pickedPiece.lengthMm.toLocaleString('tr-TR')} mm</strong> · {jobOf(pickedPiece.workOrderId)?.title ?? 'İş'}
+          <strong className="tabular-nums">{pickedPiece.lengthMm.toLocaleString('tr-TR')} mm</strong> · {jobOf(pickedPiece.workOrderId)?.title ?? 'Başka iş'}
         </p>
       )}
     </div>
@@ -96,7 +106,7 @@ export function CutDiagram({ plan, jobs, items, focusJobId, className }: {
       <div className="fixed inset-0 z-[90] overflow-y-auto bg-background p-4" role="dialog" aria-modal="true" aria-label="Kesim şeması">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Kesim şeması</h2>
-          <button type="button" onClick={() => setFull(false)} aria-label="Tam ekrandan çık" className="grid h-12 w-12 place-items-center rounded-md border border-border"><X size={22} /></button>
+          <button ref={closeRef} type="button" onClick={() => setFull(false)} aria-label="Tam ekrandan çık" className="grid h-12 w-12 place-items-center rounded-md border border-border"><X size={22} /></button>
         </div>
         {body}
       </div>

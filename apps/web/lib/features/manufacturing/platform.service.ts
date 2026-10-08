@@ -100,9 +100,11 @@ export async function productionOverview(actor: WorkOrderActor) {
   const materialCards =
     await sql`SELECT id,name,stock_uom FROM inventory_items WHERE tenant_id=${t} AND active=true AND item_type<>'finished_good'`;
   // The cut layout of these jobs, for the cutting diagram: only bars, lengths, colours and pieces.
+  // Only plans that were approved: a draft is not what is cut. A worker sees other jobs' pieces as
+  // anonymous pieces (length only), never their work order.
   const cutPlans = (
-    await sql`SELECT id,status,result FROM cutting_plans WHERE tenant_id=${t} AND work_order_ids && ${ids}::uuid[] AND status IN('draft','approved','completed') ORDER BY created_at DESC LIMIT 50`
-  ).map(cutView);
+    await sql`SELECT id,status,result FROM cutting_plans WHERE tenant_id=${t} AND work_order_ids && ${ids}::uuid[] AND status IN('approved','completed') ORDER BY created_at DESC LIMIT 50`
+  ).map((p: any) => cutView(p, worker ? new Set<string>(ids) : undefined));
   const base = {
     actor,
     jobs,

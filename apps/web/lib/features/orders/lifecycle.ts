@@ -27,13 +27,16 @@ export const isDelivered = (status: string) => normalizeOrderStatus(status) === 
 /**
  * The moves that take an order onto a step when it is dropped there: the shortest chain of allowed
  * transitions (at most three, never through hold or cancel) ending in a status of that step, e.g.
- * "onay bekliyor" → "onaylandı" → "malzeme hazırlığı". Each move is still checked by the server.
- * Null when the step cannot be reached that way (a jump over several steps, or backwards).
+ * "onay bekliyor" → "onaylandı" → "malzeme hazırlığı". Only the next or previous step; each move
+ * is still checked by the server. Null when the step cannot be reached that way.
  */
 export function dropPath(status: string, step: LifecycleKey, maxMoves = 3): string[] | null {
   const from = normalizeOrderStatus(status);
   const target = LIFECYCLE.find((s) => s.key === step);
   if (!target || (target.statuses as readonly string[]).includes(from)) return null;
+  // Only to the next or the previous step: a drop never skips a step of the workshop's flow.
+  const fromStep = lifecycleIndex(from), toStep = LIFECYCLE.indexOf(target);
+  if (fromStep < 0 || Math.abs(toStep - fromStep) !== 1) return null;
   const goal = new Set<string>(target.statuses);
   let frontier: string[][] = [[from]];
   const seen = new Set([from]);
@@ -41,7 +44,8 @@ export function dropPath(status: string, step: LifecycleKey, maxMoves = 3): stri
     const next: string[][] = [];
     for (const path of frontier) {
       for (const to of ORDER_TRANSITIONS[path[path.length - 1]] ?? []) {
-        if (seen.has(to) || to === 'cancelled' || to === 'on_hold') continue;
+        // Every status on the way stays in the order's step or the target step.
+        if (seen.has(to) || to === 'cancelled' || to === 'on_hold' || ![fromStep, toStep].includes(lifecycleIndex(to))) continue;
         const chain = [...path, to];
         if (goal.has(to)) return chain.slice(1);
         seen.add(to);

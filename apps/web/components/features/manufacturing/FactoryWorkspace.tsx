@@ -303,14 +303,21 @@ export default function FactoryWorkspace() {
                 const left = next ? Math.max(0, Number(next.planned_qty) - Number(next.completed_qty)) : 0;
                 const mine = next && (data.actor.role !== "worker" || next.assigned_to === data.actor.userId);
                 const blocked = !next || next.status === "waiting" || next.status === "blocked" || !mine;
-                const plan = (data.cutPlans || []).find((p: any) => p.bars.some((b: any) => b.pieces.some((x: any) => x.workOrderId === j.id)));
+                // The job's own plan first; otherwise the newest approved plan that cuts for it.
+                const plans = data.cutPlans || [];
+                const plan = plans.find((p: any) => p.id === j.cut_plan_id) || plans.find((p: any) => p.bars.some((b: any) => b.pieces.some((x: any) => x.workOrderId === j.id)));
                 const cfg = j.configuration || {};
                 return (
                   <>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h2 className="truncate text-lg font-semibold">{j.order_number || j.title}</h2>
-                        <p className="truncate text-sm text-muted-foreground">{j.title}</p>
+                        <p className="truncate text-sm text-muted-foreground">{[j.customer_name, j.title].filter(Boolean).join(" · ")}</p>
+                        {j.due_at && (() => {
+                          const due = new Date(j.due_at).toLocaleDateString("sv-SE", { timeZone: "Europe/Istanbul" });
+                          const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Istanbul" });
+                          return <p className={`mt-1 inline-flex items-center gap-1 text-sm font-medium ${due < today ? "text-rose-700 dark:text-rose-300" : ""}`}><Clock size={14} aria-hidden />{new Date(j.due_at).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}{due < today ? " · gecikti" : due === today ? " · bugün" : ""}</p>;
+                        })()}
                       </div>
                       <ProgressRing size={64} stroke={7} value={planned - (next ? left : 0)} max={planned || 1} label={`${left} adet kaldı`} center={<span className="text-base">{next ? left : <Check size={20} />}</span>} />
                     </div>

@@ -20,7 +20,7 @@ const ACTIONS: Action[] = [
   { id: 'a-count', title: 'Stok sayımı', keywords: 'stok sayım sayımı çubuk açılış', href: '/inventory/opening-count', icon: ClipboardList, roles: ['owner', 'admin', 'office'] },
   { id: 'a-cut', title: 'Kesim planı', keywords: 'kesim plan çubuk fire', href: '/production?tab=cutting', icon: Scissors, roles: ['owner', 'admin', 'office'] },
   { id: 'a-board', title: 'Sipariş panosu', keywords: 'pano kanban sürükle aşama', href: '/orders?mode=board', icon: Columns3, roles: ['owner', 'admin', 'office', 'accountant'] },
-  { id: 'a-cal', title: 'Takvim', keywords: 'takvim teslim montaj hafta plan', href: '/calendar', icon: CalendarDays },
+  { id: 'a-cal', title: 'Takvim', keywords: 'takvim teslim montaj hafta plan', href: '/calendar', icon: CalendarDays, roles: ['owner', 'admin', 'office', 'accountant'] },
   { id: 'a-scan', title: 'Barkod / QR tara', keywords: 'tara barkod qr okut', href: '/warehouse/scan', icon: ScanLine },
   { id: 'a-factory', title: 'Fabrika modu', keywords: 'fabrika usta atölye iş başla bitti', href: '/factory', icon: Factory, roles: ['owner', 'admin', 'office', 'worker'] },
   { id: 'a-wall', title: 'Duvar ekranı', keywords: 'duvar tv ekran atölye', href: '/factory/wall', icon: LayoutGrid, roles: ['owner', 'admin', 'office'] },
@@ -83,7 +83,7 @@ function CommandResults({ close }: { close: () => void }) {
       {!entries.length && <div className="grid place-items-center gap-2 px-4 py-10 text-sm text-muted-foreground"><Search size={24} aria-hidden className="opacity-50" />Eşleşme yok</div>}
     </div>
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3 text-[11px] text-muted-foreground">
-      <span role="status" className="flex items-center gap-1.5">{isLoading ? <span aria-label="Siparişler alınıyor" className="h-2 w-2 animate-pulse rounded-full bg-primary motion-reduce:animate-none" /> : error ? 'Sipariş araması kapalı' : null}<kbd className="rf-kbd">/</kbd><kbd className="rf-kbd">⌘K</kbd></span>
+      <span className="flex items-center gap-1.5"><span role="status">{isLoading ? <><span aria-hidden className="inline-block h-2 w-2 animate-pulse rounded-full bg-primary motion-reduce:animate-none" /><span className="sr-only">Siparişler alınıyor</span></> : error ? 'Sipariş araması kapalı' : null}</span><kbd className="rf-kbd">/</kbd><kbd className="rf-kbd">⌘K</kbd></span>
       <span className="flex items-center gap-1.5"><CornerDownLeft size={12} aria-hidden /> Aç <kbd className="rf-kbd ml-2">esc</kbd> Kapat</span>
     </div>
   </>;

@@ -294,7 +294,7 @@ export default function IntakeReview({
       </Link>
       <h1 className="rf-page-title">Belge ve sipariş incelemesi</h1>
       {!data ? (
-        error ? <p role="alert">{error.message}</p> : <div role="status" aria-label="Taslak alınıyor" className="h-40 animate-pulse rounded-md bg-muted motion-reduce:animate-none" />
+        error ? <p role="alert">{error.message}</p> : <div role="status" className="h-40 animate-pulse rounded-md bg-muted motion-reduce:animate-none"><span className="sr-only">Taslak alınıyor</span></div>
       ) : !draft ? (
         <p role="alert">Taslak bulunamadı.</p>
       ) : (

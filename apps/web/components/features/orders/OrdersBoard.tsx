@@ -11,7 +11,7 @@ import { LIFECYCLE, dropPath, dropTarget, lifecycleIndex, orderHealth, type Life
 import { businessDate } from '@/lib/features/orders/workspace';
 import type { Order } from '@/lib/types';
 import { cn, formatDate } from '@/lib/utils';
-import { HealthBadge } from '@/components/kit';
+import { HealthBadge, LifecycleStrip } from '@/components/kit';
 
 function Card({ order, canMove, onAdvance }: { order: Order; canMove: boolean; onAdvance: (o: Order) => void }) {
   const locked = !canMove || Boolean(order.productionManaged);
@@ -88,6 +88,20 @@ export function OrdersBoard({ orders, canMove, onMove }: {
   return (
     <DndContext sensors={sensors} onDragEnd={onDragEnd} accessibility={{ screenReaderInstructions: { draggable: 'Taşımak için boşluk, sütun seçmek için oklar, bırakmak için boşluk.' } }}>
       <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+        {orders.some((o) => lifecycleIndex(o.status) < 0) && (
+          <section aria-label="Beklemede / iptal" className="flex w-[220px] shrink-0 flex-col rounded-lg border border-dashed border-border lg:w-[200px]">
+            <h2 className="flex items-center justify-between px-3 py-2 text-sm font-semibold text-muted-foreground">Beklemede<span className="rounded-full bg-muted px-2 text-xs tabular-nums">{orders.filter((o) => lifecycleIndex(o.status) < 0).length}</span></h2>
+            <div className="flex flex-col gap-2 p-2 pt-0">
+              {orders.filter((o) => lifecycleIndex(o.status) < 0).map((o) => (
+                <Link key={o.id} href={'/orders/' + o.id} className="rounded-md border border-border bg-card p-2.5 text-sm">
+                  <span className="block truncate font-mono text-xs font-semibold">{o.orderNumber}</span>
+                  <span className="block truncate">{o.customerName}</span>
+                  <LifecycleStrip status={o.status} compact />
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
         {LIFECYCLE.map((step, i) => {
           const items = orders.filter((o) => lifecycleIndex(o.status) === i);
           return (

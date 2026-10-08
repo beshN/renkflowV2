@@ -171,7 +171,8 @@ export default function QuotationPage({
     total = (subtotal - discount) * 1.2;
   if (loading)
     return (
-      <div className="rf-page space-y-3" role="status" aria-label="Teklif alınıyor">
+      <div className="rf-page space-y-3" role="status">
+        <span className="sr-only">Teklif alınıyor</span>
         {[0, 1, 2, 3].map((i) => <div key={i} className="h-12 animate-pulse rounded-md bg-muted motion-reduce:animate-none" />)}
       </div>
     );

@@ -62,7 +62,7 @@ export default function Tracking({ params }: { params: Promise<{ token: string }
     <main className="mx-auto min-h-screen max-w-3xl space-y-6 p-4 pt-10 sm:p-6 sm:pt-12">
       <p className="rf-eyebrow">RENK ALÜMİNYUM · SİPARİŞ TAKİBİ</p>
       {error ? <p role="alert" className="rf-alert">{error}</p> : !data ? (
-        <div className="space-y-4" role="status" aria-label="Sipariş bilgisi alınıyor"><Skeleton className="h-10 w-48" /><Skeleton className="h-20 w-full" /><Skeleton className="h-48 w-full" /></div>
+        <div className="space-y-4" role="status"><span className="sr-only">Sipariş bilgisi alınıyor</span><Skeleton className="h-10 w-48" /><Skeleton className="h-20 w-full" /><Skeleton className="h-48 w-full" /></div>
       ) : (
         <>
           <header className="flex flex-wrap items-end justify-between gap-3">

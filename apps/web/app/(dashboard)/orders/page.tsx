@@ -46,31 +46,39 @@ function OrdersWorkspace() {
   const lc = params.get('lc') as LifecycleKey | null;
   const lcIndex = LIFECYCLE.findIndex((step) => step.key === lc);
   // Changes waiting for their undo window: shown at once, sent when the window closes.
-  const [pending, setPending] = useState<Record<string, { status?: string; deliveryDate?: string }>>({});
+  const [pending, setPending] = useState<Record<string, { status?: string; deliveryDate?: string; token: number }>>({});
   const shown = useMemo(() => orders.map((o) => (pending[o.id] ? ({ ...o, ...pending[o.id] } as Order) : o)), [orders, pending]);
   const filtered = useMemo(() => filterWorkspaceOrders(shown, { query, status, stage, view, sort, today }).filter((o) => lcIndex < 0 || lifecycleIndex(o.status) === lcIndex), [shown, query, status, stage, view, sort, today, lcIndex]);
   const canMove = Boolean(user && hasPermission(user.role, 'orders.edit'));
-  const clearPending = (ids: string[]) => setPending((current) => { const next = { ...current }; ids.forEach((id) => delete next[id]); return next; });
+  // Each change clears only its own overlay; a newer change on the same order keeps its own.
+  const clearPending = (ids: string[], token: number) => setPending((current) => { const next = { ...current }; ids.forEach((id) => { if (next[id]?.token === token) delete next[id]; }); return next; });
+  const pendingIds = Object.keys(pending);
   /** Status changes with undo: one toast for one order or a whole selection. */
-  function moveOrders(moves: Array<{ order: Order; path: string[] }>) {
+  function moveOrders(requested: Array<{ order: Order; path: string[] }>) {
+    // One change at a time per order: the next one waits until this one is saved and reloaded.
+    const moves = requested.filter((m) => !pendingIds.includes(m.order.id));
+    if (moves.length < requested.length) toast.warning('Önceki değişiklik kaydediliyor; birkaç saniye sonra tekrar deneyin');
     if (!moves.length) return;
-    setPending((current) => ({ ...current, ...Object.fromEntries(moves.map((m) => [m.order.id, { status: m.path[m.path.length - 1] }])) }));
+    const token = Date.now() + Math.random();
+    setPending((current) => ({ ...current, ...Object.fromEntries(moves.map((m) => [m.order.id, { status: m.path[m.path.length - 1], token }])) }));
     const label = (st: string) => ORDER_STATUS_STEPS.find((x) => x.key === st)?.label ?? st;
     withUndo({
       message: moves.length === 1 ? `${moves[0].order.orderNumber} → ${label(moves[0].path[moves[0].path.length - 1])}` : `${moves.length} sipariş taşındı`,
-      undo: () => clearPending(moves.map((m) => m.order.id)),
+      undo: () => clearPending(moves.map((m) => m.order.id), token),
       commit: async () => {
         const failed: string[] = [];
         for (const m of moves) {
           // Each move is a separate checked transition; the next one uses the version the last returned.
+          // If one is refused half way, the order stays where the last accepted move put it, and we say so.
+          let reached = m.order.status as string;
           try {
             let version = m.order.version;
-            for (const status of m.path) version = (await requestOrderTransition({ id: m.order.id, version }, status)).version;
+            for (const status of m.path) { version = (await requestOrderTransition({ id: m.order.id, version }, status)).version; reached = status; }
           }
-          catch (e) { failed.push(`${m.order.orderNumber}: ${e instanceof Error ? e.message : 'kaydedilemedi'}`); }
+          catch (e) { failed.push(`${m.order.orderNumber}: ${e instanceof Error ? e.message : 'kaydedilemedi'}${reached !== m.order.status ? ` (şu an: ${ORDER_STATUS_STEPS.find((x) => x.key === reached)?.label ?? reached})` : ''}`); }
         }
         await refresh().catch(() => undefined);
-        clearPending(moves.map((m) => m.order.id));
+        clearPending(moves.map((m) => m.order.id), token);
         if (failed.length) toast.error(failed.join(' · '));
       },
     });
@@ -88,15 +96,17 @@ function OrdersWorkspace() {
   }
   function changeDeliveryDate(order: Order, deliveryDate: string) {
     if (!deliveryDate || deliveryDate === order.deliveryDate) return;
-    setPending((current) => ({ ...current, [order.id]: { ...current[order.id], deliveryDate } }));
+    if (pendingIds.includes(order.id)) { toast.warning('Önceki değişiklik kaydediliyor; birkaç saniye sonra tekrar deneyin'); return; }
+    const token = Date.now() + Math.random();
+    setPending((current) => ({ ...current, [order.id]: { deliveryDate, token } }));
     withUndo({
       message: `${order.orderNumber} termini ${formatDate(deliveryDate)}`,
-      undo: () => clearPending([order.id]),
+      undo: () => clearPending([order.id], token),
       commit: async () => {
         const res = await fetch('/api/v1/orders/' + order.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deliveryDate }) });
-        if (!res.ok) { clearPending([order.id]); throw new Error((await res.json().catch(() => ({}))).error || 'Termin kaydedilemedi'); }
+        if (!res.ok) { clearPending([order.id], token); throw new Error((await res.json().catch(() => ({}))).error || 'Termin kaydedilemedi'); }
         await refresh().catch(() => undefined);
-        clearPending([order.id]);
+        clearPending([order.id], token);
       },
     });
   }
@@ -137,8 +147,10 @@ function OrdersWorkspace() {
     { key: 'deliveryDate', label: 'Termin', width: 'w-36', render: (_, row) => editingDate === row.id
       ? <input type="date" autoFocus aria-label={`${row.orderNumber} termini`} defaultValue={row.deliveryDate ?? ''} className="rf-input h-8 w-36 text-xs" onClick={(e) => e.stopPropagation()}
           onBlur={(e) => { setEditingDate(null); changeDeliveryDate(row, e.target.value); }} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingDate(null); }} />
-      : <button type="button" className="space-y-1 whitespace-nowrap text-left" title={canMove ? 'Değiştirmek için çift tıklayın' : undefined}
-          onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => { e.stopPropagation(); if (canMove) setEditingDate(row.id); }}>
+      : <button type="button" className="space-y-1 whitespace-nowrap text-left" title={canMove ? 'Değiştirmek için çift tıklayın ya da Enter' : undefined}
+          aria-label={`${row.orderNumber} termini ${row.deliveryDate ? formatDate(row.deliveryDate) : 'yok'}${canMove ? ', değiştirmek için Enter' : ''}`}
+          onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => { e.stopPropagation(); if (canMove) setEditingDate(row.id); }}
+          onKeyDown={(e) => { if (canMove && (e.key === 'Enter' || e.key === 'F2' || e.key === ' ')) { e.preventDefault(); e.stopPropagation(); setEditingDate(row.id); } }}>
           <span className="block text-xs tabular-nums">{row.deliveryDate ? formatDate(row.deliveryDate) : '—'}</span>
           <HealthBadge health={orderHealth(row, today)} />
         </button> },
@@ -146,7 +158,7 @@ function OrdersWorkspace() {
     ...(financialAccess ? [{ key: 'totalAmount', label: 'Sipariş tutarı', align: 'right', width: 'w-36', render: (value, row) => <span className="whitespace-nowrap text-xs font-medium tabular-nums">{value === 0 ? 'Fiyat bekliyor' : formatCurrency(value, row.currency)}</span> } satisfies RFColumn<Order>] : []),
   ];
   return <div className="rf-page space-y-5">
-    <PageHeader eyebrow="Sipariş & üretim" title="Siparişler" hint="Termin hesapları Türkiye saatine göredir. Tutarlar kendi para biriminde gösterilir. Terminin üstüne çift tıklayarak değiştirin; kartı sürükleyerek aşamasını değiştirin, birkaç saniye içinde geri alabilirsiniz."
+    <PageHeader eyebrow="Sipariş & üretim" title="Siparişler" hint="Termin hesapları Türkiye saatine göredir. Tutarlar kendi para biriminde gösterilir. Terminin üstüne çift tıklayarak ya da Enter ile değiştirin; kartı sürükleyerek aşamasını değiştirin, birkaç saniye içinde geri alabilirsiniz."
       kpis={[
         { label: 'açık', value: isLoading ? '·' : counts.active, icon: Activity, href: '/orders?view=active' },
         { label: 'geciken', value: isLoading ? '·' : counts.overdue, icon: AlertOctagon, href: '/orders?view=overdue', tone: counts.overdue ? 'danger' : 'neutral' },
