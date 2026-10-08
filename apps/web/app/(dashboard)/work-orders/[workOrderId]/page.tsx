@@ -8,6 +8,7 @@ import { formatDate } from '@/lib/utils';
 import { useAuth } from '@/lib/context/AuthContext';
 import { hasPermission, type UserRole } from '@/lib/auth/permissions';
 import { WorkshopColor } from '@/components/colors/ColorSwatch';
+import { RecordButton } from '@/components/records/RecordDrawer';
 import { SkeletonRows } from '@/components/kit';
 
 const statuses: Record<string, string> = { open: 'Planlandı', in_progress: 'Üretimde', blocked: 'Bloke', done: 'Tamamlandı', cancelled: 'İptal' };
@@ -41,7 +42,7 @@ export default function WorkOrderDetail({ params }: { params: Promise<{ workOrde
         {data && <>
           <section className="rf-panel p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">{data.category} · {statuses[data.status]}</p>
-            <h2 className="mt-2 text-xl font-semibold">{data.title}</h2>
+            <h2 className="mt-2 flex items-center justify-between gap-2 text-xl font-semibold">{data.title}<RecordButton type="work_order" id={data.id} compact /></h2>
             {data.color && <WorkshopColor color={data.color} size="lg" className="mt-4 rounded-md border border-border p-3" />}
             <p className="mt-3 whitespace-pre-wrap text-sm text-slate-500">{data.description || 'Açıklama eklenmedi.'}</p>
             <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-3">

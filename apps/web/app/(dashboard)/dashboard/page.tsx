@@ -14,6 +14,7 @@ import { LIFECYCLE, lifecycleIndex, orderHealth } from '@/lib/features/orders/li
 import type { Order } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { SuggestionsPanel } from '@/components/features/ai/SuggestionsPanel';
+import { DueActivities } from '@/components/records/DueActivities';
 import { Donut, EmptyState, HealthBadge, HintTip, LifecycleStrip, PageHeader, ProgressRing, Skeleton, StatCard } from '@/components/kit';
 import { ColorSwatch } from '@/components/colors/ColorSwatch';
 import { colorInfo } from '@/lib/features/colors/color-spec';
@@ -31,9 +32,9 @@ type Summary = {
 
 // Lifecycle colours: one cobalt ramp, the last step neutral. Each segment also has a label and a link.
 const STEP_COLORS = ['#c7d2fe', '#a5b4fc', '#7c8ff0', '#2f55f4', '#1b3fa8', '#a1a1aa'];
-const SECTIONS = ['today', 'suggestions', 'flow', 'health', 'paint', 'week'] as const;
+const SECTIONS = ['today', 'activities', 'suggestions', 'flow', 'health', 'paint', 'week'] as const;
 type Section = (typeof SECTIONS)[number];
-const SECTION_LABELS: Record<Section, string> = { today: 'Bugünün işi', suggestions: 'Önerilenler', flow: 'Sipariş akışı', health: 'Riskteki siparişler', paint: 'Renk kuyruğu', week: 'Bu hafta' };
+const SECTION_LABELS: Record<Section, string> = { today: 'Bugünün işi', activities: 'Aktiviteler', suggestions: 'Önerilenler', flow: 'Sipariş akışı', health: 'Riskteki siparişler', paint: 'Renk kuyruğu', week: 'Bu hafta' };
 const LAYOUT_KEY = 'rf-dashboard-layout';
 
 /** Card order and hidden cards, per browser. Falls back to the default when storage is unavailable. */
@@ -133,6 +134,7 @@ export default function DashboardPage() {
         <Lane title="Kesimde" icon={Scissors} orders={inCutting} href="/orders?lc=cutting" today={today} loading={isLoading} />
       </div>
     ),
+    activities: <DueActivities />,
     suggestions: <SuggestionsPanel />,
     flow: (
       <section className="rf-panel p-4" aria-label="Sipariş akışı">
@@ -229,7 +231,7 @@ export default function DashboardPage() {
         {layout.order.map((s) => {
           const hidden = layout.hidden.includes(s);
           if (hidden && !editing) return null;
-          const wide = s === 'today' || s === 'suggestions';
+          const wide = s === 'today' || s === 'suggestions' || s === 'activities';
           return (
             <div key={s} className={cn('relative', wide && 'xl:col-span-2', hidden && 'opacity-40')}>
               {editing && (

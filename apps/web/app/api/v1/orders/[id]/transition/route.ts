@@ -6,6 +6,7 @@ import {
 } from "@/lib/features/work-orders/security";
 import { requireSameOriginJson } from "@/lib/features/manufacturing/http-security";
 import { transitionOrder } from "@/lib/features/orders/transitions.service";
+import { runRecordRules } from "@/lib/features/records/rules";
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -15,6 +16,8 @@ export async function POST(
     const actor = await requireWorkOrderActor(),
       { id } = await params;
     const result = await transitionOrder(actor, id, await req.json());
+    // The firm's rules (e.g. approved → production activity) follow the change; a rule failure never undoes it.
+    await runRecordRules(actor.tenantId, { force: true }).catch((e) => console.error("[records:rules]", e instanceof Error ? e.message : e));
     return NextResponse.json({ success: true, ...result });
   } catch (e) {
     if (e instanceof WorkOrderApiError)

@@ -1,4 +1,5 @@
 'use client';
+import { RecordPanel } from '@/components/records/RecordDrawer';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -60,7 +61,7 @@ export default function CustomerDetailPage() {
             title={customer.full_name}
             subtitle={customer.company_name || 'Bireysel Müşteri'}
             backUrl="/crm"
-            aside={<Chatter entityType="customer" entityId={customerId} />}
+            aside={<RecordPanel type="customer" id={customerId} fallback={<Chatter entityType="customer" entityId={customerId} />} />}
           >
             <div className="space-y-6">
               {/* Info Cards */}
