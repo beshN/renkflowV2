@@ -5,11 +5,12 @@ import { sql, withTransaction } from '@/lib/db';
 import { columnExists } from '@/lib/db/schema-guard';
 import { recordAudit } from '@/lib/audit/audit-log';
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
+import { FIRM_MANAGER_ROLES } from './roles';
 
 const fail = (message: string, status = 400): never => {
   throw new WorkOrderApiError(message, status);
 };
-const MANAGERS = ['owner', 'admin'];
+
 /** Who may lead production: the roles a work order can be assigned to. */
 export const PRODUCTION_LEAD_ROLES = ['worker', 'office', 'admin', 'owner'];
 
@@ -23,7 +24,7 @@ export async function productionLead(db: any, tenantId: string): Promise<string 
 }
 
 export async function productionSettings(actor: WorkOrderActor) {
-  if (!MANAGERS.includes(actor.role)) fail('Üretim ayarlarını firma yöneticisi görür', 403);
+  if (!FIRM_MANAGER_ROLES.includes(actor.role)) fail('Üretim ayarlarını firma yöneticisi görür', 403);
   const [available, members] = await Promise.all([
     productionLeadAvailable(),
     sql`SELECT u.id, u.name, u.email, m.role FROM tenant_members m JOIN users u ON u.id = m.user_id
@@ -38,7 +39,7 @@ export async function productionSettings(actor: WorkOrderActor) {
 const SaveSchema = z.object({ leadUserId: z.string().uuid().nullable() });
 
 export async function saveProductionLead(actor: WorkOrderActor, raw: unknown) {
-  if (!MANAGERS.includes(actor.role)) fail('Üretim sorumlusunu firma yöneticisi seçer', 403);
+  if (!FIRM_MANAGER_ROLES.includes(actor.role)) fail('Üretim sorumlusunu firma yöneticisi seçer', 403);
   const { leadUserId } = SaveSchema.parse(raw);
   if (!(await productionLeadAvailable())) fail('Bu ayar bu kurulumda henüz etkin değil (veritabanı güncellemesi bekleniyor)', 409);
   return withTransaction(async (tx: any) => {

@@ -3,6 +3,7 @@
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
 import { TenantSettings } from '@/components/settings/TenantSettings';
 import { ProductionSettings } from '@/components/settings/ProductionSettings';
+import { ColorCatalogSettings } from '@/components/settings/ColorCatalogSettings';
 import { useAuth } from '@/lib/context/AuthContext';
 
 export default function SettingsPage() {
@@ -12,6 +13,7 @@ export default function SettingsPage() {
     <main className="mx-auto max-w-4xl space-y-5 p-4 md:p-6">
       {canManage ? <div className="rf-panel p-5 md:p-6"><TenantSettings /></div> : <div className="rf-panel p-5"><h2 className="font-semibold">Renk Alüminyum</h2><p className="mt-2 text-sm text-slate-500">Firma ayarlarını yönetici düzenleyebilir.</p></div>}
       {canManage && <div className="rf-panel p-5 md:p-6"><ProductionSettings /></div>}
+      {canManage && <div className="rf-panel p-5 md:p-6"><ColorCatalogSettings /></div>}
     </main>
   </div>;
 }

@@ -1,3 +1,4 @@
+import { colorKey } from "../inventory/vocabulary";
 import { z } from "zod";
 export const CuttingParametersSchema = z.object({
   kerfMm: z.number().nonnegative().finite().max(20),
@@ -45,7 +46,8 @@ export type CutBar = {
 };
 type Strategy = "best-fit" | "length-mix";
 const mm = (n: number) => Math.round(n * 1000); // Integer micrometres avoid floating-point fit errors.
-const groupKey = (itemId: string, color: string) => itemId + "\u0000" + color;
+// Bars and pieces of one colour group together however its name is spelled.
+const groupKey = (itemId: string, color: string) => itemId + "\u0000" + colorKey(color);
 export function optimizeCuts(
   demand: CutDemand[],
   sources: CutSource[],
@@ -309,7 +311,7 @@ export function planPurchase(
   const plan = optimizeCuts(unfulfilled, virtual, raw, options);
   const lines = [...counts.values()]
     .map(({ itemId, color }) => {
-      const bars = plan.bars.filter((b) => b.source.itemId === itemId && b.source.color === color);
+      const bars = plan.bars.filter((b) => b.source.itemId === itemId && colorKey(b.source.color) === colorKey(color));
       return { itemId, color, lengthMm: standardLengthMm(itemId), bars: bars.length, pieces: bars.reduce((sum, b) => sum + b.pieces.length, 0) };
     })
     .filter((line) => line.bars > 0);

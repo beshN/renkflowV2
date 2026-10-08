@@ -48,3 +48,10 @@ export const MOVEMENT_SOURCE_LABELS: Record<string, string> = {
   stock_entry_reversal: 'Geri alma',
 };
 export const movementSourceLabel = (type: string | null | undefined) => (type && MOVEMENT_SOURCE_LABELS[type]) || (type ? type : 'Kaynak yok');
+
+/**
+ * One spelling for a colour name: trimmed, single spaces, lower case without the Turkish dotted /
+ * dotless I difference ("7016 MAT", "7016 Mat", " 7016  mat " are one colour). The catalogue's
+ * uniqueness, stock matching and the cutting engine all compare colours through this.
+ */
+export const colorKey = (name: string) => name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('tr-TR').replace(/ı/g, 'i');

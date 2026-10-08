@@ -10,7 +10,7 @@ async function main() {
   process.env.NATIVE_INVENTORY_ENABLED = '1';
   const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
   assert.equal((await db`SELECT current_database() AS name`)[0].name, 'renkflow_test');
-  for (const file of ['031_stock_model.sql', '034_price_matrices.sql', '035_product_family_recipes.sql', '036_product_configuration.sql', '037_production_lead.sql'])
+  for (const file of ['031_stock_model.sql', '034_price_matrices.sql', '035_product_family_recipes.sql', '036_product_configuration.sql', '037_production_lead.sql', '039_firm_colors.sql'])
     await db.unsafe(readFileSync(`lib/db/migrations/${file}`, 'utf8'));
 
   const { importFamilyRecipe } = await import('../lib/features/products/recipe-template.service');
@@ -59,16 +59,25 @@ async function main() {
   await productionCommand(owner as any, { commandId: randomUUID(), action: 'recipe.publish', data: { id: row.id, editRevision: row.edit_revision } });
 
   await assert.rejects(configurationOptions(worker as any, 'pergola'), (e: any) => e.status === 403);
+  // The firm's colour catalogue decides what can be quoted; stock only says whether it is on the shelf.
+  const { saveColorCatalog } = await import('../lib/features/settings/color-catalog.service');
+  assert.deepEqual((await configurationOptions(office as any, 'pergola') as any).colors, []);
+  await assert.rejects(previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }), /renk kataloğu boş/);
+  await assert.rejects(saveColorCatalog(office as any, { colors: ['Test Gri'] }), (e: any) => e.status === 403);
+  await assert.rejects(saveColorCatalog(owner as any, { colors: ['Test Gri', 'test gri'] }), /iki kez/);
+  await assert.rejects(saveColorCatalog(owner as any, { colors: ['Kirli Beyaz', 'KIRLI BEYAZ'] }), /iki kez/);
+  await saveColorCatalog(owner as any, { colors: ['Test Gri', 'Mor', 'Boyasız'] });
   const options: any = await configurationOptions(office as any, 'pergola');
   assert.deepEqual(options.recipes.map((r: any) => r.code), ['PRG']);
-  assert.deepEqual(options.colors, ['Boyasız', 'Test Gri'], 'colours from the bars and the unpainted card, nothing invented');
+  assert.deepEqual(options.colors, [{ name: 'Test Gri', inStock: true }, { name: 'Mor', inStock: false }, { name: 'Boyasız', inStock: true }], 'catalogue order; in stock from the bars and the unpainted card');
   assert.equal(options.matrix, null);
 
   // No matrix: BOM and cut list come out, the price must be typed and says why.
   const preview: any = await previewConfiguration(office as any, { currency: 'TRY', choice: { ...draftChoice, color: 'test gri' } });
   assert.deepEqual(preview.bom.cuts.map((c: any) => [c.sku, c.lengthMm, c.quantity]), [['108-BOYALI', 2980, 2]]);
   assert.deepEqual([preview.color, preview.price.state, preview.price.source, preview.price.message], ['Test Gri', 'no_matrix', 'manual', 'Fiyat matrisi tanımlı değil']);
-  await assert.rejects(previewConfiguration(office as any, { currency: 'TRY', choice: { ...draftChoice, color: 'Mor' } }), /rengi sayım listesinde ya da stokta yok/);
+  assert.equal((await previewConfiguration(office as any, { currency: 'TRY', choice: { ...draftChoice, color: 'Mor' } }) as any).color, 'Mor', 'a colour out of stock can be quoted');
+  await assert.rejects(previewConfiguration(office as any, { currency: 'TRY', choice: { ...draftChoice, color: 'Pembe' } }), /firmanın renk kataloğunda yok/);
   await assert.rejects(previewConfiguration(office as any, { currency: 'TRY', choice: { ...draftChoice, parameters: { ...draftChoice.parameters, widthMm: 9000 } } }), /En reçete sınırları dışında/);
 
   const item = (unitPrice: number, extra: object = {}) => ({ productName: 'x', quantity: 2, unitPrice, discountPercent: 0, totalPrice: 0, productConfiguration: draftChoice, ...extra });
@@ -155,7 +164,7 @@ async function main() {
   const goneDone: any = await quotationService.convertToOrder(tenantId, gone.id, officeId, gone.version, 'office');
   assert.match(goneDone.pendingWorkOrders[0].reason, /üretim sorumlusu artık üretim ekibinde değil/);
   console.log('PASS · quote to order: work order opened at conversion with the quoted recipe, measures and colour, assigned to the person converting, its cuts in the cutting pool; warehouses not guessed, a role that cannot open work orders leaves the line waiting with the reason, another recipe or a changed cut list refused for a configured line, no silent skip without a person; the default production lead gets the work order and a notification, a lead who left is not replaced by a guess');
-  console.log('PASS · quote configurator: worker refused, only published family recipes offered, colours from stock bars and unpainted cards, BOM and cut list from the recipe, limits and unknown colour refused, no matrix means a typed price that is required and flagged, browser BOM/price ignored, matrix price set by the server, an untouched line kept as stored, other currency not converted and an old matrix price not taken as typed, the order keeps the configuration');
+  console.log('PASS · quote configurator: worker refused, only published family recipes offered, colours from the firm catalogue (empty catalogue refused, office cannot edit, duplicates refused) with stock only as in/out of stock, an out-of-stock colour quotable, BOM and cut list from the recipe, limits and unknown colour refused, no matrix means a typed price that is required and flagged, browser BOM/price ignored, matrix price set by the server, an untouched line kept as stored, other currency not converted and an old matrix price not taken as typed, the order keeps the configuration');
 
   await db.end();
   await sql.end({ timeout: 5 });

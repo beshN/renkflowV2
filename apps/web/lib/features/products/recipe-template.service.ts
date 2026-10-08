@@ -9,12 +9,13 @@ import { productionCommand } from '@/lib/features/manufacturing/platform.service
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
 import { ROUTE_ROLES } from '@/lib/features/auth/permissions';
 import { PRODUCT_FAMILIES, productFamily } from './families';
+import { FIRM_MANAGER_ROLES } from '@/lib/features/settings/roles';
 import { readRecipeCsv, recipeTemplate, type TemplateItem } from './recipe-template';
 
 const fail = (message: string, status = 400): never => {
   throw new WorkOrderApiError(message, status);
 };
-const MANAGERS = ['owner', 'admin'];
+
 const READERS = ROUTE_ROLES['/products'] as string[];
 export const familyRecipesAvailable = () => tableExists('product_family_recipes');
 
@@ -30,7 +31,7 @@ async function context(tenantId: string) {
 }
 
 export async function recipeTemplateCsv(actor: WorkOrderActor, family: string) {
-  if (!MANAGERS.includes(actor.role)) fail('Reçete şablonunu firma yöneticisi indirir', 403);
+  if (!FIRM_MANAGER_ROLES.includes(actor.role)) fail('Reçete şablonunu firma yöneticisi indirir', 403);
   if (!productFamily(family)) fail('Bilinmeyen ürün ailesi');
   const ctx = await context(actor.tenantId);
   return recipeTemplate(family, ctx.items, ctx.workCenters);
@@ -51,7 +52,7 @@ export async function productFamiliesOverview(actor: WorkOrderActor) {
   ]);
   return {
     available,
-    canImport: MANAGERS.includes(actor.role),
+    canImport: FIRM_MANAGER_ROLES.includes(actor.role),
     families: PRODUCT_FAMILIES.map((f) => ({ key: f.key, label: f.label, profileCodes: f.profileCodes, recipes: recipes.filter((r: any) => r.family === f.key) })),
     finishedItems: finished,
   };
@@ -72,7 +73,7 @@ const ImportSchema = z.object({
  * code's current draft updated. Publishing stays in the recipe screen, after worked examples.
  */
 export async function importFamilyRecipe(actor: WorkOrderActor, raw: unknown) {
-  if (!MANAGERS.includes(actor.role)) fail('Reçeteyi firma yöneticisi yükler', 403);
+  if (!FIRM_MANAGER_ROLES.includes(actor.role)) fail('Reçeteyi firma yöneticisi yükler', 403);
   const input = ImportSchema.parse(raw);
   if (!productFamily(input.family)) fail('Bilinmeyen ürün ailesi');
   const read = readRecipeCsv(input.text, await context(actor.tenantId));
