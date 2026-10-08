@@ -7,8 +7,46 @@ import { withTransaction } from "@/lib/db/transaction";
 import { safeParseCurrency } from "@/lib/types";
 import { recordAudit } from "@/lib/audit/audit-log";
 import { AmbiguousCustomerError, resolveOrderCustomer } from "@/lib/features/customers/link";
+import { columnExists } from "@/lib/db/schema-guard";
+import { configureProduct } from "@/lib/features/products/configure.service";
+import { configurationSummary } from "@/lib/features/products/configuration";
 
 const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+/**
+ * Configured lines are rebuilt on every save from the published recipe and the price matrix: the
+ * browser's bill of materials and price are never trusted. A line the matrix does not price keeps
+ * the seller's typed price, which must then be given, and says why it was typed.
+ */
+async function resolveConfiguredItems(tenantId: string, currency: string, items: CreateQuotationInput["items"]) {
+  if (!items.some((i) => i.productConfiguration)) return items;
+  if (!(await columnExists("quotation_items", "product_configuration")))
+    throw new WorkOrderApiError("Ürün yapılandırma bu kurulumda henüz etkin değil (veritabanı güncellemesi bekleniyor)", 409);
+  const resolved: CreateQuotationInput["items"] = [];
+  for (const [index, item] of items.entries()) {
+    if (!item.productConfiguration) {
+      resolved.push(item);
+      continue;
+    }
+    const c = await configureProduct(sql, tenantId, currency, item.productConfiguration);
+    if (c.price.source === "manual" && !(item.unitPrice > 0))
+      throw new WorkOrderApiError(`Kalem ${index + 1}: ${c.price.message}; birim fiyatı elle girin`, 400);
+    resolved.push({
+      ...item,
+      productName: `${c.familyLabel} · ${c.recipe.name}`,
+      description: configurationSummary(c),
+      color: c.color,
+      widthMm: c.parameters.widthMm,
+      projectionMm: c.parameters.projectionMm,
+      mountingHeightMm: c.parameters.mountingHeightMm,
+      unitPrice: c.price.source === "matrix" ? c.price.matrixUnitPrice! : item.unitPrice,
+      awningConfiguration: undefined,
+      awningPreview: undefined,
+      productConfiguration: c,
+    });
+  }
+  return resolved;
+}
 export function quotationTotals(
   items: CreateQuotationInput["items"],
   discountPercent = 0,
@@ -52,10 +90,16 @@ export class PostgresQuotationService implements IQuotationService {
     id: string,
     items: CreateQuotationInput["items"],
   ) {
+    const configurable = await columnExists("quotation_items", "product_configuration");
     for (const [position, rawItem] of items.entries()) {
       const i = rawItem.awningConfiguration
         ? applyAwning(rawItem, rawItem.awningConfiguration)
         : rawItem;
+      if (configurable) {
+        await tx`INSERT INTO quotation_items (tenant_id,quotation_id,product_name,description,color,width_mm,height_mm,projection_mm,mounting_height_mm,awning_configuration,awning_preview,quantity,unit_price,discount_percent,total_price,notes,position,product_configuration)
+   VALUES (${tenantId},${id},${i.productName},${i.description || null},${i.color || null},${i.widthMm || null},${i.heightMm || null},${i.projectionMm || null},${i.mountingHeightMm || null},${i.awningConfiguration ? JSON.stringify(i.awningConfiguration) : null}::text::jsonb,${i.awningPreview || null},${i.quantity},${i.unitPrice},${i.discountPercent},${money(i.quantity * i.unitPrice * (1 - i.discountPercent / 100))},${i.notes || null},${position},${i.productConfiguration ? JSON.stringify(i.productConfiguration) : null}::text::jsonb)`;
+        continue;
+      }
       await tx`INSERT INTO quotation_items (tenant_id,quotation_id,product_name,description,color,width_mm,height_mm,projection_mm,mounting_height_mm,awning_configuration,awning_preview,quantity,unit_price,discount_percent,total_price,notes,position)
    VALUES (${tenantId},${id},${i.productName},${i.description || null},${i.color || null},${i.widthMm || null},${i.heightMm || null},${i.projectionMm || null},${i.mountingHeightMm || null},${i.awningConfiguration ? JSON.stringify(i.awningConfiguration) : null}::text::jsonb,${i.awningPreview || null},${i.quantity},${i.unitPrice},${i.discountPercent},${money(i.quantity * i.unitPrice * (1 - i.discountPercent / 100))},${i.notes || null},${position})`;
     }
@@ -65,11 +109,12 @@ export class PostgresQuotationService implements IQuotationService {
     data: CreateQuotationInput,
     createdBy?: string,
   ) {
-    const totals = quotationTotals(data.items, data.discountPercent);
     const { idempotencyKey, expectedVersion: _version, ...content } = data;
     const hash = createHash("sha256")
       .update(JSON.stringify(content))
       .digest("hex");
+    data = { ...data, items: await resolveConfiguredItems(tenantId, data.currency, data.items) };
+    const totals = quotationTotals(data.items, data.discountPercent);
     const id = await withTransaction(async ({ sql: tx }) => {
       if (idempotencyKey) {
         await tx`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId + ":quote:" + idempotencyKey},0))`;
@@ -121,6 +166,9 @@ export class PostgresQuotationService implements IQuotationService {
         await tx`SELECT * FROM quotation_items WHERE tenant_id=${tenantId} AND quotation_id=${id} ORDER BY position`;
       const old = this.map(rows[0], oldItems),
         data = { ...old, ...updates };
+      // A changed currency re-prices configured lines too: the matrix price is only used in its own currency.
+      if (updates.items || (updates.currency && updates.currency !== old.currency))
+        data.items = await resolveConfiguredItems(tenantId, data.currency, updates.items ?? data.items);
       const totals = quotationTotals(data.items, data.discountPercent);
       if (updates.customerId) {
         const customers =
@@ -128,9 +176,9 @@ export class PostgresQuotationService implements IQuotationService {
         if (!customers[0]) throw new WorkOrderApiError("Müşteri bulunamadı", 409);
       }
       await tx`UPDATE quotations SET customer_name=${data.customerName},customer_id=${data.customerId || null},valid_until=${data.validUntil || null},currency=${data.currency},discount_percent=${data.discountPercent},subtotal=${totals.subtotal},discount_amount=${totals.discountAmount},tax_amount=${totals.taxAmount},total_amount=${totals.totalAmount},notes=${data.notes || null},internal_notes=${data.internalNotes || null},terms_and_conditions=${data.termsAndConditions || null},version=version+1,updated_at=now() WHERE tenant_id=${tenantId} AND id=${id}`;
-      if (updates.items) {
+      if (updates.items || data.items !== old.items) {
         await tx`DELETE FROM quotation_items WHERE tenant_id=${tenantId} AND quotation_id=${id}`;
-        await this.insertItems(tx, tenantId, id, updates.items);
+        await this.insertItems(tx, tenantId, id, data.items);
       }
     });
     return (await this.getQuotationById(tenantId, id))!;
@@ -258,6 +306,7 @@ export class PostgresQuotationService implements IQuotationService {
         discountPercent: Number(i.discount_percent),
         totalPrice: Number(i.total_price),
         notes: i.notes || undefined,
+        productConfiguration: i.product_configuration || undefined,
       })),
     };
   }

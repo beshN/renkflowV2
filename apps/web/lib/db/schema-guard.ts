@@ -56,3 +56,20 @@ export function isMissingRelationError(error: unknown, relationNames: string[] =
 
   return false;
 }
+
+const columnExistsCache = new Map<string, CachedTableState>();
+
+/** Whether a column exists yet (a release adds it with a migration that may run after the code). */
+export async function columnExists(tableName: string, columnName: string): Promise<boolean> {
+  const key = `${tableName.trim().toLowerCase()}.${columnName.trim().toLowerCase()}`;
+  const cached = columnExistsCache.get(key);
+  if (cached && (cached.exists || Date.now() - cached.checkedAt < TABLE_EXISTS_TTL_MS)) return cached.exists;
+  try {
+    const [row] = await sql`SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = ${tableName} AND column_name = ${columnName}) AS ok`;
+    const exists = Boolean(row?.ok);
+    columnExistsCache.set(key, { exists, checkedAt: Date.now() });
+    return exists;
+  } catch {
+    return false;
+  }
+}
