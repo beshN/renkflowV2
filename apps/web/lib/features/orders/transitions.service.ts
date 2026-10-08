@@ -7,7 +7,7 @@ import {
   WorkOrderApiError,
   type WorkOrderActor,
 } from "../work-orders/security";
-import { ORDER_TRANSITIONS as transitions } from "./transition-rules";
+import { applyOrderStatus } from "@/lib/features/sales/order-status.server";
 export const TransitionCommandSchema = z
   .object({
     commandId: z.uuid(),
@@ -57,11 +57,9 @@ export async function transitionOrder(
         "Bu siparişin durumu üretim ve sevkiyat kayıtlarından hesaplanır. İlgili operasyon ekranını kullanın.",
         409,
       );
-    if (!(transitions[order.status] || []).includes(d.newStatus))
+    if (order.status === d.newStatus)
       throw new WorkOrderApiError("Bu durum geçişine izin verilmiyor", 409);
-    await tx`UPDATE orders SET status=${d.newStatus},version=version+1,updated_at=now()WHERE tenant_id=${a.tenantId} AND id=${id}`;
-    const [actor] = await tx`SELECT name FROM users WHERE id=${a.userId}`;
-    await tx`INSERT INTO activity_logs(tenant_id,entity_type,entity_id,action,actor_id,actor_name,note,changes)VALUES(${a.tenantId},'order',${id},'status_changed',${a.userId},${actor?.name || "Kullanıcı"},${d.note || null},${JSON.stringify({ durum: { from: order.status, to: d.newStatus } })}::text::jsonb)`;
+    await applyOrderStatus(tx, { tenantId: a.tenantId, orderId: id, from: order.status, to: d.newStatus, actorId: a.userId, note: d.note });
     const result = {
       orderId: id,
       previousStatus: order.status,

@@ -190,9 +190,11 @@ export const orderIdSchema = z
   .or(z.string().regex(/^ORD\d+$/, 'Geçersiz sipariş numarası'));
 
 export const statusUpdateSchema = z.object({
-  status: z.enum(['pending', 'in_production', 'delivered'], {
+  status: z.enum(['pending', 'new', 'pending_approval', 'approved', 'preparing_materials', 'ready_for_production', 'in_production', 'quality_check', 'ready', 'ready_for_shipment', 'shipped', 'delivered', 'completed', 'on_hold', 'cancelled'], {
     message: 'Geçersiz durum değeri',
   }),
+  /** Required when cancelling, holding or sending work back (enforced by the server's state machine). */
+  note: z.string().trim().max(2000).optional(),
 });
 
 // ============================================

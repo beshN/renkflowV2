@@ -81,6 +81,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         validStatus,
         expectedVersion,
         user.id,
+        user.role,
       );
       return successResponse(quotation, "Durum güncellendi");
     }
