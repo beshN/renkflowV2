@@ -19,6 +19,8 @@ export type ThresholdRow = {
     supplierName: string | null;
     supplierActive: boolean;
     warehouseId: string;
+    /** The last order's warehouse is still an active raw-material warehouse. */
+    warehouseUsable: boolean;
     unitPrice: number | null;
     currency: string;
     lengthMm: number | null;
@@ -41,6 +43,10 @@ export const available = (row: ThresholdRow) => row.onHand - row.reserved;
 const MAX_BARS_PER_LINE = 10000;
 const MAX_QUANTITY_PER_LINE = 1000000;
 
+/** The parts of a draft line that the approver agreed to; only the quantity may follow the stock. */
+export const lineTerms = (supplierId: string, currency: string, l: ReorderLine) =>
+  JSON.stringify([supplierId, currency, l.itemId, l.warehouseId, l.unitPrice, l.lengthMm ?? null, l.color]);
+
 const round = (n: number) => Math.round(n * 1e6) / 1e6;
 
 /**
@@ -55,11 +61,13 @@ export function thresholdStatus(row: ThresholdRow): ThresholdStatus {
   const last = row.last;
   if (!last || !last.supplierId) return { state: 'unknown', shortfall, reason: 'Daha önce satın alınmamış: tedarikçi, fiyat ve depo bilinmiyor' };
   if (!last.supplierActive) return { state: 'unknown', shortfall, reason: `Son tedarikçi (${last.supplierName ?? '—'}) pasif` };
+  if (!last.warehouseUsable) return { state: 'unknown', shortfall, reason: 'Son alışın deposu artık etkin bir hammadde deposu değil' };
   if (last.unitPrice === null) return { state: 'unknown', shortfall, reason: 'Son alışta birim fiyat yok' };
   let quantity: number;
   let lengthMm: number | undefined;
   if (row.uom === 'm') {
     if (!last.lengthMm || !last.color) return { state: 'unknown', shortfall, reason: 'Son alışta çubuk boyu veya renk yok' };
+    if (!Number.isInteger(last.lengthMm) || last.lengthMm < 100 || last.lengthMm > 30000) return { state: 'unknown', shortfall, reason: 'Son alıştaki çubuk boyu geçersiz' };
     lengthMm = last.lengthMm;
     // Bars of the last bought length, enough to cover the metres.
     quantity = Math.ceil((shortfall * 1000) / lengthMm - 1e-9);
@@ -71,7 +79,7 @@ export function thresholdStatus(row: ThresholdRow): ThresholdStatus {
     state: 'draftable',
     shortfall,
     supplierId: last.supplierId,
-    supplierName: last.supplierName ?? '—',
+    supplierName: last.supplierName ?? 'adı yok',
     currency: last.currency,
     orderNumber: last.orderNumber,
     line: { itemId: row.itemId, warehouseId: last.warehouseId, quantity, unitPrice: last.unitPrice, ...(lengthMm ? { lengthMm } : {}), color: last.color ?? '' },

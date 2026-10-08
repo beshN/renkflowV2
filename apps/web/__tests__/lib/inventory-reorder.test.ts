@@ -1,6 +1,6 @@
 import { groupReorder, thresholdStatus, type ThresholdRow } from '@/lib/features/inventory/reorder';
 
-const last = { supplierId: 's1', supplierName: 'Tedarikçi A', supplierActive: true, warehouseId: 'w1', unitPrice: 10, currency: 'TRY', lengthMm: null, color: null, orderNumber: 'SAT-1' };
+const last = { supplierId: 's1', supplierName: 'Tedarikçi A', supplierActive: true, warehouseId: 'w1', warehouseUsable: true, unitPrice: 10, currency: 'TRY', lengthMm: null, color: null, orderNumber: 'SAT-1' };
 const row = (over: Partial<ThresholdRow>): ThresholdRow => ({ itemId: 'i1', sku: 'S', name: 'N', uom: 'adet', minStock: 10, onHand: 0, reserved: 0, incoming: 0, drafted: 0, last, ...over });
 
 describe('stock threshold', () => {
@@ -26,6 +26,8 @@ describe('stock threshold', () => {
     expect(thresholdStatus(row({ last: null }))).toMatchObject({ state: 'unknown', reason: expect.stringMatching(/Daha önce satın alınmamış/) });
     expect(thresholdStatus(row({ last: { ...last, supplierActive: false } }))).toMatchObject({ state: 'unknown', reason: expect.stringMatching(/pasif/) });
     expect(thresholdStatus(row({ last: { ...last, unitPrice: null } }))).toMatchObject({ state: 'unknown' });
+    expect(thresholdStatus(row({ last: { ...last, warehouseUsable: false } }))).toMatchObject({ state: 'unknown', reason: expect.stringMatching(/depo/) });
+    expect(thresholdStatus(row({ uom: 'm', last: { ...last, lengthMm: 50, color: 'Gri' } }))).toMatchObject({ state: 'unknown', reason: expect.stringMatching(/geçersiz/) });
     expect(thresholdStatus(row({ uom: 'm', last: { ...last, lengthMm: 6000, color: null } }))).toMatchObject({ state: 'unknown', reason: expect.stringMatching(/renk/) });
     // Never a draft the purchase order would refuse: at most 10 000 bars on a line.
     expect(thresholdStatus(row({ uom: 'm', minStock: 100000, last: { ...last, lengthMm: 6000, color: 'Gri' } }))).toMatchObject({ state: 'unknown', reason: expect.stringMatching(/minimum stoğu kontrol edin/) });
