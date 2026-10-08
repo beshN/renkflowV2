@@ -39,6 +39,7 @@ import { executeFinance } from "../finance/workspace.service";
 import { executeProcurement } from "./purchasing.service";
 import { recordAudit, UUID_PATTERN } from "@/lib/audit/audit-log";
 import { canonicalColor, colorInfo } from "../colors/color-spec";
+import { cutView } from "./cut-view";
 const uuid = z.string().uuid();
 const text = z.string().trim().min(1).max(180);
 const num = (v: unknown) => Number(v || 0);
@@ -98,6 +99,10 @@ export async function productionOverview(actor: WorkOrderActor) {
     await sql`SELECT * FROM production_units WHERE tenant_id=${t} AND work_order_id=ANY(${ids}::uuid[]) ORDER BY serial`;
   const materialCards =
     await sql`SELECT id,name,stock_uom FROM inventory_items WHERE tenant_id=${t} AND active=true AND item_type<>'finished_good'`;
+  // The cut layout of these jobs, for the cutting diagram: only bars, lengths, colours and pieces.
+  const cutPlans = (
+    await sql`SELECT id,status,result FROM cutting_plans WHERE tenant_id=${t} AND work_order_ids && ${ids}::uuid[] AND status IN('draft','approved','completed') ORDER BY created_at DESC LIMIT 50`
+  ).map(cutView);
   const base = {
     actor,
     jobs,
@@ -109,6 +114,7 @@ export async function productionOverview(actor: WorkOrderActor) {
     units,
     qualityInspections,
     materialCards,
+    cutPlans,
   };
   if (worker) return base;
   const [
@@ -1558,10 +1564,15 @@ export async function publicTracking(token: string) {
   if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
   const hash = createHash("sha256").update(token).digest("hex");
   const [link] =
-    await sql`SELECT l.*,o.order_number,o.status FROM customer_tracking_links l JOIN orders o ON o.id=l.order_id AND o.tenant_id=l.tenant_id WHERE token_hash=${hash} AND revoked_at IS NULL AND expires_at>now()`;
+    await sql`SELECT l.*,o.order_number,o.status,o.delivery_date FROM customer_tracking_links l JOIN orders o ON o.id=l.order_id AND o.tenant_id=l.tenant_id WHERE token_hash=${hash} AND revoked_at IS NULL AND expires_at>now()`;
   if (!link) return null;
+  // Measures, family and colour of a configured line, for the drawing the customer sees; never prices.
+  const configured = await columnExists("order_items", "product_configuration");
   const items =
-    await sql`SELECT id,product_name,quantity,awning_configuration,awning_preview FROM order_items WHERE order_id=${link.order_id}`;
+    await sql`SELECT id,product_name,quantity,awning_configuration,awning_preview,color,
+      ${configured ? sql`product_configuration->'parameters'` : sql`NULL::jsonb`} AS parameters,
+      ${configured ? sql`product_configuration->>'family'` : sql`NULL::text`} AS family
+      FROM order_items WHERE order_id=${link.order_id}`;
   const jobs =
     await sql`SELECT id,order_item_id,planned_qty,produced_qty,status FROM work_orders WHERE tenant_id=${link.tenant_id} AND order_id=${link.order_id}`;
   const shipments =
@@ -1569,7 +1580,11 @@ export async function publicTracking(token: string) {
   return {
     orderNumber: link.order_number,
     status: link.status,
-    items,
+    deliveryDate: link.delivery_date ? new Date(link.delivery_date).toISOString().slice(0, 10) : null,
+    items: items.map((i: any) => ({
+      ...i,
+      parameters: i.parameters ? { widthMm: i.parameters.widthMm ?? null, projectionMm: i.parameters.projectionMm ?? null, mountingHeightMm: i.parameters.mountingHeightMm ?? null } : null,
+    })),
     jobs,
     shipments,
   };
@@ -1691,4 +1706,50 @@ export async function cutPlanSheet(actor: WorkOrderActor, id: string) {
 function schedulingFingerprint(value:unknown){
   const sort=(v:any):any=>Array.isArray(v)?v.map(sort):v && typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,sort(v[k])])):v;
   return createHash('sha256').update(js(sort(JSON.parse(js(value))))).digest('hex');
+}
+
+/**
+ * The workshop wall screen: what is on the floor today, how many jobs sit at each step, what is
+ * late and what is next for cutting. Built field by field: no customer, no price, no cost. For the
+ * office account that runs the screen; workers see the same work on their own factory screen.
+ */
+export async function wallBoard(a: WorkOrderActor) {
+  office(a);
+  const t = a.tenantId;
+  const jobs = await sql`
+    SELECT w.id, w.status, w.due_at, w.planned_qty, w.produced_qty, w.cut_plan_id, w.configuration->>'bodyName' AS color,
+      o.order_number, i.product_name,
+      (SELECT p.name FROM production_operations p WHERE p.work_order_id = w.id AND p.tenant_id = w.tenant_id AND p.status <> 'done' ORDER BY p.position LIMIT 1) AS step,
+      (SELECT p.status FROM production_operations p WHERE p.work_order_id = w.id AND p.tenant_id = w.tenant_id AND p.status <> 'done' ORDER BY p.position LIMIT 1) AS step_status
+    FROM work_orders w
+    JOIN orders o ON o.id = w.order_id AND o.tenant_id = w.tenant_id
+    LEFT JOIN order_items i ON i.id = w.order_item_id
+    WHERE w.tenant_id = ${t} AND w.recipe_id IS NOT NULL AND w.status NOT IN ('done', 'cancelled')
+    ORDER BY w.due_at NULLS LAST, w.created_at
+    LIMIT 200`;
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Istanbul" }).format(new Date());
+  const day = (d: unknown) => (d ? new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Istanbul" }).format(new Date(d as string)) : null);
+  const view = (j: any) => ({
+    id: j.id as string,
+    orderNumber: j.order_number as string,
+    product: (j.product_name as string | null) ?? null,
+    color: colorInfo(j.color),
+    step: (j.step as string | null) ?? null,
+    running: j.step_status === "running",
+    planned: Number(j.planned_qty) || 0,
+    produced: Number(j.produced_qty) || 0,
+    due: day(j.due_at),
+  });
+  const all: Array<ReturnType<typeof view>> = jobs.map(view);
+  const steps = new Map<string, number>();
+  for (const j of all) if (j.step) steps.set(j.step, (steps.get(j.step) ?? 0) + 1);
+  return {
+    updatedAt: new Date().toISOString(),
+    today: all.filter((j) => j.due === today),
+    late: all.filter((j) => j.due !== null && j.due < today),
+    running: all.filter((j) => j.running),
+    steps: [...steps].map(([name, count]) => ({ name, count })).sort((x, y) => y.count - x.count),
+    nextCuts: jobs.filter((j: any) => !j.cut_plan_id).slice(0, 8).map(view),
+    total: all.length,
+  };
 }

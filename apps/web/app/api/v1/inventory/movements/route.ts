@@ -6,6 +6,9 @@ export async function GET(req: NextRequest) {
   try {
     const actor = await requireWorkOrderActor();
     requireWorkOrderPermission(actor, 'view');
+    // One material's movements (the stock list's timeline), or all of them.
+    const raw = req.nextUrl.searchParams.get('itemId');
+    const itemId = raw && /^[0-9a-f-]{36}$/i.test(raw) ? raw : null;
 
     const rows = await sql`
       SELECT 
@@ -46,6 +49,7 @@ export async function GET(req: NextRequest) {
       FROM stock_entries e
       LEFT JOIN users u ON u.id = e.submitted_by
       WHERE e.tenant_id = ${actor.tenantId}
+        AND (${itemId}::uuid IS NULL OR EXISTS (SELECT 1 FROM stock_entry_lines x WHERE x.stock_entry_id = e.id AND x.item_id = ${itemId}::uuid))
       ORDER BY e.created_at DESC
       LIMIT 100
     `;

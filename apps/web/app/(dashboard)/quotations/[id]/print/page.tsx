@@ -6,6 +6,7 @@ import { requestJson } from "@/lib/shared/network";
 import { formatCurrency } from "@/lib/utils";
 import { awningSummary } from "@/lib/features/awning/configuration";
 import { ColorChip } from "@/components/colors/ColorSwatch";
+import { ProductDrawing } from "@/components/drawing/ProductDrawing";
 export default function QuotationPrint({
   params,
 }: {
@@ -89,6 +90,10 @@ export default function QuotationPrint({
             <p className="my-3 text-xs leading-5">
               {awningSummary(item.awningConfiguration)}
             </p>
+          )}
+          {item.productConfiguration?.parameters && (
+            <ProductDrawing family={item.productConfiguration.family} widthMm={item.productConfiguration.parameters.widthMm} projectionMm={item.productConfiguration.parameters.projectionMm}
+              heightMm={item.productConfiguration.parameters.mountingHeightMm} color={item.productConfiguration.color} className="my-3 h-auto max-h-60 w-full" />
           )}
           {item.color && !item.awningConfiguration && (
             <p className="my-2 text-sm">Renk: <ColorChip color={item.color} size={16} showName /></p>
