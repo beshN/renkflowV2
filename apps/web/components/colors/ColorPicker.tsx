@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   ANODIZED, DEFAULT_FINISH, FINISHES, RAL_GROUPS, RAW_LABEL, colorKey, formatColor, parseColor, searchRal,
   type Finish, type RalGroup,
@@ -48,6 +48,25 @@ export function ColorPicker({ value, onChange, favorites = [], stockColors, labe
   const [customName, setCustomName] = useState(spec.kind === 'custom' ? spec.name : '');
   const [customHex, setCustomHex] = useState(spec.kind === 'custom' ? spec.hex : null);
   const [active, setActive] = useState(0);
+  // The parent may set the value (a favourite, a reset after "add"): the tab and fields follow it.
+  useEffect(() => {
+    const s = parseColor(value);
+    if (!value) {
+      setWoodName('');
+      setCustomName('');
+      setCustomHex(null);
+      return;
+    }
+    if (s.kind === 'text') return;
+    setKind(s.kind);
+    if (s.kind === 'ral') setFinish(s.finish);
+    if (s.kind === 'wood') setWoodName(s.name);
+    if (s.kind === 'custom') {
+      setCustomName(s.name);
+      setCustomHex(s.hex);
+      if (s.finish) setFinish(s.finish);
+    }
+  }, [value]);
   const grid = useRef<HTMLDivElement>(null);
 
   const stockKeys = useMemo(() => (stockColors ? new Set(stockColors.map(colorKey)) : null), [stockColors]);

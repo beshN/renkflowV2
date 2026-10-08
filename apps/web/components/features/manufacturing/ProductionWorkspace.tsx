@@ -22,7 +22,7 @@ import { RecipeEditor } from "./RecipeEditor";
 import { fileData } from "@/lib/features/manufacturing/offline";
 import { AwningDialog } from "@/components/features/awning/AwningConfigurator";
 import { ColorChip } from "@/components/colors/ColorSwatch";
-import { sameColor } from "@/lib/features/colors/color-spec";
+import { barColorMismatch } from "@/lib/features/colors/color-spec";
 import { cuttingEstimateNotice } from "@/lib/features/manufacturing/cutting-defaults";
 import { PROCESSED_STATES, STATE_LABELS, STOCK_UNITS, UNIT_LABELS, WAREHOUSE_TYPE_LABELS, warehouseTypeLabel } from "@/lib/features/inventory/vocabulary";
 
@@ -665,10 +665,7 @@ export default function ProductionWorkspace() {
               )}
               {p.result.bars.map((bar: any, i: number) => {
                 // The bar must be the colour of every job cut from it; a record that disagrees is flagged.
-                const mismatch = bar.pieces.some((piece: any) => {
-                  const c = jobs.find((j: any) => j.id === piece.workOrderId)?.configuration?.bodyName;
-                  return typeof c === "string" && c !== "" && !sameColor(c, bar.source.color || "");
-                });
+                const mismatch = barColorMismatch(bar.source.color, bar.pieces.map((piece: any) => jobs.find((j: any) => j.id === piece.workOrderId)?.configuration?.bodyName));
                 return (
                 <div key={bar.source.id}>
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">

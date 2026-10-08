@@ -1,5 +1,5 @@
 import {
-  RAL_CLASSIC, RAL_GROUPS, canonicalColor, colorInfo, colorKey, parseColor, ralByCode, sameColor, searchRal, textOn,
+  RAL_CLASSIC, RAL_GROUPS, barColorMismatch, canonicalColor, uniqueColors, colorInfo, colorKey, parseColor, ralByCode, sameColor, searchRal, textOn,
 } from '@/lib/features/colors/color-spec';
 import { colorKey as stockColorKey } from '@/lib/features/inventory/vocabulary';
 import { optimizeCuts, type CuttingParameters } from '@/lib/features/manufacturing/cutting-engine';
@@ -29,7 +29,8 @@ describe('colour comparison: one colour however it was written', () => {
   ];
   it.each(same7016Mat)('%j is RAL 7016 Mat', (text) => {
     expect(colorKey(text)).toBe(colorKey('RAL 7016 Mat'));
-    expect(canonicalColor(text)).toBe('RAL 7016 Mat');
+    // A record that never said its finish keeps saying so; it still compares as Mat.
+    expect(canonicalColor(text)).toBe(/mat/i.test(text) ? 'RAL 7016 Mat' : 'RAL 7016');
   });
 
   it.each([
@@ -37,7 +38,8 @@ describe('colour comparison: one colour however it was written', () => {
     ['RAL 9016 İnce doku', '9016 incedoku'], ['RAL 1013 Kum', '1013 kumlu'], ['Boyasız', 'boyasiz'], ['Boyasız', 'BOYASIZ'],
     ['Boyasız', 'Ham alüminyum'], ['Eloksal natürel', 'eloksal naturel'], ['Eloksal natürel', 'Natürel eloksal'],
     ['Eloksal siyah', 'SİYAH ELOKSAL'], ['Ahşap desen: Ceviz', 'ahsap desen: CEVİZ'], ['Kahverengi', 'KAHVERENGİ'],
-    ['Kırlı', 'KIRLI'], ['Özel renk: Bordo metalik (Mat, #7A1F2B)', 'özel renk: bordo metalik (mat)'],
+    ['Kırlı', 'KIRLI'], ['Özel renk: Bordo metalik (Mat, #7A1F2B)', 'özel renk: bordo metalik (mat)'], ['Özel renk: Bordo', 'Özel renk: Bordo (Mat)'],
+    ['Ahşap desen: Meşe', 'Ahs\u0327ap desen: Me\u015fe'.normalize('NFD')],
   ])('%j = %j', (a, b) => expect(sameColor(a, b)).toBe(true));
 
   it.each([
@@ -45,7 +47,7 @@ describe('colour comparison: one colour however it was written', () => {
     ['Boyasız', 'Eloksal natürel'], ['Eloksal natürel', 'Eloksal siyah'], ['Ahşap desen: Ceviz', 'Ahşap desen: Meşe'],
     ['Kahverengi', 'RAL 8017 Mat'], ['Özel renk: Bordo (Mat)', 'Özel renk: Bordo (Parlak)'],
     // A text that merely looks like a finish word is not a RAL colour with that finish.
-    ['7016 metalik', 'RAL 7016 Mat'],
+    ['7016 metalik', 'RAL 7016 Mat'], ['Ahşap desenli Ceviz', 'Ahşap desen: Ceviz'],
   ])('%j ≠ %j', (a, b) => expect(sameColor(a, b)).toBe(false));
 
   it('stock matching and the cutting engine use the same rule', () => {
@@ -70,6 +72,7 @@ describe('canonical text and colour info', () => {
     ['7016 parlak', 'RAL 7016 Parlak'], ['9016 ince-doku', 'RAL 9016 İnce doku'], ['boyasiz', 'Boyasız'], ['siyah eloksal', 'Eloksal siyah'],
     ['ahşap desen   ceviz', 'Ahşap desen: ceviz'], ['Özel renk: Bordo metalik (#7a1f2b, parlak)', 'Özel renk: Bordo metalik (Parlak, #7A1F2B)'],
     ['Özel renk: Gri (açık)', 'Özel renk: Gri (açık)'], ['  Kahverengi  ', 'Kahverengi'], ['RAL 9999 Mat', 'RAL 9999 Mat'],
+    ['Ahşap desenli Ceviz', 'Ahşap desenli Ceviz'], ['Ahşap desen: Meşe'.normalize('NFD'), 'Ahşap desen: Meşe'], ['1013', 'RAL 1013'],
   ])('%j → %j', (text, canonical) => expect(canonicalColor(text)).toBe(canonical));
 
   it('says when the finish was not written and the default is assumed', () => {
@@ -87,6 +90,12 @@ describe('canonical text and colour info', () => {
   it('marks stand-in tones for finishes that have no colour value', () => {
     expect(colorInfo('Boyasız')).toMatchObject({ standIn: true, code: 'Boyasız' });
     expect(colorInfo('Özel renk: Bordo')).toMatchObject({ standIn: false, hex: null, name: 'Bordo' });
+  });
+
+  it('keeps the first of each colour and flags a bar of another colour than its jobs', () => {
+    expect(uniqueColors(['1013', '1013 Mat', 'Boyasız', 'boyasiz', 'RAL 7016 Mat'])).toEqual(['1013', 'Boyasız', 'RAL 7016 Mat']);
+    expect(barColorMismatch('7016 MAT', ['RAL 7016 Mat', null, ''])).toBe(false);
+    expect(barColorMismatch('7016 Parlak', ['RAL 7016 Mat'])).toBe(true);
   });
 
   it('picks the text colour that reads better on the swatch', () => {

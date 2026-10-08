@@ -63,7 +63,7 @@ async function main() {
   // stock only says whether a colour is on the shelf. An empty list does not stop a quote.
   const { saveColorCatalog } = await import('../lib/features/settings/color-catalog.service');
   assert.deepEqual((await configurationOptions(office as any, 'pergola') as any).colors, { favorites: [], stock: ['Boyasız', 'Test Gri'] });
-  assert.equal((await previewConfiguration(office as any, { currency: 'TRY', choice: { ...draftChoice, color: '7016' } }) as any).color, 'RAL 7016 Mat', 'any RAL colour, stored in one spelling, with no list');
+  assert.equal((await previewConfiguration(office as any, { currency: 'TRY', choice: { ...draftChoice, color: '7016' } }) as any).color, 'RAL 7016', 'any RAL colour, stored in one spelling, with no list');
   assert.equal((await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) as any).color, 'Test Gri', 'an old name on the shelf still works');
   await assert.rejects(saveColorCatalog(office as any, { colors: ['Test Gri'] }), (e: any) => e.status === 403);
   await assert.rejects(saveColorCatalog(owner as any, { colors: ['Test Gri', 'test gri'] }), /iki kez/);

@@ -50,7 +50,8 @@ export type ColorSpec =
   /** Anything else, typically a name written before the RAL list ("Kahverengi"). Kept as written. */
   | { kind: 'text'; text: string };
 
-const tidy = (text: string) => text.trim().replace(/\s+/g, ' ');
+// NFC first: text pasted from macOS/iOS may carry "ş" as s + combining cedilla.
+const tidy = (text: string) => text.normalize('NFC').trim().replace(/\s+/g, ' ');
 /**
  * Lower case, Turkish I/ı folded, accents dropped ("Boyasız" = "boyasiz", "Natürel" = "naturel"),
  * single spaces: what people type on a phone without a Turkish keyboard is the same name.
@@ -82,8 +83,11 @@ export function parseColor(input: string | null | undefined): ColorSpec {
   if (/^(boyasiz|ham|ham aluminyum|boyasiz aluminyum|boyasiz \(ham aluminyum\))$/.test(f)) return { kind: 'raw' };
   const anod = /^eloksal (naturel|siyah)$|^(naturel|siyah) eloksal$/.exec(f);
   if (anod) return { kind: 'anodized', tone: (anod[1] ?? anod[2]) === 'siyah' ? 'black' : 'natural' };
-  const wood = /^ahsap desen\s*:?\s*(.*)$/.exec(f);
-  if (wood) return { kind: 'wood', name: tidy(text.slice(text.length - wood[1].length)) };
+  // "Ahşap desen: Ceviz" or "Ahşap desen Ceviz"; "Ahşap desenli …" is someone's own name, kept as text.
+  if (/^ahsap desen(\s*:|\s|$)/.test(f)) {
+    const name = /^ah[sş]ap desen\s*:?\s*(.*)$/iu.exec(text)?.[1] ?? '';
+    return { kind: 'wood', name: tidy(name) };
+  }
   if (/^ozel renk\s*:/.test(f)) {
     const body = tidy(text.slice(text.indexOf(':') + 1));
     const m = /^(.*?)\s*\(([^()]*)\)$/.exec(body);
@@ -109,7 +113,8 @@ export function parseColor(input: string | null | undefined): ColorSpec {
 /** The one spelling a colour is stored and shown in. */
 export function formatColor(spec: ColorSpec): string {
   switch (spec.kind) {
-    case 'ral': return `RAL ${spec.code} ${spec.finish}`;
+    // A record that never said its finish keeps saying so ("RAL 1013"); it still compares as Mat.
+    case 'ral': return spec.finishAssumed ? `RAL ${spec.code}` : `RAL ${spec.code} ${spec.finish}`;
     case 'raw': return RAW_LABEL;
     case 'anodized': return ANODIZED[spec.tone];
     case 'wood': return spec.name ? `Ahşap desen: ${spec.name}` : 'Ahşap desen';
@@ -134,11 +139,31 @@ export function colorKey(text: string): string {
     case 'raw': return 'raw';
     case 'anodized': return `anodized:${spec.tone}`;
     case 'wood': return `wood:${fold(spec.name)}`;
-    case 'custom': return `custom:${fold(spec.name)}:${spec.finish ? fold(spec.finish) : ''}`;
+    case 'custom': return `custom:${fold(spec.name)}:${fold(spec.finish ?? DEFAULT_FINISH)}`;
     case 'text': return `text:${fold(spec.text)}`;
   }
 }
 export const sameColor = (a: string, b: string) => colorKey(a) === colorKey(b);
+
+/** The first of each colour, in order: "1013" and "1013 Mat" written before the RAL rule are one. */
+export function uniqueColors(names: string[]): string[] {
+  const seen = new Set<string>();
+  return names.filter((name) => {
+    const key = colorKey(name);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
+ * A bar must be the colour of every job cut from it. True when any job's colour (as recorded on
+ * the job) is another colour than the bar's: the cut list and the factory show a warning.
+ */
+export function barColorMismatch(barColor: string | null | undefined, jobColors: Array<string | null | undefined>): boolean {
+  const bar = colorKey(barColor ?? '');
+  return jobColors.some((c) => typeof c === 'string' && c.trim() !== '' && colorKey(c) !== bar);
+}
 
 /**
  * Display tones for colours that have no RAL hex. They only stand for the finish on screen

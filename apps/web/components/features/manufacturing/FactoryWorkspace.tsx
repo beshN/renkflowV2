@@ -17,7 +17,7 @@ import { QualityChecklist } from "./QualityChecklist";
 import { AwningDialog } from "@/components/features/awning/AwningConfigurator";
 import { awningSummary } from "@/lib/features/awning/configuration";
 import { ColorChip, WorkshopColor } from "@/components/colors/ColorSwatch";
-import { sameColor } from "@/lib/features/colors/color-spec";
+import { barColorMismatch } from "@/lib/features/colors/color-spec";
 import {
   discardOperation,
   fileData,
@@ -243,8 +243,7 @@ export default function FactoryWorkspace() {
             </p>
             {scanResult.bars?.map((b: any, i: number) => {
               // A bar must be the colour of every job it is cut for; say so when a record disagrees.
-              const jobColors = b.pieces.map((p: any) => data.jobs.find((j: any) => j.id === p.workOrderId)?.configuration?.bodyName).filter((c: unknown): c is string => typeof c === "string" && !!c);
-              const mismatch = jobColors.some((c: string) => !sameColor(c, b.color || ""));
+              const mismatch = barColorMismatch(b.color, b.pieces.map((p: any) => data.jobs.find((j: any) => j.id === p.workOrderId)?.configuration?.bodyName));
               return (
                 <p key={i} className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                   <span>{i + 1}.</span>
