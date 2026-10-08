@@ -148,8 +148,9 @@ async function main() {
   assert.equal(ledDone.workOrders[0].assignedTo, workerId);
   assert.equal((await db`SELECT assigned_to FROM work_orders WHERE id = ${ledDone.workOrders[0].id}`)[0].assigned_to, workerId);
   const [notice] = await db`SELECT type, title, message, data FROM notifications WHERE tenant_id = ${tenantId} AND user_id = ${workerId}`;
-  assert.deepEqual([notice.type, notice.title, notice.data.workOrderId], ['work_order:assigned', 'Yeni üretim emri', ledDone.workOrders[0].id]);
+  assert.deepEqual([notice.type, notice.title, notice.data.workOrderIds, notice.data.href], ['work_order:assigned', 'Yeni üretim emri', [ledDone.workOrders[0].id], '/factory']);
   await db`DELETE FROM tenant_members WHERE tenant_id = ${tenantId} AND user_id = ${workerId}`;
+  assert.equal((await productionSettings(owner as any)).leadLeft, true, 'the settings screen says the lead left');
   const gone: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) })] } as any, officeId);
   const goneDone: any = await quotationService.convertToOrder(tenantId, gone.id, officeId, gone.version, 'office');
   assert.match(goneDone.pendingWorkOrders[0].reason, /üretim sorumlusu artık üretim ekibinde değil/);

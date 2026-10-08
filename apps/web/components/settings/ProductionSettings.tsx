@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { requestJson } from '@/lib/shared/network';
 
 type Member = { id: string; name: string | null; email: string; role: string };
-type Settings = { available: boolean; leadUserId: string | null; members: Member[] };
+type Settings = { available: boolean; leadUserId: string | null; leadLeft: boolean; members: Member[] };
 const ROLE: Record<string, string> = { owner: 'Sahip', admin: 'Yönetici', office: 'Ofis', worker: 'Usta' };
 
 /** The default production lead: who gets the work orders opened when a quote becomes an order. */
@@ -58,11 +58,15 @@ export function ProductionSettings() {
           <label className="block min-w-64 flex-1 text-xs">Varsayılan üretim sorumlusu
             <select className="rf-input mt-2 w-full" value={lead} onChange={(e) => { setLead(e.target.value); setDone(''); }}>
               <option value="">Tanımlı değil (siparişe dönüştüren kişi)</option>
+              {data.leadLeft && data.leadUserId && lead === data.leadUserId && <option value={data.leadUserId}>Ekipten ayrılmış kişi (değiştirin)</option>}
               {data.members.map((m) => <option key={m.id} value={m.id}>{m.name || m.email} · {ROLE[m.role] ?? m.role}</option>)}
             </select>
           </label>
           <button className="rf-primary-button" disabled={busy}>{busy ? 'Kaydediliyor…' : 'Kaydet'}</button>
         </form>
+      )}
+      {data.leadLeft && lead === data.leadUserId && (
+        <p role="alert" className="text-sm text-amber-700 dark:text-amber-300">Seçili üretim sorumlusu artık ekipte değil: siparişe dönüşte üretim emirleri açılmaz, kalemler bekler. Yeni bir kişi seçin.</p>
       )}
       {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}
       {done && <p role="status" className="text-sm text-emerald-700 dark:text-emerald-300">{done}</p>}

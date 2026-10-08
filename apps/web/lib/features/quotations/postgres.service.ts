@@ -3,7 +3,7 @@ import { applyAwning } from "../awning/configuration";
 import { createHash } from "node:crypto";
 import { IQuotationService, Quotation, CreateQuotationInput, type ConversionResult } from "./types";
 import { createJobsForConfiguredOrder } from "@/lib/features/manufacturing/platform.service";
-import { createNotification } from "@/lib/notifications/service";
+import { notifyWorkOrdersAssigned } from "@/lib/notifications/service";
 import { sql } from "@/lib/db";
 import { withTransaction } from "@/lib/db/transaction";
 import { safeParseCurrency } from "@/lib/types";
@@ -278,11 +278,7 @@ export class PostgresQuotationService implements IQuotationService {
       return { orderId: orders[0].id as string, workOrders: production.created, pendingWorkOrders: production.pending };
     });
     // After the commit: the people given new work orders hear of it (not the person who just converted).
-    for (const job of result.workOrders ?? [])
-      if (job.assignedTo !== createdBy)
-        await createNotification(job.assignedTo, tenantId, "work_order:assigned", "Yeni üretim emri", `${job.title} size atandı.`, { workOrderId: job.id, href: "/production" }).catch((error) =>
-          console.error("[quote conversion] notification failed", error instanceof Error ? error.message : error),
-        );
+    if (result.workOrders?.length) await notifyWorkOrdersAssigned(tenantId, result.workOrders, createdBy);
     return result;
   }
   async deleteQuotation(tenantId: string, id: string) {

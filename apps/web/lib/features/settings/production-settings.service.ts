@@ -29,7 +29,10 @@ export async function productionSettings(actor: WorkOrderActor) {
     sql`SELECT u.id, u.name, u.email, m.role FROM tenant_members m JOIN users u ON u.id = m.user_id
         WHERE m.tenant_id = ${actor.tenantId} AND m.role = ANY(${PRODUCTION_LEAD_ROLES}::text[]) ORDER BY u.name, u.email`,
   ]);
-  return { available, leadUserId: available ? await productionLead(sql, actor.tenantId) : null, members };
+  const leadUserId = available ? await productionLead(sql, actor.tenantId) : null;
+  // A lead who has left the team is still the setting: conversions wait until it is changed.
+  const leadLeft = Boolean(leadUserId && !members.some((m: any) => m.id === leadUserId));
+  return { available, leadUserId, leadLeft, members };
 }
 
 const SaveSchema = z.object({ leadUserId: z.string().uuid().nullable() });

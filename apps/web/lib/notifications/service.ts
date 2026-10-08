@@ -369,9 +369,9 @@ export async function getNotificationPreferences(
 
   return {
     userId: prefs.user_id,
-    email: prefs.email,
-    push: prefs.push,
-    inApp: prefs.in_app,
+    email: jsonValue(prefs.email),
+    push: jsonValue(prefs.push),
+    inApp: jsonValue(prefs.in_app),
   };
 }
 
@@ -382,16 +382,16 @@ export async function updateNotificationPreferences(
   await sql`
     INSERT INTO notification_preferences (user_id, email, push, in_app, updated_at)
     VALUES (
-      ${userId}, 
-      ${preferences.email ? JSON.stringify(preferences.email) : '{}'}, 
-      ${preferences.push ? JSON.stringify(preferences.push) : '{}'}, 
-      ${preferences.inApp ? JSON.stringify(preferences.inApp) : '{}'},
+      ${userId},
+      ${preferences.email ? JSON.stringify(preferences.email) : '{}'}::text::jsonb,
+      ${preferences.push ? JSON.stringify(preferences.push) : '{}'}::text::jsonb,
+      ${preferences.inApp ? JSON.stringify(preferences.inApp) : '{}'}::text::jsonb,
       NOW()
     )
     ON CONFLICT (user_id) DO UPDATE SET
-      email = COALESCE(${preferences.email ? JSON.stringify(preferences.email) : null}, notification_preferences.email),
-      push = COALESCE(${preferences.push ? JSON.stringify(preferences.push) : null}, notification_preferences.push),
-      in_app = COALESCE(${preferences.inApp ? JSON.stringify(preferences.inApp) : null}, notification_preferences.in_app),
+      email = COALESCE(${preferences.email ? JSON.stringify(preferences.email) : null}::text::jsonb, notification_preferences.email),
+      push = COALESCE(${preferences.push ? JSON.stringify(preferences.push) : null}::text::jsonb, notification_preferences.push),
+      in_app = COALESCE(${preferences.inApp ? JSON.stringify(preferences.inApp) : null}::text::jsonb, notification_preferences.in_app),
       updated_at = NOW()
   `;
 }
@@ -452,6 +452,18 @@ export async function notifyOrderStatusChange(
 // Helpers
 // ============================================
 
+/** jsonb written before the ::jsonb cast holds a JSON string; read both shapes the same way. */
+function jsonValue<T>(value: unknown): T {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return value as T;
+    }
+  }
+  return value as T;
+}
+
 function mapNotificationRow(row: any): Notification {
   return {
     id: row.id,
@@ -460,10 +472,37 @@ function mapNotificationRow(row: any): Notification {
     type: row.type,
     title: row.title,
     message: row.message,
-    data: row.data,
-    channels: row.channels,
+    data: jsonValue(row.data),
+    channels: jsonValue(row.channels),
     read: row.read,
     readAt: row.read_at ? new Date(row.read_at) : undefined,
     createdAt: new Date(row.created_at),
   };
+}
+
+/**
+ * Tells each person the work orders just assigned to them: one notification per person, unless
+ * they turned this kind of notification off. Never throws: the assignment already happened.
+ */
+export async function notifyWorkOrdersAssigned(
+  tenantId: string,
+  jobs: Array<{ id: string; title: string; assignedTo: string; assigneeRole?: string }>,
+  except?: string,
+) {
+  const byPerson = new Map<string, typeof jobs>();
+  for (const job of jobs) if (job.assignedTo !== except) byPerson.set(job.assignedTo, [...(byPerson.get(job.assignedTo) ?? []), job]);
+  await Promise.all(
+    [...byPerson].map(async ([userId, list]) => {
+      try {
+        const prefs = await getNotificationPreferences(userId);
+        if ((prefs?.inApp as Record<string, unknown> | undefined)?.['work_order:assigned'] === false) return;
+        // A worker follows work in the factory screen; the others in production.
+        const href = list[0].assigneeRole === 'worker' ? '/factory' : '/production';
+        const message = list.length === 1 ? `${list[0].title} size atandı.` : `${list.length} üretim emri size atandı: ${list.slice(0, 3).map((j) => j.title).join('; ')}${list.length > 3 ? '; …' : ''}`;
+        await createNotification(userId, tenantId, 'work_order:assigned', list.length === 1 ? 'Yeni üretim emri' : `${list.length} yeni üretim emri`, message, { workOrderIds: list.map((j) => j.id), href });
+      } catch (error) {
+        console.error('[notifications] work order assignment notice failed', error instanceof Error ? error.message : error);
+      }
+    }),
+  );
 }

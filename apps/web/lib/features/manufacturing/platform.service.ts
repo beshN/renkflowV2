@@ -31,7 +31,7 @@ import {
 import { postStockEntryInTransaction } from "./inventory.service";
 import { AwningConfigurationSchema } from "../awning/configuration";
 import { columnExists } from "@/lib/db/schema-guard";
-import { productionLead } from "../settings/production-settings.service";
+import { PRODUCTION_LEAD_ROLES, productionLead } from "../settings/production-settings.service";
 import type { ProductConfiguration } from "../products/configuration";
 import { evaluateQuality, QualityChecksSchema } from "./quality";
 import { executeWarehouse } from "../warehouse/service";
@@ -728,7 +728,7 @@ async function createJob(
     fail("Bu kalem için üretim emri zaten var");
   if (
     !(
-      await tx`SELECT 1 FROM tenant_members WHERE tenant_id=${t} AND user_id=${d.assignedTo} AND role IN('worker','office','owner','admin')`
+      await tx`SELECT 1 FROM tenant_members WHERE tenant_id=${t} AND user_id=${d.assignedTo} AND role = ANY(${PRODUCTION_LEAD_ROLES}::text[])`
     ).length
   )
     fail("Çalışan firmaya ait değil", 400);
@@ -790,7 +790,7 @@ async function createJob(
  * reported as waiting, with the reason, for the work order to be opened in the production screen.
  */
 export async function createJobsForConfiguredOrder(tx: any, a: WorkOrderActor, orderId: string) {
-  const created: Array<{ id: string; orderItemId: string; title: string; assignedTo: string }> = [];
+  const created: Array<{ id: string; orderItemId: string; title: string; assignedTo: string; assigneeRole: string }> = [];
   const pending: Array<{ orderItemId: string; productName: string; reason: string }> = [];
   if (!(await columnExists("order_items", "product_configuration"))) return { created, pending };
   const t = a.tenantId;
@@ -811,9 +811,9 @@ export async function createJobsForConfiguredOrder(tx: any, a: WorkOrderActor, o
   if (!source || !wip || !target)
     return waitAll("Hammadde, yarı mamul ve mamul deposundan birer tane olmalı (birden fazla ya da hiç olmayan depo seçilemez); iş emrini Üretim ekranından açın");
   const lead = await productionLead(tx, t);
-  if (lead && !(await tx`SELECT 1 FROM tenant_members WHERE tenant_id = ${t} AND user_id = ${lead} AND role IN ('worker','office','owner','admin')`).length)
-    return waitAll("Varsayılan üretim sorumlusu artık üretim ekibinde değil; Ayarlar'dan değiştirin");
   const assignee = lead ?? a.userId;
+  const [member] = await tx`SELECT role FROM tenant_members WHERE tenant_id = ${t} AND user_id = ${assignee} AND role = ANY(${PRODUCTION_LEAD_ROLES}::text[])`;
+  if (!member) return waitAll(lead ? "Varsayılan üretim sorumlusu artık üretim ekibinde değil; Ayarlar'dan değiştirin" : "Dönüştüren kişi üretim ekibinde değil");
   // Production commands of a firm are serialised, as in productionCommand (a no-op when the caller holds it).
   await tx`SELECT pg_advisory_xact_lock(hashtextextended(${t},0))`;
   for (const l of lines) {
@@ -822,7 +822,7 @@ export async function createJobsForConfiguredOrder(tx: any, a: WorkOrderActor, o
       const job = await tx.savepoint((sp: any) =>
         createJob(sp, a, { orderItemId: l.id, recipeId: pc.recipeId, sourceWarehouseId: source, wipWarehouseId: wip, targetWarehouseId: target, assignedTo: assignee }, `quote-order:${l.id}`),
       );
-      created.push({ id: job.id, orderItemId: l.id, title: job.title, assignedTo: assignee });
+      created.push({ id: job.id, orderItemId: l.id, title: job.title, assignedTo: assignee, assigneeRole: member.role });
     } catch (error) {
       // The savepoint undid the line's writes; the order stands and the line waits, with the reason.
       if (error instanceof WorkOrderApiError) pending.push({ orderItemId: l.id, productName: l.product_name, reason: error.message });
