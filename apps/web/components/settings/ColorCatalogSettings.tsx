@@ -62,7 +62,7 @@ export function ColorCatalogSettings() {
           )}
           <ol className="space-y-1" aria-label="Renkler">
             {colors.map((c, i) => (
-              <li key={c + i} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
+              <li key={i} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
                 <span className="w-6 text-xs text-muted-foreground tabular-nums">{i + 1}</span>
                 <input aria-label={`Renk ${i + 1}`} className="rf-input flex-1" value={c} maxLength={100} onChange={(e) => change(colors.map((x, j) => (j === i ? e.target.value : x)))} />
                 <button type="button" className="rf-icon-button" aria-label={`${c} yukarı`} disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp size={15} /></button>

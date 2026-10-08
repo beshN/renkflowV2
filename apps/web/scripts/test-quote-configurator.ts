@@ -65,6 +65,7 @@ async function main() {
   await assert.rejects(previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }), /renk kataloğu boş/);
   await assert.rejects(saveColorCatalog(office as any, { colors: ['Test Gri'] }), (e: any) => e.status === 403);
   await assert.rejects(saveColorCatalog(owner as any, { colors: ['Test Gri', 'test gri'] }), /iki kez/);
+  await assert.rejects(saveColorCatalog(owner as any, { colors: ['Kirli Beyaz', 'KIRLI BEYAZ'] }), /iki kez/);
   await saveColorCatalog(owner as any, { colors: ['Test Gri', 'Mor', 'Boyasız'] });
   const options: any = await configurationOptions(office as any, 'pergola');
   assert.deepEqual(options.recipes.map((r: any) => r.code), ['PRG']);

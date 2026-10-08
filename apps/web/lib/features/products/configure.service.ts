@@ -14,9 +14,19 @@ import { firmColors, sameColor } from '@/lib/features/settings/color-catalog.ser
 
 export type ColorOption = { name: string; inStock: boolean };
 
+/**
+ * The colours a quote can use: the firm's catalogue. Before the catalogue exists (its migration not
+ * yet applied) the colours on the shelf are offered, as before, rather than none.
+ */
+async function quotableColors(db: any, tenantId: string, family: ProductFamily) {
+  return (await firmColors(db, tenantId)) ?? (await familyStockColors(db, tenantId, family));
+}
+
 /** The firm's catalogue, each colour marked with whether the family has it in stock. */
 export async function familyColorOptions(db: any, tenantId: string, family: ProductFamily): Promise<ColorOption[]> {
-  const [catalogue, stock] = await Promise.all([firmColors(db, tenantId), familyStockColors(db, tenantId, family)]);
+  const catalogue = await quotableColors(db, tenantId, family);
+  if (!catalogue.length) return [];
+  const stock = await familyStockColors(db, tenantId, family);
   return catalogue.map((name) => ({ name, inStock: stock.some((c) => sameColor(c, name)) }));
 }
 
@@ -25,7 +35,6 @@ const fail = (message: string, status = 400): never => {
 };
 
 const UNPAINTED = 'Boyasız';
-const sameText = (a: string, b: string) => a.localeCompare(b, 'tr-TR', { sensitivity: 'base' }) === 0;
 
 /**
  * The colours a family has on the shelf: those the count list printed for its profile codes and
@@ -43,8 +52,8 @@ export async function familyStockColors(db: any, tenantId: string, family: Produ
     db`SELECT 1 FROM inventory_items WHERE tenant_id = ${tenantId} AND active = true AND profile_code = ANY(${codes}::text[]) AND 'boyasiz' = ANY(processed_states) LIMIT 1`,
   ]);
   const colors: string[] = [];
-  for (const { color } of [...counted, ...bars] as Array<{ color: string }>) if (!colors.some((c) => sameText(c, color))) colors.push(color);
-  if (unpainted.length && !colors.some((c) => sameText(c, UNPAINTED))) colors.push(UNPAINTED);
+  for (const { color } of [...counted, ...bars] as Array<{ color: string }>) if (!colors.some((c) => sameColor(c, color))) colors.push(color);
+  if (unpainted.length && !colors.some((c) => sameColor(c, UNPAINTED))) colors.push(UNPAINTED);
   return colors.sort((a, b) => a.localeCompare(b, 'tr-TR'));
 }
 
@@ -89,7 +98,7 @@ export async function configureProduct(db: any, tenantId: string, currency: stri
   if (!row) fail('Reçete bu ürün ailesine ait değil', 409);
   if (row.status !== 'published') fail(`"${row.code}" reçetesi yayında değil; örneklerle doğrulanıp yayınlanmalı`, 409);
   // One quote with several lines reads the catalogue once. Stock does not limit the choice.
-  if (!memo.has('colors')) memo.set('colors', firmColors(db, tenantId));
+  if (!memo.has('colors')) memo.set('colors', quotableColors(db, tenantId, family));
   const colors: string[] = await memo.get('colors');
   if (!colors.length) fail("Firmanın renk kataloğu boş: Ayarlar'dan renk ekleyin", 409);
   const color = colors.find((c) => sameColor(c, choice.color)) ?? fail(`"${choice.color}" firmanın renk kataloğunda yok`);

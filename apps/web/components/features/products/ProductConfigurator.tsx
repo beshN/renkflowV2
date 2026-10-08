@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { requestJson } from '@/lib/shared/network';
 import { readNumber } from '@/lib/features/products/csv';
-import { formatQty } from '@/lib/features/inventory/vocabulary';
+import { colorKey, formatQty } from '@/lib/features/inventory/vocabulary';
 import type { ConfigurationChoice, ProductConfiguration } from '@/lib/features/products/configuration';
 import { formatCurrency } from '@/lib/utils';
 
@@ -68,6 +68,14 @@ export function ProductConfigurator({ family, currency, initial, onApply, onClos
     void requestJson<Options>(`/api/v1/products/configure?family=${family}`).then((r) => {
       if (r.ok && r.data) {
         setOptions(r.data);
+        if (color && !r.data.colors.some((c) => c.name === color)) {
+          const same = r.data.colors.find((c) => colorKey(c.name) === colorKey(color));
+          if (same) setColor(same.name);
+          else {
+            setColor('');
+            setError(`Kalemdeki renk (${color}) firmanın renk kataloğunda yok; listeden seçin.`);
+          }
+        }
         if (recipeId && !r.data.recipes.some((x) => x.id === recipeId)) {
           setRecipeId('');
           setError('Kalemdeki reçete sürümü artık güncel değil; güncel modeli seçip yeniden hesaplayın.');

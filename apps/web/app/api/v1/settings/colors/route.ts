@@ -11,6 +11,8 @@ function error(e: unknown) {
   if (e instanceof WorkOrderApiError) return NextResponse.json({ error: e.message }, { status: e.status, headers });
   if (e instanceof ZodError) return NextResponse.json({ error: e.issues.map((i) => i.message).join(', ') }, { status: 400, headers });
   if (e instanceof SyntaxError) return NextResponse.json({ error: 'Geçersiz istek' }, { status: 400, headers });
+  // Two saves at once: the other one's list is now the catalogue.
+  if ((e as { code?: string })?.code === '23505') return NextResponse.json({ error: 'Renk adı listede iki kez geçiyor' }, { status: 409, headers });
   console.error('[color catalog]', e instanceof Error ? e.message : 'failed');
   return NextResponse.json({ error: 'Renk kataloğu işlenemedi.' }, { status: 500, headers });
 }
@@ -26,7 +28,7 @@ export async function GET() {
 /** PUT { colors: string[] } replaces the catalogue in the given order. */
 export async function PUT(req: NextRequest) {
   try {
-    requireSameOriginJson(req, 20_000);
+    requireSameOriginJson(req, 100_000);
     return NextResponse.json(await saveColorCatalog(await requireWorkOrderActor(), await req.json()), { headers });
   } catch (e) {
     return error(e);

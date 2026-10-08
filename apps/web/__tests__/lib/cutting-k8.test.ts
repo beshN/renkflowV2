@@ -87,3 +87,12 @@ describe('cutting defaults', () => {
     expect(cuttingEstimateNotice(undefined)).toBeNull();
   });
 });
+
+describe('colour names', () => {
+  it('cuts a piece from a bar whose colour is the same name spelled differently, not from another colour', () => {
+    const stock = [bar('upper', 6000, { color: '7016 MAT' }), bar('other', 6000, { color: '9016 Mat' })];
+    const r = optimizeCuts([{ itemId: profile, color: ' 7016  Mat', lengthMm: 2000, quantity: 2, workOrderId: 'job' }], stock, params);
+    expect(r.unfulfilled).toHaveLength(0);
+    expect(r.bars.map((b) => b.source.id)).toEqual(['upper']);
+  });
+});
