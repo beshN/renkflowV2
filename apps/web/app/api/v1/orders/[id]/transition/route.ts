@@ -17,7 +17,7 @@ export async function POST(
       { id } = await params;
     const result = await transitionOrder(actor, id, await req.json());
     // The firm's rules (e.g. approved → production activity) follow the change; a rule failure never undoes it.
-    await runRecordRules(actor.tenantId).catch((e) => console.error("[records:rules]", e instanceof Error ? e.message : e));
+    await runRecordRules(actor.tenantId, { force: true }).catch((e) => console.error("[records:rules]", e instanceof Error ? e.message : e));
     return NextResponse.json({ success: true, ...result });
   } catch (e) {
     if (e instanceof WorkOrderApiError)

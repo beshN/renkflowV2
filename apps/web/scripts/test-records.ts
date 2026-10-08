@@ -89,6 +89,17 @@ async function main() {
   assert(due.items.some((a: any) => a.title === 'Müşteriyi ara' && a.record.title === 'REC-1'));
   await dueActivities(owner as any);
   assert.equal((await db`SELECT count(*)::int AS n FROM notifications WHERE user_id = ${ownerId} AND type = 'reminder' AND title LIKE '%Müşteriyi ara%'`)[0].n, 2, 'one assignment notice and one reminder a day');
+  // A worker who cannot open this job is not offered: mention refused; a follower who lost access hears nothing more.
+  await assert.rejects(recordCommand(office as any, 'work_order', otherJob.id, { action: 'comment.add', body: `@[Usta Test](${workerId}) bak` }), /bu kaydı göremez/);
+  await recordCommand(office as any, 'work_order', job.id, { action: 'comment.add', body: `@[Usta Test](${workerId}) profil hazır` });
+  await db`UPDATE work_orders SET assigned_to = NULL WHERE id = ${job.id}`;
+  const before = (await db`SELECT count(*)::int AS n FROM notifications WHERE user_id = ${workerId}`)[0].n;
+  await recordCommand(office as any, 'work_order', job.id, { action: 'comment.add', body: 'İş başkasına geçti' });
+  assert.equal((await db`SELECT count(*)::int AS n FROM notifications WHERE user_id = ${workerId}`)[0].n, before, 'no notice after losing access');
+  await db`UPDATE work_orders SET assigned_to = ${workerId} WHERE id = ${job.id}`;
+  // Files: a worker adds photos only; the content must match the type it claims.
+  await assert.rejects(recordCommand(worker as any, 'work_order', job.id, { action: 'comment.add', body: 'belge', attachments: [{ name: 'a.pdf', mime: 'application/pdf', base64: smallPdf }] }), (e: any) => e.status === 403);
+  await assert.rejects(recordCommand(office as any, 'order', order.id, { action: 'comment.add', body: 'sahte', attachments: [{ name: 'x.png', mime: 'image/png', base64: Buffer.from('not a png').toString('base64') }] }), /içeriği biçimiyle uyuşmuyor/);
   // A worker ticks the checklist on their own job but cannot add to it.
   await assert.rejects(recordCommand(worker as any, 'work_order', job.id, { action: 'checklist.add', title: 'x' }), (e: any) => e.status === 403);
   await recordCommand(worker as any, 'work_order', job.id, { action: 'comment.add', body: 'Profil geldi' });
@@ -102,28 +113,27 @@ async function main() {
   await runRecordRules(tenantId);
   await runRecordRules(tenantId);
   const produced = await db`SELECT title, assignee_id, rule_key FROM record_activities WHERE tenant_id = ${tenantId} AND rule_key = 'order_approved_production'`;
-  assert.deepEqual([produced.length, produced[0]?.assignee_id], [1, workerId], 'one activity, for the production lead');
+  // The production lead here is a worker, who never opens orders: the activity stays unassigned for the office.
+  assert.deepEqual([produced.length, produced[0]?.assignee_id], [1, null], 'one activity, not given to a worker');
   // Late: an order due yesterday notifies the managers once.
   const [late] = await db`INSERT INTO orders (tenant_id, order_number, customer_name, product_name, quantity, status, total_amount, currency, delivery_date) VALUES (${tenantId}, 'REC-LATE', 'X', 'Pergola', 1, 'approved', 0, 'TRY', (now() AT TIME ZONE 'Europe/Istanbul')::date - 1) RETURNING id`;
-  await db`UPDATE record_rules SET updated_at = now() - interval '3 days' WHERE tenant_id = ${tenantId}`;
-  await runRecordRules(tenantId);
-  await runRecordRules(tenantId);
+  await runRecordRules(tenantId, { force: true });
+  await runRecordRules(tenantId, { force: true });
   assert.equal((await db`SELECT count(*)::int AS n FROM notifications WHERE tenant_id = ${tenantId} AND type = 'order:delayed' AND data->>'entityId' = ${late.id}`)[0].n, 1, 'owner notified once');
   // Delivered → feedback activity two days later; a rule switched off does nothing.
   await setRule(owner as any, 'order_delivered_feedback', false);
   await db`UPDATE orders SET status = 'completed', updated_at = now() WHERE id = ${order.id}`;
-  await runRecordRules(tenantId);
+  await runRecordRules(tenantId, { force: true });
   assert.equal((await db`SELECT count(*)::int AS n FROM record_activities WHERE tenant_id = ${tenantId} AND rule_key = 'order_delivered_feedback'`)[0].n, 0);
   await setRule(owner as any, 'order_delivered_feedback', true);
-  await db`UPDATE orders SET updated_at = now() + interval '1 second' WHERE id = ${order.id}`;
-  await runRecordRules(tenantId);
+  await runRecordRules(tenantId, { force: true });
   assert.equal((await db`SELECT count(*)::int AS n FROM record_activities WHERE tenant_id = ${tenantId} AND rule_key = 'order_delivered_feedback' AND assignee_id = ${ownerId}`)[0].n, 1, 'for the order owner on the record');
   assert(moved, 'transition returned');
 
   await deleteTag(owner as any, urgent.id);
   view = await getRecord(owner as any, 'order', order.id);
   assert.deepEqual(view.tags, []);
-  console.log('PASS · record platform: who may open what (worker never an order, only own job; other firm 404), comment + mention notice + followers + attachment, edit/delete with the earlier text in the trail, author-or-manager rule, firm tags unique ignoring case and set with a trace, owner/due date, checklist progress, activities due today with one reminder a day, worker ticks own job only, rules once per record from the moment they are on (approval → production lead activity, late → managers once, delivered → feedback), switched-off rule does nothing, migration twice is a no-op');
+  console.log('PASS · record platform: who may open what (worker never an order, only own job; other firm 404), comment + mention notice + followers + attachment, edit/delete with the earlier text in the trail, author-or-manager rule, firm tags unique ignoring case and set with a trace, owner/due date, checklist progress, activities due today with one reminder a day, worker ticks own job only, rules once per record with a baseline when switched on (approval → production lead activity, never to a worker; late → managers once; delivered → feedback), mention only people who can open the very record, no notice after losing access, worker photos only, file content must match its type, switched-off rule does nothing, migration twice is a no-op');
 
   await db.end();
   await sql.end({ timeout: 5 });

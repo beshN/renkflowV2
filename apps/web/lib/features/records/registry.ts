@@ -105,7 +105,8 @@ export const RECORDS: Record<RecordType, Def> = {
         WHERE w.tenant_id = ${a.tenantId} AND w.id = ${id}
           AND (${a.role !== 'worker'} OR w.assigned_to = ${a.userId}
             OR EXISTS (SELECT 1 FROM production_operations p WHERE p.tenant_id = w.tenant_id AND p.work_order_id = w.id AND p.assigned_to = ${a.userId}))`;
-      return w ? { type: 'work_order', id, title: w.title, subtitle: w.order_number ?? null, href: `/work-orders/${id}` } : null;
+      // A worker sees the job, not the customer order behind it.
+      return w ? { type: 'work_order', id, title: w.title, subtitle: a.role === 'worker' ? null : w.order_number ?? null, href: `/work-orders/${id}` } : null;
     },
     related: async (db, a, id) => {
       const [w] = await db`SELECT order_id FROM work_orders WHERE tenant_id = ${a.tenantId} AND id = ${id}`;

@@ -6,8 +6,9 @@ import { recordAudit } from '@/lib/audit/audit-log';
 import { tableExists } from '@/lib/db/schema-guard';
 import { createNotification, getNotificationPreferences, type NotificationType } from '@/lib/notifications/service';
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
-import { generateFilePath, uploadFile } from '@/lib/storage';
-import { resolveUploadedFile, verifiedFileKey } from '@/lib/storage/upload-reference';
+import { randomUUID } from 'node:crypto';
+import { uploadFile, validateStorageKey } from '@/lib/storage';
+import { contentMatchesType, resolveUploadedFile, verifiedFileKey } from '@/lib/storage/upload-reference';
 import { ORDER_ALLOWED_FILE_TYPES } from '@/lib/features/orders/constants';
 import { RECORDS, openRecord, type RecordHead } from './registry';
 import { ACTIVITY_KINDS, TAG_COLORS, mentionIds, plainMentions, type RecordType } from './types';
@@ -38,17 +39,31 @@ async function notify(tenantId: string, userIds: string[], except: string, type:
   }));
 }
 
-/** Members who may be mentioned or assigned on this record: they must be able to open it. */
-async function membersWhoCanSee(db: any, tenantId: string, type: RecordType, ids: string[]) {
+/** Can this member open this very record (role and, for a work order, assignment)? */
+async function memberCanOpen(db: any, tenantId: string, type: RecordType, recordId: string, member: { user_id: string; role: string }) {
+  if (!RECORDS[type].canView(member.role as any)) return false;
+  return Boolean(await RECORDS[type].head(db, { tenantId, userId: member.user_id, role: member.role } as WorkOrderActor, recordId));
+}
+
+/** Members who may be mentioned or assigned on this record: each must be able to open this record. */
+async function membersWhoCanSee(db: any, tenantId: string, type: RecordType, recordId: string, ids: string[]) {
   if (!ids.length) return [];
   const rows = await db`SELECT m.user_id, m.role, u.name FROM tenant_members m JOIN users u ON u.id = m.user_id WHERE m.tenant_id = ${tenantId} AND m.user_id = ANY(${ids}::uuid[])`;
   const found = new Map(rows.map((r: any) => [r.user_id, r]));
   for (const id of ids) {
     const m: any = found.get(id);
     if (!m) fail('Kişi bu firmanın üyesi değil');
-    if (!RECORDS[type].canView(m.role)) fail(`${m.name || 'Bu kişi'} bu kaydı göremez`);
+    if (!(await memberCanOpen(db, tenantId, type, recordId, m))) fail(`${m.name || 'Bu kişi'} bu kaydı göremez`);
   }
   return rows as Array<{ user_id: string; role: string; name: string }>;
+}
+
+/** Followers who can still open the record: someone who lost access gets nothing more. */
+async function followersWhoCanSee(db: any, tenantId: string, type: RecordType, recordId: string) {
+  const rows = await db`SELECT f.user_id, m.role FROM record_followers f JOIN tenant_members m ON m.tenant_id = f.tenant_id AND m.user_id = f.user_id WHERE f.tenant_id = ${tenantId} AND f.entity_type = ${type} AND f.entity_id = ${recordId}`;
+  const ok: string[] = [];
+  for (const r of rows) if (await memberCanOpen(db, tenantId, type, recordId, r)) ok.push(r.user_id);
+  return ok;
 }
 
 /** Everything the record drawer shows: head, smart buttons, tags, owner, checklist, activities, followers and one timeline. */
@@ -130,14 +145,15 @@ export async function recordCommand(actor: WorkOrderActor, type: string, id: str
     switch (cmd.action) {
       case 'comment.add': {
         const mentioned = mentionIds(cmd.body);
-        await membersWhoCanSee(tx, t, rt, mentioned);
+        await membersWhoCanSee(tx, t, rt, id, mentioned);
         const [c] = await tx`INSERT INTO record_comments (tenant_id, entity_type, entity_id, body, mentions, created_by) VALUES (${t}, ${rt}, ${id}, ${cmd.body}, ${mentioned}::uuid[], ${actor.userId}) RETURNING id`;
         for (const file of cmd.attachments) await saveAttachment(tx, actor, rt, id, c.id, file);
+        const fileNames = cmd.attachments.map((f) => f.name);
         // The author and the people mentioned follow the record from now on.
         for (const u of [actor.userId, ...mentioned])
           await tx`INSERT INTO record_followers (tenant_id, entity_type, entity_id, user_id) VALUES (${t}, ${rt}, ${id}, ${u}) ON CONFLICT DO NOTHING`;
-        await audit(tx, 'comment_added', undefined, null, { commentId: c.id, attachments: cmd.attachments.length, mentions: mentioned.length });
-        const followers = (await tx`SELECT user_id FROM record_followers WHERE tenant_id = ${t} AND entity_type = ${rt} AND entity_id = ${id}`).map((f: any) => f.user_id);
+        await audit(tx, 'comment_added', fileNames.length ? { files: { from: null, to: fileNames } } : undefined, null, { commentId: c.id, mentions: mentioned.length });
+        const followers = await followersWhoCanSee(tx, t, rt, id);
         const text = plainMentions(cmd.body).slice(0, 140);
         const data = { href: head.href, entityType: rt, entityId: id };
         notices.push(() => notify(t, mentioned, actor.userId, 'mention', `${head.title}: sizden bahsedildi`, text, data));
@@ -151,14 +167,14 @@ export async function recordCommand(actor: WorkOrderActor, type: string, id: str
         if (c.created_by !== actor.userId && !MANAGERS.includes(actor.role)) fail('Yalnız yazan ya da yönetici değiştirebilir', 403);
         if (cmd.action === 'comment.edit') {
           const mentioned = mentionIds(cmd.body);
-          await membersWhoCanSee(tx, t, rt, mentioned);
+          await membersWhoCanSee(tx, t, rt, id, mentioned);
           await tx`UPDATE record_comments SET body = ${cmd.body}, mentions = ${mentioned}::uuid[], edited_at = now() WHERE id = ${cmd.commentId}`;
           // The earlier text stays in the audit trail.
           await audit(tx, 'comment_edited', { body: { from: c.body, to: cmd.body } }, null, { commentId: cmd.commentId });
         } else {
           await tx`UPDATE record_comments SET deleted_at = now() WHERE id = ${cmd.commentId}`;
-          await tx`UPDATE record_attachments SET deleted_at = now() WHERE comment_id = ${cmd.commentId}`;
-          await audit(tx, 'comment_deleted', { body: { from: c.body, to: null } }, null, { commentId: cmd.commentId });
+          const files = (await tx`UPDATE record_attachments SET deleted_at = now() WHERE comment_id = ${cmd.commentId} AND deleted_at IS NULL RETURNING file_name`).map((f: any) => f.file_name);
+          await audit(tx, 'comment_deleted', { body: { from: c.body, to: null }, ...(files.length ? { files: { from: files, to: null } } : {}) }, null, { commentId: cmd.commentId });
         }
         return { ok: true };
       }
@@ -178,7 +194,7 @@ export async function recordCommand(actor: WorkOrderActor, type: string, id: str
         return { ok: true };
       }
       case 'owner.set': {
-        const who = cmd.assigneeId ? await membersWhoCanSee(tx, t, rt, [cmd.assigneeId]) : [];
+        const who = cmd.assigneeId ? await membersWhoCanSee(tx, t, rt, id, [cmd.assigneeId]) : [];
         const [before] = await tx`SELECT m.assignee_id, m.due_on, u.name FROM record_meta m LEFT JOIN users u ON u.id = m.assignee_id WHERE m.tenant_id = ${t} AND m.entity_type = ${rt} AND m.entity_id = ${id}`;
         await tx`INSERT INTO record_meta (tenant_id, entity_type, entity_id, assignee_id, due_on, updated_at) VALUES (${t}, ${rt}, ${id}, ${cmd.assigneeId}, ${cmd.dueOn}, now())
           ON CONFLICT (tenant_id, entity_type, entity_id) DO UPDATE SET assignee_id = EXCLUDED.assignee_id, due_on = EXCLUDED.due_on, updated_at = now()`;
@@ -208,7 +224,7 @@ export async function recordCommand(actor: WorkOrderActor, type: string, id: str
         return { ok: true };
       }
       case 'activity.add': {
-        if (cmd.assigneeId) await membersWhoCanSee(tx, t, rt, [cmd.assigneeId]);
+        if (cmd.assigneeId) await membersWhoCanSee(tx, t, rt, id, [cmd.assigneeId]);
         const [a] = await tx`INSERT INTO record_activities (tenant_id, entity_type, entity_id, kind, title, due_on, assignee_id, created_by) VALUES (${t}, ${rt}, ${id}, ${cmd.kind}, ${cmd.title}, ${cmd.dueOn}, ${cmd.assigneeId}, ${actor.userId}) RETURNING id`;
         await audit(tx, 'activity_planned', { activity: { from: null, to: `${cmd.title} · ${cmd.dueOn}` } }, null, { kind: cmd.kind });
         if (cmd.assigneeId) notices.push(() => notify(t, [cmd.assigneeId!], actor.userId, 'reminder', `${head.title}: ${cmd.title}`, `Tarih ${cmd.dueOn}`, { href: head.href, entityType: rt, entityId: id }));
@@ -232,6 +248,8 @@ export async function recordCommand(actor: WorkOrderActor, type: string, id: str
 }
 
 async function saveAttachment(tx: any, actor: WorkOrderActor, type: RecordType, id: string, commentId: string, raw: z.infer<typeof Attachment>) {
+  // A worker adds photos only, as on the factory screen; office files (contracts, sheets) are not theirs.
+  if (actor.role === 'worker' && !raw.mime.startsWith('image/')) fail('Usta yalnız fotoğraf ekleyebilir', 403);
   let key: string, size: number;
   if ('blobPath' in raw) {
     const file = await resolveUploadedFile(actor, raw);
@@ -241,7 +259,8 @@ async function saveAttachment(tx: any, actor: WorkOrderActor, type: RecordType, 
     // Local and small uploads come inline; the same type and size rules apply.
     const bytes = Buffer.from(raw.base64, 'base64');
     if (!bytes.length || bytes.length > 10 * 1024 * 1024) fail('Dosya 10 MB sınırını aşıyor');
-    key = generateFilePath(id, raw.name);
+    if (!contentMatchesType(raw.mime, bytes)) fail('Dosya içeriği biçimiyle uyuşmuyor');
+    key = validateStorageKey(`records/${actor.tenantId}/${type}/${id}/${randomUUID()}-${raw.name.replace(/[^a-zA-Z0-9.-]/g, '_').slice(-120) || 'dosya'}`);
     await uploadFile(key, bytes, raw.mime);
     size = bytes.length;
   }
@@ -273,11 +292,12 @@ export async function saveTag(actor: WorkOrderActor, raw: unknown) {
   return withTransaction(async (tx: any) => {
     const clash = await tx`SELECT id FROM record_tags WHERE tenant_id = ${actor.tenantId} AND name_key = ${tagKey(tag.name)} AND id IS DISTINCT FROM ${tag.id ?? null}::uuid`;
     if (clash.length) fail(`"${tag.name}" etiketi zaten var`, 409);
+    const [before] = tag.id ? await tx`SELECT name, color FROM record_tags WHERE tenant_id = ${actor.tenantId} AND id = ${tag.id}` : [];
     const [row] = tag.id
       ? await tx`UPDATE record_tags SET name = ${tag.name}, name_key = ${tagKey(tag.name)}, color = ${tag.color} WHERE tenant_id = ${actor.tenantId} AND id = ${tag.id} RETURNING id, name, color`
       : await tx`INSERT INTO record_tags (tenant_id, name, name_key, color) VALUES (${actor.tenantId}, ${tag.name}, ${tagKey(tag.name)}, ${tag.color}) RETURNING id, name, color`;
     if (!row) fail('Etiket bulunamadı', 404);
-    await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'tenant_settings', entityId: actor.tenantId, action: tag.id ? 'tag_updated' : 'tag_created', changes: { tag: { from: null, to: `${row.name} (${row.color})` } } });
+    await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'tenant_settings', entityId: actor.tenantId, action: tag.id ? 'tag_updated' : 'tag_created', changes: { tag: { from: before ? `${before.name} (${before.color})` : null, to: `${row.name} (${row.color})` } } });
     return row;
   });
 }
@@ -285,8 +305,14 @@ export async function deleteTag(actor: WorkOrderActor, id: string) {
   await requireAvailable();
   if (!['owner', 'admin'].includes(actor.role)) fail('Etiketi yönetici siler', 403);
   return withTransaction(async (tx: any) => {
+    // Every record that carried the tag shows its removal in its own timeline.
+    const links = await tx`SELECT entity_type, entity_id FROM record_tag_links WHERE tenant_id = ${actor.tenantId} AND tag_id = ${id}`;
     const [row] = await tx`DELETE FROM record_tags WHERE tenant_id = ${actor.tenantId} AND id = ${id} RETURNING name`;
     if (!row) fail('Etiket bulunamadı', 404);
+    for (const l of links) {
+      const def = RECORDS[l.entity_type as RecordType];
+      if (def) await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: def.auditTypes[0], entityId: l.entity_id, action: 'tags_changed', changes: { tags: { from: [row.name], to: [] } }, note: 'Etiket firmadan silindi' });
+    }
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'tenant_settings', entityId: actor.tenantId, action: 'tag_deleted', changes: { tag: { from: row.name, to: null } } });
     return { ok: true };
   });
@@ -309,16 +335,21 @@ export async function dueActivities(actor: WorkOrderActor) {
       AND (a.assignee_id = ${actor.userId} OR (${office} AND a.assignee_id IS NULL))
     ORDER BY a.due_on, a.created_at LIMIT 50`;
   const items: Array<Record<string, unknown>> = [];
+  const heads = new Map<string, RecordHead | null>();
   for (const r of rows) {
     const def = RECORDS[r.entity_type as RecordType];
     if (!def || !def.canView(actor.role)) continue;
-    const head: RecordHead | null = await def.head(sql, actor, r.entity_id);
+    const cacheKey = `${r.entity_type}:${r.entity_id}`;
+    if (!heads.has(cacheKey)) heads.set(cacheKey, await def.head(sql, actor, r.entity_id));
+    const head = heads.get(cacheKey)!;
     if (!head) continue;
     const dueOn = r.due_on instanceof Date ? r.due_on.toISOString().slice(0, 10) : String(r.due_on).slice(0, 10);
     items.push({ id: r.id, kind: r.kind, title: r.title, dueOn, overdue: dueOn < today, assigneeName: r.assignee_name, record: head });
-    const notified = r.notified_on instanceof Date ? r.notified_on.toISOString().slice(0, 10) : r.notified_on;
-    if (r.assignee_id === actor.userId && notified !== today) {
-      await sql`UPDATE record_activities SET notified_on = ${today}::date WHERE id = ${r.id}`;
+    // One reminder a day, even with two tabs open: only the request that sets the day sends it.
+    const claimed = r.assignee_id === actor.userId
+      ? await sql`UPDATE record_activities SET notified_on = ${today}::date WHERE id = ${r.id} AND notified_on IS DISTINCT FROM ${today}::date RETURNING id`
+      : [];
+    if (claimed.length) {
       await notify(actor.tenantId, [actor.userId], '', 'reminder', `${head.title}: ${r.title}`, dueOn < today ? `Gecikti (${dueOn})` : 'Bugün', { href: head.href, entityType: r.entity_type, entityId: r.entity_id });
     }
   }
