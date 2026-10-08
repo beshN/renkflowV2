@@ -228,6 +228,9 @@ export class PostgresQuotationService implements IQuotationService {
     actorRole?: string,
   ): Promise<ConversionResult> {
     return withTransaction(async ({ sql: tx }) => {
+      // The firm's production lock first, as production commands take it, before any row: converting
+      // may open work orders, and the same order of locks cannot deadlock with a production command.
+      await tx`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId},0))`;
       const rows =
         await tx`SELECT * FROM quotations WHERE tenant_id=${tenantId} AND id=${id} FOR UPDATE`;
       const q = rows[0];
@@ -264,9 +267,7 @@ export class PostgresQuotationService implements IQuotationService {
           await tx`UPDATE order_items SET product_configuration=${JSON.stringify(i.product_configuration)}::text::jsonb WHERE id=${line.id}`;
       }
       // Configured lines go straight to production: a work order each, whose cuts join the cutting pool.
-      const production = createdBy && actorRole
-        ? await createJobsForConfiguredOrder(tx, { tenantId, userId: createdBy, role: actorRole as any }, orders[0].id)
-        : { created: [], pending: [] };
+      const production = await createJobsForConfiguredOrder(tx, { tenantId, userId: createdBy ?? "", role: (actorRole ?? "") as any }, orders[0].id);
       await tx`UPDATE quotations SET version=version+1,status='converted',converted_to_order_id=${orders[0].id},updated_at=now() WHERE tenant_id=${tenantId} AND id=${id}`;
       // Only a real conversion reaches here; a replay returned above without a second record.
       await recordAudit(tx, { tenantId, actorId: createdBy, entityType: "quotation", entityId: id, action: "converted", metadata: { quotationNumber: q.quotation_number, orderId: orders[0].id } });

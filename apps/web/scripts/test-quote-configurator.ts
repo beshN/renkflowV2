@@ -130,7 +130,14 @@ async function main() {
   const [otherLine] = await db`SELECT id FROM order_items WHERE order_id = ${orderOnly.orderId}`;
   const otherRecipe = (await db`INSERT INTO production_recipes (tenant_id, code, name, version, status, finished_item_id, rules, operations, limits) VALUES (${tenantId}, 'BASKA', 'Başka', 1, 'published', ${pergola}, ${row.rules}, ${row.operations}, ${row.limits}) RETURNING id`)[0].id;
   await assert.rejects(productionCommand(owner as any, { commandId: randomUUID(), action: 'job.create', data: { orderItemId: otherLine.id, recipeId: otherRecipe, sourceWarehouseId: rawId, wipWarehouseId: wipId, targetWarehouseId: finishedId, assignedTo: ownerId } }), /teklifte "PRG" reçetesinin 1\. sürümüyle yapılandırıldı/);
-  console.log('PASS · quote to order: work order opened at conversion with the quoted recipe, measures and colour, assigned to the person converting, its cuts in the cutting pool; warehouses not guessed, a role that cannot open work orders leaves the line waiting with the reason, another recipe refused for a configured line');
+  // A cut list that no longer matches the quoted one is refused rather than built differently.
+  await db`UPDATE order_items SET product_configuration = jsonb_set(product_configuration, '{bom,cuts,0,lengthMm}', '2970') WHERE id = ${otherLine.id}`;
+  await assert.rejects(productionCommand(owner as any, { commandId: randomUUID(), action: 'job.create', data: { orderItemId: otherLine.id, recipeId: row.id, sourceWarehouseId: rawId, wipWarehouseId: wipId, targetWarehouseId: finishedId, assignedTo: ownerId } }), /kesim listesi teklifteki ile aynı değil/);
+  // Converting without a known person still makes the order and says the work order waits.
+  const third: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) })] } as any, officeId);
+  const anonymous: any = await quotationService.convertToOrder(tenantId, third.id);
+  assert.equal(anonymous.pendingWorkOrders.length, 1);
+  console.log('PASS · quote to order: work order opened at conversion with the quoted recipe, measures and colour, assigned to the person converting, its cuts in the cutting pool; warehouses not guessed, a role that cannot open work orders leaves the line waiting with the reason, another recipe or a changed cut list refused for a configured line, no silent skip without a person');
   console.log('PASS · quote configurator: worker refused, only published family recipes offered, colours from stock bars and unpainted cards, BOM and cut list from the recipe, limits and unknown colour refused, no matrix means a typed price that is required and flagged, browser BOM/price ignored, matrix price set by the server, an untouched line kept as stored, other currency not converted and an old matrix price not taken as typed, the order keeps the configuration');
 
   await db.end();

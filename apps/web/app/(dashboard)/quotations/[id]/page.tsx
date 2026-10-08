@@ -148,7 +148,11 @@ export default function QuotationPage({
       if (action === "convert") {
         const result = r.data.data as ConversionResult;
         // Lines whose work order could not be opened are said before leaving, with the reason.
-        if (result.pendingWorkOrders?.length) setConverted(result);
+        if (result.pendingWorkOrders?.length) {
+          setConverted(result);
+          // The quote is converted now: no longer editable or convertible on this page.
+          setQuotation((prev) => (prev ? { ...prev, status: "converted", convertedToOrderId: result.orderId, version: prev.version + 1 } : prev));
+        }
         else window.location.assign(`/orders/${result.orderId}`);
       } else setQuotation(r.data.data);
     } catch (e) {

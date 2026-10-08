@@ -758,10 +758,18 @@ async function createJob(
           led: c.led !== "off",
         });
       } catch (error) {
-        // The recipe's limits and checks speak to the person, not as a server error.
+        // The recipe's limits and checks speak to the person; a programming error stays an error.
+        if (error instanceof TypeError || error instanceof ReferenceError || error instanceof RangeError) throw error;
         return fail(error instanceof Error ? error.message : "Reçete hesaplanamadı", 400);
       }
     })();
+  // A configured line is built exactly as quoted: the same cuts per product, or no work order.
+  if (pc) {
+    const perUnit = (cuts: Array<{ itemId: string; lengthMm: number; quantity: number }>, n: number) =>
+      JSON.stringify(cuts.map((c) => [c.itemId, c.lengthMm, c.quantity / n]).sort((x, y) => JSON.stringify(x).localeCompare(JSON.stringify(y))));
+    if (perUnit(snapshot.cuts, num(item.quantity)) !== perUnit(pc.bom.cuts, 1))
+      fail("Reçetenin kesim listesi teklifteki ile aynı değil; teklifi yeniden yapılandırın", 409);
+  }
   const [job] =
     await tx`INSERT INTO work_orders(tenant_id,title,category,order_id,order_item_id,recipe_id,production_item_id,planned_qty,production_uom,source_warehouse_id,wip_warehouse_id,target_warehouse_id,configuration,bom_snapshot,created_by,assigned_to,priority,due_at,manufacturing_idempotency_key)VALUES(${t},${item.order_number + " · " + item.product_name},'production',${item.oid},${item.id},${r.id},${r.finished_item_id},${num(item.quantity)},'adet',${d.sourceWarehouseId},${d.wipWarehouseId},${d.targetWarehouseId},${js(c)}::text::jsonb,${js({ ...snapshot, recipe: recipe(r), preview: item.awning_preview })}::text::jsonb,${a.userId},${d.assignedTo},${d.priority},${item.delivery_date || null},${key})RETURNING *`;
   for (const m of snapshot.materials)
@@ -791,7 +799,7 @@ export async function createJobsForConfiguredOrder(tx: any, a: WorkOrderActor, o
     for (const l of lines) pending.push({ orderItemId: l.id, productName: l.product_name, reason });
     return { created, pending };
   };
-  if (!["owner", "admin", "office"].includes(a.role)) return waitAll("Üretim emrini yönetici ya da ofis açar");
+  if (!a.userId || !["owner", "admin", "office"].includes(a.role)) return waitAll("Üretim emrini yönetici ya da ofis açar");
   const warehouses = await tx`SELECT id, warehouse_type FROM warehouses WHERE tenant_id = ${t} AND active = true AND warehouse_type IN ('RAW', 'WIP', 'FINISHED')`;
   const only = (type: string) => {
     const of = warehouses.filter((w: any) => w.warehouse_type === type);
@@ -800,7 +808,7 @@ export async function createJobsForConfiguredOrder(tx: any, a: WorkOrderActor, o
   const [source, wip, target] = [only("RAW"), only("WIP"), only("FINISHED")];
   if (!source || !wip || !target)
     return waitAll("Hammadde, yarı mamul ve mamul deposundan birer tane olmalı (birden fazla ya da hiç olmayan depo seçilemez); iş emrini Üretim ekranından açın");
-  // Production commands of a firm are serialised, as in productionCommand.
+  // Production commands of a firm are serialised, as in productionCommand (a no-op when the caller holds it).
   await tx`SELECT pg_advisory_xact_lock(hashtextextended(${t},0))`;
   for (const l of lines) {
     const pc = l.product_configuration as ProductConfiguration;
@@ -810,8 +818,12 @@ export async function createJobsForConfiguredOrder(tx: any, a: WorkOrderActor, o
       );
       created.push({ id: job.id, orderItemId: l.id, title: job.title });
     } catch (error) {
-      if (!(error instanceof WorkOrderApiError)) throw error;
-      pending.push({ orderItemId: l.id, productName: l.product_name, reason: error.message });
+      // The savepoint undid the line's writes; the order stands and the line waits, with the reason.
+      if (error instanceof WorkOrderApiError) pending.push({ orderItemId: l.id, productName: l.product_name, reason: error.message });
+      else {
+        console.error("[quote conversion] work order failed", l.id, error instanceof Error ? error.message : error);
+        pending.push({ orderItemId: l.id, productName: l.product_name, reason: "İş emri açılamadı (teknik hata kaydedildi); Üretim ekranından açın" });
+      }
     }
   }
   return { created, pending };
