@@ -22,6 +22,8 @@ import { PRODUCT_FAMILIES } from "@/lib/features/products/families";
 import { configuredLine, configurationSummary, unconfiguredLine, type ProductConfiguration } from "@/lib/features/products/configuration";
 import { ColorChip } from "@/components/colors/ColorSwatch";
 import { RecordButton } from "@/components/records/RecordDrawer";
+import { QuoteSalesPanel } from "@/components/sales/QuoteSalesPanel";
+import { quoteTotals, VAT_RATES } from "@/lib/features/sales/engine";
 
 const emptyItem = (): QuotationItem => ({
   productName: "WINMAX Makaslı Tente",
@@ -45,7 +47,9 @@ export default function QuotationPage({
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
     [configuring, setConfiguring] = useState<{ index: number; family: string } | null>(null),
-    [converted, setConverted] = useState<ConversionResult | null>(null);
+    [converted, setConverted] = useState<ConversionResult | null>(null),
+    [templates, setTemplates] = useState<Array<{ id: string; name: string; items: any[]; notes: string | null; terms: string | null; vatPercent: number | null }>>([]),
+    [reloadKey, setReloadKey] = useState(0);
   const [form, setForm] = useState<CreateQuotationInput>({
     customerName: "",
     currency: "TRY",
@@ -81,7 +85,23 @@ export default function QuotationPage({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [id, isNew, session?.user?.tenantId, session?.user?.id]);
+  }, [id, isNew, session?.user?.tenantId, session?.user?.id, reloadKey]);
+  // A new quote may start from a template (lines priced again by the server when saved).
+  useEffect(() => {
+    if (!isNew || !session) return;
+    requestJson<{ templates: typeof templates }>("/api/v1/quotations/templates").then((r) => { if (r.ok && r.data) setTemplates(r.data.templates); });
+  }, [isNew, session?.user?.tenantId]);
+  function applyTemplate(templateId: string) {
+    const t = templates.find((x) => x.id === templateId);
+    if (!t) return;
+    setForm((prev) => ({
+      ...prev,
+      items: t.items.map((i: any) => ({ ...emptyItem(), ...i, totalPrice: 0 })),
+      notes: t.notes || prev.notes,
+      termsAndConditions: t.terms || prev.termsAndConditions,
+      vatPercent: t.vatPercent ?? prev.vatPercent,
+    }));
+  }
   function updateItem(index: number, key: keyof QuotationItem, value: unknown) {
     setForm((prev) => ({
       ...prev,
@@ -115,6 +135,7 @@ export default function QuotationPage({
           body: JSON.stringify({
             ...form,
             idempotencyKey: isNew ? creationKey.current : undefined,
+            applyCustomerPrices: isNew ? true : undefined,
             expectedVersion: quotation?.version,
           }),
         },
@@ -163,13 +184,10 @@ export default function QuotationPage({
       setBusy(false);
     }
   }
-  const subtotal = form.items.reduce(
-      (sum, i) =>
-        sum + i.quantity * i.unitPrice * (1 - i.discountPercent / 100),
-      0,
-    ),
-    discount = (subtotal * form.discountPercent) / 100,
-    total = (subtotal - discount) * 1.2;
+  const vatPercent = form.vatPercent ?? quotation?.vatPercent ?? 20;
+  const totals = quoteTotals(form.items, form.discountPercent, vatPercent),
+    subtotal = totals.subtotal,
+    total = totals.totalAmount;
   if (loading)
     return (
       <div className="rf-page space-y-3" role="status">
@@ -242,6 +260,15 @@ export default function QuotationPage({
             <Link className="underline" href="/production">Üretim ekranı</Link>
           </div>
         </section>
+      )}
+      {isNew && templates.length > 0 && (
+        <label className="rf-panel flex flex-wrap items-center gap-3 text-xs">
+          Şablondan başla
+          <select aria-label="Teklif şablonu" className="rf-input min-w-0 flex-1" defaultValue="" onChange={(e) => applyTemplate(e.target.value)}>
+            <option value="" disabled>Şablon seçin</option>
+            {templates.map((t) => <option key={t.id} value={t.id}>{t.name} · {t.items.length} kalem</option>)}
+          </select>
+        </label>
       )}
       <section className="rf-panel grid gap-4 md:grid-cols-4">
         <label className="text-xs md:col-span-2">
@@ -500,16 +527,43 @@ export default function QuotationPage({
               }
             />
           </label>
-          <p className="flex justify-between text-muted-foreground">
-            <span>KDV (%20)</span>
-            <span>
-              {formatCurrency((subtotal - discount) * 0.2, form.currency)}
-            </span>
-          </p>
+          <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+            <span>KDV</span>
+            <select
+              disabled={!editable}
+              aria-label="KDV oranı"
+              className="rf-input w-20"
+              value={vatPercent}
+              onChange={(e) => setForm((prev) => ({ ...prev, vatPercent: +e.target.value }))}
+            >
+              {VAT_RATES.map((r) => <option key={r} value={r}>%{r}</option>)}
+            </select>
+            <span className="ml-auto">{formatCurrency(totals.taxAmount, form.currency)}</span>
+          </label>
           <p className="flex justify-between border-t border-border pt-4 font-semibold">
             <span>Genel toplam</span>
             <span>{formatCurrency(total, form.currency)}</span>
           </p>
+          {form.currency !== "TRY" && (
+            <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+              <span>Kur (1 {form.currency} = ? TL)</span>
+              <input
+                disabled={!editable}
+                type="number"
+                step="0.0001"
+                min={0}
+                aria-label="Kur"
+                className="rf-input w-28 text-right"
+                value={form.fxRate ?? ""}
+                onChange={(e) => setForm((prev) => ({ ...prev, fxRate: e.target.value ? +e.target.value : null }))}
+              />
+            </label>
+          )}
+          {form.currency !== "TRY" && (
+            <p className="text-[11px] text-muted-foreground">
+              {form.fxRate ? `≈ ${formatCurrency(total * form.fxRate, "TRY")} · ` : ""}Kur elle girilir; banka kur servisi bağlanmadı.
+            </p>
+          )}
         </section>
       </div>
       {!isNew && canEditQuotation(role) && (
@@ -574,6 +628,15 @@ export default function QuotationPage({
             </Link>
           )}
         </section>
+      )}
+      {!isNew && quotation && (
+        <QuoteSalesPanel
+          quoteId={quotation.id}
+          status={quotation.status}
+          currency={quotation.currency}
+          role={role || ""}
+          onChanged={() => setReloadKey((k) => k + 1)}
+        />
       )}
     </div>
   );
