@@ -74,7 +74,7 @@ export async function getRecord(actor: WorkOrderActor, type: string, id: string)
     head,
     canEdit: def.canEdit(actor.role),
     related,
-    tags,
+    tags: tags.map((g: any) => ({ id: g.id, name: g.name, color: g.color })),
     owner: meta[0] ? { id: meta[0].assignee_id, name: meta[0].assignee_name, dueOn: day(meta[0].due_on) } : { id: null, name: null, dueOn: null },
     checklist: checklist.map((c: any) => ({ id: c.id, title: c.title, done: Boolean(c.done_at), doneBy: c.done_by_name })),
     activities: activities.map((a: any) => ({ id: a.id, kind: a.kind, title: a.title, dueOn: day(a.due_on), done: Boolean(a.done_at), assigneeId: a.assignee_id, assigneeName: a.assignee_name, fromRule: a.rule_key })),

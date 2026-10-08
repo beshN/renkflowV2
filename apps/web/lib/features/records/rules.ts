@@ -15,7 +15,7 @@ import { recordPlatformAvailable } from './service';
 export const RULES = [
   { key: 'order_approved_production', label: 'Onaylanan sipariş → "Üretim emrini aç" aktivitesi (üretim sorumlusuna)' },
   { key: 'order_late_notify', label: 'Termini geçen sipariş → yöneticilere bildirim' },
-  { key: 'order_delivered_feedback', label: 'Teslim edilen sipariş → "Geri bildirim al" aktivitesi (2 gün sonra)' },
+  { key: 'order_delivered_feedback', label: 'Teslim edilen sipariş → "Geri bildirim al" aktivitesi (2 gün sonra, kayıt sahibine)' },
 ] as const;
 export type RuleKey = (typeof RULES)[number]['key'];
 
@@ -79,10 +79,11 @@ export async function runRecordRules(tenantId: string) {
 
   const deliveredSince = on('order_delivered_feedback');
   if (deliveredSince) {
-    const orders = await sql`SELECT o.id, o.created_by FROM orders o WHERE o.tenant_id = ${tenantId} AND o.status IN ('completed', 'delivered') AND o.updated_at >= ${deliveredSince}
+    // Assigned to the order's owner on the record (if one is set); otherwise left for the office to take.
+    const orders = await sql`SELECT o.id, (SELECT m.assignee_id FROM record_meta m WHERE m.tenant_id = o.tenant_id AND m.entity_type = 'order' AND m.entity_id = o.id) AS owner_id FROM orders o WHERE o.tenant_id = ${tenantId} AND o.status IN ('completed', 'delivered') AND o.updated_at >= ${deliveredSince}
       AND NOT EXISTS (SELECT 1 FROM record_rule_runs r WHERE r.tenant_id = o.tenant_id AND r.rule_key = 'order_delivered_feedback' AND r.entity_id = o.id) LIMIT 100`;
     for (const o of orders) if (await claim(sql, tenantId, 'order_delivered_feedback', o.id)) {
-      await addActivity(tenantId, 'order_delivered_feedback', o.id, 'feedback', 'Müşteriden geri bildirim al', plusDays(day, 2), o.created_by ?? null);
+      await addActivity(tenantId, 'order_delivered_feedback', o.id, 'feedback', 'Müşteriden geri bildirim al', plusDays(day, 2), o.owner_id ?? null);
       ran++;
     }
   }
