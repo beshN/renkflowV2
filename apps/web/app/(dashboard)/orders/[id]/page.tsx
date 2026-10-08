@@ -282,6 +282,12 @@ export default function OrderDetailPage() {
                 allowedTransitions={allowedTransitions}
               />
             </div>
+            {!order.productionManaged && user && hasPermission(user.role, 'orders.edit') && !reasonFor && allowedTransitions.some((t) => t === 'on_hold' || t === 'cancelled') && (
+              <div className="mt-2 flex justify-end gap-2">
+                {allowedTransitions.includes('on_hold') && <button type="button" disabled={isTransitioning} className="rf-input text-xs" onClick={() => void handleStatusTransition('on_hold')}>Beklet</button>}
+                {allowedTransitions.includes('cancelled') && <button type="button" disabled={isTransitioning} className="rf-input text-xs text-rose-700 dark:text-rose-300" onClick={() => void handleStatusTransition('cancelled')}>İptal et</button>}
+              </div>
+            )}
             {reasonFor && (
               <form className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-amber-600/35 p-3" onSubmit={(e) => { e.preventDefault(); void handleStatusTransition(reasonFor.status, reasonFor.note); }}>
                 <span className="text-xs font-medium">{ORDER_STATUS_STEPS.find((s) => s.key === reasonFor.status)?.label ?? reasonFor.status}: gerekçe</span>

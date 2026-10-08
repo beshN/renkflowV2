@@ -86,7 +86,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return successResponse(quotation, "Durum güncellendi");
     }
 
-    const parsedData = CreateQuotationSchema.partial().parse(body);
+    // Only the fields sent are changed: schema defaults (TRY, 0 % discount) must not overwrite stored values.
+    const parsedData = Object.fromEntries(
+      Object.entries(CreateQuotationSchema.partial().parse(body)).filter(([key]) => key in body),
+    ) as Partial<typeof body>;
     const quotation = await quotationService.updateQuotation(
       user.tenantId,
       id,
