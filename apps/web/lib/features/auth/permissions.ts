@@ -277,6 +277,7 @@ export const ROUTE_PERMISSIONS: Record<string, Permission[]> = {
 export const ROUTE_ROLES: Record<string, UserRole[]> = {
   '/quotations': ['owner', 'admin', 'office', 'accountant'],
   '/production': ['owner', 'admin', 'office'],
+  '/products': ['owner', 'admin', 'office'],
   '/factory': ['owner', 'admin', 'office', 'worker'],
   '/shipments': ['owner', 'admin', 'office'],
   '/scrap': ['owner', 'admin', 'office', 'accountant'],

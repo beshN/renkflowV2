@@ -38,7 +38,10 @@ export default function QuotationsPage() {
       
       <main className="w-full flex-1 p-4 md:p-8">
         {PRICE_MATRIX_READ_ROLES.includes(user.role) && (
-          <div className="mb-4 flex justify-end"><Link href="/quotations/price-matrix" className="rf-secondary-button">Fiyat matrisi</Link></div>
+          <div className="mb-4 flex justify-end gap-2">
+            {['owner', 'admin', 'office'].includes(user.role) && <Link href="/products" className="rf-secondary-button">Ürün reçeteleri</Link>}
+            <Link href="/quotations/price-matrix" className="rf-secondary-button">Fiyat matrisi</Link>
+          </div>
         )}
         <RFListView
           data={quotations}
