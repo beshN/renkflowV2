@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Printer, Plus, Trash2, Copy, ScanLine } from "lucide-react";
 import { useWarehouse } from "./useWarehouse";
+import { canonicalColor } from "@/lib/features/colors/color-spec";
 import { useAuth } from "@/lib/context/AuthContext";
 import {
   LABEL_NAMES,
@@ -76,7 +77,7 @@ export function FactoryLabel({
               {Number(r.quantity).toLocaleString("tr-TR", {
                 maximumFractionDigits: 3,
               })}{" "}
-              {r.uom} {r.color ? "· " + r.color : ""}
+              {r.uom} {r.color ? "· " + canonicalColor(r.color) : ""}
             </strong>
           )}
           {r.status && <p>{r.status}</p>}

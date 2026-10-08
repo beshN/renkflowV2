@@ -14,7 +14,7 @@ function error(e: unknown) {
   // Two saves at once: the other one's list is now the catalogue.
   if ((e as { code?: string })?.code === '23505') return NextResponse.json({ error: 'Renk adı listede iki kez geçiyor' }, { status: 409, headers });
   console.error('[color catalog]', e instanceof Error ? e.message : 'failed');
-  return NextResponse.json({ error: 'Renk kataloğu işlenemedi.' }, { status: 500, headers });
+  return NextResponse.json({ error: 'Sık kullanılan renkler işlenemedi.' }, { status: 500, headers });
 }
 
 export async function GET() {

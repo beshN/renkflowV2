@@ -486,7 +486,7 @@ function mapNotificationRow(row: any): Notification {
  */
 export async function notifyWorkOrdersAssigned(
   tenantId: string,
-  jobs: Array<{ id: string; title: string; assignedTo: string; assigneeRole?: string }>,
+  jobs: Array<{ id: string; title: string; assignedTo: string; assigneeRole?: string; color?: string | null }>,
   except?: string,
 ) {
   const byPerson = new Map<string, typeof jobs>();
@@ -498,8 +498,11 @@ export async function notifyWorkOrdersAssigned(
         if ((prefs?.inApp as Record<string, unknown> | undefined)?.['work_order:assigned'] === false) return;
         // A worker follows work in the factory screen; the others in production.
         const href = list[0].assigneeRole === 'worker' ? '/factory' : '/production';
-        const message = list.length === 1 ? `${list[0].title} size atandı.` : `${list.length} üretim emri size atandı: ${list.slice(0, 3).map((j) => j.title).join('; ')}${list.length > 3 ? '; …' : ''}`;
-        await createNotification(userId, tenantId, 'work_order:assigned', list.length === 1 ? 'Yeni üretim emri' : `${list.length} yeni üretim emri`, message, { workOrderIds: list.map((j) => j.id), href });
+        // The colour goes as text ("RAL 7016 Mat"); the notice screen draws the swatch from it.
+        const named = (j: (typeof list)[number]) => (j.color ? `${j.title} (${j.color})` : j.title);
+        const message = list.length === 1 ? `${named(list[0])} size atandı.` : `${list.length} üretim emri size atandı: ${list.slice(0, 3).map(named).join('; ')}${list.length > 3 ? '; …' : ''}`;
+        const colors = [...new Set(list.map((j) => j.color).filter((c): c is string => Boolean(c)))];
+        await createNotification(userId, tenantId, 'work_order:assigned', list.length === 1 ? 'Yeni üretim emri' : `${list.length} yeni üretim emri`, message, { workOrderIds: list.map((j) => j.id), href, colors });
       } catch (error) {
         console.error('[notifications] work order assignment notice failed', error instanceof Error ? error.message : error);
       }

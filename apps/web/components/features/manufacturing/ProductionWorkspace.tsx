@@ -21,6 +21,8 @@ import { PlanningResources } from "./PlanningResources";
 import { RecipeEditor } from "./RecipeEditor";
 import { fileData } from "@/lib/features/manufacturing/offline";
 import { AwningDialog } from "@/components/features/awning/AwningConfigurator";
+import { ColorChip } from "@/components/colors/ColorSwatch";
+import { barColorMismatch } from "@/lib/features/colors/color-spec";
 import { cuttingEstimateNotice } from "@/lib/features/manufacturing/cutting-defaults";
 import { PROCESSED_STATES, STATE_LABELS, STOCK_UNITS, UNIT_LABELS, WAREHOUSE_TYPE_LABELS, warehouseTypeLabel } from "@/lib/features/inventory/vocabulary";
 
@@ -544,7 +546,7 @@ export default function ProductionWorkspace() {
                       )
                     }
                   />
-                  {j.title} · {j.configuration.bodyName}
+                  <span className="min-w-0">{j.title} · <ColorChip color={j.configuration.bodyName} size={16} /></span>
                 </label>
               ))}
             </div>
@@ -648,7 +650,7 @@ export default function ProductionWorkspace() {
                         <li key={l.itemId + l.color}>
                           Satın alma ihtiyacı:{" "}
                           {items.find((x: any) => x.id === l.itemId)?.name} ·{" "}
-                          {l.color} · {l.bars} × {l.lengthMm} mm çubuk
+                          <ColorChip color={l.color} size={14} /> · {l.bars} × {l.lengthMm} mm çubuk
                         </li>
                       ))}
                     </ul>
@@ -661,14 +663,18 @@ export default function ProductionWorkspace() {
                   )}
                 </div>
               )}
-              {p.result.bars.map((bar: any, i: number) => (
+              {p.result.bars.map((bar: any, i: number) => {
+                // The bar must be the colour of every job cut from it; a record that disagrees is flagged.
+                const mismatch = barColorMismatch(bar.source.color, bar.pieces.map((piece: any) => jobs.find((j: any) => j.id === piece.workOrderId)?.configuration?.bodyName));
+                return (
                 <div key={bar.source.id}>
-                  <div className="mb-2 flex justify-between text-[11px] text-muted-foreground">
-                    <span>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                    <span className="flex flex-wrap items-center gap-1.5">
                       {i + 1}.{" "}
                       {items.find((x: any) => x.id === bar.source.itemId)?.name}{" "}
-                      · {bar.source.color} ·{" "}
+                      · <ColorChip color={bar.source.color} size={14} className="text-foreground" /> ·{" "}
                       {bar.source.isRemnant ? "Artık" : "Çubuk"}
+                      {mismatch && <span className="rounded border border-rose-500/40 px-1.5 font-medium text-rose-700 dark:text-rose-300">Renk iş emriyle uyuşmuyor</span>}
                     </span>
                     <span>{bar.source.lengthMm} mm</span>
                   </div>
@@ -722,7 +728,8 @@ export default function ProductionWorkspace() {
                     </label>
                   )}
                 </div>
-              ))}
+                );
+              })}
               <div className="flex flex-wrap gap-2">
                 {manager && p.status === "draft" && (
                   <button
@@ -1036,7 +1043,7 @@ export default function ProductionWorkspace() {
                     />
                     <Field
                       name="color"
-                      label="Profil rengi · profilde zorunlu (boyasız için Boyasız), 3D seçim adıyla aynı"
+                      label="Profil rengi · profilde zorunlu (ör. RAL 7016 Mat; boyasız için Boyasız)"
                       required={false}
                     />
                     <Field
@@ -1253,7 +1260,7 @@ export default function ProductionWorkspace() {
                         {l.lot_number}
                         {l.metadata.isRemnant ? " · Artık" : ""}
                       </td>
-                      <td>{l.metadata.color}</td>
+                      <td>{l.metadata.color ? <ColorChip color={l.metadata.color} size={14} /> : "—"}</td>
                       <td>{Number(l.remaining_qty) * 1000} mm</td>
                       <td>
                         {l.status === "reserved" ? "Rezerve" : "Kullanılabilir"}

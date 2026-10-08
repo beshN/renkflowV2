@@ -7,6 +7,7 @@ import { getWorkOrderDetails, toggleWorkOrderChecklistItem, type WorkOrderDetail
 import { formatDate } from '@/lib/utils';
 import { useAuth } from '@/lib/context/AuthContext';
 import { hasPermission, type UserRole } from '@/lib/auth/permissions';
+import { WorkshopColor } from '@/components/colors/ColorSwatch';
 
 const statuses: Record<string, string> = { open: 'Planlandı', in_progress: 'Üretimde', blocked: 'Bloke', done: 'Tamamlandı', cancelled: 'İptal' };
 export default function WorkOrderDetail({ params }: { params: Promise<{ workOrderId: string }> }) {
@@ -40,6 +41,7 @@ export default function WorkOrderDetail({ params }: { params: Promise<{ workOrde
           <section className="rf-panel p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">{data.category} · {statuses[data.status]}</p>
             <h2 className="mt-2 text-xl font-semibold">{data.title}</h2>
+            {data.color && <WorkshopColor color={data.color} size="lg" className="mt-4 rounded-md border border-border p-3" />}
             <p className="mt-3 whitespace-pre-wrap text-sm text-slate-500">{data.description || 'Açıklama eklenmedi.'}</p>
             <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-3">
               <div><dt className="text-slate-500">Sorumlu</dt><dd className="mt-1 font-medium">{data.assigneeName || 'Atanmadı'}</dd></div>

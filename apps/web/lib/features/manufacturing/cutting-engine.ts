@@ -1,4 +1,4 @@
-import { colorKey } from "../inventory/vocabulary";
+import { colorKey } from "../colors/color-spec";
 import { z } from "zod";
 export const CuttingParametersSchema = z.object({
   kerfMm: z.number().nonnegative().finite().max(20),

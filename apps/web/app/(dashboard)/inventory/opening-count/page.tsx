@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { requestJson } from '@/lib/shared/network';
 import { STATE_LABELS, type ProcessedState } from '@/lib/features/inventory/vocabulary';
+import { ColorChip } from '@/components/colors/ColorSwatch';
 
 type Line = { id: string; code: string | null; name: string; color: string | null; quantity: string; item_name: string; sku: string; processed_states: string[] | null; title: string | null; warehouse_id: string };
 type Item = { id: string; sku: string; name: string; processed_states: string[] | null };
@@ -93,6 +94,7 @@ export default function OpeningCountPage() {
                 <option value="">Listede yok · malzeme seçeceğim</option>
                 {data.lines.map((l) => <option key={l.id} value={l.id}>{l.item_name} · {l.color || 'renk yazmıyor'} · listede {metres(Number(l.quantity))}</option>)}
               </select>
+              {line?.color && <ColorChip color={line.color} size={18} showName className="mt-2 text-sm" />}
             </label>
             {!line && (
               <>
@@ -113,6 +115,7 @@ export default function OpeningCountPage() {
             {needsColor && (
               <label className="block text-xs">Renk (her çubukta tutulur)
                 <input className="rf-input mt-2 w-full" value={color} onChange={(e) => setColor(e.target.value)} maxLength={100} placeholder="ör. 7016 Mat" />
+                {color.trim() && <ColorChip color={color} size={18} showName className="mt-2 text-sm" />}
               </label>
             )}
           </div>
@@ -154,7 +157,7 @@ export default function OpeningCountPage() {
                   return (
                     <tr key={c.id} className="border-t border-border">
                       <td className="p-2">{c.name}</td>
-                      <td className="p-2">{c.color || '—'}</td>
+                      <td className="p-2">{c.color ? <ColorChip color={c.color} size={16} /> : '—'}</td>
                       <td className="p-2">{metres(Number(c.quantity))}</td>
                       <td className="p-2">{c.counted_bars} çubuk · {metres(Number(c.counted_meters))}</td>
                       <td className={`p-2 ${Math.abs(diff) > 0.0005 ? 'text-amber-700 dark:text-amber-300' : ''}`}>{diff >= 0 ? '+' : ''}{metres(diff)}</td>

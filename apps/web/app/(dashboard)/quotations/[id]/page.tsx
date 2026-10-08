@@ -20,6 +20,7 @@ import { requestJson } from "@/lib/shared/network";
 import { BomTables, ProductConfigurator } from "@/components/features/products/ProductConfigurator";
 import { PRODUCT_FAMILIES } from "@/lib/features/products/families";
 import { configuredLine, configurationSummary, unconfiguredLine, type ProductConfiguration } from "@/lib/features/products/configuration";
+import { ColorChip } from "@/components/colors/ColorSwatch";
 
 const emptyItem = (): QuotationItem => ({
   productName: "WINMAX Makaslı Tente",
@@ -337,6 +338,7 @@ export default function QuotationPage({
             {item.productConfiguration?.price && (
               <div className="space-y-2 rounded-md bg-muted p-3 text-xs leading-5">
                 <p>{configurationSummary(item.productConfiguration as ProductConfiguration)}</p>
+                {item.productConfiguration.color && <ColorChip color={item.productConfiguration.color} size={20} showName className="font-medium" />}
                 {item.productConfiguration.price.source === "matrix" && item.productConfiguration.price.currency !== form.currency ? (
                   <p className="font-medium text-amber-700 dark:text-amber-300">
                     Para birimi değişti: matris fiyatı {item.productConfiguration.price.currency} içindi. Yeniden hesaplayın ya da birim fiyatı elle girin.

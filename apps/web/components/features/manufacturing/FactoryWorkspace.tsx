@@ -16,6 +16,8 @@ import {ReworkCases} from "./QualityIntelligence";
 import { QualityChecklist } from "./QualityChecklist";
 import { AwningDialog } from "@/components/features/awning/AwningConfigurator";
 import { awningSummary } from "@/lib/features/awning/configuration";
+import { ColorChip, WorkshopColor } from "@/components/colors/ColorSwatch";
+import { barColorMismatch } from "@/lib/features/colors/color-spec";
 import {
   discardOperation,
   fileData,
@@ -239,13 +241,18 @@ export default function FactoryWorkspace() {
             <p className="mt-1 text-xs text-muted-foreground">
               {scanResult.summary || scanResult.subtitle}
             </p>
-            {scanResult.bars?.map((b: any, i: number) => (
-              <p key={i} className="mt-2 text-xs">
-                {i + 1}. {b.color} · {b.lengthMm} mm →{" "}
-                {b.pieces.map((p: any) => p.lengthMm + " mm").join(" + ")} ·
-                Kalan {b.remainingMm} mm
-              </p>
-            ))}
+            {scanResult.bars?.map((b: any, i: number) => {
+              // A bar must be the colour of every job it is cut for; say so when a record disagrees.
+              const mismatch = barColorMismatch(b.color, b.pieces.map((p: any) => data.jobs.find((j: any) => j.id === p.workOrderId)?.configuration?.bodyName));
+              return (
+                <p key={i} className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                  <span>{i + 1}.</span>
+                  <ColorChip color={b.color} size={18} className="font-medium" />
+                  <span>· {b.lengthMm} mm → {b.pieces.map((p: any) => p.lengthMm + " mm").join(" + ")} · Kalan {b.remainingMm} mm</span>
+                  {mismatch && <span className="rounded border border-rose-500/40 px-1.5 font-medium text-rose-700 dark:text-rose-300">Renk iş emriyle uyuşmuyor</span>}
+                </p>
+              );
+            })}
           </div>
         )}
         {localError && !op && (
@@ -275,6 +282,7 @@ export default function FactoryWorkspace() {
                   QR etiketi
                 </Link>
               </div>
+              {j.color && <WorkshopColor color={j.color} className="rounded-md border border-border p-2" />}
               {j.configuration?.version === 1 && (
                 <div className="rounded bg-muted p-3">
                   <p className="text-xs leading-6">

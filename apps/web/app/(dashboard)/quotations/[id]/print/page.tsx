@@ -5,6 +5,7 @@ import { Quotation } from "@/lib/features/quotations/types";
 import { requestJson } from "@/lib/shared/network";
 import { formatCurrency } from "@/lib/utils";
 import { awningSummary } from "@/lib/features/awning/configuration";
+import { ColorChip } from "@/components/colors/ColorSwatch";
 export default function QuotationPrint({
   params,
 }: {
@@ -88,6 +89,9 @@ export default function QuotationPrint({
             <p className="my-3 text-xs leading-5">
               {awningSummary(item.awningConfiguration)}
             </p>
+          )}
+          {item.color && !item.awningConfiguration && (
+            <p className="my-2 text-sm">Renk: <ColorChip color={item.color} size={16} showName /></p>
           )}
           <p className="text-sm">
             {item.quantity} adet × {formatCurrency(item.unitPrice, q.currency)}{" "}

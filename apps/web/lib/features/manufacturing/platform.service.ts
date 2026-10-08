@@ -38,6 +38,7 @@ import { executeWarehouse } from "../warehouse/service";
 import { executeFinance } from "../finance/workspace.service";
 import { executeProcurement } from "./purchasing.service";
 import { recordAudit, UUID_PATTERN } from "@/lib/audit/audit-log";
+import { canonicalColor, colorInfo } from "../colors/color-spec";
 const uuid = z.string().uuid();
 const text = z.string().trim().min(1).max(180);
 const num = (v: unknown) => Number(v || 0);
@@ -82,8 +83,9 @@ export async function productionOverview(actor: WorkOrderActor) {
     worker = actor.role === "worker";
   if (!["owner", "admin", "office", "worker"].includes(actor.role))
     fail("Üretim erişimi yok", 403);
-  const jobs =
-    await sql`SELECT w.*,o.order_number,${worker ? sql`NULL::text` : sql`o.customer_name`} AS customer_name FROM work_orders w JOIN orders o ON o.id=w.order_id AND o.tenant_id=w.tenant_id WHERE w.tenant_id=${t} AND w.recipe_id IS NOT NULL AND (${!worker} OR w.assigned_to=${actor.userId} OR EXISTS(SELECT 1 FROM production_operations p WHERE p.work_order_id=w.id AND p.tenant_id=${t} AND p.assigned_to=${actor.userId})) ORDER BY w.created_at DESC LIMIT 300`;
+  const jobs = (
+    await sql`SELECT w.*,o.order_number,${worker ? sql`NULL::text` : sql`o.customer_name`} AS customer_name FROM work_orders w JOIN orders o ON o.id=w.order_id AND o.tenant_id=w.tenant_id WHERE w.tenant_id=${t} AND w.recipe_id IS NOT NULL AND (${!worker} OR w.assigned_to=${actor.userId} OR EXISTS(SELECT 1 FROM production_operations p WHERE p.work_order_id=w.id AND p.tenant_id=${t} AND p.assigned_to=${actor.userId})) ORDER BY w.created_at DESC LIMIT 300`
+  ).map((j: any) => ({ ...j, color: colorInfo(typeof j.configuration?.bodyName === "string" ? j.configuration.bodyName : null) }));
   const ids = jobs.map((j: any) => j.id);
   const operations =
     await sql`SELECT p.*,u.name AS operator_name FROM production_operations p LEFT JOIN users u ON u.id=p.assigned_to WHERE p.tenant_id=${t} AND p.work_order_id=ANY(${ids}::uuid[]) ORDER BY p.work_order_id,p.position`;
@@ -790,7 +792,7 @@ async function createJob(
  * reported as waiting, with the reason, for the work order to be opened in the production screen.
  */
 export async function createJobsForConfiguredOrder(tx: any, a: WorkOrderActor, orderId: string) {
-  const created: Array<{ id: string; orderItemId: string; title: string; assignedTo: string; assigneeRole: string }> = [];
+  const created: Array<{ id: string; orderItemId: string; title: string; assignedTo: string; assigneeRole: string; color: string | null }> = [];
   const pending: Array<{ orderItemId: string; productName: string; reason: string }> = [];
   if (!(await columnExists("order_items", "product_configuration"))) return { created, pending };
   const t = a.tenantId;
@@ -822,7 +824,7 @@ export async function createJobsForConfiguredOrder(tx: any, a: WorkOrderActor, o
       const job = await tx.savepoint((sp: any) =>
         createJob(sp, a, { orderItemId: l.id, recipeId: pc.recipeId, sourceWarehouseId: source, wipWarehouseId: wip, targetWarehouseId: target, assignedTo: assignee }, `quote-order:${l.id}`),
       );
-      created.push({ id: job.id, orderItemId: l.id, title: job.title, assignedTo: assignee, assigneeRole: member.role });
+      created.push({ id: job.id, orderItemId: l.id, title: job.title, assignedTo: assignee, assigneeRole: member.role, color: typeof job.configuration?.bodyName === "string" && job.configuration.bodyName ? canonicalColor(job.configuration.bodyName) : null });
     } catch (error) {
       // The savepoint undid the line's writes; the order stands and the line waits, with the reason.
       if (error instanceof WorkOrderApiError) pending.push({ orderItemId: l.id, productName: l.product_name, reason: error.message });

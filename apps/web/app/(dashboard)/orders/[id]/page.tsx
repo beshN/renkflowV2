@@ -20,6 +20,8 @@ import { useAuth } from '@/lib/context/AuthContext';
 import { hasPermission } from '@/lib/auth/permissions';
 import { businessDate } from '@/lib/features/orders/workspace';
 import { requestJson } from '@/lib/shared/network';
+import { ColorChip } from '@/components/colors/ColorSwatch';
+import { colorKey } from '@/lib/features/colors/color-spec';
 import { useToast } from '@/lib/context/ToastContext';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
 
@@ -330,7 +332,12 @@ export default function OrderDetailPage() {
                     </>}
                     <InfoRow icon={Package} label="Ürün" value={order.productName} />
                     <InfoRow icon={Tag} label="Adet" value={order.quantity ? `${order.quantity} adet` : null} />
-                    <InfoRow icon={Palette} label="Renk" value={order.color} />
+                    <InfoRow icon={Palette} label="Renk" value={(() => {
+                      // The order's colours are its lines' colours (the order-level field is not filled).
+                      const colors = [order.color, ...(order.items ?? []).map((i: { color?: string | null }) => i.color)].filter((c): c is string => Boolean(c && c.trim()));
+                      const distinct = colors.filter((c, i) => colors.findIndex((x) => colorKey(x) === colorKey(c)) === i);
+                      return distinct.length ? <span className="flex flex-wrap gap-x-3 gap-y-1">{distinct.map((c) => <ColorChip key={c} color={c} size={18} showName />)}</span> : null;
+                    })()} />
                     {(order.widthMm || order.heightMm) && (
                       <InfoRow icon={Maximize2} label="Ölçüler" value={
                         `${order.widthMm || '?'} × ${order.heightMm || '?'} mm`
@@ -392,7 +399,7 @@ export default function OrderDetailPage() {
                               <p className="text-sm font-semibold text-foreground">{item.productName}</p>
                               <div className="mt-0.5 flex flex-wrap gap-2 text-xs text-muted-foreground">
                                 {item.quantity && <span>{item.quantity} adet</span>}
-                                {item.color && <span>· {item.color}</span>}
+                                {item.color && <span className="inline-flex items-center gap-1">· <ColorChip color={item.color} size={16} /></span>}
                                 {(item.widthMm || item.heightMm) && <span>· {item.widthMm}×{item.heightMm} mm</span>}
                                 {item.awningConfiguration && <AwningDialog configuration={item.awningConfiguration} previewImage={item.awningPreview} readOnly label="3D görünüm"/>}
                               </div>

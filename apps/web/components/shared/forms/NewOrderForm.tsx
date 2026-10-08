@@ -10,6 +10,7 @@ import { applyAwning } from '@/lib/features/awning/configuration';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency } from '@/lib/utils';
 import { type Currency, type NewOrderFormData, type NewOrderItemData } from '@/lib/types';
+import { ColorChip } from '@/components/colors/ColorSwatch';
 import { businessDate } from '@/lib/features/orders/workspace';
 import {
   ORDER_FORM_ALLOWED_FILE_TYPES,
@@ -414,10 +415,11 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
                       type="text"
                       disabled={Boolean(item.awningConfiguration)}
                       value={item.color || ''}
-                      placeholder="RAL 7016 mat"
+                      placeholder="RAL 7016 Mat"
                       onChange={(e) => updateItem(idx, 'color', e.target.value)}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
                     />
+                    {item.color?.trim() && <ColorChip color={item.color} size={16} showName className="mt-1.5 text-xs" />}
                   </label>
                   <label>
                     <span className="mb-1.5 block text-xs font-medium text-slate-500">Adet *</span>
