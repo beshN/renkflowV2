@@ -78,7 +78,7 @@ export default function CountImportPage() {
             satırlar &quot;emin değilim&quot; diye işaretlenir ve uygulanmaz.
           </p>
         </div>
-        <Link className="rf-secondary-button" href="/inventory">Stok listesine dön</Link>
+        <div className="flex gap-2"><Link className="rf-secondary-button" href="/inventory/opening-count">Çubuk sayımı</Link><Link className="rf-secondary-button" href="/inventory">Stok listesine dön</Link></div>
       </div>
 
       {data.canImport && (

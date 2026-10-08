@@ -190,7 +190,7 @@ export default function InventoryPage() {
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950/80">
-      <AppleNavbar title="Profil & malzeme stoğu" showSearch={false} action={user && ["owner","admin"].includes(user.role)?<div className="flex gap-2"><Link href="/inventory/count-import" className="rf-secondary-button">Sayım listesi içe aktar</Link><Link href="/inventory/new" className="rf-primary-button">Yeni malzeme</Link></div>:undefined} />
+      <AppleNavbar title="Profil & malzeme stoğu" showSearch={false} action={user && ["owner","admin"].includes(user.role)?<div className="flex gap-2"><Link href="/inventory/count-import" className="rf-secondary-button">Sayım listesi içe aktar</Link><Link href="/inventory/opening-count" className="rf-secondary-button">Çubuk sayımı</Link><Link href="/inventory/new" className="rf-primary-button">Yeni malzeme</Link></div>:undefined} />
 
       <main className="flex-1 p-4 md:p-8">
         <div className="rf-panel mb-6 flex flex-wrap items-center justify-between gap-4"><div><p className="rf-eyebrow">FİZİKSEL STOK BAĞLANTISI</p><h2 className="mt-2 text-lg font-semibold">Malzemeyi raftan üretime takip edin.</h2><p className="mt-2 text-sm text-muted-foreground">Lot ve raf etiketleriyle konum, transfer ve sayım işlemleri.</p></div><div className="flex flex-wrap gap-2"><Link href="/warehouse" className="rf-secondary-button">Depo & raflar</Link><Link href="/warehouse/scan" className="rf-primary-button">QR / barkod okut</Link></div></div>
