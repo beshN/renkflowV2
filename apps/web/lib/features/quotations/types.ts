@@ -32,6 +32,13 @@ export const QuotationItemSchema = z.object({
     .optional(),
 });
 
+/** The order made from a quote, and the work orders its configured lines got (or why not yet). */
+export type ConversionResult = {
+  orderId: string;
+  workOrders?: Array<{ id: string; orderItemId: string; title: string }>;
+  pendingWorkOrders?: Array<{ orderItemId: string; productName: string; reason: string }>;
+};
+
 export const QuotationSchema = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid(),
@@ -110,6 +117,7 @@ export interface IQuotationService {
     id: string,
     createdBy?: string,
     expectedVersion?: number,
-  ): Promise<{ orderId: string }>;
+    actorRole?: string,
+  ): Promise<ConversionResult>;
   deleteQuotation(tenantId: string, id: string): Promise<void>;
 }

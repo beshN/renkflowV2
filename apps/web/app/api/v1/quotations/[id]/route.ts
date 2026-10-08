@@ -66,6 +66,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         id,
         user.id,
         expectedVersion,
+        user.role,
       );
       return successResponse(result, "Teklif siparişe dönüştürüldü");
     }

@@ -12,6 +12,7 @@ import {
   CreateQuotationInput,
   Quotation,
   QuotationItem,
+  type ConversionResult,
 } from "@/lib/features/quotations/types";
 import { canEditQuotation } from "@/lib/features/quotations/permissions";
 import { formatCurrency } from "@/lib/utils";
@@ -41,7 +42,8 @@ export default function QuotationPage({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
-    [configuring, setConfiguring] = useState<{ index: number; family: string } | null>(null);
+    [configuring, setConfiguring] = useState<{ index: number; family: string } | null>(null),
+    [converted, setConverted] = useState<ConversionResult | null>(null);
   const [form, setForm] = useState<CreateQuotationInput>({
     customerName: "",
     currency: "TRY",
@@ -143,9 +145,16 @@ export default function QuotationPage({
       });
       if (!r.ok || !r.data?.data)
         throw new Error(r.error || "İşlem tamamlanamadı");
-      if (action === "convert")
-        window.location.assign(`/orders/${r.data.data.orderId}`);
-      else setQuotation(r.data.data);
+      if (action === "convert") {
+        const result = r.data.data as ConversionResult;
+        // Lines whose work order could not be opened are said before leaving, with the reason.
+        if (result.pendingWorkOrders?.length) {
+          setConverted(result);
+          // The quote is converted now: no longer editable or convertible on this page.
+          setQuotation((prev) => (prev ? { ...prev, status: "converted", convertedToOrderId: result.orderId, version: prev.version + 1 } : prev));
+        }
+        else window.location.assign(`/orders/${result.orderId}`);
+      } else setQuotation(r.data.data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "İşlem tamamlanamadı");
     } finally {
@@ -217,6 +226,21 @@ export default function QuotationPage({
         <p role="status" className="text-sm text-primary">
           {message}
         </p>
+      )}
+      {converted && (
+        <section role="status" className="rf-panel space-y-2 text-sm">
+          <p className="font-medium">
+            Sipariş oluşturuldu. {converted.workOrders?.length ? `${converted.workOrders.length} kalemin üretim emri açıldı ve kesim havuzuna girdi. ` : ""}
+            {converted.pendingWorkOrders!.length} kalem için üretim emri açılamadı:
+          </p>
+          <ul className="list-disc pl-5 text-amber-700 dark:text-amber-300">
+            {converted.pendingWorkOrders!.map((p) => <li key={p.orderItemId}>{p.productName}: {p.reason}</li>)}
+          </ul>
+          <div className="flex gap-3">
+            <Link className="underline" href={`/orders/${converted.orderId}`}>Siparişi aç</Link>
+            <Link className="underline" href="/production">Üretim ekranı</Link>
+          </div>
+        </section>
       )}
       <section className="rf-panel grid gap-4 md:grid-cols-4">
         <label className="text-xs md:col-span-2">
