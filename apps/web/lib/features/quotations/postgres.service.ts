@@ -1,7 +1,8 @@
 import { WorkOrderApiError } from "@/lib/features/work-orders/security";
 import { applyAwning } from "../awning/configuration";
 import { createHash } from "node:crypto";
-import { IQuotationService, Quotation, CreateQuotationInput } from "./types";
+import { IQuotationService, Quotation, CreateQuotationInput, type ConversionResult } from "./types";
+import { createJobsForConfiguredOrder } from "@/lib/features/manufacturing/platform.service";
 import { sql } from "@/lib/db";
 import { withTransaction } from "@/lib/db/transaction";
 import { safeParseCurrency } from "@/lib/types";
@@ -224,7 +225,8 @@ export class PostgresQuotationService implements IQuotationService {
     id: string,
     createdBy?: string,
     expectedVersion?: number,
-  ) {
+    actorRole?: string,
+  ): Promise<ConversionResult> {
     return withTransaction(async ({ sql: tx }) => {
       const rows =
         await tx`SELECT * FROM quotations WHERE tenant_id=${tenantId} AND id=${id} FOR UPDATE`;
@@ -261,11 +263,17 @@ export class PostgresQuotationService implements IQuotationService {
         if (configured && i.product_configuration)
           await tx`UPDATE order_items SET product_configuration=${JSON.stringify(i.product_configuration)}::text::jsonb WHERE id=${line.id}`;
       }
+      // Configured lines go straight to production: a work order each, whose cuts join the cutting pool.
+      const production = createdBy && actorRole
+        ? await createJobsForConfiguredOrder(tx, { tenantId, userId: createdBy, role: actorRole as any }, orders[0].id)
+        : { created: [], pending: [] };
       await tx`UPDATE quotations SET version=version+1,status='converted',converted_to_order_id=${orders[0].id},updated_at=now() WHERE tenant_id=${tenantId} AND id=${id}`;
       // Only a real conversion reaches here; a replay returned above without a second record.
       await recordAudit(tx, { tenantId, actorId: createdBy, entityType: "quotation", entityId: id, action: "converted", metadata: { quotationNumber: q.quotation_number, orderId: orders[0].id } });
-      await recordAudit(tx, { tenantId, actorId: createdBy, entityType: "order", entityId: orders[0].id, action: "created", metadata: { fromQuotation: q.quotation_number } });
-      return { orderId: orders[0].id as string };
+      await recordAudit(tx, { tenantId, actorId: createdBy, entityType: "order", entityId: orders[0].id, action: "created", metadata: { fromQuotation: q.quotation_number, workOrders: production.created.length, pendingWorkOrders: production.pending.length } });
+      // A quote without configured lines answers as before; a replay (above) answers with the order alone.
+      if (!production.created.length && !production.pending.length) return { orderId: orders[0].id as string };
+      return { orderId: orders[0].id as string, workOrders: production.created, pendingWorkOrders: production.pending };
     });
   }
   async deleteQuotation(tenantId: string, id: string) {

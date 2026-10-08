@@ -30,6 +30,8 @@ import {
 } from "./platform-contract";
 import { postStockEntryInTransaction } from "./inventory.service";
 import { AwningConfigurationSchema } from "../awning/configuration";
+import { columnExists } from "@/lib/db/schema-guard";
+import type { ProductConfiguration } from "../products/configuration";
 import { evaluateQuality, QualityChecksSchema } from "./quality";
 import { executeWarehouse } from "../warehouse/service";
 import { executeFinance } from "../finance/workspace.service";
@@ -714,6 +716,9 @@ async function createJob(
   const [r] =
     await tx`SELECT * FROM production_recipes WHERE tenant_id=${t} AND id=${d.recipeId} AND status='published'`;
   if (!item || !r) fail("Onaylı reçete veya sipariş kalemi bulunamadı", 404);
+  // A line configured in the quote is built with the recipe, measures, options and colour it was quoted with.
+  const pc = item.product_configuration as ProductConfiguration | null | undefined;
+  if (pc && pc.recipeId !== r.id) fail(`Bu kalem teklifte "${pc.recipe.code}" reçetesinin ${pc.recipe.version}. sürümüyle yapılandırıldı; aynı reçeteyi seçin`, 400);
   if (
     (
       await tx`SELECT id FROM work_orders WHERE tenant_id=${t} AND order_item_id=${item.id} AND status<>'cancelled'`
@@ -738,16 +743,25 @@ async function createJob(
     )
       fail("Depo türlerini kontrol edin", 400);
   if (!["adet","pcs","piece","pieces","unit"].includes(String(item.quantity_unit || "adet").toLowerCase()))fail("Üretim emri için miktar birimini adet olarak doğrulayın",400);
-  const c = item.awning_configuration ? AwningConfigurationSchema.parse(item.awning_configuration) : {widthMm:num(item.width_mm),projectionMm:num(item.projection_mm),mountingHeightMm:num(item.mounting_height_mm),bodyName:item.color || "",motor:item.motor_type,led:item.led_type || "off"},
-    snapshot = calculateRecipe(recipe(r), {
-      widthMm: c.widthMm,
-      projectionMm: c.projectionMm,
-      mountingHeightMm: c.mountingHeightMm,
-      quantity: num(item.quantity),
-      motor: item.awning_configuration ? true : !!item.motor_type,
-      customParameters: item.custom_parameters || {},
-      led: c.led !== "off",
-    });
+  const c = pc
+      ? { widthMm: pc.parameters.widthMm, projectionMm: pc.parameters.projectionMm, mountingHeightMm: pc.parameters.mountingHeightMm, bodyName: pc.color, motor: pc.parameters.motor ? "on" : null, led: pc.parameters.led ? "on" : "off", family: pc.family, recipeCode: pc.recipe.code }
+      : item.awning_configuration ? AwningConfigurationSchema.parse(item.awning_configuration) : {widthMm:num(item.width_mm),projectionMm:num(item.projection_mm),mountingHeightMm:num(item.mounting_height_mm),bodyName:item.color || "",motor:item.motor_type,led:item.led_type || "off"},
+    snapshot = (() => {
+      try {
+        return calculateRecipe(recipe(r), {
+          widthMm: c.widthMm,
+          projectionMm: c.projectionMm,
+          mountingHeightMm: c.mountingHeightMm,
+          quantity: num(item.quantity),
+          motor: pc ? pc.parameters.motor : item.awning_configuration ? true : !!item.motor_type,
+          customParameters: pc ? pc.parameters.customParameters : item.custom_parameters || {},
+          led: c.led !== "off",
+        });
+      } catch (error) {
+        // The recipe's limits and checks speak to the person, not as a server error.
+        return fail(error instanceof Error ? error.message : "Reçete hesaplanamadı", 400);
+      }
+    })();
   const [job] =
     await tx`INSERT INTO work_orders(tenant_id,title,category,order_id,order_item_id,recipe_id,production_item_id,planned_qty,production_uom,source_warehouse_id,wip_warehouse_id,target_warehouse_id,configuration,bom_snapshot,created_by,assigned_to,priority,due_at,manufacturing_idempotency_key)VALUES(${t},${item.order_number + " · " + item.product_name},'production',${item.oid},${item.id},${r.id},${r.finished_item_id},${num(item.quantity)},'adet',${d.sourceWarehouseId},${d.wipWarehouseId},${d.targetWarehouseId},${js(c)}::text::jsonb,${js({ ...snapshot, recipe: recipe(r), preview: item.awning_preview })}::text::jsonb,${a.userId},${d.assignedTo},${d.priority},${item.delivery_date || null},${key})RETURNING *`;
   for (const m of snapshot.materials)
@@ -757,6 +771,50 @@ async function createJob(
   await tx`UPDATE orders SET status='preparing_materials',version=version+1 WHERE id=${item.oid} AND tenant_id=${t}`;
   await event(tx, a, "job.created", snapshot, job.id);
   return job;
+}
+/**
+ * When a quote becomes an order, each configured line gets its work order at once, with the
+ * quoted recipe, so its cuts join the cutting pool (the cutting request). Warehouses are taken only
+ * when the firm has exactly one active raw, work-in-progress and finished warehouse, and the job is
+ * assigned to the person converting; otherwise nothing is guessed and the line is reported as
+ * waiting, with the reason, for the work order to be opened in the production screen.
+ */
+export async function createJobsForConfiguredOrder(tx: any, a: WorkOrderActor, orderId: string) {
+  const created: Array<{ id: string; orderItemId: string; title: string }> = [];
+  const pending: Array<{ orderItemId: string; productName: string; reason: string }> = [];
+  if (!(await columnExists("order_items", "product_configuration"))) return { created, pending };
+  const t = a.tenantId;
+  const lines = await tx`SELECT oi.id, oi.product_name, oi.product_configuration FROM order_items oi JOIN orders o ON o.id = oi.order_id
+    WHERE o.tenant_id = ${t} AND o.id = ${orderId} AND oi.product_configuration IS NOT NULL ORDER BY oi.created_at, oi.id`;
+  if (!lines.length) return { created, pending };
+  const waitAll = (reason: string) => {
+    for (const l of lines) pending.push({ orderItemId: l.id, productName: l.product_name, reason });
+    return { created, pending };
+  };
+  if (!["owner", "admin", "office"].includes(a.role)) return waitAll("Üretim emrini yönetici ya da ofis açar");
+  const warehouses = await tx`SELECT id, warehouse_type FROM warehouses WHERE tenant_id = ${t} AND active = true AND warehouse_type IN ('RAW', 'WIP', 'FINISHED')`;
+  const only = (type: string) => {
+    const of = warehouses.filter((w: any) => w.warehouse_type === type);
+    return of.length === 1 ? (of[0].id as string) : null;
+  };
+  const [source, wip, target] = [only("RAW"), only("WIP"), only("FINISHED")];
+  if (!source || !wip || !target)
+    return waitAll("Hammadde, yarı mamul ve mamul deposundan birer tane olmalı (birden fazla ya da hiç olmayan depo seçilemez); iş emrini Üretim ekranından açın");
+  // Production commands of a firm are serialised, as in productionCommand.
+  await tx`SELECT pg_advisory_xact_lock(hashtextextended(${t},0))`;
+  for (const l of lines) {
+    const pc = l.product_configuration as ProductConfiguration;
+    try {
+      const job = await tx.savepoint((sp: any) =>
+        createJob(sp, a, { orderItemId: l.id, recipeId: pc.recipeId, sourceWarehouseId: source, wipWarehouseId: wip, targetWarehouseId: target, assignedTo: a.userId }, `quote-order:${l.id}`),
+      );
+      created.push({ id: job.id, orderItemId: l.id, title: job.title });
+    } catch (error) {
+      if (!(error instanceof WorkOrderApiError)) throw error;
+      pending.push({ orderItemId: l.id, productName: l.product_name, reason: error.message });
+    }
+  }
+  return { created, pending };
 }
 /** Plans a pool of jobs (or rework) with the engine without saving anything. */
 async function computeCut(

@@ -100,9 +100,37 @@ async function main() {
   const usd: any = await quotationService.updateQuotation(tenantId, quote.id, { expectedVersion: noted.version, currency: 'USD', items: [item(700, { productConfiguration: noted.items[0].productConfiguration })] } as any);
   assert.deepEqual([usd.items[0].unitPrice, usd.items[0].productConfiguration.price.state], [700, 'currency_mismatch']);
   // The order made from the quote keeps the configuration: recipe, cut list and price source.
-  const { orderId } = await quotationService.convertToOrder(tenantId, quote.id, officeId, usd.version);
-  const [orderLine] = await db`SELECT product_configuration FROM order_items WHERE order_id = ${orderId}`;
+  const converted = await quotationService.convertToOrder(tenantId, quote.id, officeId, usd.version, 'office');
+  const [orderLine] = await db`SELECT product_configuration FROM order_items WHERE order_id = ${converted.orderId}`;
   assert.deepEqual([orderLine.product_configuration.recipe.code, orderLine.product_configuration.bom.cuts[0].lengthMm, orderLine.product_configuration.price.source], ['PRG', 2980, 'manual']);
+  // Only a raw-material warehouse: no warehouse is guessed; the line waits for its work order, with the reason.
+  assert.deepEqual([converted.workOrders, converted.pendingWorkOrders!.length], [[], 1]);
+  assert.match(converted.pendingWorkOrders![0].reason, /Hammadde, yarı mamul ve mamul deposundan birer tane olmalı/);
+  assert.equal((await db`SELECT count(*)::int AS n FROM work_orders WHERE tenant_id = ${tenantId}`)[0].n, 0);
+  // With one warehouse of each kind, converting opens the work order with the quoted recipe and colour: its cuts join the cutting pool.
+  const wipId = randomUUID(), finishedId = randomUUID();
+  await db`INSERT INTO warehouses (id, tenant_id, code, name, warehouse_type) VALUES (${wipId}, ${tenantId}, 'YM', 'Yarı mamul', 'WIP'), (${finishedId}, ${tenantId}, 'MM', 'Mamul', 'FINISHED')`;
+  await db`INSERT INTO stock_lots (tenant_id, item_id, warehouse_id, lot_number, original_qty, remaining_qty, length_m, metadata) VALUES (${tenantId}, ${p108}, ${rawId}, 'L-2', 6, 6, 6, '{"color":"Test Gri"}')`;
+  await db`INSERT INTO stock_balances (tenant_id, item_id, warehouse_id, on_hand_qty) VALUES (${tenantId}, ${p108}, ${rawId}, 12) ON CONFLICT (tenant_id, item_id, warehouse_id) DO UPDATE SET on_hand_qty = 12`;
+  const second: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) })] } as any, officeId);
+  assert.equal(second.items[0].unitPrice, 20000);
+  const done = await quotationService.convertToOrder(tenantId, second.id, officeId, second.version, 'office');
+  assert.deepEqual([done.workOrders!.length, done.pendingWorkOrders], [1, []]);
+  const [job] = await db`SELECT recipe_id, assigned_to, configuration, bom_snapshot, source_warehouse_id, wip_warehouse_id, target_warehouse_id FROM work_orders WHERE id = ${done.workOrders![0].id}`;
+  assert.deepEqual([job.recipe_id, job.assigned_to, job.configuration.bodyName, job.source_warehouse_id, job.wip_warehouse_id, job.target_warehouse_id], [row.id, officeId, 'Test Gri', rawId, wipId, finishedId]);
+  assert.deepEqual(job.bom_snapshot.cuts.map((c: any) => [c.lengthMm, c.quantity]), [[2980, 4]], 'the quoted cut list for both pieces');
+  const { proposeCutForPool } = await import('../lib/features/manufacturing/platform.service');
+  const proposal: any = await proposeCutForPool(sql, owner as any);
+  assert(proposal.jobs.some((j: any) => j.id === done.workOrders![0].id), 'the work order is in the cutting pool');
+  assert.deepEqual(proposal.result.unfulfilled, []);
+  // The work order of a configured line is built only with the recipe it was quoted with.
+  const other: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) })] } as any, officeId);
+  const orderOnly: any = await quotationService.convertToOrder(tenantId, other.id, officeId, other.version, 'accountant');
+  assert.match(orderOnly.pendingWorkOrders[0].reason, /yönetici ya da ofis/);
+  const [otherLine] = await db`SELECT id FROM order_items WHERE order_id = ${orderOnly.orderId}`;
+  const otherRecipe = (await db`INSERT INTO production_recipes (tenant_id, code, name, version, status, finished_item_id, rules, operations, limits) VALUES (${tenantId}, 'BASKA', 'Başka', 1, 'published', ${pergola}, ${row.rules}, ${row.operations}, ${row.limits}) RETURNING id`)[0].id;
+  await assert.rejects(productionCommand(owner as any, { commandId: randomUUID(), action: 'job.create', data: { orderItemId: otherLine.id, recipeId: otherRecipe, sourceWarehouseId: rawId, wipWarehouseId: wipId, targetWarehouseId: finishedId, assignedTo: ownerId } }), /teklifte "PRG" reçetesinin 1\. sürümüyle yapılandırıldı/);
+  console.log('PASS · quote to order: work order opened at conversion with the quoted recipe, measures and colour, assigned to the person converting, its cuts in the cutting pool; warehouses not guessed, a role that cannot open work orders leaves the line waiting with the reason, another recipe refused for a configured line');
   console.log('PASS · quote configurator: worker refused, only published family recipes offered, colours from stock bars and unpainted cards, BOM and cut list from the recipe, limits and unknown colour refused, no matrix means a typed price that is required and flagged, browser BOM/price ignored, matrix price set by the server, an untouched line kept as stored, other currency not converted and an old matrix price not taken as typed, the order keeps the configuration');
 
   await db.end();
