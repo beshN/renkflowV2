@@ -43,6 +43,7 @@
     "vercel:env:sync": "tsx scripts/sync-vercel-env.ts",
     "test:warehouse": "tsx --require ./scripts/register-server-only.cjs scripts/test-warehouse.ts",
     "test:count-import": "tsx --require ./scripts/register-server-only.cjs scripts/test-count-import.ts",
+    "test:stock-threshold": "tsx --require ./scripts/register-server-only.cjs scripts/test-stock-threshold.ts",
     "test:warehouse:browser": "node scripts/verify-warehouse-browser.cjs",
     "prebuild": "node scripts/sync-pdf-worker.cjs",
     "predev": "node scripts/sync-pdf-worker.cjs"
