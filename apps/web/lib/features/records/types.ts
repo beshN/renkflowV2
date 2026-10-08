@@ -31,3 +31,8 @@ export function activityState(dueOn: string, today: string, done: boolean): 'don
   if (done) return 'done';
   return dueOn < today ? 'overdue' : dueOn === today ? 'today' : 'planned';
 }
+
+/** Roles that can never open a record type (customer data stays away from workers). Mirrors the server registry. */
+export const ROLES_WITHOUT_ACCESS: Record<RecordType, string[]> = {
+  order: ['worker'], quotation: ['worker', 'member'], customer: ['worker'], supplier: ['worker', 'member'], work_order: [], inventory_item: [],
+};

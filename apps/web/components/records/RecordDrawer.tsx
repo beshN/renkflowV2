@@ -8,7 +8,7 @@ import {
   Ruler, Send, Tag as TagIcon, Trash2, Truck, Factory, MessageSquareHeart, X, History,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { ACTIVITY_KINDS, ACTIVITY_LABELS, activityState, checklistPercent, plainMentions, type ActivityKind, type RecordType } from '@/lib/features/records/types';
+import { ACTIVITY_KINDS, ACTIVITY_LABELS, ROLES_WITHOUT_ACCESS, activityState, checklistPercent, plainMentions, type ActivityKind, type RecordType } from '@/lib/features/records/types';
 import { prepareBrowserFile } from '@/lib/storage/client';
 import { useAuth } from '@/lib/context/AuthContext';
 import { cn, formatDate } from '@/lib/utils';
@@ -90,7 +90,8 @@ function useRecord(type: RecordType, id: string, active: boolean) {
     if (!active) return;
     setData(null);
     void load();
-    void fetch('/api/tenant/members').then(async (r) => r.ok && setMembers((await r.json()).members ?? [])).catch(() => undefined);
+    // Only people who can open this record are offered for mentions and assignment.
+    void fetch('/api/tenant/members').then(async (r) => r.ok && setMembers(((await r.json()).members ?? []).filter((m: Member) => !ROLES_WITHOUT_ACCESS[type].includes(m.role)))).catch(() => undefined);
     void fetch('/api/v1/records/tags').then(async (r) => r.ok && setTags((await r.json()).tags ?? [])).catch(() => undefined);
   }, [active, load]);
 
