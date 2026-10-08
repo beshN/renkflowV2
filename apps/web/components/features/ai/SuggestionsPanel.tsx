@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Check, Pencil, Sparkles, TriangleAlert, X } from 'lucide-react';
 import { useToast } from '@/lib/context/ToastContext';
+import { HintTip } from '@/components/kit';
 
 type EditableField = { key: string; label: string; type: 'number' | 'text'; min?: number; max?: number; unit?: string };
 type Suggestion = {
@@ -65,33 +66,27 @@ export function SuggestionsPanel() {
   if (!items.length) return null;
   return (
     <section aria-label="Önerilenler" className="rf-panel overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
-        <div>
-          <h2 className="rf-section-title flex items-center gap-2"><Sparkles size={15} /> Önerilenler</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Asistan yalnız öneri hazırlar; onaylamadan hiçbir kayıt değişmez.</p>
-        </div>
-        <span className="text-xs text-muted-foreground">{items.length} bekliyor</span>
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <h2 className="rf-section-title flex items-center gap-2"><Sparkles size={15} aria-hidden /> Önerilenler <HintTip text="Asistan yalnız öneri hazırlar; onaylamadan hiçbir kayıt değişmez." /></h2>
+        <span className="rounded-full bg-primary/10 px-2 text-xs font-semibold tabular-nums text-primary">{items.length}</span>
       </div>
-      <ul className="divide-y divide-border">
+      <ul className="grid gap-px bg-border sm:grid-cols-2">
         {items.map((item) => (
-          <li key={item.id} className="space-y-3 px-5 py-4">
+          <li key={item.id} className="space-y-3 bg-card p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{item.kindLabel}{item.edited ? ' · düzenlendi' : ''}</p>
-                <h3 className="mt-1 text-sm font-semibold">{item.title}</h3>
+                <h3 className="mt-1 flex items-start gap-1 text-sm font-semibold">{item.title}<HintTip label="Gerekçe" text={`${item.rationale}\n\n${item.source === 'model' ? `Model: ${item.model ?? 'bilinmiyor'}` : 'Kural / hesap motoru'}`} /></h3>
               </div>
-              <span className="text-[11px] text-muted-foreground">{item.source === 'model' ? `Model: ${item.model ?? 'bilinmiyor'}` : 'Kural / hesap motoru'}</span>
+              {item.uncertain && (
+                <span role="note" title={item.uncertaintyNote ?? undefined} className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300">
+                  <TriangleAlert size={12} aria-hidden /> Emin değil
+                </span>
+              )}
             </div>
-            <p className="whitespace-pre-line text-sm text-muted-foreground">{item.rationale}</p>
-            {item.uncertain && (
-              <p role="note" className="flex items-start gap-2 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
-                <TriangleAlert size={14} className="mt-0.5 shrink-0" /> <span><strong>Emin değilim:</strong> {item.uncertaintyNote}</span>
-              </p>
-            )}
             {item.affected.length > 0 && (
               <div className="text-xs">
-                <p className="font-medium">Etkilenen kayıtlar</p>
-                <ul className="mt-1 flex flex-wrap gap-2">
+                <ul className="flex flex-wrap gap-1.5" aria-label="Etkilenen kayıtlar">
                   {item.affected.map((record) => (
                     <li key={record.entityType + record.entityId}>
                       {record.href ? <Link href={record.href} className="rounded border border-border px-2 py-0.5 hover:bg-accent">{record.label}</Link> : <span className="rounded border border-border px-2 py-0.5">{record.label}</span>}
@@ -125,7 +120,7 @@ export function SuggestionsPanel() {
             )}
             {errors[item.id] && <p role="alert" className="text-xs text-rose-600">{errors[item.id]}</p>}
             <div className="flex flex-wrap gap-2">
-              <button type="button" className="rf-primary-button" disabled={busy === item.id} onClick={() => void decide(item, { action: 'approve' })}><Check size={14} /> Onayla</button>
+              <button type="button" className="rf-primary-button min-h-10" disabled={busy === item.id} onClick={() => void decide(item, { action: 'approve' })}><Check size={14} /> Onayla</button>
               {item.editableFields.length > 0 && editing !== item.id && <button type="button" className="rf-secondary-button" disabled={busy === item.id} onClick={() => setEditing(item.id)}><Pencil size={14} /> Düzenle</button>}
               <button type="button" className="rf-secondary-button" disabled={busy === item.id} onClick={() => void decide(item, { action: 'reject' })}><X size={14} /> Reddet</button>
             </div>

@@ -279,6 +279,10 @@ export const ROUTE_ROLES: Record<string, UserRole[]> = {
   '/production': ['owner', 'admin', 'office'],
   '/products': ['owner', 'admin', 'office'],
   '/factory': ['owner', 'admin', 'office', 'worker'],
+  // The wall screen shows no prices or customers, but it is set up by the office, not a worker.
+  '/factory/wall': ['owner', 'admin', 'office'],
+  // Delivery calendar shows customer names: not for workers.
+  '/calendar': ['owner', 'admin', 'office', 'accountant'],
   '/shipments': ['owner', 'admin', 'office'],
   '/scrap': ['owner', 'admin', 'office', 'accountant'],
   '/purchases': ['owner', 'admin', 'office', 'accountant'],
