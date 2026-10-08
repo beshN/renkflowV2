@@ -15,10 +15,13 @@ import {
 
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
 import { StatusStepper, StatusBadge, ORDER_STATUS_STEPS, LEGACY_STATUS_MAP } from '@/components/shared/ui/StatusStepper';
+import { HealthBadge, HintTip, LifecycleStrip } from '@/components/kit';
+import { orderHealth } from '@/lib/features/orders/lifecycle';
+import { Lock } from 'lucide-react';
+import { businessDate } from '@/lib/features/orders/workspace';
 import { Chatter } from '@/components/shared/ui/Chatter';
 import { useAuth } from '@/lib/context/AuthContext';
 import { hasPermission } from '@/lib/auth/permissions';
-import { businessDate } from '@/lib/features/orders/workspace';
 import { requestJson } from '@/lib/shared/network';
 import { ColorChip } from '@/components/colors/ColorSwatch';
 import { colorKey } from '@/lib/features/colors/color-spec';
@@ -260,8 +263,9 @@ export default function OrderDetailPage() {
                   Sipariş #{order.orderNumber}
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {[order.customerName, order.customerCompany, `${formatDate(order.createdAt)} tarihinde oluşturuldu`].filter(Boolean).join(' · ')}
+                  {[order.customerName, order.customerCompany, formatDate(order.createdAt)].filter(Boolean).join(' · ')}
                 </p>
+                <HealthBadge health={orderHealth(order, businessDate())} className="mt-2" />
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-right" hidden={order.financialHidden}>
@@ -273,7 +277,8 @@ export default function OrderDetailPage() {
               </div>
             </div>
 
-            {order.productionManaged && <p className="rounded-md border border-border bg-accent px-4 py-3 text-xs text-muted-foreground">Bu siparişin durumu üretim ve sevkiyat işlemlerinden güncellenir. <Link href={user?.role === 'worker' ? '/factory' : '/production'} className="font-medium text-primary hover:underline">Operasyon ekranını aç</Link></p>}
+            <LifecycleStrip status={order.status} className="mb-5" />
+            {order.productionManaged && <p className="flex items-center gap-2 rounded-md border border-border bg-accent px-4 py-2 text-xs text-muted-foreground"><Lock size={14} aria-hidden /> Üretimden güncellenir <HintTip text="Bu siparişin durumu üretim ve sevkiyat işlemlerinden hesaplanır; elle değiştirilemez." /><Link href={user?.role === 'worker' ? '/factory' : '/production'} className="ml-auto font-medium text-primary hover:underline">Operasyon</Link></p>}
             {/* Status Stepper */}
             <div className="overflow-x-auto pb-2">
               <StatusStepper

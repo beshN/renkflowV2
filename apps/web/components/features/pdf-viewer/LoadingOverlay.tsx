@@ -45,7 +45,7 @@ const stageConfigs: Record<LoadingStage, StageConfig> = {
   parsing: {
     icon: <FileText className="h-6 w-6" />,
     message: 'PDF Ayrıştırılıyor',
-    subMessage: 'Sayfalar ve içerik yükleniyor...',
+    subMessage: '',
   },
   rendering: {
     icon: <Loader2 className="h-6 w-6 animate-spin" />,
@@ -343,7 +343,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
             {/* Progress percentage */}
             <div className="flex justify-between items-center text-xs">
               <span className="text-slate-400 dark:text-slate-500">
-                {currentStage === 'complete' ? 'Tamamlandı' : 'Yükleniyor...'}
+                {currentStage === 'complete' ? 'Tamamlandı' : '…'}
               </span>
               <span className={cn(
                 "font-mono font-medium",

@@ -8,7 +8,7 @@ import { BarMini, Skeleton } from '@/components/kit';
 import { cn } from '@/lib/utils';
 
 type WallJob = { id: string; orderNumber: string; product: string | null; color: { label: string; code: string } | null; step: string | null; running: boolean; planned: number; produced: number; due: string | null };
-type Wall = { updatedAt: string; today: WallJob[]; late: WallJob[]; running: WallJob[]; steps: Array<{ name: string; count: number }>; nextCuts: WallJob[]; total: number };
+type Wall = { updatedAt: string; today: WallJob[]; late: WallJob[]; running: WallJob[]; steps: Array<{ name: string; count: number }>; nextCuts: WallJob[]; openJobs: number };
 
 function JobRow({ job, late }: { job: WallJob; late?: boolean }) {
   return (
@@ -61,7 +61,7 @@ export default function FactoryWall() {
     ? <ul>{jobs.slice(0, 6).map((j) => <JobRow key={j.id} job={j} late={late} />)}</ul>
     : <p className="grid h-full place-items-center text-6xl text-muted-foreground/40" aria-label="Yok">—</p>;
   return (
-    <div className="fixed inset-0 z-[70] flex flex-col gap-4 overflow-hidden bg-background p-5">
+    <div className="fixed inset-0 z-[200] flex flex-col gap-4 overflow-hidden bg-background p-5">
       <header className="flex items-center gap-4">
         <h1 className="text-3xl font-semibold tracking-tight">Atölye</h1>
         <span className="text-3xl tabular-nums text-muted-foreground">{now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' })}</span>

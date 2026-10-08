@@ -7,7 +7,7 @@ import {
 } from '@dnd-kit/core';
 import { ArrowRight, GripVertical, Lock } from 'lucide-react';
 import { toast } from 'sonner';
-import { LIFECYCLE, dropTarget, lifecycleIndex, orderHealth, type LifecycleKey } from '@/lib/features/orders/lifecycle';
+import { LIFECYCLE, dropPath, dropTarget, lifecycleIndex, orderHealth, type LifecycleKey } from '@/lib/features/orders/lifecycle';
 import { businessDate } from '@/lib/features/orders/workspace';
 import type { Order } from '@/lib/types';
 import { cn, formatDate } from '@/lib/utils';
@@ -66,19 +66,20 @@ function Column({ step, count, children }: { step: (typeof LIFECYCLE)[number]; c
 export function OrdersBoard({ orders, canMove, onMove }: {
   orders: Order[];
   canMove: boolean;
-  onMove: (order: Order, newStatus: string) => void;
+  /** The moves to make, in order (one or more allowed transitions). */
+  onMove: (order: Order, path: string[]) => void;
 }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }), useSensor(KeyboardSensor));
   const [, force] = useState(0);
   const move = (order: Order, step: LifecycleKey) => {
     if (LIFECYCLE[lifecycleIndex(order.status)]?.key === step) return;
-    const target = dropTarget(order.status, step);
-    if (!target) {
+    const path = dropPath(order.status, step);
+    if (!path) {
       toast.error(`${order.orderNumber}: bu adıma doğrudan geçilemez`);
       force((n) => n + 1);
       return;
     }
-    onMove(order, target);
+    onMove(order, path);
   };
   const onDragEnd = (e: DragEndEvent) => {
     const order = orders.find((o) => o.id === e.active.id);

@@ -8,7 +8,7 @@ import { Plus, RefreshCw, Download, Trash2, X, FileText, List, Columns3, AlertOc
 import { toast } from 'sonner';
 import { HealthBadge, HintTip, LifecycleStrip, PageHeader, withUndo } from '@/components/kit';
 import { OrdersBoard } from '@/components/features/orders/OrdersBoard';
-import { LIFECYCLE, dropTarget, lifecycleIndex, orderHealth, type LifecycleKey } from '@/lib/features/orders/lifecycle';
+import { LIFECYCLE, dropPath, lifecycleIndex, orderHealth, type LifecycleKey } from '@/lib/features/orders/lifecycle';
 import { requestOrderTransition } from '@/lib/features/orders/client-transition';
 import { useOrders } from '@/lib/hooks/useOrders';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -52,17 +52,21 @@ function OrdersWorkspace() {
   const canMove = Boolean(user && hasPermission(user.role, 'orders.edit'));
   const clearPending = (ids: string[]) => setPending((current) => { const next = { ...current }; ids.forEach((id) => delete next[id]); return next; });
   /** Status changes with undo: one toast for one order or a whole selection. */
-  function moveOrders(moves: Array<{ order: Order; newStatus: string }>) {
+  function moveOrders(moves: Array<{ order: Order; path: string[] }>) {
     if (!moves.length) return;
-    setPending((current) => ({ ...current, ...Object.fromEntries(moves.map((m) => [m.order.id, { status: m.newStatus }])) }));
+    setPending((current) => ({ ...current, ...Object.fromEntries(moves.map((m) => [m.order.id, { status: m.path[m.path.length - 1] }])) }));
     const label = (st: string) => ORDER_STATUS_STEPS.find((x) => x.key === st)?.label ?? st;
     withUndo({
-      message: moves.length === 1 ? `${moves[0].order.orderNumber} → ${label(moves[0].newStatus)}` : `${moves.length} sipariş taşındı`,
+      message: moves.length === 1 ? `${moves[0].order.orderNumber} → ${label(moves[0].path[moves[0].path.length - 1])}` : `${moves.length} sipariş taşındı`,
       undo: () => clearPending(moves.map((m) => m.order.id)),
       commit: async () => {
         const failed: string[] = [];
         for (const m of moves) {
-          try { await requestOrderTransition(m.order, m.newStatus); }
+          // Each move is a separate checked transition; the next one uses the version the last returned.
+          try {
+            let version = m.order.version;
+            for (const status of m.path) version = (await requestOrderTransition({ id: m.order.id, version }, status)).version;
+          }
           catch (e) { failed.push(`${m.order.orderNumber}: ${e instanceof Error ? e.message : 'kaydedilemedi'}`); }
         }
         await refresh().catch(() => undefined);
@@ -74,8 +78,8 @@ function OrdersWorkspace() {
   function moveSelectedTo(step: LifecycleKey) {
     const moves = selected.flatMap((order) => {
       const current = shown.find((o) => o.id === order.id) ?? order;
-      const target = current.productionManaged ? null : dropTarget(current.status, step);
-      return target ? [{ order: current, newStatus: target }] : [];
+      const path = current.productionManaged ? null : dropPath(current.status, step);
+      return path ? [{ order: current, path }] : [];
     });
     const skipped = selected.length - moves.length;
     if (skipped) toast.warning(`${skipped} sipariş bu adıma doğrudan geçemez; dokunulmadı`);
@@ -170,7 +174,7 @@ function OrdersWorkspace() {
     </div>
     {selected.length > 0 && <div className="flex flex-wrap items-center gap-3 rounded-md border border-primary/20 bg-primary/5 px-4 py-3 text-xs"><span className="font-medium tabular-nums">{selected.length} seçili</span>{canMove && <label className="flex items-center gap-1.5">Adıma taşı<select aria-label="Seçilenleri adıma taşı" className="rf-input h-8 py-0 text-xs" value="" onChange={(e) => e.target.value && moveSelectedTo(e.target.value as LifecycleKey)}><option value="">—</option>{LIFECYCLE.map((step) => <option key={step.key} value={step.key}>{step.label}</option>)}</select></label>}<button onClick={exportCsv} className="flex items-center gap-1.5 text-primary"><Download size={13} /> CSV</button>{user && hasPermission(user.role, 'orders.delete') && <button onClick={() => {setDeleteError('');setDeleteOpen(true);}} className="ml-auto flex items-center gap-1.5 text-rose-600"><Trash2 size={13} /> Seçili siparişleri sil</button>}<button onClick={() => setSelected([])} aria-label="Seçimi temizle" className="rf-icon-button h-6 w-6"><X size={14} /></button></div>}
     {mode === 'board' ? (isLoading ? <div className="flex gap-3">{LIFECYCLE.map((s) => <div key={s.key} className="h-64 flex-1 animate-pulse rounded-lg bg-muted motion-reduce:animate-none" />)}</div>
-      : <OrdersBoard orders={filtered} canMove={canMove} onMove={(order, newStatus) => moveOrders([{ order, newStatus }])} />) :
+      : <OrdersBoard orders={filtered} canMove={canMove} onMove={(order, path) => moveOrders([{ order, path }])} />) :
     <RFListView<Order> hideHeader title="Siparişler" data={filtered} columns={columns} filters={filters} filterValues={{ status }} onFilterChange={(key, value) => updateParams({ [key]: value, stage: '' })}
       searchValue={query} onSearch={value => updateParams({ q: value })} isLoading={isLoading} error={error ? 'Siparişler alınamadı. Bağlantıyı kontrol edin.' : undefined} onRetry={reload}
       onRowClick={row => router.push('/orders/' + row.id)} onRowSelect={setSelected} selectedRows={selected}

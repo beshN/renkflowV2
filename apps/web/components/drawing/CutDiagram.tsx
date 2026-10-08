@@ -102,7 +102,7 @@ export function CutDiagram({ plan, jobs, items, focusJobId, className }: {
       </div>
     );
   return (
-    <section className={cn('space-y-2', className)} aria-label="Kesim şeması">
+    <section className={cn('min-w-0 space-y-2', className)} aria-label="Kesim şeması">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Kesim şeması{plan.wastePercent !== null && <span className="ml-2 text-xs font-normal text-muted-foreground">fire %{plan.wastePercent.toLocaleString('tr-TR', { maximumFractionDigits: 1 })}</span>}</h3>
         <button type="button" onClick={() => setFull(true)} aria-label="Tam ekran" className="grid h-10 w-10 place-items-center rounded-md border border-border"><Maximize2 size={18} /></button>

@@ -8,6 +8,7 @@ import { formatDate } from '@/lib/utils';
 import { useAuth } from '@/lib/context/AuthContext';
 import { hasPermission, type UserRole } from '@/lib/auth/permissions';
 import { WorkshopColor } from '@/components/colors/ColorSwatch';
+import { SkeletonRows } from '@/components/kit';
 
 const statuses: Record<string, string> = { open: 'Planlandı', in_progress: 'Üretimde', blocked: 'Bloke', done: 'Tamamlandı', cancelled: 'İptal' };
 export default function WorkOrderDetail({ params }: { params: Promise<{ workOrderId: string }> }) {
@@ -36,7 +37,7 @@ export default function WorkOrderDetail({ params }: { params: Promise<{ workOrde
       <main className="mx-auto max-w-5xl space-y-5 p-4 md:p-6">
         <Link href="/work-orders" className="text-sm text-blue-600">← İş emirlerine dön</Link>
         {error && <p role="alert" className="rounded-lg bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
-        {!data && !error && <p role="status" className="text-sm text-slate-500">İş emri yükleniyor…</p>}
+        {!data && !error && <SkeletonRows rows={5} />}
         {data && <>
           <section className="rf-panel p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">{data.category} · {statuses[data.status]}</p>

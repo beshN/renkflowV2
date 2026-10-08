@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { AuthenticationError, getServerUserContext } from '@/lib/features/auth/serverAuth';
+import { canonicalColor, colorKey } from '@/lib/features/colors/color-spec';
 
 export async function GET() {
   try {
     const { tenantId } = await getServerUserContext();
 
-    const [orders, production, stock, overdue, cutting, trend, week] = await Promise.all([
+    const [orders, production, stock, overdue, cutting, trend, week, paint] = await Promise.all([
       sql`
         SELECT
           COUNT(*) FILTER (WHERE status NOT IN ('completed', 'cancelled', 'delivered')) AS active_count,
@@ -66,7 +67,23 @@ export async function GET() {
           COUNT(*) FILTER (WHERE status IN ('completed', 'delivered') AND updated_at >= date_trunc('week', now()) AND (delivery_date IS NULL OR updated_at::date <= delivery_date::date))::int AS on_time
         FROM orders WHERE tenant_id = ${tenantId}
       `,
+      // Open jobs per colour: the paint queue (jobs of one colour go to the paint shop together).
+      sql`
+        SELECT configuration->>'bodyName' AS color, COUNT(*)::int AS jobs, COALESCE(SUM(planned_qty), 0)::int AS pieces
+        FROM work_orders
+        WHERE tenant_id = ${tenantId} AND recipe_id IS NOT NULL AND status NOT IN ('done', 'cancelled')
+          AND coalesce(configuration->>'bodyName', '') <> ''
+        GROUP BY 1
+      `.catch(() => []),
     ]);
+    const paintQueue = new Map<string, { color: string; jobs: number; pieces: number }>();
+    for (const r of paint as any[]) {
+      const key = colorKey(r.color);
+      const entry = paintQueue.get(key) ?? { color: canonicalColor(r.color), jobs: 0, pieces: 0 };
+      entry.jobs += r.jobs;
+      entry.pieces += r.pieces;
+      paintQueue.set(key, entry);
+    }
 
     return NextResponse.json({
       summary: {
@@ -77,6 +94,7 @@ export async function GET() {
         cutting: cutting[0],
         trend: trend.map((r: any) => ({ day: String(r.day instanceof Date ? r.day.toISOString().slice(0, 10) : r.day).slice(0, 10), created: r.created, completed: r.completed })),
         week: week[0],
+        paint: [...paintQueue.values()].sort((a, b) => b.jobs - a.jobs).slice(0, 12),
       },
     });
   } catch (error) {

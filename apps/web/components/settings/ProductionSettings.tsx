@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { requestJson } from '@/lib/shared/network';
+import { SkeletonRows } from '@/components/kit';
 
 type Member = { id: string; name: string | null; email: string; role: string };
 type Settings = { available: boolean; leadUserId: string | null; leadLeft: boolean; members: Member[] };
@@ -24,7 +25,7 @@ export function ProductionSettings() {
     });
   }, []);
 
-  if (!data) return <p role={error ? 'alert' : 'status'} className="text-sm">{error || 'Yükleniyor…'}</p>;
+  if (!data) return error ? <p role="alert" className="text-sm">{error}</p> : <SkeletonRows rows={3} />;
   return (
     <section className="space-y-3" aria-labelledby="production-settings-title">
       <h2 id="production-settings-title" className="text-lg font-semibold">Üretim sorumlusu</h2>

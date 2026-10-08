@@ -172,9 +172,7 @@ export default function ProductionWorkspace() {
     return (
       <div className="rf-page space-y-4">
         <h1 className="rf-page-title">Üretim merkezi</h1>
-        <p role={error ? "alert" : "status"}>
-          {error || "Üretim verileri yükleniyor…"}
-        </p>
+        {error ? <p role="alert">{error}</p> : <div role="status" aria-label="Üretim verileri alınıyor" className="space-y-2">{[0, 1, 2, 3].map((i) => <div key={i} className="h-12 animate-pulse rounded-md bg-muted motion-reduce:animate-none" />)}</div>}
         <button className="rf-input" onClick={refresh}>
           Tekrar dene
         </button>

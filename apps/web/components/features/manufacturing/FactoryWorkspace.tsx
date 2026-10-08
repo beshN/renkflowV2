@@ -292,10 +292,10 @@ export default function FactoryWorkspace() {
           </p>
         )}
       </section>
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.8fr)]">
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.8fr)]">
         <section className="space-y-4">
           {jobs.map((j: any) => (
-            <article key={j.id} className="rf-panel space-y-4">
+            <article key={j.id} className="rf-panel min-w-0 space-y-4">
               {(() => {
                 const jobOps = ops.filter((o: any) => o.work_order_id === j.id);
                 const next = jobOps.find((o: any) => o.status === "running") || jobOps.find((o: any) => ["ready", "paused"].includes(o.status)) || jobOps.find((o: any) => o.status !== "done");

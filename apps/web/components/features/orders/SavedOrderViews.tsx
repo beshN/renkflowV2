@@ -156,7 +156,7 @@ export function SavedOrderViews({ filters, selectedId, onApply }: Props) {
           className="max-w-full rounded-md border border-border bg-background px-2 py-2 text-xs disabled:opacity-50"
         >
           <option value="">
-            {loading ? "Görünümler yükleniyor…" : "Kişisel görünümler"}
+            {loading ? "…" : "Kişisel görünümler"}
           </option>
           {views.map((v) => (
             <option key={v.id} value={v.id}>

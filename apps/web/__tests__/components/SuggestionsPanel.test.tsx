@@ -34,8 +34,13 @@ it('shows the suggestion with its reason, uncertainty and affected records, and 
   mockApi(async () => json(200, { status: 'approved', result: {} }));
   render(<SuggestionsPanel />);
   const region = await screen.findByRole('region', { name: 'Önerilenler' });
-  expect(within(region).getByText('Aynı profil ve renk.')).toBeInTheDocument();
-  expect(within(region).getByRole('note')).toHaveTextContent('Emin değilim: Testere kalınlığı varsayılan.');
+  // Reasons sit behind the (i) tip, not as paragraphs on the card.
+  expect(within(region).queryByText(/Aynı profil ve renk\./)).not.toBeInTheDocument();
+  fireEvent.click(within(region).getByRole('button', { name: 'Gerekçe' }));
+  expect(await screen.findByText(/Aynı profil ve renk\./)).toBeInTheDocument();
+  expect(within(region).getByRole('note')).toHaveTextContent('Emin değil');
+  fireEvent.click(within(region).getByRole('button', { name: 'Neden emin değil' }));
+  expect(await screen.findByText('Testere kalınlığı varsayılan.')).toBeInTheDocument();
   expect(within(region).getByRole('link', { name: 'İE-12' })).toHaveAttribute('href', '/work-orders/w1');
   fireEvent.click(within(region).getByRole('button', { name: /Onayla/ }));
   await waitFor(() => expect(screen.queryByRole('region', { name: 'Önerilenler' })).not.toBeInTheDocument());

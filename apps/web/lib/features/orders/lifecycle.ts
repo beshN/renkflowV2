@@ -1,5 +1,5 @@
 import { normalizeOrderStatus } from './workspace';
-import { canTransition } from './transition-rules';
+import { ORDER_TRANSITIONS } from './transition-rules';
 
 /**
  * The six steps a customer order goes through, as the workshop talks about them. Each order
@@ -25,15 +25,36 @@ export function lifecycleIndex(status: string): number {
 export const isDelivered = (status: string) => normalizeOrderStatus(status) === 'completed';
 
 /**
- * The status an order gets when it is dropped on another step: the first status of that step the
- * rules allow from where it is now, or null when no single allowed move gets it there.
+ * The moves that take an order onto a step when it is dropped there: the shortest chain of allowed
+ * transitions (at most three, never through hold or cancel) ending in a status of that step, e.g.
+ * "onay bekliyor" → "onaylandı" → "malzeme hazırlığı". Each move is still checked by the server.
+ * Null when the step cannot be reached that way (a jump over several steps, or backwards).
  */
-export function dropTarget(status: string, step: LifecycleKey): string | null {
+export function dropPath(status: string, step: LifecycleKey, maxMoves = 3): string[] | null {
   const from = normalizeOrderStatus(status);
   const target = LIFECYCLE.find((s) => s.key === step);
-  if (!target) return null;
-  return target.statuses.find((to) => to !== from && canTransition(from, to)) ?? null;
+  if (!target || (target.statuses as readonly string[]).includes(from)) return null;
+  const goal = new Set<string>(target.statuses);
+  let frontier: string[][] = [[from]];
+  const seen = new Set([from]);
+  for (let depth = 0; depth < maxMoves; depth++) {
+    const next: string[][] = [];
+    for (const path of frontier) {
+      for (const to of ORDER_TRANSITIONS[path[path.length - 1]] ?? []) {
+        if (seen.has(to) || to === 'cancelled' || to === 'on_hold') continue;
+        const chain = [...path, to];
+        if (goal.has(to)) return chain.slice(1);
+        seen.add(to);
+        next.push(chain);
+      }
+    }
+    frontier = next;
+  }
+  return null;
 }
+
+/** The status an order ends in when dropped on a step, or null when it cannot get there. */
+export const dropTarget = (status: string, step: LifecycleKey) => dropPath(status, step)?.at(-1) ?? null;
 
 export type HealthInput = { status: string; deliveryDate?: string | null; createdAt?: string | null; date?: string | null };
 export type Health = { level: 'good' | 'watch' | 'risk' | 'late' | 'done'; daysLeft: number | null; score: number };

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { requestJson } from '@/lib/shared/network';
 import { readTextFile } from '@/lib/shared/read-text-file';
 import { readNumber } from '@/lib/features/products/csv';
+import { SkeletonRows } from '@/components/kit';
 
 type Summary = { id: string; family: string; currency: string; status: string; file_name: string | null; base_count: number; option_count: number; created_at: string; imported_by_name: string | null };
 type Overview = { available: boolean; canImport: boolean; families: Array<{ key: string; label: string; active: Summary | null }>; history: Summary[] };
@@ -55,7 +56,7 @@ export default function PriceMatrixPage() {
     } else setPreview(r.data);
   };
 
-  if (!data) return <main className="rf-page"><p role={error ? 'alert' : 'status'}>{error || 'Yükleniyor…'}</p></main>;
+  if (!data) return <main className="rf-page">{error ? <p role="alert">{error}</p> : <SkeletonRows rows={6} />}</main>;
   const current = data.families.find((f) => f.key === family);
 
   return (

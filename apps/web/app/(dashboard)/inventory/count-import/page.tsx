@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { requestJson } from '@/lib/shared/network';
 import { unitLabel } from '@/lib/features/inventory/vocabulary';
+import { SkeletonRows } from '@/components/kit';
 
 type Row = { ref: string; section: string; code: string | null; name: string; color: string | null; quantity: number | null; unit: string | null; pieceLengthMm: number | null; issues: string[]; status?: string; note?: string | null };
 type Doc = { id: string; title: string | null; count_date: string | null; file_name: string; created_at: string; warehouse_name: string; lines: Row[] | null };
@@ -64,7 +65,7 @@ export default function CountImportPage() {
   }, []);
   useEffect(() => { void load(); }, [load]);
 
-  if (!data) return <main className="rf-page"><p role={error ? 'alert' : 'status'}>{error || 'Yükleniyor…'}</p></main>;
+  if (!data) return <main className="rf-page">{error ? <p role="alert">{error}</p> : <SkeletonRows rows={6} />}</main>;
   if (!data.available) return <main className="rf-page"><h1 className="rf-page-title">Sayım listesi içe aktarma</h1><p className="mt-3 text-sm text-muted-foreground">Bu kurulumda sayım içe aktarma henüz etkin değil (veritabanı güncellemesi bekleniyor).</p></main>;
   return (
     <main className="rf-page space-y-5">

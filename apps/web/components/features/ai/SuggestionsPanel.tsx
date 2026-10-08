@@ -70,7 +70,7 @@ export function SuggestionsPanel() {
         <h2 className="rf-section-title flex items-center gap-2"><Sparkles size={15} aria-hidden /> Önerilenler <HintTip text="Asistan yalnız öneri hazırlar; onaylamadan hiçbir kayıt değişmez." /></h2>
         <span className="rounded-full bg-primary/10 px-2 text-xs font-semibold tabular-nums text-primary">{items.length}</span>
       </div>
-      <ul className="grid gap-px bg-border sm:grid-cols-2">
+      <ul className={`grid gap-px bg-border ${items.length > 1 ? 'sm:grid-cols-2' : ''}`}>
         {items.map((item) => (
           <li key={item.id} className="space-y-3 bg-card p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -79,8 +79,9 @@ export function SuggestionsPanel() {
                 <h3 className="mt-1 flex items-start gap-1 text-sm font-semibold">{item.title}<HintTip label="Gerekçe" text={`${item.rationale}\n\n${item.source === 'model' ? `Model: ${item.model ?? 'bilinmiyor'}` : 'Kural / hesap motoru'}`} /></h3>
               </div>
               {item.uncertain && (
-                <span role="note" title={item.uncertaintyNote ?? undefined} className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300">
+                <span role="note" className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 pl-2 text-[11px] font-medium text-amber-800 dark:text-amber-300">
                   <TriangleAlert size={12} aria-hidden /> Emin değil
+                  {item.uncertaintyNote && <HintTip label="Neden emin değil" text={item.uncertaintyNote} />}
                 </span>
               )}
             </div>

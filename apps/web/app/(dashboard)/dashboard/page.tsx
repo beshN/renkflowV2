@@ -14,7 +14,9 @@ import { LIFECYCLE, lifecycleIndex, orderHealth } from '@/lib/features/orders/li
 import type { Order } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { SuggestionsPanel } from '@/components/features/ai/SuggestionsPanel';
-import { Donut, EmptyState, HealthBadge, LifecycleStrip, PageHeader, ProgressRing, Skeleton, StatCard } from '@/components/kit';
+import { Donut, EmptyState, HealthBadge, HintTip, LifecycleStrip, PageHeader, ProgressRing, Skeleton, StatCard } from '@/components/kit';
+import { ColorSwatch } from '@/components/colors/ColorSwatch';
+import { colorInfo } from '@/lib/features/colors/color-spec';
 
 type Summary = {
   orders: { active_count: string; today_deliveries: string };
@@ -24,13 +26,14 @@ type Summary = {
   cutting?: { waiting: string };
   trend?: Array<{ day: string; created: number; completed: number }>;
   week?: { created: number; completed: number; on_time: number };
+  paint?: Array<{ color: string; jobs: number; pieces: number }>;
 };
 
 // Lifecycle colours: one cobalt ramp, the last step neutral. Each segment also has a label and a link.
 const STEP_COLORS = ['#c7d2fe', '#a5b4fc', '#7c8ff0', '#2f55f4', '#1b3fa8', '#a1a1aa'];
-const SECTIONS = ['today', 'suggestions', 'flow', 'health', 'week'] as const;
+const SECTIONS = ['today', 'suggestions', 'flow', 'health', 'paint', 'week'] as const;
 type Section = (typeof SECTIONS)[number];
-const SECTION_LABELS: Record<Section, string> = { today: 'Bugünün işi', suggestions: 'Önerilenler', flow: 'Sipariş akışı', health: 'Riskteki siparişler', week: 'Bu hafta' };
+const SECTION_LABELS: Record<Section, string> = { today: 'Bugünün işi', suggestions: 'Önerilenler', flow: 'Sipariş akışı', health: 'Riskteki siparişler', paint: 'Renk kuyruğu', week: 'Bu hafta' };
 const LAYOUT_KEY = 'rf-dashboard-layout';
 
 /** Card order and hidden cards, per browser. Falls back to the default when storage is unavailable. */
@@ -153,6 +156,24 @@ export default function DashboardPage() {
             ))}
           </ul>
         ) : <EmptyState title="Risk yok" icon={PackageCheck} />}
+      </section>
+    ),
+    paint: (
+      <section className="rf-panel p-4" aria-label="Renk kuyruğu">
+        <h2 className="rf-section-title mb-3 flex items-center gap-2">Renk kuyruğu <HintTip text="Açık üretim işleri renge göre. Aynı renkteki işler boyahaneye birlikte gönderilirse boya değişimi azalır." /></h2>
+        {summaryLoading ? <Skeleton className="h-24 w-full" /> : summary?.paint?.length ? (
+          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {summary.paint.map((p) => (
+              <li key={p.color} className="flex items-center gap-2 rounded-md border border-border p-2">
+                <ColorSwatch color={p.color} size={36} className="rounded-md" />
+                <span className="min-w-0">
+                  <span className="block truncate text-xs font-semibold">{colorInfo(p.color)?.code ?? p.color}</span>
+                  <span className="block text-[11px] tabular-nums text-muted-foreground">{p.jobs} iş · {p.pieces} adet</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : <EmptyState title="Kuyruk boş" icon={PackageCheck} />}
       </section>
     ),
     week: (

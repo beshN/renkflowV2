@@ -1717,7 +1717,7 @@ export async function wallBoard(a: WorkOrderActor) {
   office(a);
   const t = a.tenantId;
   const jobs = await sql`
-    SELECT w.id, w.status, w.due_at, w.planned_qty, w.produced_qty, w.cut_plan_id, w.configuration->>'bodyName' AS color,
+    SELECT w.id, w.status, coalesce(w.due_at, o.delivery_date) AS due_at, w.planned_qty, w.produced_qty, w.cut_plan_id, w.configuration->>'bodyName' AS color,
       o.order_number, i.product_name,
       (SELECT p.name FROM production_operations p WHERE p.work_order_id = w.id AND p.tenant_id = w.tenant_id AND p.status <> 'done' ORDER BY p.position LIMIT 1) AS step,
       (SELECT p.status FROM production_operations p WHERE p.work_order_id = w.id AND p.tenant_id = w.tenant_id AND p.status <> 'done' ORDER BY p.position LIMIT 1) AS step_status
@@ -1725,7 +1725,7 @@ export async function wallBoard(a: WorkOrderActor) {
     JOIN orders o ON o.id = w.order_id AND o.tenant_id = w.tenant_id
     LEFT JOIN order_items i ON i.id = w.order_item_id
     WHERE w.tenant_id = ${t} AND w.recipe_id IS NOT NULL AND w.status NOT IN ('done', 'cancelled')
-    ORDER BY w.due_at NULLS LAST, w.created_at
+    ORDER BY coalesce(w.due_at, o.delivery_date) NULLS LAST, w.created_at
     LIMIT 200`;
   const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Istanbul" }).format(new Date());
   const day = (d: unknown) => (d ? new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Istanbul" }).format(new Date(d as string)) : null);
@@ -1750,6 +1750,6 @@ export async function wallBoard(a: WorkOrderActor) {
     running: all.filter((j) => j.running),
     steps: [...steps].map(([name, count]) => ({ name, count })).sort((x, y) => y.count - x.count),
     nextCuts: jobs.filter((j: any) => !j.cut_plan_id).slice(0, 8).map(view),
-    total: all.length,
+    openJobs: all.length,
   };
 }
