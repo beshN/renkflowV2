@@ -51,6 +51,18 @@ describe('recipe template', () => {
     expect(() => calculateRecipe(recipe, { widthMm: 2000, projectionMm: 3000, mountingHeightMm: 2500, quantity: 1, motor: true, led: false, customParameters: { bolme: 1 } })).toThrow('En açılımdan küçük olamaz');
   });
 
+  it('reads the template words however they are capitalised', () => {
+    const read = readRecipeCsv(
+      rows('SINIR;EN;;;;;;;;1000;6000', 'Sınır;AÇILIM;;;;;;;;1000;5000', 'SINIR;YUKSEKLIK;;;;;;;;2000;3000', 'MALZEME;108-40x60-boyalı;;PROFIL;m;2;widthMm;;;;', 'OPERASYON;kesim;Kesim;;;10;;;;;', 'PARAMETRE;led2;Led;EVET_HAYIR;;;;;HAYIR;;'),
+      { items, workCenters: ['KESIM'] },
+    );
+    expect(read).toMatchObject({ ok: true });
+    if (!read.ok) return;
+    expect(read.parts.rules[0]).toMatchObject({ kind: 'profile', itemId: id(2) });
+    expect(read.parts.operations[0].workCenterCode).toBe('KESIM');
+    expect(read.parts.parameterDefinitions![0]).toMatchObject({ type: 'boolean', defaultValue: false });
+  });
+
   it('lists every problem with its line and imports nothing', () => {
     const read = readRecipeCsv(
       rows(

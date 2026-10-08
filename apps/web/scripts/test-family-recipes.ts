@@ -63,16 +63,24 @@ async function main() {
   assert.equal(recipe.status, 'draft', 'imported as a draft; publishing needs worked examples');
   assert.deepEqual(recipe.rules.map((r: any) => [r.itemId, r.cutLengthFormula, r.conditionFormula ?? null]), [[p108, 'widthMm-20', null], [p187, 'projectionMm', 'rayTipi == 1']]);
   assert.equal(recipe.parameter_definitions[0].key, 'rayTipi');
-  // Importing again updates the same draft; publishing without examples is refused.
+  // Worked examples entered in the recipe screen survive a re-import, which updates the same draft.
+  const example = [{ parameters: { widthMm: 3000, projectionMm: 2000, mountingHeightMm: 2500, quantity: 1, motor: false, led: false, customParameters: { rayTipi: 1 } }, expected: [{ itemId: p108, quantity: 5.96 }] }];
+  await db`UPDATE production_recipes SET examples = ${JSON.stringify(example)}::text::jsonb WHERE id = ${saved.recipe.id}`;
   const again: any = await importFamilyRecipe(owner as any, { ...input, dryRun: false, text: filled.replace(';15;', ';20;') });
   assert.equal(again.recipe.version, 1);
+  assert.equal((await db`SELECT jsonb_array_length(examples) AS n FROM production_recipes WHERE id = ${saved.recipe.id}`)[0].n, 1, 'examples kept');
+  await db`UPDATE production_recipes SET examples = '[]' WHERE id = ${saved.recipe.id}`;
   await assert.rejects(productionCommand(owner as any, { commandId: randomUUID(), action: 'recipe.publish', data: { id: saved.recipe.id, editRevision: 2 } }), /en az iki doğrulanmış örnek/);
+  // A first import that fails to save (the output is not a finished-good card) leaves no claim; the retry works.
+  await assert.rejects(importFamilyRecipe(owner as any, { ...input, code: 'PRG-YENI', finishedItemId: p108, dryRun: false }), /Çıktı kartı mamul olmalı/);
+  assert.equal((await db`SELECT count(*)::int AS n FROM product_family_recipes WHERE tenant_id = ${tenantId} AND recipe_code = 'PRG-YENI'`)[0].n, 0);
+  assert.equal(((await importFamilyRecipe(owner as any, { ...input, code: 'PRG-YENI', dryRun: false })) as any).recipe.version, 1);
   const overview = await productFamiliesOverview(office as any);
-  assert.deepEqual(overview.families.find((f: any) => f.key === 'pergola')!.recipes.map((r: any) => [r.code, r.status]), [['PRG-TEST', 'draft']]);
+  assert.deepEqual(overview.families.find((f: any) => f.key === 'pergola')!.recipes.map((r: any) => [r.code, r.status]), [['PRG-TEST', 'draft'], ['PRG-YENI', 'draft']]);
   // A code used by a recipe made in the recipe screen is not taken over.
   await db`INSERT INTO production_recipes (tenant_id, code, name, version, finished_item_id, rules, operations, limits) VALUES (${tenantId}, 'EKRAN', 'Ekran', 1, ${pergola}, '[]', '[]', '{}')`;
   await assert.rejects(importFamilyRecipe(owner as any, { ...input, code: 'EKRAN', dryRun: false }), (e: any) => e.status === 409);
-  console.log('PASS · family recipe: template lists the family cards from count-list codes with empty formulas, office cannot download or import, unknown variable rejected with its line, preview writes nothing, import makes a draft with options and conditions, re-import updates the draft, publish still needs worked examples, another recipe code not taken over');
+  console.log('PASS · family recipe: template lists the family cards from count-list codes with empty formulas, office cannot download or import, unknown variable rejected with its line, preview writes nothing, import makes a draft with options and conditions, re-import updates the draft and keeps its worked examples, publish still needs worked examples, a failed first save leaves no claim, another recipe code not taken over');
 
   await db.end();
   await sql.end({ timeout: 5 });

@@ -2,11 +2,12 @@ import 'server-only';
 
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { sql } from '@/lib/db';
+import { sql, withTransaction } from '@/lib/db';
 import { tableExists } from '@/lib/db/schema-guard';
 import { recordAuditAfterCommit } from '@/lib/audit/audit-log';
 import { productionCommand } from '@/lib/features/manufacturing/platform.service';
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
+import { ROUTE_ROLES } from '@/lib/features/auth/permissions';
 import { PRODUCT_FAMILIES, productFamily } from './families';
 import { readRecipeCsv, recipeTemplate, type TemplateItem } from './recipe-template';
 
@@ -14,7 +15,7 @@ const fail = (message: string, status = 400): never => {
   throw new WorkOrderApiError(message, status);
 };
 const MANAGERS = ['owner', 'admin'];
-const READERS = ['owner', 'admin', 'office'];
+const READERS = ROUTE_ROLES['/products'] as string[];
 export const familyRecipesAvailable = () => tableExists('product_family_recipes');
 
 async function context(tenantId: string) {
@@ -87,27 +88,45 @@ export async function importFamilyRecipe(actor: WorkOrderActor, raw: unknown) {
   };
   if (input.dryRun) return { ok: true as const, dryRun: true, summary };
   if (!(await familyRecipesAvailable())) fail('Bu kurulumda ürün reçeteleri henüz etkin değil (veritabanı güncellemesi bekleniyor)', 409);
-  const [owner] = await sql`SELECT family FROM product_family_recipes WHERE tenant_id = ${actor.tenantId} AND recipe_code = ${input.code}`;
-  if (owner && owner.family !== input.family) fail(`"${input.code}" kodu başka bir ürün ailesinin reçetesi`, 409);
-  if (!owner && (await sql`SELECT 1 FROM production_recipes WHERE tenant_id = ${actor.tenantId} AND code = ${input.code} LIMIT 1`).length)
-    fail(`"${input.code}" kodu reçete ekranında başka bir reçeteye ait; başka kod seçin`, 409);
-  const [latest] = await sql`SELECT version, status, edit_revision FROM production_recipes WHERE tenant_id = ${actor.tenantId} AND code = ${input.code} ORDER BY version DESC LIMIT 1`;
-  const draft = latest?.status === 'draft';
-  const saved: any = await productionCommand(actor, {
-    commandId: randomUUID(),
-    action: 'recipe.save',
-    data: {
-      code: input.code,
-      name: input.name,
-      version: draft ? latest.version : (latest?.version ?? 0) + 1,
-      editRevision: draft ? latest.edit_revision : undefined,
-      finishedItemId: input.finishedItemId,
-      examples: [],
-      ...read.parts,
-    },
+  // Claim the code for the family first, under a lock per code: two imports cannot split one code
+  // between families, and a code made in the recipe screen is never taken over.
+  const claimed = await withTransaction(async (tx: any) => {
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${actor.tenantId + ':family-recipe:' + input.code}, 0))`;
+    const [owner] = await tx`SELECT family FROM product_family_recipes WHERE tenant_id = ${actor.tenantId} AND recipe_code = ${input.code}`;
+    if (owner) {
+      if (owner.family !== input.family) fail(`"${input.code}" kodu başka bir ürün ailesinin reçetesi`, 409);
+      return false;
+    }
+    if ((await tx`SELECT 1 FROM production_recipes WHERE tenant_id = ${actor.tenantId} AND code = ${input.code} LIMIT 1`).length)
+      fail(`"${input.code}" kodu reçete ekranında başka bir reçeteye ait; başka kod seçin`, 409);
+    await tx`INSERT INTO product_family_recipes (tenant_id, recipe_code, family, created_by) VALUES (${actor.tenantId}, ${input.code}, ${input.family}, ${actor.userId})`;
+    return true;
   });
-  await sql`INSERT INTO product_family_recipes (tenant_id, recipe_code, family, created_by) VALUES (${actor.tenantId}, ${input.code}, ${input.family}, ${actor.userId})
-    ON CONFLICT (tenant_id, recipe_code) DO NOTHING`;
+  const [latest] = await sql`SELECT version, status, edit_revision, examples FROM production_recipes WHERE tenant_id = ${actor.tenantId} AND code = ${input.code} ORDER BY version DESC LIMIT 1`;
+  const draft = latest?.status === 'draft';
+  let saved: any;
+  try {
+    saved = await productionCommand(actor, {
+      commandId: randomUUID(),
+      action: 'recipe.save',
+      data: {
+        code: input.code,
+        name: input.name,
+        version: draft ? latest.version : (latest?.version ?? 0) + 1,
+        editRevision: draft ? latest.edit_revision : undefined,
+        finishedItemId: input.finishedItemId,
+        // Worked examples already entered on the draft stay; publishing checks them against the new rules.
+        examples: draft ? latest.examples : [],
+        ...read.parts,
+      },
+    });
+  } catch (error) {
+    // A first import that did not save leaves no claim behind, so it can simply be tried again.
+    if (claimed)
+      await sql`DELETE FROM product_family_recipes WHERE tenant_id = ${actor.tenantId} AND recipe_code = ${input.code}
+        AND NOT EXISTS (SELECT 1 FROM production_recipes WHERE tenant_id = ${actor.tenantId} AND code = ${input.code})`;
+    throw error;
+  }
   await recordAuditAfterCommit({
     tenantId: actor.tenantId,
     actorId: actor.userId,

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { requestJson } from '@/lib/shared/network';
+import { readTextFile } from '@/lib/shared/read-text-file';
 
 type Recipe = { id: string; code: string; name: string; version: number; status: string; rule_count: number; example_count: number; created_at: string };
 type Family = { key: string; label: string; profileCodes: string[]; recipes: Recipe[] };
@@ -12,14 +13,6 @@ type Result = { ok: true; dryRun: boolean; summary: Summary; recipe?: { id: stri
 
 const STATUS: Record<string, string> = { draft: 'Taslak (örnekler bekleniyor)', published: 'Yayında', archived: 'Arşiv' };
 
-async function readText(file: File) {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-  } catch {
-    return new TextDecoder('windows-1254').decode(bytes);
-  }
-}
 
 export default function ProductsPage() {
   const [data, setData] = useState<Overview | null>(null);
@@ -41,15 +34,18 @@ export default function ProductsPage() {
     const f = new FormData(form);
     setBusy(true);
     setError('');
-    const r = await requestJson<Result>('/api/v1/products/recipes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ family, code: f.get('code'), name: f.get('name'), finishedItemId: f.get('finishedItemId'), fileName: file.name, text: file.text, dryRun }),
-    }, { timeoutMs: 60000, fallbackError: 'Reçete okunamadı' });
-    setBusy(false);
-    if (!r.ok || !r.data) return setError(r.error || 'Reçete okunamadı');
-    setResult(r.data);
-    if (r.data.ok && !r.data.dryRun) await load();
+    try {
+      const r = await requestJson<Result>('/api/v1/products/recipes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ family, code: f.get('code'), name: f.get('name'), finishedItemId: f.get('finishedItemId'), fileName: file.name, text: file.text, dryRun }),
+      }, { timeoutMs: 60000, fallbackError: 'Reçete okunamadı' });
+      if (!r.ok || !r.data) return setError(r.error || 'Reçete okunamadı');
+      setResult(r.data);
+      if (r.data.ok && !r.data.dryRun) await load();
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (!data) return <main className="rf-page"><p role={error ? 'alert' : 'status'}>{error || 'Yükleniyor…'}</p></main>;
@@ -97,7 +93,7 @@ export default function ProductsPage() {
       {data.canImport && data.available && (
         <section className="rf-panel space-y-3" aria-label="Reçete yükle">
           <h2 className="font-semibold">Doldurulmuş reçete şablonunu yükle</h2>
-          <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); void send(e.currentTarget, true); }}>
+          <form className="grid gap-3 sm:grid-cols-2" onChange={() => setResult(null)} onSubmit={(e) => { e.preventDefault(); void send(e.currentTarget, true); }}>
             <label className="block text-xs">Ürün ailesi
               <select className="rf-input mt-2 w-full" value={family} onChange={(e) => { setFamily(e.target.value); setResult(null); }}>
                 {data.families.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
@@ -119,7 +115,7 @@ export default function ProductsPage() {
                 setFile(null);
                 if (!f) return;
                 if (f.size > 1_000_000) return setError('Dosya en fazla 1 MB olabilir');
-                setFile({ name: f.name, text: await readText(f) });
+                setFile({ name: f.name, text: await readTextFile(f) });
               }} />
             </label>
             <div className="flex gap-2 sm:col-span-2">

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { requestJson } from '@/lib/shared/network';
+import { readTextFile } from '@/lib/shared/read-text-file';
 import { readNumber } from '@/lib/features/products/csv';
 
 type Summary = { id: string; family: string; currency: string; status: string; file_name: string | null; base_count: number; option_count: number; created_at: string; imported_by_name: string | null };
@@ -14,15 +15,6 @@ type Check = { status: 'priced'; currency: string; unitPrice: number; lines: Arr
 
 const money = (n: number, currency: string) => n.toLocaleString('tr-TR', { style: 'currency', currency });
 
-/** Excel in Turkish saves CSV either as UTF-8 or as Windows-1254; read whichever this file is. */
-async function readText(file: File) {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-  } catch {
-    return new TextDecoder('windows-1254').decode(bytes);
-  }
-}
 
 export default function PriceMatrixPage() {
   const [data, setData] = useState<Overview | null>(null);
@@ -113,7 +105,7 @@ export default function PriceMatrixPage() {
                 setFile(null);
                 if (!f) return;
                 if (f.size > 1_000_000) return setError('Dosya en fazla 1 MB olabilir');
-                setFile({ name: f.name, text: await readText(f) });
+                setFile({ name: f.name, text: await readTextFile(f) });
               }} />
             </label>
             <button className="rf-secondary-button" disabled={!file || busy} onClick={() => send(true)}>{busy ? 'Okunuyor…' : 'Önizle'}</button>

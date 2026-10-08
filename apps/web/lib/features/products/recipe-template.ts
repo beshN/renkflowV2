@@ -14,6 +14,9 @@ type Column = (typeof RECIPE_COLUMNS)[number];
 
 export type TemplateItem = { id: string; sku: string; name: string; profileCode: string | null; uom: string };
 const LIMITS = { en: 'Width', acilim: 'Projection', yukseklik: 'MountingHeight' } as const;
+/** Lower case without Turkish dotted/dotless and accent differences: "PROFIL", "Profil", "profıl" read the same. */
+const fold = (s: string) =>
+  s.trim().toLocaleLowerCase('tr-TR').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
 const BUILT_IN = ['widthMm', 'projectionMm', 'mountingHeightMm', 'areaM2', 'motor', 'led', 'quantity'];
 
 export function recipeTemplate(familyKey: string, items: TemplateItem[], workCenters: string[]) {
@@ -58,7 +61,7 @@ export type RecipeImport = { ok: true; parts: RecipeParts; skipped: number } | {
 export function readRecipeCsv(text: string, ctx: { items: TemplateItem[]; workCenters: string[] }): RecipeImport {
   const records = parseCsvRecords(text).filter((r) => r.cells.some((c) => c) && !r.cells[0].startsWith('#'));
   if (!records.length) return { ok: false, errors: ['Dosyada başlık satırı yok'] };
-  const header = records[0].cells.map((c) => c.toLocaleLowerCase('tr-TR').replace(/ı/g, 'i').replace(/ü/g, 'u').replace(/ş/g, 's'));
+  const header = records[0].cells.map(fold);
   const missingColumns = RECIPE_COLUMNS.filter((c) => !header.includes(c));
   if (missingColumns.length) return { ok: false, errors: [`Eksik sütun: ${missingColumns.join(', ')}`] };
   const errors: string[] = [];
@@ -69,19 +72,20 @@ export function readRecipeCsv(text: string, ctx: { items: TemplateItem[]; workCe
   const limits: Record<string, number> = {};
   const formulaRows: Array<{ line: number; label: string; formula: string }> = [];
   let skipped = 0;
-  const bySku = new Map(ctx.items.map((i) => [i.sku.toLocaleLowerCase('tr-TR'), i]));
+  const bySku = new Map(ctx.items.map((i) => [fold(i.sku), i]));
+  const centers = new Map(ctx.workCenters.map((c) => [fold(c), c]));
   for (const { cells, line } of records.slice(1)) {
     const get = (c: Column) => cells[header.indexOf(c)] ?? '';
     const say = (m: string) => errors.push(`Satır ${line}: ${m}`);
-    const kind = get('satir_turu').toLocaleLowerCase('tr-TR');
+    const kind = fold(get('satir_turu'));
     const formula = (c: Column, label: string) => {
       const f = get(c);
       if (f) formulaRows.push({ line, label, formula: f });
       return f || undefined;
     };
     if (kind === 'parametre') {
-      const type = get('tur').toLocaleLowerCase('tr-TR');
-      if (!['sayi', 'sayı', 'tam_sayi', 'tam_sayı', 'evet_hayir', 'evet_hayır'].includes(type)) say('parametre türü sayi, tam_sayi ya da evet_hayir olmalı');
+      const type = fold(get('tur'));
+      if (!['sayi', 'tam_sayi', 'evet_hayir'].includes(type)) say('parametre türü sayi, tam_sayi ya da evet_hayir olmalı');
       const isBool = type.startsWith('evet');
       const num = (c: Column) => {
         const v = get(c);
@@ -94,8 +98,8 @@ export function readRecipeCsv(text: string, ctx: { items: TemplateItem[]; workCe
       let defaultValue: number | boolean | undefined;
       if (def) {
         if (isBool) {
-          const v = def.toLocaleLowerCase('tr-TR');
-          if (!['evet', 'hayır', 'hayir', '1', '0'].includes(v)) say('evet_hayir varsayılanı evet ya da hayır olmalı');
+          const v = fold(def);
+          if (!['evet', 'hayir', '1', '0'].includes(v)) say('evet_hayir varsayılanı evet ya da hayır olmalı');
           defaultValue = v === 'evet' || v === '1';
         } else defaultValue = num('varsayilan');
       }
@@ -118,12 +122,14 @@ export function readRecipeCsv(text: string, ctx: { items: TemplateItem[]; workCe
         skipped++;
         continue;
       }
-      const item = bySku.get(get('kod').toLocaleLowerCase('tr-TR'));
+      const item = bySku.get(fold(get('kod')));
       if (!item) {
         say(`"${get('kod')}" kodlu etkin stok kartı yok`);
         continue;
       }
-      const profile = get('tur').toLocaleLowerCase('tr-TR') === 'profil';
+      const type = fold(get('tur'));
+      if (type !== 'profil' && type !== 'malzeme') say('malzeme satırında tur profil ya da malzeme olmalı');
+      const profile = type === 'profil';
       if (profile && item.uom !== 'm') say('profil satırı metre ile tutulan bir kart olmalı');
       if (profile && !cut) say('profil satırında kesim_boyu_formulu gerekli');
       if (!profile && cut) say('kesim boyu yalnız profil satırında kullanılır');
@@ -136,12 +142,13 @@ export function readRecipeCsv(text: string, ctx: { items: TemplateItem[]; workCe
         skipped++;
         continue;
       }
-      if (!ctx.workCenters.includes(get('kod'))) say(`"${get('kod')}" tanımlı bir iş merkezi değil`);
+      const center = centers.get(fold(get('kod')));
+      if (!center) say(`"${get('kod')}" tanımlı bir iş merkezi değil`);
       if (!get('ad')) say('operasyon adı gerekli');
       if (!minutes) say('süre formülü (miktar_formulu) gerekli');
-      operations.push({ name: get('ad'), workCenterCode: get('kod'), minutesFormula: minutes ?? '0', conditionFormula: condition, qualityChecks: [] });
+      operations.push({ name: get('ad'), workCenterCode: center ?? get('kod'), minutesFormula: minutes ?? '0', conditionFormula: condition, qualityChecks: [] });
     } else if (kind === 'sinir') {
-      const key = get('kod').toLocaleLowerCase('tr-TR').replace('açılım', 'acilim').replace('yükseklik', 'yukseklik') as keyof typeof LIMITS;
+      const key = fold(get('kod')) as keyof typeof LIMITS;
       if (!(key in LIMITS)) {
         say('sınır kodu en, acilim ya da yukseklik olmalı');
         continue;
