@@ -42,6 +42,8 @@
     "db:deploy": "tsx scripts/deploy-database.ts",
     "vercel:env:sync": "tsx scripts/sync-vercel-env.ts",
     "test:warehouse": "tsx --require ./scripts/register-server-only.cjs scripts/test-warehouse.ts",
+    "test:count-import": "tsx --require ./scripts/register-server-only.cjs scripts/test-count-import.ts",
+    "test:stock-threshold": "tsx --require ./scripts/register-server-only.cjs scripts/test-stock-threshold.ts",
     "test:warehouse:browser": "node scripts/verify-warehouse-browser.cjs",
     "test:field": "tsx --require ./scripts/register-server-only.cjs scripts/test-native-field.ts",
     "prebuild": "node scripts/sync-pdf-worker.cjs",
