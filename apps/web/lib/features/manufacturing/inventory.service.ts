@@ -242,6 +242,11 @@ export async function reverseStockEntry(
       })),
     }, { reversalOfId: stockEntryId });
     for (const line of lines) if (line.lot_id) await tx`UPDATE stock_lots SET remaining_qty=0,status='consumed',updated_at=now()WHERE tenant_id=${actor.tenantId} AND id=${line.lot_id}`;
+    // A reversed bar count puts its count-list line back to waiting for its bars.
+    if (headers[0].reference_type === 'opening_count') {
+      const [counts] = await tx`SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='stock_count_lines' AND column_name='stock_entry_id') AS ok`;
+      if (counts?.ok) await tx`UPDATE stock_count_lines SET status='needs_bars',counted_meters=NULL,counted_bars=NULL,counted_by=NULL,counted_at=NULL,stock_entry_id=NULL,updated_at=now() WHERE tenant_id=${actor.tenantId} AND stock_entry_id=${stockEntryId}`;
+    }
     return reversed;
   }, { isolationLevel: 'SERIALIZABLE' });
 }

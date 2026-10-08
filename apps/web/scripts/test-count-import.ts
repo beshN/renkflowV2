@@ -29,7 +29,7 @@ async function main() {
   process.env.NATIVE_INVENTORY_ENABLED = '1';
   const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
   assert.equal((await db`SELECT current_database() AS name`)[0].name, 'renkflow_test');
-  for (const file of ['029_ai_suggestions.sql', '031_stock_model.sql', '032_stock_counts.sql']) await db.unsafe(readFileSync(`lib/db/migrations/${file}`, 'utf8'));
+  for (const file of ['029_ai_suggestions.sql', '031_stock_model.sql', '032_stock_counts.sql', '033_opening_bar_count.sql']) await db.unsafe(readFileSync(`lib/db/migrations/${file}`, 'utf8'));
 
   const browser = await chromium.launch({ headless: true, executablePath: '/opt/pw-browsers/chromium' });
   const page = await browser.newPage();
@@ -94,6 +94,50 @@ async function main() {
   await reverseStockEntry(owner, entry.id, `reverse-${entry.id}`);
   assert.equal(Number((await db`SELECT coalesce(sum(on_hand_qty),0) AS n FROM stock_balances WHERE tenant_id = ${tenantId}`)[0].n), 0);
   console.log('PASS · approval: cards by code + size + state, piece length kept, opening stock for counted pieces from the count document, metre rows wait for the bar count, uncertain rows not applied, rows of one card added up, the same list cannot be imported twice, the opening entry can be reversed');
+
+  const { recordOpeningCount, openingCountOverview } = await import('../lib/features/warehouse/count-import/opening');
+  const pending = (await openingCountOverview(owner as any)).lines as any[];
+  const blue = pending.find((l) => l.color === 'Test Mavi');
+  const plain = pending.find((l) => !l.color);
+  assert(blue && plain, 'both metre lines wait for their bars');
+  const bars = [{ lengthMm: 6000, count: 15 }, { lengthMm: 5000, count: 6 }];
+  await assert.rejects(recordOpeningCount({ ...owner, userId: workerId, role: 'worker' } as any, { lineId: blue.id, bars }, randomUUID()), (e: any) => e.status === 403);
+  const key = randomUUID();
+  const counted = await recordOpeningCount(owner as any, { lineId: blue.id, bars }, key);
+  assert.deepEqual([counted.bars, counted.countedMeters, counted.listedMeters, counted.differenceMeters], [21, 120, 120, 0]);
+  const lots = await db`SELECT length_m, metadata->>'color' AS color FROM stock_lots WHERE tenant_id = ${tenantId} AND metadata->>'countLineId' = ${blue.id}`;
+  assert.equal(lots.length, 21, 'one lot per bar');
+  assert.deepEqual([...new Set(lots.map((l: any) => `${Number(l.length_m)}:${l.color}`))].sort(), ['5:Test Mavi', '6:Test Mavi']);
+  const [barEntry] = await db`SELECT entry_type, reference_type FROM stock_entries WHERE id = ${counted.entryId}`;
+  assert.deepEqual([barEntry.entry_type, barEntry.reference_type], ['MATERIAL_RECEIPT', 'opening_count']);
+  const again = await recordOpeningCount(owner as any, { lineId: blue.id, bars }, key);
+  assert.deepEqual([again.replay, again.entryId, again.bars, again.countedMeters, again.differenceMeters], [true, counted.entryId, 21, 120, 0], 'a retried request posts nothing twice and answers the same');
+  await assert.rejects(recordOpeningCount(owner as any, { lineId: plain.id, bars }, key), (e: any) => e.status === 409, 'a key reused for another line is refused');
+  assert.equal((await db`SELECT count(*)::int AS n FROM stock_lots WHERE tenant_id = ${tenantId} AND metadata->>'countLineId' = ${blue.id}`)[0].n, 21);
+  await assert.rejects(recordOpeningCount(owner as any, { lineId: blue.id, bars }, randomUUID()), (e: any) => e.status === 409);
+  // An unpainted profile's bars say so; a short count is entered as counted, with its difference.
+  const short = await recordOpeningCount(owner as any, { lineId: plain.id, bars: [{ lengthMm: 6000, count: 9 }] }, randomUUID());
+  assert.equal(short.differenceMeters, -6);
+  assert.equal((await db`SELECT DISTINCT metadata->>'color' AS c FROM stock_lots WHERE metadata->>'countLineId' = ${plain.id}`)[0].c, 'Boyasız');
+  // A profile missing from the list is counted on its own, with a colour.
+  const paintedItem = (await db`SELECT id FROM inventory_items WHERE tenant_id = ${tenantId} AND profile_code = '900' AND 'boyali' = ANY(processed_states)`)[0].id;
+  await assert.rejects(recordOpeningCount(owner as any, { itemId: paintedItem, warehouseId: rawId, bars }, randomUUID()), /rengini girin/);
+  await assert.rejects(recordOpeningCount(owner as any, { itemId: paintedItem, warehouseId: rawId, color: 'Test Kırmızı', bars: [{ lengthMm: 6000, count: 600 }, { lengthMm: 5000, count: 401 }] }, randomUUID()), /en fazla 1000 çubuk/);
+  await assert.rejects(recordOpeningCount(owner as any, { itemId: paintedItem, warehouseId: rawId, color: 'Test Kırmızı', bars: [{ lengthMm: 50, count: 1 }] }, randomUUID()), /en az 100 mm/);
+  await recordOpeningCount(owner as any, { itemId: paintedItem, warehouseId: rawId, color: 'Test Kırmızı', bars: [{ lengthMm: 6500, count: 2 }] }, randomUUID());
+  const onHand = Number((await db`SELECT on_hand_qty FROM stock_balances WHERE tenant_id = ${tenantId} AND item_id = ${paintedItem}`)[0].on_hand_qty);
+  assert.equal(onHand, 133);
+  // A wrong count is reversed and entered again.
+  await reverseStockEntry(owner, counted.entryId, `reverse-${counted.entryId}`);
+  const afterReversal = await openingCountOverview(owner as any);
+  assert(afterReversal.lines.some((l: any) => l.id === blue.id), 'a reversed count waits again');
+  assert(!afterReversal.counted.some((l: any) => l.id === blue.id));
+  assert.equal((await db`SELECT status FROM stock_count_lines WHERE id = ${blue.id}`)[0].status, 'needs_bars');
+  const recount = await recordOpeningCount(owner as any, { lineId: blue.id, bars: [{ lengthMm: 6000, count: 20 }] }, randomUUID());
+  const [recounted] = await db`SELECT status, stock_entry_id, counted_bars, counted_meters FROM stock_count_lines WHERE id = ${blue.id}`;
+  assert.deepEqual([recounted.status, recounted.stock_entry_id, recounted.counted_bars, Number(recounted.counted_meters)], ['counted', recount.entryId, 20, 120]);
+  assert.equal(Number((await db`SELECT on_hand_qty FROM stock_balances WHERE tenant_id = ${tenantId} AND item_id = ${paintedItem}`)[0].on_hand_qty), 133);
+  console.log('PASS · bar-level opening count: one lot per bar with colour and length, difference against the list, worker refused, retried request posts once and answers the same, a reused key refused, a counted line refused, unpainted bars marked, colour required, bar limit and length range, a reversed count waits again and is entered again');
 
   // Submitted stock entries are immutable by design; the throwaway test tenant stays in the test database.
   await db.end();
