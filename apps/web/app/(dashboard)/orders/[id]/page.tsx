@@ -20,6 +20,7 @@ import { orderHealth } from '@/lib/features/orders/lifecycle';
 import { Lock } from 'lucide-react';
 import { businessDate } from '@/lib/features/orders/workspace';
 import { Chatter } from '@/components/shared/ui/Chatter';
+import { RecordButton, RecordPanel } from '@/components/records/RecordDrawer';
 import { useAuth } from '@/lib/context/AuthContext';
 import { hasPermission } from '@/lib/auth/permissions';
 import { requestJson } from '@/lib/shared/network';
@@ -265,7 +266,7 @@ export default function OrderDetailPage() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   {[order.customerName, order.customerCompany, formatDate(order.createdAt)].filter(Boolean).join(' · ')}
                 </p>
-                <HealthBadge health={orderHealth(order, businessDate())} className="mt-2" />
+                <span className="mt-2 flex items-center gap-2"><HealthBadge health={orderHealth(order, businessDate())} />{!order.financialHidden && <RecordButton type="order" id={orderId} label="Kayıt" />}</span>
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-right" hidden={order.financialHidden}>
@@ -453,11 +454,7 @@ export default function OrderDetailPage() {
               )}
 
               {activeTab === 'activity' && !order.financialHidden && (
-                <Chatter
-                  entityType="order"
-                  entityId={orderId}
-                  maxHeight="600px"
-                />
+                <RecordPanel type="order" id={orderId} fallback={<Chatter entityType="order" entityId={orderId} maxHeight="600px" />} />
               )}
             </div>
 

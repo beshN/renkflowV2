@@ -21,6 +21,7 @@ import { BomTables, ProductConfigurator } from "@/components/features/products/P
 import { PRODUCT_FAMILIES } from "@/lib/features/products/families";
 import { configuredLine, configurationSummary, unconfiguredLine, type ProductConfiguration } from "@/lib/features/products/configuration";
 import { ColorChip } from "@/components/colors/ColorSwatch";
+import { RecordButton } from "@/components/records/RecordDrawer";
 
 const emptyItem = (): QuotationItem => ({
   productName: "WINMAX Makaslı Tente",
@@ -190,11 +191,9 @@ export default function QuotationPage({
           <h1 className="rf-page-title">
             {isNew ? "Yeni teklif" : quotation?.quotationNumber || "Teklif"}
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Ölçü ve donanımı 3D hazırlayın, teklif fiyatını belirleyin.
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {!isNew && quotation?.id && <RecordButton type="quotation" id={quotation.id} />}
           {!isNew && (
             <Link
               className="rf-primary-button"

@@ -8,6 +8,7 @@ import { Plus, RefreshCw, Download, Trash2, X, FileText, List, Columns3, AlertOc
 import { toast } from 'sonner';
 import { HealthBadge, HintTip, LifecycleStrip, PageHeader, withUndo } from '@/components/kit';
 import { OrdersBoard } from '@/components/features/orders/OrdersBoard';
+import { RecordButton } from '@/components/records/RecordDrawer';
 import { LIFECYCLE, dropPath, lifecycleIndex, orderHealth, type LifecycleKey } from '@/lib/features/orders/lifecycle';
 import { requestOrderTransition } from '@/lib/features/orders/client-transition';
 import { useOrders } from '@/lib/hooks/useOrders';
@@ -155,6 +156,7 @@ function OrdersWorkspace() {
           <HealthBadge health={orderHealth(row, today)} />
         </button> },
     { key: 'status', label: 'Aşama', width: 'w-56', render: (value) => <div className="min-w-[180px] space-y-1"><LifecycleStrip status={value} compact /><StatusBadge status={value} /></div> },
+    { key: 'id', label: '', width: 'w-12', render: (_, row) => <RecordButton type="order" id={row.id} compact /> },
     ...(financialAccess ? [{ key: 'totalAmount', label: 'Sipariş tutarı', align: 'right', width: 'w-36', render: (value, row) => <span className="whitespace-nowrap text-xs font-medium tabular-nums">{value === 0 ? 'Fiyat bekliyor' : formatCurrency(value, row.currency)}</span> } satisfies RFColumn<Order>] : []),
   ];
   return <div className="rf-page space-y-5">
