@@ -4,6 +4,7 @@ import {
 } from "@/lib/features/awning/configuration";
 import { z } from "zod";
 import { CurrencySchema } from "@/lib/types/currency";
+import { ConfigurationChoiceSchema, type ProductConfiguration } from "@/lib/features/products/configuration";
 
 export const QuotationItemSchema = z.object({
   awningConfiguration: AwningConfigurationSchema.optional(),
@@ -25,6 +26,10 @@ export const QuotationItemSchema = z.object({
   discountPercent: z.coerce.number().min(0).max(100).default(0),
   totalPrice: z.coerce.number().nonnegative().default(0),
   notes: z.string().optional(),
+  /** A configured product (pergola, …): the seller's choice; the server fills in BOM and price. */
+  productConfiguration: ConfigurationChoiceSchema.passthrough()
+    .transform((c) => c as typeof c & Partial<ProductConfiguration>)
+    .optional(),
 });
 
 export const QuotationSchema = z.object({

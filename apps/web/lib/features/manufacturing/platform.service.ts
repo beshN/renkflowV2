@@ -61,7 +61,7 @@ async function hasStandardLengthColumn(db: any) {
   standardLengthColumn = { ok: Boolean(row?.ok), at: Date.now() };
   return standardLengthColumn.ok;
 }
-function recipe(row: any) {
+export function recipe(row: any) {
   return RecipeSchema.parse({
     code: row.code,
     name: row.name,

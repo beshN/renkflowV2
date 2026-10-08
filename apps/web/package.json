@@ -46,6 +46,7 @@
     "test:stock-threshold": "tsx --require ./scripts/register-server-only.cjs scripts/test-stock-threshold.ts",
     "test:price-matrix": "tsx --require ./scripts/register-server-only.cjs scripts/test-price-matrix.ts",
     "test:family-recipes": "tsx --require ./scripts/register-server-only.cjs scripts/test-family-recipes.ts",
+    "test:quote-configurator": "tsx --require ./scripts/register-server-only.cjs scripts/test-quote-configurator.ts",
     "test:warehouse:browser": "node scripts/verify-warehouse-browser.cjs",
     "prebuild": "node scripts/sync-pdf-worker.cjs",
     "predev": "node scripts/sync-pdf-worker.cjs"
