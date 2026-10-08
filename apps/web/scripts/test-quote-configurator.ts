@@ -10,7 +10,7 @@ async function main() {
   process.env.NATIVE_INVENTORY_ENABLED = '1';
   const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
   assert.equal((await db`SELECT current_database() AS name`)[0].name, 'renkflow_test');
-  for (const file of ['031_stock_model.sql', '034_price_matrices.sql', '035_product_family_recipes.sql', '036_product_configuration.sql'])
+  for (const file of ['031_stock_model.sql', '034_price_matrices.sql', '035_product_family_recipes.sql', '036_product_configuration.sql', '037_production_lead.sql'])
     await db.unsafe(readFileSync(`lib/db/migrations/${file}`, 'utf8'));
 
   const { importFamilyRecipe } = await import('../lib/features/products/recipe-template.service');
@@ -137,7 +137,24 @@ async function main() {
   const third: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) })] } as any, officeId);
   const anonymous: any = await quotationService.convertToOrder(tenantId, third.id);
   assert.equal(anonymous.pendingWorkOrders.length, 1);
-  console.log('PASS · quote to order: work order opened at conversion with the quoted recipe, measures and colour, assigned to the person converting, its cuts in the cutting pool; warehouses not guessed, a role that cannot open work orders leaves the line waiting with the reason, another recipe or a changed cut list refused for a configured line, no silent skip without a person');
+  // A default production lead gets the work orders and is told; a lead who left the team is not replaced by a guess.
+  const { saveProductionLead, productionSettings } = await import('../lib/features/settings/production-settings.service');
+  await assert.rejects(saveProductionLead(office as any, { leadUserId: workerId }), (e: any) => e.status === 403);
+  await assert.rejects(saveProductionLead(owner as any, { leadUserId: randomUUID() }), /üretim ekibinde değil/);
+  await saveProductionLead(owner as any, { leadUserId: workerId });
+  assert.equal((await productionSettings(owner as any)).leadUserId, workerId);
+  const led: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) })] } as any, officeId);
+  const ledDone: any = await quotationService.convertToOrder(tenantId, led.id, officeId, led.version, 'office');
+  assert.equal(ledDone.workOrders[0].assignedTo, workerId);
+  assert.equal((await db`SELECT assigned_to FROM work_orders WHERE id = ${ledDone.workOrders[0].id}`)[0].assigned_to, workerId);
+  const [notice] = await db`SELECT type, title, message, data FROM notifications WHERE tenant_id = ${tenantId} AND user_id = ${workerId}`;
+  assert.deepEqual([notice.type, notice.title, notice.data.workOrderIds, notice.data.href], ['work_order:assigned', 'Yeni üretim emri', [ledDone.workOrders[0].id], '/factory']);
+  await db`DELETE FROM tenant_members WHERE tenant_id = ${tenantId} AND user_id = ${workerId}`;
+  assert.equal((await productionSettings(owner as any)).leadLeft, true, 'the settings screen says the lead left');
+  const gone: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) })] } as any, officeId);
+  const goneDone: any = await quotationService.convertToOrder(tenantId, gone.id, officeId, gone.version, 'office');
+  assert.match(goneDone.pendingWorkOrders[0].reason, /üretim sorumlusu artık üretim ekibinde değil/);
+  console.log('PASS · quote to order: work order opened at conversion with the quoted recipe, measures and colour, assigned to the person converting, its cuts in the cutting pool; warehouses not guessed, a role that cannot open work orders leaves the line waiting with the reason, another recipe or a changed cut list refused for a configured line, no silent skip without a person; the default production lead gets the work order and a notification, a lead who left is not replaced by a guess');
   console.log('PASS · quote configurator: worker refused, only published family recipes offered, colours from stock bars and unpainted cards, BOM and cut list from the recipe, limits and unknown colour refused, no matrix means a typed price that is required and flagged, browser BOM/price ignored, matrix price set by the server, an untouched line kept as stored, other currency not converted and an old matrix price not taken as typed, the order keeps the configuration');
 
   await db.end();
