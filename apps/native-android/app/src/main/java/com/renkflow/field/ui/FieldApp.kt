@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -40,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.renkflow.field.R
 import com.renkflow.field.FieldState
 import com.renkflow.field.FieldViewModel
 import com.renkflow.field.data.*
@@ -57,9 +60,9 @@ import java.util.Locale
     val writable = !state.busy && !state.stale && state.pending == null
     BackHandler(state.selectedId != null) { model.closeJob() }
     if (state.restoring) {
-        Box(Modifier.fillMaxSize().background(Pine), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxSize().background(Ink), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                Brand(); CircularProgressIndicator(color = Lime)
+                Brand(); CircularProgressIndicator(color = OnInk)
             }
         }
         return
@@ -112,8 +115,8 @@ import java.util.Locale
 
 @Composable private fun Brand() {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Surface(color = Lime, shape = RoundedCornerShape(14.dp)) { Text("R", Modifier.padding(horizontal = 15.dp, vertical = 7.dp), color = Pine, fontSize = 28.sp, fontWeight = FontWeight.Black) }
-        Column { Text("renkflow", color = Color.White, fontSize = 29.sp, fontWeight = FontWeight.Bold); Text("SAHA UYGULAMASI", color = Lime, style = MaterialTheme.typography.labelSmall) }
+        Surface(color = OnInk, shape = RoundedCornerShape(8.dp)) { Icon(painterResource(R.drawable.ic_brand_mark), null, Modifier.padding(10.dp).size(28.dp), tint = Ink) }
+        Column { Text("RenkFlow", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.SemiBold); Text("SAHA UYGULAMASI", color = OnInk.copy(alpha = 0.65f), style = MaterialTheme.typography.labelSmall) }
     }
 }
 
@@ -123,23 +126,23 @@ import java.util.Locale
     var password by remember { mutableStateOf("") }
     var visible by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).systemBarsPadding().imePadding().verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
-        Column(Modifier.fillMaxWidth().background(Pine).padding(horizontal = 28.dp, vertical = 48.dp), verticalArrangement = Arrangement.spacedBy(28.dp)) {
+        Column(Modifier.fillMaxWidth().background(Ink).padding(horizontal = 28.dp, vertical = 48.dp), verticalArrangement = Arrangement.spacedBy(28.dp)) {
             Brand()
             Text("Sahadaki işiniz.\nTek bir yerde.", color = Color.White, style = MaterialTheme.typography.headlineLarge)
-            Text("İş emirleri, üretim adımları ve etiketler.\nRenkflow hesabınızla devam edin.", color = Color(0xFFB9CDC7))
+            Text("İş emirleri, üretim adımları ve etiketler.\nRenkFlow hesabınızla devam edin.", color = Color(0xFF9A9AA3))
         }
         Column(Modifier.widthIn(max = 480.dp).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("Hoş geldiniz", style = MaterialTheme.typography.headlineMedium)
-            OutlinedTextField(server, { server = it }, Modifier.fillMaxWidth(), label = { Text("Renkflow adresiniz") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), singleLine = true, enabled = !state.busy)
+            OutlinedTextField(server, { server = it }, Modifier.fillMaxWidth(), label = { Text("RenkFlow adresiniz") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), singleLine = true, enabled = !state.busy)
             OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), label = { Text("E-posta") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true, enabled = !state.busy)
             OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Şifre") }, visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = {
                 IconButton(onClick = { visible = !visible }) { Icon(if (visible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, if (visible) "Şifreyi gizle" else "Şifreyi göster") }
             }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), singleLine = true, enabled = !state.busy)
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
-            Button(onClick = { model.login(server, email, password) }, enabled = !state.busy && email.isNotBlank() && password.isNotEmpty(), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(16.dp)) {
+            Button(onClick = { model.login(server, email, password) }, enabled = !state.busy && email.isNotBlank() && password.isNotEmpty(), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(8.dp)) {
                 if (state.busy) CircularProgressIndicator(Modifier.size(22.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp) else { Text("Giriş yap"); Spacer(Modifier.width(10.dp)); Icon(Icons.AutoMirrored.Outlined.ArrowForward, null) }
             }
-            Text("Firmanızın mevcut Renkflow hesabını kullanın.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+            Text("Firmanızın mevcut RenkFlow hesabını kullanın.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -151,21 +154,21 @@ import java.util.Locale
     LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column { Text("İyi çalışmalar,", color = MaterialTheme.colorScheme.onSurfaceVariant); Text(state.session?.user?.name?.substringBefore(' ') ?: "Renkflow", style = MaterialTheme.typography.headlineLarge) }
-                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceVariant) { Icon(Icons.Outlined.Engineering, null, Modifier.padding(15.dp).size(30.dp)) }
+                Column { Text("İyi çalışmalar,", color = MaterialTheme.colorScheme.onSurfaceVariant); Text(state.session?.user?.name?.substringBefore(' ') ?: "RenkFlow", style = MaterialTheme.typography.headlineLarge) }
+                Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surfaceVariant) { Icon(Icons.Outlined.Engineering, null, Modifier.padding(15.dp).size(30.dp)) }
             }
         }
         item {
-            Surface(color = Pine, shape = RoundedCornerShape(24.dp)) {
+            Surface(color = Ink, shape = RoundedCornerShape(12.dp)) {
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("BUGÜNÜN AKIŞI", color = Lime, style = MaterialTheme.typography.labelMedium)
+                    Text("BUGÜNÜN AKIŞI", color = OnInk, style = MaterialTheme.typography.labelMedium)
                     Text("İş hazır.\nSıra sizde.", color = Color.White, style = MaterialTheme.typography.headlineLarge)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
                         Metric(jobs.size.toString(), "Açık iş")
                         Metric(ops.count { it.status == "running" }.toString(), "Çalışan adım")
                         Metric(ops.count { it.status == "blocked" }.toString(), "Bloke")
                     }
-                    Button(onClick = scan, colors = ButtonDefaults.buttonColors(containerColor = Lime, contentColor = Pine), modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Icon(Icons.Outlined.QrCodeScanner, null); Spacer(Modifier.width(10.dp)); Text("Etiket tara") }
+                    Button(onClick = scan, colors = ButtonDefaults.buttonColors(containerColor = OnInk, contentColor = Ink), modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Icon(Icons.Outlined.QrCodeScanner, null); Spacer(Modifier.width(10.dp)); Text("Etiket tara") }
                 }
             }
         }
@@ -180,7 +183,7 @@ import java.util.Locale
         snapshot?.let { item { Text("Son güncelleme ${displayDate(it.generatedAt)}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall) } }
     }
 }
-@Composable private fun Metric(value: String, label: String) { Column { Text(value, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold); Text(label, color = Color(0xFFB9CDC7), style = MaterialTheme.typography.labelMedium) } }
+@Composable private fun Metric(value: String, label: String) { Column { Text(value, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold); Text(label, color = Color(0xFF9A9AA3), style = MaterialTheme.typography.labelMedium) } }
 @Composable private fun SectionTitle(title: String, caption: String) { Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { Text(title, style = MaterialTheme.typography.titleLarge); Text(caption, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
 @Composable private fun Jobs(jobs: List<WorkOrder>, open: (String) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -188,7 +191,7 @@ import java.util.Locale
     val shown = jobs.filter { (filter == "all" || it.status == filter) && (it.title.contains(query, true) || it.location.orEmpty().contains(query, true)) }
     LazyVerticalGrid(columns = GridCells.Adaptive(320.dp), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         item(span = { GridItemSpan(maxLineSpan) }) { SectionTitle("İş emirleri", "Önceliğiniz ve bir sonraki adımınız") }
-        item(span = { GridItemSpan(maxLineSpan) }) { OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = { Text("İş veya konum ara") }, leadingIcon = { Icon(Icons.Outlined.Search, null) }, singleLine = true, shape = RoundedCornerShape(16.dp)) }
+        item(span = { GridItemSpan(maxLineSpan) }) { OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = { Text("İş veya konum ara") }, leadingIcon = { Icon(Icons.Outlined.Search, null) }, singleLine = true, shape = RoundedCornerShape(8.dp)) }
         item(span = { GridItemSpan(maxLineSpan) }) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf("all" to "Tümü", "open" to "Açık", "in_progress" to "Çalışan", "blocked" to "Bloke").forEach { (key, name) -> FilterChip(selected = filter == key, onClick = { filter = key }, label = { Text(name) }) } }
         }
@@ -197,7 +200,7 @@ import java.util.Locale
     }
 }
 @Composable private fun JobCard(job: WorkOrder, onClick: () -> Unit) {
-    Card(onClick = onClick, shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth()) {
+    Card(onClick = onClick, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { StatusPill(job.status); Text(priorityLabel(job.priority), style = MaterialTheme.typography.labelMedium, color = if (job.priority in listOf("high", "critical")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) }
             Text(job.title, style = MaterialTheme.typography.titleMedium, maxLines = 3, overflow = TextOverflow.Ellipsis)
@@ -211,7 +214,7 @@ import java.util.Locale
     }
 }
 @Composable private fun StatusPill(status: String) {
-    val color = when (status) { "blocked" -> MaterialTheme.colorScheme.error; "running", "in_progress", "done" -> MaterialTheme.colorScheme.secondary; else -> MaterialTheme.colorScheme.onSurfaceVariant }
+    val color = when (status) { "blocked" -> MaterialTheme.colorScheme.error; "running", "in_progress" -> MaterialTheme.colorScheme.secondary; "done" -> MaterialTheme.colorScheme.tertiary; else -> MaterialTheme.colorScheme.onSurfaceVariant }
     Surface(color = color.copy(alpha = 0.12f), shape = RoundedCornerShape(8.dp)) { Text(statusLabel(status), Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = color, style = MaterialTheme.typography.labelMedium) }
 }
 @Composable private fun Production(state: FieldState, open: (Operation) -> Unit) {
@@ -225,7 +228,7 @@ import java.util.Locale
     }
 }
 @Composable private fun OperationCard(op: Operation, jobTitle: String?, click: () -> Unit) {
-    Card(onClick = click, shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    Card(onClick = click, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("${(op.position + 1).toString().padStart(2, '0')} / ${op.workCenterCode.uppercase()}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); StatusPill(op.status) }
             Text(op.name, style = MaterialTheme.typography.titleLarge)
@@ -257,7 +260,7 @@ import java.util.Locale
         }
         item { SectionTitle("Kontrol listesi", "Zorunlu adımları doğrulayın") }
         items(job.checklist, key = { it.id }) { item ->
-            Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface) {
+            Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surface) {
                 Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(item.completed, { model.checklist(item) }, enabled = writable && state.snapshot?.permissions?.checklist == true)
                     Column(Modifier.weight(1f)) { Text(item.title); if (item.required) Text("Zorunlu", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error) }
@@ -268,7 +271,7 @@ import java.util.Locale
         items(state.snapshot?.operations.orEmpty().filter { it.workOrderId == job.id }, key = { "op-${it.id}" }) { op -> OperationCard(op, null) { operation(op) } }
         item { SectionTitle("Saha notları", "Ekibinizle aynı bilgide kalın") }
         items(job.comments, key = { "note-${it.id}" }) { comment ->
-            Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface) { Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { Text(comment.body); Text("${comment.authorName ?: "Ekip"} · ${displayDate(comment.createdAt)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+            Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surface) { Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { Text(comment.body); Text("${comment.authorName ?: "Ekip"} · ${displayDate(comment.createdAt)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
         }
         if (state.snapshot?.permissions?.comment == true) item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -287,9 +290,9 @@ import java.util.Locale
     var scanError by remember { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         SectionTitle("Etiketten işe", "QR ve barkodları kamerayla okutun")
-        Surface(color = Pine, shape = RoundedCornerShape(28.dp)) {
+        Surface(color = Ink, shape = RoundedCornerShape(12.dp)) {
             Column(Modifier.fillMaxWidth().padding(36.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                Icon(Icons.Outlined.QrCodeScanner, null, Modifier.size(100.dp), tint = Lime)
+                Icon(Icons.Outlined.QrCodeScanner, null, Modifier.size(100.dp), tint = OnInk)
                 Text("Malzeme · Lot · İş emri", color = Color.White, style = MaterialTheme.typography.titleMedium)
                 Button(onClick = {
                     scanError = null
@@ -297,14 +300,14 @@ import java.util.Locale
                     GmsBarcodeScanning.getClient(activity, GmsBarcodeScannerOptions.Builder().enableAutoZoom().build()).startScan()
                         .addOnSuccessListener { it.rawValue?.let(model::scan) }
                         .addOnFailureListener { scanError = "Tarayıcı açılamadı. Kodu aşağıdan girebilirsiniz." }
-                }, enabled = !state.busy, colors = ButtonDefaults.buttonColors(containerColor = Lime, contentColor = Pine), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Kamerayı aç") }
+                }, enabled = !state.busy, colors = ButtonDefaults.buttonColors(containerColor = OnInk, contentColor = Ink), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Kamerayı aç") }
             }
         }
         scanError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         OutlinedTextField(code, { if (it.length <= 1000) code = it }, Modifier.fillMaxWidth(), label = { Text("Etiket kodu") }, placeholder = { Text("Barkod veya QR içeriği") }, singleLine = true)
         OutlinedButton(onClick = { model.scan(code) }, enabled = code.isNotBlank() && !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Kodu bul") }
         state.scan?.let { result ->
-            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+            Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(labelKind(result.kind), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                     Text(result.title, style = MaterialTheme.typography.titleLarge)
@@ -318,18 +321,18 @@ import java.util.Locale
 }
 @Composable private fun Profile(state: FieldState, model: FieldViewModel) {
     var logout by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        SectionTitle("Hesabınız", "Renkflow Saha")
-        Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        SectionTitle("Hesabınız", "RenkFlow Saha")
+        Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(state.session?.user?.name ?: "Renkflow", style = MaterialTheme.typography.titleLarge)
+                Text(state.session?.user?.name ?: "RenkFlow", style = MaterialTheme.typography.titleLarge)
                 Text(state.session?.user?.email.orEmpty())
                 Text(when (state.session?.user?.role) { "worker" -> "Saha çalışanı"; "office" -> "Operasyon"; "owner" -> "Firma sahibi"; else -> "Yönetici" }, color = MaterialTheme.colorScheme.primary)
                 HorizontalDivider()
                 Text(state.session?.server.orEmpty(), style = MaterialTheme.typography.bodyMedium)
             }
         }
-        Text("Üretim kayıtları firmanızın Renkflow sistemine kaydedilir. Bağlantı kurulamadığında verileri yenileyin.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Üretim kayıtları firmanızın RenkFlow sistemine kaydedilir. Bağlantı kurulamadığında verileri yenileyin.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedButton(onClick = { logout = true }, enabled = !state.busy && state.pending == null, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Icon(Icons.AutoMirrored.Outlined.Logout, null); Spacer(Modifier.width(8.dp)); Text("Çıkış yap") }
         Text("Sürüm 1.0.0", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }

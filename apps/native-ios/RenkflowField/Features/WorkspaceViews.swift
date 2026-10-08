@@ -9,16 +9,16 @@ struct HomeView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
                 HStack {
-                    VStack(alignment: .leading, spacing: 5) { Text("İyi çalışmalar,").foregroundStyle(.secondary); Text(store.session?.user.name?.components(separatedBy: " ").first ?? "Renkflow").font(.largeTitle.bold()) }
-                    Spacer(); Image(systemName: "person.fill.checkmark").font(.title).padding(18).background(FieldColor.teal.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+                    VStack(alignment: .leading, spacing: 5) { Text("İyi çalışmalar,").foregroundStyle(.secondary); Text(store.session?.user.name?.components(separatedBy: " ").first ?? "RenkFlow").font(.largeTitle.bold()) }
+                    Spacer(); Image(systemName: "person.fill.checkmark").font(.title).padding(18).background(FieldColor.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
                 }
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("BUGÜNÜN AKIŞI").font(.caption.weight(.semibold)).tracking(2).foregroundStyle(FieldColor.lime)
-                    Text("İş hazır.\nSıra sizde.").font(.system(.largeTitle, design: .rounded, weight: .bold)).foregroundStyle(.white)
+                    Text("BUGÜNÜN AKIŞI").font(.caption.weight(.semibold)).tracking(2).foregroundStyle(FieldColor.onInk)
+                    Text("İş hazır.\nSıra sizde.").font(.system(.largeTitle, design: .default, weight: .semibold)).foregroundStyle(.white)
                     HStack(spacing: 28) { metric(jobs.count, "Açık iş"); metric(operations.filter { $0.status == "running" }.count, "Çalışan adım"); metric(operations.filter { $0.status == "blocked" }.count, "Bloke") }
                     Button(action: scan) { Label("Etiket tara", systemImage: "qrcode.viewfinder") }.buttonStyle(FieldButton(bright: true))
-                }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.pine, in: RoundedRectangle(cornerRadius: 24))
-                if store.snapshot?.truncated == true { Text("Liste sınırına ulaşıldı. Etiket tarayarak belirli bir işe erişebilirsiniz.").font(.subheadline).foregroundStyle(FieldColor.clay) }
+                }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.ink, in: RoundedRectangle(cornerRadius: 12))
+                if store.snapshot?.truncated == true { Text("Liste sınırına ulaşıldı. Etiket tarayarak belirli bir işe erişebilirsiniz.").font(.subheadline).foregroundStyle(FieldColor.error) }
                 SectionTitle(title: "Sıradaki operasyonlar", caption: "Başlatmak veya devam etmek için seçin")
                 let active = operations.filter { ["running", "ready", "paused", "blocked"].contains($0.status) }
                 if active.isEmpty { EmptyState(title: "Hazır operasyon yok", subtitle: "Size atanan yeni adımlar burada görünecek.", icon: "checkmark.circle") }
@@ -81,8 +81,8 @@ struct JobDetailView: View {
                 StatusPill(status: job.status)
                 Text(job.title).font(.title.bold())
                 if let description = job.description { Text(description) }
-                HStack { Text(priorityLabel(job.priority)).foregroundStyle(FieldColor.clay); if let location = job.location { Label(location, systemImage: "mappin") } }.font(.subheadline)
-                if let reason = job.blockedReasonDetail { Text(reason).foregroundStyle(FieldColor.clay) }
+                HStack { Text(priorityLabel(job.priority)).foregroundStyle(FieldColor.error); if let location = job.location { Label(location, systemImage: "mappin") } }.font(.subheadline)
+                if let reason = job.blockedReasonDetail { Text(reason).foregroundStyle(FieldColor.error) }
                 if job.productionManaged == true { Text("Bu iş üretim adımları üzerinden ilerler.").font(.subheadline).foregroundStyle(.secondary) }
                 else if store.snapshot?.permissions.transition == true {
                     VStack(spacing: 12) {
@@ -94,15 +94,15 @@ struct JobDetailView: View {
                 SectionTitle(title: "Kontrol listesi", caption: "Zorunlu adımları doğrulayın")
                 ForEach(job.checklist ?? []) { item in
                     Button { Task { await store.toggle(item) } } label: {
-                        HStack(spacing: 14) { Image(systemName: item.completed ? "checkmark.circle.fill" : "circle").font(.title2).foregroundStyle(FieldColor.accent); VStack(alignment: .leading, spacing: 4) { Text(item.title).foregroundStyle(.primary); if item.required { Text("Zorunlu").font(.caption).foregroundStyle(FieldColor.clay) } }; Spacer() }
-                            .padding(16).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 14))
+                        HStack(spacing: 14) { Image(systemName: item.completed ? "checkmark.circle.fill" : "circle").font(.title2).foregroundStyle(FieldColor.accent); VStack(alignment: .leading, spacing: 4) { Text(item.title).foregroundStyle(.primary); if item.required { Text("Zorunlu").font(.caption).foregroundStyle(FieldColor.error) } }; Spacer() }
+                            .padding(16).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 8))
                     }.buttonStyle(.plain).disabled(!store.writable || store.snapshot?.permissions.checklist != true).accessibilityLabel("\(item.title), \(item.completed ? "tamamlandı" : "bekliyor")")
                 }
                 if (job.checklist ?? []).isEmpty { Text("Bu işte kontrol listesi yok.").font(.subheadline).foregroundStyle(.secondary) }
                 ForEach((store.snapshot?.operations ?? []).filter { $0.workOrderId == job.id }) { op in OperationCard(operation: op) { operation(op) } }
                 SectionTitle(title: "Saha notları", caption: "Ekibinizle aynı bilgide kalın")
                 ForEach(job.comments ?? []) { comment in
-                    VStack(alignment: .leading, spacing: 8) { Text(comment.body); Text("\(comment.authorName ?? "Ekip") · \(displayDate(comment.createdAt))").font(.caption).foregroundStyle(.secondary) }.padding(16).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 14))
+                    VStack(alignment: .leading, spacing: 8) { Text(comment.body); Text("\(comment.authorName ?? "Ekip") · \(displayDate(comment.createdAt))").font(.caption).foregroundStyle(.secondary) }.padding(16).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 8))
                 }
                 if store.snapshot?.permissions.comment == true {
                     TextField("Saha notu ekle", text: $note, axis: .vertical).lineLimit(3...6).fieldInput()
@@ -123,14 +123,14 @@ struct ProfileView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                SectionTitle(title: "Hesabınız", caption: "Renkflow Saha")
+                SectionTitle(title: "Hesabınız", caption: "RenkFlow Saha")
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(store.session?.user.name ?? "Renkflow").font(.title2.bold())
+                    Text(store.session?.user.name ?? "RenkFlow").font(.title2.bold())
                     Text(store.session?.user.email ?? "")
                     Text(["worker": "Saha çalışanı", "office": "Operasyon", "owner": "Firma sahibi", "admin": "Yönetici"][store.session?.user.role ?? ""] ?? "Hesap").foregroundStyle(FieldColor.accent)
                     Divider(); Text(store.session?.server ?? "").font(.subheadline)
-                }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 20))
-                Text("Üretim kayıtları firmanızın Renkflow sistemine kaydedilir. Bağlantı kurulamadığında verileri yenileyin.").foregroundStyle(.secondary)
+                }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 12))
+                Text("Üretim kayıtları firmanızın RenkFlow sistemine kaydedilir. Bağlantı kurulamadığında verileri yenileyin.").foregroundStyle(.secondary)
                 Button(role: .destructive) { logout = true } label: { Label("Çıkış yap", systemImage: "rectangle.portrait.and.arrow.right").frame(maxWidth: .infinity).padding(12) }.buttonStyle(.bordered).disabled(store.busy || store.pending != nil)
                 Text("Sürüm 1.0.0").font(.caption).foregroundStyle(.secondary)
             }.padding(24).fieldCanvas()

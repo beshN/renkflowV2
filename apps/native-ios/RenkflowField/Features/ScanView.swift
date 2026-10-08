@@ -11,10 +11,10 @@ struct ScanView: View {
             VStack(alignment: .leading, spacing: 22) {
                 SectionTitle(title: "Etiketten işe", caption: "QR ve barkodları kamerayla okutun")
                 VStack(spacing: 24) {
-                    Image(systemName: "qrcode.viewfinder").font(.system(size: 100, weight: .light)).foregroundStyle(FieldColor.lime)
+                    Image(systemName: "qrcode.viewfinder").font(.system(size: 100, weight: .light)).foregroundStyle(FieldColor.onInk)
                     Text("Malzeme · Lot · İş emri").font(.headline).foregroundStyle(.white)
                     Button("Kamerayı aç") { scanning = true }.buttonStyle(FieldButton(bright: true)).disabled(store.busy)
-                }.padding(32).frame(maxWidth: .infinity).background(FieldColor.pine, in: RoundedRectangle(cornerRadius: 28))
+                }.padding(32).frame(maxWidth: .infinity).background(FieldColor.ink, in: RoundedRectangle(cornerRadius: 12))
                 TextField("Etiket kodu veya QR içeriği", text: $code).textInputAutocapitalization(.never).autocorrectionDisabled().fieldInput().onSubmit { Task { await store.scan(code) } }
                 Button("Kodu bul") { Task { await store.scan(code) } }.buttonStyle(.bordered).controlSize(.large).disabled(code.isEmpty || code.count > 1000 || store.busy)
                 if let result = store.scanResult {
@@ -24,7 +24,7 @@ struct ScanView: View {
                         if let subtitle = result.subtitle { Text(subtitle) }
                         if let amount = result.quantity { Text("\(quantity(amount)) \(result.uom ?? "")") }
                         if let id = result.workOrderId { Button("İş emrini aç") { Task { await store.openJob(id) } }.buttonStyle(FieldButton()) }
-                    }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 20))
+                    }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 12))
                 }
             }.padding(24).fieldCanvas()
         }.background(FieldColor.background).scrollDismissesKeyboard(.interactively)
@@ -40,7 +40,7 @@ struct ScannerSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                FieldColor.pine.ignoresSafeArea()
+                FieldColor.ink.ignoresSafeArea()
                 if authorized {
                     NativeScanner(result: result) { denied = true; authorized = false }.ignoresSafeArea(edges: .bottom)
                     VStack { Spacer(); Text("Etiketi kameraya gösterin").font(.headline).foregroundStyle(.white).padding(18).background(.black.opacity(0.65), in: Capsule()).padding(.bottom, 36) }
@@ -51,7 +51,7 @@ struct ScannerSheet: View {
                         Text("Ayarlar’dan kamera iznini açın veya etiket kodunu elle girin.").multilineTextAlignment(.center)
                         Button("Ayarları aç") { if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) } }.buttonStyle(.borderedProminent)
                     }.padding(28).foregroundStyle(.white)
-                } else { ProgressView().tint(FieldColor.lime) }
+                } else { ProgressView().tint(FieldColor.onInk) }
             }.navigationTitle("Etiket tara").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Kapat") { dismiss() } } }
                 .task {

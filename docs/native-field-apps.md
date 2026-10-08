@@ -2,6 +2,8 @@
 
 The new field clients are independent native applications. `apps/native-ios` uses SwiftUI, URLSession, Keychain, AVFoundation and PhotosPicker. `apps/native-android` uses Kotlin, Jetpack Compose, OkHttp, Android Keystore, the system photo picker and Google Code Scanner. The old Expo client in `apps/mobile` is retained as legacy code and is not used by these apps.
 
+The native design tokens mirror the current `apps/web/styles/theme.css`: neutral light/dark surfaces, solid cobalt accents, thin borders and the same geometric R mark. Fonts, navigation, controls and scanning remain native to each platform.
+
 ## Scope
 
 - Company address and existing account sign-in; validate persisted sessions with `/api/v1/auth/me`.

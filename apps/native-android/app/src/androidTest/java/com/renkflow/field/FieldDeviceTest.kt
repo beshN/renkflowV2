@@ -1,16 +1,15 @@
 package com.renkflow.field
 
-import android.graphics.Bitmap
-import androidx.compose.ui.graphics.asAndroidBitmap
+import android.os.ParcelFileDescriptor
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.renkflow.field.data.*
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class FieldDeviceTest {
@@ -19,9 +18,10 @@ class FieldDeviceTest {
         compose.onNodeWithText("Hoş geldiniz").assertIsDisplayed()
         compose.onNodeWithText("E-posta").assertExists()
         compose.onNodeWithText("Şifre").assertExists()
-        val file = File(compose.activity.getExternalFilesDir(null), "screenshots/android-login.png")
-        file.parentFile!!.mkdirs()
-        file.outputStream().use { compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
+        // The shell-owned screenshot survives Gradle uninstalling the test app.
+        val screenshot = InstrumentationRegistry.getInstrumentation().uiAutomation
+            .executeShellCommand("screencap -p /sdcard/renkflow-field-login.png")
+        ParcelFileDescriptor.AutoCloseInputStream(screenshot).use { it.readBytes() }
         compose.onNodeWithText("Giriş yap").performScrollTo().assertIsNotEnabled()
     }
     @Test fun keystorePersistsSessionAndReplayIdentityWithoutPlaintextCredentials() {

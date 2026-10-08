@@ -57,7 +57,8 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
           script: |
             ./gradlew :app:connectedDebugAndroidTest
-            adb pull /sdcard/Android/data/com.renkflow.field/files/screenshots app/build/screenshots
+            mkdir -p app/build/screenshots
+            adb pull /sdcard/renkflow-field-login.png app/build/screenshots/android-login.png
       - uses: actions/upload-artifact@v4
         if: always()
         with:

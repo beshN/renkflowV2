@@ -26,7 +26,7 @@ struct OperationView: View {
                     StatusPill(status: operation.status)
                     Text(operation.name).font(.title2.bold())
                     Text("\(operation.workCenterCode) · \(quantity(operation.completedQty)) / \(quantity(operation.plannedQty)) adet").foregroundStyle(.secondary)
-                    if let reason = operation.reason { Text(reason).foregroundStyle(FieldColor.clay) }
+                    if let reason = operation.reason { Text(reason).foregroundStyle(FieldColor.error) }
                 }
                 if ["ready", "paused", "blocked"].contains(operation.status) {
                     Section { Button { submit("start") } label: { Label("Üretimi başlat", systemImage: "play.fill") }.disabled(!canWrite) }
@@ -40,18 +40,18 @@ struct OperationView: View {
                                 HStack {
                                     Button { passes[check.id] = true } label: { Label("Geçti", systemImage: passes[check.id] == true ? "checkmark.circle.fill" : "circle") }
                                     Spacer()
-                                    Button { passes[check.id] = false } label: { Label("Kaldı", systemImage: passes[check.id] == false ? "xmark.circle.fill" : "circle") }.tint(FieldColor.clay)
+                                    Button { passes[check.id] = false } label: { Label("Kaldı", systemImage: passes[check.id] == false ? "xmark.circle.fill" : "circle") }.tint(FieldColor.error)
                                 }.buttonStyle(.borderless)
                             } else if check.kind == "measurement" {
                                 Text("\(quantity(check.minimum ?? 0)) – \(quantity(check.maximum ?? 0)) \(check.unit)").font(.caption).foregroundStyle(.secondary)
                                 TextField("Ölçüm (\(check.unit))", text: Binding(get: { values[check.id] ?? "" }, set: { values[check.id] = $0 })).keyboardType(.numbersAndPunctuation)
-                            } else if check.kind == "photo" { Label("Yeni fotoğraf gerekli", systemImage: "camera").foregroundStyle(FieldColor.clay) }
+                            } else if check.kind == "photo" { Label("Yeni fotoğraf gerekli", systemImage: "camera").foregroundStyle(FieldColor.error) }
                         }
                     }
                     Section("İş fotoğrafı") {
                         PhotosPicker(selection: $photoItem, matching: .images) { Label(photoURL == nil ? "Fotoğraf ekle" : "Fotoğraf yüklendi", systemImage: photoURL == nil ? "photo.badge.plus" : "checkmark.circle") }.disabled(!canWrite)
                         if preparing { ProgressView("Fotoğraf hazırlanıyor…") }
-                        if let photoError { Text(photoError).foregroundStyle(FieldColor.clay) }
+                        if let photoError { Text(photoError).foregroundStyle(FieldColor.error) }
                     }
                     Section("Üretim notu") { TextField("İsteğe bağlı", text: $note, axis: .vertical).lineLimit(2...6) }
                     Section { Button("Tamamlanan miktarı kaydet") { confirm = true }.disabled(!canWrite || !validQuantity || !qualityValid || note.count > 2000) }
@@ -59,7 +59,7 @@ struct OperationView: View {
                 if ["waiting", "done", "cancelled"].contains(operation.status) {
                     Section { Text(operation.status == "waiting" ? "Önceki adımlar tamamlandığında bu operasyon hazır olacak." : operation.status == "done" ? "Bu adım tamamlandı." : "Bu operasyon iptal edilmiş.").foregroundStyle(.secondary) }
                 }
-                if let error = store.error { Section { Text(error).foregroundStyle(FieldColor.clay) } }
+                if let error = store.error { Section { Text(error).foregroundStyle(FieldColor.error) } }
             }.navigationTitle("Üretim adımı").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Kapat") { dismiss() } } }
                 .interactiveDismissDisabled(preparing || store.busy)
