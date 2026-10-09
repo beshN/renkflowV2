@@ -42,6 +42,9 @@ async function main() {
   await assert.rejects(leads.createLead(worker, { title: 'x', contactName: 'y' }), (e: any) => e.status === 403);
   const lead = await leads.createLead(office, { title: 'Bahçe pergolası', contactName: 'Deniz Kaya', phone: '0532 000 00 00', email: 'deniz@ornek.test', address: 'Moda Cad. 1, Kadıköy', source: 'referral', productFamily: 'pergola', nextFollowUp: '2026-10-12' });
   assert.match(lead.number, /^POT-\d{6}$/);
+  // Editing one field keeps the others (the source must not fall back to "other").
+  await leads.updateLead(office, lead.id, { nextFollowUp: '2026-10-13' });
+  assert.equal((await db`SELECT source FROM leads WHERE id = ${lead.id}`)[0].source, 'referral');
   const survey = await leads.createSurvey(office, lead.id, { scheduledAt: '2026-10-11T09:00:00+03:00', assignedTo: ids.office });
   let l = await leads.getLead(office, lead.id);
   assert.equal(l.stage, 'survey', 'planning a survey moves a new lead to survey');
@@ -96,6 +99,16 @@ async function main() {
   await records.recordCommand(worker as any, 'installation', plan.id, { action: 'checklist.toggle', itemId: checklist[0].id, done: true });
   await inst.addIssue(worker, plan.id, { kind: 'missing', text: '2 adet ankraj eksik' });
 
+  // The crew may not cancel; a link sent before the job was taken back cannot be signed.
+  await assert.rejects(inst.updateInstallation(worker2, other.id, { status: 'cancelled' }), /ofis/);
+  await inst.updateInstallation(office, other.id, { status: 'in_progress' });
+  const staleToken = (await inst.createSignoffLink(office, other.id)).path.split('/').pop()!;
+  await inst.updateInstallation(office, other.id, { status: 'planned' });
+  await inst.updateInstallation(office, other.id, { status: 'cancelled' });
+  await assert.rejects(inst.signDelivery(staleToken, { name: 'Deniz Kaya', accept: true }, { ip: '10.0.0.9', agent: 'test' }), /teslim edilebilir/);
+  // A second quote call for the same lead returns the same quote (no orphan drafts).
+  assert.equal((await leads.convertLead(office, lead.id)).quotationId, l.quotationId);
+
   // 5. Delivery sign-off by the customer through the link (shown once, hash stored).
   const link = await inst.createSignoffLink(office, plan.id);
   const token = link.path.split('/').pop()!;
@@ -119,7 +132,10 @@ async function main() {
   await assert.rejects(inst.signDelivery(token, { name: 'De', accept: true }, { ip: '10.0.0.1', agent: 'test' }));
   await inst.signDelivery(token, { name: 'Deniz Kaya', accept: true, note: 'Ankrajlar sonra gelecek' }, { ip: '10.0.0.1', agent: 'test' });
   await assert.rejects(inst.signDelivery(token, { name: 'Deniz Kaya', accept: true }, { ip: '10.0.0.1', agent: 'test' }), /zaten/);
-  const [signed] = await db`SELECT status, signed_name, signed_at FROM installations WHERE id = ${plan.id}`;
+  const [signed] = await db`SELECT status, signed_name, signed_at, completed_at FROM installations WHERE id = ${plan.id}`;
+  await new Promise((r) => setTimeout(r, 20));
+  await inst.updateInstallation(office, plan.id, { notes: 'Kumanda kargoda' });
+  assert.equal((await db`SELECT completed_at FROM installations WHERE id = ${plan.id}`)[0].completed_at.getTime(), signed.completed_at.getTime(), 'a later note keeps the completion time');
   assert.equal(signed.status, 'done');
   assert.equal(signed.signed_name, 'Deniz Kaya');
 

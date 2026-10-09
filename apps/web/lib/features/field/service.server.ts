@@ -11,6 +11,8 @@ import {
   type TicketStatus,
 } from './engine';
 import { hasCap, isoDay, nextNumber, requireCap, requireChain } from './common.server';
+import { resolveMemberAccess } from '@/lib/security/member-access.server';
+import { can } from '@/lib/security/access-matrix';
 
 type Row = Record<string, any>;
 const fieldOnly = (actor: WorkOrderActor) => actor.role === 'worker';
@@ -45,6 +47,11 @@ function dto(r: Row, technical: boolean) {
   };
   return technical ? { ...base, technicalView: true as const } : { ...base, customerName: r.customer_name ?? null, customerId: r.customer_id ? String(r.customer_id) : null };
 }
+
+/** The lead whose quote was converted into this order (none for orders made otherwise). */
+const leadBehindOrder = (db: any, tenantId: string, orderId: string) => db`
+  SELECT l.id, l.lead_number, l.source, l.quotation_id, l.product_family FROM leads l JOIN quotations q ON q.id = l.quotation_id AND q.tenant_id = l.tenant_id
+  WHERE l.tenant_id = ${tenantId} AND q.converted_to_order_id = ${orderId} LIMIT 1`;
 
 const SELECT = `t.*, o.order_number, o.customer_name, u.name AS assignee_name`;
 const FROM = `FROM service_tickets t LEFT JOIN orders o ON o.id = t.order_id AND o.tenant_id = t.tenant_id LEFT JOIN users u ON u.id = t.assigned_to`;
@@ -108,9 +115,8 @@ export async function openTicket(actor: WorkOrderActor, raw: unknown) {
       const [m] = await tx`SELECT 1 FROM tenant_members WHERE tenant_id = ${actor.tenantId} AND user_id = ${d.assignedTo} AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL`;
       if (!m) throw new WorkOrderApiError('Atanan kişi bu firmanın aktif üyesi değil', 400);
     }
-    // The family from the lead that became this order's quote, when known.
-    const [fam] = orderId ? await tx`SELECT l.product_family FROM leads l JOIN orders o ON o.tenant_id = l.tenant_id AND o.customer_id = l.customer_id
-      WHERE l.tenant_id = ${actor.tenantId} AND o.id = ${orderId} AND l.product_family IS NOT NULL ORDER BY l.updated_at DESC LIMIT 1` : [null];
+    // The family from the lead whose quote became this very order, when there is one.
+    const [fam] = orderId ? await leadBehindOrder(tx, actor.tenantId, orderId) : [null];
     const warranty = warrantyStatus(o?.delivered_on ? isoDay(o.delivered_on) : null, months, istanbulToday());
     const number = await nextNumber(tx, actor.tenantId, 'service_tickets', 'ticket_number', 'SRV');
     const [row] = await tx`INSERT INTO service_tickets (tenant_id, ticket_number, order_id, installation_id, customer_id, title, description, category, priority, status,
@@ -178,33 +184,42 @@ export async function ticketReport(actor: WorkOrderActor) {
 }
 
 /** Tickets of an order (chain panel). */
-export async function ticketsForOrder(actor: WorkOrderActor, orderId: string) {
-  if (!(await tableExists('service_tickets')) || !(await hasCap(actor, 'service', 'view'))) return [];
+export async function ticketsForOrder(actor: WorkOrderActor, orderId: string, accessChecked = false) {
+  if (!(await tableExists('service_tickets')) || (!accessChecked && !(await hasCap(actor, 'service', 'view')))) return [];
   const rows = await sql.unsafe(`SELECT ${SELECT} ${FROM} WHERE t.tenant_id = $1 AND t.order_id = $2 AND ($3::uuid IS NULL OR t.assigned_to = $3::uuid) ORDER BY t.opened_at DESC`,
     [actor.tenantId, orderId, fieldOnly(actor) ? actor.userId : null]);
   return rows.map((r: Row) => dto(r, fieldOnly(actor)));
 }
 
-/** The whole chain of an order: lead and quote behind it, installations, sign-off, tickets, warranty. */
+/**
+ * The whole chain of an order: lead and quote behind it, installations, sign-off, tickets,
+ * warranty. The field crew sees it only for an order they work on, without the lead.
+ */
 export async function orderChain(actor: WorkOrderActor, orderId: string) {
   if (!(await tableExists('installations'))) return { available: false as const };
-  const [o] = await sql`SELECT id, order_number, status, customer_id, delivered_on FROM orders WHERE tenant_id = ${actor.tenantId} AND id = ${orderId}`;
+  const access = await resolveMemberAccess(actor.userId, actor.tenantId);
+  if (!access || access.deactivated) throw new WorkOrderApiError('Unauthorized', 401);
+  const cap = (m: Parameters<typeof can>[1], a: Parameters<typeof can>[2]) => can(access, m, a);
+  const [o] = await sql`SELECT id, status, delivered_on FROM orders WHERE tenant_id = ${actor.tenantId} AND id = ${orderId}`;
   if (!o) throw new WorkOrderApiError('Sipariş bulunamadı', 404);
   const technical = fieldOnly(actor);
-  const [lead] = !technical && (await hasCap(actor, 'crm', 'view'))
-    ? await sql`SELECT l.id, l.lead_number, l.source, l.quotation_id FROM leads l JOIN quotations q ON q.id = l.quotation_id AND q.tenant_id = l.tenant_id
-        WHERE l.tenant_id = ${actor.tenantId} AND (q.converted_to_order_id = ${orderId} OR (l.customer_id = ${o.customer_id} AND l.stage = 'won')) ORDER BY l.updated_at DESC LIMIT 1`.catch(() => [])
-    : [];
-  const months = await warrantyMonths(actor.tenantId);
+  const { installationsForOrder } = await import('./installations.server');
+  const [lead, installations, tickets, months] = await Promise.all([
+    !technical && cap('crm', 'view') ? leadBehindOrder(sql, actor.tenantId, orderId).then((rows: Row[]) => rows[0] ?? null) : Promise.resolve(null),
+    cap('installations', 'view') ? installationsForOrder(actor, orderId, true) : Promise.resolve([]),
+    cap('service', 'view') ? ticketsForOrder(actor, orderId, true) : Promise.resolve([]),
+    warrantyMonths(actor.tenantId),
+  ]);
+  if (technical && !installations.length && !tickets.length) throw new WorkOrderApiError('Sipariş bulunamadı', 404);
   return {
     available: true as const,
     lead: lead ? { id: String(lead.id), number: lead.lead_number as string, source: lead.source as string, quotationId: lead.quotation_id ? String(lead.quotation_id) : null } : null,
-    installations: await (await import('./installations.server')).installationsForOrder(actor, orderId),
-    tickets: await ticketsForOrder(actor, orderId),
+    installations,
+    tickets,
     warranty: warrantyStatus(isoDay(o.delivered_on), months, istanbulToday()),
     can: {
-      planInstallation: !technical && (await hasCap(actor, 'installations', 'create')) && o.status !== 'cancelled',
-      openTicket: !technical && (await hasCap(actor, 'service', 'create')),
+      planInstallation: !technical && cap('installations', 'create') && o.status !== 'cancelled',
+      openTicket: !technical && cap('service', 'create'),
     },
   };
 }

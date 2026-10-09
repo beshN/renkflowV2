@@ -27,6 +27,9 @@ const LeadInput = z.object({
   nextFollowUp: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
 }).strict();
 
+/** For edits: every field optional and none defaulted (a missing source must not reset it). */
+const LeadPatch = LeadInput.extend({ source: z.enum(LEAD_SOURCES).optional() }).partial();
+
 const LEAD_FIELDS = `l.id, l.lead_number, l.title, l.contact_name, l.company_name, l.phone, l.email, l.address, l.source, l.stage, l.lost_reason, l.lost_note,
   l.product_family, l.estimated_value, l.owner_id, l.next_follow_up, l.customer_id, l.quotation_id, l.closed_at, l.stage_changed_at, l.version, l.created_at, l.updated_at`;
 
@@ -89,7 +92,7 @@ export async function createLead(actor: WorkOrderActor, raw: unknown) {
 export async function updateLead(actor: WorkOrderActor, id: string, raw: unknown) {
   await requireChain();
   await requireCap(actor, 'crm', 'edit', 'Potansiyel müşteriyi düzenleme');
-  const d = LeadInput.partial().parse(raw);
+  const d = LeadPatch.parse(raw);
   if (d.productFamily && !productFamily(d.productFamily)) throw new WorkOrderApiError('Bilinmeyen ürün ailesi', 400);
   await withTransaction(async (tx: any) => {
     const before = await loadLead(tx, actor.tenantId, id, true);
@@ -118,19 +121,23 @@ export async function moveLead(actor: WorkOrderActor, id: string, raw: unknown) 
   await requireChain();
   await requireCap(actor, 'crm', 'edit', 'Potansiyel müşteriyi ilerletme');
   const d = z.object({ to: z.enum(LEAD_STAGES), lostReason: z.enum(LOST_REASONS).nullish(), lostNote: z.string().trim().max(1000).nullish(), expectedVersion: z.number().int().optional() }).strict().parse(raw);
-  const lead = await withTransaction(async (tx: any) => {
+  // Check the move first; a stage that needs a quote gets it before the stage changes, so a refused
+  // quote (no quote rights, a failure) leaves the lead where it was.
+  const current = await loadLead(sql, actor.tenantId, id);
+  if (d.expectedVersion !== undefined && Number(current.version) !== d.expectedVersion) throw new WorkOrderApiError('Kayıt bu arada değişti; yenileyin', 409);
+  const precheck = leadStageProblem(current.stage, d.to, d.lostReason);
+  if (precheck) throw new WorkOrderApiError(precheck, 409);
+  if ((d.to === 'quoted' || d.to === 'won') && !current.quotation_id) await convertLead(actor, id);
+  await withTransaction(async (tx: any) => {
     const l = await loadLead(tx, actor.tenantId, id, true);
-    if (d.expectedVersion !== undefined && Number(l.version) !== d.expectedVersion) throw new WorkOrderApiError('Kayıt bu arada değişti; yenileyin', 409);
+    if (l.stage === d.to) return;
     const problem = leadStageProblem(l.stage, d.to, d.lostReason);
     if (problem) throw new WorkOrderApiError(problem, 409);
-    if (l.stage === d.to) return l;
     const closing = d.to === 'won' || d.to === 'lost';
     await tx`UPDATE leads SET stage = ${d.to}, lost_reason = ${d.to === 'lost' ? d.lostReason : null}, lost_note = ${d.to === 'lost' ? d.lostNote || null : null},
       closed_at = ${closing ? new Date() : null}, stage_changed_at = now(), version = version + 1, updated_at = now() WHERE tenant_id = ${actor.tenantId} AND id = ${id}`;
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'lead', entityId: id, action: 'stage_changed', changes: { aşama: { from: l.stage, to: d.to } }, note: d.lostNote || null, metadata: d.lostReason ? { lostReason: d.lostReason } : null });
-    return { ...l, stage: d.to };
   });
-  if ((d.to === 'quoted' || d.to === 'won') && !lead.quotation_id) await convertLead(actor, id);
   return getLead(actor, id);
 }
 
@@ -164,7 +171,8 @@ export async function convertLead(actor: WorkOrderActor, id: string) {
     : [{ productName: family(l.product_family) ?? l.title, quantity: 1, unitPrice: 0, discountPercent: 0, totalPrice: 0 }];
   const quotation: any = await quotationService.createQuotation(actor.tenantId, {
     customerId: customer.id, customerName: customer.name, currency: 'TRY', discountPercent: 0, items: items as any,
-    internalNotes: `${l.lead_number} potansiyel müşteriden oluşturuldu. Fiyatları girin.`, idempotencyKey: undefined,
+    // The lead's id as the creation key: a double click or two people at once get the same quote.
+    internalNotes: `${l.lead_number} potansiyel müşteriden oluşturuldu. Fiyatları girin.`, idempotencyKey: id,
   } as any, actor.userId);
   const quotationId = String(quotation?.id ?? quotation?.quotation?.id ?? '');
   if (!quotationId) throw new WorkOrderApiError('Teklif oluşturulamadı', 500);

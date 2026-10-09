@@ -76,9 +76,7 @@ export async function getInstallation(actor: WorkOrderActor, id: string) {
   await requireCap(actor, 'installations', 'view', 'Montajı görme');
   await load(sql, actor, id);
   const [r] = await sql.unsafe(`SELECT ${SELECT} FROM installations i JOIN orders o ON o.id = i.order_id AND o.tenant_id = i.tenant_id WHERE i.tenant_id = $1 AND i.id = $2`, [actor.tenantId, id]);
-  const sameDay = r.scheduled_date ? await sql`SELECT * FROM installations WHERE tenant_id = ${actor.tenantId} AND scheduled_date = ${r.scheduled_date}` : [];
-  const conflicts = installationConflicts(sameDay.map(planned)).filter((c) => c.a === id || c.b === id);
-  return { ...dto(r, fieldOnly(actor)), conflicts };
+  return { ...dto(r, fieldOnly(actor)), conflicts: await conflictsFor(sql, actor.tenantId, id, isoDay(r.scheduled_date)) };
 }
 
 const PlanInput = z.object({
@@ -153,6 +151,8 @@ export async function updateInstallation(actor: WorkOrderActor, id: string, raw:
     if (before.status === 'done' && planning) throw new WorkOrderApiError('Tamamlanan montaj yeniden planlanamaz', 409);
     const status: InstallationStatus = d.status ?? before.status;
     if (status !== before.status && !STATUS_FLOW[before.status as InstallationStatus].includes(status)) throw new WorkOrderApiError('Bu durum geçişine izin verilmiyor', 409);
+    // The crew starts, finishes or steps back its own job; cancelling and reopening are the office's.
+    if (fieldOnly(actor) && status !== before.status && (status === 'cancelled' || before.status === 'cancelled')) throw new WorkOrderApiError('Montajı iptal etmeyi ofis yapar', 403);
     const crew = d.crew ? [...new Set(d.crew)] : (before.crew ?? []).map(String);
     if (d.crew) await checkCrew(tx, actor.tenantId, crew);
     const next = {
@@ -162,7 +162,7 @@ export async function updateInstallation(actor: WorkOrderActor, id: string, raw:
     };
     await tx`UPDATE installations SET scheduled_date = ${next.scheduled_date}, start_time = ${next.start_time}, duration_minutes = ${next.duration_minutes}, crew = ${crew}::uuid[],
       crew_name = ${next.crew_name}, address = ${next.address}, notes = ${next.notes}, status = ${status},
-      started_at = ${status === 'in_progress' && !before.started_at ? new Date() : before.started_at}, completed_at = ${status === 'done' ? new Date() : null},
+      started_at = ${status === 'in_progress' && !before.started_at ? new Date() : before.started_at}, completed_at = ${status === 'done' ? before.completed_at ?? new Date() : null},
       version = version + 1, updated_at = now() WHERE tenant_id = ${actor.tenantId} AND id = ${id}`;
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'installation', entityId: id, action: status !== before.status ? 'status_changed' : 'updated',
       changes: changedFields({ ...before, scheduled_date: isoDay(before.scheduled_date), crew: (before.crew ?? []).map(String) }, next) });
@@ -250,6 +250,8 @@ export async function signDelivery(token: string, raw: unknown, client: { ip: st
     const r = await signoffRow(tx, token, true);
     if (!r) throw new WorkOrderApiError('Bu bağlantı geçersiz ya da süresi dolmuş', 404);
     if (r.signed_at) throw new WorkOrderApiError('Teslim zaten imzalandı', 409);
+    // A job taken back to the plan or cancelled after the link was sent cannot be signed.
+    if (r.status !== 'in_progress' && r.status !== 'done') throw new WorkOrderApiError('Bu montaj şu an teslim edilebilir durumda değil; firmayla görüşün', 409);
     await tx`UPDATE installations SET signed_name = ${d.name}, signed_at = now(), signed_ip = ${client.ip.slice(0, 80)}, signed_note = ${d.note || null},
       status = 'done', completed_at = coalesce(completed_at, now()), version = version + 1, updated_at = now() WHERE id = ${r.id}`;
     await recordAudit(tx, { tenantId: r.tenant_id, actorId: null, entityType: 'installation', entityId: r.id, action: 'delivery_signed', note: d.note || null, metadata: { name: d.name, ip: client.ip.slice(0, 80), agent: client.agent.slice(0, 200) } });
@@ -259,33 +261,20 @@ export async function signDelivery(token: string, raw: unknown, client: { ip: st
   return { ok: true };
 }
 
-/** Files the approval-gated "mark the order delivered" suggestion when the order can take that step. */
+/** Files the approval-gated "mark the order delivered" suggestion (the kind decides when it may). */
 async function suggestDelivered(tenantId: string, installationId: string, actorId: string | null, why: string) {
   try {
     if (!(await tableExists('ai_suggestions'))) return;
-    const [r] = await sql`SELECT i.installation_number, i.signed_name, o.id AS order_id, o.order_number, o.status FROM installations i JOIN orders o ON o.id = i.order_id AND o.tenant_id = i.tenant_id
-      WHERE i.tenant_id = ${tenantId} AND i.id = ${installationId}`;
-    const { MARK_DELIVERED_KIND, DELIVERABLE_FROM } = await import('@/lib/ai/suggestions/kinds/mark-delivered');
-    // Not deliverable yet (production not finished): the kind's refresh files it once it is.
-    if (!r || !DELIVERABLE_FROM.includes(r.status)) return;
-    const { fileSuggestion } = await import('@/lib/ai/suggestions/service');
-    await fileSuggestion(sql, tenantId, actorId, {
-      kind: MARK_DELIVERED_KIND,
-      title: `${r.order_number} teslim edildi olarak işaretlensin mi?`,
-      rationale: `${why} Montaj ${r.installation_number} tamamlandı; sipariş şu an "${r.status}". Onaylarsanız sipariş durum makinesinden geçerek "Teslim edildi" olur ve teslim günü yazılır.`,
-      payload: { orderId: String(r.order_id), installationId },
-      affected: [{ entityType: 'order', entityId: String(r.order_id), label: r.order_number, href: `/orders/${r.order_id}` }],
-      source: 'system',
-      dedupeKey: `delivered:${r.order_id}`,
-    });
+    const { fileDeliveredSuggestion } = await import('@/lib/ai/suggestions/kinds/mark-delivered');
+    await fileDeliveredSuggestion(tenantId, installationId, actorId, why);
   } catch (error) {
     console.error('[installations] delivered suggestion failed', error instanceof Error ? error.message : error);
   }
 }
 
 /** Installations of an order (for the order screen's chain panel). */
-export async function installationsForOrder(actor: WorkOrderActor, orderId: string) {
-  if (!(await tableExists('installations')) || !(await hasCap(actor, 'installations', 'view'))) return [];
+export async function installationsForOrder(actor: WorkOrderActor, orderId: string, accessChecked = false) {
+  if (!(await tableExists('installations')) || (!accessChecked && !(await hasCap(actor, 'installations', 'view')))) return [];
   const rows = await sql.unsafe(`SELECT ${SELECT} FROM installations i JOIN orders o ON o.id = i.order_id AND o.tenant_id = i.tenant_id
     WHERE i.tenant_id = $1 AND i.order_id = $2 AND ($3::uuid IS NULL OR $3::uuid = ANY(i.crew)) ORDER BY i.created_at`, [actor.tenantId, orderId, fieldOnly(actor) ? actor.userId : null]);
   return rows.map((r: Row) => dto(r, fieldOnly(actor)));

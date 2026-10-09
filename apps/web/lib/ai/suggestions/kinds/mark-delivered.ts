@@ -16,29 +16,44 @@ type Payload = z.infer<typeof PayloadSchema>;
 export const DELIVERABLE_FROM = ['ready', 'ready_for_shipment', 'shipped'];
 
 /**
+ * Files the suggestion for one installation's order when the order can take that step. One per
+ * order (dedupe key); a rejected one is not filed again.
+ */
+export async function fileDeliveredSuggestion(tenantId: string, installationId: string, actorId: string | null, why: string | null) {
+  const [r] = await sql`SELECT i.installation_number, i.signed_name, o.id AS order_id, o.order_number, o.status FROM installations i
+    JOIN orders o ON o.id = i.order_id AND o.tenant_id = i.tenant_id WHERE i.tenant_id = ${tenantId} AND i.id = ${installationId} AND i.status = 'done'`;
+  // Not deliverable yet (production not finished): refresh files it once it is.
+  if (!r || !DELIVERABLE_FROM.includes(r.status)) return;
+  const { fileSuggestion } = await import('../service');
+  const done = `Montaj ${r.installation_number} tamamlandı${r.signed_name ? ` ve müşteri "${r.signed_name}" adıyla imzaladı` : ''}.`;
+  await fileSuggestion(sql, tenantId, actorId, {
+    kind: MARK_DELIVERED_KIND,
+    title: `${r.order_number} teslim edildi olarak işaretlensin mi?`,
+    rationale: `${why ? why + ' ' : ''}${done} Sipariş şu an "${r.status}". Onaylarsanız sipariş durum makinesinden geçerek "Teslim edildi" olur ve teslim günü yazılır.`,
+    payload: { orderId: String(r.order_id), installationId },
+    affected: [{ entityType: 'order', entityId: String(r.order_id), label: r.order_number, href: `/orders/${r.order_id}` }],
+    source: 'system',
+    dedupeKey: `delivered:${r.order_id}`,
+  }, { notAgainAfterRejection: true });
+}
+
+/**
  * Catches the case where the customer signed (or the job was finished) before production was done:
- * once such an order reaches a deliverable status, the suggestion is filed. One per order; a
- * rejected one is not filed again.
+ * once such an order reaches a deliverable status, the suggestion is filed. Orders that already have
+ * a pending or rejected one are skipped, newest finished first.
  */
 async function refresh(actor: { tenantId: string }) {
   if (!(await tableExists('installations'))) return;
-  const { fileSuggestion } = await import('../service');
   const rows = await sql`
-    SELECT DISTINCT ON (o.id) o.id AS order_id, o.order_number, o.status, i.id AS installation_id, i.installation_number, i.signed_name
-    FROM installations i JOIN orders o ON o.id = i.order_id AND o.tenant_id = i.tenant_id
-    WHERE i.tenant_id = ${actor.tenantId} AND i.status = 'done' AND o.status = ANY(${DELIVERABLE_FROM})
-    ORDER BY o.id, i.completed_at DESC LIMIT 50`;
-  for (const r of rows) {
-    await fileSuggestion(sql, actor.tenantId, null, {
-      kind: MARK_DELIVERED_KIND,
-      title: `${r.order_number} teslim edildi olarak işaretlensin mi?`,
-      rationale: `Montaj ${r.installation_number} tamamlandı${r.signed_name ? ` ve müşteri "${r.signed_name}" adıyla imzaladı` : ''}; sipariş şu an "${r.status}". Onaylarsanız sipariş durum makinesinden geçerek "Teslim edildi" olur ve teslim günü yazılır.`,
-      payload: { orderId: String(r.order_id), installationId: String(r.installation_id) },
-      affected: [{ entityType: 'order', entityId: String(r.order_id), label: r.order_number, href: `/orders/${r.order_id}` }],
-      source: 'system',
-      dedupeKey: `delivered:${r.order_id}`,
-    }, { notAgainAfterRejection: true });
-  }
+    SELECT * FROM (
+      SELECT DISTINCT ON (o.id) o.id AS order_id, i.id AS installation_id, i.completed_at
+      FROM installations i JOIN orders o ON o.id = i.order_id AND o.tenant_id = i.tenant_id
+      WHERE i.tenant_id = ${actor.tenantId} AND i.status = 'done' AND o.status = ANY(${DELIVERABLE_FROM})
+        AND NOT EXISTS (SELECT 1 FROM ai_suggestions s WHERE s.tenant_id = i.tenant_id AND s.kind = ${MARK_DELIVERED_KIND}
+          AND s.dedupe_key = 'delivered:' || o.id::text AND s.status IN ('pending', 'rejected'))
+      ORDER BY o.id, i.completed_at DESC NULLS LAST
+    ) x ORDER BY completed_at DESC NULLS LAST LIMIT 50`;
+  for (const r of rows) await fileDeliveredSuggestion(actor.tenantId, String(r.installation_id), null, null);
 }
 
 /**
