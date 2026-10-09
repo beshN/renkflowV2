@@ -127,3 +127,6 @@ turA-drawer / turA-drawer-390 / turA-dashboard-activities / turA-settings · tur
 8. Servis/garanti: siparişten ya da montajdan tek tıkla kayıt; garanti teslim tarihi + süreye göre; parça/işçilik; çözüm süresi ve tekrar eden arıza raporu.
 9. Yetki: modüller `crm`, `installations`, `service` (Tur 1 matrisi); usta kendine atanan montajı görür, fiyat/müşteri iletişimi gizli kalır.
 10. Testler: motor jest + `test:chain` (lead → teklif → sipariş → montaj → imza → öneri onayı → garanti kaydı uçtan uca) + tarayıcı.
+
+| 2026-10-09 (Tur 1) | bitti | PR #49 `claude/night-2`'ye birleşti (CI yeşil). |
+| 2026-10-09 (Tur 2) | bitti → PR | Göç 045, motor (11 test), lead/keşif/teklif, montaj takvimi + imza + onay kapılı 'teslim edildi' önerisi, servis/garanti, sipariş 'Montaj & servis' sekmesi, `test:chain` uçtan uca yeşil, tarayıcıda zincir yürütüldü (müşteri sayfasında fiyat yok, usta görünümünde müşteri yok). /code-review 10 bulgu, hepsi düzeltildi. |
