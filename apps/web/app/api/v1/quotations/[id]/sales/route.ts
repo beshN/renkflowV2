@@ -28,7 +28,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 const Command = z.discriminatedUnion('action', [
   z.object({ action: z.literal('revise'), reason: z.string().max(1000) }),
-  z.object({ action: z.literal('approve_discount') }),
+  z.object({ action: z.literal('approve_discount'), expectedPercent: z.number().min(0).max(100).optional() }),
   z.object({ action: z.literal('approval_link') }),
   z.object({ action: z.literal('save_template'), name: z.string().max(80) }),
 ]);
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     const c = Command.parse(await req.json());
     const result =
       c.action === 'revise' ? await reviseQuote(actor, id, c.reason)
-      : c.action === 'approve_discount' ? await approveDiscount(actor, id)
+      : c.action === 'approve_discount' ? await approveDiscount(actor, id, c.expectedPercent)
       : c.action === 'approval_link' ? await createApprovalLink(actor, id)
       : await saveTemplateFromQuote(actor, id, c.name);
     return NextResponse.json(result, { headers: NO_STORE });

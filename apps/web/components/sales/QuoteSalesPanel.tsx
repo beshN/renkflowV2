@@ -72,7 +72,7 @@ export function QuoteSalesPanel({ quoteId, status, currency, role, onChanged }: 
         <p className="flex justify-between text-xs tabular-nums text-muted-foreground"><span>%{ds.effective}</span><span>eşik %{ds.threshold}</span></p>
         {ds.tryTotal != null && currency !== 'TRY' && <p className="text-xs text-muted-foreground">TL karşılığı {formatCurrency(ds.tryTotal, 'TRY')} · kur elle girildi</p>}
         {ds.needsApproval && manager && ['draft', 'sent'].includes(status) && (
-          <button type="button" disabled={busy} className="rf-primary-button" onClick={async () => { if (await command({ action: 'approve_discount' })) { await load(); onChanged(); } }}>
+          <button type="button" disabled={busy} className="rf-primary-button" onClick={async () => { if (await command({ action: 'approve_discount', expectedPercent: ds.effective })) { await load(); onChanged(); } else await load(); }}>
             <BadgeCheck size={15} /> İndirimi onayla
           </button>
         )}
@@ -86,7 +86,8 @@ export function QuoteSalesPanel({ quoteId, status, currency, role, onChanged }: 
         </div>
         {decision?.decidedAt ? (
           <div className="space-y-1 text-sm">
-            <StatusChip tone={status === 'accepted' ? 'success' : 'danger'} label={status === 'accepted' ? 'Müşteri onayladı' : 'Müşteri reddetti'} />
+            {/* A rejected quote cannot be converted: anything but "rejected" here means the customer accepted. */}
+            <StatusChip tone={status === 'rejected' ? 'danger' : 'success'} label={status === 'rejected' ? 'Müşteri reddetti' : 'Müşteri onayladı'} />
             <p>{decision.name} · {new Date(decision.decidedAt).toLocaleString('tr-TR')}</p>
             <p className="text-xs text-muted-foreground">IP {decision.ip}{decision.note ? ` · “${decision.note}”` : ''}</p>
           </div>
