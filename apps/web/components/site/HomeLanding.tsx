@@ -109,10 +109,7 @@ function Hero() {
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-background via-background to-muted/50">
       <div className="relative mx-auto max-w-6xl px-5 pb-20 pt-16 sm:px-8 md:pb-28 md:pt-24">
-        <motion.div {...rise(0)}>
-          <Link href="/changelog" className="rf-chip transition-colors hover:text-foreground"><span className="rf-status-dot" aria-hidden /> Pergola ve cam sistemleri için geliştirildi <ArrowRight size={12} /></Link>
-        </motion.div>
-        <div className="mt-10 grid items-end gap-10 lg:grid-cols-[1.5fr_0.5fr]">
+        <div className="grid items-end gap-10 lg:grid-cols-[1.5fr_0.5fr]">
           <motion.h1 {...rise(0.06)} className="text-[clamp(38px,5.2vw,68px)] font-semibold leading-[1.04] tracking-[-0.045em] [text-wrap:balance]">
             <span className="block text-muted-foreground">Ölçüye özel her proje için</span><span className="block">tek operasyon altyapısı.</span>
           </motion.h1>
