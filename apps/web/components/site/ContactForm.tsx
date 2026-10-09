@@ -10,7 +10,14 @@ export function ContactForm() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
-  useEffect(() => { if (sent) confirmation.current?.focus(); }, [sent]);
+  useEffect(() => {
+    if (!sent) return;
+    const frame = requestAnimationFrame(() => {
+      confirmation.current?.focus({ preventScroll: true });
+      confirmation.current?.scrollIntoView({ block: 'center', behavior: 'instant' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [sent]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
