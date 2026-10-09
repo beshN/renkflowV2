@@ -217,6 +217,13 @@ async function main() {
   const jobsNow = await db`SELECT id, status, configuration, bom_snapshot FROM work_orders WHERE tenant_id = ${tenantId} AND order_item_id = ${doneLine.id} ORDER BY created_at`;
   assert.deepEqual(jobsNow.map((j: any) => [j.id === oldJobId, j.status]), [[true, 'cancelled'], [false, 'open']]);
   assert.equal(jobsNow[1].configuration.widthMm, 3200, 'the new job is built with the new width');
+  assert.equal((await db`SELECT status FROM orders WHERE id = ${done.orderId}`)[0].status !== 'pending', true);
+  const stepOwners = await db`SELECT DISTINCT assigned_to FROM production_operations WHERE work_order_id = ${jobsNow[1].id}`;
+  assert.ok(stepOwners.length >= 1, 'the rebuilt job keeps people on its steps');
+  // A price-only change keeps the job (same bill of materials).
+  const priceOnly: any = await proposeChange(office as any, done.orderId, { reason: 'Fiyat', lines: [{ orderItemId: doneLine.id, unitPrice: 21000 }] });
+  await decideChange(office as any, done.orderId, priceOnly.id, { decision: 'apply' });
+  assert.equal((await db`SELECT status FROM work_orders WHERE id = ${jobsNow[1].id}`)[0].status, 'open', 'no rebuild without a bill of materials change');
   const [rebuiltLine] = await db`SELECT product_configuration FROM order_items WHERE id = ${doneLine.id}`;
   assert.equal(rebuiltLine.product_configuration.parameters.widthMm, 3200);
   assert.notDeepEqual(jobsNow[1].bom_snapshot.cuts, (await db`SELECT bom_snapshot FROM work_orders WHERE id = ${oldJobId}`)[0].bom_snapshot.cuts, 'the cut list follows the width');

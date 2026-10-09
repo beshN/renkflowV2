@@ -39,7 +39,7 @@ async function lockOrder(tx: any, tenantId: string, id: string) {
 }
 
 /** Each line with what was delivered and the work orders behind it. */
-async function lineStates(db: any, tenantId: string, orderId: string): Promise<Array<LineState & { unitPrice: number; totalPrice: number; widthMm: number | null; heightMm: number | null; projectionMm: number | null; color: string | null; notes: string | null }>> {
+async function lineStates(db: any, tenantId: string, orderId: string): Promise<Array<LineState & { configured: boolean; unitPrice: number; totalPrice: number; widthMm: number | null; heightMm: number | null; projectionMm: number | null; color: string | null; notes: string | null }>> {
   // Delivered = deliveries entered here + production shipments marked delivered for the line's work orders.
   const items = await db`SELECT i.*,
       coalesce((SELECT sum(d.quantity) FROM order_deliveries d WHERE d.tenant_id = ${tenantId} AND d.order_item_id = i.id), 0)
@@ -50,7 +50,9 @@ async function lineStates(db: any, tenantId: string, orderId: string): Promise<A
   return items.map((i: any) => ({
     orderItemId: i.id, productName: i.product_name, quantity: Number(i.quantity), delivered: Number(i.delivered),
     unitPrice: Number(i.unit_price), totalPrice: Number(i.total_price),
-    widthMm: i.width_mm == null ? null : Number(i.width_mm), heightMm: i.height_mm == null ? null : Number(i.height_mm),
+    widthMm: i.width_mm == null ? null : Number(i.width_mm),
+    configured: Boolean(i.product_configuration),
+    heightMm: i.product_configuration ? (i.mounting_height_mm == null ? null : Number(i.mounting_height_mm)) : i.height_mm == null ? null : Number(i.height_mm),
     projectionMm: i.projection_mm == null ? null : Number(i.projection_mm), color: i.color ?? null, notes: i.notes ?? null,
     workOrders: jobs.filter((j: any) => j.order_item_id === i.id).map((j: any) => ({ status: j.status, producedQty: Number(j.produced_qty ?? 0) })),
   }));
@@ -234,6 +236,9 @@ export async function decideChange(actor: WorkOrderActor, orderId: string, chang
   z.string().uuid().parse(changeId);
   const notices: Array<{ userId: string; title: string; message: string; workOrderId: string }> = [];
   await withTransaction(async (tx: any) => {
+    // The firm's production lock first, as production commands take it: applying may rebuild a work
+    // order, and nothing may start on it meanwhile (same lock order, no deadlock).
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${actor.tenantId},0))`;
     const o = await lockOrder(tx, actor.tenantId, orderId);
     const [c] = await tx`SELECT * FROM order_change_requests WHERE tenant_id = ${actor.tenantId} AND order_id = ${orderId} AND id = ${changeId} FOR UPDATE`;
     if (!c) throw new WorkOrderApiError('Değişiklik talebi bulunamadı', 404);
@@ -263,7 +268,9 @@ export async function decideChange(actor: WorkOrderActor, orderId: string, chang
         const from = (line as any)[field];
         if (from === to) continue;
         trace[`${line.productName} ${FIELD_LABELS[field]}`] = { from, to };
-        await tx`UPDATE order_items SET ${tx(column)} = ${to} WHERE order_id = ${orderId} AND id = ${line.orderItemId}`;
+        // A configured product's height is its mounting height (what its recipe reads).
+        const target = field === 'heightMm' && line.configured ? 'mounting_height_mm' : column;
+        await tx`UPDATE order_items SET ${tx(target)} = ${to} WHERE order_id = ${orderId} AND id = ${line.orderItemId}`;
       }
       // Only quantity or price move the line total, and the line keeps its discount (the stored total
       // is already discounted): it scales with quantity × unit price. Colour or measure alone leave it.
@@ -280,7 +287,10 @@ export async function decideChange(actor: WorkOrderActor, orderId: string, chang
         const rebuild = await rebuildConfiguredJob(tx, actor, line.orderItemId, o.currency);
         if (rebuild.rebuilt && rebuild.workOrderId) trace[`${line.productName} iş emri`] = { from: rebuild.replaced ?? null, to: rebuild.workOrderId };
         if (!rebuild.rebuilt && rebuild.reason) bomPending.push(`${line.productName}: ${rebuild.reason}`);
-        const jobs = await tx`SELECT id, title, assigned_to FROM work_orders WHERE tenant_id = ${actor.tenantId} AND order_item_id = ${line.orderItemId} AND status <> 'cancelled'`;
+        // Everyone on the line's work order hears of it: its owner and the people on its steps.
+        const jobs = await tx`SELECT DISTINCT w.id, w.title, u.assigned_to FROM work_orders w
+          CROSS JOIN LATERAL (SELECT w.assigned_to UNION SELECT p.assigned_to FROM production_operations p WHERE p.tenant_id = w.tenant_id AND p.work_order_id = w.id AND p.status <> 'cancelled') u(assigned_to)
+          WHERE w.tenant_id = ${actor.tenantId} AND w.order_item_id = ${line.orderItemId} AND w.status <> 'cancelled' AND u.assigned_to IS NOT NULL`;
         const what = PRODUCTION_FIELDS.filter((f) => ch[f] !== undefined).map((f) => FIELD_LABELS[f]).join(', ');
         const message = rebuild.rebuilt && rebuild.workOrderId ? `${what} değişti; iş emri yeni ölçüyle yeniden açıldı.` : `${what} değişti. Kesime devam etmeden önce iş emrini kontrol edin.`;
         for (const j of jobs) if (j.assigned_to) notices.push({ userId: j.assigned_to, workOrderId: j.id, title: `İş emri değişti: ${j.title}`, message });

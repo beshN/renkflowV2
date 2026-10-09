@@ -11,6 +11,9 @@ import { schedulingSnapshot, scheduleSnapshot } from '@/lib/features/manufacturi
 import { DEFAULT_REASONS, REASON_KINDS, dailyCapacity, istanbulDay, pareto, planHistory, reasonCodeFrom, type ReasonKind } from './engine';
 
 const OFFICE = ['owner', 'admin', 'office'];
+/** Who records scrap and delays: the shop floor and the office (the same roles as production commands). */
+const FLOOR = ['owner', 'admin', 'office', 'worker'];
+const realDate = (s: string) => { const d = new Date(s + 'T00:00:00Z'); return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s; };
 const MANAGERS = ['owner', 'admin'];
 
 /** Tur C tables (migration 042); before it runs these features answer 409 and nothing else changes. */
@@ -22,13 +25,15 @@ const need = (actor: WorkOrderActor, roles: string[], what: string) => {
   if (!roles.includes(actor.role)) throw new WorkOrderApiError(`${what} yetkiniz yok`, 403);
 };
 
-/** The job as this person may see it (a worker only their own), or 404. */
-async function openJob(db: any, actor: WorkOrderActor, id: string) {
+/** The job as this person may see it (a worker only their own), or 404; locked when about to be written. */
+async function openJob(db: any, actor: WorkOrderActor, id: string, lock = false) {
   z.string().uuid().parse(id);
   if (!RECORDS.work_order.canView(actor.role)) throw new WorkOrderApiError('İş emri görme yetkiniz yok', 403);
   const head = await RECORDS.work_order.head(db, actor, id);
   if (!head) throw new WorkOrderApiError('İş emri bulunamadı', 404);
-  const [job] = await db`SELECT id, title, order_id, status FROM work_orders WHERE tenant_id = ${actor.tenantId} AND id = ${id}`;
+  const [job] = lock
+    ? await db`SELECT id, title, order_id, status FROM work_orders WHERE tenant_id = ${actor.tenantId} AND id = ${id} FOR UPDATE`
+    : await db`SELECT id, title, order_id, status FROM work_orders WHERE tenant_id = ${actor.tenantId} AND id = ${id}`;
   return job as { id: string; title: string; order_id: string | null; status: string };
 }
 
@@ -63,8 +68,11 @@ export async function saveReasonCode(actor: WorkOrderActor, raw: unknown) {
   need(actor, MANAGERS, 'Neden kodlarını değiştirme');
   await requireDepth();
   const r = ReasonSchema.parse(raw);
-  await reasonCodes(actor.tenantId, r.kind, true);
+  const existing = await reasonCodes(actor.tenantId, r.kind, true);
   const code = r.code ?? reasonCodeFrom(r.label);
+  // Rework commands take a fixed set of codes: their labels can be renamed, nothing added or switched off.
+  if (r.kind === 'rework' && (!existing.some((e) => e.code === code) || !r.active))
+    throw new WorkOrderApiError('Rework nedenleri yalnız yeniden adlandırılabilir', 400);
   await withTransaction(async (tx: any) => {
     const [before] = await tx`SELECT label, active FROM production_reason_codes WHERE tenant_id = ${actor.tenantId} AND kind = ${r.kind} AND code = ${code}`;
     await tx`INSERT INTO production_reason_codes (tenant_id, kind, code, label, active, position)
@@ -100,11 +108,13 @@ const ScrapSchema = z.object({
  * for Pareto and cost follow-up; stock moves stay with the warehouse commands.
  */
 export async function recordScrap(actor: WorkOrderActor, workOrderId: string, raw: unknown) {
+  need(actor, FLOOR, 'Fire kaydetme');
   await requireDepth();
   const d = ScrapSchema.parse(raw);
   const reason = await requireActiveReason(actor.tenantId, 'scrap', d.reasonCode);
   await withTransaction(async (tx: any) => {
-    const job = await openJob(tx, actor, workOrderId);
+    const job = await openJob(tx, actor, workOrderId, true);
+    if (job.status === 'cancelled') throw new WorkOrderApiError('İptal edilmiş iş emrine fire girilmez', 409);
     if (d.operationId && !(await tx`SELECT 1 FROM production_operations WHERE tenant_id = ${actor.tenantId} AND id = ${d.operationId} AND work_order_id = ${job.id}`).length)
       throw new WorkOrderApiError('Operasyon bu iş emrinde yok', 400);
     if (d.itemId && !(await tx`SELECT 1 FROM inventory_items WHERE tenant_id = ${actor.tenantId} AND id = ${d.itemId}`).length)
@@ -130,11 +140,14 @@ const DelaySchema = z.object({
  * managers when none is set), without customer or price.
  */
 export async function reportDelay(actor: WorkOrderActor, workOrderId: string, raw: unknown) {
+  need(actor, FLOOR, 'Gecikme bildirme');
   await requireDepth();
   const d = DelaySchema.parse(raw);
+  if (d.expectedUntil && !realDate(d.expectedUntil)) throw new WorkOrderApiError('Tahmini bitiş tarihi geçersiz', 400);
   const reason = await requireActiveReason(actor.tenantId, 'delay', d.reasonCode);
   const job = await withTransaction(async (tx: any) => {
-    const j = await openJob(tx, actor, workOrderId);
+    // The job row is locked, so two reports at once cannot both pass the "one open delay" check.
+    const j = await openJob(tx, actor, workOrderId, true);
     if (['done', 'cancelled'].includes(j.status)) throw new WorkOrderApiError('Kapanmış iş emrine gecikme girilmez', 409);
     const [open] = await tx`SELECT id FROM production_delays WHERE tenant_id = ${actor.tenantId} AND work_order_id = ${j.id} AND resolved_at IS NULL FOR UPDATE`;
     if (open) throw new WorkOrderApiError('Bu iş emrinde açık bir gecikme var; önce kapatın', 409);
@@ -156,9 +169,10 @@ export async function reportDelay(actor: WorkOrderActor, workOrderId: string, ra
 
 /** Closing a delay: the office, or the person who reported it. */
 export async function resolveDelay(actor: WorkOrderActor, workOrderId: string) {
+  need(actor, FLOOR, 'Gecikme kapatma');
   await requireDepth();
   await withTransaction(async (tx: any) => {
-    const job = await openJob(tx, actor, workOrderId);
+    const job = await openJob(tx, actor, workOrderId, true);
     const [open] = await tx`SELECT * FROM production_delays WHERE tenant_id = ${actor.tenantId} AND work_order_id = ${job.id} AND resolved_at IS NULL FOR UPDATE`;
     if (!open) throw new WorkOrderApiError('Açık gecikme yok', 409);
     if (!OFFICE.includes(actor.role) && open.created_by !== actor.userId) throw new WorkOrderApiError('Gecikmeyi ofis ya da bildiren kapatır', 403);
@@ -213,7 +227,7 @@ export async function productionInsights(actor: WorkOrderActor) {
         sql`SELECT reason_code AS code, count(*)::int AS count, sum(quantity)::float AS quantity FROM production_scrap_events WHERE tenant_id = ${actor.tenantId} AND created_at >= now() - interval '90 days' GROUP BY reason_code`,
         sql`SELECT reason_code AS code, count(*)::int AS count FROM production_delays WHERE tenant_id = ${actor.tenantId} AND created_at >= now() - interval '90 days' GROUP BY reason_code`,
         sql`SELECT d.id, d.reason_code, d.expected_until, d.created_at, w.id AS work_order_id, w.title FROM production_delays d JOIN work_orders w ON w.id = d.work_order_id AND w.tenant_id = d.tenant_id
-          WHERE d.tenant_id = ${actor.tenantId} AND d.resolved_at IS NULL ORDER BY d.created_at LIMIT 50`,
+          WHERE d.tenant_id = ${actor.tenantId} AND d.resolved_at IS NULL AND w.status NOT IN ('done', 'cancelled') ORDER BY d.created_at LIMIT 50`,
       ])
     : [[], [], []];
   const reworkRows = await sql`SELECT reason_code AS code, count(*)::int AS count, sum(affected_qty)::float AS quantity FROM production_rework WHERE tenant_id = ${actor.tenantId} AND created_at >= now() - interval '90 days' GROUP BY reason_code`;
