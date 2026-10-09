@@ -31,11 +31,12 @@ function dto(r: Row, technical: boolean) {
     crew: (r.crew ?? []).map(String), crewNames: (r.crew_names ?? []) as string[], crewName: r.crew_name ?? null,
     date: isoDay(r.scheduled_date), startTime: r.start_time ?? null, durationMinutes: Number(r.duration_minutes), status: r.status as InstallationStatus,
     issues: (r.issues ?? []) as Array<{ kind: 'missing' | 'damage'; text: string; at: string; by: string | null }>, notes: r.notes ?? null,
-    startedAt: r.started_at, completedAt: r.completed_at, signedName: r.signed_name ?? null, signedAt: r.signed_at, version: Number(r.version),
+    startedAt: r.started_at, completedAt: r.completed_at, signed: Boolean(r.signed_at), signedAt: r.signed_at, version: Number(r.version),
     productName: r.product_name ?? null, checklistDone: Number(r.checklist_done ?? 0), checklistTotal: Number(r.checklist_total ?? 0),
   };
   if (technical) return { ...base, technicalView: true as const };
-  return { ...base, customerName: r.customer_name ?? null, address: r.address ?? null, mapUrl: mapLink(r.address), orderStatus: r.order_status ?? null, signoffOpen: Boolean(r.signoff_token_hash && !r.signed_at && r.signoff_expires_at && new Date(r.signoff_expires_at) > new Date()) };
+  // Who signed is the customer's name: office only.
+  return { ...base, signedName: r.signed_name ?? null, customerName: r.customer_name ?? null, address: r.address ?? null, mapUrl: mapLink(r.address), orderStatus: r.order_status ?? null, signoffOpen: Boolean(r.signoff_token_hash && !r.signed_at && r.signoff_expires_at && new Date(r.signoff_expires_at) > new Date()) };
 }
 
 const SELECT = `i.*, o.order_number, o.customer_name, o.product_name, o.status AS order_status,
