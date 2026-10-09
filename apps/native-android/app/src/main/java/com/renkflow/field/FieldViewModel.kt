@@ -135,12 +135,14 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
             catch(e: Exception) { if(generation==epoch) fail(e) }
         }
     }
+    private var selectedInstallationId:String?=null
     fun openInstallation(id:String) {
         val auth=state.value.session ?: return;val generation=epoch
+        selectedInstallationId=id
         mutable.update {it.copy(installationDetail=null)}
         viewModelScope.launch {
             val saved=offline.dao.cache(sessionScope(auth),"installation:$id")?.let {runCatching {fieldJson.decodeFromString<InstallationDetails>(it.payload)}.getOrNull()}
-            if(generation==epoch) mutable.update {it.copy(installationDetail=saved)}
+            if(generation==epoch && selectedInstallationId==id) mutable.update {it.copy(installationDetail=saved)}
             try {loadInstallation(auth,id,generation)} catch(e:Exception) {if(generation==epoch) fail(e)}
         }
     }
@@ -148,7 +150,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         val values=fieldJson.decodeFromJsonElement<InstallationDetails>(api.raw(auth.server,auth.token,"installations/$id"))
         val result=overlayInstallation(values,offline.dao.pending(sessionScope(auth)))
         offline.save(sessionScope(auth),"installation:$id",fieldJson.encodeToString(result))
-        if(generation==epoch) mutable.update {it.copy(installationDetail=result)}
+        if(generation==epoch && selectedInstallationId==id) mutable.update {it.copy(installationDetail=result)}
     }
     fun installationCommand(action:String,item:InstallationCheck?=null,kind:String?=null,text:String?=null) {
         val current=state.value.installationDetail ?: return

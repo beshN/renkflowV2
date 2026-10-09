@@ -132,3 +132,5 @@ Adım 4 başlangıcı: 2026-10-09 21:27 UTC. Adım 3 PR #56 CI sonucu bekleniyor
 - Bildirim metadata ve web tercihleri görünür; gecikme tercihi hem deadline hem order:delayed türünü kontrol eder. FCM/APNs kayıt köprüleri ve sunucu gönderici arayüzü var; SDK/sağlayıcı anahtarı bağlı değil, teslim başarılı gösterilmez. OS yerel test düğmesi ayrı.
 - Montaj-only custom role: giriş/teknik detay çalışır, üretim snapshot boş ve üretim yazması 403; cihaz kayıt yanıtında sağlayıcı tokeni yok.
 - API/DTO birim testleri ve native montaj overlay/önceki fotoğraf kuyruk uyum testleri eklendi. Fotoğraf içeren yerel testte depolama açıkça local seçilmediği için ilk deneme hata verdi; yalnız test process'inde local depolama seçilerek düzeldi.
+
+- Son iOS kontrolünde eski fotoğraf JSON'unda eksik `name` alanı okuması başarısız oldu. Decoder varsayılan dosya adını açıkça uygulayacak şekilde düzeltildi; test korunuyor. Montaj detayı hızlı değiştirilince eski ağ yanıtının yeni seçimi ezmesi de seçim kimliğiyle engellendi.

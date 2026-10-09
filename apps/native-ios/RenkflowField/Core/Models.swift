@@ -55,7 +55,20 @@ func displayDate(_ string: String) -> String {
 struct CutPiece: Codable { var lengthMm: Double; var workOrderId: String }
 struct CutBar: Codable, Identifiable { var id: String; var itemId: String; var color: String; var lengthMm: Double; var isRemnant: Bool; var pieces: [CutPiece]; var remainingMm: Double; var reusable: Bool; var lossMm: Double }
 struct CutPlan: Codable, Identifiable { var id: String; var status: String; var wastePercent: Double?; var bars: [CutBar] }
-struct LocalPhoto: Codable { var workOrderId: String? = nil; var base64: String; var name: String = "saha.jpg";var installationId:String? = nil }
+struct LocalPhoto: Codable {
+    var workOrderId: String?; var base64: String; var name: String; var installationId: String?
+    init(workOrderId: String? = nil, base64: String, name: String = "saha.jpg", installationId: String? = nil) {
+        self.workOrderId=workOrderId; self.base64=base64; self.name=name; self.installationId=installationId
+    }
+    enum CodingKeys: String, CodingKey { case workOrderId, base64, name, installationId }
+    init(from decoder: Decoder) throws {
+        let c=try decoder.container(keyedBy:CodingKeys.self)
+        workOrderId=try c.decodeIfPresent(String.self,forKey:.workOrderId)
+        installationId=try c.decodeIfPresent(String.self,forKey:.installationId)
+        base64=try c.decode(String.self,forKey:.base64)
+        name=try c.decodeIfPresent(String.self,forKey:.name) ?? "saha.jpg"
+    }
+}
 struct UploadStatus: Decodable { var uploadId: String; var receivedBytes: Int; var totalBytes: Int; var chunkBytes: Int; var completed: Bool; var url: String? }
 struct SyncRequest: Codable { var idempotencyKey: String; var kind: String; var data: [String: JSONValue]; var workOrderId: String?;var installationId:String? = nil }
 enum JSONValue: Codable {

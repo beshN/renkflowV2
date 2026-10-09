@@ -11,6 +11,7 @@ import Combine
     @Published var references:FieldReferences?
     @Published var installations:[Installation]=[]
     @Published var installationDetail:InstallationDetails?
+    private var selectedInstallationID:String?
     @Published var preferences:NotificationPreferences?
     @Published var notifications:[FieldNotification]=[]
     @Published var preferencesBusy=false
@@ -67,7 +68,7 @@ import Combine
         } catch {fail(error)}
     }
     func logout() {
-        epoch+=1;vault.clear();FieldBackgroundSync.cancel();session=nil;snapshot=nil;detail=nil;selectedID=nil;scanResult=nil;outbox=[];references=nil;installations=[];installationDetail=nil;preferences=nil;notifications=[];error=nil;message=nil;stale=true;syncing=false
+        epoch+=1;vault.clear();FieldBackgroundSync.cancel();session=nil;snapshot=nil;detail=nil;selectedID=nil;scanResult=nil;outbox=[];references=nil;installations=[];installationDetail=nil;selectedInstallationID=nil;preferences=nil;notifications=[];error=nil;message=nil;stale=true;syncing=false
     }
     func foreground() async {if Date().timeIntervalSince(lastValidation)>60 {await refresh()} else {await sync()}}
     func refresh() async {
@@ -130,6 +131,7 @@ import Combine
     }
     func openInstallation(_ id:String) async {
         guard let auth=session else {return};let generation=epoch
+        selectedInstallationID=id;installationDetail=nil
         do {
             installationDetail=try storage().read(sessionScope(auth),key:"installation:"+id,as:InstallationDetails.self)
             try await loadInstallation(auth,id:id,generation:generation)
@@ -139,7 +141,7 @@ import Combine
         let current=try await api.request(InstallationDetails.self,server:auth.server,token:auth.token,path:"installations/"+id)
         let result=overlayInstallation(current,rows:try storage().rows(sessionScope(auth)))
         try storage().setCache(sessionScope(auth),key:"installation:"+id,data:JSONEncoder().encode(result));try storage().context.save()
-        if generation==epoch {installationDetail=result}
+        if generation==epoch && selectedInstallationID==id {installationDetail=result}
     }
     func installationCommand(_ action:String,item:InstallationCheck?=nil,kind:String?=nil,text:String?=nil) async {
         guard let current=installationDetail else {return}
