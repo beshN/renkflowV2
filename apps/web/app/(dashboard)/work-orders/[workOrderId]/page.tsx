@@ -10,6 +10,7 @@ import { hasPermission, type UserRole } from '@/lib/auth/permissions';
 import { WorkshopColor } from '@/components/colors/ColorSwatch';
 import { RecordButton } from '@/components/records/RecordDrawer';
 import { SkeletonRows } from '@/components/kit';
+import { JobDepthPanel } from '@/components/production/JobDepthPanel';
 
 const statuses: Record<string, string> = { open: 'Planlandı', in_progress: 'Üretimde', blocked: 'Bloke', done: 'Tamamlandı', cancelled: 'İptal' };
 export default function WorkOrderDetail({ params }: { params: Promise<{ workOrderId: string }> }) {
@@ -52,6 +53,7 @@ export default function WorkOrderDetail({ params }: { params: Promise<{ workOrde
             </dl>
             {data.blockedReasonDetail && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Bloke nedeni: {data.blockedReasonDetail}</p>}
           </section>
+          <JobDepthPanel workOrderId={data.id} />
           <section className="rf-panel p-5">
             <h3 className="font-semibold">Üretim kontrol listesi</h3>
             {data.checklist.length ? <div className="mt-3 space-y-3">{data.checklist.map(item =>
