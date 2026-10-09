@@ -169,7 +169,14 @@ export async function convertLead(actor: WorkOrderActor, id: string) {
   const quotationId = String(quotation?.id ?? quotation?.quotation?.id ?? '');
   if (!quotationId) throw new WorkOrderApiError('Teklif oluşturulamadı', 500);
   await withTransaction(async (tx: any) => {
-    await tx`UPDATE leads SET quotation_id = ${quotationId}, updated_at = now() WHERE tenant_id = ${actor.tenantId} AND id = ${id} AND quotation_id IS NULL`;
+    // A quote made from an early lead moves it to the quote stage (the pipeline follows the work).
+    const [moved] = await tx`UPDATE leads SET quotation_id = ${quotationId}, updated_at = now(),
+        stage = CASE WHEN stage IN ('new', 'survey') THEN 'quoted' ELSE stage END,
+        stage_changed_at = CASE WHEN stage IN ('new', 'survey') THEN now() ELSE stage_changed_at END,
+        version = version + 1
+      WHERE tenant_id = ${actor.tenantId} AND id = ${id} AND quotation_id IS NULL RETURNING stage`;
+    if (moved && (l.stage === 'new' || l.stage === 'survey'))
+      await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'lead', entityId: id, action: 'stage_changed', changes: { aşama: { from: l.stage, to: 'quoted' } } });
     await tx`UPDATE site_surveys SET measures_at_quote = measures, quoted_at = now() WHERE tenant_id = ${actor.tenantId} AND lead_id = ${id} AND status <> 'cancelled'`;
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'lead', entityId: id, action: 'quotation_created', metadata: { quotationId, customerId: customer.id } });
   });

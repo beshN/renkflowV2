@@ -105,6 +105,8 @@ async function main() {
   assert.equal(page?.number, plan.number);
   assert.ok(!JSON.stringify(page).match(/price|amount|total/i), 'the sign-off page shows no prices');
   assert.equal(page?.issues[0].text, '2 adet ankraj eksik');
+  assert.ok(page!.items.length >= 1, 'the sign-off page lists the installed products');
+  assert.equal(page!.checklist.filter((c) => c.done).length, 1);
   assert.equal(await inst.publicSignoff('x'.repeat(43)), null);
   // The order reaches "ready for shipment" through the state machine (production finished).
   const path: Record<string, string[]> = { new: ['approved'], pending: ['approved'], approved: ['preparing_materials', 'ready_for_production', 'in_production', 'ready_for_shipment'] };

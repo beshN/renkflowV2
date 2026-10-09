@@ -221,8 +221,12 @@ export async function publicSignoff(token: string) {
   const [[o], [t], items, checklist] = await Promise.all([
     sql`SELECT order_number, customer_name FROM orders WHERE tenant_id = ${r.tenant_id} AND id = ${r.order_id}`,
     sql`SELECT name FROM tenants WHERE id = ${r.tenant_id}`,
-    sql`SELECT product_name, quantity, width_mm, height_mm, color FROM order_items WHERE tenant_id = ${r.tenant_id} AND order_id = ${r.order_id} ORDER BY created_at LIMIT 50`.catch(() => []),
-    sql`SELECT title, done_at FROM record_checklist_items WHERE tenant_id = ${r.tenant_id} AND entity_type = 'installation' AND entity_id = ${r.id} ORDER BY position`.catch(() => []),
+    // order_items has no tenant column: the order (already tenant-checked) scopes it.
+    sql`SELECT i.product_name, i.quantity, i.width_mm, i.height_mm, i.color FROM order_items i JOIN orders o ON o.id = i.order_id
+      WHERE o.tenant_id = ${r.tenant_id} AND i.order_id = ${r.order_id} ORDER BY i.created_at LIMIT 50`,
+    (async () => ((await tableExists('record_checklist_items'))
+      ? sql`SELECT title, done_at FROM record_checklist_items WHERE tenant_id = ${r.tenant_id} AND entity_type = 'installation' AND entity_id = ${r.id} ORDER BY position`
+      : []))(),
   ]);
   return {
     firm: t?.name ?? '', number: r.installation_number as string, orderNumber: o?.order_number ?? '', customerName: o?.customer_name ?? '',
