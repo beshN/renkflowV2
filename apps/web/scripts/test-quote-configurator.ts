@@ -10,7 +10,7 @@ async function main() {
   process.env.NATIVE_INVENTORY_ENABLED = '1';
   const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
   assert.equal((await db`SELECT current_database() AS name`)[0].name, 'renkflow_test');
-  for (const file of ['031_stock_model.sql', '034_price_matrices.sql', '035_product_family_recipes.sql', '036_product_configuration.sql', '037_production_lead.sql', '039_firm_colors.sql'])
+  for (const file of ['031_stock_model.sql', '034_price_matrices.sql', '035_product_family_recipes.sql', '036_product_configuration.sql', '037_production_lead.sql', '039_firm_colors.sql', '041_quote_order_depth.sql', '042_production_depth.sql'])
     await db.unsafe(readFileSync(`lib/db/migrations/${file}`, 'utf8'));
 
   const { importFamilyRecipe } = await import('../lib/features/products/recipe-template.service');
@@ -206,7 +206,28 @@ async function main() {
   const gone: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) })] } as any, officeId);
   const goneDone: any = await quotationService.convertToOrder(tenantId, gone.id, officeId, gone.version, 'office');
   assert.match(goneDone.pendingWorkOrders[0].reason, /üretim sorumlusu artık üretim ekibinde değil/);
-  console.log('PASS · quote to order: work order opened at conversion with the quoted recipe, measures and colour, assigned to the person converting, its cuts in the cutting pool; warehouses not guessed, a role that cannot open work orders leaves the line waiting with the reason, another recipe or a changed cut list refused for a configured line, no silent skip without a person; the default production lead gets the work order and a notification naming its colour, old-spelling 7016 bars cut for a RAL 7016 Mat job, the worker sees the colour without prices or the customer, a lead who left is not replaced by a guess');
+  // An applied change request on a configured line: the bill of materials is worked out again with the
+  // new width and the unstarted work order is opened again with it (the old one cancelled); once a cut
+  // plan holds the job, the line changes but the job waits for rework, said on the request.
+  const { proposeChange, decideChange } = await import('../lib/features/sales/orders.server');
+  const [doneLine] = await db`SELECT id FROM order_items WHERE order_id = ${done.orderId}`;
+  const oldJobId = done.workOrders![0].id;
+  const widthChange: any = await proposeChange(office as any, done.orderId, { reason: 'Genişlik 3200 oldu', lines: [{ orderItemId: doneLine.id, widthMm: 3200 }] });
+  await decideChange(office as any, done.orderId, widthChange.id, { decision: 'apply', acknowledgeImpact: true });
+  const jobsNow = await db`SELECT id, status, configuration, bom_snapshot FROM work_orders WHERE tenant_id = ${tenantId} AND order_item_id = ${doneLine.id} ORDER BY created_at`;
+  assert.deepEqual(jobsNow.map((j: any) => [j.id === oldJobId, j.status]), [[true, 'cancelled'], [false, 'open']]);
+  assert.equal(jobsNow[1].configuration.widthMm, 3200, 'the new job is built with the new width');
+  const [rebuiltLine] = await db`SELECT product_configuration FROM order_items WHERE id = ${doneLine.id}`;
+  assert.equal(rebuiltLine.product_configuration.parameters.widthMm, 3200);
+  assert.notDeepEqual(jobsNow[1].bom_snapshot.cuts, (await db`SELECT bom_snapshot FROM work_orders WHERE id = ${oldJobId}`)[0].bom_snapshot.cuts, 'the cut list follows the width');
+  await db`INSERT INTO cutting_plans (id, tenant_id, work_order_ids, demand, parameters, result, created_by, idempotency_key) VALUES (${randomUUID()}, ${tenantId}, ${[jobsNow[1].id]}::uuid[], '[]', '{}', '{}', ${officeId}, ${randomUUID()})`;
+  const [planned] = await db`SELECT id FROM cutting_plans WHERE tenant_id = ${tenantId} AND ${jobsNow[1].id} = ANY(work_order_ids)`;
+  await db`UPDATE work_orders SET cut_plan_id = ${planned.id} WHERE id = ${jobsNow[1].id}`;
+  const second2: any = await proposeChange(office as any, done.orderId, { reason: 'Genişlik 3300', lines: [{ orderItemId: doneLine.id, widthMm: 3300 }] });
+  const after: any = await decideChange(office as any, done.orderId, second2.id, { decision: 'apply', acknowledgeImpact: true });
+  assert.equal((await db`SELECT status FROM work_orders WHERE id = ${jobsNow[1].id}`)[0].status, 'open', 'a planned job is not rebuilt behind the cutting plan');
+  assert.match(after.changes.find((c: any) => c.id === second2.id).impact.reasons.join(' '), /Rework gerekli · .*Kesim planına alınmış/);
+  console.log('PASS · quote to order: work order opened at conversion with the quoted recipe, measures and colour, assigned to the person converting, its cuts in the cutting pool; warehouses not guessed, a role that cannot open work orders leaves the line waiting with the reason, another recipe or a changed cut list refused for a configured line, no silent skip without a person; the default production lead gets the work order and a notification naming its colour, old-spelling 7016 bars cut for a RAL 7016 Mat job, the worker sees the colour without prices or the customer, a lead who left is not replaced by a guess; an applied change rebuilds an unstarted configured job with the new bill of materials and leaves a planned one for rework');
   console.log('PASS · quote configurator: worker refused, only published family recipes offered, every RAL colour quotable in one spelling with or without the frequently used list (office cannot edit it, duplicates in any spelling refused), an old name kept when the firm uses it and an unknown name refused, stock only as in/out of stock, an out-of-stock colour quotable, BOM and cut list from the recipe, limits and unknown colour refused, no matrix means a typed price that is required and flagged, browser BOM/price ignored, matrix price set by the server, an untouched line kept as stored, other currency not converted and an old matrix price not taken as typed, the order keeps the configuration');
 
   await db.end();

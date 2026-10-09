@@ -49,6 +49,7 @@
     "test:quote-configurator": "tsx --require ./scripts/register-server-only.cjs scripts/test-quote-configurator.ts",
     "test:records": "tsx --require ./scripts/register-server-only.cjs scripts/test-records.ts",
     "test:sales": "tsx --require ./scripts/register-server-only.cjs scripts/test-sales.ts",
+    "test:production-depth": "tsx --require ./scripts/register-server-only.cjs scripts/test-production-depth.ts",
     "test:warehouse:browser": "node scripts/verify-warehouse-browser.cjs",
     "prebuild": "node scripts/sync-pdf-worker.cjs",
     "predev": "node scripts/sync-pdf-worker.cjs"
