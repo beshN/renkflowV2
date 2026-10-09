@@ -8,6 +8,7 @@ import Combine
     @Published var stale=true
     @Published var updateRequired=false
     @Published var snapshot: Snapshot?
+    @Published var references:FieldReferences?
     @Published var detail: WorkOrder?
     @Published var selectedID: String?
     @Published var scanResult: ScanResult?
@@ -37,6 +38,7 @@ import Combine
         let store=try storage(),scope=sessionScope(auth)
         try store.prepare();try store.migrate(auth,legacy:vault.read("pending",as:ProductionCommand.self));vault.remove("pending")
         snapshot=try store.read(scope,key:"snapshot",as:Snapshot.self)
+        references=try store.read(scope,key:"references",as:FieldReferences.self)
         if let stamp=try store.read(scope,key:"last-sync",as:Double.self) {lastSync=Date(timeIntervalSince1970:stamp)}
         stale=true;reloadQueue();FieldBackgroundSync.schedule()
     }
@@ -85,6 +87,7 @@ import Combine
         // Cache server reference/module data too; these remain technical projections.
         let references:[String:JSONValue]=try await api.request([String:JSONValue].self,server:auth.server,token:auth.token,path:"references")
         try store.setCache(scope,key:"references",data:JSONEncoder().encode(references))
+        if generation==epoch {self.references=try JSONDecoder().decode(FieldReferences.self,from:JSONEncoder().encode(references))}
         var keys=["notifications/preferences"]
         if let value=references["capabilities"],case .object(let capabilities)=value,capabilities["installations"]?.flag==true {keys.append("installations")}
         for key in keys {
@@ -124,6 +127,11 @@ import Combine
         var data:[String:JSONValue]=["status":.string(status),"expectedUpdatedAt":.string(revision)]
         if status=="blocked" {data["blockedReasonCategory"] = .string("other");data["blockedReasonDetail"] = .string(reason?.trimmingCharacters(in:.whitespacesAndNewlines) ?? "")}
         await enqueue("transition",jobID:job.id,data:data)
+    }
+    func fieldEvent(_ kind:String,jobID:String,reason:String,count:Int,note:String,photo:String?) async {
+        var data:[String:JSONValue]=["reasonCode":.string(reason),"note":.string(note)]
+        if kind=="scrap" {data["quantity"] = .number(Double(count));data["photos"] = .array(photo.map {[.string($0)]} ?? [])}
+        await enqueue(kind,jobID:jobID,data:data)
     }
     func command(_ input: OperationInput) async {do {await enqueue("operation",jobID:nil,data:try payload(input))} catch {fail(error)}}
     private func enqueue(_ kind: String,jobID: String?,data: [String:JSONValue]) async {
@@ -214,10 +222,11 @@ private func overlay(_ snapshot: Snapshot,row: OutboxRecord) throws -> Snapshot 
     if request.kind=="operation",let input=try? JSONDecoder().decode(OperationInput.self,from:JSONEncoder().encode(request.data)) {
         result.operations=result.operations.map {op in
             guard op.id==input.operationId,op.version==input.version else {return op}
+            if input.action=="rework" {return op}
             var changed=op;let rejected=input.qualityResults.contains {$0.passed==false}
             if input.action=="complete" && !rejected {changed.completedQty+=Double(input.quantity ?? 0)}
-            changed.version+=1;changed.status=input.action=="start" ? "running" : input.action=="pause" ? "paused" : rejected ? "blocked" : changed.completedQty>=changed.plannedQty ? "done" : "paused"
-            changed.activeSince=changed.status=="running" ? ISO8601DateFormatter().string(from:Date()) : nil;return changed
+            changed.version+=1;changed.status=input.action=="start" ? "running" : input.action=="pause" ? "paused" : input.action=="note" ? op.status : rejected ? "blocked" : changed.completedQty>=changed.plannedQty ? "done" : "paused"
+            changed.activeSince=input.action=="note" ? op.activeSince : changed.status=="running" ? ISO8601DateFormatter().string(from:Date()) : nil;return changed
         }
     }
     return result

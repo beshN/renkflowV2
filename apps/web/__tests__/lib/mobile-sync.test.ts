@@ -26,3 +26,16 @@ it('distinguishes retryable revision conflicts from terminal restrictions',()=>{
   expect(new MobileConflict('closed',false)).toMatchObject({status:409,canRetry:false});
   expect(new MobileConflict('changed',true)).toMatchObject({status:409,canRetry:true});
 });
+it.each([
+  {kind:'scrap',data:{reasonCode:'cut_error',quantity:2,photos:[]}},
+  {kind:'delay',data:{reasonCode:'material',note:'Waiting for parts'}},
+  {kind:'operation',data:{operationId:id,version:2,action:'rework',quantity:1,reason:'Size incorrect',reasonCode:'measurement',targetOperationId:id}},
+])('accepts strict technical field commands without private fields',({kind,data})=>{
+  const input={idempotencyKey:id,kind,data,...(kind==='operation'?{}:{workOrderId:id})};
+  expect(()=>validateMobileDTO('SyncInput',input)).not.toThrow();
+  expect(()=>validateMobileDTO('SyncInput',{...input,data:{...data,customerPhone:'555'}})).toThrow();
+});
+it('rejects non-positive scrap and too many photos',()=>{
+  expect(()=>validateMobileDTO('ScrapInput',{reasonCode:'cut_error',quantity:0})).toThrow();
+  expect(()=>validateMobileDTO('ScrapInput',{reasonCode:'cut_error',quantity:1,photos:Array(7).fill('/photo')})).toThrow();
+});

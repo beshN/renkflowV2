@@ -903,7 +903,9 @@
             "enum": [
               "start",
               "pause",
-              "complete"
+              "complete",
+              "note",
+              "rework"
             ]
           },
           "quantity": {
@@ -929,7 +931,24 @@
               "minLength": 1,
               "maxLength": 2048
             },
-            "maxItems": 20
+            "maxItems": 6
+          },
+          "reasonCode": {
+            "enum": [
+              "measurement",
+              "material",
+              "assembly",
+              "quality",
+              "other"
+            ]
+          },
+          "targetOperationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rootCause": {
+            "type": "string",
+            "maxLength": 1000
           }
         },
         "required": [
@@ -1138,7 +1157,8 @@
             "enum": [
               "work_order:assigned",
               "mention",
-              "deadline:approaching"
+              "deadline:approaching",
+              "order:delayed"
             ]
           },
           "read": {
@@ -1354,6 +1374,58 @@
               "workOrderId"
             ],
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data",
+              "workOrderId"
+            ],
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "scrap"
+              },
+              "data": {
+                "$ref": "#/components/schemas/ScrapInput"
+              },
+              "workOrderId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data",
+              "workOrderId"
+            ],
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "delay"
+              },
+              "data": {
+                "$ref": "#/components/schemas/DelayInput"
+              },
+              "workOrderId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
           }
         ]
       },
@@ -1487,6 +1559,58 @@
           "url"
         ],
         "additionalProperties": false
+      },
+      "ScrapInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reasonCode",
+          "quantity"
+        ],
+        "properties": {
+          "reasonCode": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]{2,40}$"
+          },
+          "quantity": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 100000
+          },
+          "operationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "photos": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        }
+      },
+      "DelayInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reasonCode"
+        ],
+        "properties": {
+          "reasonCode": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]{2,40}$"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
       }
     }
   },

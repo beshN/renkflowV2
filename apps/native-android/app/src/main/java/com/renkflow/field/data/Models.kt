@@ -28,7 +28,8 @@ import kotlinx.serialization.Serializable
 @Serializable data class OperationInput(
     val operationId: String, val version: Int, val action: String,
     val quantity: Int? = null, val reason: String? = null,
-    val qualityResults: List<QualityResult> = emptyList(), val photos: List<String> = emptyList()
+    val qualityResults: List<QualityResult> = emptyList(), val photos: List<String> = emptyList(),
+    val reasonCode:String?=null,val targetOperationId:String?=null,val rootCause:String?=null
 )
 @Serializable data class Command(val commandId: String, val action: String = "operation", val data: OperationInput)
 @Serializable data class Accepted(val accepted: Boolean, val qualityRejected: Boolean = false)
@@ -49,3 +50,7 @@ fun priorityLabel(priority: String) = when (priority) { "critical" -> "Kritik"; 
 @Serializable data class SyncRequest(val idempotencyKey: String, val kind: String, val data: kotlinx.serialization.json.JsonObject, val workOrderId: String? = null)
 @Serializable data class LocalPhoto(val workOrderId: String, val base64: String, val name: String = "saha.jpg")
 @Serializable data class UploadStatus(val uploadId: String, val receivedBytes: Int, val totalBytes: Int, val chunkBytes: Int, val completed: Boolean, val url: String? = null)
+
+@Serializable data class ReasonCode(val kind:String,val code:String,val label:String)
+@Serializable data class FieldCapabilities(val reasonCodes:Boolean=false,val installations:Boolean=false,val remotePush:Boolean=false,val crashReporting:Boolean=false)
+@Serializable data class FieldReferences(val reasons:List<ReasonCode> = emptyList(),val capabilities:FieldCapabilities=FieldCapabilities())

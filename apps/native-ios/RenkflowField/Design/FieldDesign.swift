@@ -95,7 +95,14 @@ struct OperationCard: View {
                 HStack { Text(String(format: "%02d / %@", operation.position + 1, operation.workCenterCode.uppercased())).font(.caption.weight(.semibold)).foregroundStyle(.secondary); Spacer(); StatusPill(status: operation.status) }
                 Text(operation.name).font(.title3.bold()).foregroundStyle(.primary)
                 if let jobTitle { Text(jobTitle).font(.subheadline).foregroundStyle(.secondary) }
-                ProgressView(value: min(operation.completedQty, operation.plannedQty), total: max(1, operation.plannedQty))
+                HStack(spacing:16) {
+                    ZStack {
+                        Circle().stroke(FieldColor.border,lineWidth:6)
+                        Circle().trim(from:0,to:min(1,max(0,operation.completedQty/max(1,operation.plannedQty)))).stroke(FieldColor.accent,style:StrokeStyle(lineWidth:6,lineCap:.round)).rotationEffect(.degrees(-90))
+                        Text(quantity(max(0,operation.plannedQty-operation.completedQty))).font(.headline.monospacedDigit())
+                    }.frame(width:72,height:72).accessibilityLabel("\(quantity(max(0,operation.plannedQty-operation.completedQty))) kalan adet")
+                    Text(operation.status=="running" ? "Duraklat / Bitti" : ["ready","paused","blocked"].contains(operation.status) ? "Başla" : statusLabel(operation.status)).font(.headline).frame(maxWidth:.infinity,minHeight:48).foregroundStyle(FieldColor.onAccent).background(FieldColor.accent,in:RoundedRectangle(cornerRadius:8))
+                }
                 HStack { Text("\(quantity(operation.completedQty)) / \(quantity(operation.plannedQty)) adet"); Spacer(); Text("\(Int(operation.activeSeconds / 60)) dk") }.font(.caption.weight(.medium)).foregroundStyle(.secondary)
             }.padding(20).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(FieldColor.border, lineWidth: 1))
         }.buttonStyle(.plain)

@@ -18,7 +18,7 @@ export async function mobileInstallations(actor: FieldActor) {
 }
 export async function mobileNotifications(actor: FieldActor) {
   const rows = await sql`SELECT id,type,read,created_at FROM notifications WHERE tenant_id=${actor.tenantId} AND user_id=${actor.userId}
-    AND type IN('work_order:assigned','mention','deadline:approaching') ORDER BY created_at DESC LIMIT 100`;
+    AND type IN('work_order:assigned','mention','deadline:approaching','order:delayed') ORDER BY created_at DESC LIMIT 100`;
   return { provider: 'disconnected', notifications: rows.map((r: Record<string, unknown>) => ({ id: String(r.id), kind: String(r.type), read: Boolean(r.read), createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at) })) };
 }
 const preferenceKey = { assignment: 'work_order:assigned', mention: 'mention', delay: 'deadline:approaching' } as const;

@@ -44,7 +44,7 @@ struct DrainResult {let delivered: Int;let retry: Bool}
     func send(_ row: OutboxRecord) async throws -> String? {
         if row.kind=="photo" {return try await upload(row)}
         var request=try JSONDecoder().decode(SyncRequest.self,from:row.payload)
-        if request.kind=="operation",let value=request.data["photos"],case .array(let photos)=value {
+        if ["operation","scrap"].contains(request.kind),let value=request.data["photos"],case .array(let photos)=value {
             request.data["photos"] = .array(try photos.map {value in
                 guard let url=value.text,url.hasPrefix("local://") else {return value}
                 guard let photo=try store.find(sessionScope(auth),id:String(url.dropFirst(8))),photo.kind=="photo",photo.state=="delivered",let remote=photo.resultURL else {throw FieldAPIError(status:400,message:"Fotoğraf eşitlenmedi veya silinmiş; bu bildirimi inceleyin.")}

@@ -29,10 +29,10 @@ struct OperationView: View {
                     if let reason = operation.reason { Text(reason).foregroundStyle(FieldColor.error) }
                 }
                 if ["ready", "paused", "blocked"].contains(operation.status) {
-                    Section { Button { submit("start") } label: { Label("Üretimi başlat", systemImage: "play.fill") }.disabled(!canWrite) }
+                    Section { Button { submit("start") } label: { Label("Üretimi başlat", systemImage: "play.fill") }.buttonStyle(FieldButton()).disabled(!canWrite) }
                 }
                 if operation.status == "running" {
-                    Section { Button { submit("pause") } label: { Label("Duraklat", systemImage: "pause.fill") }.disabled(!canWrite) }
+                    Section { Button { submit("pause") } label: { Label("Duraklat", systemImage: "pause.fill") }.buttonStyle(FieldButton()).disabled(!canWrite) }
                     Section("Tamamlanan miktar") { TextField("Adet", text: $count).keyboardType(.numberPad).accessibilityLabel("Tamamlanan adet") }
                     ForEach(operation.qualityChecks) { check in
                         Section(check.name) {

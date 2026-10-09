@@ -20,7 +20,7 @@ data class FieldState(
     val scan: ScanResult? = null, val error: String? = null, val message: String? = null,
     val stale: Boolean = true, val updateRequired: Boolean = false, val pending: Command? = null,
     val outbox: List<OutboxRecord> = emptyList(), val syncing: Boolean = false,
-    val lastSync: Long? = null, val accessBlocked: Boolean = false
+    val lastSync: Long? = null, val accessBlocked: Boolean = false,val references:FieldReferences?=null
 )
 class FieldViewModel(application: Application) : AndroidViewModel(application) {
     private val api=Api()
@@ -39,7 +39,8 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         watcher?.cancel();watcher=viewModelScope.launch { offline.dao.watch(scope).collect { rows->mutable.update { it.copy(outbox=rows) } } }
         val snapshot=offline.dao.cache(scope,"snapshot")?.let { runCatching { fieldJson.decodeFromString<Snapshot>(it.payload) }.getOrNull() }
         val lastSync=offline.dao.cache(scope,"last-sync")?.payload?.toLongOrNull()
-        mutable.update { it.copy(snapshot=snapshot,lastSync=lastSync,stale=true) }
+        val references=offline.dao.cache(scope,"references")?.let {runCatching {fieldJson.decodeFromString<FieldReferences>(it.payload)}.getOrNull()}
+        mutable.update { it.copy(snapshot=snapshot,lastSync=lastSync,stale=true,references=references) }
         FieldSyncWorker.schedule(getApplication())
     }
     private fun restore() = viewModelScope.launch {
@@ -98,6 +99,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         if(generation==epoch) mutable.update { it.copy(snapshot=snapshot,stale=false,lastSync=System.currentTimeMillis()) }
         val references=api.raw(auth.server,auth.token,"references").jsonObject
         offline.save(scope,"references",references.toString())
+        if(generation==epoch) mutable.update {it.copy(references=fieldJson.decodeFromJsonElement<FieldReferences>(references))}
         offline.save(scope,"notifications/preferences",api.raw(auth.server,auth.token,"notifications/preferences").toString())
         if(references["capabilities"]?.jsonObject?.get("installations")?.jsonPrimitive?.booleanOrNull==true) offline.save(scope,"installations",api.raw(auth.server,auth.token,"installations").toString())
     }
@@ -135,6 +137,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         val revision=job.updatedAt ?: return
         enqueue("transition",job.id,buildJsonObject { put("status",status);put("expectedUpdatedAt",revision);if(status=="blocked") {put("blockedReasonCategory","other");put("blockedReasonDetail",reason.orEmpty().trim())} })
     }
+    fun fieldEvent(kind:String,jobId:String,reason:String,count:Int,note:String,photo:String?) = enqueue(kind,jobId,buildJsonObject {put("reasonCode",reason);put("note",note.trim());if(kind=="scrap") {put("quantity",count);put("photos",JsonArray(listOfNotNull(photo).map(::JsonPrimitive)))}})
     fun command(input: OperationInput) = enqueue("operation",null,fieldJson.encodeToJsonElement(input).jsonObject)
     private fun writable() = state.value.session!=null && !state.value.updateRequired && !state.value.accessBlocked && state.value.snapshot?.permissions?.transition==true
     private fun enqueue(kind: String,jobId: String?,data: JsonObject,onSaved: ()->Unit = {}) {
@@ -247,8 +250,8 @@ private fun overlay(snapshot: Snapshot,row: OutboxRecord): Snapshot {
         if(input==null || op.id!=input.operationId || op.version!=input.version) op else {
             val rejected=input.qualityResults.any {it.passed==false}
             val total=op.completedQty+if(input.action=="complete"&&!rejected) (input.quantity?:0) else 0
-            val status=when(input.action) {"start"->"running";"pause"->"paused";else->if(rejected) "blocked" else if(total>=op.plannedQty) "done" else "paused"}
-            op.copy(status=status,completedQty=total,version=op.version+1,activeSince=if(status=="running") Instant.now().toString() else null)
+            val status=when(input.action) {"start"->"running";"pause"->"paused";"note","rework"->op.status;else->if(rejected) "blocked" else if(total>=op.plannedQty) "done" else "paused"}
+            if(input.action=="rework") op else op.copy(status=status,completedQty=total,version=op.version+1,activeSince=if(input.action=="note") op.activeSince else if(status=="running") Instant.now().toString() else null)
         }
     })
 }

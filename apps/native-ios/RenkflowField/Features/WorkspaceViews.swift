@@ -60,6 +60,7 @@ struct ProductionView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
                 SectionTitle(title: "Üretim adımları", caption: "Her adımda güncel durum ve kalite kontrolü")
+                CuttingPlansView(plans:store.snapshot?.cutPlans ?? [])
                 Toggle("Yalnızca açık adımlar", isOn: $activeOnly)
                 ForEach(operations) { op in OperationCard(operation: op, jobTitle: store.snapshot?.workOrders.first { $0.id == op.workOrderId }?.title) { operation(op) } }
                 if operations.isEmpty { EmptyState(title: "Operasyon yok", subtitle: "Atanan üretim adımları burada listelenir.", icon: "gearshape.2") }
@@ -91,6 +92,8 @@ struct JobDetailView: View {
                         if job.status == "in_progress" && store.snapshot?.permissions.close == true { Button("Tamamla") { completing = true }.buttonStyle(FieldButton()).disabled(!store.writable) }
                     }
                 }
+                CuttingPlansView(plans:(store.snapshot?.cutPlans ?? []).filter {$0.bars.contains {bar in bar.pieces.contains {$0.workOrderId==job.id}}})
+                FieldEventView(jobID:job.id)
                 SectionTitle(title: "Kontrol listesi", caption: "Zorunlu adımları doğrulayın")
                 ForEach(job.checklist ?? []) { item in
                     Button { Task { await store.toggle(item) } } label: {
@@ -132,7 +135,7 @@ struct ProfileView: View {
                 }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 12))
                 Text("Üretim kayıtları firmanızın RenkFlow sistemine kaydedilir. Bağlantı kurulamadığında verileri yenileyin.").foregroundStyle(.secondary)
                 Button(role: .destructive) { logout = true } label: { Label("Çıkış yap", systemImage: "rectangle.portrait.and.arrow.right").frame(maxWidth: .infinity).padding(12) }.buttonStyle(.bordered).disabled(store.busy || store.pending != nil)
-                Text("Sürüm 1.0.0").font(.caption).foregroundStyle(.secondary)
+                Text("Sürüm \(MobileContract.version)").font(.caption).foregroundStyle(.secondary)
             }.padding(24).fieldCanvas()
         }.background(FieldColor.background)
             .confirmationDialog("Çıkış yapılsın mı?", isPresented: $logout, titleVisibility: .visible) { Button("Çıkış yap", role: .destructive) { store.logout() } } message: { Text("Bu cihazdaki oturumunuz temizlenecek.") }

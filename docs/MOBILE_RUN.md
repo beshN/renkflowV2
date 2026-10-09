@@ -105,3 +105,11 @@ Adım 3 başlangıcı: 2026-10-09 20:39 UTC. Adım 1 son feature CI devam ediyor
 10. Rol gizleme, tarama/kesim ve yeni yazma senaryolarını yerel API ve native CI'da doğrula.
 
 Adım 4 başlangıcı: 2026-10-09 21:27 UTC. Adım 3 PR #56 CI sonucu bekleniyor; yeni saha işi ayrı dalda, CI yeşil olmadan entegrasyona alınmaz.
+
+### Saha ilk kontrol noktası
+- CameraX + gömülü ML Kit; kamera izin reddi/elle giriş; iki platformda kesim çubukları, parça dokunma ve yakınlaştırma.
+- Kalan adet halkası ve büyük üretim kontrolü; gerçek RAL/boya bilgisi korunuyor.
+- Fire/gecikme atomik makbuzla aynı night-2 tablolarına yazar; neden kodunun güncel/aktif olması ve iş kapsamı yeniden kontrol edilir. Fire stok hareketi değildir; depo kuralları web kaynağında kalır.
+- Rework mevcut üretim transaction/defterine bağlı. Yerel DB üç grup geçti: tek fire/kapalı neden/açık gecikme; rework tek miktar; iptal iş engeli. 4 yeni sözleşme testi geçti.
+- iOS Adım 3 son CI (`37993178588`, `f8ed7c7`): **16 birim/sözleşme/SwiftData + 1 UI**, yeni kayıp-onay/kopan-büyük-fotoğraf gerçek HTTPS senaryosu dahil sıfır hata.
+- Android Adım 3 emülatörü hâlâ CI'da; saha devamı entegrasyona alınmadı. Montaj yazmaları/bildirim ekranları/rework arayüzü sırada.

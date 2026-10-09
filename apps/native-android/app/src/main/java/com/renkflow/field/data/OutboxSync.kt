@@ -54,7 +54,7 @@ class APIOutboxSender(private val store: OfflineStore, private val api: Api, pri
         if(record.kind == "photo") return upload(record)
         val request=fieldJson.decodeFromString<SyncRequest>(record.payload)
         var data=request.data
-        if (request.kind=="operation") {
+        if (request.kind in listOf("operation","scrap")) {
             val photos=data["photos"]?.jsonArray?.map { element ->
                 val url=element.jsonPrimitive.content
                 if(!url.startsWith("local://")) element else {

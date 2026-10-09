@@ -26,6 +26,7 @@ struct OperationInput: Codable {
     var operationId: String; var version: Int; var action: String
     var quantity: Int? = nil; var reason: String? = nil
     var qualityResults: [QualityResult] = []; var photos: [String] = []
+    var reasonCode:String? = nil;var targetOperationId:String? = nil;var rootCause:String? = nil
 }
 struct ProductionCommand: Codable { var commandId: String; var action: String; var data: OperationInput }
 struct Accepted: Codable { var accepted: Bool; var qualityRejected: Bool? }
@@ -43,11 +44,11 @@ func statusLabel(_ value: String) -> String {
 func priorityLabel(_ value: String) -> String { ["critical": "Kritik", "high": "Yüksek", "low": "Düşük", "medium": "Normal"][value] ?? value }
 func quantity(_ number: Double) -> String { number.formatted(.number.precision(.fractionLength(0...2)).locale(Locale(identifier: "tr_TR"))) }
 func displayDate(_ string: String) -> String {
-    var formatter = ISO8601DateFormatter()
+    let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    var date = formatter.date(from: string) ?? ISO8601DateFormatter().date(from: string)
-    guard var date else { return String(string.prefix(10)) }
-    var output = DateFormatter(); output.locale = Locale(identifier: "tr_TR"); output.dateFormat = "d MMM, HH:mm"
+    let date = formatter.date(from: string) ?? ISO8601DateFormatter().date(from: string)
+    guard let date else { return String(string.prefix(10)) }
+    let output = DateFormatter(); output.locale = Locale(identifier: "tr_TR"); output.dateFormat = "d MMM, HH:mm"
     return output.string(from: date)
 }
 
@@ -76,3 +77,7 @@ enum JSONValue: Codable {
     var flag: Bool? { if case .bool(let value) = self { return value }; return nil }
 }
 func payload<T: Encodable>(_ value: T) throws -> [String:JSONValue] { try JSONDecoder().decode([String:JSONValue].self,from:JSONEncoder().encode(value)) }
+
+struct ReasonCode:Codable {var kind:String;var code:String;var label:String}
+struct FieldCapabilities:Codable {var reasonCodes:Bool;var installations:Bool;var remotePush:Bool;var crashReporting:Bool}
+struct FieldReferences:Codable {var reasons:[ReasonCode];var capabilities:FieldCapabilities}

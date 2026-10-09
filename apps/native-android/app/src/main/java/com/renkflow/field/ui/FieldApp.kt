@@ -40,8 +40,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
-import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.renkflow.field.R
 import com.renkflow.field.FieldState
 import com.renkflow.field.FieldViewModel
@@ -105,7 +103,7 @@ import java.util.Locale
                 } else when (tab) {
                     0 -> Home(state, { tab = 3 }, model::openJob, { operation = it })
                     1 -> Jobs(state.snapshot?.workOrders.orEmpty(), model::openJob)
-                    2 -> Production(state, { operation = it })
+                    2 -> Production(state, { operation = it },model::openJob)
                     3 -> Scan(state, model)
                     else -> Profile(state, model)
                 }
@@ -127,7 +125,9 @@ import java.util.Locale
                 Text(if(state.stale) "Çevrimdışı" else if(state.syncing) "Eşitleniyor" else "Eşitleme",fontWeight=FontWeight.SemiBold)
                 state.lastSync?.let {Text(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("HH:mm",Locale("tr"))),style=MaterialTheme.typography.labelMedium)}
             }
-            if(pending>0) Badge(Modifier.semantics {contentDescription="$pending bekleyen işlem"}) {Text(pending.toString())}
+            if(pending>0) {
+                Badge(Modifier.semantics {contentDescription="$pending bekleyen işlem"}) {Text(pending.toString())}
+            }
             IconButton(onClick=model::sync,enabled=!state.syncing&&!state.updateRequired,modifier=Modifier.size(56.dp)) {Icon(Icons.Outlined.Sync,"Şimdi eşitle")}
         }
     }
@@ -255,11 +255,12 @@ import java.util.Locale
     val color = when (status) { "blocked" -> MaterialTheme.colorScheme.error; "running", "in_progress" -> MaterialTheme.colorScheme.secondary; "done" -> MaterialTheme.colorScheme.tertiary; else -> MaterialTheme.colorScheme.onSurfaceVariant }
     Surface(color = color.copy(alpha = 0.12f), shape = RoundedCornerShape(8.dp)) { Text(statusLabel(status), Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = color, style = MaterialTheme.typography.labelMedium) }
 }
-@Composable private fun Production(state: FieldState, open: (Operation) -> Unit) {
+@Composable private fun Production(state: FieldState, open: (Operation) -> Unit,openJob:(String)->Unit) {
     var activeOnly by rememberSaveable { mutableStateOf(true) }
     val ops = state.snapshot?.operations.orEmpty().filter { !activeOnly || it.status !in listOf("done", "cancelled") }
     LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { SectionTitle("Üretim adımları", "Her adımda güncel durum ve kalite kontrolü") }
+        item {CuttingPlans(state.snapshot?.cutPlans.orEmpty(),state.snapshot?.workOrders.orEmpty(),openJob)}
         item { Row(verticalAlignment = Alignment.CenterVertically) { Text("Yalnızca açık adımlar", Modifier.weight(1f)); Switch(activeOnly, { activeOnly = it }) } }
         items(ops, key = { it.id }) { op -> OperationCard(op, state.snapshot?.workOrders?.firstOrNull { it.id == op.workOrderId }?.title) { open(op) } }
         if (ops.isEmpty()) item { EmptyState("Operasyon yok", "Atanan üretim adımları burada listelenir.", Icons.Outlined.PrecisionManufacturing) }
@@ -271,7 +272,13 @@ import java.util.Locale
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("${(op.position + 1).toString().padStart(2, '0')} / ${op.workCenterCode.uppercase()}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); StatusPill(op.status) }
             Text(op.name, style = MaterialTheme.typography.titleLarge)
             jobTitle?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            LinearProgressIndicator(progress = { (op.completedQty / op.plannedQty).toFloat().coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
+            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) {
+                Box(contentAlignment=Alignment.Center,modifier=Modifier.size(72.dp).semantics {contentDescription="${quantity(op.plannedQty-op.completedQty)} kalan adet"}) {
+                    CircularProgressIndicator(progress={if(op.plannedQty>0) (op.completedQty/op.plannedQty).toFloat().coerceIn(0f,1f) else 0f},modifier=Modifier.fillMaxSize(),strokeWidth=6.dp)
+                    Text(quantity(op.plannedQty-op.completedQty),fontWeight=FontWeight.Bold)
+                }
+                Button(onClick=click,modifier=Modifier.weight(1f).heightIn(min=56.dp)) {Text(if(op.status=="running") "Duraklat / Bitti" else if(op.status in listOf("ready","paused","blocked")) "Başla" else statusLabel(op.status))}
+            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("${quantity(op.completedQty)} / ${quantity(op.plannedQty)} adet", style = MaterialTheme.typography.labelMedium); Text("${(op.activeSeconds / 60).toInt()} dk", style = MaterialTheme.typography.labelMedium) }
         }
     }
@@ -296,6 +303,8 @@ import java.util.Locale
                 if (job.status == "in_progress" && state.snapshot.permissions.close) Button(onClick = { confirmDone = true }, enabled = writable) { Text("Tamamla") }
             }
         }
+        item {CuttingPlans(state.snapshot?.cutPlans.orEmpty().filter {it.bars.any {bar->bar.pieces.any {p->p.workOrderId==job.id}}},state.snapshot?.workOrders.orEmpty(),model::openJob)}
+        item {FieldEventView(state.references,writable) {kind,code,count,note->model.fieldEvent(kind,job.id,code,count,note,null)}}
         item { SectionTitle("Kontrol listesi", "Zorunlu adımları doğrulayın") }
         items(job.checklist, key = { it.id }) { item ->
             Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surface) {
@@ -325,7 +334,7 @@ import java.util.Locale
 @Composable private fun Scan(state: FieldState, model: FieldViewModel) {
     val context = LocalContext.current
     var code by rememberSaveable { mutableStateOf("") }
-    var scanError by remember { mutableStateOf<String?>(null) }
+    var scanning by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         SectionTitle("Etiketten işe", "QR ve barkodları kamerayla okutun")
         Surface(color = Ink, shape = RoundedCornerShape(12.dp)) {
@@ -333,15 +342,11 @@ import java.util.Locale
                 Icon(Icons.Outlined.QrCodeScanner, null, Modifier.size(100.dp), tint = OnInk)
                 Text("Malzeme · Lot · İş emri", color = Color.White, style = MaterialTheme.typography.titleMedium)
                 Button(onClick = {
-                    scanError = null
-                    val activity = context as? Activity ?: return@Button
-                    GmsBarcodeScanning.getClient(activity, GmsBarcodeScannerOptions.Builder().enableAutoZoom().build()).startScan()
-                        .addOnSuccessListener { it.rawValue?.let(model::scan) }
-                        .addOnFailureListener { scanError = "Tarayıcı açılamadı. Kodu aşağıdan girebilirsiniz." }
+                    scanning = true
                 }, enabled = !state.busy, colors = ButtonDefaults.buttonColors(containerColor = OnInk, contentColor = Ink), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Kamerayı aç") }
             }
         }
-        scanError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        if(scanning) CameraScanner(close={scanning=false}) {value -> scanning=false;code=value;model.scan(value)}
         OutlinedTextField(code, { if (it.length <= 1000) code = it }, Modifier.fillMaxWidth(), label = { Text("Etiket kodu") }, placeholder = { Text("Barkod veya QR içeriği") }, singleLine = true)
         OutlinedButton(onClick = { model.scan(code) }, enabled = code.isNotBlank() && !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Kodu bul") }
         state.scan?.let { result ->
@@ -407,7 +412,7 @@ import java.util.Locale
             op.reason?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             if (op.status in listOf("ready", "paused", "blocked")) Button(onClick = { onCommand(OperationInput(op.id, op.version, "start")) }, enabled = canWrite, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Icon(Icons.Outlined.PlayArrow, null); Text("Üretimi başlat") }
             if (op.status == "running") {
-                OutlinedButton(onClick = { onCommand(OperationInput(op.id, op.version, "pause")) }, enabled = canWrite, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Outlined.Pause, null); Text("Duraklat") }
+                OutlinedButton(onClick = { onCommand(OperationInput(op.id, op.version, "pause")) }, enabled = canWrite, modifier = Modifier.fillMaxWidth().heightIn(min=56.dp)) { Icon(Icons.Outlined.Pause, null); Text("Duraklat") }
                 OutlinedTextField(count, { count = it }, Modifier.fillMaxWidth(), label = { Text("Tamamlanan adet") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
                 op.qualityChecks.forEach { check ->
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
