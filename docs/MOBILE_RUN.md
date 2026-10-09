@@ -86,3 +86,22 @@ Adım 3 başlangıcı: 2026-10-09 20:39 UTC. Adım 1 son feature CI devam ediyor
 - İki platforma ayrıca gerçek sunucuda kayıp üretim onayı, >256 KiB fotoğrafın ikinci parçasında ağ kopması, depo yeniden açılışı, aynı UUID ile devam ve tek miktar testleri ekleniyor. Sonuçları henüz tamamlanmadı.
 - Uçak modu taşımada hata enjekte edilerek sınanıyor; gerçek cihaz uçak modu/OS arka plan zamanlaması **doğrulanmadı**.
 - Cache notları snapshot'ta son 20/iş, toplam en fazla 500; online detay daha geniş geçmişi getirir. Arka plan çalışması OS koşullarına bağlı; kayıt diskte kalır, ön planda eşitleme her zaman kullanılabilir.
+
+### Adım 3 night-2 kontrolü
+- Güncel mobil-owned API/sözleşme ayrı night-2 test kopyasına taşındı; gece dalının web kodu korunuyor.
+- Production build ve gerçek HTTP `/sync`/`/uploads` dört senaryo grubu geçti; main/night-2'ye merge veya production migration yapılmadı.
+- iOS ağ kesintisi test sınıfında `URLProtocol.task` ad çakışması derleme hatası verdi; test alanı `forwardingTask` olarak düzeltildi. Test atlanmadı, CI yeniden çalışıyor.
+
+## Adım 4 planı (10 satır)
+1. Teknik ürün ailesi simgesi, RAL/boya ve kalan adet halkasını kartlarda birleştir.
+2. Başla/Duraklat/Bitti kontrolünü büyük hedeflerle üretim akışına bağla.
+3. Kesim çubuklarını yerel snapshot'tan çiz; parça bilgisi ve yakınlaştırma ekle.
+4. Android CameraX + gömülü ML Kit kur; kamera izni ve elle giriş yedeğini koru.
+5. Fire/gecikme nedenlerini güncel firma kataloğuyla doğrula ve atomik outbox'a ekle.
+6. Rework komutunu mevcut web üretim hizmetiyle aynı kurallara bağla.
+7. Montaj ekibinin teknik liste/kontrol/eksik-hasar kayıtlarını yetki ve sürümle sınırla.
+8. Müşteri iletişimi/adres/onay kimliği DTO sınırını genişletme; kapalı özellikleri açıkça belgele.
+9. Bildirim tercihleri, cihaz jetonu kaydı ve bağlanmamış FCM/APNs arayüzünü ekle.
+10. Rol gizleme, tarama/kesim ve yeni yazma senaryolarını yerel API ve native CI'da doğrula.
+
+Adım 4 başlangıcı: 2026-10-09 21:27 UTC. Adım 3 PR #56 CI sonucu bekleniyor; yeni saha işi ayrı dalda, CI yeşil olmadan entegrasyona alınmaz.
