@@ -86,3 +86,51 @@ Adım 3 başlangıcı: 2026-10-09 20:39 UTC. Adım 1 son feature CI devam ediyor
 - İki platforma ayrıca gerçek sunucuda kayıp üretim onayı, >256 KiB fotoğrafın ikinci parçasında ağ kopması, depo yeniden açılışı, aynı UUID ile devam ve tek miktar testleri ekleniyor. Sonuçları henüz tamamlanmadı.
 - Uçak modu taşımada hata enjekte edilerek sınanıyor; gerçek cihaz uçak modu/OS arka plan zamanlaması **doğrulanmadı**.
 - Cache notları snapshot'ta son 20/iş, toplam en fazla 500; online detay daha geniş geçmişi getirir. Arka plan çalışması OS koşullarına bağlı; kayıt diskte kalır, ön planda eşitleme her zaman kullanılabilir.
+
+### Adım 3 night-2 kontrolü
+- Güncel mobil-owned API/sözleşme ayrı night-2 test kopyasına taşındı; gece dalının web kodu korunuyor.
+- Production build ve gerçek HTTP `/sync`/`/uploads` dört senaryo grubu geçti; main/night-2'ye merge veya production migration yapılmadı.
+- iOS ağ kesintisi test sınıfında `URLProtocol.task` ad çakışması derleme hatası verdi; test alanı `forwardingTask` olarak düzeltildi. Test atlanmadı, CI yeniden çalışıyor.
+
+## Adım 4 planı (10 satır)
+1. Teknik ürün ailesi simgesi, RAL/boya ve kalan adet halkasını kartlarda birleştir.
+2. Başla/Duraklat/Bitti kontrolünü büyük hedeflerle üretim akışına bağla.
+3. Kesim çubuklarını yerel snapshot'tan çiz; parça bilgisi ve yakınlaştırma ekle.
+4. Android CameraX + gömülü ML Kit kur; kamera izni ve elle giriş yedeğini koru.
+5. Fire/gecikme nedenlerini güncel firma kataloğuyla doğrula ve atomik outbox'a ekle.
+6. Rework komutunu mevcut web üretim hizmetiyle aynı kurallara bağla.
+7. Montaj ekibinin teknik liste/kontrol/eksik-hasar kayıtlarını yetki ve sürümle sınırla.
+8. Müşteri iletişimi/adres/onay kimliği DTO sınırını genişletme; kapalı özellikleri açıkça belgele.
+9. Bildirim tercihleri, cihaz jetonu kaydı ve bağlanmamış FCM/APNs arayüzünü ekle.
+10. Rol gizleme, tarama/kesim ve yeni yazma senaryolarını yerel API ve native CI'da doğrula.
+
+Adım 4 başlangıcı: 2026-10-09 21:27 UTC. Adım 3 PR #56 CI sonucu bekleniyor; yeni saha işi ayrı dalda, CI yeşil olmadan entegrasyona alınmaz.
+
+### Saha ilk kontrol noktası
+- CameraX + gömülü ML Kit; kamera izin reddi/elle giriş; iki platformda kesim çubukları, parça dokunma ve yakınlaştırma.
+- Kalan adet halkası ve büyük üretim kontrolü; gerçek RAL/boya bilgisi korunuyor.
+- Fire/gecikme atomik makbuzla aynı night-2 tablolarına yazar; neden kodunun güncel/aktif olması ve iş kapsamı yeniden kontrol edilir. Fire stok hareketi değildir; depo kuralları web kaynağında kalır.
+- Rework mevcut üretim transaction/defterine bağlı. Yerel DB üç grup geçti: tek fire/kapalı neden/açık gecikme; rework tek miktar; iptal iş engeli. 4 yeni sözleşme testi geçti.
+- iOS Adım 3 son CI (`37993178588`, `f8ed7c7`): **16 birim/sözleşme/SwiftData + 1 UI**, yeni kayıp-onay/kopan-büyük-fotoğraf gerçek HTTPS senaryosu dahil sıfır hata.
+- Android Adım 3 emülatörü hâlâ CI'da; saha devamı entegrasyona alınmadı. Montaj yazmaları/bildirim ekranları/rework arayüzü sırada.
+
+### Adım 3 tamamlandı
+- PR #56, GitHub web + sözleşme + Android + iOS kontrolleri başarılıyken yalnız `codex/mobile-integration`'a merge edildi: `2ae4e19` (Türkiye saati 10 Ekim 00:39).
+- Android CI `37993178588`: debug/birim/lint ve emülatör testleri geçti; kalıcı Room ve gerçek HTTPS kayıp onay/kesilen fotoğraf senaryosu dahil. iOS 16 birim + 1 UI geçti.
+- Vercel preview dış hesap/proje erişim ayarı nedeniyle engellendi; canlı dağıtım veya ortam değişikliği yapılmadı. Entegrasyon kabul ölçütü GitHub testleridir.
+- Gerçek cihaz, fiziksel uçak modu ve OS arka plan zamanlaması halen doğrulanmadı.
+
+### Montaj kontrol noktası
+- Teknik montaj detay API'si, ekip kapsamı, sürüm kontrolü, atomik kontrol/eksik/hasar kayıtları ve tekrar gönderim koruması eklendi.
+- İki platformda yerel montaj listesi/detayı ve outbox. Üretim yazma yetkisi olmayan montaj rolü ayrı modül yetkisiyle çalışır; müşteri DTO sınırı korunur.
+- Yerel gerçek DB montaj testi geçti: iki start tek sürüm artışı, stale sürüm reddi, checklist + tek issue, ekipten çıkarılınca 404. Kamera/kesim Android derleme ve lint geçti.
+- Sırada: native montaj CI, rework arayüzü, fotoğraf/bildirim altyapısı; oturum ve yayın adımları.
+
+### Saha fotoğraf/bildirim kontrol noktası
+- Montaj fotoğrafları aynı resumable uploader ile web `record_attachments` tablosuna gider; ekip kapsamıyla korunan JPEG okuma ucu vardır. Yerel DB tek dosya/tekrar finalize/ekipten çıkarılınca okuma engeli geçti.
+- Yerel şema 002 hedefin yalnız iş emri veya montaj olmasını zorlar; 003 özel cihaz push kaydı ekler. Production'a uygulanmadı.
+- Bildirim metadata ve web tercihleri görünür; gecikme tercihi hem deadline hem order:delayed türünü kontrol eder. FCM/APNs kayıt köprüleri ve sunucu gönderici arayüzü var; SDK/sağlayıcı anahtarı bağlı değil, teslim başarılı gösterilmez. OS yerel test düğmesi ayrı.
+- Montaj-only custom role: giriş/teknik detay çalışır, üretim snapshot boş ve üretim yazması 403; cihaz kayıt yanıtında sağlayıcı tokeni yok.
+- API/DTO birim testleri ve native montaj overlay/önceki fotoğraf kuyruk uyum testleri eklendi. Fotoğraf içeren yerel testte depolama açıkça local seçilmediği için ilk deneme hata verdi; yalnız test process'inde local depolama seçilerek düzeldi.
+
+- Son iOS kontrolünde eski fotoğraf JSON'unda eksik `name` alanı okuması başarısız oldu. Decoder varsayılan dosya adını açıkça uygulayacak şekilde düzeltildi; test korunuyor. Montaj detayı hızlı değiştirilince eski ağ yanıtının yeni seçimi ezmesi de seçim kimliğiyle engellendi.

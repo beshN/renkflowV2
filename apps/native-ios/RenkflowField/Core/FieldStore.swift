@@ -8,6 +8,13 @@ import Combine
     @Published var stale=true
     @Published var updateRequired=false
     @Published var snapshot: Snapshot?
+    @Published var references:FieldReferences?
+    @Published var installations:[Installation]=[]
+    @Published var installationDetail:InstallationDetails?
+    private var selectedInstallationID:String?
+    @Published var preferences:NotificationPreferences?
+    @Published var notifications:[FieldNotification]=[]
+    @Published var preferencesBusy=false
     @Published var detail: WorkOrder?
     @Published var selectedID: String?
     @Published var scanResult: ScanResult?
@@ -37,6 +44,10 @@ import Combine
         let store=try storage(),scope=sessionScope(auth)
         try store.prepare();try store.migrate(auth,legacy:vault.read("pending",as:ProductionCommand.self));vault.remove("pending")
         snapshot=try store.read(scope,key:"snapshot",as:Snapshot.self)
+        references=try store.read(scope,key:"references",as:FieldReferences.self)
+        preferences=try store.read(scope,key:"notifications/preferences",as:NotificationPreferences.self)
+        notifications=try store.read(scope,key:"notifications",as:NotificationList.self)?.notifications ?? []
+        installations=try store.read(scope,key:"installations",as:InstallationList.self)?.installations ?? []
         if let stamp=try store.read(scope,key:"last-sync",as:Double.self) {lastSync=Date(timeIntervalSince1970:stamp)}
         stale=true;reloadQueue();FieldBackgroundSync.schedule()
     }
@@ -57,7 +68,7 @@ import Combine
         } catch {fail(error)}
     }
     func logout() {
-        epoch+=1;vault.clear();FieldBackgroundSync.cancel();session=nil;snapshot=nil;detail=nil;selectedID=nil;scanResult=nil;outbox=[];error=nil;message=nil;stale=true;syncing=false
+        epoch+=1;vault.clear();FieldBackgroundSync.cancel();session=nil;snapshot=nil;detail=nil;selectedID=nil;scanResult=nil;outbox=[];references=nil;installations=[];installationDetail=nil;selectedInstallationID=nil;preferences=nil;notifications=[];error=nil;message=nil;stale=true;syncing=false
     }
     func foreground() async {if Date().timeIntervalSince(lastValidation)>60 {await refresh()} else {await sync()}}
     func refresh() async {
@@ -85,15 +96,31 @@ import Combine
         // Cache server reference/module data too; these remain technical projections.
         let references:[String:JSONValue]=try await api.request([String:JSONValue].self,server:auth.server,token:auth.token,path:"references")
         try store.setCache(scope,key:"references",data:JSONEncoder().encode(references))
-        var keys=["notifications/preferences"]
+        if generation==epoch {self.references=try JSONDecoder().decode(FieldReferences.self,from:JSONEncoder().encode(references))}
+        var keys=["notifications/preferences","notifications"]
         if let value=references["capabilities"],case .object(let capabilities)=value,capabilities["installations"]?.flag==true {keys.append("installations")}
         for key in keys {
             let values:[String:JSONValue]=try await api.request([String:JSONValue].self,server:auth.server,token:auth.token,path:key)
             try store.setCache(scope,key:key,data:JSONEncoder().encode(values))
+            if key=="notifications/preferences",generation==epoch {preferences=try JSONDecoder().decode(NotificationPreferences.self,from:JSONEncoder().encode(values))}
+            if key=="notifications",generation==epoch {notifications=try JSONDecoder().decode(NotificationList.self,from:JSONEncoder().encode(values)).notifications}
+            if key=="installations",generation==epoch {installations=try JSONDecoder().decode(InstallationList.self,from:JSONEncoder().encode(values)).installations}
         }
+        if self.references?.capabilities.installations != true {installations=[];installationDetail=nil}
+        if let id=installationDetail?.id {try await loadInstallation(auth,id:id,generation:generation)}
         try store.context.save()
     }
     private func cacheDetail(_ auth: Session,job: WorkOrder) throws {let store=try storage();try store.setCache(sessionScope(auth),key:"job:"+job.id,data:JSONEncoder().encode(job));try store.context.save()}
+    func notificationPreference(_ key:String,value:Bool) async {
+        guard let auth=session,var next=preferences,!stale,!preferencesBusy,!updateRequired else {return}
+        if key=="assignment" {next.assignment=value} else if key=="mention" {next.mention=value} else {next.delay=value}
+        let generation=epoch;preferencesBusy=true;defer {if generation==epoch {preferencesBusy=false}}
+        do {
+            let saved=try await api.post(auth,path:"notifications/preferences",value:next,type:NotificationPreferences.self)
+            try storage().setCache(sessionScope(auth),key:"notifications/preferences",data:JSONEncoder().encode(saved));try storage().context.save()
+            if generation==epoch {preferences=saved}
+        } catch {if generation==epoch {fail(error)}}
+    }
     func openJob(_ id: String) async {
         guard let auth=session else {return};selectedID=id;detail=nil;error=nil;let generation=epoch
         do {
@@ -101,6 +128,27 @@ import Combine
             let job=try overlayJob(await api.details(auth,id:id),rows:outbox);try cacheDetail(auth,job:job)
             if generation==epoch && selectedID==id {detail=job}
         } catch {if generation==epoch {fail(error)}}
+    }
+    func openInstallation(_ id:String) async {
+        guard let auth=session else {return};let generation=epoch
+        selectedInstallationID=id;installationDetail=nil
+        do {
+            installationDetail=try storage().read(sessionScope(auth),key:"installation:"+id,as:InstallationDetails.self)
+            try await loadInstallation(auth,id:id,generation:generation)
+        } catch {if generation==epoch {fail(error)}}
+    }
+    private func loadInstallation(_ auth:Session,id:String,generation:Int) async throws {
+        let current=try await api.request(InstallationDetails.self,server:auth.server,token:auth.token,path:"installations/"+id)
+        let result=overlayInstallation(current,rows:try storage().rows(sessionScope(auth)))
+        try storage().setCache(sessionScope(auth),key:"installation:"+id,data:JSONEncoder().encode(result));try storage().context.save()
+        if generation==epoch && selectedInstallationID==id {installationDetail=result}
+    }
+    func installationCommand(_ action:String,item:InstallationCheck?=nil,kind:String?=nil,text:String?=nil) async {
+        guard let current=installationDetail else {return}
+        var data:[String:JSONValue]=["action":.string(action),"expectedVersion":.number(Double(current.version))]
+        if let item {data["itemId"] = .string(item.id);data["completed"] = .bool(!item.completed)}
+        if let kind {data["kind"] = .string(kind)};if let text {data["text"] = .string(text.trimmingCharacters(in:.whitespacesAndNewlines))}
+        await enqueue("installation",jobID:current.id,data:data)
     }
     func closeJob() {selectedID=nil;detail=nil}
     func scan(_ code: String) async {
@@ -125,17 +173,23 @@ import Combine
         if status=="blocked" {data["blockedReasonCategory"] = .string("other");data["blockedReasonDetail"] = .string(reason?.trimmingCharacters(in:.whitespacesAndNewlines) ?? "")}
         await enqueue("transition",jobID:job.id,data:data)
     }
+    func fieldEvent(_ kind:String,jobID:String,reason:String,count:Int,note:String,photo:String?) async {
+        var data:[String:JSONValue]=["reasonCode":.string(reason),"note":.string(note)]
+        if kind=="scrap" {data["quantity"] = .number(Double(count));data["photos"] = .array(photo.map {[.string($0)]} ?? [])}
+        await enqueue(kind,jobID:jobID,data:data)
+    }
     func command(_ input: OperationInput) async {do {await enqueue("operation",jobID:nil,data:try payload(input))} catch {fail(error)}}
     private func enqueue(_ kind: String,jobID: String?,data: [String:JSONValue]) async {
-        guard let auth=session,writable else {return}
+        guard let auth=session,!updateRequired,!accessBlocked,(kind=="installation" ? references?.capabilities.installationEdit==true : writable) else {return}
         do {
-            let request=SyncRequest(idempotencyKey:UUID().uuidString,kind:kind,data:data,workOrderId:jobID)
+            let request=SyncRequest(idempotencyKey:UUID().uuidString,kind:kind,data:data,workOrderId:kind=="installation" ? nil : jobID,installationId:kind=="installation" ? jobID : nil)
             let temporary=OutboxRecord(id:request.idempotencyKey,sequence:0,scope:sessionScope(auth),kind:kind,payload:try JSONEncoder().encode(request))
             var next=snapshot;if let current=next {next=try overlay(current,row:temporary)}
             let job=try detail.map {try overlayJob($0,rows:[temporary])}
-            var caches:[String:Data]=[:];if let next {caches["snapshot"]=try JSONEncoder().encode(next)};if let job {caches["job:"+job.id]=try JSONEncoder().encode(job)}
+            let installation=installationDetail.map {overlayInstallation($0,rows:[temporary])}
+            var caches:[String:Data]=[:];if let installation {caches["installation:"+installation.id]=try JSONEncoder().encode(installation)};if let next {caches["snapshot"]=try JSONEncoder().encode(next)};if let job {caches["job:"+job.id]=try JSONEncoder().encode(job)}
             try storage().enqueue(sessionScope(auth),request:request,caches:caches)
-            snapshot=next;detail=job;message="İşlem cihazda kaydedildi.";reloadQueue();FieldBackgroundSync.schedule();await sync()
+            snapshot=next;detail=job;installationDetail=installation;message="İşlem cihazda kaydedildi.";reloadQueue();FieldBackgroundSync.schedule();await sync()
         } catch {fail(error)}
     }
     func retryCommand() async {await sync()}
@@ -160,6 +214,14 @@ import Combine
             let row=try storage().photo(sessionScope(auth),value:LocalPhoto(workOrderId:jobID,base64:bytes.base64EncodedString()))
             reloadQueue();FieldBackgroundSync.schedule();Task {await sync()};return "local://"+row.commandID
         } catch {fail(error);return nil}
+    }
+    func uploadInstallationPhoto(_ id:String,bytes:Data) async -> Bool {
+        guard let auth=session,!updateRequired,!accessBlocked,references?.capabilities.installationEdit==true else {return false}
+        do {
+            guard bytes.count<=2_000_000 else {throw FieldAPIError(status:400,message:"Fotoğraf çok büyük.")}
+            _ = try storage().photo(sessionScope(auth),value:LocalPhoto(base64:bytes.base64EncodedString(),installationId:id))
+            reloadQueue();FieldBackgroundSync.schedule();Task {await sync()};return true
+        } catch {fail(error);return false}
     }
     func discard(_ row: OutboxRecord) async {
         guard let auth=session,row.scope==sessionScope(auth),row.state != "sending" else {return}
@@ -214,10 +276,11 @@ private func overlay(_ snapshot: Snapshot,row: OutboxRecord) throws -> Snapshot 
     if request.kind=="operation",let input=try? JSONDecoder().decode(OperationInput.self,from:JSONEncoder().encode(request.data)) {
         result.operations=result.operations.map {op in
             guard op.id==input.operationId,op.version==input.version else {return op}
+            if input.action=="rework" {return op}
             var changed=op;let rejected=input.qualityResults.contains {$0.passed==false}
             if input.action=="complete" && !rejected {changed.completedQty+=Double(input.quantity ?? 0)}
-            changed.version+=1;changed.status=input.action=="start" ? "running" : input.action=="pause" ? "paused" : rejected ? "blocked" : changed.completedQty>=changed.plannedQty ? "done" : "paused"
-            changed.activeSince=changed.status=="running" ? ISO8601DateFormatter().string(from:Date()) : nil;return changed
+            changed.version+=1;changed.status=input.action=="start" ? "running" : input.action=="pause" ? "paused" : input.action=="note" ? op.status : rejected ? "blocked" : changed.completedQty>=changed.plannedQty ? "done" : "paused"
+            changed.activeSince=input.action=="note" ? op.activeSince : changed.status=="running" ? ISO8601DateFormatter().string(from:Date()) : nil;return changed
         }
     }
     return result

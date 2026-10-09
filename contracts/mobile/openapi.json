@@ -285,6 +285,12 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "productFamily": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -732,6 +738,12 @@
               },
               "crashReporting": {
                 "const": false
+              },
+              "installationEdit": {
+                "type": "boolean"
+              },
+              "productionView": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -903,7 +915,9 @@
             "enum": [
               "start",
               "pause",
-              "complete"
+              "complete",
+              "note",
+              "rework"
             ]
           },
           "quantity": {
@@ -929,7 +943,24 @@
               "minLength": 1,
               "maxLength": 2048
             },
-            "maxItems": 20
+            "maxItems": 6
+          },
+          "reasonCode": {
+            "enum": [
+              "measurement",
+              "material",
+              "assembly",
+              "quality",
+              "other"
+            ]
+          },
+          "targetOperationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rootCause": {
+            "type": "string",
+            "maxLength": 1000
           }
         },
         "required": [
@@ -1138,7 +1169,8 @@
             "enum": [
               "work_order:assigned",
               "mention",
-              "deadline:approaching"
+              "deadline:approaching",
+              "order:delayed"
             ]
           },
           "read": {
@@ -1354,6 +1386,84 @@
               "workOrderId"
             ],
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data",
+              "workOrderId"
+            ],
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "scrap"
+              },
+              "data": {
+                "$ref": "#/components/schemas/ScrapInput"
+              },
+              "workOrderId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data",
+              "workOrderId"
+            ],
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "delay"
+              },
+              "data": {
+                "$ref": "#/components/schemas/DelayInput"
+              },
+              "workOrderId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data",
+              "installationId"
+            ],
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "installation"
+              },
+              "data": {
+                "$ref": "#/components/schemas/InstallationInput"
+              },
+              "installationId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
           }
         ]
       },
@@ -1391,10 +1501,10 @@
             "required": [
               "action",
               "uploadId",
-              "workOrderId",
               "name",
               "totalBytes",
-              "sha256"
+              "sha256",
+              "workOrderId"
             ],
             "additionalProperties": false
           },
@@ -1448,6 +1558,45 @@
               "uploadId"
             ],
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "action": {
+                "const": "init"
+              },
+              "uploadId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 180
+              },
+              "totalBytes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10485760
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "installationId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "action",
+              "uploadId",
+              "name",
+              "totalBytes",
+              "sha256",
+              "installationId"
+            ],
+            "additionalProperties": false
           }
         ]
       },
@@ -1487,6 +1636,224 @@
           "url"
         ],
         "additionalProperties": false
+      },
+      "ScrapInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reasonCode",
+          "quantity"
+        ],
+        "properties": {
+          "reasonCode": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]{2,40}$"
+          },
+          "quantity": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 100000
+          },
+          "operationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "photos": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        }
+      },
+      "DelayInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reasonCode"
+        ],
+        "properties": {
+          "reasonCode": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]{2,40}$"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
+      },
+      "InstallationDetails": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "version",
+          "status",
+          "checklist",
+          "issues"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "checklist": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "title",
+                "completed"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "completed": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "text"
+              ],
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "missing",
+                    "damage"
+                  ]
+                },
+                "text": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "url"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "url": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "InstallationInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "action",
+          "expectedVersion"
+        ],
+        "properties": {
+          "action": {
+            "enum": [
+              "start",
+              "complete",
+              "checklist",
+              "issue"
+            ]
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "missing",
+              "damage"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 1000
+          }
+        }
+      },
+      "PushDeviceInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "deviceId",
+          "enabled"
+        ],
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "token": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 2048
+          }
+        }
+      },
+      "PushDeviceStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "registered",
+          "provider"
+        ],
+        "properties": {
+          "registered": {
+            "const": true
+          },
+          "provider": {
+            "const": "disconnected"
+          }
+        }
       }
     }
   },
@@ -2861,6 +3228,116 @@
           }
         },
         "x-response-type": "UploadStatus"
+      }
+    },
+    "/installations/{id}": {
+      "get": {
+        "operationId": "installationDetails",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Technical crew details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/InstallationDetails"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/installation-files/{id}": {
+      "get": {
+        "operationId": "installationPhoto",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Assigned crew JPEG photo, bearer authentication required",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/device": {
+      "post": {
+        "operationId": "registerPushDevice",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushDeviceInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Private provider token stored; delivery disconnected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PushDeviceStatus"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

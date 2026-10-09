@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject private var store: FieldStore
+    @State private var installations=false
     let scan: () -> Void; let operation: (ProductionOperation) -> Void
     private var jobs: [WorkOrder] { store.snapshot?.workOrders ?? [] }
     private var operations: [ProductionOperation] { store.snapshot?.operations ?? [] }
@@ -19,6 +20,7 @@ struct HomeView: View {
                     Button(action: scan) { Label("Etiket tara", systemImage: "qrcode.viewfinder") }.buttonStyle(FieldButton(bright: true))
                 }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.ink, in: RoundedRectangle(cornerRadius: 12))
                 if store.snapshot?.truncated == true { Text("Liste sınırına ulaşıldı. Etiket tarayarak belirli bir işe erişebilirsiniz.").font(.subheadline).foregroundStyle(FieldColor.error) }
+                if store.references?.capabilities.installations==true {Button("Montaj ekibi işleri") {installations=true}.frame(minHeight:48).buttonStyle(.bordered)}
                 SectionTitle(title: "Sıradaki operasyonlar", caption: "Başlatmak veya devam etmek için seçin")
                 let active = operations.filter { ["running", "ready", "paused", "blocked"].contains($0.status) }
                 if active.isEmpty { EmptyState(title: "Hazır operasyon yok", subtitle: "Size atanan yeni adımlar burada görünecek.", icon: "checkmark.circle") }
@@ -28,7 +30,7 @@ struct HomeView: View {
                 if jobs.isEmpty { EmptyState(title: "İş listeniz boş", subtitle: "Atanan iş emirleri burada görünecek.", icon: "list.clipboard") }
                 if let snapshot = store.snapshot { Text("Son güncelleme \(displayDate(snapshot.generatedAt))").font(.caption).foregroundStyle(.secondary) }
             }.padding(20).fieldCanvas()
-        }.background(FieldColor.background).refreshable { await store.refresh() }
+        }.background(FieldColor.background).refreshable { await store.refresh() }.sheet(isPresented:$installations) {InstallationView().environmentObject(store)}
     }
     private func metric(_ value: Int, _ label: String) -> some View { VStack(alignment: .leading, spacing: 4) { Text(value.formatted()).font(.largeTitle.bold()).foregroundStyle(.white); Text(label).font(.caption).foregroundStyle(.white.opacity(0.72)) } }
 }
@@ -60,6 +62,7 @@ struct ProductionView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
                 SectionTitle(title: "Üretim adımları", caption: "Her adımda güncel durum ve kalite kontrolü")
+                CuttingPlansView(plans:store.snapshot?.cutPlans ?? [])
                 Toggle("Yalnızca açık adımlar", isOn: $activeOnly)
                 ForEach(operations) { op in OperationCard(operation: op, jobTitle: store.snapshot?.workOrders.first { $0.id == op.workOrderId }?.title) { operation(op) } }
                 if operations.isEmpty { EmptyState(title: "Operasyon yok", subtitle: "Atanan üretim adımları burada listelenir.", icon: "gearshape.2") }
@@ -91,6 +94,8 @@ struct JobDetailView: View {
                         if job.status == "in_progress" && store.snapshot?.permissions.close == true { Button("Tamamla") { completing = true }.buttonStyle(FieldButton()).disabled(!store.writable) }
                     }
                 }
+                CuttingPlansView(plans:(store.snapshot?.cutPlans ?? []).filter {$0.bars.contains {bar in bar.pieces.contains {$0.workOrderId==job.id}}})
+                FieldEventView(jobID:job.id)
                 SectionTitle(title: "Kontrol listesi", caption: "Zorunlu adımları doğrulayın")
                 ForEach(job.checklist ?? []) { item in
                     Button { Task { await store.toggle(item) } } label: {
@@ -130,9 +135,10 @@ struct ProfileView: View {
                     Text(["worker": "Saha çalışanı", "office": "Operasyon", "owner": "Firma sahibi", "admin": "Yönetici"][store.session?.user.role ?? ""] ?? "Hesap").foregroundStyle(FieldColor.accent)
                     Divider(); Text(store.session?.server ?? "").font(.subheadline)
                 }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 12))
+                NotificationsView()
                 Text("Üretim kayıtları firmanızın RenkFlow sistemine kaydedilir. Bağlantı kurulamadığında verileri yenileyin.").foregroundStyle(.secondary)
                 Button(role: .destructive) { logout = true } label: { Label("Çıkış yap", systemImage: "rectangle.portrait.and.arrow.right").frame(maxWidth: .infinity).padding(12) }.buttonStyle(.bordered).disabled(store.busy || store.pending != nil)
-                Text("Sürüm 1.0.0").font(.caption).foregroundStyle(.secondary)
+                Text("Sürüm \(MobileContract.version)").font(.caption).foregroundStyle(.secondary)
             }.padding(24).fieldCanvas()
         }.background(FieldColor.background)
             .confirmationDialog("Çıkış yapılsın mı?", isPresented: $logout, titleVisibility: .visible) { Button("Çıkış yap", role: .destructive) { store.logout() } } message: { Text("Bu cihazdaki oturumunuz temizlenecek.") }

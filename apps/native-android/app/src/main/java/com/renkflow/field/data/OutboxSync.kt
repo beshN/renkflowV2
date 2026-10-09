@@ -54,7 +54,7 @@ class APIOutboxSender(private val store: OfflineStore, private val api: Api, pri
         if(record.kind == "photo") return upload(record)
         val request=fieldJson.decodeFromString<SyncRequest>(record.payload)
         var data=request.data
-        if (request.kind=="operation") {
+        if (request.kind in listOf("operation","scrap")) {
             val photos=data["photos"]?.jsonArray?.map { element ->
                 val url=element.jsonPrimitive.content
                 if(!url.startsWith("local://")) element else {
@@ -74,7 +74,7 @@ class APIOutboxSender(private val store: OfflineStore, private val api: Api, pri
         val photo=fieldJson.decodeFromString<LocalPhoto>(record.payload)
         val bytes=Base64.getDecoder().decode(photo.base64)
         suspend fun call(body: JsonObject): UploadStatus = fieldJson.decodeFromJsonElement(api.raw(session.server,session.token,"uploads",body.toString()))
-        var status=call(buildJsonObject { put("action","init");put("uploadId",record.commandId);put("workOrderId",photo.workOrderId);put("name",photo.name);put("totalBytes",bytes.size);put("sha256",sha(bytes)) })
+        var status=call(buildJsonObject { put("action","init");put("uploadId",record.commandId);if(photo.installationId!=null) put("installationId",photo.installationId) else put("workOrderId",requireNotNull(photo.workOrderId));put("name",photo.name);put("totalBytes",bytes.size);put("sha256",sha(bytes)) })
         require(status.totalBytes==bytes.size && status.receivedBytes in 0..bytes.size && status.chunkBytes in 1..262144) { "Sunucu yükleme durumu geçersiz." }
         while(!status.completed && status.receivedBytes<bytes.size) {
             val offset=status.receivedBytes

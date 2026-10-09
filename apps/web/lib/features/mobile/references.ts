@@ -15,6 +15,6 @@ export async function mobileReferences(actor: FieldActor) {
     }),
     stages: stages.map((row: Record<string, unknown>) => ({ code: String(row.code), name: String(row.name) })),
     reasons: reasons.map((row: Record<string, unknown>) => ({ kind: String(row.kind), code: String(row.code), label: String(row.label) })),
-    capabilities: { reasonCodes: Boolean(available?.reasons), installations: Boolean(available?.installations && actor.mobileAccess?.installations.view), remotePush: false, crashReporting: false },
+    capabilities: { reasonCodes: Boolean(available?.reasons), installations: Boolean(available?.installations && actor.mobileAccess?.installations.view), productionView: Boolean(actor.mobileAccess?.production.view), installationEdit: Boolean(available?.installations && actor.mobileAccess?.installations.edit), remotePush: false, crashReporting: false },
   };
 }

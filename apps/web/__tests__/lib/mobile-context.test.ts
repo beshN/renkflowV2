@@ -31,3 +31,8 @@ it('reads shared web preference flags without exposing the user or other notific
 it.each(['Installation','Notification','NotificationPreferences'])('rejects unrecognized private additions to %s', schema => {
   expect(()=>validateMobileDTO(schema as 'Installation', {customerPhone:'PRIVATE',cost:999})).toThrow();
 });
+it('rejects customer and signoff identity from installation detail responses',()=>{
+  const details={id:'00000000-0000-4000-8000-000000000001',version:1,status:'planned',checklist:[],issues:[]};
+  expect(()=>validateMobileDTO('InstallationDetails',details)).not.toThrow();
+  for(const field of ['address','customerPhone','signedName','signoffUrl','cost']) expect(()=>validateMobileDTO('InstallationDetails',{...details,[field]:'PRIVATE'})).toThrow();
+});
