@@ -101,9 +101,11 @@ function InstallationDetail({ id, field, onClose, onChanged, onError }: { id: st
   const [members, setMembers] = useState<Member[]>([]);
   const [issue, setIssue] = useState<{ kind: 'missing' | 'damage'; text: string } | null>(null);
   const [link, setLink] = useState<string | null>(null);
+  // The crew boxes answer at once; the server's answer replaces this on reload.
+  const [crew, setCrew] = useState<string[]>([]);
   const load = useCallback(async () => {
     const r = await requestJson<Installation & { conflicts: Conflict[] }>(`/api/v1/installations/${id}`, { cache: 'no-store' });
-    if (r.ok && r.data) setI(r.data); else onError(r.error || 'Montaj alınamadı');
+    if (r.ok && r.data) { setI(r.data); setCrew(r.data.crew); } else onError(r.error || 'Montaj alınamadı');
   }, [id, onError]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
@@ -160,7 +162,8 @@ function InstallationDetail({ id, field, onClose, onChanged, onError }: { id: st
             <div className="mt-1 flex flex-wrap gap-2">
               {members.map((m) => (
                 <label key={m.id} className="inline-flex items-center gap-1 text-xs">
-                  <input type="checkbox" className="h-4 w-4" disabled={!editable} checked={i.crew.includes(m.id)} onChange={() => void patch({ crew: i.crew.includes(m.id) ? i.crew.filter((c) => c !== m.id) : [...i.crew, m.id] })} />
+                  <input type="checkbox" className="h-4 w-4" disabled={!editable} checked={crew.includes(m.id)}
+                    onChange={() => { const next = crew.includes(m.id) ? crew.filter((c) => c !== m.id) : [...crew, m.id]; setCrew(next); void patch({ crew: next }); }} />
                   {m.name || m.email}
                 </label>
               ))}

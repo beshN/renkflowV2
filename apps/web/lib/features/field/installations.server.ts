@@ -16,8 +16,6 @@ import { hasCap, isoDay, nextNumber, requireCap, requireChain } from './common.s
 const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const SIGNOFF_DAYS = 14;
-/** Order statuses from which a signed installation may suggest "delivered" (the state machine's own rule). */
-const DELIVERABLE_FROM = ['ready', 'ready_for_shipment', 'shipped'];
 
 type Row = Record<string, any>;
 
@@ -263,9 +261,10 @@ async function suggestDelivered(tenantId: string, installationId: string, actorI
     if (!(await tableExists('ai_suggestions'))) return;
     const [r] = await sql`SELECT i.installation_number, i.signed_name, o.id AS order_id, o.order_number, o.status FROM installations i JOIN orders o ON o.id = i.order_id AND o.tenant_id = i.tenant_id
       WHERE i.tenant_id = ${tenantId} AND i.id = ${installationId}`;
+    const { MARK_DELIVERED_KIND, DELIVERABLE_FROM } = await import('@/lib/ai/suggestions/kinds/mark-delivered');
+    // Not deliverable yet (production not finished): the kind's refresh files it once it is.
     if (!r || !DELIVERABLE_FROM.includes(r.status)) return;
     const { fileSuggestion } = await import('@/lib/ai/suggestions/service');
-    const { MARK_DELIVERED_KIND } = await import('@/lib/ai/suggestions/kinds/mark-delivered');
     await fileSuggestion(sql, tenantId, actorId, {
       kind: MARK_DELIVERED_KIND,
       title: `${r.order_number} teslim edildi olarak işaretlensin mi?`,

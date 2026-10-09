@@ -132,6 +132,25 @@ async function main() {
   assert.equal(after.status, 'delivered');
   assert.ok(after.delivered_on);
 
+  // Signed before production finished: the queue's refresh files the suggestion once the order is ready.
+  const late = await quotationService.createQuotation(tenantId, { customerId: l.customerId!, customerName: 'Deniz Kaya', currency: 'TRY', discountPercent: 0, items: [{ productName: 'Pergola', quantity: 1, unitPrice: 0, discountPercent: 0, totalPrice: 0 }] } as any, ids.office);
+  const lateOrder = String(((await quotationService.convertToOrder(tenantId, (late as any).id, ids.office, undefined, 'office')) as any).orderId);
+  const latePlan = await inst.planInstallation(office, lateOrder, { date: '2026-10-22' });
+  await inst.updateInstallation(office, latePlan.id, { status: 'in_progress' });
+  const lateToken = (await inst.createSignoffLink(office, latePlan.id)).path.split('/').pop()!;
+  await inst.signDelivery(lateToken, { name: 'Deniz Kaya', accept: true }, { ip: '10.0.0.2', agent: 'test' });
+  const noneYet: any = await suggestions.listPendingSuggestions(office as any);
+  assert.ok(!(noneYet.suggestions ?? noneYet).some((s: any) => s.kind === 'installation.mark_delivered' && s.payload?.orderId === lateOrder), 'not deliverable yet: no suggestion');
+  for (const step of ['approved', 'preparing_materials', 'ready_for_production', 'in_production', 'ready_for_shipment']) {
+    const [cur] = await db`SELECT status FROM orders WHERE id = ${lateOrder}`;
+    if (cur.status === step) continue;
+    await withTransaction((tx: any) => applyOrderStatus(tx, { tenantId, orderId: lateOrder, from: cur.status, to: step, actorId: ids.office }));
+  }
+  const { suggestionKind } = await import('../lib/ai/suggestions/kinds');
+  await suggestionKind('installation.mark_delivered')!.refresh!(office as any);
+  const [filed] = await db`SELECT id FROM ai_suggestions WHERE tenant_id = ${tenantId} AND kind = 'installation.mark_delivered' AND status = 'pending' AND payload->>'orderId' = ${lateOrder}`;
+  assert.ok(filed, 'filed once the order is ready');
+
   // 7. Delivered order → warranty ticket in one call; warranty judged at opening.
   await assert.rejects(svc.openTicket(worker, { orderId, title: 'Sızıntı' }), (e: any) => e.status === 403);
   const ticket = await svc.openTicket(office, { installationId: plan.id, title: 'Köşeden su sızıyor', category: 'leak', assignedTo: ids.worker });

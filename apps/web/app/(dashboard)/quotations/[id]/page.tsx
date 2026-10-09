@@ -678,7 +678,6 @@ export default function QuotationPage({
           )}
         </section>
       )}
-      {!isNew && quotation?.id && <MeasureChangeBanner quotationId={quotation.id} />}
       {!isNew && quotation && (
         <QuoteSalesPanel
           quoteId={quotation.id}
