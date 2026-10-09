@@ -177,3 +177,17 @@ Adım 5 başlangıcı: 2026-10-09 22:12 UTC. Önceki adımların Android CI'sı 
 - Tablet iş sekmesinde liste+detay yan yana; telefon akışı aynı. Büyük hedefler ve başarı/hata haptikleri eklendi. Mevcut nötr/kobalt açık-koyu tema ve ortak boş/hata/offline durumları korunur.
 - Android oturum ekranında lint LocalContext'in Activity'ye cast edilmesini reddetti; LocalActivity'ye geçildi. Test veya lint kuralı atlanmadı.
 - PR #57 tüm GitHub kontrolleri başarılıyken mobil entegrasyona merge edildi (`0b5e168`). Adım 4 tamamlandı; fiziksel kamera ve müşteri adres/onay bağlantısı halen kapalı/doğrulanmadı.
+
+## Adım 6 planı (10 satır)
+1. Native/API yol filtrelerini koru; kaynak ve proje üretiminin drift kontrolünü CI'ya ekle.
+2. Sürüm adını/kodunu tek OpenAPI kaynağından üret, yayın build numarasını ortamdan al.
+3. Android release imzasını yalnız secret/ortam değişkenleriyle yapılandır.
+4. Elle çalıştırılan CI'da imzalı AAB üret; otomatik mağaza yüklemesi yapma.
+5. macOS bulut runner'da iOS archive/export için sertifika/profil secret adımlarını hazırla.
+6. Apple Developer/App Store Connect ve TestFlight gerekliliklerini açıkça belgele.
+7. Hata/analitik soyutlamasını yalnız izinli adsız olaylarla kur; sağlayıcıyı bağlanmadı bırak.
+8. Son sürümde Android/iOS/API/outbox testlerini ve night-2 uyumluluk kanıtlarını topla.
+9. Yeni debug APK'yı sürüm ve SHA-256 ile teslim alanına koy; iOS simülatör talimatını yaz.
+10. MOBILE_RUN/MOBILE_RELEASE raporunda kısmi/kapalı özellikleri ve fiziksel cihaz kontrol listesini belirt.
+
+Adım 6 başlangıcı: 2026-10-09 22:17 UTC. Yayın hesabı/imza bilgileri yok; kaynak ve CI hazırlığı yapılır, mağazaya yayın yapılmaz.
