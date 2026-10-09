@@ -9,7 +9,7 @@ export AUTH_TRUST_HOST=true ALLOW_INSECURE_HTTP=1 PUBLIC_SITE_MODE=off PRIVATE_A
 export STORAGE_BACKEND=local ALLOW_LOCAL_STORAGE=1 RESEND_API_KEY=''
 npm run db:local > /tmp/mobile-db.log 2>&1 &
 for attempt in $(seq 1 90); do
-  if rg -q 'Local PostgreSQL ready:' /tmp/mobile-db.log; then break; fi
+  if grep -q 'Local PostgreSQL ready:' /tmp/mobile-db.log; then break; fi
   if [ "$attempt" = 90 ]; then cat /tmp/mobile-db.log; exit 1; fi
   sleep 1
 done

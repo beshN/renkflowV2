@@ -46,7 +46,6 @@ jobs:
       - name: Start isolated local web contract server
         working-directory: apps/web
         run: |
-          command -v rg >/dev/null || brew install ripgrep
           npm ci --workspaces=false --legacy-peer-deps
           bash ../../scripts/mobile/prepare-http-fixture.sh
       - uses: actions/setup-java@v4
@@ -112,7 +111,6 @@ jobs:
       - name: Start isolated local web contract server
         working-directory: apps/web
         run: |
-          command -v rg >/dev/null || brew install ripgrep
           npm ci --workspaces=false --legacy-peer-deps
           bash ../../scripts/mobile/prepare-http-fixture.sh
       - name: Validate generated project
