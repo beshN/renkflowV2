@@ -11,7 +11,7 @@ import kotlinx.serialization.json.*
 @Serializable data class FieldColorInfo(val label: String, val code: String, val name: String, val hex: String? = null, val finish: String? = null, val finishAssumed: Boolean = false, val standIn: Boolean = false, val kind: String)
 @Serializable data class WorkOrder(
     val id: String, val title: String, val status: String, val priority: String,
-    val color: FieldColorInfo? = null, val updatedAt: String? = null, val category: String = "general", val description: String? = null, val location: String? = null,
+    val color: FieldColorInfo? = null,val productFamily:String?=null, val updatedAt: String? = null, val category: String = "general", val description: String? = null, val location: String? = null,
     val dueAt: String? = null, val assigneeName: String? = null, val blockedReasonDetail: String? = null,
     val checklistTotal: Int = 0, val checklistCompleted: Int = 0,
     val productionManaged: Boolean = false, val checklist: List<ChecklistItem> = emptyList(), val comments: List<Comment> = emptyList()
@@ -49,18 +49,18 @@ fun priorityLabel(priority: String) = when (priority) { "critical" -> "Kritik"; 
 @Serializable data class CutBar(val id: String, val itemId: String, val color: String, val lengthMm: Double, val isRemnant: Boolean, val pieces: List<CutPiece>, val remainingMm: Double, val reusable: Boolean, val lossMm: Double)
 @Serializable data class CutPlan(val id: String, val status: String, val wastePercent: Double? = null, val bars: List<CutBar>)
 @Serializable data class SyncRequest(val idempotencyKey: String, val kind: String, val data: kotlinx.serialization.json.JsonObject, val workOrderId: String? = null,val installationId:String?=null)
-@Serializable data class LocalPhoto(val workOrderId: String, val base64: String, val name: String = "saha.jpg")
+@Serializable data class LocalPhoto(val workOrderId: String?=null, val base64: String, val name: String = "saha.jpg",val installationId:String?=null)
 @Serializable data class UploadStatus(val uploadId: String, val receivedBytes: Int, val totalBytes: Int, val chunkBytes: Int, val completed: Boolean, val url: String? = null)
 
 @Serializable data class ReasonCode(val kind:String,val code:String,val label:String)
-@Serializable data class FieldCapabilities(val reasonCodes:Boolean=false,val installations:Boolean=false,val remotePush:Boolean=false,val crashReporting:Boolean=false,val installationEdit:Boolean=false)
+@Serializable data class FieldCapabilities(val reasonCodes:Boolean=false,val installations:Boolean=false,val remotePush:Boolean=false,val crashReporting:Boolean=false,val installationEdit:Boolean=false,val productionView:Boolean=true)
 @Serializable data class FieldReferences(val reasons:List<ReasonCode> = emptyList(),val capabilities:FieldCapabilities=FieldCapabilities())
 
 @Serializable data class Installation(val id:String,val number:String,val date:String?=null,val startTime:String?=null,val productName:String?=null,val status:String,val version:Int,val signed:Boolean,val checklistTotal:Int,val checklistCompleted:Int)
 @Serializable data class InstallationList(val available:Boolean,val installations:List<Installation> = emptyList())
 @Serializable data class InstallationCheck(val id:String,val title:String,val completed:Boolean)
 @Serializable data class InstallationIssue(val kind:String,val text:String)
-@Serializable data class InstallationDetails(val id:String,val status:String,val version:Int,val checklist:List<InstallationCheck>,val issues:List<InstallationIssue>)
+@Serializable data class InstallationDetails(val id:String,val status:String,val version:Int,val checklist:List<InstallationCheck>,val issues:List<InstallationIssue>,val photos:List<InstallationPhoto> = emptyList())
 fun overlayInstallation(detail:InstallationDetails,rows:List<OutboxRecord>):InstallationDetails {
     var result=detail
     for(row in rows) {
@@ -78,3 +78,5 @@ fun overlayInstallation(detail:InstallationDetails,rows:List<OutboxRecord>):Inst
     }
     return result
 }
+
+@Serializable data class InstallationPhoto(val id:String,val url:String)

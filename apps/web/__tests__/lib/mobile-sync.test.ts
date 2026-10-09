@@ -45,3 +45,10 @@ it('requires a version and technical installation mutation, never customer field
   expect(()=>validateMobileDTO('SyncInput',{...input,data:{...input.data,address:'Private'}})).toThrow();
   expect(()=>validateMobileDTO('SyncInput',{...input,data:{action:'complete'}})).toThrow();
 });
+it('allows exactly one upload target and rejects ambiguous entity attachment',()=>{
+  const upload={action:'init',uploadId:id,name:'saha.jpg',totalBytes:20,sha256:'0'.repeat(64)};
+  expect(()=>validateMobileDTO('UploadInput',{...upload,workOrderId:id})).not.toThrow();
+  expect(()=>validateMobileDTO('UploadInput',{...upload,installationId:id})).not.toThrow();
+  expect(()=>validateMobileDTO('UploadInput',{...upload,workOrderId:id,installationId:id})).toThrow();
+  expect(()=>validateMobileDTO('UploadInput',upload)).toThrow();
+});

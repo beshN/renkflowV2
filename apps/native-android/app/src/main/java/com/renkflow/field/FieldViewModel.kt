@@ -20,7 +20,7 @@ data class FieldState(
     val scan: ScanResult? = null, val error: String? = null, val message: String? = null,
     val stale: Boolean = true, val updateRequired: Boolean = false, val pending: Command? = null,
     val outbox: List<OutboxRecord> = emptyList(), val syncing: Boolean = false,
-    val lastSync: Long? = null, val accessBlocked: Boolean = false,val references:FieldReferences?=null,val installations:List<Installation> = emptyList(),val installationDetail:InstallationDetails?=null
+    val lastSync: Long? = null, val accessBlocked: Boolean = false,val references:FieldReferences?=null,val installations:List<Installation> = emptyList(),val installationDetail:InstallationDetails?=null,val preferences:NotificationPreferences?=null,val notifications:List<FieldNotification> = emptyList(),val preferencesBusy:Boolean=false
 )
 class FieldViewModel(application: Application) : AndroidViewModel(application) {
     private val api=Api()
@@ -40,7 +40,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         val snapshot=offline.dao.cache(scope,"snapshot")?.let { runCatching { fieldJson.decodeFromString<Snapshot>(it.payload) }.getOrNull() }
         val lastSync=offline.dao.cache(scope,"last-sync")?.payload?.toLongOrNull()
         val references=offline.dao.cache(scope,"references")?.let {runCatching {fieldJson.decodeFromString<FieldReferences>(it.payload)}.getOrNull()}
-        mutable.update { it.copy(snapshot=snapshot,lastSync=lastSync,stale=true,references=references,installations=offline.dao.cache(scope,"installations")?.let {runCatching {fieldJson.decodeFromString<InstallationList>(it.payload).installations}.getOrNull()}.orEmpty()) }
+        mutable.update { it.copy(snapshot=snapshot,lastSync=lastSync,stale=true,references=references,preferences=offline.dao.cache(scope,"notifications/preferences")?.let {runCatching {fieldJson.decodeFromString<NotificationPreferences>(it.payload)}.getOrNull()},notifications=offline.dao.cache(scope,"notifications")?.let {runCatching {fieldJson.decodeFromString<NotificationList>(it.payload).notifications}.getOrNull()}.orEmpty(),installations=offline.dao.cache(scope,"installations")?.let {runCatching {fieldJson.decodeFromString<InstallationList>(it.payload).installations}.getOrNull()}.orEmpty()) }
         FieldSyncWorker.schedule(getApplication())
     }
     private fun restore() = viewModelScope.launch {
@@ -100,7 +100,9 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         val references=api.raw(auth.server,auth.token,"references").jsonObject
         offline.save(scope,"references",references.toString())
         if(generation==epoch) mutable.update {it.copy(references=fieldJson.decodeFromJsonElement<FieldReferences>(references))}
-        offline.save(scope,"notifications/preferences",api.raw(auth.server,auth.token,"notifications/preferences").toString())
+        val prefs=api.raw(auth.server,auth.token,"notifications/preferences");offline.save(scope,"notifications/preferences",prefs.toString())
+        val notifications=api.raw(auth.server,auth.token,"notifications");offline.save(scope,"notifications",notifications.toString())
+        if(generation==epoch) mutable.update {it.copy(preferences=fieldJson.decodeFromJsonElement<NotificationPreferences>(prefs),notifications=fieldJson.decodeFromJsonElement<NotificationList>(notifications).notifications)}
         if(references["capabilities"]?.jsonObject?.get("installations")?.jsonPrimitive?.booleanOrNull==true) {
             val values=api.raw(auth.server,auth.token,"installations");offline.save(scope,"installations",values.toString())
             if(generation==epoch) mutable.update {it.copy(installations=fieldJson.decodeFromJsonElement<InstallationList>(values).installations)}
@@ -108,6 +110,20 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         } else if(generation==epoch) mutable.update {it.copy(installations=emptyList(),installationDetail=null)}
     }
     private suspend fun cacheDetail(auth: Session,job: WorkOrder) = offline.save(sessionScope(auth),"job:${job.id}",fieldJson.encodeToString(job))
+    fun notificationPreference(key:String,value:Boolean) {
+        val auth=state.value.session ?: return;val current=state.value.preferences ?: return
+        if(state.value.stale || state.value.preferencesBusy || state.value.updateRequired) return
+        val next=when(key) {"assignment"->current.copy(assignment=value);"mention"->current.copy(mention=value);else->current.copy(delay=value)}
+        val generation=epoch;mutable.update {it.copy(preferencesBusy=true)}
+        viewModelScope.launch {
+            try {
+                val saved=fieldJson.decodeFromJsonElement<NotificationPreferences>(api.raw(auth.server,auth.token,"notifications/preferences",fieldJson.encodeToString(next)))
+                offline.save(sessionScope(auth),"notifications/preferences",fieldJson.encodeToString(saved))
+                if(generation==epoch) mutable.update {it.copy(preferences=saved)}
+            } catch(e:Exception) {if(generation==epoch) fail(e)}
+            finally {if(generation==epoch) mutable.update {it.copy(preferencesBusy=false)}}
+        }
+    }
     fun openJob(id: String) {
         val auth=state.value.session ?: return
         val generation=epoch
@@ -209,6 +225,17 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
                 offline.dao.enqueue(OutboxRecord(scope=sessionScope(auth),commandId=id,kind="photo",payload=fieldJson.encodeToString(LocalPhoto(jobId,base64))))
                 onUploaded("local://$id");FieldSyncWorker.schedule(getApplication());sync()
             } catch(e: Exception) { fail(e) }
+        }
+    }
+    fun uploadInstallationPhoto(id:String,base64:String,onSaved:()->Unit) {
+        val auth=state.value.session ?: return
+        if(state.value.references?.capabilities?.installationEdit!=true || state.value.updateRequired || state.value.accessBlocked) return
+        viewModelScope.launch {
+            try {
+                require(base64.length<=2_800_000)
+                offline.dao.enqueue(OutboxRecord(scope=sessionScope(auth),commandId=UUID.randomUUID().toString(),kind="photo",payload=fieldJson.encodeToString(LocalPhoto(base64=base64,installationId=id))))
+                onSaved();FieldSyncWorker.schedule(getApplication());sync()
+            } catch(e:Exception) {fail(e)}
         }
     }
     fun discard(row: OutboxRecord) = viewModelScope.launch {

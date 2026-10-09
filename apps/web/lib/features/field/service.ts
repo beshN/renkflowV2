@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { getAPIUser, verifyAPIToken } from '@/lib/api/auth-helpers';
 import { isPrivateAccessAllowed } from '@/lib/features/auth/private-access';
 import { currentMobileAccess, type MobileAccess } from '@/lib/features/mobile/access';
+import { productFamily } from '@/lib/features/products/families';
 import { colorInfo } from '@/lib/features/colors/color-spec';
 import { sql } from '@/lib/db';
 import { WorkOrderActor, WorkOrderApiError, hasWorkOrderPermission } from '@/lib/features/work-orders/security';
@@ -33,7 +34,7 @@ export async function fieldActor(request: NextRequest, required: 'production'|'i
 export async function assertFieldJob(actor: WorkOrderActor, id: string) {
   z.string().uuid().parse(id);
   const rows = await sql`
-    SELECT id, recipe_id FROM work_orders
+    SELECT id, recipe_id, configuration->>'family' AS product_family FROM work_orders
     WHERE tenant_id = ${actor.tenantId} AND id = ${id}
       AND (${actor.role !== 'worker'} OR assigned_to = ${actor.userId}
         OR EXISTS (SELECT 1 FROM production_operations p
@@ -41,7 +42,7 @@ export async function assertFieldJob(actor: WorkOrderActor, id: string) {
             AND p.assigned_to = ${actor.userId}))
   `;
   if (!rows[0]) throw new WorkOrderApiError('İş emri bulunamadı veya size atanmamış.', 404);
-  return rows[0] as { id: string; recipe_id: string | null };
+  return rows[0] as { id: string; recipe_id: string | null; product_family?:string|null };
 }
 
 export function fieldColor(job: Record<string, unknown>, snake = false) {
@@ -65,6 +66,7 @@ export function fieldJob(job: Record<string, unknown>, snake = false) {
     checklistCompleted: Number(value('checklistCompleted', 'checklist_completed') || 0),
     blockedReasonDetail: value('blockedReasonDetail', 'blocked_reason_detail') || null,
     color: fieldColor(job, snake),
+    productFamily: productFamily(String(job.productFamily || (job.configuration as Record<string,unknown>|null)?.family || ''))?.key || null,
     updatedAt: value('updatedAt','updated_at') instanceof Date ? (value('updatedAt','updated_at') as Date).toISOString() : value('updatedAt','updated_at'),
   };
 }
@@ -92,6 +94,8 @@ export async function fieldSnapshot(actor: FieldActor) {
   const jobs = new Map(list.data.map(job => [job.id, fieldJob(job)]));
   const productionJobs = production.jobs as Array<Record<string, unknown>>;
   for (const job of productionJobs) {
+    const current=jobs.get(String(job.id));
+    if(current) jobs.set(String(job.id),{...current,productFamily:fieldJob(job,true).productFamily});
     if (!jobs.has(String(job.id)) && !['done', 'cancelled'].includes(String(job.status)))
       jobs.set(String(job.id), fieldJob(job, true));
   }
@@ -131,7 +135,7 @@ export async function fieldDetails(actor: WorkOrderActor, id: string) {
   const record = await assertFieldJob(actor, id);
   const job = await getWorkOrderDetails(actor.tenantId, id);
   return {
-    ...fieldJob(job), productionManaged: Boolean(record.recipe_id),
+    ...fieldJob(job), productFamily:productFamily(record.product_family || '')?.key || null, productionManaged: Boolean(record.recipe_id),
     checklist: job.checklist.map(item => ({ id: item.id, title: item.title, required: item.required, completed: item.completed })),
     comments: job.comments.map(comment => ({ id: comment.id, body: comment.body, authorName: comment.authorName, createdAt: comment.createdAt })),
   };

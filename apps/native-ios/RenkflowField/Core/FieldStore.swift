@@ -11,6 +11,9 @@ import Combine
     @Published var references:FieldReferences?
     @Published var installations:[Installation]=[]
     @Published var installationDetail:InstallationDetails?
+    @Published var preferences:NotificationPreferences?
+    @Published var notifications:[FieldNotification]=[]
+    @Published var preferencesBusy=false
     @Published var detail: WorkOrder?
     @Published var selectedID: String?
     @Published var scanResult: ScanResult?
@@ -41,6 +44,8 @@ import Combine
         try store.prepare();try store.migrate(auth,legacy:vault.read("pending",as:ProductionCommand.self));vault.remove("pending")
         snapshot=try store.read(scope,key:"snapshot",as:Snapshot.self)
         references=try store.read(scope,key:"references",as:FieldReferences.self)
+        preferences=try store.read(scope,key:"notifications/preferences",as:NotificationPreferences.self)
+        notifications=try store.read(scope,key:"notifications",as:NotificationList.self)?.notifications ?? []
         installations=try store.read(scope,key:"installations",as:InstallationList.self)?.installations ?? []
         if let stamp=try store.read(scope,key:"last-sync",as:Double.self) {lastSync=Date(timeIntervalSince1970:stamp)}
         stale=true;reloadQueue();FieldBackgroundSync.schedule()
@@ -62,7 +67,7 @@ import Combine
         } catch {fail(error)}
     }
     func logout() {
-        epoch+=1;vault.clear();FieldBackgroundSync.cancel();session=nil;snapshot=nil;detail=nil;selectedID=nil;scanResult=nil;outbox=[];references=nil;installations=[];installationDetail=nil;error=nil;message=nil;stale=true;syncing=false
+        epoch+=1;vault.clear();FieldBackgroundSync.cancel();session=nil;snapshot=nil;detail=nil;selectedID=nil;scanResult=nil;outbox=[];references=nil;installations=[];installationDetail=nil;preferences=nil;notifications=[];error=nil;message=nil;stale=true;syncing=false
     }
     func foreground() async {if Date().timeIntervalSince(lastValidation)>60 {await refresh()} else {await sync()}}
     func refresh() async {
@@ -91,11 +96,13 @@ import Combine
         let references:[String:JSONValue]=try await api.request([String:JSONValue].self,server:auth.server,token:auth.token,path:"references")
         try store.setCache(scope,key:"references",data:JSONEncoder().encode(references))
         if generation==epoch {self.references=try JSONDecoder().decode(FieldReferences.self,from:JSONEncoder().encode(references))}
-        var keys=["notifications/preferences"]
+        var keys=["notifications/preferences","notifications"]
         if let value=references["capabilities"],case .object(let capabilities)=value,capabilities["installations"]?.flag==true {keys.append("installations")}
         for key in keys {
             let values:[String:JSONValue]=try await api.request([String:JSONValue].self,server:auth.server,token:auth.token,path:key)
             try store.setCache(scope,key:key,data:JSONEncoder().encode(values))
+            if key=="notifications/preferences",generation==epoch {preferences=try JSONDecoder().decode(NotificationPreferences.self,from:JSONEncoder().encode(values))}
+            if key=="notifications",generation==epoch {notifications=try JSONDecoder().decode(NotificationList.self,from:JSONEncoder().encode(values)).notifications}
             if key=="installations",generation==epoch {installations=try JSONDecoder().decode(InstallationList.self,from:JSONEncoder().encode(values)).installations}
         }
         if self.references?.capabilities.installations != true {installations=[];installationDetail=nil}
@@ -103,6 +110,16 @@ import Combine
         try store.context.save()
     }
     private func cacheDetail(_ auth: Session,job: WorkOrder) throws {let store=try storage();try store.setCache(sessionScope(auth),key:"job:"+job.id,data:JSONEncoder().encode(job));try store.context.save()}
+    func notificationPreference(_ key:String,value:Bool) async {
+        guard let auth=session,var next=preferences,!stale,!preferencesBusy,!updateRequired else {return}
+        if key=="assignment" {next.assignment=value} else if key=="mention" {next.mention=value} else {next.delay=value}
+        let generation=epoch;preferencesBusy=true;defer {if generation==epoch {preferencesBusy=false}}
+        do {
+            let saved=try await api.post(auth,path:"notifications/preferences",value:next,type:NotificationPreferences.self)
+            try storage().setCache(sessionScope(auth),key:"notifications/preferences",data:JSONEncoder().encode(saved));try storage().context.save()
+            if generation==epoch {preferences=saved}
+        } catch {if generation==epoch {fail(error)}}
+    }
     func openJob(_ id: String) async {
         guard let auth=session else {return};selectedID=id;detail=nil;error=nil;let generation=epoch
         do {
@@ -195,6 +212,14 @@ import Combine
             let row=try storage().photo(sessionScope(auth),value:LocalPhoto(workOrderId:jobID,base64:bytes.base64EncodedString()))
             reloadQueue();FieldBackgroundSync.schedule();Task {await sync()};return "local://"+row.commandID
         } catch {fail(error);return nil}
+    }
+    func uploadInstallationPhoto(_ id:String,bytes:Data) async -> Bool {
+        guard let auth=session,!updateRequired,!accessBlocked,references?.capabilities.installationEdit==true else {return false}
+        do {
+            guard bytes.count<=2_000_000 else {throw FieldAPIError(status:400,message:"Fotoğraf çok büyük.")}
+            _ = try storage().photo(sessionScope(auth),value:LocalPhoto(base64:bytes.base64EncodedString(),installationId:id))
+            reloadQueue();FieldBackgroundSync.schedule();Task {await sync()};return true
+        } catch {fail(error);return false}
     }
     func discard(_ row: OutboxRecord) async {
         guard let auth=session,row.scope==sessionScope(auth),row.state != "sending" else {return}

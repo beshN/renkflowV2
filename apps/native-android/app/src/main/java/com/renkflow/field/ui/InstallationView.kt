@@ -6,6 +6,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.compose.ui.platform.LocalContext
+import com.renkflow.field.data.photoBase64
+import kotlinx.coroutines.*
 import com.renkflow.field.FieldState
 import com.renkflow.field.FieldViewModel
 import java.time.LocalDate
@@ -15,6 +21,13 @@ import java.time.LocalDate
     var selected by remember {mutableStateOf<String?>(null)}
     var issue by remember {mutableStateOf("")}
     var kind by remember {mutableStateOf("missing")}
+    var preparing by remember {mutableStateOf(false)}
+    var photoMessage by remember {mutableStateOf<String?>(null)}
+    val context=LocalContext.current;val scope=rememberCoroutineScope()
+    val picker=rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) {uri ->
+        val id=selected
+        if(uri!=null && id!=null) scope.launch {preparing=true;try {val bytes=withContext(Dispatchers.IO) {photoBase64(context,uri)};model.uploadInstallationPhoto(id,bytes) {photoMessage="Fotoğraf cihazda kaydedildi."}} catch(_:Exception) {photoMessage="Fotoğraf hazırlanamadı."} finally {preparing=false}}
+    }
     val writable=state.references?.capabilities?.installationEdit==true && !state.accessBlocked && !state.updateRequired
     ModalBottomSheet(onDismissRequest=close) {
         LazyColumn(contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
@@ -40,6 +53,8 @@ import java.time.LocalDate
                     items(detail.checklist,key={it.id}) {item ->
                         Row(Modifier.fillMaxWidth().heightIn(min=56.dp)) {Checkbox(item.completed,{model.installationCommand("checklist",item)},enabled=writable && detail.status !in listOf("done","cancelled"));Text(item.title,Modifier.weight(1f))}
                     }
+                    item {Text("${detail.photos.size} saha fotoğrafı");photoMessage?.let {Text(it)}}
+                    if(writable && detail.status !in listOf("done","cancelled")) item {OutlinedButton(onClick={picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))},enabled=!preparing,modifier=Modifier.fillMaxWidth().heightIn(min=56.dp)) {Text("Saha fotoğrafı ekle")}}
                     items(detail.issues) {entry ->Text("${if(entry.kind=="damage") "Hasar" else "Eksik"} · ${entry.text}")}
                     if(writable && detail.status !in listOf("done","cancelled")) item {
                         Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {

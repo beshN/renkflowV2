@@ -16,6 +16,7 @@ struct OperationView: View {
     @State private var photoError: String?
     @State private var preparing = false
     @State private var confirm = false
+    @State private var rework=false
     private var canWrite: Bool { store.writable && !preparing && (store.session?.user.role != "worker" || operation.assignedTo == store.session?.user.id) }
     private var validQuantity: Bool { if let value = Int(count), value > 0 { return Double(value) <= operation.plannedQty - operation.completedQty }; return false }
     private var qualityValid: Bool { operation.qualityChecks.allSatisfy { check in switch check.kind { case "pass_fail": return passes[check.id] != nil; case "measurement": return Double((values[check.id] ?? "").replacingOccurrences(of: ",", with: "."))?.isFinite == true; case "photo": return photoURL != nil; default: return false } } }
@@ -49,13 +50,14 @@ struct OperationView: View {
                         }
                     }
                     Section("İş fotoğrafı") {
-                        PhotosPicker(selection: $photoItem, matching: .images) { Label(photoURL == nil ? "Fotoğraf ekle" : "Fotoğraf yüklendi", systemImage: photoURL == nil ? "photo.badge.plus" : "checkmark.circle") }.disabled(!canWrite)
+                        PhotosPicker(selection: $photoItem, matching: .images) { Label(photoURL == nil ? "Fotoğraf ekle" : "Fotoğraf eklendi", systemImage: photoURL == nil ? "photo.badge.plus" : "checkmark.circle") }.disabled(!canWrite)
                         if preparing { ProgressView("Fotoğraf hazırlanıyor…") }
                         if let photoError { Text(photoError).foregroundStyle(FieldColor.error) }
                     }
                     Section("Üretim notu") { TextField("İsteğe bağlı", text: $note, axis: .vertical).lineLimit(2...6) }
                     Section { Button("Tamamlanan miktarı kaydet") { confirm = true }.disabled(!canWrite || !validQuantity || !qualityValid || note.count > 2000) }
                 }
+                if ["paused","blocked","done"].contains(operation.status) {Section {Button("Yeniden işleme (rework)") {rework=true}.frame(minHeight:48).disabled(!canWrite)}}
                 if ["waiting", "done", "cancelled"].contains(operation.status) {
                     Section { Text(operation.status == "waiting" ? "Önceki adımlar tamamlandığında bu operasyon hazır olacak." : operation.status == "done" ? "Bu adım tamamlandı." : "Bu operasyon iptal edilmiş.").foregroundStyle(.secondary) }
                 }
@@ -63,6 +65,7 @@ struct OperationView: View {
             }.navigationTitle("Üretim adımı").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Kapat") { dismiss() } } }
                 .interactiveDismissDisabled(preparing || store.busy)
+                .sheet(isPresented:$rework) {ReworkView(operation:operation).environmentObject(store)}
                 .onAppear { count = String(Int(operation.plannedQty - operation.completedQty)) }
                 .task(id: photoItem) {
                     guard let photoItem else { return }

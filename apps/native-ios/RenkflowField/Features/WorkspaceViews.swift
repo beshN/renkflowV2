@@ -135,6 +135,7 @@ struct ProfileView: View {
                     Text(["worker": "Saha çalışanı", "office": "Operasyon", "owner": "Firma sahibi", "admin": "Yönetici"][store.session?.user.role ?? ""] ?? "Hesap").foregroundStyle(FieldColor.accent)
                     Divider(); Text(store.session?.server ?? "").font(.subheadline)
                 }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 12))
+                NotificationsView()
                 Text("Üretim kayıtları firmanızın RenkFlow sistemine kaydedilir. Bağlantı kurulamadığında verileri yenileyin.").foregroundStyle(.secondary)
                 Button(role: .destructive) { logout = true } label: { Label("Çıkış yap", systemImage: "rectangle.portrait.and.arrow.right").frame(maxWidth: .infinity).padding(12) }.buttonStyle(.bordered).disabled(store.busy || store.pending != nil)
                 Text("Sürüm \(MobileContract.version)").font(.caption).foregroundStyle(.secondary)

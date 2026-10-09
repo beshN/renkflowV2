@@ -125,3 +125,10 @@ Adım 4 başlangıcı: 2026-10-09 21:27 UTC. Adım 3 PR #56 CI sonucu bekleniyor
 - İki platformda yerel montaj listesi/detayı ve outbox. Üretim yazma yetkisi olmayan montaj rolü ayrı modül yetkisiyle çalışır; müşteri DTO sınırı korunur.
 - Yerel gerçek DB montaj testi geçti: iki start tek sürüm artışı, stale sürüm reddi, checklist + tek issue, ekipten çıkarılınca 404. Kamera/kesim Android derleme ve lint geçti.
 - Sırada: native montaj CI, rework arayüzü, fotoğraf/bildirim altyapısı; oturum ve yayın adımları.
+
+### Saha fotoğraf/bildirim kontrol noktası
+- Montaj fotoğrafları aynı resumable uploader ile web `record_attachments` tablosuna gider; ekip kapsamıyla korunan JPEG okuma ucu vardır. Yerel DB tek dosya/tekrar finalize/ekipten çıkarılınca okuma engeli geçti.
+- Yerel şema 002 hedefin yalnız iş emri veya montaj olmasını zorlar; 003 özel cihaz push kaydı ekler. Production'a uygulanmadı.
+- Bildirim metadata ve web tercihleri görünür; gecikme tercihi hem deadline hem order:delayed türünü kontrol eder. FCM/APNs kayıt köprüleri ve sunucu gönderici arayüzü var; SDK/sağlayıcı anahtarı bağlı değil, teslim başarılı gösterilmez. OS yerel test düğmesi ayrı.
+- Montaj-only custom role: giriş/teknik detay çalışır, üretim snapshot boş ve üretim yazması 403; cihaz kayıt yanıtında sağlayıcı tokeni yok.
+- API/DTO birim testleri ve native montaj overlay/önceki fotoğraf kuyruk uyum testleri eklendi. Fotoğraf içeren yerel testte depolama açıkça local seçilmediği için ilk deneme hata verdi; yalnız test process'inde local depolama seçilerek düzeldi.

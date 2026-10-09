@@ -21,8 +21,10 @@ struct RootView: View {
                         banners
                         TabView(selection: $tab) {
                             HomeView(scan: { tab = 3 }, operation: { operation = $0 }).tabItem { Label("Saha", systemImage: "square.grid.2x2") }.tag(0)
+                            if store.references?.capabilities.productionView != false {
                             JobsView().tabItem { Label("İşler", systemImage: "list.clipboard") }.tag(1)
                             ProductionView(operation: { operation = $0 }).tabItem { Label("Üretim", systemImage: "gearshape.2") }.tag(2)
+                            }
                             ScanView().tabItem { Label("Tara", systemImage: "qrcode.viewfinder") }.tag(3)
                             ProfileView().tabItem { Label("Hesap", systemImage: "person.crop.circle") }.tag(4)
                         }

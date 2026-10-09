@@ -1,20 +1,24 @@
 /** Technical field writes against disposable db:local, never production. */
 import assert from 'node:assert/strict';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {readFileSync,unlinkSync} from 'node:fs';
 import postgres from 'postgres';
 async function main() {
   process.env.DATABASE_URL='postgres://postgres:renkflow-local-only@127.0.0.1:55432/renkflow_test';
+  process.env.STORAGE_BACKEND='local';process.env.ALLOW_LOCAL_STORAGE='1';
   process.env.ALLOW_LOCAL_DATABASE='1';process.env.AUTH_SECRET='field-integration-local-only-12345678901234567890';delete process.env.PRIVATE_ACCESS_EMAIL;
   const file='/tmp/mobile-features-'+randomUUID()+'.json';
   execFileSync('npm',['run','test:field','--','--fixture='+file],{stdio:'pipe'});
   const f=JSON.parse(readFileSync(file,'utf8'));unlinkSync(file);
   const db=postgres(process.env.DATABASE_URL,{onnotice:()=>{}});
+  const base=process.argv.find(s=>s.startsWith('--server='))?.slice(9);
+  if(base) {const url=new URL(base);assert(['127.0.0.1','localhost'].includes(url.hostname)&&url.port,'Only explicit loopback servers are allowed');}
   const {POST,GET}=await import('../app/api/mobile/v1/[...path]/route');const {NextRequest}=await import('next/server');let token='';
   async function call(path:string,body?:unknown,status=200) {
     const headers={'content-type':'application/json','x-renkflow-app-version':'1.1.0','x-renkflow-platform':'android',authorization:'Bearer '+token};
-    const response=await (body===undefined?GET:POST)(new NextRequest('https://renkflow.com/api/mobile/v1/'+path,{method:body===undefined?'GET':'POST',headers,...(body===undefined?{}:{body:JSON.stringify(body)})}),{params:Promise.resolve({path:path.split('/')})});
+    const options={method:body===undefined?'GET':'POST',headers,...(body===undefined?{}:{body:JSON.stringify(body)})};
+    const response=base?await fetch(base+'/api/mobile/v1/'+path,options):await (body===undefined?GET:POST)(new NextRequest('https://renkflow.com/api/mobile/v1/'+path,options),{params:Promise.resolve({path:path.split('/')})});
     const result=await response.json();assert.equal(response.status,status,result.error);return result;
   }
   const login=await call('auth/login',{email:f.email,password:f.password});token=login.data.accessToken;const tenant=login.data.user.tenantId;
@@ -47,7 +51,35 @@ async function main() {
     await call('sync',command({action:'checklist',expectedVersion:2,itemId:check.id,completed:true}));
     const issue=command({action:'issue',expectedVersion:3,kind:'missing',text:'Cover missing'});await call('sync',issue);await call('sync',issue);
     const current=(await call('installations/'+i.id)).data;assert.equal(current.issues.length,1);assert.equal(current.checklist[0].completed,true);assert.equal(current.version,4);
+    const uploadId=randomUUID(),bytes=Buffer.from(f.jpeg,'base64'),sha256=createHash('sha256').update(bytes).digest('hex');
+    await call('uploads',{action:'init',uploadId,installationId:i.id,name:'installation.jpg',totalBytes:bytes.length,sha256});
+    await call('uploads',{action:'chunk',uploadId,offset:0,base64:f.jpeg,sha256});
+    const finish={action:'finish',uploadId};const photo=await call('uploads',finish);const replay=await call('uploads',finish);assert.equal(photo.data.url,replay.data.url);
+    assert.equal((await call('installations/'+i.id)).data.photos.length,1);
+    assert.equal(Number((await db`SELECT count(*) AS n FROM record_attachments WHERE tenant_id=${tenant} AND entity_id=${i.id}`)[0].n),1);
+    const photoHeaders={authorization:'Bearer '+token,'x-renkflow-app-version':'1.1.0','x-renkflow-platform':'android'};
+    async function readPhoto() {return base ? fetch(base+photo.data.url,{headers:photoHeaders}) : GET(new NextRequest('https://renkflow.com'+photo.data.url,{headers:photoHeaders}),{params:Promise.resolve({path:['installation-files',photo.data.url.split('/').pop()]})});}
+    const photoResponse=await readPhoto();assert.equal(photoResponse.status,200);assert.equal(photoResponse.headers.get('content-type'),'image/jpeg');assert.equal(createHash('sha256').update(Buffer.from(await photoResponse.arrayBuffer())).digest('hex'),sha256);
+    const {installationPhoto}=await import('../lib/features/mobile/uploads');
+    const actor={tenantId:tenant,userId:login.data.user.id,role:'worker' as const,mobileAccess:{production:{view:true,edit:true},inventory:{view:true,edit:false},installations:{view:true,edit:true},roleKey:'operator'}};
+    const file=await installationPhoto(actor,photo.data.url.split('/').pop());const received=Buffer.from(await new Response(file.body).arrayBuffer());assert.equal(createHash('sha256').update(received).digest('hex'),sha256);
+    const [roles]=await db`SELECT to_regclass('public.access_roles') IS NOT NULL AS present`;
+    if(roles.present) {
+      const [role]=await db`INSERT INTO access_roles(tenant_id,name,name_key,base_role,permissions) VALUES(${tenant},'Montaj ekibi',${randomUUID()},'worker','{"installations":["view","edit"]}'::jsonb) RETURNING id`;
+      await db`UPDATE tenant_members SET access_role=${String(role.id)} WHERE tenant_id=${tenant} AND user_id=${login.data.user.id}`;
+      assert.equal((await call('snapshot')).data.workOrders.length,0);assert.equal((await call('references')).data.capabilities.productionView,false);
+      await call('auth/login',{email:f.email,password:f.password});await call('installations/'+i.id);
+      await call('sync',{idempotencyKey:randomUUID(),kind:'comment',workOrderId:f.jobId,data:{body:'Denied production edit'}},403);
+      const deviceId=randomUUID(),device=await call('notifications/device',{deviceId,enabled:true,token:'LOCAL_TEST_ONLY_TOKEN_12345678901234567890'});
+      assert.deepEqual(device.data,{registered:true,provider:'disconnected'});assert(!JSON.stringify(device).includes('TOKEN'));
+      await call('notifications/device',{deviceId,enabled:false});assert.equal((await db`SELECT enabled FROM mobile_push_devices WHERE tenant_id=${tenant} AND user_id=${login.data.user.id} AND device_id=${deviceId}`)[0].enabled,false);
+      await db`UPDATE tenant_members SET access_role=NULL WHERE tenant_id=${tenant} AND user_id=${login.data.user.id}`;
+      console.log('PASS · installation-only custom role has no production data/write; provider device registration is private and disconnected');
+    }
     await db`UPDATE installations SET crew='{}' WHERE id=${i.id}`;await call('installations/'+i.id,undefined,404);await call('sync',command({action:'complete',expectedVersion:4}),404);
+    assert.equal((await readPhoto()).status,404);
+    await assert.rejects(()=>installationPhoto(actor,photo.data.url.split('/').pop()),(e:any)=>e.status===404);
+    console.log('PASS · installation photo has one attachment and current crew read scope');
     console.log('PASS · installation crew scope, strict DTO, version conflict, durable checklist and one issue');
   }
   const op=(data:unknown)=>({idempotencyKey:randomUUID(),kind:'operation',data});

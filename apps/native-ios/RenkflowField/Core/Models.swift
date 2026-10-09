@@ -8,7 +8,7 @@ struct Snapshot: Codable { var workOrders: [WorkOrder]; var operations: [Product
 struct FieldColorInfo: Codable { var label: String; var code: String; var name: String; var hex: String?; var finish: String?; var finishAssumed: Bool; var standIn: Bool; var kind: String }
 struct WorkOrder: Codable, Identifiable {
     var id: String; var title: String; var status: String; var priority: String; var category: String
-    var updatedAt: String?; var color: FieldColorInfo?
+    var productFamily:String?;var updatedAt: String?; var color: FieldColorInfo?
     var description: String?; var location: String?; var dueAt: String?; var assigneeName: String?; var blockedReasonDetail: String?
     var checklistTotal: Int; var checklistCompleted: Int
     var productionManaged: Bool?; var checklist: [ChecklistItem]?; var comments: [FieldComment]?
@@ -55,7 +55,7 @@ func displayDate(_ string: String) -> String {
 struct CutPiece: Codable { var lengthMm: Double; var workOrderId: String }
 struct CutBar: Codable, Identifiable { var id: String; var itemId: String; var color: String; var lengthMm: Double; var isRemnant: Bool; var pieces: [CutPiece]; var remainingMm: Double; var reusable: Bool; var lossMm: Double }
 struct CutPlan: Codable, Identifiable { var id: String; var status: String; var wastePercent: Double?; var bars: [CutBar] }
-struct LocalPhoto: Codable { var workOrderId: String; var base64: String; var name: String = "saha.jpg" }
+struct LocalPhoto: Codable { var workOrderId: String? = nil; var base64: String; var name: String = "saha.jpg";var installationId:String? = nil }
 struct UploadStatus: Decodable { var uploadId: String; var receivedBytes: Int; var totalBytes: Int; var chunkBytes: Int; var completed: Bool; var url: String? }
 struct SyncRequest: Codable { var idempotencyKey: String; var kind: String; var data: [String: JSONValue]; var workOrderId: String?;var installationId:String? = nil }
 enum JSONValue: Codable {
@@ -79,14 +79,14 @@ enum JSONValue: Codable {
 func payload<T: Encodable>(_ value: T) throws -> [String:JSONValue] { try JSONDecoder().decode([String:JSONValue].self,from:JSONEncoder().encode(value)) }
 
 struct ReasonCode:Codable {var kind:String;var code:String;var label:String}
-struct FieldCapabilities:Codable {var reasonCodes:Bool;var installations:Bool;var remotePush:Bool;var crashReporting:Bool;var installationEdit:Bool?}
+struct FieldCapabilities:Codable {var reasonCodes:Bool;var installations:Bool;var remotePush:Bool;var crashReporting:Bool;var installationEdit:Bool?;var productionView:Bool?}
 struct FieldReferences:Codable {var reasons:[ReasonCode];var capabilities:FieldCapabilities}
 
 struct Installation:Codable,Identifiable {var id:String;var number:String;var date:String?;var startTime:String?;var productName:String?;var status:String;var version:Int;var signed:Bool;var checklistTotal:Int;var checklistCompleted:Int}
 struct InstallationList:Codable {var available:Bool;var installations:[Installation]}
 struct InstallationCheck:Codable,Identifiable {var id:String;var title:String;var completed:Bool}
 struct InstallationIssue:Codable {var kind:String;var text:String}
-struct InstallationDetails:Codable {var id:String;var status:String;var version:Int;var checklist:[InstallationCheck];var issues:[InstallationIssue]}
+struct InstallationDetails:Codable {var id:String;var status:String;var version:Int;var checklist:[InstallationCheck];var issues:[InstallationIssue];var photos:[InstallationPhoto]?}
 func overlayInstallation(_ detail:InstallationDetails,rows:[OutboxRecord])->InstallationDetails {
     var result=detail
     for row in rows where row.kind=="installation" && ["pending","sending"].contains(row.state) {
@@ -102,3 +102,5 @@ func overlayInstallation(_ detail:InstallationDetails,rows:[OutboxRecord])->Inst
     }
     return result
 }
+
+struct InstallationPhoto:Codable,Identifiable {var id:String;var url:String}

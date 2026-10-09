@@ -77,7 +77,7 @@ import java.util.Locale
         return
     }
     if (state.session == null) { Login(state, model); return }
-    val tabs = listOf("Saha" to Icons.Outlined.SpaceDashboard, "İşler" to Icons.AutoMirrored.Outlined.Assignment, "Üretim" to Icons.Outlined.PrecisionManufacturing, "Tara" to Icons.Outlined.QrCodeScanner, "Hesap" to Icons.Outlined.PersonOutline)
+    val tabs=listOf(Triple(0,"Saha",Icons.Outlined.SpaceDashboard),Triple(1,"İşler",Icons.AutoMirrored.Outlined.Assignment),Triple(2,"Üretim",Icons.Outlined.PrecisionManufacturing),Triple(3,"Tara",Icons.Outlined.QrCodeScanner),Triple(4,"Hesap",Icons.Outlined.PersonOutline)).filter {it.first !in listOf(1,2) || state.references?.capabilities?.productionView!=false}
     Scaffold(
         topBar = {
             TopAppBar(title = {
@@ -86,7 +86,7 @@ import java.util.Locale
                 actions = { IconButton(onClick = model::refresh, enabled = !state.busy) { Icon(Icons.Outlined.Refresh, "Verileri yenile") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background))
         }, bottomBar = {
-            NavigationBar { tabs.forEachIndexed { index, pair -> NavigationBarItem(selected = tab == index, onClick = { model.closeJob(); tab = index }, icon = { Icon(pair.second, null) }, label = { Text(pair.first) }) } }
+            NavigationBar { tabs.forEach { (index,title,icon) -> NavigationBarItem(selected = tab == index, onClick = { model.closeJob(); tab = index }, icon = { Icon(icon, null) }, label = { Text(title) }) } }
         }
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -237,12 +237,13 @@ import java.util.Locale
     Card(onClick = onClick, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { StatusPill(job.status); Text(priorityLabel(job.priority), style = MaterialTheme.typography.labelMedium, color = if (job.priority in listOf("high", "critical")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) }
+            FamilyThumbnail(job.productFamily)
             Text(job.title, style = MaterialTheme.typography.titleMedium, maxLines = 3, overflow = TextOverflow.Ellipsis)
             job.color?.let { color ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     val swatch = color.hex?.let { runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull() } ?: MaterialTheme.colorScheme.surfaceVariant
                     Box(Modifier.size(24.dp).background(swatch, RoundedCornerShape(4.dp)).semantics { contentDescription = color.label })
-                    Text(color.label, style = MaterialTheme.typography.labelMedium)
+                    Column {Text(color.code, style = MaterialTheme.typography.labelMedium);color.finish?.let {Text(it,style=MaterialTheme.typography.labelSmall)}}
                 }
             }
             if (!job.location.isNullOrBlank()) Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.Place, null, Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)); Text(job.location, style = MaterialTheme.typography.bodyMedium) }
@@ -307,7 +308,7 @@ import java.util.Locale
             }
         }
         item {CuttingPlans(state.snapshot?.cutPlans.orEmpty().filter {it.bars.any {bar->bar.pieces.any {p->p.workOrderId==job.id}}},state.snapshot?.workOrders.orEmpty(),model::openJob)}
-        item {FieldEventView(state.references,writable) {kind,code,count,note->model.fieldEvent(kind,job.id,code,count,note,null)}}
+        item {FieldEventView(state.references,writable,save={kind,code,count,note,photo->model.fieldEvent(kind,job.id,code,count,note,photo)},upload={bytes,done->model.uploadPhoto(job.id,bytes,done)})}
         item { SectionTitle("Kontrol listesi", "Zorunlu adımları doğrulayın") }
         items(job.checklist, key = { it.id }) { item ->
             Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surface) {
@@ -378,9 +379,10 @@ import java.util.Locale
                 Text(state.session?.server.orEmpty(), style = MaterialTheme.typography.bodyMedium)
             }
         }
+        NotificationsView(state,model)
         Text("Üretim kayıtları firmanızın RenkFlow sistemine kaydedilir. Bağlantı kurulamadığında verileri yenileyin.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedButton(onClick = { logout = true }, enabled = !state.busy && state.pending == null, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Icon(Icons.AutoMirrored.Outlined.Logout, null); Spacer(Modifier.width(8.dp)); Text("Çıkış yap") }
-        Text("Sürüm 1.0.0", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Sürüm ${MobileContract.version}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     if (logout) AlertDialog(onDismissRequest = { logout = false }, title = { Text("Çıkış yapılsın mı?") }, text = { Text("Bu cihazdaki oturumunuz temizlenecek.") }, confirmButton = { TextButton(onClick = { model.logout(); logout = false }) { Text("Çıkış yap") } }, dismissButton = { TextButton(onClick = { logout = false }) { Text("Vazgeç") } })
 }
@@ -427,11 +429,12 @@ import java.util.Locale
                         }
                     }
                 }
-                OutlinedButton(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, enabled = canWrite) { Icon(Icons.Outlined.AddPhotoAlternate, null); Spacer(Modifier.width(8.dp)); Text(if (photo != null) "Fotoğraf yüklendi ✓" else "Fotoğraf ekle") }
+                OutlinedButton(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, enabled = canWrite) { Icon(Icons.Outlined.AddPhotoAlternate, null); Spacer(Modifier.width(8.dp)); Text(if (photo != null) "Fotoğraf eklendi ✓" else "Fotoğraf ekle") }
                 photoError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 OutlinedTextField(note, { if (it.length <= 2000) note = it }, Modifier.fillMaxWidth(), label = { Text("Üretim notu (isteğe bağlı)") }, minLines = 2)
                 Button(onClick = { confirm = true }, enabled = canWrite && validQuantity && qualityValid, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Tamamlanan miktarı kaydet") }
             }
+            ReworkView(op,state.snapshot?.operations.orEmpty(),canWrite,onCommand)
             if (op.status in listOf("waiting", "done", "cancelled")) Text(when (op.status) { "waiting" -> "Önceki adımlar tamamlandığında bu operasyon hazır olacak."; "done" -> "Bu adım tamamlandı."; else -> "Bu operasyon iptal edilmiş." }, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))
         }

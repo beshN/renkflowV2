@@ -59,7 +59,9 @@ struct DrainResult {let delivered: Int;let retry: Bool}
     private func upload(_ row: OutboxRecord) async throws -> String {
         let photo=try JSONDecoder().decode(LocalPhoto.self,from:row.payload)
         guard let bytes=Data(base64Encoded:photo.base64) else {throw FieldAPIError(status:400,message:"Fotoğraf kaydı bozuk.")}
-        var status=try await call(["action":.string("init"),"uploadId":.string(row.commandID),"workOrderId":.string(photo.workOrderId),"name":.string(photo.name),"totalBytes":.number(Double(bytes.count)),"sha256":.string(sha(bytes))])
+        var input:[String:JSONValue]=["action":.string("init"),"uploadId":.string(row.commandID),"name":.string(photo.name),"totalBytes":.number(Double(bytes.count)),"sha256":.string(sha(bytes))]
+        if let installationID=photo.installationId {input["installationId"] = .string(installationID)} else if let jobID=photo.workOrderId {input["workOrderId"] = .string(jobID)} else {throw FieldAPIError(status:400,message:"Fotoğraf hedefi yok.")}
+        var status=try await call(input)
         guard status.totalBytes==bytes.count,(0...bytes.count).contains(status.receivedBytes),(1...262144).contains(status.chunkBytes) else {throw FieldAPIError(status:502,message:"Sunucu yükleme durumu geçersiz.")}
         while !status.completed && status.receivedBytes<bytes.count {
             let offset=status.receivedBytes,part=bytes.subdata(in:offset..<min(bytes.count,offset+status.chunkBytes))

@@ -97,3 +97,8 @@ test('rejects cross-site writes and actual oversized bodies without relying on c
   expect((await POST(crossSite, context(['commands']))).status).toBe(403);
   await expect(readFieldJson(request('commands', { text: 'x'.repeat(65_000) }))).rejects.toMatchObject({ status: 413 });
 });
+test('family thumbnail uses the known family key without releasing configuration',()=>{
+  const dto=fieldJob({id,title:'Pergola',status:'open',priority:'normal',configuration:{family:'pergola',recipeCode:'PRIVATE',motor:'PRIVATE',cost:900}});
+  expect(dto.productFamily).toBe('pergola');expect(JSON.stringify(dto)).not.toContain('PRIVATE');expect(dto).not.toHaveProperty('configuration');
+  expect(fieldJob({id,title:'Job',status:'open',priority:'normal',configuration:{family:'PRIVATE_UNKNOWN'}}).productFamily).toBeNull();
+});
