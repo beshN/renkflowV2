@@ -14,8 +14,6 @@ const ContactRequestSchema = z.object({
   email: z.string().trim().email().max(254),
   subject: z.enum(['general', 'technical', 'sales']).optional().default('general'),
   message: z.string().trim().min(10).max(5000),
-  tenantId: z.string().uuid().optional(),
-  userId: z.string().uuid().optional(),
   pagePath: z.string().trim().max(512).optional(),
   locale: z.string().trim().max(12).optional(),
 });
@@ -87,7 +85,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, email, subject, message, tenantId, userId } = parsedBody.data;
+    const { name, email, subject, message } = parsedBody.data;
+    // Public requests must never attach themselves to a caller-supplied company or user.
+    const tenantId = null;
+    const userId = null;
     const pagePath = resolvePagePath(request, parsedBody.data.pagePath);
     const locale = resolveLocale(request, parsedBody.data.locale);
     const userAgent = (request.headers.get('user-agent') || '').slice(0, 512) || null;
@@ -162,9 +163,33 @@ export async function POST(request: NextRequest) {
       console.error('Support ticket persistence failed:', ticketError);
     }
 
+    if (!supportTicketId) {
+      return NextResponse.json(
+        { error: 'Talebiniz kaydedilemedi. Lütfen daha sonra tekrar deneyin.' },
+        { status: 503 }
+      );
+    }
+
+    // Email is a notification of a durable ticket, not the acceptance boundary.
+    // A mail outage must not invite duplicate submissions of an already saved request.
+    let emailDelivered = false;
+    const sendEmail = async (payload: Parameters<Resend['emails']['send']>[0]) => {
+      try {
+        const result = await resend!.emails.send(payload);
+        if (result.error) {
+          console.error('Contact notification rejected:', result.error.name);
+          return false;
+        }
+        return Boolean(result.data?.id);
+      } catch {
+        console.error('Contact notification delivery failed');
+        return false;
+      }
+    };
+
     if (resend) {
       // Send email to support team
-      await resend.emails.send({
+      emailDelivered = await sendEmail({
         from: process.env.EMAIL_FROM || 'RenkFlow <noreply@renkflow.com>',
         to: ['support@renkflow.com'],
         replyTo: email,
@@ -200,7 +225,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Send confirmation email to user
-      await resend.emails.send({
+      await sendEmail({
         from: process.env.EMAIL_FROM || 'RenkFlow <noreply@renkflow.com>',
         to: [email],
         subject: 'Mesajınız Alındı - RenkFlow',
@@ -235,7 +260,7 @@ export async function POST(request: NextRequest) {
         success: true,
         ticketId: supportTicketId,
         message: 'Mesajınız başarıyla alındı!',
-        emailDelivered: Boolean(resend),
+        emailDelivered,
       },
       { status: 200 }
     );

@@ -41,12 +41,18 @@ export function SiteHeader() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
   useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 1024px)');
+    const closeOnDesktop = () => { if (desktop.matches) setOpen(false); };
+    desktop.addEventListener('change', closeOnDesktop);
+    return () => desktop.removeEventListener('change', closeOnDesktop);
+  }, []);
 
   return (
     <header className={cn('sticky top-0 z-50 transition-[background-color,border-color,color] duration-200', scrolled ? 'border-b border-border bg-background/80 backdrop-blur-md' : 'border-b border-transparent')}>
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-5 sm:px-8">
         <BrandMark href="/" />
-        <nav aria-label="Ana menü" className="hidden items-center gap-1 md:flex">
+        <nav aria-label="Ana menü" className="hidden items-center gap-1 lg:flex">
           {SITE_NAV.map((item) => {
             const active = pathname === item.href;
             return (
@@ -64,11 +70,11 @@ export function SiteHeader() {
           </Link>
           <Dialog.Root open={open} onOpenChange={setOpen}>
             <Dialog.Trigger asChild>
-              <button type="button" aria-label="Menüyü aç" className="rf-icon-button inline-flex h-8 w-8 items-center justify-center md:!hidden"><Menu size={18} /></button>
+              <button type="button" aria-label="Menüyü aç" className="rf-icon-button inline-flex h-8 w-8 items-center justify-center lg:!hidden"><Menu size={18} /></button>
             </Dialog.Trigger>
             <Dialog.Portal>
-              <Dialog.Overlay className="fixed inset-0 z-[70] bg-black/30 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0 md:hidden" />
-              <Dialog.Content className="fixed inset-x-3 top-3 z-[71] rounded-xl border border-border bg-popover p-5 shadow-2xl outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 md:hidden">
+              <Dialog.Overlay className="fixed inset-0 z-[70] bg-black/30 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0 lg:hidden" />
+              <Dialog.Content className="fixed inset-x-3 top-3 z-[71] rounded-xl border border-border bg-popover p-5 shadow-2xl outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 lg:hidden">
                 <div className="flex items-center justify-between">
                   <Dialog.Title asChild><span><BrandMark href="/" /></span></Dialog.Title>
                   <Dialog.Close aria-label="Menüyü kapat" className="rf-icon-button inline-flex h-8 w-8 items-center justify-center"><X size={18} /></Dialog.Close>
@@ -76,14 +82,14 @@ export function SiteHeader() {
                 <Dialog.Description className="sr-only">Site bağlantıları</Dialog.Description>
                 <nav aria-label="Mobil menü" className="mt-5 grid">
                   {SITE_NAV.map((item) => (
-                    <Link key={item.href} href={item.href} className="flex items-center justify-between border-b border-border py-3 text-[15px] last:border-0">
+                    <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="flex items-center justify-between border-b border-border py-3 text-[15px] last:border-0">
                       {item.label}<ArrowRight size={15} className="text-muted-foreground" />
                     </Link>
                   ))}
                 </nav>
                 <div className="mt-5 grid grid-cols-2 gap-2">
-                  <Link href="/auth/login" className="rf-secondary-button h-10">Giriş yap</Link>
-                  <Link href="/contact" className="rf-ink-button h-10 text-[13px]">Demo talep edin</Link>
+                  <Link href="/auth/login" onClick={() => setOpen(false)} className="rf-secondary-button h-10">Giriş yap</Link>
+                  <Link href="/contact" onClick={() => setOpen(false)} className="rf-ink-button h-10 text-[13px]">Demo talep edin</Link>
                 </div>
               </Dialog.Content>
             </Dialog.Portal>

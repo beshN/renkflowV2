@@ -1,3 +1,4 @@
+import { ContactForm } from '@/components/site/ContactForm';
 import { notFound } from 'next/navigation';
 
 import { HighlightGrid, MarketingShell, RelatedLinks } from '@/components/app-core/MarketingShell';
@@ -52,6 +53,7 @@ export function MarketingStandardPage({ pageKey }: MarketingStandardPageProps) {
 
   return (
     <MarketingShell
+      hideClosing={pageKey === 'contact'}
       badge={page.badge}
       title={page.title}
       description={page.description}
@@ -60,6 +62,7 @@ export function MarketingStandardPage({ pageKey }: MarketingStandardPageProps) {
         { href: page.secondaryCta.href, label: page.secondaryCta.label, variant: 'secondary' },
       ]}
     >
+      {pageKey === 'contact' && <ContactForm />}
       <HighlightGrid items={page.highlights} />
       <RelatedLinks links={RELATED[pageKey].map((key) => ({ href: `/${key}`, ...SUMMARIES[key] }))} />
     </MarketingShell>
