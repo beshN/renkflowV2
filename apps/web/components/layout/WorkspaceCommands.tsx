@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowUpRight, Command, Search, X, FileText, CornerDownLeft, Zap, FilePlus2, ClipboardList, Scissors, CalendarDays, ScanLine, LayoutGrid, Columns3, Factory, PackagePlus, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useOrders } from '@/lib/hooks/useOrders';
+import { useMemberAccess } from '@/lib/hooks/useMemberAccess';
 import { getVisibleNavGroups } from '@/lib/core/dashboard-nav';
 import { hasPermission } from '@/lib/auth/permissions';
 import { cn } from '@/lib/utils';
@@ -32,13 +33,14 @@ export const useWorkspaceCommands = () => useContext(CommandContext);
 function CommandResults({ close }: { close: () => void }) {
   const router = useRouter();
   const { user } = useAuth();
+  const memberAccess = useMemberAccess();
   const { orders, isLoading, error } = useOrders();
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const entries = useMemo((): Array<{ id: string; title: string; subtitle?: string | null; href: string; type: string; icon?: LucideIcon }> => {
     const keyword = query.trim().toLocaleLowerCase('tr-TR');
-    const pages = getVisibleNavGroups(user?.role).flatMap(group => group.items
+    const pages = getVisibleNavGroups(user?.role, memberAccess).flatMap(group => group.items
       .filter(item => !item.action && (!keyword || item.label.toLocaleLowerCase('tr-TR').includes(keyword)))
       .map(item => ({ id: item.id, title: item.label, subtitle: group.label, href: item.href, type: 'module' })));
     const matches = keyword && user && hasPermission(user.role, 'orders.view') ? orders
@@ -49,7 +51,7 @@ function CommandResults({ close }: { close: () => void }) {
     const actions = ACTIONS.filter((a) => (!a.roles || (user && a.roles.includes(user.role))) && (!keyword || foldText(a.keywords + ' ' + a.title).includes(foldText(keyword))))
       .map((a) => ({ id: a.id, title: a.title, subtitle: 'Eylem', href: a.href, type: 'action', icon: a.icon }));
     return [...(keyword ? [] : actions), ...matches, ...(keyword ? actions : []), ...all, ...pages].slice(0, 14);
-  }, [query, user, orders]);
+  }, [query, user, orders, memberAccess]);
 
   const selected = Math.min(active, Math.max(0, entries.length - 1));
   function navigate(href: string) { close(); router.push(href); }

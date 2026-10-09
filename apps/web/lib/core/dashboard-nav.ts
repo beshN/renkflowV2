@@ -1,5 +1,6 @@
 import type { Permission } from '@/lib/auth/permissions';
 import { canAccessFinance, hasPermission, ROUTE_ROLES, type UserRole } from '@/lib/auth/permissions';
+import { can, routeRequirement, type Matrix } from '@/lib/security/access-matrix';
 
 export type DashboardNavItem = {
   id: string; label: string; href: string;
@@ -46,8 +47,10 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
       { id: 'crm', label: 'Müşteriler', href: '/crm', requiresPermission: 'customers.view' },
       { id: 'quotations', allowedRoles: ROUTE_ROLES['/quotations'], label: 'Teklifler', href: '/quotations', requiresPermission: 'orders.view' },
       { id: 'reports', label: 'Raporlar', href: '/reports', requiresPermission: 'reports.view' },
-      { id: 'team', label: 'Ekip', href: '/team', requiresPermission: 'team.view' },
+      { id: 'team', label: 'Ekip ve yetkiler', href: '/team', requiresPermission: 'team.view' },
+      { id: 'audit', allowedRoles: ROUTE_ROLES['/audit'], label: 'Denetim izi', href: '/audit' },
       { id: 'settings', label: 'Ayarlar', href: '/settings', requiresPermission: 'settings.view' },
+      { id: 'account', label: 'Hesabım', href: '/account' },
       { id: 'logout', label: 'Çıkış yap', href: '#', action: 'logout' },
     ],
   },
@@ -57,10 +60,16 @@ export const DASHBOARD_QUICK_LINKS = DASHBOARD_NAV_GROUPS.flatMap(group =>
   group.items.filter(item => !item.action).map(({ label, href }) => ({ label, href }))
 );
 
-export function getVisibleNavGroups(role?: UserRole) {
+/** A narrowing role's matrix (from /api/v1/me/access); absent = the base role's own checks only. */
+export type NavAccess = { narrowed: boolean; permissions: Matrix } | null | undefined;
+
+export function getVisibleNavGroups(role?: UserRole, access?: NavAccess) {
   return DASHBOARD_NAV_GROUPS.map(group => ({
     ...group,
     items: group.items.filter(item => {
+      // A job preset or custom role hides the modules it cannot view (the proxy refuses them anyway).
+      const need = access?.narrowed && !item.action ? routeRequirement(item.href, 'GET') : null;
+      if (need && access && !can(access, need.module, need.action)) return false;
       if (!role) return !item.requiresPermission && !item.requiresFinanceAccess && !item.adminOnly && !item.action;
       if (item.allowedRoles && !item.allowedRoles.includes(role)) return false;
       if (item.adminOnly && role !== 'owner' && role !== 'admin') return false;

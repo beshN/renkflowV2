@@ -6,9 +6,18 @@ import { AppleNavbar } from '@/components/layout/AppleNavbar';
 import { RFListView } from '@/components/shared/views/RFListView';
 import { listTenantMembers, type TenantMember } from '@/lib/features/work-orders/client';
 import { useAuth } from '@/lib/context/AuthContext';
+import { TeamWorkspace } from '@/components/team/TeamWorkspace';
 
 const roles: Record<string, string> = { owner: 'Firma sahibi', admin: 'Yönetici', office: 'Ofis', worker: 'Atölye', member: 'Ekip üyesi', accountant: 'Muhasebe' };
 export default function TeamPage() {
+  const { user } = useAuth();
+  const manager = user?.role === 'owner' || user?.role === 'admin';
+  if (manager) return <div className="min-h-screen"><AppleNavbar title="Ekip ve yetkiler" showSearch={false} /><main className="mx-auto max-w-5xl p-4 md:p-6"><TeamWorkspace /></main></div>;
+  return <TeamList />;
+}
+
+/** Everyone else sees who is on the team and their role. */
+function TeamList() {
   const { user } = useAuth();
   const [members, setMembers] = useState<TenantMember[]>([]);
   const [loading, setLoading] = useState(true);
