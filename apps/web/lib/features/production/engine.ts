@@ -121,6 +121,7 @@ export function planHistory(plans: PlanRow[]) {
 /** Whether a configured job can take a recalculated bill of materials: nothing cut, started or planned yet. */
 export function bomRecalcBlocker(job: { status: string; cutPlanId: string | null; producedQty: number; startedOperations: number }) {
   if (job.status === 'done' || job.status === 'cancelled') return 'İş emri kapanmış';
+  if (job.status === 'in_progress') return 'Üretim başlamış; rework açın';
   if (job.cutPlanId) return 'Kesim planına alınmış; planı iptal edip yeniden planlayın ya da rework açın';
   if (job.producedQty > 0 || job.startedOperations > 0) return 'Üretim başlamış; rework açın';
   return null;

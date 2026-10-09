@@ -54,15 +54,15 @@ export function ProductionReasonSettings() {
       <ul className="flex flex-wrap gap-2">
         {reasons[kind].map((r) => (
           <li key={r.code}>
-            <button type="button" disabled={!available} aria-pressed={r.active} title={r.active ? 'Kapat' : 'Aç'} onClick={() => void saveReason({ kind, code: r.code, label: r.label, active: !r.active })}
+            <button type="button" disabled={!available || kind === 'rework'} aria-pressed={r.active} title={kind === 'rework' ? 'Rework nedenleri sabittir' : r.active ? 'Kapat' : 'Aç'} onClick={() => void saveReason({ kind, code: r.code, label: r.label, active: !r.active })}
               className={cn('rounded-full border px-3 py-1 text-xs', r.active ? 'border-border' : 'border-dashed text-muted-foreground line-through')}>{r.label}</button>
           </li>
         ))}
       </ul>
-      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (label.trim()) void saveReason({ kind, label: label.trim() }).then(() => setLabel('')); }}>
+      {kind !== 'rework' && <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (label.trim()) void saveReason({ kind, label: label.trim() }).then(() => setLabel('')); }}>
         <input aria-label="Yeni neden" placeholder={`Yeni ${KIND_LABEL[kind].toLocaleLowerCase('tr')} nedeni`} maxLength={60} className="rf-input min-w-0 flex-1" value={label} onChange={(e) => setLabel(e.target.value)} />
         <button disabled={!available || !label.trim()} className="rf-primary-button">Ekle</button>
-      </form>
+      </form>}
       {lengths && (
         <div className="space-y-2 border-t border-border pt-4">
           <label className="block text-xs">Alınabilen çubuk boyları (mm)

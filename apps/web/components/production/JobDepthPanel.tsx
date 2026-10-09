@@ -65,6 +65,7 @@ export function JobDepthPanel({ workOrderId }: { workOrderId: string }) {
         </span>
       </div>
 
+      {error && <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">{error}</p>}
       {data.openDelay && (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-600/35 px-3 py-2 text-sm">
           <span className="flex-1">{data.openDelay.reason}{data.openDelay.note ? ` · ${data.openDelay.note}` : ''}{data.openDelay.expectedUntil ? ` · tahmini ${new Date(data.openDelay.expectedUntil + 'T12:00:00Z').toLocaleDateString('tr-TR')}` : ''}</span>
@@ -94,7 +95,6 @@ export function JobDepthPanel({ workOrderId }: { workOrderId: string }) {
             <label className="block text-xs">Tahmini bitiş<input type="date" className="rf-input mt-1 w-full text-base sm:w-48" value={until} onChange={(e) => setUntil(e.target.value)} /></label>
           )}
           <input aria-label="Not" placeholder="Not (isteğe bağlı)" maxLength={500} className="rf-input w-full" value={note} onChange={(e) => setNote(e.target.value)} />
-          {error && <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">{error}</p>}
           <button disabled={busy || !reason} className="rf-primary-button min-h-11">{mode === 'scrap' ? 'Fireyi kaydet' : 'Gecikmeyi bildir'}</button>
         </form>
       )}

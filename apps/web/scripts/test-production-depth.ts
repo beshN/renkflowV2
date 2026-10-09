@@ -15,9 +15,9 @@ async function main() {
   const p = await import('../lib/features/production/depth.server');
   const { sql } = await import('../lib/db');
 
-  const tenantId = randomUUID(), ownerId = randomUUID(), officeId = randomUUID(), workerId = randomUUID(), otherWorkerId = randomUUID();
+  const tenantId = randomUUID(), ownerId = randomUUID(), officeId = randomUUID(), workerId = randomUUID(), otherWorkerId = randomUUID(), accountantId = randomUUID();
   await db`INSERT INTO tenants (id, name, slug) VALUES (${tenantId}, 'Üretim Test', ${'prod-' + tenantId.slice(0, 8)})`;
-  for (const [id, role] of [[ownerId, 'owner'], [officeId, 'office'], [workerId, 'worker'], [otherWorkerId, 'worker']]) {
+  for (const [id, role] of [[ownerId, 'owner'], [officeId, 'office'], [workerId, 'worker'], [otherWorkerId, 'worker'], [accountantId, 'accountant']]) {
     await db`INSERT INTO users (id, email, name) VALUES (${id}, ${`${role}-${id}@test.local`}, ${role})`;
     await db`INSERT INTO tenant_members (tenant_id, user_id, role) VALUES (${tenantId}, ${id}, ${role})`;
   }
@@ -26,6 +26,7 @@ async function main() {
   const office = { tenantId, userId: officeId, role: 'office' as const };
   const worker = { tenantId, userId: workerId, role: 'worker' as const };
   const other = { tenantId, userId: otherWorkerId, role: 'worker' as const };
+  const accountant = { tenantId, userId: accountantId, role: 'accountant' as const };
 
   const [order] = await db`INSERT INTO orders (tenant_id, order_number, customer_name, product_name, quantity, status, total_amount, currency)
     VALUES (${tenantId}, 'URT-1', 'Gizli Müşteri', 'Pergola', 1, 'in_production', 99999, 'TRY') RETURNING id`;
@@ -39,6 +40,9 @@ async function main() {
   assert.ok(reasons.scrap.some((r: any) => r.code === 'boya_cizildi'));
   reasons = await p.saveReasonCode(owner as any, { kind: 'scrap', code: 'handling', label: 'Taşıma / düşme', active: false });
   assert.equal(reasons.scrap.find((r: any) => r.code === 'handling').active, false);
+  await assert.rejects(p.saveReasonCode(owner as any, { kind: 'rework', label: 'Yeni rework' }), /yalnız yeniden adlandırılabilir/, 'rework codes are fixed by the production command');
+  reasons = await p.saveReasonCode(owner as any, { kind: 'rework', code: 'assembly', label: 'Montaj hatası' });
+  assert.equal(reasons.rework.find((r: any) => r.code === 'assembly').label, 'Montaj hatası');
 
   // Scrap: a worker on their own job, with an active reason; never on someone else's job.
   await assert.rejects(p.recordScrap(other as any, job.id, { reasonCode: 'cut_error', quantity: 1 }), (e: any) => e.status === 404);
@@ -51,6 +55,10 @@ async function main() {
   const [scrapAudit] = await db`SELECT metadata FROM activity_logs WHERE entity_id = ${job.id} AND action = 'scrap_recorded' ORDER BY created_at LIMIT 1`;
   assert.equal(scrapAudit.metadata.reason, 'Yanlış kesim');
 
+  // Only the shop floor and the office record scrap and delays; an impossible date is refused.
+  await assert.rejects(p.recordScrap(accountant as any, job.id, { reasonCode: 'cut_error', quantity: 1 }), (e: any) => e.status === 403);
+  await assert.rejects(p.reportDelay(accountant as any, job.id, { reasonCode: 'material' }), (e: any) => e.status === 403);
+  await assert.rejects(p.reportDelay(worker as any, job.id, { reasonCode: 'material', expectedUntil: '2026-02-30' }), /geçersiz/);
   // Delay: one open at a time; the production lead hears of it without the customer; the reporter or office closes it.
   depth = await p.reportDelay(worker as any, job.id, { reasonCode: 'material', note: 'Profil gelmedi', expectedUntil: '2026-10-12' });
   assert.deepEqual([depth.openDelay.reason, depth.openDelay.canResolve], ['Malzeme bekleniyor', true]);
@@ -88,7 +96,7 @@ async function main() {
 
   await db.end();
   await (sql as any).end?.();
-  console.log('PASS · production depth: firm reason codes (defaults, managers rename/add/switch off), scrap with an active reason by the worker on their own job only (no price/customer on their view, traced), one open delay per job told to the production lead without customer, closed by the reporter or office, Pareto of scrap/delay reasons and open delays for the office only, live capacity rows, bar length options (managers, sorted, traced), cutting plan history with change in waste, migration twice is a no-op');
+  console.log('PASS · production depth: firm reason codes (defaults, managers rename/add/switch off), scrap with an active reason by the worker on their own job only (no price/customer on their view, traced), one open delay per job told to the production lead without customer, closed by the reporter or office, Pareto of scrap/delay reasons and open delays for the office only, live capacity rows, bar length options (managers, sorted, traced), accounts cannot record, impossible dates refused, rework codes rename-only, cutting plan history with change in waste, migration twice is a no-op');
 }
 
 main().catch((e) => {

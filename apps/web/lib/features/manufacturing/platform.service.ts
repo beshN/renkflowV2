@@ -711,6 +711,7 @@ async function createJob(
   a: WorkOrderActor,
   data: Record<string, unknown>,
   key: string,
+  options: { keepOrderStatus?: boolean } = {},
 ) {
   const d = z
       .object({
@@ -791,8 +792,11 @@ async function createJob(
     await tx`INSERT INTO work_order_materials(tenant_id,work_order_id,item_id,source_warehouse_id,required_qty,uom,snapshot)VALUES(${t},${job.id},${m.itemId},${d.sourceWarehouseId},${m.quantity},${m.uom},${js(m)}::text::jsonb)`;
   for (const op of snapshot.operations)
     await tx`INSERT INTO production_operations(tenant_id,work_order_id,position,name,work_center_code,planned_minutes,status,assigned_to,planned_qty,ready_at,quality_checks,setup_minutes)VALUES(${t},${job.id},${op.position},${op.name},${op.workCenterCode},${op.plannedMinutes},${op.position === 0 ? "ready" : "waiting"},${d.assignedTo},${num(item.quantity)},${op.position === 0 ? new Date() : null},${js(op.qualityChecks || [])}::text::jsonb,${op.setupMinutes})`;
-  await tx`UPDATE orders SET status='preparing_materials',version=version+1 WHERE id=${item.oid} AND tenant_id=${t}`;
-  await noteOrderDates(tx, t, item.oid, 'preparing_materials');
+  // A job rebuilt after an order change does not move the order back (other lines may be further on).
+  if (!options.keepOrderStatus) {
+    await tx`UPDATE orders SET status='preparing_materials',version=version+1 WHERE id=${item.oid} AND tenant_id=${t}`;
+    await noteOrderDates(tx, t, item.oid, 'preparing_materials');
+  }
   await event(tx, a, "job.created", snapshot, job.id);
   return job;
 }
@@ -1782,14 +1786,15 @@ export async function rebuildConfiguredJob(tx: any, a: WorkOrderActor, orderItem
   const [item] = await tx`SELECT oi.* FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE o.tenant_id = ${t} AND oi.id = ${orderItemId} FOR UPDATE OF oi`;
   const pc = item?.product_configuration as ProductConfiguration | null | undefined;
   if (!pc) return { rebuilt: false as const, reason: null };
-  const [job] = await tx`SELECT w.*, (SELECT count(*)::int FROM production_operations p WHERE p.tenant_id = w.tenant_id AND p.work_order_id = w.id AND (p.started_at IS NOT NULL OR p.completed_qty > 0)) AS started
-    FROM work_orders w WHERE w.tenant_id = ${t} AND w.order_item_id = ${orderItemId} AND w.status <> 'cancelled' ORDER BY w.created_at DESC LIMIT 1 FOR UPDATE`;
+  // The caller holds the firm's production lock (as production commands do), so nothing starts meanwhile.
+  const [job] = await tx`SELECT w.* FROM work_orders w WHERE w.tenant_id = ${t} AND w.order_item_id = ${orderItemId} AND w.status <> 'cancelled' ORDER BY w.created_at DESC LIMIT 1 FOR UPDATE`;
   const choice = {
     family: pc.family, recipeId: pc.recipeId, color: item.color || pc.color,
     parameters: { ...pc.parameters, widthMm: Math.round(num(item.width_mm) || pc.parameters.widthMm), projectionMm: Math.round(num(item.projection_mm) || pc.parameters.projectionMm), mountingHeightMm: Math.round(num(item.mounting_height_mm) || pc.parameters.mountingHeightMm) },
   };
   if (job) {
-    const blocker = bomRecalcBlocker({ status: job.status, cutPlanId: job.cut_plan_id, producedQty: num(job.produced_qty), startedOperations: num(job.started) })
+    const [ops] = await tx`SELECT count(*) FILTER (WHERE started_at IS NOT NULL OR completed_qty > 0 OR status IN ('running', 'paused', 'done'))::int AS started FROM production_operations WHERE tenant_id = ${t} AND work_order_id = ${job.id}`;
+    const blocker = bomRecalcBlocker({ status: job.status, cutPlanId: job.cut_plan_id, producedQty: num(job.produced_qty), startedOperations: num(ops.started) })
       ?? (["reserved", "partial", "transferred", "consumed"].includes(job.reservation_status) ? "Malzeme ayrılmış; önce rezervasyonu bırakın ya da rework açın" : null);
     if (blocker) return { rebuilt: false as const, reason: blocker };
   }
@@ -1799,14 +1804,34 @@ export async function rebuildConfiguredJob(tx: any, a: WorkOrderActor, orderItem
     const { configureProduct } = await import("../products/configure.service");
     next = await configureProduct(tx, t, currency, choice);
   } catch (error) {
-    if (error instanceof WorkOrderApiError) return { rebuilt: false as const, reason: `Reçete yeni ölçüyle hesaplanamadı: ${error.message}` };
+    if (error instanceof WorkOrderApiError || error instanceof z.ZodError) return { rebuilt: false as const, reason: `Reçete yeni ölçüyle hesaplanamadı: ${error instanceof WorkOrderApiError ? error.message : "ölçü geçersiz"}` };
     throw error;
   }
+  // Same bill of materials (a price or note change only): the line keeps its job.
+  const sameBom = JSON.stringify(next.bom) === JSON.stringify(pc.bom) && next.color === pc.color;
   await tx`UPDATE order_items SET product_configuration = ${js(next)}::text::jsonb WHERE id = ${orderItemId}`;
-  if (!job) return { rebuilt: true as const, reason: null, workOrderId: null };
-  await tx`UPDATE work_orders SET status = 'cancelled', updated_at = now() WHERE tenant_id = ${t} AND id = ${job.id}`;
-  await tx`UPDATE production_operations SET status = 'cancelled', updated_at = now() WHERE tenant_id = ${t} AND work_order_id = ${job.id} AND status <> 'done'`;
-  await event(tx, a, "job.cancelled", { reason: "order_change", orderItemId }, job.id);
-  const fresh = await createJob(tx, a, { orderItemId, recipeId: next.recipeId, sourceWarehouseId: job.source_warehouse_id, wipWarehouseId: job.wip_warehouse_id, targetWarehouseId: job.target_warehouse_id, assignedTo: job.assigned_to, priority: job.priority }, `order-change:${orderItemId}:${job.id}`);
-  return { rebuilt: true as const, reason: null, workOrderId: fresh.id as string, replaced: job.id as string };
+  if (!job || sameBom) return { rebuilt: false as const, reason: null };
+  try {
+    // In a savepoint: when the job cannot be opened again (assignee left production, a warehouse was
+    // closed, …) the old job stays as it was and the reason is reported; the order change still applies.
+    const fresh = await tx.savepoint(async (sp: any) => {
+      await sp`UPDATE work_orders SET status = 'cancelled', updated_at = now() WHERE tenant_id = ${t} AND id = ${job.id}`;
+      await sp`UPDATE production_operations SET status = 'cancelled', version = version + 1, updated_at = now() WHERE tenant_id = ${t} AND work_order_id = ${job.id} AND status <> 'done'`;
+      await event(sp, a, "job.cancelled", { reason: "order_change", orderItemId }, job.id);
+      const created = await createJob(sp, a, { orderItemId, recipeId: next.recipeId, sourceWarehouseId: job.source_warehouse_id, wipWarehouseId: job.wip_warehouse_id, targetWarehouseId: job.target_warehouse_id, assignedTo: job.assigned_to, priority: job.priority }, `order-change:${orderItemId}:${job.id}`, { keepOrderStatus: true });
+      // The people, machines and teams on each step stay on the same step; the job keeps its dates.
+      await sp`UPDATE production_operations n SET assigned_to = coalesce(o.assigned_to, n.assigned_to), machine_id = o.machine_id, team_id = o.team_id
+        FROM production_operations o WHERE n.tenant_id = ${t} AND n.work_order_id = ${created.id} AND o.tenant_id = ${t} AND o.work_order_id = ${job.id} AND o.position = n.position`;
+      await sp`UPDATE work_orders SET due_at = ${job.due_at}, material_ready_at = ${job.material_ready_at} WHERE tenant_id = ${t} AND id = ${created.id}`;
+      // An open delay follows the job.
+      if (await columnExists("production_delays", "work_order_id"))
+        await sp`UPDATE production_delays SET work_order_id = ${created.id} WHERE tenant_id = ${t} AND work_order_id = ${job.id} AND resolved_at IS NULL`;
+      return created;
+    });
+    return { rebuilt: true as const, reason: null, workOrderId: fresh.id as string, replaced: job.id as string };
+  } catch (error) {
+    if (error instanceof WorkOrderApiError || error instanceof z.ZodError)
+      return { rebuilt: false as const, reason: `İş emri yeni ölçüyle açılamadı: ${error instanceof WorkOrderApiError ? error.message : "eksik bilgi"}` };
+    throw error;
+  }
 }
