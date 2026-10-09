@@ -225,7 +225,7 @@ function RfqCard({ rfq: q, writable, onAct }: { rfq: Rfq; writable: boolean; onA
                   <td className="py-1.5 font-medium">{s.name}{best && open && <StatusChip className="ml-2" tone="success" icon={Award} label="Önerilen" />}</td>
                   <td className="tabular-nums">{row ? <>{formatCurrency(row.total, q.currency)}{!row.complete && <span className="text-amber-700 dark:text-amber-300"> · {row.missing} satır yok</span>}{row.expired && <span className="text-rose-700 dark:text-rose-300"> · süresi doldu</span>}</> : <span className="text-muted-foreground">cevap yok</span>}</td>
                   <td className="tabular-nums">{row?.leadTimeDays != null ? `${row.leadTimeDays} gün` : '—'}</td>
-                  <td className="text-right">
+                  <td className="whitespace-nowrap pr-1 text-right">
                     {open && writable && <button type="button" className="text-primary" onClick={() => { setEntry(entry === s.id ? null : s.id); const old = q.responses.find((r) => r.supplierId === s.id); setPrices(Object.fromEntries((old?.prices ?? []).map((p) => [p.lineId, String(p.unitPrice)]))); setLead(old?.leadTimeDays?.toString() ?? ''); setValid(old?.validUntil ?? ''); }}>{row ? 'Düzelt' : 'Cevap gir'}</button>}
                     {open && writable && row?.complete && !row.expired && <button type="button" className="ml-3 font-medium text-primary" onClick={() => onAct({ action: 'award', supplierId: s.id, version: q.version })}>Seç</button>}
                   </td>
