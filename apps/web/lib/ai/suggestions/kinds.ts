@@ -17,6 +17,8 @@ export type SuggestionKind<P extends Record<string, unknown> = Record<string, un
   kind: string;
   /** Shown on the card, e.g. "Kesim planı". */
   label: string;
+  /** A lucide icon name for the card (detectors set it). */
+  icon?: string;
   payloadSchema: z.ZodType<P>;
   /** Roles that see and decide this kind (the same roles that may run the command by hand). */
   roles: readonly UserRole[];

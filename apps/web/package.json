@@ -55,6 +55,7 @@
     "test:chain": "tsx --require ./scripts/register-server-only.cjs scripts/test-chain.ts",
     "test:fleet": "tsx --require ./scripts/register-server-only.cjs scripts/test-fleet.ts",
     "test:finance": "tsx --require ./scripts/register-server-only.cjs scripts/test-finance.ts",
+    "test:ai-assistant": "tsx --require ./scripts/register-server-only.cjs scripts/test-ai-assistant.ts",
     "test:warehouse:browser": "node scripts/verify-warehouse-browser.cjs",
     "prebuild": "node scripts/sync-pdf-worker.cjs",
     "predev": "node scripts/sync-pdf-worker.cjs"
