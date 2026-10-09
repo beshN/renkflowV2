@@ -197,6 +197,20 @@ export const RECORDS: Record<RecordType, Def> = {
       return t?.order_id && a.role !== 'worker' ? [{ key: 'order', label: 'Sipariş', count: 1, href: `/orders/${t.order_id}` }] : [];
     },
   },
+  vehicle: {
+    label: 'Araç',
+    canView: (r) => r === 'owner' || r === 'admin',
+    canEdit: (r) => r === 'owner' || r === 'admin',
+    auditTypes: ['vehicle'],
+    head: async (db, a, id) => {
+      const [v] = await optional('vehicles', () => db`SELECT plate, make, model FROM vehicles WHERE tenant_id = ${a.tenantId} AND id = ${id}`);
+      return v?.plate ? { type: 'vehicle', id, title: String(v.plate).replace(/^(\d{2})([A-ZÇĞİÖŞÜ]+)(\d+)$/, '$1 $2 $3'), subtitle: [v.make, v.model].filter(Boolean).join(' ') || null, href: `/vehicles/${id}` } : null;
+    },
+    related: async (db, a, id) => {
+      const [d] = await db`SELECT count(*)::int AS n FROM vehicle_documents WHERE tenant_id = ${a.tenantId} AND vehicle_id = ${id}`;
+      return [{ key: 'documents', label: 'Belge', count: n(d.n), href: `/vehicles/${id}` }];
+    },
+  },
 };
 
 export const isRecordType = (v: string): v is RecordType => (RECORD_TYPES as readonly string[]).includes(v);

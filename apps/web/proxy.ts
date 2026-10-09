@@ -20,7 +20,7 @@ const AUTH_SECRET =
  * the member gate of the current firm does not apply.
  */
 const GATE_EXEMPT_API = new Set(['/api/tenant/invite/validate', '/api/tenant/invite/accept']);
-const GATE_EXEMPT_API_PREFIXES = ['/api/v1/public/', '/api/v1/tracking/'];
+const GATE_EXEMPT_API_PREFIXES = ['/api/v1/public/', '/api/v1/tracking/', '/api/telemetry/'];
 const gateExempt = (pathname: string) => GATE_EXEMPT_API.has(pathname) || GATE_EXEMPT_API_PREFIXES.some((p) => pathname.startsWith(p));
 
 const ACME_CHALLENGE_PREFIX = '/.well-known/acme-challenge/';
@@ -254,7 +254,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname.startsWith('/api/')) {
-    if(privateAccessEmail() && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/cron/') && !(await isAuthenticated(request))) return withProxySecurityHeaders(NextResponse.json({error:'Oturum açmanız gerekiyor.'},{status:401}),{isSecureRequest});
+    if(privateAccessEmail() && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/cron/') && !pathname.startsWith('/api/telemetry/') && !(await isAuthenticated(request))) return withProxySecurityHeaders(NextResponse.json({error:'Oturum açmanız gerekiyor.'},{status:401}),{isSecureRequest});
     // Exempt and auth paths still lose any hidden-field header a client sent.
     let next = await forwardHiddenFields(request, null);
     if (!pathname.startsWith('/api/auth/') && !gateExempt(pathname)) {
