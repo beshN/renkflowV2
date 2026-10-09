@@ -130,3 +130,15 @@ turA-drawer / turA-drawer-390 / turA-dashboard-activities / turA-settings · tur
 
 | 2026-10-09 (Tur 1) | bitti | PR #49 `claude/night-2`'ye birleşti (CI yeşil). |
 | 2026-10-09 (Tur 2) | bitti → PR | Göç 045, motor (11 test), lead/keşif/teklif, montaj takvimi + imza + onay kapılı 'teslim edildi' önerisi, servis/garanti, sipariş 'Montaj & servis' sekmesi, `test:chain` uçtan uca yeşil, tarayıcıda zincir yürütüldü (müşteri sayfasında fiyat yok, usta görünümünde müşteri yok). /code-review 10 bulgu, hepsi düzeltildi. |
+
+### Tur 3 planı (10 satır) — araç filosu (yalnız sahip/yönetici)
+1. ADR `docs/adr/0003-arac-filosu.md`: kapsam, veri modeli, cihaz yolu (sağlayıcı API'leri araştırıldı: herkese açık API bulunamadı; öneri kendi cihaz + TCP→HTTP ağ geçidi), cihaz firma adına.
+2. Göç 046 (idempotent): araç, belge, bakım, yakıt, görev; cihaz (jeton özeti), konum (cihaz+zaman tekil, araç+zaman index), saklama ayarı (365 gün / süresiz).
+3. Saf motor `lib/features/fleet/engine.ts`: belge uyarısı 30/15/7, araç sağlığı, aylık maliyet ve km başına maliyet, görev çakışması, konum doğrulama, güzergâh/durak/günlük km.
+4. Yetki: `fleet` modülü yalnız sahip/yönetici; menü + sayfa (ROUTE_ROLES) + API (proxy matrisi) + servis katmanı; başka her rol için test.
+5. `/vehicles` kartları (plaka, marka/model, tür, durum, sürücü, belge rozeti), araç ayrıntısı sekmeleri: Genel, Belgeler, Bakım, Yakıt, Görevler, Konum.
+6. Görevler: montaja/sevkiyata araç atama + takvim çakışma uyarısı.
+7. Maliyet grafikleri (araç başına aylık yakıt + bakım, km başına) ve panoda araç sağlığı kartı.
+8. `POST /api/telemetry/ingest`: cihaz jetonu, hız sınırı, doğrulama, tekrar yok sayma; saklama süresi zamanlanmış temizlikte.
+9. Harita: bağımlılıksız OSM karo bileşeni (atıf görünür, karo adresi ayarlanabilir), araç konumu ve canlı filo haritası; cihaz yoksa "Cihaz bağla".
+10. Testler: motor jest + `test:fleet` (ekle, belge, uyarı, montaja ata, sahte konum POST, rol testleri) + tarayıcı.
