@@ -4,12 +4,15 @@ import { POST as login } from '@/app/api/v1/auth/login/route';
 import { GET as me } from '@/app/api/v1/auth/me/route';
 import { fieldActor } from '@/lib/features/field/service';
 import { needsUpdate, MIN_APP_VERSION, MOBILE_API_VERSION, validateMobileDTO } from '@/lib/features/mobile/contract';
+import { uploadChunk, uploadStatus } from '@/lib/features/mobile/uploads';
+import { syncCommand, MobileConflict } from '@/lib/features/mobile/sync';
 import { mobileInstallations, mobileNotifications, mobileNotificationPreferences } from '@/lib/features/mobile/field-context';
 import { mobileReferences } from '@/lib/features/mobile/references';
 import { readFieldJson } from '@/lib/features/field/service';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 type Context = { params: Promise<{ path: string[] }> };
 function json(data: unknown, status = 200) { return NextResponse.json(data, { status, headers: { 'Cache-Control': 'private, no-store', 'X-RenkFlow-API-Version': MOBILE_API_VERSION } }); }
 async function handle(request: NextRequest, context: Context, writing: boolean) {
@@ -18,9 +21,9 @@ async function handle(request: NextRequest, context: Context, writing: boolean) 
   try {
     const { path } = await context.params;
     if (writing) {
-      const input = path.join('/') === 'notifications/preferences' ? 'NotificationPreferences' : path.join('/') === 'auth/login' ? 'LoginInput' : path[0] === 'commands' ? 'CommandInput' : path[0] === 'files' ? 'PhotoInput' : path[2] === 'comments' ? 'CommentInput' : path[2] === 'checklist' ? 'ChecklistInput' : path[2] === 'transition' ? 'TransitionInput' : null;
+      const input = path.join('/') === 'uploads' ? 'UploadInput' : path.join('/') === 'sync' ? 'SyncInput' : path.join('/') === 'notifications/preferences' ? 'NotificationPreferences' : path.join('/') === 'auth/login' ? 'LoginInput' : path[0] === 'commands' ? 'CommandInput' : path[0] === 'files' ? 'PhotoInput' : path[2] === 'comments' ? 'CommentInput' : path[2] === 'checklist' ? 'ChecklistInput' : path[2] === 'transition' ? 'TransitionInput' : null;
       if (input) {
-        const raw = await readFieldJson(request, input === 'PhotoInput' ? 2_900_000 : 64_000);
+        const raw = await readFieldJson(request, input === 'PhotoInput' ? 2_900_000 : input === 'UploadInput' ? 400_000 : 64_000);
         try { validateMobileDTO(input, raw); }
         catch { return json({ success: false, error: 'Mobil istek alanları geçersiz.' }, 400); }
         request = new NextRequest(request.url, { method: 'POST', headers: request.headers, body: JSON.stringify(raw) });
@@ -38,6 +41,9 @@ async function handle(request: NextRequest, context: Context, writing: boolean) 
       await fieldActor(new NextRequest(request.url, { headers }));
       return json({ success: true, data: validateMobileDTO('Login', { user: result.data.user, accessToken: result.data.accessToken, expiresIn: result.data.expiresIn }) });
     }
+    if (path[0]==='uploads' && path.length===2 && !writing) return json({success:true,data:validateMobileDTO('UploadStatus',await uploadStatus(await fieldActor(request),path[1]))});
+    if (path.join('/')==='uploads' && writing) return json({success:true,data:validateMobileDTO('UploadStatus',await uploadChunk(await fieldActor(request),await readFieldJson(request,400_000)))});
+    if (path.join('/') === 'sync' && writing) return json({ success:true, data:validateMobileDTO('Accepted',await syncCommand(await fieldActor(request),await readFieldJson(request))) });
     if (path.join('/') === 'installations' && !writing) return json({ success: true, data: validateMobileDTO('Installations', await mobileInstallations(await fieldActor(request))) });
     if (path.join('/') === 'notifications' && !writing) return json({ success: true, data: validateMobileDTO('Notifications', await mobileNotifications(await fieldActor(request))) });
     if (path.join('/') === 'notifications/preferences') {
@@ -55,6 +61,7 @@ async function handle(request: NextRequest, context: Context, writing: boolean) 
     const body = await response.json();
     return json({ success: true, data: validateMobileDTO(schema, schema === 'Photo' ? { url: body.data.url } : body.data) });
   } catch (error) {
+    if (error instanceof MobileConflict) return json({success:false,error:error.message,code:'SYNC_CONFLICT',canRetry:error.canRetry},409);
     if (error instanceof WorkOrderApiError) return json({ success: false, error: error.message }, error.status);
     // A contract mismatch must fail closed; don't expose validation payloads or private fields.
     console.error('[mobile-contract] response rejected', error instanceof Error ? error.name : 'unknown');

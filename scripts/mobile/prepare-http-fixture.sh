@@ -14,6 +14,7 @@ for attempt in $(seq 1 90); do
   sleep 1
 done
 npm run build > /tmp/mobile-build.log 2>&1 || { tail -100 /tmp/mobile-build.log; exit 1; }
+npx tsx ../../scripts/mobile/apply-local-schema.ts
 npm run test:field -- --fixture=/tmp/renkflow-mobile-fixture.json
 npm run start:next -- -p 3022 > /tmp/mobile-server.log 2>&1 &
 for attempt in $(seq 1 60); do
@@ -21,6 +22,7 @@ for attempt in $(seq 1 60); do
   if [ "$attempt" = 60 ]; then cat /tmp/mobile-server.log; exit 1; fi
   sleep 1
 done
+npx tsx --require ./scripts/register-server-only.cjs scripts/test-mobile-sync.ts --server=http://127.0.0.1:3022
 openssl req -x509 -newkey rsa:2048 -nodes -keyout /tmp/mobile-test.key -out /tmp/mobile-test.crt -days 1 -subj /CN=localhost -addext 'subjectAltName=IP:127.0.0.1,DNS:localhost' > /tmp/mobile-tls.log 2>&1
 node ../../scripts/mobile/test-https-server.mjs /tmp/renkflow-mobile-fixture.json /tmp/mobile-test.crt /tmp/mobile-test.key > /tmp/mobile-https.log 2>&1 &
 for attempt in $(seq 1 30); do

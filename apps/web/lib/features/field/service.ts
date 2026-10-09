@@ -65,6 +65,7 @@ export function fieldJob(job: Record<string, unknown>, snake = false) {
     checklistCompleted: Number(value('checklistCompleted', 'checklist_completed') || 0),
     blockedReasonDetail: value('blockedReasonDetail', 'blocked_reason_detail') || null,
     color: fieldColor(job, snake),
+    updatedAt: value('updatedAt','updated_at') instanceof Date ? (value('updatedAt','updated_at') as Date).toISOString() : value('updatedAt','updated_at'),
   };
 }
 
