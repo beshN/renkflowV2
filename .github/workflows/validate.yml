@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - codex/mobile-integration
   push:
     branches:
       - codex/**
