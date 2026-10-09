@@ -148,3 +148,7 @@ Adım 4 başlangıcı: 2026-10-09 21:27 UTC. Adım 3 PR #56 CI sonucu bekleniyor
 10. Döndürme, kayıp yanıt, tekrar kullanım, üyelik kaldırma ve cihaz iptalini gerçek yerel DB'de test et.
 
 Adım 2 başlangıcı: 2026-10-09 22:03 UTC. Adım 4 PR #57 düzeltme CI'sı bekleniyor; entegrasyona yalnız başarılı CI ile alınır.
+
+### Ayrı web cihaz yüzeyi
+- Mobil oturumlara ait `/mobile-devices` bağımsız sayfası küçük ayrı dal/PR olarak hazırlanıyor; panel/AI/konfigurasyon dosyaları değişmiyor.
+- Server Action kimliği ve tenant'ı mevcut web oturumundan yeniden okur; formdaki kullanıcı/tenant alanları kabul edilmez. Next.js Origin/Host CSRF koruması kullanılır.
