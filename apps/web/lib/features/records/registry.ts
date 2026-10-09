@@ -1,6 +1,8 @@
 import 'server-only';
 
 import { hasPermission, type UserRole } from '@/lib/auth/permissions';
+import { can } from '@/lib/security/access-matrix';
+import { resolveMemberAccess } from '@/lib/security/member-access.server';
 import { tableExists } from '@/lib/db/schema-guard';
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
 import { RECORD_TYPES, type RecordType } from './types';
@@ -18,11 +20,18 @@ type Def = {
   auditTypes: string[];
   head: (db: any, actor: WorkOrderActor, id: string) => Promise<RecordHead | null>;
   related: (db: any, actor: WorkOrderActor, id: string) => Promise<RelatedLink[]>;
+  /** A further check on the member's own access matrix (beyond the base role), when the module has one. */
+  allows?: (actor: Pick<WorkOrderActor, 'tenantId' | 'userId'>, need: 'view' | 'edit') => Promise<boolean>;
 };
 
 const OFFICE: UserRole[] = ['owner', 'admin', 'office'];
 const OFFICE_AND_ACCOUNTS: UserRole[] = ['owner', 'admin', 'office', 'accountant'];
 const n = (v: unknown) => Number(v) || 0;
+/** The member's fleet cell (a custom role can take the fleet away from an admin). */
+const fleetCell = async (a: Pick<WorkOrderActor, 'tenantId' | 'userId'>, need: 'view' | 'edit') => {
+  const access = await resolveMemberAccess(a.userId, a.tenantId);
+  return Boolean(access && !access.deactivated && can(access, 'fleet', 'view') && can(access, 'fleet', need));
+};
 const optional = async (table: string, query: () => Promise<any[]>) => ((await tableExists(table)) ? query() : [{ n: 0 }]);
 
 /**
@@ -197,6 +206,22 @@ export const RECORDS: Record<RecordType, Def> = {
       return t?.order_id && a.role !== 'worker' ? [{ key: 'order', label: 'Sipariş', count: 1, href: `/orders/${t.order_id}` }] : [];
     },
   },
+  vehicle: {
+    label: 'Araç',
+    canView: (r) => r === 'owner' || r === 'admin',
+    canEdit: (r) => r === 'owner' || r === 'admin',
+    auditTypes: ['vehicle'],
+    allows: fleetCell,
+    head: async (db, a, id) => {
+      if (!(await fleetCell(a, 'view'))) return null;
+      const [v] = await optional('vehicles', () => db`SELECT plate, make, model FROM vehicles WHERE tenant_id = ${a.tenantId} AND id = ${id}`);
+      return v?.plate ? { type: 'vehicle', id, title: String(v.plate).replace(/^(\d{2})([A-Z]+)(\d+)$/, '$1 $2 $3'), subtitle: [v.make, v.model].filter(Boolean).join(' ') || null, href: `/vehicles/${id}` } : null;
+    },
+    related: async (db, a, id) => {
+      const [d] = await db`SELECT count(*)::int AS n FROM vehicle_documents WHERE tenant_id = ${a.tenantId} AND vehicle_id = ${id}`;
+      return [{ key: 'documents', label: 'Belge', count: n(d.n), href: `/vehicles/${id}` }];
+    },
+  },
 };
 
 export const isRecordType = (v: string): v is RecordType => (RECORD_TYPES as readonly string[]).includes(v);
@@ -208,6 +233,8 @@ export async function openRecord(db: any, actor: WorkOrderActor, type: string, i
   const def = RECORDS[type];
   if (!def.canView(actor.role)) throw new WorkOrderApiError('Bu kaydı görme yetkiniz yok', 403);
   if (need === 'edit' && !def.canEdit(actor.role)) throw new WorkOrderApiError('Bu kaydı değiştirme yetkiniz yok', 403);
+  if (def.allows && !(await def.allows(actor, 'view'))) throw new WorkOrderApiError('Kayıt bulunamadı', 404);
+  if (need === 'edit' && def.allows && !(await def.allows(actor, 'edit'))) throw new WorkOrderApiError('Bu kaydı değiştirme yetkiniz yok', 403);
   const head = await def.head(db, actor, id);
   if (!head) throw new WorkOrderApiError('Kayıt bulunamadı', 404);
   return { def, head };

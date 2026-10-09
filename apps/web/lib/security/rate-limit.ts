@@ -29,6 +29,7 @@ export const RATE_LIMIT_POLICIES = {
   assistant: { limit: 20, windowMs: 60_000 },
   quoteDecision: { limit: 20, windowMs: 15 * 60_000 },
   inviteToken: { limit: 20, windowMs: 15 * 60_000 },
+  telemetryIngest: { limit: 120, windowMs: 60_000 },
 } satisfies Record<string, RateLimitPolicy>;
 
 export type RateLimitPolicyName = keyof typeof RATE_LIMIT_POLICIES;

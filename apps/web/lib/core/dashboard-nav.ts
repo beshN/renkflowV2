@@ -51,6 +51,7 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
       { id: 'quotations', allowedRoles: ROUTE_ROLES['/quotations'], label: 'Teklifler', href: '/quotations', requiresPermission: 'orders.view' },
       { id: 'reports', label: 'Raporlar', href: '/reports', requiresPermission: 'reports.view' },
       { id: 'team', label: 'Ekip ve yetkiler', href: '/team', requiresPermission: 'team.view' },
+      { id: 'vehicles', allowedRoles: ROUTE_ROLES['/vehicles'], label: 'Araç filosu', href: '/vehicles' },
       { id: 'audit', allowedRoles: ROUTE_ROLES['/audit'], label: 'Denetim izi', href: '/audit' },
       { id: 'settings', label: 'Ayarlar', href: '/settings', requiresPermission: 'settings.view' },
       { id: 'account', label: 'Hesabım', href: '/account' },

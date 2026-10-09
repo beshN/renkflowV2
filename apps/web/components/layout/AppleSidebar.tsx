@@ -19,7 +19,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   finance: Wallet, inventory: Boxes, suppliers: Building2, shipments: Truck,
   crm: Building2, reports: BarChart3, team: Users, settings: Settings,
   production: Factory, factory: Factory, warehouse: Warehouse, scan: ScanLine, purchases: ShoppingCart, receipts: PackageCheck, scrap: Recycle,
-  leads: Target, installations: Wrench, service: LifeBuoy, audit: ScrollText, account: UserCog, calendar: CalendarDays, accounting: Calculator,
+  leads: Target, installations: Wrench, vehicles: Truck, service: LifeBuoy, audit: ScrollText, account: UserCog, calendar: CalendarDays, accounting: Calculator,
 };
 /** Hover motion per icon, in the spirit of Granola's sidebar. */
 const NAV_ANIM: Record<string, string> = {

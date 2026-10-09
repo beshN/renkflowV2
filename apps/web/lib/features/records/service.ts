@@ -87,7 +87,7 @@ export async function getRecord(actor: WorkOrderActor, type: string, id: string)
   const day = (d: unknown) => (d instanceof Date ? d.toISOString().slice(0, 10) : d ? String(d).slice(0, 10) : null);
   return {
     head,
-    canEdit: def.canEdit(actor.role),
+    canEdit: def.canEdit(actor.role) && (!def.allows || (await def.allows(actor, 'edit'))),
     related,
     tags: tags.map((g: any) => ({ id: g.id, name: g.name, color: g.color })),
     owner: meta[0] ? { id: meta[0].assignee_id, name: meta[0].assignee_name, dueOn: day(meta[0].due_on) } : { id: null, name: null, dueOn: null },

@@ -15,6 +15,7 @@ import type { Order } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { SuggestionsPanel } from '@/components/features/ai/SuggestionsPanel';
 import { DueActivities } from '@/components/records/DueActivities';
+import { FleetHealthCard } from '@/components/fleet/FleetHealthCard';
 import { Donut, EmptyState, HealthBadge, HintTip, LifecycleStrip, PageHeader, ProgressRing, Skeleton, StatCard } from '@/components/kit';
 import { ColorSwatch } from '@/components/colors/ColorSwatch';
 import { colorInfo } from '@/lib/features/colors/color-spec';
@@ -218,6 +219,8 @@ export default function DashboardPage() {
         <StatCard label="Kesim bekleyen iş" icon={Scissors} href="/production?tab=cutting" loading={summaryLoading} value={n(summary?.cutting?.waiting)} />
         <StatCard label="Bugün teslim" icon={Truck} href="/orders?view=today" loading={isLoading} value={dueToday.length} trend={trend.map((t) => t.completed)} />
       </div>
+
+      {manager && (user?.role === 'owner' || user?.role === 'admin') && <FleetHealthCard />}
 
       <nav aria-label="Kısayollar" className="-mx-1 flex gap-2 overflow-x-auto px-1">
         {shortcuts.map((s) => (

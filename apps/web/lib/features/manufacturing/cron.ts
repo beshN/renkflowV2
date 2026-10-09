@@ -5,6 +5,7 @@ import { drainNotifications } from "./notification.service";
 import { drainInbound } from "./inbound.service";
 import { drainStorageCleanup } from "../orders/deletion.service";
 import { pruneRateLimitBuckets } from "@/lib/security/rate-limit";
+import { pruneVehiclePositions } from "@/lib/features/fleet/retention.server";
 export function cronAuthorized(request: Request) {
  const secret = process.env.CRON_SECRET?.trim();
  if (!secret || secret.length < 32) return false;
@@ -18,7 +19,7 @@ export async function runCron(request: Request, queue: "inbound" | "notification
  // Preview DBs and providers stay isolated; Vercel only schedules production crons.
  if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "production") return Response.json({error:"Cron is disabled in previews"},{status:403,headers});
  try {
-  const result = queue === "inbound" ? await drainInbound(1) : queue === "notifications" ? await drainNotifications(5) : {cleanup:await drainStorageCleanup(undefined,20),orphaned:await sweepAbandonedUploads(),expiredRateLimits:await pruneRateLimitBuckets()};
+  const result = queue === "inbound" ? await drainInbound(1) : queue === "notifications" ? await drainNotifications(5) : {cleanup:await drainStorageCleanup(undefined,20),orphaned:await sweepAbandonedUploads(),expiredRateLimits:await pruneRateLimitBuckets(),vehiclePositions:await pruneVehiclePositions()};
   return Response.json({ok:true,queue,result},{headers});
  } catch {
   console.error(`[cron] ${queue} failed`);
