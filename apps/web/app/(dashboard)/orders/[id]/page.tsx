@@ -22,6 +22,8 @@ import { businessDate } from '@/lib/features/orders/workspace';
 import { Chatter } from '@/components/shared/ui/Chatter';
 import { RecordButton, RecordPanel } from '@/components/records/RecordDrawer';
 import { OrderSalesPanel } from '@/components/sales/OrderSalesPanel';
+import { OrderChainPanel } from '@/components/field/OrderChainPanel';
+import { Wrench } from 'lucide-react';
 import { ORDER_TRANSITIONS, transitionNeedsReason } from '@/lib/features/orders/transition-rules';
 import { useAuth } from '@/lib/context/AuthContext';
 import { hasPermission } from '@/lib/auth/permissions';
@@ -138,7 +140,7 @@ export default function OrderDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const transitionRetry = useRef<{key:string;commandId:string} | null>(null);
-  const [activeTab, setActiveTab] = useState<'info' | 'items' | 'sales' | 'documents' | 'activity'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'items' | 'sales' | 'chain' | 'documents' | 'activity'>('info');
   const [reasonFor, setReasonFor] = useState<{ status: string; note: string } | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
 
@@ -310,6 +312,7 @@ export default function OrderDetailPage() {
                   { key: 'info', label: 'Bilgiler', icon: ClipboardList },
                   { key: 'items', label: 'Ürün Satırları', icon: Package },
                   { key: 'sales', label: 'Teslim & ödeme', icon: Wallet },
+                  { key: 'chain', label: 'Montaj & servis', icon: Wrench },
                   { key: 'documents', label: 'Dosyalar', icon: FileText },
                   { key: 'activity', label: 'Aktivite', icon: MessageSquare },
                 ].filter(tab => !order.financialHidden || !['sales','documents','activity'].includes(tab.key)).map(({ key, label, icon: Icon }) => (
@@ -438,6 +441,8 @@ export default function OrderDetailPage() {
                   onOrderChanged={() => void loadOrder()}
                 />
               )}
+
+              {activeTab === 'chain' && <OrderChainPanel orderId={orderId} />}
 
               {activeTab === 'documents' && !order.financialHidden && (
                 <div className="rf-panel border border-border p-6 shadow-sm">

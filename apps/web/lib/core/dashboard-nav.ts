@@ -26,6 +26,8 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
       { id: 'work-orders', label: 'İş emirleri', href: '/work-orders', requiresPermission: 'orders.view' },
       { id: 'kanban', label: 'Üretim akışı', href: '/kanban', requiresPermission: 'kanban.view' },
       { id: 'shipments', allowedRoles: ROUTE_ROLES['/shipments'], label: 'Sevkiyat', href: '/shipments', requiresPermission: 'orders.view' },
+      { id: 'installations', allowedRoles: ROUTE_ROLES['/installations'], label: 'Montaj', href: '/installations' },
+      { id: 'service', allowedRoles: ROUTE_ROLES['/service'], label: 'Servis ve garanti', href: '/service' },
     ],
   },
   {
@@ -44,6 +46,7 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
   {
     id: 'management', label: 'Yönetim', subtitle: 'Müşteriler, raporlar ve ekip',
     items: [
+      { id: 'leads', allowedRoles: ROUTE_ROLES['/leads'], label: 'Potansiyel müşteriler', href: '/leads' },
       { id: 'crm', label: 'Müşteriler', href: '/crm', requiresPermission: 'customers.view' },
       { id: 'quotations', allowedRoles: ROUTE_ROLES['/quotations'], label: 'Teklifler', href: '/quotations', requiresPermission: 'orders.view' },
       { id: 'reports', label: 'Raporlar', href: '/reports', requiresPermission: 'reports.view' },
