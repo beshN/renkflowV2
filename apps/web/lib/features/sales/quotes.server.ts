@@ -206,15 +206,19 @@ export async function discountState(tenantId: string, id: string) {
   return { effective, threshold: settings.discountApprovalPercent, approved, needsApproval: needsDiscountApproval(effective, settings.discountApprovalPercent, approved), tryTotal: tryEquivalent(Number(q.total_amount), q.currency, q.fx_rate == null ? null : Number(q.fx_rate)) };
 }
 
-export async function approveDiscount(actor: WorkOrderActor, id: string) {
+export async function approveDiscount(actor: WorkOrderActor, id: string, expectedPercent?: number) {
   need(actor, MANAGERS, 'İndirim onaylama');
   await requireSales();
-  const state = await discountState(actor.tenantId, id);
+  const settings = await getQuoteSettings(actor.tenantId);
   await withTransaction(async (tx: any) => {
-    const { q } = await loadQuote(tx, actor.tenantId, id, true);
+    // Worked out on the locked rows: what is approved is what is on the quote now, and must be what the manager saw.
+    const { q, items } = await loadQuote(tx, actor.tenantId, id, true);
     if (!['draft', 'sent'].includes(q.status)) throw new WorkOrderApiError('Bu teklifte indirim onayı gerekmez', 409);
-    await tx`UPDATE quotations SET discount_approved_percent = ${state.effective}, discount_approved_by = ${actor.userId}, discount_approved_at = now(), version = version + 1, updated_at = now() WHERE tenant_id = ${actor.tenantId} AND id = ${id}`;
-    await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'quotation', entityId: id, action: 'discount_approved', changes: { indirim: { from: q.discount_approved_percent == null ? null : Number(q.discount_approved_percent), to: state.effective } }, metadata: { threshold: state.threshold } });
+    const effective = effectiveDiscountPercent(items.map((i: any) => ({ quantity: Number(i.quantity), unitPrice: Number(i.unit_price), discountPercent: Number(i.discount_percent) })), Number(q.discount_percent));
+    if (expectedPercent !== undefined && Math.abs(expectedPercent - effective) > 0.005)
+      throw new WorkOrderApiError(`İndirim bu arada %${effective} oldu; güncel teklifi açıp yeniden onaylayın`, 409);
+    await tx`UPDATE quotations SET discount_approved_percent = ${effective}, discount_approved_by = ${actor.userId}, discount_approved_at = now(), version = version + 1, updated_at = now() WHERE tenant_id = ${actor.tenantId} AND id = ${id}`;
+    await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'quotation', entityId: id, action: 'discount_approved', changes: { indirim: { from: q.discount_approved_percent == null ? null : Number(q.discount_approved_percent), to: effective } }, metadata: { threshold: settings.discountApprovalPercent } });
   });
   return discountState(actor.tenantId, id);
 }
@@ -243,7 +247,8 @@ export async function saveTemplateFromQuote(actor: WorkOrderActor, quotationId: 
       heightMm: i.height_mm == null ? undefined : Number(i.height_mm), projectionMm: i.projection_mm == null ? undefined : Number(i.projection_mm),
       mountingHeightMm: i.mounting_height_mm == null ? undefined : Number(i.mounting_height_mm), quantity: Number(i.quantity), unitPrice: Number(i.unit_price),
       discountPercent: Number(i.discount_percent), notes: i.notes,
-      productConfiguration: i.product_configuration ? { family: i.product_configuration.family, parameters: i.product_configuration.parameters, options: i.product_configuration.options, color: i.product_configuration.color } : undefined,
+      // The seller's choice only (family, recipe, measures, colour): the server prices and builds it again when used.
+      productConfiguration: i.product_configuration ? { family: i.product_configuration.family, recipeId: i.product_configuration.recipeId, parameters: i.product_configuration.parameters, color: i.product_configuration.color } : undefined,
     };
     return Object.fromEntries(TEMPLATE_ITEM_KEYS.filter((k) => line[k] != null).map((k) => [k, line[k]]));
   });
@@ -360,10 +365,13 @@ export async function publicDecision(token: string, raw: unknown, client: { ip: 
   if (!limit.allowed) throw new WorkOrderApiError('Çok fazla deneme; biraz sonra tekrar deneyin', 429);
   const d = DecisionSchema.parse(raw);
   const result = await withTransaction(async (tx: any) => {
+    // Quote first, then link: the same lock order as revising and creating links (no deadlock).
+    const seen = await linkFor(tx, token);
+    if (!seen) throw new WorkOrderApiError('Bağlantı geçersiz veya süresi dolmuş', 404);
+    const { q } = await loadQuote(tx, seen.tenant_id, seen.quotation_id, true);
     const l = await linkFor(tx, token, true);
     if (!l) throw new WorkOrderApiError('Bağlantı geçersiz veya süresi dolmuş', 404);
     if (l.used_at) throw new WorkOrderApiError('Bu teklif için karar zaten verildi', 409);
-    const { q } = await loadQuote(tx, l.tenant_id, l.quotation_id, true);
     if (q.revision !== l.revision) throw new WorkOrderApiError('Teklif değişti; firmadan yeni bağlantı isteyin', 409);
     if (q.status !== 'sent') throw new WorkOrderApiError('Bu teklif artık karar beklemiyor', 409);
     if (q.valid_until && iso(q.valid_until)! < istanbulToday()) throw new WorkOrderApiError('Teklifin geçerlilik süresi doldu', 409);

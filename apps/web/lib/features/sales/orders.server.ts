@@ -40,7 +40,11 @@ async function lockOrder(tx: any, tenantId: string, id: string) {
 
 /** Each line with what was delivered and the work orders behind it. */
 async function lineStates(db: any, tenantId: string, orderId: string): Promise<Array<LineState & { unitPrice: number; totalPrice: number; widthMm: number | null; heightMm: number | null; projectionMm: number | null; color: string | null; notes: string | null }>> {
-  const items = await db`SELECT i.*, coalesce((SELECT sum(d.quantity) FROM order_deliveries d WHERE d.tenant_id = ${tenantId} AND d.order_item_id = i.id), 0) AS delivered
+  // Delivered = deliveries entered here + production shipments marked delivered for the line's work orders.
+  const items = await db`SELECT i.*,
+      coalesce((SELECT sum(d.quantity) FROM order_deliveries d WHERE d.tenant_id = ${tenantId} AND d.order_item_id = i.id), 0)
+      + coalesce((SELECT sum(s.quantity) FROM production_shipments s JOIN work_orders w ON w.id = s.work_order_id AND w.tenant_id = s.tenant_id
+          WHERE s.tenant_id = ${tenantId} AND w.order_item_id = i.id AND s.status = 'delivered'), 0) AS delivered
     FROM order_items i WHERE i.order_id = ${orderId} ORDER BY i.created_at, i.id`;
   const jobs = await db`SELECT order_item_id, status, produced_qty FROM work_orders WHERE tenant_id = ${tenantId} AND order_id = ${orderId}`;
   return items.map((i: any) => ({
@@ -81,7 +85,8 @@ export async function orderSales(actor: WorkOrderActor, id: string) {
     lines: lines.map((l) => ({ ...l, remaining: money(l.quantity - l.delivered), deliveryStatus: lineDeliveryStatus(l.quantity, l.delivered), workOrders: l.workOrders.length })),
     deliveries: deliveries.map((d: any) => ({ id: d.id, orderItemId: d.order_item_id, quantity: Number(d.quantity), deliveredOn: iso(d.delivered_on), note: d.note, by: d.by_name ?? null })),
     plan: { ...allocatePayments(installments, Number(paid.total), today), mismatch: installments.length ? planProblem(installments, total) : null },
-    changes: changes.map((c: any) => ({ id: c.id, status: c.status, reason: c.reason, changes: c.changes, impact: c.impact, by: c.by_name ?? null, at: c.created_at, decidedBy: c.decided_name ?? null, decidedAt: c.decided_at, decisionNote: c.decision_note })),
+    // A pending request shows its impact as it is now (production may have moved since it was opened).
+    changes: changes.map((c: any) => ({ id: c.id, status: c.status, reason: c.reason, changes: c.changes, impact: c.status === 'pending' ? changeImpact(o.status, lines, c.changes) : c.impact, by: c.by_name ?? null, at: c.created_at, decidedBy: c.decided_name ?? null, decidedAt: c.decided_at, decisionNote: c.decision_note })),
   };
 }
 
@@ -260,8 +265,13 @@ export async function decideChange(actor: WorkOrderActor, orderId: string, chang
         trace[`${line.productName} ${FIELD_LABELS[field]}`] = { from, to };
         await tx`UPDATE order_items SET ${tx(column)} = ${to} WHERE order_id = ${orderId} AND id = ${line.orderItemId}`;
       }
-      const lineTotal = money(Number(next.quantity) * Number(next.unitPrice));
-      if (Math.abs(lineTotal - line.totalPrice) > 0.004) {
+      // Only quantity or price move the line total, and the line keeps its discount (the stored total
+      // is already discounted): it scales with quantity × unit price. Colour or measure alone leave it.
+      const listBefore = line.quantity * line.unitPrice;
+      const listAfter = Number(next.quantity) * Number(next.unitPrice);
+      const repriced = ch.quantity !== undefined || ch.unitPrice !== undefined;
+      const lineTotal = !repriced ? line.totalPrice : listBefore > 0 ? money(line.totalPrice * (listAfter / listBefore)) : money(listAfter);
+      if (repriced && Math.abs(lineTotal - line.totalPrice) > 0.004) {
         await tx`UPDATE order_items SET total_price = ${lineTotal} WHERE order_id = ${orderId} AND id = ${line.orderItemId}`;
         linesAfter = linesAfter - line.totalPrice + lineTotal;
       }

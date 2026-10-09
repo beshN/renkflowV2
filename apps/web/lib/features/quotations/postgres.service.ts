@@ -115,7 +115,8 @@ export class PostgresQuotationService implements IQuotationService {
     const depth = await salesAvailable();
     const settings = depth ? await getQuoteSettings(tenantId) : null;
     if (depth && data.applyCustomerPrices && data.customerId) data = { ...data, items: await applyCustomerPrices(tenantId, data.customerId, data.items) };
-    const vatPercent = data.vatPercent ?? settings?.defaultVatPercent ?? 20;
+    // Before migration 041 there is nowhere to keep another rate: the quote stays at 20 %.
+    const vatPercent = depth ? data.vatPercent ?? settings?.defaultVatPercent ?? 20 : 20;
     const totals = quotationTotals(data.items, data.discountPercent, vatPercent);
     const id = await withTransaction(async ({ sql: tx }) => {
       if (idempotencyKey) {

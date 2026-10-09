@@ -32,6 +32,7 @@ import {
 import { postStockEntryInTransaction } from "./inventory.service";
 import { AwningConfigurationSchema } from "../awning/configuration";
 import { columnExists } from "@/lib/db/schema-guard";
+import { noteOrderDates } from "@/lib/features/sales/order-status.server";
 import { PRODUCTION_LEAD_ROLES, productionLead } from "../settings/production-settings.service";
 import type { ProductConfiguration } from "../products/configuration";
 import { bomRecalcBlocker } from "../production/engine";
@@ -675,6 +676,7 @@ async function execute(
       orderItems.every((i: any) => num(i.delivered) >= num(i.quantity))
     ) {
       await tx`UPDATE orders SET status='completed',shipment_status='delivered',version=version+1 WHERE tenant_id=${t} AND id=${shipment.order_id}`;
+      await noteOrderDates(tx, t, shipment.order_id, 'completed');
       await enqueueOrderNotice(
         tx,
         a,
@@ -790,6 +792,7 @@ async function createJob(
   for (const op of snapshot.operations)
     await tx`INSERT INTO production_operations(tenant_id,work_order_id,position,name,work_center_code,planned_minutes,status,assigned_to,planned_qty,ready_at,quality_checks,setup_minutes)VALUES(${t},${job.id},${op.position},${op.name},${op.workCenterCode},${op.plannedMinutes},${op.position === 0 ? "ready" : "waiting"},${d.assignedTo},${num(item.quantity)},${op.position === 0 ? new Date() : null},${js(op.qualityChecks || [])}::text::jsonb,${op.setupMinutes})`;
   await tx`UPDATE orders SET status='preparing_materials',version=version+1 WHERE id=${item.oid} AND tenant_id=${t}`;
+  await noteOrderDates(tx, t, item.oid, 'preparing_materials');
   await event(tx, a, "job.created", snapshot, job.id);
   return job;
 }

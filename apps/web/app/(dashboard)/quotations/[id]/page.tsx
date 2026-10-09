@@ -23,7 +23,7 @@ import { configuredLine, configurationSummary, unconfiguredLine, type ProductCon
 import { ColorChip } from "@/components/colors/ColorSwatch";
 import { RecordButton } from "@/components/records/RecordDrawer";
 import { QuoteSalesPanel } from "@/components/sales/QuoteSalesPanel";
-import { quoteTotals, VAT_RATES } from "@/lib/features/sales/engine";
+import { customerDiscountFor, quoteTotals, VAT_RATES } from "@/lib/features/sales/engine";
 
 const emptyItem = (): QuotationItem => ({
   productName: "WINMAX Makaslı Tente",
@@ -49,7 +49,10 @@ export default function QuotationPage({
     [configuring, setConfiguring] = useState<{ index: number; family: string } | null>(null),
     [converted, setConverted] = useState<ConversionResult | null>(null),
     [templates, setTemplates] = useState<Array<{ id: string; name: string; items: any[]; notes: string | null; terms: string | null; vatPercent: number | null }>>([]),
-    [reloadKey, setReloadKey] = useState(0);
+    [reloadKey, setReloadKey] = useState(0),
+    [salesOn, setSalesOn] = useState(false),
+    [suggestions, setSuggestions] = useState<Array<{ id: string; full_name: string; company_name: string | null }>>([]),
+    [priceNote, setPriceNote] = useState("");
   const [form, setForm] = useState<CreateQuotationInput>({
     customerName: "",
     currency: "TRY",
@@ -86,6 +89,35 @@ export default function QuotationPage({
       });
     return () => controller.abort();
   }, [id, isNew, session?.user?.tenantId, session?.user?.id, reloadKey]);
+  // The firm's quote rules: VAT and FX only when the database has them; a new quote starts at the firm's VAT.
+  useEffect(() => {
+    if (!session) return;
+    requestJson<{ available: boolean; settings: { defaultVatPercent: number } }>("/api/v1/sales/settings").then((r) => {
+      if (!r.ok || !r.data) return;
+      setSalesOn(r.data.available);
+      if (isNew && r.data.available) setForm((prev) => (prev.vatPercent === undefined ? { ...prev, vatPercent: r.data!.settings.defaultVatPercent } : prev));
+    });
+  }, [isNew, session?.user?.tenantId]);
+  // Typing a customer offers matching cards; picking one links the quote and applies their price list
+  // to lines without a discount, here on the screen (the server applies the same on save).
+  useEffect(() => {
+    if (!editable || form.customerId || form.customerName.trim().length < 2) { setSuggestions([]); return; }
+    const c = new AbortController();
+    const t = setTimeout(() => {
+      requestJson<{ customers: typeof suggestions }>(`/api/v1/customers?suggest=1&search=${encodeURIComponent(form.customerName.trim())}`, { signal: c.signal })
+        .then((r) => { if (r.ok && r.data) setSuggestions(r.data.customers); });
+    }, 250);
+    return () => { clearTimeout(t); c.abort(); };
+  }, [form.customerName, form.customerId, editable]);
+  async function pickCustomer(c: { id: string; full_name: string }) {
+    setSuggestions([]);
+    setForm((prev) => ({ ...prev, customerId: c.id, customerName: c.full_name }));
+    const r = await requestJson<{ available: boolean; rules: Array<{ family: string | null; discountPercent: number }> }>(`/api/v1/customers/${c.id}/price-rules`);
+    if (!r.ok || !r.data?.rules.length) { setPriceNote(""); return; }
+    const rules = r.data.rules;
+    setForm((prev) => ({ ...prev, items: prev.items.map((i) => (i.discountPercent > 0 ? i : { ...i, discountPercent: customerDiscountFor(rules, i.productConfiguration?.family ?? null) })) }));
+    setPriceNote(`Fiyat listesi: ${rules.map((x) => `${x.family ?? "genel"} %${x.discountPercent}`).join(" · ")}`);
+  }
   // A new quote may start from a template (lines priced again by the server when saved).
   useEffect(() => {
     if (!isNew || !session) return;
@@ -184,7 +216,7 @@ export default function QuotationPage({
       setBusy(false);
     }
   }
-  const vatPercent = form.vatPercent ?? quotation?.vatPercent ?? 20;
+  const vatPercent = salesOn ? form.vatPercent ?? quotation?.vatPercent ?? 20 : 20;
   const totals = quoteTotals(form.items, form.discountPercent, vatPercent),
     subtotal = totals.subtotal,
     total = totals.totalAmount;
@@ -271,17 +303,32 @@ export default function QuotationPage({
         </label>
       )}
       <section className="rf-panel grid gap-4 md:grid-cols-4">
-        <label className="text-xs md:col-span-2">
-          Müşteri / firma
+        <div className="relative text-xs md:col-span-2">
+          <label htmlFor="quote-customer">Müşteri / firma</label>
           <input
+            id="quote-customer"
             disabled={!editable}
+            autoComplete="off"
             className="rf-input mt-2 w-full"
             value={form.customerName}
             onChange={(e) =>
-              setForm((prev) => ({ ...prev, customerName: e.target.value }))
+              // Typing again unlinks the card: the quote is for the name now written.
+              setForm((prev) => ({ ...prev, customerName: e.target.value, customerId: undefined }))
             }
           />
-        </label>
+          {suggestions.length > 0 && (
+            <ul role="listbox" aria-label="Müşteri kartları" className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border border-border bg-popover shadow-sm">
+              {suggestions.map((c) => (
+                <li key={c.id} role="option" aria-selected={false}>
+                  <button type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-accent" onClick={() => void pickCustomer(c)}>
+                    {c.full_name}{c.company_name ? <span className="text-muted-foreground"> · {c.company_name}</span> : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {form.customerId && <p className="mt-1 text-[11px] text-muted-foreground">Müşteri kartına bağlı{priceNote ? ` · ${priceNote}` : ""}</p>}
+        </div>
         <label className="text-xs">
           Geçerlilik tarihi
           <input
@@ -530,7 +577,7 @@ export default function QuotationPage({
           <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
             <span>KDV</span>
             <select
-              disabled={!editable}
+              disabled={!editable || !salesOn}
               aria-label="KDV oranı"
               className="rf-input w-20"
               value={vatPercent}
@@ -544,7 +591,7 @@ export default function QuotationPage({
             <span>Genel toplam</span>
             <span>{formatCurrency(total, form.currency)}</span>
           </p>
-          {form.currency !== "TRY" && (
+          {salesOn && form.currency !== "TRY" && (
             <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
               <span>Kur (1 {form.currency} = ? TL)</span>
               <input
@@ -559,7 +606,7 @@ export default function QuotationPage({
               />
             </label>
           )}
-          {form.currency !== "TRY" && (
+          {salesOn && form.currency !== "TRY" && (
             <p className="text-[11px] text-muted-foreground">
               {form.fxRate ? `≈ ${formatCurrency(total * form.fxRate, "TRY")} · ` : ""}Kur elle girilir; banka kur servisi bağlanmadı.
             </p>

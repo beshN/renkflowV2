@@ -62,6 +62,7 @@ async function main() {
   assert.deepEqual([ds.effective, ds.needsApproval], [13.33, true]);
   await assert.rejects(quotationService.updateStatus(tenantId, quote.id, 'sent', current.version, officeId, 'office'), /yönetici onayı/);
   await assert.rejects(q.approveDiscount(office as any, quote.id), (e: any) => e.status === 403);
+  await assert.rejects(q.approveDiscount(owner as any, quote.id, 5), /bu arada/, 'approval is tied to the discount the manager saw');
   await q.approveDiscount(owner as any, quote.id);
   current = (await quotationService.getQuotationById(tenantId, quote.id))!;
   current = await quotationService.updateStatus(tenantId, quote.id, 'sent', current.version, officeId, 'office');
@@ -168,7 +169,15 @@ async function main() {
   const [lineA] = await db`SELECT width_mm, unit_price, total_price FROM order_items WHERE id = ${itemA.id}`;
   assert.deepEqual([Number(lineA.width_mm), Number(lineA.unit_price), Number(lineA.total_price)], [4200, 450, 900]);
   assert.equal(sales.totalAmount, 1300, 'lines 1200 → 1300, total scaled with them');
-  const [applied] = await db`SELECT changes FROM activity_logs WHERE entity_id = ${order.id} AND action = 'change_applied'`;
+  // A colour-only change leaves money alone; a quantity change keeps the line's discount.
+  let colour: any = await o.proposeChange(office as any, order.id, { reason: 'Renk değişti', lines: [{ orderItemId: itemB.id, color: 'RAL 9016 Mat' }] });
+  sales = await o.decideChange(office as any, order.id, colour.id, { decision: 'apply' });
+  assert.equal(sales.totalAmount, 1300, 'colour alone does not reprice');
+  await db`UPDATE order_items SET total_price = 360 WHERE id = ${itemB.id}`;
+  colour = await o.proposeChange(office as any, order.id, { reason: 'İki adet', lines: [{ orderItemId: itemB.id, quantity: 2 }] });
+  await o.decideChange(office as any, order.id, colour.id, { decision: 'apply' });
+  assert.equal(Number((await db`SELECT total_price FROM order_items WHERE id = ${itemB.id}`)[0].total_price), 720, 'the 10 % line discount is kept');
+  const [applied] = await db`SELECT changes FROM activity_logs WHERE entity_id = ${order.id} AND action = 'change_applied' ORDER BY created_at LIMIT 1`;
   assert.deepEqual(applied.changes['Pergola genişlik'], { from: 4000, to: 4200 });
   const [workerNotice] = await db`SELECT title, message, data FROM notifications WHERE user_id = ${workerId} AND data->>'entityId' = ${job.id}`;
   assert.ok(workerNotice, 'the work order assignee is told');
@@ -184,7 +193,7 @@ async function main() {
 
   await assert.rejects(o.proposeChange(office as any, order.id, { reason: 'Genişlik yine değişsin', lines: [{ orderItemId: itemA.id, widthMm: 4300 }] }), /teslim edilmiş/);
   // Finish the delivery: the rest of both lines; the delivery day is noted.
-  sales = await o.recordDelivery(office as any, order.id, { deliveredOn: today, lines: [{ orderItemId: itemA.id, quantity: 1 }, { orderItemId: itemB.id, quantity: 1 }] });
+  sales = await o.recordDelivery(office as any, order.id, { deliveredOn: today, lines: [{ orderItemId: itemA.id, quantity: 1 }, { orderItemId: itemB.id, quantity: 2 }] });
   assert.deepEqual([sales.lines.map((l: any) => l.deliveryStatus), sales.dates.delivered], [['delivered', 'delivered'], today]);
   await assert.rejects(o.proposeChange(office as any, order.id, { reason: 'Renk değişsin', lines: [{ orderItemId: itemB.id, color: 'RAL 9016' }] }), /teslim edilmiş/);
 
