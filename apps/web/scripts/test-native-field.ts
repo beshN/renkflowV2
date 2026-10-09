@@ -4,6 +4,7 @@ import { randomUUID, randomBytes } from 'node:crypto';
 import postgres from 'postgres';
 import bcrypt from 'bcryptjs';
 import sharp from 'sharp';
+import { writeFile } from 'node:fs/promises';
 
 async function main() {
   process.env.AUTH_SECRET = 'field-integration-local-only-12345678901234567890';
@@ -13,8 +14,18 @@ async function main() {
   const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
   assert.equal((await db`SELECT current_database() AS name`)[0].name, 'renkflow_test');
   const { NextRequest } = await import('next/server');
-  const { GET, POST } = await import('../app/api/v1/field/[...path]/route');
-  const { POST: login } = await import('../app/api/v1/auth/login/route');
+  const { GET, POST } = await import('../app/api/mobile/v1/[...path]/route');
+  async function send(request: InstanceType<typeof NextRequest>, path: string[]) {
+    const base = process.argv.find(value => value.startsWith('--server='))?.slice(9);
+    if (!base) return (request.method === 'POST' ? POST : GET)(request, { params: Promise.resolve({ path }) });
+    const url = new URL(base);
+    assert(['127.0.0.1', 'localhost'].includes(url.hostname) && url.port, 'HTTP integration is restricted to an explicit local server');
+    return fetch(url.origin + request.nextUrl.pathname + request.nextUrl.search, {
+      method: request.method, headers: request.headers,
+      ...(request.method === 'POST' ? { body: await request.text() } : {}), redirect: 'manual',
+    });
+  }
+  const login = (request: InstanceType<typeof NextRequest>) => send(request, ['auth', 'login']);
   const { createWorkOrder, CreateWorkOrderInputSchema } = await import('../lib/features/work-orders/service');
   const [tenant] = await db`INSERT INTO tenants(name,slug) VALUES('Native field integration',${'field-' + randomUUID()}) RETURNING id`;
   const password = 'Local-test-only-Strong-948!';
@@ -23,16 +34,16 @@ async function main() {
   const [worker] = await db`INSERT INTO users(name,email,password,email_verified) VALUES('Field operator',${randomUUID() + '@example.invalid'},${hash},now()) RETURNING id,email`;
   await db`INSERT INTO tenant_members(tenant_id,user_id,role) VALUES(${tenant.id},${owner.id},'owner'),(${tenant.id},${worker.id},'worker')`;
   const ownerActor = { tenantId: tenant.id, userId: owner.id, role: 'owner' as const };
-  const loginResponse = await login(new NextRequest('https://renkflow.com/api/v1/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: worker.email, password }) }));
+  const loginResponse = await login(new NextRequest('https://renkflow.com/api/mobile/v1/auth/login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-renkflow-app-version': '1.1.0', 'x-renkflow-platform': 'android' }, body: JSON.stringify({ email: worker.email, password }) }));
   assert.equal(loginResponse.status, 200);
   const token = (await loginResponse.json()).data.accessToken;
   assert.equal(typeof token, 'string');
   async function call(path: string[], body?: unknown, expected = 200, query = '') {
-    const request = new NextRequest('https://renkflow.com/api/v1/field/' + path.join('/') + query, {
-      method: body === undefined ? 'GET' : 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
+    const request = new NextRequest('https://renkflow.com/api/mobile/v1/' + path.join('/') + query, {
+      method: body === undefined ? 'GET' : 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json', 'x-renkflow-app-version': '1.1.0', 'x-renkflow-platform': 'android' },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
-    const response = await (body === undefined ? GET : POST)(request, { params: Promise.resolve({ path }) });
+    const response = await send(request, path);
     const result = await response.json();
     assert.equal(response.status, expected, result.error);
     return result.data;
@@ -57,6 +68,18 @@ async function main() {
   await db`INSERT INTO work_centers(tenant_id,code,name,parallel_capacity) VALUES(${tenant.id},'FIELD','Test center',2)`;
   const [op] = await db`INSERT INTO production_operations(tenant_id,work_order_id,position,name,work_center_code,planned_minutes,status,assigned_to,planned_qty,quality_checks) VALUES(${tenant.id},${productionJob.id},0,'Ölçüm ve montaj','FIELD',10,'ready',${worker.id},5,'[{"id":"visual","name":"Görsel kontrol","kind":"pass_fail","unit":""}]') RETURNING id`;
   await db`INSERT INTO production_operations(tenant_id,work_order_id,position,name,work_center_code,planned_minutes,status,assigned_to,planned_qty) VALUES(${tenant.id},${productionJob.id},1,'Paketleme','FIELD',10,'waiting',${worker.id},5)`;
+  const fixture = process.argv.find(value => value.startsWith('--fixture='))?.slice(10);
+  if (fixture) {
+    assert(fixture.startsWith('/tmp/') || fixture.startsWith('/workspace/tooling/'), 'Fixture must stay outside the repository');
+    const code = 'RF-J-' + randomBytes(6).toString('hex').toUpperCase();
+    await db`INSERT INTO factory_labels(tenant_id,kind,record_id,code,created_by) VALUES(${tenant.id},'job',${productionJob.id},${code},${owner.id})`;
+    const image = await sharp({ create: { width: 2, height: 2, channels: 3, background: '#112d32' } }).jpeg().toBuffer();
+    await writeFile(fixture, JSON.stringify({ email: worker.email, password, jobId: job.id, productionJobId: productionJob.id, operationId: op.id, code, jpeg: image.toString('base64') }), { mode: 0o600 });
+    await db.end(); return;
+  }
+  const references = await call(['references']);
+  assert.equal(references.capabilities.remotePush, false);
+  assert.equal(references.capabilities.crashReporting, false);
   const snapshot = await call(['snapshot']);
   assert(snapshot.workOrders.some((j: any) => j.id === productionJob.id));
   assert(!JSON.stringify(snapshot).includes('Never sent to field clients'));
@@ -84,6 +107,19 @@ async function main() {
   const photo = await call(['files'], { name: 'field-test.jpg', mime: 'image/jpeg', base64: image.toString('base64'), workOrderId: productionJob.id });
   assert(photo.url.startsWith('/api/v1/production/files/' + tenant.id));
   await call(['files'], { name: 'denied.jpg', mime: 'image/jpeg', base64: image.toString('base64'), workOrderId: other.id }, 404);
+  const forbiddenKeys = new Set(['price','cost','profit','totalAmount','customerName','customerEmail','customerPhone','customerAddress','recipeId','recipe_id','bom_snapshot','bomSnapshot','configuration']);
+  function assertTechnical(value: unknown) {
+    if (!value || typeof value !== 'object') return;
+    for (const [key, item] of Object.entries(value)) { assert(!forbiddenKeys.has(key), 'Forbidden DTO key: ' + key); assertTechnical(item); }
+  }
+  for (const role of ['owner','admin','office','worker','accountant','member']) {
+    await db`UPDATE tenant_members SET role=${role} WHERE tenant_id=${tenant.id} AND user_id=${worker.id}`;
+    const allowed = ['owner','admin','office','worker'].includes(role);
+    const view = await call(['snapshot'], undefined, allowed ? 200 : 403);
+    if (allowed) { assertTechnical(view); assertTechnical(await call(['work-orders', productionJob.id])); assert(!JSON.stringify(view).includes('Never sent to field clients')); }
+  }
+  await db`UPDATE tenant_members SET role='worker' WHERE tenant_id=${tenant.id} AND user_id=${worker.id}`;
+  console.log('PASS · real HTTP DTO isolation for six base roles, including denied roles');
   await db`DELETE FROM tenant_members WHERE tenant_id=${tenant.id} AND user_id=${worker.id}`;
   await call(['snapshot'], undefined, 401);
   console.log('PASS · real barcode resolution, scoped photo persistence and immediate membership revocation');

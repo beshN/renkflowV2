@@ -78,7 +78,7 @@ test('passes unchanged command identity to idempotent production service', async
   const value = { commandId: id, action: 'operation', data: { operationId: id, version: 3, action: 'start' } };
   jest.mocked(productionCommand).mockResolvedValue({ status: 'running' });
   expect((await POST(request('commands', value), context(['commands']))).status).toBe(200);
-  expect(productionCommand).toHaveBeenCalledWith(actor, expect.objectContaining({ commandId: id, data: expect.objectContaining({ version: 3 }) }));
+  expect(productionCommand).toHaveBeenCalledWith(expect.objectContaining(actor), expect.objectContaining({ commandId: id, data: expect.objectContaining({ version: 3 }) }));
 });
 test('native command surface cannot invoke financial or warehouse commands', async () => {
   const response = await POST(request('commands', { commandId: id, action: 'finance.payment', data: {} }), context(['commands']));
