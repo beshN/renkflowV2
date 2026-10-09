@@ -31,7 +31,7 @@ import Combine
     private var lastValidation=Date.distantPast
     private var epoch=0
     var writable: Bool {session != nil && offline != nil && !updateRequired && !accessBlocked && snapshot?.permissions.transition==true}
-    init(offline: OfflineStore?=nil,api: FieldAPI=FieldAPI()) {
+    init(offline: OfflineStore?=nil,api: FieldAPI=FieldAPI.live()) {
         self.api=api
         if let offline {self.offline=offline} else {self.offline=try? OfflineStore.persistent()}
     }
@@ -60,14 +60,15 @@ import Combine
     func login(server: String,email: String,password: String) async {
         guard !busy else {return};busy=true;error=nil;defer {busy=false}
         do {
-            let origin=try normalizeServer(server),result=try await api.login(server:origin,email:email.trimmingCharacters(in:.whitespaces).lowercased(),password:password)
-            var auth=Session(server:origin,token:result.accessToken,expiresAt:Date().addingTimeInterval(result.expiresIn),user:result.user)
-            auth.user=try await api.me(auth);vault.clear();try vault.save("session",value:auth)
+            let origin=try normalizeServer(server),result=try await api.login(server:origin,email:email.trimmingCharacters(in:.whitespaces).lowercased(),password:password,deviceId:try deviceIdentity())
+            var auth=Session(server:origin,token:result.accessToken,expiresAt:Date().addingTimeInterval(result.expiresIn),user:result.user,refreshToken:result.refreshToken,sessionId:result.sessionId,deviceId:result.deviceId)
+            vault.clear();try vault.save("session",value:auth);auth.user=try await api.me(auth);try vault.save("session",value:auth)
             epoch+=1;session=auth;snapshot=nil;detail=nil;scanResult=nil;selectedID=nil
             try attach(auth);try await loadSnapshot(auth);lastValidation=Date();busy=false;await sync()
         } catch {fail(error)}
     }
     func logout() {
+        if let auth=vault.read("session",as:Session.self) {Task {let _:Accepted?=try? await FieldAPI().request(Accepted.self,server:auth.server,token:auth.token,path:"auth/logout",body:Data("{}".utf8))}}
         epoch+=1;vault.clear();FieldBackgroundSync.cancel();session=nil;snapshot=nil;detail=nil;selectedID=nil;scanResult=nil;outbox=[];references=nil;installations=[];installationDetail=nil;selectedInstallationID=nil;preferences=nil;notifications=[];error=nil;message=nil;stale=true;syncing=false
     }
     func foreground() async {if Date().timeIntervalSince(lastValidation)>60 {await refresh()} else {await sync()}}
@@ -75,7 +76,6 @@ import Combine
         guard let auth=session,!busy else {return};busy=true;error=nil;let generation=epoch
         defer {if generation==epoch {busy=false}}
         do {
-            if auth.expiresAt<=Date() {throw FieldAPIError(status:401,message:"Oturumunuz sona erdi.")}
             _ = try await api.me(auth);guard generation==epoch else {return}
             lastValidation=Date();try await loadSnapshot(auth)
             if let id=selectedID {let job=try overlayJob(await api.details(auth,id:id),rows:outbox);try cacheDetail(auth,job:job);if generation==epoch && selectedID==id {detail=job}}

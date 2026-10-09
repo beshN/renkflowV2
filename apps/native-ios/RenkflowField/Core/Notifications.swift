@@ -12,7 +12,7 @@ func deviceIdentity() throws -> String {
 /** Bridge for a configured APNs didRegisterForRemoteNotifications callback. No live provider. */
 final class ApnsRegistration {
     let connected=false
-    private let api=FieldAPI()
+    private let api=FieldAPI.live()
     func register(_ auth:Session,token:Data) async throws {
         let bytes=token.map {String(format:"%02x",$0)}.joined()
         let _:PushDeviceStatus=try await api.post(auth,path:"notifications/device",value:PushDeviceInput(deviceId:try deviceIdentity(),enabled:true,token:bytes),type:PushDeviceStatus.self)

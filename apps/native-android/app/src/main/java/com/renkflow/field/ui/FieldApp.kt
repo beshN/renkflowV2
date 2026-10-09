@@ -53,6 +53,18 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable fun FieldApp(state: FieldState, model: FieldViewModel) {
+    val appLock by FieldAppLock.state.collectAsState()
+    val activity=androidx.activity.compose.LocalActivity.current as? androidx.fragment.app.FragmentActivity
+    if(state.session!=null && appLock.enabled && !appLock.unlocked) {
+        Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {
+            Column(Modifier.padding(24.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(20.dp)) {
+                Icon(Icons.Outlined.Lock,"Uygulama kilitli",Modifier.size(56.dp))
+                Text("RenkFlow Saha",style=MaterialTheme.typography.headlineMedium)
+                appLock.message?.let {Text(it)}
+                Button(onClick={activity?.let {FieldAppLock.unlock(it)}},modifier=Modifier.heightIn(min=56.dp)) {Text("Kilidi aç")}
+            }
+        };return
+    }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var operation by remember { mutableStateOf<Operation?>(null) }
     var installations by remember {mutableStateOf(false)}
@@ -367,6 +379,9 @@ import java.util.Locale
     }
 }
 @Composable private fun Profile(state: FieldState, model: FieldViewModel) {
+    val lock by FieldAppLock.state.collectAsState()
+    val context=LocalContext.current
+    val activity=androidx.activity.compose.LocalActivity.current as? androidx.fragment.app.FragmentActivity
     var logout by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         SectionTitle("Hesabınız", "RenkFlow Saha")
@@ -381,6 +396,10 @@ import java.util.Locale
         }
         NotificationsView(state,model)
         Text("Üretim kayıtları firmanızın RenkFlow sistemine kaydedilir. Bağlantı kurulamadığında verileri yenileyin.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth().heightIn(min=56.dp),verticalAlignment=Alignment.CenterVertically) {
+            Text("Uygulama kilidi",Modifier.weight(1f));Switch(checked=lock.enabled,onCheckedChange={enabled->if(enabled) activity?.let {FieldAppLock.unlock(it,true)} else FieldAppLock.disable(context)})
+        }
+        lock.message?.let {Text(it,color=MaterialTheme.colorScheme.error)}
         OutlinedButton(onClick = { logout = true }, enabled = !state.busy && state.pending == null, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Icon(Icons.AutoMirrored.Outlined.Logout, null); Spacer(Modifier.width(8.dp)); Text("Çıkış yap") }
         Text("Sürüm ${MobileContract.version}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }

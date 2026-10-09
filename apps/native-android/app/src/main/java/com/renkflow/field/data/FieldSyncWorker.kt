@@ -8,13 +8,12 @@ import java.util.concurrent.TimeUnit
 class FieldSyncWorker(context: Context,params: WorkerParameters): CoroutineWorker(context,params) {
     override suspend fun doWork(): Result {
         val session=Vault(applicationContext).session() ?: return Result.success()
-        if(session.expiresAt<=System.currentTimeMillis()) return Result.failure()
         val store=OfflineStore.get(applicationContext)
         val scope=sessionScope(session)
         return try {
-            val result=OutboxSync(store,APIOutboxSender(store,Api(),session)).drain(scope)
+            val result=OutboxSync(store,APIOutboxSender(store,SessionManager.api(applicationContext),session)).drain(scope)
             if(result.delivered>0) {
-                val snapshot=Api().snapshot(session)
+                val snapshot=SessionManager.api(applicationContext).snapshot(session)
                 store.db.withTransaction {
                     store.save(scope,"snapshot",fieldJson.encodeToString(Snapshot.serializer(),snapshot))
                     snapshot.workOrders.forEach { store.save(scope,"job:${it.id}",fieldJson.encodeToString(WorkOrder.serializer(),it)) }

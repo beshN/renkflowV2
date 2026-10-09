@@ -1,8 +1,8 @@
 import Foundation
 
 struct FieldUser: Codable, Equatable { var id: String; var email: String; var name: String?; var role: String; var tenantId: String }
-struct Session: Codable { var server: String; var token: String; var expiresAt: Date; var user: FieldUser }
-struct LoginResult: Codable { var user: FieldUser; var accessToken: String; var expiresIn: Double }
+struct Session: Codable { var server: String; var token: String; var expiresAt: Date; var user: FieldUser;var refreshToken:String?;var sessionId:String?;var deviceId:String?;var refreshRequestId:String? }
+struct LoginResult: Codable { var user: FieldUser; var accessToken: String; var expiresIn: Double;var refreshToken:String?;var sessionId:String?;var deviceId:String? }
 struct FieldPermissions: Codable { var transition: Bool; var close: Bool; var checklist: Bool; var comment: Bool }
 struct Snapshot: Codable { var workOrders: [WorkOrder]; var operations: [ProductionOperation]; var generatedAt: String; var truncated: Bool; var permissions: FieldPermissions; var cutPlans: [CutPlan]? }
 struct FieldColorInfo: Codable { var label: String; var code: String; var name: String; var hex: String?; var finish: String?; var finishAssumed: Bool; var standIn: Bool; var kind: String }
@@ -33,7 +33,7 @@ struct Accepted: Codable { var accepted: Bool; var qualityRejected: Bool? }
 struct ScanResult: Codable { var kind: String; var id: String; var title: String; var workOrderId: String?; var subtitle: String?; var quantity: Double?; var uom: String?; var code: String? }
 struct PhotoInput: Codable { var name = "saha.jpg"; var mime = "image/jpeg"; var base64: String; var workOrderId: String }
 struct PhotoResult: Codable { var url: String }
-struct LoginInput: Codable { var email: String; var password: String }
+struct LoginInput: Codable { var email: String; var password: String;var deviceId:String? }
 struct ChecklistInput: Codable { var completed: Bool }
 struct CommentInput: Codable { var body: String }
 struct TransitionInput: Codable { var status: String; var blockedReasonCategory: String? = nil; var blockedReasonDetail: String? = nil }
