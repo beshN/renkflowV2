@@ -120,6 +120,35 @@ async function main() {
   }
   await db`UPDATE tenant_members SET role='worker' WHERE tenant_id=${tenant.id} AND user_id=${worker.id}`;
   console.log('PASS · real HTTP DTO isolation for six base roles, including denied roles');
+  const prefs = await call(['notifications','preferences']); assert.equal(prefs.assignment,true);
+  await call(['notifications','preferences'], { assignment:false, mention:true, delay:false });
+  assert.equal((await call(['notifications','preferences'])).assignment,false);
+  await db`INSERT INTO notifications(id,user_id,tenant_id,type,title,message,data) VALUES(${randomUUID()},${worker.id},${tenant.id},'work_order:assigned','PRIVATE price 999','PRIVATE customer phone','{"customerPhone":"PRIVATE"}')`;
+  const notifications = await call(['notifications']); assert.equal(notifications.provider,'disconnected'); assert(!JSON.stringify(notifications).includes('PRIVATE')); assertTechnical(notifications);
+  const [tables] = await db`SELECT to_regclass('public.installations') IS NOT NULL AS installations,to_regclass('public.access_roles') IS NOT NULL AS roles`;
+  const installations = await call(['installations']);
+  if (tables.installations) {
+    const [installation] = await db`INSERT INTO installations(tenant_id,installation_number,order_id,crew,address,signed_name) VALUES(${tenant.id},${'MNT-'+randomUUID()},${order.id},ARRAY[${worker.id}::uuid],'PRIVATE site address','PRIVATE customer') RETURNING id`;
+    const list = await call(['installations']); assert(list.installations.some((i:any)=>i.id===installation.id)); assert(!JSON.stringify(list).includes('PRIVATE')); assertTechnical(list);
+  } else assert.equal(installations.available,false);
+  if (tables.roles) {
+    await db`UPDATE tenant_members SET role='office',access_role='warehouse' WHERE tenant_id=${tenant.id} AND user_id=${worker.id}`;
+    assert.equal((await call(['snapshot'])).permissions.transition,false);
+    await call(['commands'], command('start',1),403); await call(['installations'],undefined,403);
+    const [custom] = await db`INSERT INTO access_roles(tenant_id,name,name_key,base_role,permissions) VALUES(${tenant.id},'Local mobile read only',${randomUUID()},'worker','{"production":["view"],"inventory":["view","edit"]}') RETURNING id`;
+    await db`UPDATE tenant_members SET role='worker',access_role=${custom.id} WHERE tenant_id=${tenant.id} AND user_id=${worker.id}`;
+    assert.equal((await call(['snapshot'])).permissions.comment,false); await call(['commands'],command('start',1),403);
+    await db`UPDATE tenant_members SET access_role='owner' WHERE tenant_id=${tenant.id} AND user_id=${worker.id}`;
+    await call(['snapshot'],undefined,403);
+    await db`UPDATE tenant_members SET access_role='operator',deactivated_at=now() WHERE tenant_id=${tenant.id} AND user_id=${worker.id}`;
+    await call(['snapshot'],undefined,401);
+    await db`UPDATE tenant_members SET deactivated_at=NULL WHERE tenant_id=${tenant.id} AND user_id=${worker.id}`;
+    await db`UPDATE users SET sessions_valid_after=now()+interval '2 seconds' WHERE id=${worker.id}`;
+    await call(['snapshot'],undefined,401);
+    await db`UPDATE users SET sessions_valid_after=NULL WHERE id=${worker.id}`;
+    console.log('PASS · new-schema warehouse/custom-role denial, deactivation and session cutoff');
+  }
+  console.log('PASS · technical installation/notification projections and shared preference persistence');
   await db`DELETE FROM tenant_members WHERE tenant_id=${tenant.id} AND user_id=${worker.id}`;
   await call(['snapshot'], undefined, 401);
   console.log('PASS · real barcode resolution, scoped photo persistence and immediate membership revocation');

@@ -4,6 +4,7 @@ import { POST as login } from '@/app/api/v1/auth/login/route';
 import { GET as me } from '@/app/api/v1/auth/me/route';
 import { fieldActor } from '@/lib/features/field/service';
 import { needsUpdate, MIN_APP_VERSION, MOBILE_API_VERSION, validateMobileDTO } from '@/lib/features/mobile/contract';
+import { mobileInstallations, mobileNotifications, mobileNotificationPreferences } from '@/lib/features/mobile/field-context';
 import { mobileReferences } from '@/lib/features/mobile/references';
 import { readFieldJson } from '@/lib/features/field/service';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
@@ -17,7 +18,7 @@ async function handle(request: NextRequest, context: Context, writing: boolean) 
   try {
     const { path } = await context.params;
     if (writing) {
-      const input = path.join('/') === 'auth/login' ? 'LoginInput' : path[0] === 'commands' ? 'CommandInput' : path[0] === 'files' ? 'PhotoInput' : path[2] === 'comments' ? 'CommentInput' : path[2] === 'checklist' ? 'ChecklistInput' : path[2] === 'transition' ? 'TransitionInput' : null;
+      const input = path.join('/') === 'notifications/preferences' ? 'NotificationPreferences' : path.join('/') === 'auth/login' ? 'LoginInput' : path[0] === 'commands' ? 'CommandInput' : path[0] === 'files' ? 'PhotoInput' : path[2] === 'comments' ? 'CommentInput' : path[2] === 'checklist' ? 'ChecklistInput' : path[2] === 'transition' ? 'TransitionInput' : null;
       if (input) {
         const raw = await readFieldJson(request, input === 'PhotoInput' ? 2_900_000 : 64_000);
         try { validateMobileDTO(input, raw); }
@@ -36,6 +37,13 @@ async function handle(request: NextRequest, context: Context, writing: boolean) 
       const headers = new Headers(request.headers); headers.set('authorization', `Bearer ${result.data.accessToken}`);
       await fieldActor(new NextRequest(request.url, { headers }));
       return json({ success: true, data: validateMobileDTO('Login', { user: result.data.user, accessToken: result.data.accessToken, expiresIn: result.data.expiresIn }) });
+    }
+    if (path.join('/') === 'installations' && !writing) return json({ success: true, data: validateMobileDTO('Installations', await mobileInstallations(await fieldActor(request))) });
+    if (path.join('/') === 'notifications' && !writing) return json({ success: true, data: validateMobileDTO('Notifications', await mobileNotifications(await fieldActor(request))) });
+    if (path.join('/') === 'notifications/preferences') {
+      const actor = await fieldActor(request);
+      const input = writing ? await readFieldJson(request) as { assignment: boolean; mention: boolean; delay: boolean } : undefined;
+      return json({ success: true, data: validateMobileDTO('NotificationPreferences', await mobileNotificationPreferences(actor, input)) });
     }
     if (path.join('/') === 'references' && !writing) return json({ success: true, data: validateMobileDTO('References', await mobileReferences(await fieldActor(request))) });
     if (path.join('/') === 'auth/me' && !writing) { await fieldActor(request); response = await me(request); schema = 'User'; }

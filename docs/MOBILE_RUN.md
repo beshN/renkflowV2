@@ -46,3 +46,13 @@ Android Room, iOS SwiftData. Kullanıcı/tenant/sunucu kapsamlı yerel snapshot 
 - Fotoğraf testinin ilk 500 hatası: depolama servisinin geniş DTO'su dar `Photo` sözleşmesine uymuyordu; yalnız `url` projeksiyonu ile düzeldi.
 - Production build yerel HTTP fotoğrafında 409: yerel depolama production modunda varsayılan kapalı. Yalnız test sunucusunda `ALLOW_LOCAL_STORAGE=1` ile tam akış geçti. Canlı ayarlar değiştirilmedi.
 - Aynı hata için iki başarısız çözüm koşulu oluşmadı.
+
+### Adım 1 doğrulaması
+- Yerel web validate: **90 paket / 607 test**, guardrails, type-check, lint ve production build geçti. Eklenen web testleri: 19 sözleşme + 8 montaj/bildirim + 1 yönlendirme.
+- Android: 5 mevcut birim + 1 gerçek HTTPS sözleşme testi geçti; debug derleme/lint geçti.
+- iOS macOS CI (`37987542197`, `d3a2994`): **5 birim/sözleşme + 1 UI testi**, sıfır hata; gerçek HTTPS kalite/fotoğraf/barkod akışı geçti.
+- `night-2@1b59bba` ayrı, detached test alanında birleştirildi. Proxy ve CI filtre çakışmaları web erişim kuralları korunarak çözüldü; hedef dallara yazılmadı. night-2 production build ve 30 ilgili test geçti.
+- Main tabanı yeni gece şemasıyla: gerçek HTTP altı rol DTO kontrolü, depo/custom rol yazma engeli, pasifleştirme, sessions_valid_after, teknik montaj/bildirim ve ortak tercihler geçti.
+- Otomatik iş emri/atama web kaynağı aynen kullanılır; mobil ikinci iş emri üretmez. Süre mevcut operasyon alanlarıyla taşınır; fire/gecikme/rework yazma ve arayüzleri Adım 4'tedir.
+- Montaj adres/harita ve müşteri onay bağlantısı saha DTO'sunda **kapalı**: night-2 çalışan görünümü müşteri adresini yasaklar; bu veri sınırı genişletilmedi.
+- CI Linux hazırlığında Homebrew bulunamadı; hazır olma kontrolü POSIX grep'e geçirilerek düzeltildi. Testler atlanmadı.
