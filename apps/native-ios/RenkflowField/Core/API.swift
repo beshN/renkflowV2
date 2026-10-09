@@ -22,15 +22,18 @@ func normalizeServer(_ input: String) throws -> String {
 }
 
 final class FieldAPI {
+    private let tokenResolver:(@Sendable (String,String) async throws -> String)?
     private let session: URLSession
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
-    init(session: URLSession? = nil) {
+    init(session: URLSession? = nil,tokenResolver:(@Sendable (String,String) async throws -> String)?=nil) {
+        self.tokenResolver=tokenResolver
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 35; config.timeoutIntervalForResource = 45
         config.httpCookieAcceptPolicy = .never; config.httpShouldSetCookies = false
         self.session = session ?? URLSession(configuration: config, delegate: RejectRedirects(), delegateQueue: nil)
     }
+    static func live()->FieldAPI {FieldAPI(tokenResolver:{server,token in try await SessionManager.shared.token(server:server,requested:token)})}
     func request<T: Decodable>(_ type: T.Type, server: String, token: String? = nil, path: String, body: Data? = nil, code: String? = nil) async throws -> T {
         let origin = try normalizeServer(server)
         guard var components = URLComponents(string: origin + MobileContract.basePath + "/" + (path.hasPrefix("field/") ? String(path.dropFirst(6)) : path)) else { throw FieldAPIError(status: 0, message: "Sunucu adresi geçersiz.") }
@@ -40,7 +43,7 @@ final class FieldAPI {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(MobileContract.version, forHTTPHeaderField: "X-RenkFlow-App-Version")
         request.setValue("ios", forHTTPHeaderField: "X-RenkFlow-Platform")
-        if let token { request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization") }
+        if let token { request.setValue("Bearer " + (try await tokenResolver?(server,token) ?? token), forHTTPHeaderField: "Authorization") }
         if let body { request.httpMethod = "POST"; request.httpBody = body; request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         let (bytes, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw FieldAPIError(status: 502, message: "Sunucudan yanıt alınamadı.") }
@@ -51,8 +54,8 @@ final class FieldAPI {
         do { return try decoder.decode(Envelope<T>.self, from: bytes).data }
         catch { throw FieldAPIError(status: 502, message: "Sunucudan beklenmeyen yanıt alındı.") }
     }
-    func login(server: String, email: String, password: String) async throws -> LoginResult {
-        try await request(LoginResult.self, server: server, path: "auth/login", body: encoder.encode(LoginInput(email: email, password: password)))
+    func login(server: String, email: String, password: String,deviceId:String?=nil) async throws -> LoginResult {
+        try await request(LoginResult.self, server: server, path: "auth/login", body: encoder.encode(LoginInput(email: email, password: password,deviceId:deviceId)))
     }
     func me(_ auth: Session) async throws -> FieldUser { try await request(FieldUser.self, server: auth.server, token: auth.token, path: "auth/me") }
     func snapshot(_ auth: Session) async throws -> Snapshot { try await request(Snapshot.self, server: auth.server, token: auth.token, path: "field/snapshot") }

@@ -1,6 +1,7 @@
 import SwiftUI
 
 @main struct RenkflowFieldApp: App {
+    @StateObject private var lock=AppLock()
     @StateObject private var store = FieldStore()
     @Environment(\.scenePhase) private var phase
     init() {
@@ -11,9 +12,9 @@ import SwiftUI
     }
     var body: some Scene {
         WindowGroup {
-            RootView().environmentObject(store).tint(FieldColor.accent).foregroundStyle(FieldColor.text)
+            RootView().environmentObject(store).environmentObject(lock).tint(FieldColor.accent).foregroundStyle(FieldColor.text)
                 .task { FieldBackgroundSync.foregroundStore=store; await store.restore() }
-                .onChange(of: phase) { _, value in if value == .active { Task { await store.foreground() } } else if value == .background { FieldBackgroundSync.schedule() } }
+                .onChange(of: phase) { _, value in if value == .active { Task { await store.foreground() } } else if value == .background { lock.lock();FieldBackgroundSync.schedule() } }
         }
     }
 }

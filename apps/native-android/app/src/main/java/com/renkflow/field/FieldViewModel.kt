@@ -23,7 +23,7 @@ data class FieldState(
     val lastSync: Long? = null, val accessBlocked: Boolean = false,val references:FieldReferences?=null,val installations:List<Installation> = emptyList(),val installationDetail:InstallationDetails?=null,val preferences:NotificationPreferences?=null,val notifications:List<FieldNotification> = emptyList(),val preferencesBusy:Boolean=false
 )
 class FieldViewModel(application: Application) : AndroidViewModel(application) {
-    private val api=Api()
+    private val api=SessionManager.api(application)
     private val vault=Vault(application)
     private val offline=OfflineStore.get(application)
     private val mutable=MutableStateFlow(FieldState())
@@ -56,8 +56,9 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val origin=normalizeServer(server)
-                val result=api.login(origin,email.trim().lowercase(),password)
-                val auth=Session(origin,result.accessToken,System.currentTimeMillis()+result.expiresIn*1000,result.user)
+                val result=api.login(origin,email.trim().lowercase(),password,DeviceIdentity(getApplication()).id())
+                val auth=Session(origin,result.accessToken,System.currentTimeMillis()+result.expiresIn*1000,result.user,result.refreshToken,result.sessionId,result.deviceId)
+                vault.clear();vault.saveSession(auth)
                 val verified=auth.copy(user=api.me(auth))
                 vault.clear();vault.saveSession(verified);epoch++
                 mutable.value=FieldState(session=verified,restoring=false,busy=true)
@@ -67,7 +68,9 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
             finally { mutable.update { it.copy(busy=false) } }
         }
     }
-    fun logout() { epoch++;watcher?.cancel();FieldSyncWorker.cancel(getApplication());vault.clear();mutable.value=FieldState(restoring=false) }
+    fun logout() {
+        vault.session()?.let {auth->viewModelScope.launch {runCatching {Api().raw(auth.server,auth.token,"auth/logout","{}")}}}
+        epoch++;watcher?.cancel();FieldSyncWorker.cancel(getApplication());vault.clear();mutable.value=FieldState(restoring=false) }
     fun dismiss() { mutable.update { it.copy(error=null,message=null) } }
     fun foreground() { if(System.currentTimeMillis()-lastValidation>60_000) refresh() else sync() }
     fun refresh() {
@@ -77,7 +80,6 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         mutable.update { it.copy(busy=true,error=null) }
         viewModelScope.launch {
             try {
-                if(auth.expiresAt<=System.currentTimeMillis()) throw ApiException(401,"Oturumunuz sona erdi.")
                 api.me(auth);if(generation!=epoch) return@launch
                 lastValidation=System.currentTimeMillis();loadSnapshot(auth)
                 state.value.selectedId?.let { id-> val job=api.details(auth,id);cacheDetail(auth,job);if(generation==epoch && state.value.selectedId==id) mutable.update { it.copy(detail=overlayJob(job,offline.dao.pending(sessionScope(auth)))) } }
