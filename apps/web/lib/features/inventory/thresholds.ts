@@ -3,7 +3,7 @@ import 'server-only';
 import { columnExists } from '@/lib/db/schema-guard';
 import { sql } from '@/lib/db';
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
-import { available, thresholdStatus, type ThresholdRow } from './reorder';
+import { available, reorderLevels, thresholdStatus, type ThresholdRow } from './reorder';
 
 /** Roles that may create a purchase order, and so decide the purchase draft suggestion. */
 export const PURCHASE_DRAFT_ROLES = ['owner', 'admin', 'office'] as const;
@@ -42,11 +42,13 @@ export async function thresholdRows(db: any, tenantId: string): Promise<Threshol
       JOIN items i ON i.id = l.item_id LEFT JOIN rejected r ON r.line_id = l.id
       WHERE l.tenant_id = ${tenantId} AND po.status IN ('draft', 'submitted', 'partially_received') GROUP BY l.item_id
     ), usage AS (
-      -- Average daily use over 90 days: material issued out of usable warehouses (submitted entries).
+      -- Average daily use over 90 days: material consumed by production (out of work-in-progress) or issued,
+      -- from any warehouse but finished goods. Transfers between warehouses are not use.
       SELECT l.item_id, -sum(l.quantity_delta) / 90.0 AS per_day
       FROM stock_entry_lines l JOIN stock_entries e ON e.id = l.stock_entry_id AND e.tenant_id = l.tenant_id JOIN items i ON i.id = l.item_id
+      JOIN warehouses wh ON wh.id = l.warehouse_id AND wh.tenant_id = l.tenant_id
       WHERE l.tenant_id = ${tenantId} AND e.status = 'submitted' AND e.entry_type IN ('MATERIAL_ISSUE', 'MANUFACTURE') AND l.quantity_delta < 0
-        AND l.warehouse_id IN (SELECT id FROM usable) AND e.submitted_at >= now() - interval '90 days'
+        AND wh.warehouse_type <> 'FINISHED' AND e.submitted_at >= now() - interval '90 days'
       GROUP BY l.item_id
     ), last_purchase AS (
       -- The last order actually sent; drafts (including ones this suggestion made) are not a purchase.
@@ -97,7 +99,7 @@ export async function thresholdRows(db: any, tenantId: string): Promise<Threshol
   }));
 }
 
-/** The items under their minimum, for the stock screen's warning. */
+/** The items under their reorder point (the minimum when no policy is set), for the stock screen's warning. */
 export async function stockThresholdWarnings(actor: WorkOrderActor) {
   if (!['owner', 'admin', 'office', 'accountant'].includes(actor.role)) throw new WorkOrderApiError('Stok eşiklerine erişim yok', 403);
   const rows = await thresholdRows(sql, actor.tenantId);
@@ -110,6 +112,8 @@ export async function stockThresholdWarnings(actor: WorkOrderActor) {
       name: row.name,
       uom: row.uom,
       minStock: row.minStock,
+      reorderPoint: reorderLevels(row).reorderPoint,
+      target: reorderLevels(row).target,
       available: available(row),
       incoming: row.incoming,
       drafted: row.drafted,

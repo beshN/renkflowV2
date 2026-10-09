@@ -35,6 +35,7 @@ async function main() {
   // Reorder policy: stock keepers set it; the overview shows the reorder point and the level.
   await assert.rejects(s.saveReorderPolicy(worker as any, screw.id, { minStock: 100, maxStock: 300, leadTimeDays: 10, orderMultiple: 50 }), (e: any) => e.status === 403);
   await assert.rejects(s.saveReorderPolicy(office as any, screw.id, { minStock: 100, maxStock: 50, leadTimeDays: 10, orderMultiple: 50 }), /Azami/);
+  await assert.rejects(s.saveReorderPolicy(office as any, screw.id, { minStock: 100, maxStock: 300, leadTimeDays: 10, orderMultiple: 2.5 }), /tam sayı/, 'packs of counted items are whole');
   let overview: any = await s.saveReorderPolicy(office as any, screw.id, { minStock: 100, maxStock: 300, leadTimeDays: 10, orderMultiple: 50 });
   let row = overview.rows.find((r: any) => r.itemId === screw.id);
   assert.deepEqual([row.levels.reorderPoint, row.levels.target, row.state], [100, 300, 'ok'], 'no use yet: the minimum is the reorder point');
@@ -54,6 +55,7 @@ async function main() {
   // Request for quotation: two suppliers, answers compared, the chosen one becomes a draft purchase order.
   await assert.rejects(s.createRfq(accountant as any, { supplierIds: [supA], lines: [{ itemId: screw.id, warehouseId: rawId, quantity: 200 }] }), (e: any) => e.status === 403);
   await assert.rejects(s.createRfq(office as any, { supplierIds: [supA], lines: [{ itemId: profile.id, warehouseId: rawId, quantity: 10 }] }), /çubuk boyu ve renk/);
+  await assert.rejects(s.createRfq(office as any, { supplierIds: [supA], lines: [{ itemId: profile.id, warehouseId: rawId, quantity: 2.5, lengthMm: 6500, color: 'RAL 7016 Mat' }] }), /tam sayı/, 'the same rules as a purchase order');
   let rfqs: any = await s.createRfq(office as any, { supplierIds: [supA, supB], dueOn: '2026-10-20', lines: [{ itemId: screw.id, warehouseId: rawId, quantity: 200 }, { itemId: profile.id, warehouseId: rawId, quantity: 10, lengthMm: 6500, color: 'RAL 7016 Mat' }] });
   let rfq = rfqs.rfqs.find((r: any) => r.id === rfqs.id);
   const [l1, l2] = rfq.lines;
@@ -62,6 +64,8 @@ async function main() {
   rfqs = await s.recordRfqResponse(office as any, rfq.id, { supplierId: supB, leadTimeDays: 3, prices: [{ lineId: l1.id, unitPrice: 1.5 }] });
   rfq = rfqs.rfqs.find((r: any) => r.id === rfq.id);
   assert.deepEqual([rfq.comparison.suggested, rfq.comparison.cheapest[l1.id].supplierId], [supA, supB], 'B is cheaper on screws but did not price the profile');
+  // Profile prices are per metre, as on a purchase order: 10 bars × 6.5 m × 900 + 200 × 2.
+  assert.equal(rfq.comparison.rows.find((r: any) => r.supplierId === supA).total, 10 * 6.5 * 900 + 200 * 2);
   await assert.rejects(s.awardRfq(office as any, rfq.id, { supplierId: supB, version: rfq.version }), /her satırı/);
   await assert.rejects(s.awardRfq(office as any, rfq.id, { supplierId: supA, version: rfq.version - 1 }), /değişti/);
   rfqs = await s.awardRfq(office as any, rfq.id, { supplierId: supA, version: rfq.version });

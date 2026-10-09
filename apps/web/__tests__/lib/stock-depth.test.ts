@@ -26,6 +26,10 @@ describe('reorder policy', () => {
     expect(thresholdStatus(r)).toMatchObject({ state: 'covered' });
   });
 
+  it('no top-up while enough is already coming (the reorder point, not the maximum, triggers)', () => {
+    expect(thresholdStatus(row({ onHand: 90, incoming: 400, policy: { maxStock: 500, leadTimeDays: null, orderMultiple: null, dailyUsage: 0 } }))).toMatchObject({ state: 'covered' });
+  });
+
   it('rounds up to whole packs', () => {
     expect(toMultiple(101, 50)).toBe(150);
     expect(toMultiple(100, 50)).toBe(100);

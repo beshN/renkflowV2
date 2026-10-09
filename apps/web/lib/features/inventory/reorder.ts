@@ -80,8 +80,9 @@ export const lineTerms = (supplierId: string, currency: string, l: ReorderLine) 
 export function thresholdStatus(row: ThresholdRow): ThresholdStatus {
   const { reorderPoint, target } = reorderLevels(row);
   if (!(row.minStock > 0) || available(row) >= reorderPoint) return { state: 'ok' };
+  // What is ordered or drafted counts before anything new is bought: no top-up while enough is coming.
+  if (available(row) + row.incoming + row.drafted >= reorderPoint) return { state: 'covered', shortfall: round(reorderPoint - available(row)) };
   const shortfall = round(target - available(row) - row.incoming - row.drafted);
-  if (shortfall <= 0) return { state: 'covered', shortfall: round(target - available(row)) };
   const last = row.last;
   if (!last || !last.supplierId) return { state: 'unknown', shortfall, reason: 'Daha önce satın alınmamış: tedarikçi, fiyat ve depo bilinmiyor' };
   if (!last.supplierActive) return { state: 'unknown', shortfall, reason: `Son tedarikçi (${last.supplierName ?? '—'}) pasif` };

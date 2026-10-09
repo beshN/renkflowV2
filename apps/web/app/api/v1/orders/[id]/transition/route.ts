@@ -20,7 +20,7 @@ export async function POST(
     // The firm's rules (e.g. approved → production activity) follow the change; a rule failure never undoes it.
     await runRecordRules(actor.tenantId, { force: true }).catch((e) => console.error("[records:rules]", e instanceof Error ? e.message : e));
     // An approved order is checked for missing material at once (best effort, never undoes the approval).
-    if ((result as any)?.newStatus === "approved") await notifyShortageOnApproval(actor.tenantId, id, actor.userId);
+    if ((result as any)?.newStatus === "approved" && !(result as any)?.replayed) await notifyShortageOnApproval(actor.tenantId, id, actor.userId);
     return NextResponse.json({ success: true, ...result });
   } catch (e) {
     if (e instanceof WorkOrderApiError)

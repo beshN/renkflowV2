@@ -295,6 +295,11 @@ export class PostgresQuotationService implements IQuotationService {
     });
     // After the commit: the people given new work orders hear of it (not the person who just converted).
     if (result.workOrders?.length) await notifyWorkOrdersAssigned(tenantId, result.workOrders, createdBy);
+    // Configured lines go straight to production at conversion: the material check runs here too.
+    if (result.workOrders?.length || result.pendingWorkOrders?.length) {
+      const { notifyShortageOnApproval } = await import("@/lib/features/stock/depth.server");
+      await notifyShortageOnApproval(tenantId, result.orderId, createdBy ?? "");
+    }
     return result;
   }
   async deleteQuotation(tenantId: string, id: string) {

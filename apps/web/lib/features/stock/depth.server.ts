@@ -12,6 +12,7 @@ import { executeProcurement, requireProcurementRead, requireProcurementWrite } f
 import { thresholdRows } from '@/lib/features/inventory/thresholds';
 import { available, reorderLevels, thresholdStatus } from '@/lib/features/inventory/reorder';
 import { istanbulToday } from '@/lib/features/sales/order-status.server';
+import { COUNT_UNITS } from '@/lib/features/inventory/vocabulary';
 import { compareResponses, priceHistory, shortage, supplierScore, type Need } from './engine';
 
 /** Tur D tables (migration 043); before it runs these features answer 409 and the rest is unchanged. */
@@ -59,8 +60,11 @@ export async function saveReorderPolicy(actor: WorkOrderActor, itemId: string, r
   z.string().uuid().parse(itemId);
   const p = PolicySchema.parse(raw);
   await withTransaction(async (tx: any) => {
-    const [before] = await tx`SELECT min_stock, max_stock, lead_time_days, order_multiple FROM inventory_items WHERE tenant_id = ${actor.tenantId} AND id = ${itemId} FOR UPDATE`;
+    const [before] = await tx`SELECT min_stock, max_stock, lead_time_days, order_multiple, stock_uom FROM inventory_items WHERE tenant_id = ${actor.tenantId} AND id = ${itemId} FOR UPDATE`;
     if (!before) throw new WorkOrderApiError('Stok kalemi bulunamadı', 404);
+    // The pack is counted in what a purchase line counts: whole bars for a profile, whole pieces for counted items.
+    if (p.orderMultiple != null && (before.stock_uom === 'm' || COUNT_UNITS.has(before.stock_uom)) && !Number.isInteger(p.orderMultiple))
+      throw new WorkOrderApiError(before.stock_uom === 'm' ? 'Paket katı tam çubuk sayısı olmalı' : 'Paket katı tam sayı olmalı', 400);
     await tx`UPDATE inventory_items SET min_stock = ${p.minStock}, max_stock = ${p.maxStock}, lead_time_days = ${p.leadTimeDays}, order_multiple = ${p.orderMultiple}, updated_at = now() WHERE tenant_id = ${actor.tenantId} AND id = ${itemId}`;
     const pairs: Array<[string, unknown, unknown]> = [
       ['asgari', Number(before.min_stock), p.minStock], ['azami', before.max_stock == null ? null : Number(before.max_stock), p.maxStock],
@@ -86,10 +90,15 @@ export async function orderShortage(actor: Pick<WorkOrderActor, 'tenantId'>, ord
     FROM order_items i JOIN orders o ON o.id = i.order_id WHERE o.tenant_id = ${t} AND o.id = ${orderId} AND i.product_configuration IS NOT NULL`;
   const needs: Array<{ itemId: string; quantity: number }> = [];
   const jobIds = items.map((i: any) => i.job_id).filter(Boolean);
-  const jobMaterials = jobIds.length ? await sql`SELECT work_order_id, item_id, required_qty FROM work_order_materials WHERE tenant_id = ${t} AND work_order_id = ANY(${jobIds}::uuid[])` : [];
+  // A job's material already moved to work-in-progress (or used) has left stock: only the rest is still needed.
+  const jobMaterials = jobIds.length ? await sql`SELECT m.work_order_id, m.item_id, greatest(m.required_qty - m.transferred_qty, 0) AS still FROM work_order_materials m JOIN work_orders w ON w.id = m.work_order_id AND w.tenant_id = m.tenant_id
+    WHERE m.tenant_id = ${t} AND m.work_order_id = ANY(${jobIds}::uuid[]) AND w.status NOT IN ('done', 'cancelled')` : [];
   for (const i of items) {
-    if (i.job_id) for (const m of jobMaterials.filter((x: any) => x.work_order_id === i.job_id)) needs.push({ itemId: m.item_id, quantity: Number(m.required_qty) });
-    else for (const m of i.product_configuration?.bom?.materials ?? []) needs.push({ itemId: m.itemId, quantity: Number(m.quantity) * Number(i.quantity) });
+    if (i.job_id) {
+      for (const m of jobMaterials.filter((x: any) => x.work_order_id === i.job_id)) if (Number(m.still) > 0) needs.push({ itemId: m.item_id, quantity: Number(m.still) });
+    } else {
+      for (const m of i.product_configuration?.bom?.materials ?? []) needs.push({ itemId: m.itemId, quantity: Number(m.quantity) * Number(i.quantity) });
+    }
   }
   if (!needs.length) return { lines: [], configured: items.length };
   const ids = [...new Set(needs.map((n) => n.itemId))];
@@ -135,8 +144,9 @@ export async function notifyShortageOnApproval(tenantId: string, orderId: string
     if (!missing.length) return 0;
     const [order] = await sql`SELECT order_number FROM orders WHERE tenant_id = ${tenantId} AND id = ${orderId}`;
     await recordAudit(sql, { tenantId, actorId: null, entityType: 'order', entityId: orderId, action: 'material_shortage', metadata: { lines: missing.map((l) => `${l.name} −${l.missing} ${l.uom}`) } });
+    // The production lead while still in the firm, otherwise the managers.
     const [pref] = (await columnExists('manufacturing_preferences', 'production_lead_user_id'))
-      ? await sql`SELECT production_lead_user_id AS lead FROM manufacturing_preferences WHERE tenant_id = ${tenantId}` : [];
+      ? await sql`SELECT p.production_lead_user_id AS lead FROM manufacturing_preferences p JOIN tenant_members m ON m.tenant_id = p.tenant_id AND m.user_id = p.production_lead_user_id WHERE p.tenant_id = ${tenantId}` : [];
     const people = pref?.lead ? [pref.lead as string] : (await sql`SELECT user_id FROM tenant_members WHERE tenant_id = ${tenantId} AND role IN ('owner', 'admin')`).map((m: any) => m.user_id as string);
     const text = missing.slice(0, 4).map((l) => `${l.name} ${l.missing} ${l.uom}`).join(', ') + (missing.length > 4 ? ` +${missing.length - 4}` : '');
     for (const p of people)
@@ -178,13 +188,16 @@ export async function listRfqs(actor: WorkOrderActor) {
   return {
     available: true,
     rfqs: rfqs.map((r: any) => {
-      const own = lines.filter((l: any) => l.rfq_id === r.id).map((l: any) => ({ id: l.id, itemId: l.item_id, itemName: l.item_name, uom: l.stock_uom, quantity: Number(l.quantity), lengthMm: l.length_mm, color: l.color, warehouseId: l.warehouse_id }));
+      // Prices are per stock unit (per metre for a profile, as on a purchase order): a profile line of
+      // N bars is N × bar length in metres when priced.
+      const own = lines.filter((l: any) => l.rfq_id === r.id).map((l: any) => ({ id: l.id, itemId: l.item_id, itemName: l.item_name, uom: l.stock_uom, quantity: Number(l.quantity), lengthMm: l.length_mm, color: l.color, warehouseId: l.warehouse_id,
+        stockQuantity: l.stock_uom === 'm' && l.length_mm ? (Number(l.quantity) * Number(l.length_mm)) / 1000 : Number(l.quantity) }));
       const answers = responses.filter((x: any) => x.rfq_id === r.id).map((x: any) => ({ supplierId: x.supplier_id, supplierName: x.supplier_name, leadTimeDays: x.lead_time_days, validUntil: iso(x.valid_until), note: x.note, prices: (x.prices as Array<{ lineId: string; unitPrice: number }>).map((p) => ({ lineId: p.lineId, unitPrice: Number(p.unitPrice) })) }));
       return {
         id: r.id, number: r.rfq_number, status: r.status, currency: r.currency, dueOn: iso(r.due_on), notes: r.notes, version: r.version, createdAt: r.created_at,
         suppliers: (r.supplier_ids as string[]).map((id) => ({ id, name: suppliers.find((s: any) => s.id === id)?.name ?? '—' })),
         awardedSupplierId: r.awarded_supplier_id, purchaseOrderNumber: r.purchase_order_number ?? null,
-        lines: own, responses: answers, comparison: compareResponses(own.map((l: any) => ({ id: l.id, quantity: l.quantity })), answers, today),
+        lines: own, responses: answers, comparison: compareResponses(own.map((l: any) => ({ id: l.id, quantity: l.stockQuantity })), answers, today),
       };
     }),
   };
@@ -202,6 +215,10 @@ export async function createRfq(actor: WorkOrderActor, raw: unknown) {
       const [item] = await tx`SELECT stock_uom FROM inventory_items WHERE tenant_id = ${actor.tenantId} AND id = ${l.itemId} AND active = true AND item_type <> 'finished_good'`;
       if (!item) throw new WorkOrderApiError('Satın alınabilir stok kalemi seçin', 400);
       if (item.stock_uom === 'm' && (!l.lengthMm || !l.color)) throw new WorkOrderApiError('Profil için çubuk boyu ve renk gerekli', 400);
+      // The same rules as a purchase order line, so choosing a supplier never fails late.
+      if ((item.stock_uom === 'm' || COUNT_UNITS.has(item.stock_uom)) && !Number.isInteger(l.quantity)) throw new WorkOrderApiError('Adet, takım veya çubuk miktarı tam sayı olmalı', 400);
+      if (item.stock_uom === 'm' && l.quantity > 10000) throw new WorkOrderApiError('Bir kalemde en fazla 10.000 çubuk istenebilir', 400);
+      if (item.stock_uom !== 'm' && l.lengthMm) throw new WorkOrderApiError('Çubuk boyu yalnız metre ile izlenen profilde kullanılır', 400);
       if (!(await tx`SELECT 1 FROM warehouses WHERE tenant_id = ${actor.tenantId} AND id = ${l.warehouseId} AND active = true AND warehouse_type = 'RAW'`).length)
         throw new WorkOrderApiError('Hammadde deposu seçin', 400);
     }

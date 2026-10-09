@@ -6,6 +6,7 @@ import { Award, FileQuestion, Gauge, Plus, RefreshCw, Trash2, TrendingDown, Tren
 import { EmptyState, HintTip, Skeleton, Sparkline, StatusChip } from '@/components/kit';
 import { requestJson } from '@/lib/shared/network';
 import { cn, formatCurrency } from '@/lib/utils';
+import { COUNT_UNITS } from '@/lib/features/inventory/vocabulary';
 
 type Tab = 'reorder' | 'rfq' | 'suppliers';
 type ReorderRow = {
@@ -104,7 +105,7 @@ function Reorder({ writable }: { writable: boolean }) {
               </p>
               {edit === r.itemId && (
                 <form className="grid grid-cols-2 gap-2 sm:grid-cols-5" onSubmit={(e) => { e.preventDefault(); void save(r.itemId); }}>
-                  {([['minStock', 'Asgari'], ['maxStock', 'Azami'], ['leadTimeDays', 'Tedarik (gün)'], ['orderMultiple', 'Paket katı']] as const).map(([k, l]) => (
+                  {([['minStock', `Asgari (${r.uom})`], ['maxStock', `Azami (${r.uom})`], ['leadTimeDays', 'Tedarik (gün)'], ['orderMultiple', r.uom === 'm' ? 'Paket (çubuk)' : `Paket (${r.uom})`]] as const).map(([k, l]) => (
                     <label key={k} className="text-[11px] text-muted-foreground">{l}
                       <input type="number" min={0} step="any" required={k === 'minStock'} className="rf-input mt-1 w-full text-sm text-foreground" value={form[k]} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))} />
                     </label>
@@ -167,7 +168,7 @@ function RfqForm({ basics, onCancel, onSave }: { basics: Basics; onCancel: () =>
           <select aria-label={`Satır ${i + 1} kalem`} className="rf-input" value={l.itemId} onChange={(e) => setLines((p) => p.map((x, j) => (j === i ? { ...x, itemId: e.target.value } : x)))}>
             {basics.items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}
           </select>
-          <input type="number" min={0.001} step="any" required aria-label={`Satır ${i + 1} miktar`} placeholder={uom(l.itemId) === 'm' ? 'çubuk' : uom(l.itemId)} className="rf-input" value={l.quantity} onChange={(e) => setLines((p) => p.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))} />
+          <input type="number" min={uom(l.itemId) === 'm' || COUNT_UNITS.has(uom(l.itemId) ?? '') ? 1 : 0.001} step={uom(l.itemId) === 'm' || COUNT_UNITS.has(uom(l.itemId) ?? '') ? 1 : 'any'} required aria-label={`Satır ${i + 1} miktar`} placeholder={uom(l.itemId) === 'm' ? 'çubuk' : uom(l.itemId)} className="rf-input" value={l.quantity} onChange={(e) => setLines((p) => p.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))} />
           {uom(l.itemId) === 'm' ? (
             <>
               <input type="number" min={100} required aria-label={`Satır ${i + 1} çubuk boyu`} placeholder="boy mm" className="rf-input" value={l.lengthMm} onChange={(e) => setLines((p) => p.map((x, j) => (j === i ? { ...x, lengthMm: e.target.value } : x)))} />
@@ -239,7 +240,7 @@ function RfqCard({ rfq: q, writable, onAct }: { rfq: Rfq; writable: boolean; onA
         <form className="grid gap-2 rounded-md border border-border p-3" onSubmit={(e) => { e.preventDefault(); onAct({ action: 'response', supplierId: entry, leadTimeDays: lead ? Number(lead) : null, validUntil: valid || null, prices: Object.entries(prices).filter(([, v]) => v !== '').map(([lineId, v]) => ({ lineId, unitPrice: Number(v) })) }); setEntry(null); }}>
           {q.lines.map((l) => (
             <label key={l.id} className="flex items-center gap-2 text-xs"><span className="min-w-0 flex-1 truncate">{l.itemName}</span>
-              <input type="number" min={0} step="any" aria-label={`${l.itemName} birim fiyat`} placeholder="birim fiyat" className="rf-input w-32 text-right" value={prices[l.id] ?? ''} onChange={(e) => setPrices((p) => ({ ...p, [l.id]: e.target.value }))} />
+              <input type="number" min={0} step="any" aria-label={`${l.itemName} birim fiyat`} placeholder={l.uom === 'm' ? 'fiyat / metre' : `fiyat / ${l.uom}`} className="rf-input w-32 text-right" value={prices[l.id] ?? ''} onChange={(e) => setPrices((p) => ({ ...p, [l.id]: e.target.value }))} />
             </label>
           ))}
           <div className="grid grid-cols-2 gap-2">

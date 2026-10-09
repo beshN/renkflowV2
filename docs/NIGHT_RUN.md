@@ -35,3 +35,61 @@ Mevcut olan: rezervasyon, kullanılabilir = fiziksel − ayrılan (eşik ekranı
 8. Yetki: satın alma ofis/yönetici/muhasebe; usta hiçbirini görmez.
 9. Testler: jest motorlar + test:stock entegrasyon.
 10. Arayüz: satın alma ekranında yeniden sipariş politikası, RFQ akışı, tedarikçi puan kartı ve fiyat geçmişi; sipariş detayında malzeme durumu.
+| 2026-10-09 06:20 | bitti | Tur C (#45 birleşti): göç 042, neden kodları, fire/gecikme, kapasite ısı haritası, kesim planı geçmişi, çubuk boyu seçimi, değişiklikte BOM yeniden hesabı. İnceleme 10 bulgu → 10 düzeltildi. 600 birim + test:production-depth yeşil |
+| 2026-10-09 07:00 | bitti | Tur D: göç 043, yeniden sipariş politikası, onayda eksik malzeme, teklif isteme (RFQ), tedarikçi karnesi, fiyat geçmişi. İnceleme 9 bulgu → 9 düzeltildi. 609 birim + test:stock-depth yeşil; PR açılıyor |
+| 2026-10-09 07:00 | yapılmadı | Tur E–H: öncelik A–D'ye verildi; aşağıdaki listede "sonra" |
+
+---
+
+## SABAH RAPORU
+
+### Turlar
+| Tur | Durum | PR | Özet |
+|---|---|---|---|
+| A — Kayıt platformu | **bitti** | #43 | Yorum + @bahsetme + ek + takipçi, etiket, sorumlu/termin, kontrol listesi %, planlı aktivite, akıllı butonlar, 3 kural (onay → üretim aktivitesi, gecikme → yöneticiye, teslim → geri bildirim). 6 kayıt türünde çekmece. |
+| B — Teklif → sipariş | **bitti** | #44 | Revizyon + fark, geçerlilik/süre dolması, indirim onay eşiği, şablon, müşteri fiyat listesi, KDV/kur, müşteri onay bağlantısı (ad/tarih/IP), PDF'de revizyon/KDV/onay. Tek kapılı sipariş durum makinesi (gerekçe), kısmi teslim, satır durumu, değişiklik talebi + üretim etkisi, ödeme planı, söz vs gerçek tarih. |
+| C — Üretim/kesim | **bitti** | #45 | (Aşama, süre, fotoğraflı QC, rework, kerf/trim, artık önceliği, renk gruplama zaten vardı.) Firma neden kodları, fire/gecikme kaydı, Pareto, 7 günlük kapasite, kesim planı geçmişi, çubuk boyu seçimi, değişiklikte BOM yeniden hesabı. |
+| D — Stok/satın alma | **bitti** (PR birleşiyor) | #46 | (Rezervasyon, kullanılabilir = fiziksel − ayrılan, hareket türleri, lot, sayım, kısmi kabul zaten vardı.) Azami/tedarik süresi/paket katı, tüketime göre sipariş noktası, onayda eksik malzeme + bildirim, RFQ → karşılaştırma → taslak satın alma, tedarikçi puanı, fiyat geçmişi. |
+| E — CRM/montaj/servis | yapılmadı | — | sonra |
+| F — Finans temeli | yapılmadı | — | sonra |
+| G — Görünümler/arama/rapor/CSV | yapılmadı | — | sonra |
+| H — Yetki/güvenlik/ayar/cila | yapılmadı | — | sonra (her turda yetki ve izler zaten tur içinde yapıldı) |
+
+### Göçler (hepsi idempotent: yalnız `IF NOT EXISTS` ekleme, veri yeniden yazılmıyor; uygulanmadan kod eski davranışla çalışır)
+| No | Dosya | Ne ekliyor |
+|---|---|---|
+| 040 | `040_record_platform.sql` | record_comments, record_attachments, record_followers, record_tags(+links), record_meta, record_checklist_items, record_activities, record_rules, record_rule_runs |
+| 041 | `041_quote_order_depth.sql` | quotations'a revision/vat/fx/onay sütunları; quotation_revisions, quote_settings, quotation_templates, customer_price_rules, quotation_approval_links; orders'a promised_date/delivered_on; order_deliveries, order_change_requests, order_payment_plans |
+| 042 | `042_production_depth.sql` | production_reason_codes, production_scrap_events, production_delays; manufacturing_preferences.bar_length_options_mm |
+| 043 | `043_stock_purchasing_depth.sql` | inventory_items'a max_stock, lead_time_days, order_multiple; purchase_rfqs, purchase_rfq_lines, purchase_rfq_responses |
+
+Hepsi `scripts/ensure-backend-schema.ts` listesinde sırayla kayıtlı. Her biri yerel test veritabanında iki kez uygulandı (ikinci seferde değişiklik yok).
+
+### İş kuralları ve testler
+- Birim testler (jest): 572 → **609** (records 4, sales 17, production 11, stock 9 yeni).
+- Entegrasyon (yerel Postgres): `test:records`, `test:sales`, `test:production-depth`, `test:stock-depth` (yeni) + `test:quote-configurator`'a BOM yeniden hesap senaryosu; eski `test:production` (16 PASS), `test:stock-threshold` yeşil.
+- Kurallar sunucuda: tek sipariş durum makinesi ve gerekçe; indirim eşiği gönderme ve dönüştürmede; teklif süresi; revizyonda bağlantı kapanır; onay bağlantısı tek karar, hız sınırı, aynı köken; teslim kalan miktarı aşamaz; değişiklikte üretim etkisi onayı, teslim edilmiş ürün değişmez; ödeme planı toplamı = sipariş; fire/gecikme yalnız saha+ofis, usta yalnız kendi işi; RFQ satırı satın alma satırı kurallarıyla aynı; satın alma yazma ofis/yönetici, muhasebe okur, usta hiç.
+- Fiyat/müşteri usta DTO'larına ve usta bildirimlerine girmiyor (testlerde doğrulandı). Tek denetim izi `activity_logs`.
+- Her turda bağımsız kod incelemesi yapıldı: A 10, B 10 (1 geçersiz), C 10, D 9 bulgu — geçerli olanların hepsi düzeltildi ve teste bağlandı.
+
+### Bilinen boşluklar
+- Dış servisler bağlanmadı (gösterilmiyor da): e-fatura/e-arşiv, banka, SMS, RFQ e-postası, döviz kuru servisi (kur elle).
+- Dosya eki için Blob depolama yapılandırılmamışsa ek yükleme 503 ("bu kurulumda kapalı"); yorum çalışır.
+- Fire kaydı stok hareketi yaratmaz (stok düşümü depo komutlarında).
+- Değişiklik talebi ödeme planını kendiliğinden yeniden dağıtmaz; uyarı gösterir.
+- Kapasite ısı haritası yalnız reçeteli operasyonları sayar.
+- `apps/mobile` sahte veriyle çalışıyor; API'ye bağlı değil.
+- Tur E–H yapılmadı.
+
+### Ekran görüntüleri (`docs/night-run/`, yalnız sentetik test verisi)
+turA-drawer / turA-drawer-390 / turA-dashboard-activities / turA-settings · turB-quote-before / turB-quote-panel / turB-customer-390 / turB-order-sales / turB-order-390 / turB-settings · turC-worker-390 / turC-insights / turC-settings · turD-reorder / turD-rfq / turD-suppliers / turD-390
+
+### Senin için liste
+1. **Göç sırası (production Neon'a sen uygularsın):** 037/038/039 henüz uygulanmadıysa önce onlar, sonra **040 → 041 → 042 → 043**. Her biri tekrar çalıştırılabilir.
+2. **Birleştirme:** `claude/trello-odoo` → `main` (main otomatik deploy + göç çalıştırır; göçlerin sırası yukarıdaki gibi). PR'lar #43, #44, #45, #46 bu dala birleşti.
+3. **Kararlar:**
+   - İndirim onay eşiği varsayılanı %10, teklif geçerliliği 15 gün, KDV %20 → Ayarlar › Teklif kuralları'ndan değiştir.
+   - Müşteri onay sayfası `/teklif/…` herkese açık (coming-soon modunda kapalı); uygun mu?
+   - Çubuk boyu seçenekleri (6000/6500/7000 vb.) ve neden kodları Ayarlar'dan girilmeli.
+   - Blob depolama (ekler için) açılsın mı?
+4. **Sonraki tur önerisi:** Tur E (CRM/montaj/servis) — montaj ekibi takvimi ve servis kaydı sipariş/teslim verisine hazır bağlanabilir.
