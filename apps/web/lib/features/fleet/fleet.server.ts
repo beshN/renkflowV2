@@ -332,20 +332,7 @@ export async function saveFleetSettings(actor: WorkOrderActor, raw: unknown) {
   return { retentionDays };
 }
 
-/** Scheduled clean-up: positions older than each firm's retention are deleted (in batches). */
-export async function pruneVehiclePositions(batch = 5000) {
-  if (!(await tableExists('vehicle_positions'))) return 0;
-  const firms = await sql`SELECT DISTINCT p.tenant_id, coalesce(s.position_retention_days, CASE WHEN s.tenant_id IS NULL THEN 365 END) AS days
-    FROM vehicle_positions p LEFT JOIN fleet_settings s ON s.tenant_id = p.tenant_id`;
-  let removed = 0;
-  for (const f of firms) {
-    const cutoff = retentionCutoff(f.days === null ? null : Number(f.days), Date.now());
-    if (!cutoff) continue;
-    const rows = await sql`DELETE FROM vehicle_positions WHERE id IN (SELECT id FROM vehicle_positions WHERE tenant_id = ${f.tenant_id} AND recorded_at < ${cutoff} LIMIT ${batch}) RETURNING id`;
-    removed += rows.length;
-  }
-  return removed;
-}
+export { pruneVehiclePositions } from './retention.server';
 
 /** Dashboard card: how many vehicles are good / need attention / critical, and the worst alerts. */
 export async function fleetHealthSummary(actor: WorkOrderActor) {

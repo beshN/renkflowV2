@@ -5,7 +5,7 @@ import { drainNotifications } from "./notification.service";
 import { drainInbound } from "./inbound.service";
 import { drainStorageCleanup } from "../orders/deletion.service";
 import { pruneRateLimitBuckets } from "@/lib/security/rate-limit";
-import { pruneVehiclePositions } from "@/lib/features/fleet/fleet.server";
+import { pruneVehiclePositions } from "@/lib/features/fleet/retention.server";
 export function cronAuthorized(request: Request) {
  const secret = process.env.CRON_SECRET?.trim();
  if (!secret || secret.length < 32) return false;
