@@ -12,6 +12,7 @@ import {
 } from './engine';
 import { istanbulToday } from './order-status.server';
 import { salesAvailable } from './quotes.server';
+import { rebuildConfiguredJob } from '@/lib/features/manufacturing/platform.service';
 
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Tarih YYYY-AA-GG olmalı');
 const iso = (d: unknown) => (d ? new Date(d as string).toISOString().slice(0, 10) : null);
@@ -243,6 +244,7 @@ export async function decideChange(actor: WorkOrderActor, orderId: string, chang
     if (impact.level === 'block') throw new WorkOrderApiError(impact.reasons.join('; '), 409);
     if (impact.level === 'warn' && !d.acknowledgeImpact) throw new WorkOrderApiError(`Üretim etkisini onaylayın: ${impact.reasons.join('; ')}`, 409);
     const trace: Record<string, { from: unknown; to: unknown }> = {};
+    const bomPending: string[] = [];
     let linesBefore = 0;
     let linesAfter = 0;
     for (const line of lines) linesBefore += line.totalPrice;
@@ -264,17 +266,22 @@ export async function decideChange(actor: WorkOrderActor, orderId: string, chang
         linesAfter = linesAfter - line.totalPrice + lineTotal;
       }
       if (PRODUCTION_FIELDS.some((f) => ch[f] !== undefined)) {
+        // A configured line gets its bill of materials again; an unstarted work order is rebuilt with it.
+        const rebuild = await rebuildConfiguredJob(tx, actor, line.orderItemId, o.currency);
+        if (rebuild.rebuilt && rebuild.workOrderId) trace[`${line.productName} iş emri`] = { from: rebuild.replaced ?? null, to: rebuild.workOrderId };
+        if (!rebuild.rebuilt && rebuild.reason) bomPending.push(`${line.productName}: ${rebuild.reason}`);
         const jobs = await tx`SELECT id, title, assigned_to FROM work_orders WHERE tenant_id = ${actor.tenantId} AND order_item_id = ${line.orderItemId} AND status <> 'cancelled'`;
         const what = PRODUCTION_FIELDS.filter((f) => ch[f] !== undefined).map((f) => FIELD_LABELS[f]).join(', ');
-        for (const j of jobs) if (j.assigned_to) notices.push({ userId: j.assigned_to, workOrderId: j.id, title: `İş emri değişti: ${j.title}`, message: `${what} değişti. Kesime devam etmeden önce iş emrini kontrol edin.` });
+        const message = rebuild.rebuilt && rebuild.workOrderId ? `${what} değişti; iş emri yeni ölçüyle yeniden açıldı.` : `${what} değişti. Kesime devam etmeden önce iş emrini kontrol edin.`;
+        for (const j of jobs) if (j.assigned_to) notices.push({ userId: j.assigned_to, workOrderId: j.id, title: `İş emri değişti: ${j.title}`, message });
       }
     }
     const oldTotal = Number(o.total_amount);
     const newTotal = linesBefore > 0 ? money(oldTotal * (linesAfter / linesBefore)) : money(oldTotal + (linesAfter - linesBefore));
     if (Math.abs(newTotal - oldTotal) > 0.004) trace['sipariş tutarı'] = { from: oldTotal, to: newTotal };
     await tx`UPDATE orders SET total_amount = ${newTotal}, version = version + 1, updated_at = now() WHERE tenant_id = ${actor.tenantId} AND id = ${orderId}`;
-    await tx`UPDATE order_change_requests SET status = 'applied', decided_by = ${actor.userId}, decided_at = now(), decision_note = ${d.note ?? null}, impact = ${JSON.stringify(impact)}::text::jsonb WHERE id = ${changeId}`;
-    await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'order', entityId: orderId, action: 'change_applied', note: d.note || c.reason, changes: trace, metadata: { changeId, impact: impact.level, reasons: impact.reasons } });
+    await tx`UPDATE order_change_requests SET status = 'applied', decided_by = ${actor.userId}, decided_at = now(), decision_note = ${d.note ?? null}, impact = ${JSON.stringify({ ...impact, reasons: [...impact.reasons, ...bomPending.map((p) => `Rework gerekli · ${p}`)] })}::text::jsonb WHERE id = ${changeId}`;
+    await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'order', entityId: orderId, action: 'change_applied', note: d.note || c.reason, changes: trace, metadata: { changeId, impact: impact.level, reasons: impact.reasons, bomPending } });
   });
   for (const n of notices)
     if (n.userId !== actor.userId)

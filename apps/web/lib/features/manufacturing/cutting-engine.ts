@@ -317,3 +317,34 @@ export function planPurchase(
     .filter((line) => line.bars > 0);
   return { lines, tooLong: plan.unfulfilled };
 }
+
+/**
+ * Which bar length to buy for each profile when the firm can buy several (6000, 6500, 7000 …):
+ * each candidate is packed by the same engine and the one that wastes least wins (then fewer bars,
+ * then the profile's standard length). Returns every candidate's figures so the choice can be checked.
+ */
+export function chooseBarLengths(
+  unfulfilled: CutDemand[],
+  candidates: (itemId: string) => number[],
+  raw: CuttingParameters,
+  options: CutOptions = {},
+) {
+  const byItem = new Map<string, CutDemand[]>();
+  for (const piece of unfulfilled) byItem.set(piece.itemId, [...(byItem.get(piece.itemId) ?? []), piece]);
+  const chosen = new Map<string, { lengthMm: number; bars: number; wasteMm: number; alternatives: Array<{ lengthMm: number; bars: number; wasteMm: number; tooLong: number }> }>();
+  for (const [itemId, pieces] of byItem) {
+    const lengths = [...new Set(candidates(itemId).filter((l) => Number.isFinite(l) && l > 0))];
+    if (!lengths.length) continue;
+    const needMm = pieces.reduce((sum, p) => sum + p.lengthMm * p.quantity, 0);
+    const alternatives = lengths.map((lengthMm, order) => {
+      const plan = planPurchase(pieces, () => lengthMm, raw, options);
+      const bars = plan.lines.reduce((sum, l) => sum + l.bars, 0);
+      const tooLong = plan.tooLong.reduce((sum, p) => sum + p.quantity, 0);
+      return { lengthMm, bars, wasteMm: Math.round(bars * lengthMm - needMm), tooLong, order };
+    });
+    alternatives.sort((a, b) => a.tooLong - b.tooLong || a.wasteMm - b.wasteMm || a.bars - b.bars || a.order - b.order);
+    const best = alternatives[0];
+    chosen.set(itemId, { lengthMm: best.lengthMm, bars: best.bars, wasteMm: best.wasteMm, alternatives: alternatives.map(({ order: _o, ...rest }) => rest) });
+  }
+  return chosen;
+}

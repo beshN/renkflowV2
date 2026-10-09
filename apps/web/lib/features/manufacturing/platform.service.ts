@@ -15,6 +15,7 @@ import {
   CuttingParametersSchema,
   optimizeCuts,
   planPurchase,
+  chooseBarLengths,
   CutDemand,
 } from "./cutting-engine";
 import { CUTTING_DEFAULTS, cuttingEstimateNotice, firmCuttingParameters, type CuttingParameterSource } from "./cutting-defaults";
@@ -33,6 +34,7 @@ import { AwningConfigurationSchema } from "../awning/configuration";
 import { columnExists } from "@/lib/db/schema-guard";
 import { PRODUCTION_LEAD_ROLES, productionLead } from "../settings/production-settings.service";
 import type { ProductConfiguration } from "../products/configuration";
+import { bomRecalcBlocker } from "../production/engine";
 import { evaluateQuality, QualityChecksSchema } from "./quality";
 import { executeWarehouse } from "../warehouse/service";
 import { executeFinance } from "../finance/workspace.service";
@@ -921,7 +923,16 @@ async function computeCut(
         )
       : [],
   );
-  const purchase = planPurchase(result.unfulfilled, (itemId) => standard.get(itemId) || parameters.standardLengthMm, parameters);
+  // When the firm can buy several bar lengths, each profile gets the one that wastes least (its own
+  // standard length is always a candidate).
+  const lengthOptions: number[] = Array.isArray(prefs?.bar_length_options_mm) ? prefs.bar_length_options_mm.map(Number) : [];
+  const barChoice = lengthOptions.length
+    ? chooseBarLengths(result.unfulfilled, (itemId) => [standard.get(itemId) || parameters.standardLengthMm, ...lengthOptions], parameters)
+    : new Map();
+  const purchase = {
+    ...planPurchase(result.unfulfilled, (itemId) => barChoice.get(itemId)?.lengthMm || standard.get(itemId) || parameters.standardLengthMm, parameters),
+    barChoice: Object.fromEntries(barChoice),
+  };
   return { ids, reworkIds, demand, parameters, result: { ...result, parameterSource: firm.source, purchase } };
 }
 async function previewCut(
@@ -1754,4 +1765,45 @@ export async function wallBoard(a: WorkOrderActor) {
     nextCuts: jobs.filter((j: any) => !j.cut_plan_id).slice(0, 8).map(view),
     openJobs: all.length,
   };
+}
+
+/**
+ * A configured order line whose measures, colour or quantity changed (an applied change request):
+ * the line is configured again with the same recipe and, when its work order has not started (no
+ * cut plan, nothing produced or started, no material reserved), the work order is cancelled and
+ * opened again with the new bill of materials, keeping its warehouses and assignee. Otherwise the
+ * reason is returned and nothing changes: the job needs rework.
+ */
+export async function rebuildConfiguredJob(tx: any, a: WorkOrderActor, orderItemId: string, currency: string) {
+  const t = a.tenantId;
+  const [item] = await tx`SELECT oi.* FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE o.tenant_id = ${t} AND oi.id = ${orderItemId} FOR UPDATE OF oi`;
+  const pc = item?.product_configuration as ProductConfiguration | null | undefined;
+  if (!pc) return { rebuilt: false as const, reason: null };
+  const [job] = await tx`SELECT w.*, (SELECT count(*)::int FROM production_operations p WHERE p.tenant_id = w.tenant_id AND p.work_order_id = w.id AND (p.started_at IS NOT NULL OR p.completed_qty > 0)) AS started
+    FROM work_orders w WHERE w.tenant_id = ${t} AND w.order_item_id = ${orderItemId} AND w.status <> 'cancelled' ORDER BY w.created_at DESC LIMIT 1 FOR UPDATE`;
+  const choice = {
+    family: pc.family, recipeId: pc.recipeId, color: item.color || pc.color,
+    parameters: { ...pc.parameters, widthMm: Math.round(num(item.width_mm) || pc.parameters.widthMm), projectionMm: Math.round(num(item.projection_mm) || pc.parameters.projectionMm), mountingHeightMm: Math.round(num(item.mounting_height_mm) || pc.parameters.mountingHeightMm) },
+  };
+  if (job) {
+    const blocker = bomRecalcBlocker({ status: job.status, cutPlanId: job.cut_plan_id, producedQty: num(job.produced_qty), startedOperations: num(job.started) })
+      ?? (["reserved", "partial", "transferred", "consumed"].includes(job.reservation_status) ? "Malzeme ayrılmış; önce rezervasyonu bırakın ya da rework açın" : null);
+    if (blocker) return { rebuilt: false as const, reason: blocker };
+  }
+  let next: ProductConfiguration;
+  try {
+    // Loaded here: configure.service imports this module (recipe), a static import would be a cycle.
+    const { configureProduct } = await import("../products/configure.service");
+    next = await configureProduct(tx, t, currency, choice);
+  } catch (error) {
+    if (error instanceof WorkOrderApiError) return { rebuilt: false as const, reason: `Reçete yeni ölçüyle hesaplanamadı: ${error.message}` };
+    throw error;
+  }
+  await tx`UPDATE order_items SET product_configuration = ${js(next)}::text::jsonb WHERE id = ${orderItemId}`;
+  if (!job) return { rebuilt: true as const, reason: null, workOrderId: null };
+  await tx`UPDATE work_orders SET status = 'cancelled', updated_at = now() WHERE tenant_id = ${t} AND id = ${job.id}`;
+  await tx`UPDATE production_operations SET status = 'cancelled', updated_at = now() WHERE tenant_id = ${t} AND work_order_id = ${job.id} AND status <> 'done'`;
+  await event(tx, a, "job.cancelled", { reason: "order_change", orderItemId }, job.id);
+  const fresh = await createJob(tx, a, { orderItemId, recipeId: next.recipeId, sourceWarehouseId: job.source_warehouse_id, wipWarehouseId: job.wip_warehouse_id, targetWarehouseId: job.target_warehouse_id, assignedTo: job.assigned_to, priority: job.priority }, `order-change:${orderItemId}:${job.id}`);
+  return { rebuilt: true as const, reason: null, workOrderId: fresh.id as string, replaced: job.id as string };
 }
