@@ -1,5 +1,7 @@
 import { COUNT_UNITS } from './vocabulary';
 
+const round = (n: number) => Math.round(n * 1e6) / 1e6;
+
 /** What the firm holds and expects of one item with a minimum stock, and how it was last bought. */
 export type ThresholdRow = {
   itemId: string;
@@ -14,6 +16,11 @@ export type ThresholdRow = {
   incoming: number;
   /** On purchase orders still in draft. */
   drafted: number;
+  /**
+   * Reorder policy (migration 043), all optional: stock to fill up to, days a purchase takes, the pack
+   * size bought, and the average daily use over the last 90 days.
+   */
+  policy?: { maxStock: number | null; leadTimeDays: number | null; orderMultiple: number | null; dailyUsage: number };
   last: null | {
     supplierId: string | null;
     supplierName: string | null;
@@ -39,6 +46,23 @@ export type ThresholdStatus =
 
 export const available = (row: ThresholdRow) => row.onHand - row.reserved;
 
+/**
+ * When to buy and up to what: the reorder point is the minimum plus what the firm uses while a
+ * purchase is on its way (daily use × lead time); a purchase fills up to the maximum when one is set,
+ * otherwise to the reorder point. Without a policy this is the minimum, as before.
+ */
+export function reorderLevels(row: Pick<ThresholdRow, 'minStock' | 'policy'>) {
+  const p = row.policy;
+  const cover = p && p.dailyUsage > 0 && (p.leadTimeDays ?? 0) > 0 ? p.dailyUsage * (p.leadTimeDays ?? 0) : 0;
+  const reorderPoint = round(row.minStock + cover);
+  const target = round(Math.max(reorderPoint, p?.maxStock ?? 0));
+  return { reorderPoint, target, cover: round(cover) };
+}
+
+/** Rounded up to the pack size the firm buys in (a whole multiple), never below what is needed. */
+export const toMultiple = (quantity: number, multiple: number | null | undefined) =>
+  multiple && multiple > 0 ? round(Math.ceil(quantity / multiple - 1e-9) * multiple) : quantity;
+
 /** What one purchase order line may hold (the purchase order's own rules). */
 const MAX_BARS_PER_LINE = 10000;
 const MAX_QUANTITY_PER_LINE = 1000000;
@@ -47,7 +71,6 @@ const MAX_QUANTITY_PER_LINE = 1000000;
 export const lineTerms = (supplierId: string, currency: string, l: ReorderLine) =>
   JSON.stringify([supplierId, currency, l.itemId, l.warehouseId, l.unitPrice, l.lengthMm ?? null, l.color]);
 
-const round = (n: number) => Math.round(n * 1e6) / 1e6;
 
 /**
  * Below the threshold when usable stock minus reservations is under the minimum. What to buy brings
@@ -55,9 +78,10 @@ const round = (n: number) => Math.round(n * 1e6) / 1e6;
  * warehouse, price, bar length and colour from the item's last purchase line; nothing is guessed.
  */
 export function thresholdStatus(row: ThresholdRow): ThresholdStatus {
-  if (!(row.minStock > 0) || available(row) >= row.minStock) return { state: 'ok' };
-  const shortfall = round(row.minStock - available(row) - row.incoming - row.drafted);
-  if (shortfall <= 0) return { state: 'covered', shortfall: round(row.minStock - available(row)) };
+  const { reorderPoint, target } = reorderLevels(row);
+  if (!(row.minStock > 0) || available(row) >= reorderPoint) return { state: 'ok' };
+  const shortfall = round(target - available(row) - row.incoming - row.drafted);
+  if (shortfall <= 0) return { state: 'covered', shortfall: round(target - available(row)) };
   const last = row.last;
   if (!last || !last.supplierId) return { state: 'unknown', shortfall, reason: 'Daha önce satın alınmamış: tedarikçi, fiyat ve depo bilinmiyor' };
   if (!last.supplierActive) return { state: 'unknown', shortfall, reason: `Son tedarikçi (${last.supplierName ?? '—'}) pasif` };
@@ -70,9 +94,9 @@ export function thresholdStatus(row: ThresholdRow): ThresholdStatus {
     if (!Number.isInteger(last.lengthMm) || last.lengthMm < 100 || last.lengthMm > 30000) return { state: 'unknown', shortfall, reason: 'Son alıştaki çubuk boyu geçersiz' };
     lengthMm = last.lengthMm;
     // Bars of the last bought length, enough to cover the metres.
-    quantity = Math.ceil((shortfall * 1000) / lengthMm - 1e-9);
-  } else if (COUNT_UNITS.has(row.uom)) quantity = Math.ceil(shortfall - 1e-9);
-  else quantity = Math.ceil(shortfall * 1000 - 1e-9) / 1000;
+    quantity = toMultiple(Math.ceil((shortfall * 1000) / lengthMm - 1e-9), row.policy?.orderMultiple);
+  } else if (COUNT_UNITS.has(row.uom)) quantity = toMultiple(Math.ceil(shortfall - 1e-9), row.policy?.orderMultiple);
+  else quantity = toMultiple(Math.ceil(shortfall * 1000 - 1e-9) / 1000, row.policy?.orderMultiple);
   if (quantity > (row.uom === 'm' ? MAX_BARS_PER_LINE : MAX_QUANTITY_PER_LINE))
     return { state: 'unknown', shortfall, reason: 'Eksik, bir sipariş satırının alabileceğinden fazla; minimum stoğu kontrol edin' };
   return {
