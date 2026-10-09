@@ -25,6 +25,7 @@ data class FieldState(
     val lastSync: Long? = null, val accessBlocked: Boolean = false,val references:FieldReferences?=null,val installations:List<Installation> = emptyList(),val installationDetail:InstallationDetails?=null,val preferences:NotificationPreferences?=null,val notifications:List<FieldNotification> = emptyList(),val preferencesBusy:Boolean=false
 )
 class FieldViewModel(application: Application) : AndroidViewModel(application) {
+    private val telemetry:FieldTelemetry=DisconnectedTelemetry
     private val api=SessionManager.api(application)
     private val vault=Vault(application)
     private val offline=OfflineStore.get(application)
@@ -33,7 +34,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
     private var epoch=0
     private var watcher: Job? = null
     private var lastValidation=0L
-    init { restore() }
+    init {telemetry.event(FieldEvent.APP_OPENED);restore()}
     private suspend fun attach(session: Session) {
         offline.prepare()
         offline.migrateLegacy(session,vault.pending());vault.clearPending()
@@ -199,6 +200,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
                 val installation=current.installationDetail?.let {overlayInstallation(it,listOf(row))}
                 val cache=buildMap<String,String> { installation?.let {put("installation:${it.id}",fieldJson.encodeToString(it))}; snapshot?.let { put("snapshot",fieldJson.encodeToString(it)) }; detail?.let { put("job:${it.id}",fieldJson.encodeToString(it)) } }
                 offline.enqueueWithCache(sessionScope(auth),request,cache)
+                telemetry.event(FieldEvent.QUEUE_SAVED)
                 if(generation==epoch) { mutable.update { it.copy(snapshot=snapshot,detail=detail,installationDetail=installation,message=tr(R.string.text_islem_cihazda_kaydedildi_72f13)) };onSaved();FieldSyncWorker.schedule(getApplication());sync() }
             } catch(e: Exception) { if(generation==epoch) fail(e) }
         }
@@ -277,6 +279,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     private fun fail(error: Exception) {
+        if(error is java.io.IOException) telemetry.fault(FieldEvent.NETWORK_UNAVAILABLE)
         if(error is CancellationException) throw error
         if(error is ApiException && error.status==426) {mutable.update {it.copy(updateRequired=true,stale=true,error=null)};return}
         if(error is ApiException && error.status==401) { logout();mutable.update {it.copy(error=tr(R.string.text_oturum_sona_erdi_bekleyen_kayitlariniz_cihazda_k_eb225))} }

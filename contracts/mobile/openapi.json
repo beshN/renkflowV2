@@ -2,14 +2,14 @@
   "openapi": "3.1.0",
   "info": {
     "title": "RenkFlow Saha API",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "servers": [
     {
       "url": "/api/mobile/v1"
     }
   ],
-  "x-min-app-version": "1.1.0",
+  "x-min-app-version": "1.2.0",
   "components": {
     "securitySchemes": {
       "bearer": {
@@ -3562,5 +3562,6 @@
         }
       }
     }
-  }
+  },
+  "x-build-number": 3
 }

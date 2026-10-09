@@ -244,3 +244,4 @@
 "field.job" = "İş emri";
 "field.completed" = "tamamlandı";
 "field.pending" = "bekliyor";
+"field.telemetry.disconnected" = "Analitik / hata raporu: Bağlanmadı";

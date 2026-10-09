@@ -8,8 +8,8 @@ jest.mock('server-only', () => ({}));
 jest.mock('@/auth', () => ({ auth: jest.fn() }));
 jest.mock('@/lib/db', () => ({ sql: jest.fn(async () => []) }));
 const job = { id: '1', title: 'Kesim', description: null, status: 'open', priority: 'high', category: 'production', location: null, dueAt: null, assigneeName: null, checklistTotal: 0, checklistCompleted: 0, blockedReasonDetail: null, color: null };
-it.each(['1.0.0', '0.9.9', null, '1.1', 'abc', '1.1.0-beta'])('requires update for %s', v => expect(needsUpdate(v)).toBe(true));
-it.each(['1.1.0', '1.1.1', '2.0.0'])('accepts compatible version %s', v => expect(needsUpdate(v)).toBe(false));
+it.each(['1.1.0', '1.0.0', '0.9.9', null, '1.1', 'abc', '1.1.0-beta'])('requires update for %s', v => expect(needsUpdate(v)).toBe(true));
+it.each(['1.2.0', '1.2.1', '2.0.0'])('accepts compatible version %s', v => expect(needsUpdate(v)).toBe(false));
 it('rejects old apps before authentication or data access', async () => {
   const response = await GET(new NextRequest('https://renkflow.com/api/mobile/v1/snapshot', { headers: { 'x-renkflow-app-version': '1.0.0', 'x-renkflow-platform': 'android' } }), { params: Promise.resolve({ path: ['snapshot'] }) });
   expect(response.status).toBe(426); expect((await response.json()).code).toBe('APP_UPDATE_REQUIRED'); expect(sql).not.toHaveBeenCalled();

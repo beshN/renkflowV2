@@ -137,6 +137,7 @@ struct ProfileView: View {
                     Divider(); Text(store.session?.server ?? "").font(.subheadline)
                 }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 12))
                 NotificationsView()
+                Text(L("field.telemetry.disconnected")).font(.caption).foregroundStyle(.secondary)
                 Text(L("text_uretim_kayitlari_firmanizin_renkflow_sistemine_k_8131f")).foregroundStyle(.secondary)
                 Toggle(L("text_uygulama_kilidi_52772"),isOn:Binding(get:{lock.enabled},set:{enabled in if enabled {Task {await lock.unlock(enable:true)}} else {lock.disable()}})).frame(minHeight:48)
                 if let message=lock.message {Text(message).foregroundStyle(FieldColor.error)}

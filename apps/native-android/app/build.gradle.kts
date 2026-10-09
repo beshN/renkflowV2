@@ -5,6 +5,12 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
 }
+val mobileSpec = groovy.json.JsonSlurper().parse(rootProject.file("../../contracts/mobile/openapi.json")) as Map<*, *>
+val mobileVersion = (mobileSpec["info"] as Map<*, *>)["version"] as String
+val baseBuild = (mobileSpec["x-build-number"] as Number).toInt()
+val mobileBuild = System.getenv("MOBILE_BUILD_NUMBER")?.toInt() ?: baseBuild
+require(mobileBuild >= baseBuild && mobileBuild <= 2_100_000_000) { "Invalid MOBILE_BUILD_NUMBER" }
+val releaseStore = System.getenv("ANDROID_KEYSTORE_PATH")
 android {
     namespace = "com.renkflow.field"
     compileSdk = 35
@@ -12,12 +18,21 @@ android {
         applicationId = "com.renkflow.field"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = mobileBuild
+        versionName = mobileVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+    signingConfigs {
+        if (!releaseStore.isNullOrBlank()) create("fieldRelease") {
+            storeFile = file(releaseStore)
+            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: error("ANDROID_KEYSTORE_PASSWORD missing")
+            keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: error("ANDROID_KEY_ALIAS missing")
+            keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: error("ANDROID_KEY_PASSWORD missing")
+        }
     }
     buildTypes {
         release {
+            if (!releaseStore.isNullOrBlank()) signingConfig = signingConfigs.getByName("fieldRelease")
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

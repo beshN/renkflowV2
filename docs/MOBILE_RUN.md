@@ -192,3 +192,11 @@ Adım 5 başlangıcı: 2026-10-09 22:12 UTC. Önceki adımların Android CI'sı 
 
 Adım 6 başlangıcı: 2026-10-09 22:17 UTC. Yayın hesabı/imza bilgileri yok; kaynak ve CI hazırlığı yapılır, mağazaya yayın yapılmaz.
 - Yeni iOS oturum birim testleri imzasız simülatörde Keychain yazamadı. CI simülatör uygulaması geçici ad-hoc imza ve yalnız test Keychain entitlement'ı ile kurulacak; Apple hesabı/production imzası gerekmez. Testler korunuyor, fiziksel cihaz güvenli depolama ayrıca doğrulanmalıdır.
+
+### Yayın/CI kontrol noktası
+- Son sürüm 1.2.0 / build 3 tek OpenAPI kaynağına geçirildi; önceki 1.1 uygulama 426 ile güncelleme ekranına gider, bekleyen kayıt korunur.
+- Android imza ortam değişkenleri, elle AAB / iOS IPA hazırlayan ve önce aynı commit'te başarılı native CI isteyen workflow eklendi. Hesap/sertifika bulunmadığı için mağaza yayını yapılmadı.
+- Analitik/hata raporlama yalnız izinli enum olaylarını kabul eden kapalı arayüzdür; gerçek sağlayıcı bağlanmadı. İmza dosyası/anahtar repoya konmadı.
+- GitHub yeni job'ları başlangıçta reddetti: `recent account payments have failed or your spending limit needs to be increased`. Kod testi başlamadığı için hata CI geçişi sayılmaz. Hesap billing ayarı değiştirilmedi; #58 ve sonraki işler merge edilmez.
+- Çift push/PR native çalışmaları kaldırıldı: feature'larda PR, mobil entegrasyonda push ve elle çalıştırma kalır. Testler azaltılmadı; ilgili API/native yol filtreleri korunur.
+- iOS Face ID izin açıklaması ve sürüm plist değişkenleri kontrol edildi; son Keychain ad-hoc test imzası ve release imzası doğrulanmadı.

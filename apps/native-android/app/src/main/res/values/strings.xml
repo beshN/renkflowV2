@@ -204,4 +204,5 @@
     <string name="text_mamul_d803c">Mamul</string>
     <string name="text_etiket_bc91f">Etiket</string>
     <string name="field_reusable">yeniden kullanılabilir</string>
+    <string name="field_telemetry_disconnected">Analitik / hata raporu: Bağlanmadı</string>
 </resources>

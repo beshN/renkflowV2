@@ -26,6 +26,7 @@ import Combine
     @Published var error: String?
     @Published var message: String?
     let offline: OfflineStore?
+    private let telemetry:FieldTelemetry=DisconnectedTelemetry()
     private let api: FieldAPI
     private let vault=SecureVault()
     private var lastValidation=Date.distantPast
@@ -34,6 +35,7 @@ import Combine
     init(offline: OfflineStore?=nil,api: FieldAPI=FieldAPI.live()) {
         self.api=api
         if let offline {self.offline=offline} else {self.offline=try? OfflineStore.persistent()}
+        telemetry.event(.appOpened)
     }
     private func storage() throws -> OfflineStore {guard let offline else {throw FieldAPIError(status:0,message:L("text_yerel_kayit_deposu_acilamadi_bekleyen_isler_koru_94afa"))};return offline}
     private func reloadQueue() {

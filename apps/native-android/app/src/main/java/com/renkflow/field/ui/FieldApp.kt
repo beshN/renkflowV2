@@ -408,6 +408,7 @@ import java.util.Locale
             }
         }
         NotificationsView(state,model)
+        Text(tr(R.string.field_telemetry_disconnected),style=MaterialTheme.typography.labelSmall)
         Text(tr(R.string.text_uretim_kayitlari_firmanizin_renkflow_sistemine_k_8131f), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth().heightIn(min=56.dp),verticalAlignment=Alignment.CenterVertically) {
             Text(tr(R.string.text_uygulama_kilidi_52772),Modifier.weight(1f));Switch(checked=lock.enabled,onCheckedChange={enabled->if(enabled) activity?.let {FieldAppLock.unlock(it,true)} else FieldAppLock.disable(context)})
