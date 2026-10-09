@@ -101,6 +101,7 @@ turA-drawer / turA-drawer-390 / turA-dashboard-activities / turA-settings · tur
 | Zaman (UTC) | Durum | Not |
 |---|---|---|
 | 2026-10-09 06:50 | başladı | Yetki altyapısı haritalandı. Açıklar: `internal/admin-notification` gizli anahtar yoksa açık; kullanıcı pasifleştirme / oturum iptali yok; davet listesi ham token döndürüyor; denetim izi ve bildirim tercihi ekranı yok |
+| 2026-10-09 (Tur 1) | sürüyor | Bitti: göç 044, matris motoru, proxy tek kapı + `access_denied` izi, oturum/pasif üye kontrolü, ekip/rol/davet/oturum API'leri, şifre politikası, admin-notification kapatıldı, 75 rotada alan süzgeci + server action'lar, rota taraması ve rol başına sızıntı testleri. Sırada: ekip/güvenlik/denetim ekranları, menü süzme, `test:access`. |
 
 ### Tur 1 planı (10 satır)
 1. Göç 044 (idempotent): `access_roles` (özel rol: temel rol + modül×eylem matrisi + gizli alanlar), `tenant_members.access_role/deactivated_at`, `users.sessions_valid_after`, `user_sessions`, davette `access_role`.
