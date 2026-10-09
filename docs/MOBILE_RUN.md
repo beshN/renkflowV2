@@ -157,3 +157,5 @@ Adım 2 başlangıcı: 2026-10-09 22:03 UTC. Adım 4 PR #57 düzeltme CI'sı bek
 - iOS ilk oturum CI derleme + 18 birim/1 UI başarılı; yeni oturum birim testleri sırada. Yerel web 92 paket/629 test başarılı.
 - night-2 ayrı test kopyası: güncel saha/oturum API'si production build ve gerçek HTTP saha 6 grup + outbox 4 grup + oturum 4 grup geçti. Hedef web dalları değişmedi.
 - Yerel native test yeniden çalıştırılırken önceki testin kullandığı operasyon sürümü nedeniyle 409 verdi; fixture her çalıştırmada yeniden oluşturulur. CI zaten izole fixture kullanıyor; test veya üretim davranışı gevşetilmedi.
+
+- Yeni iOS oturum birim testleri imzasız simülatörde Keychain yazamadı. CI simülatör uygulaması geçici ad-hoc imza ve yalnız test Keychain entitlement'ı ile kurulacak; Apple hesabı/production imzası gerekmez. Testler korunuyor, fiziksel cihaz güvenli depolama ayrıca doğrulanmalıdır.

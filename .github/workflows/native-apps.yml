@@ -128,7 +128,7 @@ jobs:
           print('FIELD_SIMULATOR=' + phones[0]['udid'])
           PY
       - name: Build and test native iOS app
-        run: xcodebuild test -project RenkflowField.xcodeproj -scheme RenkflowField -destination "platform=iOS Simulator,id=$FIELD_SIMULATOR" -resultBundlePath build/FieldTests.xcresult CODE_SIGNING_ALLOWED=NO
+        run: xcodebuild test -project RenkflowField.xcodeproj -scheme RenkflowField -destination "platform=iOS Simulator,id=$FIELD_SIMULATOR" -resultBundlePath build/FieldTests.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS="$PWD/RenkflowField/Simulator.entitlements"
       - name: Export iOS screenshots
         if: always()
         run: |
