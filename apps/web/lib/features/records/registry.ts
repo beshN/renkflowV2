@@ -142,6 +142,61 @@ export const RECORDS: Record<RecordType, Def> = {
       return [{ key: 'purchases', label: 'Satın alma', count: n(p.n), href: '/purchases' }];
     },
   },
+  lead: {
+    label: 'Potansiyel müşteri',
+    canView: (r) => ['owner', 'admin', 'office', 'accountant'].includes(r),
+    canEdit: (r) => OFFICE.includes(r),
+    auditTypes: ['lead'],
+    head: async (db, a, id) => {
+      const [l] = await optional('leads', () => db`SELECT lead_number, title, contact_name FROM leads WHERE tenant_id = ${a.tenantId} AND id = ${id}`);
+      return l?.lead_number ? { type: 'lead', id, title: `${l.lead_number} · ${l.title}`, subtitle: l.contact_name, href: `/leads?open=${id}` } : null;
+    },
+    related: async (db, a, id) => {
+      const [l] = await db`SELECT quotation_id, customer_id FROM leads WHERE tenant_id = ${a.tenantId} AND id = ${id}`;
+      const [s] = await db`SELECT count(*)::int AS n FROM site_surveys WHERE tenant_id = ${a.tenantId} AND lead_id = ${id} AND status <> 'cancelled'`;
+      return [
+        { key: 'surveys', label: 'Keşif', count: n(s.n), href: `/leads?open=${id}` },
+        ...(l?.quotation_id ? [{ key: 'quotation', label: 'Teklif', count: 1, href: `/quotations/${l.quotation_id}` }] : []),
+        ...(l?.customer_id ? [{ key: 'customer', label: 'Müşteri', count: 1, href: `/crm/${l.customer_id}` }] : []),
+      ];
+    },
+  },
+  installation: {
+    label: 'Montaj',
+    canView: (r) => ['owner', 'admin', 'office', 'accountant', 'worker'].includes(r),
+    canEdit: (r) => ['owner', 'admin', 'office', 'worker'].includes(r),
+    auditTypes: ['installation'],
+    head: async (db, a, id) => {
+      const [i] = await optional('installations', () => db`
+        SELECT i.installation_number, o.order_number FROM installations i JOIN orders o ON o.id = i.order_id AND o.tenant_id = i.tenant_id
+        WHERE i.tenant_id = ${a.tenantId} AND i.id = ${id} AND (${a.role !== 'worker'} OR ${a.userId}::uuid = ANY(i.crew))`);
+      // The crew sees the job by its number, not the customer behind the order.
+      return i?.installation_number ? { type: 'installation', id, title: i.installation_number, subtitle: a.role === 'worker' ? null : i.order_number, href: `/installations?open=${id}` } : null;
+    },
+    related: async (db, a, id) => {
+      const [i] = await db`SELECT order_id FROM installations WHERE tenant_id = ${a.tenantId} AND id = ${id}`;
+      const [t] = await db`SELECT count(*)::int AS n FROM service_tickets WHERE tenant_id = ${a.tenantId} AND installation_id = ${id}`;
+      return [
+        ...(i?.order_id && a.role !== 'worker' ? [{ key: 'order', label: 'Sipariş', count: 1, href: `/orders/${i.order_id}` }] : []),
+        { key: 'tickets', label: 'Servis', count: n(t.n), href: `/service` },
+      ];
+    },
+  },
+  service_ticket: {
+    label: 'Servis kaydı',
+    canView: (r) => ['owner', 'admin', 'office', 'accountant', 'worker'].includes(r),
+    canEdit: (r) => ['owner', 'admin', 'office', 'worker'].includes(r),
+    auditTypes: ['service_ticket'],
+    head: async (db, a, id) => {
+      const [t] = await optional('service_tickets', () => db`SELECT ticket_number, title FROM service_tickets WHERE tenant_id = ${a.tenantId} AND id = ${id}
+        AND (${a.role !== 'worker'} OR assigned_to = ${a.userId})`);
+      return t?.ticket_number ? { type: 'service_ticket', id, title: `${t.ticket_number} · ${t.title}`, subtitle: null, href: `/service?open=${id}` } : null;
+    },
+    related: async (db, a, id) => {
+      const [t] = await db`SELECT order_id FROM service_tickets WHERE tenant_id = ${a.tenantId} AND id = ${id}`;
+      return t?.order_id && a.role !== 'worker' ? [{ key: 'order', label: 'Sipariş', count: 1, href: `/orders/${t.order_id}` }] : [];
+    },
+  },
 };
 
 export const isRecordType = (v: string): v is RecordType => (RECORD_TYPES as readonly string[]).includes(v);

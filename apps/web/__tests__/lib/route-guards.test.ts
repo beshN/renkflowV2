@@ -26,6 +26,7 @@ const PUBLIC: Record<string, { why: string; keeps: RegExp | null }> = {
   'tenant/invite/validate': { why: 'davet jetonu kontrolü', keeps: /consumeRateLimit/ },
   'v1/public/quotes/[token]': { why: 'müşteri teklif bağlantısı (jeton)', keeps: /getClientIp/ },
   'v1/tracking/[token]': { why: 'müşteri takip bağlantısı (jeton)', keeps: /token/ },
+  'v1/public/signoff/[token]': { why: 'müşteri teslim imzası (jeton, hız sınırı servis katmanında)', keeps: /signDelivery/ },
   'v1/webhooks/resend': { why: 'imzalı webhook', keeps: /webhooks\.verify/ },
   'v1/webhooks/whatsapp': { why: 'imzalı webhook', keeps: /timingSafeEqual/ },
   'contact': { why: 'iletişim formu', keeps: /consumeRateLimit/ },
@@ -41,6 +42,7 @@ const PRICE_BEARING = [
   'orders', 'v1/orders', 'v1/quotations', 'v1/customers', 'v1/sales', 'v1/procurement', 'v1/purchases', 'v1/purchase-orders', 'v1/stock',
   'v1/inventory', 'v1/warehouse', 'v1/finance', 'v1/reports', 'analytics', 'v1/dashboard', 'v1/products', 'v1/boms', 'v1/production',
   'v1/suppliers', 'v1/goods-receipts', 'v1/shipments', 'v1/search', 'v1/records', 'v1/workspace', 'export', 'v1/ai', 'v1/settings', 'v1/activity-logs',
+  'v1/leads', 'v1/installations', 'v1/service',
 ];
 
 function routes(dir: string): string[] {

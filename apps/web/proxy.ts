@@ -20,6 +20,8 @@ const AUTH_SECRET =
  * the member gate of the current firm does not apply.
  */
 const GATE_EXEMPT_API = new Set(['/api/tenant/invite/validate', '/api/tenant/invite/accept']);
+const GATE_EXEMPT_API_PREFIXES = ['/api/v1/public/', '/api/v1/tracking/'];
+const gateExempt = (pathname: string) => GATE_EXEMPT_API.has(pathname) || GATE_EXEMPT_API_PREFIXES.some((p) => pathname.startsWith(p));
 
 const ACME_CHALLENGE_PREFIX = '/.well-known/acme-challenge/';
 
@@ -54,7 +56,7 @@ const PUBLIC_EXACT_PATHS = new Set([
   '/twitter-image',
 ]);
 
-const PUBLIC_PREFIXES = ['/blog/', '/docs/', '/public/', '/track/', '/teklif/'];
+const PUBLIC_PREFIXES = ['/blog/', '/docs/', '/public/', '/track/', '/teklif/', '/teslim/'];
 const AUTH_ENTRY_PAGES = new Set(['/auth/login', '/auth/forgot-password', '/auth/update-password', '/signup']);
 
 function isPublicPage(pathname: string): boolean {
@@ -247,7 +249,7 @@ export async function proxy(request: NextRequest) {
     return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
   }
 
-  if(privateAccessEmail() && (pathname.startsWith('/track/') || pathname.startsWith('/q/') || pathname.startsWith('/teklif/'))) {
+  if(privateAccessEmail() && (pathname.startsWith('/track/') || pathname.startsWith('/q/') || pathname.startsWith('/teklif/') || pathname.startsWith('/teslim/'))) {
     if(!(await isAuthenticated(request))) return withProxySecurityHeaders(buildLoginRedirect(request), {isSecureRequest});
   }
 
@@ -255,7 +257,7 @@ export async function proxy(request: NextRequest) {
     if(privateAccessEmail() && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/cron/') && !(await isAuthenticated(request))) return withProxySecurityHeaders(NextResponse.json({error:'Oturum açmanız gerekiyor.'},{status:401}),{isSecureRequest});
     // Exempt and auth paths still lose any hidden-field header a client sent.
     let next = await forwardHiddenFields(request, null);
-    if (!pathname.startsWith('/api/auth/') && !GATE_EXEMPT_API.has(pathname)) {
+    if (!pathname.startsWith('/api/auth/') && !gateExempt(pathname)) {
       const token = await sessionToken(request);
       const refused = await accessGate(request, token, pathname, method, isSecureRequest);
       if (refused) return refused;

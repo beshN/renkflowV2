@@ -195,7 +195,7 @@ export const FIELD_KEYS: Record<FieldGroup, string[]> = {
   price: [
     'unitPrice', 'unit_price', 'totalPrice', 'total_price', 'totalAmount', 'total_amount', 'subtotal', 'taxAmount', 'tax_amount',
     'discountAmount', 'discount_amount', 'price', 'prices', 'matrixUnitPrice', 'tryTotal', 'fxRate', 'fx_rate', 'amount', 'paid',
-    'payments', 'paymentStatus', 'payment_status', 'currency', 'total', 'grandTotal', 'cheapest', 'invoiceTotal', 'balance', 'collected',
+    'payments', 'paymentStatus', 'payment_status', 'currency', 'total', 'grandTotal', 'cheapest', 'invoiceTotal', 'balance', 'collected', 'estimatedValue', 'estimated_value',
   ],
   cost: ['cost', 'unitCost', 'unit_cost', 'costs', 'profileCost', 'profile_cost', 'costSnapshot', 'cost_snapshot', 'laborCostPerHour', 'labor_cost_per_hour', 'materialCost', 'laborCost', 'scrapCost'],
   profit: ['profit', 'margin', 'marginPercent', 'estimatedProfit', 'grossProfit'],
