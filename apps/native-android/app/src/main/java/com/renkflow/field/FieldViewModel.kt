@@ -80,7 +80,6 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         mutable.update { it.copy(busy=true,error=null) }
         viewModelScope.launch {
             try {
-                
                 api.me(auth);if(generation!=epoch) return@launch
                 lastValidation=System.currentTimeMillis();loadSnapshot(auth)
                 state.value.selectedId?.let { id-> val job=api.details(auth,id);cacheDetail(auth,job);if(generation==epoch && state.value.selectedId==id) mutable.update { it.copy(detail=overlayJob(job,offline.dao.pending(sessionScope(auth)))) } }
