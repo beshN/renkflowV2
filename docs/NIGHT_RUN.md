@@ -220,3 +220,21 @@ Kod göç uygulanmadan da açılır: ilgili ekran "veritabanı güncellemesi (04
    - Dokunmatik sürükle-bırak gerekli mi?
 4. **Ayarlar:** Üretim ayarlarında saatlik işçilik maliyeti (tahmini kâr için), müşteri kartlarında vade günü (`payment_terms`, yoksa 30 gün).
 5. **Sonraki tur önerisi:** Tur 5 (kayıtlı görünümler, faset filtre, toplu işlem, CSV içe/dışa aktarma, kayıtlı raporlar) — Alacaklar ve Faturalar CSV dışa aktarımı ilk adım olabilir.
+
+---
+
+# Gece 3 — Proaktif, onay kapılı AI asistanı (entegrasyon dalı `claude/n3-ai-assistant`, `claude/night-2`'den)
+
+Keşif: `ai_suggestions` kuyruğu (029), 4 öneri türü (kesim planı, sayım içe aktarma, satın alma taslağı, teslim edildi), onay/ret/düzenle + `ai_feedback_examples`, `ai_usage` maliyet kaydı, sağlayıcılar (openai `gpt-6-luna` varsayılan, gemini, glm), maskeleme (`privacy.ts`), sohbet asistanı, eval çatısı (`evals/`), sayım PDF'i deterministik ayrıştırıcı. Yok: firma bazlı AI kapat anahtarı, öncelik/ertele/kanıt alanları, bütçe, Cmd+K komutu (yalnız gezinme). Var olan genişletilir.
+
+### Plan (10 satır)
+1. AI-1 temel: göç 048 (öneriye dedektör/öncelik/kanıt/ertele/ret nedeni; `ai_settings`: mod kapalı/yalnız kural/asistan, bütçe, dedektör ayarları, KVKK onayı); saf dedektör çatısı + bastırma (açık varsa yok, reddedilince N gün sus, düşük kabul oranında seyrelt).
+2. AI-2 sekiz dedektör (geciken sipariş, eksik malzeme, bekleyen teklif, vadesi geçen alacak, fire anomalisi, kapasite, belge/bakım süresi, artık parça fırsatı): saf tespit + kanıt + şablon taslak mesaj + onayla uygulama; her biri için pozitif/negatif/bastırma testi.
+3. Mesajlar şablonla yazılır (kural modu); asistan modunda model yalnız üslubu düzeltir, kişisel veri yer tutucuyla maskelenir; gönderim bağlı değil → "Kopyala".
+4. AI-3 arayüz: Bugün kartları (ikon + tek cümle + kanıt rozetleri + Onayla/Düzenle/Ertele/Reddet), "Neden?" paneli (kanıt kayıtları, kural, güven; "bir daha önerme", "X güne çek"), Ayarlar'da AI modu + dedektör aç/kapa + performans paneli.
+5. AI-4 doğal dil komutları: önce deterministik Türkçe ayrıştırıcı, yetmezse model → JSON şeması (doğrulanır); motor sonucu önizler, onayla uygulanır; belirsizlikte seçenek; rol yetkisi aşılamaz. "Ya şöyle olsa?" (öne al, gün ekle, iptal) etki önizlemesi.
+6. AI-5 çıkarım: yapıştırılan mesaj → teklif taslağı, sayım PDF'i → sayım taslağı, tedarikçi PDF'i → RFQ cevap taslağı; alan bazında güven, düşük güven sarı.
+7. Eval seti ≥30 Türkçe örnek (argo/kısaltma) + sağlayıcı karşılaştırma scripti; sonuç tablosu raporda.
+8. AI-6 ekler: açıklanabilir fiyat aralığı + kâr tabanı uyarısı, müşteri hafızası (yalnız kayıtlardan, kaynaklı), rol bazlı sabah özeti, veri kalitesi bekçisi (≥4 sorun türü, geri alınabilir), usta sesli komut (destek yoksa gizli).
+9. Maliyet/güvenlik: firma/kullanıcı günlük bütçe + hız sınırı, kural yeterliyse model yok, önbellek, prompt enjeksiyonuna karşı yalnız şema çıktısı, AI kapalıyken sistem çalışır.
+10. Her tur: alt dal → PR → CI yeşil → /code-review → birleştir; testler kodla birlikte.
