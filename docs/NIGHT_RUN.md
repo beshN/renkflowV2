@@ -115,3 +115,15 @@ turA-drawer / turA-drawer-390 / turA-dashboard-activities / turA-settings · tur
 8. Şifre politikası (en az 10, harf+rakam, e-postayla aynı olamaz) davet kabul/sıfırlama/kayıtta; giriş denemesi sınırı mevcut.
 9. Denetim izi görüntüleyici `/audit`: kim/ne/ne zaman/kayıt, filtre, sayfalama, CSV (dışa aktarma yetkisi).
 10. Bildirim tercihleri (olay × kanal) kişi bazlı API + ekran. Testler: jest motor + `test:access` entegrasyon + sızıntı.
+
+### Tur 2 planı (10 satır) — CRM → keşif → teklif → sipariş → montaj → teslim imzası → garanti
+1. Göç 045 (idempotent): `leads`, `site_surveys` (ölçü json + teklif anındaki ölçü özeti), `installations` (ekip, gün/saat, durum, eksik/hasar, teslim imza jetonu özeti), `service_tickets` (garanti, parça, işçilik, çözüm süresi); `tenants.settings` içinde garanti süresi.
+2. Saf motor `lib/features/field/engine.ts`: aşama geçişleri (kayıp nedeni zorunlu), dönüşüm raporu (kaynağa göre), ürün ailesine göre ölçü alanları, ölçü farkı, montaj çakışması, garanti durumu, çözüm süresi, tekrar eden arıza.
+3. Kayıt platformu (Tur A) üç yeni kayıt türü alır: `lead`, `installation`, `service_ticket` → yorum, fotoğraf eki, kontrol listesi, etkinlik hazır.
+4. CRM: potansiyel müşteri hattı, takip etkinliği, keşif randevusu (adres + harita bağlantısı); kazanılınca müşteri kartı (mevcut eşleştirici) ve taslak teklif otomatik açılır.
+5. Ölçü formu ürün ailesine göre; teklif sonrası ölçü değişirse teklif ekranında fark uyarısı.
+6. Montaj: siparişten tek tıkla plan; ekip/gün takvimi (sürükle), çakışma uyarısı, kontrol listesi, eksik/hasar notu, fotoğraf.
+7. Teslim imzası: herkese açık jetonlu `/teslim/…` (fiyat yok, hız sınırlı); imzalanınca "siparişi teslim edildi yap" önerisi Önerilenler'e düşer (onay kapılı, durum makinesinden geçer).
+8. Servis/garanti: siparişten ya da montajdan tek tıkla kayıt; garanti teslim tarihi + süreye göre; parça/işçilik; çözüm süresi ve tekrar eden arıza raporu.
+9. Yetki: modüller `crm`, `installations`, `service` (Tur 1 matrisi); usta kendine atanan montajı görür, fiyat/müşteri iletişimi gizli kalır.
+10. Testler: motor jest + `test:chain` (lead → teklif → sipariş → montaj → imza → öneri onayı → garanti kaydı uçtan uca) + tarayıcı.
