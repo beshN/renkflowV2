@@ -2,6 +2,7 @@ import { redactedJson } from '@/lib/security/field-access.server';
 import { requireWorkOrderActor } from '@/lib/features/work-orders/security';
 import { dueActivities } from '@/lib/features/records/service';
 import { runRecordRules } from '@/lib/features/records/rules';
+import { runOverdueRule } from '@/lib/features/finance/receivables.server';
 import { NO_STORE, recordError } from '@/lib/features/records/http';
 
 export const dynamic = 'force-dynamic';
@@ -11,6 +12,8 @@ export async function GET() {
   try {
     const actor = await requireWorkOrderActor();
     await runRecordRules(actor.tenantId).catch((e) => console.error('[records:rules]', e instanceof Error ? e.message : e));
+    // Overdue invoices → a follow-up activity and a notice to the finance people (once per invoice).
+    await runOverdueRule(actor.tenantId).catch((e) => console.error('[finance] overdue rule', e instanceof Error ? e.message : e));
     return redactedJson(await dueActivities(actor), { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'activities');

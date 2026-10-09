@@ -101,10 +101,16 @@ export default function FinanceOverviewPage() {
                 <RefreshCw size={14} />
                 Veriyi yenile
               </Button>
-              <Link href="/finance/invoice">
+              <Link href="/finance/receivables">
+                <Button type="button" variant="secondary" size="sm">
+                  <Wallet size={14} />
+                  Alacaklar
+                </Button>
+              </Link>
+              <Link href="/finance/invoices">
                 <Button type="button" variant="primary" size="sm">
                   <FileText size={14} />
-                  Fatura listesi
+                  Faturalar
                 </Button>
               </Link>
             </div>
