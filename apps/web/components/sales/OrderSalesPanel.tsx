@@ -6,6 +6,7 @@ import { EmptyState, HintTip, ProgressRing, Skeleton, StatusChip } from '@/compo
 import { requestJson } from '@/lib/shared/network';
 import { formatCurrency, cn } from '@/lib/utils';
 import { money } from '@/lib/features/sales/engine';
+import { OrderMaterials } from '@/components/stock/OrderMaterials';
 
 type Line = { orderItemId: string; productName: string; quantity: number; delivered: number; remaining: number; deliveryStatus: 'open' | 'partial' | 'delivered'; unitPrice: number; widthMm: number | null; heightMm: number | null; color: string | null; workOrders: number };
 type Row = { seq: number; label: string; dueOn: string; amount: number; paid: number; remaining: number; state: 'paid' | 'partial' | 'overdue' | 'today' | 'planned' };
@@ -61,6 +62,8 @@ export function OrderSalesPanel({ orderId, canEdit, canPlan, onOrderChanged }: {
   return (
     <div className="space-y-4">
       {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm">{error}</p>}
+
+      <OrderMaterials orderId={orderId} />
 
       {/* Promise vs reality */}
       <section className="rf-panel space-y-3" aria-label="Termin">
