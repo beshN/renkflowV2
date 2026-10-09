@@ -8,6 +8,8 @@
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>UIBackgroundModes</key><array><string>processing</string></array>
+    <key>BGTaskSchedulerPermittedIdentifiers</key><array><string>com.renkflow.field.sync</string></array>
     <key>LSRequiresIPhoneOS</key><true/>
     <key>NSCameraUsageDescription</key><string>İş emirleri ve malzeme etiketlerindeki QR ve barkodları okumak için kamera kullanılır.</string>
     <key>NSPhotoLibraryUsageDescription</key><string>Seçtiğiniz iş fotoğrafını üretim ve kalite kaydına eklemek için fotoğraf seçici kullanılır.</string>

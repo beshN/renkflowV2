@@ -1,191 +1,254 @@
 package com.renkflow.field
 
 import android.app.Application
+import androidx.room.withTransaction
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.renkflow.field.data.*
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.*
+import java.time.Instant
 import java.util.UUID
 
 data class FieldState(
     val session: Session? = null, val restoring: Boolean = true, val busy: Boolean = false,
     val snapshot: Snapshot? = null, val detail: WorkOrder? = null, val selectedId: String? = null,
     val scan: ScanResult? = null, val error: String? = null, val message: String? = null,
-    val stale: Boolean = true, val updateRequired: Boolean = false, val pending: Command? = null
+    val stale: Boolean = true, val updateRequired: Boolean = false, val pending: Command? = null,
+    val outbox: List<OutboxRecord> = emptyList(), val syncing: Boolean = false,
+    val lastSync: Long? = null, val accessBlocked: Boolean = false
 )
-
 class FieldViewModel(application: Application) : AndroidViewModel(application) {
-    private val api = Api()
-    private val vault = Vault(application)
-    private val mutable = MutableStateFlow(FieldState())
-    val state = mutable.asStateFlow()
-    private var epoch = 0
-    private var lastValidation = 0L
+    private val api=Api()
+    private val vault=Vault(application)
+    private val offline=OfflineStore.get(application)
+    private val mutable=MutableStateFlow(FieldState())
+    val state=mutable.asStateFlow()
+    private var epoch=0
+    private var watcher: Job? = null
+    private var lastValidation=0L
     init { restore() }
-    private fun restore() {
-        val saved = vault.session()
-        if (saved == null || saved.expiresAt <= System.currentTimeMillis()) { vault.clear(); mutable.value = FieldState(restoring = false); return }
-        mutable.update { it.copy(session = saved, pending = vault.pending(), busy = true) }
+    private suspend fun attach(session: Session) {
+        offline.prepare()
+        offline.migrateLegacy(session,vault.pending());vault.clearPending()
+        val scope=sessionScope(session)
+        watcher?.cancel();watcher=viewModelScope.launch { offline.dao.watch(scope).collect { rows->mutable.update { it.copy(outbox=rows) } } }
+        val snapshot=offline.dao.cache(scope,"snapshot")?.let { runCatching { fieldJson.decodeFromString<Snapshot>(it.payload) }.getOrNull() }
+        val lastSync=offline.dao.cache(scope,"last-sync")?.payload?.toLongOrNull()
+        mutable.update { it.copy(snapshot=snapshot,lastSync=lastSync,stale=true) }
+        FieldSyncWorker.schedule(getApplication())
+    }
+    private fun restore() = viewModelScope.launch {
+        val saved=vault.session()
+        if(saved==null) { mutable.value=FieldState(restoring=false);return@launch }
+        mutable.update { it.copy(session=saved) }
+        try { attach(saved); mutable.update { it.copy(restoring=false) }; refresh() }
+        catch(e: Exception) { fail(e);mutable.update { it.copy(restoring=false) } }
+    }
+    fun login(server: String,email: String,password: String) {
+        if(state.value.busy) return
+        mutable.update { it.copy(busy=true,error=null) }
         viewModelScope.launch {
             try {
-                val user = api.me(saved)
-                val session = saved.copy(user = user)
-                vault.saveSession(session)
-                mutable.update { it.copy(session = session) }
-                loadSnapshot(session)
-                lastValidation = System.currentTimeMillis()
-            } catch (e: Exception) { fail(e) }
-            finally { mutable.update { it.copy(restoring = false, busy = false) } }
+                val origin=normalizeServer(server)
+                val result=api.login(origin,email.trim().lowercase(),password)
+                val auth=Session(origin,result.accessToken,System.currentTimeMillis()+result.expiresIn*1000,result.user)
+                val verified=auth.copy(user=api.me(auth))
+                vault.clear();vault.saveSession(verified);epoch++
+                mutable.value=FieldState(session=verified,restoring=false,busy=true)
+                attach(verified);loadSnapshot(verified);lastValidation=System.currentTimeMillis()
+                mutable.update { it.copy(busy=false) };sync()
+            } catch(e: Exception) { fail(e) }
+            finally { mutable.update { it.copy(busy=false) } }
         }
     }
-    fun login(server: String, email: String, password: String) {
-        if (state.value.busy) return
-        mutable.update { it.copy(busy = true, error = null) }
-        viewModelScope.launch {
-            try {
-                val host = normalizeServer(server)
-                val result = api.login(host, email.trim().lowercase(), password)
-                require(result.user.role in listOf("owner", "admin", "office", "worker")) { "Bu hesap saha uygulamasına erişemiyor." }
-                val session = Session(host, result.accessToken, System.currentTimeMillis() + result.expiresIn * 1000, result.user)
-                val verified = session.copy(user = api.me(session))
-                vault.clear(); vault.saveSession(verified)
-                epoch++
-                mutable.value = FieldState(session = verified, restoring = false, busy = true)
-                loadSnapshot(verified)
-                lastValidation = System.currentTimeMillis()
-            } catch (e: Exception) { fail(e) }
-            finally { mutable.update { it.copy(busy = false) } }
-        }
-    }
-    fun logout() { epoch++; vault.clear(); mutable.value = FieldState(restoring = false) }
-    fun dismiss() { mutable.update { it.copy(error = null, message = null) } }
-    fun foreground() { if (System.currentTimeMillis() - lastValidation > 60_000) refresh() }
+    fun logout() { epoch++;watcher?.cancel();FieldSyncWorker.cancel(getApplication());vault.clear();mutable.value=FieldState(restoring=false) }
+    fun dismiss() { mutable.update { it.copy(error=null,message=null) } }
+    fun foreground() { if(System.currentTimeMillis()-lastValidation>60_000) refresh() else sync() }
     fun refresh() {
-        val session = state.value.session ?: return
-        if (state.value.busy) return
-        val generation = epoch
-        mutable.update { it.copy(busy = true, error = null) }
+        val auth=state.value.session ?: return
+        if(state.value.busy) return
+        val generation=epoch
+        mutable.update { it.copy(busy=true,error=null) }
         viewModelScope.launch {
             try {
-                if (session.expiresAt <= System.currentTimeMillis()) throw ApiException(401, "Oturumunuz sona erdi.")
-                api.me(session)
-                if (generation != epoch) return@launch
-                lastValidation = System.currentTimeMillis()
-                loadSnapshot(session)
-                state.value.selectedId?.let { id ->
-                    val detail = api.details(session, id)
-                    if (generation == epoch && state.value.selectedId == id) mutable.update { it.copy(detail = detail) }
-                }
-            } catch (e: Exception) { if (generation == epoch) fail(e) }
-            finally { if (generation == epoch) mutable.update { it.copy(busy = false) } }
+                if(auth.expiresAt<=System.currentTimeMillis()) throw ApiException(401,"Oturumunuz sona erdi.")
+                api.me(auth);if(generation!=epoch) return@launch
+                lastValidation=System.currentTimeMillis();loadSnapshot(auth)
+                state.value.selectedId?.let { id-> val job=api.details(auth,id);cacheDetail(auth,job);if(generation==epoch && state.value.selectedId==id) mutable.update { it.copy(detail=overlayJob(job,offline.dao.pending(sessionScope(auth)))) } }
+                mutable.update { it.copy(accessBlocked=false,busy=false) };sync()
+            } catch(e: Exception) { if(generation==epoch) fail(e) }
+            finally { if(generation==epoch) mutable.update { it.copy(busy=false) } }
         }
     }
-    private suspend fun loadSnapshot(session: Session) {
-        val generation = epoch
-        val snapshot = api.snapshot(session)
-        if (generation == epoch) mutable.update { it.copy(snapshot = snapshot, stale = false) }
+    private suspend fun loadSnapshot(auth: Session) {
+        val generation=epoch
+        var snapshot=api.snapshot(auth)
+        val scope=sessionScope(auth)
+        for(row in offline.dao.pending(scope)) snapshot=overlay(snapshot,row)
+        offline.db.withTransaction {
+            offline.save(scope,"snapshot",fieldJson.encodeToString(snapshot))
+            snapshot.workOrders.forEach { cacheDetail(auth,it) }
+            offline.save(scope,"last-sync",System.currentTimeMillis().toString())
+        }
+        if(generation==epoch) mutable.update { it.copy(snapshot=snapshot,stale=false,lastSync=System.currentTimeMillis()) }
+        val references=api.raw(auth.server,auth.token,"references").jsonObject
+        offline.save(scope,"references",references.toString())
+        offline.save(scope,"notifications/preferences",api.raw(auth.server,auth.token,"notifications/preferences").toString())
+        if(references["capabilities"]?.jsonObject?.get("installations")?.jsonPrimitive?.booleanOrNull==true) offline.save(scope,"installations",api.raw(auth.server,auth.token,"installations").toString())
     }
+    private suspend fun cacheDetail(auth: Session,job: WorkOrder) = offline.save(sessionScope(auth),"job:${job.id}",fieldJson.encodeToString(job))
     fun openJob(id: String) {
-        val session = state.value.session ?: return
-        val generation = epoch
-        mutable.update { it.copy(selectedId = id, detail = null, error = null) }
+        val auth=state.value.session ?: return
+        val generation=epoch
+        mutable.update { it.copy(selectedId=id,detail=null,error=null) }
         viewModelScope.launch {
-            try {
-                val detail = api.details(session, id)
-                if (generation == epoch && state.value.selectedId == id) mutable.update { it.copy(detail = detail) }
-            } catch (e: Exception) { if (generation == epoch) fail(e) }
+            val cached=offline.dao.cache(sessionScope(auth),"job:$id")?.let { runCatching { fieldJson.decodeFromString<WorkOrder>(it.payload) }.getOrNull() }
+            if(generation==epoch && state.value.selectedId==id) mutable.update { it.copy(detail=cached) }
+            try { val job=overlayJob(api.details(auth,id),offline.dao.pending(sessionScope(auth)));cacheDetail(auth,job);if(generation==epoch&&state.value.selectedId==id) mutable.update { it.copy(detail=job) } }
+            catch(e: Exception) { if(generation==epoch) fail(e) }
         }
     }
-    fun closeJob() { mutable.update { it.copy(selectedId = null, detail = null) } }
-    fun scan(code: String) = perform { session ->
-        require(code.trim().isNotEmpty() && code.length <= 1000) { "Geçerli bir etiket kodu girin." }
-        mutable.update { it.copy(scan = null) }
-        val result = api.scan(session, code.trim())
-        mutable.update { it.copy(scan = result) }
-    }
-    fun checklist(item: ChecklistItem) {
-        val id = state.value.selectedId ?: return
-        performMutation("work-orders/$id/checklist/${item.id}", buildJsonObject { put("completed", !item.completed) }.toString())
-    }
-    fun comment(text: String, onSaved: () -> Unit = {}) {
-        val id = state.value.selectedId ?: return
-        if (text.trim().length !in 1..2000) return
-        performMutation("work-orders/$id/comments", buildJsonObject { put("body", text.trim()) }.toString(), onSaved)
-    }
-    fun transition(status: String, reason: String? = null) {
-        val id = state.value.selectedId ?: return
-        performMutation("work-orders/$id/transition", buildJsonObject {
-            put("status", status)
-            if (status == "blocked") { put("blockedReasonCategory", "other"); put("blockedReasonDetail", reason.orEmpty().trim()) }
-        }.toString())
-    }
-    private fun performMutation(path: String, body: String, onSaved: () -> Unit = {}) = perform(writing = true) { session ->
-        api.raw(session.server, session.token, "field/$path", body)
-        onSaved()
-        mutable.update { it.copy(message = "İşlem kaydedildi.") }
-        reloadAfterWrite(session)
-    }
-    fun command(input: OperationInput) {
-        if (state.value.busy || state.value.stale || state.value.pending != null || state.value.session == null) return
-        val command = Command(UUID.randomUUID().toString(), data = input)
-        try { vault.savePending(command) } catch (e: Exception) { fail(e); return }
-        mutable.update { it.copy(pending = command) }
-        retryCommand()
-    }
-    fun retryCommand() {
-        val command = state.value.pending ?: return
-        perform(writing = true, retry = true) { session ->
-            try {
-                val result = api.command(session, command)
-                vault.clearPending()
-                mutable.update { it.copy(pending = null, message = if (result.qualityRejected) "Kalite kontrol başarısız. Operasyon bloke edildi." else "Üretim işlemi kaydedildi.") }
-                reloadAfterWrite(session)
-            } catch (e: ApiException) {
-                if (e.status in listOf(400, 403, 404, 409, 413, 415)) { vault.clearPending(); mutable.update { it.copy(pending = null) } }
-                throw e
+    fun closeJob() { mutable.update { it.copy(selectedId=null,detail=null) } }
+    fun scan(code: String) {
+        val auth=state.value.session ?: return
+        viewModelScope.launch {
+            try { require(code.trim().isNotEmpty() && code.length<=1000) { "Geçerli bir etiket kodu girin." };val result=api.scan(auth,code.trim());offline.save(sessionScope(auth),"scan:${code.trim()}",fieldJson.encodeToString(result));mutable.update { it.copy(scan=result) } }
+            catch(e: Exception) {
+                val cached=offline.dao.cache(sessionScope(auth),"scan:${code.trim()}")?.let { runCatching { fieldJson.decodeFromString<ScanResult>(it.payload) }.getOrNull() }
+                if(cached!=null) mutable.update { it.copy(scan=cached,stale=true) } else fail(e)
             }
         }
     }
-    fun uploadPhoto(jobId: String, base64: String, onUploaded: (String) -> Unit) = perform(writing = true) { session ->
-        require(base64.length <= 2_800_000) { "Fotoğraf çok büyük. Daha küçük bir fotoğraf seçin." }
-        onUploaded(api.photo(session, PhotoInput(base64 = base64, workOrderId = jobId)).url)
+    fun checklist(item: ChecklistItem) { val job=state.value.detail ?: return;enqueue("checklist",job.id,buildJsonObject { put("itemId",item.id);put("completed",!item.completed);put("expectedCompleted",item.completed) }) }
+    fun comment(text: String,onSaved: ()->Unit = {}) {
+        val job=state.value.detail ?: return
+        if(text.trim().length !in 1..2000) return
+        enqueue("comment",job.id,buildJsonObject { put("body",text.trim()) },onSaved)
     }
-    private suspend fun reloadAfterWrite(session: Session) {
-        try {
-            loadSnapshot(session)
-            val id = state.value.selectedId
-            if (id != null) {
-                val detail = api.details(session, id)
-                if (state.value.selectedId == id) mutable.update { it.copy(detail = detail) }
-            }
-        } catch (e: Exception) { fail(e) }
+    fun transition(status: String,reason: String?=null) {
+        val job=state.value.detail ?: return
+        val revision=job.updatedAt ?: return
+        enqueue("transition",job.id,buildJsonObject { put("status",status);put("expectedUpdatedAt",revision);if(status=="blocked") {put("blockedReasonCategory","other");put("blockedReasonDetail",reason.orEmpty().trim())} })
     }
-    private fun perform(writing: Boolean = false, retry: Boolean = false, action: suspend (Session) -> Unit) {
-        val session = state.value.session ?: return
-        if (state.value.busy || (writing && !retry && (state.value.stale || state.value.pending != null))) return
-        val generation = epoch
-        mutable.update { it.copy(busy = true, error = null) }
+    fun command(input: OperationInput) = enqueue("operation",null,fieldJson.encodeToJsonElement(input).jsonObject)
+    private fun writable() = state.value.session!=null && !state.value.updateRequired && !state.value.accessBlocked && state.value.snapshot?.permissions?.transition==true
+    private fun enqueue(kind: String,jobId: String?,data: JsonObject,onSaved: ()->Unit = {}) {
+        val auth=state.value.session ?: return
+        if(!writable()) return
+        val generation=epoch
         viewModelScope.launch {
             try {
-                if (session.expiresAt <= System.currentTimeMillis()) throw ApiException(401, "Oturumunuz sona erdi.")
-                action(session)
-            } catch (e: Exception) { if (generation == epoch) fail(e) }
-            finally { if (generation == epoch) mutable.update { it.copy(busy = false) } }
+                val request=SyncRequest(UUID.randomUUID().toString(),kind,data,jobId)
+                val row=OutboxRecord(scope=sessionScope(auth),commandId=request.idempotencyKey,kind=kind,payload=fieldJson.encodeToString(request))
+                val current=state.value
+                val snapshot=current.snapshot?.let { overlay(it,row) }
+                val detail=current.detail?.let { overlayJob(it,listOf(row)) }
+                val cache=buildMap<String,String> { snapshot?.let { put("snapshot",fieldJson.encodeToString(it)) }; detail?.let { put("job:${it.id}",fieldJson.encodeToString(it)) } }
+                offline.enqueueWithCache(sessionScope(auth),request,cache)
+                if(generation==epoch) { mutable.update { it.copy(snapshot=snapshot,detail=detail,message="İşlem cihazda kaydedildi.") };onSaved();FieldSyncWorker.schedule(getApplication());sync() }
+            } catch(e: Exception) { if(generation==epoch) fail(e) }
+        }
+    }
+    fun retryCommand() = sync()
+    fun sync() {
+        val auth=state.value.session ?: return
+        if(state.value.syncing || state.value.updateRequired) return
+        val generation=epoch
+        mutable.update { it.copy(syncing=true) }
+        viewModelScope.launch {
+            try {
+                val result=OutboxSync(offline,object: OutboxSender {
+                    private val sender=APIOutboxSender(offline,api,auth)
+                    override suspend fun send(record: OutboxRecord): String? { if(generation!=epoch) throw CancellationException();return sender.send(record) }
+                }).drain(sessionScope(auth))
+                if(generation==epoch && (result.delivered>0 || offline.dao.pending(sessionScope(auth)).any { it.state in listOf("conflict","blocked") })) { loadSnapshot(auth);state.value.selectedId?.let { id->val job=overlayJob(api.details(auth,id),offline.dao.pending(sessionScope(auth)));cacheDetail(auth,job);mutable.update { it.copy(detail=job) } } }
+                if(result.retry && generation==epoch) { mutable.update { it.copy(stale=true) };FieldSyncWorker.schedule(getApplication()) }
+            } catch(e: Exception) { if(generation==epoch) fail(e) }
+            finally { if(generation==epoch) mutable.update { it.copy(syncing=false) } }
+        }
+    }
+    fun uploadPhoto(jobId: String,base64: String,onUploaded: (String)->Unit) {
+        val auth=state.value.session ?: return
+        if(!writable()) return
+        viewModelScope.launch {
+            try {
+                require(base64.length<=2_800_000) { "Fotoğraf çok büyük." }
+                val id=UUID.randomUUID().toString()
+                offline.dao.enqueue(OutboxRecord(scope=sessionScope(auth),commandId=id,kind="photo",payload=fieldJson.encodeToString(LocalPhoto(jobId,base64))))
+                onUploaded("local://$id");FieldSyncWorker.schedule(getApplication());sync()
+            } catch(e: Exception) { fail(e) }
+        }
+    }
+    fun discard(row: OutboxRecord) = viewModelScope.launch {
+        if(row.scope!=state.value.session?.let(::sessionScope) || row.state=="sending") return@launch
+        offline.dao.update(row.copy(state="delivered",reason="Kullanıcı vazgeçti.",canRetry=false));refresh();sync()
+    }
+    fun reapply(row: OutboxRecord) {
+        val auth=state.value.session ?: return
+        if(!row.canRetry || row.state!="conflict" || row.scope!=sessionScope(auth) || state.value.busy) return
+        mutable.update {it.copy(busy=true)}
+        viewModelScope.launch {
+            try {
+                val request=fieldJson.decodeFromString<SyncRequest>(row.payload)
+                // Fetch current data; never reuse the stale revision or bypass assignment/closed checks.
+                val fresh=api.snapshot(auth)
+                require(fresh.permissions.transition) { "Yazma yetkiniz yok." }
+                val data=when(request.kind) {
+                    "operation"-> { val op=fresh.operations.firstOrNull { it.id==request.data["operationId"]?.jsonPrimitive?.content } ?: throw ApiException(404,"Operasyon artık size atanmamış.");require(op.status!="done");JsonObject(request.data.toMutableMap().apply { put("version",JsonPrimitive(op.version)) }) }
+                    "checklist"-> { val job=api.details(auth,request.workOrderId!!);require(job.status !in listOf("done","cancelled"));val item=job.checklist.first { it.id==request.data["itemId"]?.jsonPrimitive?.content };JsonObject(request.data.toMutableMap().apply { put("expectedCompleted",JsonPrimitive(item.completed)) }) }
+                    "transition"-> { val job=api.details(auth,request.workOrderId!!);require(job.status !in listOf("done","cancelled"));JsonObject(request.data.toMutableMap().apply { put("expectedUpdatedAt",JsonPrimitive(job.updatedAt!!)) }) }
+                    else->throw IllegalArgumentException("Bu işlem yeniden uygulanamaz.")
+                }
+                offline.db.withTransaction {
+                    val current=offline.dao.find(sessionScope(auth),row.commandId)
+                    check(current?.state=="conflict" && state.value.session?.let(::sessionScope)==sessionScope(auth)) { "İşlem zaten çözüldü." }
+                    val next=request.copy(idempotencyKey=UUID.randomUUID().toString(),data=data)
+                    offline.dao.enqueue(OutboxRecord(scope=sessionScope(auth),commandId=next.idempotencyKey,kind=next.kind,payload=fieldJson.encodeToString(next),position=row.position))
+                    offline.dao.update(row.copy(state="delivered",reason="Yeni işlemle yeniden gönderildi."))
+                }
+                FieldSyncWorker.schedule(getApplication());sync()
+            } catch(e: Exception) { fail(e) }
+            finally {mutable.update {it.copy(busy=false)}}
         }
     }
     private fun fail(error: Exception) {
-        if (error is CancellationException) throw error
-        if (error is ApiException && error.status == 426) {
-            mutable.update { it.copy(updateRequired = true, stale = true, error = null) }; return
-        }
-        if (error is ApiException && error.status == 401) {
-            logout(); mutable.update { it.copy(error = "Oturumunuz sona erdi. Yeniden giriş yapın.") }
-        } else mutable.update { it.copy(error = if (error is java.io.IOException) "Bağlantı kurulamadı. Son veriler gösteriliyor; yenilemeyi deneyin." else error.message ?: "İşlem tamamlanamadı.", stale = true) }
+        if(error is CancellationException) throw error
+        if(error is ApiException && error.status==426) {mutable.update {it.copy(updateRequired=true,stale=true,error=null)};return}
+        if(error is ApiException && error.status==401) { logout();mutable.update {it.copy(error="Oturum sona erdi. Bekleyen kayıtlarınız cihazda korunuyor; yeniden giriş yapın.")} }
+        else mutable.update { it.copy(error=if(error is java.io.IOException) "Çevrimdışısınız. İşlemler cihazda saklanıyor." else error.message ?: "İşlem tamamlanamadı.",stale=true,accessBlocked=it.accessBlocked || error is ApiException && error.status==403) }
     }
+}
+private fun overlayJob(job: WorkOrder,rows: List<OutboxRecord>): WorkOrder {
+    var result=job
+    for(row in rows) {
+        if(row.state !in listOf("pending","sending")) continue
+        val request=runCatching { fieldJson.decodeFromString<SyncRequest>(row.payload) }.getOrNull() ?: continue
+        if(request.workOrderId!=job.id) continue
+        val data=request.data
+        result=when(request.kind) {
+            "checklist"->result.copy(checklist=result.checklist.map { if(it.id==data["itemId"]?.jsonPrimitive?.content) it.copy(completed=data["completed"]!!.jsonPrimitive.boolean) else it })
+            "comment"->result.copy(comments=result.comments+Comment(row.commandId,data["body"]!!.jsonPrimitive.content,"Siz",Instant.ofEpochMilli(row.createdAt).toString()))
+            "transition"->result.copy(status=data["status"]!!.jsonPrimitive.content,blockedReasonDetail=data["blockedReasonDetail"]?.jsonPrimitive?.contentOrNull)
+            else->result
+        }
+    }
+    return result.copy(checklistCompleted=result.checklist.count {it.completed})
+}
+private fun overlay(snapshot: Snapshot,row: OutboxRecord): Snapshot {
+    if(row.state !in listOf("pending","sending")) return snapshot
+    val request=runCatching {fieldJson.decodeFromString<SyncRequest>(row.payload)}.getOrNull() ?: return snapshot
+    return snapshot.copy(workOrders=snapshot.workOrders.map {overlayJob(it,listOf(row))},operations=if(request.kind!="operation") snapshot.operations else snapshot.operations.map { op->
+        val input=runCatching {fieldJson.decodeFromJsonElement<OperationInput>(request.data)}.getOrNull()
+        if(input==null || op.id!=input.operationId || op.version!=input.version) op else {
+            val rejected=input.qualityResults.any {it.passed==false}
+            val total=op.completedQty+if(input.action=="complete"&&!rejected) (input.quantity?:0) else 0
+            val status=when(input.action) {"start"->"running";"pause"->"paused";else->if(rejected) "blocked" else if(total>=op.plannedQty) "done" else "paused"}
+            op.copy(status=status,completedQty=total,version=op.version+1,activeSince=if(status=="running") Instant.now().toString() else null)
+        }
+    })
 }

@@ -12,7 +12,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
-class ApiException(val status: Int, message: String) : Exception(message)
+class ApiException(val status: Int, message: String, val canRetry: Boolean = false) : Exception(message)
 val fieldJson = Json { ignoreUnknownKeys = true; explicitNulls = false; encodeDefaults = true }
 
 fun normalizeServer(input: String): String {
@@ -32,7 +32,7 @@ class Api(private val client: OkHttpClient = OkHttpClient.Builder().connectTimeo
         client.newCall(request).execute().use { response ->
             val text = response.body?.string().orEmpty()
             val json = runCatching { fieldJson.parseToJsonElement(text).jsonObject }.getOrNull()
-            if (!response.isSuccessful) throw ApiException(response.code, json?.get("error")?.jsonPrimitive?.contentOrNull ?: "İşlem tamamlanamadı (${response.code}).")
+            if (!response.isSuccessful) throw ApiException(response.code, json?.get("error")?.jsonPrimitive?.contentOrNull ?: "İşlem tamamlanamadı (${response.code}).", json?.get("canRetry")?.jsonPrimitive?.booleanOrNull == true)
             json?.get("data") ?: throw ApiException(502, "Sunucudan beklenmeyen yanıt alındı.")
         }
     }
