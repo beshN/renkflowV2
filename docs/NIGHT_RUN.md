@@ -158,3 +158,65 @@ turA-drawer / turA-drawer-390 / turA-dashboard-activities / turA-settings · tur
 10. Testler: motor jest + `test:finance` (kısmi fatura, aşım reddi, kes/iptal, tahsilat yöntemleri, yaşlandırma, ekstre, vadesi geçen → etkinlik + bildirim, kâr, usta göremez) + tarayıcı.
 
 | 2026-10-09 (Tur 4) | bitti → PR | Göç 047, motor (14 test), siparişten kısmi taslak fatura → kes (FTR-000001) → iptal/taslak sil, tahsilat (nakit/havale/çek+vade/kart, dönem kilidi), Alacaklar (müşteri bazlı yaşlandırma 0–30/31–60/60+), yazdırılabilir fatura ve ekstre, vadesi geçen → siparişe 'ara' etkinliği + finans rollerine bildirim (bir kez), tahmini kâr (uydurma yok; maliyet yoksa 'hesaplanamadı'). `test:finance` yeşil, tarayıcıda yürütüldü (usta 404, planlama 403, sekme yok). /code-review 10 bulgu, hepsi düzeltildi (teklif genel iskontosu, ondalık yuvarlama, faturaya bağlı tahsilat, iptal ekstrede ters kayıt, etkinlikte fatura no/tutar yok, finans hücresi olmayana bildirim yok, dönem kilidi FOR SHARE, fatura kilidi, 'total' sızıntısı, kalemsiz siparişte serbest satır). |
+| 2026-10-09 (Tur 3) | bitti | PR #51 `claude/night-2`'ye birleşti (CI yeşil). |
+| 2026-10-09 (Tur 4) | bitti | PR #52 `claude/night-2`'ye birleşti (CI yeşil). |
+| 2026-10-09 (Tur 5) | yapılmadı | Öncelik 1–4'e verildi; "sonra". |
+
+---
+
+## SABAH RAPORU — Gece 2
+
+### Turlar
+| Tur | Durum | PR (`claude/night-2`'ye) | Özet |
+|---|---|---|---|
+| 1 — Yetki / güvenlik | **bitti** | #49 | 9 hazır rol + özel rol (yalnız daraltır), proxy tek kapı + `access_denied` izi, pasif üye / oturum iptali, alan gizleme (fiyat/maliyet/kâr/iletişim) 75 rotada, rota taraması + sızıntı testleri, `/team`, `/account`, `/audit` (CSV), şifre politikası, bildirim tercihleri |
+| 2 — Satış → montaj → servis | **bitti** | #50 | Potansiyel müşteri hattı + keşif/ölçü, kazanınca müşteri + taslak teklif, ölçü farkı uyarısı, montaj takvimi + çakışma, herkese açık teslim imzası `/teslim/…` (fiyatsız), onay kapılı "teslim edildi" önerisi, servis/garanti + tekrar eden arıza |
+| 3 — Araç filosu (yalnız sahip/yönetici) | **bitti** | #51 | ADR 0003, araç kartları + 6 sekme, belge uyarısı 30/15/7, bakım/yakıt maliyeti, montaja araç atama + çakışma, panoda araç sağlığı; Faz B altyapısı: cihaz jetonu, `POST /api/telemetry/ingest`, güzergâh/durak/km motoru, OSM harita, saklama (365 gün / süresiz) |
+| 4 — Finans temeli | **bitti** | #52 | Siparişten kısmi taslak fatura → kes → iptal, tahsilat (nakit/havale/çek+vade/kart), müşteri bazlı açık bakiye + yaşlandırma, ekstre, vadesi geçen → etkinlik + bildirim, sipariş tahmini kârı; e-fatura **bağlanmadı** |
+| 5 — Görünümler / CSV / raporlar | **yapılmadı** | — | Öncelik 1–4'e verildi; "sonra" |
+
+### Göçler (hepsi idempotent: `IF NOT EXISTS` ekleme, veri yeniden yazılmıyor; `scripts/ensure-backend-schema.ts` listesinde sırayla; yerel test veritabanında ikişer kez uygulandı)
+| No | Dosya | Ne ekliyor |
+|---|---|---|
+| 044 | `044_access_control.sql` | `access_roles`, `tenant_members.access_role / deactivated_at`, `users.sessions_valid_after`, `user_sessions`, davet rolü |
+| 045 | `045_sales_service_chain.sql` | `leads`, `site_surveys`, `installations` (+ imza jetonu özeti), `service_tickets` |
+| 046 | `046_fleet.sql` | `vehicles`, `vehicle_documents`, `vehicle_maintenance`, `vehicle_fuel`, `vehicle_assignments`, `vehicle_devices`, `vehicle_positions`, `fleet_settings` |
+| 047 | `047_finance_foundation.sql` | `invoices`, `invoice_lines`; `payments`'a `invoice_id`, `reference`, `cheque_due_on` |
+
+Kod göç uygulanmadan da açılır: ilgili ekran "veritabanı güncellemesi (04x) bekleniyor" der.
+
+### İş kuralları ve testler
+- Birim testler (jest): Gece 1 sonu **609** → Gece 2 sonu **691** (97 suite). Yeni motor testleri: yetki matrisi + rota taraması + sızıntı, saha zinciri 11, filo 15, finans 14.
+- Entegrasyon (yalnız yerel Postgres, `renkflow_test`): `test:access`, `test:chain`, `test:fleet`, `test:finance` — hepsi yeşil; her biri rol testleri içerir (usta ve yetkisiz roller 404/403).
+- Her tur: `validate` yeşil, CI yeşil, /code-review yapıldı (4 × 10 bulgu, hepsi gerçek ve düzeltildi, çoğu teste bağlandı), tarayıcıda masaüstü + 390 px (koyu) denendi.
+- Fiyat/müşteri usta DTO'larına girmiyor; tek denetim izi `activity_logs`; öneriler onay kapılı (teslim edildi önerisi durum makinesinden geçer).
+
+### Bilinen boşluklar
+- **Bağlanmayan dış servisler** (arayüzde "bağlanmadı" yazar, gerçekmiş gibi gösterilmez): e-fatura/e-arşiv (GİB), araç takip cihazı / sağlayıcı, TCP→HTTP ağ geçidi (yalnız ADR'de), imza bağlantısının SMS/e-postayla gönderimi.
+- Konum verisi için KVKK aydınlatma metni ve sürücü onayı akışı yok.
+- Harita karoları geliştirme için `tile.openstreetmap.org`; production'da yoğun kullanım için `NEXT_PUBLIC_MAP_TILE_URL` ile ücretli/kendi sunucu gerekir.
+- Finans: yalnız TL alacaklar yaşlandırılır; faturasız eski tahsilatlar müşterinin avansı görünür; eski sahte fatura listesi `/finance/invoice` menüden kaldırıldı ama dosya duruyor.
+- Tahmini kâr malzeme lotu + üretim süresi + yeniden işlemeyle sınırlı; saat ücreti Üretim ayarlarından girilmezse işçilik "bilinmiyor".
+- Montaj takviminde dokunmatik sürükle-bırak yok (masaüstünde sürükle-bırak var).
+- Yerelde üretim modunda davet e-postası localhost adresine gönderilemiyor (ortam kuralı, kod hatası değil).
+
+### Ekran görüntüleri (`docs/night-run/gece2/`, yalnız sentetik test verisi)
+- Tur 1: tur1-team, tur1-team-390-dark, tur1-invites, tur1-account(-390), tur1-audit(-390), tur1-planning-orders
+- Tur 2: tur2-leads-board, tur2-leads-390-dark, tur2-lead-detail, tur2-leads-report, tur2-quote-warning, tur2-installation(s-390), tur2-worker-installations-390, tur2-signoff-390, tur2-order-chain, tur2-service
+- Tur 3: tur3-fleet, tur3-fleet-390-dark, tur3-vehicle-general, tur3-vehicle-390-dark, tur3-documents, tur3-assignments, tur3-location
+- Tur 4: tur4-order-billing, tur4-order-billing-390-dark, tur4-receivables, tur4-receivables-390-dark, tur4-invoice, tur4-statement
+
+### Senin için liste
+1. **Birleştirme sırası:** yalnız `claude/night-2` → `main`. (`night-2`, `main`'i ve `claude/trello-odoo`'yu zaten içeriyor; `trello-odoo`'yu ayrıca birleştirmen gerekmez.)
+2. **Göç sırası (production Neon'a sen uygularsın):** Gece 1'in 037 → 043'ü uygulanmadıysa önce onlar, sonra **044 → 045 → 046 → 047**. Hepsi tekrar çalıştırılabilir; veri silmez/yeniden yazmaz.
+3. **Kararlar:**
+   - Usta montaj görünümünde şantiye adresini görsün mü? (şu an görüyor; telefon/fiyat görmüyor)
+   - Araç takip: cihaz/sağlayıcı seçimi (ADR 0003: kendi cihaz + ağ geçidi önerisi) ve ağ geçidinin nerede çalışacağı (VPS?).
+   - Harita karo sağlayıcısı (production).
+   - Konum verisi için KVKK aydınlatma/sürücü onayı metni.
+   - Teslim imza bağlantısı SMS/e-postayla gönderilsin mi (sağlayıcı)?
+   - e-fatura entegratörü seçimi; o zamana kadar fatura firma içi kayıt.
+   - Eski `/finance/invoice` sahte listesi silinsin mi?
+   - Dokunmatik sürükle-bırak gerekli mi?
+4. **Ayarlar:** Üretim ayarlarında saatlik işçilik maliyeti (tahmini kâr için), müşteri kartlarında vade günü (`payment_terms`, yoksa 30 gün).
+5. **Sonraki tur önerisi:** Tur 5 (kayıtlı görünümler, faset filtre, toplu işlem, CSV içe/dışa aktarma, kayıtlı raporlar) — Alacaklar ve Faturalar CSV dışa aktarımı ilk adım olabilir.
