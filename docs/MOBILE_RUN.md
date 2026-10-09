@@ -191,3 +191,4 @@ Adım 5 başlangıcı: 2026-10-09 22:12 UTC. Önceki adımların Android CI'sı 
 10. MOBILE_RUN/MOBILE_RELEASE raporunda kısmi/kapalı özellikleri ve fiziksel cihaz kontrol listesini belirt.
 
 Adım 6 başlangıcı: 2026-10-09 22:17 UTC. Yayın hesabı/imza bilgileri yok; kaynak ve CI hazırlığı yapılır, mağazaya yayın yapılmaz.
+- Yeni iOS oturum birim testleri imzasız simülatörde Keychain yazamadı. CI simülatör uygulaması geçici ad-hoc imza ve yalnız test Keychain entitlement'ı ile kurulacak; Apple hesabı/production imzası gerekmez. Testler korunuyor, fiziksel cihaz güvenli depolama ayrıca doğrulanmalıdır.
