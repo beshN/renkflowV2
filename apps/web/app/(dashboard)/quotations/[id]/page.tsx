@@ -23,6 +23,7 @@ import { configuredLine, configurationSummary, unconfiguredLine, type ProductCon
 import { ColorChip } from "@/components/colors/ColorSwatch";
 import { RecordButton } from "@/components/records/RecordDrawer";
 import { QuoteSalesPanel } from "@/components/sales/QuoteSalesPanel";
+import { MeasureChangeBanner } from "@/components/field/MeasureChangeBanner";
 import { customerDiscountFor, quoteTotals, VAT_RATES } from "@/lib/features/sales/engine";
 
 const emptyItem = (): QuotationItem => ({
@@ -265,6 +266,7 @@ export default function QuotationPage({
           )}
         </div>
       </div>
+      {!isNew && quotation?.id && <MeasureChangeBanner quotationId={quotation.id} />}
       {error && (
         <div
           role="alert"
@@ -676,6 +678,7 @@ export default function QuotationPage({
           )}
         </section>
       )}
+      {!isNew && quotation?.id && <MeasureChangeBanner quotationId={quotation.id} />}
       {!isNew && quotation && (
         <QuoteSalesPanel
           quoteId={quotation.id}

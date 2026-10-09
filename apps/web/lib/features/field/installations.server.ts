@@ -66,7 +66,7 @@ export async function listInstallations(actor: WorkOrderActor, range: { from?: s
   const from = range.from && /^\d{4}-\d{2}-\d{2}$/.test(range.from) ? range.from : null;
   const to = range.to && /^\d{4}-\d{2}-\d{2}$/.test(range.to) ? range.to : null;
   const rows = await sql.unsafe(`SELECT ${SELECT} FROM installations i JOIN orders o ON o.id = i.order_id AND o.tenant_id = i.tenant_id
-    WHERE i.tenant_id = $1 AND ($2::date IS NULL OR i.scheduled_date >= $2::date OR i.scheduled_date IS NULL) AND ($3::date IS NULL OR i.scheduled_date <= $3::date)
+    WHERE i.tenant_id = $1 AND ($2::date IS NULL OR i.scheduled_date >= $2::date OR i.scheduled_date IS NULL) AND ($3::date IS NULL OR i.scheduled_date <= $3::date OR i.scheduled_date IS NULL)
       AND ($4::uuid IS NULL OR $4::uuid = ANY(i.crew))
     ORDER BY i.scheduled_date NULLS FIRST, i.start_time NULLS LAST LIMIT 500`, [actor.tenantId, from, to, fieldOnly(actor) ? actor.userId : null]);
   const conflicts = installationConflicts(rows.map(planned));
