@@ -22,3 +22,16 @@ Entegrasyon dalı: `claude/trello-odoo` (main'e birleştirme sabah, kullanıcı 
 10. Arayüz: teklif detayında revizyon/fark, onay bağlantısı, indirim onayı, şablon; sipariş detayında plan/teslim/değişiklik/söz tarihi. Testler: jest motorlar + `test:sales` entegrasyon.
 | 2026-10-09 06:20 | bitti | Tur B (#44 birleşti): göç 041, satış motorları + tek kapılı sipariş durum makinesi, müşteri onay bağlantısı, revizyon farkı, kısmi teslim, değişiklik talebi, ödeme planı. İnceleme 10 bulgu → 9 düzeltildi, 1 geçersiz (mobil sahte veri). 589 birim + test:sales yeşil |
 | 2026-10-09 06:20 | sürüyor | Tur C: göç 042, neden kodları, fire/gecikme, kapasite ısı haritası, kesim planı geçmişi, çubuk boyu seçimi, değişiklikte BOM yeniden hesabı; testler + tarayıcı tamam, kod incelemesi bekleniyor |
+
+### Tur D planı (10 satır)
+Mevcut olan: rezervasyon, kullanılabilir = fiziksel − ayrılan (eşik ekranı), hareket türleri (stok fişleri), lotlar, sayım belgeleri, onay kapılı satın alma taslağı önerisi, sipariş → kısmi kabul/ret.
+1. Göç 043 (idempotent): stok kalemine azami stok, tedarik süresi (gün), sipariş katı; teklif isteme (RFQ) başlık/satır/tedarikçi cevabı tabloları.
+2. Saf motor: yeniden sipariş noktası = asgari + günlük tüketim × tedarik süresi; azamiye kadar, kat yuvarlaması; eski davranış (yalnız asgari) aynen korunur.
+3. Günlük tüketim son 90 günün çıkış fişlerinden; onay kapılı satın alma önerisi yeni hesabı kullanır.
+4. Sipariş onayında eksik malzeme: yapılandırılmış satırların reçete malzemesi × adet, kullanılabilir stok ve başka işlerin ayırdığıyla karşılaştırılır; eksik varsa uyarı + üretim sorumlusuna bildirim (fiyatsız), sipariş ekranında "Malzeme durumu".
+5. RFQ: satırlar + tedarikçiler → cevaplar (birim fiyat, süre, geçerlilik) → karşılaştırma (toplam, satır bazında en ucuz, süre) → seçilen tedarikçiye taslak satın alma siparişi (mevcut sipariş komutuyla). E-posta gönderimi bağlanmadı olarak işaretli.
+6. Tedarikçi fiyat geçmişi: sipariş satırlarından kalem × tedarikçi zaman serisi ve değişim %.
+7. Tedarikçi puanı: zamanında teslim %, ret oranı, ortalama gecikme gün → 0-100 ve harf.
+8. Yetki: satın alma ofis/yönetici/muhasebe; usta hiçbirini görmez.
+9. Testler: jest motorlar + test:stock entegrasyon.
+10. Arayüz: satın alma ekranında yeniden sipariş politikası, RFQ akışı, tedarikçi puan kartı ve fiyat geçmişi; sipariş detayında malzeme durumu.
