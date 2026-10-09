@@ -4,8 +4,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 
 @Serializable data class User(val id: String, val email: String, val name: String? = null, val role: String, val tenantId: String)
-@Serializable data class Session(val server: String, val token: String, val expiresAt: Long, val user: User)
-@Serializable data class LoginResult(val user: User, val accessToken: String, val expiresIn: Long)
+@Serializable data class Session(val server: String, val token: String, val expiresAt: Long, val user: User,val refreshToken:String?=null,val sessionId:String?=null,val deviceId:String?=null,val refreshRequestId:String?=null)
+@Serializable data class LoginResult(val user: User, val accessToken: String, val expiresIn: Long,val refreshToken:String?=null,val sessionId:String?=null,val deviceId:String?=null)
 @Serializable data class Permissions(val transition: Boolean, val close: Boolean, val checklist: Boolean, val comment: Boolean)
 @Serializable data class Snapshot(val workOrders: List<WorkOrder>, val operations: List<Operation>, val generatedAt: String, val truncated: Boolean, val permissions: Permissions, val cutPlans: List<CutPlan> = emptyList())
 @Serializable data class FieldColorInfo(val label: String, val code: String, val name: String, val hex: String? = null, val finish: String? = null, val finishAssumed: Boolean = false, val standIn: Boolean = false, val kind: String)

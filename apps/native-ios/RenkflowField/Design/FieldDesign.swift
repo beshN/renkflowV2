@@ -37,7 +37,7 @@ struct Brand: View {
     var body: some View {
         HStack(spacing: 12) {
             BrandGlyph().stroke(FieldColor.ink, style: StrokeStyle(lineWidth: 2.8, lineCap: .round, lineJoin: .round)).frame(width: 28, height: 28).padding(10).background(FieldColor.onInk, in: RoundedRectangle(cornerRadius: 8)).accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) { Text("RenkFlow").font(.system(size: 27, weight: .semibold)).foregroundStyle(.white); Text("SAHA UYGULAMASI").font(.caption2.weight(.semibold)).tracking(1.5).foregroundStyle(.white.opacity(0.65)) }
+            VStack(alignment: .leading, spacing: 3) { Text(L("text_renkflow_6ac42")).font(.system(size: 27, weight: .semibold)).foregroundStyle(.white); Text(L("text_saha_uygulamasi_30117")).font(.caption2.weight(.semibold)).tracking(1.5).foregroundStyle(.white.opacity(0.65)) }
         }
     }
 }
@@ -60,7 +60,7 @@ struct FieldButton: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
     var bright = false
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.headline).frame(maxWidth: .infinity).padding(.vertical, 17)
+        configuration.label.font(.headline).frame(maxWidth: .infinity).padding(.vertical, 17).frame(minHeight:48)
             .foregroundStyle(bright ? FieldColor.ink : FieldColor.onAccent)
             .background(bright ? FieldColor.onInk : FieldColor.accent, in: RoundedRectangle(cornerRadius: 8))
             .opacity(enabled ? (configuration.isPressed ? 0.75 : 1) : 0.35)
@@ -82,7 +82,7 @@ struct JobCard: View {
                     }.accessibilityLabel(color.label)
                 }
                 if let location = job.location { Label(location, systemImage: "mappin.and.ellipse").font(.subheadline).foregroundStyle(.secondary) }
-                if job.checklistTotal > 0 { ProgressView(value: Double(job.checklistCompleted), total: Double(job.checklistTotal)); Text("\(job.checklistCompleted)/\(job.checklistTotal) kontrol tamamlandı").font(.caption).foregroundStyle(.secondary) }
+                if job.checklistTotal > 0 { ProgressView(value: Double(job.checklistCompleted), total: Double(job.checklistTotal)); Text(L("text_1_2_kontrol_tamamlandi_a91af", String(describing: job.checklistCompleted), String(describing: job.checklistTotal))).font(.caption).foregroundStyle(.secondary) }
                 if let date = job.dueAt { Text("Termin \(displayDate(date))").font(.caption).foregroundStyle(.secondary) }
             }.padding(20).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(FieldColor.border, lineWidth: 1))
         }.buttonStyle(.plain)
@@ -101,8 +101,8 @@ struct OperationCard: View {
                         Circle().stroke(FieldColor.border,lineWidth:6)
                         Circle().trim(from:0,to:min(1,max(0,operation.completedQty/max(1,operation.plannedQty)))).stroke(FieldColor.accent,style:StrokeStyle(lineWidth:6,lineCap:.round)).rotationEffect(.degrees(-90))
                         Text(quantity(max(0,operation.plannedQty-operation.completedQty))).font(.headline.monospacedDigit())
-                    }.frame(width:72,height:72).accessibilityLabel("\(quantity(max(0,operation.plannedQty-operation.completedQty))) kalan adet")
-                    Text(operation.status=="running" ? "Duraklat / Bitti" : ["ready","paused","blocked"].contains(operation.status) ? "Başla" : statusLabel(operation.status)).font(.headline).frame(maxWidth:.infinity,minHeight:48).foregroundStyle(FieldColor.onAccent).background(FieldColor.accent,in:RoundedRectangle(cornerRadius:8))
+                    }.frame(width:72,height:72).accessibilityLabel(L("text_1_kalan_adet_4640a", String(describing: quantity(max(0,operation.plannedQty-operation.completedQty)))))
+                    Text(operation.status=="running" ? "Duraklat / Bitti" : ["ready","paused","blocked"].contains(operation.status) ? L("text_basla_788ed") : statusLabel(operation.status)).font(.headline).frame(maxWidth:.infinity,minHeight:48).foregroundStyle(FieldColor.onAccent).background(FieldColor.accent,in:RoundedRectangle(cornerRadius:8))
                 }
                 HStack { Text("\(quantity(operation.completedQty)) / \(quantity(operation.plannedQty)) adet"); Spacer(); Text("\(Int(operation.activeSeconds / 60)) dk") }.font(.caption.weight(.medium)).foregroundStyle(.secondary)
             }.padding(20).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(FieldColor.border, lineWidth: 1))

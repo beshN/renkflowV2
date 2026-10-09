@@ -4,7 +4,7 @@ on:
   pull_request:
     paths: ['apps/native-*/**', 'apps/web/lib/features/field/**', 'apps/web/app/api/v1/field/**', 'apps/web/app/api/mobile/**', 'apps/web/lib/features/mobile/**', 'contracts/mobile/**', 'scripts/generate-mobile-contract.py', 'scripts/mobile/**', 'scripts/generate-native-ios-project.py', '.github/workflows/native-apps.yml']
   push:
-    branches: ['codex/**']
+    branches: ['codex/mobile-integration']
     paths: ['apps/native-*/**', 'apps/web/lib/features/mobile/**', 'apps/web/app/api/mobile/**', 'contracts/mobile/**', 'scripts/mobile/**', '.github/workflows/native-apps.yml']
 permissions:
   contents: read
@@ -27,6 +27,7 @@ jobs:
       - run: npm ci --workspaces=false --legacy-peer-deps
       - name: Check generated contract and web compatibility
         run: |
+          python3 ../../scripts/mobile/check-resources.py
           python3 ../../scripts/generate-mobile-contract.py
           git diff --exit-code -- ../native-android/app/src/main/java/com/renkflow/field/data/MobileContract.kt ../native-ios/RenkflowField/Core/MobileContract.swift
           npm run validate
@@ -128,7 +129,7 @@ jobs:
           print('FIELD_SIMULATOR=' + phones[0]['udid'])
           PY
       - name: Build and test native iOS app
-        run: xcodebuild test -project RenkflowField.xcodeproj -scheme RenkflowField -destination "platform=iOS Simulator,id=$FIELD_SIMULATOR" -resultBundlePath build/FieldTests.xcresult CODE_SIGNING_ALLOWED=NO
+        run: xcodebuild test -project RenkflowField.xcodeproj -scheme RenkflowField -destination "platform=iOS Simulator,id=$FIELD_SIMULATOR" -resultBundlePath build/FieldTests.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS="$PWD/RenkflowField/Simulator.entitlements"
       - name: Export iOS screenshots
         if: always()
         run: |

@@ -16,8 +16,8 @@ final class SecureVault {
         if status == errSecItemNotFound {
             var insert = query; insert[kSecValueData as String] = bytes
             insert[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-            guard SecItemAdd(insert as CFDictionary, nil) == errSecSuccess else { throw FieldAPIError(status: 0, message: "Güvenli kayıt oluşturulamadı.") }
-        } else if status != errSecSuccess { throw FieldAPIError(status: 0, message: "Güvenli kayıt güncellenemedi.") }
+            guard SecItemAdd(insert as CFDictionary, nil) == errSecSuccess else { throw FieldAPIError(status: 0, message: L("text_guvenli_kayit_olusturulamadi_a8f69")) }
+        } else if status != errSecSuccess { throw FieldAPIError(status: 0, message: L("text_guvenli_kayit_guncellenemedi_4a8d4")) }
     }
     func remove(_ name: String) { SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: name] as CFDictionary) }
     func clear() { remove("session"); remove("pending") }

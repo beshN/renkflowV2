@@ -30,13 +30,26 @@ Entegrasyon: `codex/mobile-integration`, güncel main `bbc2825` + mevcut native 
 | Montaj | main'de yok | teknik çalışan görünümü adres gizler | adres varsayılan kapalı; yeni yetki kararı gerekir |
 | Bildirim | web bildirimleri | erişim/oturum iptali | cihaz/push sağlayıcısı bağlanmadı |
 
-## Tur durumu
-- **Bitti:** ayrı çalışma alanı; main + ilk native dal çakışmasız birleştirildi.
-- **Kısmi:** sürümlü sözleşme, ana dal yetki/renk/kesim DTO uyumu ve 426 ekranı. Main yerel gerçek HTTP akışı (giriş, atama, kontrol, üretim, kalite, fotoğraf, barkod, üyelik iptali) geçti. night-2 şeması ve iOS gerçek HTTPS testi sırada.
-- **Sırada:** yerel kalıcı DB/outbox; saha modülleri; dönen oturumlar; erişilebilirlik ve yayın hattı.
-- Eklenen test: 19 web sözleşme/yetki testi + 1 yönlendirme testi + Android/iOS için birer gerçek HTTPS akış testi. Web: 89 paket, 599 test geçti (rol HTTP kontrolü ayrıca). Android ilk derleme/birim/lint geçti; yeni gerçek HTTPS akışı da geçti. iOS yeni kodu macOS CI henüz doğrulamadı.
-- Yeni APK: Android 1.1.0 derlendi; nihai dosya sonraki adımlardan sonra yeniden üretilecek.
-- Gerçek cihaz kamerası, uçak modu, saha bağlantısı, düşük pil, FCM/APNs: **doğrulanmadı**.
+## Tur durumu — son değerlendirme
+
+| Adım | Durum | Kanıt / kalan |
+|---|---|---|
+| 1 Uyumluluk | Tamamlandı ve entegrasyona alındı | #54–55, main/night-2 yerel build + gerçek HTTP, rol DTO sınırları, Android/iOS sözleşme |
+| 3 Kalıcı çevrimdışı | Tamamlandı ve entegrasyona alındı | #56, Room/SwiftData, kayıp onay ve kopan büyük fotoğraf, çift gönderim, çatışma/yeniden atama |
+| 4 Saha | Çalışan kapsam tamamlandı ve entegrasyona alındı | #57; kamera/barkod, kesim, RAL/aile, üretim/fire/gecikme/rework, montaj teknik kayıt/fotoğraf; adres/onay linki yetki gereği kapalı, uzak push bağlanmadı |
+| 2 Oturum/cihaz | Kod hazır, CI/merge bekliyor | #58; 15 dakika erişim, dönen refresh, cihaz iptali ve opsiyonel biyometri; iOS Keychain simülatör test imzası son düzeltmesi doğrulanmadı |
+| 5 Tasarım/erişilebilirlik | Kod hazır, son iOS CI/merge bekliyor | #59; Türkçe 205 Android / 246 iOS kaynak, tablet liste+detay, haptik/büyük hedefler; Android yerel lint/derleme geçti |
+| 6 Yayın hattı | Kaynak ve belge hazır; imza/yayın yapılmadı | #59; OpenAPI 1.2.0/build 3, CI/version/signing, providersiz telemetri, MOBILE_RELEASE; Apple/Play hesabı ve sertifika yok |
+| Ayrı web cihaz sayfası | Taslak | #60; /mobile-devices, yalnız kendi cihazlarını iptal; 3 yerel güvenlik testi geçti; #58'e bağımlı |
+
+- Son kod `codex/mobile-release`, son APK 1.2.0 debug. **Canlı site bu kodu sunmuyor**; test sunucusuna aynı mobil API ve yerel migration kurulmalıdır. Production/main/night-2 değiştirilmedi.
+- GitHub yeni runner'ları ödeme/harcama limiti gerekçesiyle başlatmıyor. Son değişiklikler taslak PR'da; CI geçmeden merge edilmedi. Hesap billing ayarına dokunulmadı.
+- Durdurma koşullarındaki iki farklı başarısız çözüm / 4 saat / çözülemeyen DTO sızıntısı oluşmadı. Devamı engelleyen somut dış neden GitHub runner başlangıcının reddidir.
+- Son kaynakla yerel web **92 paket / 630 test**, type-check/lint/guardrails/production build geçti. Web cihaz sayfası ayrı **3 test** geçti. Main ve night-2 gerçek HTTP: saha **6**, outbox **4**, oturum güvenliği **4 senaryo grubu**, hepsi geçti.
+- Son başarılı tüm native CI: Adım 4 (`30f35de`) Android **10 JVM + 11 emülatör** ve iOS **18 birim + 1 UI**. Yeni oturum testleri Android iki ek JVM; iOS iki ek birimdir. iOS son imzasız CI 18/20 birim + UI geçti; iki Keychain testi imza nedeniyle hata verdi, testler korunup test imzası düzeltildi. Son düzeltmenin CI'sı billing nedeniyle başlayamadı.
+- Bu plan kapsamında başlangıç native sürümüne göre **54 web testi** (51 mobil API + 3 ayrı cihaz sayfası), Android **7 JVM + 9 emülatör**, iOS **16 birim** eklendi; mevcut UI testleri korunur.
+- Toplam mobil testler kaynakta: web mobil sözleşme/yetki/sync/context/push/yönlendirme paketleri + cihaz sayfası 3 test; native Android 12 JVM/11 emülatör, iOS 20 birim/1 UI. Parametrik testler gerçek yürütme sayılarıyla yukarıda raporlanır; "test tanımı" ile "senaryo grubu" aynı sayı değildir.
+- Gerçek cihaz kamera/Face ID/parmak izi/Keychain, fiziksel uçak modu, saha ağı, düşük pil ve OS arka plan planlaması **doğrulanmadı**. FCM/APNs, crash ve analitik **bağlanmadı**; Play/TestFlight **yayınlanmadı**.
 
 ## Çevrimdışı mimari kararı
 Android Room, iOS SwiftData. Kullanıcı/tenant/sunucu kapsamlı yerel snapshot ve outbox, atomik enqueue, her komutta istemci UUID'si ve sunucuda aynı kimliğe yalnız tek sonuç. Sırayla eşitleme; 401/403 işlem gönderimini durdurur; 409 çatışma olarak saklanır, otomatik ezilmez. Çatışmada “Yine de uygula” her koşulda yetki ve durum kurallarını yeniden doğrulayan **yeni** bir işlem üretir; atanmadığı/iptal işte mümkün değildir. Fotoğraf yükleme Vercel gövde sınırını aşmayan parçalara bölünür; sunucu kabul edilen parça durumunu döndürür. Sürüm 1.0 uygulamanın mevcut tek bekleyen işlemi kayıpsız taşınır.
@@ -134,3 +147,117 @@ Adım 4 başlangıcı: 2026-10-09 21:27 UTC. Adım 3 PR #56 CI sonucu bekleniyor
 - API/DTO birim testleri ve native montaj overlay/önceki fotoğraf kuyruk uyum testleri eklendi. Fotoğraf içeren yerel testte depolama açıkça local seçilmediği için ilk deneme hata verdi; yalnız test process'inde local depolama seçilerek düzeldi.
 
 - Son iOS kontrolünde eski fotoğraf JSON'unda eksik `name` alanı okuması başarısız oldu. Decoder varsayılan dosya adını açıkça uygulayacak şekilde düzeltildi; test korunuyor. Montaj detayı hızlı değiştirilince eski ağ yanıtının yeni seçimi ezmesi de seçim kimliğiyle engellendi.
+
+## Adım 2 planı (10 satır)
+1. Mevcut web parola doğrulama ve giriş denemesi sınırını mobilde yeniden kullan.
+2. 15 dakikalık erişim ve 30 günlük dönen yenileme jetonlarını yalnız mobil API'de üret.
+3. Jetonun yalnız hash'ini sakla; tekrar kullanımda cihaz oturumunu iptal et.
+4. Ağda kaybolan yenileme yanıtını aynı istemci UUID'siyle güvenli biçimde tekrar al.
+5. Mobil cihazları mevcut night-2 user_sessions tablosuyla uyumlu kaydet ve iptali her istekte kontrol et.
+6. Android/iOS ağ katmanlarında yenilemeyi seri yap ve Keystore/Keychain'e atomik yaz.
+7. Çıkışta oturumu iptal et; çevrimdışı kuyrukları kullanıcı kapsamıyla koru.
+8. Ayrı, küçük web cihaz yönetimi yüzeyinde kendi cihazlarını listeleme/iptal etme ekle.
+9. İsteğe bağlı cihaz biyometrisiyle uygulama kilidi ve arka plan gizlilik örtüsü ekle.
+10. Döndürme, kayıp yanıt, tekrar kullanım, üyelik kaldırma ve cihaz iptalini gerçek yerel DB'de test et.
+
+Adım 2 başlangıcı: 2026-10-09 22:03 UTC. Adım 4 PR #57 düzeltme CI'sı bekleniyor; entegrasyona yalnız başarılı CI ile alınır.
+
+### Oturum kontrol noktası
+- Mobil giriş mevcut parola/deneme sınırını kullanır; erişim 15 dakika, yenileme 30 gün. Veritabanında hash ve kısa süreli şifreli tekrar yanıtı vardır; açık yenileme jetonu saklanmaz.
+- Gerçek DB dört grup geçti: döndürme/kayıp yanıt; tüketilmiş jetonun farklı UUID ile tekrarı tüm cihazı kapatır; mevcut user_sessions web iptali hemen keser; üyelik kaldırma/cihaz iptali.
+- Android/iOS ağ katmanı yenilemeyi seri yapar, aynı istek UUID'sini ağdan önce güvenli depoya yazar, hesap değişiminde eski istek yeni hesaba erişemez. Yerel outbox korunur.
+- İsteğe bağlı biyometrik/cihaz kilidi ve arka plan gizlilik örtüsü eklendi. Fiziksel Face ID/parmak izi testi **doğrulanmadı**.
+- iOS ilk oturum CI derleme + 18 birim/1 UI başarılı; yeni oturum birim testleri sırada. Yerel web 92 paket/629 test başarılı.
+- night-2 ayrı test kopyası: güncel saha/oturum API'si production build ve gerçek HTTP saha 6 grup + outbox 4 grup + oturum 4 grup geçti. Hedef web dalları değişmedi.
+- Yerel native test yeniden çalıştırılırken önceki testin kullandığı operasyon sürümü nedeniyle 409 verdi; fixture her çalıştırmada yeniden oluşturulur. CI zaten izole fixture kullanıyor; test veya üretim davranışı gevşetilmedi.
+
+## Adım 5 planı (10 satır)
+1. Nötr/kobalt açık-koyu tema ve geometrik simgeyi koru.
+2. Android kullanıcı metinlerini Türkçe strings.xml kaynaklarına taşı.
+3. iOS kullanıcı metinlerini Türkçe Localizable.strings dosyasına taşı.
+4. Dinamik sayı/değişken metinlerinde yerelleştirilmiş biçim argümanları kullan.
+5. Büyük yazı ve kaydırma davranışlarını telefon/tablet düzenlerinde kontrol et.
+6. Dokunma alanlarını Android 56dp/iOS 48pt sınırına getir.
+7. Anlamlı ikon etiketlerini ve ekran okuyucu durumlarını tamamla.
+8. Başarı/hata haptikleri ve mevcut ortak boş/hata/offline bileşenlerini kullan.
+9. Tabletlerde iş listesi ve detayını aynı ekranda göster.
+10. Kaynak bütünlüğü, native derleme/lint ve mevcut UI testlerini koruyarak doğrula.
+
+Adım 5 başlangıcı: 2026-10-09 22:12 UTC. Önceki adımların Android CI'sı beklenirken bağımsız native tasarım hazırlığı ayrı dalda yapılır.
+
+### Tasarım kontrol noktası
+- Türkçe kullanıcı metinleri Android strings.xml ve iOS tr.lproj/Localizable.strings'e taşındı; dinamik metinler biçim argümanlarıyla gelir. Eksik/çift kaynak anahtarı CI'da hata verir.
+- Tablet iş sekmesinde liste+detay yan yana; telefon akışı aynı. Büyük hedefler ve başarı/hata haptikleri eklendi. Mevcut nötr/kobalt açık-koyu tema ve ortak boş/hata/offline durumları korunur.
+- Android oturum ekranında lint LocalContext'in Activity'ye cast edilmesini reddetti; LocalActivity'ye geçildi. Test veya lint kuralı atlanmadı.
+- PR #57 tüm GitHub kontrolleri başarılıyken mobil entegrasyona merge edildi (`0b5e168`). Adım 4 tamamlandı; fiziksel kamera ve müşteri adres/onay bağlantısı halen kapalı/doğrulanmadı.
+
+## Adım 6 planı (10 satır)
+1. Native/API yol filtrelerini koru; kaynak ve proje üretiminin drift kontrolünü CI'ya ekle.
+2. Sürüm adını/kodunu tek OpenAPI kaynağından üret, yayın build numarasını ortamdan al.
+3. Android release imzasını yalnız secret/ortam değişkenleriyle yapılandır.
+4. Elle çalıştırılan CI'da imzalı AAB üret; otomatik mağaza yüklemesi yapma.
+5. macOS bulut runner'da iOS archive/export için sertifika/profil secret adımlarını hazırla.
+6. Apple Developer/App Store Connect ve TestFlight gerekliliklerini açıkça belgele.
+7. Hata/analitik soyutlamasını yalnız izinli adsız olaylarla kur; sağlayıcıyı bağlanmadı bırak.
+8. Son sürümde Android/iOS/API/outbox testlerini ve night-2 uyumluluk kanıtlarını topla.
+9. Yeni debug APK'yı sürüm ve SHA-256 ile teslim alanına koy; iOS simülatör talimatını yaz.
+10. MOBILE_RUN/MOBILE_RELEASE raporunda kısmi/kapalı özellikleri ve fiziksel cihaz kontrol listesini belirt.
+
+Adım 6 başlangıcı: 2026-10-09 22:17 UTC. Yayın hesabı/imza bilgileri yok; kaynak ve CI hazırlığı yapılır, mağazaya yayın yapılmaz.
+- Yeni iOS oturum birim testleri imzasız simülatörde Keychain yazamadı. CI simülatör uygulaması geçici ad-hoc imza ve yalnız test Keychain entitlement'ı ile kurulacak; Apple hesabı/production imzası gerekmez. Testler korunuyor, fiziksel cihaz güvenli depolama ayrıca doğrulanmalıdır.
+
+### Yayın/CI kontrol noktası
+- Son sürüm 1.2.0 / build 3 tek OpenAPI kaynağına geçirildi; önceki 1.1 uygulama 426 ile güncelleme ekranına gider, bekleyen kayıt korunur.
+- Android imza ortam değişkenleri, elle AAB / iOS IPA hazırlayan ve önce aynı commit'te başarılı native CI isteyen workflow eklendi. Hesap/sertifika bulunmadığı için mağaza yayını yapılmadı.
+- Analitik/hata raporlama yalnız izinli enum olaylarını kabul eden kapalı arayüzdür; gerçek sağlayıcı bağlanmadı. İmza dosyası/anahtar repoya konmadı.
+- GitHub yeni job'ları başlangıçta reddetti: `recent account payments have failed or your spending limit needs to be increased`. Kod testi başlamadığı için hata CI geçişi sayılmaz. Hesap billing ayarı değiştirilmedi; #58 ve sonraki işler merge edilmez.
+- Çift push/PR native çalışmaları kaldırıldı: feature'larda PR, mobil entegrasyonda push ve elle çalıştırma kalır. Testler azaltılmadı; ilgili API/native yol filtreleri korunur.
+- iOS Face ID izin açıklaması ve sürüm plist değişkenleri kontrol edildi; son Keychain ad-hoc test imzası ve release imzası doğrulanmadı.
+
+## Çevrimdışı sonuçlar
+
+| Senaryo | Sonuç |
+|---|---|
+| Üretim bildirimi → ağ bağlantısı tekrar → tek kayıt | İki platform gerçek HTTPS testinde geçti; fiziksel uçak modu kullanılmadı |
+| Aynı UUID çift/eşzamanlı gönderim ve kayıp onay | Üretim/not/checklist/fotoğraf tek kayıt; sunucu DB + native test geçti |
+| Fotoğrafın ikinci parçasında ağ kesintisi | Room/SwiftData yeniden açıldı, onaylanan 262144 ofsetten devam, tek dosya |
+| İptal/başkasına atama/üyelik kaldırma | Sunucu engelliyor; terminal kayıt zorlanamaz, kuyruk görünür kalır |
+| 409 revizyon çatışması | Otomatik ezme yok; izinli durumda yeni UUID ile yeniden uygulama, vazgeç arşivleme |
+| Bozuk yarım JSON / yeniden başlama | Bozuk kayıt korunur ve görünür; önceden sending kalan kayıt pending'e döner |
+| Yeni hesap veya tenant | Ayrı scope; eski hesap yeni jetonu ödünç alamaz |
+| Refresh yanıtı kaybı | UUID önce güvenli kayda, aynı UUID ile şifreli yanıt replay; farklı UUID eski jeton kullanımı tüm cihazı iptal eder |
+
+## Bilinen eksikler / sonra
+
+- GitHub billing engeli çözülünce #58 ve #59 exact commit native CI yeniden çalışmalı; özellikle ad-hoc Keychain test imzası. Başarılı kontroller olmadan merge yapılmadı.
+- #60 web cihaz sayfası #58'e bağımlı; ayrı güvenlik testleri başarılı, son birleşik web production sayfa testi CI'da bekliyor.
+- Montaj adres/harita/müşteri onay paylaşımı kapalı; worker veri sınırı değişmez. FCM/APNs SDK ve sağlayıcı bağlantısı, crash/analitik sağlayıcıları yok.
+- Fotoğraf galeriden seçilir; saha kameradan doğrudan fotoğraf çekme akışı henüz yok. Gerçek barkod kamera akışı vardır.
+- Kesim çizimi kerf/fire alanını gri gösterir; gerçek kamerada düşük ışık/hasarlı etiket performansı doğrulanmadı.
+- Cache snapshot 100 iş / 300 üretim işi sınırında; notlar son 20/iş ve toplam 500. Online detay daha geniştir.
+- Offline timer server tarafından teslim zamanında uygulanır; saatlerce çevrimdışı start/pause sürelerinin geriye dönük muhasebesi eklenmedi.
+- Montaj complete web durum akışıyla uyumludur, bütün checklist'lerin zorunlu olması kuralı eklenmedi. Durum değişiminde mobil AI/öneri çağırmaz.
+- Arka plan WorkManager/BGProcessing çalışması OS koşullarına bağlı; belirli saniyede çalışma garantisi yok. Ön planda eşitleme kullanılabilir.
+- Telefon/tablet gerçek cihaz, büyük yazı, VoiceOver/TalkBack, biyometri, mağaza imzası ve TestFlight/Play kurulumu doğrulanmadı.
+
+## Kullanıcının fiziksel cihaz kontrol listesi
+
+1. Aynı mobil API commit'i çalışan HTTPS test sunucusunda saha hesabıyla giriş yap; fiyat/müşteri/reçete bilgisi bulunmadığını kontrol et.
+2. Kamera iznini reddet/sonra aç; elle barkod gir, gerçek QR ve çubuk/ürün etiketini farklı ışıkta tara.
+3. Atanmış işleri aç, uygulamayı kapatıp uçak modunda tekrar aç; checklist/not/üretim kaydını ekle. Bekleyen sayacını ve offline ikonunu kontrol et.
+4. Büyük fotoğraf seç; yüklerken ağ kes, uygulamayı kapat/aç, bağlantıyı geri getir. Tek fotoğraf ve tek üretim adedi kaldığını web'den kontrol et.
+5. Aynı işi başka kullanıcı değiştirsin/iptal etsin veya atamayı değiştirsin; açık çatışma mesajını ve terminal işte yeniden uygulama engelini kontrol et.
+6. İsteğe bağlı kilidi etkinleştir; arka plana al, Face ID/parmak iziyle aç. İptal/başarısızlıkta kayıtların korunmasını kontrol et.
+7. Web cihaz sayfası etkinleştirildikten sonra telefon oturumunu iptal et; erişimin kesildiğini, outbox'ın cihazda kaldığını ve yeniden girişte geri geldiğini kontrol et.
+8. Yerel bildirim iznini reddet/izin ver ve test et. Uzak push şu an bağlı değildir; teslim bekleme.
+9. Düşük pil/arka plan/uzun bağlantı kaybında queue kaybı olmadığını kontrol et; OS zamanlamasını gerçek saha ağıyla gözle.
+10. En büyük yazı boyutu, açık/koyu tema, TalkBack/VoiceOver ve iPad/Android tablet yan yana liste+detay düzenini dene.
+
+## Teslim kanıtı
+
+- Android son yerel `assembleDebug + testDebugUnitTest + lintDebug + compileDebugAndroidTestKotlin`: **başarılı**, 12 JVM test, 0 hata/0 atlanan. Emülatörde son tam başarılı sürüm #57'dir; son 1.2.0 emülatör testi billing engeli yüzünden çalışmadı.
+- Debug APK: `/workspace/artifacts/RenkFlow-Saha-1.2.0-debug.apk` (42 MiB), package `com.renkflow.field`, versionName `1.2.0`, versionCode `3`, minSdk `26`, targetSdk `35`.
+- SHA-256: `b7ae00b3001ff1afa533744d7c83a972d048ab34ea40ba080bce6e66dfe00a8d`.
+- Güncel ana API production build üzerinde gerçek HTTP saha 6 + sync 4 + oturum 4 grubu geçti. Yerel web validate 92 paket/630 test başarılı. iOS son kaynak için başarılı native CI henüz yok; Keychain/test imzası düzeltmesi doğrulanmadı.
+- Kod ve belge taslak PR #59; güvenli oturum PR #58; ayrı web cihaz yüzeyi taslak PR #60. #54–57 yalnız mobil entegrasyona alındı; #58–60 CI geçmediği için alınmadı.
+- iOS simülatör/TestFlight/Play iç test talimatı: `docs/MOBILE_RELEASE.md`. API tek kaynak: `contracts/mobile/openapi.json`.

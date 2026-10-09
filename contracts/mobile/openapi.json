@@ -2,14 +2,14 @@
   "openapi": "3.1.0",
   "info": {
     "title": "RenkFlow Saha API",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "servers": [
     {
       "url": "/api/mobile/v1"
     }
   ],
-  "x-min-app-version": "1.1.0",
+  "x-min-app-version": "1.2.0",
   "components": {
     "securitySchemes": {
       "bearer": {
@@ -65,12 +65,28 @@
           },
           "expiresIn": {
             "type": "number"
+          },
+          "refreshToken": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 128
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "deviceId": {
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [
           "user",
           "accessToken",
-          "expiresIn"
+          "expiresIn",
+          "refreshToken",
+          "sessionId",
+          "deviceId"
         ],
         "additionalProperties": false
       },
@@ -872,6 +888,10 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 1000
+          },
+          "deviceId": {
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [
@@ -1852,6 +1872,92 @@
           },
           "provider": {
             "const": "disconnected"
+          }
+        }
+      },
+      "RefreshInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "refreshToken",
+          "requestId",
+          "deviceId"
+        ],
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 128
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "deviceId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "DeviceRevokeInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "Devices": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "devices"
+        ],
+        "properties": {
+          "devices": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "deviceId",
+                "platform",
+                "createdAt",
+                "lastSeenAt",
+                "revoked"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "deviceId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "platform": {
+                  "enum": [
+                    "android",
+                    "ios"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "lastSeenAt": {
+                  "type": "string"
+                },
+                "revoked": {
+                  "type": "boolean"
+                }
+              }
+            }
           }
         }
       }
@@ -3339,6 +3445,123 @@
           }
         }
       }
+    },
+    "/auth/refresh": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Login"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Accepted"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/devices/revoke": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Accepted"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceRevokeInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/devices": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Current user devices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Devices"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
-  }
+  },
+  "x-build-number": 3
 }

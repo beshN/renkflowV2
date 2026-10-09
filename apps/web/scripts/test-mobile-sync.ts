@@ -1,3 +1,4 @@
+import mobileSpec from '../../../contracts/mobile/openapi.json';
 /** Real transactions in db:local. No mocked services and no remote endpoints. */
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
@@ -15,7 +16,7 @@ async function main() {
   const {NextRequest}=await import('next/server'); const {GET,POST}=await import('../app/api/mobile/v1/[...path]/route');
   let token='';
   async function call(path:string,body?:unknown,expected=200) {
-    const headers={'content-type':'application/json','x-renkflow-app-version':'1.1.0','x-renkflow-platform':'ios',authorization:'Bearer '+token};
+    const headers={'content-type':'application/json','x-renkflow-app-version':mobileSpec.info.version,'x-renkflow-platform':'ios',authorization:'Bearer '+token};
     const req=new NextRequest('https://renkflow.com/api/mobile/v1/'+path,{method:body===undefined?'GET':'POST',headers,...(body===undefined?{}:{body:JSON.stringify(body)})});
     const base=process.argv.find(s=>s.startsWith('--server='))?.slice(9);
     if(base) {const origin=new URL(base);assert(['127.0.0.1','localhost'].includes(origin.hostname)&&origin.port);}

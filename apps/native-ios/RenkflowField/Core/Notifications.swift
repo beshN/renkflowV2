@@ -12,7 +12,7 @@ func deviceIdentity() throws -> String {
 /** Bridge for a configured APNs didRegisterForRemoteNotifications callback. No live provider. */
 final class ApnsRegistration {
     let connected=false
-    private let api=FieldAPI()
+    private let api=FieldAPI.live()
     func register(_ auth:Session,token:Data) async throws {
         let bytes=token.map {String(format:"%02x",$0)}.joined()
         let _:PushDeviceStatus=try await api.post(auth,path:"notifications/device",value:PushDeviceInput(deviceId:try deviceIdentity(),enabled:true,token:bytes),type:PushDeviceStatus.self)
@@ -21,7 +21,7 @@ final class ApnsRegistration {
 func showLocalNotification() async throws -> Bool {
     let center=UNUserNotificationCenter.current()
     guard try await center.requestAuthorization(options:[.alert,.sound,.badge]) else {return false}
-    let content=UNMutableNotificationContent();content.title="RenkFlow Saha";content.body="Yerel bildirim testi";content.sound = .default
+    let content=UNMutableNotificationContent();content.title=L("text_renkflow_saha_671f9");content.body=L("text_yerel_bildirim_testi_0f5dc");content.sound = .default
     try await center.add(UNNotificationRequest(identifier:"field-local-test",content:content,trigger:UNTimeIntervalNotificationTrigger(timeInterval:1,repeats:false)))
     return true
 }

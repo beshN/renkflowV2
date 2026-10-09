@@ -1,5 +1,7 @@
 package com.renkflow.field
 
+import com.renkflow.field.data.tr
+import com.renkflow.field.R
 import android.app.Application
 import androidx.room.withTransaction
 import androidx.lifecycle.AndroidViewModel
@@ -23,7 +25,8 @@ data class FieldState(
     val lastSync: Long? = null, val accessBlocked: Boolean = false,val references:FieldReferences?=null,val installations:List<Installation> = emptyList(),val installationDetail:InstallationDetails?=null,val preferences:NotificationPreferences?=null,val notifications:List<FieldNotification> = emptyList(),val preferencesBusy:Boolean=false
 )
 class FieldViewModel(application: Application) : AndroidViewModel(application) {
-    private val api=Api()
+    private val telemetry:FieldTelemetry=DisconnectedTelemetry
+    private val api=SessionManager.api(application)
     private val vault=Vault(application)
     private val offline=OfflineStore.get(application)
     private val mutable=MutableStateFlow(FieldState())
@@ -31,7 +34,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
     private var epoch=0
     private var watcher: Job? = null
     private var lastValidation=0L
-    init { restore() }
+    init {telemetry.event(FieldEvent.APP_OPENED);restore()}
     private suspend fun attach(session: Session) {
         offline.prepare()
         offline.migrateLegacy(session,vault.pending());vault.clearPending()
@@ -56,8 +59,9 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val origin=normalizeServer(server)
-                val result=api.login(origin,email.trim().lowercase(),password)
-                val auth=Session(origin,result.accessToken,System.currentTimeMillis()+result.expiresIn*1000,result.user)
+                val result=api.login(origin,email.trim().lowercase(),password,DeviceIdentity(getApplication()).id())
+                val auth=Session(origin,result.accessToken,System.currentTimeMillis()+result.expiresIn*1000,result.user,result.refreshToken,result.sessionId,result.deviceId)
+                vault.clear();vault.saveSession(auth)
                 val verified=auth.copy(user=api.me(auth))
                 vault.clear();vault.saveSession(verified);epoch++
                 mutable.value=FieldState(session=verified,restoring=false,busy=true)
@@ -67,7 +71,9 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
             finally { mutable.update { it.copy(busy=false) } }
         }
     }
-    fun logout() { epoch++;watcher?.cancel();FieldSyncWorker.cancel(getApplication());vault.clear();mutable.value=FieldState(restoring=false) }
+    fun logout() {
+        vault.session()?.let {auth->viewModelScope.launch {runCatching {Api().raw(auth.server,auth.token,"auth/logout","{}")}}}
+        epoch++;watcher?.cancel();FieldSyncWorker.cancel(getApplication());vault.clear();mutable.value=FieldState(restoring=false) }
     fun dismiss() { mutable.update { it.copy(error=null,message=null) } }
     fun foreground() { if(System.currentTimeMillis()-lastValidation>60_000) refresh() else sync() }
     fun refresh() {
@@ -77,7 +83,6 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         mutable.update { it.copy(busy=true,error=null) }
         viewModelScope.launch {
             try {
-                if(auth.expiresAt<=System.currentTimeMillis()) throw ApiException(401,"Oturumunuz sona erdi.")
                 api.me(auth);if(generation!=epoch) return@launch
                 lastValidation=System.currentTimeMillis();loadSnapshot(auth)
                 state.value.selectedId?.let { id-> val job=api.details(auth,id);cacheDetail(auth,job);if(generation==epoch && state.value.selectedId==id) mutable.update { it.copy(detail=overlayJob(job,offline.dao.pending(sessionScope(auth)))) } }
@@ -160,7 +165,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
     fun scan(code: String) {
         val auth=state.value.session ?: return
         viewModelScope.launch {
-            try { require(code.trim().isNotEmpty() && code.length<=1000) { "Geçerli bir etiket kodu girin." };val result=api.scan(auth,code.trim());offline.save(sessionScope(auth),"scan:${code.trim()}",fieldJson.encodeToString(result));mutable.update { it.copy(scan=result) } }
+            try { require(code.trim().isNotEmpty() && code.length<=1000) { tr(R.string.text_gecerli_bir_etiket_kodu_girin_540aa) };val result=api.scan(auth,code.trim());offline.save(sessionScope(auth),"scan:${code.trim()}",fieldJson.encodeToString(result));mutable.update { it.copy(scan=result) } }
             catch(e: Exception) {
                 val cached=offline.dao.cache(sessionScope(auth),"scan:${code.trim()}")?.let { runCatching { fieldJson.decodeFromString<ScanResult>(it.payload) }.getOrNull() }
                 if(cached!=null) mutable.update { it.copy(scan=cached,stale=true) } else fail(e)
@@ -195,7 +200,8 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
                 val installation=current.installationDetail?.let {overlayInstallation(it,listOf(row))}
                 val cache=buildMap<String,String> { installation?.let {put("installation:${it.id}",fieldJson.encodeToString(it))}; snapshot?.let { put("snapshot",fieldJson.encodeToString(it)) }; detail?.let { put("job:${it.id}",fieldJson.encodeToString(it)) } }
                 offline.enqueueWithCache(sessionScope(auth),request,cache)
-                if(generation==epoch) { mutable.update { it.copy(snapshot=snapshot,detail=detail,installationDetail=installation,message="İşlem cihazda kaydedildi.") };onSaved();FieldSyncWorker.schedule(getApplication());sync() }
+                telemetry.event(FieldEvent.QUEUE_SAVED)
+                if(generation==epoch) { mutable.update { it.copy(snapshot=snapshot,detail=detail,installationDetail=installation,message=tr(R.string.text_islem_cihazda_kaydedildi_72f13)) };onSaved();FieldSyncWorker.schedule(getApplication());sync() }
             } catch(e: Exception) { if(generation==epoch) fail(e) }
         }
     }
@@ -222,7 +228,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         if(!writable()) return
         viewModelScope.launch {
             try {
-                require(base64.length<=2_800_000) { "Fotoğraf çok büyük." }
+                require(base64.length<=2_800_000) { tr(R.string.text_fotograf_cok_buyuk_36537) }
                 val id=UUID.randomUUID().toString()
                 offline.dao.enqueue(OutboxRecord(scope=sessionScope(auth),commandId=id,kind="photo",payload=fieldJson.encodeToString(LocalPhoto(jobId,base64))))
                 onUploaded("local://$id");FieldSyncWorker.schedule(getApplication());sync()
@@ -242,7 +248,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun discard(row: OutboxRecord) = viewModelScope.launch {
         if(row.scope!=state.value.session?.let(::sessionScope) || row.state=="sending") return@launch
-        offline.dao.update(row.copy(state="delivered",reason="Kullanıcı vazgeçti.",canRetry=false));refresh();sync()
+        offline.dao.update(row.copy(state="delivered",reason=tr(R.string.text_kullanici_vazgecti_b6cde),canRetry=false));refresh();sync()
     }
     fun reapply(row: OutboxRecord) {
         val auth=state.value.session ?: return
@@ -253,19 +259,19 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
                 val request=fieldJson.decodeFromString<SyncRequest>(row.payload)
                 // Fetch current data; never reuse the stale revision or bypass assignment/closed checks.
                 val fresh=api.snapshot(auth)
-                require(fresh.permissions.transition) { "Yazma yetkiniz yok." }
+                require(fresh.permissions.transition) { tr(R.string.text_yazma_yetkiniz_yok_42bfb) }
                 val data=when(request.kind) {
-                    "operation"-> { val op=fresh.operations.firstOrNull { it.id==request.data["operationId"]?.jsonPrimitive?.content } ?: throw ApiException(404,"Operasyon artık size atanmamış.");require(op.status!="done");JsonObject(request.data.toMutableMap().apply { put("version",JsonPrimitive(op.version)) }) }
+                    "operation"-> { val op=fresh.operations.firstOrNull { it.id==request.data["operationId"]?.jsonPrimitive?.content } ?: throw ApiException(404,tr(R.string.text_operasyon_artik_size_atanmamis_07f1e));require(op.status!="done");JsonObject(request.data.toMutableMap().apply { put("version",JsonPrimitive(op.version)) }) }
                     "checklist"-> { val job=api.details(auth,request.workOrderId!!);require(job.status !in listOf("done","cancelled"));val item=job.checklist.first { it.id==request.data["itemId"]?.jsonPrimitive?.content };JsonObject(request.data.toMutableMap().apply { put("expectedCompleted",JsonPrimitive(item.completed)) }) }
                     "transition"-> { val job=api.details(auth,request.workOrderId!!);require(job.status !in listOf("done","cancelled"));JsonObject(request.data.toMutableMap().apply { put("expectedUpdatedAt",JsonPrimitive(job.updatedAt!!)) }) }
-                    else->throw IllegalArgumentException("Bu işlem yeniden uygulanamaz.")
+                    else->throw IllegalArgumentException(tr(R.string.text_bu_islem_yeniden_uygulanamaz_e701c))
                 }
                 offline.db.withTransaction {
                     val current=offline.dao.find(sessionScope(auth),row.commandId)
-                    check(current?.state=="conflict" && state.value.session?.let(::sessionScope)==sessionScope(auth)) { "İşlem zaten çözüldü." }
+                    check(current?.state=="conflict" && state.value.session?.let(::sessionScope)==sessionScope(auth)) { tr(R.string.text_islem_zaten_cozuldu_5c198) }
                     val next=request.copy(idempotencyKey=UUID.randomUUID().toString(),data=data)
                     offline.dao.enqueue(OutboxRecord(scope=sessionScope(auth),commandId=next.idempotencyKey,kind=next.kind,payload=fieldJson.encodeToString(next),position=row.position))
-                    offline.dao.update(row.copy(state="delivered",reason="Yeni işlemle yeniden gönderildi."))
+                    offline.dao.update(row.copy(state="delivered",reason=tr(R.string.text_yeni_islemle_yeniden_gonderildi_c3082)))
                 }
                 FieldSyncWorker.schedule(getApplication());sync()
             } catch(e: Exception) { fail(e) }
@@ -273,10 +279,11 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     private fun fail(error: Exception) {
+        if(error is java.io.IOException) telemetry.fault(FieldEvent.NETWORK_UNAVAILABLE)
         if(error is CancellationException) throw error
         if(error is ApiException && error.status==426) {mutable.update {it.copy(updateRequired=true,stale=true,error=null)};return}
-        if(error is ApiException && error.status==401) { logout();mutable.update {it.copy(error="Oturum sona erdi. Bekleyen kayıtlarınız cihazda korunuyor; yeniden giriş yapın.")} }
-        else mutable.update { it.copy(error=if(error is java.io.IOException) "Çevrimdışısınız. İşlemler cihazda saklanıyor." else error.message ?: "İşlem tamamlanamadı.",stale=true,accessBlocked=it.accessBlocked || error is ApiException && error.status==403) }
+        if(error is ApiException && error.status==401) { logout();mutable.update {it.copy(error=tr(R.string.text_oturum_sona_erdi_bekleyen_kayitlariniz_cihazda_k_eb225))} }
+        else mutable.update { it.copy(error=if(error is java.io.IOException) tr(R.string.text_cevrimdisisiniz_islemler_cihazda_saklaniyor_28e3b) else error.message ?: tr(R.string.text_islem_tamamlanamadi_643f2),stale=true,accessBlocked=it.accessBlocked || error is ApiException && error.status==403) }
     }
 }
 private fun overlayJob(job: WorkOrder,rows: List<OutboxRecord>): WorkOrder {

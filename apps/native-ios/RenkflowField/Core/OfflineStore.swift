@@ -62,12 +62,12 @@ func sessionScope(_ auth: Session) -> String {
     }
     @discardableResult func enqueue(_ scope: String,request: SyncRequest,caches: [String:Data]=[:]) throws -> OutboxRecord {
         let identity=request.idempotencyKey
-        if let global=try context.fetch(FetchDescriptor<OutboxRecord>(predicate:#Predicate {$0.commandID==identity})).first,global.scope != scope {throw FieldAPIError(status:0,message:"Yerel işlem kimliği başka hesaba ait.")}
+        if let global=try context.fetch(FetchDescriptor<OutboxRecord>(predicate:#Predicate {$0.commandID==identity})).first,global.scope != scope {throw FieldAPIError(status:0,message:L("text_yerel_islem_kimligi_baska_hesaba_ait_1c761"))}
         let bytes=try JSONEncoder().encode(request)
         if let existing=try find(scope,id:request.idempotencyKey) {
             let old=try JSONDecoder().decode(SyncRequest.self,from:existing.payload)
             let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys
-            guard try encoder.encode(old)==encoder.encode(request) else {throw FieldAPIError(status:0,message:"Yerel işlem kimliği çakıştı.")};return existing
+            guard try encoder.encode(old)==encoder.encode(request) else {throw FieldAPIError(status:0,message:L("text_yerel_islem_kimligi_cakisti_d4e59"))};return existing
         }
         var descriptor=FetchDescriptor<OutboxRecord>(sortBy:[SortDescriptor(\.sequence,order:.reverse)]);descriptor.fetchLimit=1
         let sequence=(try context.fetch(descriptor).first?.sequence ?? 0)+1
@@ -82,9 +82,9 @@ func sessionScope(_ auth: Session) -> String {
         context.insert(row);try context.save();return row
     }
     func rebase(_ scope: String,row: OutboxRecord,request: SyncRequest) throws {
-        guard row.state=="conflict" && row.canRetry && row.scope==scope else {throw FieldAPIError(status:0,message:"İşlem zaten çözüldü.")}
+        guard row.state=="conflict" && row.canRetry && row.scope==scope else {throw FieldAPIError(status:0,message:L("text_islem_zaten_cozuldu_5c198"))}
         let next=OutboxRecord(id:request.idempotencyKey,sequence:row.sequence,scope:scope,kind:request.kind,payload:try JSONEncoder().encode(request))
-        try context.transaction {context.insert(next);row.state="delivered";row.reason="Yeni işlemle yeniden gönderildi.";try context.save()}
+        try context.transaction {context.insert(next);row.state="delivered";row.reason=L("text_yeni_islemle_yeniden_gonderildi_c3082");try context.save()}
     }
     func migrate(_ auth: Session,legacy: ProductionCommand?) throws {
         if let legacy {try enqueue(sessionScope(auth),request:SyncRequest(idempotencyKey:legacy.commandId,kind:"operation",data:try payload(legacy.data),workOrderId:nil))}

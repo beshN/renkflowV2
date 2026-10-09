@@ -16,6 +16,7 @@ done
 npm run build > /tmp/mobile-build.log 2>&1 || { tail -100 /tmp/mobile-build.log; exit 1; }
 npx tsx ../../scripts/mobile/apply-local-schema.ts
 npx tsx --require ./scripts/register-server-only.cjs scripts/test-mobile-features.ts
+npx tsx --require ./scripts/register-server-only.cjs scripts/test-mobile-sessions.ts
 npm run test:field -- --fixture=/tmp/renkflow-mobile-fixture.json
 npm run start:next -- -p 3022 > /tmp/mobile-server.log 2>&1 &
 for attempt in $(seq 1 60); do

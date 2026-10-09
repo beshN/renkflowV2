@@ -9,6 +9,9 @@ root = Path(__file__).resolve().parents[1] / 'apps/native-ios'
 project_dir = root / 'RenkflowField.xcodeproj'
 project_dir.mkdir(exist_ok=True)
 objects = {}
+contract=json.loads((root.parents[1] / 'contracts/mobile/openapi.json').read_text())
+mobile_version=contract['info']['version']
+mobile_build=contract['x-build-number']
 
 def identifier(key):
     return hashlib.sha256(key.encode()).hexdigest()[:24].upper()
@@ -57,7 +60,11 @@ for target in targets:
             ref = obj(relative, 'PBXFileReference', f'lastKnownFileType = {kind}; path = {quote(relative)}; sourceTree = "<group>";')
             file_refs.append(ref)
             resource_builds.append(obj('build.' + relative, 'PBXBuildFile', f'fileRef = {ref};'))
-        file_refs.append(obj('info', 'PBXFileReference', 'lastKnownFileType = text.plist.xml; path = RenkflowField/Info.plist; sourceTree = "<group>";'))
+        localized=obj('localized.tr','PBXFileReference','lastKnownFileType = text.plist.strings; name = tr; path = RenkflowField/tr.lproj/Localizable.strings; sourceTree = "<group>";')
+        variant=obj('localized','PBXVariantGroup',f'name = Localizable.strings; children = {array([localized])}; sourceTree = "<group>";')
+        file_refs.append(variant)
+        resource_builds.append(obj('build.localized','PBXBuildFile',f'fileRef = {variant};'))
+        file_refs.append(obj('info' , 'PBXFileReference', 'lastKnownFileType = text.plist.xml; path = RenkflowField/Info.plist; sourceTree = "<group>";'))
     groups.append(obj('group.' + target, 'PBXGroup', f'name = {target}; children = {array(file_refs)}; sourceTree = "<group>";'))
     extension = 'xctest' if test else 'app'
     filetype = 'wrapper.cfbundle' if test else 'wrapper.application'
@@ -66,7 +73,7 @@ for target in targets:
     sources = obj('sources.' + target, 'PBXSourcesBuildPhase', f'buildActionMask = 2147483647; files = {array(source_builds)}; runOnlyForDeploymentPostprocessing = 0;')
     resources = obj('resources.' + target, 'PBXResourcesBuildPhase', f'buildActionMask = 2147483647; files = {array(resource_builds)}; runOnlyForDeploymentPostprocessing = 0;')
     frameworks = obj('frameworks.' + target, 'PBXFrameworksBuildPhase', 'buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;')
-    values = {'PRODUCT_NAME': '$(TARGET_NAME)', 'PRODUCT_BUNDLE_IDENTIFIER': 'com.renkflow.field' + ('.uitests' if ui_test else '.tests' if test else ''), 'SWIFT_VERSION': '5.0', 'IPHONEOS_DEPLOYMENT_TARGET': '17.0', 'SDKROOT': 'iphoneos', 'TARGETED_DEVICE_FAMILY': '1,2', 'CODE_SIGN_STYLE': 'Automatic', 'CURRENT_PROJECT_VERSION': '2', 'MARKETING_VERSION': '1.1.0', 'CLANG_ENABLE_MODULES': 'YES', 'SUPPORTED_PLATFORMS': 'iphoneos iphonesimulator'}
+    values = {'PRODUCT_NAME': '$(TARGET_NAME)', 'PRODUCT_BUNDLE_IDENTIFIER': 'com.renkflow.field' + ('.uitests' if ui_test else '.tests' if test else ''), 'SWIFT_VERSION': '5.0', 'IPHONEOS_DEPLOYMENT_TARGET': '17.0', 'SDKROOT': 'iphoneos', 'TARGETED_DEVICE_FAMILY': '1,2', 'CODE_SIGN_STYLE': 'Automatic', 'CURRENT_PROJECT_VERSION': str(mobile_build), 'MARKETING_VERSION': mobile_version, 'CLANG_ENABLE_MODULES': 'YES', 'SUPPORTED_PLATFORMS': 'iphoneos iphonesimulator'}
     dependencies = []
     if test:
         values['GENERATE_INFOPLIST_FILE'] = 'YES'

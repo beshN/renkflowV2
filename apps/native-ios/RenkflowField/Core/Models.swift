@@ -1,8 +1,8 @@
 import Foundation
 
 struct FieldUser: Codable, Equatable { var id: String; var email: String; var name: String?; var role: String; var tenantId: String }
-struct Session: Codable { var server: String; var token: String; var expiresAt: Date; var user: FieldUser }
-struct LoginResult: Codable { var user: FieldUser; var accessToken: String; var expiresIn: Double }
+struct Session: Codable { var server: String; var token: String; var expiresAt: Date; var user: FieldUser;var refreshToken:String?;var sessionId:String?;var deviceId:String?;var refreshRequestId:String? }
+struct LoginResult: Codable { var user: FieldUser; var accessToken: String; var expiresIn: Double;var refreshToken:String?;var sessionId:String?;var deviceId:String? }
 struct FieldPermissions: Codable { var transition: Bool; var close: Bool; var checklist: Bool; var comment: Bool }
 struct Snapshot: Codable { var workOrders: [WorkOrder]; var operations: [ProductionOperation]; var generatedAt: String; var truncated: Bool; var permissions: FieldPermissions; var cutPlans: [CutPlan]? }
 struct FieldColorInfo: Codable { var label: String; var code: String; var name: String; var hex: String?; var finish: String?; var finishAssumed: Bool; var standIn: Bool; var kind: String }
@@ -33,15 +33,15 @@ struct Accepted: Codable { var accepted: Bool; var qualityRejected: Bool? }
 struct ScanResult: Codable { var kind: String; var id: String; var title: String; var workOrderId: String?; var subtitle: String?; var quantity: Double?; var uom: String?; var code: String? }
 struct PhotoInput: Codable { var name = "saha.jpg"; var mime = "image/jpeg"; var base64: String; var workOrderId: String }
 struct PhotoResult: Codable { var url: String }
-struct LoginInput: Codable { var email: String; var password: String }
+struct LoginInput: Codable { var email: String; var password: String;var deviceId:String? }
 struct ChecklistInput: Codable { var completed: Bool }
 struct CommentInput: Codable { var body: String }
 struct TransitionInput: Codable { var status: String; var blockedReasonCategory: String? = nil; var blockedReasonDetail: String? = nil }
 
 func statusLabel(_ value: String) -> String {
-    ["open": "Açık", "in_progress": "Çalışıyor", "running": "Çalışıyor", "blocked": "Bloke", "done": "Tamamlandı", "cancelled": "İptal", "ready": "Hazır", "waiting": "Bekliyor", "paused": "Duraklatıldı"][value] ?? value
+    ["open": L("text_acik_bbb11"), "in_progress": L("text_calisiyor_af7da"), "running": L("text_calisiyor_af7da"), "blocked": L("text_bloke_9e16b"), "done": L("text_tamamlandi_7c6f3"), "cancelled": L("text_iptal_72278"), "ready": L("text_hazir_970db"), "waiting": "Bekliyor", "paused": L("text_duraklatildi_49730")][value] ?? value
 }
-func priorityLabel(_ value: String) -> String { ["critical": "Kritik", "high": "Yüksek", "low": "Düşük", "medium": "Normal"][value] ?? value }
+func priorityLabel(_ value: String) -> String { ["critical": "Kritik", "high": L("text_yuksek_06213"), "low": L("text_dusuk_f4643"), "medium": "Normal"][value] ?? value }
 func quantity(_ number: Double) -> String { number.formatted(.number.precision(.fractionLength(0...2)).locale(Locale(identifier: "tr_TR"))) }
 func displayDate(_ string: String) -> String {
     let formatter = ISO8601DateFormatter()

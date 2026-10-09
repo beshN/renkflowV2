@@ -1,3 +1,4 @@
+import mobileSpec from '../../../contracts/mobile/openapi.json';
 /** Technical field writes against disposable db:local, never production. */
 import assert from 'node:assert/strict';
 import {randomUUID,createHash} from 'node:crypto';
@@ -16,7 +17,7 @@ async function main() {
   if(base) {const url=new URL(base);assert(['127.0.0.1','localhost'].includes(url.hostname)&&url.port,'Only explicit loopback servers are allowed');}
   const {POST,GET}=await import('../app/api/mobile/v1/[...path]/route');const {NextRequest}=await import('next/server');let token='';
   async function call(path:string,body?:unknown,status=200) {
-    const headers={'content-type':'application/json','x-renkflow-app-version':'1.1.0','x-renkflow-platform':'android',authorization:'Bearer '+token};
+    const headers={'content-type':'application/json','x-renkflow-app-version':mobileSpec.info.version,'x-renkflow-platform':'android',authorization:'Bearer '+token};
     const options={method:body===undefined?'GET':'POST',headers,...(body===undefined?{}:{body:JSON.stringify(body)})};
     const response=base?await fetch(base+'/api/mobile/v1/'+path,options):await (body===undefined?GET:POST)(new NextRequest('https://renkflow.com/api/mobile/v1/'+path,options),{params:Promise.resolve({path:path.split('/')})});
     const result=await response.json();assert.equal(response.status,status,result.error);return result;
@@ -57,7 +58,7 @@ async function main() {
     const finish={action:'finish',uploadId};const photo=await call('uploads',finish);const replay=await call('uploads',finish);assert.equal(photo.data.url,replay.data.url);
     assert.equal((await call('installations/'+i.id)).data.photos.length,1);
     assert.equal(Number((await db`SELECT count(*) AS n FROM record_attachments WHERE tenant_id=${tenant} AND entity_id=${i.id}`)[0].n),1);
-    const photoHeaders={authorization:'Bearer '+token,'x-renkflow-app-version':'1.1.0','x-renkflow-platform':'android'};
+    const photoHeaders={authorization:'Bearer '+token,'x-renkflow-app-version':mobileSpec.info.version,'x-renkflow-platform':'android'};
     async function readPhoto() {return base ? fetch(base+photo.data.url,{headers:photoHeaders}) : GET(new NextRequest('https://renkflow.com'+photo.data.url,{headers:photoHeaders}),{params:Promise.resolve({path:['installation-files',photo.data.url.split('/').pop()]})});}
     const photoResponse=await readPhoto();assert.equal(photoResponse.status,200);assert.equal(photoResponse.headers.get('content-type'),'image/jpeg');assert.equal(createHash('sha256').update(Buffer.from(await photoResponse.arrayBuffer())).digest('hex'),sha256);
     const {installationPhoto}=await import('../lib/features/mobile/uploads');

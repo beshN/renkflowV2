@@ -1,3 +1,4 @@
+import mobileSpec from '../../../contracts/mobile/openapi.json';
 /** Real route/service/database checks; hard-wired to the isolated local test DB. */
 import assert from 'node:assert/strict';
 import { randomUUID, randomBytes } from 'node:crypto';
@@ -34,13 +35,13 @@ async function main() {
   const [worker] = await db`INSERT INTO users(name,email,password,email_verified) VALUES('Field operator',${randomUUID() + '@example.invalid'},${hash},now()) RETURNING id,email`;
   await db`INSERT INTO tenant_members(tenant_id,user_id,role) VALUES(${tenant.id},${owner.id},'owner'),(${tenant.id},${worker.id},'worker')`;
   const ownerActor = { tenantId: tenant.id, userId: owner.id, role: 'owner' as const };
-  const loginResponse = await login(new NextRequest('https://renkflow.com/api/mobile/v1/auth/login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-renkflow-app-version': '1.1.0', 'x-renkflow-platform': 'android' }, body: JSON.stringify({ email: worker.email, password }) }));
+  const loginResponse = await login(new NextRequest('https://renkflow.com/api/mobile/v1/auth/login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-renkflow-app-version': mobileSpec.info.version, 'x-renkflow-platform': 'android' }, body: JSON.stringify({ email: worker.email, password }) }));
   assert.equal(loginResponse.status, 200);
   const token = (await loginResponse.json()).data.accessToken;
   assert.equal(typeof token, 'string');
   async function call(path: string[], body?: unknown, expected = 200, query = '') {
     const request = new NextRequest('https://renkflow.com/api/mobile/v1/' + path.join('/') + query, {
-      method: body === undefined ? 'GET' : 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json', 'x-renkflow-app-version': '1.1.0', 'x-renkflow-platform': 'android' },
+      method: body === undefined ? 'GET' : 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json', 'x-renkflow-app-version': mobileSpec.info.version, 'x-renkflow-platform': 'android' },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     const response = await send(request, path);
