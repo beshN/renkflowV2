@@ -39,9 +39,9 @@ struct CommentInput: Codable { var body: String }
 struct TransitionInput: Codable { var status: String; var blockedReasonCategory: String? = nil; var blockedReasonDetail: String? = nil }
 
 func statusLabel(_ value: String) -> String {
-    ["open": "Açık", "in_progress": "Çalışıyor", "running": "Çalışıyor", "blocked": "Bloke", "done": "Tamamlandı", "cancelled": "İptal", "ready": "Hazır", "waiting": "Bekliyor", "paused": "Duraklatıldı"][value] ?? value
+    ["open": L("text_acik_bbb11"), "in_progress": L("text_calisiyor_af7da"), "running": L("text_calisiyor_af7da"), "blocked": L("text_bloke_9e16b"), "done": L("text_tamamlandi_7c6f3"), "cancelled": L("text_iptal_72278"), "ready": L("text_hazir_970db"), "waiting": "Bekliyor", "paused": L("text_duraklatildi_49730")][value] ?? value
 }
-func priorityLabel(_ value: String) -> String { ["critical": "Kritik", "high": "Yüksek", "low": "Düşük", "medium": "Normal"][value] ?? value }
+func priorityLabel(_ value: String) -> String { ["critical": "Kritik", "high": L("text_yuksek_06213"), "low": L("text_dusuk_f4643"), "medium": "Normal"][value] ?? value }
 func quantity(_ number: Double) -> String { number.formatted(.number.precision(.fractionLength(0...2)).locale(Locale(identifier: "tr_TR"))) }
 func displayDate(_ string: String) -> String {
     let formatter = ISO8601DateFormatter()

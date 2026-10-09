@@ -7,18 +7,18 @@ struct CuttingPlansView: View {
     var body: some View {
         VStack(spacing:12) {
             ForEach(plans) {plan in
-                Button {selected=plan} label:{Label("Kesim · \(plan.bars.count) çubuk · \(statusLabel(plan.status))",systemImage:"scissors").frame(maxWidth:.infinity,minHeight:48)}.buttonStyle(.bordered)
+                Button {selected=plan} label:{Label(L("text_kesim_1_cubuk_2_b58b8", String(describing: plan.bars.count), String(describing: statusLabel(plan.status))),systemImage:"scissors").frame(maxWidth:.infinity,minHeight:48)}.buttonStyle(.bordered)
             }
         }.sheet(item:$selected) {plan in
             NavigationStack {
                 ScrollView {
                     LazyVStack(alignment:.leading,spacing:24) {
-                        Text("Parçaya dokunun · sağa kaydırarak inceleyin").font(.subheadline).foregroundStyle(.secondary)
+                        Text(L("text_parcaya_dokunun_saga_kaydirarak_inceleyin_d268d")).font(.subheadline).foregroundStyle(.secondary)
                         ForEach(Array(plan.bars.enumerated()),id:\.element.id) {index,bar in
                             CutBarView(bar:bar,index:index,jobs:store.snapshot?.workOrders ?? []) {id in selected=nil;Task {await store.openJob(id)}}
                         }
                     }.padding(20)
-                }.navigationTitle("Kesim şeması").toolbar {ToolbarItem(placement:.cancellationAction) {Button("Kapat") {selected=nil}}}
+                }.navigationTitle(L("text_kesim_semasi_92476")).toolbar {ToolbarItem(placement:.cancellationAction) {Button("Kapat") {selected=nil}}}
             }
         }
     }
@@ -34,18 +34,18 @@ private struct CutBarView: View {
                 ScrollView(.horizontal) {
                     HStack(spacing:0) {
                         ForEach(Array(bar.pieces.enumerated()),id:\.offset) {i,piece in
-                            Button {selected=i} label:{Text(quantity(piece.lengthMm)).font(.caption.monospacedDigit()).lineLimit(1).frame(width:max(1,geometry.size.width*zoom*piece.lengthMm/max(1,bar.lengthMm)),height:64).background(i%2==0 ? FieldColor.accent : FieldColor.success).foregroundStyle(i%2==0 ? FieldColor.onAccent : Color.white)}.buttonStyle(.plain).accessibilityLabel("\(quantity(piece.lengthMm)) milimetre parça")
+                            Button {selected=i} label:{Text(quantity(piece.lengthMm)).font(.caption.monospacedDigit()).lineLimit(1).frame(width:max(1,geometry.size.width*zoom*piece.lengthMm/max(1,bar.lengthMm)),height:64).background(i%2==0 ? FieldColor.accent : FieldColor.success).foregroundStyle(i%2==0 ? FieldColor.onAccent : Color.white)}.buttonStyle(.plain).accessibilityLabel(L("text_1_milimetre_parca_a0e84", String(describing: quantity(piece.lengthMm))))
                         }
-                        Rectangle().fill(FieldColor.muted.opacity(0.3)).frame(width:max(0,geometry.size.width*zoom*(bar.lossMm+bar.remainingMm)/max(1,bar.lengthMm)),height:64).accessibilityLabel("Fire ve kalan")
+                        Rectangle().fill(FieldColor.muted.opacity(0.3)).frame(width:max(0,geometry.size.width*zoom*(bar.lossMm+bar.remainingMm)/max(1,bar.lengthMm)),height:64).accessibilityLabel(L("text_fire_ve_kalan_98970"))
                     }.frame(width:geometry.size.width*zoom,alignment:.leading)
                 }
             }.frame(height:64)
-            Slider(value:$zoom,in:1...4).accessibilityLabel("Kesim şeması yakınlaştırma")
-            Text("Fire \(quantity(bar.lossMm)) mm · kalan \(quantity(bar.remainingMm)) mm\(bar.reusable ? " · yeniden kullanılabilir" : "")").font(.caption)
+            Slider(value:$zoom,in:1...4).accessibilityLabel(L("text_kesim_semasi_yakinlastirma_12738"))
+            Text(L("text_fire_1_mm_kalan_2_mm_3_1e69c", String(describing: quantity(bar.lossMm)), String(describing: quantity(bar.remainingMm)), String(describing: bar.reusable ? " · " + L("field.reusable") : ""))).font(.caption)
             if let selected,bar.pieces.indices.contains(selected) {
                 let piece=bar.pieces[selected],job=jobs.first {$0.id==piece.workOrderId}
-                Text("\(quantity(piece.lengthMm)) mm · \(job?.title ?? "İş emri")")
-                if let job {Button("İş emrini aç") {open(job.id)}.frame(minHeight:48).buttonStyle(.bordered)}
+                Text(L("text_1_mm_2_c0ff2", String(describing: quantity(piece.lengthMm)), String(describing: job?.title ?? L("field.job"))))
+                if let job {Button(L("text_is_emrini_ac_516de")) {open(job.id)}.frame(minHeight:48).buttonStyle(.bordered)}
             }
         }
     }

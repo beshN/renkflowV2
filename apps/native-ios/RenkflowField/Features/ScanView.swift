@@ -9,21 +9,21 @@ struct ScanView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                SectionTitle(title: "Etiketten işe", caption: "QR ve barkodları kamerayla okutun")
+                SectionTitle(title: L("text_etiketten_ise_84575"), caption: L("text_qr_ve_barkodlari_kamerayla_okutun_109c6"))
                 VStack(spacing: 24) {
                     Image(systemName: "qrcode.viewfinder").font(.system(size: 100, weight: .light)).foregroundStyle(FieldColor.onInk)
-                    Text("Malzeme · Lot · İş emri").font(.headline).foregroundStyle(.white)
-                    Button("Kamerayı aç") { scanning = true }.buttonStyle(FieldButton(bright: true)).disabled(store.busy)
+                    Text(L("text_malzeme_lot_is_emri_92ca4")).font(.headline).foregroundStyle(.white)
+                    Button(L("text_kamerayi_ac_837ff")) { scanning = true }.buttonStyle(FieldButton(bright: true)).disabled(store.busy)
                 }.padding(32).frame(maxWidth: .infinity).background(FieldColor.ink, in: RoundedRectangle(cornerRadius: 12))
-                TextField("Etiket kodu veya QR içeriği", text: $code).textInputAutocapitalization(.never).autocorrectionDisabled().fieldInput().onSubmit { Task { await store.scan(code) } }
-                Button("Kodu bul") { Task { await store.scan(code) } }.buttonStyle(.bordered).controlSize(.large).disabled(code.isEmpty || code.count > 1000 || store.busy)
+                TextField(L("text_etiket_kodu_veya_qr_icerigi_0843b"), text: $code).textInputAutocapitalization(.never).autocorrectionDisabled().fieldInput().onSubmit { Task { await store.scan(code) } }
+                Button(L("text_kodu_bul_172a4")) { Task { await store.scan(code) } }.buttonStyle(.bordered).controlSize(.large).disabled(code.isEmpty || code.count > 1000 || store.busy)
                 if let result = store.scanResult {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text(["job": "İş emri", "item": "Malzeme", "lot": "Lot", "location": "Konum", "product": "Mamul", "cut": "Kesim paketi"][result.kind] ?? "Etiket").font(.caption.bold()).foregroundStyle(FieldColor.accent)
+                        Text(["job": L("text_is_emri_10fe2"), "item": L("text_malzeme_97571"), "lot": L("text_lot_23ea1"), "location": L("text_konum_cc8b7"), "product": L("text_mamul_d803c"), "cut": L("text_kesim_paketi_52395")][result.kind] ?? L("text_etiket_bc91f")).font(.caption.bold()).foregroundStyle(FieldColor.accent)
                         Text(result.title).font(.title2.bold())
                         if let subtitle = result.subtitle { Text(subtitle) }
                         if let amount = result.quantity { Text("\(quantity(amount)) \(result.uom ?? "")") }
-                        if let id = result.workOrderId { Button("İş emrini aç") { Task { await store.openJob(id) } }.buttonStyle(FieldButton()) }
+                        if let id = result.workOrderId { Button(L("text_is_emrini_ac_516de")) { Task { await store.openJob(id) } }.buttonStyle(FieldButton()) }
                     }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 12))
                 }
             }.padding(24).fieldCanvas()
@@ -43,16 +43,16 @@ struct ScannerSheet: View {
                 FieldColor.ink.ignoresSafeArea()
                 if authorized {
                     NativeScanner(result: result) { denied = true; authorized = false }.ignoresSafeArea(edges: .bottom)
-                    VStack { Spacer(); Text("Etiketi kameraya gösterin").font(.headline).foregroundStyle(.white).padding(18).background(.black.opacity(0.65), in: Capsule()).padding(.bottom, 36) }
+                    VStack { Spacer(); Text(L("text_etiketi_kameraya_gosterin_fced3")).font(.headline).foregroundStyle(.white).padding(18).background(.black.opacity(0.65), in: Capsule()).padding(.bottom, 36) }
                 } else if denied {
                     VStack(spacing: 20) {
                         Image(systemName: "camera.fill").font(.largeTitle)
-                        Text("Kamera kullanılamıyor").font(.title2.bold())
-                        Text("Ayarlar’dan kamera iznini açın veya etiket kodunu elle girin.").multilineTextAlignment(.center)
-                        Button("Ayarları aç") { if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) } }.buttonStyle(.borderedProminent)
+                        Text(L("text_kamera_kullanilamiyor_3a012")).font(.title2.bold())
+                        Text(L("text_ayarlardan_kamera_iznini_acin_veya_etiket_kodunu_4bf61")).multilineTextAlignment(.center)
+                        Button(L("text_ayarlari_ac_4de5a")) { if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) } }.buttonStyle(.borderedProminent)
                     }.padding(28).foregroundStyle(.white)
                 } else { ProgressView().tint(FieldColor.onInk) }
-            }.navigationTitle("Etiket tara").navigationBarTitleDisplayMode(.inline)
+            }.navigationTitle(L("text_etiket_tara_658b9")).navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Kapat") { dismiss() } } }
                 .task {
                     switch AVCaptureDevice.authorizationStatus(for: .video) {
@@ -81,7 +81,7 @@ final class ScannerController: UIViewController, AVCaptureMetadataOutputObjectsD
     private var delivered = false
     private var stopped = false
     init(result: @escaping (String) -> Void, unavailable: @escaping () -> Void) { self.result = result; self.unavailable = unavailable; super.init(nibName: nil, bundle: nil) }
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    required init?(coder: NSCoder) { fatalError(L("text_init_coder_is_not_supported_301be")) }
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black

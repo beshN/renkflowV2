@@ -157,3 +157,23 @@ Adım 2 başlangıcı: 2026-10-09 22:03 UTC. Adım 4 PR #57 düzeltme CI'sı bek
 - iOS ilk oturum CI derleme + 18 birim/1 UI başarılı; yeni oturum birim testleri sırada. Yerel web 92 paket/629 test başarılı.
 - night-2 ayrı test kopyası: güncel saha/oturum API'si production build ve gerçek HTTP saha 6 grup + outbox 4 grup + oturum 4 grup geçti. Hedef web dalları değişmedi.
 - Yerel native test yeniden çalıştırılırken önceki testin kullandığı operasyon sürümü nedeniyle 409 verdi; fixture her çalıştırmada yeniden oluşturulur. CI zaten izole fixture kullanıyor; test veya üretim davranışı gevşetilmedi.
+
+## Adım 5 planı (10 satır)
+1. Nötr/kobalt açık-koyu tema ve geometrik simgeyi koru.
+2. Android kullanıcı metinlerini Türkçe strings.xml kaynaklarına taşı.
+3. iOS kullanıcı metinlerini Türkçe Localizable.strings dosyasına taşı.
+4. Dinamik sayı/değişken metinlerinde yerelleştirilmiş biçim argümanları kullan.
+5. Büyük yazı ve kaydırma davranışlarını telefon/tablet düzenlerinde kontrol et.
+6. Dokunma alanlarını Android 56dp/iOS 48pt sınırına getir.
+7. Anlamlı ikon etiketlerini ve ekran okuyucu durumlarını tamamla.
+8. Başarı/hata haptikleri ve mevcut ortak boş/hata/offline bileşenlerini kullan.
+9. Tabletlerde iş listesi ve detayını aynı ekranda göster.
+10. Kaynak bütünlüğü, native derleme/lint ve mevcut UI testlerini koruyarak doğrula.
+
+Adım 5 başlangıcı: 2026-10-09 22:12 UTC. Önceki adımların Android CI'sı beklenirken bağımsız native tasarım hazırlığı ayrı dalda yapılır.
+
+### Tasarım kontrol noktası
+- Türkçe kullanıcı metinleri Android strings.xml ve iOS tr.lproj/Localizable.strings'e taşındı; dinamik metinler biçim argümanlarıyla gelir. Eksik/çift kaynak anahtarı CI'da hata verir.
+- Tablet iş sekmesinde liste+detay yan yana; telefon akışı aynı. Büyük hedefler ve başarı/hata haptikleri eklendi. Mevcut nötr/kobalt açık-koyu tema ve ortak boş/hata/offline durumları korunur.
+- Android oturum ekranında lint LocalContext'in Activity'ye cast edilmesini reddetti; LocalActivity'ye geçildi. Test veya lint kuralı atlanmadı.
+- PR #57 tüm GitHub kontrolleri başarılıyken mobil entegrasyona merge edildi (`0b5e168`). Adım 4 tamamlandı; fiziksel kamera ve müşteri adres/onay bağlantısı halen kapalı/doğrulanmadı.

@@ -21,7 +21,7 @@ final class ApnsRegistration {
 func showLocalNotification() async throws -> Bool {
     let center=UNUserNotificationCenter.current()
     guard try await center.requestAuthorization(options:[.alert,.sound,.badge]) else {return false}
-    let content=UNMutableNotificationContent();content.title="RenkFlow Saha";content.body="Yerel bildirim testi";content.sound = .default
+    let content=UNMutableNotificationContent();content.title=L("text_renkflow_saha_671f9");content.body=L("text_yerel_bildirim_testi_0f5dc");content.sound = .default
     try await center.add(UNNotificationRequest(identifier:"field-local-test",content:content,trigger:UNTimeIntervalNotificationTrigger(timeInterval:1,repeats:false)))
     return true
 }

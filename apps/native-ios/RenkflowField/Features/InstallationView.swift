@@ -16,37 +16,37 @@ struct InstallationView:View {
         NavigationStack {
             List {
                 if selected==nil {
-                    Toggle("Bugünkü ekip işleri",isOn:$today)
+                    Toggle(L("text_bugunku_ekip_isleri_29058"),isOn:$today)
                     let list=store.installations.filter {!today || $0.date==day}
-                    if list.isEmpty {Text("Bu gün için atanan montaj yok.").foregroundStyle(.secondary)}
+                    if list.isEmpty {Text(L("text_bu_gun_icin_atanan_montaj_yok_c987e")).foregroundStyle(.secondary)}
                     ForEach(list) {job in
                         Button {selected=job.id;Task {await store.openInstallation(job.id)}} label:{
                             VStack(alignment:.leading,spacing:8) {Text(job.number).font(.headline);Text("\(job.date ?? "") \(job.startTime ?? "") · \(job.productName ?? "")");Text("\(job.checklistCompleted)/\(job.checklistTotal) kontrol").font(.caption)}.frame(minHeight:64)
                         }
                     }
                 } else {
-                    Button("Listeye dön") {selected=nil}.frame(minHeight:48)
+                    Button(L("text_listeye_don_bb341")) {selected=nil}.frame(minHeight:48)
                     if let detail=store.installationDetail,detail.id==selected {
-                        Text(detail.status=="planned" ? "Planlandı" : detail.status=="in_progress" ? "Sahada" : "Tamamlandı").font(.headline)
-                        if writable && ["planned","in_progress"].contains(detail.status) {Button(detail.status=="planned" ? "Montajı başlat" : "Montajı tamamla") {Task {await store.installationCommand(detail.status=="planned" ? "start" : "complete")}}.buttonStyle(FieldButton())}
+                        Text(detail.status=="planned" ? L("text_planlandi_03e58") : detail.status=="in_progress" ? "Sahada" : L("text_tamamlandi_7c6f3")).font(.headline)
+                        if writable && ["planned","in_progress"].contains(detail.status) {Button(detail.status=="planned" ? L("text_montaji_baslat_769f7") : L("text_montaji_tamamla_9f08c")) {Task {await store.installationCommand(detail.status=="planned" ? "start" : "complete")}}.buttonStyle(FieldButton())}
                         ForEach(detail.checklist) {item in
                             Button {Task {await store.installationCommand("checklist",item:item)}} label:{Label(item.title,systemImage:item.completed ? "checkmark.circle.fill" : "circle").frame(minHeight:48)}.disabled(!writable || ["done","cancelled"].contains(detail.status))
                         }
-                        Text("\(detail.photos?.count ?? 0) saha fotoğrafı")
+                        Text(L("text_1_saha_fotografi_f555f", String(describing: detail.photos?.count ?? 0)))
                         if let photoMessage {Text(photoMessage)}
-                        if writable && !["done","cancelled"].contains(detail.status) {PhotosPicker(selection:$photoItem,matching:.images) {Label("Saha fotoğrafı ekle",systemImage:"photo.badge.plus")}.frame(minHeight:48).disabled(preparing)}
+                        if writable && !["done","cancelled"].contains(detail.status) {PhotosPicker(selection:$photoItem,matching:.images) {Label(L("text_saha_fotografi_ekle_51f0d"),systemImage:"photo.badge.plus")}.frame(minHeight:48).disabled(preparing)}
                         ForEach(Array(detail.issues.enumerated()),id:\.offset) {_,entry in Text("\(entry.kind=="damage" ? "Hasar" : "Eksik") · \(entry.text)")}
                         if writable && !["done","cancelled"].contains(detail.status) {
-                            Picker("Bildirim",selection:$kind) {Text("Eksik").tag("missing");Text("Hasar").tag("damage")}.pickerStyle(.segmented)
-                            TextField("Saha notu",text:$issue,axis:.vertical)
-                            Button("Notu kaydet") {Task {await store.installationCommand("issue",kind:kind,text:issue);issue=""}}.buttonStyle(FieldButton()).disabled(issue.trimmingCharacters(in:.whitespacesAndNewlines).count<3 || issue.count>1000)
+                            Picker("Bildirim",selection:$kind) {Text("Eksik").tag("missing");Text(L("text_hasar_1b191")).tag("damage")}.pickerStyle(.segmented)
+                            TextField(L("text_saha_notu_10e6a"),text:$issue,axis:.vertical)
+                            Button(L("text_notu_kaydet_04416")) {Task {await store.installationCommand("issue",kind:kind,text:issue);issue=""}}.buttonStyle(FieldButton()).disabled(issue.trimmingCharacters(in:.whitespacesAndNewlines).count<3 || issue.count>1000)
                         }
-                    } else {Text("Kayıt yükleniyor. Çevrimdışıysa daha önce açtığınız kayıtlar kullanılabilir.")}
+                    } else {Text(L("text_kayit_yukleniyor_cevrimdisiysa_daha_once_actigin_3e69a"))}
                 }
             }.task(id:photoItem) {
                 guard let photoItem,let id=selected else {return};preparing=true;defer {preparing=false}
-                do {guard let bytes=try await photoItem.loadTransferable(type:Data.self) else {return};let saved=await store.uploadInstallationPhoto(id,bytes:try jpegForUpload(bytes));photoMessage=saved ? "Fotoğraf cihazda kaydedildi." : "Fotoğraf kaydedilemedi."} catch {photoMessage="Fotoğraf hazırlanamadı."}
-            }.navigationTitle("Montaj").toolbar {ToolbarItem(placement:.cancellationAction) {Button("Kapat") {dismiss()}}}
+                do {guard let bytes=try await photoItem.loadTransferable(type:Data.self) else {return};let saved=await store.uploadInstallationPhoto(id,bytes:try jpegForUpload(bytes));photoMessage=saved ? L("text_fotograf_cihazda_kaydedildi_51f1d") : L("text_fotograf_kaydedilemedi_822b0")} catch {photoMessage=L("text_fotograf_hazirlanamadi_2156d")}
+            }.navigationTitle(L("text_montaj_1e486")).toolbar {ToolbarItem(placement:.cancellationAction) {Button("Kapat") {dismiss()}}}
         }
     }
 }

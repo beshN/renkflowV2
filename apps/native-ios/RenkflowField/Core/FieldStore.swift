@@ -35,7 +35,7 @@ import Combine
         self.api=api
         if let offline {self.offline=offline} else {self.offline=try? OfflineStore.persistent()}
     }
-    private func storage() throws -> OfflineStore {guard let offline else {throw FieldAPIError(status:0,message:"Yerel kayıt deposu açılamadı. Bekleyen işler korunuyor; uygulamayı yeniden açın.")};return offline}
+    private func storage() throws -> OfflineStore {guard let offline else {throw FieldAPIError(status:0,message:L("text_yerel_kayit_deposu_acilamadi_bekleyen_isler_koru_94afa"))};return offline}
     private func reloadQueue() {
         guard let auth=session else {outbox=[];return}
         do {outbox=try storage().rows(sessionScope(auth))} catch {fail(error)}
@@ -154,7 +154,7 @@ import Combine
     func scan(_ code: String) async {
         guard let auth=session else {return};let value=code.trimmingCharacters(in:.whitespacesAndNewlines)
         do {
-            guard !value.isEmpty,value.count<=1000 else {throw FieldAPIError(status:400,message:"Geçerli bir etiket kodu girin.")}
+            guard !value.isEmpty,value.count<=1000 else {throw FieldAPIError(status:400,message:L("text_gecerli_bir_etiket_kodu_girin_540aa"))}
             let result=try await api.scan(auth,code:value);let store=try storage();try store.setCache(sessionScope(auth),key:"scan:"+value,data:JSONEncoder().encode(result));try store.context.save();scanResult=result
         } catch {
             if let cached=try? storage().read(sessionScope(auth),key:"scan:"+value,as:ScanResult.self) {scanResult=cached;stale=true} else {fail(error)}
@@ -189,7 +189,7 @@ import Combine
             let installation=installationDetail.map {overlayInstallation($0,rows:[temporary])}
             var caches:[String:Data]=[:];if let installation {caches["installation:"+installation.id]=try JSONEncoder().encode(installation)};if let next {caches["snapshot"]=try JSONEncoder().encode(next)};if let job {caches["job:"+job.id]=try JSONEncoder().encode(job)}
             try storage().enqueue(sessionScope(auth),request:request,caches:caches)
-            snapshot=next;detail=job;installationDetail=installation;message="İşlem cihazda kaydedildi.";reloadQueue();FieldBackgroundSync.schedule();await sync()
+            snapshot=next;detail=job;installationDetail=installation;message=L("text_islem_cihazda_kaydedildi_72f13");reloadQueue();FieldBackgroundSync.schedule();await sync()
         } catch {fail(error)}
     }
     func retryCommand() async {await sync()}
@@ -210,7 +210,7 @@ import Combine
     func uploadPhoto(jobID: String,bytes: Data) async -> String? {
         guard let auth=session,writable else {return nil}
         do {
-            guard bytes.count<=2_000_000 else {throw FieldAPIError(status:400,message:"Fotoğraf çok büyük.")}
+            guard bytes.count<=2_000_000 else {throw FieldAPIError(status:400,message:L("text_fotograf_cok_buyuk_36537"))}
             let row=try storage().photo(sessionScope(auth),value:LocalPhoto(workOrderId:jobID,base64:bytes.base64EncodedString()))
             reloadQueue();FieldBackgroundSync.schedule();Task {await sync()};return "local://"+row.commandID
         } catch {fail(error);return nil}
@@ -218,31 +218,31 @@ import Combine
     func uploadInstallationPhoto(_ id:String,bytes:Data) async -> Bool {
         guard let auth=session,!updateRequired,!accessBlocked,references?.capabilities.installationEdit==true else {return false}
         do {
-            guard bytes.count<=2_000_000 else {throw FieldAPIError(status:400,message:"Fotoğraf çok büyük.")}
+            guard bytes.count<=2_000_000 else {throw FieldAPIError(status:400,message:L("text_fotograf_cok_buyuk_36537"))}
             _ = try storage().photo(sessionScope(auth),value:LocalPhoto(base64:bytes.base64EncodedString(),installationId:id))
             reloadQueue();FieldBackgroundSync.schedule();Task {await sync()};return true
         } catch {fail(error);return false}
     }
     func discard(_ row: OutboxRecord) async {
         guard let auth=session,row.scope==sessionScope(auth),row.state != "sending" else {return}
-        do {row.state="delivered";row.reason="Kullanıcı vazgeçti.";row.canRetry=false;try storage().context.save();reloadQueue();await refresh()} catch {fail(error)}
+        do {row.state="delivered";row.reason=L("text_kullanici_vazgecti_b6cde");row.canRetry=false;try storage().context.save();reloadQueue();await refresh()} catch {fail(error)}
     }
     func reapply(_ row: OutboxRecord) async {
         guard let auth=session,row.scope==sessionScope(auth),row.state=="conflict",row.canRetry,!busy else {return}
         busy=true;defer {busy=false}
         do {
             var request=try JSONDecoder().decode(SyncRequest.self,from:row.payload)
-            let fresh=try await api.snapshot(auth);guard fresh.permissions.transition else {throw FieldAPIError(status:403,message:"Yazma yetkiniz yok.")}
+            let fresh=try await api.snapshot(auth);guard fresh.permissions.transition else {throw FieldAPIError(status:403,message:L("text_yazma_yetkiniz_yok_42bfb"))}
             switch request.kind {
             case "operation":
-                guard let op=fresh.operations.first(where:{$0.id==request.data["operationId"]?.text}),op.status != "done" else {throw FieldAPIError(status:404,message:"Operasyon artık size atanmamış veya kapatılmış.")};request.data["version"] = .number(Double(op.version))
+                guard let op=fresh.operations.first(where:{$0.id==request.data["operationId"]?.text}),op.status != "done" else {throw FieldAPIError(status:404,message:L("text_operasyon_artik_size_atanmamis_veya_kapatilmis_060c2"))};request.data["version"] = .number(Double(op.version))
             case "checklist":
                 let job=try await api.details(auth,id:request.workOrderId!)
-                guard !["done","cancelled"].contains(job.status),let item=job.checklist?.first(where:{$0.id==request.data["itemId"]?.text}) else {throw FieldAPIError(status:404,message:"Kontrol öğesi artık uygulanamaz.")};request.data["expectedCompleted"] = .bool(item.completed)
+                guard !["done","cancelled"].contains(job.status),let item=job.checklist?.first(where:{$0.id==request.data["itemId"]?.text}) else {throw FieldAPIError(status:404,message:L("text_kontrol_ogesi_artik_uygulanamaz_57d98"))};request.data["expectedCompleted"] = .bool(item.completed)
             case "transition":
                 let job=try await api.details(auth,id:request.workOrderId!)
-                guard !["done","cancelled"].contains(job.status),let revision=job.updatedAt else {throw FieldAPIError(status:409,message:"Kapatılan iş yeniden uygulanamaz.")};request.data["expectedUpdatedAt"] = .string(revision)
-            default: throw FieldAPIError(status:400,message:"Bu işlem yeniden uygulanamaz.")
+                guard !["done","cancelled"].contains(job.status),let revision=job.updatedAt else {throw FieldAPIError(status:409,message:L("text_kapatilan_is_yeniden_uygulanamaz_4674f"))};request.data["expectedUpdatedAt"] = .string(revision)
+            default: throw FieldAPIError(status:400,message:L("text_bu_islem_yeniden_uygulanamaz_e701c"))
             }
             request.idempotencyKey=UUID().uuidString
             guard session.map(sessionScope)==sessionScope(auth) else {return}
@@ -253,8 +253,8 @@ import Combine
     private func fail(_ failure: Error) {
         if failure is CancellationError {return}
         if (failure as? FieldAPIError)?.status==426 {updateRequired=true;stale=true;error=nil;return}
-        if (failure as? FieldAPIError)?.status==401 {logout();busy=false;error="Oturum sona erdi. Bekleyen kayıtlar cihazda korunuyor; yeniden giriş yapın."}
-        else {stale=true;error=failure is URLError ? "Çevrimdışısınız. İşlemler cihazda saklanıyor." : (failure as? FieldAPIError)?.message ?? "Yerel işlem tamamlanamadı; kayıtlar korunuyor.";if (failure as? FieldAPIError)?.status==403 {accessBlocked=true}}
+        if (failure as? FieldAPIError)?.status==401 {logout();busy=false;error=L("text_oturum_sona_erdi_bekleyen_kayitlar_cihazda_korun_fb3b2")}
+        else {stale=true;error=failure is URLError ? L("text_cevrimdisisiniz_islemler_cihazda_saklaniyor_28e3b") : (failure as? FieldAPIError)?.message ?? L("text_yerel_islem_tamamlanamadi_kayitlar_korunuyor_516ea");if (failure as? FieldAPIError)?.status==403 {accessBlocked=true}}
     }
 }
 private func overlayJob(_ job: WorkOrder,rows: [OutboxRecord]) throws -> WorkOrder {

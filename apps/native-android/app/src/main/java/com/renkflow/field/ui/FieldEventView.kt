@@ -1,4 +1,6 @@
 package com.renkflow.field.ui
+import com.renkflow.field.data.tr
+import com.renkflow.field.R
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -32,20 +34,20 @@ import com.renkflow.field.data.*
         }
     }
     if(references?.capabilities?.reasonCodes!=true) return
-    OutlinedButton(onClick={show=true},enabled=writable,modifier=Modifier.fillMaxWidth().heightIn(min=56.dp)) {Text("Fire / gecikme bildir")}
-    if(show) AlertDialog(onDismissRequest={show=false},title={Text("Saha bildirimi")},text={
+    OutlinedButton(onClick={show=true},enabled=writable,modifier=Modifier.fillMaxWidth().heightIn(min=56.dp)) {Text(tr(R.string.text_fire_gecikme_bildir_38c51))}
+    if(show) AlertDialog(onDismissRequest={show=false},title={Text(tr(R.string.text_saha_bildirimi_6c0dc))},text={
         Column(Modifier.heightIn(max=440.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                FilterChip(kind=="scrap",{kind="scrap";code=""},label={Text("Fire")})
-                FilterChip(kind=="delay",{kind="delay";code=""},label={Text("Gecikme")})
+                FilterChip(kind=="scrap",{kind="scrap";code=""},label={Text(tr(R.string.text_fire_c141f))})
+                FilterChip(kind=="delay",{kind="delay";code=""},label={Text(tr(R.string.text_gecikme_99c55))})
             }
             references.reasons.filter {it.kind==kind}.forEach {reason ->
                 OutlinedButton(onClick={code=reason.code},modifier=Modifier.fillMaxWidth().heightIn(min=56.dp)) {Text((if(code==reason.code) "✓ " else "")+reason.label)}
             }
-            if(kind=="scrap") OutlinedTextField(count,{count=it},label={Text("Adet")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
-            if(kind=="scrap") OutlinedButton(onClick={picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))},enabled=writable&&!preparing,modifier=Modifier.heightIn(min=56.dp)) {Text(if(photo!=null) "Fotoğraf eklendi" else "Fotoğraf ekle (isteğe bağlı)")}
-            if(photoError) Text("Fotoğraf hazırlanamadı.",color=MaterialTheme.colorScheme.error)
-            OutlinedTextField(note,{if(it.length<=500) note=it},label={Text("Açıklama (isteğe bağlı)")})
+            if(kind=="scrap") OutlinedTextField(count,{count=it},label={Text(tr(R.string.text_adet_fb2a0))},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+            if(kind=="scrap") OutlinedButton(onClick={picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))},enabled=writable&&!preparing,modifier=Modifier.heightIn(min=56.dp)) {Text(if(photo!=null) tr(R.string.text_fotograf_eklendi_d9a66) else tr(R.string.text_fotograf_ekle_istege_bagli_85989))}
+            if(photoError) Text(tr(R.string.text_fotograf_hazirlanamadi_2156d),color=MaterialTheme.colorScheme.error)
+            OutlinedTextField(note,{if(it.length<=500) note=it},label={Text(tr(R.string.text_aciklama_istege_bagli_e4db2))})
         }
-    },confirmButton={Button(onClick={save(kind,code,count.toIntOrNull()?:1,note,photo);show=false},enabled=writable&&!preparing&&code.isNotEmpty()&&(kind!="scrap" || (count.toIntOrNull()?:0) in 1..100000),modifier=Modifier.heightIn(min=56.dp)) {Text("Kaydet")}},dismissButton={TextButton(onClick={show=false}) {Text("Vazgeç")}})
+    },confirmButton={Button(onClick={save(kind,code,count.toIntOrNull()?:1,note,photo);show=false},enabled=writable&&!preparing&&code.isNotEmpty()&&(kind!="scrap" || (count.toIntOrNull()?:0) in 1..100000),modifier=Modifier.heightIn(min=56.dp)) {Text(tr(R.string.text_kaydet_c1fe2))}},dismissButton={TextButton(onClick={show=false}) {Text(tr(R.string.text_vazgec_39a8d))}})
 }

@@ -15,6 +15,7 @@ class MainActivity : FragmentActivity() {
     private val model: FieldViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.renkflow.field.data.FieldStrings.configure(this)
         FieldAppLock.configure(this)
         enableEdgeToEdge()
         setContent { FieldTheme { val state by model.state.collectAsStateWithLifecycle(); FieldApp(state, model) } }

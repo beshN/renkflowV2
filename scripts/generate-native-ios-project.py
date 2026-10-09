@@ -57,7 +57,11 @@ for target in targets:
             ref = obj(relative, 'PBXFileReference', f'lastKnownFileType = {kind}; path = {quote(relative)}; sourceTree = "<group>";')
             file_refs.append(ref)
             resource_builds.append(obj('build.' + relative, 'PBXBuildFile', f'fileRef = {ref};'))
-        file_refs.append(obj('info', 'PBXFileReference', 'lastKnownFileType = text.plist.xml; path = RenkflowField/Info.plist; sourceTree = "<group>";'))
+        localized=obj('localized.tr','PBXFileReference','lastKnownFileType = text.plist.strings; name = tr; path = RenkflowField/tr.lproj/Localizable.strings; sourceTree = "<group>";')
+        variant=obj('localized','PBXVariantGroup',f'name = Localizable.strings; children = {array([localized])}; sourceTree = "<group>";')
+        file_refs.append(variant)
+        resource_builds.append(obj('build.localized','PBXBuildFile',f'fileRef = {variant};'))
+        file_refs.append(obj('info' , 'PBXFileReference', 'lastKnownFileType = text.plist.xml; path = RenkflowField/Info.plist; sourceTree = "<group>";'))
     groups.append(obj('group.' + target, 'PBXGroup', f'name = {target}; children = {array(file_refs)}; sourceTree = "<group>";'))
     extension = 'xctest' if test else 'app'
     filetype = 'wrapper.cfbundle' if test else 'wrapper.application'

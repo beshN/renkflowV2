@@ -1,5 +1,8 @@
 package com.renkflow.field.ui
 
+import com.renkflow.field.data.tr
+import com.renkflow.field.data.tr
+import com.renkflow.field.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -21,12 +24,12 @@ fun barSegments(bar:CutBar):List<Double> = bar.pieces.map {it.lengthMm} + listOf
 @Composable fun CuttingPlans(plans:List<CutPlan>,jobs:List<WorkOrder>,openJob:(String)->Unit) {
     var selected by remember {mutableStateOf<CutPlan?>(null)}
     plans.forEach {plan ->
-        OutlinedButton(onClick={selected=plan},modifier=Modifier.fillMaxWidth().heightIn(min=56.dp)) {Text("Kesim · ${plan.bars.size} çubuk · ${statusLabel(plan.status)}")}
+        OutlinedButton(onClick={selected=plan},modifier=Modifier.fillMaxWidth().heightIn(min=56.dp)) {Text(tr(R.string.text_kesim_1_cubuk_2_b58b8, plan.bars.size, statusLabel(plan.status)))}
     }
     selected?.let {plan ->
         ModalBottomSheet(onDismissRequest={selected=null}) {
             androidx.compose.foundation.lazy.LazyColumn(contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
-                item {Text("Kesim şeması",style=MaterialTheme.typography.headlineSmall);Text("Parçaya dokunun · sağa kaydırarak inceleyin")}
+                item {Text(tr(R.string.text_kesim_semasi_92476),style=MaterialTheme.typography.headlineSmall);Text(tr(R.string.text_parcaya_dokunun_saga_kaydirarak_inceleyin_d268d))}
                 items(plan.bars.size) {index ->
                     val bar=plan.bars[index]
                     var zoom by remember(bar.id) {mutableFloatStateOf(1f)}
@@ -40,19 +43,19 @@ fun barSegments(bar:CutBar):List<Double> = bar.pieces.map {it.lengthMm} + listOf
                                     bar.pieces.forEachIndexed {i,p ->
                                         val segment=(p.lengthMm/bar.lengthMm).toFloat().coerceAtLeast(0.001f)
                                         val color=if(i%2==0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
-                                        Surface(onClick={piece=p},modifier=Modifier.width(width*segment).fillMaxHeight().padding(end=1.dp).semantics {contentDescription="${p.lengthMm.toInt()} milimetre parça"},color=color) {
+                                        Surface(onClick={piece=p},modifier=Modifier.width(width*segment).fillMaxHeight().padding(end=1.dp).semantics {contentDescription=tr(R.string.text_1_milimetre_parca_a0e84, p.lengthMm.toInt())},color=color) {
                                             Box(Modifier.padding(6.dp)) {Text("${p.lengthMm.toInt()}",color=MaterialTheme.colorScheme.onPrimary,style=MaterialTheme.typography.labelMedium,maxLines=1)}
                                         }
                                     }
                                 }
                             }
                         }
-                        Slider(value=zoom,onValueChange={zoom=it},valueRange=1f..4f,modifier=Modifier.semantics {contentDescription="Kesim şeması yakınlaştırma"})
-                        Text("Fire ${bar.lossMm.toInt()} mm · kalan ${bar.remainingMm.toInt()} mm${if(bar.reusable) " · yeniden kullanılabilir" else ""}",style=MaterialTheme.typography.labelMedium)
+                        Slider(value=zoom,onValueChange={zoom=it},valueRange=1f..4f,modifier=Modifier.semantics {contentDescription=tr(R.string.text_kesim_semasi_yakinlastirma_12738)})
+                        Text(tr(R.string.text_fire_1_mm_kalan_2_mm_3_1e69c, bar.lossMm.toInt(), bar.remainingMm.toInt(), if(bar.reusable) " · " + tr(R.string.field_reusable) else ""),style=MaterialTheme.typography.labelMedium)
                         piece?.let {p ->
                             val job=jobs.firstOrNull {it.id==p.workOrderId}
-                            Text("${p.lengthMm.toInt()} mm · ${job?.title ?: "İş emri"}")
-                            if(job!=null) OutlinedButton(onClick={selected=null;openJob(job.id)},modifier=Modifier.heightIn(min=56.dp)) {Text("İş emrini aç")}
+                            Text(tr(R.string.text_1_mm_2_c0ff2, p.lengthMm.toInt(), job?.title ?: tr(R.string.text_is_emri_10fe2)))
+                            if(job!=null) OutlinedButton(onClick={selected=null;openJob(job.id)},modifier=Modifier.heightIn(min=56.dp)) {Text(tr(R.string.text_is_emrini_ac_516de))}
                         }
                     }
                 }

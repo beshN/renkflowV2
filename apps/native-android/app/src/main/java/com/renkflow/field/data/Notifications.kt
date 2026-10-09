@@ -32,7 +32,7 @@ fun showLocalNotification(context:Context):Boolean {
     if(Build.VERSION.SDK_INT>=33 && ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED) return false
     val manager=context.getSystemService(NotificationManager::class.java)
     if(!manager.areNotificationsEnabled()) return false
-    manager.createNotificationChannel(NotificationChannel("field_local","Saha yerel test",NotificationManager.IMPORTANCE_DEFAULT))
-    manager.notify(1001,NotificationCompat.Builder(context,"field_local").setSmallIcon(R.drawable.ic_brand_mark).setContentTitle("RenkFlow Saha").setContentText("Yerel bildirim testi").setAutoCancel(true).build())
+    manager.createNotificationChannel(NotificationChannel("field_local",tr(R.string.text_saha_yerel_test_390c3),NotificationManager.IMPORTANCE_DEFAULT))
+    manager.notify(1001,NotificationCompat.Builder(context,"field_local").setSmallIcon(R.drawable.ic_brand_mark).setContentTitle(tr(R.string.text_renkflow_saha_671f9)).setContentText(tr(R.string.text_yerel_bildirim_testi_0f5dc)).setAutoCancel(true).build())
     return true
 }

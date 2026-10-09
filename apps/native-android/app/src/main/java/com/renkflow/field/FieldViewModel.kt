@@ -1,5 +1,7 @@
 package com.renkflow.field
 
+import com.renkflow.field.data.tr
+import com.renkflow.field.R
 import android.app.Application
 import androidx.room.withTransaction
 import androidx.lifecycle.AndroidViewModel
@@ -162,7 +164,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
     fun scan(code: String) {
         val auth=state.value.session ?: return
         viewModelScope.launch {
-            try { require(code.trim().isNotEmpty() && code.length<=1000) { "Geçerli bir etiket kodu girin." };val result=api.scan(auth,code.trim());offline.save(sessionScope(auth),"scan:${code.trim()}",fieldJson.encodeToString(result));mutable.update { it.copy(scan=result) } }
+            try { require(code.trim().isNotEmpty() && code.length<=1000) { tr(R.string.text_gecerli_bir_etiket_kodu_girin_540aa) };val result=api.scan(auth,code.trim());offline.save(sessionScope(auth),"scan:${code.trim()}",fieldJson.encodeToString(result));mutable.update { it.copy(scan=result) } }
             catch(e: Exception) {
                 val cached=offline.dao.cache(sessionScope(auth),"scan:${code.trim()}")?.let { runCatching { fieldJson.decodeFromString<ScanResult>(it.payload) }.getOrNull() }
                 if(cached!=null) mutable.update { it.copy(scan=cached,stale=true) } else fail(e)
@@ -197,7 +199,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
                 val installation=current.installationDetail?.let {overlayInstallation(it,listOf(row))}
                 val cache=buildMap<String,String> { installation?.let {put("installation:${it.id}",fieldJson.encodeToString(it))}; snapshot?.let { put("snapshot",fieldJson.encodeToString(it)) }; detail?.let { put("job:${it.id}",fieldJson.encodeToString(it)) } }
                 offline.enqueueWithCache(sessionScope(auth),request,cache)
-                if(generation==epoch) { mutable.update { it.copy(snapshot=snapshot,detail=detail,installationDetail=installation,message="İşlem cihazda kaydedildi.") };onSaved();FieldSyncWorker.schedule(getApplication());sync() }
+                if(generation==epoch) { mutable.update { it.copy(snapshot=snapshot,detail=detail,installationDetail=installation,message=tr(R.string.text_islem_cihazda_kaydedildi_72f13)) };onSaved();FieldSyncWorker.schedule(getApplication());sync() }
             } catch(e: Exception) { if(generation==epoch) fail(e) }
         }
     }
@@ -224,7 +226,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         if(!writable()) return
         viewModelScope.launch {
             try {
-                require(base64.length<=2_800_000) { "Fotoğraf çok büyük." }
+                require(base64.length<=2_800_000) { tr(R.string.text_fotograf_cok_buyuk_36537) }
                 val id=UUID.randomUUID().toString()
                 offline.dao.enqueue(OutboxRecord(scope=sessionScope(auth),commandId=id,kind="photo",payload=fieldJson.encodeToString(LocalPhoto(jobId,base64))))
                 onUploaded("local://$id");FieldSyncWorker.schedule(getApplication());sync()
@@ -244,7 +246,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun discard(row: OutboxRecord) = viewModelScope.launch {
         if(row.scope!=state.value.session?.let(::sessionScope) || row.state=="sending") return@launch
-        offline.dao.update(row.copy(state="delivered",reason="Kullanıcı vazgeçti.",canRetry=false));refresh();sync()
+        offline.dao.update(row.copy(state="delivered",reason=tr(R.string.text_kullanici_vazgecti_b6cde),canRetry=false));refresh();sync()
     }
     fun reapply(row: OutboxRecord) {
         val auth=state.value.session ?: return
@@ -255,19 +257,19 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
                 val request=fieldJson.decodeFromString<SyncRequest>(row.payload)
                 // Fetch current data; never reuse the stale revision or bypass assignment/closed checks.
                 val fresh=api.snapshot(auth)
-                require(fresh.permissions.transition) { "Yazma yetkiniz yok." }
+                require(fresh.permissions.transition) { tr(R.string.text_yazma_yetkiniz_yok_42bfb) }
                 val data=when(request.kind) {
-                    "operation"-> { val op=fresh.operations.firstOrNull { it.id==request.data["operationId"]?.jsonPrimitive?.content } ?: throw ApiException(404,"Operasyon artık size atanmamış.");require(op.status!="done");JsonObject(request.data.toMutableMap().apply { put("version",JsonPrimitive(op.version)) }) }
+                    "operation"-> { val op=fresh.operations.firstOrNull { it.id==request.data["operationId"]?.jsonPrimitive?.content } ?: throw ApiException(404,tr(R.string.text_operasyon_artik_size_atanmamis_07f1e));require(op.status!="done");JsonObject(request.data.toMutableMap().apply { put("version",JsonPrimitive(op.version)) }) }
                     "checklist"-> { val job=api.details(auth,request.workOrderId!!);require(job.status !in listOf("done","cancelled"));val item=job.checklist.first { it.id==request.data["itemId"]?.jsonPrimitive?.content };JsonObject(request.data.toMutableMap().apply { put("expectedCompleted",JsonPrimitive(item.completed)) }) }
                     "transition"-> { val job=api.details(auth,request.workOrderId!!);require(job.status !in listOf("done","cancelled"));JsonObject(request.data.toMutableMap().apply { put("expectedUpdatedAt",JsonPrimitive(job.updatedAt!!)) }) }
-                    else->throw IllegalArgumentException("Bu işlem yeniden uygulanamaz.")
+                    else->throw IllegalArgumentException(tr(R.string.text_bu_islem_yeniden_uygulanamaz_e701c))
                 }
                 offline.db.withTransaction {
                     val current=offline.dao.find(sessionScope(auth),row.commandId)
-                    check(current?.state=="conflict" && state.value.session?.let(::sessionScope)==sessionScope(auth)) { "İşlem zaten çözüldü." }
+                    check(current?.state=="conflict" && state.value.session?.let(::sessionScope)==sessionScope(auth)) { tr(R.string.text_islem_zaten_cozuldu_5c198) }
                     val next=request.copy(idempotencyKey=UUID.randomUUID().toString(),data=data)
                     offline.dao.enqueue(OutboxRecord(scope=sessionScope(auth),commandId=next.idempotencyKey,kind=next.kind,payload=fieldJson.encodeToString(next),position=row.position))
-                    offline.dao.update(row.copy(state="delivered",reason="Yeni işlemle yeniden gönderildi."))
+                    offline.dao.update(row.copy(state="delivered",reason=tr(R.string.text_yeni_islemle_yeniden_gonderildi_c3082)))
                 }
                 FieldSyncWorker.schedule(getApplication());sync()
             } catch(e: Exception) { fail(e) }
@@ -277,8 +279,8 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
     private fun fail(error: Exception) {
         if(error is CancellationException) throw error
         if(error is ApiException && error.status==426) {mutable.update {it.copy(updateRequired=true,stale=true,error=null)};return}
-        if(error is ApiException && error.status==401) { logout();mutable.update {it.copy(error="Oturum sona erdi. Bekleyen kayıtlarınız cihazda korunuyor; yeniden giriş yapın.")} }
-        else mutable.update { it.copy(error=if(error is java.io.IOException) "Çevrimdışısınız. İşlemler cihazda saklanıyor." else error.message ?: "İşlem tamamlanamadı.",stale=true,accessBlocked=it.accessBlocked || error is ApiException && error.status==403) }
+        if(error is ApiException && error.status==401) { logout();mutable.update {it.copy(error=tr(R.string.text_oturum_sona_erdi_bekleyen_kayitlariniz_cihazda_k_eb225))} }
+        else mutable.update { it.copy(error=if(error is java.io.IOException) tr(R.string.text_cevrimdisisiniz_islemler_cihazda_saklaniyor_28e3b) else error.message ?: tr(R.string.text_islem_tamamlanamadi_643f2),stale=true,accessBlocked=it.accessBlocked || error is ApiException && error.status==403) }
     }
 }
 private fun overlayJob(job: WorkOrder,rows: List<OutboxRecord>): WorkOrder {
