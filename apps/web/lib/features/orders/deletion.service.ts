@@ -4,6 +4,7 @@ import { sql, withTransaction } from "@/lib/db";
 import { deleteFile } from "@/lib/storage";
 import { WorkOrderApiError } from "../work-orders/security";
 import { recordAudit } from "@/lib/audit/audit-log";
+import { tableExists } from "@/lib/db/schema-guard";
 
 export async function deleteUnlinkedOrder(
   tenantId: string,
@@ -20,10 +21,13 @@ export async function deleteUnlinkedOrder(
         "İşleme alınmış sipariş silinemez. İptal akışını kullanın.",
         409,
       );
+    // Invoices (migration 047) are finance records too; the table may not exist yet.
+    const hasInvoices = await tableExists("invoices");
     const [linked] = await tx`SELECT
       EXISTS(SELECT 1 FROM order_transition_commands WHERE tenant_id=${tenantId} AND order_id=${orderId}) OR
       EXISTS(SELECT 1 FROM work_orders WHERE tenant_id=${tenantId} AND order_id=${orderId}) OR
       EXISTS(SELECT 1 FROM payments WHERE tenant_id=${tenantId} AND order_id=${orderId}) OR
+      ${hasInvoices ? tx`EXISTS(SELECT 1 FROM invoices WHERE tenant_id=${tenantId} AND order_id=${orderId}) OR` : tx``}
       EXISTS(SELECT 1 FROM order_documents WHERE tenant_id=${tenantId} AND order_id=${orderId}) OR
       EXISTS(SELECT 1 FROM shipment_items WHERE tenant_id=${tenantId} AND order_id=${orderId}) OR
       EXISTS(SELECT 1 FROM quotations WHERE tenant_id=${tenantId} AND converted_to_order_id=${orderId}) OR

@@ -10,7 +10,7 @@ import { formatCurrency } from '@/lib/shared/utils';
 import { INVOICE_STATUS_LABELS, type InvoiceStatus } from '@/lib/features/finance/engine';
 import { INVOICE_TONE } from './OrderBillingPanel';
 
-type Row = { id: string; number: string | null; status: InvoiceStatus; orderId: string; orderNumber: string | null; customerName: string; issuedOn: string | null; dueOn: string | null; currency: string; total: number };
+type Row = { id: string; number: string | null; status: InvoiceStatus; orderId: string; orderNumber: string | null; customerName: string; issuedOn: string | null; dueOn: string | null; currency: string; grandTotal: number };
 const dmy = (d: string | null) => (d ? d.split('-').reverse().join('.') : '—');
 
 /** All invoices of the firm, by status. */
@@ -47,7 +47,7 @@ export function InvoicesWorkspace() {
                   <td className="p-2">{r.customerName}</td>
                   <td className="p-2"><Link href={`/orders/${r.orderId}`} className="hover:underline">{r.orderNumber}</Link></td>
                   <td className="p-2">{dmy(r.issuedOn)}</td><td className="p-2">{dmy(r.dueOn)}</td>
-                  <td className="p-2 text-right tabular-nums">{formatCurrency(r.total, r.currency)}</td>
+                  <td className="p-2 text-right tabular-nums">{formatCurrency(r.grandTotal, r.currency)}</td>
                   <td className="p-2"><StatusChip tone={INVOICE_TONE[r.status]} label={INVOICE_STATUS_LABELS[r.status]} /></td>
                 </tr>
               ))}
@@ -97,7 +97,7 @@ export function InvoiceDocument({ id }: { id: string }) {
         <dl className="ml-auto grid w-64 grid-cols-2 gap-1 text-sm">
           <dt>Ara toplam</dt><dd className="text-right tabular-nums">{cur(d.subtotal)}</dd>
           <dt>KDV</dt><dd className="text-right tabular-nums">{cur(d.vatTotal)}</dd>
-          <dt className="font-semibold">Genel toplam</dt><dd className="text-right font-semibold tabular-nums">{cur(d.total)}</dd>
+          <dt className="font-semibold">Genel toplam</dt><dd className="text-right font-semibold tabular-nums">{cur(d.grandTotal)}</dd>
         </dl>
         {d.notes && <p className="text-xs">{d.notes}</p>}
         {d.cancelReason && <p className="text-xs text-rose-700 dark:text-rose-300">İptal: {d.cancelReason}</p>}

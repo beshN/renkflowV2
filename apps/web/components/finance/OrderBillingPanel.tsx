@@ -9,11 +9,11 @@ import { formatCurrency } from '@/lib/shared/utils';
 import { COLLECTION_METHODS, COLLECTION_METHOD_LABELS, INVOICE_STATUS_LABELS, type InvoiceStatus } from '@/lib/features/finance/engine';
 
 type Line = { id: string; description: string; quantity: number; unitPrice: number; invoiced: number; remaining: number };
-type Invoice = { id: string; number: string | null; status: InvoiceStatus; issuedOn: string | null; dueOn: string | null; subtotal: number; vatTotal: number; total: number; eInvoice: string; cancelReason: string | null; lines: Array<{ id: string; description: string; quantity: number }> };
+type Invoice = { id: string; number: string | null; status: InvoiceStatus; issuedOn: string | null; dueOn: string | null; subtotal: number; vatTotal: number; grandTotal: number; eInvoice: string; cancelReason: string | null; lines: Array<{ id: string; description: string; quantity: number }> };
 type Payment = { id: string; amount: number; method: string; paidAt: string; reference: string | null; chequeDueOn: string | null; invoiceNumber: string | null };
 type Profit = { revenueNet: number; materialCost: number; laborCost: number | null; reworkCost: number; cost: number; profit: number | null; marginPercent: number | null; complete: boolean; upperBound: boolean; gaps: string[] };
 type Billing = {
-  order: { id: string; number: string; customerName: string; total: number; currency: string }; vatPercent: number; lines: Line[]; invoices: Invoice[]; payments: Payment[];
+  order: { id: string; number: string; customerName: string; total: number; currency: string }; vatPercent: number; headerDiscount: number; lines: Line[]; invoices: Invoice[]; payments: Payment[];
   summary: { invoiceTotal: number; collected: number; balance: number }; estimatedProfit?: Profit;
 };
 
@@ -75,9 +75,9 @@ export function OrderBillingPanel({ orderId }: { orderId: string }) {
       {notice && <p role="status" className="text-sm text-emerald-700 dark:text-emerald-300">{notice}</p>}
 
       <section className="rf-panel space-y-2 p-3" aria-labelledby="bill-draft">
-        <h3 id="bill-draft" className="flex items-center gap-2 text-sm font-semibold"><FilePlus2 size={14} aria-hidden /> Faturalanacak kalemler <HintTip text={`Kalemin bir kısmı faturalanabilir (kısmi fatura). Taslaklar da miktarı ayırır; aynı kalem iki kez faturalanamaz. KDV %${b.vatPercent} (tekliften).`} /></h3>
-        {b.lines.length === 0 ? <p className="text-xs text-muted-foreground">Siparişte kalem yok; aşağıdan serbest satır eklenebilir.</p> : (
-          <form onSubmit={draft} className="space-y-2">
+        <h3 id="bill-draft" className="flex items-center gap-2 text-sm font-semibold"><FilePlus2 size={14} aria-hidden /> Faturalanacak kalemler <HintTip text={`Kalemin bir kısmı faturalanabilir (kısmi fatura). Taslaklar da miktarı ayırır; aynı kalem iki kez faturalanamaz. KDV %${b.vatPercent} (tekliften).${b.headerDiscount ? ` Teklifteki genel iskonto (%${b.headerDiscount}) birim fiyatlara yansıtıldı.` : ''}`} /></h3>
+        <form onSubmit={draft} className="space-y-2">
+          {b.lines.length === 0 ? <p className="text-xs text-muted-foreground">Siparişte kalem yok; serbest satırla fatura açılabilir.</p> : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1">Kalem</th><th className="text-right">Sipariş</th><th className="text-right">Faturalanan</th><th className="text-right">Bu fatura</th></tr></thead>
@@ -93,13 +93,13 @@ export function OrderBillingPanel({ orderId }: { orderId: string }) {
                 </tbody>
               </table>
             </div>
+          )}
             <div className="flex flex-wrap items-end gap-2">
               <label className="text-xs">Serbest satır (ör. nakliye)<input className="rf-input mt-1 w-48" value={extra.description} onChange={(e) => setExtra({ ...extra, description: e.target.value })} /></label>
               <label className="text-xs">Net tutar<input type="number" min={0} step="0.01" className="rf-input mt-1 w-28" value={extra.amount} onChange={(e) => setExtra({ ...extra, amount: e.target.value })} /></label>
               <button type="submit" className="rf-primary-button text-sm" disabled={!open && !extra.description}>Taslak fatura oluştur</button>
             </div>
-          </form>
-        )}
+        </form>
       </section>
 
       <section className="space-y-2" aria-labelledby="bill-invoices">
@@ -111,7 +111,7 @@ export function OrderBillingPanel({ orderId }: { orderId: string }) {
                 <span className="font-mono font-semibold">{i.number ?? 'Taslak'}</span>
                 <StatusChip tone={INVOICE_TONE[i.status]} label={INVOICE_STATUS_LABELS[i.status]} />
                 <StatusChip tone="muted" label="e-fatura: bağlanmadı" />
-                <span className="tabular-nums">{cur(i.total)}</span>
+                <span className="tabular-nums">{cur(i.grandTotal)}</span>
                 {i.dueOn && <span className="text-xs text-muted-foreground">vade {dmy(i.dueOn)}</span>}
                 {i.cancelReason && <span className="text-xs text-muted-foreground">({i.cancelReason})</span>}
                 <span className="ml-auto flex flex-wrap gap-1">

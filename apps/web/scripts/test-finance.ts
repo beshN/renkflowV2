@@ -23,6 +23,7 @@ async function main() {
   const { routeRequirement } = await import('../lib/security/access-matrix');
   const { redactFields } = await import('../lib/security/access-matrix');
   const { sql: appSql } = await import('../lib/db');
+  const team = await import('../lib/security/team.server');
 
   const tenantId = randomUUID();
   const ids: Record<string, string> = {};
@@ -82,6 +83,11 @@ async function main() {
   await db`INSERT INTO accounting_period_closes (tenant_id, period, status) VALUES (${tenantId}, '2026-01', 'hard_closed') ON CONFLICT (tenant_id, period) DO UPDATE SET status = 'hard_closed'`;
   await assert.rejects(inv.recordCollection(acc, { orderId, amount: 10, method: 'cash', paidOn: '2026-01-15' }), /dönemi kapalı/);
 
+  // An admin whose custom role leaves finance out is not told about overdue invoices.
+  const noFinance = await team.saveRole(actor('owner') as any, null, { name: 'Finanssız yönetici', base: 'admin', permissions: { orders: ['view'] }, hidden: [] });
+  await team.updateMember(actor('owner') as any, ids.admin, { accessRole: noFinance });
+  access.forgetMemberAccess(ids.admin, tenantId);
+
   // Receivables: 27 000 invoiced − 8 000 collected; FIFO leaves 4 000 of the first (31–60 days) and 15 000 not due.
   const r = await rec.receivables(acc);
   const c = r.customers[0];
@@ -97,7 +103,11 @@ async function main() {
   assert.equal(acts[0].kind, 'call');
   assert.equal(String(acts[0].assignee_id), ids.accountant, 'the person who issued it follows up');
   const notes = await db`SELECT user_id FROM notifications WHERE tenant_id = ${tenantId} AND type = 'reminder'`;
-  assert.deepEqual(notes.map((n) => String(n.user_id)).sort(), [ids.owner, ids.admin, ids.accountant].sort());
+  assert.deepEqual(notes.map((n) => String(n.user_id)).sort(), [ids.owner, ids.accountant].sort(), 'finance cell holders only');
+  assert.doesNotMatch(String((await db`SELECT title FROM record_activities WHERE tenant_id = ${tenantId} AND rule_key = 'invoice_overdue'`)[0].title), /FTR|\d/, 'the order activity names no invoice or amount');
+  await assert.rejects(rec.receivables(actor('admin')), (e: any) => e.status === 404);
+  await team.updateMember(actor('owner') as any, ids.admin, { accessRole: null });
+  access.forgetMemberAccess(ids.admin, tenantId);
   await rec.runOverdueRule(tenantId, { force: true });
   assert.equal((await db`SELECT count(*)::int AS n FROM record_activities WHERE tenant_id = ${tenantId} AND rule_key = 'invoice_overdue'`)[0].n, 1, 'not twice');
 
@@ -115,6 +125,24 @@ async function main() {
   billing = await inv.orderBilling(acc, orderId);
   assert.deepEqual(billing.lines.map((l) => l.remaining), [1, 1]);
   assert.equal((await rec.receivables(acc)).customers[0].balance, 4000);
+  // The cancelled invoice stays in the statement as issued + reversed; the closing balance follows.
+  const s3 = await rec.customerStatement(acc, c.key, day(-60), day(0));
+  assert.deepEqual([s3.lines.filter((l) => l.kind === 'cancel').length, s3.closingBalance], [1, 4000]);
+  // Amounts are hidden from a role that hides prices, the invoice total included.
+  const doc = await inv.getInvoice(acc, d1.id);
+  assert.equal(doc.grandTotal, 12000);
+  const hidden = redactFields(doc, ['price']) as Record<string, unknown>;
+  assert.ok(!('grandTotal' in hidden) && !('subtotal' in hidden) && !(hidden.lines as any[]).some((l) => 'unitPrice' in l || 'netAmount' in l));
+
+  // An order from a quote with a header discount: lines are invoiced at what the order charges.
+  const [o2] = await db`INSERT INTO orders (tenant_id, order_number, customer_id, customer_name, status, total_amount, currency, product_name)
+    VALUES (${tenantId}, ${'ORD-FIN2-' + tenantId.slice(0, 6)}, ${customer.id}, 'Ayşe Demir', 'approved', 10800, 'TRY', 'Tente') RETURNING id`;
+  const [it2] = await db`INSERT INTO order_items (order_id, product_name, quantity, unit_price, total_price) VALUES (${o2.id}, 'Tente', 2, 5000, 10000) RETURNING id`;
+  await db`INSERT INTO quotations (tenant_id, quotation_number, customer_name, converted_to_order_id, vat_percent) VALUES (${tenantId}, ${'TKL-' + tenantId.slice(0, 6)}, 'Ayşe Demir', ${o2.id}, 20)`;
+  const b2 = await inv.orderBilling(acc, String(o2.id));
+  assert.deepEqual([b2.headerDiscount, b2.lines[0].unitPrice], [10, 4500]);
+  const d4 = await inv.createInvoiceDraft(acc, String(o2.id), { lines: [{ orderItemId: it2.id, quantity: 2 }] });
+  assert.equal(d4.total, 10800, 'invoice equals the order total, collectable in full');
 
   // Estimated profit: no production records yet → gaps, never invented.
   assert.equal(billing.estimatedProfit.complete, false);
@@ -150,6 +178,7 @@ async function main() {
   const actions = (await db`SELECT DISTINCT action FROM activity_logs WHERE tenant_id = ${tenantId} AND entity_type = 'order'`).map((x) => x.action);
   for (const want of ['invoice_drafted', 'invoice_issued', 'invoice_cancelled', 'invoice_draft_deleted', 'collection_recorded', 'invoice_overdue']) assert.ok(actions.includes(want), `audit has ${want}`);
 
+  await db`DELETE FROM quotations WHERE tenant_id = ${tenantId}`;
   for (const t of ['production_operations', 'work_order_material_lots', 'work_orders', 'inventory_items', 'manufacturing_preferences', 'payments', 'invoices', 'accounting_period_closes'])
     await db`DELETE FROM ${db(t)} WHERE tenant_id = ${tenantId}`;
   await db`DELETE FROM tenants WHERE id = ${tenantId}`;

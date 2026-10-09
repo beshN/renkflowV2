@@ -4,8 +4,17 @@
  * profit. No database, no clock: callers pass "today".
  */
 
-export const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
-const qty = (n: number) => Math.round((n + Number.EPSILON) * 1000) / 1000;
+/**
+ * Half-up rounding to `digits` decimals done in decimal notation (2.135 → 2.14), not on the binary
+ * float (2.135 * 100 = 213.49999…). Negative amounts round away from zero, like positive ones.
+ */
+export function roundTo(n: number, digits: number) {
+  if (!Number.isFinite(n)) return n;
+  const sign = n < 0 ? -1 : 1;
+  return sign * Number(Math.round(Number(`${Math.abs(n)}e${digits}`)) + `e-${digits}`);
+}
+export const money = (n: number) => roundTo(n, 2);
+const qty = (n: number) => roundTo(n, 3);
 
 export const COLLECTION_METHODS = ['cash', 'bank_transfer', 'check', 'credit_card'] as const;
 export type CollectionMethod = (typeof COLLECTION_METHODS)[number];
@@ -32,6 +41,18 @@ export function invoiceTotals(lines: LineInput[]) {
   const subtotal = money(t.reduce((s, x) => s + x.net, 0));
   const vatTotal = money(t.reduce((s, x) => s + x.vat, 0));
   return { subtotal, vatTotal, total: money(subtotal + vatTotal) };
+}
+
+/**
+ * A quote's header discount reaches only the order total (VAT included), not its lines. The share
+ * of the lines' net that is really charged: (order total ÷ (1 + VAT)) ÷ lines' net, never above 1.
+ * 1 when there is nothing to scale or the difference is under a kuruş.
+ */
+export function headerDiscountRatio(orderGross: number, vatPercent: number, linesNet: number) {
+  if (!(linesNet > 0) || !(orderGross > 0)) return 1;
+  const net = orderGross / (1 + vatPercent / 100);
+  if (net >= linesNet - 0.01) return 1;
+  return net / linesNet;
 }
 
 export type OrderLine = { id: string; description: string; quantity: number; unitPrice: number };
@@ -77,16 +98,26 @@ export type OpenInvoice = { id: string; number: string; issuedOn: string; dueOn:
 export type SettledInvoice = OpenInvoice & { paid: number; open: number; daysOverdue: number };
 
 /**
- * A customer's collections settle their invoices oldest due first (FIFO). What is left over is an
- * advance (credit) — money in before an invoice.
+ * A customer's collections settle their invoices: one recorded against an invoice pays that invoice,
+ * the rest settles the oldest due first (FIFO). What is left over is an advance (credit) — money in
+ * before an invoice.
  */
-export function settle(invoices: OpenInvoice[], collected: number, today: string) {
+export function settle(invoices: OpenInvoice[], collected: number, today: string, targeted: Record<string, number> = {}) {
   let pool = money(Math.max(0, collected));
   const sorted = [...invoices].sort((a, b) => a.dueOn.localeCompare(b.dueOn) || a.issuedOn.localeCompare(b.issuedOn) || a.number.localeCompare(b.number));
+  // A collection recorded against an invoice pays that invoice first (up to its total).
+  const paid = new Map<string, number>();
+  for (const inv of sorted) {
+    const t = money(Math.min(pool, inv.total, Math.max(0, targeted[inv.id] ?? 0)));
+    paid.set(inv.id, t);
+    pool = money(pool - t);
+  }
+  // The rest settles the oldest due first.
   const items: SettledInvoice[] = sorted.map((inv) => {
-    const paid = money(Math.min(pool, inv.total));
-    pool = money(pool - paid);
-    return { ...inv, paid, open: money(inv.total - paid), daysOverdue: Math.max(0, daysBetween(inv.dueOn, today)) };
+    const extra = money(Math.min(pool, inv.total - paid.get(inv.id)!));
+    pool = money(pool - extra);
+    const p = money(paid.get(inv.id)! + extra);
+    return { ...inv, paid: p, open: money(inv.total - p), daysOverdue: Math.max(0, daysBetween(inv.dueOn, today)) };
   });
   return { items, advance: pool };
 }

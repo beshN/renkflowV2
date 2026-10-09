@@ -8,7 +8,7 @@ import { resolveMemberAccess } from '@/lib/security/member-access.server';
 import { can, type Action } from '@/lib/security/access-matrix';
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
 import {
-  COLLECTION_METHODS, DEFAULT_VAT_PERCENT, draftProblems, dueDate, estimateProfit, invoiceTotals, invoiceableLines, lineTotals, money,
+  COLLECTION_METHODS, DEFAULT_VAT_PERCENT, draftProblems, dueDate, estimateProfit, headerDiscountRatio, invoiceTotals, invoiceableLines, lineTotals, money, roundTo,
 } from './engine';
 
 type Row = Record<string, any>;
@@ -31,19 +31,30 @@ export async function requireFinance(actor: WorkOrderActor, action: Action = 'vi
   if (!can(access!, 'finance', action)) fail('Bu işlem için yetkiniz yok', 403);
 }
 
-/** A closed accounting month takes no new invoice or collection (the same rule as payments). */
+/**
+ * A closed accounting month takes no new invoice or collection (the same rule and locking as
+ * payments): the period row is created open if missing and held FOR SHARE, so a close waits.
+ */
 async function writablePeriod(tx: any, tenantId: string, date: string) {
   if (!(await tableExists('accounting_period_closes'))) return;
   const period = date.slice(0, 7);
-  const [row] = await tx`SELECT status FROM accounting_period_closes WHERE tenant_id = ${tenantId} AND period = ${period}`;
+  await tx`INSERT INTO accounting_period_closes (tenant_id, period, status) VALUES (${tenantId}, ${period}, 'open') ON CONFLICT (tenant_id, period) DO NOTHING`;
+  const [row] = await tx`SELECT status FROM accounting_period_closes WHERE tenant_id = ${tenantId} AND period = ${period} FOR SHARE`;
   if (row?.status === 'hard_closed') fail('Bu muhasebe dönemi kapalı. Önce dönemi açın.');
 }
 
-/** VAT of the quote the order came from, else 20%. */
-async function orderVat(db: any, tenantId: string, orderId: string) {
-  if (!(await columnExists('quotations', 'vat_percent'))) return DEFAULT_VAT_PERCENT;
-  const [q] = await db`SELECT vat_percent FROM quotations WHERE tenant_id = ${tenantId} AND converted_to_order_id = ${orderId} ORDER BY created_at DESC LIMIT 1`;
-  return q ? Number(q.vat_percent) : DEFAULT_VAT_PERCENT;
+/**
+ * How the order prices its lines: the VAT of the quote it came from (else 20%), and — for an order
+ * from a quote — the share of the lines' net it really charges after the quote's header discount.
+ * An order typed by hand keeps its line prices as they are.
+ */
+async function orderPricing(db: any, tenantId: string, orderId: string, orderGross: number) {
+  const [q] = (await columnExists('quotations', 'vat_percent'))
+    ? await db`SELECT vat_percent FROM quotations WHERE tenant_id = ${tenantId} AND converted_to_order_id = ${orderId} ORDER BY created_at DESC LIMIT 1`
+    : [];
+  const vat = q ? Number(q.vat_percent) : DEFAULT_VAT_PERCENT;
+  const [n] = await db`SELECT coalesce(sum(total_price), 0) AS net, count(*)::int AS lines FROM order_items WHERE order_id = ${orderId}`;
+  return { vat, ratio: q ? headerDiscountRatio(orderGross, vat, Number(n.net)) : 1, linesNet: Number(n.net), lines: Number(n.lines) };
 }
 
 async function loadOrder(db: any, tenantId: string, orderId: string, lock = false) {
@@ -61,15 +72,21 @@ async function invoicedByItem(db: any, tenantId: string, orderId: string) {
   return Object.fromEntries(rows.map((r: Row) => [String(r.order_item_id), Number(r.q)]));
 }
 
-async function orderLines(db: any, orderId: string) {
-  const items = await db`SELECT id, product_name, description, quantity, unit_price FROM order_items WHERE order_id = ${orderId} ORDER BY created_at, id`;
-  return items.map((i: Row) => ({ id: String(i.id), description: [i.product_name, i.description].filter(Boolean).join(' — ').slice(0, 300), quantity: Number(i.quantity), unitPrice: Number(i.unit_price) }));
+/** Order lines at the price really charged: the line's net (line discount in) per unit, × the header-discount share. */
+async function orderLines(db: any, orderId: string, ratio: number) {
+  const items = await db`SELECT id, product_name, description, quantity, unit_price, total_price FROM order_items WHERE order_id = ${orderId} ORDER BY created_at, id`;
+  return items.map((i: Row) => {
+    const q = Number(i.quantity);
+    const unit = q > 0 ? Number(i.total_price) / q : Number(i.unit_price);
+    return { id: String(i.id), description: [i.product_name, i.description].filter(Boolean).join(' — ').slice(0, 300), quantity: q, unitPrice: roundTo(unit * ratio, 4) };
+  });
 }
 
 const invoiceDto = (i: Row) => ({
   id: String(i.id), number: i.invoice_number ?? null, status: i.status as string, orderId: String(i.order_id), orderNumber: i.order_number ?? null,
   customerName: i.customer_name as string, issuedOn: iso(i.issued_on), dueOn: iso(i.due_on), currency: i.currency as string,
-  subtotal: Number(i.subtotal), vatTotal: Number(i.vat_total), total: Number(i.total), eInvoice: i.e_invoice_status as string,
+  // 'grandTotal', not 'total': a whole-number 'total' next to a list reads as a page count to the redactor.
+  subtotal: Number(i.subtotal), vatTotal: Number(i.vat_total), grandTotal: Number(i.total), eInvoice: i.e_invoice_status as string,
   cancelReason: i.cancel_reason ?? null, createdAt: i.created_at,
 });
 
@@ -78,7 +95,7 @@ const invoiceDto = (i: Row) => ({
  * issued to its work orders, production time × the firm's hourly labour cost, rework. Gaps are named.
  */
 export async function orderProfit(tenantId: string, orderId: string, orderTotal: number, currency: string) {
-  const [rev] = await sql`SELECT count(*)::int AS n, coalesce(sum(total_price), 0) AS net FROM order_items WHERE order_id = ${orderId}`;
+  const pricing = await orderPricing(sql, tenantId, orderId, orderTotal);
   const linked = (await columnExists('work_orders', 'order_item_id'))
     ? (await sql`SELECT w.id FROM work_orders w JOIN order_items oi ON oi.id = w.order_item_id WHERE w.tenant_id = ${tenantId} AND oi.order_id = ${orderId}`).map((w: Row) => String(w.id))
     : [];
@@ -106,7 +123,7 @@ export async function orderProfit(tenantId: string, orderId: string, orderTotal:
     const [p] = await sql`SELECT labor_cost_per_hour, labor_currency FROM manufacturing_preferences WHERE tenant_id = ${tenantId}`;
     if (p?.labor_cost_per_hour !== null && p?.labor_cost_per_hour !== undefined && (!p.labor_currency || p.labor_currency === currency)) rate = Number(p.labor_cost_per_hour);
   }
-  const e = estimateProfit({ revenueNet: Number(rev.n) ? Number(rev.net) : null, orderTotal, material, labor: { seconds, ratePerHour: rate }, rework });
+  const e = estimateProfit({ revenueNet: pricing.lines ? money(pricing.linesNet * pricing.ratio) : null, orderTotal, material, labor: { seconds, ratePerHour: rate }, rework });
   return {
     revenueNet: e.revenue, materialCost: e.material, laborCost: e.labor, reworkCost: e.rework, cost: e.cost, profit: e.profit, marginPercent: e.marginPercent,
     complete: e.complete, upperBound: e.upperBound, gaps: e.gaps, workOrders: linked.length,
@@ -117,13 +134,13 @@ export async function orderProfit(tenantId: string, orderId: string, orderTotal:
 export async function orderBilling(actor: WorkOrderActor, orderId: string) {
   await requireFinance(actor);
   const o = await loadOrder(sql, actor.tenantId, orderId);
-  const [lines, invoiced, invoices, payments, vat] = await Promise.all([
-    orderLines(sql, orderId),
+  const pricing = await orderPricing(sql, actor.tenantId, orderId, Number(o.total_amount));
+  const [lines, invoiced, invoices, payments] = await Promise.all([
+    orderLines(sql, orderId, pricing.ratio),
     invoicedByItem(sql, actor.tenantId, orderId),
     sql`SELECT * FROM invoices WHERE tenant_id = ${actor.tenantId} AND order_id = ${orderId} ORDER BY created_at`,
     sql`SELECT p.id, p.amount, p.currency, p.method, p.paid_at, p.note, p.reference, p.cheque_due_on, p.invoice_id, i.invoice_number FROM payments p LEFT JOIN invoices i ON i.id = p.invoice_id
       WHERE p.tenant_id = ${actor.tenantId} AND p.order_id = ${orderId} ORDER BY p.paid_at`,
-    orderVat(sql, actor.tenantId, orderId),
   ]);
   const ids = invoices.map((i: Row) => i.id);
   const invLines = ids.length ? await sql`SELECT * FROM invoice_lines WHERE invoice_id = ANY(${ids}::uuid[]) ORDER BY position` : [];
@@ -132,14 +149,14 @@ export async function orderBilling(actor: WorkOrderActor, orderId: string) {
   const collected = money(payments.reduce((s: number, p: Row) => s + Number(p.amount), 0));
   return {
     order: { id: String(o.id), number: o.order_number as string, customerName: o.customer_name as string, total, currency: o.currency as string },
-    vatPercent: vat,
+    vatPercent: pricing.vat, headerDiscount: pricing.ratio < 1 ? Math.round((1 - pricing.ratio) * 1000) / 10 : 0,
     lines: invoiceableLines(lines, invoiced),
     invoices: invoices.map((i: Row) => ({
       ...invoiceDto({ ...i, order_number: o.order_number }),
       lines: invLines.filter((l: Row) => String(l.invoice_id) === String(i.id)).map((l: Row) => ({ id: String(l.id), orderItemId: l.order_item_id ? String(l.order_item_id) : null, description: l.description, quantity: Number(l.quantity), unitPrice: Number(l.unit_price), vatPercent: Number(l.vat_percent), netAmount: Number(l.net_amount), vatAmount: Number(l.vat_amount) })),
     })),
     payments: payments.map((p: Row) => ({ id: String(p.id), amount: Number(p.amount), currency: p.currency, method: p.method, paidAt: p.paid_at, note: p.note ?? null, reference: p.reference ?? null, chequeDueOn: iso(p.cheque_due_on), invoiceId: p.invoice_id ? String(p.invoice_id) : null, invoiceNumber: p.invoice_number ?? null })),
-    summary: { invoiceTotal: money(issued.reduce((s: number, i: Row) => s + Number(i.total), 0)), collected, balance: money(total - collected) },
+    summary: { invoiceTotal: money(issued.reduce((s: number, i: Row) => s + Number(i.total), 0)), collected, balance: money(Math.max(total, issued.reduce((s: number, i: Row) => s + Number(i.total), 0)) - collected) },
     estimatedProfit: await orderProfit(actor.tenantId, orderId, total, String(o.currency)),
   };
 }
@@ -157,10 +174,11 @@ export async function createInvoiceDraft(actor: WorkOrderActor, orderId: string,
   const d = DraftInput.parse(raw);
   return withTransaction(async (tx: any) => {
     const o = await loadOrder(tx, actor.tenantId, orderId, true);
-    const left = invoiceableLines(await orderLines(tx, orderId), await invoicedByItem(tx, actor.tenantId, orderId));
+    const pricing = await orderPricing(tx, actor.tenantId, orderId, Number(o.total_amount));
+    const left = invoiceableLines(await orderLines(tx, orderId, pricing.ratio), await invoicedByItem(tx, actor.tenantId, orderId));
     const problems = draftProblems([...d.lines, ...d.extra.map((e) => ({ orderItemId: null, quantity: e.quantity }))], left);
     if (problems.length) fail(problems.join('; '));
-    const vat = d.vatPercent ?? (await orderVat(tx, actor.tenantId, orderId));
+    const vat = d.vatPercent ?? pricing.vat;
     const lines = [
       ...d.lines.map((l) => { const src = left.find((x) => x.id === l.orderItemId)!; return { orderItemId: l.orderItemId, description: src.description || 'Kalem', quantity: l.quantity, unitPrice: src.unitPrice, vatPercent: vat }; }),
       ...d.extra.map((e) => ({ orderItemId: null, description: e.description, quantity: e.quantity, unitPrice: e.unitPrice, vatPercent: vat })),
@@ -265,11 +283,15 @@ export async function recordCollection(actor: WorkOrderActor, raw: unknown) {
   return withTransaction(async (tx: any) => {
     const o = await loadOrder(tx, actor.tenantId, d.orderId, true);
     if (d.invoiceId) {
-      const [i] = await tx`SELECT status FROM invoices WHERE tenant_id = ${actor.tenantId} AND id = ${d.invoiceId} AND order_id = ${d.orderId}`;
+      // Held so a cancel cannot slip in between this check and the insert.
+      const [i] = await tx`SELECT status FROM invoices WHERE tenant_id = ${actor.tenantId} AND id = ${d.invoiceId} AND order_id = ${d.orderId} FOR SHARE`;
       if (!i || i.status !== 'issued') fail('Fatura bu siparişte kesilmiş görünmüyor');
     }
     const [paid] = await tx`SELECT coalesce(sum(amount), 0) AS total FROM payments WHERE tenant_id = ${actor.tenantId} AND order_id = ${d.orderId}`;
-    if (Number(paid.total) + d.amount > Number(o.total_amount) + 0.005) fail(`Tahsilat siparişin kalanını aşamaz (kalan ${money(Number(o.total_amount) - Number(paid.total))})`);
+    // What can be collected: the order total, or what was invoiced on it if more (extra lines such as shipping).
+    const [billed] = await tx`SELECT coalesce(sum(total), 0) AS total FROM invoices WHERE tenant_id = ${actor.tenantId} AND order_id = ${d.orderId} AND status = 'issued'`;
+    const cap = Math.max(Number(o.total_amount), Number(billed.total));
+    if (Number(paid.total) + d.amount > cap + 0.005) fail(`Tahsilat siparişin kalanını aşamaz (kalan ${money(cap - Number(paid.total))})`);
     await writablePeriod(tx, actor.tenantId, d.paidOn);
     const paidAt = `${d.paidOn}T12:00:00+03:00`;
     const [p] = await tx`INSERT INTO payments (tenant_id, order_id, amount, currency, method, paid_at, note, created_by, invoice_id, reference, cheque_due_on)

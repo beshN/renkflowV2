@@ -8,7 +8,9 @@ CREATE TABLE IF NOT EXISTS public.invoices (
   tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
   -- The firm's own number, given when the invoice is issued (a draft has none).
   invoice_number text,
-  order_id uuid NOT NULL REFERENCES public.orders(id) ON DELETE RESTRICT,
+  -- NO ACTION (checked at the end of the statement): an order with invoices cannot be deleted on its
+  -- own, yet deleting a whole firm (which cascades to both) still works.
+  order_id uuid NOT NULL REFERENCES public.orders(id),
   -- The customer as it was on the invoice (the card can change later).
   customer_id uuid REFERENCES public.customers(id) ON DELETE SET NULL,
   customer_name text NOT NULL,

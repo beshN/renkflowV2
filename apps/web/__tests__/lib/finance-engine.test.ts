@@ -1,5 +1,5 @@
 import {
-  aging, agingBucket, customerKey, draftProblems, dueDate, estimateProfit, invoiceTotals, invoiceableLines, lineTotals, overdueInvoices, settle, statement,
+  aging, agingBucket, customerKey, draftProblems, dueDate, estimateProfit, headerDiscountRatio, invoiceTotals, invoiceableLines, lineTotals, money, overdueInvoices, settle, statement,
 } from '@/lib/features/finance/engine';
 
 const today = '2026-10-09';
@@ -9,6 +9,24 @@ describe('invoice lines', () => {
     expect(lineTotals({ quantity: 3, unitPrice: 33.335, vatPercent: 20 })).toEqual({ net: 100.01, vat: 20, gross: 120.01 });
     expect(invoiceTotals([{ quantity: 1, unitPrice: 0.05, vatPercent: 20 }, { quantity: 1, unitPrice: 0.05, vatPercent: 20 }])).toEqual({ subtotal: 0.1, vatTotal: 0.02, total: 0.12 });
     expect(invoiceTotals([{ quantity: 2, unitPrice: 1000, vatPercent: 20 }, { quantity: 1, unitPrice: 500, vatPercent: 10 }])).toEqual({ subtotal: 2500, vatTotal: 450, total: 2950 });
+  });
+});
+
+describe('rounding', () => {
+  it('half-up on the decimal value, not the float', () => {
+    expect(lineTotals({ quantity: 1, unitPrice: 21.35, vatPercent: 10 }).vat).toBe(2.14);
+    expect(lineTotals({ quantity: 1, unitPrice: 213.5, vatPercent: 1 }).vat).toBe(2.14);
+    expect(lineTotals({ quantity: 1, unitPrice: 13.25, vatPercent: 18 }).vat).toBe(2.39);
+    expect(lineTotals({ quantity: 0.1, unitPrice: 40.15, vatPercent: 0 }).net).toBe(4.02);
+    expect(money(1.005)).toBe(1.01);
+    expect(money(-2.135)).toBe(-2.14);
+  });
+  it("a quote's header discount scales the lines to what the order charges", () => {
+    // Lines 10 000 net, order total 10 800 with 20% VAT → 9 000 net charged → 0.9.
+    expect(headerDiscountRatio(10800, 20, 10000)).toBeCloseTo(0.9, 10);
+    expect(headerDiscountRatio(12000, 20, 10000)).toBe(1);
+    expect(headerDiscountRatio(12000.01, 20, 10000)).toBe(1);
+    expect(headerDiscountRatio(0, 20, 10000)).toBe(1);
   });
 });
 
@@ -46,6 +64,10 @@ describe('receivables', () => {
     expect(s.items.map((i) => [i.id, i.paid, i.open])).toEqual([['F1', 1000, 0], ['F2', 500, 500], ['F3', 0, 1000]]);
     expect(s.advance).toBe(0);
     expect(settle(invoices, 3200, today).advance).toBe(200);
+  });
+  it('a collection recorded against an invoice pays that invoice first', () => {
+    const s = settle(invoices, 1500, today, { F3: 1000 });
+    expect(s.items.map((i) => [i.id, i.paid, i.open])).toEqual([['F1', 500, 500], ['F2', 0, 1000], ['F3', 1000, 0]]);
   });
   it('buckets by days past due', () => {
     expect(agingBucket('2026-10-10', today)).toBe('notDue');
