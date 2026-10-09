@@ -123,6 +123,7 @@ struct JobDetailView: View {
 }
 
 struct ProfileView: View {
+    @EnvironmentObject private var lock:AppLock
     @EnvironmentObject private var store: FieldStore
     @State private var logout = false
     var body: some View {
@@ -137,6 +138,8 @@ struct ProfileView: View {
                 }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.card, in: RoundedRectangle(cornerRadius: 12))
                 NotificationsView()
                 Text("Üretim kayıtları firmanızın RenkFlow sistemine kaydedilir. Bağlantı kurulamadığında verileri yenileyin.").foregroundStyle(.secondary)
+                Toggle("Uygulama kilidi",isOn:Binding(get:{lock.enabled},set:{enabled in if enabled {Task {await lock.unlock(enable:true)}} else {lock.disable()}})).frame(minHeight:48)
+                if let message=lock.message {Text(message).foregroundStyle(FieldColor.error)}
                 Button(role: .destructive) { logout = true } label: { Label("Çıkış yap", systemImage: "rectangle.portrait.and.arrow.right").frame(maxWidth: .infinity).padding(12) }.buttonStyle(.bordered).disabled(store.busy || store.pending != nil)
                 Text("Sürüm \(MobileContract.version)").font(.caption).foregroundStyle(.secondary)
             }.padding(24).fieldCanvas()

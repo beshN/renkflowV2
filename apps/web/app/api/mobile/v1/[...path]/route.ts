@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GET as fieldGet, POST as fieldPost } from '@/app/api/v1/field/[...path]/route';
-import { POST as login } from '@/app/api/v1/auth/login/route';
+import {mobileLogin,mobileRefresh,requireMobileSession,mobileDevices,revokeMobileDevice} from '@/lib/features/mobile/sessions';
 import { GET as me } from '@/app/api/v1/auth/me/route';
 import { fieldActor } from '@/lib/features/field/service';
 import { needsUpdate, MIN_APP_VERSION, MOBILE_API_VERSION, validateMobileDTO } from '@/lib/features/mobile/contract';
@@ -22,7 +22,7 @@ async function handle(request: NextRequest, context: Context, writing: boolean) 
   try {
     const { path } = await context.params;
     if (writing) {
-      const input = path.join('/') === 'uploads' ? 'UploadInput' : path.join('/') === 'sync' ? 'SyncInput' : path.join('/')==='notifications/device' ? 'PushDeviceInput' : path.join('/') === 'notifications/preferences' ? 'NotificationPreferences' : path.join('/') === 'auth/login' ? 'LoginInput' : path[0] === 'commands' ? 'CommandInput' : path[0] === 'files' ? 'PhotoInput' : path[2] === 'comments' ? 'CommentInput' : path[2] === 'checklist' ? 'ChecklistInput' : path[2] === 'transition' ? 'TransitionInput' : null;
+      const input = path.join('/')==='auth/refresh' ? 'RefreshInput' : path.join('/')==='auth/devices/revoke' ? 'DeviceRevokeInput' : path.join('/') === 'uploads' ? 'UploadInput' : path.join('/') === 'sync' ? 'SyncInput' : path.join('/')==='notifications/device' ? 'PushDeviceInput' : path.join('/') === 'notifications/preferences' ? 'NotificationPreferences' : path.join('/') === 'auth/login' ? 'LoginInput' : path[0] === 'commands' ? 'CommandInput' : path[0] === 'files' ? 'PhotoInput' : path[2] === 'comments' ? 'CommentInput' : path[2] === 'checklist' ? 'ChecklistInput' : path[2] === 'transition' ? 'TransitionInput' : null;
       if (input) {
         const raw = await readFieldJson(request, input === 'PhotoInput' ? 2_900_000 : input === 'UploadInput' ? 400_000 : 64_000);
         try { validateMobileDTO(input, raw); }
@@ -34,13 +34,14 @@ async function handle(request: NextRequest, context: Context, writing: boolean) 
     let schema: Parameters<typeof validateMobileDTO>[0];
     if (path.join('/') === 'auth/login' && writing) {
       const body = await readFieldJson(request);
-      response = await login(new NextRequest(request.url, { method: 'POST', headers: request.headers, body: JSON.stringify(body) }));
-      if (!response.ok) return response;
-      const result = await response.json();
-      // Login itself proves password ownership; the mobile guard then proves current membership/access.
-      const headers = new Headers(request.headers); headers.set('authorization', `Bearer ${result.data.accessToken}`);
-      await fieldActor(new NextRequest(request.url, { headers }),'any');
-      return json({ success: true, data: validateMobileDTO('Login', { user: result.data.user, accessToken: result.data.accessToken, expiresIn: result.data.expiresIn }) });
+      return json({success:true,data:validateMobileDTO('Login',await mobileLogin(request,body,request.headers.get('x-renkflow-platform')!))});
+    }
+    if(path.join('/')==='auth/refresh' && writing) return json({success:true,data:validateMobileDTO('Login',await mobileRefresh(await readFieldJson(request)))});
+    const identity=await requireMobileSession(request);
+    if(path.join('/')==='auth/devices' && !writing) {await fieldActor(request,'any');return json({success:true,data:validateMobileDTO('Devices',await mobileDevices(identity.sub!,identity.tenantId))});}
+    if((path.join('/')==='auth/logout'||path.join('/')==='auth/devices/revoke') && writing) {
+      await fieldActor(request,'any');const id=path.join('/')==='auth/logout' ? identity.sid : (await readFieldJson(request) as {id:string}).id;
+      return json({success:true,data:validateMobileDTO('Accepted',await revokeMobileDevice(identity.sub!,identity.tenantId,id))});
     }
     if(path.join('/')==='snapshot' && !writing) {
       const actor=await fieldActor(request,'any');

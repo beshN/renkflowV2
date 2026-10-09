@@ -33,6 +33,10 @@ export async function currentMobileAccess(actor: WorkOrderActor, token: string):
   if (member?.deactivated_at) throw new WorkOrderApiError('Oturumunuz sona erdi.', 401);
   const decoded = jwt.decode(token) as { iat?: number; sid?: string } | null;
   if (user?.sessions_valid_after && (!decoded?.iat || decoded.iat < Math.floor(new Date(String(user.sessions_valid_after)).getTime() / 1000))) throw new WorkOrderApiError('Oturumunuz iptal edildi.', 401);
+  if(decoded?.sid) {
+    const [session]=await sql`SELECT id FROM user_sessions WHERE id=${decoded.sid} AND user_id=${actor.userId} AND tenant_id=${actor.tenantId} AND revoked_at IS NULL`;
+    if(!session) throw new WorkOrderApiError('Bu cihazın oturumu iptal edildi.',401);
+  }
   const key = typeof member?.access_role === 'string' ? member.access_role : null;
   let custom: { base: string; permissions: Matrix } | undefined;
   if (key && row.role_table && !presets[key]) {

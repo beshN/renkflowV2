@@ -22,11 +22,11 @@ fun normalizeServer(input: String): String {
 }
 
 class Api(private val client: OkHttpClient = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
-    .readTimeout(35, TimeUnit.SECONDS).callTimeout(45, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build()) {
+    .readTimeout(35, TimeUnit.SECONDS).callTimeout(45, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build(),private val tokenResolver:(suspend (String,String)->String)?=null) {
     suspend fun raw(server: String, token: String?, path: String, body: String? = null, code: String? = null): JsonElement = withContext(Dispatchers.IO) {
         val url = server.toHttpUrlOrNull()!!.newBuilder().addPathSegments("${MobileContract.basePath.trimStart('/')}/${path.removePrefix("field/")}").apply { if (code != null) addQueryParameter("code", code) }.build()
         val request = Request.Builder().url(url).header("Accept", "application/json").header("X-RenkFlow-App-Version", MobileContract.version).header("X-RenkFlow-Platform", "android").apply {
-            token?.let { header("Authorization", "Bearer $it") }
+            token?.let { header("Authorization", "Bearer ${tokenResolver?.invoke(server,it) ?: it}") }
             if (body != null) post(body.toRequestBody("application/json; charset=utf-8".toMediaType()))
         }.build()
         client.newCall(request).execute().use { response ->
@@ -36,7 +36,7 @@ class Api(private val client: OkHttpClient = OkHttpClient.Builder().connectTimeo
             json?.get("data") ?: throw ApiException(502, "Sunucudan beklenmeyen yanıt alındı.")
         }
     }
-    suspend fun login(server: String, email: String, password: String): LoginResult = fieldJson.decodeFromJsonElement(raw(server, null, "auth/login", buildJsonObject { put("email", email); put("password", password) }.toString()))
+    suspend fun login(server: String, email: String, password: String,deviceId:String?=null): LoginResult = fieldJson.decodeFromJsonElement(raw(server, null, "auth/login", buildJsonObject { put("email", email); put("password", password);deviceId?.let {put("deviceId",it)} }.toString()))
     suspend fun me(session: Session): User = fieldJson.decodeFromJsonElement(raw(session.server, session.token, "auth/me"))
     suspend fun snapshot(session: Session): Snapshot = fieldJson.decodeFromJsonElement(raw(session.server, session.token, "field/snapshot"))
     suspend fun details(session: Session, id: String): WorkOrder = fieldJson.decodeFromJsonElement(raw(session.server, session.token, "field/work-orders/$id"))

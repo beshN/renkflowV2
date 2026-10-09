@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct RootView: View {
+    @EnvironmentObject private var lock:AppLock
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var store: FieldStore
     @State private var tab = 0
     @State private var operation: ProductionOperation?
@@ -14,6 +16,13 @@ struct RootView: View {
                 }.padding(32).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if store.restoring {
                 VStack(spacing: 28) { Brand(); ProgressView().tint(FieldColor.onInk) }.frame(maxWidth: .infinity, maxHeight: .infinity).background(FieldColor.ink)
+            } else if store.session != nil && (scenePhase != .active || lock.enabled && !lock.unlocked) {
+                VStack(spacing:24) {
+                    Image(systemName:"lock.fill").font(.system(size:48)).accessibilityLabel("Uygulama kilitli")
+                    Text("RenkFlow Saha").font(.title.bold())
+                    if let message=lock.message {Text(message)}
+                    if scenePhase == .active {Button("Kilidi aç") {Task {await lock.unlock()}}.buttonStyle(FieldButton())}
+                }.padding(24)
             } else if store.session == nil { LoginView() }
             else {
                 NavigationStack {

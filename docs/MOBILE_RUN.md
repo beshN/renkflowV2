@@ -134,3 +134,17 @@ Adım 4 başlangıcı: 2026-10-09 21:27 UTC. Adım 3 PR #56 CI sonucu bekleniyor
 - API/DTO birim testleri ve native montaj overlay/önceki fotoğraf kuyruk uyum testleri eklendi. Fotoğraf içeren yerel testte depolama açıkça local seçilmediği için ilk deneme hata verdi; yalnız test process'inde local depolama seçilerek düzeldi.
 
 - Son iOS kontrolünde eski fotoğraf JSON'unda eksik `name` alanı okuması başarısız oldu. Decoder varsayılan dosya adını açıkça uygulayacak şekilde düzeltildi; test korunuyor. Montaj detayı hızlı değiştirilince eski ağ yanıtının yeni seçimi ezmesi de seçim kimliğiyle engellendi.
+
+## Adım 2 planı (10 satır)
+1. Mevcut web parola doğrulama ve giriş denemesi sınırını mobilde yeniden kullan.
+2. 15 dakikalık erişim ve 30 günlük dönen yenileme jetonlarını yalnız mobil API'de üret.
+3. Jetonun yalnız hash'ini sakla; tekrar kullanımda cihaz oturumunu iptal et.
+4. Ağda kaybolan yenileme yanıtını aynı istemci UUID'siyle güvenli biçimde tekrar al.
+5. Mobil cihazları mevcut night-2 user_sessions tablosuyla uyumlu kaydet ve iptali her istekte kontrol et.
+6. Android/iOS ağ katmanlarında yenilemeyi seri yap ve Keystore/Keychain'e atomik yaz.
+7. Çıkışta oturumu iptal et; çevrimdışı kuyrukları kullanıcı kapsamıyla koru.
+8. Ayrı, küçük web cihaz yönetimi yüzeyinde kendi cihazlarını listeleme/iptal etme ekle.
+9. İsteğe bağlı cihaz biyometrisiyle uygulama kilidi ve arka plan gizlilik örtüsü ekle.
+10. Döndürme, kayıp yanıt, tekrar kullanım, üyelik kaldırma ve cihaz iptalini gerçek yerel DB'de test et.
+
+Adım 2 başlangıcı: 2026-10-09 22:03 UTC. Adım 4 PR #57 düzeltme CI'sı bekleniyor; entegrasyona yalnız başarılı CI ile alınır.
