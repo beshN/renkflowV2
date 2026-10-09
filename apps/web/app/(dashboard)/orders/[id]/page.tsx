@@ -23,10 +23,11 @@ import { Chatter } from '@/components/shared/ui/Chatter';
 import { RecordButton, RecordPanel } from '@/components/records/RecordDrawer';
 import { OrderSalesPanel } from '@/components/sales/OrderSalesPanel';
 import { OrderChainPanel } from '@/components/field/OrderChainPanel';
-import { Wrench } from 'lucide-react';
+import { OrderBillingPanel } from '@/components/finance/OrderBillingPanel';
+import { Receipt, Wrench } from 'lucide-react';
 import { ORDER_TRANSITIONS, transitionNeedsReason } from '@/lib/features/orders/transition-rules';
 import { useAuth } from '@/lib/context/AuthContext';
-import { hasPermission } from '@/lib/auth/permissions';
+import { canAccessFinance, hasPermission } from '@/lib/auth/permissions';
 import { requestJson } from '@/lib/shared/network';
 import { ColorChip } from '@/components/colors/ColorSwatch';
 import { colorKey } from '@/lib/features/colors/color-spec';
@@ -140,7 +141,7 @@ export default function OrderDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const transitionRetry = useRef<{key:string;commandId:string} | null>(null);
-  const [activeTab, setActiveTab] = useState<'info' | 'items' | 'sales' | 'chain' | 'documents' | 'activity'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'items' | 'sales' | 'billing' | 'chain' | 'documents' | 'activity'>('info');
   const [reasonFor, setReasonFor] = useState<{ status: string; note: string } | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
 
@@ -312,10 +313,11 @@ export default function OrderDetailPage() {
                   { key: 'info', label: 'Bilgiler', icon: ClipboardList },
                   { key: 'items', label: 'Ürün Satırları', icon: Package },
                   { key: 'sales', label: 'Teslim & ödeme', icon: Wallet },
+                  { key: 'billing', label: 'Fatura & tahsilat', icon: Receipt },
                   { key: 'chain', label: 'Montaj & servis', icon: Wrench },
                   { key: 'documents', label: 'Dosyalar', icon: FileText },
                   { key: 'activity', label: 'Aktivite', icon: MessageSquare },
-                ].filter(tab => !order.financialHidden || !['sales','documents','activity'].includes(tab.key)).map(({ key, label, icon: Icon }) => (
+                ].filter(tab => !order.financialHidden || !['sales','documents','activity'].includes(tab.key)).filter(tab => tab.key !== 'billing' || Boolean(user && canAccessFinance(user.role) && !order.financialHidden)).map(({ key, label, icon: Icon }) => (
                   <button
                     key={key}
                     aria-label={label}
@@ -441,6 +443,8 @@ export default function OrderDetailPage() {
                   onOrderChanged={() => void loadOrder()}
                 />
               )}
+
+              {activeTab === 'billing' && user && canAccessFinance(user.role) && !order.financialHidden && <OrderBillingPanel orderId={orderId} />}
 
               {activeTab === 'chain' && <OrderChainPanel orderId={orderId} />}
 

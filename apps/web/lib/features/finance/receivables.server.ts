@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { sql, withTransaction } from '@/lib/db';
+import { tableExists } from '@/lib/db/schema-guard';
 import { recordAudit } from '@/lib/audit/audit-log';
 import { createNotification } from '@/lib/notifications/service';
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
@@ -87,6 +88,7 @@ export async function runOverdueRule(tenantId: string, { force = false } = {}) {
   const now = Date.now();
   if (!force && now - (lastRun.get(tenantId) ?? 0) < 10 * 60_000) return { ran: 0 };
   lastRun.set(tenantId, now);
+  if (!(await tableExists('invoices'))) return { ran: 0 };
   const today = istanbulToday();
   const overdue = (await ledger(tenantId)).flatMap((c) => {
     const collected = c.payments.reduce((s, p) => s + Number(p.amount), 0);
