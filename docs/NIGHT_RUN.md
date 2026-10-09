@@ -20,3 +20,5 @@ Entegrasyon dalı: `claude/trello-odoo` (main'e birleştirme sabah, kullanıcı 
 8. Değişiklik talebi: üretim etkisi uyarısı (iş emri başladıysa onay ister, sevk edildiyse engeller), uygulanınca satır + toplam + iz + üretime bildirim (fiyatsız).
 9. Ödeme planı: taksitlerin toplamı sipariş tutarına eşit; tahsilatlar sırayla dağıtılır, gecikmiş taksit görünür.
 10. Arayüz: teklif detayında revizyon/fark, onay bağlantısı, indirim onayı, şablon; sipariş detayında plan/teslim/değişiklik/söz tarihi. Testler: jest motorlar + `test:sales` entegrasyon.
+| 2026-10-09 06:20 | bitti | Tur B (#44 birleşti): göç 041, satış motorları + tek kapılı sipariş durum makinesi, müşteri onay bağlantısı, revizyon farkı, kısmi teslim, değişiklik talebi, ödeme planı. İnceleme 10 bulgu → 9 düzeltildi, 1 geçersiz (mobil sahte veri). 589 birim + test:sales yeşil |
+| 2026-10-09 06:20 | sürüyor | Tur C: göç 042, neden kodları, fire/gecikme, kapasite ısı haritası, kesim planı geçmişi, çubuk boyu seçimi, değişiklikte BOM yeniden hesabı; testler + tarayıcı tamam, kod incelemesi bekleniyor |
