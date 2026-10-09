@@ -196,8 +196,9 @@ export const FIELD_KEYS: Record<FieldGroup, string[]> = {
     'unitPrice', 'unit_price', 'totalPrice', 'total_price', 'totalAmount', 'total_amount', 'subtotal', 'taxAmount', 'tax_amount',
     'discountAmount', 'discount_amount', 'price', 'prices', 'matrixUnitPrice', 'tryTotal', 'fxRate', 'fx_rate', 'amount', 'paid',
     'payments', 'paymentStatus', 'payment_status', 'currency', 'total', 'grandTotal', 'cheapest', 'invoiceTotal', 'balance', 'collected', 'estimatedValue', 'estimated_value',
+    'vatTotal', 'vat_total', 'netAmount', 'vatAmount', 'openAmount', 'overdueAmount', 'advance', 'debit', 'credit', 'aging', 'revenueNet', 'openingBalance', 'closingBalance',
   ],
-  cost: ['cost', 'unitCost', 'unit_cost', 'costs', 'profileCost', 'profile_cost', 'costSnapshot', 'cost_snapshot', 'laborCostPerHour', 'labor_cost_per_hour', 'materialCost', 'laborCost', 'scrapCost'],
+  cost: ['cost', 'unitCost', 'unit_cost', 'costs', 'profileCost', 'profile_cost', 'costSnapshot', 'cost_snapshot', 'laborCostPerHour', 'labor_cost_per_hour', 'materialCost', 'laborCost', 'scrapCost', 'reworkCost'],
   profit: ['profit', 'margin', 'marginPercent', 'estimatedProfit', 'grossProfit'],
   customer_contact: [
     'email', 'phone', 'address', 'contacts', 'billingAddress', 'billing_address', 'shippingAddress', 'shipping_address', 'customerPhone',
