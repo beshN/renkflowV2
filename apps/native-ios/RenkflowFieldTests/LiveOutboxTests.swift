@@ -45,7 +45,7 @@ import SwiftData
 // Network fault injection only in the test target. Forwarded requests still reach the real API.
 private final class InterruptAfterFirstChunk:URLProtocol {
     static var enabled=false;static var interrupted=false
-    private var task:URLSessionDataTask?
+    private var forwardingTask:URLSessionDataTask?
     private var forwarding:URLSession?
     override class func canInit(with request:URLRequest)->Bool {enabled && request.url?.host=="127.0.0.1" && request.url?.port==3043 && request.url?.path=="/api/mobile/v1/uploads"}
     override class func canonicalRequest(for request:URLRequest)->URLRequest {request}
@@ -62,11 +62,11 @@ private final class InterruptAfterFirstChunk:URLProtocol {
         }
         let config=URLSessionConfiguration.ephemeral;config.protocolClasses=[]
         let session=URLSession(configuration:config,delegate:LoopbackTestTrust(),delegateQueue:nil);forwarding=session
-        task=session.dataTask(with:forwarded) {[weak self] data,response,error in
+        forwardingTask=session.dataTask(with:forwarded) {[weak self] data,response,error in
             guard let self else {return};if let error {self.client?.urlProtocol(self,didFailWithError:error);return}
             if let response {self.client?.urlProtocol(self,didReceive:response,cacheStoragePolicy:.notAllowed)}
             if let data {self.client?.urlProtocol(self,didLoad:data)};self.client?.urlProtocolDidFinishLoading(self)
-        };task?.resume()
+        };forwardingTask?.resume()
     }
-    override func stopLoading() {task?.cancel();forwarding?.invalidateAndCancel()}
+    override func stopLoading() {forwardingTask?.cancel();forwarding?.invalidateAndCancel()}
 }
