@@ -52,7 +52,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return errorResponse('Geçersiz durum: ' + Object.values(errors).join(', '), 400);
     }
 
-    const { status } = validationResult.data;
+    const { status, note } = validationResult.data;
 
     // Check if order exists
     const existingOrder = await orderService.getOrderById(user.tenantId, id);
@@ -60,7 +60,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return errorResponse('Sipariş bulunamadı', 404);
     }
 
-    const order = await orderService.updateOrderStatus(user.tenantId, id, status);
+    const order = await orderService.updateOrderStatus(user.tenantId, id, status, { actorId: user.id, note });
     
     return successResponse(order, `Sipariş durumu "${status}" olarak güncellendi`);
   } catch (error: unknown) {

@@ -27,3 +27,16 @@ export const ORDER_TRANSITIONS: Record<string, string[]> = {
 };
 
 export const canTransition = (from: string, to: string) => (ORDER_TRANSITIONS[from] ?? []).includes(to);
+
+/** Moves that need a written reason: stopping, cancelling or sending work back a step. */
+export function transitionNeedsReason(from: string, to: string) {
+  return to === "cancelled" || to === "on_hold" || (from === "quality_check" && to === "in_production");
+}
+
+/** Why a move is refused (null when allowed): the shared rule every status path enforces. */
+export function transitionProblem(from: string, to: string, note: string | null | undefined) {
+  if (from === to) return null;
+  if (!canTransition(from, to)) return "Bu durum geçişine izin verilmiyor";
+  if (transitionNeedsReason(from, to) && (note ?? "").trim().length < 3) return "Bu geçiş için gerekçe yazın";
+  return null;
+}

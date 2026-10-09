@@ -38,12 +38,6 @@ function handleActionError(error: unknown, action: string): never {
   throw new Error(`${action} işlemi başarısız oldu`);
 }
 
-const ALLOWED_STATUS_TRANSITIONS: Record<Order['status'], Order['status'][]> = {
-  pending: ['in_production', 'delivered'],
-  in_production: ['pending', 'delivered'],
-  delivered: ['in_production'],
-};
-
 // Validate session and ensure tenantId is defined
 async function validateSession(permission: Permission = 'orders.view'): Promise<{ user: { id: string; tenantId: string; email?: string | null; name?: string | null; role?: string }; }> {
   const context = await requireTenantContext();
@@ -271,7 +265,7 @@ export async function updateOrderAction(id: string, updates: Partial<Order>): Pr
 /**
  * Update order status
  */
-export async function updateOrderStatusAction(id: string, status: Order['status']): Promise<Order> {
+export async function updateOrderStatusAction(id: string, status: string, note?: string): Promise<Order> {
   return withServerActionTiming('orders.updateOrderStatusAction', async () => {
     try {
       const session = await validateSession('orders.edit');
@@ -289,19 +283,12 @@ export async function updateOrderStatusAction(id: string, status: Order['status'
         throw new Error('Sipariş bulunamadı');
       }
 
-      if (existingOrder.status !== parsedStatus.data.status) {
-        const allowedTransitions = ALLOWED_STATUS_TRANSITIONS[existingOrder.status] || [];
-        if (!allowedTransitions.includes(parsedStatus.data.status)) {
-          throw new Error(
-            `Durum geçişine izin verilmiyor: ${existingOrder.status} -> ${parsedStatus.data.status}`
-          );
-        }
-      }
-
+      // The service enforces the shared state machine and reason rule.
       const order = await orderService.updateOrderStatus(
         session.user.tenantId,
         id,
-        parsedStatus.data.status
+        parsedStatus.data.status,
+        { actorId: session.user.id, note },
       );
 
       invalidateOrderCaches(session.user.tenantId, id);

@@ -46,7 +46,7 @@ const PUBLIC_EXACT_PATHS = new Set([
   '/twitter-image',
 ]);
 
-const PUBLIC_PREFIXES = ['/blog/', '/docs/', '/public/', '/track/'];
+const PUBLIC_PREFIXES = ['/blog/', '/docs/', '/public/', '/track/', '/teklif/'];
 const AUTH_ENTRY_PAGES = new Set(['/auth/login', '/auth/forgot-password', '/auth/update-password', '/signup']);
 
 function isPublicPage(pathname: string): boolean {
@@ -193,7 +193,7 @@ export async function proxy(request: NextRequest) {
     return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
   }
 
-  if(privateAccessEmail() && (pathname.startsWith('/track/') || pathname.startsWith('/q/'))) {
+  if(privateAccessEmail() && (pathname.startsWith('/track/') || pathname.startsWith('/q/') || pathname.startsWith('/teklif/'))) {
     if(!(await isAuthenticated(request))) return withProxySecurityHeaders(buildLoginRedirect(request), {isSecureRequest});
   }
 

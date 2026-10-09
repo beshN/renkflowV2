@@ -1,5 +1,7 @@
 'use client';
 import { RecordPanel } from '@/components/records/RecordDrawer';
+import { CustomerPriceRules } from '@/components/sales/CustomerPriceRules';
+import { useAuth } from '@/lib/context/AuthContext';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -16,6 +18,7 @@ export default function CustomerDetailPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const customerId = params.id as string;
+  const { user } = useAuth();
 
   const [customer, setCustomer] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,6 +67,7 @@ export default function CustomerDetailPage() {
             aside={<RecordPanel type="customer" id={customerId} fallback={<Chatter entityType="customer" entityId={customerId} />} />}
           >
             <div className="space-y-6">
+              <CustomerPriceRules customerId={customerId} canEdit={['owner', 'admin', 'office'].includes(user?.role ?? '')} />
               {/* Info Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 

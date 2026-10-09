@@ -58,7 +58,7 @@ export default function QuotationPrint({
         />
         <div className="text-right">
           <h1 className="text-xl font-semibold">Fiyat teklifi</h1>
-          <p>{q.quotationNumber}</p>
+          <p>{q.quotationNumber}{(q.revision ?? 1) > 1 ? ` · rev. ${q.revision}` : ""}</p>
           <p className="text-xs">
             {new Date(q.createdAt).toLocaleDateString("tr-TR")}
           </p>
@@ -121,13 +121,22 @@ export default function QuotationPrint({
           <span>{formatCurrency(q.discountAmount, q.currency)}</span>
         </p>
         <p className="flex justify-between">
-          <span>KDV</span>
+          <span>KDV %{q.vatPercent ?? 20}</span>
           <span>{formatCurrency(q.taxAmount, q.currency)}</span>
         </p>
         <p className="flex justify-between border-t border-border pt-3 font-bold">
           <span>Toplam</span>
           <span>{formatCurrency(q.totalAmount, q.currency)}</span>
         </p>
+        {q.currency !== "TRY" && q.fxRate ? (
+          <p className="flex justify-between text-xs">
+            <span>1 {q.currency} = {q.fxRate} TL</span>
+            <span>≈ {formatCurrency(q.totalAmount * q.fxRate, "TRY")}</span>
+          </p>
+        ) : null}
+        {q.customerDecidedAt && q.status === "accepted" && (
+          <p className="text-xs">Müşteri onayı: {q.customerDecisionName} · {new Date(q.customerDecidedAt).toLocaleString("tr-TR")}</p>
+        )}
       </div>
       <div className="mt-8 whitespace-pre-wrap text-xs leading-6">
         {q.notes}

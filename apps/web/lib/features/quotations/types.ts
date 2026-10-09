@@ -4,6 +4,7 @@ import {
 } from "@/lib/features/awning/configuration";
 import { z } from "zod";
 import { CurrencySchema } from "@/lib/types/currency";
+import { VAT_RATES } from "@/lib/features/sales/engine";
 import { ConfigurationChoiceSchema, type ProductConfiguration } from "@/lib/features/products/configuration";
 
 export const QuotationItemSchema = z.object({
@@ -65,6 +66,16 @@ export const QuotationSchema = z.object({
   internalNotes: z.string().optional().nullable(),
   termsAndConditions: z.string().optional().nullable(),
   convertedToOrderId: z.string().uuid().optional().nullable(),
+  /** Tur B (migration 041); defaults when the columns are not there yet. */
+  revision: z.number().int().positive().default(1),
+  vatPercent: z.number().default(20),
+  fxRate: z.number().nullable().optional(),
+  sentAt: z.string().nullable().optional(),
+  discountApprovedPercent: z.number().nullable().optional(),
+  discountApprovedAt: z.string().nullable().optional(),
+  customerDecidedAt: z.string().nullable().optional(),
+  customerDecisionName: z.string().nullable().optional(),
+  customerDecisionNote: z.string().nullable().optional(),
   createdAt: z.string().or(z.date()),
   updatedAt: z.string().or(z.date()),
   items: z.array(QuotationItemSchema).default([]),
@@ -84,6 +95,11 @@ export const CreateQuotationSchema = z.object({
     .optional(),
   currency: CurrencySchema.default("TRY"),
   discountPercent: z.coerce.number().min(0).max(100).default(0),
+  vatPercent: z.coerce.number().refine((v) => (VAT_RATES as readonly number[]).includes(v), "KDV oranı 20, 10, 1 ya da 0 olmalı").optional(),
+  /** One unit of the quote currency in TRY, typed by the seller. */
+  fxRate: z.coerce.number().positive().max(100000).nullable().optional(),
+  /** Apply the customer's standing discounts to lines that carry none (new quotes). */
+  applyCustomerPrices: z.boolean().optional(),
   notes: z.string().optional(),
   internalNotes: z.string().optional(),
   termsAndConditions: z.string().optional(),
@@ -111,6 +127,7 @@ export interface IQuotationService {
     status: Quotation["status"],
     expectedVersion?: number,
     actorId?: string,
+    actorRole?: string,
   ): Promise<Quotation>;
   convertToOrder(
     tenantId: string,

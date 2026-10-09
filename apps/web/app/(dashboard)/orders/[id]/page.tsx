@@ -10,7 +10,7 @@ import {
   ArrowLeft, FileText, Package, Truck, Edit2, MoreHorizontal,
   Calendar, User, DollarSign, Tag, ClipboardList, Building2,
   Phone, Mail, Palette, Maximize2, LayoutGrid, MessageSquare, 
-  ChevronDown, CheckCircle2, AlertTriangle, Clock
+  ChevronDown, CheckCircle2, AlertTriangle, Clock, Wallet
 } from 'lucide-react';
 
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
@@ -21,6 +21,8 @@ import { Lock } from 'lucide-react';
 import { businessDate } from '@/lib/features/orders/workspace';
 import { Chatter } from '@/components/shared/ui/Chatter';
 import { RecordButton, RecordPanel } from '@/components/records/RecordDrawer';
+import { OrderSalesPanel } from '@/components/sales/OrderSalesPanel';
+import { ORDER_TRANSITIONS, transitionNeedsReason } from '@/lib/features/orders/transition-rules';
 import { useAuth } from '@/lib/context/AuthContext';
 import { hasPermission } from '@/lib/auth/permissions';
 import { requestJson } from '@/lib/shared/network';
@@ -136,7 +138,8 @@ export default function OrderDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const transitionRetry = useRef<{key:string;commandId:string} | null>(null);
-  const [activeTab, setActiveTab] = useState<'info' | 'items' | 'documents' | 'activity'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'items' | 'sales' | 'documents' | 'activity'>('info');
+  const [reasonFor, setReasonFor] = useState<{ status: string; note: string } | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
 
   const loadOrder = useCallback(async (signal?: AbortSignal) => {
@@ -152,8 +155,11 @@ export default function OrderDetailPage() {
 
   useEffect(() => { const controller = new AbortController(); void loadOrder(controller.signal); return () => controller.abort(); }, [loadOrder]);
 
-  const handleStatusTransition = async (newStatus: string) => {
+  const handleStatusTransition = async (newStatus: string, note = '') => {
     if (!order || isTransitioning) return;
+    // Stopping, cancelling or sending work back needs a written reason (the server enforces it too).
+    if (transitionNeedsReason(order.status, newStatus) && note.trim().length < 3) { setReasonFor({ status: newStatus, note: '' }); return; }
+    setReasonFor(null);
     setIsTransitioning(true);
     const key = JSON.stringify([orderId, order.version, newStatus]);
     const commandId = transitionRetry.current?.key === key ? transitionRetry.current.commandId : crypto.randomUUID();
@@ -162,7 +168,7 @@ export default function OrderDetailPage() {
       const res = await fetch(`/api/v1/orders/${orderId}/transition`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newStatus, version: order.version, commandId }),
+        body: JSON.stringify({ newStatus, version: order.version, commandId, note }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Durum güncellenemedi');
@@ -179,22 +185,8 @@ export default function OrderDetailPage() {
 
   const normalizedStatus = order ? (LEGACY_STATUS_MAP[order.status] || order.status) : 'new';
 
-  // Allowed next transitions
-  const VALID_TRANSITIONS: Record<string, string[]> = {
-    new: ['pending_approval', 'approved'],
-    pending: ['pending_approval', 'approved'],
-    pending_approval: ['approved', 'cancelled'],
-    approved: ['preparing_materials', 'cancelled'],
-    preparing_materials: ['ready_for_production'],
-    ready_for_production: ['in_production'],
-    in_production: ['quality_check', 'ready_for_shipment'],
-    quality_check: ['ready_for_shipment', 'in_production'],
-    ready_for_shipment: ['shipped'],
-    shipped: ['completed'],
-    delivered: ['completed'],
-    on_hold: ['approved', 'preparing_materials', 'in_production'],
-  };
-  const allowedTransitions = order?.productionManaged ? [] : VALID_TRANSITIONS[normalizedStatus] || [];
+  // Allowed next transitions: the same map the server enforces.
+  const allowedTransitions = order?.productionManaged ? [] : ORDER_TRANSITIONS[normalizedStatus] || [];
 
   if (isLoading) {
     return (
@@ -290,6 +282,20 @@ export default function OrderDetailPage() {
                 allowedTransitions={allowedTransitions}
               />
             </div>
+            {!order.productionManaged && user && hasPermission(user.role, 'orders.edit') && !reasonFor && allowedTransitions.some((t) => t === 'on_hold' || t === 'cancelled') && (
+              <div className="mt-2 flex justify-end gap-2">
+                {allowedTransitions.includes('on_hold') && <button type="button" disabled={isTransitioning} className="rf-input text-xs" onClick={() => void handleStatusTransition('on_hold')}>Beklet</button>}
+                {allowedTransitions.includes('cancelled') && <button type="button" disabled={isTransitioning} className="rf-input text-xs text-rose-700 dark:text-rose-300" onClick={() => void handleStatusTransition('cancelled')}>İptal et</button>}
+              </div>
+            )}
+            {reasonFor && (
+              <form className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-amber-600/35 p-3" onSubmit={(e) => { e.preventDefault(); void handleStatusTransition(reasonFor.status, reasonFor.note); }}>
+                <span className="text-xs font-medium">{ORDER_STATUS_STEPS.find((s) => s.key === reasonFor.status)?.label ?? reasonFor.status}: gerekçe</span>
+                <input autoFocus required minLength={3} aria-label="Gerekçe" className="rf-input min-w-0 flex-1" value={reasonFor.note} onChange={(e) => setReasonFor({ ...reasonFor, note: e.target.value })} />
+                <button disabled={isTransitioning || reasonFor.note.trim().length < 3} className="rf-primary-button">Onayla</button>
+                <button type="button" className="rf-input" onClick={() => setReasonFor(null)}>Vazgeç</button>
+              </form>
+            )}
           </div>
 
           {/* Main Content Grid */}
@@ -303,9 +309,10 @@ export default function OrderDetailPage() {
                 {[
                   { key: 'info', label: 'Bilgiler', icon: ClipboardList },
                   { key: 'items', label: 'Ürün Satırları', icon: Package },
+                  { key: 'sales', label: 'Teslim & ödeme', icon: Wallet },
                   { key: 'documents', label: 'Dosyalar', icon: FileText },
                   { key: 'activity', label: 'Aktivite', icon: MessageSquare },
-                ].filter(tab => !order.financialHidden || !['documents','activity'].includes(tab.key)).map(({ key, label, icon: Icon }) => (
+                ].filter(tab => !order.financialHidden || !['sales','documents','activity'].includes(tab.key)).map(({ key, label, icon: Icon }) => (
                   <button
                     key={key}
                     aria-label={label}
@@ -421,6 +428,15 @@ export default function OrderDetailPage() {
                     </div>
                   )}
                 </div>
+              )}
+
+              {activeTab === 'sales' && !order.financialHidden && (
+                <OrderSalesPanel
+                  orderId={orderId}
+                  canEdit={Boolean(user && hasPermission(user.role, 'orders.edit'))}
+                  canPlan={Boolean(user && (hasPermission(user.role, 'orders.edit') || user.role === 'accountant'))}
+                  onOrderChanged={() => void loadOrder()}
+                />
               )}
 
               {activeTab === 'documents' && !order.financialHidden && (

@@ -5,6 +5,7 @@ import { TenantSettings } from '@/components/settings/TenantSettings';
 import { ProductionSettings } from '@/components/settings/ProductionSettings';
 import { ColorCatalogSettings } from '@/components/settings/ColorCatalogSettings';
 import { RecordSettings } from '@/components/settings/RecordSettings';
+import { QuoteRulesSettings } from '@/components/settings/QuoteRulesSettings';
 import { useAuth } from '@/lib/context/AuthContext';
 
 export default function SettingsPage() {
@@ -15,6 +16,7 @@ export default function SettingsPage() {
       {canManage ? <div className="rf-panel p-5 md:p-6"><TenantSettings /></div> : <div className="rf-panel p-5"><h2 className="font-semibold">Renk Alüminyum</h2><p className="mt-2 text-sm text-slate-500">Firma ayarlarını yönetici düzenleyebilir.</p></div>}
       {canManage && <div className="rf-panel p-5 md:p-6"><ProductionSettings /></div>}
       {canManage && <div className="rf-panel p-5 md:p-6"><ColorCatalogSettings /></div>}
+      {canManage && <div className="rf-panel p-5 md:p-6"><QuoteRulesSettings /></div>}
       {canManage && <div className="rf-panel p-5 md:p-6"><RecordSettings /></div>}
     </main>
   </div>;
