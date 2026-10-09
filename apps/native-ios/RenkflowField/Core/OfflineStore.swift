@@ -82,7 +82,7 @@ func sessionScope(_ auth: Session) -> String {
         context.insert(row);try context.save();return row
     }
     func rebase(_ scope: String,row: OutboxRecord,request: SyncRequest) throws {
-        guard row.state=="conflict" && row.scope==scope else {throw FieldAPIError(status:0,message:"İşlem zaten çözüldü.")}
+        guard row.state=="conflict" && row.canRetry && row.scope==scope else {throw FieldAPIError(status:0,message:"İşlem zaten çözüldü.")}
         let next=OutboxRecord(id:request.idempotencyKey,sequence:row.sequence,scope:scope,kind:request.kind,payload:try JSONEncoder().encode(request))
         try context.transaction {context.insert(next);row.state="delivered";row.reason="Yeni işlemle yeniden gönderildi.";try context.save()}
     }

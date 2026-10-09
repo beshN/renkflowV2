@@ -51,6 +51,16 @@ import SwiftData
         _ = try await OutboxSync(store:db,send:{_ in throw FieldAPIError(status:404,message:"reassigned")}).drain("scope")
         XCTAssertEqual(try db.rows("scope").first?.state,"blocked");XCTAssertEqual(try db.rows("scope").first?.canRetry,false)
     }
+    func testRebaseKeepsNewUUIDAheadOfDependentCommands() throws {
+        let db=try store(),old=try db.enqueue("scope",request:request());old.state="conflict";old.canRetry=true;try db.context.save()
+        let dependent=try db.enqueue("scope",request:request()),replacement=request()
+        try db.rebase("scope",row:old,request:replacement)
+        XCTAssertEqual(try db.rows("scope").map(\.commandID),[replacement.idempotencyKey,dependent.commandID]);XCTAssertNotEqual(old.commandID,replacement.idempotencyKey)
+    }
+    func testDuplicateUUIDCannotReplaceAnotherAccountsQueue() throws {
+        let db=try store(),value=request();try db.enqueue("scope-A",request:value)
+        XCTAssertThrowsError(try db.enqueue("scope-B",request:value));XCTAssertEqual(try db.rows("scope-A").count,1);XCTAssertTrue(try db.rows("scope-B").isEmpty)
+    }
     func testBoundedBackoffAndScopeIgnoreRotatedTokens() {
         XCTAssertEqual(retryDelay(0),15);XCTAssertEqual(retryDelay(1),30);XCTAssertLessThanOrEqual(retryDelay(100),3600)
         let auth=Session(server:"https://renkflow.com",token:"secret",expiresAt:.distantFuture,user:FieldUser(id:"u",email:"test@example.invalid",name:nil,role:"worker",tenantId:"t"))

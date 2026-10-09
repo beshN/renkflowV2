@@ -31,6 +31,7 @@
   541AD7E84444A96B2BD1A9C2 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RenkflowField/Core/FieldStore.swift"; sourceTree = "<group>"; };
   590D66FD264400A7F5D34F6E = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RenkflowField/Core/OfflineStore.swift"; sourceTree = "<group>"; };
   59CAB55AE84AE1BB0A954C9A = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RenkflowField/Features/RootView.swift"; sourceTree = "<group>"; };
+  60AD80965F577F38BB493BFE = { isa = PBXBuildFile; fileRef = CFE00DC50346D08334A8EA1A; };
   61EE91C00F7653342CB155AF = { isa = XCBuildConfiguration; name = Release; buildSettings = { CLANG_ENABLE_MODULES = "YES"; CLANG_ENABLE_OBJC_ARC = "YES"; SWIFT_VERSION = "5.0"; IPHONEOS_DEPLOYMENT_TARGET = "17.0"; SWIFT_OPTIMIZATION_LEVEL = "-O"; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; }; };
   65984D9A65C7F036A922B4C7 = { isa = PBXGroup; name = RenkflowFieldUITests; children = (86895311D7AA2E0AA9CC804A,); sourceTree = "<group>"; };
   66DAB80B92FECDA9DF0F88DB = { isa = PBXBuildFile; fileRef = DBEAC31425261AADFBEDC6E2; };
@@ -51,7 +52,7 @@
   86A544C9E553DE53729000DA = { isa = PBXNativeTarget; name = RenkflowFieldTests; productName = RenkflowFieldTests; productReference = 15F5DE5C46F25F67D2B99CB0; productType = "com.apple.product-type.bundle.unit-test"; buildConfigurationList = BD775C13DC2FBFB9D5A344F6; buildPhases = (A424866D064D11BFC60B76C6, CAD2DDAD567B5ED2798DDAA5, B6C3D43CEE48A7E26CE1E7C8,); buildRules = (); dependencies = (A25E371C87EBD56F1CC2CDBB,); };
   9D121F7909A0266A82FB4C17 = { isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RenkflowFieldUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
   A25E371C87EBD56F1CC2CDBB = { isa = PBXTargetDependency; target = DBFC415DEADB183AFD2E74FF; targetProxy = CC011F48D9D4A24F5209D3C2; };
-  A424866D064D11BFC60B76C6 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (E78DA7BA5AA1D42A8AE457D4, B7CFB7D77ECF41184C5EDFE6, CA2FEBBA3E42CBE10F84FE92,); runOnlyForDeploymentPostprocessing = 0; };
+  A424866D064D11BFC60B76C6 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (E78DA7BA5AA1D42A8AE457D4, B7CFB7D77ECF41184C5EDFE6, 60AD80965F577F38BB493BFE, CA2FEBBA3E42CBE10F84FE92,); runOnlyForDeploymentPostprocessing = 0; };
   A82C08AFA25A95828E242855 = { isa = PBXContainerItemProxy; containerPortal = 244210E48437B6556980A702; proxyType = 1; remoteGlobalIDString = DBFC415DEADB183AFD2E74FF; remoteInfo = RenkflowField; };
   A93103C3950B337FDCAF581B = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
   A948167088CF718CD34E7EB9 = { isa = PBXGroup; name = RenkflowField; children = (C9E90443763FB791F5FB49AA, DBEAC31425261AADFBEDC6E2, 541AD7E84444A96B2BD1A9C2, C24AAD9F6E977888765A0DFA, ADA265915E5413BC2E5A9182, 590D66FD264400A7F5D34F6E, 78B2F07220B71F4BCF54B385, BA20279B23D3328D5A0A97DA, 1FBB0F57703084D8D1C7E4B5, DC1A378139CAB2E9EC833CE5, 27651043F12D44B7754F0AA2, 59CAB55AE84AE1BB0A954C9A, DC6399A691442BDBFDB2E875, F4B5EAC36A0E2B2DDB7AF5F1, 301E4F0453D84080B7EE75F4, ED69C7AAD2206AA5D5AA6FF2, 2621EC48FCEA9F57CE952F5A, 06271BAF49532C879AA3C58B,); sourceTree = "<group>"; };
@@ -69,7 +70,8 @@
   CA2FEBBA3E42CBE10F84FE92 = { isa = PBXBuildFile; fileRef = 18689C435BCB35B38B47826A; };
   CAD2DDAD567B5ED2798DDAA5 = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
   CC011F48D9D4A24F5209D3C2 = { isa = PBXContainerItemProxy; containerPortal = 244210E48437B6556980A702; proxyType = 1; remoteGlobalIDString = DBFC415DEADB183AFD2E74FF; remoteInfo = RenkflowField; };
-  D3C028049849621832CCE867 = { isa = PBXGroup; name = RenkflowFieldTests; children = (72814182E5A0AEC687891C6F, 79805CDDACC058FFB8E127B2, 18689C435BCB35B38B47826A,); sourceTree = "<group>"; };
+  CFE00DC50346D08334A8EA1A = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RenkflowFieldTests/LiveOutboxTests.swift"; sourceTree = "<group>"; };
+  D3C028049849621832CCE867 = { isa = PBXGroup; name = RenkflowFieldTests; children = (72814182E5A0AEC687891C6F, 79805CDDACC058FFB8E127B2, CFE00DC50346D08334A8EA1A, 18689C435BCB35B38B47826A,); sourceTree = "<group>"; };
   D402E6F8358420B11AD20387 = { isa = PBXBuildFile; fileRef = C24AAD9F6E977888765A0DFA; };
   DBEAC31425261AADFBEDC6E2 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RenkflowField/Core/FieldBackgroundSync.swift"; sourceTree = "<group>"; };
   DBFC415DEADB183AFD2E74FF = { isa = PBXNativeTarget; name = RenkflowField; productName = RenkflowField; productReference = DFEB4D7293439237EE38C89F; productType = "com.apple.product-type.application"; buildConfigurationList = 8176B2109D59333830BB1788; buildPhases = (E58E616A6321DD4BE3321635, 34E72FDEB4DD796C0E5AF404, 6D5F6A37E92448D139AFDDBF,); buildRules = (); dependencies = (); };

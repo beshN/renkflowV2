@@ -77,3 +77,12 @@ Adım 3 başlangıcı: 2026-10-09 20:39 UTC. Adım 1 son feature CI devam ediyor
 - Yerel gerçek DB testleri: aynı notun 8 eşzamanlı gönderimi tek kayıt; aynı UUID farklı içerik 409; checklist/stale revision çatışması; üretim çift gönderim ve kayıp onay tek miktar; kopan fotoğraf devam/bozuk hash/çift finalize tek dosya; yeniden atama/iptal/üyelik iptali yazmayı engeller. Hepsi geçti.
 - 11 yeni sözleşme/hash testi geçti; type-check geçti. Gerçek HTTP entegrasyon testi native CI hazırlığına eklendi.
 - Sürüyor: Room/SwiftData, yerel queue UI ve arka plan çalışanı. Bu aşamada uçak modu kullanıcı arayüzü henüz doğrulanmadı.
+
+### Native çevrimdışı kontrol noktası
+- PR #55 tüm GitHub CI kontrolleri başarılıyken mobil entegrasyona merge edildi (`08aceec`). Main/night-2 değiştirilmedi.
+- Yeni Android debug derleme, **8 birim/HTTPS testi**, lint ve Room emülatör testlerinin derlemesi geçti. Room 7 kalıcılık/çatışma testi henüz cihazda CI'da sürüyor.
+- iOS macOS CI `37991727038`, `623c9c5`: **13 birim/sözleşme/SwiftData + 1 UI**, sıfır hata. Diskte cache/queue kalması, tek gönderim, bozuk yarım JSON'u koruma, çatışma ve yeniden atama geçiyor.
+- Web **91 paket / 618 test**, guardrails/type-check/lint/build geçti. Gerçek HTTP `/sync` ve `/uploads` testi de tüm dört senaryo grubunu geçti.
+- İki platforma ayrıca gerçek sunucuda kayıp üretim onayı, >256 KiB fotoğrafın ikinci parçasında ağ kopması, depo yeniden açılışı, aynı UUID ile devam ve tek miktar testleri ekleniyor. Sonuçları henüz tamamlanmadı.
+- Uçak modu taşımada hata enjekte edilerek sınanıyor; gerçek cihaz uçak modu/OS arka plan zamanlaması **doğrulanmadı**.
+- Cache notları snapshot'ta son 20/iş, toplam en fazla 500; online detay daha geniş geçmişi getirir. Arka plan çalışması OS koşullarına bağlı; kayıt diskte kalır, ön planda eşitleme her zaman kullanılabilir.

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "2562e789e27ebbb337113e3013847e2f",
+    "identityHash": "5e9dfa4e149c03241dcdd71fead7ac3a",
     "entities": [
       {
         "tableName": "field_cache",
@@ -43,7 +43,7 @@
       },
       {
         "tableName": "field_outbox",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`sequence` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `scope` TEXT NOT NULL, `commandId` TEXT NOT NULL, `kind` TEXT NOT NULL, `payload` TEXT NOT NULL, `state` TEXT NOT NULL, `attempts` INTEGER NOT NULL, `nextAttemptAt` INTEGER NOT NULL, `reason` TEXT, `canRetry` INTEGER NOT NULL, `resultURL` TEXT, `createdAt` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`sequence` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `scope` TEXT NOT NULL, `commandId` TEXT NOT NULL, `kind` TEXT NOT NULL, `payload` TEXT NOT NULL, `position` INTEGER NOT NULL, `state` TEXT NOT NULL, `attempts` INTEGER NOT NULL, `nextAttemptAt` INTEGER NOT NULL, `reason` TEXT, `canRetry` INTEGER NOT NULL, `resultURL` TEXT, `createdAt` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "sequence",
@@ -73,6 +73,12 @@
             "fieldPath": "payload",
             "columnName": "payload",
             "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
@@ -147,7 +153,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2562e789e27ebbb337113e3013847e2f')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5e9dfa4e149c03241dcdd71fead7ac3a')"
     ]
   }
 }

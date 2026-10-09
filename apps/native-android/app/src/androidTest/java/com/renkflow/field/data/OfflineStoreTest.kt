@@ -1,6 +1,7 @@
 package com.renkflow.field.data
 
 import androidx.room.Room
+import androidx.room.withTransaction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.*
@@ -57,6 +58,15 @@ class OfflineStoreTest {
         val sender=object:OutboxSender {override suspend fun send(record:OutboxRecord):String? {sends++;throw ApiException(409,"server changed",true)}}
         OutboxSync(store,sender).drain("scope");OutboxSync(store,sender).drain("scope")
         val row=store.dao.pending("scope").single();assertEquals(1,sends);assertEquals("conflict",row.state);assertTrue(row.canRetry)
+    }
+    @Test fun rebasedCommandKeepsQueuePositionWithNewIdentity()=runBlocking {
+        val original=request();store.enqueue("scope",original);val row=store.dao.pending("scope").single();store.dao.update(row.copy(state="conflict",canRetry=true))
+        val dependent=request();store.enqueue("scope",dependent);val replacement=request()
+        store.db.withTransaction {
+            store.dao.enqueue(OutboxRecord(scope="scope",commandId=replacement.idempotencyKey,kind=replacement.kind,payload=fieldJson.encodeToString(SyncRequest.serializer(),replacement),position=row.position))
+            store.dao.update(row.copy(state="delivered"))
+        }
+        assertEquals(listOf(replacement.idempotencyKey,dependent.idempotencyKey),store.dao.pending("scope").map {it.commandId})
     }
     @Test fun reassignedWriteCannotForceReplay()=runBlocking {
         store.enqueue("scope",request())

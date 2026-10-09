@@ -74,7 +74,8 @@ async function main() {
     const code = 'RF-J-' + randomBytes(6).toString('hex').toUpperCase();
     await db`INSERT INTO factory_labels(tenant_id,kind,record_id,code,created_by) VALUES(${tenant.id},'job',${productionJob.id},${code},${owner.id})`;
     const image = await sharp({ create: { width: 2, height: 2, channels: 3, background: '#112d32' } }).jpeg().toBuffer();
-    await writeFile(fixture, JSON.stringify({ email: worker.email, password, jobId: job.id, productionJobId: productionJob.id, operationId: op.id, code, jpeg: image.toString('base64') }), { mode: 0o600 });
+    const largeImage=await sharp(randomBytes(1024*1024*3),{raw:{width:1024,height:1024,channels:3}}).jpeg({quality:90}).toBuffer();
+    await writeFile(fixture, JSON.stringify({ jpegLarge:largeImage.toString('base64'), email: worker.email, password, jobId: job.id, productionJobId: productionJob.id, operationId: op.id, code, jpeg: image.toString('base64') }), { mode: 0o600 });
     await db.end(); return;
   }
   const references = await call(['references']);
