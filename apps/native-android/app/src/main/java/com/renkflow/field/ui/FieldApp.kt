@@ -57,8 +57,18 @@ import java.util.Locale
 @Composable fun FieldApp(state: FieldState, model: FieldViewModel) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var operation by remember { mutableStateOf<Operation?>(null) }
-    val writable = !state.busy && !state.stale && state.pending == null
+    val writable = !state.busy && !state.stale && state.pending == null && state.snapshot?.permissions?.transition == true
     BackHandler(state.selectedId != null) { model.closeJob() }
+    if (state.updateRequired) {
+        Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                Icon(Icons.Outlined.SystemUpdate, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.primary)
+                Text("Güncelleme gerekli", style = MaterialTheme.typography.headlineSmall)
+                Text("Yeni RenkFlow Saha sürümünü kurun. Bekleyen işlemleriniz korunuyor.")
+            }
+        }
+        return
+    }
     if (state.restoring) {
         Box(Modifier.fillMaxSize().background(Ink), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -204,6 +214,13 @@ import java.util.Locale
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { StatusPill(job.status); Text(priorityLabel(job.priority), style = MaterialTheme.typography.labelMedium, color = if (job.priority in listOf("high", "critical")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) }
             Text(job.title, style = MaterialTheme.typography.titleMedium, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            job.color?.let { color ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val swatch = color.hex?.let { runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull() } ?: MaterialTheme.colorScheme.surfaceVariant
+                    Box(Modifier.size(24.dp).background(swatch, RoundedCornerShape(4.dp)).semantics { contentDescription = color.label })
+                    Text(color.label, style = MaterialTheme.typography.labelMedium)
+                }
+            }
             if (!job.location.isNullOrBlank()) Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.Place, null, Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)); Text(job.location, style = MaterialTheme.typography.bodyMedium) }
             if (job.checklistTotal > 0) {
                 LinearProgressIndicator(progress = { job.checklistCompleted.toFloat() / job.checklistTotal }, modifier = Modifier.fillMaxWidth().height(5.dp))

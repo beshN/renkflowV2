@@ -24,8 +24,8 @@ fun normalizeServer(input: String): String {
 class Api(private val client: OkHttpClient = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
     .readTimeout(35, TimeUnit.SECONDS).callTimeout(45, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build()) {
     suspend fun raw(server: String, token: String?, path: String, body: String? = null, code: String? = null): JsonElement = withContext(Dispatchers.IO) {
-        val url = server.toHttpUrlOrNull()!!.newBuilder().addPathSegments("api/v1/$path").apply { if (code != null) addQueryParameter("code", code) }.build()
-        val request = Request.Builder().url(url).header("Accept", "application/json").apply {
+        val url = server.toHttpUrlOrNull()!!.newBuilder().addPathSegments("${MobileContract.basePath.trimStart('/')}/${path.removePrefix("field/")}").apply { if (code != null) addQueryParameter("code", code) }.build()
+        val request = Request.Builder().url(url).header("Accept", "application/json").header("X-RenkFlow-App-Version", MobileContract.version).header("X-RenkFlow-Platform", "android").apply {
             token?.let { header("Authorization", "Bearer $it") }
             if (body != null) post(body.toRequestBody("application/json; charset=utf-8".toMediaType()))
         }.build()

@@ -32,11 +32,17 @@ Entegrasyon: `codex/mobile-integration`, güncel main `bbc2825` + mevcut native 
 
 ## Tur durumu
 - **Bitti:** ayrı çalışma alanı; main + ilk native dal çakışmasız birleştirildi.
-- **Sürüyor:** sürümlü sözleşme, main/night-2 yetki ve DTO uyumu.
+- **Kısmi:** sürümlü sözleşme, ana dal yetki/renk/kesim DTO uyumu ve 426 ekranı. Main yerel gerçek HTTP akışı (giriş, atama, kontrol, üretim, kalite, fotoğraf, barkod, üyelik iptali) geçti. night-2 şeması ve iOS gerçek HTTPS testi sırada.
 - **Sırada:** yerel kalıcı DB/outbox; saha modülleri; dönen oturumlar; erişilebilirlik ve yayın hattı.
-- Eklenen test: henüz yok (bu tur başlangıcı).
-- Yeni APK: henüz üretilmedi.
+- Eklenen test: 19 web sözleşme/yetki testi + 1 yönlendirme testi + Android/iOS için birer gerçek HTTPS akış testi. Web: 89 paket, 599 test geçti (rol HTTP kontrolü ayrıca). Android ilk derleme/birim/lint geçti; yeni gerçek HTTPS akışı da geçti. iOS yeni kodu macOS CI henüz doğrulamadı.
+- Yeni APK: Android 1.1.0 derlendi; nihai dosya sonraki adımlardan sonra yeniden üretilecek.
 - Gerçek cihaz kamerası, uçak modu, saha bağlantısı, düşük pil, FCM/APNs: **doğrulanmadı**.
 
 ## Çevrimdışı mimari kararı
 Android Room, iOS SwiftData. Kullanıcı/tenant/sunucu kapsamlı yerel snapshot ve outbox, atomik enqueue, her komutta istemci UUID'si ve sunucuda aynı kimliğe yalnız tek sonuç. Sırayla eşitleme; 401/403 işlem gönderimini durdurur; 409 çatışma olarak saklanır, otomatik ezilmez. Çatışmada “Yine de uygula” her koşulda yetki ve durum kurallarını yeniden doğrulayan **yeni** bir işlem üretir; atanmadığı/iptal işte mümkün değildir. Fotoğraf yükleme Vercel gövde sınırını aşmayan parçalara bölünür; sunucu kabul edilen parça durumunu döndürür. Sürüm 1.0 uygulamanın mevcut tek bekleyen işlemi kayıpsız taşınır.
+
+### Uyumluluk kontrol noktası
+- Yönlendirme PR #54 yalnız mobil entegrasyona merge edildi; iki web validate CI başarılı. Vercel preview hesabın proje işbirliği ayarı nedeniyle başarısız; dağıtım yapılmadı.
+- Fotoğraf testinin ilk 500 hatası: depolama servisinin geniş DTO'su dar `Photo` sözleşmesine uymuyordu; yalnız `url` projeksiyonu ile düzeldi.
+- Production build yerel HTTP fotoğrafında 409: yerel depolama production modunda varsayılan kapalı. Yalnız test sunucusunda `ALLOW_LOCAL_STORAGE=1` ile tam akış geçti. Canlı ayarlar değiştirilmedi.
+- Aynı hata için iki başarısız çözüm koşulu oluşmadı.

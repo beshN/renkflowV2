@@ -29,11 +29,13 @@ final class FieldAPI {
     }
     func request<T: Decodable>(_ type: T.Type, server: String, token: String? = nil, path: String, body: Data? = nil, code: String? = nil) async throws -> T {
         let origin = try normalizeServer(server)
-        guard var components = URLComponents(string: origin + "/api/v1/" + path) else { throw FieldAPIError(status: 0, message: "Sunucu adresi geçersiz.") }
+        guard var components = URLComponents(string: origin + MobileContract.basePath + "/" + (path.hasPrefix("field/") ? String(path.dropFirst(6)) : path)) else { throw FieldAPIError(status: 0, message: "Sunucu adresi geçersiz.") }
         if let code { components.queryItems = [URLQueryItem(name: "code", value: code)] }
         guard let url = components.url else { throw FieldAPIError(status: 0, message: "İstek adresi geçersiz.") }
         var request = URLRequest(url: url)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(MobileContract.version, forHTTPHeaderField: "X-RenkFlow-App-Version")
+        request.setValue("ios", forHTTPHeaderField: "X-RenkFlow-Platform")
         if let token { request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization") }
         if let body { request.httpMethod = "POST"; request.httpBody = body; request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         let (bytes, response) = try await session.data(for: request)

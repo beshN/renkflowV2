@@ -7,9 +7,10 @@ import kotlinx.serialization.Serializable
 @Serializable data class LoginResult(val user: User, val accessToken: String, val expiresIn: Long)
 @Serializable data class Permissions(val transition: Boolean, val close: Boolean, val checklist: Boolean, val comment: Boolean)
 @Serializable data class Snapshot(val workOrders: List<WorkOrder>, val operations: List<Operation>, val generatedAt: String, val truncated: Boolean, val permissions: Permissions)
+@Serializable data class FieldColorInfo(val label: String, val code: String, val name: String, val hex: String? = null, val finish: String? = null, val finishAssumed: Boolean = false, val standIn: Boolean = false, val kind: String)
 @Serializable data class WorkOrder(
     val id: String, val title: String, val status: String, val priority: String,
-    val category: String = "general", val description: String? = null, val location: String? = null,
+    val color: FieldColorInfo? = null, val category: String = "general", val description: String? = null, val location: String? = null,
     val dueAt: String? = null, val assigneeName: String? = null, val blockedReasonDetail: String? = null,
     val checklistTotal: Int = 0, val checklistCompleted: Int = 0,
     val productionManaged: Boolean = false, val checklist: List<ChecklistItem> = emptyList(), val comments: List<Comment> = emptyList()

@@ -24,6 +24,9 @@ class ApiTest {
             assertEquals("job-1", result.workOrderId)
             val request = server.takeRequest()
             assertEquals("Bearer test-token", request.getHeader("Authorization"))
+            assertEquals("/api/mobile/v1/scan", request.requestUrl!!.encodedPath)
+            assertEquals(MobileContract.version, request.getHeader("X-RenkFlow-App-Version"))
+            assertEquals("android", request.getHeader("X-RenkFlow-Platform"))
             assertEquals("https://renkflow.com/factory?job=one&unit=two", request.requestUrl!!.queryParameter("code"))
         } finally { server.shutdown() }
     }

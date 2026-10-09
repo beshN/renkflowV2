@@ -73,6 +73,13 @@ struct JobCard: View {
             VStack(alignment: .leading, spacing: 13) {
                 HStack { StatusPill(status: job.status); Spacer(); Text(priorityLabel(job.priority)).font(.caption.weight(.semibold)).foregroundStyle(["critical", "high"].contains(job.priority) ? FieldColor.error : .secondary) }
                 Text(job.title).font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                if let color = job.color {
+                    HStack(spacing: 8) {
+                        let hex = Int((color.hex ?? "#E4E4E7").replacingOccurrences(of: "#", with: ""), radix: 16) ?? 0xE4E4E7
+                        RoundedRectangle(cornerRadius: 4).fill(Color(red: Double((hex >> 16) & 255) / 255, green: Double((hex >> 8) & 255) / 255, blue: Double(hex & 255) / 255)).frame(width: 24, height: 24).accessibilityHidden(true)
+                        Text(color.label).font(.caption)
+                    }.accessibilityLabel(color.label)
+                }
                 if let location = job.location { Label(location, systemImage: "mappin.and.ellipse").font(.subheadline).foregroundStyle(.secondary) }
                 if job.checklistTotal > 0 { ProgressView(value: Double(job.checklistCompleted), total: Double(job.checklistTotal)); Text("\(job.checklistCompleted)/\(job.checklistTotal) kontrol tamamlandı").font(.caption).foregroundStyle(.secondary) }
                 if let date = job.dueAt { Text("Termin \(displayDate(date))").font(.caption).foregroundStyle(.secondary) }

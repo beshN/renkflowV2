@@ -66,7 +66,7 @@ for target in targets:
     sources = obj('sources.' + target, 'PBXSourcesBuildPhase', f'buildActionMask = 2147483647; files = {array(source_builds)}; runOnlyForDeploymentPostprocessing = 0;')
     resources = obj('resources.' + target, 'PBXResourcesBuildPhase', f'buildActionMask = 2147483647; files = {array(resource_builds)}; runOnlyForDeploymentPostprocessing = 0;')
     frameworks = obj('frameworks.' + target, 'PBXFrameworksBuildPhase', 'buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;')
-    values = {'PRODUCT_NAME': '$(TARGET_NAME)', 'PRODUCT_BUNDLE_IDENTIFIER': 'com.renkflow.field' + ('.uitests' if ui_test else '.tests' if test else ''), 'SWIFT_VERSION': '5.0', 'IPHONEOS_DEPLOYMENT_TARGET': '17.0', 'SDKROOT': 'iphoneos', 'TARGETED_DEVICE_FAMILY': '1,2', 'CODE_SIGN_STYLE': 'Automatic', 'CURRENT_PROJECT_VERSION': '1', 'MARKETING_VERSION': '1.0.0', 'CLANG_ENABLE_MODULES': 'YES', 'SUPPORTED_PLATFORMS': 'iphoneos iphonesimulator'}
+    values = {'PRODUCT_NAME': '$(TARGET_NAME)', 'PRODUCT_BUNDLE_IDENTIFIER': 'com.renkflow.field' + ('.uitests' if ui_test else '.tests' if test else ''), 'SWIFT_VERSION': '5.0', 'IPHONEOS_DEPLOYMENT_TARGET': '17.0', 'SDKROOT': 'iphoneos', 'TARGETED_DEVICE_FAMILY': '1,2', 'CODE_SIGN_STYLE': 'Automatic', 'CURRENT_PROJECT_VERSION': '2', 'MARKETING_VERSION': '1.1.0', 'CLANG_ENABLE_MODULES': 'YES', 'SUPPORTED_PLATFORMS': 'iphoneos iphonesimulator'}
     dependencies = []
     if test:
         values['GENERATE_INFOPLIST_FILE'] = 'YES'

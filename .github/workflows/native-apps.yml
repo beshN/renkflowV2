@@ -2,16 +2,34 @@ name: Native Field Apps
 on:
   workflow_dispatch:
   pull_request:
-    paths: ['apps/native-*/**', 'apps/web/lib/features/field/**', 'apps/web/app/api/v1/field/**', 'scripts/generate-native-ios-project.py', '.github/workflows/native-apps.yml']
+    paths: ['apps/native-*/**', 'apps/web/lib/features/field/**', 'apps/web/app/api/v1/field/**', 'apps/web/app/api/mobile/**', 'apps/web/lib/features/mobile/**', 'contracts/mobile/**', 'scripts/generate-mobile-contract.py', 'scripts/mobile/**', 'scripts/generate-native-ios-project.py', '.github/workflows/native-apps.yml']
   push:
     branches: ['codex/**']
-    paths: ['apps/native-*/**', '.github/workflows/native-apps.yml']
+    paths: ['apps/native-*/**', 'apps/web/lib/features/mobile/**', 'apps/web/app/api/mobile/**', 'contracts/mobile/**', 'scripts/mobile/**', '.github/workflows/native-apps.yml']
 permissions:
   contents: read
 concurrency:
   group: native-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  mobile-contract:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci --workspaces=false --legacy-peer-deps
+      - name: Check generated contract and web compatibility
+        run: |
+          python3 ../../scripts/generate-mobile-contract.py
+          git diff --exit-code -- ../native-android/app/src/main/java/com/renkflow/field/data/MobileContract.kt ../native-ios/RenkflowField/Core/MobileContract.swift
+          npm run validate
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -20,6 +38,17 @@ jobs:
         working-directory: apps/native-android
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Start isolated local web contract server
+        working-directory: apps/web
+        run: |
+          command -v rg >/dev/null || brew install ripgrep
+          npm ci --workspaces=false --legacy-peer-deps
+          bash ../../scripts/mobile/prepare-http-fixture.sh
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -75,6 +104,17 @@ jobs:
         working-directory: apps/native-ios
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Start isolated local web contract server
+        working-directory: apps/web
+        run: |
+          command -v rg >/dev/null || brew install ripgrep
+          npm ci --workspaces=false --legacy-peer-deps
+          bash ../../scripts/mobile/prepare-http-fixture.sh
       - name: Validate generated project
         run: |
           python3 ../../scripts/generate-native-ios-project.py
