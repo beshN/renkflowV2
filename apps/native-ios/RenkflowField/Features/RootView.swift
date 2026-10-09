@@ -47,17 +47,38 @@ struct RootView: View {
         if store.busy { ProgressView().frame(maxWidth: .infinity).padding(8) }
         if let error = store.error { banner(error, error: true) { store.error = nil } }
         if let message = store.message { banner(message, error: false) { store.message = nil } }
-        if store.stale && store.snapshot != nil { Text("Son alınan veriler • İşlem için yenileyin").font(.caption).foregroundStyle(FieldColor.error).padding(8) }
-        if store.pending != nil {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading) { Text("İşlemin sonucu bekleniyor").font(.subheadline.bold()); Text("Aynı işlemi güvenle tekrar sorgulayın.").font(.caption) }
-                Spacer()
-                Button("Tekrar dene") { Task { await store.retryCommand() } }.disabled(store.busy)
-            }.padding(14).background(FieldColor.accent.opacity(0.12))
-        }
+        SyncStatusView()
+
     }
     private func banner(_ text: String, error: Bool, dismiss: @escaping () -> Void) -> some View {
         HStack { Text(text).font(.subheadline); Spacer(); Button(action: dismiss) { Image(systemName: "xmark") }.accessibilityLabel("Bildirimi kapat") }
             .padding(14).background(error ? FieldColor.error.opacity(0.12) : FieldColor.accent.opacity(0.12))
+    }
+}
+
+private struct SyncStatusView: View {
+    @EnvironmentObject var store: FieldStore
+    var issue: OutboxRecord? {store.outbox.first {$0.state=="conflict" || $0.state=="blocked" || $0.state=="corrupt"}}
+    var body: some View {
+        VStack(spacing:8) {
+            HStack(spacing:12) {
+                Image(systemName:store.stale ? "wifi.slash" : store.syncing || !store.outbox.isEmpty ? "icloud.and.arrow.up" : "checkmark.icloud").accessibilityLabel(store.stale ? "Çevrimdışı" : "Eşitleme durumu")
+                VStack(alignment:.leading) {Text(store.stale ? "Çevrimdışı" : store.syncing ? "Eşitleniyor" : "Eşitleme").font(.subheadline.bold());if let time=store.lastSync {Text(time,style:.time).font(.caption).foregroundStyle(.secondary)}}
+                Spacer()
+                if !store.outbox.isEmpty {Text("\(store.outbox.count)").font(.subheadline.monospacedDigit().bold()).padding(8).background(FieldColor.accent.opacity(0.12),in:Capsule()).accessibilityLabel("\(store.outbox.count) bekleyen işlem")}
+                Button {Task {await store.sync()}} label:{Image(systemName:"arrow.triangle.2.circlepath").frame(minWidth:48,minHeight:48)}.disabled(store.syncing || store.updateRequired).accessibilityLabel("Şimdi eşitle")
+            }.padding(.horizontal,16).background(FieldColor.card)
+            if let issue {
+                VStack(alignment:.leading,spacing:8) {
+                    Text(issue.state=="conflict" ? "Sunucudaki kayıt değişmiş" : "İşlem uygulanamadı").font(.subheadline.bold())
+                    Text(issue.kind=="operation" ? "Üretim bildirimi" : issue.kind=="photo" ? "Saha fotoğrafı" : issue.kind=="checklist" ? "Kontrol listesi" : "Saha kaydı").font(.caption)
+                    Text(issue.reason ?? "İşlemi inceleyin.").font(.subheadline)
+                    HStack {
+                        if issue.state=="conflict" && issue.canRetry {Button("Yine de uygula") {Task {await store.reapply(issue)}}.buttonStyle(FieldButton())}
+                        Button("Vazgeç") {Task {await store.discard(issue)}}.buttonStyle(FieldButton(bright:true))
+                    }.disabled(store.syncing || store.busy)
+                }.padding(16).frame(maxWidth:.infinity,alignment:.leading).background(FieldColor.card).clipShape(RoundedRectangle(cornerRadius:12)).padding(.horizontal,16)
+            }
+        }
     }
 }

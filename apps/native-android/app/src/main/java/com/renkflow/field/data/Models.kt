@@ -6,11 +6,11 @@ import kotlinx.serialization.Serializable
 @Serializable data class Session(val server: String, val token: String, val expiresAt: Long, val user: User)
 @Serializable data class LoginResult(val user: User, val accessToken: String, val expiresIn: Long)
 @Serializable data class Permissions(val transition: Boolean, val close: Boolean, val checklist: Boolean, val comment: Boolean)
-@Serializable data class Snapshot(val workOrders: List<WorkOrder>, val operations: List<Operation>, val generatedAt: String, val truncated: Boolean, val permissions: Permissions)
+@Serializable data class Snapshot(val workOrders: List<WorkOrder>, val operations: List<Operation>, val generatedAt: String, val truncated: Boolean, val permissions: Permissions, val cutPlans: List<CutPlan> = emptyList())
 @Serializable data class FieldColorInfo(val label: String, val code: String, val name: String, val hex: String? = null, val finish: String? = null, val finishAssumed: Boolean = false, val standIn: Boolean = false, val kind: String)
 @Serializable data class WorkOrder(
     val id: String, val title: String, val status: String, val priority: String,
-    val color: FieldColorInfo? = null, val category: String = "general", val description: String? = null, val location: String? = null,
+    val color: FieldColorInfo? = null, val updatedAt: String? = null, val category: String = "general", val description: String? = null, val location: String? = null,
     val dueAt: String? = null, val assigneeName: String? = null, val blockedReasonDetail: String? = null,
     val checklistTotal: Int = 0, val checklistCompleted: Int = 0,
     val productionManaged: Boolean = false, val checklist: List<ChecklistItem> = emptyList(), val comments: List<Comment> = emptyList()
@@ -42,3 +42,10 @@ fun statusLabel(status: String) = when (status) {
     else -> status
 }
 fun priorityLabel(priority: String) = when (priority) { "critical" -> "Kritik"; "high" -> "Yüksek"; "low" -> "Düşük"; else -> "Normal" }
+
+@Serializable data class CutPiece(val lengthMm: Double, val workOrderId: String)
+@Serializable data class CutBar(val id: String, val itemId: String, val color: String, val lengthMm: Double, val isRemnant: Boolean, val pieces: List<CutPiece>, val remainingMm: Double, val reusable: Boolean, val lossMm: Double)
+@Serializable data class CutPlan(val id: String, val status: String, val wastePercent: Double? = null, val bars: List<CutBar>)
+@Serializable data class SyncRequest(val idempotencyKey: String, val kind: String, val data: kotlinx.serialization.json.JsonObject, val workOrderId: String? = null)
+@Serializable data class LocalPhoto(val workOrderId: String, val base64: String, val name: String = "saha.jpg")
+@Serializable data class UploadStatus(val uploadId: String, val receivedBytes: Int, val totalBytes: Int, val chunkBytes: Int, val completed: Boolean, val url: String? = null)

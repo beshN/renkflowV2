@@ -281,6 +281,10 @@
             "items": {
               "$ref": "#/components/schemas/Comment"
             }
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "required": [
@@ -613,6 +617,9 @@
           },
           "minAppVersion": {
             "type": "string"
+          },
+          "canRetry": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -1185,6 +1192,299 @@
           "assignment",
           "mention",
           "delay"
+        ],
+        "additionalProperties": false
+      },
+      "SyncChecklist": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "expectedCompleted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "itemId",
+          "completed",
+          "expectedCompleted"
+        ],
+        "additionalProperties": false
+      },
+      "SyncTransition": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "enum": [
+              "open",
+              "in_progress",
+              "blocked",
+              "done",
+              "cancelled"
+            ]
+          },
+          "blockedReasonCategory": {
+            "enum": [
+              "material",
+              "machine",
+              "planning",
+              "manpower",
+              "quality",
+              "other"
+            ]
+          },
+          "blockedReasonDetail": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 1000
+          },
+          "expectedUpdatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "status",
+          "expectedUpdatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "SyncInput": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "operation"
+              },
+              "data": {
+                "$ref": "#/components/schemas/OperationInput"
+              }
+            },
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "comment"
+              },
+              "data": {
+                "$ref": "#/components/schemas/CommentInput"
+              },
+              "workOrderId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data",
+              "workOrderId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "checklist"
+              },
+              "data": {
+                "$ref": "#/components/schemas/SyncChecklist"
+              },
+              "workOrderId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data",
+              "workOrderId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "transition"
+              },
+              "data": {
+                "$ref": "#/components/schemas/SyncTransition"
+              },
+              "workOrderId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data",
+              "workOrderId"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "UploadInput": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "action": {
+                "const": "init"
+              },
+              "uploadId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "workOrderId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 180
+              },
+              "totalBytes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10485760
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "action",
+              "uploadId",
+              "workOrderId",
+              "name",
+              "totalBytes",
+              "sha256"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "action": {
+                "const": "chunk"
+              },
+              "uploadId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "base64": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 349528,
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "action",
+              "uploadId",
+              "offset",
+              "base64",
+              "sha256"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "action": {
+                "const": "finish"
+              },
+              "uploadId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "action",
+              "uploadId"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "UploadStatus": {
+        "type": "object",
+        "properties": {
+          "uploadId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "receivedBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalBytes": {
+            "type": "integer"
+          },
+          "chunkBytes": {
+            "const": 262144
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "uploadId",
+          "receivedBytes",
+          "totalBytes",
+          "chunkBytes",
+          "completed",
+          "url"
         ],
         "additionalProperties": false
       }
@@ -2328,6 +2628,239 @@
             }
           }
         }
+      }
+    },
+    "/sync": {
+      "post": {
+        "operationId": "syncCommand",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Accepted"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "Accepted",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/uploads": {
+      "post": {
+        "operationId": "uploadChunk",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UploadStatus"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "UploadStatus",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/uploads/{id}": {
+      "get": {
+        "operationId": "uploadStatus",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UploadStatus"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "UploadStatus"
       }
     }
   }

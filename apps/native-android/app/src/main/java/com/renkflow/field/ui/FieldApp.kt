@@ -57,7 +57,7 @@ import java.util.Locale
 @Composable fun FieldApp(state: FieldState, model: FieldViewModel) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var operation by remember { mutableStateOf<Operation?>(null) }
-    val writable = !state.busy && !state.stale && state.pending == null && state.snapshot?.permissions?.transition == true
+    val writable = !state.updateRequired && !state.accessBlocked && state.snapshot?.permissions?.transition == true
     BackHandler(state.selectedId != null) { model.closeJob() }
     if (state.updateRequired) {
         Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -95,14 +95,8 @@ import java.util.Locale
             Column(Modifier.widthIn(max = 1000.dp).fillMaxWidth()) {
                 if (state.error != null) Notice(state.error, true, model::dismiss)
                 if (state.message != null) Notice(state.message, false, model::dismiss)
-                if (state.stale && state.snapshot != null) Text("Son alınan veriler • İşlem için yenileyin", Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
-                if (state.pending != null) Card(Modifier.padding(horizontal = 20.dp, vertical = 8.dp).fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("İşlemin sonucu bekleniyor", fontWeight = FontWeight.SemiBold)
-                        Text("Aynı üretim işlemini güvenle tekrar sorgulayın.", style = MaterialTheme.typography.bodyMedium)
-                        Button(onClick = model::retryCommand, enabled = !state.busy) { Text("Tekrar dene") }
-                    }
-                }
+                SyncStatus(state, model)
+
             }
             Box(Modifier.widthIn(max = 1000.dp).weight(1f).fillMaxWidth()) {
                 if (state.selectedId != null) {
@@ -120,6 +114,33 @@ import java.util.Locale
     }
     operation?.let { op ->
         OperationSheet(op, state, writable, onDismiss = { operation = null }, onCommand = { model.command(it); operation = null }, upload = model::uploadPhoto)
+    }
+}
+
+@Composable private fun SyncStatus(state: FieldState,model: FieldViewModel) {
+    val pending=state.outbox.size
+    val issue=state.outbox.firstOrNull {it.state in listOf("conflict","blocked","corrupt")}
+    Surface(Modifier.padding(horizontal=20.dp,vertical=8.dp).fillMaxWidth(),shape=RoundedCornerShape(12.dp),color=MaterialTheme.colorScheme.surfaceVariant) {
+        Row(Modifier.padding(12.dp).heightIn(min=56.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+            Icon(if(state.stale) Icons.Outlined.WifiOff else if(state.syncing || pending>0) Icons.Outlined.CloudUpload else Icons.Outlined.CloudDone,if(state.stale) "Çevrimdışı" else "Eşitleme durumu")
+            Column(Modifier.weight(1f)) {
+                Text(if(state.stale) "Çevrimdışı" else if(state.syncing) "Eşitleniyor" else "Eşitleme",fontWeight=FontWeight.SemiBold)
+                state.lastSync?.let {Text(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("HH:mm",Locale("tr"))),style=MaterialTheme.typography.labelMedium)}
+            }
+            if(pending>0) Badge(Modifier.semantics {contentDescription="$pending bekleyen işlem"}) {Text(pending.toString())}
+            IconButton(onClick=model::sync,enabled=!state.syncing&&!state.updateRequired,modifier=Modifier.size(56.dp)) {Icon(Icons.Outlined.Sync,"Şimdi eşitle")}
+        }
+    }
+    if(issue!=null) Card(Modifier.padding(horizontal=20.dp,vertical=4.dp).fillMaxWidth()) {
+        Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            Text(if(issue.state=="conflict") "Sunucudaki kayıt değişmiş" else "İşlem uygulanamadı",fontWeight=FontWeight.SemiBold)
+            Text(when(issue.kind) {"operation"->"Üretim bildirimi";"checklist"->"Kontrol listesi";"photo"->"Saha fotoğrafı";"transition"->"İş emri durumu";else->"Saha notu"},style=MaterialTheme.typography.labelLarge)
+            Text(issue.reason.orEmpty(),style=MaterialTheme.typography.bodyMedium)
+            Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                if(issue.canRetry && issue.state=="conflict") Button(onClick={model.reapply(issue)},modifier=Modifier.heightIn(min=56.dp),enabled=!state.syncing&&!state.busy) {Text("Yine de uygula")}
+                OutlinedButton(onClick={model.discard(issue)},modifier=Modifier.heightIn(min=56.dp),enabled=!state.syncing) {Text("Vazgeç")}
+            }
+        }
     }
 }
 

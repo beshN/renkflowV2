@@ -33,7 +33,7 @@ final class LiveContractTests: XCTestCase {
     private struct Fixture: Decodable { let email: String; let password: String; let jobId: String; let productionJobId: String; let operationId: String; let code: String; let jpeg: String }
 }
 // Test target only: the self-signed temporary certificate is accepted only on this loopback port.
-private final class LoopbackTestTrust: NSObject, URLSessionDelegate {
+final class LoopbackTestTrust: NSObject, URLSessionDelegate {
     func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
         guard challenge.protectionSpace.host == "127.0.0.1", challenge.protectionSpace.port == 3043,
               challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,

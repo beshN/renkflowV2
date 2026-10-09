@@ -1,8 +1,12 @@
 import Foundation
 
-struct FieldAPIError: LocalizedError { let status: Int; let message: String; var errorDescription: String? { message } }
+struct FieldAPIError: LocalizedError {
+    let status: Int; let message: String; let canRetry: Bool
+    init(status: Int,message: String,canRetry: Bool = false) { self.status=status;self.message=message;self.canRetry=canRetry }
+    var errorDescription: String? { message }
+}
 private struct Envelope<T: Decodable>: Decodable { let data: T }
-private struct ErrorEnvelope: Decodable { let error: String? }
+private struct ErrorEnvelope: Decodable { let error: String?; let canRetry: Bool? }
 final class RejectRedirects: NSObject, URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) { completionHandler(nil) }
 }
@@ -41,8 +45,8 @@ final class FieldAPI {
         let (bytes, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw FieldAPIError(status: 502, message: "Sunucudan yanıt alınamadı.") }
         guard (200...299).contains(http.statusCode) else {
-            let message = (try? decoder.decode(ErrorEnvelope.self, from: bytes))?.error
-            throw FieldAPIError(status: http.statusCode, message: message ?? "İşlem tamamlanamadı (\(http.statusCode)).")
+            let failure = try? decoder.decode(ErrorEnvelope.self, from: bytes)
+            throw FieldAPIError(status: http.statusCode, message: failure?.error ?? "İşlem tamamlanamadı (\(http.statusCode)).", canRetry: failure?.canRetry == true)
         }
         do { return try decoder.decode(Envelope<T>.self, from: bytes).data }
         catch { throw FieldAPIError(status: 502, message: "Sunucudan beklenmeyen yanıt alındı.") }

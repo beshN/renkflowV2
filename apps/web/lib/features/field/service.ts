@@ -65,6 +65,7 @@ export function fieldJob(job: Record<string, unknown>, snake = false) {
     checklistCompleted: Number(value('checklistCompleted', 'checklist_completed') || 0),
     blockedReasonDetail: value('blockedReasonDetail', 'blocked_reason_detail') || null,
     color: fieldColor(job, snake),
+    updatedAt: value('updatedAt','updated_at') instanceof Date ? (value('updatedAt','updated_at') as Date).toISOString() : value('updatedAt','updated_at'),
   };
 }
 
@@ -98,8 +99,24 @@ export async function fieldSnapshot(actor: FieldActor) {
     .filter(op => jobs.has(String(op.work_order_id)))
     .filter(op => actor.role !== 'worker' || op.assigned_to === actor.userId)
     .map(fieldOperation);
+  const jobIds=[...jobs.keys()];
+  const [checks,notes]=await Promise.all([
+    sql`SELECT id,work_order_id,title,required,completed FROM work_order_checklist_items WHERE tenant_id=${actor.tenantId} AND work_order_id=ANY(${jobIds}::uuid[]) ORDER BY position LIMIT 4000`,
+    sql`SELECT c.id,c.work_order_id,c.body,c.created_at,u.name AS author_name FROM (SELECT *,row_number()OVER(PARTITION BY work_order_id ORDER BY created_at DESC) AS rn FROM work_order_comments WHERE tenant_id=${actor.tenantId} AND work_order_id=ANY(${jobIds}::uuid[])) c LEFT JOIN users u ON u.id=c.created_by WHERE c.rn<=20 ORDER BY c.created_at DESC LIMIT 500`,
+  ]);
+  const checklistByJob=new Map<string,Array<{id:string;title:string;required:boolean;completed:boolean}>>();
+  const notesByJob=new Map<string,Array<{id:string;body:string;authorName:string|null;createdAt:string}>>();
+  for(const item of checks) {
+    const key=String(item.work_order_id),list=checklistByJob.get(key)||[];
+    list.push({id:String(item.id),title:String(item.title),required:Boolean(item.required),completed:Boolean(item.completed)});checklistByJob.set(key,list);
+  }
+  for(const note of notes) {
+    const key=String(note.work_order_id),list=notesByJob.get(key)||[];
+    list.push({id:String(note.id),body:String(note.body),authorName:note.author_name?String(note.author_name):null,createdAt:note.created_at instanceof Date?note.created_at.toISOString():String(note.created_at)});notesByJob.set(key,list);
+  }
+  const managed=new Set(productionJobs.map(job=>String(job.id)));
   return {
-    workOrders: [...jobs.values()], operations, cutPlans: production.cutPlans, generatedAt: new Date().toISOString(),
+    workOrders: [...jobs.values()].map(job=>({...job,productionManaged:managed.has(job.id),checklist:checklistByJob.get(job.id)||[],comments:notesByJob.get(job.id)||[]})), operations, cutPlans: production.cutPlans, generatedAt: new Date().toISOString(),
     truncated: list.pagination.total > 100 || productionJobs.length >= 300,
     permissions: {
       transition: hasWorkOrderPermission(actor.role, 'transition') && actor.mobileAccess?.production.edit !== false,

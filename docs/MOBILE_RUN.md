@@ -56,3 +56,33 @@ Android Room, iOS SwiftData. Kullanıcı/tenant/sunucu kapsamlı yerel snapshot 
 - Otomatik iş emri/atama web kaynağı aynen kullanılır; mobil ikinci iş emri üretmez. Süre mevcut operasyon alanlarıyla taşınır; fire/gecikme/rework yazma ve arayüzleri Adım 4'tedir.
 - Montaj adres/harita ve müşteri onay bağlantısı saha DTO'sunda **kapalı**: night-2 çalışan görünümü müşteri adresini yasaklar; bu veri sınırı genişletilmedi.
 - CI Linux hazırlığında Homebrew bulunamadı; hazır olma kontrolü POSIX grep'e geçirilerek düzeltildi. Testler atlanmadı.
+
+## Adım 3 planı (10 satır)
+1. Sunucu/kullanıcı/tenant kapsamlı Room ve SwiftData depolarını oluştur.
+2. İş/operasyon/çizelge/detay/referans snapshot'larını atomik sakla ve bağlantısız aç.
+3. Tek eski bekleyen komutu aynı UUID ile yeni outbox'a kayıpsız taşı.
+4. Tüm saha yazmalarını önce diske yaz; gönderildi onayı gelmeden silme.
+5. Sunucuda kullanıcı kapsamlı makbuz tablosu ve atomik not/kontrol/durum işlemleri ekle.
+6. Üretimde mevcut transaction/idempotency defterini aynı istemci UUID'siyle kullan.
+7. Fotoğrafı küçük, hash doğrulanan parçalara ayır; kesilince onaylanan ofsetten devam et.
+8. 409/403/404 ve bozuk kayıtları açık çatışma/kısıt ekranında tut; otomatik ezme yapma.
+9. Sıralı yeniden deneme, bekleyen sayaç/ikon/zaman ve WorkManager/BGTaskScheduler ekle.
+10. Çevrimdışı→tek kayıt, çift gönderim, yeniden başlama ve bozuk kuyruk testlerini iki platformda çalıştır.
+
+Adım 3 başlangıcı: 2026-10-09 20:39 UTC. Adım 1 son feature CI devam ediyor; CI geçmeden PR #55 merge edilmez. Yeni iş ayrı `codex/mobile-offline-outbox` dalında. Son üretim ortamına geçiş için mobil migration'lar belgeyle ayrı uygulanmalıdır; otomatik production DDL yok.
+
+### Adım 3 sunucu kontrol noktası
+- Bitti: `/sync` kullanıcı/tenant kapsamlı UUID ve canonical hash; not/kontrol/durum + makbuz aynı transaction. Üretim mevcut atomic ledger ile; bağlantı havuzu için iç içe transaction yok.
+- Bitti: `/uploads` 256 KiB parçalar, parça/bütün SHA-256, kalan ofset ve aynı dosya URL'si. Final dosya metadatası + onay aynı transaction.
+- Yerel gerçek DB testleri: aynı notun 8 eşzamanlı gönderimi tek kayıt; aynı UUID farklı içerik 409; checklist/stale revision çatışması; üretim çift gönderim ve kayıp onay tek miktar; kopan fotoğraf devam/bozuk hash/çift finalize tek dosya; yeniden atama/iptal/üyelik iptali yazmayı engeller. Hepsi geçti.
+- 11 yeni sözleşme/hash testi geçti; type-check geçti. Gerçek HTTP entegrasyon testi native CI hazırlığına eklendi.
+- Sürüyor: Room/SwiftData, yerel queue UI ve arka plan çalışanı. Bu aşamada uçak modu kullanıcı arayüzü henüz doğrulanmadı.
+
+### Native çevrimdışı kontrol noktası
+- PR #55 tüm GitHub CI kontrolleri başarılıyken mobil entegrasyona merge edildi (`08aceec`). Main/night-2 değiştirilmedi.
+- Yeni Android debug derleme, **8 birim/HTTPS testi**, lint ve Room emülatör testlerinin derlemesi geçti. Room 7 kalıcılık/çatışma testi henüz cihazda CI'da sürüyor.
+- iOS macOS CI `37991727038`, `623c9c5`: **13 birim/sözleşme/SwiftData + 1 UI**, sıfır hata. Diskte cache/queue kalması, tek gönderim, bozuk yarım JSON'u koruma, çatışma ve yeniden atama geçiyor.
+- Web **91 paket / 618 test**, guardrails/type-check/lint/build geçti. Gerçek HTTP `/sync` ve `/uploads` testi de tüm dört senaryo grubunu geçti.
+- İki platforma ayrıca gerçek sunucuda kayıp üretim onayı, >256 KiB fotoğrafın ikinci parçasında ağ kopması, depo yeniden açılışı, aynı UUID ile devam ve tek miktar testleri ekleniyor. Sonuçları henüz tamamlanmadı.
+- Uçak modu taşımada hata enjekte edilerek sınanıyor; gerçek cihaz uçak modu/OS arka plan zamanlaması **doğrulanmadı**.
+- Cache notları snapshot'ta son 20/iş, toplam en fazla 500; online detay daha geniş geçmişi getirir. Arka plan çalışması OS koşullarına bağlı; kayıt diskte kalır, ön planda eşitleme her zaman kullanılabilir.
