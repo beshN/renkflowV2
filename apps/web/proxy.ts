@@ -198,7 +198,9 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname.startsWith('/api/')) {
-    if(privateAccessEmail() && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/cron/') && !(await isAuthenticated(request))) return withProxySecurityHeaders(NextResponse.json({error:'Oturum açmanız gerekiyor.'},{status:401}),{isSecureRequest});
+    // These handlers perform their own credential and private-pilot checks.
+    const mobileBearerRoute = pathname === '/api/v1/auth/login' || pathname === '/api/v1/auth/me' || pathname.startsWith('/api/v1/field/');
+    if(privateAccessEmail() && !mobileBearerRoute && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/cron/') && !(await isAuthenticated(request))) return withProxySecurityHeaders(NextResponse.json({error:'Oturum açmanız gerekiyor.'},{status:401}),{isSecureRequest});
     const response = withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
     if (pathname.startsWith('/api/v1/production/files/') || pathname === '/api/storage/content' || /^\/api\/orders\/documents\/[^/]+\/content$/.test(pathname)) response.headers.set('X-Frame-Options', 'SAMEORIGIN');
     return response;

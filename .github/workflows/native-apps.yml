@@ -1,0 +1,106 @@
+name: Native Field Apps
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['apps/native-*/**', 'apps/web/lib/features/field/**', 'apps/web/app/api/v1/field/**', 'scripts/generate-native-ios-project.py', '.github/workflows/native-apps.yml']
+  push:
+    branches: ['codex/**']
+    paths: ['apps/native-*/**', '.github/workflows/native-apps.yml']
+permissions:
+  contents: read
+concurrency:
+  group: native-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: apps/native-android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: '13114758'
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+          log-accepted-android-sdk-licenses: false
+      - name: Free hosted runner space for the emulator system image
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk
+          df -h /
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - run: ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+      - name: Enable Android emulator hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Test native Android UI and encrypted persistence
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          working-directory: apps/native-android
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disk-size: 2048M
+          disable-animations: true
+          disable-linux-hw-accel: false
+          emulator-boot-timeout: 300
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: |
+            ./gradlew :app:connectedDebugAndroidTest
+            mkdir -p app/build/screenshots
+            adb pull /sdcard/renkflow-field-login.png app/build/screenshots/android-login.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Renkflow-Saha-Android
+          path: |
+            apps/native-android/app/build/outputs/apk/debug/*.apk
+            apps/native-android/app/build/reports/
+            apps/native-android/app/build/screenshots/
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/native-ios
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate generated project
+        run: |
+          python3 ../../scripts/generate-native-ios-project.py
+          git diff --exit-code RenkflowField.xcodeproj
+      - name: Select iPhone simulator
+        run: |
+          xcrun simctl list devices available -j > /tmp/simulators.json
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json
+          data = json.load(open('/tmp/simulators.json'))
+          phones = [d for devices in data['devices'].values() for d in devices if 'iPhone' in d['name'] and d['isAvailable']]
+          if not phones: raise SystemExit('No iPhone simulator available')
+          print('FIELD_SIMULATOR=' + phones[0]['udid'])
+          PY
+      - name: Build and test native iOS app
+        run: xcodebuild test -project RenkflowField.xcodeproj -scheme RenkflowField -destination "platform=iOS Simulator,id=$FIELD_SIMULATOR" -resultBundlePath build/FieldTests.xcresult CODE_SIGNING_ALLOWED=NO
+      - name: Export iOS screenshots
+        if: always()
+        run: |
+          if [ -d build/FieldTests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/FieldTests.xcresult --output-path build/screenshots
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Renkflow-Saha-iOS-Tests
+          path: |
+            apps/native-ios/build/FieldTests.xcresult
+            apps/native-ios/build/screenshots/
