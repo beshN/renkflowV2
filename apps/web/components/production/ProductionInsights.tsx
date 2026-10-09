@@ -20,7 +20,12 @@ type Insights = {
 
 const dayLabel = (d: string) => new Date(d + 'T12:00:00Z').toLocaleDateString('tr-TR', { weekday: 'short', day: '2-digit' });
 const loadTone = (load: number, available: number) =>
-  !available ? 'bg-muted text-muted-foreground' : load >= 90 ? 'bg-rose-600 text-white' : load >= 70 ? 'bg-amber-500 text-black' : load > 0 ? 'bg-primary/70 text-primary-foreground' : 'bg-primary/10 text-muted-foreground';
+  !available ? 'bg-muted text-muted-foreground'
+  : load >= 90 ? 'bg-rose-600 text-white'
+  : load >= 70 ? 'bg-amber-500 text-black'
+  : load >= 40 ? 'bg-primary/60 text-primary-foreground'
+  : load > 0 ? 'bg-primary/25 text-foreground'
+  : 'bg-primary/10 text-muted-foreground';
 
 /** Where production loses (scrap, rework, delay reasons as Pareto), what is stuck now, and how full each work centre is. */
 export function ProductionInsights() {
