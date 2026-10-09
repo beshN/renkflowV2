@@ -5,8 +5,10 @@ struct Session: Codable { let server: String; let token: String; let expiresAt: 
 struct LoginResult: Decodable { let user: FieldUser; let accessToken: String; let expiresIn: Double }
 struct FieldPermissions: Decodable { let transition: Bool; let close: Bool; let checklist: Bool; let comment: Bool }
 struct Snapshot: Decodable { let workOrders: [WorkOrder]; let operations: [ProductionOperation]; let generatedAt: String; let truncated: Bool; let permissions: FieldPermissions }
+struct FieldColorInfo: Codable { let label: String; let code: String; let name: String; let hex: String?; let finish: String?; let finishAssumed: Bool; let standIn: Bool; let kind: String }
 struct WorkOrder: Decodable, Identifiable {
     let id: String; let title: String; let status: String; let priority: String; let category: String
+    let color: FieldColorInfo?
     let description: String?; let location: String?; let dueAt: String?; let assigneeName: String?; let blockedReasonDetail: String?
     let checklistTotal: Int; let checklistCompleted: Int
     let productionManaged: Bool?; let checklist: [ChecklistItem]?; let comments: [FieldComment]?

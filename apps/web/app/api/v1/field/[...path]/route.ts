@@ -7,6 +7,7 @@ import { productionCommand } from '@/lib/features/manufacturing/platform.service
 import { OperationCommandSchema } from '@/lib/features/manufacturing/platform-contract';
 import { storeProductionFile } from '@/lib/features/manufacturing/files.service';
 import { resolveLabel } from '@/lib/features/warehouse/service';
+import { currentMobileAccess } from '@/lib/features/mobile/access';
 import { requireSameOrigin } from '@/lib/features/manufacturing/http-security';
 
 export const dynamic = 'force-dynamic';
@@ -40,6 +41,8 @@ export async function POST(request: NextRequest, context: Context) {
   try {
     requireSameOrigin(request);
     const actor = await fieldActor(request), { path } = await context.params;
+    const access = await currentMobileAccess(actor, request.headers.get('authorization')!.slice(7));
+    if (!access.production.edit) throw new WorkOrderApiError('Üretim düzenleme yetkiniz yok.', 403);
     if (path.length === 1 && path[0] === 'commands') {
       const command = CommandSchema.parse(await readFieldJson(request));
       // Production service enforces operation assignment, version, quantity and quality checks.

@@ -18,6 +18,9 @@ final class FieldAPITests: XCTestCase {
         let result = try await api.scan(auth, code: "https://renkflow.com/factory?job=one&unit=two")
         XCTAssertEqual(result.workOrderId, "job-1")
         XCTAssertEqual(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
+        XCTAssertEqual(StubURLProtocol.lastRequest?.url?.path, "/api/mobile/v1/scan")
+        XCTAssertEqual(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "X-RenkFlow-App-Version"), MobileContract.version)
+        XCTAssertEqual(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "X-RenkFlow-Platform"), "ios")
         let query = URLComponents(url: try XCTUnwrap(StubURLProtocol.lastRequest?.url), resolvingAgainstBaseURL: false)?.queryItems
         XCTAssertEqual(query?.first?.value, "https://renkflow.com/factory?job=one&unit=two")
     }

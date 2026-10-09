@@ -17,7 +17,7 @@ data class FieldState(
     val session: Session? = null, val restoring: Boolean = true, val busy: Boolean = false,
     val snapshot: Snapshot? = null, val detail: WorkOrder? = null, val selectedId: String? = null,
     val scan: ScanResult? = null, val error: String? = null, val message: String? = null,
-    val stale: Boolean = true, val pending: Command? = null
+    val stale: Boolean = true, val updateRequired: Boolean = false, val pending: Command? = null
 )
 
 class FieldViewModel(application: Application) : AndroidViewModel(application) {
@@ -181,6 +181,9 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
     }
     private fun fail(error: Exception) {
         if (error is CancellationException) throw error
+        if (error is ApiException && error.status == 426) {
+            mutable.update { it.copy(updateRequired = true, stale = true, error = null) }; return
+        }
         if (error is ApiException && error.status == 401) {
             logout(); mutable.update { it.copy(error = "Oturumunuz sona erdi. Yeniden giriş yapın.") }
         } else mutable.update { it.copy(error = if (error is java.io.IOException) "Bağlantı kurulamadı. Son veriler gösteriliyor; yenilemeyi deneyin." else error.message ?: "İşlem tamamlanamadı.", stale = true) }

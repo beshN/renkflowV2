@@ -3,13 +3,17 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getAPIUser, verifyAPIToken } from '@/lib/api/auth-helpers';
 import { isPrivateAccessAllowed } from '@/lib/features/auth/private-access';
+import { currentMobileAccess, type MobileAccess } from '@/lib/features/mobile/access';
+import { colorInfo } from '@/lib/features/colors/color-spec';
 import { sql } from '@/lib/db';
 import { WorkOrderActor, WorkOrderApiError, hasWorkOrderPermission } from '@/lib/features/work-orders/security';
 import { getWorkOrderDetails, listWorkOrders, ListWorkOrdersQuerySchema } from '@/lib/features/work-orders/service';
 import { productionOverview } from '@/lib/features/manufacturing/platform.service';
 import { QualityChecksSchema } from '@/lib/features/manufacturing/quality';
 
-export async function fieldActor(request: NextRequest): Promise<WorkOrderActor> {
+export type FieldActor = WorkOrderActor & { mobileAccess?: MobileAccess };
+
+export async function fieldActor(request: NextRequest): Promise<FieldActor> {
   // This surface deliberately requires a mobile bearer token, never ambient cookies.
   if (!request.headers.get('authorization')?.startsWith('Bearer '))
     throw new WorkOrderApiError('Oturum açmanız gerekiyor.', 401);
@@ -20,7 +24,10 @@ export async function fieldActor(request: NextRequest): Promise<WorkOrderActor> 
     throw new WorkOrderApiError('Oturumunuz sona erdi. Yeniden giriş yapın.', 401);
   if (!['owner', 'admin', 'office', 'worker'].includes(user.role))
     throw new WorkOrderApiError('Bu hesap saha uygulamasına erişemiyor.', 403);
-  return { userId: user.id, tenantId: user.tenantId, role: user.role as WorkOrderActor['role'] };
+  const actor = { userId: user.id, tenantId: user.tenantId, role: user.role as WorkOrderActor['role'] };
+  const access = await currentMobileAccess(actor, request.headers.get('authorization')!.slice(7));
+  if (!access.production.view) throw new WorkOrderApiError('Üretim görme yetkiniz yok.', 403);
+  return { ...actor, mobileAccess: access };
 }
 
 export async function assertFieldJob(actor: WorkOrderActor, id: string) {
@@ -37,6 +44,13 @@ export async function assertFieldJob(actor: WorkOrderActor, id: string) {
   return rows[0] as { id: string; recipe_id: string | null };
 }
 
+export function fieldColor(job: Record<string, unknown>, snake = false) {
+  const configuration = job.configuration as Record<string, unknown> | null;
+  const color = snake ? colorInfo(typeof configuration?.bodyName === 'string' ? configuration.bodyName : null) : job.color as ReturnType<typeof colorInfo>;
+  if (!color) return null;
+  return { label: color.label, code: color.code, name: color.name, hex: color.hex, finish: color.finish, finishAssumed: color.finishAssumed, standIn: color.standIn, kind: color.kind };
+}
+
 // Explicit projections keep costs, recipe snapshots and customer information off devices.
 export function fieldJob(job: Record<string, unknown>, snake = false) {
   const value = (camel: string, raw: string) => job[snake ? raw : camel];
@@ -50,6 +64,7 @@ export function fieldJob(job: Record<string, unknown>, snake = false) {
     checklistTotal: Number(value('checklistTotal', 'checklist_total') || 0),
     checklistCompleted: Number(value('checklistCompleted', 'checklist_completed') || 0),
     blockedReasonDetail: value('blockedReasonDetail', 'blocked_reason_detail') || null,
+    color: fieldColor(job, snake),
   };
 }
 
@@ -65,7 +80,7 @@ export function fieldOperation(op: Record<string, unknown>) {
   };
 }
 
-export async function fieldSnapshot(actor: WorkOrderActor) {
+export async function fieldSnapshot(actor: FieldActor) {
   const [list, production] = await Promise.all([
     listWorkOrders(actor.tenantId, ListWorkOrdersQuerySchema.parse({
       pageSize: 100, assignedToUserId: actor.role === 'worker' ? actor.userId : undefined,
@@ -84,13 +99,13 @@ export async function fieldSnapshot(actor: WorkOrderActor) {
     .filter(op => actor.role !== 'worker' || op.assigned_to === actor.userId)
     .map(fieldOperation);
   return {
-    workOrders: [...jobs.values()], operations, generatedAt: new Date().toISOString(),
+    workOrders: [...jobs.values()], operations, cutPlans: production.cutPlans, generatedAt: new Date().toISOString(),
     truncated: list.pagination.total > 100 || productionJobs.length >= 300,
     permissions: {
-      transition: hasWorkOrderPermission(actor.role, 'transition'),
-      close: hasWorkOrderPermission(actor.role, 'close'),
-      checklist: hasWorkOrderPermission(actor.role, 'checklist'),
-      comment: hasWorkOrderPermission(actor.role, 'comment'),
+      transition: hasWorkOrderPermission(actor.role, 'transition') && actor.mobileAccess?.production.edit !== false,
+      close: hasWorkOrderPermission(actor.role, 'close') && actor.mobileAccess?.production.edit !== false,
+      checklist: hasWorkOrderPermission(actor.role, 'checklist') && actor.mobileAccess?.production.edit !== false,
+      comment: hasWorkOrderPermission(actor.role, 'comment') && actor.mobileAccess?.production.edit !== false,
     },
   };
 }

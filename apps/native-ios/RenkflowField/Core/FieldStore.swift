@@ -6,6 +6,7 @@ import Combine
     @Published var restoring = true
     @Published var busy = false
     @Published var stale = true
+    @Published var updateRequired = false
     @Published var snapshot: Snapshot?
     @Published var detail: WorkOrder?
     @Published var selectedID: String?
@@ -17,7 +18,7 @@ import Combine
     private let vault = SecureVault()
     private var lastValidation = Date.distantPast
     private var epoch = 0
-    var writable: Bool { session != nil && !busy && !stale && pending == nil }
+    var writable: Bool { session != nil && !busy && !stale && pending == nil && snapshot?.permissions.transition == true }
     func restore() async {
         guard restoring else { return }
         defer { restoring = false; busy = false }
@@ -146,6 +147,7 @@ import Combine
     private func checkExpiry(_ auth: Session) throws { if auth.expiresAt <= Date() { throw FieldAPIError(status: 401, message: "Oturumunuz sona erdi.") } }
     private func fail(_ failure: Error) {
         if failure is CancellationError { return }
+        if (failure as? FieldAPIError)?.status == 426 { updateRequired = true; stale = true; error = nil; return }
         if (failure as? FieldAPIError)?.status == 401 { logout(); busy = false; error = "Oturumunuz sona erdi. Yeniden giriş yapın." }
         else { stale = true; error = failure is URLError ? "Bağlantı kurulamadı. Son veriler gösteriliyor; yenilemeyi deneyin." : failure.localizedDescription }
     }

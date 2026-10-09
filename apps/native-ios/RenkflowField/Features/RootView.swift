@@ -6,7 +6,13 @@ struct RootView: View {
     @State private var operation: ProductionOperation?
     var body: some View {
         Group {
-            if store.restoring {
+            if store.updateRequired {
+                VStack(spacing: 24) {
+                    Image(systemName: "arrow.down.app").font(.system(size: 48)).foregroundStyle(FieldColor.accent)
+                    Text("Güncelleme gerekli").font(.title2.bold())
+                    Text("Yeni RenkFlow Saha sürümünü kurun. Bekleyen işlemleriniz korunuyor.").multilineTextAlignment(.center)
+                }.padding(32).frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if store.restoring {
                 VStack(spacing: 28) { Brand(); ProgressView().tint(FieldColor.onInk) }.frame(maxWidth: .infinity, maxHeight: .infinity).background(FieldColor.ink)
             } else if store.session == nil { LoginView() }
             else {
