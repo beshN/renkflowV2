@@ -1,8 +1,9 @@
 import 'server-only';
 
+import { columnExists } from '@/lib/db/schema-guard';
 import { sql } from '@/lib/db';
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
-import { available, thresholdStatus, type ThresholdRow } from './reorder';
+import { available, reorderLevels, thresholdStatus, type ThresholdRow } from './reorder';
 
 /** Roles that may create a purchase order, and so decide the purchase draft suggestion. */
 export const PURCHASE_DRAFT_ROLES = ['owner', 'admin', 'office'] as const;
@@ -12,9 +13,12 @@ export const PURCHASE_DRAFT_ROLES = ['owner', 'admin', 'office'] as const;
  * draft, and its last sent purchase line. Each table is summed once per item, not per row.
  */
 export async function thresholdRows(db: any, tenantId: string): Promise<ThresholdRow[]> {
+  const withPolicy = await columnExists('inventory_items', 'max_stock');
   const rows = await db`
     WITH items AS (
-      SELECT id, sku, name, stock_uom, min_stock FROM inventory_items
+      SELECT id, sku, name, stock_uom, min_stock,
+        ${withPolicy ? db`max_stock, lead_time_days, order_multiple` : db`NULL::numeric AS max_stock, NULL::int AS lead_time_days, NULL::numeric AS order_multiple`}
+      FROM inventory_items
       WHERE tenant_id = ${tenantId} AND active = true AND min_stock > 0 AND item_type <> 'finished_good'
     ), usable AS (
       SELECT id FROM warehouses WHERE tenant_id = ${tenantId} AND warehouse_type IN ('RAW', 'REUSABLE_REMNANTS')
@@ -37,6 +41,15 @@ export async function thresholdRows(db: any, tenantId: string): Promise<Threshol
       FROM purchase_order_lines l JOIN purchase_orders po ON po.id = l.purchase_order_id AND po.tenant_id = l.tenant_id
       JOIN items i ON i.id = l.item_id LEFT JOIN rejected r ON r.line_id = l.id
       WHERE l.tenant_id = ${tenantId} AND po.status IN ('draft', 'submitted', 'partially_received') GROUP BY l.item_id
+    ), usage AS (
+      -- Average daily use over 90 days: material consumed by production (out of work-in-progress) or issued,
+      -- from any warehouse but finished goods. Transfers between warehouses are not use.
+      SELECT l.item_id, -sum(l.quantity_delta) / 90.0 AS per_day
+      FROM stock_entry_lines l JOIN stock_entries e ON e.id = l.stock_entry_id AND e.tenant_id = l.tenant_id JOIN items i ON i.id = l.item_id
+      JOIN warehouses wh ON wh.id = l.warehouse_id AND wh.tenant_id = l.tenant_id
+      WHERE l.tenant_id = ${tenantId} AND e.status = 'submitted' AND e.entry_type IN ('MATERIAL_ISSUE', 'MANUFACTURE') AND l.quantity_delta < 0
+        AND wh.warehouse_type <> 'FINISHED' AND e.submitted_at >= now() - interval '90 days'
+      GROUP BY l.item_id
     ), last_purchase AS (
       -- The last order actually sent; drafts (including ones this suggestion made) are not a purchase.
       SELECT DISTINCT ON (l.item_id) l.item_id, po.supplier_id, s.name AS supplier_name, coalesce(s.is_active, false) AS supplier_active,
@@ -48,10 +61,10 @@ export async function thresholdRows(db: any, tenantId: string): Promise<Threshol
       WHERE l.tenant_id = ${tenantId} AND po.status IN ('submitted', 'partially_received', 'received')
       ORDER BY l.item_id, po.created_at DESC, l.position DESC
     )
-    SELECT i.*, coalesce(st.qty, 0) AS on_hand, coalesce(rs.qty, 0) AS reserved, coalesce(o.incoming, 0) AS incoming, coalesce(o.drafted, 0) AS drafted,
+    SELECT i.*, coalesce(us.per_day, 0) AS per_day, coalesce(st.qty, 0) AS on_hand, coalesce(rs.qty, 0) AS reserved, coalesce(o.incoming, 0) AS incoming, coalesce(o.drafted, 0) AS drafted,
       lp.supplier_id, lp.supplier_name, lp.supplier_active, lp.warehouse_id, lp.warehouse_ok, lp.unit_price, lp.currency, lp.metadata, lp.purchase_order_number
     FROM items i LEFT JOIN stock st ON st.item_id = i.id LEFT JOIN reserved rs ON rs.item_id = i.id
-    LEFT JOIN ordered o ON o.item_id = i.id LEFT JOIN last_purchase lp ON lp.item_id = i.id
+    LEFT JOIN ordered o ON o.item_id = i.id LEFT JOIN last_purchase lp ON lp.item_id = i.id LEFT JOIN usage us ON us.item_id = i.id
     ORDER BY i.name`;
   return rows.map((r: any) => ({
     itemId: r.id,
@@ -63,6 +76,12 @@ export async function thresholdRows(db: any, tenantId: string): Promise<Threshol
     reserved: Number(r.reserved),
     incoming: Number(r.incoming),
     drafted: Number(r.drafted),
+    policy: {
+      maxStock: r.max_stock == null ? null : Number(r.max_stock),
+      leadTimeDays: r.lead_time_days == null ? null : Number(r.lead_time_days),
+      orderMultiple: r.order_multiple == null ? null : Number(r.order_multiple),
+      dailyUsage: Math.max(0, Math.round(Number(r.per_day) * 1000) / 1000),
+    },
     last: r.warehouse_id
       ? {
           supplierId: r.supplier_id,
@@ -80,7 +99,7 @@ export async function thresholdRows(db: any, tenantId: string): Promise<Threshol
   }));
 }
 
-/** The items under their minimum, for the stock screen's warning. */
+/** The items under their reorder point (the minimum when no policy is set), for the stock screen's warning. */
 export async function stockThresholdWarnings(actor: WorkOrderActor) {
   if (!['owner', 'admin', 'office', 'accountant'].includes(actor.role)) throw new WorkOrderApiError('Stok eşiklerine erişim yok', 403);
   const rows = await thresholdRows(sql, actor.tenantId);
@@ -93,6 +112,8 @@ export async function stockThresholdWarnings(actor: WorkOrderActor) {
       name: row.name,
       uom: row.uom,
       minStock: row.minStock,
+      reorderPoint: reorderLevels(row).reorderPoint,
+      target: reorderLevels(row).target,
       available: available(row),
       incoming: row.incoming,
       drafted: row.drafted,

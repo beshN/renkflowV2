@@ -38,7 +38,8 @@ export async function transitionOrder(
           "İşlem anahtarı başka bir istekte kullanılmış",
           409,
         );
-      return prior.result;
+      // A replay answers as before and says so: what follows a change (notices) is not done twice.
+      return { ...prior.result, replayed: true };
     }
     const [order] =
       await tx`SELECT id,status,version FROM orders WHERE tenant_id=${a.tenantId} AND id=${id} FOR UPDATE`;

@@ -77,9 +77,9 @@ export async function refreshPurchaseDraftSuggestion(actor: SuggestionActor) {
     null,
     {
       kind: PURCHASE_DRAFT_KIND,
-      title: `${lineCount} malzeme minimum stok altında: ${orders.length} taslak satın alma siparişi`,
+      title: `${lineCount} malzeme sipariş noktası altında: ${orders.length} taslak satın alma siparişi`,
       rationale: [
-        `Kullanılabilir stok (hammadde ve artık depoları, ayrılanlar düşülerek), yoldaki ve taslaktaki siparişlerle birlikte minimumun altında kalan ${lineCount} malzeme için eksik kadar alım önerilir.`,
+        `Kullanılabilir stok (hammadde ve artık depoları, ayrılanlar düşülerek), yoldaki ve taslaktaki siparişlerle birlikte sipariş noktasının (minimum; tanımlıysa + tedarik süresi boyunca tüketim) altında kalan ${lineCount} malzeme için hedefe (azami stok ya da sipariş noktası) kadar alım önerilir.`,
         ...orders.slice(0, 10).map(describe),
         ...(orders.length > 10 ? [`… ve ${orders.length - 10} sipariş daha.`] : []),
         'Tedarikçi, depo, birim fiyat, çubuk boyu ve renk her malzemenin gönderilmiş son satın alma satırından alındı; fiyatı tedarikçiden teyit edin.',

@@ -7,6 +7,7 @@ import {
 import { requireSameOriginJson } from "@/lib/features/manufacturing/http-security";
 import { transitionOrder } from "@/lib/features/orders/transitions.service";
 import { runRecordRules } from "@/lib/features/records/rules";
+import { notifyShortageOnApproval } from "@/lib/features/stock/depth.server";
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -18,6 +19,8 @@ export async function POST(
     const result = await transitionOrder(actor, id, await req.json());
     // The firm's rules (e.g. approved → production activity) follow the change; a rule failure never undoes it.
     await runRecordRules(actor.tenantId, { force: true }).catch((e) => console.error("[records:rules]", e instanceof Error ? e.message : e));
+    // An approved order is checked for missing material at once (best effort, never undoes the approval).
+    if ((result as any)?.newStatus === "approved" && !(result as any)?.replayed) await notifyShortageOnApproval(actor.tenantId, id, actor.userId);
     return NextResponse.json({ success: true, ...result });
   } catch (e) {
     if (e instanceof WorkOrderApiError)

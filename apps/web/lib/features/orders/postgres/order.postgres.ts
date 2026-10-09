@@ -409,6 +409,11 @@ export class PostgresOrderService implements IOrderService {
       // The same state machine and reason rule as the transition endpoint (no side door).
       await applyOrderStatus(tx, { tenantId, orderId: id, from: order.status, to: status, actorId: options.actorId, note: options.note });
     });
+    // As on the transition endpoint: an approved order is checked for missing material (best effort).
+    if (status === 'approved') {
+      const { notifyShortageOnApproval } = await import('@/lib/features/stock/depth.server');
+      await notifyShortageOnApproval(tenantId, id, options.actorId ?? '');
+    }
     return this.getOrderById(tenantId, id) as Promise<Order>;
   }
 
