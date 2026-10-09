@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS public.vehicles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
-  plate text NOT NULL CHECK (plate ~ '^[0-9]{2}[A-ZÇĞİÖŞÜ]{1,3}[0-9]{2,4}$'),
+  plate text NOT NULL CHECK (plate ~ '^[0-9]{2}[A-Z]{1,3}[0-9]{2,4}$'),
   make text,
   model text,
   model_year integer CHECK (model_year IS NULL OR model_year BETWEEN 1950 AND 2100),

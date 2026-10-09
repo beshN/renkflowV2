@@ -1,6 +1,6 @@
 import {
   assignmentConflicts, checkPosition, costPerKm, currentDocuments, documentAlerts, documentLevel, fitZoom, formatPlate, fuelConsumption, haversineKm,
-  monthlyCosts, normalizePlate, project, retentionCutoff, routeSummary, vehicleHealth, type Position,
+  isCalendarDay, monthlyCosts, normalizePlate, project, retentionCutoff, routeSummary, vehicleHealth, type Position,
 } from '@/lib/features/fleet/engine';
 
 const today = '2026-10-09';
@@ -11,6 +11,10 @@ describe('plates', () => {
     expect(normalizePlate('06-a-1234')).toBe('06A1234');
     expect(normalizePlate('99 X 1')).toBeNull();
     expect(normalizePlate('ABC123')).toBeNull();
+    // A lowercase i (or a Turkish İ / ı) is the plate letter I, whatever the keyboard's locale.
+    expect(normalizePlate('34 abi 123')).toBe('34ABI123');
+    expect(normalizePlate('34 ABİ 123')).toBe('34ABI123');
+    expect(normalizePlate('34 ÇA 12')).toBeNull();
     expect(formatPlate('34ABC123')).toBe('34 ABC 123');
   });
 });
@@ -84,6 +88,15 @@ describe('telemetry', () => {
     expect(checkPosition({ t: '2026-10-09T11:00:00Z', lat: 0, lng: 0 }, now)).toEqual({ ok: false, reason: 'koordinat' });
     expect(checkPosition({ t: '2026-10-09T11:00:00Z', lat: 41, lng: 29, speed: 400 }, now)).toEqual({ ok: false, reason: 'hız' });
     expect(checkPosition({ t: 'x', lat: 41, lng: 29 }, now)).toEqual({ ok: false, reason: 'zaman' });
+    // An odometer in metres (or garbage) is refused rather than stored as millions of km.
+    expect(checkPosition({ t: '2026-10-09T11:00:00Z', lat: 41, lng: 29, odometer: 3_000_000_000 }, now)).toEqual({ ok: false, reason: 'km' });
+    expect(checkPosition({ t: '2026-10-09T11:00:00Z', lat: 41, lng: 29, odometer: 82_000 }, now).ok).toBe(true);
+  });
+  it('accepts only real calendar days', () => {
+    expect(isCalendarDay('2024-02-29')).toBe(true);
+    expect(isCalendarDay('2024-02-30')).toBe(false);
+    expect(isCalendarDay('2024-13-01')).toBe(false);
+    expect(isCalendarDay('bugün')).toBe(false);
   });
   it('measures distance', () => {
     expect(Math.round(haversineKm({ lat: 41.0082, lng: 28.9784 }, { lat: 39.9334, lng: 32.8597 }))).toBe(349); // İstanbul–Ankara, great circle

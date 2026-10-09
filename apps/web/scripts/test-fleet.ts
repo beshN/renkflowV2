@@ -20,6 +20,9 @@ async function main() {
   const inst = await import('../lib/features/field/installations.server');
   const access = await import('../lib/security/member-access.server');
   const { routeRequirement } = await import('../lib/security/access-matrix');
+  const team = await import('../lib/security/team.server');
+  const records = await import('../lib/features/records/registry');
+  const { sql: appSql } = await import('../lib/db');
 
   const tenantId = randomUUID();
   const ids: Record<string, string> = {};
@@ -37,6 +40,7 @@ async function main() {
   const v = await fleet.createVehicle(owner, { plate: '34 rf 2026', make: 'Ford', model: 'Transit', type: 'van', driverId: ids.worker, odometerKm: 82000 });
   assert.equal(v.plate, '34RF2026');
   await assert.rejects(fleet.createVehicle(owner, { plate: '34RF 2026' }), /zaten/);
+  await assert.rejects(fleet.createVehicle(owner, { plate: '34 rf 2026' }), /zaten/, 'lowercase input is the same plate');
   const inTen = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(new Date(Date.now() + 10 * 86_400_000));
   await fleet.addVehicleEntry(owner, v.id, { type: 'document', kind: 'inspection', number: 'M-1', expiresOn: inTen });
   await fleet.addVehicleEntry(owner, v.id, { type: 'document', kind: 'traffic_insurance', expiresOn: '2027-06-01' });
@@ -89,6 +93,11 @@ async function main() {
   const route = await fleet.vehicleRoute(owner, v.id, today);
   assert.equal(route.points.length, 3);
   assert.ok(Math.abs(route.distanceKm - 6.7) < 0.2, `route ${route.distanceKm} km`);
+  assert.deepEqual([route.totalPoints, route.sampled], [3, false]);
+  await assert.rejects(fleet.vehicleRoute(owner, v.id, '2026-02-30'), (e: any) => e.status === 400, 'impossible day is a 400');
+  // An odometer in metres is refused; the vehicle's km does not jump.
+  const r3 = await fleet.ingestTelemetry(device.token, { positions: [{ t: t(5), lat: 41.07, lng: 29.0, odometer: 3_000_000_000 }] });
+  assert.deepEqual([r3.stored, r3.rejected], [0, { km: 1 }]);
   assert.equal((await fleet.getVehicle(owner, v.id)).odometerKm, 82017, 'device odometer moves the vehicle forward');
   // A turned-off device's token stops working.
   await fleet.setDeviceActive(owner, v.id, device.id, false);
@@ -108,6 +117,16 @@ async function main() {
   const { canAccessRoute } = await import('../lib/features/auth/permissions');
   assert.deepEqual(['owner', 'admin', 'office', 'accountant', 'worker', 'member'].map((r) => canAccessRoute(r as any, '/vehicles')), [true, true, false, false, false, false]);
 
+  // An admin whose custom role leaves the fleet out sees neither the fleet nor the vehicle record.
+  const noFleet = await team.saveRole(owner as any, null, { name: 'Filosuz yönetici', base: 'admin', permissions: { orders: ['view'] }, hidden: [] });
+  await team.updateMember(owner as any, ids.admin, { accessRole: noFleet });
+  access.forgetMemberAccess(ids.admin, tenantId);
+  await assert.rejects(fleet.listVehicles(actor('admin')), (e: any) => e.status === 404);
+  await assert.rejects(records.openRecord(appSql, actor('admin') as any, 'vehicle', v.id), (e: any) => e.status === 404, 'record platform honours the fleet cell');
+  assert.ok(await records.openRecord(appSql, owner as any, 'vehicle', v.id));
+  await team.updateMember(owner as any, ids.admin, { accessRole: null });
+  access.forgetMemberAccess(ids.admin, tenantId);
+
   // Retention: positions older than the firm's setting go; "süresiz" keeps them.
   await db`INSERT INTO vehicle_positions (tenant_id, vehicle_id, device_id, recorded_at, lat, lng) VALUES (${tenantId}, ${v.id}, ${device.id}, now() - interval '400 days', 41, 29)`;
   await fleet.saveFleetSettings(owner, { retentionDays: null });
@@ -118,16 +137,19 @@ async function main() {
   assert.equal((await db`SELECT count(*)::int AS n FROM vehicle_positions WHERE tenant_id = ${tenantId}`)[0].n, 3);
 
   // The dashboard card and the audit trail.
+  // A second vehicle with an expired inspection is critical and is listed first.
+  const v2 = await fleet.createVehicle(owner, { plate: '01 B 99' });
+  await fleet.addVehicleEntry(owner, v2.id, { type: 'document', kind: 'inspection', expiresOn: '2026-01-01' });
   const health = await fleet.fleetHealthSummary(owner);
-  assert.equal(health.total, 1);
+  assert.equal(health.total, 2);
+  assert.equal(health.items[0].plate, '01B99', 'critical first');
   const actions = (await db`SELECT DISTINCT action FROM activity_logs WHERE tenant_id = ${tenantId} AND entity_type = 'vehicle'`).map((r) => r.action);
   for (const want of ['created', 'document_added', 'maintenance_added', 'fuel_added', 'assignment_added', 'device_added', 'device_deactivated']) assert.ok(actions.includes(want), `audit has ${want}`);
 
   await db`DELETE FROM tenants WHERE id = ${tenantId}`;
   await db`DELETE FROM users WHERE id = ANY(${Object.values(ids)}::uuid[])`;
   await db.end();
-  const { sql } = await import('../lib/db');
-  await (sql as any).end?.();
+  await (appSql as any).end?.();
   console.log('test:fleet OK');
 }
 

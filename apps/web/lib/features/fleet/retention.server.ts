@@ -12,13 +12,16 @@ import { retentionCutoff } from './engine';
 export async function pruneVehiclePositions(batch = 5000) {
   try {
     if (!(await tableExists('vehicle_positions'))) return 0;
-    const firms = await sql`SELECT DISTINCT p.tenant_id, coalesce(s.position_retention_days, CASE WHEN s.tenant_id IS NULL THEN 365 END) AS days
-      FROM vehicle_positions p LEFT JOIN fleet_settings s ON s.tenant_id = p.tenant_id`;
+    // The vehicle list (small) drives the clean-up, never a scan of the position history; each
+    // delete walks the (tenant, vehicle, recorded_at) index.
+    const vehicles = await sql`SELECT v.tenant_id, v.id, coalesce(s.position_retention_days, CASE WHEN s.tenant_id IS NULL THEN 365 END) AS days
+      FROM vehicles v LEFT JOIN fleet_settings s ON s.tenant_id = v.tenant_id`;
     let removed = 0;
-    for (const f of firms) {
-      const cutoff = retentionCutoff(f.days === null ? null : Number(f.days), Date.now());
+    for (const v of vehicles) {
+      const cutoff = retentionCutoff(v.days === null ? null : Number(v.days), Date.now());
       if (!cutoff) continue;
-      const rows = await sql`DELETE FROM vehicle_positions WHERE id IN (SELECT id FROM vehicle_positions WHERE tenant_id = ${f.tenant_id} AND recorded_at < ${cutoff} LIMIT ${batch}) RETURNING id`;
+      const rows = await sql`DELETE FROM vehicle_positions WHERE id IN (SELECT id FROM vehicle_positions
+        WHERE tenant_id = ${v.tenant_id} AND vehicle_id = ${v.id} AND recorded_at < ${cutoff} ORDER BY recorded_at LIMIT ${batch}) RETURNING id`;
       removed += rows.length;
     }
     return removed;

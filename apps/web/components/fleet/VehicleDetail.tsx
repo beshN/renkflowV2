@@ -47,8 +47,9 @@ export function VehicleDetail({ id }: { id: string }) {
   async function add(body: Record<string, unknown>) {
     const r = await post(`/api/v1/vehicles/${id}`, body);
     if (!r.ok) { setError(r.error || 'Kaydedilemedi'); return false; }
-    if (r.data?.conflicts) setError('Kaydedildi; araç aynı saatte başka bir görevde (çakışma).'); else setError('');
     await load();
+    // After the reload (which clears the error line), so the double-booking warning stays visible.
+    if (r.data?.conflicts) setError('Kaydedildi; araç aynı saatte başka bir görevde (çakışma).');
     return true;
   }
   async function remove(type: string, entryId: string) {
@@ -264,10 +265,20 @@ function Assignments({ v, add, remove }: { v: Vehicle; add: (b: Record<string, u
 
 function Location({ v, onChanged, onError }: { v: Vehicle; onChanged: () => Promise<void>; onError: (e: string) => void }) {
   const [day, setDay] = useState(todayIso());
-  const [route, setRoute] = useState<{ points: Array<{ at: string; lat: number; lng: number }>; distanceKm: number; stops: Array<{ from: string; to: string; minutes: number; lat: number; lng: number }>; dailyKm: Array<{ day: string; km: number }> } | null>(null);
+  const [route, setRoute] = useState<{ points: Array<{ at: string; lat: number; lng: number }>; totalPoints: number; sampled: boolean; distanceKm: number; stops: Array<{ from: string; to: string; minutes: number; lat: number; lng: number }>; dailyKm: Array<{ day: string; km: number }> } | null>(null);
   const [label, setLabel] = useState('');
   const [token, setToken] = useState<string | null>(null);
-  useEffect(() => { void requestJson<typeof route>(`/api/v1/vehicles/${v.id}/route?day=${day}`, { cache: 'no-store' }).then((r) => r.ok && setRoute(r.data ?? null)); }, [v.id, day]);
+  const [routeError, setRouteError] = useState('');
+  useEffect(() => {
+    // Only the answer for the day still selected is shown; a failed day shows its error, not the old route.
+    let current = true;
+    setRoute(null); setRouteError('');
+    void requestJson<NonNullable<typeof route>>(`/api/v1/vehicles/${v.id}/route?day=${day}`, { cache: 'no-store' }).then((r) => {
+      if (!current) return;
+      if (r.ok && r.data) setRoute(r.data); else setRouteError(r.error || 'Güzergâh alınamadı');
+    });
+    return () => { current = false; };
+  }, [v.id, day]);
   async function addDevice(e: React.FormEvent) {
     e.preventDefault();
     const r = await post(`/api/v1/vehicles/${v.id}`, { type: 'device', label });
@@ -287,14 +298,14 @@ function Location({ v, onChanged, onError }: { v: Vehicle; onChanged: () => Prom
         <>
           <div className="flex flex-wrap items-end gap-2">
             <label className="text-xs">Gün<input type="date" className="rf-input mt-1" value={day} onChange={(e) => setDay(e.target.value)} /></label>
-            {route && <p className="text-sm">{route.points.length} nokta · {route.distanceKm} km · {route.stops.length} durak</p>}
+            {route && <p className="text-sm">{route.totalPoints} nokta{route.sampled ? ` (haritada ${route.points.length} gösteriliyor)` : ''} · {route.distanceKm} km · {route.stops.length} durak</p>}
           </div>
           {route && route.points.length && last ? (
             <TileMap label={`${formatPlate(v.plate)} güzergâhı ${day}`} route={route.points} markers={[
               { id: 'last', lat: last.lat, lng: last.lng, label: formatPlate(v.plate) },
               ...route.stops.map((s, i) => ({ id: `stop-${i}`, lat: s.lat, lng: s.lng, label: `${s.minutes} dk`, tone: 'muted' as const })),
             ]} />
-          ) : <EmptyState title="Bu gün konum yok" icon={MapPin} />}
+          ) : routeError ? <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">{routeError}</p> : route ? <EmptyState title="Bu gün konum yok" icon={MapPin} /> : <Skeleton className="h-40" />}
           {route && route.stops.length > 0 && (
             <ul className="text-xs" aria-label="Duraklar">{route.stops.map((s, i) => <li key={i}>{when(s.from)} – {when(s.to)} · {s.minutes} dk</li>)}</ul>
           )}

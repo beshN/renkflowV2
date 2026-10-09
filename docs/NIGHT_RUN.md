@@ -142,3 +142,5 @@ turA-drawer / turA-drawer-390 / turA-dashboard-activities / turA-settings · tur
 8. `POST /api/telemetry/ingest`: cihaz jetonu, hız sınırı, doğrulama, tekrar yok sayma; saklama süresi zamanlanmış temizlikte.
 9. Harita: bağımlılıksız OSM karo bileşeni (atıf görünür, karo adresi ayarlanabilir), araç konumu ve canlı filo haritası; cihaz yoksa "Cihaz bağla".
 10. Testler: motor jest + `test:fleet` (ekle, belge, uyarı, montaja ata, sahte konum POST, rol testleri) + tarayıcı.
+
+| 2026-10-09 (Tur 3) | bitti → PR | Göç 046, motor (15 test), araç kartları + 6 sekme, belge uyarısı 30/15/7, montaja araç atama (çakışma uyarısı), maliyet grafiği, panoda araç sağlığı, cihaz jetonu + `POST /api/telemetry/ingest`, bağımlılıksız OSM harita, saklama ayarı. `test:fleet` yeşil, tarayıcıda yürütüldü (usta 404, planlama 403, menüde yok). /code-review 10 bulgu, hepsi düzeltildi (plaka küçük harf i, km üst sınırı, kayıt platformunda filo yetkisi, güzergâh kesilmesi → seyreltme, son konum LATERAL, temizlik araç listesinden). |

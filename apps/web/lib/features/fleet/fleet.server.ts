@@ -11,7 +11,7 @@ import { can, type Action } from '@/lib/security/access-matrix';
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
 import {
   DOCUMENT_KINDS, VEHICLE_STATUSES, VEHICLE_TYPES, assignmentConflicts, checkPosition, costPerKm, currentDocuments, documentAlerts, documentLevel,
-  fuelConsumption, monthlyCosts, normalizePlate, retentionCutoff, routeSummary, vehicleHealth, type Position, type RawPosition,
+  fuelConsumption, isCalendarDay, monthlyCosts, normalizePlate, retentionCutoff, routeSummary, vehicleHealth, type Position, type RawPosition,
 } from './engine';
 
 type Row = Record<string, any>;
@@ -49,6 +49,14 @@ async function checkMember(db: any, tenantId: string, userId: string | null | un
 
 const docDto = (d: Row) => ({ id: String(d.id), kind: d.kind as string, number: d.number ?? null, issuedOn: iso(d.issued_on), expiresOn: iso(d.expires_on), amount: num(d.amount), attachmentId: d.attachment_id ? String(d.attachment_id) : null, notes: d.notes ?? null, ...documentLevel(iso(d.expires_on), today()) });
 
+/** Each vehicle's last position: one index lookup per vehicle, not a scan of the whole history. */
+function lastPositions(tenantId: string) {
+  return sql`SELECT v.id AS vehicle_id, v.plate, p.recorded_at, p.lat, p.lng, p.speed_kmh, p.ignition FROM vehicles v
+    CROSS JOIN LATERAL (SELECT recorded_at, lat, lng, speed_kmh, ignition FROM vehicle_positions
+      WHERE tenant_id = v.tenant_id AND vehicle_id = v.id ORDER BY recorded_at DESC LIMIT 1) p
+    WHERE v.tenant_id = ${tenantId}`;
+}
+
 /** Cards: plate, make/model, type, status, driver, document warning, health, last position. */
 export async function listVehicles(actor: WorkOrderActor) {
   await requireFleet(actor);
@@ -56,7 +64,7 @@ export async function listVehicles(actor: WorkOrderActor) {
     sql`SELECT v.*, u.name AS driver_name FROM vehicles v LEFT JOIN users u ON u.id = v.driver_id WHERE v.tenant_id = ${actor.tenantId} ORDER BY (v.status = 'sold'), v.plate`,
     sql`SELECT vehicle_id, kind, expires_on FROM vehicle_documents WHERE tenant_id = ${actor.tenantId}`,
     sql`SELECT DISTINCT ON (vehicle_id) vehicle_id, next_due_on, next_due_km FROM vehicle_maintenance WHERE tenant_id = ${actor.tenantId} ORDER BY vehicle_id, done_on DESC, created_at DESC`,
-    sql`SELECT DISTINCT ON (vehicle_id) vehicle_id, recorded_at, lat, lng, speed_kmh, ignition FROM vehicle_positions WHERE tenant_id = ${actor.tenantId} ORDER BY vehicle_id, recorded_at DESC`,
+    lastPositions(actor.tenantId),
     sql`SELECT vehicle_id, count(*)::int AS n FROM vehicle_devices WHERE tenant_id = ${actor.tenantId} AND active GROUP BY vehicle_id`,
   ]);
   const t = today();
@@ -164,7 +172,7 @@ export async function updateVehicle(actor: WorkOrderActor, id: string, raw: unkn
   }
 }
 
-const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const day = z.string().refine(isCalendarDay, 'Geçerli bir gün değil');
 const DocInput = z.object({
   kind: z.enum(DOCUMENT_KINDS), number: z.string().trim().max(80).nullish(), issuedOn: day.nullish(), expiresOn: day.nullish(),
   amount: z.coerce.number().min(0).max(1e9).nullish(), attachmentId: z.string().uuid().nullish(), notes: z.string().trim().max(1000).nullish(),
@@ -287,25 +295,32 @@ export async function setDeviceActive(actor: WorkOrderActor, vehicleId: string, 
   });
 }
 
+/** Most points a day's route returns; a busier day is thinned evenly (first and last kept), never cut. */
+const ROUTE_POINTS = 20_000;
+
 /** A day's route (Istanbul day): the points, distance, stops and km. */
 export async function vehicleRoute(actor: WorkOrderActor, vehicleId: string, dayIso: string) {
   await requireFleet(actor);
   await loadVehicle(sql, actor.tenantId, vehicleId);
-  const d = day.parse(dayIso);
-  const rows = await sql`SELECT recorded_at, lat, lng, speed_kmh, heading, ignition, odometer_km FROM vehicle_positions
-    WHERE tenant_id = ${actor.tenantId} AND vehicle_id = ${vehicleId}
-      AND recorded_at >= (${d}::date)::timestamp AT TIME ZONE 'Europe/Istanbul' AND recorded_at < ((${d}::date) + 1)::timestamp AT TIME ZONE 'Europe/Istanbul'
-    ORDER BY recorded_at LIMIT 20000`;
+  const parsed = day.safeParse(dayIso);
+  if (!parsed.success) throw new WorkOrderApiError('Geçerli bir gün seçin', 400);
+  const d = parsed.data;
+  const rows = await sql`SELECT recorded_at, lat, lng, speed_kmh, heading, ignition, odometer_km, n FROM (
+      SELECT *, row_number() OVER (ORDER BY recorded_at) AS rn, count(*) OVER () AS n FROM vehicle_positions
+      WHERE tenant_id = ${actor.tenantId} AND vehicle_id = ${vehicleId}
+        AND recorded_at >= (${d}::date)::timestamp AT TIME ZONE 'Europe/Istanbul' AND recorded_at < ((${d}::date) + 1)::timestamp AT TIME ZONE 'Europe/Istanbul'
+    ) x WHERE n <= ${ROUTE_POINTS} OR rn = n OR (rn - 1) % ceil(n::numeric / ${ROUTE_POINTS})::int = 0
+    ORDER BY recorded_at`;
   const points: Position[] = rows.map((r: Row) => ({ at: new Date(r.recorded_at).toISOString(), lat: Number(r.lat), lng: Number(r.lng), speedKmh: num(r.speed_kmh), heading: num(r.heading), ignition: r.ignition, odometerKm: num(r.odometer_km) }));
   const r = routeSummary(points);
-  return { day: d, points, distanceKm: r.distanceKm, stops: r.stops, dailyKm: r.dailyKm };
+  const total = rows.length ? Number(rows[0].n) : 0;
+  return { day: d, points, totalPoints: total, sampled: total > points.length, distanceKm: r.distanceKm, stops: r.stops, dailyKm: r.dailyKm };
 }
 
 /** Last known position of every vehicle (the live fleet map). */
 export async function fleetLive(actor: WorkOrderActor) {
   await requireFleet(actor);
-  const rows = await sql`SELECT DISTINCT ON (p.vehicle_id) p.vehicle_id, v.plate, p.recorded_at, p.lat, p.lng, p.speed_kmh, p.ignition
-    FROM vehicle_positions p JOIN vehicles v ON v.id = p.vehicle_id AND v.tenant_id = p.tenant_id WHERE p.tenant_id = ${actor.tenantId} ORDER BY p.vehicle_id, p.recorded_at DESC`;
+  const rows = await lastPositions(actor.tenantId);
   const [devices] = await sql`SELECT count(*)::int AS n FROM vehicle_devices WHERE tenant_id = ${actor.tenantId} AND active`;
   return {
     devices: Number(devices?.n ?? 0),
@@ -344,7 +359,7 @@ export async function fleetHealthSummary(actor: WorkOrderActor) {
     good: live.filter((v: Card) => v.health === 'good').length,
     attention: live.filter((v: Card) => v.health === 'attention').length,
     critical: live.filter((v: Card) => v.health === 'critical').length,
-    items: live.filter((v: Card) => v.health !== 'good').slice(0, 5).map((v: Card) => ({ id: v.id, plate: v.plate, health: v.health, reasons: v.reasons.slice(0, 2) })),
+    items: live.filter((v: Card) => v.health !== 'good').sort((a: Card, b: Card) => (a.health === 'critical' ? 0 : 1) - (b.health === 'critical' ? 0 : 1)).slice(0, 5).map((v: Card) => ({ id: v.id, plate: v.plate, health: v.health, reasons: v.reasons.slice(0, 2) })),
   };
 }
 
@@ -374,6 +389,7 @@ export async function ingestTelemetry(token: string | null, raw: unknown) {
     })))} ON CONFLICT (device_id, recorded_at) DO NOTHING RETURNING id`;
     stored = rows.length;
     const maxKm = Math.max(...valid.map((p) => p.odometerKm ?? -1));
+    // checkPosition caps the odometer (MAX_ODOMETER_KM), so a point in metres is refused, never stored as km.
     if (maxKm >= 0) await sql`UPDATE vehicles SET odometer_km = GREATEST(coalesce(odometer_km, 0), ${Math.round(maxKm)}) WHERE id = ${device.vehicle_id}`;
   }
   await sql`UPDATE vehicle_devices SET last_seen_at = now() WHERE id = ${device.id}`;

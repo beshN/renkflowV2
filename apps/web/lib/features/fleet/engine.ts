@@ -13,9 +13,12 @@ export const DOCUMENT_KINDS = ['inspection', 'traffic_insurance', 'casco', 'regi
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
 export const DOCUMENT_KIND_LABELS: Record<DocumentKind, string> = { inspection: 'Muayene', traffic_insurance: 'Trafik sigortası', casco: 'Kasko', registration: 'Ruhsat', other: 'Diğer' };
 
-/** "34 abc 123" → "34ABC123"; null when it does not look like a Turkish plate. */
+/**
+ * "34 abc 123" → "34ABC123"; null when it does not look like a Turkish plate. Plates use Latin
+ * capitals only, so a typed "i" or "ı" is read as I (not the Turkish İ) and other letters fail.
+ */
 export function normalizePlate(raw: string) {
-  const p = raw.toLocaleUpperCase('tr-TR').replace(/[^0-9A-ZÇĞİÖŞÜ]/g, '');
+  const p = raw.replace(/[ıİ]/g, 'I').toUpperCase().replace(/[\s.-]/g, '');
   return /^(0[1-9]|[1-7]\d|8[01])[A-Z]{1,3}\d{2,4}$/.test(p) ? p : null;
 }
 /** "34ABC123" → "34 ABC 123" for display. */
@@ -136,6 +139,15 @@ export function assignmentConflicts(list: Assignment[]) {
 
 // Telemetry ---------------------------------------------------------------------------------------
 
+/** Highest odometer a point may carry (a tracker reporting metres would otherwise look like 1000× the km). */
+export const MAX_ODOMETER_KM = 5_000_000;
+
+/** A real calendar day "YYYY-MM-DD" (2024-02-30 is not). */
+export function isCalendarDay(d: string) {
+  const t = /^\d{4}-\d{2}-\d{2}$/.test(d) ? Date.parse(d + 'T00:00:00Z') : NaN;
+  return Number.isFinite(t) && new Date(t).toISOString().slice(0, 10) === d;
+}
+
 export type RawPosition = { t: string; lat: number; lng: number; speed?: number | null; heading?: number | null; ignition?: boolean | null; odometer?: number | null };
 export type Position = { at: string; lat: number; lng: number; speedKmh: number | null; heading: number | null; ignition: boolean | null; odometerKm: number | null };
 
@@ -151,7 +163,7 @@ export function checkPosition(p: RawPosition, now: number): { ok: true; position
   if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng) || Math.abs(p.lat) > 90 || Math.abs(p.lng) > 180 || (p.lat === 0 && p.lng === 0)) return { ok: false, reason: 'koordinat' };
   if (p.speed !== undefined && p.speed !== null && (!Number.isFinite(p.speed) || p.speed < 0 || p.speed > 300)) return { ok: false, reason: 'hız' };
   if (p.heading !== undefined && p.heading !== null && (!Number.isFinite(p.heading) || p.heading < 0 || p.heading > 360)) return { ok: false, reason: 'yön' };
-  if (p.odometer !== undefined && p.odometer !== null && (!Number.isFinite(p.odometer) || p.odometer < 0)) return { ok: false, reason: 'km' };
+  if (p.odometer !== undefined && p.odometer !== null && (!Number.isFinite(p.odometer) || p.odometer < 0 || p.odometer > MAX_ODOMETER_KM)) return { ok: false, reason: 'km' };
   return { ok: true, position: { at: new Date(at).toISOString(), lat: p.lat, lng: p.lng, speedKmh: p.speed ?? null, heading: p.heading ?? null, ignition: p.ignition ?? null, odometerKm: p.odometer ?? null } };
 }
 
