@@ -124,9 +124,9 @@ const API_MODULES: Array<[string, Module | null]> = [
   ['/api/v1/warehouse', 'inventory'], ['/api/v1/procurement', 'purchasing'], ['/api/v1/purchases', 'purchasing'], ['/api/v1/suppliers', 'purchasing'],
   ['/api/v1/finance', 'finance'], ['/api/v1/payments', 'finance'], ['/api/v1/accounting', 'finance'], ['/api/v1/invoices', 'finance'],
   ['/api/v1/reports', 'reports'], ['/api/v1/analytics', 'reports'], ['/api/v1/exports', 'reports'], ['/api/v1/vehicles', 'fleet'],
-  ['/api/tenant/invite', 'team'], ['/api/tenant/invites', 'team'], ['/api/tenant/members', 'team'], ['/api/v1/team', 'team'], ['/api/tenant/update', 'settings'],
+  ['/api/tenant/invite', 'team'], ['/api/tenant/invites', 'team'], ['/api/v1/team', 'team'], ['/api/tenant/update', 'settings'],
   ['/api/audit', 'audit'], ['/api/v1/audit', 'audit'],
-  ['/api/v1/records', null], ['/api/v1/search', null], ['/api/v1/notifications', null], ['/api/v1/me', null], ['/api/v1/activity-logs', null],
+  ['/api/v1/records', null], ['/api/tenant/members', null], ['/api/v1/search', null], ['/api/v1/notifications', null], ['/api/v1/me', null], ['/api/v1/activity-logs', null],
 ];
 const PAGE_MODULES: Array<[string, Module]> = [
   ['/orders', 'orders'], ['/kanban', 'orders'], ['/calendar', 'orders'], ['/quotations', 'quotations'], ['/crm', 'customers'], ['/customers', 'customers'],

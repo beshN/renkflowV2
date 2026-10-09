@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
+import { passwordProblem } from '@/lib/security/access-matrix';
 import bcrypt from 'bcryptjs';
 
 import { sql } from '@/lib/db';
+import { columnExists } from '@/lib/db/schema-guard';
 
 async function hashToken(token: string): Promise<string> {
   const data = new TextEncoder().encode(token);
@@ -10,25 +12,16 @@ async function hashToken(token: string): Promise<string> {
 }
 
 // Password strength validation
-function validatePassword(password: string): { valid: boolean; error?: string } {
+function validatePassword(password: unknown, email?: string | null): { valid: boolean; error?: string } {
   if (!password || typeof password !== 'string') {
     return { valid: false, error: 'Şifre gereklidir' };
   }
-  
-  if (password.length < 6) {
-    return { valid: false, error: 'Şifre en az 6 karakter olmalıdır' };
-  }
-  
-  if (password.length > 128) {
-    return { valid: false, error: 'Şifre çok uzun' };
-  }
-  
-  // Check for common weak passwords
-  const weakPasswords = ['123456', 'password', '123456789', 'qwerty', 'abc123', '111111'];
+  const problem = passwordProblem(password, email);
+  if (problem) return { valid: false, error: problem };
+  const weakPasswords = ['password123', 'qwerty12345', '1234567890a', 'abc1234567'];
   if (weakPasswords.includes(password.toLowerCase())) {
-    return { valid: false, error: 'Bu şifre çok zayıf. Lütfen daha güçlü bir şifre seçin.' };
+    return { valid: false, error: 'Bu şifre çok zayıf' };
   }
-  
   return { valid: true };
 }
 
@@ -73,6 +66,11 @@ export async function POST(request: Request) {
     }
 
     const user = usersRows[0];
+    // The e-mail name check needs the account, so it runs after the token is found.
+    const emailCheck = validatePassword(password, user.email);
+    if (!emailCheck.valid) {
+      return NextResponse.json({ error: emailCheck.error }, { status: 400 });
+    }
 
     // Hash new password with strong salt rounds
     const hashedPassword = await bcrypt.hash(password, 12);
@@ -89,7 +87,15 @@ export async function POST(request: Request) {
       AND (password_reset_token = ${tokenHash} OR password_reset_token = ${token})
     `;
 
-    // Log successful password reset (for security auditing)
+    // A new password closes every earlier sign-in (from migration 044 on).
+    if (await columnExists('users', 'sessions_valid_after')) {
+      try {
+        await sql`UPDATE users SET sessions_valid_after = now() WHERE id = ${user.id}`;
+        await sql`UPDATE user_sessions SET revoked_at = now() WHERE user_id = ${user.id} AND revoked_at IS NULL`;
+      } catch (error) {
+        console.error('[reset-password] sessions not closed', error instanceof Error ? error.message : error);
+      }
+    }
 
     return NextResponse.json({ 
       success: true,

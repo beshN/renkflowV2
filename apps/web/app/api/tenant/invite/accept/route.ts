@@ -2,24 +2,22 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 
 import { withTransaction } from '@/lib/db';
+import { columnExists } from '@/lib/db/schema-guard';
+import { consumeRateLimit, getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
+import { passwordProblem } from '@/lib/security/access-matrix';
 
 // Sanitize name input
 function sanitizeName(name: string): string {
   return name.trim().slice(0, 100).replace(/<[^>]*>/g, '');
 }
 
-// Validate password
-function validatePassword(password: string): { valid: boolean; error?: string } {
+// Validate password (shared policy: 10+ characters, a letter and a digit, not the e-mail name)
+function validatePassword(password: unknown, email: string): { valid: boolean; error?: string } {
   if (!password || typeof password !== 'string') {
     return { valid: false, error: 'Şifre gereklidir' };
   }
-  if (password.length < 6) {
-    return { valid: false, error: 'Şifre en az 6 karakter olmalıdır' };
-  }
-  if (password.length > 128) {
-    return { valid: false, error: 'Şifre çok uzun' };
-  }
-  return { valid: true };
+  const problem = passwordProblem(password, email);
+  return problem ? { valid: false, error: problem } : { valid: true };
 }
 
 class AcceptInviteError extends Error {
@@ -34,6 +32,9 @@ class AcceptInviteError extends Error {
 
 export async function POST(request: Request) {
   try {
+    const limit = await consumeRateLimit('inviteToken', getClientIp(request.headers));
+    if (!limit.allowed) return rateLimitResponse(limit);
+    const tracked = await columnExists('tenant_members', 'access_role');
     const body = await request.json();
     const token = body?.token?.trim();
     const name = body?.name ? sanitizeName(body.name) : '';
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
 
     const result = await withTransaction(async (tx) => {
       const invitations = await tx`
-        SELECT id, tenant_id, email, role, expires_at
+        SELECT *
         FROM invitations
         WHERE token = ${token}
           AND expires_at > NOW()
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
           throw new AcceptInviteError('Ad Soyad en az 2 karakter olmalıdır', 400);
         }
 
-        const passwordValidation = validatePassword(password);
+        const passwordValidation = validatePassword(password, invitation.email);
         if (!passwordValidation.valid) {
           throw new AcceptInviteError(passwordValidation.error || 'Geçersiz şifre', 400);
         }
@@ -109,11 +110,19 @@ export async function POST(request: Request) {
         throw new Error('Could not resolve invited user');
       }
 
-      await tx`
-        INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
-        VALUES (${invitation.tenant_id}, ${userId}, ${invitation.role}, NOW())
-        ON CONFLICT (tenant_id, user_id) DO NOTHING
-      `;
+      if (tracked) {
+        await tx`
+          INSERT INTO tenant_members (tenant_id, user_id, role, access_role, created_at)
+          VALUES (${invitation.tenant_id}, ${userId}, ${invitation.role}, ${invitation.access_role ?? null}, NOW())
+          ON CONFLICT (tenant_id, user_id) DO NOTHING
+        `;
+      } else {
+        await tx`
+          INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
+          VALUES (${invitation.tenant_id}, ${userId}, ${invitation.role}, NOW())
+          ON CONFLICT (tenant_id, user_id) DO NOTHING
+        `;
+      }
 
       await tx`
         DELETE FROM invitations WHERE id = ${invitation.id}

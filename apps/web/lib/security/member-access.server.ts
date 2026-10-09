@@ -74,7 +74,8 @@ export async function sessionRevoked(userId: string, sid: string | null, iat: nu
   const hit = sessionCache.get(key);
   if (options.cached && hit && Date.now() - hit.at < TTL_MS) return hit.revoked;
   const [u] = await db()`SELECT sessions_valid_after FROM users WHERE id = ${userId}`;
-  let revoked = Boolean(u?.sessions_valid_after && iat != null && iat * 1000 < new Date(u.sessions_valid_after).getTime());
+  // iat has whole seconds: a sign-in in the same second as the cut-off still counts.
+  let revoked = Boolean(u?.sessions_valid_after && iat != null && iat < Math.floor(new Date(u.sessions_valid_after).getTime() / 1000));
   if (!revoked && sid) {
     const [s] = await db()`SELECT revoked_at FROM user_sessions WHERE id = ${sid} AND user_id = ${userId}`;
     revoked = Boolean(s?.revoked_at);

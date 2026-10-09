@@ -62,7 +62,14 @@ async function touchSession(sid: string) {
 export async function openSession(userId: string, tenantId: string | null | undefined): Promise<string | null> {
   try {
     const sid = crypto.randomUUID();
-    await getSql()`INSERT INTO user_sessions (id, user_id, tenant_id) VALUES (${sid}, ${userId}, ${tenantId ?? null})`;
+    let agent: string | null = null;
+    try {
+      const { headers } = await import('next/headers');
+      agent = (await headers()).get('user-agent')?.slice(0, 300) ?? null;
+    } catch {
+      agent = null; // outside a request (tests, scripts)
+    }
+    await getSql()`INSERT INTO user_sessions (id, user_id, tenant_id, user_agent) VALUES (${sid}, ${userId}, ${tenantId ?? null}, ${agent})`;
     return sid;
   } catch {
     return null; // before migration 044 sessions are not tracked

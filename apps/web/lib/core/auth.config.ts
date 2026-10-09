@@ -303,6 +303,7 @@ export const authConfig: NextAuthConfig = {
         session.user.logoUrl = token.logoUrl as string;
         session.user.tenantIndustry = token.tenantIndustry as string;
         session.user.templateKey = token.templateKey as string;
+        session.sessionId = typeof token.sid === 'string' ? token.sid : undefined;
       }
       return session;
     },
