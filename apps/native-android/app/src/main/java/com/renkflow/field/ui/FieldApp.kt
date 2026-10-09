@@ -55,6 +55,7 @@ import java.util.Locale
 @Composable fun FieldApp(state: FieldState, model: FieldViewModel) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var operation by remember { mutableStateOf<Operation?>(null) }
+    var installations by remember {mutableStateOf(false)}
     val writable = !state.updateRequired && !state.accessBlocked && state.snapshot?.permissions?.transition == true
     BackHandler(state.selectedId != null) { model.closeJob() }
     if (state.updateRequired) {
@@ -101,7 +102,7 @@ import java.util.Locale
                     state.detail?.let { JobDetail(it, state, writable, model, { operation = it }) }
                         ?: EmptyState("İş emri yükleniyor", "Bağlantıyı kontrol edip yenileyebilirsiniz.", Icons.AutoMirrored.Outlined.Assignment)
                 } else when (tab) {
-                    0 -> Home(state, { tab = 3 }, model::openJob, { operation = it })
+                    0 -> Home(state, { tab = 3 }, model::openJob, { operation = it },{installations=true})
                     1 -> Jobs(state.snapshot?.workOrders.orEmpty(), model::openJob)
                     2 -> Production(state, { operation = it },model::openJob)
                     3 -> Scan(state, model)
@@ -110,6 +111,7 @@ import java.util.Locale
             }
         }
     }
+    if(installations) InstallationView(state,model) {installations=false}
     operation?.let { op ->
         OperationSheet(op, state, writable, onDismiss = { operation = null }, onCommand = { model.command(it); operation = null }, upload = model::uploadPhoto)
     }
@@ -178,7 +180,7 @@ import java.util.Locale
     }
 }
 
-@Composable private fun Home(state: FieldState, scan: () -> Unit, open: (String) -> Unit, operation: (Operation) -> Unit) {
+@Composable private fun Home(state: FieldState, scan: () -> Unit, open: (String) -> Unit, operation: (Operation) -> Unit,installations:()->Unit) {
     val snapshot = state.snapshot
     val jobs = snapshot?.workOrders.orEmpty()
     val ops = snapshot?.operations.orEmpty()
@@ -204,6 +206,7 @@ import java.util.Locale
             }
         }
         if (snapshot?.truncated == true) item { Text("Liste sınırına ulaşıldı. Etiket tarayarak belirli bir işe erişebilirsiniz.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+        if(state.references?.capabilities?.installations==true) item {OutlinedButton(onClick=installations,modifier=Modifier.fillMaxWidth().heightIn(min=56.dp)) {Text("Montaj ekibi işleri")}}
         item { SectionTitle("Sıradaki operasyonlar", "Başlatmak veya devam etmek için seçin") }
         val actionable = ops.filter { it.status in listOf("running", "ready", "paused", "blocked") }.take(4)
         if (actionable.isEmpty()) item { EmptyState("Hazır operasyon yok", "Size atanan yeni adımlar burada görünecek.", Icons.Outlined.TaskAlt) }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject private var store: FieldStore
+    @State private var installations=false
     let scan: () -> Void; let operation: (ProductionOperation) -> Void
     private var jobs: [WorkOrder] { store.snapshot?.workOrders ?? [] }
     private var operations: [ProductionOperation] { store.snapshot?.operations ?? [] }
@@ -19,6 +20,7 @@ struct HomeView: View {
                     Button(action: scan) { Label("Etiket tara", systemImage: "qrcode.viewfinder") }.buttonStyle(FieldButton(bright: true))
                 }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(FieldColor.ink, in: RoundedRectangle(cornerRadius: 12))
                 if store.snapshot?.truncated == true { Text("Liste sınırına ulaşıldı. Etiket tarayarak belirli bir işe erişebilirsiniz.").font(.subheadline).foregroundStyle(FieldColor.error) }
+                if store.references?.capabilities.installations==true {Button("Montaj ekibi işleri") {installations=true}.frame(minHeight:48).buttonStyle(.bordered)}
                 SectionTitle(title: "Sıradaki operasyonlar", caption: "Başlatmak veya devam etmek için seçin")
                 let active = operations.filter { ["running", "ready", "paused", "blocked"].contains($0.status) }
                 if active.isEmpty { EmptyState(title: "Hazır operasyon yok", subtitle: "Size atanan yeni adımlar burada görünecek.", icon: "checkmark.circle") }
@@ -28,7 +30,7 @@ struct HomeView: View {
                 if jobs.isEmpty { EmptyState(title: "İş listeniz boş", subtitle: "Atanan iş emirleri burada görünecek.", icon: "list.clipboard") }
                 if let snapshot = store.snapshot { Text("Son güncelleme \(displayDate(snapshot.generatedAt))").font(.caption).foregroundStyle(.secondary) }
             }.padding(20).fieldCanvas()
-        }.background(FieldColor.background).refreshable { await store.refresh() }
+        }.background(FieldColor.background).refreshable { await store.refresh() }.sheet(isPresented:$installations) {InstallationView().environmentObject(store)}
     }
     private func metric(_ value: Int, _ label: String) -> some View { VStack(alignment: .leading, spacing: 4) { Text(value.formatted()).font(.largeTitle.bold()).foregroundStyle(.white); Text(label).font(.caption).foregroundStyle(.white.opacity(0.72)) } }
 }

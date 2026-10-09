@@ -57,7 +57,7 @@ struct CutBar: Codable, Identifiable { var id: String; var itemId: String; var c
 struct CutPlan: Codable, Identifiable { var id: String; var status: String; var wastePercent: Double?; var bars: [CutBar] }
 struct LocalPhoto: Codable { var workOrderId: String; var base64: String; var name: String = "saha.jpg" }
 struct UploadStatus: Decodable { var uploadId: String; var receivedBytes: Int; var totalBytes: Int; var chunkBytes: Int; var completed: Bool; var url: String? }
-struct SyncRequest: Codable { var idempotencyKey: String; var kind: String; var data: [String: JSONValue]; var workOrderId: String? }
+struct SyncRequest: Codable { var idempotencyKey: String; var kind: String; var data: [String: JSONValue]; var workOrderId: String?;var installationId:String? = nil }
 enum JSONValue: Codable {
     case string(String), number(Double), bool(Bool), object([String:JSONValue]), array([JSONValue]), null
     init(from decoder: Decoder) throws {
@@ -79,5 +79,26 @@ enum JSONValue: Codable {
 func payload<T: Encodable>(_ value: T) throws -> [String:JSONValue] { try JSONDecoder().decode([String:JSONValue].self,from:JSONEncoder().encode(value)) }
 
 struct ReasonCode:Codable {var kind:String;var code:String;var label:String}
-struct FieldCapabilities:Codable {var reasonCodes:Bool;var installations:Bool;var remotePush:Bool;var crashReporting:Bool}
+struct FieldCapabilities:Codable {var reasonCodes:Bool;var installations:Bool;var remotePush:Bool;var crashReporting:Bool;var installationEdit:Bool?}
 struct FieldReferences:Codable {var reasons:[ReasonCode];var capabilities:FieldCapabilities}
+
+struct Installation:Codable,Identifiable {var id:String;var number:String;var date:String?;var startTime:String?;var productName:String?;var status:String;var version:Int;var signed:Bool;var checklistTotal:Int;var checklistCompleted:Int}
+struct InstallationList:Codable {var available:Bool;var installations:[Installation]}
+struct InstallationCheck:Codable,Identifiable {var id:String;var title:String;var completed:Bool}
+struct InstallationIssue:Codable {var kind:String;var text:String}
+struct InstallationDetails:Codable {var id:String;var status:String;var version:Int;var checklist:[InstallationCheck];var issues:[InstallationIssue]}
+func overlayInstallation(_ detail:InstallationDetails,rows:[OutboxRecord])->InstallationDetails {
+    var result=detail
+    for row in rows where row.kind=="installation" && ["pending","sending"].contains(row.state) {
+        guard let request=try? JSONDecoder().decode(SyncRequest.self,from:row.payload),request.installationId==result.id,case .number(let version)?=request.data["expectedVersion"],Int(version)==result.version else {continue}
+        switch request.data["action"]?.text {
+        case "start":result.status="in_progress"
+        case "complete":result.status="done"
+        case "checklist":result.checklist=result.checklist.map {item in var value=item;if value.id==request.data["itemId"]?.text {value.completed=request.data["completed"]?.flag ?? value.completed};return value}
+        case "issue":result.issues.append(InstallationIssue(kind:request.data["kind"]?.text ?? "missing",text:request.data["text"]?.text ?? ""))
+        default:continue
+        }
+        result.version+=1
+    }
+    return result
+}

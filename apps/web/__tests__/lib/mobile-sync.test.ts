@@ -39,3 +39,9 @@ it('rejects non-positive scrap and too many photos',()=>{
   expect(()=>validateMobileDTO('ScrapInput',{reasonCode:'cut_error',quantity:0})).toThrow();
   expect(()=>validateMobileDTO('ScrapInput',{reasonCode:'cut_error',quantity:1,photos:Array(7).fill('/photo')})).toThrow();
 });
+it('requires a version and technical installation mutation, never customer fields',()=>{
+  const input={idempotencyKey:id,kind:'installation',installationId:id,data:{action:'issue',expectedVersion:1,kind:'damage',text:'Paint scratched'}};
+  expect(()=>validateMobileDTO('SyncInput',input)).not.toThrow();
+  expect(()=>validateMobileDTO('SyncInput',{...input,data:{...input.data,address:'Private'}})).toThrow();
+  expect(()=>validateMobileDTO('SyncInput',{...input,data:{action:'complete'}})).toThrow();
+});

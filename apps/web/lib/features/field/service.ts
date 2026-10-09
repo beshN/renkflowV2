@@ -13,7 +13,7 @@ import { QualityChecksSchema } from '@/lib/features/manufacturing/quality';
 
 export type FieldActor = WorkOrderActor & { mobileAccess?: MobileAccess };
 
-export async function fieldActor(request: NextRequest): Promise<FieldActor> {
+export async function fieldActor(request: NextRequest, required: 'production'|'installations'|'any'='production'): Promise<FieldActor> {
   // This surface deliberately requires a mobile bearer token, never ambient cookies.
   if (!request.headers.get('authorization')?.startsWith('Bearer '))
     throw new WorkOrderApiError('Oturum açmanız gerekiyor.', 401);
@@ -26,7 +26,7 @@ export async function fieldActor(request: NextRequest): Promise<FieldActor> {
     throw new WorkOrderApiError('Bu hesap saha uygulamasına erişemiyor.', 403);
   const actor = { userId: user.id, tenantId: user.tenantId, role: user.role as WorkOrderActor['role'] };
   const access = await currentMobileAccess(actor, request.headers.get('authorization')!.slice(7));
-  if (!access.production.view) throw new WorkOrderApiError('Üretim görme yetkiniz yok.', 403);
+  if (required==='any' ? !access.production.view && !access.inventory.view && !access.installations.view : !access[required].view) throw new WorkOrderApiError('Bu modülü görme yetkiniz yok.',403);
   return { ...actor, mobileAccess: access };
 }
 

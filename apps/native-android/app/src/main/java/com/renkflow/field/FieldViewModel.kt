@@ -20,7 +20,7 @@ data class FieldState(
     val scan: ScanResult? = null, val error: String? = null, val message: String? = null,
     val stale: Boolean = true, val updateRequired: Boolean = false, val pending: Command? = null,
     val outbox: List<OutboxRecord> = emptyList(), val syncing: Boolean = false,
-    val lastSync: Long? = null, val accessBlocked: Boolean = false,val references:FieldReferences?=null
+    val lastSync: Long? = null, val accessBlocked: Boolean = false,val references:FieldReferences?=null,val installations:List<Installation> = emptyList(),val installationDetail:InstallationDetails?=null
 )
 class FieldViewModel(application: Application) : AndroidViewModel(application) {
     private val api=Api()
@@ -40,7 +40,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         val snapshot=offline.dao.cache(scope,"snapshot")?.let { runCatching { fieldJson.decodeFromString<Snapshot>(it.payload) }.getOrNull() }
         val lastSync=offline.dao.cache(scope,"last-sync")?.payload?.toLongOrNull()
         val references=offline.dao.cache(scope,"references")?.let {runCatching {fieldJson.decodeFromString<FieldReferences>(it.payload)}.getOrNull()}
-        mutable.update { it.copy(snapshot=snapshot,lastSync=lastSync,stale=true,references=references) }
+        mutable.update { it.copy(snapshot=snapshot,lastSync=lastSync,stale=true,references=references,installations=offline.dao.cache(scope,"installations")?.let {runCatching {fieldJson.decodeFromString<InstallationList>(it.payload).installations}.getOrNull()}.orEmpty()) }
         FieldSyncWorker.schedule(getApplication())
     }
     private fun restore() = viewModelScope.launch {
@@ -101,7 +101,11 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
         offline.save(scope,"references",references.toString())
         if(generation==epoch) mutable.update {it.copy(references=fieldJson.decodeFromJsonElement<FieldReferences>(references))}
         offline.save(scope,"notifications/preferences",api.raw(auth.server,auth.token,"notifications/preferences").toString())
-        if(references["capabilities"]?.jsonObject?.get("installations")?.jsonPrimitive?.booleanOrNull==true) offline.save(scope,"installations",api.raw(auth.server,auth.token,"installations").toString())
+        if(references["capabilities"]?.jsonObject?.get("installations")?.jsonPrimitive?.booleanOrNull==true) {
+            val values=api.raw(auth.server,auth.token,"installations");offline.save(scope,"installations",values.toString())
+            if(generation==epoch) mutable.update {it.copy(installations=fieldJson.decodeFromJsonElement<InstallationList>(values).installations)}
+            state.value.installationDetail?.id?.let {loadInstallation(auth,it,generation)}
+        } else if(generation==epoch) mutable.update {it.copy(installations=emptyList(),installationDetail=null)}
     }
     private suspend fun cacheDetail(auth: Session,job: WorkOrder) = offline.save(sessionScope(auth),"job:${job.id}",fieldJson.encodeToString(job))
     fun openJob(id: String) {
@@ -114,6 +118,25 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
             try { val job=overlayJob(api.details(auth,id),offline.dao.pending(sessionScope(auth)));cacheDetail(auth,job);if(generation==epoch&&state.value.selectedId==id) mutable.update { it.copy(detail=job) } }
             catch(e: Exception) { if(generation==epoch) fail(e) }
         }
+    }
+    fun openInstallation(id:String) {
+        val auth=state.value.session ?: return;val generation=epoch
+        mutable.update {it.copy(installationDetail=null)}
+        viewModelScope.launch {
+            val saved=offline.dao.cache(sessionScope(auth),"installation:$id")?.let {runCatching {fieldJson.decodeFromString<InstallationDetails>(it.payload)}.getOrNull()}
+            if(generation==epoch) mutable.update {it.copy(installationDetail=saved)}
+            try {loadInstallation(auth,id,generation)} catch(e:Exception) {if(generation==epoch) fail(e)}
+        }
+    }
+    private suspend fun loadInstallation(auth:Session,id:String,generation:Int) {
+        val values=fieldJson.decodeFromJsonElement<InstallationDetails>(api.raw(auth.server,auth.token,"installations/$id"))
+        val result=overlayInstallation(values,offline.dao.pending(sessionScope(auth)))
+        offline.save(sessionScope(auth),"installation:$id",fieldJson.encodeToString(result))
+        if(generation==epoch) mutable.update {it.copy(installationDetail=result)}
+    }
+    fun installationCommand(action:String,item:InstallationCheck?=null,kind:String?=null,text:String?=null) {
+        val current=state.value.installationDetail ?: return
+        enqueue("installation",current.id,buildJsonObject {put("action",action);put("expectedVersion",current.version);if(item!=null) {put("itemId",item.id);put("completed",!item.completed)};if(kind!=null) put("kind",kind);if(text!=null) put("text",text.trim())})
     }
     fun closeJob() { mutable.update { it.copy(selectedId=null,detail=null) } }
     fun scan(code: String) {
@@ -142,18 +165,19 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
     private fun writable() = state.value.session!=null && !state.value.updateRequired && !state.value.accessBlocked && state.value.snapshot?.permissions?.transition==true
     private fun enqueue(kind: String,jobId: String?,data: JsonObject,onSaved: ()->Unit = {}) {
         val auth=state.value.session ?: return
-        if(!writable()) return
+        if(if(kind=="installation") state.value.updateRequired || state.value.accessBlocked || state.value.references?.capabilities?.installationEdit!=true else !writable()) return
         val generation=epoch
         viewModelScope.launch {
             try {
-                val request=SyncRequest(UUID.randomUUID().toString(),kind,data,jobId)
+                val request=SyncRequest(UUID.randomUUID().toString(),kind,data,if(kind=="installation") null else jobId,if(kind=="installation") jobId else null)
                 val row=OutboxRecord(scope=sessionScope(auth),commandId=request.idempotencyKey,kind=kind,payload=fieldJson.encodeToString(request))
                 val current=state.value
                 val snapshot=current.snapshot?.let { overlay(it,row) }
                 val detail=current.detail?.let { overlayJob(it,listOf(row)) }
-                val cache=buildMap<String,String> { snapshot?.let { put("snapshot",fieldJson.encodeToString(it)) }; detail?.let { put("job:${it.id}",fieldJson.encodeToString(it)) } }
+                val installation=current.installationDetail?.let {overlayInstallation(it,listOf(row))}
+                val cache=buildMap<String,String> { installation?.let {put("installation:${it.id}",fieldJson.encodeToString(it))}; snapshot?.let { put("snapshot",fieldJson.encodeToString(it)) }; detail?.let { put("job:${it.id}",fieldJson.encodeToString(it)) } }
                 offline.enqueueWithCache(sessionScope(auth),request,cache)
-                if(generation==epoch) { mutable.update { it.copy(snapshot=snapshot,detail=detail,message="İşlem cihazda kaydedildi.") };onSaved();FieldSyncWorker.schedule(getApplication());sync() }
+                if(generation==epoch) { mutable.update { it.copy(snapshot=snapshot,detail=detail,installationDetail=installation,message="İşlem cihazda kaydedildi.") };onSaved();FieldSyncWorker.schedule(getApplication());sync() }
             } catch(e: Exception) { if(generation==epoch) fail(e) }
         }
     }

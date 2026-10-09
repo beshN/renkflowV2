@@ -6,7 +6,7 @@ import { fieldActor } from '@/lib/features/field/service';
 import { needsUpdate, MIN_APP_VERSION, MOBILE_API_VERSION, validateMobileDTO } from '@/lib/features/mobile/contract';
 import { uploadChunk, uploadStatus } from '@/lib/features/mobile/uploads';
 import { syncCommand, MobileConflict } from '@/lib/features/mobile/sync';
-import { mobileInstallations, mobileNotifications, mobileNotificationPreferences } from '@/lib/features/mobile/field-context';
+import { mobileInstallations, mobileInstallationDetails, mobileNotifications, mobileNotificationPreferences } from '@/lib/features/mobile/field-context';
 import { mobileReferences } from '@/lib/features/mobile/references';
 import { readFieldJson } from '@/lib/features/field/service';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
@@ -38,21 +38,26 @@ async function handle(request: NextRequest, context: Context, writing: boolean) 
       const result = await response.json();
       // Login itself proves password ownership; the mobile guard then proves current membership/access.
       const headers = new Headers(request.headers); headers.set('authorization', `Bearer ${result.data.accessToken}`);
-      await fieldActor(new NextRequest(request.url, { headers }));
+      await fieldActor(new NextRequest(request.url, { headers }),'any');
       return json({ success: true, data: validateMobileDTO('Login', { user: result.data.user, accessToken: result.data.accessToken, expiresIn: result.data.expiresIn }) });
+    }
+    if(path.join('/')==='snapshot' && !writing) {
+      const actor=await fieldActor(request,'any');
+      if(!actor.mobileAccess?.production.view) return json({success:true,data:validateMobileDTO('Snapshot',{workOrders:[],operations:[],cutPlans:[],generatedAt:new Date().toISOString(),truncated:false,permissions:{transition:false,close:false,checklist:false,comment:false}})});
     }
     if (path[0]==='uploads' && path.length===2 && !writing) return json({success:true,data:validateMobileDTO('UploadStatus',await uploadStatus(await fieldActor(request),path[1]))});
     if (path.join('/')==='uploads' && writing) return json({success:true,data:validateMobileDTO('UploadStatus',await uploadChunk(await fieldActor(request),await readFieldJson(request,400_000)))});
-    if (path.join('/') === 'sync' && writing) return json({ success:true, data:validateMobileDTO('Accepted',await syncCommand(await fieldActor(request),await readFieldJson(request))) });
-    if (path.join('/') === 'installations' && !writing) return json({ success: true, data: validateMobileDTO('Installations', await mobileInstallations(await fieldActor(request))) });
-    if (path.join('/') === 'notifications' && !writing) return json({ success: true, data: validateMobileDTO('Notifications', await mobileNotifications(await fieldActor(request))) });
+    if (path.join('/') === 'sync' && writing) return json({ success:true, data:validateMobileDTO('Accepted',await syncCommand(await fieldActor(request,'any'),await readFieldJson(request))) });
+    if (path.join('/') === 'installations' && !writing) return json({ success: true, data: validateMobileDTO('Installations', await mobileInstallations(await fieldActor(request,'installations'))) });
+    if(path[0]==='installations' && path.length===2 && !writing) return json({success:true,data:validateMobileDTO('InstallationDetails',await mobileInstallationDetails(await fieldActor(request,'installations'),path[1]))});
+    if (path.join('/') === 'notifications' && !writing) return json({ success: true, data: validateMobileDTO('Notifications', await mobileNotifications(await fieldActor(request,'any'))) });
     if (path.join('/') === 'notifications/preferences') {
-      const actor = await fieldActor(request);
+      const actor = await fieldActor(request,'any');
       const input = writing ? await readFieldJson(request) as { assignment: boolean; mention: boolean; delay: boolean } : undefined;
       return json({ success: true, data: validateMobileDTO('NotificationPreferences', await mobileNotificationPreferences(actor, input)) });
     }
-    if (path.join('/') === 'references' && !writing) return json({ success: true, data: validateMobileDTO('References', await mobileReferences(await fieldActor(request))) });
-    if (path.join('/') === 'auth/me' && !writing) { await fieldActor(request); response = await me(request); schema = 'User'; }
+    if (path.join('/') === 'references' && !writing) return json({ success: true, data: validateMobileDTO('References', await mobileReferences(await fieldActor(request,'any'))) });
+    if (path.join('/') === 'auth/me' && !writing) { await fieldActor(request,'any'); response = await me(request); schema = 'User'; }
     else {
       response = await (writing ? fieldPost : fieldGet)(request, context);
       schema = writing ? (path[0] === 'files' ? 'Photo' : 'Accepted') : path[0] === 'snapshot' ? 'Snapshot' : path[0] === 'scan' ? 'Scan' : 'Job';

@@ -11,10 +11,10 @@ async function main() {
   execFileSync('npm',['run','test:field','--','--fixture='+file],{stdio:'pipe'});
   const f=JSON.parse(readFileSync(file,'utf8'));unlinkSync(file);
   const db=postgres(process.env.DATABASE_URL,{onnotice:()=>{}});
-  const {POST}=await import('../app/api/mobile/v1/[...path]/route');const {NextRequest}=await import('next/server');let token='';
-  async function call(path:string,body:unknown,status=200) {
+  const {POST,GET}=await import('../app/api/mobile/v1/[...path]/route');const {NextRequest}=await import('next/server');let token='';
+  async function call(path:string,body?:unknown,status=200) {
     const headers={'content-type':'application/json','x-renkflow-app-version':'1.1.0','x-renkflow-platform':'android',authorization:'Bearer '+token};
-    const response=await POST(new NextRequest('https://renkflow.com/api/mobile/v1/'+path,{method:'POST',headers,body:JSON.stringify(body)}),{params:Promise.resolve({path:path.split('/')})});
+    const response=await (body===undefined?GET:POST)(new NextRequest('https://renkflow.com/api/mobile/v1/'+path,{method:body===undefined?'GET':'POST',headers,...(body===undefined?{}:{body:JSON.stringify(body)})}),{params:Promise.resolve({path:path.split('/')})});
     const result=await response.json();assert.equal(response.status,status,result.error);return result;
   }
   const login=await call('auth/login',{email:f.email,password:f.password});token=login.data.accessToken;const tenant=login.data.user.tenantId;
@@ -33,6 +33,22 @@ async function main() {
   } else {
     await call('sync',{idempotencyKey:randomUUID(),kind:'scrap',workOrderId:f.productionJobId,data:{reasonCode:'mobile_cut',quantity:1}},503);
     console.log('PASS · absent depth module fails closed');
+  }
+  const [chain]=await db`SELECT to_regclass('public.installations') IS NOT NULL AS present`;
+  if(chain.present) {
+    const [job]=await db`SELECT order_id FROM work_orders WHERE id=${f.productionJobId}`;
+    const [i]=await db`INSERT INTO installations(tenant_id,installation_number,order_id,crew,address,signed_name) VALUES(${tenant},${'MNT-'+randomUUID()},${job.order_id},ARRAY[${login.data.user.id}::uuid],'PRIVATE address','PRIVATE signoff') RETURNING id`;
+    const [check]=await db`INSERT INTO record_checklist_items(tenant_id,entity_type,entity_id,title) VALUES(${tenant},'installation',${i.id},'Anchoring inspected') RETURNING id`;
+    const details=(await call('installations/'+i.id)).data;assert(!JSON.stringify(details).includes('PRIVATE'));assert.equal(details.checklist.length,1);
+    const command=(data:unknown)=>({idempotencyKey:randomUUID(),kind:'installation',installationId:i.id,data});
+    const start=command({action:'start',expectedVersion:1});await Promise.all([call('sync',start),call('sync',start)]);
+    assert.equal((await call('installations/'+i.id)).data.version,2);
+    const stale=await call('sync',command({action:'issue',expectedVersion:1,kind:'damage',text:'Surface scratch'}),409);assert.equal(stale.canRetry,false);
+    await call('sync',command({action:'checklist',expectedVersion:2,itemId:check.id,completed:true}));
+    const issue=command({action:'issue',expectedVersion:3,kind:'missing',text:'Cover missing'});await call('sync',issue);await call('sync',issue);
+    const current=(await call('installations/'+i.id)).data;assert.equal(current.issues.length,1);assert.equal(current.checklist[0].completed,true);assert.equal(current.version,4);
+    await db`UPDATE installations SET crew='{}' WHERE id=${i.id}`;await call('installations/'+i.id,undefined,404);await call('sync',command({action:'complete',expectedVersion:4}),404);
+    console.log('PASS · installation crew scope, strict DTO, version conflict, durable checklist and one issue');
   }
   const op=(data:unknown)=>({idempotencyKey:randomUUID(),kind:'operation',data});
   await call('sync',op({operationId:f.operationId,version:1,action:'start'}));

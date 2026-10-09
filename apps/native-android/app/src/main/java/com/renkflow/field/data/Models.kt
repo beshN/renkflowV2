@@ -1,6 +1,7 @@
 package com.renkflow.field.data
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.*
 
 @Serializable data class User(val id: String, val email: String, val name: String? = null, val role: String, val tenantId: String)
 @Serializable data class Session(val server: String, val token: String, val expiresAt: Long, val user: User)
@@ -47,10 +48,33 @@ fun priorityLabel(priority: String) = when (priority) { "critical" -> "Kritik"; 
 @Serializable data class CutPiece(val lengthMm: Double, val workOrderId: String)
 @Serializable data class CutBar(val id: String, val itemId: String, val color: String, val lengthMm: Double, val isRemnant: Boolean, val pieces: List<CutPiece>, val remainingMm: Double, val reusable: Boolean, val lossMm: Double)
 @Serializable data class CutPlan(val id: String, val status: String, val wastePercent: Double? = null, val bars: List<CutBar>)
-@Serializable data class SyncRequest(val idempotencyKey: String, val kind: String, val data: kotlinx.serialization.json.JsonObject, val workOrderId: String? = null)
+@Serializable data class SyncRequest(val idempotencyKey: String, val kind: String, val data: kotlinx.serialization.json.JsonObject, val workOrderId: String? = null,val installationId:String?=null)
 @Serializable data class LocalPhoto(val workOrderId: String, val base64: String, val name: String = "saha.jpg")
 @Serializable data class UploadStatus(val uploadId: String, val receivedBytes: Int, val totalBytes: Int, val chunkBytes: Int, val completed: Boolean, val url: String? = null)
 
 @Serializable data class ReasonCode(val kind:String,val code:String,val label:String)
-@Serializable data class FieldCapabilities(val reasonCodes:Boolean=false,val installations:Boolean=false,val remotePush:Boolean=false,val crashReporting:Boolean=false)
+@Serializable data class FieldCapabilities(val reasonCodes:Boolean=false,val installations:Boolean=false,val remotePush:Boolean=false,val crashReporting:Boolean=false,val installationEdit:Boolean=false)
 @Serializable data class FieldReferences(val reasons:List<ReasonCode> = emptyList(),val capabilities:FieldCapabilities=FieldCapabilities())
+
+@Serializable data class Installation(val id:String,val number:String,val date:String?=null,val startTime:String?=null,val productName:String?=null,val status:String,val version:Int,val signed:Boolean,val checklistTotal:Int,val checklistCompleted:Int)
+@Serializable data class InstallationList(val available:Boolean,val installations:List<Installation> = emptyList())
+@Serializable data class InstallationCheck(val id:String,val title:String,val completed:Boolean)
+@Serializable data class InstallationIssue(val kind:String,val text:String)
+@Serializable data class InstallationDetails(val id:String,val status:String,val version:Int,val checklist:List<InstallationCheck>,val issues:List<InstallationIssue>)
+fun overlayInstallation(detail:InstallationDetails,rows:List<OutboxRecord>):InstallationDetails {
+    var result=detail
+    for(row in rows) {
+        if(row.kind!="installation" || row.state !in listOf("pending","sending")) continue
+        val request=runCatching {fieldJson.decodeFromString<SyncRequest>(row.payload)}.getOrNull() ?: continue
+        val d=request.data
+        if(request.installationId!=result.id || d["expectedVersion"]?.jsonPrimitive?.intOrNull!=result.version) continue
+        result=when(d["action"]?.jsonPrimitive?.content) {
+            "start"->result.copy(status="in_progress")
+            "complete"->result.copy(status="done")
+            "checklist"->result.copy(checklist=result.checklist.map {if(it.id==d["itemId"]?.jsonPrimitive?.content) it.copy(completed=d["completed"]?.jsonPrimitive?.boolean==true) else it})
+            "issue"->result.copy(issues=result.issues+InstallationIssue(d["kind"]?.jsonPrimitive?.content.orEmpty(),d["text"]?.jsonPrimitive?.content.orEmpty()))
+            else->result
+        }.copy(version=result.version+1)
+    }
+    return result
+}

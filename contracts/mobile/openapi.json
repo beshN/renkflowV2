@@ -732,6 +732,9 @@
               },
               "crashReporting": {
                 "const": false
+              },
+              "installationEdit": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -1426,6 +1429,32 @@
                 "format": "uuid"
               }
             }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data",
+              "installationId"
+            ],
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "installation"
+              },
+              "data": {
+                "$ref": "#/components/schemas/InstallationInput"
+              },
+              "installationId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
           }
         ]
       },
@@ -1609,6 +1638,114 @@
           "note": {
             "type": "string",
             "maxLength": 500
+          }
+        }
+      },
+      "InstallationDetails": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "version",
+          "status",
+          "checklist",
+          "issues"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "checklist": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "title",
+                "completed"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "completed": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "text"
+              ],
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "missing",
+                    "damage"
+                  ]
+                },
+                "text": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "InstallationInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "action",
+          "expectedVersion"
+        ],
+        "properties": {
+          "action": {
+            "enum": [
+              "start",
+              "complete",
+              "checklist",
+              "issue"
+            ]
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "missing",
+              "damage"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 1000
           }
         }
       }
@@ -2985,6 +3122,47 @@
           }
         },
         "x-response-type": "UploadStatus"
+      }
+    },
+    "/installations/{id}": {
+      "get": {
+        "operationId": "installationDetails",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Technical crew details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/InstallationDetails"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

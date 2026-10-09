@@ -1,4 +1,5 @@
 import 'server-only';
+import { z } from 'zod';
 import { sql } from '@/lib/db';
 import { type FieldActor } from '@/lib/features/field/service';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
@@ -31,4 +32,15 @@ export async function mobileNotificationPreferences(actor: FieldActor, input?: {
   const [row] = await sql`SELECT in_app FROM notification_preferences WHERE user_id=${actor.userId}`;
   const prefs = row?.in_app as Record<string, unknown> | undefined;
   return { assignment: prefs?.[preferenceKey.assignment] !== false, mention: prefs?.[preferenceKey.mention] !== false, delay: prefs?.[preferenceKey.delay] !== false };
+}
+
+export async function mobileInstallationDetails(actor: FieldActor,id:string) {
+  if(!actor.mobileAccess?.installations.view) throw new WorkOrderApiError('Montaj görme yetkiniz yok.',403);
+  z.string().uuid().parse(id);
+  const [available]=await sql`SELECT to_regclass('public.installations') IS NOT NULL AS present`;
+  if(!available?.present) throw new WorkOrderApiError('Montaj modülü sunucuda henüz etkin değil.',503);
+  const [row]=await sql`SELECT id,status,version,issues FROM installations WHERE tenant_id=${actor.tenantId} AND id=${id} AND (${actor.role!=='worker'} OR ${actor.userId}::uuid=ANY(crew))`;
+  if(!row) throw new WorkOrderApiError('Montaj bulunamadı veya ekibinize atanmamış.',404);
+  const items=await sql`SELECT id,title,done_at FROM record_checklist_items WHERE tenant_id=${actor.tenantId} AND entity_type='installation' AND entity_id=${id} ORDER BY position LIMIT 100`;
+  return {id:String(row.id),status:String(row.status),version:Number(row.version),checklist:items.map((i:any)=>({id:String(i.id),title:String(i.title),completed:Boolean(i.done_at)})),issues:((row.issues||[]) as Array<Record<string,unknown>>).filter(i=>i.kind==='missing'||i.kind==='damage').map(i=>({kind:String(i.kind),text:String(i.text||'')}))};
 }

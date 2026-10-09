@@ -9,7 +9,7 @@ import { productionCommand } from '@/lib/features/manufacturing/platform.service
 import { OperationCommandSchema } from '@/lib/features/manufacturing/platform-contract';
 import { validateMobileDTO } from './contract';
 
-export type SyncInput = { idempotencyKey: string; kind: 'operation'|'checklist'|'comment'|'transition'|'scrap'|'delay'; workOrderId?: string; data: Record<string,unknown> };
+export type SyncInput = { idempotencyKey: string; kind: 'operation'|'checklist'|'comment'|'transition'|'scrap'|'delay'|'installation'; installationId?:string; workOrderId?: string; data: Record<string,unknown> };
 export class MobileConflict extends WorkOrderApiError {
   constructor(message: string, public canRetry: boolean) { super(message,409); }
 }
@@ -29,9 +29,36 @@ async function requireSchema() {
 }
 export async function syncCommand(a: FieldActor,raw: unknown) {
   const input = validateMobileDTO('SyncInput',raw) as SyncInput;
-  if (!a.mobileAccess?.production.edit) throw new WorkOrderApiError('Üretim düzenleme yetkiniz yok.',403);
+  if (!(input.kind==='installation' ? a.mobileAccess?.installations.edit : a.mobileAccess?.production.edit)) throw new WorkOrderApiError('Üretim düzenleme yetkiniz yok.',403);
   await requireSchema();
   const hash = requestHash(input),key=input.idempotencyKey;
+  if(input.kind==='installation') return sql.begin(async(tx:any)=> {
+    const old=await receiptLock(tx,a,key,hash);if(old?.response) return old.response;
+    const [available]=await tx`SELECT to_regclass('public.installations') IS NOT NULL AS present`;
+    if(!available?.present) throw new WorkOrderApiError('Montaj modülü sunucuda henüz etkin değil.',503);
+    const [row]=await tx`SELECT id,status,version,issues FROM installations WHERE tenant_id=${a.tenantId} AND id=${input.installationId!} AND (${a.role!=='worker'} OR ${a.userId}::uuid=ANY(crew)) FOR UPDATE`;
+    if(!row) throw new WorkOrderApiError('Montaj bulunamadı veya ekibinize atanmamış.',404);
+    if(['done','cancelled'].includes(row.status)) throw new MobileConflict('Montaj kapatılmış. İşlem uygulanamaz.',false);
+    const d=input.data;
+    if(Number(row.version)!==d.expectedVersion) throw new MobileConflict('Montaj sunucuda değişmiş. Yenileyip kaydı inceleyin.',false);
+    if(d.action==='checklist') {
+      if(typeof d.completed!=='boolean' || typeof d.itemId!=='string') throw new WorkOrderApiError('Kontrol öğesi ve durumu gerekli.',400);
+      const found=await tx`UPDATE record_checklist_items SET done_at=${d.completed?new Date():null},done_by=${d.completed?a.userId:null} WHERE tenant_id=${a.tenantId} AND entity_type='installation' AND entity_id=${row.id} AND id=${d.itemId} RETURNING id`;
+      if(!found.length) throw new WorkOrderApiError('Montaj kontrolü bulunamadı.',404);
+    } else if(d.action==='issue') {
+      if(!['missing','damage'].includes(String(d.kind)) || typeof d.text!=='string' || d.text.trim().length<3) throw new WorkOrderApiError('Eksik/hasar türü ve açıklaması gerekli.',400);
+      const issues=[...(row.issues||[]),{kind:d.kind,text:d.text.trim(),at:new Date().toISOString(),by:a.userId}];
+      await tx`UPDATE installations SET issues=${JSON.stringify(issues)}::text::jsonb WHERE tenant_id=${a.tenantId} AND id=${row.id}`;
+    } else {
+      const next=d.action==='start' ? 'in_progress' : 'done';
+      if(d.action==='start' && row.status!=='planned' || d.action==='complete' && row.status!=='in_progress') throw new MobileConflict('Bu montaj durumu artık uygulanamaz.',false);
+      await tx`UPDATE installations SET status=${next},started_at=CASE WHEN ${next==='in_progress'} THEN coalesce(started_at,now()) ELSE started_at END,completed_at=${next==='done'?new Date():null} WHERE tenant_id=${a.tenantId} AND id=${row.id}`;
+    }
+    await tx`UPDATE installations SET version=version+1,updated_at=now() WHERE tenant_id=${a.tenantId} AND id=${row.id}`;
+    const accepted={accepted:true};
+    await tx`INSERT INTO mobile_receipts(tenant_id,user_id,command_id,request_hash,response) VALUES(${a.tenantId},${a.userId},${key},${hash},${JSON.stringify(accepted)}::text::jsonb)`;
+    return accepted;
+  });
   if (input.kind==='operation') {
     // Bind the key in a short transaction, then release its connection. The production service
     // owns its own atomic ledger; nesting transactions here would exhaust the Vercel pool.
