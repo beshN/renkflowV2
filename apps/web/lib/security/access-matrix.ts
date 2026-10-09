@@ -77,11 +77,12 @@ export const PRESETS: Preset[] = [
     permissions: { inventory: RW, purchasing: ['view', 'create', 'edit'], production: VIEW, orders: VIEW },
     hidden: ['price', 'cost', 'profit', 'customer_contact'], description: 'Stok, sayım, mal kabul; fiyat ve müşteri görmez',
   },
-  { key: 'readonly', name: 'Salt okunur', base: 'member', permissions: BASE_CAPS.member, hidden: ['cost', 'profit'], description: 'Siparişleri ve müşterileri görür; hiçbir şeyi değiştiremez' },
+  { key: 'member', name: 'Ekip üyesi', base: 'member', permissions: BASE_CAPS.member, hidden: [], description: 'Bugünkü ekip üyesi yetkisi: siparişleri görür ve düzenler, müşterileri görür' },
+  { key: 'readonly', name: 'Salt okunur', base: 'member', permissions: { orders: VIEW, customers: VIEW }, hidden: ['cost', 'profit'], description: 'Siparişleri ve müşterileri görür; hiçbir şeyi değiştiremez' },
 ];
 export const presetFor = (key: string) => PRESETS.find((p) => p.key === key) ?? null;
 /** The preset a member without a chosen role gets: the one of their base role (today's behaviour). */
-export const DEFAULT_PRESET: Record<UserRole, string> = { owner: 'owner', admin: 'admin', office: 'office', accountant: 'accounting', worker: 'operator', member: 'readonly' };
+export const DEFAULT_PRESET: Record<UserRole, string> = { owner: 'owner', admin: 'admin', office: 'office', accountant: 'accounting', worker: 'operator', member: 'member' };
 
 export type Access = { roleKey: string; roleName: string; base: UserRole; permissions: Matrix; hidden: FieldGroup[] };
 
@@ -143,17 +144,27 @@ const longest = <T>(list: Array<[string, T]>, path: string) =>
  * view (or export for an export path); a POST to a module's collection creates; any other write
  * edits; DELETE deletes.
  */
-export function routeRequirement(path: string, method: string): { module: Module; action: Action } | null {
+export function routeRequirement(path: string, method: string): { module: Module; action: Action; orCreate?: boolean } | null {
   const api = path.startsWith('/api/');
+  const m = method.toUpperCase();
+  // Quote screens read the firm's sales defaults (VAT, validity); changing them stays a settings edit.
+  if (path === '/api/v1/sales/settings' && (m === 'GET' || m === 'HEAD')) return { module: 'quotations', action: 'view' };
   const hit = api ? longest(API_MODULES, path) : longest(PAGE_MODULES, path);
   if (!hit || !hit[1]) return null;
   const module = hit[1];
-  const m = method.toUpperCase();
   if (/(^|\/)(export|exports|csv)(\/|$)/.test(path) && (m === 'GET' || m === 'POST')) return { module, action: 'export' };
   if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS' || !api) return { module, action: 'view' };
   if (m === 'DELETE') return { module, action: 'delete' };
   if (m === 'POST' && path.replace(/\/$/, '') === hit[0]) return { module, action: 'create' };
+  // A POST under a record or sub-collection either adds something (a stock entry, an RFQ) or runs
+  // a command: either create or edit lets it through.
+  if (m === 'POST') return { module, action: 'edit', orCreate: true };
   return { module, action: 'edit' };
+}
+
+/** Whether access meets a route requirement (a POST command passes with create or edit). */
+export function meets(access: Pick<Access, 'permissions'>, need: { module: Module; action: Action; orCreate?: boolean }) {
+  return can(access, need.module, need.action) || Boolean(need.orCreate && can(access, need.module, 'create'));
 }
 
 /** Module of an existing permission string's first part (orders.view → orders). */
@@ -183,8 +194,8 @@ export function permissionRequirement(permission: string): { module: Module; act
 export const FIELD_KEYS: Record<FieldGroup, string[]> = {
   price: [
     'unitPrice', 'unit_price', 'totalPrice', 'total_price', 'totalAmount', 'total_amount', 'subtotal', 'taxAmount', 'tax_amount',
-    'discountAmount', 'discount_amount', 'price', 'prices', 'matrixUnitPrice', 'tryTotal', 'fxRate', 'fx_rate', 'amount', 'paid', 'plan',
-    'payments', 'paymentStatus', 'payment_status', 'currency', 'total', 'cheapest', 'invoiceTotal', 'balance', 'collected',
+    'discountAmount', 'discount_amount', 'price', 'prices', 'matrixUnitPrice', 'tryTotal', 'fxRate', 'fx_rate', 'amount', 'paid',
+    'payments', 'paymentStatus', 'payment_status', 'currency', 'total', 'grandTotal', 'cheapest', 'invoiceTotal', 'balance', 'collected',
   ],
   cost: ['cost', 'unitCost', 'unit_cost', 'costs', 'profileCost', 'profile_cost', 'costSnapshot', 'cost_snapshot', 'laborCostPerHour', 'labor_cost_per_hour', 'materialCost', 'laborCost', 'scrapCost'],
   profit: ['profit', 'margin', 'marginPercent', 'estimatedProfit', 'grossProfit'],
@@ -194,7 +205,14 @@ export const FIELD_KEYS: Record<FieldGroup, string[]> = {
   ],
 };
 
-/** A copy of the data without the hidden kinds of fields, at any depth. */
+/** Generic names that may hold a non-money record (a stock "balance" row): walked, not dropped, when they hold an object. */
+const GENERIC_KEYS = new Set(['balance', 'total']);
+
+/**
+ * A copy of the data without the hidden kinds of fields, at any depth. A listed key is dropped with
+ * whatever it holds, except an object under a generic name (walked instead) and "total" as the
+ * whole-number count next to a list (a page envelope).
+ */
 export function redactFields<T>(data: T, hidden: readonly FieldGroup[]): T {
   if (!hidden.length) return data;
   const drop = new Set(hidden.flatMap((g) => FIELD_KEYS[g]));
@@ -202,7 +220,16 @@ export function redactFields<T>(data: T, hidden: readonly FieldGroup[]): T {
     if (Array.isArray(v)) return v.map(walk);
     if (v && typeof v === 'object' && !(v instanceof Date)) {
       const out: Record<string, unknown> = {};
-      for (const [k, x] of Object.entries(v as Record<string, unknown>)) if (!drop.has(k)) out[k] = walk(x);
+      const entries = Object.entries(v as Record<string, unknown>);
+      const hasList = entries.some(([, x]) => Array.isArray(x));
+      for (const [k, x] of entries) {
+        if (drop.has(k)) {
+          const walkInstead = GENERIC_KEYS.has(k) && x !== null && typeof x === 'object' && !Array.isArray(x);
+          const listCount = k === 'total' && hasList && typeof x === 'number' && Number.isInteger(x);
+          if (!walkInstead && !listCount) continue;
+        }
+        out[k] = walk(x);
+      }
       if (hidden.includes('price')) out.financialHidden = true;
       return out;
     }

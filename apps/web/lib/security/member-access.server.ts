@@ -5,7 +5,7 @@ import * as dbModule from '@/lib/db';
 const db = (): any => (typeof (dbModule as any).sql === 'function' ? (dbModule as any).sql : (dbModule as any).getSql());
 import type { UserRole } from '@/lib/auth/permissions';
 import {
-  can, effectiveAccess, presetFor, routeRequirement, sanitizeMatrix, DEFAULT_PRESET, FIELD_GROUPS,
+  effectiveAccess, meets, presetFor, routeRequirement, sanitizeMatrix, DEFAULT_PRESET, FIELD_GROUPS,
   type Access, type FieldGroup, type Module, type Action,
 } from './access-matrix';
 
@@ -120,7 +120,7 @@ export async function accessDecision(userId: string, tenantId: string, path: str
   // A member on their base role's own preset keeps exactly today's access: the route checks decide.
   // The matrix narrows only for a job preset or a custom role.
   if (!need || access.roleKey === DEFAULT_PRESET[access.base]) return null;
-  if (can(access, need.module, need.action)) return null;
+  if (meets(access, need)) return null;
   return { status: 403 as const, reason: 'role', need };
 }
 

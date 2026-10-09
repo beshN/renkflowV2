@@ -133,6 +133,8 @@ export const authConfig: NextAuthConfig = {
                 FROM tenant_members
                 WHERE user_id = u.id
                 ORDER BY
+                  -- A firm where the member was deactivated comes last (the column exists from migration 044 on).
+                  (to_jsonb(tenant_members) ->> 'deactivated_at') IS NOT NULL,
                   CASE role
                     WHEN 'owner' THEN 0
                     WHEN 'admin' THEN 1
@@ -201,6 +203,8 @@ export const authConfig: NextAuthConfig = {
               FROM tenant_members
               WHERE user_id = u.id
               ORDER BY
+                -- A firm where the member was deactivated comes last (the column exists from migration 044 on).
+                (to_jsonb(tenant_members) ->> 'deactivated_at') IS NOT NULL,
                 CASE role
                   WHEN 'owner' THEN 0
                   WHEN 'admin' THEN 1
@@ -389,6 +393,8 @@ export const authConfig: NextAuthConfig = {
                 FROM tenant_members
                 WHERE user_id = u.id
                 ORDER BY
+                  -- A firm where the member was deactivated comes last (the column exists from migration 044 on).
+                  (to_jsonb(tenant_members) ->> 'deactivated_at') IS NOT NULL,
                   CASE role
                     WHEN 'owner' THEN 0
                     WHEN 'admin' THEN 1

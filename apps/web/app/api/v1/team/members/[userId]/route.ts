@@ -23,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const { userId } = await params;
     z.string().uuid().parse(userId);
     const body = Body.parse(await req.json());
-    if (body.role !== undefined || body.accessRole !== undefined) await updateMember(actor, userId, { role: body.role, accessRole: body.accessRole || null });
+    if (body.role !== undefined || body.accessRole !== undefined) await updateMember(actor, userId, { role: body.role, accessRole: body.accessRole === undefined ? undefined : body.accessRole || null });
     if (body.active !== undefined) await setMemberActive(actor, userId, body.active);
     return NextResponse.json({ ok: true }, { headers: NO_STORE });
   } catch (e) {

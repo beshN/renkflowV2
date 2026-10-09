@@ -1,6 +1,6 @@
 import type { Permission } from '@/lib/auth/permissions';
 import { canAccessFinance, hasPermission, ROUTE_ROLES, type UserRole } from '@/lib/auth/permissions';
-import { can, routeRequirement, type Matrix } from '@/lib/security/access-matrix';
+import { meets, routeRequirement, type Matrix } from '@/lib/security/access-matrix';
 
 export type DashboardNavItem = {
   id: string; label: string; href: string;
@@ -69,7 +69,7 @@ export function getVisibleNavGroups(role?: UserRole, access?: NavAccess) {
     items: group.items.filter(item => {
       // A job preset or custom role hides the modules it cannot view (the proxy refuses them anyway).
       const need = access?.narrowed && !item.action ? routeRequirement(item.href, 'GET') : null;
-      if (need && access && !can(access, need.module, need.action)) return false;
+      if (need && access && !meets(access, need)) return false;
       if (!role) return !item.requiresPermission && !item.requiresFinanceAccess && !item.adminOnly && !item.action;
       if (item.allowedRoles && !item.allowedRoles.includes(role)) return false;
       if (item.adminOnly && role !== 'owner' && role !== 'admin') return false;

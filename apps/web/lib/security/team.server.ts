@@ -138,14 +138,21 @@ function cleanRole(input: RoleInput) {
 }
 
 /** Create or update a custom role; it can never grant more than its base role. */
+/** Roles on the admin base change what other admins may do: like admins themselves, only the owner manages them. */
+function requireRoleAuthority(actor: TeamActor, ...bases: Array<string | null | undefined>) {
+  if (actor.role !== 'owner' && bases.includes('admin')) throw new WorkOrderApiError('Yönetici temelli rolleri yalnız firma sahibi yönetir', 403);
+}
+
 export async function saveRole(actor: TeamActor, id: string | null, input: RoleInput) {
   await requireTeamManager(actor);
   const r = cleanRole(input);
+  requireRoleAuthority(actor, r.base);
   try {
     return await withTransaction(async (tx) => {
       if (id) {
         const [before] = await tx`SELECT name, base_role, permissions, hidden_fields FROM access_roles WHERE id = ${id} AND tenant_id = ${actor.tenantId} FOR UPDATE`;
         if (!before) throw new WorkOrderApiError('Rol bulunamadı', 404);
+        requireRoleAuthority(actor, before.base_role);
         if (before.base_role !== r.base) {
           const [used] = await tx`SELECT count(*)::int AS n FROM tenant_members WHERE tenant_id = ${actor.tenantId} AND access_role = ${id}`;
           if (Number(used?.n) > 0) throw new WorkOrderApiError('Rolü kullanan üyeler varken temel rol değiştirilemez', 409);
@@ -171,8 +178,10 @@ export async function saveRole(actor: TeamActor, id: string | null, input: RoleI
 export async function deleteRole(actor: TeamActor, id: string) {
   await requireTeamManager(actor);
   await withTransaction(async (tx) => {
+    const [existing] = await tx`SELECT base_role FROM access_roles WHERE id = ${id} AND tenant_id = ${actor.tenantId} FOR UPDATE`;
+    if (!existing) throw new WorkOrderApiError('Rol bulunamadı', 404);
+    requireRoleAuthority(actor, existing.base_role);
     const [role] = await tx`DELETE FROM access_roles WHERE id = ${id} AND tenant_id = ${actor.tenantId} RETURNING name`;
-    if (!role) throw new WorkOrderApiError('Rol bulunamadı', 404);
     const moved = await tx`UPDATE tenant_members SET access_role = NULL WHERE tenant_id = ${actor.tenantId} AND access_role = ${id} RETURNING user_id`;
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'access_role', entityId: id, action: 'role_deleted', metadata: { name: role.name, members: moved.length } });
   });
@@ -229,6 +238,8 @@ export async function revokeSession(actor: TeamActor, sessionId: string) {
   if (!s) throw new WorkOrderApiError('Oturum bulunamadı', 404);
   const own = String(s.user_id) === actor.userId;
   if (!own) {
+    // A manager closes only sessions opened in their own firm.
+    if (String(s.tenant_id) !== actor.tenantId) throw new WorkOrderApiError('Oturum bulunamadı', 404);
     await requireTeamManager(actor);
     await assertManagesMember(actor, String(s.user_id));
   }
@@ -238,18 +249,24 @@ export async function revokeSession(actor: TeamActor, sessionId: string) {
 }
 
 /**
- * Close every session of a person (yourself, or a member you manage): tokens issued before now
- * stop counting, including sign-ins from before session tracking.
+ * Close every session of a person. Yourself: everywhere, including sign-ins from before session
+ * tracking (tokens issued before now stop counting). A member you manage: only the sessions opened
+ * in your firm, since a person may belong to other firms you have no say over.
  */
 export async function revokeAllSessions(actor: TeamActor, userId: string, reason: 'self' | 'admin' = 'self') {
   await requireSchema();
-  if (userId !== actor.userId) {
+  const self = userId === actor.userId;
+  if (!self) {
     await requireTeamManager(actor);
     await assertManagesMember(actor, userId);
   }
   await withTransaction(async (tx) => {
-    await tx`UPDATE users SET sessions_valid_after = now() WHERE id = ${userId}`;
-    await tx`UPDATE user_sessions SET revoked_at = now(), revoked_by = ${actor.userId} WHERE user_id = ${userId} AND revoked_at IS NULL`;
+    if (self) {
+      await tx`UPDATE users SET sessions_valid_after = now() WHERE id = ${userId}`;
+      await tx`UPDATE user_sessions SET revoked_at = now(), revoked_by = ${actor.userId} WHERE user_id = ${userId} AND revoked_at IS NULL`;
+    } else {
+      await tx`UPDATE user_sessions SET revoked_at = now(), revoked_by = ${actor.userId} WHERE user_id = ${userId} AND tenant_id = ${actor.tenantId} AND revoked_at IS NULL`;
+    }
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'member', entityId: userId, action: 'sessions_revoked_all', metadata: { reason } });
   });
   forgetSessions(userId);

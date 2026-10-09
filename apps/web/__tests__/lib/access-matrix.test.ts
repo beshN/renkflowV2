@@ -1,5 +1,5 @@
 import {
-  BASE_CAPS, MODULES, PRESETS, can, effectiveAccess, passwordProblem, presetFor, redactFields, routeRequirement, sanitizeMatrix,
+  BASE_CAPS, MODULES, PRESETS, can, effectiveAccess, meets, passwordProblem, presetFor, redactFields, routeRequirement, sanitizeMatrix,
 } from '@/lib/security/access-matrix';
 
 describe('roles never exceed their base role', () => {
@@ -42,11 +42,27 @@ describe('route requirements', () => {
   it('maps API paths and methods to module and action', () => {
     expect(routeRequirement('/api/v1/orders', 'GET')).toEqual({ module: 'orders', action: 'view' });
     expect(routeRequirement('/api/v1/orders', 'POST')).toEqual({ module: 'orders', action: 'create' });
-    expect(routeRequirement('/api/v1/orders/abc/sales', 'POST')).toEqual({ module: 'orders', action: 'edit' });
+    expect(routeRequirement('/api/v1/orders/abc/sales', 'POST')).toEqual({ module: 'orders', action: 'edit', orCreate: true });
+    expect(routeRequirement('/api/v1/orders/abc', 'PATCH')).toEqual({ module: 'orders', action: 'edit' });
     expect(routeRequirement('/api/v1/quotations/abc', 'DELETE')).toEqual({ module: 'quotations', action: 'delete' });
     expect(routeRequirement('/api/v1/reports/export', 'GET')).toEqual({ module: 'reports', action: 'export' });
     expect(routeRequirement('/api/v1/vehicles/x', 'GET')).toEqual({ module: 'fleet', action: 'view' });
     expect(routeRequirement('/api/v1/sales/settings', 'PUT')).toEqual({ module: 'settings', action: 'edit' });
+    // Quote screens read the sales defaults; only changing them is a settings edit.
+    expect(routeRequirement('/api/v1/sales/settings', 'GET')).toEqual({ module: 'quotations', action: 'view' });
+  });
+
+  it('a POST under a record passes with create or edit; PATCH needs edit', () => {
+    const createOnly = { permissions: { inventory: ['view', 'create'] as const } } as any;
+    expect(meets(createOnly, routeRequirement('/api/v1/inventory/stock-entries', 'POST')!)).toBe(true);
+    expect(meets(createOnly, routeRequirement('/api/v1/inventory/items/1', 'PATCH')!)).toBe(false);
+  });
+
+  it('Salt okunur really only reads; a member without a chosen role keeps today\'s rights', () => {
+    const ro = effectiveAccess('member', presetFor('readonly'));
+    expect([can(ro, 'orders', 'view'), can(ro, 'orders', 'edit')]).toEqual([true, false]);
+    expect(effectiveAccess('member', null).roleKey).toBe('member');
+    expect(can(effectiveAccess('member', null), 'orders', 'edit')).toBe(true);
   });
 
   it('self-scoped and unknown paths are not module-gated', () => {
@@ -72,7 +88,15 @@ describe('field hiding', () => {
 
   it('removes each hidden kind at any depth and marks price hidden', () => {
     const r: any = redactFields(order, ['price', 'cost', 'profit', 'customer_contact']);
-    expect(r).toEqual({ id: 'o1', orderNumber: 'ORD-1', customerName: 'Ayşe', items: [{ productName: 'Pergola', widthMm: 4000, financialHidden: true }], financialHidden: true });
+    expect(r).toEqual({ id: 'o1', orderNumber: 'ORD-1', customerName: 'Ayşe', items: [{ productName: 'Pergola', widthMm: 4000, financialHidden: true }], plan: { rows: [{ financialHidden: true }], financialHidden: true }, financialHidden: true });
+  });
+
+  it('keeps a page count next to a list and walks a non-money record under a generic name', () => {
+    const r: any = redactFields({ rows: [{ sku: 'A', total: 5 }], total: 1, balance: { onHand: 3, amount: 9 }, price: { value: 7 } }, ['price']);
+    expect(r.total).toBe(1);
+    expect(r.rows[0].total).toBeUndefined();
+    expect(r.balance).toEqual({ onHand: 3, financialHidden: true });
+    expect(r.price).toBeUndefined();
   });
 
   it('only what is hidden goes; nothing hidden leaves the data as it is', () => {

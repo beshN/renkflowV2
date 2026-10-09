@@ -12,7 +12,7 @@ const roles: Record<string, string> = { owner: 'Firma sahibi', admin: 'Yönetici
 export default function TeamPage() {
   const { user } = useAuth();
   const manager = user?.role === 'owner' || user?.role === 'admin';
-  if (manager) return <div className="min-h-screen"><AppleNavbar title="Ekip ve yetkiler" showSearch={false} /><main className="mx-auto max-w-5xl p-4 md:p-6"><TeamWorkspace /></main></div>;
+  if (manager) return <div className="rf-page space-y-5"><TeamWorkspace /></div>;
   return <TeamList />;
 }
 

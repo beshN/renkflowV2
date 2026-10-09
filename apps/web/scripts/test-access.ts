@@ -66,6 +66,14 @@ async function main() {
   assert.equal((await db`SELECT access_role FROM tenant_members WHERE tenant_id = ${tenantId} AND user_id = ${ids.office}`)[0].access_role, null);
   await team.updateMember(owner, ids.office, { role: 'office' });
 
+  // A role-only change keeps an access role that still fits.
+  await team.updateMember(owner, ids.office, { accessRole: 'sales' });
+  await team.updateMember(owner, ids.office, { role: 'office' });
+  assert.equal((await db`SELECT access_role FROM tenant_members WHERE tenant_id = ${tenantId} AND user_id = ${ids.office}`)[0].access_role, 'sales');
+  await team.updateMember(owner, ids.office, { accessRole: null });
+  // Roles on the admin base are the owner's to manage, like admins themselves.
+  await assert.rejects(team.saveRole(admin, null, { name: 'Alt yönetici', base: 'admin', permissions: {}, hidden: [] }), /yalnız firma sahibi/);
+
   // Custom role: only narrows its base; deleting it sends members back to the default.
   const roleId = await team.saveRole(admin, null, { name: 'Saha satış', base: 'office', permissions: { crm: ['create'], finance: ['view'], orders: ['view'] }, hidden: ['cost', 'nonsense'] });
   const [stored] = await db`SELECT permissions, hidden_fields FROM access_roles WHERE id = ${roleId}`;
@@ -98,6 +106,19 @@ async function main() {
   access.forgetSessions(ids.accountant);
   assert.equal(await access.sessionRevoked(ids.accountant, null, iat), true, 'tokens issued before "close all" no longer count');
   assert.equal(await access.sessionRevoked(ids.accountant, sid2, Math.floor(Date.now() / 1000) + 2), true);
+
+  // A manager closes a member's sessions in this firm only (the person may belong to other firms).
+  const otherTenant = randomUUID();
+  await db`INSERT INTO tenants (id, name, slug) VALUES (${otherTenant}, 'Başka Firma', ${'other-' + otherTenant.slice(0, 8)})`;
+  const here = await identity.openSession(ids.worker, tenantId);
+  const there = await identity.openSession(ids.worker, otherTenant);
+  await team.revokeAllSessions(admin, ids.worker, 'admin');
+  const rows = await db`SELECT id, revoked_at FROM user_sessions WHERE id IN (${here}, ${there})`;
+  assert.ok(rows.find((r) => r.id === here)?.revoked_at);
+  assert.equal(rows.find((r) => r.id === there)?.revoked_at, null);
+  assert.equal((await db`SELECT sessions_valid_after FROM users WHERE id = ${ids.worker}`)[0].sessions_valid_after, null);
+  await assert.rejects(team.revokeSession(admin, there!), /bulunamadı/);
+  await db`DELETE FROM tenants WHERE id = ${otherTenant}`;
 
   // Deactivation: records stay, sign-in ends, then it can be undone.
   const sid3 = await identity.openSession(ids.worker, tenantId);

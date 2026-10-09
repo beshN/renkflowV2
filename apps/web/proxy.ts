@@ -15,6 +15,12 @@ const AUTH_SECRET =
     developmentFallback: 'development-only-fallback-secret',
   }) || undefined;
 
+/**
+ * Token links that work for anyone, signed in to another firm or not (joining a firm by invite):
+ * the member gate of the current firm does not apply.
+ */
+const GATE_EXEMPT_API = new Set(['/api/tenant/invite/validate', '/api/tenant/invite/accept']);
+
 const ACME_CHALLENGE_PREFIX = '/.well-known/acme-challenge/';
 
 const AUTH_REDIRECTS: Record<string, { destination: string; permanent: boolean }> = {
@@ -67,8 +73,7 @@ function isStaticAsset(pathname: string): boolean {
  * database) against the module and action the path needs; a deactivated member or a revoked session
  * is turned away. Refusals are written to the audit trail. Null = carry on.
  */
-async function accessGate(request: NextRequest, pathname: string, method: string, isSecureRequest: boolean) {
-  const token = await sessionToken(request);
+async function accessGate(request: NextRequest, token: Awaited<ReturnType<typeof sessionToken>>, pathname: string, method: string, isSecureRequest: boolean) {
   if (!token?.tenantId || !(token.id || token.sub)) return null;
   const userId = String(token.id || token.sub);
   const tenantId = String(token.tenantId);
@@ -99,10 +104,9 @@ async function accessGate(request: NextRequest, pathname: string, method: string
  * Passes the field groups a narrowed role may not see to the route as a request header. Any value
  * the client sent is dropped first, so the header can only ever come from here.
  */
-async function forwardHiddenFields(request: NextRequest) {
+async function forwardHiddenFields(request: NextRequest, token: Awaited<ReturnType<typeof sessionToken>>) {
   const forwarded = new Headers(request.headers);
   forwarded.delete(HIDDEN_FIELDS_HEADER);
-  const token = await sessionToken(request);
   if (token?.tenantId && (token.id || token.sub)) {
     const hidden = await narrowedHiddenFields(String(token.id || token.sub), String(token.tenantId));
     if (hidden.length) forwarded.set(HIDDEN_FIELDS_HEADER, hidden.join(','));
@@ -249,12 +253,14 @@ export async function proxy(request: NextRequest) {
 
   if (pathname.startsWith('/api/')) {
     if(privateAccessEmail() && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/cron/') && !(await isAuthenticated(request))) return withProxySecurityHeaders(NextResponse.json({error:'Oturum açmanız gerekiyor.'},{status:401}),{isSecureRequest});
-    let next = NextResponse.next();
-    if (!pathname.startsWith('/api/auth/')) {
-      const refused = await accessGate(request, pathname, method, isSecureRequest);
+    // Exempt and auth paths still lose any hidden-field header a client sent.
+    let next = await forwardHiddenFields(request, null);
+    if (!pathname.startsWith('/api/auth/') && !GATE_EXEMPT_API.has(pathname)) {
+      const token = await sessionToken(request);
+      const refused = await accessGate(request, token, pathname, method, isSecureRequest);
       if (refused) return refused;
       try {
-        next = await forwardHiddenFields(request);
+        next = await forwardHiddenFields(request, token);
       } catch (e) {
         // Without knowing which fields to hide, nothing is served.
         console.error('[proxy] field access failed', e instanceof Error ? e.message : e);
@@ -285,13 +291,13 @@ export async function proxy(request: NextRequest) {
     dashboardUrl.search = '';
     return withProxySecurityHeaders(NextResponse.redirect(dashboardUrl, 302), { isSecureRequest });
   }
-  const refused = await accessGate(request, pathname, method, isSecureRequest);
+  const refused = await accessGate(request, token, pathname, method, isSecureRequest);
   if (refused) return refused;
 
   // Server-rendered pages read the same hidden-field header as the API routes.
   let next: NextResponse;
   try {
-    next = await forwardHiddenFields(request);
+    next = await forwardHiddenFields(request, token);
   } catch (e) {
     console.error('[proxy] field access failed', e instanceof Error ? e.message : e);
     return withProxySecurityHeaders(buildLoginRedirect(request), { isSecureRequest });
