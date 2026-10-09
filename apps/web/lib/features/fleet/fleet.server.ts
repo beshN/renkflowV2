@@ -109,7 +109,7 @@ export async function getVehicle(actor: WorkOrderActor, id: string) {
 }
 
 const VehicleInput = z.object({
-  plate: z.string().trim().min(5).max(15),
+  plate: z.string().trim().min(1).max(20),
   make: z.string().trim().max(60).nullish(),
   model: z.string().trim().max(60).nullish(),
   modelYear: z.coerce.number().int().min(1950).max(2100).nullish(),
