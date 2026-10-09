@@ -11,7 +11,7 @@ import { COLLECTION_METHODS, COLLECTION_METHOD_LABELS, INVOICE_STATUS_LABELS, ty
 type Line = { id: string; description: string; quantity: number; unitPrice: number; invoiced: number; remaining: number };
 type Invoice = { id: string; number: string | null; status: InvoiceStatus; issuedOn: string | null; dueOn: string | null; subtotal: number; vatTotal: number; total: number; eInvoice: string; cancelReason: string | null; lines: Array<{ id: string; description: string; quantity: number }> };
 type Payment = { id: string; amount: number; method: string; paidAt: string; reference: string | null; chequeDueOn: string | null; invoiceNumber: string | null };
-type Profit = { revenueNet: number; materialCost: number; laborCost: number | null; reworkCost: number; cost: number; profit: number; marginPercent: number | null; complete: boolean; gaps: string[] };
+type Profit = { revenueNet: number; materialCost: number; laborCost: number | null; reworkCost: number; cost: number; profit: number | null; marginPercent: number | null; complete: boolean; upperBound: boolean; gaps: string[] };
 type Billing = {
   order: { id: string; number: string; customerName: string; total: number; currency: string }; vatPercent: number; lines: Line[]; invoices: Invoice[]; payments: Payment[];
   summary: { invoiceTotal: number; collected: number; balance: number }; estimatedProfit?: Profit;
@@ -159,7 +159,7 @@ export function OrderBillingPanel({ orderId }: { orderId: string }) {
             <dt className="text-muted-foreground">Malzeme</dt><dd className="tabular-nums sm:col-span-2">{cur(p.materialCost)}</dd>
             <dt className="text-muted-foreground">İşçilik</dt><dd className="tabular-nums sm:col-span-2">{p.laborCost === null ? 'bilinmiyor' : cur(p.laborCost)}</dd>
             <dt className="text-muted-foreground">Yeniden işleme</dt><dd className="tabular-nums sm:col-span-2">{cur(p.reworkCost)}</dd>
-            <dt className="font-semibold">Kâr</dt><dd className="font-semibold tabular-nums sm:col-span-2">{cur(p.profit)}{p.marginPercent !== null ? ` · %${p.marginPercent.toLocaleString('tr-TR')}` : ''}</dd>
+            <dt className="font-semibold">{p.upperBound ? 'Kâr (en fazla)' : 'Kâr'}</dt><dd className="font-semibold tabular-nums sm:col-span-2">{p.profit === null ? 'hesaplanamadı (maliyet kaydı yok)' : `${cur(p.profit)}${p.marginPercent !== null ? ` · %${p.marginPercent.toLocaleString('tr-TR')}` : ''}`}</dd>
           </dl>
           {p.gaps.length > 0 && <ul className="list-disc pl-5 text-xs text-muted-foreground" aria-label="Eksik veriler">{p.gaps.map((g) => <li key={g}>{g}</li>)}</ul>}
         </section>

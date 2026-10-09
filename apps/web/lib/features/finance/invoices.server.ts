@@ -109,7 +109,7 @@ export async function orderProfit(tenantId: string, orderId: string, orderTotal:
   const e = estimateProfit({ revenueNet: Number(rev.n) ? Number(rev.net) : null, orderTotal, material, labor: { seconds, ratePerHour: rate }, rework });
   return {
     revenueNet: e.revenue, materialCost: e.material, laborCost: e.labor, reworkCost: e.rework, cost: e.cost, profit: e.profit, marginPercent: e.marginPercent,
-    complete: e.complete, gaps: e.gaps, workOrders: linked.length,
+    complete: e.complete, upperBound: e.upperBound, gaps: e.gaps, workOrders: linked.length,
   };
 }
 

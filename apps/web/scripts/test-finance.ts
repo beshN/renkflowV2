@@ -119,6 +119,7 @@ async function main() {
   // Estimated profit: no production records yet → gaps, never invented.
   assert.equal(billing.estimatedProfit.complete, false);
   assert.equal(billing.estimatedProfit.revenueNet, 22000);
+  assert.equal(billing.estimatedProfit.profit, null, 'no cost record → no profit figure');
   // With a work order: priced material (6 000), 10 h at 250/h, then it is complete.
   const [item] = await db`INSERT INTO inventory_items (tenant_id, name, sku) VALUES (${tenantId}, 'Profil', ${'P-' + tenantId.slice(0, 6)}) RETURNING id`;
   const [wo] = await db`INSERT INTO work_orders (tenant_id, title, order_item_id) VALUES (${tenantId}, 'Pergola üretimi', ${a.id}) RETURNING id`;

@@ -86,9 +86,12 @@ describe('estimated profit', () => {
     const p = estimateProfit({ revenueNet: null, orderTotal: 12000, material: { amount: 3000, unpricedLots: 2, lots: 5 }, labor: { seconds: 3600, ratePerHour: null }, rework: 0 });
     expect(p.labor).toBeNull();
     expect(p.profit).toBe(9000);
-    expect(p.complete).toBe(false);
+    expect([p.complete, p.upperBound]).toEqual([false, true]);
     expect(p.gaps).toHaveLength(3);
-    expect(estimateProfit({ revenueNet: 0, orderTotal: 0, material: { amount: 0, unpricedLots: 0, lots: 0 }, labor: { seconds: 0, ratePerHour: 100 }, rework: 0 }).marginPercent).toBeNull();
+    expect(estimateProfit({ revenueNet: 0, orderTotal: 0, material: { amount: 0, unpricedLots: 0, lots: 1 }, labor: { seconds: 0, ratePerHour: 100 }, rework: 0 }).marginPercent).toBeNull();
+    // No cost record at all: no profit figure (not "100%").
+    const none = estimateProfit({ revenueNet: 22000, orderTotal: 26400, material: { amount: 0, unpricedLots: 0, lots: 0 }, labor: { seconds: 0, ratePerHour: null }, rework: 0 });
+    expect([none.profit, none.marginPercent, none.upperBound]).toEqual([null, null, false]);
   });
 });
 

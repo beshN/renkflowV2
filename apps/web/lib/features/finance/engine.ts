@@ -166,11 +166,14 @@ export function estimateProfit(p: ProfitInput) {
   } else gaps.push('Üretim süresi kaydı yok');
   const material = money(p.material.amount);
   const cost = money(material + (labor ?? 0) + p.rework);
-  const profit = money(revenue - cost);
+  // No cost record at all: there is no profit to show (it would read as 100%). With some costs
+  // missing, the figure is an upper bound — missing costs can only lower it.
+  const anyCost = p.material.lots > 0 || labor !== null || p.rework > 0;
+  const profit = anyCost ? money(revenue - cost) : null;
   return {
     revenue: money(revenue), material, labor, rework: money(p.rework), cost, profit,
-    marginPercent: revenue > 0 ? Math.round((profit / revenue) * 1000) / 10 : null,
-    complete: gaps.length === 0, gaps,
+    marginPercent: profit !== null && revenue > 0 ? Math.round((profit / revenue) * 1000) / 10 : null,
+    complete: gaps.length === 0, upperBound: profit !== null && gaps.length > 0, gaps,
   };
 }
 
