@@ -8,7 +8,9 @@ func tokenSessionID(_ token:String)->String? {
 }
 actor SessionManager {
     static let shared=SessionManager()
-    private let vault=SecureVault(),api=FieldAPI()
+    private let vault:SecureVault
+    private let api:FieldAPI
+    init(vault:SecureVault=SecureVault(),api:FieldAPI=FieldAPI()) {self.vault=vault;self.api=api}
     private var refreshing:Task<Session,Error>?
     func token(server:String,requested:String) async throws -> String {
         guard let saved=vault.read("session",as:Session.self),saved.server==server,tokenSessionID(requested)==saved.sessionId else {throw FieldAPIError(status:401,message:"Cihaz oturumu değişti.")}

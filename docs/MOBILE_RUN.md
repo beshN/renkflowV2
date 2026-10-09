@@ -152,3 +152,13 @@ Adım 2 başlangıcı: 2026-10-09 22:03 UTC. Adım 4 PR #57 düzeltme CI'sı bek
 ### Ayrı web cihaz yüzeyi
 - Mobil oturumlara ait `/mobile-devices` bağımsız sayfası küçük ayrı dal/PR olarak hazırlanıyor; panel/AI/konfigurasyon dosyaları değişmiyor.
 - Server Action kimliği ve tenant'ı mevcut web oturumundan yeniden okur; formdaki kullanıcı/tenant alanları kabul edilmez. Next.js Origin/Host CSRF koruması kullanılır.
+### Oturum kontrol noktası
+- Mobil giriş mevcut parola/deneme sınırını kullanır; erişim 15 dakika, yenileme 30 gün. Veritabanında hash ve kısa süreli şifreli tekrar yanıtı vardır; açık yenileme jetonu saklanmaz.
+- Gerçek DB dört grup geçti: döndürme/kayıp yanıt; tüketilmiş jetonun farklı UUID ile tekrarı tüm cihazı kapatır; mevcut user_sessions web iptali hemen keser; üyelik kaldırma/cihaz iptali.
+- Android/iOS ağ katmanı yenilemeyi seri yapar, aynı istek UUID'sini ağdan önce güvenli depoya yazar, hesap değişiminde eski istek yeni hesaba erişemez. Yerel outbox korunur.
+- İsteğe bağlı biyometrik/cihaz kilidi ve arka plan gizlilik örtüsü eklendi. Fiziksel Face ID/parmak izi testi **doğrulanmadı**.
+- iOS ilk oturum CI derleme + 18 birim/1 UI başarılı; yeni oturum birim testleri sırada. Yerel web 92 paket/629 test başarılı.
+- night-2 ayrı test kopyası: güncel saha/oturum API'si production build ve gerçek HTTP saha 6 grup + outbox 4 grup + oturum 4 grup geçti. Hedef web dalları değişmedi.
+- Yerel native test yeniden çalıştırılırken önceki testin kullandığı operasyon sürümü nedeniyle 409 verdi; fixture her çalıştırmada yeniden oluşturulur. CI zaten izole fixture kullanıyor; test veya üretim davranışı gevşetilmedi.
+
+- Yeni iOS oturum birim testleri imzasız simülatörde Keychain yazamadı. CI simülatör uygulaması geçici ad-hoc imza ve yalnız test Keychain entitlement'ı ile kurulacak; Apple hesabı/production imzası gerekmez. Testler korunuyor, fiziksel cihaz güvenli depolama ayrıca doğrulanmalıdır.
