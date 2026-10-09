@@ -43,8 +43,9 @@ export const BASE_CAPS: Record<UserRole, Matrix> = {
     orders: VIEW, quotations: VIEW, customers: ['view', 'export'], crm: VIEW, installations: VIEW, service: VIEW,
     inventory: VIEW, purchasing: ['view', 'export'], finance: ALL, reports: ['view', 'export'], settings: VIEW, team: VIEW,
   },
-  worker: { production: ['view', 'edit'], installations: ['view', 'edit'], service: ['view', 'edit'] },
-  member: { orders: VIEW, customers: VIEW },
+  // Rows are further limited by the existing checks (a worker sees only jobs assigned to them, as a technical view).
+  worker: { orders: VIEW, production: ['view', 'edit'], inventory: VIEW, installations: ['view', 'edit'], service: ['view', 'edit'] },
+  member: { orders: ['view', 'edit'], customers: VIEW },
 };
 /** Fields a base role never sees, whatever its role says. */
 export const BASE_HIDDEN: Record<UserRole, FieldGroup[]> = {

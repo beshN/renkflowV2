@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { resolveMemberAccess } from '@/lib/security/member-access.server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
 import { UserRole } from '@/lib/features/auth/permissions';
@@ -56,22 +57,14 @@ export async function requireWorkOrderActor(): Promise<WorkOrderActor> {
     throw new WorkOrderApiError('Unauthorized', 401);
   }
 
-  const membershipResult = await sql`
-    SELECT role
-    FROM tenant_members
-    WHERE tenant_id = ${session.user.tenantId}
-      AND user_id = ${session.user.id}
-    LIMIT 1
-  `;
-  const membershipRows = membershipResult as Array<{ role: UserRole }>;
-  const membership = membershipRows[0];
-  if (!membership) {
+  const access = await resolveMemberAccess(session.user.id, session.user.tenantId);
+  if (!access || access.deactivated) {
     throw new WorkOrderApiError('Unauthorized', 401);
   }
 
   return {
     userId: session.user.id,
     tenantId: session.user.tenantId,
-    role: membership.role,
+    role: access.base,
   };
 }

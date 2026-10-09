@@ -1,5 +1,5 @@
 import { isPrivateAccessAllowed } from '@/lib/features/auth/private-access';
-import { refreshSessionIdentity } from '@/lib/features/auth/session-identity';
+import { openSession, refreshSessionIdentity } from '@/lib/features/auth/session-identity';
 import type { NextAuthConfig } from 'next-auth';
 import { CredentialsSignin } from 'next-auth';
 import Google from 'next-auth/providers/google';
@@ -286,6 +286,9 @@ export const authConfig: NextAuthConfig = {
         token.logoUrl = user.logoUrl;
         token.tenantIndustry = user.tenantIndustry;
         token.templateKey = user.templateKey;
+        // Each sign-in is a session of its own (listed and closable on the sessions screen).
+        const sid = await openSession(String(user.id), user.tenantId as string | undefined);
+        if (sid) token.sid = sid;
       }
 
       return refreshSessionIdentity(token);

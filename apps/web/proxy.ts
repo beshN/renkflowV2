@@ -4,6 +4,7 @@ import { getToken } from 'next-auth/jwt';
 import { evaluateComingSoonRequest, isComingSoonMode, normalizePublicSiteMode } from '@/lib/launch/comingSoonGate';
 import { resolveAuthSecret } from '@/lib/shared/config/runtime-env';
 import { evaluateRouteAccess } from '@/lib/features/auth/route-access';
+import { accessDecision, logAccessDenied } from '@/lib/security/member-access.server';
 
 const AUTH_SECRET =
   resolveAuthSecret({
@@ -58,6 +59,39 @@ function isPublicPage(pathname: string): boolean {
 
 function isStaticAsset(pathname: string): boolean {
   return pathname.startsWith('/_next/') || /\.[a-zA-Z0-9]+$/.test(pathname);
+}
+
+/**
+ * The single access gate for signed-in requests: the member's role (preset or custom, read from the
+ * database) against the module and action the path needs; a deactivated member or a revoked session
+ * is turned away. Refusals are written to the audit trail. Null = carry on.
+ */
+async function accessGate(request: NextRequest, pathname: string, method: string, isSecureRequest: boolean) {
+  const token = await sessionToken(request);
+  if (!token?.tenantId || !(token.id || token.sub)) return null;
+  const userId = String(token.id || token.sub);
+  const tenantId = String(token.tenantId);
+  let decision;
+  try {
+    decision = await accessDecision(userId, tenantId, pathname, method, { sid: typeof token.sid === 'string' ? token.sid : null, iat: typeof token.iat === 'number' ? token.iat : null });
+  } catch (e) {
+    // The database being unreachable must not open a door: API calls fail closed, pages show their own error.
+    console.error('[proxy] access check failed', e instanceof Error ? e.message : e);
+    return pathname.startsWith('/api/') ? withProxySecurityHeaders(NextResponse.json({ error: 'Yetki doğrulanamadı; tekrar deneyin.' }, { status: 503 }), { isSecureRequest }) : null;
+  }
+  if (!decision) return null;
+  const api = pathname.startsWith('/api/');
+  if (decision.status === 401) {
+    return api
+      ? withProxySecurityHeaders(NextResponse.json({ error: 'Oturumunuz kapatıldı ya da hesabınız pasif. Yeniden giriş yapın.' }, { status: 401 }), { isSecureRequest })
+      : withProxySecurityHeaders(buildLoginRedirect(request), { isSecureRequest });
+  }
+  await logAccessDenied({ tenantId, userId, path: pathname, method, module: decision.need?.module ?? null, action: decision.need?.action ?? null, reason: decision.reason });
+  if (api || method !== 'GET') return withProxySecurityHeaders(NextResponse.json({ error: 'Bu işlem için yetkiniz yok.' }, { status: 403 }), { isSecureRequest });
+  const dashboardUrl = request.nextUrl.clone();
+  dashboardUrl.pathname = '/dashboard';
+  dashboardUrl.search = '';
+  return withProxySecurityHeaders(NextResponse.redirect(dashboardUrl, 302), { isSecureRequest });
 }
 
 async function sessionToken(request: NextRequest) {
@@ -199,6 +233,10 @@ export async function proxy(request: NextRequest) {
 
   if (pathname.startsWith('/api/')) {
     if(privateAccessEmail() && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/cron/') && !(await isAuthenticated(request))) return withProxySecurityHeaders(NextResponse.json({error:'Oturum açmanız gerekiyor.'},{status:401}),{isSecureRequest});
+    if (!pathname.startsWith('/api/auth/')) {
+      const refused = await accessGate(request, pathname, method, isSecureRequest);
+      if (refused) return refused;
+    }
     const response = withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
     if (pathname.startsWith('/api/v1/production/files/') || pathname === '/api/storage/content' || /^\/api\/orders\/documents\/[^/]+\/content$/.test(pathname)) response.headers.set('X-Frame-Options', 'SAMEORIGIN');
     return response;
@@ -223,6 +261,8 @@ export async function proxy(request: NextRequest) {
     dashboardUrl.search = '';
     return withProxySecurityHeaders(NextResponse.redirect(dashboardUrl, 302), { isSecureRequest });
   }
+  const refused = await accessGate(request, pathname, method, isSecureRequest);
+  if (refused) return refused;
 
   return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
 }

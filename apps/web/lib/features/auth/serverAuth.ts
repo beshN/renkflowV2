@@ -7,6 +7,7 @@
  * 3. Handle authorization errors
  */
 
+import { resolveMemberAccess } from '@/lib/security/member-access.server';
 import 'server-only';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
@@ -70,8 +71,9 @@ export async function getServerUserContext(): Promise<ServerUserContext> {
   if (!session.user.tenantId) {
     throw new AuthenticationError('Tenant bilgisi bulunamadı');
   }
-  const [membership] = await sql`SELECT role FROM tenant_members WHERE tenant_id=${session.user.tenantId} AND user_id=${session.user.id} LIMIT 1`;
-  if (!membership) throw new AuthenticationError('Firma üyeliğiniz artık aktif değil');
+  const access = await resolveMemberAccess(session.user.id, session.user.tenantId);
+  if (!access || access.deactivated) throw new AuthenticationError('Firma üyeliğiniz artık aktif değil');
+  const membership = { role: access.base };
 
   return {
     userId: session.user.id || '',
