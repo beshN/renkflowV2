@@ -5,7 +5,7 @@ import { orderService } from '@/lib/services/orderService.server';
 import { NewOrderFormData, Order, safeParseCurrency } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { cacheKeys, invalidateCache } from '@/lib/cache/enterprise';
-import { withServerActionTiming } from '@/lib/utils/metrics';
+import { redactedAction } from '@/lib/security/field-redaction.server';
 import { requireTenantContext } from '@/lib/auth/serverAuth';
 import {
   createOrderSchema,
@@ -140,7 +140,7 @@ function invalidateOrderCaches(tenantId: string, orderId?: string): void {
  * Get all orders for the current tenant
  */
 export async function getOrdersAction(): Promise<Order[]> {
-  return withServerActionTiming('orders.getOrdersAction', async () => {
+  return redactedAction('orders.getOrdersAction', async () => {
     try {
       const session = await validateSession();
       const orders = await orderService.getOrders(session.user.tenantId);
@@ -155,7 +155,7 @@ export async function getOrdersAction(): Promise<Order[]> {
  * Get a single order by ID
  */
 export async function getOrderByIdAction(id: string): Promise<Order | null> {
-  return withServerActionTiming('orders.getOrderByIdAction', async () => {
+  return redactedAction('orders.getOrderByIdAction', async () => {
     try {
       const session = await validateSession();
       const order = await orderService.getOrderById(session.user.tenantId, id);
@@ -171,7 +171,7 @@ export async function getOrderByIdAction(id: string): Promise<Order | null> {
  * Create a new order with files
  */
 export async function createOrderAction(formData: FormData): Promise<Order> {
-  return withServerActionTiming('orders.createOrderAction', async () => {
+  return redactedAction('orders.createOrderAction', async () => {
     try {
       const session = await validateSession('orders.create');
       const files = await getFilesFromFormData(formData, {tenantId:session.user.tenantId,userId:session.user.id});
@@ -222,7 +222,7 @@ export async function createOrderAction(formData: FormData): Promise<Order> {
  * Update an existing order
  */
 export async function updateOrderAction(id: string, updates: Partial<Order>): Promise<Order> {
-  return withServerActionTiming('orders.updateOrderAction', async () => {
+  return redactedAction('orders.updateOrderAction', async () => {
     try {
       const session = await validateSession('orders.edit');
       if (!id) {
@@ -266,7 +266,7 @@ export async function updateOrderAction(id: string, updates: Partial<Order>): Pr
  * Update order status
  */
 export async function updateOrderStatusAction(id: string, status: string, note?: string): Promise<Order> {
-  return withServerActionTiming('orders.updateOrderStatusAction', async () => {
+  return redactedAction('orders.updateOrderStatusAction', async () => {
     try {
       const session = await validateSession('orders.edit');
       if (!id) {
@@ -308,7 +308,7 @@ export async function updateOrderStatusAction(id: string, status: string, note?:
  * Delete an order
  */
 export async function deleteOrderAction(id: string): Promise<void> {
-  return withServerActionTiming('orders.deleteOrderAction', async () => {
+  return redactedAction('orders.deleteOrderAction', async () => {
     try {
       const session = await validateSession('orders.delete');
       if (!id) {
@@ -330,7 +330,7 @@ export async function deleteOrderAction(id: string): Promise<void> {
  * Upload documents for an order
  */
 export async function uploadOrderDocumentsAction(id: string, formData: FormData): Promise<void> {
-  return withServerActionTiming('orders.uploadOrderDocumentsAction', async () => {
+  return redactedAction('orders.uploadOrderDocumentsAction', async () => {
     try {
       const session = await validateSession('orders.edit');
       if (!id) {

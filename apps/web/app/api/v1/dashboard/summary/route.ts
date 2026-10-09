@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
 import { sql } from '@/lib/db';
 import { AuthenticationError, getServerUserContext } from '@/lib/features/auth/serverAuth';
 import { canonicalColor, colorKey } from '@/lib/features/colors/color-spec';
@@ -85,7 +85,7 @@ export async function GET() {
       paintQueue.set(key, entry);
     }
 
-    return NextResponse.json({
+    return redactedJson({
       summary: {
         orders: orders[0],
         production: production[0],
@@ -98,8 +98,8 @@ export async function GET() {
       },
     });
   } catch (error) {
-    if (error instanceof AuthenticationError) return NextResponse.json({ error: 'Oturum gerekli.' }, { status: 401 });
+    if (error instanceof AuthenticationError) return redactedJson({ error: 'Oturum gerekli.' }, { status: 401 });
     console.error('[Dashboard Summary]', error);
-    return NextResponse.json({ error: 'Özet yüklenemedi.' }, { status: 500 });
+    return redactedJson({ error: 'Özet yüklenemedi.' }, { status: 500 });
   }
 }

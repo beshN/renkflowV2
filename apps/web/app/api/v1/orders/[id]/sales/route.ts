@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { requireWorkOrderActor } from '@/lib/features/work-orders/security';
@@ -11,7 +12,7 @@ type Params = { params: Promise<{ id: string }> };
 /** The order's commercial depth: promise vs actual, lines with deliveries, payment plan, change requests. */
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
-    return NextResponse.json(await orderSales(await requireWorkOrderActor(), (await params).id), { headers: NO_STORE });
+    return redactedJson(await orderSales(await requireWorkOrderActor(), (await params).id), { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'order-sales');
   }
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       : action === 'plan' ? await setPaymentPlan(actor, id, body)
       : action === 'change' ? await proposeChange(actor, id, body)
       : await decideChange(actor, id, z.string().uuid().parse(changeId), body);
-    return NextResponse.json(result, { headers: NO_STORE });
+    return redactedJson(result, { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'order-sales');
   }

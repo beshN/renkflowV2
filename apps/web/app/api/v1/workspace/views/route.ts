@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from "next/server";
 import { ZodError } from "zod";
 import {
   requireWorkOrderActor,
@@ -12,21 +13,21 @@ import {
 export const dynamic = "force-dynamic";
 function failure(e: unknown) {
   if (e instanceof WorkOrderApiError)
-    return NextResponse.json({ error: e.message }, { status: e.status });
+    return redactedJson({ error: e.message }, { status: e.status });
   if (e instanceof ZodError || e instanceof SyntaxError)
-    return NextResponse.json(
+    return redactedJson(
       { error: "Görünüm bilgileri geçersiz" },
       { status: 400 },
     );
   console.error("[workspace-views]", e instanceof Error ? e.message : "failed");
-  return NextResponse.json(
+  return redactedJson(
     { error: "Görünüm işlemi tamamlanamadı. Tekrar deneyin." },
     { status: 500 },
   );
 }
 export async function GET() {
   try {
-    return NextResponse.json(
+    return redactedJson(
       { data: await listSavedViews(await requireWorkOrderActor()) },
       { headers: { "Cache-Control": "private, no-store" } },
     );
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
     const body = await req.text();
     if (Buffer.byteLength(body) > 16000)
       throw new WorkOrderApiError("İstek çok büyük", 413);
-    return NextResponse.json({
+    return redactedJson({
       data: await savedViewCommand(
         await requireWorkOrderActor(),
         JSON.parse(body),

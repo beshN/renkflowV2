@@ -1,3 +1,4 @@
+import { redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { hasPermission, type UserRole } from '@/lib/auth/permissions';
@@ -14,18 +15,18 @@ const QuerySchema = z.object({
 export async function GET(request: NextRequest) {
   const session = await auth();
   if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return redactedJson({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const tenantId = (session.user as any).tenantId as string | undefined;
   const role = ((session.user as any).role as UserRole | undefined) ?? 'member';
 
   if (!tenantId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return redactedJson({ error: 'Unauthorized' }, { status: 401 });
   }
 
   if (!hasPermission(role, 'orders.qr.manage')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return redactedJson({ error: 'Forbidden' }, { status: 403 });
   }
 
   const parsed = QuerySchema.safeParse({
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
   });
 
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid token' }, { status: 400 });
+    return redactedJson({ error: 'Invalid token' }, { status: 400 });
   }
 
   const token = parsed.data.token;
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
 
   const rows = tokenCheck as Array<{ id: string }>;
   if (rows.length === 0) {
-    return NextResponse.json({ error: 'Token not found' }, { status: 404 });
+    return redactedJson({ error: 'Token not found' }, { status: 404 });
   }
 
   const baseUrl = (

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
 import { requireWorkOrderActor, WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { stockThresholdWarnings } from '@/lib/features/inventory/thresholds';
 
@@ -8,10 +8,10 @@ const headers = { 'Cache-Control': 'private, no-store' };
 /** Items under their minimum stock, with what is ordered and whether a draft order can be suggested. */
 export async function GET() {
   try {
-    return NextResponse.json(await stockThresholdWarnings(await requireWorkOrderActor()), { headers });
+    return redactedJson(await stockThresholdWarnings(await requireWorkOrderActor()), { headers });
   } catch (e) {
-    if (e instanceof WorkOrderApiError) return NextResponse.json({ error: e.message }, { status: e.status, headers });
+    if (e instanceof WorkOrderApiError) return redactedJson({ error: e.message }, { status: e.status, headers });
     console.error('[stock thresholds]', e instanceof Error ? e.message : 'failed');
-    return NextResponse.json({ error: 'Stok eşikleri alınamadı.' }, { status: 500, headers });
+    return redactedJson({ error: 'Stok eşikleri alınamadı.' }, { status: 500, headers });
   }
 }

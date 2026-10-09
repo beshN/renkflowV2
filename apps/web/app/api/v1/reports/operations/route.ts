@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
 import { sql } from '@/lib/db';
 import { requireWorkOrderActor,WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { requireProcurementRead } from '@/lib/features/manufacturing/purchasing.service';
@@ -12,6 +12,6 @@ export async function GET(){
    sql`SELECT COUNT(*)AS count,COALESCE(SUM(affected_qty),0)AS affected_qty,COALESCE(SUM(profile_scrap_kg),0)AS profile_scrap_kg FROM production_rework WHERE tenant_id=${t}`,
    sql`SELECT COUNT(*)FILTER(WHERE status NOT IN('done','cancelled'))AS wip,COUNT(*)FILTER(WHERE status='done')AS done,COALESCE(SUM(produced_qty),0)AS produced FROM work_orders WHERE tenant_id=${t} AND recipe_id IS NOT NULL`,
   ]);
-  return NextResponse.json({data:{centers,losses:losses[0],rework:rework[0],jobs:jobs[0]}},{headers:{'Cache-Control':'no-store'}});
- }catch(e){return NextResponse.json({error:e instanceof WorkOrderApiError?e.message:'Üretim raporu alınamadı'},{status:e instanceof WorkOrderApiError?e.status:503});}
+  return redactedJson({data:{centers,losses:losses[0],rework:rework[0],jobs:jobs[0]}},{headers:{'Cache-Control':'no-store'}});
+ }catch(e){return redactedJson({error:e instanceof WorkOrderApiError?e.message:'Üretim raporu alınamadı'},{status:e instanceof WorkOrderApiError?e.status:503});}
 }

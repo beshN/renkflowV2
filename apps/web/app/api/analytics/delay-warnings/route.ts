@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from 'next/server';
 import { apiContextWithPermission } from '@/lib/features/auth/api-access';
 import { listDelayWarnings } from '@/lib/features/orders/delay-warning';
 
@@ -14,9 +15,9 @@ export async function GET(request: NextRequest) {
       : 30;
 
     const data = await listDelayWarnings(context.tenantId, limit);
-    return NextResponse.json({ success: true, data });
+    return redactedJson({ success: true, data });
   } catch (error) {
     console.error('Delay warning analytics error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return redactedJson({ error: 'Internal server error' }, { status: 500 });
   }
 }

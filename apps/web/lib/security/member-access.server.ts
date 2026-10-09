@@ -123,3 +123,13 @@ export async function accessDecision(userId: string, tenantId: string, path: str
   if (can(access, need.module, need.action)) return null;
   return { status: 403 as const, reason: 'role', need };
 }
+
+/**
+ * Field groups to strip from this member's responses: only for a job preset or custom role (the
+ * base role's own preset keeps today's DTOs, e.g. the worker's technical view). Cached like the gate.
+ */
+export async function narrowedHiddenFields(userId: string, tenantId: string): Promise<FieldGroup[]> {
+  const access = await resolveMemberAccess(userId, tenantId, { cached: true });
+  if (!access || access.roleKey === DEFAULT_PRESET[access.base]) return [];
+  return access.hidden;
+}

@@ -156,6 +156,27 @@ export function routeRequirement(path: string, method: string): { module: Module
   return { module, action: 'edit' };
 }
 
+/** Module of an existing permission string's first part (orders.view → orders). */
+const PERMISSION_MODULES: Record<string, Module> = {
+  orders: 'orders', kanban: 'orders', customers: 'customers', inventory: 'inventory', finance: 'finance',
+  analytics: 'reports', reports: 'reports', settings: 'settings', team: 'team',
+};
+const PERMISSION_ACTIONS: Record<string, Action> = {
+  view: 'view', create: 'create', edit: 'edit', update: 'edit', manage: 'edit', upload: 'edit', status: 'edit', note: 'edit',
+  photo: 'edit', execute: 'edit', delete: 'delete', export: 'export', approve: 'approve',
+};
+
+/**
+ * The matrix cell an existing permission check stands for, so server actions and API helpers that
+ * check a permission also honour a narrowing role. Null for a permission outside the matrix.
+ */
+export function permissionRequirement(permission: string): { module: Module; action: Action } | null {
+  const parts = permission.split('.');
+  const module = PERMISSION_MODULES[parts[0]];
+  const action = PERMISSION_ACTIONS[parts[parts.length - 1]];
+  return module && action ? { module, action } : null;
+}
+
 // Field hiding ------------------------------------------------------------------------------------
 
 /** Keys that carry each kind of field in the app's DTOs (camelCase and snake_case). */

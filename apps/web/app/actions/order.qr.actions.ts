@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { sql } from '@/lib/db';
 import { uploadFile, generateFilePath } from '@/lib/storage';
-import { withServerActionTiming } from '@/lib/utils/metrics';
+import { redactedAction } from '@/lib/security/field-redaction.server';
 import {
   getServerUserContext,
   requirePermission,
@@ -158,7 +158,7 @@ export async function createOrderQrToken(input: {
   allowedActions: OrderQrActionKey[];
   expiresAt?: string;
 }): Promise<OrderQrTokenDTO> {
-  return withServerActionTiming('order.qr.createOrderQrToken', async () => {
+  return redactedAction('order.qr.createOrderQrToken', async () => {
     const context = await getServerUserContext();
     requirePermission(context, 'orders.qr.manage');
 
@@ -238,7 +238,7 @@ export async function createOrderQrToken(input: {
 }
 
 export async function listOrderQrTokens(orderId: string): Promise<OrderQrTokenDTO[]> {
-  return withServerActionTiming('order.qr.listOrderQrTokens', async () => {
+  return redactedAction('order.qr.listOrderQrTokens', async () => {
     const context = await getServerUserContext();
     requirePermission(context, 'orders.qr.manage');
     const validatedOrderId = OrderIdSchema.parse(orderId);
@@ -267,7 +267,7 @@ export async function listOrderQrTokens(orderId: string): Promise<OrderQrTokenDT
 }
 
 export async function deactivateOrderQrToken(tokenId: string): Promise<{ success: true }> {
-  return withServerActionTiming('order.qr.deactivateOrderQrToken', async () => {
+  return redactedAction('order.qr.deactivateOrderQrToken', async () => {
     const context = await getServerUserContext();
     requirePermission(context, 'orders.qr.manage');
     const validatedTokenId = OrderQrTokenIdSchema.parse(tokenId);
@@ -302,7 +302,7 @@ export async function deactivateOrderQrToken(tokenId: string): Promise<{ success
 }
 
 export async function resolveOrderQrToken(token: string): Promise<ResolvedOrderQrToken> {
-  return withServerActionTiming('order.qr.resolveOrderQrToken', async () => {
+  return redactedAction('order.qr.resolveOrderQrToken', async () => {
     const context = await getServerUserContext();
 
     const qrToken = token.trim();
@@ -458,7 +458,7 @@ export async function executeOrderQrAction(input: {
   order: ResolvedOrderQrToken['order'];
   message: string;
 }> {
-  return withServerActionTiming('order.qr.executeOrderQrAction', async () => {
+  return redactedAction('order.qr.executeOrderQrAction', async () => {
     const context = await getServerUserContext();
     const validated = ExecuteOrderQrActionSchema.parse(input);
 

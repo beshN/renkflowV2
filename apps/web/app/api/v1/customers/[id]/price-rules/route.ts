@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { requireWorkOrderActor, WorkOrderApiError } from '@/lib/features/work-orders/security';
@@ -15,7 +16,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     const actor = await requireWorkOrderActor();
     if (!READERS.includes(actor.role)) throw new WorkOrderApiError('Müşteri fiyat listesini görme yetkiniz yok', 403);
     const id = z.string().uuid().parse((await params).id);
-    return NextResponse.json({ available: await salesAvailable(), rules: await customerPriceRules(actor.tenantId, id) }, { headers: NO_STORE });
+    return redactedJson({ available: await salesAvailable(), rules: await customerPriceRules(actor.tenantId, id) }, { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'price-rules');
   }
@@ -25,7 +26,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   try {
     requireSameOriginJson(req, 2_000);
     const id = z.string().uuid().parse((await params).id);
-    return NextResponse.json({ available: true, rules: await savePriceRule(await requireWorkOrderActor(), id, await req.json()) }, { headers: NO_STORE });
+    return redactedJson({ available: true, rules: await savePriceRule(await requireWorkOrderActor(), id, await req.json()) }, { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'price-rules');
   }
@@ -36,7 +37,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     requireSameOriginJson(req, 1_000);
     const id = z.string().uuid().parse((await params).id);
     const rule = z.string().uuid().parse(req.nextUrl.searchParams.get('rule'));
-    return NextResponse.json({ available: true, rules: await deletePriceRule(await requireWorkOrderActor(), id, rule) }, { headers: NO_STORE });
+    return redactedJson({ available: true, rules: await deletePriceRule(await requireWorkOrderActor(), id, rule) }, { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'price-rules');
   }

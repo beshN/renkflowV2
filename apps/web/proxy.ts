@@ -4,7 +4,8 @@ import { getToken } from 'next-auth/jwt';
 import { evaluateComingSoonRequest, isComingSoonMode, normalizePublicSiteMode } from '@/lib/launch/comingSoonGate';
 import { resolveAuthSecret } from '@/lib/shared/config/runtime-env';
 import { evaluateRouteAccess } from '@/lib/features/auth/route-access';
-import { accessDecision, logAccessDenied } from '@/lib/security/member-access.server';
+import { accessDecision, logAccessDenied, narrowedHiddenFields } from '@/lib/security/member-access.server';
+import { HIDDEN_FIELDS_HEADER } from '@/lib/security/field-header';
 
 const AUTH_SECRET =
   resolveAuthSecret({
@@ -92,6 +93,21 @@ async function accessGate(request: NextRequest, pathname: string, method: string
   dashboardUrl.pathname = '/dashboard';
   dashboardUrl.search = '';
   return withProxySecurityHeaders(NextResponse.redirect(dashboardUrl, 302), { isSecureRequest });
+}
+
+/**
+ * Passes the field groups a narrowed role may not see to the route as a request header. Any value
+ * the client sent is dropped first, so the header can only ever come from here.
+ */
+async function forwardHiddenFields(request: NextRequest) {
+  const forwarded = new Headers(request.headers);
+  forwarded.delete(HIDDEN_FIELDS_HEADER);
+  const token = await sessionToken(request);
+  if (token?.tenantId && (token.id || token.sub)) {
+    const hidden = await narrowedHiddenFields(String(token.id || token.sub), String(token.tenantId));
+    if (hidden.length) forwarded.set(HIDDEN_FIELDS_HEADER, hidden.join(','));
+  }
+  return NextResponse.next({ request: { headers: forwarded } });
 }
 
 async function sessionToken(request: NextRequest) {
@@ -233,11 +249,19 @@ export async function proxy(request: NextRequest) {
 
   if (pathname.startsWith('/api/')) {
     if(privateAccessEmail() && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/cron/') && !(await isAuthenticated(request))) return withProxySecurityHeaders(NextResponse.json({error:'Oturum açmanız gerekiyor.'},{status:401}),{isSecureRequest});
+    let next = NextResponse.next();
     if (!pathname.startsWith('/api/auth/')) {
       const refused = await accessGate(request, pathname, method, isSecureRequest);
       if (refused) return refused;
+      try {
+        next = await forwardHiddenFields(request);
+      } catch (e) {
+        // Without knowing which fields to hide, nothing is served.
+        console.error('[proxy] field access failed', e instanceof Error ? e.message : e);
+        return withProxySecurityHeaders(NextResponse.json({ error: 'Yetki doğrulanamadı; tekrar deneyin.' }, { status: 503 }), { isSecureRequest });
+      }
     }
-    const response = withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
+    const response = withProxySecurityHeaders(next, { isSecureRequest });
     if (pathname.startsWith('/api/v1/production/files/') || pathname === '/api/storage/content' || /^\/api\/orders\/documents\/[^/]+\/content$/.test(pathname)) response.headers.set('X-Frame-Options', 'SAMEORIGIN');
     return response;
   }
@@ -264,7 +288,15 @@ export async function proxy(request: NextRequest) {
   const refused = await accessGate(request, pathname, method, isSecureRequest);
   if (refused) return refused;
 
-  return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
+  // Server-rendered pages read the same hidden-field header as the API routes.
+  let next: NextResponse;
+  try {
+    next = await forwardHiddenFields(request);
+  } catch (e) {
+    console.error('[proxy] field access failed', e instanceof Error ? e.message : e);
+    return withProxySecurityHeaders(buildLoginRedirect(request), { isSecureRequest });
+  }
+  return withProxySecurityHeaders(next, { isSecureRequest });
 }
 
 export const config = {

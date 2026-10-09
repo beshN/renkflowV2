@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { redactedJson } from '@/lib/security/field-access.server';
 import { requireWorkOrderActor, WorkOrderApiError } from "@/lib/features/work-orders/security";
 import { cutPlanSheet } from "@/lib/features/manufacturing/platform.service";
 export const dynamic = "force-dynamic";
@@ -7,10 +7,10 @@ export const dynamic = "force-dynamic";
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    return NextResponse.json({ data: await cutPlanSheet(await requireWorkOrderActor(), id) }, { headers: { "Cache-Control": "private, no-store" } });
+    return redactedJson({ data: await cutPlanSheet(await requireWorkOrderActor(), id) }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (e) {
-    if (e instanceof WorkOrderApiError) return NextResponse.json({ error: e.message }, { status: e.status });
+    if (e instanceof WorkOrderApiError) return redactedJson({ error: e.message }, { status: e.status });
     console.error("[cut-plan sheet]", e instanceof Error ? e.message : "request failed");
-    return NextResponse.json({ error: "Kesim planı alınamadı." }, { status: 500 });
+    return redactedJson({ error: "Kesim planı alınamadı." }, { status: 500 });
   }
 }

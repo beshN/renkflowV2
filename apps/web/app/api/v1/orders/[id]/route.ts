@@ -1,8 +1,9 @@
+import { redactedSuccess } from '@/lib/security/field-access.server';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { requireSameOrigin } from '@/lib/features/manufacturing/http-security';
 import { visibleOrdersForActor } from '@/lib/features/orders/access';
 import { NextRequest } from 'next/server';
-import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
+import { getAPIUser, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
 import { orderService } from '@/lib/services/orderService.server';
 import { hasPermission, UserRole, AuthorizationError } from '@/lib/auth/rbac';
 import { TenantMismatchError } from '@/lib/services/types';
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const visible = await visibleOrdersForActor([order], { tenantId: user.tenantId, userId: user.id, role: userRole });
     if (!visible.length) return errorResponse('Sipariş bulunamadı', 404);
-    return successResponse(visible[0], 'Sipariş başarıyla getirildi');
+    return redactedSuccess(visible[0], 'Sipariş başarıyla getirildi');
   } catch (error: unknown) {
     console.error('Get order error:', error);
     if (error instanceof TenantMismatchError) {
@@ -117,7 +118,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const changes = changedFields(existingOrder as unknown as Record<string, unknown>, validationResult.data as Record<string, unknown>);
     if (Object.keys(changes).length) await recordAuditAfterCommit({ tenantId: user.tenantId, actorId: user.id, entityType: 'order', entityId: id, action: 'updated', changes });
     
-    return successResponse(order, 'Sipariş başarıyla güncellendi');
+    return redactedSuccess(order, 'Sipariş başarıyla güncellendi');
   } catch (error: unknown) {
     console.error('Update order error:', error);
     
@@ -175,7 +176,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     await orderService.deleteOrder(user.tenantId, id, user.id);
     
-    return successResponse({ id }, 'Sipariş başarıyla silindi');
+    return redactedSuccess({ id }, 'Sipariş başarıyla silindi');
   } catch (error: unknown) {
     if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);
     console.error('Delete order error:', error);

@@ -1,3 +1,4 @@
+import { redactedSuccess } from '@/lib/security/field-access.server';
 import { visibleOrdersForActor } from '@/lib/features/orders/access';
 /**
  * Global Search API
@@ -5,7 +6,7 @@ import { visibleOrdersForActor } from '@/lib/features/orders/access';
  */
 
 import { NextRequest } from 'next/server';
-import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
+import { getAPIUser, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
 import { hasPermission, UserRole } from '@/lib/auth/rbac';
 import { 
   searchOrders, 
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
     if (suggestionsOnly) {
       if (userRole !== 'worker' && isElasticsearchConfigured()) {
         const suggestions = await getSearchSuggestions(query, user.tenantId, 10);
-        return successResponse({ suggestions }, 'Öneriler getirildi');
+        return redactedSuccess({ suggestions }, 'Öneriler getirildi');
       } else {
         // Fallback: simple prefix matching
         const orders = await visibleOrdersForActor(await orderService.getOrders(user.tenantId), { tenantId:user.tenantId,userId:user.id,role:userRole });
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
         }));
         const engine = new SearchEngine<SearchOrderDocument>(normalizedOrders);
         const suggestions = engine.getSuggestions(query, 10);
-        return successResponse({ suggestions }, 'Öneriler getirildi');
+        return redactedSuccess({ suggestions }, 'Öneriler getirildi');
       }
     }
 
@@ -92,7 +93,7 @@ export async function GET(request: NextRequest) {
 
       const result = await searchOrders(searchOptions);
 
-      return successResponse({
+      return redactedSuccess({
         items: result.items,
         total: result.total,
         page: result.page,
@@ -132,7 +133,7 @@ export async function GET(request: NextRequest) {
         sortOrder,
       });
 
-      return successResponse({
+      return redactedSuccess({
         items: searchResult.items,
         total: searchResult.total,
         page: searchResult.page,

@@ -36,6 +36,13 @@ const PUBLIC: Record<string, { why: string; keeps: RegExp | null }> = {
   'notifications/vapid-key': { why: 'açık anahtar', keeps: null },
 };
 
+/** API areas whose answers may hold price, cost, profit or customer contact fields. */
+const PRICE_BEARING = [
+  'orders', 'v1/orders', 'v1/quotations', 'v1/customers', 'v1/sales', 'v1/procurement', 'v1/purchases', 'v1/purchase-orders', 'v1/stock',
+  'v1/inventory', 'v1/warehouse', 'v1/finance', 'v1/reports', 'analytics', 'v1/dashboard', 'v1/products', 'v1/boms', 'v1/production',
+  'v1/suppliers', 'v1/goods-receipts', 'v1/shipments', 'v1/search', 'v1/records', 'v1/workspace', 'export', 'v1/ai', 'v1/settings', 'v1/activity-logs',
+];
+
 function routes(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const p = join(dir, name);
@@ -85,6 +92,14 @@ describe('API route guards', () => {
       return rule.keeps && !rule.keeps.test(f.source) ? [`${key}: ${rule.keeps}`] : [];
     });
     expect(missing).toEqual([]);
+  });
+
+  it('routes that carry prices, costs or customer contacts answer through the field filter', () => {
+    const bare = files
+      .filter((f) => PRICE_BEARING.some((d) => f.key === d || f.key.startsWith(d + '/')))
+      .filter((f) => /NextResponse\.json\(|[^d]successResponse\(/.test(f.source))
+      .map((f) => f.key);
+    expect(bare).toEqual([]);
   });
 
   it('the internal e-mail relay fails closed without its secret', () => {
