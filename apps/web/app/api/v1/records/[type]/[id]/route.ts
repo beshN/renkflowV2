@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from 'next/server';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { requireWorkOrderActor } from '@/lib/features/work-orders/security';
 import { getRecord, recordCommand } from '@/lib/features/records/service';
@@ -11,7 +12,7 @@ type Params = { params: Promise<{ type: string; id: string }> };
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
     const { type, id } = await params;
-    return NextResponse.json(await getRecord(await requireWorkOrderActor(), type, id), { headers: NO_STORE });
+    return redactedJson(await getRecord(await requireWorkOrderActor(), type, id), { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'get');
   }
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     // Attachments may come inline (local storage): up to 5 files of 10 MB in base64.
     requireSameOriginJson(req, 70_000_000);
     const { type, id } = await params;
-    return NextResponse.json(await recordCommand(await requireWorkOrderActor(), type, id, await req.json()), { headers: NO_STORE });
+    return redactedJson(await recordCommand(await requireWorkOrderActor(), type, id, await req.json()), { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'command');
   }

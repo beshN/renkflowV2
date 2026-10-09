@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { requireWorkOrderActor } from '@/lib/features/work-orders/security';
@@ -11,7 +12,7 @@ type Params = { params: Promise<{ id: string }> };
 /** Scrap and delays on a job with the firm's reasons (a worker sees only their own job; no prices). */
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
-    return NextResponse.json(await workOrderDepth(await requireWorkOrderActor(), (await params).id), { headers: NO_STORE });
+    return redactedJson(await workOrderDepth(await requireWorkOrderActor(), (await params).id), { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'job-depth');
   }
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     const { id } = await params;
     const { action, ...body } = Command.parse(await req.json());
     const result = action === 'scrap' ? await recordScrap(actor, id, body) : action === 'delay' ? await reportDelay(actor, id, body) : await resolveDelay(actor, id);
-    return NextResponse.json(result, { headers: NO_STORE });
+    return redactedJson(result, { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'job-depth');
   }

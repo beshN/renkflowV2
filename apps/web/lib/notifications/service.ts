@@ -82,7 +82,9 @@ export async function createNotification(
   message: string,
   data?: Record<string, unknown>,
   channels: NotificationChannel[] = ['in_app']
-): Promise<Notification> {
+): Promise<Notification | null> {
+  // Every in-app notice honours the person's preference for this kind (Ayarlar → Bildirimler).
+  if (await inAppTurnedOff(userId, type)) return null;
   const id = `ntf_${crypto.randomBytes(16).toString('hex')}`;
   const notificationResult = await sql`
     INSERT INTO notifications (
@@ -112,6 +114,16 @@ export async function createNotification(
     readAt: notification.read_at,
     createdAt: new Date(notification.created_at),
   };
+}
+
+/** Whether the person turned off in-app notices of this kind (a failed read never silences one). */
+async function inAppTurnedOff(userId: string, type: NotificationType) {
+  try {
+    const prefs = await getNotificationPreferences(userId);
+    return (prefs?.inApp as Record<string, unknown> | undefined)?.[type] === false;
+  } catch {
+    return false;
+  }
 }
 
 export async function getUserNotifications(

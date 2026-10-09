@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
 import { requireWorkOrderActor } from '@/lib/features/work-orders/security';
 import { dueActivities } from '@/lib/features/records/service';
 import { runRecordRules } from '@/lib/features/records/rules';
@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const actor = await requireWorkOrderActor();
     await runRecordRules(actor.tenantId).catch((e) => console.error('[records:rules]', e instanceof Error ? e.message : e));
-    return NextResponse.json(await dueActivities(actor), { headers: NO_STORE });
+    return redactedJson(await dueActivities(actor), { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'activities');
   }

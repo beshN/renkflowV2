@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
+import { PASSWORD_POLICY, passwordProblem } from '@/lib/security/access-matrix';
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -28,6 +29,11 @@ export default function SignupPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const problem = passwordProblem(password, email);
+    if (problem) {
+      setError(problem);
+      return;
+    }
     setLoading(true);
     setError('');
     setSuccess('');
@@ -142,7 +148,7 @@ export default function SignupPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={6}
+              minLength={PASSWORD_POLICY.minLength}
               leftIcon={<Lock size={18} />}
               variant="default"
           />

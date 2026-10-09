@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { requireWorkOrderActor, WorkOrderApiError } from '@/lib/features/work-orders/security';
@@ -17,10 +18,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
     const actor = await requireWorkOrderActor();
     if (!READERS.includes(actor.role)) throw new WorkOrderApiError('Teklif görme yetkiniz yok', 403);
     const id = z.string().uuid().parse((await params).id);
-    if (!(await salesAvailable())) return NextResponse.json({ available: false }, { headers: NO_STORE });
+    if (!(await salesAvailable())) return redactedJson({ available: false }, { headers: NO_STORE });
     await expireDueQuotes(actor.tenantId);
     const [history, discount, decision] = await Promise.all([quoteHistory(actor, id), discountState(actor.tenantId, id), decisionTrail(actor, id)]);
-    return NextResponse.json({ available: true, history, discount, decision }, { headers: NO_STORE });
+    return redactedJson({ available: true, history, discount, decision }, { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'quote-sales');
   }
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       : c.action === 'approve_discount' ? await approveDiscount(actor, id, c.expectedPercent)
       : c.action === 'approval_link' ? await createApprovalLink(actor, id)
       : await saveTemplateFromQuote(actor, id, c.name);
-    return NextResponse.json(result, { headers: NO_STORE });
+    return redactedJson(result, { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'quote-sales');
   }

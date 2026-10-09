@@ -1,6 +1,7 @@
+import { redactedSuccess } from '@/lib/security/field-access.server';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { NextRequest } from 'next/server';
-import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
+import { getAPIUser, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
 import { orderService } from '@/lib/services/orderService.server';
 import { hasPermission, UserRole, AuthorizationError } from '@/lib/auth/rbac';
 import { TenantMismatchError } from '@/lib/services/types';
@@ -62,7 +63,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const order = await orderService.updateOrderStatus(user.tenantId, id, status, { actorId: user.id, note });
     
-    return successResponse(order, `Sipariş durumu "${status}" olarak güncellendi`);
+    return redactedSuccess(order, `Sipariş durumu "${status}" olarak güncellendi`);
   } catch (error: unknown) {
     if (error instanceof WorkOrderApiError) return errorResponse(error.message,error.status);
     console.error('Update order status error:', error);

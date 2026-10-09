@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     const invites = includeExpired
       ? await sql`
-          SELECT id, email, role, token, created_at, expires_at
+          SELECT id, email, role, created_at, expires_at
           FROM invitations
           WHERE tenant_id = ${session.user.tenantId}
           ORDER BY created_at DESC
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
           OFFSET ${offset}
         `
       : await sql`
-          SELECT id, email, role, token, created_at, expires_at
+          SELECT id, email, role, created_at, expires_at
           FROM invitations
           WHERE tenant_id = ${session.user.tenantId}
             AND expires_at > NOW()
@@ -87,7 +87,6 @@ export async function GET(request: NextRequest) {
         id: row.id,
         email: row.email,
         role: row.role,
-        token: row.token,
         createdAt: row.created_at,
         expiresAt: row.expires_at,
       })),

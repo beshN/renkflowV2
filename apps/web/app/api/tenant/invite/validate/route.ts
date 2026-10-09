@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { sql } from '@/lib/db';
+import { consumeRateLimit, getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
+import { PASSWORD_POLICY } from '@/lib/security/access-matrix';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -9,12 +11,15 @@ export async function GET(request: NextRequest) {
   if (!token) {
     return NextResponse.json({ valid: false, error: 'Token gereklidir' });
   }
+  const limit = await consumeRateLimit('inviteToken', getClientIp(request.headers));
+  if (!limit.allowed) return rateLimitResponse(limit);
 
   try {
     // Check invitation validity
     const invitations = await sql`
       SELECT 
         i.id,
+        i.tenant_id,
         i.email,
         i.role,
         i.expires_at,
@@ -70,6 +75,7 @@ export async function GET(request: NextRequest) {
       tenantName: invitation.tenant_name,
       inviterName: invitation.inviter_name,
       existingUser: Boolean(existingUserId),
+      passwordPolicy: PASSWORD_POLICY,
     });
   } catch (error: unknown) {
     console.error('Invitation validation error:', error);

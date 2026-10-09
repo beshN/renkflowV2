@@ -1,7 +1,8 @@
+import { redactedSuccess } from '@/lib/security/field-access.server';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { visibleOrdersForActor } from '@/lib/features/orders/access';
 import { NextRequest } from 'next/server';
-import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
+import { getAPIUser, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
 import { orderService } from '@/lib/services/orderService.server';
 import { NewOrderFormData } from '@/lib/types';
 import { hasPermission, UserRole, AuthorizationError } from '@/lib/auth/rbac';
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     const orders = await orderService.getOrders(user.tenantId);
     
-    return successResponse(await visibleOrdersForActor(orders, { tenantId: user.tenantId, userId: user.id, role: userRole }), 'Siparişler başarıyla getirildi');
+    return redactedSuccess(await visibleOrdersForActor(orders, { tenantId: user.tenantId, userId: user.id, role: userRole }), 'Siparişler başarıyla getirildi');
   } catch (error: unknown) {
     console.error('Get orders error:', error);
     if (error instanceof AuthorizationError) {
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest) {
 
     const order = await orderService.createOrder(user.tenantId, orderData, files, user.id);
     
-    return successResponse(order, 'Sipariş başarıyla oluşturuldu');
+    return redactedSuccess(order, 'Sipariş başarıyla oluşturuldu');
   } catch (error: unknown) {
     console.error('Create order error:', error);
     

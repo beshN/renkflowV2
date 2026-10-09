@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { requireWorkOrderActor } from '@/lib/features/work-orders/security';
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    return NextResponse.json(await listRules(await requireWorkOrderActor()), { headers: NO_STORE });
+    return redactedJson(await listRules(await requireWorkOrderActor()), { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'rules');
   }
@@ -19,7 +20,7 @@ export async function PUT(req: NextRequest) {
   try {
     requireSameOriginJson(req, 2_000);
     const body = z.object({ key: z.string().max(60), enabled: z.boolean() }).parse(await req.json());
-    return NextResponse.json(await setRule(await requireWorkOrderActor(), body.key, body.enabled), { headers: NO_STORE });
+    return redactedJson(await setRule(await requireWorkOrderActor(), body.key, body.enabled), { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'rules');
   }

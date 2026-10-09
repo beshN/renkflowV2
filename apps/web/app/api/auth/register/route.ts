@@ -1,5 +1,6 @@
 import { privateAccessEmail } from '@/lib/features/auth/private-access';
 import { NextRequest, NextResponse } from 'next/server';
+import { passwordProblem } from '@/lib/security/access-matrix';
 import bcrypt from 'bcryptjs';
 import { sendVerificationEmail } from '@/lib/email';
 import { consumeRateLimit, getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
@@ -23,24 +24,16 @@ function generateSecureToken(): string {
 }
 
 // Validate password strength
-function validatePassword(password: string): { valid: boolean; error?: string } {
+function validatePassword(password: unknown, email?: string | null): { valid: boolean; error?: string } {
   if (!password || typeof password !== 'string') {
     return { valid: false, error: 'Şifre gereklidir' };
   }
-  
-  if (password.length < 6) {
-    return { valid: false, error: 'Şifre en az 6 karakter olmalıdır' };
-  }
-  
-  if (password.length > 128) {
-    return { valid: false, error: 'Şifre çok uzun' };
-  }
-  
-  const weakPasswords = ['123456', 'password', '123456789', 'qwerty', 'abc123', '111111'];
+  const problem = passwordProblem(password, email);
+  if (problem) return { valid: false, error: problem };
+  const weakPasswords = ['password123', 'qwerty12345', '1234567890a', 'abc1234567'];
   if (weakPasswords.includes(password.toLowerCase())) {
     return { valid: false, error: 'Bu şifre çok zayıf' };
   }
-  
   return { valid: true };
 }
 
@@ -142,7 +135,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate password
-    const passwordValidation = validatePassword(password);
+    const passwordValidation = validatePassword(password, email);
     if (!passwordValidation.valid) {
       return NextResponse.json(
         { error: passwordValidation.error, field: 'password' },

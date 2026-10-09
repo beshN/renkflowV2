@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from "next/server";
 import { ZodError } from "zod";
 import {
   requireWorkOrderActor,
@@ -21,12 +22,12 @@ export async function POST(
     await runRecordRules(actor.tenantId, { force: true }).catch((e) => console.error("[records:rules]", e instanceof Error ? e.message : e));
     // An approved order is checked for missing material at once (best effort, never undoes the approval).
     if ((result as any)?.newStatus === "approved" && !(result as any)?.replayed) await notifyShortageOnApproval(actor.tenantId, id, actor.userId);
-    return NextResponse.json({ success: true, ...result });
+    return redactedJson({ success: true, ...result });
   } catch (e) {
     if (e instanceof WorkOrderApiError)
-      return NextResponse.json({ error: e.message }, { status: e.status });
+      return redactedJson({ error: e.message }, { status: e.status });
     if (e instanceof ZodError || e instanceof SyntaxError)
-      return NextResponse.json(
+      return redactedJson(
         { error: "Sipariş, sürüm veya durum bilgisi geçersiz" },
         { status: 400 },
       );
@@ -34,7 +35,7 @@ export async function POST(
       "[OrderTransition]",
       e instanceof Error ? e.message : "failed",
     );
-    return NextResponse.json(
+    return redactedJson(
       { error: "Durum güncellenemedi. Yeniden deneyin." },
       { status: 500 },
     );

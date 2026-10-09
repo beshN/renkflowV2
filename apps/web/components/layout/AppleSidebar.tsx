@@ -9,6 +9,7 @@ import { Home, Receipt, PlusCircle, ClipboardList, KanbanSquare, Search, Bell, W
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/context/AuthContext';
+import { useMemberAccess } from '@/lib/hooks/useMemberAccess';
 import { getVisibleNavGroups } from '@/lib/core/dashboard-nav';
 import { BrandMark } from '@/components/brand/BrandMark';
 
@@ -29,10 +30,11 @@ interface AppleSidebarProps { collapsed: boolean; setCollapsed: (collapsed: bool
 export function AppleSidebar({ collapsed, setCollapsed, onExpandedChange }: AppleSidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
+  const memberAccess = useMemberAccess();
   const [hovered, setHovered] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expanded = !collapsed || hovered;
-  const navGroups = useMemo(() => getVisibleNavGroups(user?.role), [user?.role]);
+  const navGroups = useMemo(() => getVisibleNavGroups(user?.role, memberAccess), [user?.role, memberAccess]);
   useEffect(() => { onExpandedChange?.(!collapsed); }, [collapsed, onExpandedChange]);
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
   function openPreview() { if (closeTimer.current) clearTimeout(closeTimer.current); setHovered(true); }

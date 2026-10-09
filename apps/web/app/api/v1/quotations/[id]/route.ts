@@ -1,10 +1,10 @@
+import { redactedSuccess } from '@/lib/security/field-access.server';
 import { recordAuditAfterCommit } from "@/lib/audit/audit-log";
 import { WorkOrderApiError } from "@/lib/features/work-orders/security";
 import { requireSameOriginJson } from "@/lib/features/manufacturing/http-security";
 import { NextRequest } from "next/server";
 import {
   getAPIUser,
-  successResponse,
   errorResponse,
 } from "@/lib/api/auth-helpers";
 import { quotationService } from "@/lib/features/quotations/service";
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     );
     if (!quotation) return errorResponse("Teklif bulunamadı", 404);
 
-    return successResponse(quotation);
+    return redactedSuccess(quotation);
   } catch (error: any) {
     if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);
     return errorResponse("Teklif işlemi tamamlanamadı. Lütfen tekrar deneyin.", 500);
@@ -68,7 +68,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         expectedVersion,
         user.role,
       );
-      return successResponse(result, "Teklif siparişe dönüştürüldü");
+      return redactedSuccess(result, "Teklif siparişe dönüştürüldü");
     }
 
     if (body.status) {
@@ -83,7 +83,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         user.id,
         user.role,
       );
-      return successResponse(quotation, "Durum güncellendi");
+      return redactedSuccess(quotation, "Durum güncellendi");
     }
 
     // Only the fields sent are changed: schema defaults (TRY, 0 % discount) must not overwrite stored values.
@@ -96,7 +96,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       parsedData,
     );
     await recordAuditAfterCommit({ tenantId: user.tenantId, actorId: user.id, entityType: "quotation", entityId: id, action: "updated", metadata: { fields: Object.keys(body).filter((key) => key !== "expectedVersion") } });
-    return successResponse(quotation, "Teklif güncellendi");
+    return redactedSuccess(quotation, "Teklif güncellendi");
   } catch (error: any) {
     if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);
     if (error instanceof ZodError)
@@ -122,7 +122,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
     await quotationService.deleteQuotation(user.tenantId, id);
     await recordAuditAfterCommit({ tenantId: user.tenantId, actorId: user.id, entityType: "quotation", entityId: id, action: "deleted" });
-    return successResponse({ success: true }, "Teklif silindi");
+    return redactedSuccess({ success: true }, "Teklif silindi");
   } catch (error: any) {
     if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);
     return errorResponse("Teklif işlemi tamamlanamadı. Lütfen tekrar deneyin.", 500);

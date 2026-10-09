@@ -1,3 +1,4 @@
+import { hidesAny, redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest, NextResponse } from 'next/server';
 import { apiContextWithPermission } from '@/lib/features/auth/api-access';
 import { getExportDownload } from '@/lib/export/service';
@@ -22,6 +23,8 @@ export async function GET(
   try {
     const { context, denied } = await apiContextWithPermission('reports.view');
     if (denied) return denied;
+    // A full export carries prices and contacts; a role that hides any of them gets none.
+    if (await hidesAny(['price', 'cost', 'profit', 'customer_contact'])) return redactedJson({ error: 'Rolünüz bu dışa aktarımı içermez.' }, { status: 403 });
 
     const rateLimitResult = await consumeRateLimit('exportRead', context.userId);
     if (!rateLimitResult.allowed) {
@@ -31,7 +34,7 @@ export async function GET(
     const { id } = await params;
     const download = await getExportDownload(id, context.tenantId);
     if (!download) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return redactedJson({ error: 'Not found' }, { status: 404 });
     }
 
     const arrayBuffer = download.content.buffer.slice(
@@ -50,9 +53,9 @@ export async function GET(
     });
   } catch (error) {
     if (isMissingRelationError(error, ['export_jobs'])) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return redactedJson({ error: 'Not found' }, { status: 404 });
     }
     console.error('[api/export/[id]/download] Unexpected error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return redactedJson({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

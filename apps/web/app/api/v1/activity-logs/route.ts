@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from "next/server";
 import { z, ZodError } from "zod";
 import { sql, withTransaction } from "@/lib/db";
 import {
@@ -51,14 +52,14 @@ async function entityAccess(
 }
 function failure(e: unknown) {
   if (e instanceof WorkOrderApiError)
-    return NextResponse.json({ error: e.message }, { status: e.status });
+    return redactedJson({ error: e.message }, { status: e.status });
   if (e instanceof ZodError || e instanceof SyntaxError)
-    return NextResponse.json(
+    return redactedJson(
       { error: "Aktivite bilgileri geçersiz" },
       { status: 400 },
     );
   console.error("[ActivityLogs]", e instanceof Error ? e.message : "failed");
-  return NextResponse.json(
+  return redactedJson(
     { error: "Aktivite işlemi tamamlanamadı" },
     { status: 500 },
   );
@@ -87,7 +88,7 @@ export async function GET(req: NextRequest) {
         metadata: row.metadata,
         createdAt: row.created_at,
       }));
-    return NextResponse.json(
+    return redactedJson(
       { logs, total: logs.length },
       { headers: { "Cache-Control": "private, no-store" } },
     );
@@ -110,7 +111,7 @@ export async function POST(req: NextRequest) {
         await tx`INSERT INTO activity_logs(tenant_id,entity_type,entity_id,action,actor_id,actor_name,note)VALUES(${a.tenantId},${p.entityType},${p.entityId},'note_added',${a.userId},${user?.name || "Kullanıcı"},${p.note})RETURNING *`
       )[0];
     });
-    return NextResponse.json({ log }, { status: 201 });
+    return redactedJson({ log }, { status: 201 });
   } catch (e) {
     return failure(e);
   }

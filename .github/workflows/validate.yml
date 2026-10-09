@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - claude/trello-odoo
+      - claude/night-2
   push:
     branches:
       - codex/**

@@ -93,3 +93,25 @@ turA-drawer / turA-drawer-390 / turA-dashboard-activities / turA-settings · tur
    - Çubuk boyu seçenekleri (6000/6500/7000 vb.) ve neden kodları Ayarlar'dan girilmeli.
    - Blob depolama (ekler için) açılsın mı?
 4. **Sonraki tur önerisi:** Tur E (CRM/montaj/servis) — montaj ekibi takvimi ve servis kaydı sipariş/teslim verisine hazır bağlanabilir.
+
+---
+
+# Gece 2 (2026-10-09) — entegrasyon dalı `claude/night-2` (`claude/trello-odoo` main'e henüz birleşmedi; ondan açıldı)
+
+| Zaman (UTC) | Durum | Not |
+|---|---|---|
+| 2026-10-09 06:50 | başladı | Yetki altyapısı haritalandı. Açıklar: `internal/admin-notification` gizli anahtar yoksa açık; kullanıcı pasifleştirme / oturum iptali yok; davet listesi ham token döndürüyor; denetim izi ve bildirim tercihi ekranı yok |
+| 2026-10-09 (Tur 1) | sürüyor | Bitti: göç 044, matris motoru, proxy tek kapı + `access_denied` izi, oturum/pasif üye kontrolü, ekip/rol/davet/oturum API'leri, şifre politikası, admin-notification kapatıldı, 75 rotada alan süzgeci + server action'lar, rota taraması ve rol başına sızıntı testleri. Ekranlar (/team, /account, /audit), menü süzme, `test:access` da bitti. |
+| 2026-10-09 (Tur 1) | inceleme | /code-review 10 bulgu, hepsi gerçek ve düzeltildi (davet uçları kapı dışı, pasif üyelik girişte atlanır, yönetici oturum kapatması firma kapsamlı, yönetici temelli rolleri yalnız sahip yönetir, rol değişikliğinde yetki rolü korunur, satış ayarlarını okuma, genel anahtarlar, Salt okunur gerçekten salt okunur, sorgu yükü, alt koleksiyon POST'u). validate yeşil (651 test). PR açılıyor. |
+
+### Tur 1 planı (10 satır)
+1. Göç 044 (idempotent): `access_roles` (özel rol: temel rol + modül×eylem matrisi + gizli alanlar), `tenant_members.access_role/deactivated_at`, `users.sessions_valid_after`, `user_sessions`, davette `access_role`.
+2. Saf motor `lib/security/access-matrix.ts`: 9 hazır rol (Sahip, Yönetici, Ofis, Satış, Planlama, Muhasebe, Usta/Operatör, Depocu, Salt okunur), özel rol temel rolün yetkisini yalnız DARALTIR (mevcut korumalar zayıflamaz), rota → modül/eylem eşlemesi, alan gizleme sözlüğü, şifre politikası.
+3. Tek kapı: `proxy.ts` her oturumlu `/api` ve sayfa isteğinde üyenin erişimini veritabanından (30 sn önbellek) okur; yetkisizse 403 + `activity_logs`'a `access_denied`; pasif üye/iptal edilmiş oturum düşer.
+4. Alan gizleme: fiyat/maliyet/kâr/müşteri iletişimi; ana DTO'larda (sipariş, teklif, müşteri, satış panelleri, satın alma, stok) `redactFor` ile; her hazır rol için sızıntı testi.
+5. Rota taraması testi: her `route.ts` ya bir kapı kullanır ya da gerekçeli açık listededir; `admin-notification` kapalı-başarısız yapılır, davet listesinden ham token çıkar.
+6. Ekip: üyeler (rol, son görülme), rol değiştirme (son sahip korunur), pasifleştirme/geri alma (kayıtlar kalır), süreli davet (1–30 gün, rol seçimi), davet iptali, özel rol matrisi düzenleyici.
+7. Oturumlar: JWT'de `sid`; aktif oturum listesi, tek oturum ya da hepsini kapat (kendisi + yönetici başkası için); şifre sıfırlamada hepsi düşer.
+8. Şifre politikası (en az 10, harf+rakam, e-postayla aynı olamaz) davet kabul/sıfırlama/kayıtta; giriş denemesi sınırı mevcut.
+9. Denetim izi görüntüleyici `/audit`: kim/ne/ne zaman/kayıt, filtre, sayfalama, CSV (dışa aktarma yetkisi).
+10. Bildirim tercihleri (olay × kanal) kişi bazlı API + ekran. Testler: jest motor + `test:access` entegrasyon + sızıntı.

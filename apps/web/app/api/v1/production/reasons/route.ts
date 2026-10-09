@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from 'next/server';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { requireWorkOrderActor } from '@/lib/features/work-orders/security';
 import { NO_STORE, recordError } from '@/lib/features/records/http';
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic';
 /** The firm's scrap, rework and delay reasons. */
 export async function GET() {
   try {
-    return NextResponse.json({ available: await productionDepthAvailable(), reasons: await allReasonCodes(await requireWorkOrderActor()) }, { headers: NO_STORE });
+    return redactedJson({ available: await productionDepthAvailable(), reasons: await allReasonCodes(await requireWorkOrderActor()) }, { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'production-reasons');
   }
@@ -18,7 +19,7 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
   try {
     requireSameOriginJson(req, 2_000);
-    return NextResponse.json({ available: true, reasons: await saveReasonCode(await requireWorkOrderActor(), await req.json()) }, { headers: NO_STORE });
+    return redactedJson({ available: true, reasons: await saveReasonCode(await requireWorkOrderActor(), await req.json()) }, { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'production-reasons');
   }

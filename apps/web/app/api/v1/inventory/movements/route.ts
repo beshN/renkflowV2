@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireWorkOrderActor, requireWorkOrderPermission, WorkOrderApiError } from '@/lib/features/work-orders/security';
 
@@ -54,14 +55,14 @@ export async function GET(req: NextRequest) {
       LIMIT 100
     `;
 
-    return NextResponse.json({
+    return redactedJson({
       success: true,
       data: rows
     });
   } catch (error) {
     if (error instanceof WorkOrderApiError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return redactedJson({ error: error.message }, { status: error.status });
     }
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return redactedJson({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

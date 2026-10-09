@@ -6,20 +6,23 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'node:crypto';
 import { sendEmail } from '@/lib/email';
 
-// Only allow internal requests
-const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET;
+/** Constant-time check of the internal secret; without a configured secret nothing is accepted. */
+function internalAuthorized(header: string | null) {
+  const secret = process.env.INTERNAL_API_SECRET;
+  if (!secret || !header) return false;
+  const a = Buffer.from(header);
+  const b = Buffer.from(secret);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify internal request
-    const authHeader = request.headers.get('x-internal-secret');
-    if (INTERNAL_SECRET && authHeader !== INTERNAL_SECRET) {
-      // Allow requests from same origin in development
-      if (process.env.NODE_ENV === 'production') {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
+    // Fails closed: an unset secret used to leave this e-mail relay open.
+    if (!internalAuthorized(request.headers.get('x-internal-secret'))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();

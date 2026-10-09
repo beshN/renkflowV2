@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { CreateCustomerSchema, customerErrorResponse, requireCustomerActor } from '@/lib/features/customers/api';
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
 
     // Typeahead (new order form): names and contacts only, no revenue aggregation.
     if (searchParams.get('suggest') === '1') {
-      if (search.length < 2) return NextResponse.json({ customers: [] });
+      if (search.length < 2) return redactedJson({ customers: [] });
       const customers = await sql`
         SELECT id, full_name, company_name, email, phone
         FROM customers
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
         ORDER BY full_name ASC
         LIMIT 6
       `;
-      return NextResponse.json({ customers });
+      return redactedJson({ customers });
     }
 
     const [rows, countRows] = await Promise.all([
@@ -63,7 +64,7 @@ export async function GET(req: NextRequest) {
       `,
     ]);
 
-    return NextResponse.json({
+    return redactedJson({
       customers: rows,
       total: parseInt((countRows[0] as { total?: string })?.total || '0', 10),
       page,
@@ -105,7 +106,7 @@ export async function POST(req: NextRequest) {
       FROM users u WHERE u.id = ${actor.userId}
     `;
 
-    return NextResponse.json({ customer: rows[0] }, { status: 201 });
+    return redactedJson({ customer: rows[0] }, { status: 201 });
   } catch (error) {
     return customerErrorResponse(error, 'Müşteri oluşturulamadı.');
   }
