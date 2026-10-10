@@ -19,6 +19,7 @@ const SettingsInput = z.object({
   userDailyCalls: z.number().int().min(0).max(5000).optional(),
   detectors: z.record(z.string().max(60), DetectorPatch).optional(),
   features: z.record(z.string().max(60), z.boolean()).optional(),
+  profitFloorPercent: z.number().min(0).max(90).optional(),
 }).strict();
 
 /** Owner and admins change the assistant; every change is on the audit trail. */
@@ -38,15 +39,17 @@ export async function saveAiSettings(actor: { tenantId: string; userId: string; 
     userDailyCalls: d.userDailyCalls ?? before.userDailyCalls,
     detectors,
     features: { ...before.features, ...(d.features ?? {}) },
+    profitFloorPercent: d.profitFloorPercent ?? before.profitFloorPercent,
   };
   await withTransaction(async (tx: any) => {
     await tx`INSERT INTO ai_settings (tenant_id, mode, daily_budget_usd, user_daily_calls, detectors, features, updated_by, updated_at)
       VALUES (${actor.tenantId}, ${next.mode}, ${next.dailyBudgetUsd}, ${next.userDailyCalls}, ${JSON.stringify(next.detectors)}::text::jsonb, ${JSON.stringify(next.features)}::text::jsonb, ${actor.userId}, now())
       ON CONFLICT (tenant_id) DO UPDATE SET mode = EXCLUDED.mode, daily_budget_usd = EXCLUDED.daily_budget_usd, user_daily_calls = EXCLUDED.user_daily_calls,
         detectors = EXCLUDED.detectors, features = EXCLUDED.features, updated_by = EXCLUDED.updated_by, updated_at = now()`;
+    if (d.profitFloorPercent !== undefined) await tx`UPDATE ai_settings SET profit_floor_percent = ${next.profitFloorPercent} WHERE tenant_id = ${actor.tenantId}`;
     if (d.kvkkAck && d.mode === 'assist') await tx`UPDATE ai_settings SET kvkk_ack_by = ${actor.userId}, kvkk_ack_at = now() WHERE tenant_id = ${actor.tenantId}`;
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'tenant_settings', entityId: actor.tenantId, action: 'ai_settings_changed',
-      changes: Object.fromEntries((['mode', 'dailyBudgetUsd', 'userDailyCalls'] as const).filter((k) => before[k] !== next[k]).map((k) => [k, { from: before[k], to: next[k] }])),
+      changes: Object.fromEntries((['mode', 'dailyBudgetUsd', 'userDailyCalls', 'profitFloorPercent'] as const).filter((k) => before[k] !== next[k]).map((k) => [k, { from: before[k], to: next[k] }])),
       metadata: { detectors: Object.keys(d.detectors ?? {}), features: Object.keys(d.features ?? {}), kvkkAck: Boolean(d.kvkkAck) } });
   });
   forgetAiSettings(actor.tenantId);

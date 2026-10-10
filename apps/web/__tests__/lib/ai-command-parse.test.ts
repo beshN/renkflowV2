@@ -47,3 +47,15 @@ describe('command: weeks', () => {
     expect(parseCommand("ORD-31'i 1 hafta ertele").command).toEqual({ intent: 'what_if', scenario: 'delay', order: 'ORD-31', days: 7 });
   });
 });
+
+describe('measures without a unit', () => {
+  it('one unit for the pair, from the larger number', () => {
+    const { parseDims } = jest.requireActual('@/lib/ai/commands/parse');
+    expect(parseDims('3000x4000')).toEqual({ widthMm: 3000, projectionMm: 4000 });
+    expect(parseDims('2500x3000')).toEqual({ widthMm: 2500, projectionMm: 3000 });
+    expect(parseDims('1200x2500')).toEqual({ widthMm: 1200, projectionMm: 2500 });
+    expect(parseDims('450x350')).toEqual({ widthMm: 4500, projectionMm: 3500 });
+    expect(parseDims('3x4')).toEqual({ widthMm: 3000, projectionMm: 4000 });
+    expect(parseDims('2,5x2')).toEqual({ widthMm: 2500, projectionMm: 2000 });
+  });
+});

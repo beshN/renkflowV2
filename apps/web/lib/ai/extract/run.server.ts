@@ -19,6 +19,8 @@ const FAMILY_LABEL: Record<string, string> = { pergola: 'Pergola', awning: 'Tent
 async function need(actor: WorkOrderActor, module: 'quotations' | 'purchasing', action: 'create' | 'edit') {
   const access = await resolveMemberAccess(actor.userId, actor.tenantId);
   if (!access || access.deactivated || actor.role === 'worker' || !can(access, module, action)) throw new WorkOrderApiError('Bu işlem için yetkiniz yok', 403);
+  // A supplier's answer is prices: a role that hides prices or costs does not read it.
+  if (module === 'purchasing' && (access.hidden.includes('price') || access.hidden.includes('cost'))) throw new WorkOrderApiError('Bu işlem için yetkiniz yok', 403);
   return access;
 }
 
@@ -28,7 +30,9 @@ async function need(actor: WorkOrderActor, module: 'quotations' | 'purchasing', 
  * marked "model" with medium confidence and never overwrite a field the rules read.
  */
 async function withModel(actor: WorkOrderActor, text: string, r: QuoteRequest): Promise<{ request: QuoteRequest; used: boolean }> {
-  if (r.lines.length && r.lines.every((l) => l.family && l.color)) return { request: r, used: false };
+  // The model is asked only to find products the rules could not (its lines are not merged into the
+  // rules' lines), so a message the rules already read never leaves.
+  if (r.lines.length) return { request: r, used: false };
   const ai = await getAiSettings(actor.tenantId);
   if (ai.mode !== 'assist' || !ai.kvkkAckAt) return { request: r, used: false };
   try {
@@ -36,8 +40,9 @@ async function withModel(actor: WorkOrderActor, text: string, r: QuoteRequest): 
     if (!aiAvailable()) return { request: r, used: false };
     // Minimum data: the contact details the rules already read never leave (customer names in the
     // free text cannot be recognised reliably; the firm accepted that with the KVKK switch).
-    let minimal = text;
-    for (const v of [r.phone?.evidence, r.email?.value, r.address?.value]) if (v) minimal = minimal.split(v).join('[gizli]');
+    // Whole lines are removed, matched on the raw text (spacing as pasted).
+    const personal = [r.phone?.evidence, r.email?.value, r.address?.evidence, r.customer?.value].filter((v): v is string => Boolean(v));
+    const minimal = text.split('\n').map((line) => (personal.some((v) => line.toLocaleLowerCase('tr-TR').includes(v.toLocaleLowerCase('tr-TR'))) ? '[gizli]' : line)).join('\n');
     const out = await getAIService().analyzeText(minimal, [], { tenantId: actor.tenantId, userId: actor.userId, feature: 'extract.quote_request' });
     const m = (v: unknown): Field<any> | null => (v === null || v === undefined || v === '' ? null : { value: v, confidence: 'medium', source: 'model' });
     const lines = r.lines.length ? r.lines : (out.items ?? []).filter((i: any) => i.widthMm && (i.projectionMm || i.heightMm)).map((i: any) => ({
@@ -90,8 +95,10 @@ registerSuggestionKind({
 
 /** A supplier's offer (PDF text or pasted) → the answer to our price request, line by line with confidence. */
 export async function supplierOfferPreview(actor: WorkOrderActor, raw: unknown) {
-  const d = z.object({ rfqId: z.string().uuid(), supplierId: z.string().uuid(), text: z.string().trim().min(5).max(60_000) }).parse(raw);
+  const d0 = z.object({ rfqId: z.string().uuid(), supplierId: z.string().uuid(), text: z.string().max(60_000).optional(), pdfBase64: z.string().max(6_000_000).optional() }).parse(raw);
   await need(actor, 'purchasing', 'edit');
+  // The PDF is read only after the permission check.
+  const d = { ...d0, text: z.string().trim().min(5, 'Teklif metni boş').max(60_000, 'Teklif metni çok uzun').parse(d0.pdfBase64 ? await pdfText(d0.pdfBase64) : d0.text ?? '') };
   if (!(await tableExists('purchase_rfqs'))) throw new WorkOrderApiError('Teklif isteği için veritabanı güncellemesi (043) bekleniyor', 409);
   const [rfq] = await sql`SELECT id, rfq_number, status, supplier_ids, currency FROM purchase_rfqs WHERE tenant_id = ${actor.tenantId} AND id = ${d.rfqId}`;
   if (!rfq) throw new WorkOrderApiError('Teklif isteği bulunamadı', 404);
@@ -99,6 +106,8 @@ export async function supplierOfferPreview(actor: WorkOrderActor, raw: unknown) 
   if (!(rfq.supplier_ids as string[]).map(String).includes(d.supplierId)) throw new WorkOrderApiError('Bu tedarikçiden teklif istenmedi', 400);
   const lines = await sql`SELECT l.id, l.quantity, l.color, i.name, i.sku, i.profile_code FROM purchase_rfq_lines l JOIN inventory_items i ON i.id = l.item_id WHERE l.tenant_id = ${actor.tenantId} AND l.rfq_id = ${d.rfqId} ORDER BY l.position`;
   const offer = parseSupplierOffer(d.text, lines.map((l: Row) => ({ lineId: String(l.id), name: l.name, codes: [l.sku, l.profile_code].filter(Boolean), color: l.color, quantity: Number(l.quantity) })), istanbulToday());
+  if (offer.currency && offer.currency !== rfq.currency)
+    return { type: 'need' as const, message: `Teklif ${offer.currency}, isteğimiz ${rfq.currency}; fiyatlar çevrilmez. Tedarikçiden ${rfq.currency} teklif isteyin ya da cevabı elle girin.`, offer };
   const priced = offer.prices.filter((p) => p.unitPrice !== null);
   if (!priced.length) return { type: 'need' as const, message: 'Teklifte isteğimizdeki kalemlerden hiçbiri bulunamadı.', offer };
   const [s] = await sql`SELECT name FROM suppliers WHERE tenant_id = ${actor.tenantId} AND id = ${d.supplierId}`;

@@ -48,7 +48,8 @@ export function AssistantCommand() {
     setBusy(false);
   }, []);
 
-  useEffect(() => { const q = params.get('q'); if (q) void run(q); }, [params, run]);
+  // A link (Cmd+K, a shared URL) only fills the box: the person runs it, so no preview is filed by opening a page.
+  useEffect(() => { const q = params.get('q'); if (q) setText(q.slice(0, 500)); }, [params]);
 
   async function decide(card: Card, action: 'approve' | 'reject') {
     if (card.result?.type !== 'preview') return;

@@ -1,6 +1,8 @@
 import 'server-only';
 
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { providerConfig } from '@/lib/ai/providers';
 import { sql } from '@/lib/db';
 import { columnExists, tableExists } from '@/lib/db/schema-guard';
 import { recordAudit } from '@/lib/audit/audit-log';
@@ -69,15 +71,18 @@ export async function runCommand(actor: WorkOrderActor, raw: unknown): Promise<C
   if (actor.role === 'worker' && cmd.intent !== 'stock_query') return { type: 'denied', message: `Bu komut için yetkiniz yok (${need.what}).` };
   if (!access || access.deactivated || !can(access, need.module, need.action)) return { type: 'denied', message: `Bu komut için yetkiniz yok (${need.what}).` };
   const hidePrices = access.hidden.includes('price');
+  // Previews wait for approval; only the roles that may approve a command's kind get one.
+  const mayApprove = ['owner', 'admin', 'office'].includes(actor.role);
 
   if (cmd.intent === 'quote_draft') {
+    if (!mayApprove) return { type: 'denied', message: 'Teklif taslağını asistanla ofis rolleri hazırlar.' };
     const missing = [!cmd.customer && !input.customerId && 'müşteri', (!cmd.widthMm || !cmd.projectionMm) && 'ölçü (ör. 3x4)'].filter((x): x is string => Boolean(x));
     if (missing.length) return { type: 'need', message: `Teklif için eksik: ${missing.join(', ')}.`, missing, examples: EXAMPLES.slice(0, 1) };
     return quotePreview(actor, cmd, input.customerId, hidePrices, source);
   }
   if (cmd.intent === 'list_late') return lateList(actor, cmd.period, hidePrices);
   if (cmd.intent === 'stock_query') return stockAnswer(actor, cmd.color, cmd.item);
-  return whatIf(actor, cmd, can(access, 'orders', 'edit'), source);
+  return whatIf(actor, cmd, mayApprove && can(access, 'orders', 'edit'), source);
 }
 
 // Quote draft ---------------------------------------------------------------------------------------
@@ -112,12 +117,27 @@ async function quotePreview(actor: WorkOrderActor, cmd: Extract<Command, { inten
     } else if (recipes.length > 1) priceNote = 'Ailenin birden çok reçetesi var; fiyat yapılandırıcıdan seçilecek';
   }
   if (unitPrice === null) warnings.push(priceNote);
+  // Price hint from the firm's own accepted quotes (evidence only: the draft keeps the matrix price).
+  const hint: Array<{ label: string; value: string }> = [];
+  if (!hidePrices) {
+    const { getAiSettings, featureOn } = await import('@/lib/ai/gate.server');
+    const ai = await getAiSettings(actor.tenantId);
+    if (featureOn(ai, 'price_hint')) {
+      const { priceHistory } = await import('@/lib/ai/insight/price.server');
+      const { suggestPrice } = await import('@/lib/ai/insight/price');
+      const s = suggestPrice({ areaM2: (cmd.widthMm! / 1000) * (cmd.projectionMm! / 1000), history: await priceHistory(actor.tenantId, family), matrixUnitPrice: unitPrice, floorPercent: ai.profitFloorPercent });
+      if (s.basis === 'history') hint.push({ label: 'Fiyat önerisi', value: `${s.suggested!.toLocaleString('tr-TR')} ₺ · ${s.evidence.count} kabul edilmiş benzer teklif, medyan ${s.evidence.medianPerM2!.toLocaleString('tr-TR')} ₺/m² (${s.evidence.minPerM2!.toLocaleString('tr-TR')}–${s.evidence.maxPerM2!.toLocaleString('tr-TR')})` });
+      for (const w of s.warnings.filter((x) => /kâr|matristen/.test(x))) warnings.push(w);
+    }
+  }
   const payload = { customerId: customer.id, customerName: customer.name, family, widthMm: cmd.widthMm!, projectionMm: cmd.projectionMm!, quantity: cmd.quantity ?? 1, color: cmd.color, unitPrice };
   const label = `${family === 'pergola' ? 'Pergola' : family} ${(cmd.widthMm! / 1000).toLocaleString('tr-TR')} × ${(cmd.projectionMm! / 1000).toLocaleString('tr-TR')} m`;
   const { fileSuggestion } = await import('@/lib/ai/suggestions/service');
   const r = await fileSuggestion(sql, actor.tenantId, actor.userId, {
+    // The same command the same day is one preview (a repeated or shared command does not pile up drafts).
+    dedupeKey: `${actor.userId}:${istanbulToday()}:${createHash('sha256').update(JSON.stringify(payload)).digest('hex').slice(0, 32)}`,
     kind: QUOTE_KIND, title: `${customer.name} için teklif taslağı`, rationale: `Komut: ${label}${cmd.color ? `, ${cmd.color}` : ''}, ${payload.quantity} adet.`,
-    payload, source: source === 'model' ? 'model' : 'system', model: source === 'model' ? 'gpt-6-luna' : null, uncertain: warnings.length > 0, uncertaintyNote: warnings.join(' ') || null,
+    payload, source: source === 'model' ? 'model' : 'system', model: source === 'model' ? providerConfig('openai').model : null, uncertain: warnings.length > 0, uncertaintyNote: warnings.join(' ') || null,
   });
   return {
     type: 'preview', suggestionId: String(r.suggestion.id), version: Number(r.suggestion.version), title: `${customer.name} için teklif taslağı`, source,
@@ -125,6 +145,7 @@ async function quotePreview(actor: WorkOrderActor, cmd: Extract<Command, { inten
     lines: [
       { label: 'Müşteri', value: customer.name + (customer.id ? '' : ' (yeni)') }, { label: 'Ürün', value: label }, { label: 'Renk', value: cmd.color ?? '—' }, { label: 'Adet', value: String(payload.quantity) },
       ...(hidePrices ? [] : [{ label: 'Birim fiyat', value: unitPrice === null ? 'elle girilecek' : `${unitPrice.toLocaleString('tr-TR')} ₺ (matris)` }]),
+      ...hint,
     ],
     warnings,
   };
@@ -179,7 +200,9 @@ async function stockAnswer(actor: WorkOrderActor, color: string | null, item: st
   const want = item ? fold(item).replace(/profili?$/, '').trim() : null;
   const hits = lots.filter((l: Row) => (!key || (l.color && colorKey(l.color) === key)) && (!want || fold(l.name).includes(want)));
   const groups = new Map<string, { name: string; bars: number; remnants: number; metres: number; lengths: Map<number, number> }>();
-  for (const l of hits) {
+  // A lot without a bar length (a count import, a non-profile receipt) is not a bar: left out and said so.
+  const unsized = hits.filter((l: Row) => !(Number(l.length_m) > 0)).length;
+  for (const l of hits.filter((x: Row) => Number(x.length_m) > 0)) {
     const g = groups.get(l.item_id) ?? { name: l.name, bars: 0, remnants: 0, metres: 0, lengths: new Map() };
     if (l.remnant) g.remnants++; else { g.bars++; const mm = Math.round(Number(l.length_m) * 1000); g.lengths.set(mm, (g.lengths.get(mm) ?? 0) + 1); }
     g.metres += Number(l.remaining_qty);
@@ -188,8 +211,8 @@ async function stockAnswer(actor: WorkOrderActor, color: string | null, item: st
   const title = `${color ?? item ?? 'Stok'}: ${[...groups.values()].reduce((s, g) => s + g.bars, 0)} çubuk`;
   return {
     type: 'answer', title,
-    lines: [...groups.values()].sort((a, b) => b.bars - a.bars).slice(0, 15).map((g) => ({ label: g.name, value: `${g.bars} çubuk (${[...g.lengths.entries()].map(([mm, n]) => `${n}×${mm.toLocaleString('tr-TR')} mm`).join(', ') || '—'})${g.remnants ? ` + ${g.remnants} artık` : ''} · ${Math.round(g.metres * 10) / 10} m` })),
-    note: groups.size ? undefined : 'Bu renkte ya da profilde serbest çubuk yok.',
+    lines: [...groups.values()].sort((a, b) => b.bars - a.bars).slice(0, 15).map((g) => ({ label: g.name, value: `${g.bars} çubuk (${[...g.lengths.entries()].sort((x, y) => y[1] - x[1] || x[0] - y[0]).map(([mm, n]) => `${n}×${mm.toLocaleString('tr-TR')} mm`).join(', ') || '—'})${g.remnants ? ` + ${g.remnants} artık` : ''} · ${Math.round(g.metres * 10) / 10} m` })),
+    note: [groups.size ? null : 'Bu renkte ya da profilde serbest çubuk yok.', unsized ? `${unsized} stok kaydının çubuk boyu yok (ör. sayım içe aktarma); çubuk sayısına katılmadı.` : null].filter(Boolean).join(' ') || undefined,
   };
 }
 
@@ -197,12 +220,18 @@ async function stockAnswer(actor: WorkOrderActor, color: string | null, item: st
 
 async function whatIf(actor: WorkOrderActor, cmd: Extract<Command, { intent: 'what_if' }>, canEdit: boolean, source: 'rules' | 'model'): Promise<CommandResult> {
   const ref = cmd.order.replace(/\s+/g, '').toUpperCase();
-  const orders = await sql`SELECT id, order_number, status, delivery_date FROM orders WHERE tenant_id = ${actor.tenantId}
-    AND (upper(order_number) = ${ref} OR upper(order_number) LIKE ${'%' + ref.replace(/^(ORD|RF|SP)-?/, '')}) ORDER BY created_at DESC LIMIT 5`;
+  const compact = ref.replace(/[^A-Z0-9]/g, '');
+  // The exact number (separators ignored); else a number ending in "-<digits>" exactly ("ORD-12" never matches "ORD-112").
+  let orders = await sql`SELECT id, order_number, status, delivery_date, version FROM orders WHERE tenant_id = ${actor.tenantId}
+    AND regexp_replace(upper(order_number), '[^A-Z0-9]', '', 'g') = ${compact} ORDER BY created_at DESC LIMIT 2`;
+  const digits = ref.match(/(\d+)$/)?.[1];
+  if (!orders.length && digits)
+    orders = await sql`SELECT id, order_number, status, delivery_date, version FROM orders WHERE tenant_id = ${actor.tenantId}
+      AND order_number ~ ${'[-/ ]0*' + String(Number(digits)) + '$'} ORDER BY created_at DESC LIMIT 6`;
   if (!orders.length) return { type: 'need', message: `"${cmd.order}" numaralı sipariş bulunamadı.`, missing: ['sipariş numarası'], examples: EXAMPLES.slice(3) };
-  if (orders.length > 1 && !orders.some((o: Row) => String(o.order_number).toUpperCase() === ref))
-    return { type: 'need', message: `"${cmd.order}" birden çok siparişe uyuyor (${orders.map((o: Row) => o.order_number).join(', ')}); tam numarayı yazın.`, missing: ['sipariş numarası'], examples: [] };
-  const o = orders.find((x: Row) => String(x.order_number).toUpperCase() === ref) ?? orders[0];
+  if (orders.length > 1)
+    return { type: 'need', message: `"${cmd.order}" birden çok siparişe uyuyor (${orders.slice(0, 5).map((o: Row) => o.order_number).join(', ')}); tam numarayı yazın.`, missing: ['sipariş numarası'], examples: [] };
+  const o = orders[0];
   const orderId = String(o.id);
   const result = await simulate(actor.tenantId, orderId, cmd);
   const text = explain({ scenario: cmd.scenario, orderNumber: o.order_number, days: cmd.days }, result.plan, result.material);
@@ -214,11 +243,14 @@ async function whatIf(actor: WorkOrderActor, cmd: Extract<Command, { intent: 'wh
   ];
   const warnings = result.planned ? [] : ['Bu siparişin planlanmış üretim operasyonu yok; etki yalnız termin ve malzeme üzerinden gösterildi.'];
   if (cmd.scenario === 'cancel' && !canTransition(String(o.status), 'cancelled')) warnings.push(`Sipariş "${o.status}" durumunda; iptal durum makinesince reddedilir.`);
+  const openJobs = cmd.scenario === 'cancel' ? Number((await sql`SELECT count(*)::int AS n FROM work_orders WHERE tenant_id = ${actor.tenantId} AND order_id = ${orderId} AND status NOT IN ('done', 'cancelled')`)[0].n) : 0;
+  if (openJobs) warnings.push(`Siparişin ${openJobs} açık iş emri var; iptal onayı reddedilir. Önce iş emirlerini kapatın ya da iptal edin (rezerve malzeme orada serbest kalır).`);
   if (!canEdit) return { type: 'answer', title: text, lines, note: 'Uygulamak için sipariş düzenleme yetkisi gerekir; bu yalnız bir önizleme.' };
   const { fileSuggestion } = await import('@/lib/ai/suggestions/service');
   const r = await fileSuggestion(sql, actor.tenantId, actor.userId, {
+    dedupeKey: `${actor.userId}:${istanbulToday()}:${orderId}:${o.version}:${cmd.scenario}:${cmd.days ?? ''}`,
     kind: WHATIF_KIND, title: text.split(':')[0], rationale: text,
-    payload: { orderId, scenario: cmd.scenario, days: cmd.days, newPromise: result.newPromise },
+    payload: { orderId, orderVersion: Number(o.version), scenario: cmd.scenario, days: cmd.days, newPromise: result.newPromise },
     source: source === 'model' ? 'model' : 'system', uncertain: warnings.length > 0, uncertaintyNote: warnings.join(' ') || null,
   });
   return { type: 'preview', suggestionId: String(r.suggestion.id), version: Number(r.suggestion.version), title: text, summary: cmd.scenario === 'expedite' ? 'Onaylarsanız siparişin işleri en öne alınır (öncelik: kritik).' : cmd.scenario === 'delay' ? 'Onaylarsanız siparişin söz tarihi değişir; müşteriye bilgi ayrıca verilir.' : 'Onaylarsanız sipariş durum makinesinden geçerek iptal edilir.', lines, warnings, source };
@@ -276,10 +308,12 @@ async function simulate(tenantId: string, orderId: string, cmd: Extract<Command,
 const WHATIF_KIND = 'command.what_if';
 registerSuggestionKind({
   kind: WHATIF_KIND, label: 'Komut: ya şöyle olsa?', icon: 'CalendarClock', roles: ['owner', 'admin', 'office'], access: { module: 'orders', action: 'edit' },
-  payloadSchema: z.object({ orderId: z.string().uuid(), scenario: z.enum(['expedite', 'delay', 'cancel']), days: z.number().nullable(), newPromise: z.string().nullable() }),
+  payloadSchema: z.object({ orderId: z.string().uuid(), orderVersion: z.number().int().positive(), scenario: z.enum(['expedite', 'delay', 'cancel']), days: z.number().nullable(), newPromise: z.string().nullable() }),
   apply: async (tx, actor, p) => {
     const [o] = await tx`SELECT id, status, version FROM orders WHERE tenant_id = ${actor.tenantId} AND id = ${p.orderId} FOR UPDATE`;
     if (!o) throw new WorkOrderApiError('Sipariş bulunamadı', 404);
+    // The preview was worked out on this version of the order; a changed order needs a new preview.
+    if (Number(o.version) !== p.orderVersion) throw new WorkOrderApiError('Sipariş önizlemeden sonra değişti; komutu yeniden çalıştırın.', 409);
     if (p.scenario === 'expedite') {
       const raised = await tx`UPDATE work_orders SET priority = 'critical', updated_at = now() WHERE tenant_id = ${actor.tenantId} AND order_id = ${p.orderId} AND status IN ('open', 'in_progress', 'blocked') RETURNING id`;
       for (const w of raised) await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'work_order', entityId: w.id, action: 'priority_changed', changes: { öncelik: { from: null, to: 'critical' } }, note: 'Asistan: öne al' });
@@ -291,6 +325,12 @@ registerSuggestionKind({
       await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'order', entityId: p.orderId, action: 'promise_changed', changes: { 'söz tarihi': { from: null, to: p.newPromise } }, note: `Asistan: ${p.days} gün ertele` });
       return { href: `/orders/${p.orderId}`, promisedDate: p.newPromise };
     }
+    // The same guards as the order screen: a recipe order's status follows production, and open
+    // work orders (with their reserved material and planned time) are closed first, never left behind.
+    if ((await tx`SELECT id FROM work_orders WHERE tenant_id = ${actor.tenantId} AND order_id = ${p.orderId} AND recipe_id IS NOT NULL LIMIT 1`).length)
+      throw new WorkOrderApiError('Bu siparişin durumu üretim ve sevkiyat kayıtlarından hesaplanır. İlgili operasyon ekranını kullanın.', 409);
+    if ((await tx`SELECT id FROM work_orders WHERE tenant_id = ${actor.tenantId} AND order_id = ${p.orderId} AND status NOT IN ('done', 'cancelled') LIMIT 1`).length)
+      throw new WorkOrderApiError('Siparişin açık iş emirleri var; önce onları kapatın ya da iptal edin.', 409);
     const { applyOrderStatus } = await import('@/lib/features/sales/order-status.server');
     await applyOrderStatus(tx, { tenantId: actor.tenantId, orderId: p.orderId, from: o.status, to: 'cancelled', actorId: actor.userId, note: 'Asistan: ya şöyle olsa? önizlemesi onaylandı' });
     return { href: `/orders/${p.orderId}`, status: 'cancelled' };

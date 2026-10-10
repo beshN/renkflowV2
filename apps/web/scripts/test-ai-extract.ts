@@ -73,9 +73,24 @@ Teklif 15 gün süreyle geçerlidir.` });
   assert.equal(resp.lead_time_days, 7);
   assert.deepEqual(resp.prices.map((p: any) => Number(p.unitPrice)), [480]);
   await assert.rejects(supplierOfferPreview(owner, { rfqId: rfq.id, supplierId: randomUUID(), text: 'KK40 480 TL' }), /teklif istenmedi/);
+  // Another currency is not taken as ours; a role that hides prices does not read supplier answers.
+  const eur: any = await supplierOfferPreview(owner, { rfqId: rfq.id, supplierId: sup, text: 'KK40 kenar kapak 12,50 EUR birim fiyat' });
+  assert.equal(eur.type, 'need');
+  assert.match(eur.message, /fiyatlar çevrilmez/);
+  const team = await import('../lib/security/team.server');
+  const access = await import('../lib/security/member-access.server');
+  ids.office = randomUUID();
+  await db`INSERT INTO users (id, email, name) VALUES (${ids.office}, ${`office-${ids.office}@test.local`}, 'office')`;
+  await db`INSERT INTO tenant_members (tenant_id, user_id, role) VALUES (${tenantId}, ${ids.office}, 'office')`;
+  const hidden = await team.saveRole(owner as any, null, { name: 'Fiyatsız satın alma', base: 'office', permissions: { purchasing: ['view', 'create', 'edit'] }, hidden: ['price'] });
+  await team.updateMember(owner as any, ids.office, { accessRole: hidden });
+  access.forgetMemberAccess(ids.office, tenantId);
+  await assert.rejects(supplierOfferPreview({ tenantId, userId: ids.office, role: 'office' as any }, { rfqId: rfq.id, supplierId: sup, text: 'KK40 480 TL' }), /yetkiniz yok/);
 
   for (const t of ['purchase_rfq_responses', 'purchase_rfq_lines', 'purchase_rfqs', 'suppliers', 'warehouse_locations', 'warehouses', 'inventory_items', 'quotation_items', 'quotations', 'audit_logs', 'ai_suggestions'])
     await db`DELETE FROM ${db(t)} WHERE tenant_id = ${tenantId}`.catch(() => {});
+  await db`UPDATE tenant_members SET access_role_id = NULL WHERE tenant_id = ${tenantId}`.catch(() => {});
+  await db`DELETE FROM access_roles WHERE tenant_id = ${tenantId}`.catch(() => {});
   await db`DELETE FROM tenants WHERE id = ${tenantId}`;
   await db`DELETE FROM users WHERE id = ANY(${Object.values(ids)}::uuid[])`;
   await db.end();

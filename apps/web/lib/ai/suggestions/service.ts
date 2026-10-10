@@ -175,6 +175,7 @@ export async function listPendingSuggestions(actor: SuggestionActor, options: { 
       SELECT id, kind, title, rationale, payload, affected, uncertain, uncertainty_note, source, model, edited, version, created_at
       FROM ai_suggestions
       WHERE tenant_id = ${actor.tenantId} AND status = 'pending' AND kind IN ${sql(kinds.map((k) => k.kind))}
+        AND (kind NOT LIKE 'command.%' OR (created_by = ${actor.userId} AND created_at > now() - interval '1 day'))
       ORDER BY created_at DESC LIMIT 50`;
   return rows.map((row: any) => {
     const kind = suggestionKind(row.kind)!;
@@ -223,6 +224,11 @@ async function decide(actor: SuggestionActor, id: string, decision: z.infer<type
     if (!kind || !(await visibleKinds(actor, [kind], 'approve')).length) throw new WorkOrderApiError('Bu öneriyi karara bağlama yetkiniz yok.', 403);
     if (row.status !== 'pending') throw new WorkOrderApiError('Bu öneri zaten karara bağlandı.', 409);
     if (row.version !== decision.expectedVersion) throw new WorkOrderApiError('Öneri başka bir yerde değişti. Listeyi yenileyin.', 409);
+    // A command's preview is the typist's own, and only for a day (the records it was worked out on move on).
+    if (String(row.kind).startsWith('command.')) {
+      if (String(row.created_by) !== actor.userId) throw new WorkOrderApiError('Bu önizleme komutu yazan kişiye aittir.', 403);
+      if (decision.action !== 'reject' && Date.now() - new Date(row.created_at).getTime() > 86_400_000) throw new WorkOrderApiError('Önizlemenin süresi doldu; komutu yeniden çalıştırın.', 409);
+    }
 
     if (decision.action === 'reject') {
       await tx`UPDATE ai_suggestions SET status = 'rejected', decided_by = ${actor.userId}, decided_at = now(), decision_note = ${decision.note || null}, version = version + 1 WHERE id = ${id}`;

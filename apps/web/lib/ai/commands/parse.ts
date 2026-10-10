@@ -29,7 +29,7 @@ const lower = (s: string) => s.toLocaleLowerCase('tr-TR');
 const num = (s: string) => Number(s.replace(',', '.'));
 
 /**
- * "3x4" → metres → mm; "300x400" → cm → mm; "3000x4000" → mm. Also "3 m x 2,2 m", the spoken
+ * "3x4" → metres; "450x350" → cm; "3000x4000" → mm (one unit for both numbers). Also "3 m x 2,2 m", the spoken
  * "5,5a4", and "genişlik 4200 mm, çıkma 3000 mm". A unit written once applies to both numbers.
  */
 export function parseDims(text: string): { widthMm: number; projectionMm: number } | null {
@@ -39,14 +39,14 @@ export function parseDims(text: string): { widthMm: number; projectionMm: number
   const named = pair ? null : [text.match(new RegExp(`(?<!\\p{L})(?:genişli[kğ]i?|en)\\s*:?\\s*${N}${U}`, 'iu')), text.match(new RegExp(`(?<!\\p{L})(?:çıkma|açılım|derinlik|yükseklik|boy)\\s*:?\\s*${N}${U}`, 'iu'))];
   const [a, ua, b, ub] = pair ? [pair[1], pair[2], pair[3], pair[4]] : named?.[0] && named[1] ? [named[0][1], named[0][2], named[1][1], named[1][2]] : [];
   if (!a || !b) return null;
-  const toMm = (v: number, unit?: string) => {
-    const u = unit?.toLowerCase();
-    if (u === 'mm') return v;
-    if (u === 'cm') return v * 10;
-    if (u === 'm' || u === 'metre') return v * 1000;
-    return v <= 30 ? v * 1000 : v <= 3000 ? v * 10 : v;
+  // No unit written: one unit for the pair, from the larger number ("3x4" m, "450x350" cm, "3000x4000" mm).
+  const big = Math.max(num(a), num(b));
+  const guess = big <= 30 ? 'm' : big <= 1000 ? 'cm' : 'mm';
+  const toMm = (v: number, unit: string) => {
+    const u = unit.toLowerCase();
+    return u === 'mm' ? v : u === 'cm' ? v * 10 : v * 1000;
   };
-  return { widthMm: Math.round(toMm(num(a), ua ?? ub)), projectionMm: Math.round(toMm(num(b), ub ?? ua)) };
+  return { widthMm: Math.round(toMm(num(a), ua ?? ub ?? guess)), projectionMm: Math.round(toMm(num(b), ub ?? ua ?? guess)) };
 }
 
 /** A colour from a RAL code ("7016", "7016 mat") or a name ("antrasit", "beyaz"). */

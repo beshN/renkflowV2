@@ -108,7 +108,26 @@ async function main() {
   assert.match(cancel.title, /iptal edilirse/);
   assert.equal(((await runCommand(owner, { text: "ORD-YOK-999'u öne al" })) as any).type, 'need');
 
-  for (const t of ['stock_lots', 'warehouse_locations', 'warehouses', 'inventory_items', 'quotation_items', 'quotations', 'orders', 'ai_suggestions'])
+  // Review fixes: "ORD-12" never picks "ORD-112"; another person cannot approve a command preview;
+  // an order changed after the preview, or one with open work orders, is not cancelled.
+  const n = tenantId.slice(0, 4).replace(/\D/g, '7') || '7';
+  const [o112] = await db`INSERT INTO orders (tenant_id, order_number, customer_name, status, total_amount, delivery_date) VALUES (${tenantId}, ${'ORD-' + n + '112'}, 'X', 'approved', 1, ${day(9)}) RETURNING id, order_number`;
+  assert.equal(((await runCommand(owner, { text: `ORD-${n}12'yi iptal et` })) as any).type, 'need', 'a suffix is not the order');
+  const cx: any = await runCommand(owner, { text: `${o112.order_number} iptal etsek ne olur` });
+  assert.equal(cx.type, 'preview');
+  assert.equal((await runCommand(owner, { text: `${o112.order_number} iptal etsek ne olur` }) as any).suggestionId, cx.suggestionId, 'the same command is one preview');
+  await assert.rejects(svc.decideSuggestion(actor('office'), cx.suggestionId, { action: 'approve', expectedVersion: cx.version }), /komutu yazan|yetkiniz/);
+  await db`UPDATE orders SET version = version + 1 WHERE id = ${o112.id}`;
+  await assert.rejects(svc.decideSuggestion(owner, cx.suggestionId, { action: 'approve', expectedVersion: cx.version }), /önizlemeden sonra değişti/);
+  const cy: any = await runCommand(owner, { text: `${o112.order_number} iptal etsek ne olur` });
+  await db`INSERT INTO work_orders (tenant_id, order_id, title, status) VALUES (${tenantId}, ${o112.id}, 'Kesim', 'open')`;
+  await assert.rejects(svc.decideSuggestion(owner, cy.suggestionId, { action: 'approve', expectedVersion: cy.version }), /açık iş emirleri/);
+  assert.equal((await db`SELECT status FROM orders WHERE id = ${o112.id}`)[0].status, 'approved', 'nothing changed');
+  // Units: a measure in mm stays mm.
+  const mm: any = await runCommand(owner, { text: "Zeynep Arslan'a 3000x4000 pergola teklif 9016" });
+  assert.equal(mm.lines[1].value, 'Pergola 3 × 4 m');
+
+  for (const t of ['stock_lots', 'warehouse_locations', 'warehouses', 'inventory_items', 'quotation_items', 'quotations', 'work_orders', 'orders', 'ai_suggestions'])
     await db`DELETE FROM ${db(t)} WHERE tenant_id = ${tenantId}`;
   await db`DELETE FROM tenants WHERE id = ${tenantId}`;
   await db`DELETE FROM users WHERE id = ANY(${Object.values(ids)}::uuid[])`;

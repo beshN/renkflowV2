@@ -26,7 +26,7 @@ export function extractQuoteRequest(raw: string): QuoteRequest {
   const emailM = text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
   const email = emailM ? f(emailM[0].toLowerCase(), 'high') : null;
   const addrM = text.match(/(?:adres(?:im)?|konum|yer)\s*[:\-]?\s*([^\n]{8,160})/iu) ?? text.match(/([^\n]*\b(?:mah(?:allesi)?\.?|sok(?:ak|\.)|cad(?:desi|\.)|no\s*:?\s*\d+)[^\n]*)/iu);
-  const address = addrM ? f(addrM[1].trim().replace(/\s+/g, ' '), addrM[0].toLowerCase().includes('adres') ? 'high' : 'medium') : null;
+  const address = addrM ? f(addrM[1].trim().replace(/\s+/g, ' '), addrM[0].toLowerCase().includes('adres') ? 'high' : 'medium', addrM[0]) : null;
 
   // Customer: a signature ("Ahmet Yılmaz" on its own last line), "ben X", or a dative at the start.
   let customer: Field<string> | null = null;
@@ -52,10 +52,10 @@ export function extractQuoteRequest(raw: string): QuoteRequest {
     const qtyM = c.match(/(\d+)\s*(?:adet|tane|tk|ad\.?)\b/iu) ?? c.match(/\b(iki|üç|dört|beş)\s*(?:adet|tane)?\b/iu);
     const words: Record<string, number> = { iki: 2, üç: 3, dört: 4, beş: 5 };
     const qty = qtyM ? Number(words[qtyM[1].toLocaleLowerCase('tr-TR')] ?? qtyM[1]) : 1;
-    const metresUnstated = !/\b(m|metre|cm|mm)\b/iu.test(c) && Math.max(dims.widthMm, dims.projectionMm) <= 30000;
+    const metresUnstated = !/\d\s*(mm|cm|metre|m)(?!\p{L})/iu.test(c);
     lines.push({
       family: fam ? f(fam, 'high', c) : globalFamily ? f(globalFamily, 'medium', 'mesajın geneli') : null,
-      // "3x4" without a unit is read as metres (how people write it); said so with medium confidence.
+      // A measure without a unit ("3x4", "3000x4000") is read by its size; said so with medium confidence.
       widthMm: f(dims.widthMm, metresUnstated ? 'medium' : 'high', c),
       projectionMm: f(dims.projectionMm, metresUnstated ? 'medium' : 'high', c),
       color: col ? f(col, 'high', c) : globalColor && productChunks === 1 ? f(globalColor, 'medium', 'mesajın geneli') : null,

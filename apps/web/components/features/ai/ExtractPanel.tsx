@@ -120,7 +120,7 @@ function QuoteFromMessage() {
             ))}
           </ol>
           {result.request.notes.map((n) => <p key={n} className="flex items-start gap-1 text-xs text-amber-800 dark:text-amber-300"><TriangleAlert size={12} className="mt-0.5 shrink-0" aria-hidden /> {n}</p>)}
-          <p className="text-xs text-muted-foreground">Fiyatlar boş gelir; teklif taslak olarak açılır, iletişim bilgileri iç nota yazılır. Müşteriye hiçbir şey gönderilmez.{result.usedModel ? ' Eksik alanları model doldurdu (iletişim bilgileri gönderilmedi).' : ''}</p>
+          <p className="text-xs text-muted-foreground">Fiyatlar boş gelir; teklif taslak olarak açılır, iletişim bilgileri iç nota yazılır. Müşteriye hiçbir şey gönderilmez.{result.usedModel ? ' Ürünleri model buldu (iletişim satırları gönderilmedi).' : ''}</p>
           <Decision id={result.suggestionId} version={result.version} approveLabel="Onayla, taslak teklif aç" />
         </div>
       )}

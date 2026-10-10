@@ -16,13 +16,14 @@ export type AiSettings = {
   userDailyCalls: number;
   detectors: Record<string, { enabled?: boolean; quietDays?: number; threshold?: number }>;
   features: Record<string, boolean>;
+  profitFloorPercent: number;
 };
 
 /**
  * A firm without a settings row: detectors on, no model call until the owner turns the model on
  * with the KVKK confirmation. Before migration 048 (no table) the old behaviour stays: model on.
  */
-export const DEFAULT_AI_SETTINGS: AiSettings = { mode: 'rules', kvkkAckAt: null, dailyBudgetUsd: null, userDailyCalls: 60, detectors: {}, features: {} };
+export const DEFAULT_AI_SETTINGS: AiSettings = { mode: 'rules', kvkkAckAt: null, dailyBudgetUsd: null, userDailyCalls: 60, detectors: {}, features: {}, profitFloorPercent: 15 };
 const LEGACY_AI_SETTINGS: AiSettings = { ...DEFAULT_AI_SETTINGS, mode: 'assist', kvkkAckAt: 'before-048' };
 
 const cache = new Map<string, { at: number; value: AiSettings }>();
@@ -39,6 +40,7 @@ export async function getAiSettings(tenantId: string): Promise<AiSettings> {
       mode: r.mode as AiMode, kvkkAckAt: r.kvkk_ack_at ? new Date(r.kvkk_ack_at).toISOString() : null,
       dailyBudgetUsd: r.daily_budget_usd === null ? null : Number(r.daily_budget_usd), userDailyCalls: Number(r.user_daily_calls),
       detectors: r.detectors ?? {}, features: r.features ?? {},
+      profitFloorPercent: r.profit_floor_percent === undefined || r.profit_floor_percent === null ? 15 : Number(r.profit_floor_percent),
     };
   }
   cache.set(tenantId, { at: Date.now(), value });
