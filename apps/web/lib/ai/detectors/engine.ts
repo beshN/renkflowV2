@@ -47,6 +47,8 @@ export type DetectorHistory = {
   pending: ReadonlySet<string>;
   /** Rejections of this detector: key, when, and why. */
   rejected: ReadonlyArray<{ dedupeKey: string | null; decidedAt: string; reason: string | null }>;
+  /** Approvals: the same situation is not suggested again for the quiet days after it was acted on. */
+  approvedKeys?: ReadonlyArray<{ dedupeKey: string | null; decidedAt: string }>;
   /** Decisions so far (approved + rejected): how useful this detector has been. */
   approved: number;
   decided: number;
@@ -65,7 +67,8 @@ export type Suppression = { file: true } | { file: false; reason: 'disabled' | '
 /**
  * May this finding be filed now? Not when the detector is off, when the same situation is already
  * open, when someone said "bir daha önerme" for it, within the quiet days after a rejection (twice
- * as long for a thinned detector), or — for a detector people keep rejecting — unless it is urgent.
+ * as long for a thinned detector) or after an approval (it was just acted on), or — for a detector
+ * people keep rejecting — unless it is urgent.
  */
 export function suppression(f: Pick<Finding, 'dedupeKey' | 'priority'>, history: DetectorHistory, settings: DetectorSettings, now: number): Suppression {
   if (!settings.enabled) return { file: false, reason: 'disabled' };
@@ -77,6 +80,7 @@ export function suppression(f: Pick<Finding, 'dedupeKey' | 'priority'>, history:
     if (r.reason === 'never') return { file: false, reason: 'never' };
     if (now - Date.parse(r.decidedAt) < quietMs) return { file: false, reason: 'quiet' };
   }
+  for (const a of history.approvedKeys ?? []) if (a.dedupeKey === f.dedupeKey && now - Date.parse(a.decidedAt) < settings.quietDays * DAY_MS) return { file: false, reason: 'quiet' };
   if (thinned && f.priority !== 'high') return { file: false, reason: 'thinned' };
   return { file: true };
 }

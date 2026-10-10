@@ -7,6 +7,24 @@ import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { columnExists } from '@/lib/db/schema-guard';
 import { compareQueue, type Priority } from '@/lib/ai/detectors/engine';
 import { getAiSettings } from '@/lib/ai/gate.server';
+import { resolveMemberAccess } from '@/lib/security/member-access.server';
+import { can } from '@/lib/security/access-matrix';
+import type { SuggestionKind } from './kinds';
+
+/**
+ * Kinds this member may see: base role, their own module cell (a custom role narrows the base
+ * role), and none whose card carries a field group they hide. `need` = 'approve' also needs the
+ * kind's action.
+ */
+async function visibleKinds(actor: SuggestionActor, kinds: SuggestionKind<any>[], need: 'view' | 'approve' = 'view') {
+  const byRole = kinds.filter((k) => k.roles.includes(actor.role));
+  if (!byRole.some((k) => k.access || k.sensitive?.length)) return byRole;
+  const access = await resolveMemberAccess(actor.userId, actor.tenantId).catch(() => null);
+  if (!access) return byRole.filter((k) => !k.access && !k.sensitive?.length);
+  return byRole.filter((k) =>
+    (!k.access || (can(access, k.access.module, 'view') && (need === 'view' || can(access, k.access.module, k.access.action))))
+    && !(k.sensitive ?? []).some((g) => access.hidden.includes(g)));
+}
 import { suggestionKind, suggestionKinds, type SuggestionActor } from './kinds';
 import './registry';
 
@@ -137,7 +155,7 @@ async function refreshSuggestions(actor: SuggestionActor, kinds: ReturnType<type
 
 /** Pending suggestions of the kinds this role may decide, newest first. */
 export async function listPendingSuggestions(actor: SuggestionActor, options: { refresh?: boolean } = {}) {
-  const kinds = suggestionKinds().filter((kind) => kind.roles.includes(actor.role));
+  const kinds = await visibleKinds(actor, suggestionKinds());
   if (!kinds.length) return [];
   // Assistant off: nothing looks at the records on its own; only suggestions a person asked for
   // (e.g. a count list they uploaded) stay in the queue.
@@ -200,7 +218,7 @@ async function decide(actor: SuggestionActor, id: string, decision: z.infer<type
     const [row] = await tx`SELECT * FROM ai_suggestions WHERE tenant_id = ${actor.tenantId} AND id = ${id} FOR UPDATE`;
     if (!row) throw new WorkOrderApiError('Öneri bulunamadı', 404);
     const kind = suggestionKind(row.kind);
-    if (!kind || !kind.roles.includes(actor.role)) throw new WorkOrderApiError('Bu öneriyi karara bağlama yetkiniz yok.', 403);
+    if (!kind || !(await visibleKinds(actor, [kind], 'approve')).length) throw new WorkOrderApiError('Bu öneriyi karara bağlama yetkiniz yok.', 403);
     if (row.status !== 'pending') throw new WorkOrderApiError('Bu öneri zaten karara bağlandı.', 409);
     if (row.version !== decision.expectedVersion) throw new WorkOrderApiError('Öneri başka bir yerde değişti. Listeyi yenileyin.', 409);
 

@@ -22,6 +22,11 @@ describe('suppression', () => {
     const h = { ...base, rejected: [{ dedupeKey: 'a', decidedAt: day(400), reason: 'never' }] };
     expect(suppression({ dedupeKey: 'a', priority: 'high' }, h, on, now)).toEqual({ file: false, reason: 'never' });
   });
+  it('an approved situation is quiet for the quiet days (the action was just taken)', () => {
+    const h = { ...base, approvedKeys: [{ dedupeKey: 'a', decidedAt: day(1) }] };
+    expect(suppression({ dedupeKey: 'a', priority: 'high' }, h, on, now)).toEqual({ file: false, reason: 'quiet' });
+    expect(suppression({ dedupeKey: 'a', priority: 'high' }, { ...h, approvedKeys: [{ dedupeKey: 'a', decidedAt: day(9) }] }, on, now)).toEqual({ file: true });
+  });
   it('a disabled detector files nothing', () => {
     expect(suppression({ dedupeKey: 'a', priority: 'high' }, base, { ...on, enabled: false }, now)).toEqual({ file: false, reason: 'disabled' });
   });

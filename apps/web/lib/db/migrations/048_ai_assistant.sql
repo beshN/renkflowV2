@@ -23,10 +23,10 @@ CREATE INDEX IF NOT EXISTS ai_suggestions_detector_idx ON public.ai_suggestions 
 
 -- One row per firm. mode: 'off' (no suggestions, no model), 'rules' (detectors only, no model call),
 -- 'assist' (detectors + model for wording, commands and extraction). Turning the model on records
--- who confirmed the cross-border transfer (KVKK) and when.
+-- who confirmed the cross-border transfer (KVKK) and when; without it no model is called.
 CREATE TABLE IF NOT EXISTS public.ai_settings (
   tenant_id uuid PRIMARY KEY REFERENCES public.tenants(id) ON DELETE CASCADE,
-  mode text NOT NULL DEFAULT 'assist' CHECK (mode IN ('off', 'rules', 'assist')),
+  mode text NOT NULL DEFAULT 'rules' CHECK (mode IN ('off', 'rules', 'assist')),
   kvkk_ack_by uuid REFERENCES public.users(id) ON DELETE SET NULL,
   kvkk_ack_at timestamptz,
   -- Model spend caps: the firm's daily cost (USD, when prices are configured) and calls per person a day.

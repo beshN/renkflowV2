@@ -18,8 +18,12 @@ export type AiSettings = {
   features: Record<string, boolean>;
 };
 
-/** Before migration 048, or with no row: as today — the assistant on, model when a key is set. */
-export const DEFAULT_AI_SETTINGS: AiSettings = { mode: 'assist', kvkkAckAt: null, dailyBudgetUsd: null, userDailyCalls: 60, detectors: {}, features: {} };
+/**
+ * A firm without a settings row: detectors on, no model call until the owner turns the model on
+ * with the KVKK confirmation. Before migration 048 (no table) the old behaviour stays: model on.
+ */
+export const DEFAULT_AI_SETTINGS: AiSettings = { mode: 'rules', kvkkAckAt: null, dailyBudgetUsd: null, userDailyCalls: 60, detectors: {}, features: {} };
+const LEGACY_AI_SETTINGS: AiSettings = { ...DEFAULT_AI_SETTINGS, mode: 'assist', kvkkAckAt: 'before-048' };
 
 const cache = new Map<string, { at: number; value: AiSettings }>();
 const TTL = 15_000;
@@ -27,8 +31,9 @@ const TTL = 15_000;
 export async function getAiSettings(tenantId: string): Promise<AiSettings> {
   const hit = cache.get(tenantId);
   if (hit && Date.now() - hit.at < TTL) return hit.value;
-  let value = DEFAULT_AI_SETTINGS;
+  let value = LEGACY_AI_SETTINGS;
   if (await tableExists('ai_settings')) {
+    value = DEFAULT_AI_SETTINGS;
     const [r] = await sql`SELECT * FROM ai_settings WHERE tenant_id = ${tenantId}`;
     if (r) value = {
       mode: r.mode as AiMode, kvkkAckAt: r.kvkk_ack_at ? new Date(r.kvkk_ack_at).toISOString() : null,
@@ -60,11 +65,12 @@ export async function assertModelAllowed(meta: { tenantId?: string | null; userI
     spentTodayUsd = Number(r?.spent ?? 0);
     userCallsToday = meta.userId ? Number(r?.mine ?? 0) : 0;
   }
-  const d = modelDecision({ mode: s.mode, dailyBudgetUsd: s.dailyBudgetUsd, userDailyCalls: meta.userId ? s.userDailyCalls : Number.MAX_SAFE_INTEGER, spentTodayUsd, userCallsToday });
+  const d = modelDecision({ mode: s.mode, kvkkAck: Boolean(s.kvkkAckAt), dailyBudgetUsd: s.dailyBudgetUsd, userDailyCalls: meta.userId ? s.userDailyCalls : Number.MAX_SAFE_INTEGER, spentTodayUsd, userCallsToday });
   if (!d.ok) throw new ModelBlockedError(d.block);
 }
 
 /** May this firm call a model at all right now (key set, mode assist)? For screens that offer it. */
 export async function modelEnabledFor(tenantId: string, keyAvailable: boolean) {
-  return keyAvailable && (await getAiSettings(tenantId)).mode === 'assist';
+  const s = await getAiSettings(tenantId);
+  return keyAvailable && s.mode === 'assist' && Boolean(s.kvkkAckAt);
 }

@@ -50,7 +50,7 @@ export function detectLateOrders(rows: OrderRow[], today: string, s: DetectorSet
     if (o.missingMaterials > 0) badges.push(countBadge(o.missingMaterials, 'malzeme eksik', 'danger'));
     const priority: Priority = late || left <= 1 ? 'high' : 'medium';
     out.push({
-      detector: 'late_order', dedupeKey: `late:${o.id}:${o.dueOn}`, priority, confidence: o.step >= 0 ? 'high' : 'medium',
+      detector: 'late_order', dedupeKey: `late:${o.id}`, priority, confidence: o.step >= 0 ? 'high' : 'medium',
       title: late ? `${o.number} termini geçti` : `${o.number} termine yetişmeyebilir`,
       rationale: `${late ? `Termin ${fmt(o.dueOn)} geçti` : `Termine ${left} gün kaldı`}; ${stepsLeft} aşama var${stalled >= 2 ? `, ${stalled} gündür ilerlemiyor` : ''}${o.missingMaterials ? `, ${o.missingMaterials} malzeme eksik` : ''}. Müşteriye bilgi ve yeni tarih (${fmt(newDate)}) önerilir.`,
       rule: `Termin geçti ya da ≤ ${window} gün kaldı ve (aşama ≥ 2 gün ilerlemedi, malzeme eksik, açık gecikme var veya kalan aşama × ${STEP_DAYS} gün termine sığmıyor)`,
@@ -90,14 +90,19 @@ export function detectShortages(rows: ShortageRow[], today: string): Finding<Sho
   for (const r of rows) {
     const missing = Math.round((r.demand - r.free - r.incoming) * 1000) / 1000;
     if (!(missing > 0)) continue;
-    const multiple = r.orderMultiple && r.orderMultiple > 0 ? r.orderMultiple : 1;
-    const quantity = Math.ceil(missing / multiple) * multiple;
-    const best = pickSupplier(r.suppliers);
+    // Profiles kept in metres are bought in bars: the line quantity is a bar count (the purchase
+    // command multiplies by the bar length). Without a known bar length nothing is ordered blind.
+    const metres = r.uom === 'm';
+    const barM = metres && r.lengthMm ? r.lengthMm / 1000 : null;
+    const multiple = !metres && r.orderMultiple && r.orderMultiple > 0 ? r.orderMultiple : 1;
+    const quantity = metres ? (barM ? Math.ceil(missing / barM) : 0) : Math.ceil(missing / multiple) * multiple;
+    const best = metres && !barM ? null : pickSupplier(r.suppliers);
     const firstDue = r.jobs.map((j) => j.dueOn).filter((d): d is string => Boolean(d)).sort()[0] ?? null;
     const daysToDue = firstDue ? daysBetween(today, firstDue) : null;
     const priority: Priority = daysToDue !== null && daysToDue <= 7 ? 'high' : 'medium';
     const badges: Badge[] = [countBadge(missing, `${r.uom} eksik`, 'danger'), countBadge(r.jobs.length, 'iş bekliyor', 'warning')];
     if (best?.unitPrice) badges.push(moneyBadge(best.unitPrice * quantity));
+    if (metres && barM) badges.push(countBadge(quantity, 'çubuk', 'info'));
     out.push({
       detector: 'shortage', dedupeKey: `short:${r.itemId}`, priority, confidence: best?.unitPrice ? 'high' : 'low',
       title: `${r.name}: ${missing.toLocaleString('tr-TR')} ${r.uom} eksik`,
@@ -105,7 +110,7 @@ export function detectShortages(rows: ShortageRow[], today: string): Finding<Sho
       rule: 'Açık işlerin ayrılmamış ihtiyacı > serbest stok + yoldaki sipariş',
       evidence: {
         badges, records: r.jobs.slice(0, 20).map((j) => ({ entityType: 'work_order', entityId: j.id, label: j.label, href: j.href })),
-        numbers: { ihtiyaç: r.demand, serbest: r.free, yolda: r.incoming, eksik: missing, sipariş: quantity, ilkTermin: firstDue, tedarikçiSayısı: r.suppliers.length },
+        numbers: { ihtiyaç: r.demand, serbest: r.free, yolda: r.incoming, eksik: missing, sipariş: quantity, birim: metres ? 'çubuk' : r.uom, ilkTermin: firstDue, tedarikçiSayısı: r.suppliers.length },
       },
       payload: { itemId: r.itemId, quantity, supplierId: best?.supplierId ?? null, unitPrice: best?.unitPrice ?? null, currency: best?.currency ?? 'TRY', lengthMm: r.lengthMm, color: r.color },
     });

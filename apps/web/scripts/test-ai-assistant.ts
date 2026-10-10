@@ -33,8 +33,9 @@ async function main() {
   const owner = { tenantId, userId: ownerId, role: 'owner' as const };
   const office = { tenantId, userId: officeId, role: 'office' as const };
 
-  // Settings: defaults as today; turning the model on needs the KVKK confirmation; office may not change it.
-  assert.equal((await settings.getAiSettings(tenantId)).mode, 'assist');
+  // Settings: no row → rules only (no model) until the owner turns the model on with the KVKK confirmation.
+  assert.equal((await settings.getAiSettings(tenantId)).mode, 'rules');
+  await assert.rejects(gate.assertModelAllowed({ tenantId, userId: ownerId }), (e: any) => e.block === 'AI_RULES_ONLY');
   await settings.saveAiSettings(owner, { mode: 'rules' });
   await assert.rejects(settings.saveAiSettings(owner, { mode: 'assist' }), /KVKK/);
   await settings.saveAiSettings(owner, { mode: 'assist', kvkkAck: true });
@@ -150,6 +151,17 @@ async function main() {
   const byDet = (l: any[]) => new Set(l.map((x) => x.detector).filter(Boolean));
   assert.deepEqual([...byDet(await svc.listPendingSuggestions(office, { refresh: false }))].sort(), ['late_order', 'shortage', 'stale_quote']);
   assert.deepEqual([...byDet(await svc.listPendingSuggestions(acc, { refresh: false }))], ['overdue_receivable']);
+  // A custom role narrows it further: an office member without purchasing who hides prices sees the late order only.
+  const team = await import('../lib/security/team.server');
+  const access = await import('../lib/security/member-access.server');
+  const narrow = await team.saveRole(owner as any, null, { name: 'Sipariş takip', base: 'office', permissions: { orders: ['view', 'edit'], quotations: ['view', 'edit'] }, hidden: ['price'] });
+  await team.updateMember(owner as any, officeId, { accessRole: narrow });
+  access.forgetMemberAccess(officeId, tenantId);
+  assert.deepEqual([...byDet(await svc.listPendingSuggestions(office, { refresh: false }))], ['late_order']);
+  const shortCard = ownerList.find((x) => x.detector === 'shortage')!;
+  await assert.rejects(svc.decideSuggestion(office, shortCard.id, { action: 'approve', expectedVersion: shortCard.version }), (e: any) => e.status === 403);
+  await team.updateMember(owner as any, officeId, { accessRole: null });
+  access.forgetMemberAccess(officeId, tenantId);
   const lateCard = ownerList.find((x) => x.detector === 'late_order')!;
   assert.ok(lateCard.evidence!.badges.some((b: any) => /gündür aynı aşamada/.test(b.label)), 'evidence says how long it stalled');
   assert.match(String(lateCard.payload.message), /Sayın Kaya Yapı/);

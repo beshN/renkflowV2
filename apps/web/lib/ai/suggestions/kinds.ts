@@ -2,6 +2,7 @@ import 'server-only';
 
 import type { z } from 'zod';
 import type { UserRole } from '@/lib/features/auth/permissions';
+import type { Action, FieldGroup, Module } from '@/lib/security/access-matrix';
 
 export type SuggestionActor = { tenantId: string; userId: string; role: UserRole };
 
@@ -22,6 +23,13 @@ export type SuggestionKind<P extends Record<string, unknown> = Record<string, un
   payloadSchema: z.ZodType<P>;
   /** Roles that see and decide this kind (the same roles that may run the command by hand). */
   roles: readonly UserRole[];
+  /**
+   * The member's own permission cell this kind needs (a custom role can narrow the base role):
+   * the module must be visible to see the card, and the action allowed to approve it.
+   */
+  access?: { module: Module; action: Action };
+  /** Field groups on the card (prices, customer contact): a member who hides any of them never sees it. */
+  sensitive?: readonly FieldGroup[];
   editableFields?: readonly EditableField[];
   apply: (tx: any, actor: SuggestionActor, payload: P, suggestion: { id: string; title: string }) => Promise<Record<string, unknown>>;
   /**

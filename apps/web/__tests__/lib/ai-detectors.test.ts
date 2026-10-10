@@ -27,18 +27,26 @@ describe('1 · late order', () => {
     expect(detectLateOrders([order({ dueOn: '2026-10-30' }), order({ dueOn: null })], today, on)).toEqual([]);
     expect(detectLateOrders([order({ step: 5, dueOn: '2026-10-11' })], today, on)).toEqual([]);
   });
-  it('the same due date is filed once; a new date is a new situation', () => {
+  it('one situation per order: open → not again; after an approval (new date) quiet for the quiet days', () => {
     const [f] = detectLateOrders([order({ lastMoveOn: '2026-10-01' })], today, on);
     expect(suppression(f, { ...history, pending: new Set([f.dedupeKey]) }, on, Date.now())).toEqual({ file: false, reason: 'open' });
     const [g] = detectLateOrders([order({ lastMoveOn: '2026-10-01', dueOn: '2026-10-10' })], today, on);
-    expect(g.dedupeKey).not.toBe(f.dedupeKey);
+    expect(g.dedupeKey).toBe(f.dedupeKey);
+    expect(suppression(g, { ...history, approvedKeys: [{ dedupeKey: f.dedupeKey, decidedAt: new Date().toISOString() }] }, on, Date.now())).toEqual({ file: false, reason: 'quiet' });
   });
 });
 
 describe('2 · shortage', () => {
   const row = (o: Partial<ShortageRow>): ShortageRow => ({ itemId: 'i1', name: 'Profil 7016', uom: 'm', demand: 120, free: 40, incoming: 20, orderMultiple: 6.5, jobs: [{ id: 'w1', label: 'İE-1', dueOn: '2026-10-14' }], suppliers: [], lengthMm: 6500, color: '7016', ...o });
+  it('metre profiles are ordered in whole bars; without a bar length no supplier order is proposed', () => {
+    const sup = [{ supplierId: 's1', name: 'A', unitPrice: 100, currency: 'TRY', score: null, leadDays: null }];
+    const [f] = detectShortages([row({ suppliers: sup })], today);
+    expect([f.payload.quantity, f.evidence.numbers.birim]).toEqual([10, 'çubuk']);
+    const [g] = detectShortages([row({ suppliers: sup, lengthMm: null })], today);
+    expect([g.payload.supplierId, g.confidence]).toEqual([null, 'low']);
+  });
   it('missing = demand − free − incoming, rounded up to the order multiple, best supplier picked', () => {
-    const [f] = detectShortages([row({ suppliers: [
+    const [f] = detectShortages([row({ uom: 'adet', suppliers: [
       { supplierId: 's1', name: 'A', unitPrice: 100, currency: 'TRY', score: 70, leadDays: 5 },
       { supplierId: 's2', name: 'B', unitPrice: 90, currency: 'TRY', score: 85, leadDays: 9 },
     ] })], today);

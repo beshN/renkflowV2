@@ -21,6 +21,8 @@ const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const OFFICE = ['owner', 'admin', 'office'] as const;
 const FINANCE = ['owner', 'admin', 'accountant'] as const;
 const MANAGERS = ['owner', 'admin'] as const;
+/** Loader caps: when a loader reads its cap, the run is partial and nothing is closed as resolved. */
+const LATE_LIMIT = 300;
 
 async function firmName(tenantId: string) {
   const [t] = await sql`SELECT name FROM tenants WHERE id = ${tenantId}`;
@@ -56,7 +58,7 @@ async function noteMessage(tx: any, tenantId: string, actorId: string, entityTyp
 // 1 · Late / risky order -------------------------------------------------------------------------
 
 registerDetector({
-  key: 'late_order', label: 'Geciken sipariş', icon: 'AlarmClock', roles: OFFICE, defaults: { enabled: true, quietDays: 3, threshold: 3 },
+  key: 'late_order', label: 'Geciken sipariş', icon: 'AlarmClock', roles: OFFICE, access: { module: 'orders', action: 'edit' }, defaults: { enabled: true, quietDays: 3, threshold: 3 },
   thresholdLabel: 'Termine kaç gün kala uyarsın',
   payloadSchema: z.object({ orderId: z.string().uuid(), newPromiseDate: isoDay, reason: z.string().max(200), message: z.string().max(4000).optional() }),
   editableFields: [{ key: 'newPromiseDate', label: 'Yeni termin (YYYY-AA-GG)', type: 'text' }, { key: 'message', label: 'Müşteriye mesaj', type: 'text' }],
@@ -67,7 +69,8 @@ registerDetector({
         ${promised ? sql`o.promised_date` : sql`NULL::date AS promised_date`},
         (SELECT max(a.created_at) FROM activity_logs a WHERE a.tenant_id = o.tenant_id AND a.entity_type = 'order' AND a.entity_id = o.id AND a.action = 'status_changed') AS last_move, o.created_at
       FROM orders o WHERE o.tenant_id = ${actor.tenantId} AND o.status NOT IN ('shipped', 'delivered', 'completed', 'cancelled', 'pending', 'new', 'pending_approval')
-        AND coalesce(${promised ? sql`o.promised_date` : sql`NULL::date`}, o.delivery_date::date) <= (${today}::date + 10) ORDER BY o.delivery_date LIMIT 150`;
+        AND coalesce(${promised ? sql`o.promised_date` : sql`NULL::date`}, o.delivery_date::date) <= (${today}::date + 10)
+      ORDER BY coalesce(${promised ? sql`o.promised_date` : sql`NULL::date`}, o.delivery_date::date) LIMIT ${LATE_LIMIT}`;
     if (!rows.length) return [];
     const { orderShortage } = await import('@/lib/features/stock/depth.server');
     const delays = (await tableExists('production_delays'))
@@ -76,14 +79,21 @@ registerDetector({
     const tone = await tones(actor.tenantId, rows.map((r: Row) => r.customer_id));
     const firm = await firmName(actor.tenantId);
     const input: OrderRow[] = [];
+    // Material checks ten at a time; lead times read once for all missing items.
+    const shortages = new Map<string, Array<{ itemId: string; missing: number }>>();
+    for (let i = 0; i < rows.length; i += 10)
+      await Promise.all(rows.slice(i, i + 10).map(async (r: Row) => {
+        const s = await orderShortage(actor, String(r.id)).catch(() => ({ lines: [] as Array<{ itemId: string; missing: number }> }));
+        shortages.set(String(r.id), s.lines.filter((l: { missing: number }) => l.missing > 0));
+      }));
+    const missingIds = [...new Set([...shortages.values()].flat().map((l) => l.itemId))];
+    const leads = new Map<string, number>();
+    if (missingIds.length && (await columnExists('inventory_items', 'lead_time_days')))
+      for (const m of await sql`SELECT id, lead_time_days FROM inventory_items WHERE tenant_id = ${actor.tenantId} AND id = ANY(${missingIds}::uuid[]) AND lead_time_days IS NOT NULL`) leads.set(String(m.id), Number(m.lead_time_days));
     for (const r of rows) {
-      const short = await orderShortage(actor, String(r.id)).catch(() => ({ lines: [] as Array<{ itemId: string; missing: number }> }));
-      const missing = short.lines.filter((l: { missing: number }) => l.missing > 0);
-      let lead: number | null = null;
-      if (missing.length && (await columnExists('inventory_items', 'lead_time_days'))) {
-        const [m] = await sql`SELECT max(lead_time_days)::int AS d FROM inventory_items WHERE tenant_id = ${actor.tenantId} AND id = ANY(${missing.map((l: { itemId: string }) => l.itemId)}::uuid[])`;
-        lead = m?.d ?? null;
-      }
+      const missing = shortages.get(String(r.id)) ?? [];
+      const known = missing.map((l) => leads.get(l.itemId)).filter((x): x is number => x !== undefined);
+      const lead = known.length ? Math.max(...known) : null;
       const d = delays.find((x: Row) => String(x.order_id) === String(r.id));
       input.push({
         id: String(r.id), number: r.order_number, customer: r.customer_name ?? null, tone: (r.customer_id && tone.get(String(r.customer_id))) || 'formal', firm,
@@ -92,7 +102,7 @@ registerDetector({
         openDelay: d ? { reason: String(d.reason_code), expectedUntil: day(d.expected_until) } : null,
       });
     }
-    return detectLateOrders(input, today, settings);
+    return { findings: detectLateOrders(input, today, settings), partial: rows.length >= LATE_LIMIT };
   },
   apply: async (tx, actor, p) => {
     if (!(await columnExists('orders', 'promised_date'))) throw new WorkOrderApiError('Söz tarihi için veritabanı güncellemesi (041) bekleniyor', 409);
@@ -100,7 +110,8 @@ registerDetector({
     if (!o) throw new WorkOrderApiError('Sipariş bulunamadı', 404);
     if (['delivered', 'completed', 'cancelled'].includes(o.status)) throw new WorkOrderApiError('Sipariş artık açık değil; öneri geçersiz', 409);
     if (p.newPromiseDate < istanbulToday()) throw new WorkOrderApiError('Yeni termin bugünden önce olamaz', 400);
-    await tx`UPDATE orders SET promised_date = ${p.newPromiseDate}, updated_at = now() WHERE id = ${p.orderId}`;
+    // version + 1: an order screen open elsewhere sees the change instead of overwriting it.
+    await tx`UPDATE orders SET promised_date = ${p.newPromiseDate}, version = version + 1, updated_at = now() WHERE id = ${p.orderId}`;
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'order', entityId: p.orderId, action: 'promise_changed',
       changes: { 'söz tarihi': { from: day(o.promised_date), to: p.newPromiseDate } }, note: `Asistan önerisi onaylandı: ${p.reason}` });
     await noteMessage(tx, actor.tenantId, actor.userId, 'order', p.orderId, 'late_order', p.message);
@@ -111,7 +122,7 @@ registerDetector({
 // 2 · Material shortage ---------------------------------------------------------------------------
 
 registerDetector({
-  key: 'shortage', label: 'Eksik malzeme', icon: 'PackageX', roles: OFFICE, defaults: { enabled: true, quietDays: 3 },
+  key: 'shortage', label: 'Eksik malzeme', icon: 'PackageX', roles: OFFICE, access: { module: 'purchasing', action: 'create' }, sensitive: ['price', 'cost'], defaults: { enabled: true, quietDays: 3 },
   payloadSchema: z.object({ itemId: z.string().uuid(), quantity: z.coerce.number().positive(), supplierId: z.string().uuid().nullable(), unitPrice: z.number().nullable(), currency: z.string().max(3), lengthMm: z.number().nullable(), color: z.string().nullable() }),
   editableFields: [{ key: 'quantity', label: 'Miktar', type: 'number', min: 0.001 }],
   detect: async (actor) => {
@@ -184,7 +195,7 @@ registerDetector({
 // 3 · Quote waiting for an answer -----------------------------------------------------------------
 
 registerDetector({
-  key: 'stale_quote', label: 'Bekleyen teklif', icon: 'MailQuestion', roles: OFFICE, defaults: { enabled: true, quietDays: 5, threshold: 3 },
+  key: 'stale_quote', label: 'Bekleyen teklif', icon: 'MailQuestion', roles: OFFICE, access: { module: 'quotations', action: 'edit' }, sensitive: ['price'], defaults: { enabled: true, quietDays: 5, threshold: 3 },
   thresholdLabel: 'Kaç gün cevapsız kalınca takip önersin',
   payloadSchema: z.object({ quotationId: z.string().uuid(), step: z.union([z.literal(1), z.literal(2)]), message: z.string().max(4000).optional() }),
   editableFields: [{ key: 'message', label: 'Takip mesajı', type: 'text' }],
@@ -212,7 +223,7 @@ registerDetector({
 // 4 · Overdue receivable ------------------------------------------------------------------------
 
 registerDetector({
-  key: 'overdue_receivable', label: 'Vadesi geçen alacak', icon: 'Wallet', roles: FINANCE, defaults: { enabled: true, quietDays: 7, threshold: 15 },
+  key: 'overdue_receivable', label: 'Vadesi geçen alacak', icon: 'Wallet', roles: FINANCE, access: { module: 'finance', action: 'view' }, sensitive: ['price'], defaults: { enabled: true, quietDays: 7, threshold: 15 },
   thresholdLabel: 'İkinci hatırlatma kaç gün sonra',
   payloadSchema: z.object({ invoiceId: z.string().uuid(), orderId: z.string().uuid(), step: z.union([z.literal(1), z.literal(2)]), message: z.string().max(4000).optional() }),
   editableFields: [{ key: 'message', label: 'Hatırlatma mesajı', type: 'text' }],
@@ -237,7 +248,7 @@ registerDetector({
 // 5 · Scrap anomaly -------------------------------------------------------------------------------
 
 registerDetector({
-  key: 'scrap_anomaly', label: 'Fire anomalisi', icon: 'TrendingUp', roles: MANAGERS, defaults: { enabled: true, quietDays: 14, threshold: 3 },
+  key: 'scrap_anomaly', label: 'Fire anomalisi', icon: 'TrendingUp', roles: MANAGERS, access: { module: 'production', action: 'edit' }, defaults: { enabled: true, quietDays: 14, threshold: 3 },
   thresholdLabel: 'En az kaç fire olunca baksın',
   payloadSchema: z.object({ dimension: z.enum(['item', 'color', 'worker', 'center']), key: z.string(), label: z.string(), workOrderId: z.string().uuid().nullable(), topReason: z.string().nullable() }),
   detect: async (actor, settings) => {
@@ -281,7 +292,7 @@ registerDetector({
 // 6 · Capacity conflict ---------------------------------------------------------------------------
 
 registerDetector({
-  key: 'capacity', label: 'Kapasite çakışması', icon: 'CalendarClock', roles: MANAGERS, defaults: { enabled: true, quietDays: 2 },
+  key: 'capacity', label: 'Kapasite çakışması', icon: 'CalendarClock', roles: MANAGERS, access: { module: 'production', action: 'edit' }, defaults: { enabled: true, quietDays: 2 },
   payloadSchema: z.object({ lateWorkOrderId: z.string().uuid(), moveWorkOrderId: z.string().uuid().nullable() }),
   detect: async (actor) => {
     if (!(await tableExists('production_operations'))) return [];
@@ -303,13 +314,17 @@ registerDetector({
     return detectCapacity([...jobs.values()]);
   },
   apply: async (tx, actor, p) => {
-    const [late] = await tx`SELECT id, priority FROM work_orders WHERE tenant_id = ${actor.tenantId} AND id = ${p.lateWorkOrderId} FOR UPDATE`;
+    const [late] = await tx`SELECT id, priority, status FROM work_orders WHERE tenant_id = ${actor.tenantId} AND id = ${p.lateWorkOrderId} FOR UPDATE`;
     if (!late) throw new WorkOrderApiError('İş emri bulunamadı', 404);
-    await tx`UPDATE work_orders SET priority = 'high', updated_at = now() WHERE id = ${p.lateWorkOrderId}`;
-    await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'work_order', entityId: p.lateWorkOrderId, action: 'priority_changed', changes: { öncelik: { from: late.priority, to: 'high' } }, note: 'Asistan: kapasite çakışması' });
+    if (!['open', 'in_progress', 'blocked'].includes(late.status)) throw new WorkOrderApiError('İş emri artık açık değil; öneri geçersiz', 409);
+    // Raise to high, never lower a critical job.
+    if (late.priority !== 'critical' && late.priority !== 'high') {
+      await tx`UPDATE work_orders SET priority = 'high', updated_at = now() WHERE id = ${p.lateWorkOrderId}`;
+      await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'work_order', entityId: p.lateWorkOrderId, action: 'priority_changed', changes: { öncelik: { from: late.priority, to: 'high' } }, note: 'Asistan: kapasite çakışması' });
+    }
     if (p.moveWorkOrderId) {
-      const [move] = await tx`SELECT priority FROM work_orders WHERE tenant_id = ${actor.tenantId} AND id = ${p.moveWorkOrderId} FOR UPDATE`;
-      if (move && move.priority !== 'low') {
+      const [move] = await tx`SELECT priority, status FROM work_orders WHERE tenant_id = ${actor.tenantId} AND id = ${p.moveWorkOrderId} FOR UPDATE`;
+      if (move && ['open', 'in_progress', 'blocked'].includes(move.status) && (move.priority === 'medium' || move.priority === 'high')) {
         await tx`UPDATE work_orders SET priority = 'low', updated_at = now() WHERE id = ${p.moveWorkOrderId}`;
         await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'work_order', entityId: p.moveWorkOrderId, action: 'priority_changed', changes: { öncelik: { from: move.priority, to: 'low' } }, note: 'Asistan: kapasite çakışması (kayan iş)' });
       }
@@ -321,7 +336,7 @@ registerDetector({
 // 7 · Document / maintenance expiry ---------------------------------------------------------------
 
 registerDetector({
-  key: 'expiry', label: 'Belge / bakım süresi', icon: 'FileClock', roles: MANAGERS, defaults: { enabled: true, quietDays: 7, threshold: 15 },
+  key: 'expiry', label: 'Belge / bakım süresi', icon: 'FileClock', roles: MANAGERS, access: { module: 'fleet', action: 'edit' }, defaults: { enabled: true, quietDays: 7, threshold: 15 },
   thresholdLabel: 'Bitişe kaç gün kala hatırlatsın',
   payloadSchema: z.object({ vehicleId: z.string().uuid(), kind: z.string(), dueOn: isoDay }),
   detect: async (actor, settings) => {
@@ -348,7 +363,7 @@ registerDetector({
 // 8 · Offcut use ----------------------------------------------------------------------------------
 
 registerDetector({
-  key: 'offcut', label: 'Artık parça fırsatı', icon: 'Recycle', roles: MANAGERS, defaults: { enabled: true, quietDays: 7 },
+  key: 'offcut', label: 'Artık parça fırsatı', icon: 'Recycle', roles: MANAGERS, access: { module: 'production', action: 'edit' }, defaults: { enabled: true, quietDays: 7 },
   payloadSchema: z.object({ workOrderId: z.string().uuid(), lotIds: z.array(z.string().uuid()).min(1) }),
   detect: async (actor) => {
     if (!(await tableExists('stock_lots'))) return [];
