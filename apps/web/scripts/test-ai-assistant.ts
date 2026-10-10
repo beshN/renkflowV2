@@ -15,7 +15,7 @@ async function main() {
   process.env.DATABASE_URL = 'postgres://postgres:renkflow-local-only@127.0.0.1:55432/renkflow_test';
   const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
   assert.equal((await db`SELECT current_database() AS name`)[0].name, 'renkflow_test');
-  for (const file of ['029_ai_suggestions.sql', '048_ai_assistant.sql', '048_ai_assistant.sql']) await db.unsafe(readFileSync(`lib/db/migrations/${file}`, 'utf8'));
+  for (const file of ['029_ai_suggestions.sql', '044_access_control.sql', '045_sales_service_chain.sql', '046_fleet.sql', '047_finance_foundation.sql', '048_ai_assistant.sql', '048_ai_assistant.sql']) await db.unsafe(readFileSync(`lib/db/migrations/${file}`, 'utf8'));
 
   const { registerDetector, runDetector } = await import('../lib/ai/detectors/runner.server');
   const svc = await import('../lib/ai/suggestions/service');
@@ -111,14 +111,75 @@ async function main() {
   assert.equal((await runDetector(probe, owner)).filed, 0);
   await settings.saveAiSettings(owner, { mode: 'assist' });
 
+  // The real detectors against a seeded firm ------------------------------------------------------
+  const { runAllDetectors } = await import('../lib/ai/detectors/registry.server');
+  const accId = randomUUID();
+  await db`INSERT INTO users (id, email, name) VALUES (${accId}, ${`acc-${accId}@test.local`}, 'Muhasebe')`;
+  await db`INSERT INTO tenant_members (tenant_id, user_id, role) VALUES (${tenantId}, ${accId}, 'accountant')`;
+  const acc = { tenantId, userId: accId, role: 'accountant' as const };
+  const d = (n: number) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(new Date(Date.now() + n * 86_400_000));
+  const [cust] = await db`INSERT INTO customers (tenant_id, full_name, company_name, payment_terms) VALUES (${tenantId}, 'Deniz Kaya', 'Kaya Yapı', 15) RETURNING id`;
+  // 1: an order in production, due in 2 days, its status unchanged for 4 days.
+  const [late] = await db`INSERT INTO orders (tenant_id, order_number, customer_id, customer_name, status, total_amount, currency, delivery_date, product_name)
+    VALUES (${tenantId}, ${'ORD-AI-' + tenantId.slice(0, 5)}, ${cust.id}, 'Kaya Yapı', 'in_production', 12000, 'TRY', ${d(2)}, 'Pergola') RETURNING id`;
+  await db`INSERT INTO activity_logs (tenant_id, entity_type, entity_id, action, created_at) VALUES (${tenantId}, 'order', ${late.id}, 'status_changed', now() - interval '4 days')`;
+  // 3: a quote sent 4 days ago.
+  const [quote] = await db`INSERT INTO quotations (tenant_id, quotation_number, customer_id, customer_name, status, total_amount, currency, valid_until, sent_at)
+    VALUES (${tenantId}, ${'TKL-AI-' + tenantId.slice(0, 5)}, ${cust.id}, 'Kaya Yapı', 'sent', 48000, 'TRY', ${d(10)}, now() - interval '4 days') RETURNING id`;
+  // 4: an invoice due 10 days ago, nothing collected.
+  await db`INSERT INTO invoices (tenant_id, invoice_number, order_id, customer_id, customer_name, status, issued_on, due_on, subtotal, vat_total, total)
+    VALUES (${tenantId}, 'FTR-000001', ${late.id}, ${cust.id}, 'Kaya Yapı', 'issued', ${d(-25)}, ${d(-10)}, 5000, 1000, 6000)`;
+  // 7: a vehicle whose inspection ends in 5 days.
+  const [veh] = await db`INSERT INTO vehicles (tenant_id, plate) VALUES (${tenantId}, '34AI001') RETURNING id`;
+  await db`INSERT INTO vehicle_documents (tenant_id, vehicle_id, kind, expires_on) VALUES (${tenantId}, ${veh.id}, 'inspection', ${d(5)})`;
+  // 2 + 5: a job needing 100 m of a profile nobody stocks, and a burst of scrap on it this week.
+  const [wh] = await db`INSERT INTO warehouses (tenant_id, code, name, warehouse_type) VALUES (${tenantId}, ${'RAW-' + tenantId.slice(0, 4)}, 'Hammadde', 'RAW') RETURNING id`;
+  const [item] = await db`INSERT INTO inventory_items (tenant_id, name, sku) VALUES (${tenantId}, 'Profil 7016', ${'P7016-' + tenantId.slice(0, 5)}) RETURNING id`;
+  const [wo] = await db`INSERT INTO work_orders (tenant_id, title, status, order_id, due_at) VALUES (${tenantId}, 'İE pergola', 'open', ${late.id}, now() + interval '3 days') RETURNING id`;
+  await db`INSERT INTO work_order_materials (tenant_id, work_order_id, item_id, source_warehouse_id, required_qty, uom) VALUES (${tenantId}, ${wo.id}, ${item.id}, ${wh.id}, 100, 'm')`;
+  for (let i = 0; i < 4; i++) await db`INSERT INTO production_scrap_events (tenant_id, work_order_id, item_id, quantity, reason_code, created_by) VALUES (${tenantId}, ${wo.id}, ${item.id}, 1, 'cut_error', ${ownerId})`;
+
+  const ran = await runAllDetectors(tenantId);
+  for (const k of ['late_order', 'shortage', 'stale_quote', 'overdue_receivable', 'scrap_anomaly', 'expiry']) assert.ok((ran[k] as any).filed >= 1, `${k} filed: ${JSON.stringify(ran[k])}`);
+  for (const k of ['capacity', 'offcut']) assert.ok(!('error' in ran[k]), `${k} runs: ${JSON.stringify(ran[k])}`);
+  const again = await runAllDetectors(tenantId);
+  assert.ok(Object.values(again).every((x: any) => x.filed === 0), 'a second run files nothing new');
+
+  // Who sees what: office the sales/production-facing ones, accounting the receivables, the owner all.
+  const ownerList = await svc.listPendingSuggestions(owner, { refresh: false });
+  const byDet = (l: any[]) => new Set(l.map((x) => x.detector).filter(Boolean));
+  assert.deepEqual([...byDet(await svc.listPendingSuggestions(office, { refresh: false }))].sort(), ['late_order', 'shortage', 'stale_quote']);
+  assert.deepEqual([...byDet(await svc.listPendingSuggestions(acc, { refresh: false }))], ['overdue_receivable']);
+  const lateCard = ownerList.find((x) => x.detector === 'late_order')!;
+  assert.ok(lateCard.evidence!.badges.some((b: any) => /gündür aynı aşamada/.test(b.label)), 'evidence says how long it stalled');
+  assert.match(String(lateCard.payload.message), /Sayın Kaya Yapı/);
+  const overdueCard = (await svc.listPendingSuggestions(acc, { refresh: false }))[0];
+  assert.match(overdueCard.title, /FTR-000001 vadesi 10 gün geçti/);
+
+  // Approving: the order gets the new promise date; the quote, vehicle, shortage and scrap get a task.
+  await svc.decideSuggestion(office, lateCard.id, { action: 'approve', expectedVersion: lateCard.version });
+  const [promise] = await db`SELECT promised_date FROM orders WHERE id = ${late.id}`;
+  assert.equal(new Date(promise.promised_date).toISOString().slice(0, 10) > d(2), true);
+  for (const det of ['stale_quote', 'expiry', 'shortage', 'scrap_anomaly']) {
+    const card = (await svc.listPendingSuggestions(owner, { refresh: false })).find((x) => x.detector === det)!;
+    const r2: any = await svc.decideSuggestion(owner, card.id, { action: 'approve', expectedVersion: card.version });
+    assert.ok(r2.result.todoId, `${det} made a task`);
+  }
+  assert.equal((await db`SELECT count(*)::int AS n FROM record_activities WHERE tenant_id = ${tenantId} AND rule_key LIKE 'assistant_%'`)[0].n, 4);
+  const prepared = await db`SELECT note FROM activity_logs WHERE tenant_id = ${tenantId} AND action = 'customer_message_prepared'`;
+  assert.equal(prepared.length, 2, 'message drafts are recorded as prepared, never as sent');
+  void quote;
+
   const reasons = await db`SELECT reject_reason FROM ai_suggestions WHERE tenant_id = ${tenantId} AND status = 'rejected'`;
   assert.deepEqual(reasons.map((x) => x.reject_reason), ['never']);
   const audit = (await db`SELECT DISTINCT action FROM activity_logs WHERE tenant_id = ${tenantId} AND entity_type = 'ai_suggestion'`).map((x) => x.action);
   for (const want of ['created', 'edited', 'snoozed', 'rejected', 'approved', 'expired']) assert.ok(audit.includes(want), `audit has ${want}`);
 
   await db`DELETE FROM ai_detector_probe WHERE tenant_id = ${tenantId}`;
+  for (const t of ['production_scrap_events', 'work_order_materials', 'work_orders', 'invoices', 'warehouse_locations', 'warehouses', 'inventory_items'])
+    await db`DELETE FROM ${db(t)} WHERE tenant_id = ${tenantId}`;
   await db`DELETE FROM tenants WHERE id = ${tenantId}`;
-  await db`DELETE FROM users WHERE id = ANY(${[ownerId, officeId]}::uuid[])`;
+  await db`DELETE FROM users WHERE id = ANY(${[ownerId, officeId, accId]}::uuid[])`;
   await db.end();
   await (sql as any).end?.();
   console.log('test:ai-assistant OK');
