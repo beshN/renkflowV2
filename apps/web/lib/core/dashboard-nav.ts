@@ -18,6 +18,7 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
     id: 'operations', label: 'Sipariş & üretim', subtitle: 'Renk Alüminyum operasyonları',
     items: [
       { id: 'dashboard', label: 'Genel bakış', href: '/dashboard' },
+      { id: 'assistant', allowedRoles: ['owner', 'admin', 'office', 'accountant'], label: 'Asistan', href: '/assistant' },
       { id: 'orders', label: 'Siparişler', href: '/orders', requiresPermission: 'orders.view' },
       { id: 'new-order', label: 'Yeni sipariş', href: '/new-order', requiresPermission: 'orders.create' },
       { id: 'calendar', allowedRoles: ROUTE_ROLES['/calendar'], label: 'Takvim', href: '/calendar', requiresPermission: 'orders.view' },

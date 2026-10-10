@@ -5,7 +5,7 @@ import { SEARCH_MIN_LENGTH } from '@/lib/features/search/types';
 import { foldText } from '@/lib/shared/text/fold';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useRouter } from 'next/navigation';
-import { ArrowUpRight, Command, Search, X, FileText, CornerDownLeft, Zap, FilePlus2, ClipboardList, Scissors, CalendarDays, ScanLine, LayoutGrid, Columns3, Factory, PackagePlus, type LucideIcon } from 'lucide-react';
+import { ArrowUpRight, Command, Search, X, FileText, CornerDownLeft, Zap, FilePlus2, ClipboardList, Scissors, CalendarDays, ScanLine, LayoutGrid, Columns3, Factory, PackagePlus, Sparkles, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useOrders } from '@/lib/hooks/useOrders';
 import { useMemberAccess } from '@/lib/hooks/useMemberAccess';
@@ -47,10 +47,12 @@ function CommandResults({ close }: { close: () => void }) {
       .filter(order => [order.orderNumber, order.customerName, order.productName].some(value => value?.toLocaleLowerCase('tr-TR').includes(keyword)))
       .slice(0, 6).map(order => ({ id: order.id, title: order.orderNumber + ' · ' + order.customerName, subtitle: order.productName, href: '/orders/' + order.id, type: 'order' })) : [];
     // Customers, quotations and stock are searched on the search page (server side, per role).
+    // Free text can also go to the assistant as a command ("bu hafta geciken işler", "7016 kaç çubuk").
+    const ask = foldText(query).length >= 4 ? [{ id: 'ask-assistant', title: `Asistana sor: “${query.trim()}”`, subtitle: 'Komut: sonuç kartı ya da onay bekleyen önizleme', href: '/assistant?q=' + encodeURIComponent(query.trim()), type: 'action', icon: Sparkles }] : [];
     const all = foldText(query).length >= SEARCH_MIN_LENGTH ? [{ id: 'search-all', title: `“${query.trim()}” için tüm sonuçlar`, subtitle: 'Sipariş, müşteri, teklif ve stokta ara', href: '/search?q=' + encodeURIComponent(query.trim()), type: 'search' }] : [];
     const actions = ACTIONS.filter((a) => (!a.roles || (user && a.roles.includes(user.role))) && (!keyword || foldText(a.keywords + ' ' + a.title).includes(foldText(keyword))))
       .map((a) => ({ id: a.id, title: a.title, subtitle: 'Eylem', href: a.href, type: 'action', icon: a.icon }));
-    return [...(keyword ? [] : actions), ...matches, ...(keyword ? actions : []), ...all, ...pages].slice(0, 14);
+    return [...(keyword ? [] : actions), ...matches, ...(keyword ? actions : []), ...ask, ...all, ...pages].slice(0, 14);
   }, [query, user, orders, memberAccess]);
 
   const selected = Math.min(active, Math.max(0, entries.length - 1));

@@ -168,6 +168,8 @@ export async function listPendingSuggestions(actor: SuggestionActor, options: { 
       SELECT id, kind, title, rationale, payload, affected, uncertain, uncertainty_note, source, model, edited, version, created_at, detector, priority, evidence, confidence, rule
       FROM ai_suggestions
       WHERE tenant_id = ${actor.tenantId} AND status = 'pending' AND kind IN ${sql(kinds.map((k) => k.kind))} AND (snoozed_until IS NULL OR snoozed_until <= now())
+        -- A command's preview belongs to the person who typed it, for a day.
+        AND (kind NOT LIKE 'command.%' OR (created_by = ${actor.userId} AND created_at > now() - interval '1 day'))
       ORDER BY created_at DESC LIMIT 100`
     : await sql`
       SELECT id, kind, title, rationale, payload, affected, uncertain, uncertainty_note, source, model, edited, version, created_at

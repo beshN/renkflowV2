@@ -11,3 +11,4 @@ import './kinds/count-import';
 import './kinds/purchase-draft';
 import './kinds/mark-delivered';
 import '@/lib/ai/detectors/registry.server';
+import '@/lib/ai/commands/run.server';
