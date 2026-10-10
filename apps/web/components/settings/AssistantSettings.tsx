@@ -4,10 +4,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { Bot, Gauge, ShieldCheck } from 'lucide-react';
 import { BarMini, HintTip, Skeleton, StatusChip } from '@/components/kit';
 import { requestJson } from '@/lib/shared/network';
-import { AI_MODES, AI_MODE_LABELS, type AiMode } from '@/lib/ai/policy';
+import { AI_MODES, AI_MODE_LABELS, ASSISTANT_FEATURES, FEATURE_LABELS, type AiMode } from '@/lib/ai/policy';
 
 type Detector = { key: string; label: string; thresholdLabel: string | null; enabled: boolean; quietDays: number; threshold?: number };
-type Settings = { mode: AiMode; kvkkAckAt: string | null; dailyBudgetUsd: number | null; userDailyCalls: number; modelKeyConfigured: boolean; detectors: Detector[]; features: Record<string, boolean> };
+type Settings = { mode: AiMode; kvkkAckAt: string | null; dailyBudgetUsd: number | null; userDailyCalls: number; modelKeyConfigured: boolean; detectors: Detector[]; features: Record<string, boolean>; profitFloorPercent: number };
 type Perf = {
   available: boolean; days: number;
   perKind?: Array<{ kind: string; label: string; filed: number; approved: number; rejected: number; expired: number; pending: number; edited: number; acceptance: number | null; medianHoursToDecide: number | null; rejectReasons: Record<string, number>; minutesSaved: number }>;
@@ -71,7 +71,17 @@ export function AssistantSettings() {
           <input type="number" min={0} step="0.5" className="rf-input mt-1 w-full" defaultValue={s.dailyBudgetUsd ?? ''} onBlur={(e) => void save({ dailyBudgetUsd: e.target.value === '' ? null : Number(e.target.value) })} /></label>
         <label className="text-sm">Kişi başı günlük model çağrısı
           <input type="number" min={0} max={5000} className="rf-input mt-1 w-full" defaultValue={s.userDailyCalls} onBlur={(e) => void save({ userDailyCalls: Number(e.target.value) })} /></label>
+        <label className="text-sm">Kâr tabanı (%) <HintTip text="Fiyat önerisinde tahmini kâr bunun altına düşerse uyarır. Yalnız malzeme maliyeti bilinen tekliflerde kontrol edilir." />
+          <input type="number" min={0} max={90} className="rf-input mt-1 w-full" defaultValue={s.profitFloorPercent} onBlur={(e) => Number(e.target.value) !== s.profitFloorPercent && void save({ profitFloorPercent: Number(e.target.value) })} /></label>
       </div>
+      <fieldset className="space-y-1">
+        <legend className="text-sm font-medium">Ekler</legend>
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {ASSISTANT_FEATURES.map((f) => (
+            <label key={f} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.features[f] !== false} onChange={(e) => void save({ features: { [f]: e.target.checked } }, `${FEATURE_LABELS[f]}: ${e.target.checked ? 'açık' : 'kapalı'}`)} /> {FEATURE_LABELS[f]}</label>
+          ))}
+        </div>
+      </fieldset>
       <div className="space-y-2">
         <h3 className="text-sm font-medium">Dedektörler <HintTip text="Her dedektör kayıtlara bakıp öneri hazırlar. Sessiz gün: reddedilen ya da onaylanan aynı durum bu kadar gün tekrar önerilmez." /></h3>
         <ul className="divide-y divide-border rounded-md border border-border" aria-label="Dedektörler">
@@ -84,7 +94,40 @@ export function AssistantSettings() {
           ))}
         </ul>
       </div>
+      <QualityFixes />
     </section>
+  );
+}
+
+/** Data fixes the assistant applied with approval, each undoable while nobody changed the value since. */
+export function QualityFixes() {
+  const [fixes, setFixes] = useState<Array<{ id: string; title: string; decidedAt: string; undone: boolean }> | null>(null);
+  const [message, setMessage] = useState('');
+  const load = useCallback(async () => {
+    const r = await requestJson<{ fixes: Array<{ id: string; title: string; decidedAt: string; undone: boolean }> }>('/api/v1/ai/data-quality', { cache: 'no-store' });
+    setFixes(r.ok && r.data ? r.data.fixes : []);
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+  if (!fixes?.length) return null;
+  async function undo(id: string) {
+    const r = await requestJson('/api/v1/ai/data-quality', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ suggestionId: id }) });
+    setMessage(r.ok ? 'Geri alındı' : r.error || 'Geri alınamadı');
+    await load();
+  }
+  return (
+    <div className="space-y-2">
+      <h3 className="text-sm font-medium">Veri kalitesi düzeltmeleri (son 30 gün)</h3>
+      <ul className="divide-y divide-border rounded-md border border-border" aria-label="Veri düzeltmeleri">
+        {fixes.map((f) => (
+          <li key={f.id} className="flex flex-wrap items-center gap-2 p-2 text-sm">
+            <span className="min-w-0 flex-1">{f.title}</span>
+            <span className="text-xs text-muted-foreground">{new Date(f.decidedAt).toLocaleDateString('tr-TR')}</span>
+            {f.undone ? <StatusChip tone="neutral" label="Geri alındı" /> : <button type="button" className="rf-secondary-button text-xs" onClick={() => void undo(f.id)}>Geri al</button>}
+          </li>
+        ))}
+      </ul>
+      {message && <p role="status" className="text-xs">{message}</p>}
+    </div>
   );
 }
 

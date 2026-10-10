@@ -32,6 +32,8 @@ import { QualityChecklist } from "./QualityChecklist";
 import { AwningDialog } from "@/components/features/awning/AwningConfigurator";
 import { ColorChip, WorkshopColor } from "@/components/colors/ColorSwatch";
 import { barColorMismatch } from "@/lib/features/colors/color-spec";
+import { VoiceCommand } from "@/components/features/ai/VoiceCommand";
+import { MorningSummary } from "@/components/features/ai/MorningSummary";
 import {
   discardOperation,
   fileData,
@@ -223,6 +225,13 @@ export default function FactoryWorkspace() {
           <button type="button" aria-label="Eşitle" className="grid h-12 w-12 place-items-center rounded-md border border-border" onClick={sync}><RefreshCw size={20} /></button>
           <Link href="/warehouse/scan" aria-label="QR terminali" className="grid h-12 w-12 place-items-center rounded-md bg-primary text-primary-foreground"><ScanLine size={22} /></Link>
         </>} />
+      <MorningSummary />
+      {(() => {
+        // Voice acts on the selected step, or the worker's own running step.
+        const v = op ?? ops.find((o: any) => o.status === "running" && (data.actor.role !== "worker" || o.assigned_to === data.actor.userId));
+        const vJob = v ? data.jobs.find((j: any) => j.id === v.work_order_id) : null;
+        return <VoiceCommand target={v ? { operationId: v.id, workOrderId: v.work_order_id, name: `${vJob?.title ?? "İş"} · ${v.name}`, status: String(v.status) } : null} onStart={() => quickAction(v)} onComplete={() => quickAction(v)} />;
+      })()}
       {error && (
         <div className="flex items-center gap-2 rounded border border-amber-500/30 bg-amber-500/5 p-4 text-xs">
           <WifiOff size={16} />{" "}
