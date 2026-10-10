@@ -11,7 +11,10 @@ export async function GET() {
   try {
     const actor = await requireWorkOrderActor();
     const ai = await getAiSettings(actor.tenantId);
-    return redactedJson({ mode: ai.mode, features: Object.fromEntries(ASSISTANT_FEATURES.map((f) => [f, ai.mode !== 'off' && featureOn(ai, f)])) }, { headers: NO_STORE });
+    // Voice: the browser's speech service (e.g. Chrome → Google) receives the audio, a transfer abroad:
+    // only with the firm's KVKK confirmation in assistant mode.
+    const on = (f: string) => ai.mode !== 'off' && featureOn(ai, f) && (f !== 'voice' || (ai.mode === 'assist' && Boolean(ai.kvkkAckAt)));
+    return redactedJson({ mode: ai.mode, features: Object.fromEntries(ASSISTANT_FEATURES.map((f) => [f, on(f)])) }, { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'ai-features');
   }

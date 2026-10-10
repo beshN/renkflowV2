@@ -230,7 +230,9 @@ export default function FactoryWorkspace() {
         // Voice acts on the selected step, or the worker's own running step.
         const v = op ?? ops.find((o: any) => o.status === "running" && (data.actor.role !== "worker" || o.assigned_to === data.actor.userId));
         const vJob = v ? data.jobs.find((j: any) => j.id === v.work_order_id) : null;
-        return <VoiceCommand target={v ? { operationId: v.id, workOrderId: v.work_order_id, name: `${vJob?.title ?? "İş"} · ${v.name}`, status: String(v.status) } : null} onStart={() => quickAction(v)} onComplete={() => quickAction(v)} />;
+        // Start/finish by voice only where the card's own button would act directly.
+        const vBlocked = !v ? null : data.actor.role === "worker" && v.assigned_to !== data.actor.userId ? "Bu adım size atanmamış." : hasPending(v.id) || quick === v.id ? "Bu adım için işlem sırada." : v.status === "running" && (v.quality_checks || []).length ? "Bu adımın kalite kontrolleri var; iş kartından bitirin." : null;
+        return <VoiceCommand actionBlocked={vBlocked} target={v ? { operationId: v.id, workOrderId: v.work_order_id, name: `${vJob?.title ?? "İş"} · ${v.name}`, status: String(v.status) } : null} onStart={() => quickAction(v)} onComplete={() => quickAction(v)} />;
       })()}
       {error && (
         <div className="flex items-center gap-2 rounded border border-amber-500/30 bg-amber-500/5 p-4 text-xs">

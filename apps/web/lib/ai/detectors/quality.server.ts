@@ -18,6 +18,14 @@ const Change = z.object({ table: z.enum(['customers', 'order_items', 'quotation_
 // Which columns each table may have changed (the payload is checked against this, not trusted).
 const ALLOWED: Record<FieldChange['table'], FieldChange['column'][]> = { customers: ['is_active', 'phone', 'full_name'], order_items: ['color'], quotation_items: ['color'] };
 
+/** A fix touches order or quote lines too: the person needs those rights, not only customer edit. */
+async function requireFixRights(actor: { tenantId: string; userId: string; role: string }, changes: FieldChange[]) {
+  const access = await resolveMemberAccess(actor.userId, actor.tenantId);
+  const need: Array<['customers' | 'orders' | 'quotations', 'edit']> = [...new Set(changes.map((c) => (c.table === 'customers' ? 'customers' : c.table === 'order_items' ? 'orders' : 'quotations')))].map((m) => [m, 'edit']);
+  if (!access || access.deactivated || !['owner', 'admin', 'office'].includes(actor.role) || !need.every(([m, a]) => can(access, m, a)))
+    throw new WorkOrderApiError('Bu düzeltme için yetkiniz yok', 403);
+}
+
 /** Every change applies only if the value is still what the finding saw; otherwise nothing changes. */
 async function applyChanges(tx: any, tenantId: string, changes: FieldChange[], direction: 'forward' | 'back') {
   for (const c of changes) {
@@ -43,7 +51,7 @@ registerDetector({
     const items = await sql`SELECT 'order_items' AS t, oi.id, o.id AS parent, o.order_number AS label, oi.color FROM order_items oi JOIN orders o ON o.id = oi.order_id
         WHERE o.tenant_id = ${actor.tenantId} AND o.status <> ALL(${CLOSED}) AND oi.color IS NOT NULL AND oi.color <> ''
       UNION ALL SELECT 'quotation_items', qi.id, q.id, q.quotation_number, qi.color FROM quotation_items qi JOIN quotations q ON q.id = qi.quotation_id
-        WHERE q.tenant_id = ${actor.tenantId} AND q.status IN ('draft', 'sent') AND qi.color IS NOT NULL AND qi.color <> '' LIMIT 3000`;
+        WHERE q.tenant_id = ${actor.tenantId} AND q.status = 'draft' AND qi.color IS NOT NULL AND qi.color <> '' LIMIT 3000`;
     const zero = await sql`SELECT q.id, q.quotation_number, count(*)::int AS n FROM quotations q JOIN quotation_items qi ON qi.quotation_id = q.id
       WHERE q.tenant_id = ${actor.tenantId} AND q.status = 'sent' AND qi.unit_price = 0 GROUP BY q.id LIMIT 100`;
     const units = (await tableExists('purchase_order_lines')) ? await sql`SELECT DISTINCT po.id, po.purchase_order_number, i.name, l.uom, i.stock_uom FROM purchase_order_lines l
@@ -62,6 +70,7 @@ registerDetector({
       const id = await addTodo(tx, actor.tenantId, p.todo.entityType, p.todo.entityId, p.todo.title, istanbulToday(), actor.userId, `assistant_quality_${p.issue}`);
       return { todoId: id };
     }
+    await requireFixRights(actor, p.changes as FieldChange[]);
     await applyChanges(tx, actor.tenantId, p.changes as FieldChange[], 'forward');
     for (const c of p.changes) await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: c.table === 'customers' ? 'customer' : c.table, entityId: c.id, action: 'data_quality_fixed', changes: { [c.column]: { from: c.from, to: c.to } }, metadata: { issue: p.issue, reversible: true } });
     return { changed: p.changes.length, undoable: true };
@@ -71,14 +80,13 @@ registerDetector({
 /** Undo an approved data fix: each value goes back only if it still holds what the fix wrote. */
 export async function undoQualityFix(actor: WorkOrderActor, suggestionId: string) {
   z.string().uuid().parse(suggestionId);
-  const access = await resolveMemberAccess(actor.userId, actor.tenantId);
-  if (!access || access.deactivated || !['owner', 'admin', 'office'].includes(actor.role) || !can(access, 'customers', 'edit')) throw new WorkOrderApiError('Bu işlem için yetkiniz yok', 403);
   return withTransaction(async (tx: any) => {
     const [s] = await tx`SELECT id, kind, status, payload, result FROM ai_suggestions WHERE tenant_id = ${actor.tenantId} AND id = ${suggestionId} FOR UPDATE`;
     if (!s || s.kind !== detectorKind('data_quality')) throw new WorkOrderApiError('Düzeltme bulunamadı', 404);
     if (s.status !== 'approved' || !s.result?.undoable) throw new WorkOrderApiError('Bu öneri geri alınabilir bir düzeltme değil', 409);
     if (s.result?.undoneAt) throw new WorkOrderApiError('Bu düzeltme zaten geri alındı', 409);
     const p = s.payload as QualityPayload;
+    await requireFixRights(actor, p.changes);
     await applyChanges(tx, actor.tenantId, p.changes, 'back');
     for (const c of p.changes) await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: c.table === 'customers' ? 'customer' : c.table, entityId: c.id, action: 'data_quality_undone', changes: { [c.column]: { from: c.to, to: c.from } }, metadata: { issue: p.issue, suggestionId } });
     await tx`UPDATE ai_suggestions SET result = result || ${JSON.stringify({ undoneAt: new Date().toISOString(), undoneBy: actor.userId })}::text::jsonb WHERE id = ${suggestionId}`;

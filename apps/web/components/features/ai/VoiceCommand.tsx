@@ -10,15 +10,18 @@ type Target = { operationId: string; workOrderId: string; name: string; status: 
 
 /**
  * "Başla", "Bitti", "3 adet fire, kesim hatası" for the job in front of the worker. The browser's own
- * speech recognition is used (no audio goes through RenkFlow); without it the button is not shown.
+ * speech recognition is used: no audio goes through RenkFlow, but the browser's speech service (e.g.
+ * Chrome → Google) receives it, so it is on only in assistant mode with the firm's KVKK confirmation.
+ * Without browser support the button is not shown.
  * What was heard is shown first and applied only with "Uygula".
  */
-export function VoiceCommand({ target, onStart, onComplete }: { target: Target; onStart: () => Promise<void> | void; onComplete: () => Promise<void> | void }) {
+export function VoiceCommand({ target, onStart, onComplete, actionBlocked }: { target: Target; onStart: () => Promise<void> | void; onComplete: () => Promise<void> | void; actionBlocked?: string | null }) {
   const [supported, setSupported] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [listening, setListening] = useState(false);
   const [heard, setHeard] = useState<{ text: string; action: VoiceAction | null } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const reasons = useRef<Array<{ code: string; label: string }>>([]);
   const rec = useRef<any>(null);
 
@@ -26,11 +29,12 @@ export function VoiceCommand({ target, onStart, onComplete }: { target: Target; 
     setSupported(speechRecognition() !== null);
     void requestJson<{ features: Record<string, boolean> }>('/api/v1/ai/features').then((r) => setEnabled(Boolean(r.ok && r.data?.features.voice)));
   }, []);
+  const jobId = target?.workOrderId ?? null;
   useEffect(() => {
     reasons.current = [];
-    if (!target) return;
-    void requestJson<{ reasons?: { scrap: Array<{ code: string; label: string }> } }>(`/api/v1/production/jobs/${target.workOrderId}/depth`).then((r) => { reasons.current = r.data?.reasons?.scrap ?? []; });
-  }, [target]);
+    if (!jobId) return;
+    void requestJson<{ reasons?: { scrap: Array<{ code: string; label: string }> } }>(`/api/v1/production/jobs/${jobId}/depth`).then((r) => { reasons.current = r.data?.reasons?.scrap ?? []; });
+  }, [jobId]);
   if (!supported || !enabled) return null;
 
   function listen() {
@@ -50,7 +54,9 @@ export function VoiceCommand({ target, onStart, onComplete }: { target: Target; 
 
   async function apply() {
     const a = heard?.action;
-    if (!a || !target) return;
+    if (!a || !target || busy) return;
+    setBusy(true);
+    try {
     if (a.action === 'start') await onStart();
     else if (a.action === 'complete') await onComplete();
     else {
@@ -58,6 +64,9 @@ export function VoiceCommand({ target, onStart, onComplete }: { target: Target; 
       setMessage(r.ok ? `${a.quantity} adet fire kaydedildi (${a.reasonLabel}).` : r.error || 'Fire kaydedilemedi');
     }
     setHeard(null);
+    } finally {
+      setBusy(false);
+    }
   }
 
   const describe = (a: VoiceAction | null) => !a ? 'Anlaşılmadı. “Başla”, “Bitti” ya da “3 adet fire, kesim hatası” deyin.'
@@ -66,7 +75,8 @@ export function VoiceCommand({ target, onStart, onComplete }: { target: Target; 
   // "Başla" only for a step not yet running, "Bitti" only for a running one (never the other way round).
   const blocked = !heard?.action || !target ? null
     : heard.action.action === 'start' && (target.status === 'running' || target.status === 'done') ? 'Bu adım zaten başlamış ya da bitmiş.'
-    : heard.action.action === 'complete' && target.status !== 'running' ? 'Bu adım çalışmıyor; önce “Başla” deyin.' : null;
+    : heard.action.action === 'complete' && target.status !== 'running' ? 'Bu adım çalışmıyor; önce “Başla” deyin.'
+    : heard.action.action !== 'scrap' && actionBlocked ? actionBlocked : null;
   const ready = heard?.action && target && !blocked && (heard.action.action !== 'scrap' || heard.action.reasonCode);
 
   return (
@@ -80,7 +90,7 @@ export function VoiceCommand({ target, onStart, onComplete }: { target: Target; 
           <p className="font-medium">{describe(heard.action)}</p>
           {blocked && <p className="text-xs text-amber-800 dark:text-amber-300">{blocked}</p>}
           <div className="flex gap-2">
-            {ready && <button type="button" className="rf-primary-button h-11 px-4" onClick={() => void apply()}><Check size={16} aria-hidden /> Uygula</button>}
+            {ready && <button type="button" className="rf-primary-button h-11 px-4" disabled={busy} onClick={() => void apply()}><Check size={16} aria-hidden /> Uygula</button>}
             <button type="button" className="rf-secondary-button h-11 px-4" onClick={() => setHeard(null)}><X size={16} aria-hidden /> Vazgeç</button>
           </div>
         </div>

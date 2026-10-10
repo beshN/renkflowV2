@@ -24,7 +24,7 @@ export async function customerMemoryFor(actor: WorkOrderActor, customerId: strin
   const seeQuotes = can(access, 'quotations', 'view');
   const financeVisible = can(access, 'finance', 'view');
   const [orders, quotes] = await Promise.all([
-    seeOrders ? sql`SELECT o.id, o.order_number, o.created_at, o.total_amount, o.status, array_remove(array_agg(DISTINCT oi.color), NULL) AS colors
+    seeOrders ? sql`SELECT o.id, o.order_number, o.created_at, o.total_amount, o.currency, o.status, array_remove(array_agg(DISTINCT oi.color), NULL) AS colors
       FROM orders o LEFT JOIN order_items oi ON oi.order_id = o.id WHERE o.tenant_id = ${actor.tenantId} AND o.customer_id = ${customerId} GROUP BY o.id ORDER BY o.created_at DESC LIMIT 100` : [],
     seeQuotes ? sql`SELECT q.id, q.quotation_number, q.created_at, q.status, array_remove(array_agg(DISTINCT qi.color), NULL) AS colors
       FROM quotations q LEFT JOIN quotation_items qi ON qi.quotation_id = q.id WHERE q.tenant_id = ${actor.tenantId} AND q.customer_id = ${customerId} GROUP BY q.id ORDER BY q.created_at DESC LIMIT 100` : [],
@@ -35,7 +35,7 @@ export async function customerMemoryFor(actor: WorkOrderActor, customerId: strin
     overdue = (await overdueOpenInvoices(actor.tenantId)).filter((i) => i.customerId === customerId);
   }
   const facts = customerMemory({
-    orders: orders.map((o: Row) => ({ id: String(o.id), number: o.order_number, date: iso(o.created_at), total: Number(o.total_amount ?? 0), status: String(o.status), colors: (o.colors ?? []).filter(Boolean) })),
+    orders: orders.map((o: Row) => ({ id: String(o.id), number: o.order_number, date: iso(o.created_at), total: Number(o.total_amount ?? 0), currency: o.currency ?? 'TRY', status: String(o.status), colors: (o.colors ?? []).filter(Boolean) })),
     quotes: quotes.map((q: Row) => ({ id: String(q.id), number: q.quotation_number, date: iso(q.created_at), status: String(q.status), colors: (q.colors ?? []).filter(Boolean) })),
     overdue: overdue.map((i) => ({ number: i.number, dueOn: i.dueOn, open: Number(i.open), orderId: i.orderId })),
     hidePrices: access.hidden.includes('price'), financeVisible,

@@ -6,6 +6,8 @@ describe('data quality guard', () => {
   it('phones and names: one spelling', () => {
     expect([normalPhone('+90 532 123 45 67'), normalPhone('532-123-4567'), normalPhone('0532 123 45 67'), normalPhone('123')]).toEqual(['05321234567', '05321234567', '05321234567', null]);
     expect([tidyName('  ahmet   YILMAZ '), tidyName('AYŞE KILIÇ'), tidyName('Ahmet Yılmaz'), tidyName('ahmet yılmaz')]).toEqual(['ahmet YILMAZ', 'Ayşe Kılıç', null, 'Ahmet Yılmaz']);
+    // Company titles keep their registered spelling; only spaces are tidied.
+    expect([tidyName('ÖRNEK YAPI A.Ş.'), tidyName('KAYA İNŞ. SAN.  VE TİC. LTD. ŞTİ.'), tidyName('ali ve veli')]).toEqual([null, 'KAYA İNŞ. SAN. VE TİC. LTD. ŞTİ.', 'Ali ve Veli']);
   });
   it('duplicate customers by phone: the card with more orders stays; the other is deactivated (reversible)', () => {
     const f = customerIssues([c('a', 'Selin Aydın', '0532 123 45 67', 1), c('b', 'Selin Aydin', '05321234567', 4)]).find((x) => x.payload.issue === 'duplicate_customer')!;

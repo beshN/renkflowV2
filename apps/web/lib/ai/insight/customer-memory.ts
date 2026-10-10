@@ -4,7 +4,7 @@
  * fact with no record behind it is left out.
  */
 export type MemoryInput = {
-  orders: Array<{ id: string; number: string; date: string; total: number; status: string; colors: string[] }>;
+  orders: Array<{ id: string; number: string; date: string; total: number; currency?: string | null; status: string; colors: string[] }>;
   quotes: Array<{ id: string; number: string; date: string; status: string; colors: string[] }>;
   overdue: Array<{ number: string; dueOn: string; open: number; orderId: string }>;
   hidePrices: boolean;
@@ -22,8 +22,12 @@ export function customerMemory(m: MemoryInput): MemoryFact[] {
   if (live.length) {
     const first = live[live.length - 1];
     facts.push({ key: 'since', label: 'İlk sipariş', value: trDate(first.date), sources: [{ label: first.number, href: `/orders/${first.id}` }] });
+    // Lira orders are added up; others are counted, never converted.
+    const tr = live.filter((o) => (o.currency ?? 'TRY') === 'TRY');
+    const other = live.length - tr.length;
+    const total = m.hidePrices ? '' : `${tr.length ? ` · toplam ${tl(tr.reduce((s, o) => s + o.total, 0))}` : ''}${other ? ` (+${other} döviz sipariş)` : ''}`;
     facts.push({
-      key: 'orders', label: 'Siparişler', value: `${live.length} sipariş${m.hidePrices ? '' : ` · toplam ${tl(live.reduce((s, o) => s + o.total, 0))}`} · son: ${trDate(live[0].date)}`,
+      key: 'orders', label: 'Siparişler', value: `${live.length} sipariş${total} · son: ${trDate(live[0].date)}`,
       sources: live.slice(0, 3).map((o) => ({ label: o.number, href: `/orders/${o.id}` })),
     });
   }
@@ -36,10 +40,11 @@ export function customerMemory(m: MemoryInput): MemoryFact[] {
       sources: [{ label: last.number, href: `/quotations/${last.id}` }],
     });
   }
-  // Colours the customer chose on orders and quotes (most used first, at least twice to count as a habit).
+  // Colours the customer chose on orders and quotes (a quote turned into an order counts once, as the
+  // order); most used first, at least twice to count as a habit.
   const count = new Map<string, Array<{ label: string; href: string }>>();
   for (const o of m.orders) for (const c of new Set(o.colors)) count.set(c, [...(count.get(c) ?? []), { label: o.number, href: `/orders/${o.id}` }]);
-  for (const q of m.quotes) for (const c of new Set(q.colors)) count.set(c, [...(count.get(c) ?? []), { label: q.number, href: `/quotations/${q.id}` }]);
+  for (const q of m.quotes.filter((x) => x.status !== 'converted')) for (const c of new Set(q.colors)) count.set(c, [...(count.get(c) ?? []), { label: q.number, href: `/quotations/${q.id}` }]);
   const habits = [...count.entries()].filter(([, s]) => s.length >= 2).sort((a, b) => b[1].length - a[1].length).slice(0, 2);
   if (habits.length) facts.push({ key: 'colors', label: 'Sık seçtiği renk', value: habits.map(([c, s]) => `${c} (${s.length} kez)`).join(', '), sources: habits[0][1].slice(0, 3) });
   if (m.financeVisible && m.overdue.length) {

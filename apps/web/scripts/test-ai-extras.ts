@@ -45,6 +45,8 @@ async function main() {
     return row.id;
   };
   await q(1, [3000, 4000], 36000); await q(2, [3000, 3500], 31500); await q(3, [4000, 3500], 42000); await q(4, [3000, 4000], 99000, 'rejected');
+  // A list price of 72.000 with a 50% quote discount was accepted at 36.000 (the discount counts).
+  await db`UPDATE quotations SET discount_percent = 50 WHERE id = ${await q(5, [3000, 4000], 72000)}`;
   await db`INSERT INTO orders (tenant_id, order_number, customer_id, customer_name, status, total_amount, delivery_date) VALUES (${tenantId}, ${'ORD-XT-' + tenantId.slice(0, 4)}, ${c1.id}, 'Selin Aydın', 'in_production', 36000, now() - interval '2 days')`;
   const [o] = await db`SELECT id FROM orders WHERE tenant_id = ${tenantId}`;
   await db`INSERT INTO order_items (order_id, product_name, quantity, unit_price, total_price, color) VALUES (${o.id}, 'Pergola', 1, 36000, 36000, '7016 mat')`;
@@ -52,11 +54,23 @@ async function main() {
   // Price hint: three accepted 10.5–14 m² quotes → median 3.000 ₺/m²; the rejected one does not count.
   const p: any = await priceSuggestionFor(owner, { family: 'pergola', widthMm: 3000, projectionMm: 4000 });
   assert.equal(p.basis, 'history');
-  assert.equal(p.evidence.count, 3);
+  assert.equal(p.evidence.count, 4);
   assert.equal(p.evidence.medianPerM2, 3000);
   assert.equal(p.suggested, 36000);
   assert.match(p.warnings.join(' '), /maliyeti bilinmiyor/, 'no cost → no floor verdict, said so');
   await assert.rejects(priceSuggestionFor(worker, { family: 'pergola', widthMm: 3000, projectionMm: 4000 }), /yetkiniz yok/);
+  // A role that hides cost and profit gets no margin (price + margin would give the cost back).
+  const team = await import('../lib/security/team.server');
+  const accessMod = await import('../lib/security/member-access.server');
+  ids.sales = randomUUID();
+  await db`INSERT INTO users (id, email, name) VALUES (${ids.sales}, ${`sales-${ids.sales}@test.local`}, 'sales')`;
+  await db`INSERT INTO tenant_members (tenant_id, user_id, role) VALUES (${tenantId}, ${ids.sales}, 'office')`;
+  const salesRole = await team.saveRole(owner as any, null, { name: 'Satış ' + tenantId.slice(0, 6), base: 'office', permissions: { quotations: ['view', 'create', 'edit'] }, hidden: ['cost', 'profit'] });
+  await team.updateMember(owner as any, ids.sales, { accessRole: salesRole });
+  accessMod.forgetMemberAccess(ids.sales, tenantId);
+  const sp: any = await priceSuggestionFor({ tenantId, userId: ids.sales, role: 'office' as any }, { family: 'pergola', widthMm: 3000, projectionMm: 4000, price: 30000 });
+  assert.deepEqual([sp.cost, sp.margin, sp.belowFloor], [null, null, false]);
+  assert.doesNotMatch(sp.warnings.join(' '), /kâr|maliyet/i);
   await settings.saveAiSettings(owner, { features: { price_hint: false } });
   assert.equal(((await priceSuggestionFor(owner, { family: 'pergola', widthMm: 3000, projectionMm: 4000 })) as any).available, false);
   await settings.saveAiSettings(owner, { features: { price_hint: true }, profitFloorPercent: 20 });
@@ -65,7 +79,7 @@ async function main() {
   // Customer memory: facts with sources; a worker cannot read it.
   const mem: any = await customerMemoryFor(owner, c1.id);
   assert.deepEqual(mem.facts.map((f: any) => f.key), ['since', 'orders', 'quotes', 'colors']);
-  assert.match(mem.facts.find((f: any) => f.key === 'quotes').value, /4 teklif · sonuçlananların %75'i kabul/);
+  assert.match(mem.facts.find((f: any) => f.key === 'quotes').value, /5 teklif · sonuçlananların %80'i kabul/);
   await assert.rejects(customerMemoryFor(worker, c1.id), /yetkiniz yok/);
 
   // Morning: the owner sees the late order; the worker sees only their own job (no customers).
@@ -99,6 +113,8 @@ async function main() {
   await db`DELETE FROM order_items WHERE order_id = ${o.id}`;
   for (const t of ['work_orders', 'quotation_items', 'quotations', 'orders', 'customers', 'ai_suggestions', 'ai_settings'])
     await db`DELETE FROM ${db(t)} WHERE tenant_id = ${tenantId}`.catch(() => {});
+  await db`UPDATE tenant_members SET access_role_id = NULL WHERE tenant_id = ${tenantId}`.catch(() => {});
+  await db`DELETE FROM access_roles WHERE tenant_id = ${tenantId}`.catch(() => {});
   await db`DELETE FROM tenants WHERE id = ${tenantId}`.catch(() => {});
   await db`DELETE FROM users WHERE id = ANY(${Object.values(ids)}::uuid[])`.catch(() => {});
   await db.end();

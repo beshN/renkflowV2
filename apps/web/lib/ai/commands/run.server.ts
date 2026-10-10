@@ -78,7 +78,7 @@ export async function runCommand(actor: WorkOrderActor, raw: unknown): Promise<C
     if (!mayApprove) return { type: 'denied', message: 'Teklif taslağını asistanla ofis rolleri hazırlar.' };
     const missing = [!cmd.customer && !input.customerId && 'müşteri', (!cmd.widthMm || !cmd.projectionMm) && 'ölçü (ör. 3x4)'].filter((x): x is string => Boolean(x));
     if (missing.length) return { type: 'need', message: `Teklif için eksik: ${missing.join(', ')}.`, missing, examples: EXAMPLES.slice(0, 1) };
-    return quotePreview(actor, cmd, input.customerId, hidePrices, source);
+    return quotePreview(actor, cmd, input.customerId, hidePrices, source, access.hidden.includes('cost') || access.hidden.includes('profit'));
   }
   if (cmd.intent === 'list_late') return lateList(actor, cmd.period, hidePrices);
   if (cmd.intent === 'stock_query') return stockAnswer(actor, cmd.color, cmd.item);
@@ -87,7 +87,7 @@ export async function runCommand(actor: WorkOrderActor, raw: unknown): Promise<C
 
 // Quote draft ---------------------------------------------------------------------------------------
 
-async function quotePreview(actor: WorkOrderActor, cmd: Extract<Command, { intent: 'quote_draft' }>, customerId: string | undefined, hidePrices: boolean, source: 'rules' | 'model'): Promise<CommandResult> {
+async function quotePreview(actor: WorkOrderActor, cmd: Extract<Command, { intent: 'quote_draft' }>, customerId: string | undefined, hidePrices: boolean, source: 'rules' | 'model', hideProfit = true): Promise<CommandResult> {
   let customer: { id: string | null; name: string };
   if (customerId) {
     const [c] = await sql`SELECT id, full_name, company_name FROM customers WHERE tenant_id = ${actor.tenantId} AND id = ${customerId}`;
@@ -125,7 +125,9 @@ async function quotePreview(actor: WorkOrderActor, cmd: Extract<Command, { inten
     if (featureOn(ai, 'price_hint')) {
       const { priceHistory } = await import('@/lib/ai/insight/price.server');
       const { suggestPrice } = await import('@/lib/ai/insight/price');
-      const s = suggestPrice({ areaM2: (cmd.widthMm! / 1000) * (cmd.projectionMm! / 1000), history: await priceHistory(actor.tenantId, family), matrixUnitPrice: unitPrice, floorPercent: ai.profitFloorPercent });
+      const { withoutProfit } = await import('@/lib/ai/insight/price.server');
+      const s0 = suggestPrice({ areaM2: (cmd.widthMm! / 1000) * (cmd.projectionMm! / 1000), history: await priceHistory(actor.tenantId, family), matrixUnitPrice: unitPrice, floorPercent: ai.profitFloorPercent });
+      const s = withoutProfit(s0, hideProfit);
       if (s.basis === 'history') hint.push({ label: 'Fiyat önerisi', value: `${s.suggested!.toLocaleString('tr-TR')} ₺ · ${s.evidence.count} kabul edilmiş benzer teklif, medyan ${s.evidence.medianPerM2!.toLocaleString('tr-TR')} ₺/m² (${s.evidence.minPerM2!.toLocaleString('tr-TR')}–${s.evidence.maxPerM2!.toLocaleString('tr-TR')})` });
       for (const w of s.warnings.filter((x) => /kâr|matristen/.test(x))) warnings.push(w);
     }

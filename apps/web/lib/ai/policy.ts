@@ -41,5 +41,5 @@ export class ModelBlockedError extends Error {
 /** The assistant's extras a firm can switch off one by one (settings → Asistan). On by default. */
 export const ASSISTANT_FEATURES = ['morning_summary', 'price_hint', 'customer_memory', 'voice'] as const;
 export const FEATURE_LABELS: Record<(typeof ASSISTANT_FEATURES)[number], string> = {
-  morning_summary: 'Sabah özeti', price_hint: 'Fiyat önerisi', customer_memory: 'Müşteri hafızası', voice: 'Usta sesli komutları',
+  morning_summary: 'Sabah özeti', price_hint: 'Fiyat önerisi', customer_memory: 'Müşteri hafızası', voice: 'Usta sesli komutları (tarayıcının ses servisi kullanılır; yalnız asistan modunda, KVKK onayıyla)',
 };

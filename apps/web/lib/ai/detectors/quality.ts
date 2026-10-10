@@ -27,11 +27,13 @@ export function normalPhone(raw: string | null): string | null {
   const local = d.startsWith('90') && d.length === 12 ? '0' + d.slice(2) : d.length === 10 && !d.startsWith('0') ? '0' + d : d;
   return /^0\d{10}$/.test(local) ? local : null;
 }
-/** "  ahmet   YILMAZ " → "Ahmet Yılmaz" (only for names written all lower or all upper case, or with stray spaces). */
+/** "ahmet yılmaz" → "Ahmet Yılmaz" (only names written all lower or all upper case; otherwise only stray spaces). */
 export function tidyName(raw: string): string | null {
   const spaced = raw.replace(/\s+/g, ' ').trim();
   const oneCase = spaced === trLower(spaced) || spaced === spaced.toLocaleUpperCase('tr-TR');
-  const fixed = oneCase && /\p{L}/u.test(spaced) ? spaced.split(' ').map((w) => (w.length <= 3 && /^(a\.ş\.|ltd|şti|ve)$/iu.test(w) ? w.toLocaleUpperCase('tr-TR') : w.charAt(0).toLocaleUpperCase('tr-TR') + trLower(w.slice(1)))).join(' ') : spaced;
+  // A company title ("ÖRNEK YAPI A.Ş.", "... LTD. ŞTİ.") is written as the firm registers it: only spaces are tidied.
+  const company = /\.|(?<!\p{L})(ltd|şti|san|tic|inş|a\s?ş)(?!\p{L})/iu.test(spaced);
+  const fixed = oneCase && !company && /\p{L}/u.test(spaced) ? spaced.split(' ').map((w) => (trLower(w) === 've' ? 've' : w.charAt(0).toLocaleUpperCase('tr-TR') + trLower(w.slice(1)))).join(' ') : spaced;
   return fixed !== raw ? fixed : null;
 }
 

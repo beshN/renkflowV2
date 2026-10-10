@@ -2,6 +2,7 @@ import 'server-only';
 
 import { z } from 'zod';
 import { sql } from '@/lib/db';
+import { columnExists } from '@/lib/db/schema-guard';
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
 import { resolveMemberAccess } from '@/lib/security/member-access.server';
 import { can } from '@/lib/security/access-matrix';
@@ -19,7 +20,9 @@ const NAME: Record<string, string> = { pergola: '(pergola|bioklimatik)', awning:
  */
 export async function priceHistory(tenantId: string, family: string): Promise<PricePoint[]> {
   const rows = await sql`
-    SELECT q.id, q.quotation_number, q.created_at, qi.width_mm, COALESCE(qi.projection_mm, qi.height_mm) AS projection_mm, qi.unit_price, qi.product_configuration
+    SELECT q.id, q.quotation_number, q.created_at, qi.width_mm, COALESCE(qi.projection_mm, qi.height_mm) AS projection_mm,
+      -- The price actually accepted: line and quote discounts applied.
+      qi.unit_price * (1 - COALESCE(qi.discount_percent, 0) / 100) * (1 - COALESCE(q.discount_percent, 0) / 100) AS unit_price, qi.product_configuration
     FROM quotation_items qi JOIN quotations q ON q.id = qi.quotation_id AND q.tenant_id = qi.tenant_id
     WHERE qi.tenant_id = ${tenantId} AND q.status IN ('accepted', 'converted') AND COALESCE(q.currency, 'TRY') = 'TRY'
       AND q.created_at > now() - interval '365 days' AND qi.width_mm > 0 AND COALESCE(qi.projection_mm, qi.height_mm) > 0 AND qi.unit_price > 0
@@ -28,8 +31,10 @@ export async function priceHistory(tenantId: string, family: string): Promise<Pr
   const ids = [...new Set(rows.flatMap((r: Row) => (r.product_configuration?.bom?.materials ?? []).map((m: Row) => String(m.itemId))))];
   const prices = new Map<string, { price: number; uom: string }>();
   if (ids.length) {
+    // TRY purchases only: a price in another currency is not added up as lira (no conversion is made).
+    const cur = (await columnExists('purchase_orders', 'currency')) ? sql`AND COALESCE(po.currency, 'TRY') = 'TRY'` : sql``;
     for (const p of await sql`SELECT DISTINCT ON (l.item_id) l.item_id, l.unit_price, l.uom FROM purchase_order_lines l JOIN purchase_orders po ON po.id = l.purchase_order_id
-      WHERE l.tenant_id = ${tenantId} AND l.item_id = ANY(${ids}::uuid[]) AND l.unit_price > 0 AND po.status <> 'cancelled' ORDER BY l.item_id, po.created_at DESC`)
+      WHERE l.tenant_id = ${tenantId} AND l.item_id = ANY(${ids}::uuid[]) AND l.unit_price > 0 AND po.status <> 'cancelled' ${cur} ORDER BY l.item_id, po.created_at DESC`)
       prices.set(String(p.item_id), { price: Number(p.unit_price), uom: p.uom });
   }
   return rows.map((r: Row) => {
@@ -53,6 +58,13 @@ export async function priceSuggestionFor(actor: WorkOrderActor, raw: unknown) {
   const ai = await getAiSettings(actor.tenantId);
   if (ai.mode === 'off' || !featureOn(ai, 'price_hint')) return { available: false as const };
   const s = suggestPrice({ areaM2: (d.widthMm / 1000) * (d.projectionMm / 1000), history: await priceHistory(actor.tenantId, d.family), matrixUnitPrice: d.matrixUnitPrice ?? null, floorPercent: ai.profitFloorPercent, enteredPrice: d.price ?? null });
-  // A role that hides costs sees the floor warning but not the cost itself.
-  return { available: true as const, ...s, cost: access.hidden.includes('cost') ? null : s.cost, floorPercent: ai.profitFloorPercent };
+  return { available: true as const, ...withoutProfit(s, access.hidden.includes('cost') || access.hidden.includes('profit')), floorPercent: ai.profitFloorPercent };
+}
+
+/**
+ * For a role that hides cost or profit: no cost, no margin and no profit percentage anywhere (a margin
+ * with the price would give the cost back).
+ */
+export function withoutProfit<T extends { cost: unknown; margin: number | null; belowFloor: boolean; warnings: string[] }>(s: T, hide: boolean): T {
+  return hide ? { ...s, cost: null, margin: null, belowFloor: false, warnings: s.warnings.filter((w) => !/kâr|maliyet/i.test(w)) } : s;
 }
