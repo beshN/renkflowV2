@@ -28,20 +28,25 @@ export type Parsed = { command: Command; confidence: 'high' | 'medium' | 'low'; 
 const lower = (s: string) => s.toLocaleLowerCase('tr-TR');
 const num = (s: string) => Number(s.replace(',', '.'));
 
-/** "3x4" → metres → mm; "300x400" → cm → mm; "3000x4000" → mm. */
+/**
+ * "3x4" → metres → mm; "300x400" → cm → mm; "3000x4000" → mm. Also "3 m x 2,2 m", the spoken
+ * "5,5a4", and "genişlik 4200 mm, çıkma 3000 mm". A unit written once applies to both numbers.
+ */
 export function parseDims(text: string): { widthMm: number; projectionMm: number } | null {
-  const m = text.match(/(\d+(?:[.,]\d+)?)\s*(?:x|×|\*|çarpı)\s*(\d+(?:[.,]\d+)?)\s*(mm|cm|m|metre)?/i);
-  if (!m) return null;
-  const a = num(m[1]);
-  const b = num(m[2]);
-  const unit = m[3]?.toLowerCase();
-  const toMm = (v: number) => {
-    if (unit === 'mm') return v;
-    if (unit === 'cm') return v * 10;
-    if (unit === 'm' || unit === 'metre') return v * 1000;
+  const N = String.raw`(\d+(?:[.,]\d+)?)`;
+  const U = String.raw`(?:\s*(mm|cm|metre|m)(?!\p{L}))?`;
+  const pair = text.match(new RegExp(`${N}${U}(?:\\s*(?:x|×|\\*|çarpı)\\s*|a(?=\\d))${N}${U}`, 'iu'));
+  const named = pair ? null : [text.match(new RegExp(`(?<!\\p{L})(?:genişli[kğ]i?|en)\\s*:?\\s*${N}${U}`, 'iu')), text.match(new RegExp(`(?<!\\p{L})(?:çıkma|açılım|derinlik|yükseklik|boy)\\s*:?\\s*${N}${U}`, 'iu'))];
+  const [a, ua, b, ub] = pair ? [pair[1], pair[2], pair[3], pair[4]] : named?.[0] && named[1] ? [named[0][1], named[0][2], named[1][1], named[1][2]] : [];
+  if (!a || !b) return null;
+  const toMm = (v: number, unit?: string) => {
+    const u = unit?.toLowerCase();
+    if (u === 'mm') return v;
+    if (u === 'cm') return v * 10;
+    if (u === 'm' || u === 'metre') return v * 1000;
     return v <= 30 ? v * 1000 : v <= 3000 ? v * 10 : v;
   };
-  return { widthMm: Math.round(toMm(a)), projectionMm: Math.round(toMm(b)) };
+  return { widthMm: Math.round(toMm(num(a), ua ?? ub)), projectionMm: Math.round(toMm(num(b), ub ?? ua)) };
 }
 
 /** A colour from a RAL code ("7016", "7016 mat") or a name ("antrasit", "beyaz"). */
@@ -104,9 +109,10 @@ export function parseCommand(input: string, families: readonly string[] = ['perg
   // What-if scenarios first: they name an order and a change.
   const order = parseOrderRef(text);
   if (order && /(öne al|önce yap|öncele|acele)/u.test(t)) return { command: { intent: 'what_if', scenario: 'expedite', order, days: null }, confidence: 'high', missing: [] };
-  const plus = t.match(/(\d+)\s*gün\s*(ekle|ertele|kaydır|geciktir|ileri)/u) ?? t.match(/(ertele|kaydır|geciktir)\D*(\d+)\s*gün/u);
+  const plus = t.match(/(\d+)\s*(gün|hafta)\s*(ekle|ertele|kaydır|geciktir|ileri)/u) ?? t.match(/(ertele|kaydır|geciktir)\D*(\d+)\s*(gün|hafta)/u);
   if (order && plus) {
-    const days = Number(plus[1].match(/\d+/) ? plus[1] : plus[2]);
+    const [n, unit] = /\d/.test(plus[1]) ? [plus[1], plus[2]] : [plus[2], plus[3]];
+    const days = Number(n) * (unit === 'hafta' ? 7 : 1);
     return { command: { intent: 'what_if', scenario: 'delay', order, days }, confidence: 'high', missing: [] };
   }
   if (order && /(iptal|vazgeç|kaldır)/u.test(t)) return { command: { intent: 'what_if', scenario: 'cancel', order, days: null }, confidence: 'high', missing: [] };

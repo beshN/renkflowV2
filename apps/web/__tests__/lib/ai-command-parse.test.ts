@@ -40,3 +40,10 @@ describe('command parser (Turkish, deterministic)', () => {
     expect(parseOrderRef('sipariş no 445 ne durumda')).toBe('445');
   });
 });
+
+describe('command: weeks', () => {
+  it('"1 hafta ertele" is a 7-day delay', () => {
+    const { parseCommand } = jest.requireActual('@/lib/ai/commands/parse');
+    expect(parseCommand("ORD-31'i 1 hafta ertele").command).toEqual({ intent: 'what_if', scenario: 'delay', order: 'ORD-31', days: 7 });
+  });
+});

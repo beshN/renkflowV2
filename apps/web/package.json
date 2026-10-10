@@ -33,6 +33,7 @@
     "test:production": "tsx --require ./scripts/register-server-only.cjs scripts/test-production-platform.ts",
     "test:ai": "tsx --require ./scripts/register-server-only.cjs scripts/test-ai-suggestions.ts",
     "evals": "tsx --require ./scripts/register-server-only.cjs evals/run.ts",
+    "evals:assistant": "tsx --require ./scripts/register-server-only.cjs evals/assistant.ts",
     "evals:export": "tsx --require ./scripts/register-server-only.cjs evals/export-feedback.ts",
     "test:production:browser": "node scripts/verify-production-browser.cjs",
     "smoke:ai": "tsx --require ./scripts/register-server-only.cjs scripts/smoke-ai-extraction.ts",
@@ -57,6 +58,7 @@
     "test:finance": "tsx --require ./scripts/register-server-only.cjs scripts/test-finance.ts",
     "test:ai-assistant": "tsx --require ./scripts/register-server-only.cjs scripts/test-ai-assistant.ts",
     "test:ai-commands": "tsx --require ./scripts/register-server-only.cjs scripts/test-ai-commands.ts",
+    "test:ai-extract": "tsx --require ./scripts/register-server-only.cjs scripts/test-ai-extract.ts",
     "test:warehouse:browser": "node scripts/verify-warehouse-browser.cjs",
     "prebuild": "node scripts/sync-pdf-worker.cjs",
     "predev": "node scripts/sync-pdf-worker.cjs"
