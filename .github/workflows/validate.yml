@@ -8,6 +8,12 @@ on:
     branches:
       - codex/**
 
+# Aynı dalda yeni bir push gelince eski çalışma iptal olur; ayrıca aynı dal için hem `push` hem
+# `pull_request` çalışması tetiklenirse biri öbürünü iptal eder (Actions dakikası boşa gitmez).
+concurrency:
+  group: validate-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     runs-on: ubuntu-latest
