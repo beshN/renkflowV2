@@ -9,7 +9,7 @@ import { join, relative } from 'node:path';
 const ROOT = join(__dirname, '..', '..');
 const API = join(ROOT, 'app', 'api');
 
-const GUARD = /getAPIUser|requireWorkOrderActor|getServerUserContext|requireTenantContext|\bauth\(\)|apiContextWithPermission|requireCustomerActor|runCron|internalAuthorized|resolveTenantMembership/;
+const GUARD = /getAPIUser|requireWorkOrderActor|getServerUserContext|requireTenantContext|\bauth\(\)|apiContextWithPermission|requireCustomerActor|runCron|internalAuthorized|resolveTenantMembership|fieldActor|requireMobileSession/;
 
 /** Public on purpose: path → why, and what must stay in the file to keep it safe. */
 const PUBLIC: Record<string, { why: string; keeps: RegExp | null }> = {
