@@ -41,3 +41,5 @@ CREATE TABLE IF NOT EXISTS public.ai_settings (
 );
 -- When the detectors last ran for this firm from the scheduled job (they also run when someone opens the queue).
 ALTER TABLE public.ai_settings ADD COLUMN IF NOT EXISTS detectors_ran_at timestamptz;
+-- The firm's profit floor for the price suggestion warning (percent of the price).
+ALTER TABLE public.ai_settings ADD COLUMN IF NOT EXISTS profit_floor_percent numeric(5, 2) NOT NULL DEFAULT 15 CHECK (profit_floor_percent BETWEEN 0 AND 90);

@@ -89,7 +89,7 @@ export const RECORDS: Record<RecordType, Def> = {
     canEdit: (r) => hasPermission(r, 'customers.edit'),
     auditTypes: ['customer', 'customers'],
     head: async (db, a, id) => {
-      const [c] = await db`SELECT name FROM customers WHERE tenant_id = ${a.tenantId} AND id = ${id}`;
+      const [c] = await db`SELECT full_name AS name FROM customers WHERE tenant_id = ${a.tenantId} AND id = ${id}`;
       return c ? { type: 'customer', id, title: c.name, subtitle: null, href: `/crm/${id}` } : null;
     },
     related: async (db, a, id) => {

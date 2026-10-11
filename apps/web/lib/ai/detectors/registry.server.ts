@@ -5,5 +5,6 @@ import 'server-only';
  * A detector not imported here never runs and never appears in the queue.
  */
 import './defs.server';
+import './quality.server';
 
 export { listDetectors, runAllDetectors, runDetector } from './runner.server';

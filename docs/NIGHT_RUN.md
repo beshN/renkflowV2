@@ -239,3 +239,83 @@ Keşif: `ai_suggestions` kuyruğu (029), 4 öneri türü (kesim planı, sayım i
 9. Maliyet/güvenlik: firma/kullanıcı günlük bütçe + hız sınırı, kural yeterliyse model yok, önbellek, prompt enjeksiyonuna karşı yalnız şema çıktısı, AI kapalıyken sistem çalışır.
 10. Her tur: alt dal → PR → CI yeşil → /code-review → birleştir; testler kodla birlikte.
 | 2026-10-10 (AI-1+2) | bitti → PR | Göç 048 (öneriye dedektör/öncelik/kanıt/ertele/ret nedeni; `ai_settings`: mod kapalı/kural/model, KVKK onayı, bütçe, dedektör ayarları). Model kapısı: mod, KVKK onayı, firma günlük bütçesi, kişi günlük çağrı sınırı (`withUsage` içinde). Dedektör çatısı + bastırma (açık/ret sonrası N gün/onay sonrası N gün/"bir daha önerme"/düşük kabulde seyreltme), zamanlanmış çalıştırma (6 saatte bir). 8 dedektör: geciken sipariş (yeni termin + mesaj taslağı), eksik malzeme (tedarikçi karşılaştırmalı taslak satın alma; metre profilde çubuk), bekleyen teklif (3/7 gün takip mesajı), vadesi geçen alacak (nazik hatırlatma), fire anomalisi, kapasite çakışması (kayabilecek iş), belge/bakım süresi, artık parça fırsatı. Mesajlar kural şablonuyla, "kopyala" — gönderim bağlı değil. Kartlar üyenin kendi yetki hücresine ve gizli alanlarına uyar. Testler: motor 9 + dedektör 19 + mesaj 4 + politika 4 jest; `test:ai-assistant` (ayarlar, kapı, bastırma, ertele, ret nedeni, 8 dedektörün gerçek çalışması, onay etkileri, roller). /code-review 10 bulgu, hepsi düzeltildi. |
+| 2026-10-10 (AI-3+4) | bitti → dal `claude/n3-ai3-ui` | Bugün kartları (ikon, öncelik, kanıt rozetleri, Onayla/Düzenle/Ertele/Reddet, ret nedeni), mesaj önizlemesi + Kopyala (gönderim yok), "Neden?" paneli ("bunu bir daha önerme", sessiz gün). Ayarlar › Asistan (mod + KVKK onayı, bütçe, dedektör aç/kapa) ve performans paneli (dedektör başına kabul oranı). Doğal dil komutları: deterministik Türkçe ayrıştırıcı → (asist modunda) şema çıktılı model; teklif taslağı, geciken işler, renk/çubuk stok, "ya şöyle olsa?" (öne al / gün ekle / iptal) önizlemesi; belirsiz müşteride seçenek; Cmd+K "Asistana sor", ses (tarayıcı destekliyorsa). |
+| 2026-10-10 (AI-5) | bitti | Yapıştırılan mesaj → teklif taslağı (alan güveni, sarı alan); tedarikçi teklif PDF/metni → RFQ cevabı taslağı; sayım PDF'i mevcut satır satır sayım içe aktarmaya bağlı. Eval: 35 Türkçe vaka (argo dahil), `npm run evals:assistant`; kural okuyucu 30/35 → 34/35 (set ayarda kullanıldı; bağımsız ölçüm değil). Model sütunları anahtar olmadığından "çalıştırılmadı". `test:ai-extract`. |
+| 2026-10-10 (inceleme) | bitti | /code-review 11 bulgu (2 engelleyici: birimsiz mm ölçü cm sanılıyordu; asistan iptali iş emri/sürüm korumalarını atlıyordu) — hepsi düzeltildi, regresyon testleri eklendi. |
+| 2026-10-10 (AI-6) | bitti | Fiyat önerisi (kabul edilmiş benzer tekliflerin m² medyanı, kaynaklı; kâr tabanı yalnız maliyet biliniyorsa), müşteri hafızası (yalnız kayıt, kaynaklı), rol bazlı sabah özeti (usta: yalnız kendi işi), usta sesli komut (Başla/Bitti/fire; önce göster, "Uygula" ile), veri kalitesi dedektörü (6 tür; 4'ü onayla düzeltilir ve geri alınır, 2'si yapılacak açar), ek anahtarları. `test:ai-extras`. Tarayıcı kontrolü: `docs/night-run/gece3/*.png`. Ayrıca Tur A'dan kalan hata: müşteri kayıt paneli `customers.name` okuyup 500 veriyordu → `full_name`. |
+
+## SABAH RAPORU — Gece 3
+
+### Turlar
+| Tur | Durum | PR (`claude/n3-ai-assistant`'a) | Özet |
+|---|---|---|---|
+| AI-1+2 — Temel + 8 dedektör | **bitti, CI bekliyor** | #61 | Göç 048, AI modu (kapalı / yalnız kural / asistan), KVKK onayı, bütçe ve kişi başı sınır, bastırma ve seyreltme; 8 dedektör, kanıt ve "kopyala" taslak mesajlarıyla |
+| AI-3 — Arayüz | **bitti, CI bekliyor** | #62 | Bugün kartları (kanıt rozetleri, Onayla / Düzenle / Ertele / Reddet), "Neden?" paneli, Ayarlar › Asistan, performans paneli (dedektör başına kabul oranı) |
+| AI-4 — Doğal dil komutları | **bitti, CI bekliyor** | #62 | Önce kural, yetmezse şemalı model; önizleme → onay; belirsiz müşteride seçenek sorar; rol yetkisi aşılamaz; Cmd+K; "ya şöyle olsa?" (öne al / gün ekle / iptal) |
+| AI-5 — Girdiden kayıt + eval | **bitti, CI bekliyor** | #62 | Mesaj → teklif taslağı, tedarikçi PDF'i → RFQ cevabı, sayım PDF'i → satır satır sayım; alan güveni ve sarı alan; 35 vakalık eval |
+| AI-6 — Ekler | **bitti, CI bekliyor** | #62 | Fiyat önerisi + kâr tabanı, müşteri hafızası, rol bazlı sabah özeti, usta sesi, veri kalitesi (6 tür, geri alınabilir), ek anahtarları |
+
+### BİTTİ ölçütleri
+| Ölçüt | Durum | Kanıt |
+|---|---|---|
+| 8 dedektör çalışıyor, testli | ✓ | `test:ai-assistant` (8'inin gerçek çalışması + onay etkileri), `ai-detectors.test.ts` (19) |
+| Doğal dil komutuyla teklif taslağı | ✓ | `test:ai-commands`, `asistan-komut-sonuc-kartlari.png` |
+| Yapıştırılan mesaj → teklif taslağı | ✓ | `test:ai-extract`, `mesajdan-teklif-sari-alanlar.png` |
+| Sayım PDF'i → sayım taslağı | ✓ (PDF) | Mevcut satır satır sayım içe aktarma; Asistan'dan bağlantı. **Fotoğraf yok:** OCR ya da görsel model bağlı değil |
+| Kabul oranı raporu görünüyor | ✓ | `ayarlar-asistan-performans.png` |
+| AI kapalıyken sistem çalışıyor | ✓ | Tarayıcı: kapalı modda komut kuralla yanıt verdi, dedektör kartı 0 (`bugun-ai-kapali.png`) |
+| Eval tablosu raporda | ✓ | Aşağıda |
+
+### Eval (35 Türkçe vaka, argo dahil — `npm run evals:assistant`)
+| Okuyucu | Komut | Mesajdan teklif | Toplam | Uydurma | Hata | Medyan süre |
+|---|---|---|---|---|---|---|
+| rules | 23/23 | 11/12 | 34/35 | 0 | 0 | 0,5 ms |
+| openai | çalıştırılmadı (anahtar yok) | | | | | |
+| gemini | çalıştırılmadı (anahtar yok) | | | | | |
+| glm | çalıştırılmadı (anahtar yok) | | | | | |
+
+- Geçemeyen tek vaka (`qr-07`): "krem" RAL 1015 okunuyor, beklenen 9001. Hangisinin doğru olduğu firmanın kullanımına bağlı.
+- İlk ölçüm 30/35'ti. Set kuralları düzeltirken kullanıldı, yani bağımsız bir ölçüm değil.
+- Model sütunları için anahtar gerekir. Komut yolu yalnız OpenAI'da var; mesaj okuma üç sağlayıcıda da çalışır.
+
+### Göç
+| No | Dosya | Ne ekliyor |
+|---|---|---|
+| 048 | `048_ai_assistant.sql` | `ai_suggestions`'a dedektör, öncelik, kanıt, güven, kural, ertele ve ret nedeni alanları; `ai_settings` tablosu (mod, KVKK onayı, bütçe, kişi sınırı, dedektör ve ek ayarları, son çalışma, **kâr tabanı %**) |
+
+- Tek göç budur; `IF NOT EXISTS` ile idempotent.
+- `profit_floor_percent` sonradan 048'e eklendi. 048'i daha önce uyguladıysanız bir kez daha çalıştırın.
+- Production'a uygulanmadı.
+
+### KVKK karar notu
+- Varsayılan mod **yalnız kural**: hiçbir model çağrısı yapılmaz.
+  - Asistan modu ancak sahip/yönetici "yurt dışına veri aktarımı" onayını işaretleyince açılır.
+  - Onayı kimin, ne zaman verdiği kaydedilir; ayar değişiklikleri denetim izine düşer.
+- Model çağrılarında:
+  - E-posta, telefon, TC kimlik ve IBAN maskelenir.
+  - Mesajdan teklifte, kuralın okuduğu iletişim ve ad **satırları** tümüyle çıkarılır.
+  - Model yalnız kural hiç ürün bulamazsa çağrılır.
+  - Modelin çıktısı yalnız şemayla kabul edilir.
+- Usta sesli komutu:
+  - Sesi tarayıcının ses servisi alır (Chrome → Google), bu da yurt dışına aktarımdır.
+  - Bu yüzden yalnız asistan modu + KVKK onayıyla açılır.
+- Hiçbir mesaj müşteriye gönderilmez: taslaklar "Kopyala" ile verilir ve "gönderilmedi" diye işaretlidir.
+
+### İncelemeler
+- Bağımsız kod incelemesi iki tur: 11 + 9 bulgu, hepsi düzeltildi, her birine regresyon testi eklendi.
+- Önemlileri:
+  - Birimsiz mm ölçü cm sanılıyordu.
+  - "Ya şöyle olsa?" iptali, iş emri ve sipariş sürümü korumalarını atlıyordu.
+  - Maliyet/kâr gizleyen rol, fiyat ipucundaki kâr yüzdesinden maliyeti geri hesaplayabiliyordu.
+  - Veri düzeltmesi yalnız müşteri yetkisiyle sipariş ve teklif satırlarını değiştirebiliyordu.
+  - Ses, KVKK onayı olmadan açıktı.
+
+### Engeller / bilinmeyenler
+- **GitHub Actions hesap genelinde çalışmıyor.** İşler runner'a atanmadan (`runner_id 0`) 2 saniyede düşüyor. Bu oturumun yeniden çalıştırma yetkisi yok (403). #61 ve #62 bu yüzden birleştirilmedi.
+- Fiyat önerisindeki maliyet, yalnız reçeteli geçmiş tekliflerle son TRY alış fiyatından çıkar. Veri yoksa "maliyet bilinmiyor" der; tahmin yazmaz.
+- Sayım için fotoğraf desteklenmiyor; yalnız metinli PDF okunuyor.
+
+### Kullanıcıdan beklenenler
+1. GitHub Actions'ı düzeltin (faturalandırma ya da runner kotası). Sonra #61 ve #62'de `validate`'i yeniden çalıştırın.
+2. Dev branch'e 048'i uygulayın (`profit_floor_percent` ile birlikte).
+3. Model sütunları istenirse anahtarları ortamda tanımlayıp `npm run evals:assistant -- --provider rules,openai,gemini,glm` çalıştırın.

@@ -42,7 +42,7 @@ async function tones(tenantId: string, customerIds: Array<string | null>): Promi
 }
 
 /** A "do this" item on a record, made by the assistant on approval (assigned to the approver). */
-async function addTodo(tx: any, tenantId: string, entityType: string, entityId: string, title: string, dueOn: string, assigneeId: string, ruleKey: string) {
+export async function addTodo(tx: any, tenantId: string, entityType: string, entityId: string, title: string, dueOn: string, assigneeId: string, ruleKey: string) {
   if (!(await tableExists('record_activities'))) return null;
   const [a] = await tx`INSERT INTO record_activities (tenant_id, entity_type, entity_id, kind, title, due_on, assignee_id, rule_key, created_by)
     VALUES (${tenantId}, ${entityType}, ${entityId}, 'todo', ${title.slice(0, 200)}, ${dueOn}, ${assigneeId}, ${ruleKey}, ${assigneeId}) RETURNING id`;

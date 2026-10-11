@@ -14,6 +14,7 @@ import { LIFECYCLE, lifecycleIndex, orderHealth } from '@/lib/features/orders/li
 import type { Order } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { SuggestionsPanel } from '@/components/features/ai/SuggestionsPanel';
+import { MorningSummary } from '@/components/features/ai/MorningSummary';
 import { DueActivities } from '@/components/records/DueActivities';
 import { FleetHealthCard } from '@/components/fleet/FleetHealthCard';
 import { Donut, EmptyState, HealthBadge, HintTip, LifecycleStrip, PageHeader, ProgressRing, Skeleton, StatCard } from '@/components/kit';
@@ -33,9 +34,9 @@ type Summary = {
 
 // Lifecycle colours: one cobalt ramp, the last step neutral. Each segment also has a label and a link.
 const STEP_COLORS = ['#c7d2fe', '#a5b4fc', '#7c8ff0', '#2f55f4', '#1b3fa8', '#a1a1aa'];
-const SECTIONS = ['today', 'activities', 'suggestions', 'flow', 'health', 'paint', 'week'] as const;
+const SECTIONS = ['morning', 'today', 'activities', 'suggestions', 'flow', 'health', 'paint', 'week'] as const;
 type Section = (typeof SECTIONS)[number];
-const SECTION_LABELS: Record<Section, string> = { today: 'Bugünün işi', activities: 'Aktiviteler', suggestions: 'Önerilenler', flow: 'Sipariş akışı', health: 'Riskteki siparişler', paint: 'Renk kuyruğu', week: 'Bu hafta' };
+const SECTION_LABELS: Record<Section, string> = { morning: 'Sabah özeti', today: 'Bugünün işi', activities: 'Aktiviteler', suggestions: 'Önerilenler', flow: 'Sipariş akışı', health: 'Riskteki siparişler', paint: 'Renk kuyruğu', week: 'Bu hafta' };
 const LAYOUT_KEY = 'rf-dashboard-layout';
 
 /** Card order and hidden cards, per browser. Falls back to the default when storage is unavailable. */
@@ -128,6 +129,7 @@ export default function DashboardPage() {
   ].filter((s) => s.show);
 
   const sections: Record<Section, React.ReactNode> = {
+    morning: <MorningSummary />,
     today: (
       <div className="rf-panel grid gap-4 p-4 lg:grid-cols-3">
         <Lane title="Bugün teslim" icon={Truck} orders={dueToday} href="/orders?view=today" today={today} loading={isLoading} />
@@ -234,7 +236,7 @@ export default function DashboardPage() {
         {layout.order.map((s) => {
           const hidden = layout.hidden.includes(s);
           if (hidden && !editing) return null;
-          const wide = s === 'today' || s === 'suggestions' || s === 'activities';
+          const wide = s === 'morning' || s === 'today' || s === 'suggestions' || s === 'activities';
           return (
             <div key={s} className={cn('relative', wide && 'xl:col-span-2', hidden && 'opacity-40')}>
               {editing && (

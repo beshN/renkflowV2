@@ -7,6 +7,7 @@ import { ColorCatalogSettings } from '@/components/settings/ColorCatalogSettings
 import { RecordSettings } from '@/components/settings/RecordSettings';
 import { QuoteRulesSettings } from '@/components/settings/QuoteRulesSettings';
 import { ProductionReasonSettings } from '@/components/settings/ProductionReasonSettings';
+import { AssistantPerformance, AssistantSettings } from '@/components/settings/AssistantSettings';
 import { useAuth } from '@/lib/context/AuthContext';
 
 export default function SettingsPage() {
@@ -20,6 +21,8 @@ export default function SettingsPage() {
       {canManage && <div className="rf-panel p-5 md:p-6"><ProductionReasonSettings /></div>}
       {canManage && <div className="rf-panel p-5 md:p-6"><QuoteRulesSettings /></div>}
       {canManage && <div className="rf-panel p-5 md:p-6"><RecordSettings /></div>}
+      {canManage && <div id="asistan" className="rf-panel p-5 md:p-6"><AssistantSettings /></div>}
+      {canManage && <div className="rf-panel p-5 md:p-6"><AssistantPerformance /></div>}
     </main>
   </div>;
 }
