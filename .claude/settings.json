@@ -1,14 +1,15 @@
 {
   "permissions": {
-    "allow": ["Bash", "Edit", "Write", "Read", "Glob", "Grep", "WebFetch", "WebSearch"],
-    "deny": [
-      "Bash(git push --force*)",
-      "Bash(git push -f*)",
-      "Bash(git push origin main*)",
-      "Bash(git push origin HEAD:main*)",
-      "Bash(git reset --hard origin*)",
-      "mcp__Neon__*",
-      "mcp__Vercel__*"
-    ]
+    "allow": [
+      "Bash",
+      "Edit",
+      "Write",
+      "Read",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch"
+    ],
+    "deny": []
   }
 }
