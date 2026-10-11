@@ -4,6 +4,27 @@ import { z } from 'zod';
 import { sql, withTransaction } from '@/lib/db';
 import { changedFields, recordAudit } from '@/lib/audit/audit-log';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
+import { columnExists } from '@/lib/db/schema-guard';
+import { compareQueue, type Priority } from '@/lib/ai/detectors/engine';
+import { getAiSettings } from '@/lib/ai/gate.server';
+import { resolveMemberAccess } from '@/lib/security/member-access.server';
+import { can } from '@/lib/security/access-matrix';
+import type { SuggestionKind } from './kinds';
+
+/**
+ * Kinds this member may see: base role, their own module cell (a custom role narrows the base
+ * role), and none whose card carries a field group they hide. `need` = 'approve' also needs the
+ * kind's action.
+ */
+async function visibleKinds(actor: SuggestionActor, kinds: SuggestionKind<any>[], need: 'view' | 'approve' = 'view') {
+  const byRole = kinds.filter((k) => k.roles.includes(actor.role));
+  if (!byRole.some((k) => k.access || k.sensitive?.length)) return byRole;
+  const access = await resolveMemberAccess(actor.userId, actor.tenantId).catch(() => null);
+  if (!access) return byRole.filter((k) => !k.access && !k.sensitive?.length);
+  return byRole.filter((k) =>
+    (!k.access || (can(access, k.access.module, 'view') && (need === 'view' || can(access, k.access.module, k.access.action))))
+    && !(k.sensitive ?? []).some((g) => access.hidden.includes(g)));
+}
 import { suggestionKind, suggestionKinds, type SuggestionActor } from './kinds';
 import './registry';
 
@@ -21,7 +42,24 @@ export const FileSuggestionSchema = z.object({
   source: z.enum(['system', 'model']).default('system'),
   model: z.string().max(80).nullish(),
   dedupeKey: z.string().max(200).nullish(),
+  // Proactive detectors (048): which detector, how urgent, the evidence pack and the rule in words.
+  detector: z.string().max(60).nullish(),
+  priority: z.enum(['high', 'medium', 'low']).default('medium'),
+  evidence: z.object({
+    badges: z.array(z.object({ label: z.string().max(60), tone: z.string().max(20).optional(), kind: z.string().max(20).optional() })).max(6),
+    records: z.array(z.object({ entityType: z.string().max(60), entityId: z.string().max(80), label: z.string().max(200), href: z.string().max(300).optional() })).max(30),
+    numbers: z.record(z.string().max(60), z.union([z.number(), z.string().max(200), z.null()])),
+  }).nullish(),
+  confidence: z.enum(['high', 'medium', 'low']).nullish(),
+  rule: z.string().max(500).nullish(),
 });
+
+let detectorColumns: boolean | null = null;
+/** The detector columns exist only after migration 048; until then suggestions are filed as before. */
+async function hasDetectorColumns() {
+  if (detectorColumns === null) detectorColumns = await columnExists('ai_suggestions', 'evidence');
+  return detectorColumns;
+}
 
 let ready: boolean | null = null;
 
@@ -58,6 +96,9 @@ export async function fileSuggestion(
     ON CONFLICT (tenant_id, kind, dedupe_key) WHERE dedupe_key IS NOT NULL AND status = 'pending' DO NOTHING
     RETURNING *
   `;
+  if (row && input.detector && (await hasDetectorColumns()))
+    await db`UPDATE ai_suggestions SET detector = ${input.detector}, priority = ${input.priority}, evidence = ${JSON.stringify(input.evidence ?? {})}::text::jsonb,
+      confidence = ${input.confidence ?? null}, rule = ${input.rule ?? null} WHERE id = ${row.id}`;
   if (!row) {
     const [existing] = await db`SELECT * FROM ai_suggestions WHERE tenant_id = ${tenantId} AND kind = ${input.kind} AND dedupe_key = ${input.dedupeKey} AND status = 'pending'`;
     return { suggestion: existing, created: false };
@@ -70,6 +111,16 @@ export async function fileSuggestion(
  * Pending suggestions of another situation of the same kind are out of date once the situation
  * changed (e.g. a new job joined the cutting pool): they are expired, not left to be approved.
  */
+/** Pending suggestions of a kind whose situation is gone (the detector no longer finds it) are expired. */
+export async function expireResolved(db: any, tenantId: string, kind: string, keys: string[]) {
+  if (!keys.length) return 0;
+  const expired = await db`UPDATE ai_suggestions SET status = 'expired', decided_at = now(), version = version + 1
+    WHERE tenant_id = ${tenantId} AND kind = ${kind} AND status = 'pending' AND dedupe_key = ANY(${keys}) RETURNING id`;
+  for (const row of expired)
+    await recordAudit(db, { tenantId, actorId: null, entityType: 'ai_suggestion', entityId: row.id, action: 'expired', metadata: { kind, reason: 'resolved' } });
+  return expired.length;
+}
+
 export async function expireOtherPending(db: any, tenantId: string, kind: string, keepDedupeKey: string | null) {
   const expired = await db`
     UPDATE ai_suggestions SET status = 'expired', decided_at = now(), version = version + 1
@@ -83,6 +134,10 @@ export async function expireOtherPending(db: any, tenantId: string, kind: string
 }
 
 const lastRefresh = new Map<string, number>();
+/** Something changed (an order moved, a payment came in): the next listing looks again at once. */
+export function triggerRefresh(tenantId: string, kinds?: string[]) {
+  for (const key of lastRefresh.keys()) if (key.startsWith(tenantId + ':') && (!kinds || kinds.includes(key.slice(tenantId.length + 1)))) lastRefresh.delete(key);
+}
 /** Lets each kind look at the firm's records; one failing kind never hides the others. */
 async function refreshSuggestions(actor: SuggestionActor, kinds: ReturnType<typeof suggestionKinds>) {
   for (const kind of kinds) {
@@ -100,29 +155,45 @@ async function refreshSuggestions(actor: SuggestionActor, kinds: ReturnType<type
 
 /** Pending suggestions of the kinds this role may decide, newest first. */
 export async function listPendingSuggestions(actor: SuggestionActor, options: { refresh?: boolean } = {}) {
-  const kinds = suggestionKinds().filter((kind) => kind.roles.includes(actor.role));
+  const kinds = await visibleKinds(actor, suggestionKinds());
   if (!kinds.length) return [];
-  if (options.refresh !== false) await refreshSuggestions(actor, kinds);
-  const rows = await sql`
-    SELECT id, kind, title, rationale, payload, affected, uncertain, uncertainty_note, source, model, edited, version, created_at
-    FROM ai_suggestions
-    WHERE tenant_id = ${actor.tenantId} AND status = 'pending' AND kind IN ${sql(kinds.map((k) => k.kind))}
-    ORDER BY created_at DESC
-    LIMIT 50
-  `;
+  // Assistant off: nothing looks at the records on its own; only suggestions a person asked for
+  // (e.g. a count list they uploaded) stay in the queue.
+  const off = (await getAiSettings(actor.tenantId)).mode === 'off';
+  if (options.refresh !== false && !off) await refreshSuggestions(actor, kinds);
+  const detector = await hasDetectorColumns();
+  // A snoozed suggestion stays open but out of sight until its day.
+  const rows = detector
+    ? await sql`
+      SELECT id, kind, title, rationale, payload, affected, uncertain, uncertainty_note, source, model, edited, version, created_at, detector, priority, evidence, confidence, rule
+      FROM ai_suggestions
+      WHERE tenant_id = ${actor.tenantId} AND status = 'pending' AND kind IN ${sql(kinds.map((k) => k.kind))} AND (snoozed_until IS NULL OR snoozed_until <= now())
+      ORDER BY created_at DESC LIMIT 100`
+    : await sql`
+      SELECT id, kind, title, rationale, payload, affected, uncertain, uncertainty_note, source, model, edited, version, created_at
+      FROM ai_suggestions
+      WHERE tenant_id = ${actor.tenantId} AND status = 'pending' AND kind IN ${sql(kinds.map((k) => k.kind))}
+      ORDER BY created_at DESC LIMIT 50`;
   return rows.map((row: any) => {
     const kind = suggestionKind(row.kind)!;
     return {
       id: row.id, kind: row.kind, kindLabel: kind.label, title: row.title, rationale: row.rationale, payload: row.payload,
       affected: row.affected, uncertain: row.uncertain, uncertaintyNote: row.uncertainty_note, source: row.source,
-      model: row.model, edited: row.edited, version: row.version, createdAt: row.created_at, editableFields: kind.editableFields ?? [],
+      model: row.model, edited: row.edited, version: row.version, createdAt: new Date(row.created_at).toISOString(), editableFields: kind.editableFields ?? [],
+      detector: row.detector ?? null, priority: (row.priority ?? 'medium') as Priority, evidence: row.evidence && Object.keys(row.evidence).length ? row.evidence : null,
+      confidence: row.confidence ?? null, rule: row.rule ?? null, icon: kind.icon ?? null,
     };
-  });
+  }).filter((row: { detector: string | null }) => !off || !row.detector).sort(compareQueue).slice(0, 50);
 }
 
 export const DecisionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('approve'), expectedVersion: z.number().int().positive() }),
-  z.object({ action: z.literal('reject'), expectedVersion: z.number().int().positive(), note: z.string().trim().max(500).optional() }),
+  z.object({
+    action: z.literal('reject'), expectedVersion: z.number().int().positive(), note: z.string().trim().max(500).optional(),
+    // 'never' = "bunu bir daha önerme" for this very situation.
+    reason: z.enum(['not_relevant', 'wrong', 'already_done', 'never', 'other']).optional(),
+  }),
+  z.object({ action: z.literal('snooze'), expectedVersion: z.number().int().positive(), days: z.number().int().min(1).max(30) }),
   z.object({ action: z.literal('edit'), expectedVersion: z.number().int().positive(), payload: z.record(z.string(), z.unknown()), note: z.string().trim().max(500).optional() }),
 ]);
 
@@ -147,14 +218,22 @@ async function decide(actor: SuggestionActor, id: string, decision: z.infer<type
     const [row] = await tx`SELECT * FROM ai_suggestions WHERE tenant_id = ${actor.tenantId} AND id = ${id} FOR UPDATE`;
     if (!row) throw new WorkOrderApiError('Öneri bulunamadı', 404);
     const kind = suggestionKind(row.kind);
-    if (!kind || !kind.roles.includes(actor.role)) throw new WorkOrderApiError('Bu öneriyi karara bağlama yetkiniz yok.', 403);
+    if (!kind || !(await visibleKinds(actor, [kind], 'approve')).length) throw new WorkOrderApiError('Bu öneriyi karara bağlama yetkiniz yok.', 403);
     if (row.status !== 'pending') throw new WorkOrderApiError('Bu öneri zaten karara bağlandı.', 409);
     if (row.version !== decision.expectedVersion) throw new WorkOrderApiError('Öneri başka bir yerde değişti. Listeyi yenileyin.', 409);
 
     if (decision.action === 'reject') {
       await tx`UPDATE ai_suggestions SET status = 'rejected', decided_by = ${actor.userId}, decided_at = now(), decision_note = ${decision.note || null}, version = version + 1 WHERE id = ${id}`;
-      await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'ai_suggestion', entityId: id, action: 'rejected', note: decision.note || null, metadata: { kind: row.kind } });
+      if (decision.reason && (await hasDetectorColumns())) await tx`UPDATE ai_suggestions SET reject_reason = ${decision.reason} WHERE id = ${id}`;
+      await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'ai_suggestion', entityId: id, action: 'rejected', note: decision.note || null, metadata: { kind: row.kind, reason: decision.reason ?? null } });
       return { status: 'rejected' as const };
+    }
+
+    if (decision.action === 'snooze') {
+      if (!(await hasDetectorColumns())) throw new WorkOrderApiError('Erteleme için veritabanı güncellemesi (048) bekleniyor', 409);
+      const [updated] = await tx`UPDATE ai_suggestions SET snoozed_until = now() + make_interval(days => ${decision.days}), version = version + 1 WHERE id = ${id} RETURNING version, snoozed_until`;
+      await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'ai_suggestion', entityId: id, action: 'snoozed', metadata: { kind: row.kind, days: decision.days } });
+      return { status: 'pending' as const, version: updated.version as number, snoozedUntil: new Date(updated.snoozed_until).toISOString() };
     }
 
     if (decision.action === 'edit') {

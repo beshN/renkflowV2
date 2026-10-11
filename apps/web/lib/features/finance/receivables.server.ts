@@ -98,6 +98,20 @@ export async function customerStatement(actor: WorkOrderActor, key: string, from
   return { customer: { key: c.key, name: c.name }, seller: tenant?.name ?? null, from, to, currency: 'TRY', openingBalance: st.opening, closingBalance: st.closing, debit: st.debit, credit: st.credit, lines: st.lines };
 }
 
+/**
+ * The firm's overdue invoices with what is still open on each (no permission check: for the
+ * assistant's detector, which files suggestions only finance roles see).
+ */
+export async function overdueOpenInvoices(tenantId: string) {
+  if (!(await tableExists('invoices'))) return [];
+  const today = istanbulToday();
+  return (await ledger(tenantId)).flatMap((c) => {
+    const collected = c.payments.reduce((s, p) => s + Number(p.amount), 0);
+    return overdueInvoices(settle(c.invoices.map(asOpen), collected, today, targetedOf(c.payments)).items, today)
+      .map((i) => ({ ...(i as typeof i & { orderId: string; orderNumber: string }), customer: c.name, customerId: c.customerId }));
+  });
+}
+
 const lastRun = new Map<string, number>();
 
 /**
