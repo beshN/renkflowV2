@@ -10,6 +10,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -183,19 +184,27 @@ import java.util.Locale
     var email by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var visible by remember { mutableStateOf(false) }
+    var serverOpen by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).systemBarsPadding().imePadding().verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
         Column(Modifier.fillMaxWidth().background(Ink).padding(horizontal = 28.dp, vertical = 48.dp), verticalArrangement = Arrangement.spacedBy(28.dp)) {
             Brand()
             Text(tr(R.string.text_sahadaki_isiniz_tek_bir_yerde_1f831), color = Color.White, style = MaterialTheme.typography.headlineLarge)
-            Text(tr(R.string.text_is_emirleri_uretim_adimlari_ve_etiketler_renkflo_b3d7b), color = Color(0xFF9A9AA3))
+            Text(tr(R.string.text_is_emirleri_uretim_adimlari_ve_etiketler_renkflo_b3d7b), color = Color(0xFF9A9AA2))
         }
         Column(Modifier.widthIn(max = 480.dp).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(tr(R.string.text_hos_geldiniz_0534d), style = MaterialTheme.typography.headlineMedium)
-            OutlinedTextField(server, { server = it }, Modifier.fillMaxWidth(), label = { Text(tr(R.string.text_renkflow_adresiniz_4553a)) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), singleLine = true, enabled = !state.busy)
             OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), label = { Text("E-posta") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), singleLine = true, enabled = !state.busy)
             OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text(tr(R.string.text_sifre_e1ac9)) }, visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = {
                 IconButton(modifier=Modifier.size(56.dp),onClick = { visible = !visible }) { Icon(if (visible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, if (visible) tr(R.string.text_sifreyi_gizle_73202) else tr(R.string.text_sifreyi_goster_8102f)) }
             }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), singleLine = true, enabled = !state.busy)
+            // Most firms use renkflow.com; a self-hosted address stays behind this disclosure.
+            TextButton(onClick = { serverOpen = !serverOpen }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), contentPadding = PaddingValues(0.dp)) {
+                Text(tr(R.string.text_sunucu_7c1e2), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.weight(1f))
+                Text(Uri.parse(server).host ?: server, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+                Icon(if (serverOpen) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (serverOpen) OutlinedTextField(server, { server = it }, Modifier.fillMaxWidth(), label = { Text(tr(R.string.text_renkflow_adresiniz_4553a)) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), singleLine = true, enabled = !state.busy)
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
             Button(onClick = { model.login(server, email, password) }, enabled = !state.busy && email.isNotBlank() && password.isNotEmpty(), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(8.dp)) {
                 if (state.busy) CircularProgressIndicator(Modifier.size(22.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp) else { Text(tr(R.string.text_giris_yap_b872b)); Spacer(Modifier.width(10.dp)); Icon(Icons.AutoMirrored.Outlined.ArrowForward, null) }
@@ -242,7 +251,7 @@ import java.util.Locale
         snapshot?.let { item { Text(tr(R.string.text_son_guncelleme_1_488f0, displayDate(it.generatedAt)), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall) } }
     }
 }
-@Composable private fun Metric(value: String, label: String) { Column { Text(value, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold); Text(label, color = Color(0xFF9A9AA3), style = MaterialTheme.typography.labelMedium) } }
+@Composable private fun Metric(value: String, label: String) { Column { Text(value, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold); Text(label, color = Color(0xFF9A9AA2), style = MaterialTheme.typography.labelMedium) } }
 @Composable private fun SectionTitle(title: String, caption: String) { Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { Text(title, style = MaterialTheme.typography.titleLarge); Text(caption, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
 @Composable private fun Jobs(jobs: List<WorkOrder>, open: (String) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }

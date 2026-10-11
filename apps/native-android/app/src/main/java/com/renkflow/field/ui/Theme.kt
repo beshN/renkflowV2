@@ -13,23 +13,23 @@ import androidx.compose.ui.unit.dp
 // Matches apps/web/styles/theme.css; platform fonts and controls stay native.
 val Ink = Color(0xFF111113)
 val OnInk = Color.White
-val Cobalt = Color(0xFF2F55F4)
+val Cobalt = Color(0xFF2B50F3)
 @Composable fun FieldTheme(content: @Composable () -> Unit) {
     val colors = if (isSystemInDarkTheme()) darkColorScheme(
-        primary = Color(0xFF6B8FF0), onPrimary = Ink, secondary = Color(0xFF6B8FF0),
+        primary = Color(0xFF6682FF), onPrimary = Ink, secondary = Color(0xFF6682FF),
         background = Color(0xFF0B0B0C), onBackground = Color(0xFFECECEE),
-        surface = Color(0xFF121214), surfaceVariant = Color(0xFF161618),
-        onSurface = Color(0xFFECECEE), onSurfaceVariant = Color(0xFF9A9AA3),
-        outline = Color(0xFF626269), outlineVariant = Color(0xFF26262A),
-        tertiary = Color(0xFF4ADE80), error = Color(0xFFF87171),
+        surface = Color(0xFF111113), surfaceVariant = Color(0xFF161618),
+        onSurface = Color(0xFFECECEE), onSurfaceVariant = Color(0xFF9A9AA2),
+        outline = Color(0xFF626269), outlineVariant = Color(0xFF252528),
+        tertiary = Color(0xFF4ADE80), error = Color(0xFFED5A5A),
         secondaryContainer = Color(0xFF19223F), onSecondaryContainer = Color(0xFFDFE7FC)
     ) else lightColorScheme(
         primary = Cobalt, onPrimary = Color.White, secondary = Cobalt,
         background = Color(0xFFFBFBFB), onBackground = Ink,
         surface = Color.White, surfaceVariant = Color(0xFFF4F4F5),
-        onSurface = Ink, onSurfaceVariant = Color(0xFF6B6B73),
-        outline = Color(0xFF8A8A92), outlineVariant = Color(0xFFE4E4E7),
-        tertiary = Color(0xFF15803D), error = Color(0xFFDC2626),
+        onSurface = Ink, onSurfaceVariant = Color(0xFF6C6C75),
+        outline = Color(0xFF8A8A92), outlineVariant = Color(0xFFE5E5E8),
+        tertiary = Color(0xFF15803D), error = Color(0xFFDB2424),
         secondaryContainer = Color(0xFFEFF3FE), onSecondaryContainer = Color(0xFF10245F)
     )
     MaterialTheme(colorScheme = colors, shapes = Shapes(

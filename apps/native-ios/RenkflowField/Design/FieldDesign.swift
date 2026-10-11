@@ -4,15 +4,15 @@ enum FieldColor {
     // Matches apps/web/styles/theme.css while retaining native system typography.
     static let ink = color(0x111113)
     static let onInk = Color.white
-    static let accent = adaptive(0x2F55F4, 0x6B8FF0)
+    static let accent = adaptive(0x2B50F3, 0x6682FF)
     static let onAccent = adaptive(0xFFFFFF, 0x111113)
-    static let error = adaptive(0xDC2626, 0xF87171)
+    static let error = adaptive(0xDB2424, 0xED5A5A)
     static let success = adaptive(0x15803D, 0x4ADE80)
     static let background = adaptive(0xFBFBFB, 0x0B0B0C)
-    static let card = adaptive(0xFFFFFF, 0x121214)
-    static let border = adaptive(0xE4E4E7, 0x26262A)
-    static let text = adaptive(0x111113, 0xECECEE)
-    static let muted = adaptive(0x6B6B73, 0x9A9AA3)
+    static let card = adaptive(0xFFFFFF, 0x111113)
+    static let border = adaptive(0xE5E5E8, 0x252528)
+    static let text = adaptive(0x101013, 0xECECEE)
+    static let muted = adaptive(0x6C6C75, 0x9A9AA2)
     private static func uiColor(_ hex: Int) -> UIColor {
         UIColor(red: CGFloat((hex >> 16) & 255) / 255, green: CGFloat((hex >> 8) & 255) / 255, blue: CGFloat(hex & 255) / 255, alpha: 1)
     }
