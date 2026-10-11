@@ -2,6 +2,8 @@ import { DefaultSession } from 'next-auth';
 
 declare module 'next-auth' {
   interface Session {
+    /** The tracked sign-in (user_sessions.id); absent for sign-ins from before session tracking. */
+    sessionId?: string;
     user: {
       id: string;
       tenantId?: string;
@@ -35,5 +37,6 @@ declare module 'next-auth/jwt' {
     role?: string;
     brandColor?: string;
     logoUrl?: string;
+    sid?: string;
   }
 }

@@ -1,7 +1,8 @@
+import { redactedSuccess } from '@/lib/security/field-access.server';
 import { WorkOrderApiError } from "@/lib/features/work-orders/security";
 import { requireSameOriginJson } from "@/lib/features/manufacturing/http-security";
 import { NextRequest } from 'next/server';
-import { getAPIUser, successResponse, errorResponse } from '@/lib/api/auth-helpers';
+import { getAPIUser, errorResponse } from '@/lib/api/auth-helpers';
 import { quotationService } from '@/lib/features/quotations/service';
 import { CreateQuotationSchema } from '@/lib/features/quotations/types';
 import { hasPermission, UserRole, AuthorizationError } from '@/lib/auth/rbac';
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     const quotations = await quotationService.getQuotations(user.tenantId);
-    return successResponse(quotations, 'Teklifler başarıyla getirildi');
+    return redactedSuccess(quotations, 'Teklifler başarıyla getirildi');
   } catch (error: any) {
     if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);
     if (error instanceof AuthorizationError) return errorResponse(error.message, 403);
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
     const parsedData = CreateQuotationSchema.parse(body);
 
     const quotation = await quotationService.createQuotation(user.tenantId, parsedData, user.id);
-    return successResponse(quotation, 'Teklif başarıyla oluşturuldu');
+    return redactedSuccess(quotation, 'Teklif başarıyla oluşturuldu');
   } catch (error: any) {
     if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);
     if (error instanceof ZodError) return errorResponse('Geçersiz veri: ' + error.issues.map((issue) => issue.message).join(', '), 400);

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { hidesAny, redactedJson } from '@/lib/security/field-access.server';
 import { apiContextWithPermission } from '@/lib/features/auth/api-access';
 import { createExportJob, getExportJob, listExportJobs } from '@/lib/export/service';
 import { consumeRateLimit, rateLimitResponse } from '@/lib/security/rate-limit';
@@ -22,6 +22,7 @@ export async function POST(request: Request) {
   try {
     const { context, denied } = await apiContextWithPermission('reports.view');
     if (denied) return denied;
+    if (await hidesAny(['price', 'cost', 'profit', 'customer_contact'])) return redactedJson({ error: 'Rolünüz bu dışa aktarımı içermez.' }, { status: 403 });
 
     const rateLimitResult = await consumeRateLimit('exportCreate', context.userId);
     if (!rateLimitResult.allowed) {
@@ -31,20 +32,20 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => null);
     const parsed = ExportOptionsSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+      return redactedJson({ error: 'Invalid request' }, { status: 400 });
     }
 
     const job = await createExportJob(context.tenantId, context.userId, parsed.data);
-    return NextResponse.json({ success: true, job });
+    return redactedJson({ success: true, job });
   } catch (error) {
     if (isMissingRelationError(error, ['export_jobs'])) {
-      return NextResponse.json(
+      return redactedJson(
         { error: 'Export modülü henüz veritabanında aktif değil' },
         { status: 503 }
       );
     }
     console.error('[api/export POST] Unexpected error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return redactedJson({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -63,20 +64,20 @@ export async function GET(request: Request) {
 
     if (jobId) {
       if (jobId.length > 200) {
-        return NextResponse.json({ error: 'Bad request' }, { status: 400 });
+        return redactedJson({ error: 'Bad request' }, { status: 400 });
       }
       const job = await getExportJob(jobId, context.tenantId);
-      if (!job) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-      return NextResponse.json({ success: true, job });
+      if (!job) return redactedJson({ error: 'Not found' }, { status: 404 });
+      return redactedJson({ success: true, job });
     }
 
     const jobs = await listExportJobs(context.tenantId, 20);
-    return NextResponse.json({ success: true, jobs });
+    return redactedJson({ success: true, jobs });
   } catch (error) {
     if (isMissingRelationError(error, ['export_jobs'])) {
-      return NextResponse.json({ success: true, jobs: [] });
+      return redactedJson({ success: true, jobs: [] });
     }
     console.error('[api/export GET] Unexpected error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return redactedJson({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

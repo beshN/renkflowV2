@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from "next/server";
 import { ZodError } from "zod";
 import {
   requireWorkOrderActor,
@@ -18,7 +19,7 @@ function error(e: unknown) {
       : e instanceof ZodError || e instanceof SyntaxError
         ? 400
         : 500;
-  return NextResponse.json(
+  return redactedJson(
     {
       error:
         e instanceof WorkOrderApiError
@@ -36,7 +37,7 @@ export async function GET(r: NextRequest) {
   try {
     const a = await requireWorkOrderActor();
     const code = r.nextUrl.searchParams.get("code");
-    return NextResponse.json(
+    return redactedJson(
       {
         data:
           code !== null
@@ -59,7 +60,7 @@ export async function POST(r: NextRequest) {
       !body.action.startsWith("warehouse.")
     )
       throw new WorkOrderApiError("Depo komutu gerekli", 400);
-    return NextResponse.json(
+    return redactedJson(
       { data: await productionCommand(a, body) },
       { headers: { "Cache-Control": "no-store" } },
     );

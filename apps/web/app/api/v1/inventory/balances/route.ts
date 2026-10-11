@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from 'next/server';
 import { getStockBalances } from '@/lib/features/manufacturing/inventory.service';
 import {
   requireWorkOrderActor,
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest) {
       LIMIT 200
     `;
 
-    return NextResponse.json({
+    return redactedJson({
       success: true,
       items: rows,
       total: rows.length,
@@ -64,9 +65,9 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     if (error instanceof WorkOrderApiError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return redactedJson({ error: error.message }, { status: error.status });
     }
     console.error('Inventory balances error:', error);
-    return NextResponse.json({ error: 'Stok altyapısı şu anda hazır değil. Depo bakiyeleri yüklenemedi.' }, { status: 503 });
+    return redactedJson({ error: 'Stok altyapısı şu anda hazır değil. Depo bakiyeleri yüklenemedi.' }, { status: 503 });
   }
 }

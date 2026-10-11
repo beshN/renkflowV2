@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { sql, withTransaction } from '@/lib/db';
-import { withServerActionTiming } from '@/lib/utils/metrics';
+import { redactedAction } from '@/lib/security/field-redaction.server';
 import { getServerUserContext, requirePermission } from '@/lib/auth/serverAuth';
 import { isNativeInventoryEnabled } from '@/lib/features/manufacturing/mode';
 
@@ -154,7 +154,7 @@ async function getCurrentStockForItem(tenantId: string, itemId: string): Promise
 }
 
 export async function createInventoryItem(input: z.infer<typeof CreateInventoryItemSchema>): Promise<InventoryItemRow> {
-  return withServerActionTiming('inventory.createInventoryItem', async () => {
+  return redactedAction('inventory.createInventoryItem', async () => {
     const context = await getServerUserContext();
     requirePermission(context, 'inventory.edit');
 
@@ -187,7 +187,7 @@ export async function updateInventoryItem(
   id: string,
   input: z.infer<typeof UpdateInventoryItemSchema>
 ): Promise<InventoryItemRow> {
-  return withServerActionTiming('inventory.updateInventoryItem', async () => {
+  return redactedAction('inventory.updateInventoryItem', async () => {
     const context = await getServerUserContext();
     requirePermission(context, 'inventory.edit');
 
@@ -228,7 +228,7 @@ export async function updateInventoryItem(
 export async function listInventoryItems(
   input: z.infer<typeof ListInventoryItemsSchema>
 ): Promise<PaginatedInventoryItems> {
-  return withServerActionTiming('inventory.listInventoryItems', async () => {
+  return redactedAction('inventory.listInventoryItems', async () => {
     const context = await getServerUserContext();
     requirePermission(context, 'inventory.view');
 
@@ -299,7 +299,7 @@ export async function listInventoryItems(
 }
 
 export async function getInventoryItem(id: string): Promise<InventoryItemRow | null> {
-  return withServerActionTiming('inventory.getInventoryItem', async () => {
+  return redactedAction('inventory.getInventoryItem', async () => {
     const context = await getServerUserContext();
     requirePermission(context, 'inventory.view');
 
@@ -326,7 +326,7 @@ export async function getInventoryItem(id: string): Promise<InventoryItemRow | n
 export async function createStockMovement(
   input: z.infer<typeof CreateStockMovementSchema>
 ): Promise<StockMovementRow> {
-  return withServerActionTiming('inventory.createStockMovement', async () => {
+  return redactedAction('inventory.createStockMovement', async () => {
     const context = await getServerUserContext();
     requirePermission(context, 'inventory.movements.create');
 
@@ -411,7 +411,7 @@ export async function createStockMovement(
 export async function listStockMovements(
   input: z.infer<typeof ListStockMovementsSchema>
 ): Promise<PaginatedStockMovements> {
-  return withServerActionTiming('inventory.listStockMovements', async () => {
+  return redactedAction('inventory.listStockMovements', async () => {
     const context = await getServerUserContext();
     requirePermission(context, 'inventory.view');
 

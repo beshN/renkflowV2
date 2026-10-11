@@ -7,6 +7,8 @@
  * 3. Handle authorization errors
  */
 
+import { resolveMemberAccess } from '@/lib/security/member-access.server';
+import { DEFAULT_PRESET, can, permissionRequirement, type FieldGroup, type Matrix } from '@/lib/security/access-matrix';
 import 'server-only';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
@@ -28,6 +30,8 @@ export interface ServerUserContext {
   role: UserRole;
   email: string;
   name: string;
+  /** Set when the member's role (job preset or custom) narrows the base role. */
+  narrowed?: { permissions: Matrix; hidden: FieldGroup[] };
 }
 
 /**
@@ -70,8 +74,9 @@ export async function getServerUserContext(): Promise<ServerUserContext> {
   if (!session.user.tenantId) {
     throw new AuthenticationError('Tenant bilgisi bulunamadı');
   }
-  const [membership] = await sql`SELECT role FROM tenant_members WHERE tenant_id=${session.user.tenantId} AND user_id=${session.user.id} LIMIT 1`;
-  if (!membership) throw new AuthenticationError('Firma üyeliğiniz artık aktif değil');
+  const access = await resolveMemberAccess(session.user.id, session.user.tenantId);
+  if (!access || access.deactivated) throw new AuthenticationError('Firma üyeliğiniz artık aktif değil');
+  const membership = { role: access.base };
 
   return {
     userId: session.user.id || '',
@@ -79,6 +84,7 @@ export async function getServerUserContext(): Promise<ServerUserContext> {
     role: membership.role as UserRole,
     email: session.user.email || '',
     name: session.user.name || '',
+    ...(access.roleKey !== DEFAULT_PRESET[access.base] ? { narrowed: { permissions: access.permissions, hidden: access.hidden } } : {}),
   };
 }
 
@@ -113,11 +119,18 @@ export function requirePermission(
   context: ServerUserContext,
   permission: Permission
 ): void {
-  if (!hasPermission(context.role, permission)) {
+  if (!hasPermission(context.role, permission) || !narrowedAllows(context, permission)) {
     throw new AuthorizationError(
       `Bu işlem için yetkiniz bulunmuyor: ${permission}`
     );
   }
+}
+
+/** A narrowing role must also hold the matrix cell this permission stands for. */
+function narrowedAllows(context: ServerUserContext, permission: Permission) {
+  if (!context.narrowed) return true;
+  const need = permissionRequirement(permission);
+  return !need || can(context.narrowed, need.module, need.action);
 }
 
 /**
@@ -127,7 +140,7 @@ export function requireAnyPermission(
   context: ServerUserContext,
   permissions: Permission[]
 ): void {
-  if (!hasAnyPermission(context.role, permissions)) {
+  if (!hasAnyPermission(context.role, permissions) || !permissions.some((p) => hasPermission(context.role, p) && narrowedAllows(context, p))) {
     throw new AuthorizationError(
       `Bu işlem için yetkiniz bulunmuyor: ${permissions.join(' veya ')}`
     );

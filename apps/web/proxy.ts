@@ -4,6 +4,8 @@ import { getToken } from 'next-auth/jwt';
 import { evaluateComingSoonRequest, isComingSoonMode, normalizePublicSiteMode } from '@/lib/launch/comingSoonGate';
 import { resolveAuthSecret } from '@/lib/shared/config/runtime-env';
 import { evaluateRouteAccess } from '@/lib/features/auth/route-access';
+import { accessDecision, logAccessDenied, narrowedHiddenFields } from '@/lib/security/member-access.server';
+import { HIDDEN_FIELDS_HEADER } from '@/lib/security/field-header';
 
 const AUTH_SECRET =
   resolveAuthSecret({
@@ -12,6 +14,14 @@ const AUTH_SECRET =
     allowDevelopmentFallback: process.env.NODE_ENV !== 'production',
     developmentFallback: 'development-only-fallback-secret',
   }) || undefined;
+
+/**
+ * Token links that work for anyone, signed in to another firm or not (joining a firm by invite):
+ * the member gate of the current firm does not apply.
+ */
+const GATE_EXEMPT_API = new Set(['/api/tenant/invite/validate', '/api/tenant/invite/accept']);
+const GATE_EXEMPT_API_PREFIXES = ['/api/v1/public/', '/api/v1/tracking/', '/api/telemetry/'];
+const gateExempt = (pathname: string) => GATE_EXEMPT_API.has(pathname) || GATE_EXEMPT_API_PREFIXES.some((p) => pathname.startsWith(p));
 
 const ACME_CHALLENGE_PREFIX = '/.well-known/acme-challenge/';
 
@@ -46,7 +56,7 @@ const PUBLIC_EXACT_PATHS = new Set([
   '/twitter-image',
 ]);
 
-const PUBLIC_PREFIXES = ['/blog/', '/docs/', '/public/', '/track/'];
+const PUBLIC_PREFIXES = ['/blog/', '/docs/', '/public/', '/track/', '/teklif/', '/teslim/'];
 const AUTH_ENTRY_PAGES = new Set(['/auth/login', '/auth/forgot-password', '/auth/update-password', '/signup']);
 
 function isPublicPage(pathname: string): boolean {
@@ -58,6 +68,52 @@ function isPublicPage(pathname: string): boolean {
 
 function isStaticAsset(pathname: string): boolean {
   return pathname.startsWith('/_next/') || /\.[a-zA-Z0-9]+$/.test(pathname);
+}
+
+/**
+ * The single access gate for signed-in requests: the member's role (preset or custom, read from the
+ * database) against the module and action the path needs; a deactivated member or a revoked session
+ * is turned away. Refusals are written to the audit trail. Null = carry on.
+ */
+async function accessGate(request: NextRequest, token: Awaited<ReturnType<typeof sessionToken>>, pathname: string, method: string, isSecureRequest: boolean) {
+  if (!token?.tenantId || !(token.id || token.sub)) return null;
+  const userId = String(token.id || token.sub);
+  const tenantId = String(token.tenantId);
+  let decision;
+  try {
+    decision = await accessDecision(userId, tenantId, pathname, method, { sid: typeof token.sid === 'string' ? token.sid : null, iat: typeof token.iat === 'number' ? token.iat : null });
+  } catch (e) {
+    // The database being unreachable must not open a door: API calls fail closed, pages show their own error.
+    console.error('[proxy] access check failed', e instanceof Error ? e.message : e);
+    return pathname.startsWith('/api/') ? withProxySecurityHeaders(NextResponse.json({ error: 'Yetki doğrulanamadı; tekrar deneyin.' }, { status: 503 }), { isSecureRequest }) : null;
+  }
+  if (!decision) return null;
+  const api = pathname.startsWith('/api/');
+  if (decision.status === 401) {
+    return api
+      ? withProxySecurityHeaders(NextResponse.json({ error: 'Oturumunuz kapatıldı ya da hesabınız pasif. Yeniden giriş yapın.' }, { status: 401 }), { isSecureRequest })
+      : withProxySecurityHeaders(buildLoginRedirect(request), { isSecureRequest });
+  }
+  await logAccessDenied({ tenantId, userId, path: pathname, method, module: decision.need?.module ?? null, action: decision.need?.action ?? null, reason: decision.reason });
+  if (api || method !== 'GET') return withProxySecurityHeaders(NextResponse.json({ error: 'Bu işlem için yetkiniz yok.' }, { status: 403 }), { isSecureRequest });
+  const dashboardUrl = request.nextUrl.clone();
+  dashboardUrl.pathname = '/dashboard';
+  dashboardUrl.search = '';
+  return withProxySecurityHeaders(NextResponse.redirect(dashboardUrl, 302), { isSecureRequest });
+}
+
+/**
+ * Passes the field groups a narrowed role may not see to the route as a request header. Any value
+ * the client sent is dropped first, so the header can only ever come from here.
+ */
+async function forwardHiddenFields(request: NextRequest, token: Awaited<ReturnType<typeof sessionToken>>) {
+  const forwarded = new Headers(request.headers);
+  forwarded.delete(HIDDEN_FIELDS_HEADER);
+  if (token?.tenantId && (token.id || token.sub)) {
+    const hidden = await narrowedHiddenFields(String(token.id || token.sub), String(token.tenantId));
+    if (hidden.length) forwarded.set(HIDDEN_FIELDS_HEADER, hidden.join(','));
+  }
+  return NextResponse.next({ request: { headers: forwarded } });
 }
 
 async function sessionToken(request: NextRequest) {
@@ -193,13 +249,27 @@ export async function proxy(request: NextRequest) {
     return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
   }
 
-  if(privateAccessEmail() && (pathname.startsWith('/track/') || pathname.startsWith('/q/'))) {
+  if(privateAccessEmail() && (pathname.startsWith('/track/') || pathname.startsWith('/q/') || pathname.startsWith('/teklif/') || pathname.startsWith('/teslim/'))) {
     if(!(await isAuthenticated(request))) return withProxySecurityHeaders(buildLoginRedirect(request), {isSecureRequest});
   }
 
   if (pathname.startsWith('/api/')) {
-    if(privateAccessEmail() && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/cron/') && !(await isAuthenticated(request))) return withProxySecurityHeaders(NextResponse.json({error:'Oturum açmanız gerekiyor.'},{status:401}),{isSecureRequest});
-    const response = withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
+    if(privateAccessEmail() && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/cron/') && !pathname.startsWith('/api/telemetry/') && !(await isAuthenticated(request))) return withProxySecurityHeaders(NextResponse.json({error:'Oturum açmanız gerekiyor.'},{status:401}),{isSecureRequest});
+    // Exempt and auth paths still lose any hidden-field header a client sent.
+    let next = await forwardHiddenFields(request, null);
+    if (!pathname.startsWith('/api/auth/') && !gateExempt(pathname)) {
+      const token = await sessionToken(request);
+      const refused = await accessGate(request, token, pathname, method, isSecureRequest);
+      if (refused) return refused;
+      try {
+        next = await forwardHiddenFields(request, token);
+      } catch (e) {
+        // Without knowing which fields to hide, nothing is served.
+        console.error('[proxy] field access failed', e instanceof Error ? e.message : e);
+        return withProxySecurityHeaders(NextResponse.json({ error: 'Yetki doğrulanamadı; tekrar deneyin.' }, { status: 503 }), { isSecureRequest });
+      }
+    }
+    const response = withProxySecurityHeaders(next, { isSecureRequest });
     if (pathname.startsWith('/api/v1/production/files/') || pathname === '/api/storage/content' || /^\/api\/orders\/documents\/[^/]+\/content$/.test(pathname)) response.headers.set('X-Frame-Options', 'SAMEORIGIN');
     return response;
   }
@@ -223,8 +293,18 @@ export async function proxy(request: NextRequest) {
     dashboardUrl.search = '';
     return withProxySecurityHeaders(NextResponse.redirect(dashboardUrl, 302), { isSecureRequest });
   }
+  const refused = await accessGate(request, token, pathname, method, isSecureRequest);
+  if (refused) return refused;
 
-  return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
+  // Server-rendered pages read the same hidden-field header as the API routes.
+  let next: NextResponse;
+  try {
+    next = await forwardHiddenFields(request, token);
+  } catch (e) {
+    console.error('[proxy] field access failed', e instanceof Error ? e.message : e);
+    return withProxySecurityHeaders(buildLoginRedirect(request), { isSecureRequest });
+  }
+  return withProxySecurityHeaders(next, { isSecureRequest });
 }
 
 export const config = {

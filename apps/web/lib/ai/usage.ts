@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { sql } from '@/lib/db';
+import { assertModelAllowed } from './gate.server';
 
 /** Who a model request was made for; written next to its tokens, latency and cost. */
 export type AIRequestMeta = {
@@ -59,6 +60,8 @@ export async function recordAIUsage(entry: AIRequestMeta & { provider: string; m
 
 /** Runs one model call and records its usage, latency and outcome; errors are rethrown, never replaced. */
 export async function withUsage<T extends { usage?: Tokens }>(meta: AIRequestMeta | undefined, provider: string, model: string, call: () => Promise<T>): Promise<T> {
+  // The firm's assistant mode and spend caps come first: a refused call never reaches the provider.
+  if (meta?.tenantId) await assertModelAllowed(meta);
   const started = Date.now();
   let response: T;
   try {

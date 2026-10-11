@@ -1,3 +1,4 @@
+import { hidesAny, redactedJson } from '@/lib/security/field-access.server';
 import { NextResponse } from 'next/server';
 
 import { sql } from '@/lib/db';
@@ -100,15 +101,17 @@ export async function GET(
     const context = await requireTenantContext();
     requirePermission(context, 'orders.view');
     if (context.role === 'worker') throw new AuthorizationError('Ticari sipariş belgelerine erişim yetkiniz yok. Teknik fotoğraflar için usta ekranını kullanın.');
+    // Commercial documents carry prices: a role that hides prices does not open them either.
+    if (await hidesAny(['price'])) throw new AuthorizationError('Ticari sipariş belgeleri rolünüzde gizli.');
 
     const { documentId } = await params;
     if (!documentId) {
-      return NextResponse.json({ error: 'Belge ID zorunludur' }, { status: 400 });
+      return redactedJson({ error: 'Belge ID zorunludur' }, { status: 400 });
     }
 
     const document = await findDocumentForTenant(context.tenantId, documentId);
     if (!document) {
-      return NextResponse.json({ error: 'Belge bulunamadı' }, { status: 404 });
+      return redactedJson({ error: 'Belge bulunamadı' }, { status: 404 });
     }
 
     let content: ReadableStream<Uint8Array>;
@@ -117,7 +120,7 @@ export async function GET(
     if (document.fileReference.startsWith('/api/v1/production/files/')) {
       const fileId = document.fileReference.split('/').pop();
       const [file] = await sql`SELECT * FROM production_files WHERE tenant_id=${context.tenantId} AND id=${fileId!}`;
-      if (!file) return NextResponse.json({error: 'Belge bulunamadı'}, {status: 404});
+      if (!file) return redactedJson({error: 'Belge bulunamadı'}, {status: 404});
       if (file.file_path) {
         const stored = await readFile(file.file_path);
         content = stored.body; contentType = stored.contentType; contentLength = String(stored.size);
@@ -145,12 +148,12 @@ export async function GET(
     });
   } catch (error: unknown) {
     if (error instanceof AuthenticationError) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return redactedJson({ error: 'Unauthorized' }, { status: 401 });
     }
     if (error instanceof AuthorizationError) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return redactedJson({ error: 'Forbidden' }, { status: 403 });
     }
     console.error('Order document content route error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return redactedJson({ error: 'Internal server error' }, { status: 500 });
   }
 }

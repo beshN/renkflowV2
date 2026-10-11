@@ -4,6 +4,10 @@ import { readFile, validateStorageKey } from "@/lib/storage";
 import { ORDER_ALLOWED_FILE_TYPES } from "@/lib/features/orders/constants";
 export const UploadReferenceSchema=z.object({name:z.string().min(1).max(180),mime:z.enum(ORDER_ALLOWED_FILE_TYPES),blobPath:z.string().max(700)});
 const storedKey=Symbol("verified-blob-key");
+/** The file's first bytes match the type it claims (PDF, PNG, JPEG, WebP, GIF, Office). */
+export function contentMatchesType(mime:string,bytes:Buffer):boolean{
+ return mime==='application/pdf'?bytes.subarray(0,4).toString()==='%PDF':mime==='image/png'?bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])):mime==='image/jpeg'?bytes[0]===255&&bytes[1]===216:mime==='image/webp'?bytes.subarray(0,4).toString()==='RIFF'&&bytes.subarray(8,12).toString()==='WEBP':mime==='image/gif'?/^GIF8[79]a$/.test(bytes.subarray(0,6).toString()):mime.includes('openxmlformats')?bytes.subarray(0,2).toString()==='PK':bytes.subarray(0,4).equals(Buffer.from([208,207,17,224]));
+}
 export function verifiedFileKey(file:File): string | undefined {return (file as File & {[storedKey]?:string})[storedKey];}
 export async function resolveUploadedFile(actor:{tenantId:string;userId:string},raw:unknown):Promise<File> {
  const input=UploadReferenceSchema.parse(raw), key=validateStorageKey(input.blobPath);
@@ -16,8 +20,7 @@ export async function resolveUploadedFile(actor:{tenantId:string;userId:string},
  let size=0;
  for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>10*1024*1024){await reader.cancel();throw new Error("Dosya sınırı aşıldı");}chunks.push(value);}
  const bytes=Buffer.concat(chunks);
- const valid=input.mime==='application/pdf'?bytes.subarray(0,4).toString()==='%PDF':input.mime==='image/png'?bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])):input.mime==='image/jpeg'?bytes[0]===255&&bytes[1]===216:input.mime==='image/webp'?bytes.subarray(0,4).toString()==='RIFF'&&bytes.subarray(8,12).toString()==='WEBP':input.mime==='image/gif'?/^GIF8[79]a$/.test(bytes.subarray(0,6).toString()):input.mime.includes('openxmlformats')?bytes.subarray(0,2).toString()==='PK':bytes.subarray(0,4).equals(Buffer.from([208,207,17,224]));
- if(!valid)throw new Error("Dosya içeriği biçimiyle uyuşmuyor");
+ if(!contentMatchesType(input.mime,bytes))throw new Error("Dosya içeriği biçimiyle uyuşmuyor");
  const file=new File([new Uint8Array(bytes)],input.name,{type:input.mime});
  Object.defineProperty(file,storedKey,{value:key});
  return file;

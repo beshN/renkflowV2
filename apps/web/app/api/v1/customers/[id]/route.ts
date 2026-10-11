@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { sql } from '@/lib/db';
 import { requireSameOrigin, requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
@@ -8,7 +9,7 @@ type CustomerRouteContext = {
   params: Promise<{ id: string }>;
 };
 
-const notFound = () => NextResponse.json({ error: 'Müşteri bulunamadı.' }, { status: 404 });
+const notFound = () => redactedJson({ error: 'Müşteri bulunamadı.' }, { status: 404 });
 /** numeric columns come back as strings ('1000.00'); compare by value, not by type. */
 function sameValue(stored: unknown, next: unknown) {
   if (typeof next === 'number') return stored !== null && stored !== undefined && Number(stored) === next;
@@ -34,7 +35,7 @@ export async function GET(_req: NextRequest, { params }: CustomerRouteContext) {
       WHERE id = ${id} AND tenant_id = ${tenantId} AND is_active = true
     `;
     if (rows.length === 0) return notFound();
-    return NextResponse.json({ customer: rows[0] });
+    return redactedJson({ customer: rows[0] });
   } catch (error) {
     return customerErrorResponse(error, 'Müşteri alınamadı.');
   }
@@ -81,7 +82,7 @@ export async function PUT(req: NextRequest, { params }: CustomerRouteContext) {
       `;
     }
 
-    return NextResponse.json({ customer: newRows[0] });
+    return redactedJson({ customer: newRows[0] });
   } catch (error) {
     return customerErrorResponse(error, 'Müşteri güncellenemedi.');
   }
@@ -112,7 +113,7 @@ export async function DELETE(req: NextRequest, { params }: CustomerRouteContext)
       FROM users u WHERE u.id = ${actor.userId}
     `;
 
-    return NextResponse.json({ success: true });
+    return redactedJson({ success: true });
   } catch (error) {
     return customerErrorResponse(error, 'Müşteri silinemedi.');
   }

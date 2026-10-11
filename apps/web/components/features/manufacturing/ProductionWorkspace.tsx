@@ -1,4 +1,6 @@
 "use client";
+import { ProductionInsights } from '@/components/production/ProductionInsights';
+import { CutPlanVersions } from '@/components/production/CutPlanVersions';
 import { prepareFileUpload } from "@/lib/storage/client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -281,6 +283,7 @@ export default function ProductionWorkspace() {
             ))}
           </div>
           <ProductionAnalytics data={data.analytics} />
+          <ProductionInsights />
           <QualityIntelligence data={data.qualityAnalytics} preferences={data.preferences} manager={manager} command={command} busy={busy} />
           <ReworkCases cases={data.rework} operations={ops} jobs={jobs} onResolve={payload=>command("rework.resolve",payload)} />
           <section className="rf-panel">
@@ -791,6 +794,7 @@ export default function ProductionWorkspace() {
                   Kesim paketi etiketi
                 </Link>
               </div>
+              <CutPlanVersions planId={p.id} />
               {p.actual && (
                 <p className="text-xs text-muted-foreground">
                   Kaydedilen hurda:{" "}

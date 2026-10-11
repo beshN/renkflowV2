@@ -1,21 +1,17 @@
 'use client';
+import Link from 'next/link';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
 import { TEMPLATE_DEFINITIONS, TemplateKey, DEFAULT_TEMPLATE_KEY } from '@/lib/config/templates';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { Building, ShieldCheck, HardHat, MonitorSmartphone, Save, Copy } from 'lucide-react';
+import { Building, Save } from 'lucide-react';
 
 export function TenantSettings() {
   const { user, refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'admin' | 'office' | 'worker' | null>(null);
-  const [isInviting, setIsInviting] = useState(false);
-  const [lastInviteLink,setLastInviteLink]=useState('');
 
   // Start from the firm's saved values; a legacy template keeps its key until the user picks another one.
   const [savedData, setSavedData] = useState(() => ({
@@ -71,46 +67,6 @@ export function TenantSettings() {
       toast.error(error instanceof Error ? error.message : 'Güncelleme başarısız oldu');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user?.tenantId || !inviteEmail || !inviteRole) return;
-
-    setIsInviting(true);
-    try {
-      const response = await fetch('/api/tenant/invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tenantId: user.tenantId,
-          email: inviteEmail,
-          role: inviteRole,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (data.error?.includes('zaten')) {
-          toast.error('Bu e-posta adresi için zaten bekleyen bir davet var.');
-        } else {
-          throw new Error(data.error || 'Invite failed');
-        }
-        return;
-      }
-
-      setLastInviteLink(data.inviteLink);
-      toast.success(data.message || 'Davet bağlantısı oluşturuldu');
-      try {await navigator.clipboard.writeText(data.inviteLink);toast.info('Davet bağlantısı panoya kopyalandı');}catch{toast.info('Bağlantıyı aşağıdaki alandan kopyalayabilirsiniz');}
-
-      setInviteEmail('');
-      setInviteRole(null);
-    } catch (error: any) {
-      toast.error('Davet gönderilemedi');
-    } finally {
-      setIsInviting(false);
     }
   };
 
@@ -214,121 +170,10 @@ export function TenantSettings() {
         </form>
       </section>
 
-      {/* Invite Members */}
+      {/* Invites moved to the team screen (role + access role + expiry). */}
       <section className="p-1">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">Üye Davet Et</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-          Ekip arkadaşlarınızı rollerine göre davet edin. Her rol için farklı yetkiler tanımlanmıştır.
-        </p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {/* Admin Invite */}
-          <div 
-            role="button" tabIndex={0} aria-pressed={inviteRole==='admin'} onKeyDown={e=>{if(e.key==='Enter' || e.key===' '){e.preventDefault();setInviteRole('admin');setInviteEmail('');}}} onClick={() => { setInviteRole('admin'); setInviteEmail(''); }}
-            className={`cursor-pointer border rounded-xl p-4 transition-all duration-200 ${
-            inviteRole === 'admin' 
-              ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-900/20 ring-1 ring-purple-500' 
-              : 'border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700 hover:bg-slate-50 dark:hover:bg-slate-900/50'
-          }`}>
-            <div className="flex items-center gap-3 mb-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-                inviteRole === 'admin' ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-              }`}>
-                <ShieldCheck size={20} />
-              </div>
-              <div>
-                <h3 className="font-semibold text-slate-900 dark:text-white text-sm">Yönetici</h3>
-                <p className="text-xs text-slate-500">Tam yetkili</p>
-              </div>
-            </div>
-            <div className={`w-4 h-4 rounded-full border-2 ml-auto ${
-              inviteRole === 'admin' ? 'border-purple-500 bg-purple-500' : 'border-slate-300 dark:border-slate-600'
-            }`} />
-          </div>
-
-          {/* Office Invite */}
-          <div 
-             role="button" tabIndex={0} aria-pressed={inviteRole==='office'} onKeyDown={e=>{if(e.key==='Enter' || e.key===' '){e.preventDefault();setInviteRole('office');setInviteEmail('');}}} onClick={() => { setInviteRole('office'); setInviteEmail(''); }}
-             className={`cursor-pointer border rounded-xl p-4 transition-all duration-200 ${
-             inviteRole === 'office' 
-               ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 ring-1 ring-blue-500' 
-               : 'border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-slate-50 dark:hover:bg-slate-900/50'
-           }`}>
-            <div className="flex items-center gap-3 mb-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-                inviteRole === 'office' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-              }`}>
-                <MonitorSmartphone size={20} />
-              </div>
-              <div>
-                <h3 className="font-semibold text-slate-900 dark:text-white text-sm">Ofis</h3>
-                <p className="text-xs text-slate-500">Sipariş yönetimi</p>
-              </div>
-            </div>
-             <div className={`w-4 h-4 rounded-full border-2 ml-auto ${
-              inviteRole === 'office' ? 'border-blue-500 bg-blue-500' : 'border-slate-300 dark:border-slate-600'
-            }`} />
-          </div>
-
-          {/* Worker Invite */}
-          <div 
-             role="button" tabIndex={0} aria-pressed={inviteRole==='worker'} onKeyDown={e=>{if(e.key==='Enter' || e.key===' '){e.preventDefault();setInviteRole('worker');setInviteEmail('');}}} onClick={() => { setInviteRole('worker'); setInviteEmail(''); }}
-             className={`cursor-pointer border rounded-xl p-4 transition-all duration-200 ${
-             inviteRole === 'worker' 
-               ? 'border-orange-500 bg-orange-50/50 dark:bg-orange-900/20 ring-1 ring-orange-500' 
-               : 'border-slate-200 dark:border-slate-800 hover:border-orange-300 dark:hover:border-orange-700 hover:bg-slate-50 dark:hover:bg-slate-900/50'
-           }`}>
-            <div className="flex items-center gap-3 mb-3">
-               <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-                inviteRole === 'worker' ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-              }`}>
-                <HardHat size={20} />
-              </div>
-              <div>
-                <h3 className="font-semibold text-slate-900 dark:text-white text-sm">Usta</h3>
-                <p className="text-xs text-slate-500">Üretim takibi</p>
-              </div>
-            </div>
-             <div className={`w-4 h-4 rounded-full border-2 ml-auto ${
-              inviteRole === 'worker' ? 'border-orange-500 bg-orange-500' : 'border-slate-300 dark:border-slate-600'
-            }`} />
-          </div>
-        </div>
-
-        {lastInviteLink && <div className="mb-4 rounded border border-border p-4"><label className="block text-xs">Oluşturulan davet bağlantısı<input readOnly value={lastInviteLink} className="rf-input mt-2 w-full" onFocus={e=>e.currentTarget.select()}/></label></div>}
-        <AnimatePresence>
-          {inviteRole && (
-            <motion.form
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              onSubmit={handleInvite}
-              className="overflow-hidden"
-            >
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 flex gap-3 items-end">
-                <div className="flex-1">
-                  <Input
-                    label={`${inviteRole === 'admin' ? 'Yönetici' : inviteRole === 'office' ? 'Ofis Personeli' : 'Usta'} E-posta Adresi`}
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="ornek@sirket.com"
-                    required
-                    className="bg-white dark:bg-slate-950"
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  disabled={isInviting}
-                  variant="primary"
-                  className="mb-[2px]"
-                >
-                  {isInviting ? 'Gönderiliyor...' : 'Davet Gönder'}
-                </Button>
-              </div>
-            </motion.form>
-          )}
-        </AnimatePresence>
+        <h2 className="text-lg font-semibold mb-1">Ekip davetleri</h2>
+        <p className="text-sm text-muted-foreground">Üye davet etme, rol ve yetki rolü seçme, davet süresi ve iptal: <Link href="/team" className="text-primary underline">Ekip ve yetkiler</Link>.</p>
       </section>
     </div>
   );

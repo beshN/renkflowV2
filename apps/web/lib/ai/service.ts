@@ -4,6 +4,7 @@ import { zodResponseFormat, zodTextFormat } from "openai/helpers/zod";
 import { DocumentExtractionModelSchema, normalizeExtraction } from "./extraction";
 import { AssistantReplyModelSchema } from './assistant-contract';
 import { createMasker, personalValues } from './privacy';
+import { COMMAND_INSTRUCTIONS, ModelCommandSchema, fromModel } from './commands/parse';
 import { withUsage, type AIRequestMeta } from './usage';
 import { activeProvider, providerConfig, providerUnavailable, PROVIDERS, type ProviderId } from './providers';
 
@@ -156,6 +157,22 @@ export class AIService {
    * set; production is held on OpenAI by the deployment contract) or the one given, e.g. by evals/.
    * Every provider gets the same instructions and the same masked text.
    */
+  /**
+   * A command the rules could not read → structured fields (never an action). Names the firm
+   * knows are masked before the call and restored after; output is accepted only through the schema.
+   */
+  async parseCommand(text: string, meta: AIRequestMeta, knownNames: string[] = []) {
+    const masker = createMasker(knownNames);
+    const model = this.model();
+    const response = await withUsage(meta, 'openai', model, () => this.client().responses.parse({
+      model, reasoning: { effort: "low" }, store: false, max_output_tokens: 600,
+      instructions: COMMAND_INSTRUCTIONS,
+      input: [{ role: "user", content: masker.mask(text.slice(0, 500)) }],
+      text: { format: zodTextFormat(ModelCommandSchema, "workspace_command") },
+    }));
+    if (response.status !== "completed" || !response.output_parsed) return { intent: 'unknown' as const };
+    return fromModel(masker.restore(response.output_parsed));
+  }
   async analyzeText(message: string, attachments: unknown[] = [], meta?: AIRequestMeta, provider: ProviderId = activeProvider()) {
     // Names found in attachment analyses, e-mails and phones are masked; names written only in the
     // free text cannot be recognised and still reach the model (see docs/AI-AUDIT.md).

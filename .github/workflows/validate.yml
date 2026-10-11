@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - main
+      - claude/trello-odoo
+      - claude/night-2
+      - claude/n3-ai-assistant
   push:
     branches:
       - codex/**

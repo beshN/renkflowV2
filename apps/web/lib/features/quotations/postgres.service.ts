@@ -12,6 +12,9 @@ import { AmbiguousCustomerError, resolveOrderCustomer } from "@/lib/features/cus
 import { columnExists } from "@/lib/db/schema-guard";
 import { configureProduct } from "@/lib/features/products/configure.service";
 import { configuredLine, stableJson, type ConfigurationChoice, type ProductConfiguration } from "@/lib/features/products/configuration";
+import { addDays, effectiveDiscountPercent, needsDiscountApproval, quoteTotals, sendBlocker } from "@/lib/features/sales/engine";
+import { applyCustomerPrices, expireDueQuotes, getQuoteSettings, salesAvailable } from "@/lib/features/sales/quotes.server";
+import { istanbulToday } from "@/lib/features/sales/order-status.server";
 
 const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -58,22 +61,9 @@ async function resolveConfiguredItems(
 export function quotationTotals(
   items: CreateQuotationInput["items"],
   discountPercent = 0,
+  vatPercent = 20,
 ) {
-  const subtotal = money(
-    items.reduce(
-      (sum, i) =>
-        sum + money(i.quantity * i.unitPrice * (1 - i.discountPercent / 100)),
-      0,
-    ),
-  );
-  const discountAmount = money((subtotal * discountPercent) / 100),
-    taxAmount = money((subtotal - discountAmount) * 0.2);
-  return {
-    subtotal,
-    discountAmount,
-    taxAmount,
-    totalAmount: money(subtotal - discountAmount + taxAmount),
-  };
+  return quoteTotals(items, discountPercent, vatPercent);
 }
 export class PostgresQuotationService implements IQuotationService {
   async getQuotations(tenantId: string) {
@@ -122,7 +112,12 @@ export class PostgresQuotationService implements IQuotationService {
       .update(JSON.stringify(content))
       .digest("hex");
     data = { ...data, items: await resolveConfiguredItems(tenantId, data.currency, data.items) };
-    const totals = quotationTotals(data.items, data.discountPercent);
+    const depth = await salesAvailable();
+    const settings = depth ? await getQuoteSettings(tenantId) : null;
+    if (depth && data.applyCustomerPrices && data.customerId) data = { ...data, items: await applyCustomerPrices(tenantId, data.customerId, data.items) };
+    // Before migration 041 there is nowhere to keep another rate: the quote stays at 20 %.
+    const vatPercent = depth ? data.vatPercent ?? settings?.defaultVatPercent ?? 20 : 20;
+    const totals = quotationTotals(data.items, data.discountPercent, vatPercent);
     const id = await withTransaction(async ({ sql: tx }) => {
       if (idempotencyKey) {
         await tx`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId + ":quote:" + idempotencyKey},0))`;
@@ -147,6 +142,7 @@ export class PostgresQuotationService implements IQuotationService {
       const rows =
         await tx`INSERT INTO quotations (tenant_id,quotation_number,customer_id,customer_name,valid_until,currency,discount_percent,subtotal,discount_amount,tax_amount,total_amount,notes,internal_notes,terms_and_conditions,created_by,creation_key,creation_hash)
      VALUES (${tenantId},${"TEK-" + Date.now().toString(36).toUpperCase() + "-" + crypto.randomUUID().slice(0, 6)},${data.customerId || null},${data.customerName},${data.validUntil || null},${data.currency},${data.discountPercent},${totals.subtotal},${totals.discountAmount},${totals.taxAmount},${totals.totalAmount},${data.notes || null},${data.internalNotes || null},${data.termsAndConditions || null},${createdBy || null},${idempotencyKey || null},${idempotencyKey ? hash : null}) RETURNING id`;
+      if (depth) await tx`UPDATE quotations SET vat_percent=${vatPercent}, fx_rate=${data.currency === "TRY" ? null : data.fxRate ?? null} WHERE id=${rows[0].id}`;
       await this.insertItems(tx, tenantId, rows[0].id, data.items);
       // After the replay check: a repeated idempotency key returns above without a second record.
       await recordAudit(tx, { tenantId, actorId: createdBy, entityType: "quotation", entityId: rows[0].id, action: "created", metadata: { customerName: data.customerName, items: data.items.length } });
@@ -177,13 +173,19 @@ export class PostgresQuotationService implements IQuotationService {
       // A changed currency re-prices configured lines too: the matrix price is only used in its own currency.
       if (updates.items || (updates.currency && updates.currency !== old.currency))
         data.items = await resolveConfiguredItems(tenantId, data.currency, updates.items ?? data.items, old.items);
-      const totals = quotationTotals(data.items, data.discountPercent);
+      const depth = await salesAvailable();
+      const vatPercent = depth ? (updates.vatPercent ?? Number(rows[0].vat_percent ?? 20)) : 20;
+      const totals = quotationTotals(data.items, data.discountPercent, vatPercent);
       if (updates.customerId) {
         const customers =
           await tx`SELECT id FROM customers WHERE tenant_id=${tenantId} AND id=${updates.customerId}`;
         if (!customers[0]) throw new WorkOrderApiError("Müşteri bulunamadı", 409);
       }
       await tx`UPDATE quotations SET customer_name=${data.customerName},customer_id=${data.customerId || null},valid_until=${data.validUntil || null},currency=${data.currency},discount_percent=${data.discountPercent},subtotal=${totals.subtotal},discount_amount=${totals.discountAmount},tax_amount=${totals.taxAmount},total_amount=${totals.totalAmount},notes=${data.notes || null},internal_notes=${data.internalNotes || null},terms_and_conditions=${data.termsAndConditions || null},version=version+1,updated_at=now() WHERE tenant_id=${tenantId} AND id=${id}`;
+      if (depth) {
+        const fx = data.currency === "TRY" ? null : updates.fxRate !== undefined ? updates.fxRate : rows[0].fx_rate;
+        await tx`UPDATE quotations SET vat_percent=${vatPercent}, fx_rate=${fx ?? null} WHERE tenant_id=${tenantId} AND id=${id}`;
+      }
       if (updates.items || data.items !== old.items) {
         await tx`DELETE FROM quotation_items WHERE tenant_id=${tenantId} AND quotation_id=${id}`;
         await this.insertItems(tx, tenantId, id, data.items);
@@ -197,6 +199,7 @@ export class PostgresQuotationService implements IQuotationService {
     status: Quotation["status"],
     expectedVersion?: number,
     actorId?: string,
+    actorRole?: string,
   ) {
     if (status === "converted")
       throw new WorkOrderApiError("Siparişe dönüşüm komutunu kullanın", 409);
@@ -207,15 +210,19 @@ export class PostgresQuotationService implements IQuotationService {
       rejected: [],
       expired: [],
     };
+    const depth = await salesAvailable();
+    // A sent quote whose date has passed is expired before anyone may accept it.
+    if (depth) await expireDueQuotes(tenantId);
     await withTransaction(async ({ sql: tx }) => {
       const rows =
-        await tx`SELECT status,version FROM quotations WHERE tenant_id=${tenantId} AND id=${id} FOR UPDATE`;
+        await tx`SELECT * FROM quotations WHERE tenant_id=${tenantId} AND id=${id} FOR UPDATE`;
       if (!rows[0]) throw new WorkOrderApiError("Teklif bulunamadı", 409);
       if (expectedVersion !== undefined && rows[0].version !== expectedVersion)
         throw new WorkOrderApiError("Teklif başka cihazda değişti. Güncel kaydı açın.", 409);
       if (rows[0].status === status) return;
       if (!allowed[rows[0].status]?.includes(status))
-        throw new WorkOrderApiError("Bu durum geçişi yapılamaz", 409);
+        throw new WorkOrderApiError(rows[0].status === "expired" ? "Teklifin süresi doldu; revize edip yeniden gönderin" : "Bu durum geçişi yapılamaz", 409);
+      if (depth && status === "sent") await this.checkSend(tx, tenantId, rows[0], actorId, actorRole);
       await tx`UPDATE quotations SET status=${status},version=version+1,updated_at=now() WHERE tenant_id=${tenantId} AND id=${id}`;
       await recordAudit(tx, { tenantId, actorId, entityType: "quotation", entityId: id, action: "status_changed", changes: { status: { from: rows[0].status, to: status } } });
     });
@@ -245,6 +252,15 @@ export class PostgresQuotationService implements IQuotationService {
       const items =
         await tx`SELECT * FROM quotation_items WHERE tenant_id=${tenantId} AND quotation_id=${id} ORDER BY position`;
       if (!items.length) throw new WorkOrderApiError("Teklif kalemi gerekli", 409);
+      if (await salesAvailable()) {
+        // An accepted quote stays good after its date (the customer said yes in time); an open one does not.
+        if (q.status !== "accepted" && q.valid_until && new Date(q.valid_until).toISOString().slice(0, 10) < istanbulToday())
+          throw new WorkOrderApiError("Teklifin süresi doldu; revize edip yeniden gönderin", 409);
+        const settings = await getQuoteSettings(tenantId);
+        const effective = effectiveDiscountPercent(items.map((i: any) => ({ quantity: Number(i.quantity), unitPrice: Number(i.unit_price), discountPercent: Number(i.discount_percent) })), Number(q.discount_percent));
+        if (!["owner", "admin"].includes(actorRole ?? "") && needsDiscountApproval(effective, settings.discountApprovalPercent, q.discount_approved_percent == null ? null : Number(q.discount_approved_percent)))
+          throw new WorkOrderApiError(`İndirim %${effective} firma eşiği %${settings.discountApprovalPercent} üzerinde; önce yönetici onayı gerekli`, 409);
+      }
       // K6: a quotation typed without a customer card still yields a linked order; when several cards
       // share its name there is no one to ask here, so the order stays unlinked rather than guessed.
       let customerId: string | null = q.customer_id;
@@ -279,12 +295,38 @@ export class PostgresQuotationService implements IQuotationService {
     });
     // After the commit: the people given new work orders hear of it (not the person who just converted).
     if (result.workOrders?.length) await notifyWorkOrdersAssigned(tenantId, result.workOrders, createdBy);
+    // Configured lines go straight to production at conversion: the material check runs here too.
+    if (result.workOrders?.length || result.pendingWorkOrders?.length) {
+      const { notifyShortageOnApproval } = await import("@/lib/features/stock/depth.server");
+      await notifyShortageOnApproval(tenantId, result.orderId, createdBy ?? "");
+    }
     return result;
   }
   async deleteQuotation(tenantId: string, id: string) {
     const rows =
       await sql`DELETE FROM quotations WHERE tenant_id=${tenantId} AND id=${id} AND status='draft' RETURNING id`;
     if (!rows[0]) throw new WorkOrderApiError("Yalnız taslak teklifler silinebilir", 409);
+  }
+  /**
+   * Sending a quote: it needs lines and a validity date that has not passed (the firm's default
+   * days when none is given), and a discount above the firm's threshold needs a manager's approval
+   * (a manager sending it approves it by doing so, on the record).
+   */
+  private async checkSend(tx: any, tenantId: string, q: any, actorId?: string, actorRole?: string) {
+    const settings = await getQuoteSettings(tenantId);
+    const items = await tx`SELECT quantity,unit_price,discount_percent FROM quotation_items WHERE tenant_id=${tenantId} AND quotation_id=${q.id}`;
+    const today = istanbulToday();
+    const validUntil = q.valid_until ? new Date(q.valid_until).toISOString().slice(0, 10) : null;
+    const blocker = sendBlocker({ validUntil, itemCount: items.length }, today);
+    if (blocker) throw new WorkOrderApiError(blocker, 409);
+    const effective = effectiveDiscountPercent(items.map((i: any) => ({ quantity: Number(i.quantity), unitPrice: Number(i.unit_price), discountPercent: Number(i.discount_percent) })), Number(q.discount_percent));
+    if (needsDiscountApproval(effective, settings.discountApprovalPercent, q.discount_approved_percent == null ? null : Number(q.discount_approved_percent))) {
+      if (!["owner", "admin"].includes(actorRole ?? ""))
+        throw new WorkOrderApiError(`İndirim %${effective} firma eşiği %${settings.discountApprovalPercent} üzerinde; yönetici onayı gerekli`, 409);
+      await tx`UPDATE quotations SET discount_approved_percent=${effective}, discount_approved_by=${actorId ?? null}, discount_approved_at=now() WHERE tenant_id=${tenantId} AND id=${q.id}`;
+      await recordAudit(tx, { tenantId, actorId, entityType: "quotation", entityId: q.id, action: "discount_approved", changes: { indirim: { from: null, to: effective } }, metadata: { threshold: settings.discountApprovalPercent, onSend: true } });
+    }
+    await tx`UPDATE quotations SET sent_at=now(), valid_until=${validUntil ?? addDays(today, settings.defaultValidDays)} WHERE tenant_id=${tenantId} AND id=${q.id}`;
   }
   private map(row: any, items: any[]): Quotation {
     return {
@@ -308,6 +350,15 @@ export class PostgresQuotationService implements IQuotationService {
       internalNotes: row.internal_notes,
       termsAndConditions: row.terms_and_conditions,
       convertedToOrderId: row.converted_to_order_id,
+      revision: row.revision ?? 1,
+      vatPercent: row.vat_percent == null ? 20 : Number(row.vat_percent),
+      fxRate: row.fx_rate == null ? null : Number(row.fx_rate),
+      sentAt: row.sent_at ? new Date(row.sent_at).toISOString() : null,
+      discountApprovedPercent: row.discount_approved_percent == null ? null : Number(row.discount_approved_percent),
+      discountApprovedAt: row.discount_approved_at ? new Date(row.discount_approved_at).toISOString() : null,
+      customerDecidedAt: row.customer_decided_at ? new Date(row.customer_decided_at).toISOString() : null,
+      customerDecisionName: row.customer_decision_name ?? null,
+      customerDecisionNote: row.customer_decision_note ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       items: items.map((i) => ({
