@@ -1,5 +1,5 @@
+import { redactedJson } from '@/lib/security/field-access.server';
 import { apiContextWithPermission } from '@/lib/features/auth/api-access';
-import { NextResponse } from 'next/server';
 import { getOrderMetrics } from '@/lib/analytics/reporting';
 import { orderService } from '@/lib/services/orderService.server';
 import { getOrderHealthSummary, getTopRiskOrders } from '@/lib/features/orders/orderHealth';
@@ -37,5 +37,5 @@ export async function GET(request: Request) {
     risk,
   }));
 
-  return NextResponse.json({ success: true, data, healthSummary, topRiskOrders });
+  return redactedJson({ success: true, data, healthSummary, topRiskOrders });
 }

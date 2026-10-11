@@ -1,5 +1,6 @@
+import { redactedJson } from '@/lib/security/field-access.server';
 import { requireSameOriginJson } from "@/lib/features/manufacturing/http-security";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import {
   requireWorkOrderActor,
   WorkOrderApiError,
@@ -11,7 +12,7 @@ export async function POST(
 ) {
   try {
     requireSameOriginJson(req, 4000000);
-    return NextResponse.json({
+    return redactedJson({
       data: await approveIntake(
         await requireWorkOrderActor(),
         (await params).id,
@@ -19,7 +20,7 @@ export async function POST(
       ),
     });
   } catch (e) {
-    return NextResponse.json(
+    return redactedJson(
       {
         error:
           e instanceof WorkOrderApiError
@@ -32,6 +33,6 @@ export async function POST(
 }
 
 export async function GET(_req: NextRequest, {params}: {params: Promise<{id:string}>}) {
-  try {return NextResponse.json({data:await getIntake(await requireWorkOrderActor(),(await params).id)},{headers:{"Cache-Control":"private, no-store"}});}
-  catch(e) {return NextResponse.json({error:e instanceof WorkOrderApiError ? e.message : "Taslak okunamadı"},{status:e instanceof WorkOrderApiError ? e.status : 400});}
+  try {return redactedJson({data:await getIntake(await requireWorkOrderActor(),(await params).id)},{headers:{"Cache-Control":"private, no-store"}});}
+  catch(e) {return redactedJson({error:e instanceof WorkOrderApiError ? e.message : "Taslak okunamadı"},{status:e instanceof WorkOrderApiError ? e.status : 400});}
 }

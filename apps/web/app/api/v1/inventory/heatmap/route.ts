@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { redactedJson } from '@/lib/security/field-access.server';
 import { sql } from '@/lib/db';
 import { requireWorkOrderActor, requireWorkOrderPermission, WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { canonicalColor, colorKey } from '@/lib/features/colors/color-spec';
@@ -28,10 +28,10 @@ export async function GET() {
       cell.bars += r.bars;
       cells.set(key, cell);
     }
-    return NextResponse.json({ items: [...items].map(([id, name]) => ({ id, name })), cells: [...cells.values()] });
+    return redactedJson({ items: [...items].map(([id, name]) => ({ id, name })), cells: [...cells.values()] });
   } catch (error) {
-    if (error instanceof WorkOrderApiError) return NextResponse.json({ error: error.message }, { status: error.status });
+    if (error instanceof WorkOrderApiError) return redactedJson({ error: error.message }, { status: error.status });
     console.error('[inventory heatmap]', error instanceof Error ? error.message : error);
-    return NextResponse.json({ error: 'Isı haritası alınamadı' }, { status: 500 });
+    return redactedJson({ error: 'Isı haritası alınamadı' }, { status: 500 });
   }
 }

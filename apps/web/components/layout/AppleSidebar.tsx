@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import type { LucideIcon } from 'lucide-react';
-import { Home, Receipt, PlusCircle, ClipboardList, KanbanSquare, Search, Bell, Wallet, Boxes, BarChart3, Users, Settings, LogOut, PanelLeftClose, PanelLeftOpen, LayoutGrid, FileText, Building2, Truck, ShoppingCart, PackageCheck, Recycle, ScanLine, Warehouse, Factory, ChevronDown } from 'lucide-react';
+import { Home, Receipt, PlusCircle, ClipboardList, KanbanSquare, Search, Bell, Wallet, Boxes, BarChart3, Users, Settings, LogOut, PanelLeftClose, PanelLeftOpen, LayoutGrid, FileText, Building2, Truck, ShoppingCart, PackageCheck, Recycle, ScanLine, Warehouse, Factory, ChevronDown, Target, Wrench, LifeBuoy, ScrollText, UserCog, CalendarDays, Calculator, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/context/AuthContext';
+import { useMemberAccess } from '@/lib/hooks/useMemberAccess';
 import { getVisibleNavGroups } from '@/lib/core/dashboard-nav';
 import { BrandMark } from '@/components/brand/BrandMark';
 
@@ -18,6 +19,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   finance: Wallet, inventory: Boxes, suppliers: Building2, shipments: Truck,
   crm: Building2, reports: BarChart3, team: Users, settings: Settings,
   production: Factory, factory: Factory, warehouse: Warehouse, scan: ScanLine, purchases: ShoppingCart, receipts: PackageCheck, scrap: Recycle,
+  assistant: Sparkles, leads: Target, installations: Wrench, vehicles: Truck, service: LifeBuoy, audit: ScrollText, account: UserCog, calendar: CalendarDays, accounting: Calculator,
 };
 /** Hover motion per icon, in the spirit of Granola's sidebar. */
 const NAV_ANIM: Record<string, string> = {
@@ -29,10 +31,11 @@ interface AppleSidebarProps { collapsed: boolean; setCollapsed: (collapsed: bool
 export function AppleSidebar({ collapsed, setCollapsed, onExpandedChange }: AppleSidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
+  const memberAccess = useMemberAccess();
   const [hovered, setHovered] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expanded = !collapsed || hovered;
-  const navGroups = useMemo(() => getVisibleNavGroups(user?.role), [user?.role]);
+  const navGroups = useMemo(() => getVisibleNavGroups(user?.role, memberAccess), [user?.role, memberAccess]);
   useEffect(() => { onExpandedChange?.(!collapsed); }, [collapsed, onExpandedChange]);
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
   function openPreview() { if (closeTimer.current) clearTimeout(closeTimer.current); setHovered(true); }

@@ -65,3 +65,42 @@ it('edits only the declared fields and keeps the suggestion pending for approval
   expect(posts[0].body).toMatchObject({ action: 'edit', expectedVersion: 1, payload: { kerfMm: 4 } });
   expect(screen.getByText(/düzenlendi/)).toBeInTheDocument();
 });
+
+const detectorCard = {
+  ...suggestion, id: 'd1', kind: 'detector.late_order', kindLabel: 'Geciken sipariş', title: 'ORD-7 termine yetişmeyebilir', uncertain: false, uncertaintyNote: null,
+  payload: { orderId: 'o7', newPromiseDate: '2026-10-20', reason: 'malzeme tedariki', message: 'Sayın Kaya Yapı,\n\nORD-7 gecikecek.' },
+  editableFields: [{ key: 'newPromiseDate', label: 'Yeni termin', type: 'text' }, { key: 'message', label: 'Müşteriye mesaj', type: 'text' }],
+  detector: 'late_order', priority: 'high', icon: 'AlarmClock', confidence: 'high', rule: 'Termin ≤ 3 gün ve aşama ilerlemedi',
+  evidence: { badges: [{ label: '2 gün kaldı', tone: 'danger' }, { label: '2 malzeme eksik', tone: 'danger' }], records: [{ entityType: 'order', entityId: 'o7', label: 'ORD-7', href: '/orders/o7' }], numbers: { kalanGün: 2, yeniTarih: '2026-10-20' } },
+};
+
+it('a detector card: evidence badges, priority, the message draft to copy (never sent), and "Neden?"', async () => {
+  mockApi(async () => json(200, {}), { available: true, items: [detectorCard] });
+  const writeText = jest.fn().mockResolvedValue(undefined);
+  Object.assign(navigator, { clipboard: { writeText } });
+  render(<SuggestionsPanel />);
+  const region = await screen.findByRole('region', { name: 'Önerilenler' });
+  expect(within(region).getByRole('list', { name: 'Kanıt' })).toHaveTextContent('2 gün kaldı2 malzeme eksik');
+  expect(within(region).getByRole('img', { name: 'Öncelik: Acil' })).toBeInTheDocument();
+  expect(within(region).getByText(/gönderilmedi/)).toBeInTheDocument();
+  fireEvent.click(within(region).getByRole('button', { name: /Kopyala/ }));
+  await waitFor(() => expect(writeText).toHaveBeenCalledWith('Sayın Kaya Yapı,\n\nORD-7 gecikecek.'));
+  fireEvent.click(within(region).getByRole('button', { name: 'Neden?' }));
+  const why = within(region).getByRole('region', { name: 'Bu yüzden önerdim' });
+  expect(why).toHaveTextContent('Termin ≤ 3 gün ve aşama ilerlemedi');
+  expect(why).toHaveTextContent('Güven: Yüksek');
+  expect(within(why).getByRole('link', { name: 'ORD-7' })).toHaveAttribute('href', '/orders/o7');
+});
+
+it('snooze, reject with a reason, and "bir daha önerme" post what the server expects', async () => {
+  mockApi(async (body) => json(200, body.action === 'snooze' ? { status: 'pending', version: 2, snoozedUntil: '2026-10-13T00:00:00Z' } : { status: 'rejected' }), { available: true, items: [detectorCard] });
+  const { unmount } = render(<SuggestionsPanel />);
+  fireEvent.click(await screen.findByRole('button', { name: /Ertele/ }));
+  fireEvent.click(screen.getByRole('button', { name: '3 gün' }));
+  await waitFor(() => expect(posts[0].body).toEqual({ expectedVersion: 1, action: 'snooze', days: 3 }));
+  unmount();
+  render(<SuggestionsPanel />);
+  fireEvent.click(await screen.findByRole('button', { name: /Reddet/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Zaten yapıldı' }));
+  await waitFor(() => expect(posts[1].body).toEqual({ expectedVersion: 1, action: 'reject', reason: 'already_done' }));
+});

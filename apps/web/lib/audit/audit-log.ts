@@ -83,6 +83,20 @@ export async function queryAudit(tenantId: string, q: AuditQuery) {
   return { items: rows, total: Number(count?.total ?? 0) };
 }
 
+/** Entity types, actions and people that appear in a firm's trail (for the viewer's filters). */
+export async function auditFacets(tenantId: string) {
+  const [types, actions, actors] = await Promise.all([
+    sql`SELECT entity_type AS v, count(*)::int AS n FROM activity_logs WHERE tenant_id = ${tenantId} GROUP BY 1 ORDER BY 2 DESC LIMIT 60`,
+    sql`SELECT action AS v, count(*)::int AS n FROM activity_logs WHERE tenant_id = ${tenantId} GROUP BY 1 ORDER BY 2 DESC LIMIT 120`,
+    sql`SELECT DISTINCT a.actor_id AS id, COALESCE(u.name, a.actor_name, u.email) AS name FROM activity_logs a LEFT JOIN users u ON u.id = a.actor_id WHERE a.tenant_id = ${tenantId} AND a.actor_id IS NOT NULL LIMIT 200`,
+  ]);
+  return {
+    entityTypes: types.map((r: any) => String(r.v)),
+    actions: actions.map((r: any) => String(r.v)),
+    actors: actors.map((r: any) => ({ id: String(r.id), name: (r.name as string | null) ?? 'Bilinmeyen' })),
+  };
+}
+
 /** Field-level diff for an update: only keys the caller changed; long values are truncated. */
 export function changedFields(before: Record<string, unknown>, updates: Record<string, unknown>) {
   const short = (value: unknown) => {

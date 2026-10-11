@@ -8,6 +8,7 @@ import { requireWorkOrderActor, WorkOrderApiError } from '@/lib/features/work-or
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { canAccessRoute, hasPermission } from '@/lib/features/auth/permissions';
 import { consumeRateLimit, rateLimitHeaders } from '@/lib/security/rate-limit';
+import { ModelBlockedError } from '@/lib/ai/policy';
 const input=z.object({message:z.string().trim().min(1).max(2000),mode:z.enum(['chat','proactive']).default('chat'),context:z.object({currentPath:z.string().max(240).optional()}).optional(),history:z.array(z.object({role:z.enum(['user','assistant']),content:z.string().max(4000)})).max(20).default([]),search:z.string().max(160).optional()});
 export async function POST(req:NextRequest) {
  try {
@@ -28,6 +29,7 @@ export async function POST(req:NextRequest) {
   return NextResponse.json({success:true,response:answer.answer,suggestions:answer.suggestions.slice(0,4),actions,toolsUsed:Object.keys(snapshot.data).filter(k=>Array.isArray(snapshot.data[k]) && !['unavailable'].includes(k)),confidence:null},{headers:{'Cache-Control':'private, no-store'}});
  } catch(error) {
   if(error instanceof WorkOrderApiError)return NextResponse.json({error:error.message},{status:error.status});
+  if(error instanceof ModelBlockedError)return NextResponse.json({error:error.message,code:error.block},{status:409});
   if(error instanceof ZodError || error instanceof SyntaxError)return NextResponse.json({error:'Mesaj bilgilerini kontrol edip yeniden deneyin.'},{status:400});
   console.error('[Assistant]',error instanceof Error?error.message:'failed');
   return NextResponse.json({error:'Asistan şu anda yanıt veremiyor. Operasyon önerileri ve uygulama ekranları kullanılabilir.'},{status:503});

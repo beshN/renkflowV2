@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { resolveMemberAccess } from '@/lib/security/member-access.server';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import jwt from 'jsonwebtoken';
@@ -56,15 +57,10 @@ export interface APIResponse<T = unknown> {
 
 async function resolveTenantMembership(userId: string, tenantId: string): Promise<{ role: string } | null> {
   if (!userId || !tenantId) return null;
-  const memberships = await sql`
-    SELECT role
-    FROM tenant_members
-    WHERE user_id = ${userId}
-      AND tenant_id = ${tenantId}
-    LIMIT 1
-  `;
-  const membershipRows = memberships as Array<{ role: string }>;
-  return membershipRows[0] ?? null;
+  // The same answer as the proxy and the session: a deactivated member is not a member.
+  const access = await resolveMemberAccess(userId, tenantId);
+  if (!access || access.deactivated) return null;
+  return { role: access.base };
 }
 
 // Standard API response helpers with CORS headers

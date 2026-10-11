@@ -1,4 +1,5 @@
 import { verifiedFileKey } from "@/lib/storage/upload-reference";
+import { applyOrderStatus } from '@/lib/features/sales/order-status.server';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { deleteUnlinkedOrder } from '../deletion.service';
 import { recordAudit } from '@/lib/audit/audit-log';
@@ -398,15 +399,21 @@ export class PostgresOrderService implements IOrderService {
     return this.getOrderById(tenantId, id) as Promise<Order>;
   }
 
-  async updateOrderStatus(tenantId: string, id: string, status: Order['status']): Promise<Order> {
+  async updateOrderStatus(tenantId: string, id: string, status: string, options: { actorId?: string; note?: string } = {}): Promise<Order> {
     await withTransaction(async ({sql: tx}) => {
       await tx`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId},0))`;
       const [order] = await tx`SELECT status FROM orders WHERE id=${id} AND tenant_id=${tenantId} FOR UPDATE`;
       if (!order) throw new WorkOrderApiError('Sipariş bulunamadı',404);
       if ((await tx`SELECT id FROM work_orders WHERE tenant_id=${tenantId} AND order_id=${id} AND recipe_id IS NOT NULL LIMIT 1`).length)
         throw new WorkOrderApiError('Üretim durumunu ilgili operasyon ekranından değiştirin.',409);
-      await tx`UPDATE orders SET status=${status},version=version+1,updated_at=now() WHERE id=${id} AND tenant_id=${tenantId}`;
+      // The same state machine and reason rule as the transition endpoint (no side door).
+      await applyOrderStatus(tx, { tenantId, orderId: id, from: order.status, to: status, actorId: options.actorId, note: options.note });
     });
+    // As on the transition endpoint: an approved order is checked for missing material (best effort).
+    if (status === 'approved') {
+      const { notifyShortageOnApproval } = await import('@/lib/features/stock/depth.server');
+      await notifyShortageOnApproval(tenantId, id, options.actorId ?? '');
+    }
     return this.getOrderById(tenantId, id) as Promise<Order>;
   }
 

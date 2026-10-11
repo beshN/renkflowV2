@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { redactedJson } from '@/lib/security/field-access.server';
+import { NextRequest } from "next/server";
 import {
   requireWorkOrderActor,
   WorkOrderApiError,
@@ -6,7 +7,7 @@ import {
 import { resolveLabel } from "@/lib/features/warehouse/service";
 export async function GET(request: NextRequest) {
   try {
-    return NextResponse.json(
+    return redactedJson(
       {
         data: await resolveLabel(
           await requireWorkOrderActor(),
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
-    return NextResponse.json(
+    return redactedJson(
       {
         error:
           error instanceof WorkOrderApiError

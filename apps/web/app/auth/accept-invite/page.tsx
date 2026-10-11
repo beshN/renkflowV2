@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
+import { PASSWORD_POLICY, passwordProblem } from '@/lib/security/access-matrix';
 import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -89,8 +90,9 @@ export default function AcceptInvitePage() {
       return;
     }
 
-    if (!invitation.existingUser && password.length < 6) {
-      setError('Şifre en az 6 karakter olmalı.');
+    const problem = invitation.existingUser ? null : passwordProblem(password, invitation.email);
+    if (problem) {
+      setError(problem);
       return;
     }
 
@@ -188,7 +190,7 @@ export default function AcceptInvitePage() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 type="password"
-                minLength={6}
+                minLength={PASSWORD_POLICY.minLength}
                 required
                 className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-500 dark:border-slate-700 dark:bg-slate-900"
               />

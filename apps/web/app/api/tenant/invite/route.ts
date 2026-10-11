@@ -4,6 +4,10 @@ import { withTransaction } from '@/lib/db';
 import { sendInviteEmail } from '@/lib/email';
 import { resolveServerBaseUrl } from '@/lib/shared/config/runtime-env';
 import { AuthenticationError, AuthorizationError, assertTenantAccess, requireTenantContext } from '@/lib/auth/serverAuth';
+import { columnExists } from '@/lib/db/schema-guard';
+import type { UserRole } from '@/lib/auth/permissions';
+import { inviteAccessRoleFits } from '@/lib/security/team.server';
+import { inviteTtlDays } from '@/lib/security/team-rules';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -37,6 +41,8 @@ export async function POST(request: NextRequest) {
     const tenantId = context.tenantId;
     const email = body?.email?.trim().toLowerCase();
     const role = body?.role || 'member';
+    const accessRole = typeof body?.accessRole === 'string' && body.accessRole.trim() ? body.accessRole.trim().slice(0, 80) : null;
+    const ttlDays = inviteTtlDays(body?.ttlDays);
 
     // Validate inputs
     if (requestedTenantId) {
@@ -55,6 +61,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Geçersiz rol' }, { status: 400 });
     }
 
+    // The access role (job preset or custom role) is kept from migration 044 on.
+    const tracked = await columnExists('invitations', 'access_role');
+    if (accessRole && (!tracked || !(await inviteAccessRoleFits(tenantId, role as UserRole, accessRole)))) {
+      return NextResponse.json({ error: 'Seçilen yetki rolü bu temel role uymuyor' }, { status: 400 });
+    }
+
     const token = await withTransaction(async (tx) => {
       const members = await tx`
         SELECT role FROM tenant_members
@@ -66,6 +78,10 @@ export async function POST(request: NextRequest) {
 
       if (membersRows.length === 0 || !['owner', 'admin'].includes(membersRows[0].role)) {
         throw new InviteError('Bu işlem için yetkiniz yok', 403);
+      }
+      // Only an owner brings in another admin (the same rule as changing a member's role).
+      if (role === 'admin' && membersRows[0].role !== 'owner') {
+        throw new InviteError('Yönetici davetini yalnız firma sahibi gönderebilir', 403);
       }
 
       const existingUsers = await tx`
@@ -87,24 +103,38 @@ export async function POST(request: NextRequest) {
       }
 
       const invitationToken = generateSecureToken();
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      const expiresAt = new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000);
 
-      const invitations = await tx`
-        INSERT INTO invitations (tenant_id, email, token, role, expires_at, created_at)
-        VALUES (${tenantId}, ${email}, ${invitationToken}, ${role}, ${expiresAt.toISOString()}, NOW())
-        ON CONFLICT (tenant_id, email)
-        DO UPDATE SET
-          token = EXCLUDED.token,
-          role = EXCLUDED.role,
-          expires_at = EXCLUDED.expires_at,
-          created_at = NOW()
-        RETURNING token
-      `;
+      const invitations = tracked
+        ? await tx`
+          INSERT INTO invitations (tenant_id, email, token, role, access_role, invited_by, expires_at, created_at)
+          VALUES (${tenantId}, ${email}, ${invitationToken}, ${role}, ${accessRole}, ${context.userId}, ${expiresAt.toISOString()}, NOW())
+          ON CONFLICT (tenant_id, email)
+          DO UPDATE SET
+            token = EXCLUDED.token,
+            role = EXCLUDED.role,
+            access_role = EXCLUDED.access_role,
+            invited_by = EXCLUDED.invited_by,
+            expires_at = EXCLUDED.expires_at,
+            created_at = NOW()
+          RETURNING token
+        `
+        : await tx`
+          INSERT INTO invitations (tenant_id, email, token, role, expires_at, created_at)
+          VALUES (${tenantId}, ${email}, ${invitationToken}, ${role}, ${expiresAt.toISOString()}, NOW())
+          ON CONFLICT (tenant_id, email)
+          DO UPDATE SET
+            token = EXCLUDED.token,
+            role = EXCLUDED.role,
+            expires_at = EXCLUDED.expires_at,
+            created_at = NOW()
+          RETURNING token
+        `;
       const invitationRows = invitations as Array<{ token: string }>;
       if (invitationRows.length === 0) {
         throw new Error('Invitation could not be created');
       }
-      await recordAudit(tx, { tenantId, actorId: context.userId, entityType: 'tenant', entityId: tenantId, action: 'member_invited', metadata: { email, role } });
+      await recordAudit(tx, { tenantId, actorId: context.userId, entityType: 'tenant', entityId: tenantId, action: 'member_invited', metadata: { email, role, accessRole, ttlDays } });
 
       return invitationRows[0].token;
     });
@@ -119,12 +149,10 @@ export async function POST(request: NextRequest) {
     // Send the email
     const emailResult = await sendInviteEmail(email, inviteLink, role);
 
-    // Log
-    console.log(`Invitation created for ${email} with role ${role}`);
-
     return NextResponse.json({ 
       success: true, 
       inviteLink,
+      expiresAt: new Date(Date.now() + ttlDays * 86_400_000).toISOString(),
       emailSent: emailResult.success,
       message: emailResult.success ? 'Davet bağlantısı oluşturuldu ve e-posta gönderildi' : 'Davet bağlantısı oluşturuldu; e-posta teslimi yapılamadı. Bağlantıyı paylaşabilirsiniz.'
     });

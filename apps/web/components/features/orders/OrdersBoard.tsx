@@ -12,6 +12,7 @@ import { businessDate } from '@/lib/features/orders/workspace';
 import type { Order } from '@/lib/types';
 import { cn, formatDate } from '@/lib/utils';
 import { HealthBadge, LifecycleStrip } from '@/components/kit';
+import { RecordButton } from '@/components/records/RecordDrawer';
 
 function Card({ order, canMove, onAdvance }: { order: Order; canMove: boolean; onAdvance: (o: Order) => void }) {
   const locked = !canMove || Boolean(order.productionManaged);
@@ -34,6 +35,7 @@ function Card({ order, canMove, onAdvance }: { order: Order; canMove: boolean; o
           <span className="block truncate font-medium">{order.customerName}</span>
           <span className="block truncate text-xs text-muted-foreground">{order.productName}</span>
         </Link>
+        <RecordButton type="order" id={order.id} compact className="h-8 w-8" />
       </div>
       <div className="flex items-center justify-between gap-2">
         <HealthBadge health={orderHealth(order, businessDate())} />

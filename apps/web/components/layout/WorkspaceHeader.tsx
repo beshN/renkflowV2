@@ -7,6 +7,7 @@ import { useTheme } from 'next-themes';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Bell, ChevronRight, Menu, Moon, Plus, Search, Sun, X, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
+import { useMemberAccess } from '@/lib/hooks/useMemberAccess';
 import { DASHBOARD_QUICK_LINKS, getVisibleNavGroups } from '@/lib/core/dashboard-nav';
 import { hasPermission } from '@/lib/auth/permissions';
 import { useWorkspaceCommands } from './WorkspaceCommands';
@@ -19,6 +20,7 @@ const OFF_MENU_SECTIONS: Record<string, string> = { '/search': 'Arama' };
 export function WorkspaceHeader() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const memberAccess = useMemberAccess();
   const { resolvedTheme, setTheme } = useTheme();
   const { openCommands } = useWorkspaceCommands();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -39,7 +41,7 @@ export function WorkspaceHeader() {
           <div className="mb-6 flex items-center justify-between"><Dialog.Title asChild><span><BrandMark href="/dashboard" /></span></Dialog.Title><Dialog.Close aria-label="Ana menüyü kapat" className="rf-icon-button"><X size={20} /></Dialog.Close></div>
           <Dialog.Description className="sr-only">Çalışma alanı modülleri</Dialog.Description>
           <nav className="flex-1 space-y-5 overflow-y-auto" aria-label="Mobil modüller">
-            {getVisibleNavGroups(user?.role).map(group => <div key={group.id}><p className="sb-muted mb-2 px-3 text-[11px] font-medium">{group.label}</p>
+            {getVisibleNavGroups(user?.role, memberAccess).map(group => <div key={group.id}><p className="sb-muted mb-2 px-3 text-[11px] font-medium">{group.label}</p>
               {group.items.filter(item => !item.action).map(item => <Link key={item.id} href={item.href} onClick={() => setMobileOpen(false)} aria-current={pathname === item.href ? 'page' : undefined}
                 className={cn('rf-nav-item flex items-center justify-between px-3 py-2.5 text-sm', pathname === item.href && 'rf-nav-active')}>{item.label}<ArrowUpRight size={14} className="opacity-40" /></Link>)}
             </div>)}

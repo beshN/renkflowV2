@@ -5,9 +5,10 @@ import { SEARCH_MIN_LENGTH } from '@/lib/features/search/types';
 import { foldText } from '@/lib/shared/text/fold';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useRouter } from 'next/navigation';
-import { ArrowUpRight, Command, Search, X, FileText, CornerDownLeft, Zap, FilePlus2, ClipboardList, Scissors, CalendarDays, ScanLine, LayoutGrid, Columns3, Factory, PackagePlus, type LucideIcon } from 'lucide-react';
+import { ArrowUpRight, Command, Search, X, FileText, CornerDownLeft, Zap, FilePlus2, ClipboardList, Scissors, CalendarDays, ScanLine, LayoutGrid, Columns3, Factory, PackagePlus, Sparkles, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useOrders } from '@/lib/hooks/useOrders';
+import { useMemberAccess } from '@/lib/hooks/useMemberAccess';
 import { getVisibleNavGroups } from '@/lib/core/dashboard-nav';
 import { hasPermission } from '@/lib/auth/permissions';
 import { cn } from '@/lib/utils';
@@ -32,24 +33,27 @@ export const useWorkspaceCommands = () => useContext(CommandContext);
 function CommandResults({ close }: { close: () => void }) {
   const router = useRouter();
   const { user } = useAuth();
+  const memberAccess = useMemberAccess();
   const { orders, isLoading, error } = useOrders();
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const entries = useMemo((): Array<{ id: string; title: string; subtitle?: string | null; href: string; type: string; icon?: LucideIcon }> => {
     const keyword = query.trim().toLocaleLowerCase('tr-TR');
-    const pages = getVisibleNavGroups(user?.role).flatMap(group => group.items
+    const pages = getVisibleNavGroups(user?.role, memberAccess).flatMap(group => group.items
       .filter(item => !item.action && (!keyword || item.label.toLocaleLowerCase('tr-TR').includes(keyword)))
       .map(item => ({ id: item.id, title: item.label, subtitle: group.label, href: item.href, type: 'module' })));
     const matches = keyword && user && hasPermission(user.role, 'orders.view') ? orders
       .filter(order => [order.orderNumber, order.customerName, order.productName].some(value => value?.toLocaleLowerCase('tr-TR').includes(keyword)))
       .slice(0, 6).map(order => ({ id: order.id, title: order.orderNumber + ' · ' + order.customerName, subtitle: order.productName, href: '/orders/' + order.id, type: 'order' })) : [];
     // Customers, quotations and stock are searched on the search page (server side, per role).
+    // Free text can also go to the assistant as a command ("bu hafta geciken işler", "7016 kaç çubuk").
+    const ask = foldText(query).length >= 4 ? [{ id: 'ask-assistant', title: `Asistana sor: “${query.trim()}”`, subtitle: 'Komut: sonuç kartı ya da onay bekleyen önizleme', href: '/assistant?q=' + encodeURIComponent(query.trim()), type: 'action', icon: Sparkles }] : [];
     const all = foldText(query).length >= SEARCH_MIN_LENGTH ? [{ id: 'search-all', title: `“${query.trim()}” için tüm sonuçlar`, subtitle: 'Sipariş, müşteri, teklif ve stokta ara', href: '/search?q=' + encodeURIComponent(query.trim()), type: 'search' }] : [];
     const actions = ACTIONS.filter((a) => (!a.roles || (user && a.roles.includes(user.role))) && (!keyword || foldText(a.keywords + ' ' + a.title).includes(foldText(keyword))))
       .map((a) => ({ id: a.id, title: a.title, subtitle: 'Eylem', href: a.href, type: 'action', icon: a.icon }));
-    return [...(keyword ? [] : actions), ...matches, ...(keyword ? actions : []), ...all, ...pages].slice(0, 14);
-  }, [query, user, orders]);
+    return [...(keyword ? [] : actions), ...matches, ...(keyword ? actions : []), ...ask, ...all, ...pages].slice(0, 14);
+  }, [query, user, orders, memberAccess]);
 
   const selected = Math.min(active, Math.max(0, entries.length - 1));
   function navigate(href: string) { close(); router.push(href); }

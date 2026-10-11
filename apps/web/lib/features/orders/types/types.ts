@@ -36,7 +36,7 @@ export interface IOrderService {
   /**
    * Update order status
    */
-  updateOrderStatus(tenantId: string, id: string, status: Order['status']): Promise<Order>;
+  updateOrderStatus(tenantId: string, id: string, status: string, options?: { actorId?: string; note?: string }): Promise<Order>;
 
   /**
    * Delete an order

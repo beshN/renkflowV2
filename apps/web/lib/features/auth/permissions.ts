@@ -290,6 +290,15 @@ export const ROUTE_ROLES: Record<string, UserRole[]> = {
   '/suppliers': ['owner', 'admin', 'office', 'accountant'],
   '/warehouse': ['owner', 'admin', 'office', 'accountant', 'worker'],
   '/work-orders/new': ['owner', 'admin', 'office', 'accountant'],
+  // Who did what: the audit trail is for the firm's owner and admins.
+  '/audit': ['owner', 'admin'],
+  // Leads hold prospects' contact details: not for the field crew. Installations and service show the
+  // crew only their own jobs, as a technical view.
+  '/leads': ['owner', 'admin', 'office', 'accountant'],
+  '/installations': ['owner', 'admin', 'office', 'accountant', 'worker'],
+  '/service': ['owner', 'admin', 'office', 'accountant', 'worker'],
+  // The fleet (vehicles, costs, positions) is the owner's and admins' only.
+  '/vehicles': ['owner', 'admin'],
 };
 
 function longestRouteMatch<T>(map: Record<string, T>, pathname: string): T | undefined {
