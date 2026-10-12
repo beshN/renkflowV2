@@ -10,12 +10,12 @@ export const COMPANY = {
   shortName: 'Renk Alüminyum',
   /** Full legal title as registered (ticaret unvanı), used as the KVKK data controller. */
   legalName: '',
-  /** Registered address, single line. */
-  address: '',
+  /** Office address (also the KVKK contact address), single line. */
+  address: 'Orgeneral Eşref Bitlis Cd. Gençosman Mh. No:37/B, Güngören / İstanbul',
   /** Phone in international format, e.g. +90 212 000 00 00. */
-  phone: '',
+  phone: '+90 212 563 21 32',
   /** WhatsApp number in international format; digits are used for the wa.me link. */
-  whatsapp: '',
+  whatsapp: '+90 553 837 53 54',
   email: 'info@renkflow.com',
   /** Where KVKK data-subject requests go; falls back to `email`. */
   privacyEmail: '',
@@ -27,7 +27,8 @@ export const COMPANY = {
   hours: '',
   social: {
     linkedin: '',
-    instagram: '',
+    instagram: 'https://www.instagram.com/renkaluminum/',
+    youtube: 'https://www.youtube.com/channel/UCs2x_58VlFJQwoMcjAMkA5Q',
   },
 } as const;
 

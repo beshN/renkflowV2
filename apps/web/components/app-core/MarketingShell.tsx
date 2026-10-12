@@ -40,7 +40,8 @@ export function MarketingShell({ badge, title, description, actions = [], childr
     <>
       <section className="relative overflow-hidden border-b border-border bg-gradient-to-b from-background to-muted/40">
         <div className="relative mx-auto max-w-6xl px-5 pb-16 pt-20 sm:px-8 md:pb-20 md:pt-28">
-          <Reveal y={8}>
+          {/* Above the fold: render visible in the first paint, no reveal animation. */}
+          <div>
             {badge ? <p className="rf-chip">{badge}</p> : null}
             <h1 className="mt-6 max-w-3xl text-[clamp(34px,5vw,56px)] font-semibold leading-[1.04] tracking-[-0.045em]">{title}</h1>
             <p className="mt-5 max-w-2xl text-[17px] leading-8 text-muted-foreground">{description}</p>
@@ -49,7 +50,7 @@ export function MarketingShell({ badge, title, description, actions = [], childr
                 {actions.map((action) => <ActionLink key={`${action.href}-${action.label}`} action={action} />)}
               </div>
             ) : null}
-          </Reveal>
+          </div>
         </div>
       </section>
 

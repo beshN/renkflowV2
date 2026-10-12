@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { BrandMark } from '@/components/brand/BrandMark';
-import { COMPANY, companyLegalName, telHref } from '@/lib/core/company';
+import { COMPANY, companyLegalName, socialLinks, telHref } from '@/lib/core/company';
+
+const SOCIAL_LABELS: Record<string, string> = { instagram: 'Instagram', youtube: 'YouTube', linkedin: 'LinkedIn' };
 
 const COLUMNS = [
   { title: 'Ürün', links: [['Özellikler', '/features'], ['Entegrasyonlar', '/integrations'], ['Fiyatlandırma', '/pricing'], ['Yol haritası', '/roadmap'], ['Sürüm notları', '/changelog']] },
@@ -33,7 +35,12 @@ export function SiteFooter() {
       <div className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-6 text-[12px] text-muted-foreground sm:px-8">
           <span>© {new Date().getFullYear()} RenkFlow · {companyLegalName()}</span>
-          <Link href="/status" className="inline-flex items-center gap-2 hover:text-foreground">Sistem durumu</Link>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            {socialLinks().map(({ network, url }) => (
+              <a key={network} href={url} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">{SOCIAL_LABELS[network] ?? network}</a>
+            ))}
+            <Link href="/status" className="inline-flex items-center gap-2 hover:text-foreground">Sistem durumu</Link>
+          </div>
         </div>
       </div>
     </footer>
