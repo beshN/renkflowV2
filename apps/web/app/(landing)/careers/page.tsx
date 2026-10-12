@@ -1,4 +1,11 @@
+import type { Metadata } from 'next';
 import { MarketingShell } from '@/components/app-core/MarketingShell';
+
+export const metadata: Metadata = {
+  title: 'Kariyer',
+  description: 'RenkFlow ekibiyle tanışın; üretim yazılımına ilgi duyuyorsanız bize yazın.',
+  alternates: { canonical: '/careers' },
+};
 
 export default function CareersPage() {
   return (

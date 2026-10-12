@@ -20,6 +20,8 @@ import { FleetHealthCard } from '@/components/fleet/FleetHealthCard';
 import { Donut, EmptyState, HealthBadge, HintTip, LifecycleStrip, PageHeader, ProgressRing, Skeleton, StatCard } from '@/components/kit';
 import { ColorSwatch } from '@/components/colors/ColorSwatch';
 import { colorInfo } from '@/lib/features/colors/color-spec';
+import { TearCalendar } from '@/components/spells/TearCalendar';
+import { OccasionBadge } from '@/components/spells/OccasionBadge';
 
 type Summary = {
   orders: { active_count: string; today_deliveries: string };
@@ -82,7 +84,7 @@ function Lane({ title, icon: Icon, tone, orders, href, today, loading }: {
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
         {loading ? [0, 1, 2].map((i) => <Skeleton key={i} className="h-[92px] w-60 shrink-0" />)
           : orders.length ? orders.slice(0, 8).map((o) => <OrderMini key={o.id} order={o} today={today} />)
-          : <span className="grid h-[92px] w-60 shrink-0 place-items-center rounded-md border border-dashed border-border text-muted-foreground" aria-label="Boş"><PackageCheck size={20} aria-hidden /></span>}
+          : <span className="grid h-[92px] w-60 shrink-0 place-items-center rounded-md border border-dashed border-border text-muted-foreground" role="img" aria-label="Boş"><PackageCheck size={20} aria-hidden /></span>}
       </div>
     </section>
   );
@@ -205,7 +207,8 @@ export default function DashboardPage() {
   return (
     <div className="rf-page space-y-5">
       <PageHeader
-        eyebrow={new Intl.DateTimeFormat('tr-TR', { timeZone: 'Europe/Istanbul', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}
+        leading={<TearCalendar />}
+        eyebrow={<>{new Intl.DateTimeFormat('tr-TR', { timeZone: 'Europe/Istanbul', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}<OccasionBadge /></>}
         title="Bugün"
         action={<>
           <button type="button" onClick={() => void Promise.all([refresh(), loadSummary()])} disabled={isValidating} aria-label="Yenile" className="rf-icon-button grid h-9 w-9 place-items-center border border-border"><RefreshCw size={15} className={isValidating ? 'animate-spin motion-reduce:animate-none' : ''} /></button>

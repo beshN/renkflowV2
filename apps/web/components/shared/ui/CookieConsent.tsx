@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Cookie } from "lucide-react";
+import { COOKIE_CONSENT_EVENT } from "@/components/features/analytics/GoogleAnalytics";
 
 export default function CookieConsent() {
   const pathname = usePathname();
@@ -54,6 +55,7 @@ export default function CookieConsent() {
         timestamp: new Date().toISOString(),
       }),
     );
+    window.dispatchEvent(new Event(COOKIE_CONSENT_EVENT));
     setShowBanner(false);
   };
 
@@ -67,6 +69,7 @@ export default function CookieConsent() {
         timestamp: new Date().toISOString(),
       }),
     );
+    window.dispatchEvent(new Event(COOKIE_CONSENT_EVENT));
     setShowBanner(false);
   };
 
@@ -76,9 +79,10 @@ export default function CookieConsent() {
         <motion.div
           role="dialog"
           aria-label={text.title}
-          initial={{ y: 16, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 16, opacity: 0 }}
+          // Slides in from below the viewport instead of fading, so text never sits at low contrast.
+          initial={{ y: 'calc(100% + 1rem)' }}
+          animate={{ y: 0 }}
+          exit={{ y: 'calc(100% + 1rem)' }}
           transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
           className="fixed bottom-4 left-4 z-50 w-[calc(100vw-2rem)] max-w-[380px] print:hidden"
         >

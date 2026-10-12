@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
+import { switchThemeWithReveal } from '@/lib/shared/utils/theme-reveal';
 import * as Dialog from '@radix-ui/react-dialog';
 import { ArrowRight, Menu, Moon, Sun, X } from 'lucide-react';
 import { BrandMark } from '@/components/brand/BrandMark';
@@ -23,7 +24,7 @@ function ThemeToggle() {
   useEffect(() => setMounted(true), []);
   const dark = mounted && resolvedTheme === 'dark';
   return (
-    <button type="button" aria-label="Temayı değiştir" onClick={() => setTheme(dark ? 'light' : 'dark')} className="rf-icon-button inline-flex h-8 w-8 items-center justify-center text-muted-foreground">
+    <button type="button" aria-label="Temayı değiştir" onClick={(event) => switchThemeWithReveal(dark ? 'light' : 'dark', setTheme, event.currentTarget)} className="rf-icon-button inline-flex h-8 w-8 items-center justify-center text-muted-foreground">
       {dark ? <Sun size={16} /> : <Moon size={16} />}
     </button>
   );

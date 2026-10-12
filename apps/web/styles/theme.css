@@ -31,6 +31,7 @@
   --border: 240 6% 90.5%;
   --input: 240 6% 86%;
   --ring: 229 89% 56%;
+  --rf-primary-text: 229 89% 56%;
   --radius: 8px;
 
   --rf-ink: 240 8% 7%;
@@ -65,50 +66,57 @@
 .dark .rf-dashboard-shell,
 .dark .rf-auth-shell,
 .dark .rf-command-dialog {
-  --background: 240 6% 4.5%;
-  --foreground: 240 5% 93%;
-  --card: 240 5% 7%;
-  --card-foreground: 240 5% 93%;
-  --popover: 240 5% 8%;
-  --popover-foreground: 240 5% 93%;
-  --primary: 229 100% 70%;
-  --primary-foreground: 240 10% 6%;
-  --secondary: 240 4% 12%;
-  --secondary-foreground: 240 5% 93%;
+  /* Graphite elevation ladder: sidebar 4% < canvas 5.5% < card 8.5% < popover 10.5% < hover 13%. */
+  --background: 240 5% 5.5%;
+  --foreground: 240 6% 93%;
+  --card: 240 5% 8.5%;
+  --card-foreground: 240 6% 93%;
+  --popover: 240 5% 10.5%;
+  --popover-foreground: 240 6% 93%;
+  /* Fill colour: white text on it passes AA (4.8:1). Text in this hue uses --rf-primary-text. */
+  --primary: 228 82% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 4% 13%;
+  --secondary-foreground: 240 6% 93%;
   --muted: 240 4% 12%;
-  --muted-foreground: 240 4% 62%;
-  --accent: 240 4% 12.5%;
-  --accent-foreground: 240 5% 93%;
-  --destructive: 0 80% 64%;
-  --destructive-foreground: 240 10% 6%;
-  --border: 240 4% 15%;
-  --input: 240 4% 20%;
-  --ring: 229 100% 70%;
+  --muted-foreground: 240 5% 64%;
+  --accent: 240 4% 13%;
+  --accent-foreground: 240 6% 93%;
+  --destructive: 0 72% 58%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 240 4% 16%;
+  --input: 240 4% 21%;
+  --ring: 228 100% 72%;
+  --rf-primary-text: 228 100% 77%;
 
   --rf-ink: 0 0% 98%;
   --rf-ink-foreground: 240 8% 7%;
-  --rf-bg: #0b0b0c;
+  --rf-bg: #0d0d0f;
   --rf-bg-muted: #121214;
-  --rf-surface: #121214;
-  --rf-surface-soft: #161618;
-  --rf-border: #26262a;
+  --rf-surface: #151517;
+  --rf-surface-soft: #19191c;
+  --rf-border: #28282c;
   --rf-text: #ececee;
-  --rf-text-muted: #9a9aa3;
-  --rf-accent: #6b8ff0;
-  --rf-accent-strong: #93aef5;
-  --rf-brand-50: #141b31;
-  --rf-brand-100: #19223f;
-  --rf-brand-500: #6b8ff0;
-  --rf-brand-600: #6b8ff0;
-  --rf-brand-700: #93aef5;
-  --rf-brand-900: #dfe7fc;
+  --rf-text-muted: #9d9da6;
+  --rf-accent: #8aa1ff;
+  --rf-accent-strong: #aebdff;
+  --rf-brand-50: #141a30;
+  --rf-brand-100: #1a2342;
+  --rf-brand-500: #6682ff;
+  --rf-brand-600: #4567ed;
+  --rf-brand-700: #8aa1ff;
+  --rf-brand-900: #dfe6ff;
   --rf-success: #4ade80;
   --rf-warning: #fbbf24;
   --rf-danger: #f87171;
-  --rf-focus-ring: hsl(229 100% 70% / 28%);
-  --rf-shadow-soft: 0 0 0 1px rgb(255 255 255 / 2%);
-  --rf-shadow: 0 0 0 1px rgb(255 255 255 / 3%), 0 12px 32px -16px rgb(0 0 0 / 80%);
+  --rf-focus-ring: hsl(228 100% 72% / 30%);
+  --rf-shadow-soft: inset 0 1px 0 rgb(255 255 255 / 3%);
+  --rf-shadow: inset 0 1px 0 rgb(255 255 255 / 4%), 0 16px 40px -20px rgb(0 0 0 / 85%);
 }
+
+/* Links and accent text: a lighter tint of the fill so it reads on dark surfaces (7.5:1). */
+.dark .text-primary { color: hsl(var(--rf-primary-text)); }
+.dark .hover\:text-primary:hover { color: hsl(var(--rf-primary-text)); }
 
 html { color-scheme: light; }
 html.dark { color-scheme: dark; }
@@ -329,7 +337,8 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 
 /* ---------- Workspace chrome ---------- */
 
-.rf-dashboard-shell { background: hsl(var(--background)); }
+.rf-dashboard-shell,
+.dark .rf-dashboard-shell { background: hsl(var(--background)); }
 
 /* Light sidebar in light mode, near-black in dark mode: chrome follows the theme. */
 .rf-sidebar,
@@ -347,12 +356,12 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 }
 .dark .rf-sidebar,
 .dark .rf-dashboard-shell .rf-sidebar {
-  --sb-bg: #09090a;
+  --sb-bg: #0a0a0b;
   --sb-fg: #ececee;
-  --sb-muted: #8b8b94;
-  --sb-hover: rgb(255 255 255 / 5%);
+  --sb-muted: #91919a;
+  --sb-hover: rgb(255 255 255 / 4.5%);
   --sb-active: #18181b;
-  --sb-line: #1f1f23;
+  --sb-line: #1c1c20;
 }
 .rf-sidebar .sb-muted { color: var(--sb-muted); }
 .rf-sidebar .sb-line { border-color: var(--sb-line); }
@@ -473,3 +482,13 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 .rf-warehouse-illustration { transform: none; }
 .rf-warehouse-illustration span { color: hsl(var(--muted-foreground)); border-color: hsl(var(--border)); background: hsl(var(--card)); border-radius: 6px; }
 .rf-warehouse-illustration span.active { color: hsl(var(--primary-foreground)); background: hsl(var(--primary)); border-color: hsl(var(--primary)); box-shadow: none; }
+
+/* Theme switch: the new theme grows as a circle from the toggle (see theme-reveal.ts). */
+::view-transition-old(root),
+::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+
+/* Older screens use mid-grey -500 text without a dark: variant; on dark cards that
+   is ~3.7:1. Lift it to the muted token (≈6.9:1) unless a dark colour is set. */
+.dark :is(.text-slate-500, .text-gray-500, .text-zinc-500, .text-neutral-500):not([class*='dark:text-']) {
+  color: hsl(var(--muted-foreground));
+}

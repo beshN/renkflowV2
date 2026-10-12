@@ -1,8 +1,15 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 
 import { MarketingShell } from '@/components/app-core/MarketingShell';
 import { blogPosts } from '@/lib/core/marketing-content';
+
+export const metadata: Metadata = {
+  title: 'Blog',
+  description: 'Ölçüye özel projelerde kesim, stok ve iş akışı üzerine sahadan öğrendiklerimiz.',
+  alternates: { canonical: '/blog' },
+};
 
 export default function BlogPage() {
   return (

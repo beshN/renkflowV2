@@ -30,23 +30,6 @@
   color: hsl(var(--foreground));
   background: hsl(var(--background));
 }
-.dark .rf-dashboard-shell, .dark .rf-command-dialog, .dark .rf-auth-shell {
-  --background: 215 28% 9%; --foreground: 210 18% 91%;
-  --card: 215 26% 12%; --card-foreground: 210 18% 91%;
-  --popover: 215 26% 12%; --popover-foreground: 210 18% 91%;
-  --primary: 209 62% 66%; --primary-foreground: 215 32% 12%;
-  --secondary: 215 24% 17%; --secondary-foreground: 210 18% 91%;
-  --muted: 215 24% 17%; --muted-foreground: 215 16% 65%;
-  --accent: 215 24% 17%; --accent-foreground: 210 18% 91%;
-  --border: 215 20% 22%; --input: 215 20% 30%; --ring: 209 62% 66%;
-  --rf-bg: #111821; --rf-bg-muted: #151e29; --rf-surface: #17212c;
-  --rf-surface-soft: #1c2937; --rf-border: #2d3a48; --rf-text: #e4eaf0; --rf-text-muted: #a1afbf;
-}
-.rf-sidebar { background: #13212e; color: #f1f5f9; }
-.rf-brand-mark { background: #9e6039; }
-.rf-nav-active { background: #253847; color: #fff; }
-.rf-nav-active::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px; background: #d39970; border-radius: 2px; }
-.rf-nav-active svg { color: #e0b48e; }
 .rf-icon-button { display: inline-flex; width: 34px; height: 34px; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 6px; color: hsl(var(--muted-foreground)); transition: background 120ms; }
 .rf-icon-button:hover { background: hsl(var(--accent)); color: hsl(var(--foreground)); }
 .rf-primary-button { display: inline-flex; justify-content: center; border: 1px solid transparent; border-radius: 6px; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); font-weight: 500; transition: filter 120ms; }
@@ -78,10 +61,8 @@
 .rf-metric:hover { border-color: hsl(var(--primary) / 0.4); }
 .rf-metric-value { font-size: 36px; line-height: 1.1; letter-spacing: -0.045em; font-weight: 600; font-variant-numeric: tabular-nums; }
 .rf-alert { display: flex; align-items: flex-start; gap: 12px; border: 1px solid #f1d6ae; border-radius: 7px; padding: 15px 18px; background: #fff9ed; color: #80581c; }
-.dark .rf-alert { border-color: #624c2d; background: #2d271c; color: #e1bd86; }
 .rf-workspace-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid hsl(var(--border)); margin-top: 28px; padding-top: 16px; font-size: 10px; color: hsl(var(--muted-foreground)); }
 .rf-dashboard-shell button:active { transform: none; }
-.rf-dashboard-shell .rf-sidebar button:focus-visible { outline-color: #d39970; }
 @media (max-width: 767px) { .rf-page { padding: 20px 16px; } .rf-metric { min-height: 132px; padding: 16px; } .rf-metric-value { font-size: 30px; } .rf-tabs { gap: 16px; } .rf-workspace-footer { padding-bottom: 20px; } }
 @media print {
   .rf-sidebar, .rf-workspace-header, .rf-skip-link, .rf-dashboard-shell > button, .rf-dashboard-shell > nav { display: none !important; }
@@ -102,13 +83,6 @@
 .rf-panel { border:1px solid hsl(var(--border)); background:hsl(var(--card)); border-radius:8px; padding:1.25rem; }
 
 /* Factory operations: clear hierarchy and touch-friendly controls. */
-.rf-dashboard-shell { --primary: 199 83% 31%; --ring: 199 83% 31%; --rf-radius:12px; background:#f3f6fa; }
-.dark .rf-dashboard-shell { --primary:199 76% 65%; --primary-foreground:218 40% 12%; background:#101923; }
-.rf-dashboard-shell .rf-sidebar { background:#111f30; box-shadow:8px 0 28px rgb(15 23 42 / 5%); }
-.rf-dashboard-shell .rf-brand-mark { background:#087a9b; }
-.rf-dashboard-shell .rf-nav-active { background:#183c50; }
-.rf-dashboard-shell .rf-nav-active::before { width:3px; background:#48b8d3; }
-.rf-dashboard-shell .rf-nav-active svg { color:#6ed3e7; }
 .rf-workspace-header { box-shadow:0 1px 10px rgb(15 23 42 / 3%); }
 .rf-panel,.rf-location-card,.rf-stat-card { border-radius:12px; }
 .rf-primary-button,.rf-secondary-button,.rf-input { border-radius:8px; }
@@ -118,10 +92,10 @@
 .rf-module-nav { display:flex; gap:6px; padding:5px; width:fit-content; max-width:100%; overflow-x:auto; border:1px solid hsl(var(--border)); border-radius:11px; background:hsl(var(--card)); }
 .rf-module-nav a { display:flex; align-items:center; gap:8px; padding:11px 16px; font-size:13px; white-space:nowrap; border-radius:7px; color:hsl(var(--muted-foreground)); }
 .rf-module-nav a[aria-current='page'] { background:hsl(var(--primary)); color:hsl(var(--primary-foreground)); box-shadow:0 2px 5px rgb(15 23 42 / 12%); }
-.rf-operations-banner { position:relative; overflow:hidden; display:flex; justify-content:space-between; align-items:center; gap:24px; border-radius:16px; padding:30px; background:#152c43; color:white; border:1px solid #25425d; }
+.rf-operations-banner { position:relative; overflow:hidden; display:flex; justify-content:space-between; align-items:center; gap:24px; border-radius:16px; padding:30px; background:hsl(var(--card)); color:hsl(var(--foreground)); border:1px solid hsl(var(--border)); }
 .rf-warehouse-illustration { flex-shrink:0; display:grid; grid-template-columns:repeat(3,58px); gap:9px; transform:rotate(-9deg); margin-right:20px; }
-.rf-warehouse-illustration span { display:flex; align-items:center; justify-content:center; height:58px; color:#7197b4; border:1px solid #39536c; background:#1f3952; border-radius:8px; }
-.rf-warehouse-illustration span.active { color:#a0e6ee; background:#0e596d; border-color:#2b95aa; box-shadow:0 0 30px rgb(68 185 209 / 10%); }
+.rf-warehouse-illustration span { display:flex; align-items:center; justify-content:center; height:58px; color:hsl(var(--muted-foreground)); border:1px solid hsl(var(--border)); background:hsl(var(--muted)); border-radius:8px; }
+.rf-warehouse-illustration span.active { color:hsl(var(--primary-foreground)); background:hsl(var(--primary)); border-color:hsl(var(--primary)); }
 .rf-stat-card { padding:20px; background:hsl(var(--card)); border:1px solid hsl(var(--border)); box-shadow:0 3px 12px rgb(15 23 42 / 3%); }
 .rf-location-card { padding:21px; background:hsl(var(--card)); border:1px solid hsl(var(--border)); box-shadow:0 3px 12px rgb(15 23 42 / 3%); }
 .rf-location-card:hover { border-color:hsl(var(--primary)/.4); }

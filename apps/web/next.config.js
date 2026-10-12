@@ -236,6 +236,11 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: '/full-landing',
+        destination: '/',
+        permanent: true,
+      },
+      {
         source: '/sitemap',
         destination: '/sitemap.xml',
         permanent: true,

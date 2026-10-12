@@ -12,10 +12,10 @@ export default function Error({
 }) {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl shadow-xl p-8">
+      <div role="alert" className="w-full max-w-lg rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl shadow-xl p-8">
         <div className="flex items-start gap-4">
           <div className="shrink-0 w-12 h-12 rounded-xl bg-red-50 dark:bg-red-950/40 flex items-center justify-center border border-red-100 dark:border-red-900/40">
-            <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+            <AlertTriangle aria-hidden="true" className="w-6 h-6 text-red-600 dark:text-red-400" />
           </div>
           <div className="min-w-0">
             <h1 className="text-lg font-semibold text-slate-900 dark:text-white">Bir hata oluştu</h1>
@@ -31,7 +31,7 @@ export default function Error({
             onClick={() => reset()}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw aria-hidden="true" className="w-4 h-4" />
             Tekrar dene
           </button>
 
@@ -47,7 +47,7 @@ export default function Error({
             href="/"
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors"
           >
-            <Home className="w-4 h-4" />
+            <Home aria-hidden="true" className="w-4 h-4" />
             Ana sayfa
           </Link>
         </div>
