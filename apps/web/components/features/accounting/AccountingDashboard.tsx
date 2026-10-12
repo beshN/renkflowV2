@@ -34,6 +34,13 @@ import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { cn } from '@/lib/utils';
 
+// Turkish number style (comma decimals, % in front). The server reports 999 for a ratio with nothing
+// to divide by and caps the runway at 24 months when there is no burn; neither is a real figure.
+const trNum = (value: number, digits: number) => new Intl.NumberFormat('tr-TR', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
+const pct = (value: number) => `%${trNum(value, 1)}`;
+const ratio = (value: number, suffix = '') => (value >= 999 ? '—' : `${trNum(value, 2)}${suffix}`);
+const months = (value: number) => (value >= 24 ? '24+ ay' : `${trNum(value, 1)} ay`);
+
 export type AccountingTab =
   | 'overview'
   | 'profit-loss'
@@ -151,7 +158,7 @@ const BENCHMARK_ROWS: BenchmarkRow[] = [
   },
   {
     id: 'periodClose',
-    feature: 'Dönem Kapanış Checklist',
+    feature: 'Dönem kapanışı kontrol listesi',
     category: 'Kontrol',
     leaderExamples: 'NetSuite, Oracle ERP',
     description: 'Kapanış adımlarının denetim izi ile tamamlanması.',
@@ -475,28 +482,28 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
 
   const summaryCards = [
     {
-      title: 'Net Kâr',
+      title: 'Net kâr',
       value: workspace.profitLoss?.netProfit || 0,
       trend: workspace.periodComparison.netProfitChangePct,
       icon: <TrendingUp className="w-5 h-5" />,
       colorClass: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20',
     },
     {
-      title: 'Toplam Gelir',
+      title: 'Toplam gelir',
       value: workspace.profitLoss?.revenue.netRevenue || 0,
       trend: workspace.periodComparison.revenueChangePct,
       icon: <BarChart3 className="w-5 h-5" />,
       colorClass: 'text-sky-600 bg-sky-50 dark:bg-sky-900/20',
     },
     {
-      title: 'İşletme Giderleri',
+      title: 'İşletme giderleri',
       value: workspace.profitLoss?.operatingExpenses.total || 0,
       trend: workspace.periodComparison.expenseChangePct,
       icon: <TrendingDown className="w-5 h-5" />,
       colorClass: 'text-rose-600 bg-rose-50 dark:bg-rose-900/20',
     },
     {
-      title: 'Nakit Pozisyonu',
+      title: 'Nakit pozisyonu',
       value: workspace.balanceSheet?.assets.currentAssets.cash || 0,
       trend: workspace.periodComparison.cashChangePct,
       icon: <Wallet className="w-5 h-5" />,
@@ -527,7 +534,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                       </p>
                       <div className={cn('mt-2 text-sm flex items-center gap-1', trendClass(card.trend))}>
                         <TrendIcon className="w-4 h-4" />
-                        <span>%{Math.abs(card.trend).toFixed(1)}</span>
+                        <span>{pct(Math.abs(card.trend))}</span>
                       </div>
                     </div>
                     <div className={cn('p-3 rounded-xl', card.colorClass)}>{card.icon}</div>
@@ -541,31 +548,30 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
             <div className="xl:col-span-2 bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2 mb-5">
                 <Gauge className="w-5 h-5 text-sky-600" />
-                Finans KPI Panosu ({toMonthLabel(workspace.period)})
+                Finans göstergeleri ({toMonthLabel(workspace.period)})
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <KpiCard title="Brüt Marj" value={`${workspace.kpis.grossMarginPct.toFixed(1)}%`} />
-                <KpiCard title="Faaliyet Marjı" value={`${workspace.kpis.operatingMarginPct.toFixed(1)}%`} />
-                <KpiCard title="Cari Oran" value={workspace.kpis.currentRatio.toFixed(2)} />
-                <KpiCard title="Alacak Gün Sayısı" value={`${workspace.kpis.receivableDays.toFixed(1)} gün`} />
-                <KpiCard title="Borç Karşılama" value={`${workspace.kpis.payablesCoverageRatio.toFixed(2)}x`} />
-                <KpiCard title="Nakit Runway" value={`${workspace.kpis.cashRunwayMonths.toFixed(1)} ay`} />
+                <KpiCard title="Brüt marj" value={pct(workspace.kpis.grossMarginPct)} />
+                <KpiCard title="Faaliyet marjı" value={pct(workspace.kpis.operatingMarginPct)} />
+                <KpiCard title="Cari oran" value={ratio(workspace.kpis.currentRatio)} />
+                <KpiCard title="Alacak gün sayısı" value={`${trNum(workspace.kpis.receivableDays, 1)} gün`} />
+                <KpiCard title="Borç karşılama" value={ratio(workspace.kpis.payablesCoverageRatio, '×')} />
+                <KpiCard title="Nakit yeterlilik süresi" value={months(workspace.kpis.cashRunwayMonths)} />
               </div>
             </div>
 
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
                 <ClipboardCheck className="w-5 h-5 text-emerald-600" />
-                Dönem Kapanış
+                Dönem kapanışı
               </h3>
               <div className="text-sm text-slate-500 mb-3">
                 Tamamlanma: <span className="font-semibold text-slate-900 dark:text-white">
-                  {Math.round(
+                  %{Math.round(
                     (workspace.closeChecklist.filter((item) => item.status === 'done').length /
                       Math.max(workspace.closeChecklist.length, 1)) *
                       100
                   )}
-                  %
                 </span>
               </div>
               <div className="space-y-3">
@@ -616,7 +622,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                       <span className="text-slate-600 dark:text-slate-400">{row.label}</span>
                       <span className={cn('font-semibold', favorable ? 'text-emerald-600' : 'text-rose-600')}>
                         {row.variance >= 0 ? '+' : ''}
-                        {row.variancePct.toFixed(1)}%
+                        {pct(row.variancePct)}
                       </span>
                     </div>
                   );
@@ -676,13 +682,13 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                   Detaylı Kâr-Zarar
                 </h3>
                 <div className="space-y-3 text-sm">
-                  <ProfitLossRow label="Brüt Gelir" value={workspace.profitLoss.revenue.grossRevenue} />
-                  <ProfitLossRow label="Satışların Maliyeti" value={-workspace.profitLoss.costOfGoodsSold} negative />
+                  <ProfitLossRow label="Brüt gelir" value={workspace.profitLoss.revenue.grossRevenue} />
+                  <ProfitLossRow label="Satışların maliyeti" value={-workspace.profitLoss.costOfGoodsSold} negative />
                   <ProfitLossRow label="Brüt Kâr" value={workspace.profitLoss.grossProfit} bold />
                   <div className="border-t border-slate-200 dark:border-slate-800 pt-2" />
-                  <ProfitLossRow label="İşletme Giderleri" value={-workspace.profitLoss.operatingExpenses.total} negative />
+                  <ProfitLossRow label="İşletme giderleri" value={-workspace.profitLoss.operatingExpenses.total} negative />
                   <ProfitLossRow label="Faaliyet Kârı" value={workspace.profitLoss.operatingProfit} />
-                  <ProfitLossRow label="Vergi Gideri" value={-workspace.profitLoss.taxExpense} negative />
+                  <ProfitLossRow label="Vergi gideri" value={-workspace.profitLoss.taxExpense} negative />
                   <div className="border-t-2 border-slate-300 dark:border-slate-700 pt-3">
                     <ProfitLossRow label="NET KÂR" value={workspace.profitLoss.netProfit} bold highlight />
                   </div>
@@ -697,7 +703,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                 <div className="space-y-3 text-sm">
                   <ComparisonRow label="Gelir" value={workspace.periodComparison.revenueChangePct} />
                   <ComparisonRow label="Gider" value={workspace.periodComparison.expenseChangePct} inverse />
-                  <ComparisonRow label="Net Kâr" value={workspace.periodComparison.netProfitChangePct} />
+                  <ComparisonRow label="Net kâr" value={workspace.periodComparison.netProfitChangePct} />
                   <ComparisonRow label="Nakit" value={workspace.periodComparison.cashChangePct} />
                 </div>
                 {workspace.notes.length > 0 && (
@@ -730,7 +736,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                   <BalanceRow label="Nakit" value={workspace.balanceSheet.assets.currentAssets.cash} />
                   <BalanceRow label="Alacaklar" value={workspace.balanceSheet.assets.currentAssets.accountsReceivable} />
                   <BalanceRow label="Stoklar" value={workspace.balanceSheet.assets.currentAssets.inventory} />
-                  <BalanceRow label="Toplam Varlık" value={workspace.balanceSheet.assets.totalAssets} bold />
+                  <BalanceRow label="Toplam varlık" value={workspace.balanceSheet.assets.totalAssets} bold />
                 </div>
 
                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
@@ -738,8 +744,8 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                     <Scale className="w-4 h-4 text-rose-600" />
                     Yükümlülükler
                   </h4>
-                  <BalanceRow label="Kısa Vadeli Borçlar" value={workspace.balanceSheet.liabilities.currentLiabilities.total} />
-                  <BalanceRow label="Toplam Borç" value={workspace.balanceSheet.liabilities.totalLiabilities} bold />
+                  <BalanceRow label="Kısa vadeli borçlar" value={workspace.balanceSheet.liabilities.currentLiabilities.total} />
+                  <BalanceRow label="Toplam borç" value={workspace.balanceSheet.liabilities.totalLiabilities} bold />
                 </div>
 
                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
@@ -748,7 +754,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                     Öz Sermaye
                   </h4>
                   <BalanceRow label="Cari Dönem Kârı" value={workspace.balanceSheet.equity.currentYearProfit} />
-                  <BalanceRow label="Toplam Öz Sermaye" value={workspace.balanceSheet.equity.totalEquity} bold />
+                  <BalanceRow label="Toplam öz sermaye" value={workspace.balanceSheet.equity.totalEquity} bold />
                 </div>
               </div>
 
@@ -774,15 +780,15 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <CashFlowCard
-                    title="İşletme Faaliyetleri"
+                    title="İşletme faaliyetleri"
                     value={workspace.cashFlow.operatingActivities.netOperatingCashFlow}
                   />
                   <CashFlowCard
-                    title="Yatırım Faaliyetleri"
+                    title="Yatırım faaliyetleri"
                     value={workspace.cashFlow.investingActivities.netInvestingCashFlow}
                   />
                   <CashFlowCard
-                    title="Finansman Faaliyetleri"
+                    title="Finansman faaliyetleri"
                     value={workspace.cashFlow.financingActivities.netFinancingCashFlow}
                   />
                 </div>
@@ -797,14 +803,14 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
               <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
                 <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Likidite Sinyalleri</h4>
                 <div className="space-y-3 text-sm">
-                  <MetricLine label="Cari Oran" value={workspace.kpis.currentRatio.toFixed(2)} />
-                  <MetricLine label="Nakit Runway" value={`${workspace.kpis.cashRunwayMonths.toFixed(1)} ay`} />
-                  <MetricLine label="Borç Karşılama" value={`${workspace.kpis.payablesCoverageRatio.toFixed(2)}x`} />
+                  <MetricLine label="Cari oran" value={ratio(workspace.kpis.currentRatio)} />
+                  <MetricLine label="Nakit yeterlilik süresi" value={months(workspace.kpis.cashRunwayMonths)} />
+                  <MetricLine label="Borç karşılama" value={ratio(workspace.kpis.payablesCoverageRatio, '×')} />
                 </div>
               </div>
             </div>
           ) : (
-            <EmptyPanel title="Nakit Akış" message="Nakit akış raporu üretilemedi." />
+            <EmptyPanel title="Nakit akış" message="Nakit akış raporu üretilemedi." />
           )}
         </>
       )}
@@ -947,11 +953,11 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
               <h4 className="font-semibold text-slate-900 dark:text-white mb-3">Banka Mutabakat Özeti</h4>
               <div className="space-y-2 text-sm">
                 <MetricLine
-                  label="Eşleşme Oranı"
-                  value={`%${workspace.bankReconciliation.matchRatePct.toFixed(1)}`}
+                  label="Eşleşme oranı"
+                  value={pct(workspace.bankReconciliation.matchRatePct)}
                 />
                 <MetricLine
-                  label="Eşleşen Satır"
+                  label="Eşleşen satır"
                   value={`${workspace.bankReconciliation.matchedLineCount}/${workspace.bankReconciliation.importedLineCount}`}
                 />
                 <MetricLine
@@ -961,11 +967,11 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                   )})`}
                 />
                 <MetricLine
-                  label="Ekstre Net"
+                  label="Ekstre net"
                   value={formatCurrency(workspace.bankReconciliation.statementNet)}
                 />
                 <MetricLine
-                  label="Defter Net"
+                  label="Defter net"
                   value={formatCurrency(workspace.bankReconciliation.booksNet)}
                 />
                 <MetricLine
@@ -1094,7 +1100,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                   onChange={(event) =>
                     setBudgetDraft((prev) => ({ ...prev, plannedRevenue: event.target.value }))
                   }
-                  placeholder="Bütçe Gelir"
+                  placeholder="Bütçe gelir"
                   className="px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
                 />
                 <input
@@ -1121,7 +1127,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                   onChange={(event) =>
                     setBudgetDraft((prev) => ({ ...prev, plannedTaxExpense: event.target.value }))
                   }
-                  placeholder="Bütçe Vergi"
+                  placeholder="Bütçe vergi"
                   className="px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
                 />
                 <input
@@ -1153,7 +1159,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                       <p className="col-span-1 text-right text-slate-500">Fiili {formatCurrency(row.actual)}</p>
                       <p className={cn('col-span-1 text-right font-semibold', favorable ? 'text-emerald-600' : 'text-rose-600')}>
                         {row.variance >= 0 ? '+' : ''}
-                        {row.variancePct.toFixed(1)}%
+                        {pct(row.variancePct)}
                       </p>
                     </div>
                   );
@@ -1291,7 +1297,7 @@ function ComparisonRow({ label, value, inverse = false }: { label: string; value
       <span className="text-sm text-slate-600 dark:text-slate-400">{label}</span>
       <span className={cn('text-sm font-semibold', good ? 'text-emerald-600' : 'text-rose-600')}>
         {value >= 0 ? '+' : ''}
-        {value.toFixed(1)}%
+        {pct(value)}
       </span>
     </div>
   );

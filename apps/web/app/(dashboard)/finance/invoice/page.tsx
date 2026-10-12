@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Eye, FileText, Printer, Search } from 'lucide-react';
 
-import { Navbar } from '@/components/layout/Navbar';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { canAccessFinance, type UserRole } from '@/lib/auth/permissions';
@@ -22,8 +21,8 @@ function getInvoiceStatus(order: OrderWithPayments): InvoiceStatus {
 
 const STATUS_LABEL: Record<InvoiceStatus, string> = {
   paid: 'Kapandı',
-  partial: 'Kısmi Tahsil',
-  unpaid: 'Açık Bakiye',
+  partial: 'Kısmi tahsil',
+  unpaid: 'Açık bakiye',
 };
 
 const STATUS_CLASS: Record<InvoiceStatus, string> = {
@@ -88,18 +87,15 @@ export default function FinanceInvoicePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col bg-slate-50/50 dark:bg-slate-950/50">
-      <Navbar title="Fatura Listesi" showSearch={false} />
-
-      <main className="w-full flex-1 p-4 md:p-8">
+    <div className="rf-page space-y-5">
         <section className="rf-panel rounded-2xl p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Fatura ve Tahsilat Takibi</h1>
-              <p className="mt-1 text-sm text-slate-500">Sipariş bazlı finans kapanış durumunu tek listede yönetin.</p>
+              <h1 className="rf-page-title">Fatura ve tahsilat takibi</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Sipariş bazlı finans kapanış durumunu tek listede yönetin.</p>
             </div>
 
-            <Link href="/finance" className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900">
+            <Link href="/finance" className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground">
               <ArrowLeft size={16} />
               Finans özetine dön
             </Link>
@@ -121,12 +117,12 @@ export default function FinanceInvoicePage() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-100/80 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900/70">
                   <tr>
-                    <th className="px-4 py-3">Fatura No</th>
+                    <th className="px-4 py-3">Fatura no</th>
                     <th className="px-4 py-3">Müşteri</th>
                     <th className="px-4 py-3">Toplam</th>
-                    <th className="px-4 py-3">Tahsil Edilen</th>
+                    <th className="px-4 py-3">Tahsil edilen</th>
                     <th className="px-4 py-3">Durum</th>
-                    <th className="px-4 py-3 text-right">Aksiyon</th>
+                    <th className="px-4 py-3 text-right">İşlemler</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950">
@@ -187,7 +183,6 @@ export default function FinanceInvoicePage() {
             </div>
           </div>
         </section>
-      </main>
     </div>
   );
 }

@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Building2, Phone, Mail, TrendingUp, ShoppingBag } from 'lucide-react';
+import { Plus, Building2, Phone, Mail, ShoppingBag } from 'lucide-react';
+import { StatCard } from '@/components/kit';
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
 import { RFListView, type RFColumn, type RFFilter } from '@/components/shared/views/RFListView';
 import { formatCurrency } from '@/lib/utils';
-import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { hasPermission } from '@/lib/features/auth/permissions';
@@ -133,7 +133,7 @@ export default function CRMPage() {
     },
     {
       key: 'total_revenue',
-      label: 'Toplam Ciro',
+      label: 'Toplam ciro',
       align: 'right',
       render: (val) => (
         <span className="text-sm font-bold text-foreground">
@@ -143,7 +143,7 @@ export default function CRMPage() {
     },
     {
       key: 'last_order_at',
-      label: 'Son Sipariş',
+      label: 'Son sipariş',
       align: 'right',
       render: (val) => val ? (
         <span className="text-xs text-muted-foreground">
@@ -155,31 +155,19 @@ export default function CRMPage() {
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950/80">
-      <AppleNavbar title="Müşteri Yönetimi" showSearch={false} />
+      <AppleNavbar title="Müşteri yönetimi" showSearch={false} />
 
       <main className="flex-1 p-4 md:p-8">
         {/* Stats Bar */}
-        <div className="grid gap-4 sm:grid-cols-3 mb-6">
-          {[
-            { label: 'Toplam Müşteri', value: total, icon: Building2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
-            { label: 'Bu Sayfada Siparişli', value: customers.filter(c => parseInt(c.order_count) > 0).length, icon: ShoppingBag, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' },
-            { label: 'Bu Sayfada', value: customers.length, icon: TrendingUp, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20' },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-4 flex items-center gap-4 shadow-sm">
-              <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', color)}>
-                <Icon size={18} />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">{label}</p>
-                <p className="text-xl font-bold text-foreground">{value}</p>
-              </div>
-            </div>
-          ))}
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard label="Toplam müşteri" value={total} icon={Building2} />
+          {/* Only a single page covers every customer; a count of one page would mislead. */}
+          {total <= customers.length && <StatCard label="Siparişi olan müşteri" value={customers.filter(c => parseInt(c.order_count) > 0).length} icon={ShoppingBag} tone="success" />}
         </div>
 
         <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm">
           <RFListView<Customer>
-            title="Müşteri Listesi"
+            title="Müşteri listesi"
             subtitle="Tüm müşterileriniz ve sipariş geçmişleri"
             data={customers}
             columns={columns}
@@ -193,14 +181,14 @@ export default function CRMPage() {
             onSearch={(q) => { setSearchQuery(q); setPage(1); }}
             onRowClick={(row) => router.push(`/crm/${row.id}`)}
             primaryAction={canCreate ? {
-              label: 'Yeni Müşteri',
+              label: 'Yeni müşteri',
               icon: <Plus size={16} />,
               onClick: () => setShowNewCustomer(true),
             } : undefined}
             emptyState={{
               title: 'Henüz müşteri yok',
               description: canCreate ? 'İlk müşterinizi ekleyin; siparişler de müşteri kartına bağlanır.' : 'Müşteri kartları siparişlerle birlikte oluşur.',
-              action: canCreate && !loadError ? { label: 'Müşteri Ekle', onClick: () => setShowNewCustomer(true) } : undefined,
+              action: canCreate && !loadError ? { label: 'Müşteri ekle', onClick: () => setShowNewCustomer(true) } : undefined,
             }}
           />
         </div>

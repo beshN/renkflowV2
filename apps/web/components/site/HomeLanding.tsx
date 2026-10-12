@@ -103,28 +103,29 @@ function Showcase() {
   );
 }
 
+// The hero is the first paint: a CSS rise runs before hydration, so slow script never leaves it blank.
+const rise = (delay: number) => ({ className: 'rf-hero-rise', style: { animationDelay: `${delay}s` } });
+
 function Hero() {
-  const reduce = useReducedMotion();
-  const rise = (delay: number) => ({ initial: reduce ? false : { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.7, delay, ease: EASE } });
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-background via-background to-muted/50">
       <div className="relative mx-auto max-w-6xl px-5 pb-20 pt-16 sm:px-8 md:pb-28 md:pt-24">
-        <motion.div {...rise(0)}>
+        <div {...rise(0)}>
           <Link href="/changelog" className="rf-chip transition-colors hover:text-foreground"><span className="rf-status-dot" aria-hidden /> Pergola ve cam sistemleri için geliştirildi <ArrowRight size={12} /></Link>
-        </motion.div>
+        </div>
         <div className="mt-10 grid items-end gap-10 lg:grid-cols-[1.5fr_0.5fr]">
-          <motion.h1 {...rise(0.06)} className="text-[clamp(38px,5.2vw,68px)] font-semibold leading-[1.04] tracking-[-0.045em] [text-wrap:balance]">
+          <h1 style={rise(0.06).style} className="rf-hero-rise text-[clamp(38px,5.2vw,68px)] font-semibold leading-[1.04] tracking-[-0.045em] [text-wrap:balance]">
             <span className="block text-muted-foreground">Ölçüye özel her proje için</span><span className="block">tek operasyon altyapısı.</span>
-          </motion.h1>
-          <motion.div {...rise(0.14)} className="lg:pb-3">
+          </h1>
+          <div style={rise(0.14).style} className="rf-hero-rise lg:pb-3">
             <p className="text-[16px] leading-7 text-muted-foreground">Pergola, giyotin cam, tente ve tavan projelerinde teklif, kesim planı, depo ve tahsilat aynı veride. Ofis ve atölye her an aynı tabloya bakar.</p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link href="/contact" className="rf-ink-button group h-11 px-5 text-[14px]">Demo talep edin <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" /></Link>
               <Link href="/auth/login" className="rf-secondary-button h-11 px-5 text-[14px]">Giriş yap</Link>
             </div>
-          </motion.div>
+          </div>
         </div>
-        <motion.div {...rise(0.24)} className="mt-16"><Showcase /></motion.div>
+        <div style={rise(0.24).style} className="rf-hero-rise mt-16"><Showcase /></div>
       </div>
     </section>
   );

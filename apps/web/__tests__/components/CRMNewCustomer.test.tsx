@@ -28,7 +28,7 @@ beforeEach(() => { role = 'office'; showToast.mockClear(); push.mockClear(); });
 it('opens the new customer form, sends only the filled fields and opens the new card', async () => {
   mockApi(async () => json(201, { customer: { id: 'c-1', full_name: 'Örnek Yapı' } }));
   render(<CRMPage />);
-  fireEvent.click(await screen.findByRole('button', { name: /Yeni Müşteri/ }));
+  fireEvent.click(await screen.findByRole('button', { name: /Yeni müşteri/ }));
   const dialog = await screen.findByRole('dialog');
   fireEvent.change(within(dialog).getByLabelText('Müşteri adı *'), { target: { value: 'Örnek Yapı' } });
   fireEvent.change(within(dialog).getByLabelText('Telefon'), { target: { value: '0532 000 00 00' } });
@@ -44,7 +44,7 @@ it('opens the new customer form, sends only the filled fields and opens the new 
 it('keeps the form open with the server message when saving fails', async () => {
   mockApi(async () => json(400, { error: 'Geçerli bir e-posta girin.' }));
   render(<CRMPage />);
-  fireEvent.click(await screen.findByRole('button', { name: /Yeni Müşteri/ }));
+  fireEvent.click(await screen.findByRole('button', { name: /Yeni müşteri/ }));
   const dialog = await screen.findByRole('dialog');
   fireEvent.change(within(dialog).getByLabelText('Müşteri adı *'), { target: { value: 'Ahmet Usta' } });
   fireEvent.click(within(dialog).getByRole('button', { name: 'Müşteriyi kaydet' }));
@@ -56,7 +56,7 @@ it('keeps the form open with the server message when saving fails', async () => 
 it('lists similar existing cards while the name is typed', async () => {
   mockApi(async () => json(201, {}), [{ id: 'old', full_name: 'Ahmet Usta', company_name: 'Usta Yapı', phone: null }]);
   render(<CRMPage />);
-  fireEvent.click(await screen.findByRole('button', { name: /Yeni Müşteri/ }));
+  fireEvent.click(await screen.findByRole('button', { name: /Yeni müşteri/ }));
   const dialog = await screen.findByRole('dialog');
   fireEvent.change(within(dialog).getByLabelText('Müşteri adı *'), { target: { value: 'Ahmet' } });
   expect(await within(dialog).findByRole('link', { name: 'Ahmet Usta' })).toHaveAttribute('href', '/crm/old');
@@ -67,13 +67,13 @@ it('hides customer creation from roles that can only view customers', async () =
   mockApi(async () => json(201, {}));
   render(<CRMPage />);
   await screen.findByText('Henüz müşteri yok');
-  expect(screen.queryByRole('button', { name: /Yeni Müşteri|Müşteri Ekle/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Yeni müşteri|Müşteri ekle/ })).not.toBeInTheDocument();
 });
 
 it('treats a saved customer with an unreadable response as saved, not as a failure to retry', async () => {
   mockApi(async () => ({ ok: true, status: 201, json: async () => { throw new SyntaxError('html'); } } as unknown as Response));
   render(<CRMPage />);
-  fireEvent.click(await screen.findByRole('button', { name: /Yeni Müşteri/ }));
+  fireEvent.click(await screen.findByRole('button', { name: /Yeni müşteri/ }));
   const dialog = await screen.findByRole('dialog');
   fireEvent.change(within(dialog).getByLabelText('Müşteri adı *'), { target: { value: 'Ahmet Usta' } });
   fireEvent.click(within(dialog).getByRole('button', { name: 'Müşteriyi kaydet' }));

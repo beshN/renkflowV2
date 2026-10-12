@@ -97,11 +97,11 @@ export function TenantSettings() {
         <form onSubmit={handleUpdateTenant} className="space-y-5">
           <div className="grid gap-5">
             <Input
-              label="Firma Adı"
+              label="Firma adı"
               variant="glass"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Firma Adı"
+              placeholder="Firma adı"
             />
 
             <div>

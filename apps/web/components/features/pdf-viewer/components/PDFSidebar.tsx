@@ -46,7 +46,7 @@ export const PDFSidebar: React.FC<PDFSidebarProps> = ({
   
   const tabs: { id: SidebarTab; icon: any; label: string; count?: number }[] = [
     { id: 'thumbnails', icon: FileText, label: 'Sayfalar', count: numPages },
-    { id: 'bookmarks', icon: Bookmark, label: 'Yer İmleri', count: bookmarks.length },
+    { id: 'bookmarks', icon: Bookmark, label: 'Yer imleri', count: bookmarks.length },
     { id: 'annotations', icon: Highlighter, label: 'Açıklamalar', count: annotations.length },
     { id: 'layers', icon: Layers, label: 'Katmanlar' },
   ];
@@ -92,7 +92,7 @@ export const PDFSidebar: React.FC<PDFSidebarProps> = ({
           size="icon"
           onClick={() => setShowSidebar(false)}
           className="h-10 w-10 flex-shrink-0"
-          title="Kenar Çubuğunu Gizle"
+          title="Kenar çubuğunu gizle"
         >
           <X className="h-4 w-4" />
         </Button>

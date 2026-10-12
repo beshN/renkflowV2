@@ -66,6 +66,20 @@ function isPublicPage(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
+// Every top-level segment with a page or route under app/ (kept in sync by __tests__/lib/proxy-segments.test.ts).
+// A signed-out request outside these and the public pages has nothing to protect: it reaches Next and gets
+// the 404 page instead of a login prompt for a page that does not exist.
+const APP_SEGMENTS = new Set([
+  'account', 'accounting', 'api', 'assistant', 'audit', 'auth', 'calendar', 'crm', 'dashboard', 'factory', 'finance',
+  'installations', 'inventory', 'kanban', 'leads', 'new-order', 'notifications', 'orders', 'production', 'products',
+  'purchases', 'q', 'quotations', 'receipts', 'reports', 'scrap', 'search', 'service', 'settings', 'shipments', 'signup',
+  'suppliers', 'team', 'teklif', 'teslim', 'track', 'vehicles', 'warehouse', 'work-orders',
+]);
+
+function isKnownAppPath(pathname: string): boolean {
+  return APP_SEGMENTS.has(pathname.split('/')[1] ?? '');
+}
+
 function isStaticAsset(pathname: string): boolean {
   return pathname.startsWith('/_next/') || /\.[a-zA-Z0-9]+$/.test(pathname);
 }
@@ -282,6 +296,7 @@ export async function proxy(request: NextRequest) {
 
   const token = await sessionToken(request);
   if (!token) {
+    if (!isKnownAppPath(pathname)) return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
     return withProxySecurityHeaders(buildLoginRedirect(request), { isSecureRequest });
   }
 

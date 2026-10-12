@@ -36,11 +36,11 @@ interface InventoryItem {
 // ============================================
 
 const ITEM_TYPE_LABELS: Record<string, { label: string; color: string }> = {
-  raw_material: { label: 'Ham Madde', color: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' },
+  raw_material: { label: 'Ham madde', color: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' },
   finished_good: { label: 'Mamul', color: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' },
   reusable_remnant: { label: 'Artık (Kullanılabilir)', color: 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400' },
   scrap: { label: 'Hurda', color: 'bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400' },
-  consumable: { label: 'Sarf Malzeme', color: 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400' },
+  consumable: { label: 'Sarf malzeme', color: 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400' },
 };
 
 // ============================================
@@ -125,7 +125,7 @@ export default function InventoryPage() {
   const filters: RFFilter[] = [
     {
       key: 'itemType',
-      label: 'Malzeme Tipi',
+      label: 'Malzeme tipi',
       type: 'select',
       options: Object.entries(ITEM_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v.label })),
     },
@@ -154,7 +154,7 @@ export default function InventoryPage() {
     },
     {
       key: 'on_hand_qty',
-      label: 'Fiziksel Stok',
+      label: 'Fiziksel stok',
       align: 'right',
       render: (val, row) => (
         <span className="text-sm font-semibold text-foreground tabular-nums">

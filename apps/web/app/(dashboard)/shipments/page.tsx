@@ -25,7 +25,7 @@ export default function ShipmentsPage() {
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950/80">
       <AppleNavbar 
-        title="Sevkiyat Yönetimi" 
+        title="Sevkiyat yönetimi" 
         showSearch={true}
 
       />
@@ -34,14 +34,14 @@ export default function ShipmentsPage() {
         <div className="rf-panel border border-border p-6 shadow-sm">
           <RFListView
             data={shipments}
-            title="Sevkiyat Kayıtları"
+            title="Sevkiyat kayıtları"
             description="Müşterilere gönderilen siparişler ve teslimat durumları"
             icon={<Truck className="h-5 w-5 text-indigo-500" />}
             isLoading={loading}
             error={error}
             onRetry={loadShipments}
             columns={[
-              { key: 'shipment_number', label: 'Sevkiyat No' },
+              { key: 'shipment_number', label: 'Sevkiyat no' },
               { key: 'customer_name', label: 'Müşteri' },
               { 
                 key: 'status', 
@@ -77,7 +77,7 @@ export default function ShipmentsPage() {
               },
               {
                 key: 'created_at',
-                label: 'Kayıt Tarihi',
+                label: 'Kayıt tarihi',
                 render: (val) => new Date(val).toLocaleString('tr-TR')
               }
             ]}

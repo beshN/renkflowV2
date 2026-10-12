@@ -415,6 +415,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 @keyframes rf-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes rf-scroll-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes rf-marquee { to { transform: translateX(-50%); } }
+@keyframes rf-hero-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 
 .rf-marquee { display: flex; width: max-content; animation: rf-marquee 48s linear infinite; }
 
@@ -424,6 +425,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   .rf-dashboard-shell main .rf-page > *:nth-child(3) { animation-delay: 80ms; }
   .rf-dashboard-shell main .rf-page > *:nth-child(n + 4) { animation-delay: 120ms; }
   .rf-advice { animation: rf-rise 380ms var(--rf-ease) both; }
+  .rf-hero-rise { animation: rf-hero-rise 700ms var(--rf-ease) both; }
 
   @supports (animation-timeline: view()) {
     .rf-scroll-reveal {

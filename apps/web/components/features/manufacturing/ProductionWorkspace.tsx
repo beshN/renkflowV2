@@ -522,9 +522,9 @@ export default function ProductionWorkspace() {
               Seçilen siparişlerin aynı profil ve renkteki parçaları birlikte
               hesaplanır. Fiziksel çubuk ve artık stoğu kullanılır; farklı
               boylar (ör. 6 m ve 7 m) arasından parçaların en iyi doldurduğu
-              boy seçilir. Dört deterministik yerleşim karşılaştırılır: en az
-              yeni çubuk, sonra en az yeni malzeme, sonra en az fire. Optimum
-              garantisi yoktur. Onaydan önce stok ayrılmaz; onayda çubuklar
+              boy seçilir. Dört farklı yerleşim karşılaştırılır; öncelik en az
+              yeni çubuk, sonra en az yeni malzeme, sonra en az firedir. Sonuç
+              iyi bir plandır, her zaman en iyisi olmayabilir. Onaydan önce stok ayrılmaz; onayda çubuklar
               ayrılır, kalıcı düşüm ölçülen kesimle yapılır.
             </p>
             <div className="mb-4">
@@ -594,7 +594,7 @@ export default function ProductionWorkspace() {
                         {r.profile_cuts
                           .map((c: any) => `${c.quantity} × ${c.lengthMm} mm`)
                           .join(" · ")}{" "}
-                        · {Number(r.profile_scrap_kg).toFixed(3)} kg kayıtlı
+                        · {Number(r.profile_scrap_kg).toLocaleString('tr-TR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg kayıtlı
                         rework hurdası
                       </span>
                     </span>
@@ -626,7 +626,7 @@ export default function ProductionWorkspace() {
                   </h2>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {p.work_order_ids.length} iş emri · {p.result.bars.length}{" "}
-                    çubuk · %{p.result.wastePercent.toFixed(2)} fire ·{" "}
+                    çubuk · %{p.result.wastePercent.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} fire ·{" "}
                     {p.result.reusableMm} mm kullanılabilir artık
                   </p>
                 </div>
@@ -800,11 +800,11 @@ export default function ProductionWorkspace() {
                   Kaydedilen hurda:{" "}
                   {p.actual.bars
                     .reduce((s: number, b: any) => s + b.weightKg, 0)
-                    .toFixed(3)}{" "}
+                    .toLocaleString('tr-TR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}{" "}
                   kg · Malzeme maliyeti{" "}
                   {p.actual.bars
                     .reduce((s: number, b: any) => s + b.cost, 0)
-                    .toFixed(2)}
+                    .toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
                 </p>
               )}
             </article>

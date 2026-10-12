@@ -46,19 +46,19 @@ export default function InventoryMovementsPage() {
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950/80">
-      <AppleNavbar title="Stok Hareketleri" showSearch={false} />
+      <AppleNavbar title="Stok hareketleri" showSearch={false} />
       <main className="flex-1 p-4 md:p-8">
         <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm">
           <RFListView
             data={movements}
-            title="Hareket Geçmişi"
+            title="Hareket geçmişi"
             description="Envanter üzerindeki tüm giriş, çıkış ve transfer işlemleri"
             icon={<Activity className="h-5 w-5 text-sky-500" />}
             isLoading={loading}
             error={error}
             onRetry={reload}
             columns={[
-              { key: 'entry_number', label: 'Fiş No' },
+              { key: 'entry_number', label: 'Fiş no' },
               { 
                 key: 'entry_type', 
                 label: 'Tür',

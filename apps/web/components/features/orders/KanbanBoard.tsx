@@ -48,7 +48,7 @@ interface ColumnData {
 const columns: ColumnData[] = [
   { status: 'pending', title: 'Beklemede', color: 'yellow', wipLimit: 12 },
   { status: 'in_production', title: 'Üretimde', color: 'blue', wipLimit: 8 },
-  { status: 'delivered', title: 'Teslim Edildi', color: 'green', wipLimit: 999 },
+  { status: 'delivered', title: 'Teslim edildi', color: 'green', wipLimit: 999 },
 ];
 
 // Column color configurations
@@ -490,7 +490,7 @@ export function KanbanBoard({ orders, onOrderStatusChange, onOrderDelete }: Kanb
     { value: 'all', label: 'Tümü' },
     { value: 'pending', label: 'Beklemede' },
     { value: 'in_production', label: 'Üretimde' },
-    { value: 'delivered', label: 'Teslim Edildi' },
+    { value: 'delivered', label: 'Teslim edildi' },
   ];
 
   return (

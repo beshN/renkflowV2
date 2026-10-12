@@ -194,7 +194,7 @@ export default function OrderDetailPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950">
-        <AppleNavbar title="Sipariş Detayı" />
+        <AppleNavbar title="Sipariş detayı" />
         <main className="flex-1 p-6 md:p-8">
           <div className="max-w-6xl mx-auto space-y-6">
             {[1,2,3].map((i) => (
@@ -311,7 +311,7 @@ export default function OrderDetailPage() {
               <div className="flex gap-1 rounded-md border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900 p-1">
                 {[
                   { key: 'info', label: 'Bilgiler', icon: ClipboardList },
-                  { key: 'items', label: 'Ürün Satırları', icon: Package },
+                  { key: 'items', label: 'Ürün satırları', icon: Package },
                   { key: 'sales', label: 'Teslim & ödeme', icon: Wallet },
                   { key: 'billing', label: 'Fatura & tahsilat', icon: Receipt },
                   { key: 'chain', label: 'Montaj & servis', icon: Wrench },
@@ -361,10 +361,10 @@ export default function OrderDetailPage() {
                         `${order.widthMm || '?'} × ${order.heightMm || '?'} mm`
                       } />
                     )}
-                    <InfoRow icon={LayoutGrid} label="Motor Tipi" value={order.motorType} />
+                    <InfoRow icon={LayoutGrid} label="Motor tipi" value={order.motorType} />
                     <InfoRow icon={LayoutGrid} label="LED Tipi" value={order.ledType} />
-                    <InfoRow icon={LayoutGrid} label="Kumaş Tipi" value={order.fabricType} />
-                    <InfoRow icon={Calendar} label="Teslim Tarihi" value={
+                    <InfoRow icon={LayoutGrid} label="Kumaş tipi" value={order.fabricType} />
+                    <InfoRow icon={Calendar} label="Teslim tarihi" value={
                       order.deliveryDate ? (
                         <span className={cn(
                           order.deliveryDate < businessDate() &&
@@ -379,7 +379,7 @@ export default function OrderDetailPage() {
                         </span>
                       ) : null
                     } />
-                    <InfoRow icon={DollarSign} label="Ödeme Durumu" value={
+                    <InfoRow icon={DollarSign} label="Ödeme durumu" value={
                       order.paymentStatus === 'paid' ? 'Ödendi' :
                       order.paymentStatus === 'partial' ? 'Kısmi ödeme' : 'Ödeme bekleniyor'
                     } />
@@ -389,7 +389,7 @@ export default function OrderDetailPage() {
                       } />
                     )}
                     {order.specialNotes && (
-                      <InfoRow icon={AlertTriangle} label="Teknik Notlar" value={
+                      <InfoRow icon={AlertTriangle} label="Teknik notlar" value={
                         <span className="whitespace-pre-wrap text-amber-700 dark:text-amber-400">{order.specialNotes}</span>
                       } />
                     )}

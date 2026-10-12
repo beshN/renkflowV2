@@ -126,7 +126,7 @@ export function OrderSalesPanel({ orderId, canEdit, canPlan, onOrderChanged }: {
         {d.plan.mismatch && d.plan.rows.length > 0 && <p className="rounded-md border border-amber-600/35 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">{d.plan.mismatch}</p>}
         {d.plan.rows.length > 0 ? (
           <div className="flex items-center gap-4">
-            <ProgressRing value={d.plan.paid} max={d.plan.planned} label="Tahsil edilen" center={<span className="text-[11px] font-semibold tabular-nums">{Math.round((d.plan.paid / Math.max(1, d.plan.planned)) * 100)}%</span>} />
+            <ProgressRing value={d.plan.paid} max={d.plan.planned} label="Tahsil edilen" center={<span className="text-[11px] font-semibold tabular-nums">%{Math.round((d.plan.paid / Math.max(1, d.plan.planned)) * 100)}</span>} />
             <ul className="min-w-0 flex-1 space-y-1.5">
               {d.plan.rows.map((r) => {
                 const [tone, label] = ROW_TONE[r.state];

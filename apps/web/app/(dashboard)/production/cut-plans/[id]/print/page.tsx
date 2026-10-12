@@ -46,7 +46,7 @@ export default function CutPlanPrint({ params }: { params: Promise<{ id: string 
           <h1 className="text-xl font-semibold">{sheet.rework ? "Rework kesim föyü" : "Kesim föyü"} · {sheet.code}</h1>
           <p className="mt-1 text-xs text-muted-foreground">{STATUS[sheet.status] ?? sheet.status} · {new Date(sheet.createdAt).toLocaleString("tr-TR")}</p>
         </div>
-        <p className="text-right text-xs">{sheet.bars.length} çubuk · %{Number(sheet.wastePercent).toFixed(1)} fire · {sheet.reusableMm} mm artık</p>
+        <p className="text-right text-xs">{sheet.bars.length} çubuk · %{Number(sheet.wastePercent).toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} fire · {sheet.reusableMm} mm artık</p>
       </div>
       {sheet.status !== "approved" && sheet.status !== "completed" && (
         <p role="alert" className="cut-estimate mt-4 rounded border-2 border-rose-500 p-3 text-base font-bold">

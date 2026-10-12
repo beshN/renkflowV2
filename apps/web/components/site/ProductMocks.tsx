@@ -39,7 +39,7 @@ const ORDERS = [
 
 export function StatusPill({ status }: { status: keyof typeof STATUS }) {
   const s = STATUS[status];
-  return <span className={cn('inline-flex h-5 items-center rounded-md px-1.5 text-[10.5px] font-medium', s.cls)}>{s.label}</span>;
+  return <span className={cn('inline-flex h-5 items-center whitespace-nowrap rounded-md px-1.5 text-[10.5px] font-medium', s.cls)}>{s.label}</span>;
 }
 
 /** Full workspace preview used in the hero. */

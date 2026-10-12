@@ -8,7 +8,6 @@ import { useAuth } from '@/lib/context/AuthContext';
 import { useApiCollection } from '@/lib/hooks/useApiCollection';
 import { Quotation } from '@/lib/features/quotations/types';
 import { formatCurrency } from '@/lib/utils';
-import { Navbar } from '@/components/layout/Navbar';
 import Link from 'next/link';
 import { PRICE_MATRIX_READ_ROLES } from '@/lib/features/products/price-matrix';
 import { ROUTE_ROLES } from '@/lib/features/auth/permissions';
@@ -27,17 +26,14 @@ export default function QuotationsPage() {
   const statusMap: Record<string, { label: string; color: 'slate' | 'amber' | 'emerald' | 'rose' | 'sky' | 'indigo' }> = {
     draft: { label: 'Taslak', color: 'slate' },
     sent: { label: 'Gönderildi', color: 'sky' },
-    accepted: { label: 'Kabul Edildi', color: 'emerald' },
+    accepted: { label: 'Kabul edildi', color: 'emerald' },
     rejected: { label: 'Reddedildi', color: 'rose' },
-    expired: { label: 'Süresi Doldu', color: 'amber' },
-    converted: { label: 'Siparişe Dönüştü', color: 'indigo' },
+    expired: { label: 'Süresi doldu', color: 'amber' },
+    converted: { label: 'Siparişe dönüştü', color: 'indigo' },
   };
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col bg-slate-50/50 dark:bg-slate-950/50">
-      <Navbar title="Teklifler" />
-      
-      <main className="w-full flex-1 p-4 md:p-8">
+    <div className="rf-page space-y-5">
         {PRICE_MATRIX_READ_ROLES.includes(user.role) && (
           <div className="mb-4 flex justify-end gap-2">
             {ROUTE_ROLES['/products'].includes(user.role) && <Link href="/products" className="rf-secondary-button">Ürün reçeteleri</Link>}
@@ -46,11 +42,11 @@ export default function QuotationsPage() {
         )}
         <RFListView
           data={quotations}
-          title="Teklif Listesi"
+          title="Teklif listesi"
           description="Tüm teklifleri görüntüleyin ve yönetin."
           icon={<FileText className="h-5 w-5 text-sky-500" />}
           primaryAction={{
-            label: "Yeni Teklif",
+            label: "Yeni teklif",
             icon: <Plus className="h-4 w-4" />,
             onClick: () => router.push('/quotations/new'),
           }}
@@ -58,7 +54,7 @@ export default function QuotationsPage() {
           error={error || null}
           onRetry={reload}
           columns={[
-            { key: 'quotationNumber', label: 'Teklif No' },
+            { key: 'quotationNumber', label: 'Teklif no' },
             { key: 'customerName', label: 'Müşteri' },
             { 
               key: 'status', 
@@ -78,7 +74,7 @@ export default function QuotationsPage() {
             },
             { 
               key: 'totalAmount', 
-              label: 'Toplam Tutar',
+              label: 'Toplam tutar',
               render: (_amount, q) => formatCurrency(q.totalAmount, q.currency)
             },
             {
@@ -90,7 +86,6 @@ export default function QuotationsPage() {
           searchKeys={['quotationNumber', 'customerName']}
           onRowClick={(q) => router.push(`/quotations/${q.id}`)}
         />
-      </main>
     </div>
   );
 }

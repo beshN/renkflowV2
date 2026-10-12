@@ -32,14 +32,14 @@ export interface StatusStepperProps {
 
 export const ORDER_STATUS_STEPS: StatusStep[] = [
   { key: 'new', label: 'Yeni', shortLabel: 'Yeni', color: 'blue' },
-  { key: 'pending_approval', label: 'Onay Bekliyor', shortLabel: 'Onay', color: 'amber' },
+  { key: 'pending_approval', label: 'Onay bekliyor', shortLabel: 'Onay', color: 'amber' },
   { key: 'approved', label: 'Onaylandı', shortLabel: 'Onaylı', color: 'emerald' },
-  { key: 'preparing_materials', label: 'Malzeme Hazırlanıyor', shortLabel: 'Malzeme', color: 'purple' },
-  { key: 'ready_for_production', label: 'Üretime Hazır', shortLabel: 'Hazır', color: 'indigo' },
+  { key: 'preparing_materials', label: 'Malzeme hazırlanıyor', shortLabel: 'Malzeme', color: 'purple' },
+  { key: 'ready_for_production', label: 'Üretime hazır', shortLabel: 'Hazır', color: 'indigo' },
   { key: 'in_production', label: 'Üretimde', shortLabel: 'Üretim', color: 'sky' },
-  { key: 'quality_check', label: 'Kalite Kontrol', shortLabel: 'KK', color: 'orange' },
-  { key: 'ready_for_shipment', label: 'Sevkiyata Hazır', shortLabel: 'Sevkiyat', color: 'teal' },
-  { key: 'shipped', label: 'Sevk Edildi', shortLabel: 'Sevkiyat', color: 'cyan' },
+  { key: 'quality_check', label: 'Kalite kontrol', shortLabel: 'KK', color: 'orange' },
+  { key: 'ready_for_shipment', label: 'Sevkiyata hazır', shortLabel: 'Sevkiyat', color: 'teal' },
+  { key: 'shipped', label: 'Sevk edildi', shortLabel: 'Sevkiyat', color: 'cyan' },
   { key: 'completed', label: 'Tamamlandı', shortLabel: 'Tamam', color: 'green' },
 ];
 

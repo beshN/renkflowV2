@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, FileText, Printer } from 'lucide-react';
 import { EmptyState, PageHeader, Skeleton, StatusChip } from '@/components/kit';
 import { requestJson } from '@/lib/shared/network';
@@ -119,9 +119,21 @@ export function StatementView() {
   const [to, setTo] = useState(q.get('to') ?? new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(new Date()));
   const [s, setS] = useState<Statement | null>(null);
   const [error, setError] = useState('');
+  const router = useRouter();
+  const [customers, setCustomers] = useState<{ key: string; name: string }[] | null>(null);
+  // The picker lists customers with invoices or payments, so the page also works when opened directly.
+  useEffect(() => {
+    let current = true;
+    void requestJson<{ customers: { key: string; name: string }[] }>('/api/v1/finance/receivables', { cache: 'no-store' }).then((r) => {
+      if (current) setCustomers(r.ok && r.data ? r.data.customers.map(({ key, name }) => ({ key, name })) : []);
+    });
+    return () => { current = false; };
+  }, []);
+  const pick = (next: string) => router.replace(`/finance/statement?customer=${encodeURIComponent(next)}&from=${from}&to=${to}`);
   useEffect(() => {
     let current = true;
     setS(null); setError('');
+    if (!key) return;
     void requestJson<Statement>(`/api/v1/finance/statement?customer=${encodeURIComponent(key)}&from=${from}&to=${to}`, { cache: 'no-store' }).then((r) => {
       if (current) { if (r.ok && r.data) setS(r.data); else setError(r.error || 'Ekstre alınamadı'); }
     });
@@ -132,12 +144,20 @@ export function StatementView() {
     <div className="space-y-3">
       <div className="flex flex-wrap items-end gap-2 print:hidden">
         <Link href="/finance/receivables" className="rf-secondary-button inline-flex items-center gap-1 text-sm"><ArrowLeft size={14} aria-hidden /> Alacaklar</Link>
-        <label className="text-xs">Başlangıç<input type="date" className="rf-input mt-1" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
-        <label className="text-xs">Bitiş<input type="date" className="rf-input mt-1" value={to} onChange={(e) => setTo(e.target.value)} /></label>
-        <button type="button" className="rf-primary-button inline-flex items-center gap-1 text-sm" onClick={() => window.print()}><Printer size={14} aria-hidden /> Yazdır</button>
+        <label className="text-xs">Müşteri
+          <select className="rf-input mt-1 block min-w-[200px]" value={key} onChange={(e) => pick(e.target.value)} disabled={!customers?.length}>
+            <option value="" disabled>{customers === null ? 'Yükleniyor…' : customers.length ? 'Müşteri seçin' : 'Faturalı müşteri yok'}</option>
+            {customers?.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
+          </select>
+        </label>
+        <label className="text-xs">Başlangıç<input type="date" className="rf-input mt-1 block" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
+        <label className="text-xs">Bitiş<input type="date" className="rf-input mt-1 block" value={to} onChange={(e) => setTo(e.target.value)} /></label>
+        <button type="button" className="rf-primary-button inline-flex items-center gap-1 text-sm disabled:opacity-50" onClick={() => window.print()} disabled={!s}><Printer size={14} aria-hidden /> Yazdır</button>
       </div>
       {error && <p role="alert" className="rf-panel text-sm">{error}</p>}
-      {!s ? (!error && <Skeleton className="h-48" />) : (
+      {!key ? (
+        <EmptyState icon={FileText} title={customers && !customers.length ? 'Henüz faturası ya da tahsilatı olan müşteri yok' : 'Ekstre için yukarıdan bir müşteri seçin'} action={{ label: 'Alacaklara git', href: '/finance/receivables' }} />
+      ) : !s ? (!error && <Skeleton className="h-48" />) : (
         <article className="rf-panel mx-auto max-w-3xl space-y-3 p-5 print:border-0" aria-label="Cari hesap ekstresi">
           <header className="flex flex-wrap justify-between gap-2">
             <div><p className="text-xs text-muted-foreground">{s.seller}</p><h1 className="text-lg font-bold">Cari hesap ekstresi</h1><p className="font-medium">{s.customer.name}</p></div>

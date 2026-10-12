@@ -95,7 +95,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
       size /= 1024;
       unitIndex++;
     }
-    return `${size.toFixed(1)} ${units[unitIndex]}`;
+    return `${size.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${units[unitIndex]}`;
   }, []);
 
   // Smooth progress animation
@@ -224,7 +224,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
               "transition-colors duration-200",
               "focus:outline-none focus:ring-2 focus:ring-primary/50"
             )}
-            aria-label="Yüklemeyi İptal Et"
+            aria-label="Yüklemeyi iptal et"
           >
             <X className="h-5 w-5" />
           </button>

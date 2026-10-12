@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Navbar } from '@/components/layout/Navbar';
 import { RFFormView } from '@/components/shared/views/RFFormView';
 import { createWorkOrder } from '@/lib/features/work-orders/client';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -109,23 +108,20 @@ export default function NewWorkOrderPage() {
   );
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col bg-slate-50/50 dark:bg-slate-950/50">
-      <Navbar title="Yeni Üretim Emri" />
-      <main className="w-full flex-1 p-4 md:p-8">
+    <div className="rf-page space-y-5">
         <RFFormView
-          title="Yeni Üretim Emri"
+          title="Yeni üretim emri"
           subtitle="Üretim atölyesine yeni bir emir gönderin."
           icon={<FileText className="h-5 w-5 text-sky-500" />}
           breadcrumbs={[
-            { label: 'İş Emirleri', href: '/work-orders' },
-            { label: 'Yeni Emir' }
+            { label: 'İş emirleri', href: '/work-orders' },
+            { label: 'Yeni emir' }
           ]}
           onBack={() => router.push('/work-orders')}
           tabs={[
-            { id: 'details', label: 'Emir Detayı', content }
+            { id: 'details', label: 'Emir detayı', content }
           ]}
         />
-      </main>
     </div>
   );
 }

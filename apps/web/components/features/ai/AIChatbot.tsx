@@ -53,11 +53,11 @@ interface QuickAction {
 // ============================================
 
 const quickActions: QuickAction[] = [
-  { id: 'overdue', label: 'Geciken Siparişler', icon: '⏰', query: 'Bu ay geciken siparişler neler?' },
-  { id: 'revenue', label: 'Gelir Özeti', icon: '💰', query: 'Bu ay toplam ne kadar gelir elde ettik?' },
-  { id: 'production', label: 'Üretim Durumu', icon: '🏭', query: 'Üretimdeki siparişlerin durumu nedir?' },
-  { id: 'top', label: 'En İyi Müşteriler', icon: '👑', query: 'En çok sipariş veren müşteriler kimler?' },
-  { id: 'kanban', label: 'Kanban Durumu', icon: '📋', query: 'Kanban panosundaki sipariş dağılımı nasıl?' },
+  { id: 'overdue', label: 'Geciken siparişler', icon: '⏰', query: 'Bu ay geciken siparişler neler?' },
+  { id: 'revenue', label: 'Gelir özeti', icon: '💰', query: 'Bu ay toplam ne kadar gelir elde ettik?' },
+  { id: 'production', label: 'Üretim durumu', icon: '🏭', query: 'Üretimdeki siparişlerin durumu nedir?' },
+  { id: 'top', label: 'En iyi müşteriler', icon: '👑', query: 'En çok sipariş veren müşteriler kimler?' },
+  { id: 'kanban', label: 'Kanban durumu', icon: '📋', query: 'Kanban panosundaki sipariş dağılımı nasıl?' },
   { id: 'help', label: 'Ne Yapabilirsin?', icon: '❓', query: 'Neler yapabilirsin? Bana yeteneklerini anlat.' },
 ];
 

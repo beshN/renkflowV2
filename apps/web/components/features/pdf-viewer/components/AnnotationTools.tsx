@@ -35,8 +35,8 @@ const ANNOTATION_TOOLS = [
   { mode: 'select' as ToolMode, icon: MousePointer, label: 'Seç', category: 'basic' },
   { mode: 'hand' as ToolMode, icon: Hand, label: 'El', category: 'basic' },
   { mode: 'highlight' as ToolMode, icon: Highlighter, label: 'Vurgula', category: 'text' },
-  { mode: 'underline' as ToolMode, icon: Underline, label: 'Alt Çizgi', category: 'text' },
-  { mode: 'strikethrough' as ToolMode, icon: Strikethrough, label: 'Üstü Çizili', category: 'text' },
+  { mode: 'underline' as ToolMode, icon: Underline, label: 'Alt çizgi', category: 'text' },
+  { mode: 'strikethrough' as ToolMode, icon: Strikethrough, label: 'Üstü çizili', category: 'text' },
   { mode: 'note' as ToolMode, icon: StickyNote, label: 'Not', category: 'annotation' },
   { mode: 'text' as ToolMode, icon: Type, label: 'Metin', category: 'annotation' },
   { mode: 'rectangle' as ToolMode, icon: Square, label: 'Dikdörtgen', category: 'shape' },
@@ -113,7 +113,7 @@ export const AnnotationTools: React.FC<AnnotationToolsProps> = ({
         variant="ghost"
         size="icon"
         onClick={toggleAnnotationTools}
-        title="Açıklama Araçları"
+        title="Açıklama araçları"
         className={cn(
           'h-10 w-10 relative',
           showAnnotationTools && 'bg-blue-100 dark:bg-blue-900/30'
@@ -336,7 +336,7 @@ export const AnnotationTools: React.FC<AnnotationToolsProps> = ({
                 className="flex-1 h-9"
                 onClick={handleSave}
                 disabled={annotations.length === 0}
-                title="Açıklamaları Kaydet"
+                title="Açıklamaları kaydet"
               >
                 <Save className="h-4 w-4 mr-1.5" />
                 Kaydet
@@ -347,7 +347,7 @@ export const AnnotationTools: React.FC<AnnotationToolsProps> = ({
                 className="flex-1 h-9 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
                 onClick={handleClear}
                 disabled={annotations.length === 0}
-                title="Tümünü Temizle"
+                title="Tümünü temizle"
               >
                 <Trash2 className="h-4 w-4 mr-1.5" />
                 Temizle

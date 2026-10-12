@@ -4,8 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, FileText, RefreshCw, Wallet } from 'lucide-react';
 
-import { Navbar } from '@/components/layout/Navbar';
-import { Button } from '@/components/ui/Button';
+import { EmptyState, PageHeader, StatCard } from '@/components/kit';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { canAccessFinance, type UserRole } from '@/lib/auth/permissions';
@@ -73,99 +72,50 @@ export default function FinanceOverviewPage() {
 
   if (!hasAccess) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-6">
-        <div className="rf-panel rounded-2xl p-8 text-center">
-          <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">Finans modülüne erişim yetkin bulunmuyor.</p>
-          <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-sky-600 hover:underline">
-            Kontrol paneline dön
-          </Link>
-        </div>
+      <div className="rf-page">
+        <EmptyState icon={Wallet} title="Finans modülüne erişim yetkiniz bulunmuyor" action={{ label: 'Genel bakışa dön', href: '/dashboard' }} />
       </div>
     );
   }
 
+  const money = (value: number) => (isLoading || loadError ? '—' : formatCurrency(value, currency));
+  const currencies = [...new Set(['TRY', ...orders.map((order) => order.currency)])];
   return (
-    <div className="flex min-h-screen flex-1 flex-col bg-slate-50/50 dark:bg-slate-950/50">
-      <Navbar title="Finans Kontrolü" showSearch={false} />
-
-      <main className="w-full flex-1 p-4 md:p-8">
-        {loadError && <p role="alert" className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{loadError}</p>}
-        <section className="rf-panel rounded-2xl p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Finans Komuta Ekranı</h1>
-              <p className="mt-1 text-sm text-slate-500">Tahsilat ve açık bakiye görünümü sipariş kayıtlarıyla senkronize çalışır.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="secondary" size="sm" onClick={() => void load(true)} isLoading={isRefreshing}>
-                <RefreshCw size={14} />
-                Veriyi yenile
-              </Button>
-              <Link href="/finance/receivables">
-                <Button type="button" variant="secondary" size="sm">
-                  <Wallet size={14} />
-                  Alacaklar
-                </Button>
-              </Link>
-              <Link href="/finance/invoices">
-                <Button type="button" variant="primary" size="sm">
-                  <FileText size={14} />
-                  Faturalar
-                </Button>
-              </Link>
-            </div>
-          </div>
-
-          <label className="mt-4 flex items-center gap-3 text-xs">Özet para birimi<select value={currency} onChange={e=>setCurrency(e.target.value)} className="rf-input">{[...new Set(['TRY',...orders.map(order=>order.currency)])].map(value=><option key={value}>{value}</option>)}</select><span className="text-muted-foreground">Farklı para birimleri birbiriyle toplanmaz.</span></label>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <article className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Toplam işlem hacmi</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {isLoading || loadError ? '-' : formatCurrency(totals.totalAmount,currency)}
-              </p>
-            </article>
-            <article className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tahsil edilen</p>
-              <p className="mt-2 text-2xl font-bold text-emerald-600">
-                {isLoading || loadError ? '-' : formatCurrency(totals.paidAmount,currency)}
-              </p>
-            </article>
-            <article className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Kalan bakiye</p>
-              <p className="mt-2 text-2xl font-bold text-amber-600">
-                {isLoading || loadError ? '-' : formatCurrency(totals.remainingAmount,currency)}
-              </p>
-            </article>
-            <article className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tam kapanan sipariş</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {isLoading || loadError ? '-' : totals.closedOrderCount}
-              </p>
-            </article>
-          </div>
-
-          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Hızlı Finans Aksiyonları</h2>
-              <Wallet size={16} className="text-slate-500" />
-            </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              <Link href="/finance/payments" className="group rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-                Ödeme hareketleri
-                <ArrowRight size={14} className="ml-2 inline-block opacity-60 transition group-hover:translate-x-0.5" />
-              </Link>
-              <Link href="/finance/documents" className="group rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-                Finans belge arşivi
-                <ArrowRight size={14} className="ml-2 inline-block opacity-60 transition group-hover:translate-x-0.5" />
-              </Link>
-              <Link href="/finance/employees" className="group rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-                Personel maliyet ekranı
-                <ArrowRight size={14} className="ml-2 inline-block opacity-60 transition group-hover:translate-x-0.5" />
-              </Link>
-            </div>
-          </div>
-        </section>
-      </main>
+    <div className="rf-page space-y-5">
+      <PageHeader
+        eyebrow="Finans"
+        title="Genel bakış"
+        hint="Sipariş tutarları ve kayıtlı tahsilatlar. Farklı para birimleri birbiriyle toplanmaz; özet seçilen para biriminde gösterilir."
+        action={<>
+          <button type="button" className="rf-secondary-button inline-flex h-9 items-center gap-1.5 px-3 text-sm" onClick={() => void load(true)} disabled={isRefreshing} aria-label="Verileri yenile">
+            <RefreshCw size={14} aria-hidden className={isRefreshing ? 'animate-spin' : undefined} /><span className="hidden sm:inline">Yenile</span>
+          </button>
+          <Link href="/finance/receivables" className="rf-secondary-button inline-flex h-9 items-center gap-1.5 px-3 text-sm"><Wallet size={14} aria-hidden />Alacaklar</Link>
+          <Link href="/finance/invoices" className="rf-primary-button inline-flex h-9 items-center gap-1.5 px-3 text-sm"><FileText size={14} aria-hidden />Faturalar</Link>
+        </>}
+      />
+      {loadError && <p role="alert" className="rf-panel text-sm text-rose-700 dark:text-rose-300">{loadError}</p>}
+      {currencies.length > 1 && (
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">Para birimi
+          <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="rf-input h-9 w-auto pr-8">{currencies.map((value) => <option key={value}>{value}</option>)}</select>
+        </label>
+      )}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Toplam sipariş tutarı" value={money(totals.totalAmount)} loading={isLoading} />
+        <StatCard label="Tahsil edilen" value={money(totals.paidAmount)} tone="success" loading={isLoading} href="/finance/payments" />
+        <StatCard label="Kalan bakiye" value={money(totals.remainingAmount)} tone={totals.remainingAmount > 0 ? 'warning' : 'neutral'} loading={isLoading} href="/finance/receivables" />
+        <StatCard label="Tahsilatı tamamlanan sipariş" value={isLoading || loadError ? '—' : `${totals.closedOrderCount} / ${totals.orderCount}`} loading={isLoading} />
+      </div>
+      <section className="rf-panel">
+        <h2 className="rf-section-title mb-3">Kısayollar</h2>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {[['/finance/payments', 'Ödeme hareketleri'], ['/finance/documents', 'Belge arşivi'], ['/finance/employees', 'Personel maliyetleri']].map(([href, label]) => (
+            <Link key={href} href={href} className="group flex items-center justify-between rounded-lg border border-border px-3 py-2.5 text-sm transition-colors hover:bg-accent">
+              {label}<ArrowRight size={14} aria-hidden className="text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

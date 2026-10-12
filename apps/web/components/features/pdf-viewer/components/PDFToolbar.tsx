@@ -168,7 +168,7 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
               size="icon"
               onClick={previousPage}
               disabled={pageNumber <= 1}
-              title="Önceki Sayfa"
+              title="Önceki sayfa"
               className="h-9 w-9"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -192,7 +192,7 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
               size="icon"
               onClick={nextPage}
               disabled={pageNumber >= numPages}
-              title="Sonraki Sayfa"
+              title="Sonraki sayfa"
               className="h-9 w-9"
             >
               <ChevronRight className="h-5 w-5" />
@@ -239,7 +239,7 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
               variant="ghost"
               size="icon"
               onClick={() => rotate(-90)}
-              title="Sola Döndür"
+              title="Sola döndür"
               className="h-9 w-9"
             >
               <RotateCcw className="h-4 w-4" />
@@ -248,7 +248,7 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
               variant="ghost"
               size="icon"
               onClick={() => rotate(90)}
-              title="Sağa Döndür"
+              title="Sağa döndür"
               className="h-9 w-9"
             >
               <RotateCw className="h-4 w-4" />
@@ -264,7 +264,7 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
               variant={viewMode === 'single' ? 'default' : 'ghost'}
               size="icon"
               onClick={() => setViewMode('single')}
-              title="Tek Sayfa"
+              title="Tek sayfa"
               className="h-8 w-8"
             >
               <FileText className="h-4 w-4" />
@@ -273,7 +273,7 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
               variant={viewMode === 'continuous' ? 'default' : 'ghost'}
               size="icon"
               onClick={() => setViewMode('continuous')}
-              title="Sürekli Kaydırma"
+              title="Sürekli kaydırma"
               className="h-8 w-8"
             >
               <Columns className="h-4 w-4" />
@@ -282,7 +282,7 @@ export const PDFToolbar: React.FC<PDFToolbarProps> = ({
               variant={viewMode === 'two-page' ? 'default' : 'ghost'}
               size="icon"
               onClick={() => setViewMode('two-page')}
-              title="İki Sayfa"
+              title="İki sayfa"
               className="h-8 w-8"
             >
               <Columns className="h-4 w-4" />

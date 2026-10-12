@@ -1586,7 +1586,7 @@ function buildCloseChecklist(input: {
       title: 'Vergi kontrolü (KDV/Stopaj)',
       status: input.capabilities.taxManagement ? 'done' : 'pending',
       note: input.capabilities.taxManagement
-        ? `Net KDV: ${input.taxSummary.netVat.toFixed(2)}`
+        ? `Net KDV: ${input.taxSummary.netVat.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}`
         : 'Vergi modülü hazır değil.',
     },
     {
@@ -2747,7 +2747,7 @@ function buildComplianceSummary(input: {
     issues.push({
       code: 'LOW_CURRENT_RATIO',
       title: 'Likidite Riski',
-      detail: `Cari oran ${input.kpis.currentRatio.toFixed(2)} seviyesinde.`,
+      detail: `Cari oran ${input.kpis.currentRatio.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} seviyesinde.`,
       severity: 'critical',
       recommendation: 'Kısa vadeli borçlar için nakit planı ve tahsilat hızlandırması yapın.',
     });
@@ -2759,7 +2759,7 @@ function buildComplianceSummary(input: {
     issues.push({
       code: 'AR_90_PLUS_HIGH',
       title: 'Yüksek Gecikmiş Alacak',
-      detail: `90+ gün gecikmiş alacak oranı %${(overdueShare * 100).toFixed(1)}.`,
+      detail: `90+ gün gecikmiş alacak oranı %${(overdueShare * 100).toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}.`,
       severity: overdueShare >= 0.4 ? 'critical' : 'warning',
       recommendation: 'Tahsilat planı, müşteri kredi limiti ve vadeleri gözden geçirin.',
     });
@@ -2769,7 +2769,7 @@ function buildComplianceSummary(input: {
     issues.push({
       code: 'BUDGET_PROFIT_GAP',
       title: 'Bütçe Kârlılık Sapması',
-      detail: `Net kâr bütçe sapması %${input.budgetVsActual.profitVariancePct.toFixed(1)}.`,
+      detail: `Net kâr bütçe sapması %${input.budgetVsActual.profitVariancePct.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}.`,
       severity: 'warning',
       recommendation: 'Fiyatlama, maliyet ve gider dağılımı yeniden planlanmalı.',
     });

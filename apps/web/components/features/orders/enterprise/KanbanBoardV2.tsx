@@ -86,7 +86,7 @@ const columns: ColumnConfig[] = [
   },
   {
     status: 'delivered',
-    title: 'Teslim Edildi',
+    title: 'Teslim edildi',
     icon: CheckCircle2,
     color: 'text-green-600 dark:text-green-400',
     bgColor: 'bg-green-50 dark:bg-green-900/20',

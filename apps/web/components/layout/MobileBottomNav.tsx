@@ -10,7 +10,7 @@ import { hasPermission, type Permission, type UserRole } from '@/lib/auth/permis
 const navItems = [
   { icon: Home, label: 'Genel bakış', href: '/dashboard' },
   { icon: Receipt, label: 'Siparişler', href: '/orders', requiresPermission: 'orders.view' as Permission },
-  { icon: ClipboardList, label: 'İş Emri', href: '/work-orders', requiresPermission: 'orders.view' as Permission },
+  { icon: ClipboardList, label: 'İş emri', href: '/work-orders', requiresPermission: 'orders.view' as Permission },
   { icon: Boxes, label: 'Stok', href: '/inventory', requiresPermission: 'inventory.view' as Permission },
   { icon: Settings, label: 'Ayarlar', href: '/settings' },
 ];

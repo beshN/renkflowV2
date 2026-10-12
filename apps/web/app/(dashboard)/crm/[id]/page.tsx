@@ -45,7 +45,7 @@ export default function CustomerDetailPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950/80">
-        <AppleNavbar title="Müşteri Detayı" showSearch={false} />
+        <AppleNavbar title="Müşteri detayı" showSearch={false} />
         <main className="flex-1 p-4 md:p-8">
           <div className="max-w-6xl mx-auto h-[400px] rounded-2xl bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 p-6 animate-pulse" />
         </main>

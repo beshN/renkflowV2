@@ -1,9 +1,9 @@
 'use client';
 
+import { PageHeader } from '@/components/kit';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { RFKanbanView } from '@/components/shared/views/RFKanbanView';
-import { Navbar } from '@/components/layout/Navbar';
 import { listWorkOrders, WorkOrder } from '@/lib/features/work-orders/client';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
@@ -37,8 +37,8 @@ export default function KanbanPage() {
 
   const columns = [
     { id: 'open', title: 'Açık', color: 'border-slate-200' },
-    { id: 'in_progress', title: 'Devam Ediyor', color: 'border-sky-200' },
-    { id: 'blocked', title: 'Bloke Edildi', color: 'border-rose-200' },
+    { id: 'in_progress', title: 'Devam ediyor', color: 'border-sky-200' },
+    { id: 'blocked', title: 'Bloke edildi', color: 'border-rose-200' },
     { id: 'done', title: 'Tamamlandı', color: 'border-emerald-200' },
   ];
 
@@ -69,13 +69,8 @@ export default function KanbanPage() {
   if (isLoading || !user) return null;
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col bg-slate-50/50 dark:bg-slate-950/50">
-      <Navbar title="Akış Kanbanı" />
-      <main className="w-full flex-1 p-4 md:p-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight">Üretim İş Emirleri</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Sürükle bırak ile iş emirlerini yönetin.</p>
-        </div>
+    <div className="rf-page space-y-5">
+        <PageHeader eyebrow="Üretim" title="İş emri akışı" hint="Kartları sürükleyip bırakarak iş emrinin aşamasını değiştirin; karta dokunmak detayını açar." />
         <RFKanbanView
           columns={kanbanColumns}
           onDragEnd={(itemId, sourceColumnId, destinationColumnId) =>
@@ -97,7 +92,6 @@ export default function KanbanPage() {
             </button>
           )}
         />
-      </main>
     </div>
   );
 }

@@ -16,7 +16,7 @@ beforeEach(() => {
 it('sends only the renamed field for a firm on a legacy template', async () => {
   render(<TenantSettings />);
   expect(screen.getByRole('option', { name: 'Mobilya (mevcut)' })).toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText('Firma Adı'), { target: { value: 'Renk Alüminyum' } });
+  fireEvent.change(screen.getByLabelText('Firma adı'), { target: { value: 'Renk Alüminyum' } });
   fireEvent.click(screen.getByRole('button', { name: /Değişiklikleri Kaydet/ }));
   await waitFor(() => expect(global.fetch).toHaveBeenCalled());
   const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
