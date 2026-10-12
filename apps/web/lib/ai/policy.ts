@@ -43,3 +43,18 @@ export const ASSISTANT_FEATURES = ['morning_summary', 'price_hint', 'customer_me
 export const FEATURE_LABELS: Record<(typeof ASSISTANT_FEATURES)[number], string> = {
   morning_summary: 'Sabah özeti', price_hint: 'Fiyat önerisi', customer_memory: 'Müşteri hafızası', voice: 'Usta sesli komutları (tarayıcının ses servisi kullanılır; yalnız asistan modunda, KVKK onayıyla)',
 };
+
+/** Credential presence and company consent are separate states. */
+export type ModelUnavailableReason = 'AI_KEY_MISSING' | 'AI_OFF' | 'AI_RULES_ONLY' | 'AI_KVKK';
+export function modelConfigurationBlock(settings: {mode:AiMode;kvkkAckAt:string|null},keyConfigured:boolean):ModelUnavailableReason|null {
+  if(!keyConfigured) return 'AI_KEY_MISSING';
+  if(settings.mode==='off') return 'AI_OFF';
+  if(settings.mode==='rules') return 'AI_RULES_ONLY';
+  if(!settings.kvkkAckAt) return 'AI_KVKK';
+  return null;
+}
+export function modelUnavailableMessage(reason:ModelUnavailableReason|undefined):string {
+  if(reason==='AI_KEY_MISSING') return 'Sohbet için model anahtarı sunucuda tanımlı değil.';
+  if(reason) return MODEL_BLOCK_MESSAGES[reason];
+  return 'Sohbet şu anda kapalı. Asistan ayarlarını kontrol edin.';
+}
