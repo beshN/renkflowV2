@@ -7,10 +7,13 @@ import { sql,withTransaction } from '@/lib/db';
 import { hasPermission,canAccessRoute } from '@/lib/features/auth/permissions';
 import { requireWorkOrderActor,WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
+import { resolveMemberAccess } from '@/lib/security/member-access.server';
+import { can } from '@/lib/security/access-matrix';
 const schema=z.object({commandId:z.uuid(),action:AssistantActionSchema});
 export async function POST(req:NextRequest) {
  try {
   requireSameOriginJson(req,100000);const a=await requireWorkOrderActor(),text=await req.text();if(Buffer.byteLength(text)>100000)throw new WorkOrderApiError('İstek çok büyük',413);
+  const access=await resolveMemberAccess(a.userId,a.tenantId);if(!access||access.deactivated)throw new WorkOrderApiError('Etkin firma üyeliği gerekli.',403);
   const {commandId,action}=schema.parse(JSON.parse(text));
   if(action.kind==='navigate') {const href=safeAssistantHref(action.href);if(!href || !canAccessRoute(a.role,new URL(href,'https://internal.invalid').pathname))throw new WorkOrderApiError('Bu ekran mevcut rolünüz için kullanılamıyor.',403);return NextResponse.json({href});}
   const hash=createHash('sha256').update(JSON.stringify({kind:'assistant',action})).digest('hex');
@@ -20,14 +23,14 @@ export async function POST(req:NextRequest) {
    if(old){if(old.actor_id!==a.userId || old.request_hash!==hash)throw new WorkOrderApiError('İşlem kimliği farklı içerikle kullanılamaz.',409);return typeof old.result==='string'?JSON.parse(old.result):old.result;}
    let result;
    if(action.kind==='orderNote') {
-    if(a.role==='worker' || !hasPermission(a.role,'orders.edit'))throw new WorkOrderApiError('Sipariş notu eklemek için düzenleme yetkisi gerekir.',403);
+    if(a.role==='worker' || !hasPermission(a.role,'orders.edit') || !can(access,'orders','edit'))throw new WorkOrderApiError('Sipariş notu eklemek için düzenleme yetkisi gerekir.',403);
     const id=z.uuid().parse(action.orderId),note=z.string().trim().min(1).max(2000).parse(action.note);
     const [order]=await tx`SELECT id FROM orders WHERE tenant_id=${a.tenantId} AND id=${id} FOR SHARE`;
     if(!order)throw new WorkOrderApiError('Sipariş bulunamadı.',404);
     await tx`INSERT INTO activity_logs(tenant_id,entity_type,entity_id,action,actor_id,note)VALUES(${a.tenantId},'order',${id},'note_added',${a.userId},${note})`;
     result={href:'/orders/'+id,message:'Not sipariş geçmişine eklendi.'};
    }else {
-    if(!['owner','admin','office'].includes(a.role) || !hasPermission(a.role,'orders.create'))throw new WorkOrderApiError('Sipariş taslağı oluşturma yetkisi gerekir.',403);
+    if(!['owner','admin','office'].includes(a.role) || !hasPermission(a.role,'orders.create') || !can(access,'orders','create'))throw new WorkOrderApiError('Sipariş taslağı oluşturma yetkisi gerekir.',403);
     const draft=DocumentExtractionSchema.parse(action.draft);if(!draft.items.length || draft.items.length>100)throw new WorkOrderApiError('Taslakta 1–100 ürün kalemi olmalı.',400);
     const [saved]=await tx`INSERT INTO intake_drafts(tenant_id,source,source_id,extracted_data,warnings,created_by)VALUES(${a.tenantId},'assistant',${commandId},${JSON.stringify(draft)}::text::jsonb,${JSON.stringify(draft.warnings)}::text::jsonb,${a.userId})RETURNING id`;
     result={href:'/production/intake/'+saved.id,message:'Sipariş taslağı hazır. Kalemleri inceleyip onaylayabilirsiniz.'};

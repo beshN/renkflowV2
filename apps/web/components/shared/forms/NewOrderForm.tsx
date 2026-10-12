@@ -4,7 +4,8 @@ import { prepareBrowserFile, type UploadedFileReference } from '@/lib/storage/cl
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, Plus, Trash2 } from 'lucide-react';
-import { AwningDialog } from '@/components/features/awning/AwningConfigurator';
+import { ProductDialog } from '@/components/features/product-3d/ProductDialog';
+import { attachVisualization } from '@/lib/features/product-3d/catalog';
 import { applyAwning } from '@/lib/features/awning/configuration';
 
 import { Button } from '@/components/ui/Button';
@@ -458,7 +459,7 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900" />
                 </label>
                 <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <AwningDialog configuration={item.awningConfiguration} previewImage={item.awningPreview} onApply={(c,image)=>setItems(prev=>prev.map((entry,i)=>i===idx?applyAwning({...entry,productName:entry.productName||'WINMAX Makaslı Tente'},c,image):entry))}/>
+                  <ProductDialog visualization={item.productVisualization} awningConfiguration={item.awningConfiguration} previewImage={item.awningPreview} onApply={v=>setItems(prev=>prev.map((entry,i)=>i===idx?attachVisualization(entry,v):entry))} onApplyAwning={(c,image)=>setItems(prev=>prev.map((entry,i)=>i===idx?applyAwning({...entry,productName:entry.productName||'WINMAX Makaslı Tente'},c,image):entry))}/>
                   {item.awningConfiguration && <span className="text-xs text-muted-foreground">Açılım: {item.awningConfiguration.projectionMm} mm · Montaj: {item.awningConfiguration.mountingHeightMm} mm</span>}
                 </div>
                 {Object.entries(errors).filter(([key]) => key.startsWith(`items.${idx}.`) && !key.endsWith('productName')).map(([key, message]) => <p key={key} role="alert" className="mt-1 text-xs text-rose-600">{message}</p>)}

@@ -1,3 +1,4 @@
+import { requireVisualizationStorage, storeVisualization } from '@/lib/features/product-3d/storage';
 import { WorkOrderApiError } from "@/lib/features/work-orders/security";
 import { applyAwning } from "../awning/configuration";
 import { createHash } from "node:crypto";
@@ -88,18 +89,21 @@ export class PostgresQuotationService implements IQuotationService {
     id: string,
     items: CreateQuotationInput["items"],
   ) {
+    await requireVisualizationStorage("quotation_items",items);
     const configurable = await columnExists("quotation_items", "product_configuration");
     for (const [position, rawItem] of items.entries()) {
       const i = rawItem.awningConfiguration
         ? applyAwning(rawItem, rawItem.awningConfiguration)
         : rawItem;
       if (configurable) {
-        await tx`INSERT INTO quotation_items (tenant_id,quotation_id,product_name,description,color,width_mm,height_mm,projection_mm,mounting_height_mm,awning_configuration,awning_preview,quantity,unit_price,discount_percent,total_price,notes,position,product_configuration)
-   VALUES (${tenantId},${id},${i.productName},${i.description || null},${i.color || null},${i.widthMm || null},${i.heightMm || null},${i.projectionMm || null},${i.mountingHeightMm || null},${i.awningConfiguration ? JSON.stringify(i.awningConfiguration) : null}::text::jsonb,${i.awningPreview || null},${i.quantity},${i.unitPrice},${i.discountPercent},${money(i.quantity * i.unitPrice * (1 - i.discountPercent / 100))},${i.notes || null},${position},${i.productConfiguration ? JSON.stringify(i.productConfiguration) : null}::text::jsonb)`;
+        const [visualLine] = await tx`INSERT INTO quotation_items (tenant_id,quotation_id,product_name,description,color,width_mm,height_mm,projection_mm,mounting_height_mm,awning_configuration,awning_preview,quantity,unit_price,discount_percent,total_price,notes,position,product_configuration)
+   VALUES (${tenantId},${id},${i.productName},${i.description || null},${i.color || null},${i.widthMm || null},${i.heightMm || null},${i.projectionMm || null},${i.mountingHeightMm || null},${i.awningConfiguration ? JSON.stringify(i.awningConfiguration) : null}::text::jsonb,${i.awningPreview || null},${i.quantity},${i.unitPrice},${i.discountPercent},${money(i.quantity * i.unitPrice * (1 - i.discountPercent / 100))},${i.notes || null},${position},${i.productConfiguration ? JSON.stringify(i.productConfiguration) : null}::text::jsonb) RETURNING id`;
+        await storeVisualization(tx,"quotation_items",tenantId,visualLine.id,i.productVisualization);
         continue;
       }
-      await tx`INSERT INTO quotation_items (tenant_id,quotation_id,product_name,description,color,width_mm,height_mm,projection_mm,mounting_height_mm,awning_configuration,awning_preview,quantity,unit_price,discount_percent,total_price,notes,position)
-   VALUES (${tenantId},${id},${i.productName},${i.description || null},${i.color || null},${i.widthMm || null},${i.heightMm || null},${i.projectionMm || null},${i.mountingHeightMm || null},${i.awningConfiguration ? JSON.stringify(i.awningConfiguration) : null}::text::jsonb,${i.awningPreview || null},${i.quantity},${i.unitPrice},${i.discountPercent},${money(i.quantity * i.unitPrice * (1 - i.discountPercent / 100))},${i.notes || null},${position})`;
+      const [visualLine] = await tx`INSERT INTO quotation_items (tenant_id,quotation_id,product_name,description,color,width_mm,height_mm,projection_mm,mounting_height_mm,awning_configuration,awning_preview,quantity,unit_price,discount_percent,total_price,notes,position)
+   VALUES (${tenantId},${id},${i.productName},${i.description || null},${i.color || null},${i.widthMm || null},${i.heightMm || null},${i.projectionMm || null},${i.mountingHeightMm || null},${i.awningConfiguration ? JSON.stringify(i.awningConfiguration) : null}::text::jsonb,${i.awningPreview || null},${i.quantity},${i.unitPrice},${i.discountPercent},${money(i.quantity * i.unitPrice * (1 - i.discountPercent / 100))},${i.notes || null},${position}) RETURNING id`;
+      await storeVisualization(tx,"quotation_items",tenantId,visualLine.id,i.productVisualization);
     }
   }
   async createQuotation(
@@ -276,10 +280,12 @@ export class PostgresQuotationService implements IQuotationService {
         await tx`INSERT INTO orders (tenant_id,order_number,customer_id,customer_name,status,total_amount,currency,notes,custom_fields,assigned_to,product_name,quantity)
      VALUES (${tenantId},${"ORD-" + Date.now().toString(36).toUpperCase() + "-" + crypto.randomUUID().slice(0, 6)},${customerId},${q.customer_name},'pending',${q.total_amount},${q.currency},${"Tekliften dönüştürüldü: " + q.quotation_number},'{}',${createdBy || null},${items[0].product_name},${items.reduce((sum: number, i: any) => sum + Number(i.quantity), 0)}) RETURNING id`;
       // A configured line carries its recipe, bill of materials and price source onto the order.
+      await requireVisualizationStorage("order_items",items.map((i:any)=>({productVisualization:i.product_visualization})));
       const configured = await columnExists("order_items", "product_configuration");
       for (const i of items) {
         const [line] = await tx`INSERT INTO order_items (order_id,product_name,quantity,unit_price,total_price,description,color,width_mm,height_mm,projection_mm,mounting_height_mm,awning_configuration,awning_preview,motor_type,led_type,fabric_type,notes)
        VALUES (${orders[0].id},${i.product_name},${i.quantity},${i.unit_price},${i.total_price},${i.description},${i.color},${i.width_mm},${i.height_mm},${i.projection_mm},${i.mounting_height_mm},${i.awning_configuration ? JSON.stringify(i.awning_configuration) : null}::text::jsonb,${i.awning_preview},${i.awning_configuration?.motor || null},${i.awning_configuration?.led || null},${i.awning_configuration?.fabricName || null},${i.notes}) RETURNING id`;
+        await storeVisualization(tx,"order_items",tenantId,line.id,i.product_visualization);
         if (configured && i.product_configuration)
           await tx`UPDATE order_items SET product_configuration=${JSON.stringify(i.product_configuration)}::text::jsonb WHERE id=${line.id}`;
       }
@@ -374,6 +380,7 @@ export class PostgresQuotationService implements IQuotationService {
           i.mounting_height_mm == null
             ? undefined
             : Number(i.mounting_height_mm),
+        productVisualization: i.product_visualization || undefined,
         awningConfiguration: i.awning_configuration || undefined,
         awningPreview: i.awning_preview || undefined,
         quantity: Number(i.quantity),

@@ -3,7 +3,8 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { intakeReviewFields, ExtractionEvidence } from "@/lib/ai/extraction";
 import useSWR from "swr";
-import { AwningDialog } from "@/components/features/awning/AwningConfigurator";
+import { ProductDialog } from "@/components/features/product-3d/ProductDialog";
+import { attachVisualization } from "@/lib/features/product-3d/catalog";
 import { applyAwning } from "@/lib/features/awning/configuration";
 const fieldLabels: Record<string, string> = {
   customerName: "Müşteri",
@@ -218,10 +219,12 @@ function Review({ draft, onSource }: { draft: any; onSource: (page: number) => v
           </div>
           {Object.entries(item.customParameters || {}).map(([key,value]) => <label key={key} className="block text-xs">{key}<input className="rf-input mt-2 w-full" type={typeof value === "number" ? "number" : "text"} step="any" value={String(value)} onChange={e => itemField(index,"customParameters",{...item.customParameters,[key]: typeof value === "number" ? Number(e.target.value) : typeof value === "boolean" ? e.target.value === "true" : e.target.value})} />{evidence(`customParameters.${key}`,index)}</label>)}
           <label className="block text-xs">Kalem notu<textarea className="rf-input mt-2 w-full" value={item.notes || ""} onChange={e => itemField(index,"notes",e.target.value)} /></label>
-          <AwningDialog
-            configuration={item.awningConfiguration}
+          <ProductDialog
+            visualization={item.productVisualization}
+            awningConfiguration={item.awningConfiguration}
             previewImage={item.awningPreview}
-            onApply={(c, image) =>
+            onApply={v=>setForm((p:any)=>({...p,items:p.items.map((i:any,n:number)=>n===index?attachVisualization(i,v):i)}))}
+            onApplyAwning={(c, image) =>
               setForm((p: any) => ({
                 ...p,
                 items: p.items.map((i: any, n: number) =>

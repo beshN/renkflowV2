@@ -3,13 +3,15 @@ import { use, useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, Save, FileText } from "lucide-react";
-import { AwningDialog } from "@/components/features/awning/AwningConfigurator";
+import { ProductDialog } from "@/components/features/product-3d/ProductDialog";
+import { attachVisualization,visualizationForRecipe } from "@/lib/features/product-3d/catalog";
 import {
   applyAwning,
   awningSummary,
 } from "@/lib/features/awning/configuration";
 import {
   CreateQuotationInput,
+  CreateQuotationSchema,
   Quotation,
   QuotationItem,
   type ConversionResult,
@@ -25,9 +27,11 @@ import { RecordButton } from "@/components/records/RecordDrawer";
 import { QuoteSalesPanel } from "@/components/sales/QuoteSalesPanel";
 import { MeasureChangeBanner } from "@/components/field/MeasureChangeBanner";
 import { customerDiscountFor, quoteTotals, VAT_RATES } from "@/lib/features/sales/engine";
+import Image from 'next/image';
+import { visualizationSummary } from '@/lib/features/product-3d/catalog';
 
 const emptyItem = (): QuotationItem => ({
-  productName: "WINMAX Makaslı Tente",
+  productName: "",
   quantity: 1,
   unitPrice: 0,
   discountPercent: 0,
@@ -160,13 +164,15 @@ export default function QuotationPage({
     setMessage("");
     setBusy(true);
     try {
+      const payload=CreateQuotationSchema.safeParse(form);
+      if(!payload.success)throw new Error(payload.error.issues.map(issue=>issue.message).join(' · '));
       const r = await requestJson<{ data: Quotation }>(
         isNew ? "/api/v1/quotations" : `/api/v1/quotations/${id}`,
         {
           method: isNew ? "POST" : "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            ...form,
+            ...payload.data,
             idempotencyKey: isNew ? creationKey.current : undefined,
             applyCustomerPrices: isNew ? true : undefined,
             expectedVersion: quotation?.version,
@@ -242,6 +248,7 @@ export default function QuotationPage({
           <h1 className="rf-page-title">
             {isNew ? "Yeni teklif" : quotation?.quotationNumber || "Teklif"}
           </h1>
+          <p className="mt-2 text-xs text-muted-foreground">{isNew?'Müşteri bilgilerini, ürünleri ve ticari koşulları tek akışta hazırlayın.':`${form.customerName} · Revizyon ${quotation?.revision??1} · ${form.currency}`}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {!isNew && quotation?.id && <RecordButton type="quotation" id={quotation.id} />}
@@ -266,6 +273,9 @@ export default function QuotationPage({
           )}
         </div>
       </div>
+      <section aria-label="Teklif özeti" className="grid gap-3 sm:grid-cols-3">
+        {[['Ürün kalemleri',`${form.items.length} kalem · ${form.items.reduce((sum,i)=>sum+i.quantity,0)} adet`],['Ara toplam',formatCurrency(subtotal,form.currency)],['Teklif toplamı',formatCurrency(total,form.currency)]].map(([label,value])=><div key={label} className="rounded-lg border border-border bg-card px-5 py-4"><p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p><p className="mt-2 text-lg font-semibold tabular-nums">{value}</p></div>)}
+      </section>
       {!isNew && quotation?.id && <MeasureChangeBanner quotationId={quotation.id} />}
       {error && (
         <div
@@ -305,6 +315,7 @@ export default function QuotationPage({
         </label>
       )}
       <section className="rf-panel grid gap-4 md:grid-cols-4">
+        <h2 className="rf-section-title md:col-span-4">Müşteri ve teklif bilgileri</h2>
         <div className="relative text-xs md:col-span-2">
           <label htmlFor="quote-customer">Müşteri / firma</label>
           <input
@@ -388,6 +399,7 @@ export default function QuotationPage({
               </span>
               <input
                 aria-label={`Kalem ${index + 1} ürün adı`}
+                placeholder="Ürün veya sistem adı"
                 disabled={!editable}
                 value={item.productName}
                 className="rf-input flex-1"
@@ -495,13 +507,20 @@ export default function QuotationPage({
                 {awningSummary(item.awningConfiguration)}
               </p>
             )}
+            {(item.productVisualization||item.awningPreview)&&<div className="flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-3 sm:flex-row sm:items-center">
+              {(item.productVisualization?.image||item.awningPreview)&&<Image src={item.productVisualization?.image||item.awningPreview!} alt={`${item.productName} 3D ürün görünümü`} width={360} height={240} unoptimized className="h-28 w-full rounded bg-[#eceeeb] object-contain sm:w-40"/>}
+              <div><p className="text-xs font-medium">Ürün görselleştirmesi</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{item.productVisualization?visualizationSummary(item.productVisualization):'WINMAX Makaslı Tente · Kaydedilmiş görünüm'}</p></div>
+            </div>}
+            {item.productConfiguration && visualizationForRecipe(item.productConfiguration) && <ProductDialog visualization={visualizationForRecipe(item.productConfiguration)} readOnly label="3D görünüm"/>}
             {!item.productConfiguration && <div className="flex flex-wrap items-center gap-3">
-              <AwningDialog
-                configuration={item.awningConfiguration}
+              <ProductDialog
+                visualization={item.productVisualization}
+                awningConfiguration={item.awningConfiguration}
                 previewImage={item.awningPreview}
                 readOnly={!editable}
                 label={editable ? "3D yapılandır" : "3D görünüm"}
-                onApply={(c, image) =>
+                onApply={v=>setForm(prev=>({...prev,items:prev.items.map((entry,i)=>i===index?attachVisualization(entry,v):entry)}))}
+                onApplyAwning={(c, image) =>
                   setForm((prev) => ({
                     ...prev,
                     items: prev.items.map((entry, i) =>
@@ -554,7 +573,8 @@ export default function QuotationPage({
             />
           </label>
         </section>
-        <section className="rf-panel space-y-3 text-sm">
+        <section className="rf-panel space-y-3 text-sm lg:sticky lg:top-20 lg:self-start">
+          <h2 className="rf-section-title">Ticari özet</h2>
           <p className="flex justify-between">
             <span>Ara toplam</span>
             <span>{formatCurrency(subtotal, form.currency)}</span>

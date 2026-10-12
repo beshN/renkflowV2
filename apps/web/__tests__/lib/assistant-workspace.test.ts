@@ -3,6 +3,7 @@ jest.mock("@/lib/features/manufacturing/analytics.service",()=>({productionAnaly
 import {assistantSnapshot,buildInsights} from '@/lib/ai/workspace';
 import {sql} from '@/lib/db';
 jest.mock('@/lib/db',()=>({sql:jest.fn()}));
+jest.mock('@/lib/security/member-access.server',()=>({resolveMemberAccess:jest.fn().mockResolvedValue({deactivated:false,permissions:{production:['view'],orders:['view']},hidden:['price','cost','profit','customer_contact']})}));
 it('prioritizes stock alerts on stock screens and marks unapproved counts',()=>{
  const insights=buildInsights({metrics:[{overdue:3}],stock:[{name:'Profil',min_stock:10,available_qty:2,stock_uom:'m'}],counts:[{pending:1}]},'/warehouse');
  expect(insights[0].id).toBe('critical');expect(insights.find(i=>i.id==='counts')?.detail).toContain('henüz stoğa işlenmedi');

@@ -71,7 +71,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return redactedSuccess(result, "Teklif siparişe dönüştürüldü");
     }
 
-    if (body.status) {
+    if (body.status && Object.keys(body).every(key=>key==='status'||key==='expectedVersion')) {
       const validStatus = z
         .enum(["draft", "sent", "accepted", "rejected", "expired", "converted"])
         .parse(body.status);

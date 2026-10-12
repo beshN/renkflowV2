@@ -1,4 +1,5 @@
 "use client";
+import { visualizationSummary } from "@/lib/features/product-3d/catalog";
 import { use, useEffect, useState } from "react";
 import Image from "next/image";
 import { Quotation } from "@/lib/features/quotations/types";
@@ -41,7 +42,7 @@ export default function QuotationPrint({
       </p>
     );
   return (
-    <div className="quotation-print mx-auto max-w-4xl p-6">
+    <div className="quotation-print mx-auto max-w-4xl rounded-lg bg-white p-6 text-slate-800 sm:p-10">
       <style>{`@media print { header,nav,aside,.print-action,.rf-command-launcher,[data-ai-chatbot],.pwa-install-prompt { display:none!important } .rf-workspace { margin-left:0!important } .rf-workspace-main { padding:0!important } .quotation-print { margin:0;width:100%;max-width:none;color:#1e293b;background:white } .quote-item { break-inside:avoid } @page { size:A4;margin:15mm } }`}</style>
       <button
         className="rf-primary-button print-action mb-6"
@@ -49,7 +50,7 @@ export default function QuotationPrint({
       >
         Yazdır / PDF olarak kaydet
       </button>
-      <div className="flex items-center justify-between border-b border-border pb-5">
+      <div className="flex items-center justify-between gap-5 border-b-2 border-slate-800 pb-6">
         <Image
           src="/images/winmax/renk-logo.webp"
           alt="Renk Alüminyum"
@@ -57,16 +58,20 @@ export default function QuotationPrint({
           height={69}
         />
         <div className="text-right">
-          <h1 className="text-xl font-semibold">Fiyat teklifi</h1>
+          <p className="mb-1 text-[10px] font-medium uppercase tracking-[.2em] text-slate-500">TİCARİ TEKLİF</p>
+          <h1 className="text-2xl font-semibold">Fiyat teklifi</h1>
           <p>{q.quotationNumber}{(q.revision ?? 1) > 1 ? ` · rev. ${q.revision}` : ""}</p>
           <p className="text-xs">
             {new Date(q.createdAt).toLocaleDateString("tr-TR")}
           </p>
         </div>
       </div>
-      <div className="my-6">
+      <div className="my-6 grid gap-4 rounded-md bg-slate-50 p-5 sm:grid-cols-2">
+        <div><p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">SUNULAN FİRMA / MÜŞTERİ</p>
         <h2 className="text-lg font-medium">{q.customerName}</h2>
+        </div><div className="space-y-1 text-sm sm:text-right"><p>Para birimi: <strong>{q.currency}</strong></p>
         {q.validUntil && <p className="text-xs">Geçerlilik: {q.validUntil}</p>}
+        <p className="text-xs">{q.items.length} ürün kalemi</p></div>
       </div>
       {q.items.map((item, i) => (
         <section
@@ -76,6 +81,7 @@ export default function QuotationPrint({
           <h3 className="font-semibold">
             {i + 1}. {item.productName}
           </h3>
+          {item.productVisualization && <div className="my-3">{item.productVisualization.image && <Image src={item.productVisualization.image} alt="Kaydedilmiş 3D ürün görünümü" width={900} height={600} unoptimized className="max-h-64 w-full object-contain"/>}<p className="mt-2 text-xs">{visualizationSummary(item.productVisualization)}</p></div>}
           {item.awningPreview && (
             <Image
               src={item.awningPreview}
@@ -98,13 +104,11 @@ export default function QuotationPrint({
           {item.color && !item.awningConfiguration && (
             <p className="my-2 text-sm">Renk: <ColorChip color={item.color} size={16} showName /></p>
           )}
-          <p className="text-sm">
-            {item.quantity} adet × {formatCurrency(item.unitPrice, q.currency)}{" "}
-            · İndirim %{item.discountPercent} ·{" "}
-            <strong>{formatCurrency(item.totalPrice, q.currency)}</strong>
-          </p>
+          <dl className="mt-4 grid grid-cols-2 gap-3 rounded-md border border-slate-200 p-3 text-sm sm:grid-cols-4">
+            {[['Miktar',`${item.quantity} adet`],['Birim fiyat',formatCurrency(item.unitPrice,q.currency)],['Kalem indirimi',`%${item.discountPercent}`],['Kalem toplamı',formatCurrency(item.totalPrice,q.currency)]].map(([label,value])=><div key={label}><dt className="text-[10px] uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 font-medium tabular-nums">{value}</dd></div>)}
+          </dl>
           {item.notes && <p className="mt-2 text-xs">{item.notes}</p>}
-          {item.awningConfiguration && (
+          {(item.awningConfiguration||item.productVisualization) && (
             <p className="mt-2 text-[10px] text-muted-foreground">
               Temsili 3D görünüm; teknik uygulama çizimi değildir.
             </p>
