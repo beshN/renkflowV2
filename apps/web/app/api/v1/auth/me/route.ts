@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
+import { isPrivateAccessAllowed } from '@/lib/features/auth/private-access';
 
 // CORS preflight
 export async function OPTIONS() {
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     const user = await getAPIUser(request);
     
-    if (!user) {
+    if (!user || !isPrivateAccessAllowed(user.email)) {
       return errorResponse('Yetkilendirme gereklidir', 401);
     }
 

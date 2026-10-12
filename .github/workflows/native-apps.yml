@@ -1,0 +1,150 @@
+name: Native Field Apps
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['apps/native-*/**', 'apps/web/lib/features/field/**', 'apps/web/app/api/v1/field/**', 'apps/web/app/api/mobile/**', 'apps/web/lib/features/mobile/**', 'contracts/mobile/**', 'scripts/generate-mobile-contract.py', 'scripts/mobile/**', 'scripts/generate-native-ios-project.py', '.github/workflows/native-apps.yml']
+  push:
+    branches: ['codex/mobile-integration']
+    paths: ['apps/native-*/**', 'apps/web/lib/features/mobile/**', 'apps/web/app/api/mobile/**', 'contracts/mobile/**', 'scripts/mobile/**', '.github/workflows/native-apps.yml']
+permissions:
+  contents: read
+concurrency:
+  group: native-${{ github.ref }}
+  cancel-in-progress: true
+# GitHub-hosted runners are unavailable for this account; like validate.yml, every job runs on
+# the self-hosted Mac. Jobs there share one machine, so each frees the fixture ports first and last.
+jobs:
+  mobile-contract:
+    runs-on: [self-hosted, macOS]
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci --workspaces=false --legacy-peer-deps
+      - name: Check generated contract and web compatibility
+        run: |
+          python3 ../../scripts/mobile/check-resources.py
+          python3 ../../scripts/generate-mobile-contract.py
+          git diff --exit-code -- ../native-android/app/src/main/java/com/renkflow/field/data/MobileContract.kt ../native-ios/RenkflowField/Core/MobileContract.swift
+          npm run type-check
+  android:
+    needs: ios
+    if: always()
+    runs-on: [self-hosted, macOS]
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: apps/native-android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Free fixture ports
+        if: always()
+        run: for port in 3043 3022 55432; do lsof -nP -tiTCP:$port -sTCP:LISTEN | xargs kill 2>/dev/null || true; done
+      - name: Start isolated local web contract server
+        working-directory: apps/web
+        run: |
+          npm ci --workspaces=false --legacy-peer-deps
+          bash ../../scripts/mobile/prepare-http-fixture.sh
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: '13114758'
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - run: ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+      - name: Test native Android UI and encrypted persistence
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          working-directory: apps/native-android
+          api-level: 35
+          arch: arm64-v8a
+          target: google_apis
+          disk-size: 2048M
+          disable-animations: true
+          emulator-boot-timeout: 300
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: |
+            ./gradlew :app:connectedDebugAndroidTest
+            mkdir -p app/build/screenshots
+            adb pull /sdcard/renkflow-field-login.png app/build/screenshots/android-login.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Renkflow-Saha-Android
+          path: |
+            apps/native-android/app/build/outputs/apk/debug/*.apk
+            apps/native-android/app/build/reports/
+            apps/native-android/app/build/screenshots/
+      - name: Free fixture ports
+        if: always()
+        run: for port in 3043 3022 55432; do lsof -nP -tiTCP:$port -sTCP:LISTEN | xargs kill 2>/dev/null || true; done
+  ios:
+    runs-on: [self-hosted, macOS]
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/native-ios
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Free fixture ports
+        if: always()
+        run: for port in 3043 3022 55432; do lsof -nP -tiTCP:$port -sTCP:LISTEN | xargs kill 2>/dev/null || true; done
+      - name: Start isolated local web contract server
+        working-directory: apps/web
+        run: |
+          npm ci --workspaces=false --legacy-peer-deps
+          bash ../../scripts/mobile/prepare-http-fixture.sh
+      - name: Validate generated project
+        run: |
+          python3 ../../scripts/generate-native-ios-project.py
+          git diff --exit-code RenkflowField.xcodeproj
+      - name: Select iPhone simulator
+        run: |
+          xcrun simctl list devices available -j > /tmp/simulators.json
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json
+          data = json.load(open('/tmp/simulators.json'))
+          phones = [d for devices in data['devices'].values() for d in devices if 'iPhone' in d['name'] and d['isAvailable']]
+          if not phones: raise SystemExit('No iPhone simulator available')
+          print('FIELD_SIMULATOR=' + phones[0]['udid'])
+          PY
+      - name: Build and test native iOS app
+        run: xcodebuild test -project RenkflowField.xcodeproj -scheme RenkflowField -destination "platform=iOS Simulator,id=$FIELD_SIMULATOR" -resultBundlePath build/FieldTests.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS="$PWD/RenkflowField/Simulator.entitlements"
+      - name: Export iOS screenshots
+        if: always()
+        run: |
+          if [ -d build/FieldTests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/FieldTests.xcresult --output-path build/screenshots
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Renkflow-Saha-iOS-Tests
+          path: |
+            apps/native-ios/build/FieldTests.xcresult
+            apps/native-ios/build/screenshots/
+      - name: Free fixture ports
+        if: always()
+        run: for port in 3043 3022 55432; do lsof -nP -tiTCP:$port -sTCP:LISTEN | xargs kill 2>/dev/null || true; done

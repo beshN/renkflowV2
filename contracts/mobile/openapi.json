@@ -1,0 +1,3567 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RenkFlow Saha API",
+    "version": "1.2.0"
+  },
+  "servers": [
+    {
+      "url": "/api/mobile/v1"
+    }
+  ],
+  "x-min-app-version": "1.2.0",
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "role",
+          "tenantId"
+        ],
+        "additionalProperties": false
+      },
+      "Login": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "accessToken": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "number"
+          },
+          "refreshToken": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 128
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "deviceId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "user",
+          "accessToken",
+          "expiresIn",
+          "refreshToken",
+          "sessionId",
+          "deviceId"
+        ],
+        "additionalProperties": false
+      },
+      "Color": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "hex": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "finish": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "finishAssumed": {
+                "type": "boolean"
+              },
+              "standIn": {
+                "type": "boolean"
+              },
+              "kind": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "code",
+              "name",
+              "hex",
+              "finish",
+              "finishAssumed",
+              "standIn",
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "Checklist": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "completed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "required",
+          "completed"
+        ],
+        "additionalProperties": false
+      },
+      "Comment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "authorName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "body",
+          "authorName",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "Job": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dueAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assigneeName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checklistTotal": {
+            "type": "integer"
+          },
+          "checklistCompleted": {
+            "type": "integer"
+          },
+          "blockedReasonDetail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "color": {
+            "$ref": "#/components/schemas/Color"
+          },
+          "productionManaged": {
+            "type": "boolean"
+          },
+          "checklist": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Checklist"
+            }
+          },
+          "comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            }
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "productFamily": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "status",
+          "priority",
+          "category",
+          "location",
+          "dueAt",
+          "assigneeName",
+          "checklistTotal",
+          "checklistCompleted",
+          "blockedReasonDetail",
+          "color"
+        ],
+        "additionalProperties": false
+      },
+      "QualityCheck": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "pass_fail",
+              "measurement",
+              "photo"
+            ]
+          },
+          "unit": {
+            "type": "string"
+          },
+          "minimum": {
+            "type": "number"
+          },
+          "maximum": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "unit"
+        ],
+        "additionalProperties": false
+      },
+      "Operation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "workOrderId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer"
+          },
+          "workCenterCode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "plannedQty": {
+            "type": "number"
+          },
+          "completedQty": {
+            "type": "number"
+          },
+          "activeSeconds": {
+            "type": "number"
+          },
+          "activeSince": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assignedTo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operatorName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "qualityChecks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QualityCheck"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "workOrderId",
+          "name",
+          "position",
+          "workCenterCode",
+          "status",
+          "version",
+          "plannedQty",
+          "completedQty",
+          "activeSeconds",
+          "activeSince",
+          "assignedTo",
+          "operatorName",
+          "reason",
+          "qualityChecks"
+        ],
+        "additionalProperties": false
+      },
+      "Permissions": {
+        "type": "object",
+        "properties": {
+          "transition": {
+            "type": "boolean"
+          },
+          "close": {
+            "type": "boolean"
+          },
+          "checklist": {
+            "type": "boolean"
+          },
+          "comment": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "transition",
+          "close",
+          "checklist",
+          "comment"
+        ],
+        "additionalProperties": false
+      },
+      "Snapshot": {
+        "type": "object",
+        "properties": {
+          "workOrders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Job"
+            }
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Operation"
+            }
+          },
+          "generatedAt": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/Permissions"
+          },
+          "cutPlans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CutPlan"
+            }
+          }
+        },
+        "required": [
+          "workOrders",
+          "operations",
+          "generatedAt",
+          "truncated",
+          "permissions"
+        ],
+        "additionalProperties": false
+      },
+      "Scan": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "workOrderId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "uom": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "workOrderId",
+          "title",
+          "subtitle",
+          "quantity",
+          "uom",
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "Accepted": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          },
+          "qualityRejected": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "accepted"
+        ],
+        "additionalProperties": false
+      },
+      "Photo": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "const": false
+          },
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "minAppVersion": {
+            "type": "string"
+          },
+          "canRetry": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "References": {
+        "type": "object",
+        "properties": {
+          "colors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "code": {
+                  "type": "string"
+                },
+                "hex": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "finish": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "label",
+                "code",
+                "hex",
+                "finish"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "stages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string"
+                },
+                "code": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "code",
+                "label"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "capabilities": {
+            "type": "object",
+            "properties": {
+              "reasonCodes": {
+                "type": "boolean"
+              },
+              "installations": {
+                "type": "boolean"
+              },
+              "remotePush": {
+                "const": false
+              },
+              "crashReporting": {
+                "const": false
+              },
+              "installationEdit": {
+                "type": "boolean"
+              },
+              "productionView": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "reasonCodes",
+              "installations",
+              "remotePush",
+              "crashReporting"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "colors",
+          "stages",
+          "reasons",
+          "capabilities"
+        ],
+        "additionalProperties": false
+      },
+      "CutPiece": {
+        "type": "object",
+        "properties": {
+          "lengthMm": {
+            "type": "number"
+          },
+          "workOrderId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "lengthMm",
+          "workOrderId"
+        ],
+        "additionalProperties": false
+      },
+      "CutBar": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "itemId": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "lengthMm": {
+            "type": "number"
+          },
+          "isRemnant": {
+            "type": "boolean"
+          },
+          "pieces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CutPiece"
+            }
+          },
+          "remainingMm": {
+            "type": "number"
+          },
+          "reusable": {
+            "type": "boolean"
+          },
+          "lossMm": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "itemId",
+          "color",
+          "lengthMm",
+          "isRemnant",
+          "pieces",
+          "remainingMm",
+          "reusable",
+          "lossMm"
+        ],
+        "additionalProperties": false
+      },
+      "CutPlan": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "wastePercent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bars": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CutBar"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "wastePercent",
+          "bars"
+        ],
+        "additionalProperties": false
+      },
+      "LoginInput": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "deviceId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "QualityResult": {
+        "type": "object",
+        "properties": {
+          "checkId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "value": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "checkId"
+        ],
+        "additionalProperties": false
+      },
+      "OperationInput": {
+        "type": "object",
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "action": {
+            "enum": [
+              "start",
+              "pause",
+              "complete",
+              "note",
+              "rework"
+            ]
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 1000
+          },
+          "qualityResults": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QualityResult"
+            },
+            "maxItems": 30
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "maxItems": 6
+          },
+          "reasonCode": {
+            "enum": [
+              "measurement",
+              "material",
+              "assembly",
+              "quality",
+              "other"
+            ]
+          },
+          "targetOperationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rootCause": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "operationId",
+          "version",
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "CommandInput": {
+        "type": "object",
+        "properties": {
+          "commandId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "action": {
+            "const": "operation"
+          },
+          "data": {
+            "$ref": "#/components/schemas/OperationInput"
+          }
+        },
+        "required": [
+          "commandId",
+          "action",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "PhotoInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 180
+          },
+          "mime": {
+            "const": "image/jpeg"
+          },
+          "base64": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2800000
+          },
+          "workOrderId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "name",
+          "mime",
+          "base64",
+          "workOrderId"
+        ],
+        "additionalProperties": false
+      },
+      "CommentInput": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "ChecklistInput": {
+        "type": "object",
+        "properties": {
+          "completed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "completed"
+        ],
+        "additionalProperties": false
+      },
+      "TransitionInput": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "enum": [
+              "open",
+              "in_progress",
+              "blocked",
+              "done",
+              "cancelled"
+            ]
+          },
+          "blockedReasonCategory": {
+            "enum": [
+              "material",
+              "machine",
+              "planning",
+              "manpower",
+              "quality",
+              "other"
+            ]
+          },
+          "blockedReasonDetail": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "Installation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "number": {
+            "type": "string"
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "startTime": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "durationMinutes": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "signed": {
+            "type": "boolean"
+          },
+          "productName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "checklistTotal": {
+            "type": "integer"
+          },
+          "checklistCompleted": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "date",
+          "startTime",
+          "durationMinutes",
+          "status",
+          "version",
+          "signed",
+          "productName",
+          "checklistTotal",
+          "checklistCompleted"
+        ],
+        "additionalProperties": false
+      },
+      "Installations": {
+        "type": "object",
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "installations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Installation"
+            }
+          }
+        },
+        "required": [
+          "available",
+          "installations"
+        ],
+        "additionalProperties": false
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "work_order:assigned",
+              "mention",
+              "deadline:approaching",
+              "order:delayed"
+            ]
+          },
+          "read": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "read",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "Notifications": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "const": "disconnected"
+          },
+          "notifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Notification"
+            }
+          }
+        },
+        "required": [
+          "provider",
+          "notifications"
+        ],
+        "additionalProperties": false
+      },
+      "NotificationPreferences": {
+        "type": "object",
+        "properties": {
+          "assignment": {
+            "type": "boolean"
+          },
+          "mention": {
+            "type": "boolean"
+          },
+          "delay": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "assignment",
+          "mention",
+          "delay"
+        ],
+        "additionalProperties": false
+      },
+      "SyncChecklist": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "expectedCompleted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "itemId",
+          "completed",
+          "expectedCompleted"
+        ],
+        "additionalProperties": false
+      },
+      "SyncTransition": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "enum": [
+              "open",
+              "in_progress",
+              "blocked",
+              "done",
+              "cancelled"
+            ]
+          },
+          "blockedReasonCategory": {
+            "enum": [
+              "material",
+              "machine",
+              "planning",
+              "manpower",
+              "quality",
+              "other"
+            ]
+          },
+          "blockedReasonDetail": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 1000
+          },
+          "expectedUpdatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "status",
+          "expectedUpdatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "SyncInput": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "operation"
+              },
+              "data": {
+                "$ref": "#/components/schemas/OperationInput"
+              }
+            },
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "comment"
+              },
+              "data": {
+                "$ref": "#/components/schemas/CommentInput"
+              },
+              "workOrderId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data",
+              "workOrderId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "checklist"
+              },
+              "data": {
+                "$ref": "#/components/schemas/SyncChecklist"
+              },
+              "workOrderId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data",
+              "workOrderId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "transition"
+              },
+              "data": {
+                "$ref": "#/components/schemas/SyncTransition"
+              },
+              "workOrderId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data",
+              "workOrderId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data",
+              "workOrderId"
+            ],
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "scrap"
+              },
+              "data": {
+                "$ref": "#/components/schemas/ScrapInput"
+              },
+              "workOrderId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data",
+              "workOrderId"
+            ],
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "delay"
+              },
+              "data": {
+                "$ref": "#/components/schemas/DelayInput"
+              },
+              "workOrderId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "idempotencyKey",
+              "kind",
+              "data",
+              "installationId"
+            ],
+            "properties": {
+              "idempotencyKey": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "const": "installation"
+              },
+              "data": {
+                "$ref": "#/components/schemas/InstallationInput"
+              },
+              "installationId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        ]
+      },
+      "UploadInput": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "action": {
+                "const": "init"
+              },
+              "uploadId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "workOrderId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 180
+              },
+              "totalBytes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10485760
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "action",
+              "uploadId",
+              "name",
+              "totalBytes",
+              "sha256",
+              "workOrderId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "action": {
+                "const": "chunk"
+              },
+              "uploadId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "base64": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 349528,
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "action",
+              "uploadId",
+              "offset",
+              "base64",
+              "sha256"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "action": {
+                "const": "finish"
+              },
+              "uploadId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "action",
+              "uploadId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "action": {
+                "const": "init"
+              },
+              "uploadId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 180
+              },
+              "totalBytes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10485760
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "installationId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "action",
+              "uploadId",
+              "name",
+              "totalBytes",
+              "sha256",
+              "installationId"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "UploadStatus": {
+        "type": "object",
+        "properties": {
+          "uploadId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "receivedBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalBytes": {
+            "type": "integer"
+          },
+          "chunkBytes": {
+            "const": 262144
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "uploadId",
+          "receivedBytes",
+          "totalBytes",
+          "chunkBytes",
+          "completed",
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "ScrapInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reasonCode",
+          "quantity"
+        ],
+        "properties": {
+          "reasonCode": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]{2,40}$"
+          },
+          "quantity": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 100000
+          },
+          "operationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "photos": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        }
+      },
+      "DelayInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reasonCode"
+        ],
+        "properties": {
+          "reasonCode": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]{2,40}$"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
+      },
+      "InstallationDetails": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "version",
+          "status",
+          "checklist",
+          "issues"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "checklist": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "title",
+                "completed"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "completed": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "text"
+              ],
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "missing",
+                    "damage"
+                  ]
+                },
+                "text": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "url"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "url": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "InstallationInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "action",
+          "expectedVersion"
+        ],
+        "properties": {
+          "action": {
+            "enum": [
+              "start",
+              "complete",
+              "checklist",
+              "issue"
+            ]
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "missing",
+              "damage"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 1000
+          }
+        }
+      },
+      "PushDeviceInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "deviceId",
+          "enabled"
+        ],
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "token": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 2048
+          }
+        }
+      },
+      "PushDeviceStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "registered",
+          "provider"
+        ],
+        "properties": {
+          "registered": {
+            "const": true
+          },
+          "provider": {
+            "const": "disconnected"
+          }
+        }
+      },
+      "RefreshInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "refreshToken",
+          "requestId",
+          "deviceId"
+        ],
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 128
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "deviceId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "DeviceRevokeInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "Devices": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "devices"
+        ],
+        "properties": {
+          "devices": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "deviceId",
+                "platform",
+                "createdAt",
+                "lastSeenAt",
+                "revoked"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "deviceId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "platform": {
+                  "enum": [
+                    "android",
+                    "ios"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "lastSeenAt": {
+                  "type": "string"
+                },
+                "revoked": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "operationId": "Login_auth_login",
+        "security": [],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Login"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "Login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "operationId": "User_auth_me",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "User"
+      }
+    },
+    "/snapshot": {
+      "get": {
+        "operationId": "Snapshot_snapshot",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Snapshot"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "Snapshot"
+      }
+    },
+    "/work-orders/{id}": {
+      "get": {
+        "operationId": "Job_work-orders_id",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Job"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "Job"
+      }
+    },
+    "/scan": {
+      "get": {
+        "operationId": "Scan_scan",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Scan"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "Scan"
+      }
+    },
+    "/commands": {
+      "post": {
+        "operationId": "Accepted_commands",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Accepted"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "Accepted",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files": {
+      "post": {
+        "operationId": "Photo_files",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Photo"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "Photo",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhotoInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/work-orders/{id}/comments": {
+      "post": {
+        "operationId": "Accepted_work-orders_id_comments",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Accepted"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "Accepted",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/work-orders/{id}/checklist/{itemId}": {
+      "post": {
+        "operationId": "Accepted_work-orders_id_checklist_itemId",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "itemId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Accepted"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "Accepted",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChecklistInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/work-orders/{id}/transition": {
+      "post": {
+        "operationId": "Accepted_work-orders_id_transition",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Accepted"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "Accepted",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/references": {
+      "get": {
+        "operationId": "references",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/References"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "References"
+      }
+    },
+    "/installations": {
+      "get": {
+        "operationId": "installations",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Installations"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "Installations"
+      }
+    },
+    "/notifications": {
+      "get": {
+        "operationId": "notifications",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Notifications"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "Notifications"
+      }
+    },
+    "/notifications/preferences": {
+      "get": {
+        "operationId": "notificationPreferences",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/NotificationPreferences"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "NotificationPreferences"
+      },
+      "post": {
+        "operationId": "updateNotificationPreferences",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/NotificationPreferences"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "NotificationPreferences",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationPreferences"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sync": {
+      "post": {
+        "operationId": "syncCommand",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Accepted"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "Accepted",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/uploads": {
+      "post": {
+        "operationId": "uploadChunk",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UploadStatus"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "UploadStatus",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/uploads/{id}": {
+      "get": {
+        "operationId": "uploadStatus",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-RenkFlow-App-Version",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-RenkFlow-Platform",
+            "required": true,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UploadStatus"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Application update required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-response-type": "UploadStatus"
+      }
+    },
+    "/installations/{id}": {
+      "get": {
+        "operationId": "installationDetails",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Technical crew details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/InstallationDetails"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/installation-files/{id}": {
+      "get": {
+        "operationId": "installationPhoto",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Assigned crew JPEG photo, bearer authentication required",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/device": {
+      "post": {
+        "operationId": "registerPushDevice",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushDeviceInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Private provider token stored; delivery disconnected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PushDeviceStatus"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Login"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Accepted"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/devices/revoke": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Accepted"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceRevokeInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/devices": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Current user devices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Devices"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "x-build-number": 3
+}

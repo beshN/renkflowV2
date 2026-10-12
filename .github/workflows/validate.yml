@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - codex/mobile-integration
       - claude/trello-odoo
       - claude/night-2
       - claude/n3-ai-assistant
