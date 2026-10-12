@@ -365,7 +365,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
                 "focus:outline-none focus:underline"
               )}
             >
-              Yüklemeyi İptal Et
+              Yüklemeyi iptal et
             </button>
           )}
         </div>

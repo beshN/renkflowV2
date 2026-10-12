@@ -49,7 +49,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             </div>
             
             <h1 className="text-2xl font-bold text-text-light dark:text-text-dark mb-2">
-              Bir Hata Oluştu
+              Bir hata oluştu
             </h1>
             
             <p className="text-muted-foreground mb-8">
@@ -62,7 +62,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold hover:opacity-90 transition-opacity"
               >
                 <RefreshCw size={18} />
-                Sayfayı Yenile
+                Sayfayı yenile
               </button>
               
               <Link
@@ -70,7 +70,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
               >
                 <Home size={18} />
-                Ana Sayfa
+                Ana sayfa
               </Link>
             </div>
 

@@ -598,7 +598,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
             <div className="bg-amber-50 dark:bg-amber-900/10 rounded-2xl p-6 border border-amber-200 dark:border-amber-800/60">
               <h3 className="text-lg font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-2 mb-3">
                 <AlertTriangle className="w-5 h-5" />
-                Risk Uyarıları
+                Risk uyarıları
               </h3>
               <div className="space-y-2">
                 {workspace.alerts.map((alert) => (
@@ -612,7 +612,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
-              <h4 className="font-semibold text-slate-900 dark:text-white mb-3">Bütçe Varyansı</h4>
+              <h4 className="font-semibold text-slate-900 dark:text-white mb-3">Bütçe varyansı</h4>
               <div className="space-y-2 text-sm">
                 {workspace.budgetVsActual.rows.slice(0, 4).map((row) => {
                   const favorable =
@@ -648,7 +648,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
             </div>
 
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
-              <h4 className="font-semibold text-slate-900 dark:text-white mb-3">Uyum Skoru</h4>
+              <h4 className="font-semibold text-slate-900 dark:text-white mb-3">Uyum skoru</h4>
               <div className="flex items-end gap-2 mb-2">
                 <span className="text-3xl font-bold text-slate-900 dark:text-white">{workspace.compliance.score}</span>
                 <span className="text-sm text-slate-500">/100</span>
@@ -698,7 +698,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
               <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
                 <h4 className="font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-violet-600" />
-                  Önceki Döneme Göre
+                  Önceki döneme göre
                 </h4>
                 <div className="space-y-3 text-sm">
                   <ComparisonRow label="Gelir" value={workspace.periodComparison.revenueChangePct} />
@@ -751,7 +751,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
                   <h4 className="font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                    Öz Sermaye
+                    Öz sermaye
                   </h4>
                   <BalanceRow label="Cari Dönem Kârı" value={workspace.balanceSheet.equity.currentYearProfit} />
                   <BalanceRow label="Toplam öz sermaye" value={workspace.balanceSheet.equity.totalEquity} bold />
@@ -776,7 +776,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
               <div className="xl:col-span-2 bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-5 flex items-center gap-2">
                   <Wallet className="w-5 h-5 text-sky-600" />
-                  Nakit Akış Özeti
+                  Nakit akış özeti
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <CashFlowCard
@@ -793,7 +793,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                   />
                 </div>
                 <div className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                  <span className="text-sm text-slate-500">Net Nakit Değişimi</span>
+                  <span className="text-sm text-slate-500">Net nakit değişimi</span>
                   <span className={cn('font-semibold', trendClass(workspace.cashFlow.netChangeInCash))}>
                     {formatCurrency(workspace.cashFlow.netChangeInCash)}
                   </span>
@@ -801,7 +801,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
               </div>
 
               <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
-                <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Likidite Sinyalleri</h4>
+                <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Likidite sinyalleri</h4>
                 <div className="space-y-3 text-sm">
                   <MetricLine label="Cari oran" value={ratio(workspace.kpis.currentRatio)} />
                   <MetricLine label="Nakit yeterlilik süresi" value={months(workspace.kpis.cashRunwayMonths)} />
@@ -850,7 +850,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
         <div className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
-              <h4 className="font-semibold text-slate-900 dark:text-white mb-3">Dönem Durumu</h4>
+              <h4 className="font-semibold text-slate-900 dark:text-white mb-3">Dönem durumu</h4>
               <div className="flex items-center gap-2">
                 <span
                   className={cn(
@@ -896,7 +896,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                   disabled={isUpdatingClose || !["owner","admin"].includes(user?.role || "")}
                   className="text-xs px-2 py-2 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/20 disabled:opacity-50"
                 >
-                  Soft Close
+                  Soft close
                 </button>
                 <button
                   type="button"
@@ -904,7 +904,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                   disabled={isUpdatingClose || !["owner","admin"].includes(user?.role || "")}
                   className="text-xs px-2 py-2 rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/20 disabled:opacity-50"
                 >
-                  Hard Close
+                  Hard close
                 </button>
               </div>
             </div>
@@ -950,7 +950,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
-              <h4 className="font-semibold text-slate-900 dark:text-white mb-3">Banka Mutabakat Özeti</h4>
+              <h4 className="font-semibold text-slate-900 dark:text-white mb-3">Banka mutabakat özeti</h4>
               <div className="space-y-2 text-sm">
                 <MetricLine
                   label="Eşleşme oranı"
@@ -993,7 +993,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
             </div>
 
             <div className="xl:col-span-2 bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
-              <h4 className="font-semibold text-slate-900 dark:text-white mb-3">Banka Hareketleri</h4>
+              <h4 className="font-semibold text-slate-900 dark:text-white mb-3">Banka hareketleri</h4>
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4">
                 <input
                   type="date"
@@ -1081,7 +1081,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                         disabled={activeLineActionId === line.id || workspace.periodCloseState.locked}
                         className="px-2 py-1 rounded-md border border-slate-200 text-slate-600 text-xs hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 disabled:opacity-40"
                       >
-                        Yok Say
+                        Yok say
                       </button>
                     </div>
                   </div>
@@ -1197,7 +1197,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-sky-600" />
-                Profesyonel Yazılım Kıyas Matrisi
+                Profesyonel yazılım kıyas matrisi
               </h3>
               <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
                 Uyum: %{completionRate}
@@ -1239,7 +1239,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
 
           {workspace.notes.length > 0 && (
             <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
-              <h4 className="font-semibold text-slate-900 dark:text-white mb-3">Teknik Notlar</h4>
+              <h4 className="font-semibold text-slate-900 dark:text-white mb-3">Teknik notlar</h4>
               <div className="space-y-2">
                 {workspace.notes.map((note) => (
                   <p key={note} className="text-sm text-slate-600 dark:text-slate-300">

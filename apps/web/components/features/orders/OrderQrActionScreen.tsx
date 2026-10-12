@@ -171,7 +171,7 @@ export function OrderQrActionScreen({ token, resolved }: OrderQrActionScreenProp
         {activeAction === 'note.add' && (
           <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3">
             <h2 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-              <StickyNote className="w-4 h-4" /> Not Ekle
+              <StickyNote className="w-4 h-4" /> Not ekle
             </h2>
             <textarea
               value={note}

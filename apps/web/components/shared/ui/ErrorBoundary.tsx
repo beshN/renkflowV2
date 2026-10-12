@@ -52,7 +52,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
           </div>
           <h2 className="text-xl font-semibold text-text-light dark:text-text-dark mb-2">
-            Bir Şeyler Yanlış Gitti
+            Bir şeyler yanlış gitti
           </h2>
           <p className="text-subtle-light dark:text-subtle-dark mb-6 max-w-md">
             Üzgünüz, bu sayfada beklenmedik bir hata oluştu. Lütfen tekrar deneyin.
@@ -75,13 +75,13 @@ export class ErrorBoundary extends Component<Props, State> {
               onClick={this.handleRetry}
               className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium"
             >
-              Tekrar Dene
+              Tekrar dene
             </button>
             <button
               onClick={() => window.location.reload()}
               className="px-4 py-2 border border-border-light dark:border-border-dark rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
-              Sayfayı Yenile
+              Sayfayı yenile
             </button>
           </div>
         </div>

@@ -270,7 +270,7 @@ export const OrderCard = memo(function OrderCard({ order, onDelete, isDragOverla
               className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 font-medium"
             >
               <Paperclip size={14} />
-              Belge Ekle
+              Belge ekle
             </button>
           </div>
         )}

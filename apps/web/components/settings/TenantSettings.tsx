@@ -74,7 +74,7 @@ export function TenantSettings() {
     return (
       <div className="p-8 text-center bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800 border-dashed">
         <Building className="mx-auto h-12 w-12 text-slate-400 mb-3" />
-        <h3 className="text-lg font-medium text-slate-900 dark:text-white">Organizasyon Bulunamadı</h3>
+        <h3 className="text-lg font-medium text-slate-900 dark:text-white">Organizasyon bulunamadı</h3>
         <p className="text-slate-500 dark:text-slate-400">Bir organizasyona bağlı değilsiniz.</p>
       </div>
     );
@@ -138,7 +138,7 @@ export function TenantSettings() {
             />
             
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Marka Rengi</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Marka rengi</label>
               <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800">
                 <div className="relative w-12 h-10 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
                    <input

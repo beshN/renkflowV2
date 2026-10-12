@@ -11,10 +11,10 @@ it('submits each product’s technical dimensions and calculates quantity and pr
   fireEvent.change(screen.getByLabelText('Genişlik (mm)'), { target: { value: '2400' } });
   fireEvent.change(screen.getByLabelText('Adet *'), { target: { value: '2' } });
   fireEvent.change(screen.getByLabelText('Birim fiyat (TRY)'), { target: { value: '125' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Kalem Ekle' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Kalem ekle' }));
   fireEvent.change(screen.getAllByLabelText('Ürün / sistem *')[1], { target: { value: 'Pencere' } });
   fireEvent.change(screen.getAllByLabelText('Birim fiyat (TRY)')[1], { target: { value: '50' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Siparişi Kaydet' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Siparişi kaydet' }));
   await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
   const data: FormData = submit.mock.calls[0][0];
   expect(data.get('quantity')).toBe('3');
@@ -28,7 +28,7 @@ it('reports invalid dimensions without submitting and preserves the form after a
   fireEvent.change(screen.getByLabelText('Müşteri / firma adı *'), { target: { value: 'Renk Test' } });
   fireEvent.change(screen.getByLabelText('Ürün / sistem *'), { target: { value: 'Profil çerçeve' } });
   fireEvent.change(screen.getByLabelText('Genişlik (mm)'), { target: { value: '-5' } });
-  fireEvent.submit(screen.getByRole('button', { name: 'Siparişi Kaydet' }).closest('form')!);
+  fireEvent.submit(screen.getByRole('button', { name: 'Siparişi kaydet' }).closest('form')!);
   expect(submit).not.toHaveBeenCalled();
   expect(screen.getByText('Ölçü, sıfırdan büyük olmalı.')).toBeInTheDocument();
   expect(screen.getByLabelText('Müşteri / firma adı *')).toHaveValue('Renk Test');
@@ -50,11 +50,11 @@ it('shows an upload failure, preserves entered data and allows retry', async () 
   fireEvent.change(screen.getByLabelText('Müşteri / firma adı *'), {target:{value:'Renk Test'}});
   fireEvent.change(screen.getByLabelText('Ürün / sistem *'), {target:{value:'Profil'}});
   fireEvent.change(screen.getByLabelText('Teknik belge seç'), {target:{files:[new File(['%PDF-content'],'technical.pdf',{type:'application/pdf'})]}});
-  fireEvent.click(screen.getByRole('button',{name:'Siparişi Kaydet'}));
+  fireEvent.click(screen.getByRole('button',{name:'Siparişi kaydet'}));
   await waitFor(()=>expect(screen.getByRole('alert')).toHaveTextContent('Yükleme bağlantısı kesildi.'));
   expect(submit).not.toHaveBeenCalled();
   expect(screen.getByLabelText('Müşteri / firma adı *')).toHaveValue('Renk Test');
-  expect(screen.getByRole('button',{name:'Siparişi Kaydet'})).toBeEnabled();
+  expect(screen.getByRole('button',{name:'Siparişi kaydet'})).toBeEnabled();
 });
 
 it('links the order to a chosen saved customer and releases the link when the name is retyped', async () => {
@@ -69,7 +69,7 @@ it('links the order to a chosen saved customer and releases the link when the na
     expect(fetchMock.mock.calls[0][0]).toContain('/api/v1/customers?suggest=1&search=%C3%96rnek');
     expect(screen.getByText('Kayıtlı müşteri kartına bağlanacak.')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Ürün / sistem *'), { target: { value: 'Pergola' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Siparişi Kaydet' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Siparişi kaydet' }));
     await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
     const data: FormData = submit.mock.calls[0][0];
     expect(data.get('customerId')).toBe('33333333-3333-4333-8333-333333333333');

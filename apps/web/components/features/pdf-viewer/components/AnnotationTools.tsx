@@ -133,7 +133,7 @@ export const AnnotationTools: React.FC<AnnotationToolsProps> = ({
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-              Açıklama Araçları
+              Açıklama araçları
             </h3>
             <Button
               variant="ghost"
@@ -150,7 +150,7 @@ export const AnnotationTools: React.FC<AnnotationToolsProps> = ({
             {/* Basic Tools */}
             <div>
               <label className="text-xs font-medium text-slate-500 mb-2 block">
-                Temel Araçlar
+                Temel araçlar
               </label>
               <div className="grid grid-cols-4 gap-1">
                 {ANNOTATION_TOOLS.filter(t => t.category === 'basic').map(({ mode, icon: Icon, label }) => (
@@ -172,7 +172,7 @@ export const AnnotationTools: React.FC<AnnotationToolsProps> = ({
             {/* Text Annotation Tools */}
             <div>
               <label className="text-xs font-medium text-slate-500 mb-2 block">
-                Metin Açıklamaları
+                Metin açıklamaları
               </label>
               <div className="grid grid-cols-4 gap-1">
                 {ANNOTATION_TOOLS.filter(t => t.category === 'text').map(({ mode, icon: Icon, label }) => (
@@ -314,7 +314,7 @@ export const AnnotationTools: React.FC<AnnotationToolsProps> = ({
                 title="Geri Al (Ctrl+Z)"
               >
                 <Undo className="h-4 w-4 mr-1.5" />
-                Geri Al
+                Geri al
               </Button>
               <Button
                 variant="outline"

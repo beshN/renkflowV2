@@ -49,7 +49,7 @@ export default function NewWorkOrderPage() {
   const content = (
     <div className="space-y-6">
       <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
-        <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-4">Üretim Emri Bilgileri</h3>
+        <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-4">Üretim emri bilgileri</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="md:col-span-2">
             <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Başlık *</span>
@@ -100,7 +100,7 @@ export default function NewWorkOrderPage() {
         
         <div className="flex justify-end pt-6">
           <Button variant="primary" onClick={handleSave} isLoading={isSaving} icon={<Save className="w-4 h-4"/>}>
-            Emri Oluştur
+            Emri oluştur
           </Button>
         </div>
       </section>

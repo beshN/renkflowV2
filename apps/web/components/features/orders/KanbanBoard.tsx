@@ -559,7 +559,7 @@ export function KanbanBoard({ orders, onOrderStatusChange, onOrderDelete }: Kanb
               }}
               className="text-xs font-semibold text-slate-500 hover:text-slate-700"
             >
-              Filtreleri Temizle
+              Filtreleri temizle
             </button>
           )}
         </div>

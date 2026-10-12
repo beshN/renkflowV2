@@ -280,7 +280,7 @@ export const PDFViewerV2: React.FC<PDFViewerV2Props> = ({
               onClick={handleOpenInNewTab}
               className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-slate-400/50"
             >
-              Yeni Sekmede Aç
+              Yeni sekmede aç
             </button>
           }
           retryCount={retryCount}

@@ -76,7 +76,7 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({ className }) => {
         <div className="flex items-start gap-2">
           <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
           <div className="text-xs text-blue-700 dark:text-blue-300">
-            <p className="font-medium mb-1">Katman Yönetimi</p>
+            <p className="font-medium mb-1">Katman yönetimi</p>
             <p className="text-blue-600 dark:text-blue-400">
               Her katmanın görünürlüğünü ve opaklığını ayrı ayrı kontrol edebilirsiniz.
             </p>
@@ -225,7 +225,7 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({ className }) => {
               setFormLayerOpacity(1);
             }}
           >
-            Tümünü Göster
+            Tümünü göster
           </Button>
           <Button
             variant="outline"
@@ -236,7 +236,7 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({ className }) => {
               setFormLayerVisible(false);
             }}
           >
-            Tümünü Gizle
+            Tümünü gizle
           </Button>
         </div>
       </div>

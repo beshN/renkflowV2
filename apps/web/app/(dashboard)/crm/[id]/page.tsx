@@ -77,7 +77,7 @@ export default function CustomerDetailPage() {
                 <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/30 p-5">
                   <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                     <Phone size={16} className="text-primary" />
-                    İletişim Bilgileri
+                    İletişim bilgileri
                   </h3>
                   <div className="space-y-3">
                     {customer.email && (
@@ -114,7 +114,7 @@ export default function CustomerDetailPage() {
                 <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/30 p-5">
                   <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                     <CreditCard size={16} className="text-emerald-500" />
-                    Ticari Bilgiler
+                    Ticari bilgiler
                   </h3>
                   <div className="space-y-3">
                     {customer.tax_number && (
@@ -132,7 +132,7 @@ export default function CustomerDetailPage() {
                       <div className="flex items-start gap-3">
                         <CreditCard size={14} className="mt-0.5 text-muted-foreground" />
                         <div>
-                          <p className="text-xs text-muted-foreground">Kredi Limiti</p>
+                          <p className="text-xs text-muted-foreground">Kredi limiti</p>
                           <p className="text-sm font-medium text-foreground">{formatCurrency(customer.credit_limit, 'TRY')}</p>
                         </div>
                       </div>
@@ -156,7 +156,7 @@ export default function CustomerDetailPage() {
                 <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/30 p-5">
                   <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                     <FileText size={16} className="text-amber-500" />
-                    Müşteri Notları
+                    Müşteri notları
                   </h3>
                   <p className="text-sm text-foreground whitespace-pre-wrap">{customer.notes}</p>
                 </div>

@@ -321,7 +321,7 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
             <p className="mt-1 text-sm text-slate-500">Her farklı ürün, ölçü ve renk için ayrı kalem ekleyin. Ölçüler mm cinsindedir.</p>
           </div>
           <Button type="button" variant="secondary" size="sm" onClick={addItem} className="gap-2">
-            <Plus size={14} /> Kalem Ekle
+            <Plus size={14} /> Kalem ekle
           </Button>
         </div>
 
@@ -545,10 +545,10 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
       </section>
 
       <section className="rf-panel p-5">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Sipariş Özeti</h2>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Sipariş özeti</h2>
         <div className="mt-3 rounded-md bg-slate-50 p-4 dark:bg-slate-900/50">
           <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
-            <span>Toplam Miktar</span>
+            <span>Toplam miktar</span>
             <span>{calculatedQuantity} adet</span>
           </div>
           <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3 dark:border-slate-700">
@@ -566,7 +566,7 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
           Vazgeç
         </Button>
         <Button type="submit" variant="primary" isLoading={isSubmitting} loadingText="Sipariş kaydediliyor...">
-          Siparişi Kaydet
+          Siparişi kaydet
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">Siparişi kaydetmek stoktan düşüm yapmaz. Malzeme üretim emrinde rezerve edilir; gerçek tüketim üretim tamamlandığında işlenir.</p>

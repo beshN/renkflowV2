@@ -37,9 +37,9 @@ export const ORDER_STATUS_STEPS: StatusStep[] = [
   { key: 'preparing_materials', label: 'Malzeme hazırlanıyor', shortLabel: 'Malzeme', color: 'purple' },
   { key: 'ready_for_production', label: 'Üretime hazır', shortLabel: 'Hazır', color: 'indigo' },
   { key: 'in_production', label: 'Üretimde', shortLabel: 'Üretim', color: 'sky' },
-  { key: 'quality_check', label: 'Kalite kontrol', shortLabel: 'KK', color: 'orange' },
-  { key: 'ready_for_shipment', label: 'Sevkiyata hazır', shortLabel: 'Sevkiyat', color: 'teal' },
-  { key: 'shipped', label: 'Sevk edildi', shortLabel: 'Sevkiyat', color: 'cyan' },
+  { key: 'quality_check', label: 'Kalite kontrol', shortLabel: 'Kalite', color: 'orange' },
+  { key: 'ready_for_shipment', label: 'Sevkiyata hazır', shortLabel: 'Sevke hazır', color: 'teal' },
+  { key: 'shipped', label: 'Sevk edildi', shortLabel: 'Sevk', color: 'cyan' },
   { key: 'completed', label: 'Tamamlandı', shortLabel: 'Tamam', color: 'green' },
 ];
 
@@ -165,100 +165,64 @@ export function StatusStepper({
     );
   }
 
+  // One accent for the whole track (done, current, next) so the stepper reads like the rest of the
+  // workspace; colour per status stays on StatusBadge. Labels show from sm up, the phone gets one line.
+  const forward = steps.findIndex((step, idx) => idx > currentIndex && (allowedTransitions ? allowedTransitions.includes(step.key) : idx === currentIndex + 1));
+  const transitions = onTransition ? steps.filter((step) => (allowedTransitions ? allowedTransitions.includes(step.key) : steps.indexOf(step) === currentIndex + 1)) : [];
   return (
     <div className={cn('w-full', className)}>
-      <div className="flex items-start">
+      <ol className="flex items-start" aria-label="Sipariş aşamaları">
         {steps.map((step, idx) => {
           const isPast = idx < currentIndex;
           const isCurrent = idx === currentIndex;
-          const isFuture = idx > currentIndex;
-          const colors = COLOR_CLASSES[step.color || 'blue'];
-          const isTransitionable =
-            onTransition &&
-            (allowedTransitions ? allowedTransitions.includes(step.key) : idx === currentIndex + 1);
-
+          const isTransitionable = Boolean(onTransition) && (allowedTransitions ? allowedTransitions.includes(step.key) : idx === currentIndex + 1);
           return (
-            <div key={step.key} className="flex flex-1 flex-col items-center relative">
-              {/* Connector line */}
+            <li key={step.key} className="relative flex min-w-0 flex-1 flex-col items-center" aria-current={isCurrent ? 'step' : undefined}>
               {idx < steps.length - 1 && (
-                <div
-                  className={cn(
-                    'absolute top-4 left-1/2 h-0.5 w-full transition-all duration-500',
-                    isPast ? 'bg-emerald-400 dark:bg-emerald-600' : 'bg-neutral-200 dark:bg-neutral-800'
-                  )}
-                />
+                <span aria-hidden className={cn('absolute left-1/2 top-3.5 h-0.5 w-full', isPast ? 'bg-primary' : 'bg-border')} />
               )}
-
-              {/* Step circle */}
               <button
-                aria-label={step.label}
-                aria-current={isCurrent ? "step" : undefined}
+                type="button"
+                aria-label={isTransitionable ? `${step.label} olarak işaretle` : step.label}
                 onClick={() => isTransitionable && onTransition?.(step.key)}
                 disabled={!isTransitionable || isTransitioning}
                 className={cn(
-                  'relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-bold transition-all duration-300',
-                  isCurrent
-                    ? cn('border-current text-white shadow-lg ring-4', colors.bg, colors.ring)
-                    : isPast
-                      ? 'border-emerald-400 bg-emerald-500 text-white'
-                      : 'border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-muted-foreground',
-                  isTransitionable
-                    ? 'cursor-pointer hover:scale-110 hover:shadow-md'
-                    : 'cursor-default'
+                  'relative z-10 flex h-7 w-7 items-center justify-center rounded-full border text-[11px] font-semibold tabular-nums transition-colors',
+                  isPast ? 'border-primary bg-primary text-primary-foreground'
+                    : isCurrent ? 'border-primary bg-background text-primary ring-4 ring-primary/15'
+                    : 'border-border bg-background text-muted-foreground',
+                  isTransitionable ? 'cursor-pointer hover:border-primary hover:text-primary' : 'cursor-default',
                 )}
               >
-                {isPast ? <Check size={14} strokeWidth={3} /> : idx + 1}
+                {isPast ? <Check size={13} strokeWidth={3} aria-hidden /> : idx + 1}
               </button>
-
-              {/* Label */}
-              <span
-                className={cn(
-                  'mt-2 text-center text-[10px] font-medium leading-tight max-w-[56px]',
-                  isCurrent
-                    ? colors.text
-                    : isPast
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-muted-foreground/60'
-                )}
-              >
+              <span className={cn('mt-2 hidden max-w-[72px] text-center text-[10px] leading-tight sm:block', isCurrent ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
                 {step.shortLabel || step.label}
               </span>
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ol>
+      {currentIndex >= 0 && (
+        <p className="mt-3 text-xs text-muted-foreground sm:hidden">
+          Aşama {currentIndex + 1}/{steps.length} · <span className="font-semibold text-foreground">{steps[currentIndex].label}</span>
+        </p>
+      )}
 
-      {/* Transition buttons */}
-      {onTransition && (
-        <div className="mt-6 flex flex-wrap gap-2">
-          {steps
-            .filter((step) =>
-              allowedTransitions
-                ? allowedTransitions.includes(step.key)
-                : steps.indexOf(step) === currentIndex + 1
-            )
-            .map((step) => {
-              const colors = COLOR_CLASSES[step.color || 'blue'];
-              return (
-                <button
-                  key={step.key}
-                  onClick={() => onTransition(step.key)}
-                  disabled={isTransitioning}
-                  className={cn(
-                    'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-md transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed',
-                    colors.bg,
-                    `shadow-${step.color}-500/25 hover:opacity-90`
-                  )}
-                >
-                  {isTransitioning ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                  ) : (
-                    <Check size={16} strokeWidth={2.5} />
-                  )}
-                  {step.label} olarak işaretle
-                </button>
-              );
-            })}
+      {transitions.length > 0 && (
+        <div className="mt-5 flex flex-wrap gap-2">
+          {transitions.map((step) => (
+            <button
+              key={step.key}
+              type="button"
+              onClick={() => onTransition?.(step.key)}
+              disabled={isTransitioning}
+              className={cn(steps.indexOf(step) === forward ? 'rf-primary-button' : 'rf-secondary-button', 'inline-flex h-9 items-center gap-2 px-3.5 text-sm disabled:cursor-not-allowed disabled:opacity-60')}
+            >
+              {isTransitioning ? <span aria-hidden className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current/30 border-t-current" /> : <Check size={15} strokeWidth={2.5} aria-hidden />}
+              {step.label} olarak işaretle
+            </button>
+          ))}
         </div>
       )}
     </div>

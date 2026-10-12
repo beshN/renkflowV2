@@ -502,7 +502,7 @@ export const KanbanBoardV2: React.FC<KanbanBoardV2Props> = ({
       {/* Board Toolbar */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
-          <span className="font-semibold text-gray-900 dark:text-white">Kanban Board</span>
+          <span className="font-semibold text-gray-900 dark:text-white">Kanban panosu</span>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
             {filteredOrders.length} kart
           </span>

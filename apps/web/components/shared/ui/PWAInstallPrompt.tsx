@@ -129,7 +129,7 @@ export default function PWAInstallPrompt() {
             
             <div className="flex-1 pr-6">
               <h2 className="font-bold text-text-light dark:text-text-dark mb-1">
-                Renkflow Uygulaması
+                Renkflow uygulaması
               </h2>
               
               {isIOS ? (

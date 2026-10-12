@@ -269,7 +269,7 @@ export const ErrorOverlay: React.FC<ErrorOverlayProps> = ({
                 )}
               >
                 <RefreshCw className="h-4 w-4" />
-                Tekrar Dene
+                Tekrar dene
               </button>
             ) : (
               <button
@@ -281,7 +281,7 @@ export const ErrorOverlay: React.FC<ErrorOverlayProps> = ({
                   "cursor-not-allowed"
                 )}
               >
-                Maksimum Deneme
+                Maksimum deneme
               </button>
             )}
           </div>

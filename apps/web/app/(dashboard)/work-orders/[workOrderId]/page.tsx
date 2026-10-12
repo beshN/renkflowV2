@@ -37,8 +37,15 @@ export default function WorkOrderDetail({ params }: { params: Promise<{ workOrde
     <div className="min-h-screen">
       <AppleNavbar title="İş emri detayı" showSearch={false} />
       <main className="mx-auto max-w-5xl space-y-5 p-4 md:p-6">
-        <Link href="/work-orders" className="text-sm text-blue-600">← İş emirlerine dön</Link>
-        {error && <p role="alert" className="rounded-lg bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
+        {data && <Link href="/work-orders" className="text-sm text-primary hover:underline">← İş emirlerine dön</Link>}
+        {error && data && <p role="alert" className="rounded-lg bg-rose-50 p-4 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}</p>}
+        {error && !data && (
+          <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-center">
+            <h2 className="text-lg font-semibold">İş emri açılamadı</h2>
+            <p role="alert" className="max-w-sm text-sm text-muted-foreground">{error.startsWith('İş emri bulunamadı') ? 'Bu iş emri silinmiş, kapatılmış ya da size atanmamış olabilir.' : error}</p>
+            <Link href="/work-orders" className="rf-primary-button h-9 px-4 text-sm">İş emirlerine dön</Link>
+          </div>
+        )}
         {!data && !error && <SkeletonRows rows={5} />}
         {data && <>
           <section className="rf-panel p-5">

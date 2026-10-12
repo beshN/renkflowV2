@@ -87,7 +87,7 @@ export const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceProps>(({
           <h2 className="text-4xl font-light text-slate-200 mb-4">FATURA</h2>
           <div className="space-y-2">
             <div>
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Fatura No</span>
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Fatura no</span>
               <span className="text-lg font-medium">{invoiceNumber}</span>
             </div>
             <div>
@@ -96,7 +96,7 @@ export const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceProps>(({
             </div>
             {dueDate && (
               <div>
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Vade Tarihi</span>
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Vade tarihi</span>
                 <span className="text-slate-600">{new Date(dueDate).toLocaleDateString('tr-TR')}</span>
               </div>
             )}
@@ -122,7 +122,7 @@ export const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceProps>(({
           <tr className="border-b-2 border-slate-100">
             <th className="text-left py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider w-1/2">Açıklama</th>
             <th className="text-right py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Miktar</th>
-            <th className="text-right py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Birim Fiyat</th>
+            <th className="text-right py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Birim fiyat</th>
             <th className="text-right py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Toplam</th>
           </tr>
         </thead>
@@ -146,7 +146,7 @@ export const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceProps>(({
       <div className="flex justify-end mb-12">
         <div className="w-64 space-y-3">
           <div className="flex justify-between text-sm text-slate-600">
-            <span>Ara Toplam</span>
+            <span>Ara toplam</span>
             <span>{formatFinanceCurrency(subtotal, currency)}</span>
           </div>
           <div className="flex justify-between text-sm text-slate-600">
@@ -154,7 +154,7 @@ export const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceProps>(({
             <span>{formatFinanceCurrency(taxTotal, currency)}</span>
           </div>
           <div className="flex justify-between text-lg font-bold text-slate-900 pt-3 border-t-2 border-slate-100">
-            <span>Genel Toplam</span>
+            <span>Genel toplam</span>
             <span>{formatFinanceCurrency(total, currency)}</span>
           </div>
         </div>

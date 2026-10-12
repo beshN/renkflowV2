@@ -15,7 +15,7 @@ import {
 
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
 import { StatusStepper, StatusBadge, ORDER_STATUS_STEPS, LEGACY_STATUS_MAP } from '@/components/shared/ui/StatusStepper';
-import { HealthBadge, HintTip, LifecycleStrip } from '@/components/kit';
+import { HealthBadge, HintTip } from '@/components/kit';
 import { orderHealth } from '@/lib/features/orders/lifecycle';
 import { Lock } from 'lucide-react';
 import { businessDate } from '@/lib/features/orders/workspace';
@@ -208,19 +208,16 @@ export default function OrderDetailPage() {
 
   if (!order) {
     return (
-      <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950">
-        <AppleNavbar title={notFound ? "Sipariş bulunamadı" : "Sipariş yüklenemedi"} />
-        <main className="flex-1 p-8 flex items-center justify-center">
-          <div className="text-center space-y-4">
-            <AlertTriangle size={28} className="mx-auto text-muted-foreground" />
-            <h2 className="text-xl font-semibold text-foreground">{notFound ? "Sipariş bulunamadı" : "Sipariş yüklenemedi"}</h2>
-            <p role="alert" className="text-sm text-muted-foreground">{loadError}</p>
-            {!notFound && <button type="button" onClick={() => loadOrder()} className="rf-primary-button px-4 py-2 text-sm">Tekrar dene</button>}
-            <Link href="/orders" className="inline-block rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white">
-              Siparişlere Dön
-            </Link>
+      <div className="rf-page flex min-h-[60vh] items-center justify-center">
+        <div className="max-w-sm space-y-3 text-center">
+          <AlertTriangle size={28} aria-hidden className="mx-auto text-muted-foreground" />
+          <h1 className="text-xl font-semibold text-foreground">{notFound ? 'Sipariş bulunamadı' : 'Sipariş yüklenemedi'}</h1>
+          <p role="alert" className="text-sm text-muted-foreground">{notFound ? 'Bu sipariş silinmiş, başka bir firmaya ait ya da bağlantı hatalı olabilir.' : loadError}</p>
+          <div className="flex justify-center gap-2 pt-1">
+            {!notFound && <button type="button" onClick={() => loadOrder()} className="rf-secondary-button h-9 px-4 text-sm">Tekrar dene</button>}
+            <Link href="/orders" className="rf-primary-button h-9 px-4 text-sm">Siparişlere dön</Link>
           </div>
-        </main>
+        </div>
       </div>
     );
   }
@@ -241,7 +238,7 @@ export default function OrderDetailPage() {
               className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
             >
               <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
-              Siparişlere Dön
+              Siparişlere dön
             </Link>
             <div className="flex items-center gap-2">
               <span className={cn('rounded-full px-2.5 py-1 text-xs font-semibold', priorityConf.color)}>
@@ -264,8 +261,8 @@ export default function OrderDetailPage() {
                 <span className="mt-2 flex items-center gap-2"><HealthBadge health={orderHealth(order, businessDate())} />{!order.financialHidden && <RecordButton type="order" id={orderId} label="Kayıt" />}</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="text-right" hidden={order.financialHidden}>
-                  <p className="text-xs text-muted-foreground">Toplam Tutar</p>
+                <div className="sm:text-right" hidden={order.financialHidden}>
+                  <p className="text-xs text-muted-foreground">Toplam tutar</p>
                   <p className="text-2xl font-bold text-foreground">
                     {formatCurrency(order.totalAmount, order.currency)}
                   </p>
@@ -273,10 +270,8 @@ export default function OrderDetailPage() {
               </div>
             </div>
 
-            <LifecycleStrip status={order.status} className="mb-5" />
             {order.productionManaged && <p className="flex items-center gap-2 rounded-md border border-border bg-accent px-4 py-2 text-xs text-muted-foreground"><Lock size={14} aria-hidden /> Üretimden güncellenir <HintTip text="Bu siparişin durumu üretim ve sevkiyat işlemlerinden hesaplanır; elle değiştirilemez." /><Link href={user?.role === 'worker' ? '/factory' : '/production'} className="ml-auto font-medium text-primary hover:underline">Operasyon</Link></p>}
-            {/* Status Stepper */}
-            <div className="overflow-x-auto pb-2">
+            <div className="pb-2">
               <StatusStepper
                 steps={ORDER_STATUS_STEPS}
                 currentStatus={order.status}
@@ -308,7 +303,7 @@ export default function OrderDetailPage() {
             <div className="lg:col-span-2 space-y-6">
 
               {/* Tabs */}
-              <div className="flex gap-1 rounded-md border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900 p-1">
+              <div className="flex gap-1 overflow-x-auto rounded-md border border-border bg-muted p-1">
                 {[
                   { key: 'info', label: 'Bilgiler', icon: ClipboardList },
                   { key: 'items', label: 'Ürün satırları', icon: Package },
@@ -324,9 +319,9 @@ export default function OrderDetailPage() {
                     aria-pressed={activeTab === key}
                     onClick={() => setActiveTab(key as any)}
                     className={cn(
-                      'flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all',
+                      'flex flex-1 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2 text-xs font-semibold transition-all',
                       activeTab === key
-                        ? 'bg-white dark:bg-neutral-950 text-foreground shadow-sm'
+                        ? 'bg-card text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
@@ -339,7 +334,7 @@ export default function OrderDetailPage() {
               {/* Tab Content */}
               {activeTab === 'info' && (
                 <div className="rf-panel border border-border p-6 shadow-sm">
-                  <h3 className="text-sm font-semibold text-foreground mb-4">Sipariş Bilgileri</h3>
+                  <h3 className="text-sm font-semibold text-foreground mb-4">Sipariş bilgileri</h3>
                   <div className="space-y-0">
                     {!order.financialHidden && <>
                       <InfoRow icon={User} label="Müşteri" value={
@@ -399,7 +394,7 @@ export default function OrderDetailPage() {
 
               {activeTab === 'items' && (
                 <div className="rf-panel border border-border p-6 shadow-sm">
-                  <h3 className="text-sm font-semibold text-foreground mb-4">Ürün Satırları</h3>
+                  <h3 className="text-sm font-semibold text-foreground mb-4">Ürün satırları</h3>
                   {(!order.items || order.items.length === 0) ? (
                     <div className="py-8 text-center">
                       <Package size={32} className="mx-auto text-muted-foreground/30 mb-3" />
@@ -490,7 +485,7 @@ export default function OrderDetailPage() {
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Özet</h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Sipariş No</span>
+                    <span className="text-sm text-muted-foreground">Sipariş no</span>
                     <span className="text-sm font-bold text-foreground">#{order.orderNumber}</span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -504,7 +499,7 @@ export default function OrderDetailPage() {
                     </span>
                   </div>
                   <div className={order.financialHidden ? 'hidden' : 'flex items-center justify-between'}>
-                    <span className="text-sm text-muted-foreground">Para Birimi</span>
+                    <span className="text-sm text-muted-foreground">Para birimi</span>
                     <span className="text-sm font-medium text-foreground">{order.currency}</span>
                   </div>
                   <div className={order.financialHidden ? 'hidden' : 'border-t border-neutral-100 dark:border-neutral-800 pt-3 flex items-center justify-between'}>
@@ -516,7 +511,7 @@ export default function OrderDetailPage() {
 
               {/* Quick Actions */}
               <div className="rf-panel border border-border p-5 shadow-sm">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Hızlı İşlemler</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Hızlı işlemler</h3>
                 <div className="space-y-2">
                   {!order.financialHidden && <Link
                     href={`/orders/${orderId}/invoice`}
@@ -530,7 +525,7 @@ export default function OrderDetailPage() {
                     className="flex items-center gap-2 w-full rounded-md border border-neutral-200 dark:border-neutral-700 px-3 py-2.5 text-sm font-medium text-foreground hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors"
                   >
                     <ClipboardList size={15} className="text-primary" />
-                    İş Emirlerini Görüntüle
+                    İş emirlerini görüntüle
                   </Link>
                 </div>
               </div>
