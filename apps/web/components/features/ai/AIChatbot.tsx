@@ -1,5 +1,6 @@
 'use client';
 
+import { modelUnavailableMessage } from '@/lib/ai/policy';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
@@ -262,7 +263,7 @@ function saveMessages(messages: Message[], storageKey: string) {
 // ============================================
 
 export function AIChatbot() {
-  const {insights,brief,modelEnabled} = useAssistantInsights();
+  const {insights,brief,modelEnabled,modelUnavailableReason} = useAssistantInsights();
   // Without a model key the chat cannot answer: say so instead of offering a box that only errors.
   const chatOff = modelEnabled === false;
   const [pendingAction,setPendingAction]=useState<{action:AssistantAction;commandId:string}|null>(null);
@@ -842,7 +843,8 @@ export function AIChatbot() {
                 {/* Input */}
                 {chatOff ? (
                   <p role="note" className="p-3 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
-                    Sohbet bu kurulumda kapalı (model anahtarı tanımlı değil). Yukarıdaki uyarılar kayıtlarınızdan doğrudan hesaplanır.
+                    {modelUnavailableMessage(modelUnavailableReason)} Yukarıdaki uyarılar kayıtlarınızdan doğrudan hesaplanır.
+                    {['owner','admin'].includes(user.role) && <button type="button" onClick={()=>handleNavigate('/settings#asistan')} className="mt-2 block font-medium text-primary underline underline-offset-4">Asistan ayarlarını aç</button>}
                   </p>
                 ) : (
                 <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">

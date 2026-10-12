@@ -37,7 +37,7 @@ export function AssistantSettings() {
   async function save(patch: Record<string, unknown>, done = 'Kaydedildi') {
     setError(''); setNotice('');
     const r = await requestJson<Settings>('/api/v1/ai/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
-    if (r.ok && r.data) { setS(r.data); setNotice(done); } else setError(r.error || 'Kaydedilemedi');
+    if (r.ok && r.data) { setS(r.data); setNotice(done);window.dispatchEvent(new Event('assistant-settings-changed')); } else setError(r.error || 'Kaydedilemedi');
   }
   const detectorPatch = (d: Detector, patch: Partial<Detector>) => save({ detectors: { [d.key]: patch } }, `${d.label}: kaydedildi`);
 
@@ -51,7 +51,7 @@ export function AssistantSettings() {
         <div className="grid gap-2 sm:grid-cols-3">
           {AI_MODES.map((m) => (
             <label key={m} className={`rf-panel flex cursor-pointer flex-col gap-1 p-3 text-sm ${s.mode === m ? 'border-primary' : ''}`}>
-              <span className="flex items-center gap-2 font-medium"><input type="radio" name="ai-mode" checked={s.mode === m} onChange={() => m !== 'assist' && void save({ mode: m })} disabled={m === 'assist' && !s.kvkkAckAt && !kvkk} /> {AI_MODE_LABELS[m]}</span>
+              <span className="flex items-center gap-2 font-medium"><input type="radio" name="ai-mode" checked={s.mode === m} onChange={() => void save({mode:m,...(m==='assist' && kvkk?{kvkkAck:true}:{})})} disabled={m==='assist' && (!s.modelKeyConfigured || !s.kvkkAckAt && !kvkk)} /> {AI_MODE_LABELS[m]}</span>
               <span className="text-xs text-muted-foreground">{MODE_HINT[m]}</span>
             </label>
           ))}
@@ -60,7 +60,7 @@ export function AssistantSettings() {
           <div className="rf-panel space-y-2 p-3 text-sm">
             <label className="flex items-start gap-2"><input type="checkbox" checked={kvkk} onChange={(e) => setKvkk(e.target.checked)} className="mt-1" />
               <span><ShieldCheck size={14} className="inline" aria-hidden /> Model sağlayıcısının (yurt dışı) verileri işlemesinin KVKK kapsamında yurt dışına aktarım olduğunu, hukuki dayanağın firmamızca sağlandığını onaylıyorum. Kişisel veriler (ad, telefon, adres) gerekmedikçe gönderilmez, gönderilmesi gerektiğinde maskelenir.</span></label>
-            <button type="button" className="rf-primary-button text-sm" disabled={!kvkk} onClick={() => void save({ mode: 'assist', kvkkAck: true }, 'Model açıldı; onay kaydedildi')}>Modeli aç</button>
+            <button type="button" className="rf-primary-button text-sm" disabled={!s.modelKeyConfigured || !kvkk && !s.kvkkAckAt} onClick={() => void save({mode:'assist',...(kvkk?{kvkkAck:true}:{})}, 'Sohbet açıldı')}>Modeli aç</button>
             {!s.modelKeyConfigured && <p className="text-xs text-muted-foreground">Model anahtarı bu kurulumda tanımlı değil: açılsa bile model çağrılamaz, kural motoru çalışır.</p>}
           </div>
         )}
