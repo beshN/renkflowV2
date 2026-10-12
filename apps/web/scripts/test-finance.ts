@@ -1,3 +1,4 @@
+import { localTestDatabaseUrl } from './local-test-database';
 /**
  * Integration test for the finance foundation (gece 2, Tur 4) on the isolated local test database
  * only: a partial invoice from an order, over-invoicing refused, issue/cancel/delete, collections by
@@ -11,7 +12,7 @@ import { randomUUID } from 'node:crypto';
 
 async function main() {
   process.env.AUTH_SECRET = 'integration-test-secret-local-only-1234567890';
-  process.env.DATABASE_URL = 'postgres://postgres:renkflow-local-only@127.0.0.1:55432/renkflow_test';
+  process.env.DATABASE_URL = localTestDatabaseUrl();
   const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
   assert.equal((await db`SELECT current_database() AS name`)[0].name, 'renkflow_test');
   for (const file of ['044_access_control.sql', '045_sales_service_chain.sql', '047_finance_foundation.sql', '047_finance_foundation.sql'])
@@ -156,6 +157,17 @@ async function main() {
   await db`INSERT INTO manufacturing_preferences (tenant_id, labor_cost_per_hour, labor_currency) VALUES (${tenantId}, 250, 'TRY') ON CONFLICT (tenant_id) DO UPDATE SET labor_cost_per_hour = 250, labor_currency = 'TRY'`;
   const p = (await inv.orderBilling(acc, orderId)).estimatedProfit;
   assert.deepEqual([p.materialCost, p.laborCost, p.cost, p.profit, p.marginPercent, p.complete], [6000, 2500, 8500, 13500, 61.4, true]);
+
+  // A cancelled-only customer still has a historical statement and must be selectable.
+  const [pastOrder] = await db`INSERT INTO orders (tenant_id, order_number, customer_name, status, total_amount, currency, product_name)
+    VALUES (${tenantId}, ${'ORD-PAST-' + tenantId.slice(0, 6)}, 'Geçmiş Ekstre Müşterisi', 'approved', 120, 'TRY', 'Montaj') RETURNING id`;
+  const pastDraft = await inv.createInvoiceDraft(acc, String(pastOrder.id), { extra: [{ description: 'Geçmiş montaj', quantity: 1, unitPrice: 100 }], vatPercent: 20 });
+  await inv.issueInvoice(acc, pastDraft.id, {});
+  await inv.cancelInvoice(acc, pastDraft.id, { reason: 'İptal edilen geçmiş belge' });
+  const picker = await rec.statementCustomers(acc);
+  assert.ok(picker.customers.some(c => c.name === 'Geçmiş Ekstre Müşterisi'));
+  assert.ok(!(await rec.receivables(acc)).customers.some(c => c.name === 'Geçmiş Ekstre Müşterisi'));
+  await assert.rejects(rec.statementCustomers(actor('office')), (e: any) => e.status === 404);
 
   // Who sees finance: owner, admin, accounting. Worker, office, member get 404; the route map says finance.
   for (const role of ['owner', 'admin']) assert.ok(await rec.receivables(actor(role)));

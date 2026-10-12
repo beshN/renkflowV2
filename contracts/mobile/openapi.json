@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "RenkFlow Saha API",
-    "version": "1.2.0"
+    "version": "1.2.1"
   },
   "servers": [
     {
@@ -3563,5 +3563,5 @@
       }
     }
   },
-  "x-build-number": 3
+  "x-build-number": 4
 }

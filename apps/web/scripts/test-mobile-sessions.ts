@@ -1,3 +1,4 @@
+import { localTestDatabaseUrl } from './local-test-database';
 import mobileSpec from '../../../contracts/mobile/openapi.json';
 /** Security integration against disposable loopback PostgreSQL only. */
 import assert from 'node:assert/strict';
@@ -6,7 +7,7 @@ import {execFileSync} from 'node:child_process';
 import {readFileSync,unlinkSync} from 'node:fs';
 import postgres from 'postgres';
 async function main() {
- process.env.DATABASE_URL='postgres://postgres:renkflow-local-only@127.0.0.1:55432/renkflow_test';process.env.ALLOW_LOCAL_DATABASE='1';process.env.AUTH_SECRET='field-integration-local-only-12345678901234567890';delete process.env.PRIVATE_ACCESS_EMAIL;
+ process.env.DATABASE_URL=localTestDatabaseUrl();process.env.ALLOW_LOCAL_DATABASE='1';process.env.AUTH_SECRET='field-integration-local-only-12345678901234567890';delete process.env.PRIVATE_ACCESS_EMAIL;
  const file='/tmp/mobile-session-'+randomUUID()+'.json';execFileSync('npm',['run','test:field','--','--fixture='+file],{stdio:'pipe'});const f=JSON.parse(readFileSync(file,'utf8'));unlinkSync(file);
  const db=postgres(process.env.DATABASE_URL,{onnotice:()=>{}}),base=process.argv.find(x=>x.startsWith('--server='))?.slice(9);if(base) {const url=new URL(base);assert(['127.0.0.1','localhost'].includes(url.hostname)&&url.port);}
  const {GET,POST}=await import('../app/api/mobile/v1/[...path]/route');const {NextRequest}=await import('next/server');let token='';

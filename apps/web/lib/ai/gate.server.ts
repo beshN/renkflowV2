@@ -21,18 +21,17 @@ export type AiSettings = {
 
 /**
  * A firm without a settings row: detectors on, no model call until the owner turns the model on
- * with the KVKK confirmation. Before migration 048 (no table) the old behaviour stays: model on.
+ * with the KVKK confirmation. A missing schema never implies consent.
  */
 export const DEFAULT_AI_SETTINGS: AiSettings = { mode: 'rules', kvkkAckAt: null, dailyBudgetUsd: null, userDailyCalls: 60, detectors: {}, features: {}, profitFloorPercent: 15 };
-const LEGACY_AI_SETTINGS: AiSettings = { ...DEFAULT_AI_SETTINGS, mode: 'assist', kvkkAckAt: 'before-048' };
 
 const cache = new Map<string, { at: number; value: AiSettings }>();
 const TTL = 15_000;
 
-export async function getAiSettings(tenantId: string): Promise<AiSettings> {
+export async function getAiSettings(tenantId: string, options: { fresh?: boolean } = {}): Promise<AiSettings> {
   const hit = cache.get(tenantId);
-  if (hit && Date.now() - hit.at < TTL) return hit.value;
-  let value = LEGACY_AI_SETTINGS;
+  if (!options.fresh && hit && Date.now() - hit.at < TTL) return hit.value;
+  let value = DEFAULT_AI_SETTINGS;
   if (await tableExists('ai_settings')) {
     value = DEFAULT_AI_SETTINGS;
     const [r] = await sql`SELECT * FROM ai_settings WHERE tenant_id = ${tenantId}`;
@@ -58,12 +57,14 @@ export const featureOn = (s: AiSettings, feature: string) => s.features[feature]
  */
 export async function assertModelAllowed(meta: { tenantId?: string | null; userId?: string | null }) {
   if (!meta.tenantId) return;
-  const s = await getAiSettings(meta.tenantId);
+  const s = await getAiSettings(meta.tenantId, { fresh: true });
   let spentTodayUsd = 0;
   let userCallsToday = 0;
-  if (s.mode === 'assist' && (await tableExists('ai_usage'))) {
-    const [r] = await sql`SELECT coalesce(sum(cost_usd), 0) AS spent, count(*) FILTER (WHERE user_id = ${meta.userId ?? null})::int AS mine
+  if(s.mode==='assist' && !(await tableExists('ai_usage'))) throw new ModelBlockedError('AI_USAGE_UNAVAILABLE');
+  if (s.mode === 'assist') {
+    const [r] = await sql`SELECT coalesce(sum(cost_usd), 0) AS spent, count(*) FILTER (WHERE user_id = ${meta.userId ?? null})::int AS mine, count(*) FILTER (WHERE cost_usd IS NULL)::int AS unknown
       FROM ai_usage WHERE tenant_id = ${meta.tenantId} AND created_at >= date_trunc('day', now() AT TIME ZONE 'Europe/Istanbul') AT TIME ZONE 'Europe/Istanbul'`;
+    if(s.dailyBudgetUsd!==null && Number(r?.unknown ?? 0)>0) throw new ModelBlockedError('AI_PRICE_UNKNOWN');
     spentTodayUsd = Number(r?.spent ?? 0);
     userCallsToday = meta.userId ? Number(r?.mine ?? 0) : 0;
   }

@@ -1,3 +1,4 @@
+import { localTestDatabaseUrl } from './local-test-database';
 import mobileSpec from '../../../contracts/mobile/openapi.json';
 /** Technical field writes against disposable db:local, never production. */
 import assert from 'node:assert/strict';
@@ -6,7 +7,7 @@ import {execFileSync} from 'node:child_process';
 import {readFileSync,unlinkSync} from 'node:fs';
 import postgres from 'postgres';
 async function main() {
-  process.env.DATABASE_URL='postgres://postgres:renkflow-local-only@127.0.0.1:55432/renkflow_test';
+  process.env.DATABASE_URL=localTestDatabaseUrl();
   process.env.STORAGE_BACKEND='local';process.env.ALLOW_LOCAL_STORAGE='1';
   process.env.ALLOW_LOCAL_DATABASE='1';process.env.AUTH_SECRET='field-integration-local-only-12345678901234567890';delete process.env.PRIVATE_ACCESS_EMAIL;
   const file='/tmp/mobile-features-'+randomUUID()+'.json';

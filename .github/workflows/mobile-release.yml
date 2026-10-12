@@ -15,8 +15,10 @@ concurrency:
   cancel-in-progress: false
 jobs:
   verified:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS]
     steps:
+      - name: Require reviewed main
+        run: test "$GITHUB_REF" = refs/heads/main
       - uses: actions/checkout@v4
       - name: Require successful native tests for this exact commit
         env:
@@ -31,7 +33,7 @@ jobs:
   android:
     needs: verified
     if: inputs.platform == 'android' || inputs.platform == 'both'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS]
     defaults:
       run:
         working-directory: apps/native-android
@@ -76,7 +78,7 @@ jobs:
   ios:
     needs: verified
     if: inputs.platform == 'ios' || inputs.platform == 'both'
-    runs-on: macos-15
+    runs-on: [self-hosted, macOS]
     defaults:
       run:
         working-directory: apps/native-ios

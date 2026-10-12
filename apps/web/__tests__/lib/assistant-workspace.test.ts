@@ -1,3 +1,5 @@
+jest.mock('@/auth',()=>({auth:jest.fn()}));
+jest.mock('@/lib/security/member-access.server',()=>({resolveMemberAccess:jest.fn(async()=>({base:'worker',roleKey:'operator',deactivated:false,permissions:{production:['view','edit'],inventory:['view']},hidden:['price','cost','profit','customer_contact']}))}));
 jest.mock("@/lib/features/manufacturing/quality.service",()=>({qualityAnalytics:jest.fn().mockResolvedValue({})}));
 jest.mock("@/lib/features/manufacturing/analytics.service",()=>({productionAnalytics:jest.fn().mockResolvedValue({centers:[],predictions:[]})}));
 import {assistantSnapshot,buildInsights} from '@/lib/ai/workspace';

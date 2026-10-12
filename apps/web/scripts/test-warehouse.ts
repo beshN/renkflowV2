@@ -1,3 +1,4 @@
+import { localTestDatabaseUrl } from './local-test-database';
 /** Real stock tests, exclusively against the isolated local database. */
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -8,7 +9,7 @@ async function main() {
   process.env.AUTH_SECRET =
     "warehouse-integration-local-test-secret-1234567890";
   process.env.DATABASE_URL =
-    "postgres://postgres:renkflow-local-only@127.0.0.1:55432/renkflow_test";
+    localTestDatabaseUrl();
   process.env.NATIVE_INVENTORY_ENABLED = "1";
   const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
   assert.equal(

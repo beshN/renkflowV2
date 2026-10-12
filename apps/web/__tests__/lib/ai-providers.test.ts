@@ -20,6 +20,9 @@ jest.mock('openai', () => jest.fn().mockImplementation((options: Record<string, 
 const usageRows: unknown[][] = [];
 jest.mock('@/lib/db', () => ({ sql: jest.fn((_s: TemplateStringsArray, ...values: unknown[]) => { usageRows.push(values); return Promise.resolve([]); }) }));
 
+// Provider/privacy tests isolate the consent gate; its deny/allow paths have separate coverage.
+jest.mock('@/lib/ai/gate.server', () => ({ assertModelAllowed: jest.fn(async () => {}), getAiSettings: jest.fn(async () => ({ dailyBudgetUsd: null })) }));
+
 import { AIService } from '@/lib/ai/service';
 import { activeProvider, providerConfig, providerUnavailable } from '@/lib/ai/providers';
 

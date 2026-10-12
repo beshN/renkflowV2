@@ -1,6 +1,16 @@
 name: Validate Web App
 
 on:
+  workflow_dispatch:
+    inputs:
+      release_database:
+        description: Run the reviewed release database audit after validation
+        type: boolean
+        default: false
+      apply_database_migrations:
+        description: Take an encrypted backup and apply migrations (requires release_database)
+        type: boolean
+        default: false
   pull_request:
     branches:
       - main
@@ -12,11 +22,14 @@ on:
     branches:
       - codex/**
 
+permissions:
+  contents: read
+
 # Aynı dalda yeni bir push gelince eski çalışma iptal olur; ayrıca aynı dal için hem `push` hem
 # `pull_request` çalışması tetiklenirse biri öbürünü iptal eder (Actions dakikası boşa gitmez).
 concurrency:
-  group: validate-${{ github.head_ref || github.ref_name }}
-  cancel-in-progress: true
+  group: validate-${{ github.head_ref || github.ref_name }}-${{ github.event_name == 'workflow_dispatch' && 'release' || 'ci' }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
   validate:
@@ -39,3 +52,11 @@ jobs:
 
       - name: Run backend and frontend validation gate
         run: npm --prefix apps/web run validate
+
+  release-database:
+    if: github.event_name == 'workflow_dispatch' && inputs.release_database
+    needs: validate
+    uses: ./.github/workflows/release-database.yml
+    with:
+      apply: ${{ inputs.apply_database_migrations }}
+    secrets: inherit

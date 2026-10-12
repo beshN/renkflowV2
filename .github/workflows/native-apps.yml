@@ -4,7 +4,7 @@ on:
   pull_request:
     paths: ['apps/native-*/**', 'apps/web/lib/features/field/**', 'apps/web/app/api/v1/field/**', 'apps/web/app/api/mobile/**', 'apps/web/lib/features/mobile/**', 'contracts/mobile/**', 'scripts/generate-mobile-contract.py', 'scripts/mobile/**', 'scripts/generate-native-ios-project.py', '.github/workflows/native-apps.yml']
   push:
-    branches: ['codex/mobile-integration']
+    branches: ['main', 'codex/mobile-integration']
     paths: ['apps/native-*/**', 'apps/web/lib/features/mobile/**', 'apps/web/app/api/mobile/**', 'contracts/mobile/**', 'scripts/mobile/**', '.github/workflows/native-apps.yml']
 permissions:
   contents: read
@@ -12,7 +12,7 @@ concurrency:
   group: native-${{ github.ref }}
   cancel-in-progress: true
 # GitHub-hosted runners are unavailable for this account; like validate.yml, every job runs on
-# the self-hosted Mac. Jobs there share one machine, so each frees the fixture ports first and last.
+# the self-hosted Mac. Jobs clean up only their own fixture processes and refuse occupied ports.
 jobs:
   mobile-contract:
     runs-on: [self-hosted, macOS]
@@ -48,9 +48,9 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-      - name: Free fixture ports
+      - name: Clean up owned fixture processes
         if: always()
-        run: for port in 3043 3022 55432; do lsof -nP -tiTCP:$port -sTCP:LISTEN | xargs kill 2>/dev/null || true; done
+        run: bash ../../scripts/mobile/cleanup-owned-fixture.sh
       - name: Start isolated local web contract server
         working-directory: apps/web
         run: |
@@ -92,9 +92,9 @@ jobs:
             apps/native-android/app/build/outputs/apk/debug/*.apk
             apps/native-android/app/build/reports/
             apps/native-android/app/build/screenshots/
-      - name: Free fixture ports
+      - name: Clean up owned fixture processes
         if: always()
-        run: for port in 3043 3022 55432; do lsof -nP -tiTCP:$port -sTCP:LISTEN | xargs kill 2>/dev/null || true; done
+        run: bash ../../scripts/mobile/cleanup-owned-fixture.sh
   ios:
     runs-on: [self-hosted, macOS]
     timeout-minutes: 45
@@ -108,9 +108,9 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-      - name: Free fixture ports
+      - name: Clean up owned fixture processes
         if: always()
-        run: for port in 3043 3022 55432; do lsof -nP -tiTCP:$port -sTCP:LISTEN | xargs kill 2>/dev/null || true; done
+        run: bash ../../scripts/mobile/cleanup-owned-fixture.sh
       - name: Start isolated local web contract server
         working-directory: apps/web
         run: |
@@ -145,6 +145,6 @@ jobs:
           path: |
             apps/native-ios/build/FieldTests.xcresult
             apps/native-ios/build/screenshots/
-      - name: Free fixture ports
+      - name: Clean up owned fixture processes
         if: always()
-        run: for port in 3043 3022 55432; do lsof -nP -tiTCP:$port -sTCP:LISTEN | xargs kill 2>/dev/null || true; done
+        run: bash ../../scripts/mobile/cleanup-owned-fixture.sh

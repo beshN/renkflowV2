@@ -1,0 +1,80 @@
+name: Release Database
+on:
+  workflow_call:
+    inputs:
+      apply:
+        type: boolean
+        default: false
+    secrets:
+      PRODUCTION_DATABASE_URL_UNPOOLED:
+        required: false
+      PRODUCTION_DATABASE_BACKUP_KEY:
+        required: false
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Apply reviewed migrations after an encrypted backup
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: release-database-production
+  cancel-in-progress: false
+jobs:
+  schema:
+    runs-on: [self-hosted, macOS]
+    environment: production
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Require the production branch
+        working-directory: ${{ github.workspace }}
+        run: |
+          case "$GITHUB_REF" in
+            refs/heads/main|refs/heads/codex/release-completion) ;;
+            *) echo "Unreviewed release branch refused" >&2; exit 1 ;;
+          esac
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci --workspaces=false --legacy-peer-deps
+      - name: Audit release schema
+        if: inputs.apply != true
+        env:
+          DATABASE_URL_UNPOOLED: ${{ secrets.PRODUCTION_DATABASE_URL_UNPOOLED }}
+        run: node --import tsx scripts/release-database.ts
+      - name: Back up and apply reviewed migrations
+        if: inputs.apply == true
+        env:
+          DATABASE_URL_UNPOOLED: ${{ secrets.PRODUCTION_DATABASE_URL_UNPOOLED }}
+          PRODUCTION_DATABASE_BACKUP_KEY: ${{ secrets.PRODUCTION_DATABASE_BACKUP_KEY }}
+          RELEASE_BACKUP_FILE: ${{ runner.temp }}/renkflow-release-${{ github.run_id }}.dump.enc
+        run: |
+          if command -v pg_dump >/dev/null 2>&1; then
+            export PG_DUMP_BINARY="$(command -v pg_dump)"
+          elif [ -x /Applications/Postgres.app/Contents/Versions/latest/bin/pg_dump ]; then
+            export PG_DUMP_BINARY=/Applications/Postgres.app/Contents/Versions/latest/bin/pg_dump
+          elif [ -x "$HOME/.codex/tools/renkflow-postgres18/bin/pg_dump" ]; then
+            export PG_DUMP_BINARY="$HOME/.codex/tools/renkflow-postgres18/bin/pg_dump"
+          else
+            echo "PostgreSQL pg_dump client is required; migrations were not started." >&2
+            exit 1
+          fi
+          node --import tsx scripts/backup-release-database.ts
+          node --import tsx scripts/verify-release-backup.ts
+          RELEASE_DB_BACKUP_VERIFIED=1 node --import tsx scripts/release-database.ts --apply
+      - name: Preserve encrypted backup
+        if: inputs.apply == true && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: encrypted-release-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/renkflow-release-${{ github.run_id }}.dump.enc
+          if-no-files-found: ignore
+          retention-days: 7

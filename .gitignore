@@ -55,3 +55,6 @@ next-env.d.ts
 !**/.env.example
 !**/.env.*.example
 **/.data/
+
+# Encrypted release backups are CI artifacts, not source code.
+*.dump.enc

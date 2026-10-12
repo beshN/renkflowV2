@@ -18,6 +18,9 @@ jest.mock('openai/helpers/zod', () => ({ zodTextFormat: () => ({ type: 'json_sch
 const usageRows: unknown[][] = [];
 jest.mock('@/lib/db', () => ({ sql: jest.fn((_s: TemplateStringsArray, ...values: unknown[]) => { usageRows.push(values); return Promise.resolve([]); }) }));
 
+// Provider/privacy tests isolate the consent gate; its deny/allow paths have separate coverage.
+jest.mock('@/lib/ai/gate.server', () => ({ assertModelAllowed: jest.fn(async () => {}), getAiSettings: jest.fn(async () => ({ dailyBudgetUsd: null })) }));
+
 import { AIService } from '@/lib/ai/service';
 
 const PII = ['Örnek Yapı', 'ÖRNEK YAPI', 'Ayşe Demir', 'ayse@ornek.com', '532 111 22 33', 'Atatürk Cad. No:5'];

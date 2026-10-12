@@ -1,3 +1,4 @@
+import { localTestDatabaseUrl } from './local-test-database';
 /**
  * Integration test for the sales-to-service chain (gece 2, Tur 2) on the isolated local test
  * database only: lead → survey → quote → order → installation → customer sign-off → approved
@@ -10,7 +11,7 @@ import { randomUUID } from 'node:crypto';
 
 async function main() {
   process.env.AUTH_SECRET = 'integration-test-secret-local-only-1234567890';
-  process.env.DATABASE_URL = 'postgres://postgres:renkflow-local-only@127.0.0.1:55432/renkflow_test';
+  process.env.DATABASE_URL = localTestDatabaseUrl();
   const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
   assert.equal((await db`SELECT current_database() AS name`)[0].name, 'renkflow_test');
   for (const file of ['029_ai_suggestions.sql', '040_record_platform.sql', '041_quote_order_depth.sql', '044_access_control.sql', '045_sales_service_chain.sql', '045_sales_service_chain.sql'])

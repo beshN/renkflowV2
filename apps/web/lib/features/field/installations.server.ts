@@ -11,6 +11,7 @@ import {
   DEFAULT_INSTALL_CHECKLIST, INSTALLATION_STATUSES, installationConflicts, mapLink, minuteOf,
   type InstallationStatus, type PlannedInstallation,
 } from './engine';
+import { recordInstallationChange, queueInstallationDelivery } from './installation-lifecycle.server';
 import { hasCap, isoDay, nextNumber, requireCap, requireChain } from './common.server';
 
 const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
@@ -164,8 +165,7 @@ export async function updateInstallation(actor: WorkOrderActor, id: string, raw:
       crew_name = ${next.crew_name}, address = ${next.address}, notes = ${next.notes}, status = ${status},
       started_at = ${status === 'in_progress' && !before.started_at ? new Date() : before.started_at}, completed_at = ${status === 'done' ? before.completed_at ?? new Date() : null},
       version = version + 1, updated_at = now() WHERE tenant_id = ${actor.tenantId} AND id = ${id}`;
-    await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'installation', entityId: id, action: status !== before.status ? 'status_changed' : 'updated',
-      changes: changedFields({ ...before, scheduled_date: isoDay(before.scheduled_date), crew: (before.crew ?? []).map(String) }, next) });
+    await recordInstallationChange(tx, actor, id, before.status, status, changedFields({ ...before, scheduled_date: isoDay(before.scheduled_date), crew: (before.crew ?? []).map(String) }, next));
     return { orderId: String(before.order_id), done: status === 'done' && before.status !== 'done', conflicts: await conflictsFor(tx, actor.tenantId, id, next.scheduled_date) };
   });
   if (result.done) await suggestDelivered(actor.tenantId, id, actor.userId, 'Montaj tamamlandı olarak işaretlendi.');
@@ -261,16 +261,7 @@ export async function signDelivery(token: string, raw: unknown, client: { ip: st
   return { ok: true };
 }
 
-/** Files the approval-gated "mark the order delivered" suggestion (the kind decides when it may). */
-async function suggestDelivered(tenantId: string, installationId: string, actorId: string | null, why: string) {
-  try {
-    if (!(await tableExists('ai_suggestions'))) return;
-    const { fileDeliveredSuggestion } = await import('@/lib/ai/suggestions/kinds/mark-delivered');
-    await fileDeliveredSuggestion(tenantId, installationId, actorId, why);
-  } catch (error) {
-    console.error('[installations] delivered suggestion failed', error instanceof Error ? error.message : error);
-  }
-}
+const suggestDelivered = queueInstallationDelivery;
 
 /** Installations of an order (for the order screen's chain panel). */
 export async function installationsForOrder(actor: WorkOrderActor, orderId: string, accessChecked = false) {

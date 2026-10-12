@@ -121,11 +121,15 @@ export function StatementView() {
   const [error, setError] = useState('');
   const router = useRouter();
   const [customers, setCustomers] = useState<{ key: string; name: string }[] | null>(null);
-  // The picker lists customers with invoices or payments, so the page also works when opened directly.
+  const [customerError, setCustomerError] = useState('');
+  // Includes cancelled invoice history, not only today’s receivables.
   useEffect(() => {
     let current = true;
-    void requestJson<{ customers: { key: string; name: string }[] }>('/api/v1/finance/receivables', { cache: 'no-store' }).then((r) => {
-      if (current) setCustomers(r.ok && r.data ? r.data.customers.map(({ key, name }) => ({ key, name })) : []);
+    void requestJson<{ customers: { key: string; name: string }[] }>('/api/v1/finance/statement/customers', { cache: 'no-store' }).then((r) => {
+      if (current) {
+        if(r.ok && r.data) setCustomers(r.data.customers.map(({ key, name }) => ({ key, name })));
+        else { setCustomers([]); setCustomerError(r.error || 'Ekstre müşterileri alınamadı. Sayfayı yenileyip tekrar deneyin.'); }
+      }
     });
     return () => { current = false; };
   }, []);
@@ -146,7 +150,7 @@ export function StatementView() {
         <Link href="/finance/receivables" className="rf-secondary-button inline-flex items-center gap-1 text-sm"><ArrowLeft size={14} aria-hidden /> Alacaklar</Link>
         <label className="text-xs">Müşteri
           <select className="rf-input mt-1 block min-w-[200px]" value={key} onChange={(e) => pick(e.target.value)} disabled={!customers?.length}>
-            <option value="" disabled>{customers === null ? 'Yükleniyor…' : customers.length ? 'Müşteri seçin' : 'Faturalı müşteri yok'}</option>
+            <option value="" disabled>{customers === null ? 'Yükleniyor…' : customers.length ? 'Müşteri seçin' : 'Hesap hareketi olan müşteri yok'}</option>
             {customers?.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
           </select>
         </label>
@@ -154,9 +158,9 @@ export function StatementView() {
         <label className="text-xs">Bitiş<input type="date" className="rf-input mt-1 block" value={to} onChange={(e) => setTo(e.target.value)} /></label>
         <button type="button" className="rf-primary-button inline-flex items-center gap-1 text-sm disabled:opacity-50" onClick={() => window.print()} disabled={!s}><Printer size={14} aria-hidden /> Yazdır</button>
       </div>
-      {error && <p role="alert" className="rf-panel text-sm">{error}</p>}
+      {(error || customerError) && <p role="alert" className="rf-panel text-sm">{error || customerError}</p>}
       {!key ? (
-        <EmptyState icon={FileText} title={customers && !customers.length ? 'Henüz faturası ya da tahsilatı olan müşteri yok' : 'Ekstre için yukarıdan bir müşteri seçin'} action={{ label: 'Alacaklara git', href: '/finance/receivables' }} />
+        <EmptyState icon={FileText} title={customerError ? 'Müşteri listesi alınamadı' : customers && !customers.length ? 'Henüz faturası ya da tahsilatı olan müşteri yok' : 'Ekstre için yukarıdan bir müşteri seçin'} action={{ label: 'Alacaklara git', href: '/finance/receivables' }} />
       ) : !s ? (!error && <Skeleton className="h-48" />) : (
         <article className="rf-panel mx-auto max-w-3xl space-y-3 p-5 print:border-0" aria-label="Cari hesap ekstresi">
           <header className="flex flex-wrap justify-between gap-2">

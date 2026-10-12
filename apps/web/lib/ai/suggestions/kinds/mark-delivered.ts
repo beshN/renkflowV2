@@ -66,6 +66,8 @@ registerSuggestionKind<Payload>({
   label: 'Teslim edildi',
   payloadSchema: PayloadSchema,
   roles: ['owner', 'admin', 'office'],
+  access: { module: 'orders', action: 'edit' },
+  sensitive: ['customer_contact'],
   refresh,
   apply: async (tx, actor, payload) => {
     const [o] = await tx`SELECT status FROM orders WHERE tenant_id = ${actor.tenantId} AND id = ${payload.orderId} FOR UPDATE`;

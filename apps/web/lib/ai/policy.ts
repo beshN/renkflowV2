@@ -12,12 +12,14 @@ export const AI_MODE_LABELS: Record<AiMode, string> = {
   assist: 'Kural motoru + model',
 };
 
-export type ModelBlock = 'AI_OFF' | 'AI_RULES_ONLY' | 'AI_KVKK' | 'AI_BUDGET' | 'AI_USER_LIMIT';
+export type ModelBlock = 'AI_OFF' | 'AI_RULES_ONLY' | 'AI_KVKK' | 'AI_BUDGET' | 'AI_USER_LIMIT' | 'AI_PRICE_UNKNOWN' | 'AI_USAGE_UNAVAILABLE';
 export const MODEL_BLOCK_MESSAGES: Record<ModelBlock, string> = {
   AI_OFF: 'Asistan bu firmada kapalı (Ayarlar › Asistan).',
   AI_RULES_ONLY: 'Asistan yalnız kural motoruyla çalışıyor; model çağrısı kapalı (Ayarlar › Asistan).',
   AI_KVKK: 'Model çağrısı yurt dışına veri aktarımıdır; firma sahibi KVKK onayını Ayarlar › Asistan bölümünden vermeden model kullanılmaz.',
   AI_BUDGET: 'Asistanın bugünkü model bütçesi doldu; kural motoru çalışmaya devam ediyor.',
+  AI_USAGE_UNAVAILABLE: 'Model kullanım kaydı doğrulanamadı; model çağrısı kapalı.',
+  AI_PRICE_UNKNOWN: 'Model fiyatı tanımlı değil; günlük bütçe korunamadığı için model çağrısı kapalı.',
   AI_USER_LIMIT: 'Bugünkü asistan kullanım sınırınıza ulaştınız; yarın yeniden açılır.',
 };
 

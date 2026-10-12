@@ -1,3 +1,4 @@
+import { localTestDatabaseUrl } from './local-test-database';
 /** Integration test for the approval-gated suggestion queue, only on the isolated local test database. */
 import assert from 'node:assert/strict';
 import postgres from 'postgres';
@@ -7,7 +8,7 @@ import { z } from 'zod';
 
 async function main() {
   process.env.AUTH_SECRET = 'integration-test-secret-local-only-1234567890';
-  process.env.DATABASE_URL = 'postgres://postgres:renkflow-local-only@127.0.0.1:55432/renkflow_test';
+  process.env.DATABASE_URL = localTestDatabaseUrl();
   const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
   assert.equal((await db`SELECT current_database() AS name`)[0].name, 'renkflow_test');
   await db.unsafe(readFileSync('lib/db/migrations/029_ai_suggestions.sql', 'utf8'));

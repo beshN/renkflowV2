@@ -5,6 +5,8 @@ import { withTransaction } from '@/lib/db';
 import { recordAudit } from '@/lib/audit/audit-log';
 import { tableExists } from '@/lib/db/schema-guard';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
+import { resolveMemberAccess } from '@/lib/security/member-access.server';
+import { can } from '@/lib/security/access-matrix';
 import { AI_MODES } from './policy';
 import { forgetAiSettings, getAiSettings, type AiSettings } from './gate.server';
 
@@ -25,9 +27,12 @@ const SettingsInput = z.object({
 /** Owner and admins change the assistant; every change is on the audit trail. */
 export async function saveAiSettings(actor: { tenantId: string; userId: string; role: string }, raw: unknown) {
   if (actor.role !== 'owner' && actor.role !== 'admin') throw new WorkOrderApiError('Asistan ayarlarını yalnız firma sahibi ve yöneticiler değiştirir', 403);
+  const access=await resolveMemberAccess(actor.userId,actor.tenantId);
+  if(!access || access.deactivated) throw new WorkOrderApiError('Oturumunuz sona erdi.',401);
+  if(!can(access,'settings','edit')) throw new WorkOrderApiError('Asistan ayarlarını değiştirme yetkiniz yok.',403);
   if (!(await tableExists('ai_settings'))) throw new WorkOrderApiError('Asistan ayarları için veritabanı güncellemesi (048) bekleniyor', 409);
   const d = SettingsInput.parse(raw);
-  const before = await getAiSettings(actor.tenantId);
+  const before = await getAiSettings(actor.tenantId, { fresh: true });
   if (d.mode === 'assist' && before.mode !== 'assist' && !d.kvkkAck && !before.kvkkAckAt)
     throw new WorkOrderApiError('Model çağrısı yurt dışına veri aktarımıdır: açmadan önce KVKK onayını işaretleyin', 400);
   const detectors = { ...before.detectors };

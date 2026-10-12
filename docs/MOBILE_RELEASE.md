@@ -1,12 +1,12 @@
 # RenkFlow Saha: yerel test ve yayın hazırlığı
 
-Kod: Android Kotlin/Compose (Android 8+), iOS SwiftUI/SwiftData (iOS 17+). Sözleşme `contracts/mobile/openapi.json`; sürüm **1.2.0**, temel build **3**, minimum mobil sürüm **1.2.0**. Uygulama başlıkları aynı kaynaktan üretilir. Room şema dosyası repoda tutulur. iOS projesi deterministik Python üreticisinden gelir.
+Kod: Android Kotlin/Compose (Android 8+), iOS SwiftUI/SwiftData (iOS 17+). Sözleşme `contracts/mobile/openapi.json`; sürüm **1.2.1**, temel build **4**, minimum mobil sürüm **1.2.0**. Uygulama başlıkları aynı kaynaktan üretilir. Room şema dosyası repoda tutulur. iOS projesi deterministik Python üreticisinden gelir.
 
 ## Şu anki dağıtım durumu
 
-Production'a dağıtım, migration veya Vercel ortam değişikliği yapılmadı. Sürüm main'e alınmadan mevcut renkflow.com adresi yeni API'yi sunmaz. Test için mobil entegrasyonun aynı commit'iyle çalışan HTTPS test sunucusu gerekir. Kullanıcı girişi bir tenant'a ve saha yetkisine bağlıdır; demo veriler gerçek müşteri hesabı değildir.
+#65 main'e alınmış ve production Vercel dağıtımı READY durumundadır. Bu dokümandaki 1.2.1 değişiklikleri ayrı yayın adayıdır; production'a taşındığı veya mağazalara yüklendiği varsayılmamalıdır.
 
-GitHub yeni işlerin başlamasını şu nedenle reddetti: **“recent account payments have failed or your spending limit needs to be increased”**. Billing & plans ayarı hesap sahibince çözülmeden son iOS/CI sonucu ve otomatik merge tamamlanamaz. Hesap ayarı değiştirilmedi.
+Native ve web CI self-hosted Mac runner kullanır. 12 Ekim 2026 yerel doğrulamasında iOS 20 birim/API testi + 1 UI testi; Android 12 birim/API testi + 11 emülatör testi geçti. Android debug derleme ve lint de geçti. İmzalı mağaza paketi ve fiziksel cihaz dağıtımı ayrı doğrulama ister.
 
 ## Yerel Android
 
@@ -35,11 +35,11 @@ xcodebuild test -project RenkflowField.xcodeproj -scheme RenkflowField \
   CODE_SIGN_ENTITLEMENTS="$PWD/RenkflowField/Simulator.entitlements"
 ```
 
-Simülatörün adı bilgisayarınızda farklıysa `xcrun simctl list devices available` ile bulunan adı kullanın. Simulator.entitlements yalnız CI/test için ad-hoc kimliktir; gerçek cihaz/mağaza imzasında kullanılmaz. Son Keychain test imzası düzeltmesi CI ödeme engeli yüzünden henüz doğrulanmadı.
+Simülatörün adı bilgisayarınızda farklıysa `xcrun simctl list devices available` ile bulunan adı kullanın. Simulator.entitlements yalnız CI/test için ad-hoc kimliktir; gerçek cihaz/mağaza imzasında kullanılmaz. Keychain/oturum testleri ve ad-hoc simülatör test imzası yerel XCTest koşusunda doğrulandı; bu sonuç distribution imzasının doğrulandığı anlamına gelmez.
 
 ## Mac olmadan iOS
 
-GitHub Actions **Native Field Apps** macOS runner'da simülatör derlemesi ve testleri çalıştırır. TestFlight için ayrıca ücretli Apple Developer Program üyeliği gerekir. Apple hesabı, dağıtım sertifikası ve App Store profile olmadan iPhone'a kurulabilir TestFlight paketi üretilemez. IPA oluşturulmuş olması TestFlight'a yüklenmiş olduğu anlamına gelmez.
+GitHub Actions **Native Field Apps** self-hosted macOS runner'da simülatör derlemesi ve testleri çalıştırır. TestFlight için ayrıca ücretli Apple Developer Program üyeliği gerekir. Apple hesabı, dağıtım sertifikası ve App Store profile olmadan iPhone'a kurulabilir TestFlight paketi üretilemez. IPA oluşturulmuş olması TestFlight'a yüklenmiş olduğu anlamına gelmez.
 
 ## Yayın numarası ve Android imzası
 
@@ -58,7 +58,7 @@ GitHub repository secrets:
 
 Bu değerler sağlanmadı; imzalı AAB **doğrulanmadı**. Yerelde `ANDROID_KEYSTORE_PATH` ve diğer üç değişkeni ayarlayıp `./gradlew :app:bundleRelease` kullanılabilir. Anahtarsız release çıktısı varsa imzasızdır, Play'e yüklenebilir diye sunulmaz. Keystore/şifre/provisioning dosyalarını repoya veya loga koymayın.
 
-Play Console'da `com.renkflow.field` uygulamasını oluşturun; Internal testing kanalına imzalı AAB yükleyin, test kullanıcı listesini ekleyip opt-in bağlantısını paylaşın. İç test de Play geliştirici hesabı gerektirir.
+Dağıtım yalnız şirket ekibinedir. Play Console'da `com.renkflow.field` uygulaması için önce Internal testing, ardından ekip listesiyle Closed testing kanalı kullanılmalıdır; herkese açık production mağaza yayını kapsam dışıdır. İç test de Play geliştirici hesabı gerektirir.
 
 ## iOS imza ve TestFlight
 
@@ -77,10 +77,18 @@ TestFlight'a yükleme sonraki açık yayın işlemi olacaktır. Mac kullanan ki�
 
 ## Sunucu migration'ları
 
-Mobil migration 001–004 yalnız test DB'ye uygulandı. Canlıya geçiş, şema incelemesi/yedekleme ve ayrı migration işlemi gerektirir; bu çalışmada yapılmadı. 004 mevcut night-2 `user_sessions` yapısıyla uyumludur. Şema yoksa API 503 verir, uzak DDL otomatik çalıştırmaz. Dağıtımda kalıcı dosya depolaması mevcut web sağlayıcısı üzerinden ayarlanmalıdır; local storage yalnız test içindir.
+Mobil migration 001–004 izole test DB'ye uygulandı; production uygulama durumu ayrıca denetlenmelidir. `Release Database` workflow'u audit modunda çalışır; apply seçildiğinde önce AES-256-GCM şifreli pg_dump yedeği alınır, kimlik doğrulama etiketi ve PostgreSQL arşiv imzası doğrulanır, ardından 040–048 ve mobil migration'lar aynı release kilidi altında uygulanır. Migration'lar build sırasında çalışmaz. GitHub `PRODUCTION_DATABASE_URL_UNPOOLED` secret'ı gerekir; yedek anahtarı `PRODUCTION_DATABASE_BACKUP_KEY` altında tutulur. Bağlantı veya doğrulanmış yedek yoksa apply başlamaz. Main'e birleşmeden önce denetim gerektiğinde `Validate Web App` workflow'u `codex/release-completion` ref'i üzerinde release_database girdisiyle kullanılabilir. 004 mevcut night-2 `user_sessions` yapısıyla uyumludur. Şema yoksa API 503 verir, uzak DDL otomatik çalıştırmaz. Dağıtımda kalıcı dosya depolaması mevcut web sağlayıcısı üzerinden ayarlanmalıdır; local storage yalnız test içindir.
 
 ## Bağlanmamış sağlayıcılar ve sınırlar
 
 FCM/APNs ve analitik/hata sağlayıcıları **bağlanmadı**. Push cihaz kaydı ve gönderici soyutlaması var; uzaktan bildirim teslimi yok. Yerel bildirim test düğmesi OS izinlerini kullanır. Analitik/hata sınırı yalnız adsız enum olayları kabul eder; kullanıcı/tenant/job kimliği, not, fotoğraf, adres veya jeton kabul etmez.
 
 Montaj adres/harita/müşteri onay bağlantısı mevcut çalışan yetki sınırı nedeniyle kapalıdır. Çevrimdışı start/pause olayları sunucunun mevcut süre kurallarına göre teslim zamanında uygulanır; gerçek çevrimdışı çalışma süresinin bordro/performans kaydı olarak doğruluğu garanti edilmez. Fiziksel saha bağlantısı ve OS arka plan zamanlaması doğrulanmadı.
+
+## Test süreçlerinin izolasyonu
+
+`LOCAL_DATABASE_PORT` yalnız loopback test portunu değiştirir; veritabanı adı ve kimlik bilgileri dış sunucuya yönlendirilemez. Mobil fixture varsayılan olarak 56432 kullanır. Meşgul porttaki yabancı süreçler kapatılmaz. Cleanup yalnız aynı çalışma klasöründe başlatılıp PID dosyasına kaydedilen süreçleri durdurur.
+
+## TestFlight süresi
+
+TestFlight şirket içi beta dağıtımıdır; build'ler 90 gün geçerlidir. Ekip dağıtımının devamı için süre dolmadan yeni doğrulanmış ve imzalı build yayımlanmalıdır. App Store Connect erişimi olmayan ekip üyeleri için özel TestFlight tester grubu kullanılır; gerekirse Apple beta incelemesi tamamlanır.

@@ -4,15 +4,20 @@ import { createHash } from 'node:crypto';
 import { AssistantActionSchema,safeAssistantHref } from '@/lib/ai/assistant-contract';
 import { DocumentExtractionSchema } from '@/lib/ai/extraction';
 import { sql,withTransaction } from '@/lib/db';
-import { hasPermission,canAccessRoute } from '@/lib/features/auth/permissions';
+import { hasPermission } from '@/lib/features/auth/permissions';
 import { requireWorkOrderActor,WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
+import { assistantAccess, assistantRouteAllowed } from '@/lib/ai/workspace-access.server';
+import { can } from '@/lib/security/access-matrix';
 const schema=z.object({commandId:z.uuid(),action:AssistantActionSchema});
 export async function POST(req:NextRequest) {
  try {
   requireSameOriginJson(req,100000);const a=await requireWorkOrderActor(),text=await req.text();if(Buffer.byteLength(text)>100000)throw new WorkOrderApiError('İstek çok büyük',413);
   const {commandId,action}=schema.parse(JSON.parse(text));
-  if(action.kind==='navigate') {const href=safeAssistantHref(action.href);if(!href || !canAccessRoute(a.role,new URL(href,'https://internal.invalid').pathname))throw new WorkOrderApiError('Bu ekran mevcut rolünüz için kullanılamıyor.',403);return NextResponse.json({href});}
+  const access=await assistantAccess(a);
+  if(action.kind!=='navigate' && !can(access,'orders',action.kind==='orderNote'?'edit':'create')) throw new WorkOrderApiError('Bu işlem için yetkiniz yok.',403);
+  if(action.kind==='orderDraft' && !can(access,'production','view')) throw new WorkOrderApiError('Sipariş taslağını inceleme yetkiniz yok.',403);
+  if(action.kind==='navigate') {const href=safeAssistantHref(action.href);if(!href || !assistantRouteAllowed(access,new URL(href,'https://internal.invalid').pathname))throw new WorkOrderApiError('Bu ekran mevcut rolünüz için kullanılamıyor.',403);return NextResponse.json({href});}
   const hash=createHash('sha256').update(JSON.stringify({kind:'assistant',action})).digest('hex');
   const result=await withTransaction(async(tx:any)=>{
    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${a.tenantId},0))`;

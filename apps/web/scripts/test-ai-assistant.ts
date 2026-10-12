@@ -1,3 +1,4 @@
+import { localTestDatabaseUrl } from './local-test-database';
 /**
  * Integration test for the proactive assistant (gece 3) on the isolated local test database only:
  * settings and the KVKK switch, the model gate (off / rules / budget / daily calls), a detector's
@@ -12,7 +13,7 @@ import { z } from 'zod';
 
 async function main() {
   process.env.AUTH_SECRET = 'integration-test-secret-local-only-1234567890';
-  process.env.DATABASE_URL = 'postgres://postgres:renkflow-local-only@127.0.0.1:55432/renkflow_test';
+  process.env.DATABASE_URL = localTestDatabaseUrl();
   const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
   assert.equal((await db`SELECT current_database() AS name`)[0].name, 'renkflow_test');
   for (const file of ['029_ai_suggestions.sql', '044_access_control.sql', '045_sales_service_chain.sql', '046_fleet.sql', '047_finance_foundation.sql', '048_ai_assistant.sql', '048_ai_assistant.sql']) await db.unsafe(readFileSync(`lib/db/migrations/${file}`, 'utf8'));

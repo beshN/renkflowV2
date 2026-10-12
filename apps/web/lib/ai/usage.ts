@@ -1,7 +1,8 @@
 import 'server-only';
 
+import { ModelBlockedError } from './policy';
 import { sql } from '@/lib/db';
-import { assertModelAllowed } from './gate.server';
+import { assertModelAllowed, getAiSettings } from './gate.server';
 
 /** Who a model request was made for; written next to its tokens, latency and cost. */
 export type AIRequestMeta = {
@@ -21,7 +22,7 @@ export function modelPrice(model: string): { input: number; output: number } | n
   try {
     const table = JSON.parse(process.env.AI_MODEL_PRICES_USD_PER_MTOK || '{}') as Record<string, { input?: unknown; output?: unknown }>;
     const entry = table[model];
-    if (!entry || typeof entry.input !== 'number' || typeof entry.output !== 'number') return null;
+    if (!entry || typeof entry.input !== 'number' || typeof entry.output !== 'number' || !Number.isFinite(entry.input) || !Number.isFinite(entry.output) || entry.input < 0 || entry.output < 0) return null;
     return { input: entry.input, output: entry.output };
   } catch {
     return null;
@@ -61,7 +62,11 @@ export async function recordAIUsage(entry: AIRequestMeta & { provider: string; m
 /** Runs one model call and records its usage, latency and outcome; errors are rethrown, never replaced. */
 export async function withUsage<T extends { usage?: Tokens }>(meta: AIRequestMeta | undefined, provider: string, model: string, call: () => Promise<T>): Promise<T> {
   // The firm's assistant mode and spend caps come first: a refused call never reaches the provider.
-  if (meta?.tenantId) await assertModelAllowed(meta);
+  if (meta?.tenantId) {
+    await assertModelAllowed(meta);
+    if ((await getAiSettings(meta.tenantId, { fresh: true })).dailyBudgetUsd !== null && !modelPrice(model))
+      throw new ModelBlockedError('AI_PRICE_UNKNOWN');
+  }
   const started = Date.now();
   let response: T;
   try {
