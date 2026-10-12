@@ -5,6 +5,8 @@ Bu belge yapılan işleri ve yayın için gerçek dış bağımlılıkları ayı
 ## Tamamlanan kod işleri
 
 - Genel istek yetki kapısı, oturum iptali ve gizli alan başlığı güncel üyelikten okunur; eski kimlik önbelleği izin olarak kullanılmaz.
+- Sunucu işlemleri iptal edilmiş oturumu yeniden kontrol eder. Cookie yenilemesi uzaktan kapatılmış eski oturumu canlandıramaz; silinen kayıtlı oturum reddedilir.
+- #60'taki kişisel mobil cihaz ekranı yayın adayına alındı: hesap sayfasından erişilir, süresi dolmuş oturumları gösterir ve kapatma sırasında bekleme durumu sunar. İşlem sahibi sunucudaki kimlikten seçilir.
 - Asistan snapshot, arama ve işlem uçları güncel özel rol matrisini kullanır. Yasak modül sorgulanmaz; gizli alanlar model girdisinden çıkarılır. Kullanıcı rolü işlem sırasında değişirse yeni temel rol esas alınır.
 - Eksik AI şeması/ayar kaydı gerçek onay yerine geçmez. Model kapısı güncel modu yeniden okur; kullanım kaydı yoksa veya tanımlı bütçenin maliyeti hesaplanamıyorsa sağlayıcı çağrısı başlamaz.
 - Web ve mobil montaj değişiklikleri ortak denetim kaydı kullanır. Mobil tamamlamada teslim önerisi hemen dosyalanır; post-commit başarısızlıkta mevcut kuyruk yenilemesi tekrar dener. Öneri onayı özel rolün sipariş düzenleme yetkisine bağlıdır.
@@ -21,7 +23,7 @@ Bu belge yapılan işleri ve yayın için gerçek dış bağımlılıkları ayı
 
 | Kontrol | Sonuç |
 | --- | --- |
-| Jest | 126 paket, 853 test başarılı |
+| Jest | 128 paket, 860 test başarılı |
 | TypeScript / ESLint / backend guard / tenant guard / env audit | Başarılı |
 | Production build | Başarılı |
 | İzole PostgreSQL | Kayıt, satış, üretim, stok, yetki, CRM–montaj, filo, finans ve AI entegrasyonları başarılı |

@@ -72,7 +72,7 @@ function isPublicPage(pathname: string): boolean {
 const APP_SEGMENTS = new Set([
   'account', 'accounting', 'api', 'assistant', 'audit', 'auth', 'calendar', 'crm', 'dashboard', 'factory', 'finance',
   'installations', 'inventory', 'kanban', 'leads', 'new-order', 'notifications', 'orders', 'production', 'products',
-  'purchases', 'q', 'quotations', 'receipts', 'reports', 'scrap', 'search', 'service', 'settings', 'shipments', 'signup',
+  'mobile-devices', 'purchases', 'q', 'quotations', 'receipts', 'reports', 'scrap', 'search', 'service', 'settings', 'shipments', 'signup',
   'suppliers', 'team', 'teklif', 'teslim', 'track', 'vehicles', 'warehouse', 'work-orders',
 ]);
 

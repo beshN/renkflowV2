@@ -4,6 +4,7 @@ declare module 'next-auth' {
   interface Session {
     /** The tracked sign-in (user_sessions.id); absent for sign-ins from before session tracking. */
     sessionId?: string;
+    issuedAt?: number;
     user: {
       id: string;
       tenantId?: string;

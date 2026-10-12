@@ -23,11 +23,11 @@ export async function refreshSessionIdentity(token: JWT): Promise<JWT | null> {
   `;
   if (!identity || !isPrivateAccessAllowed(identity.email)) return null;
   // A deactivated member, or a sign-in closed from the sessions screen (or by "sign out everywhere"), ends here.
-  // Read through the short cache: this runs on every auth() call; the data guards
-  // (requireWorkOrderActor, getServerUserContext) re-read the membership fresh.
+  // Membership hints may use the short cache; the data guards read them fresh.
+  // Revocation must be fresh before NextAuth can renew the cookie's issued-at time.
   const access = await resolveMemberAccess(identity.id, identity.tenant_id, { cached: true });
   if (!access || access.deactivated) return null;
-  if (await sessionRevoked(identity.id, typeof token.sid === "string" ? token.sid : null, typeof token.iat === "number" ? token.iat : null, { cached: true })) return null;
+  if (await sessionRevoked(identity.id, typeof token.sid === "string" ? token.sid : null, typeof token.iat === "number" ? token.iat : null)) return null;
   if (typeof token.sid === "string") await touchSession(token.sid);
   return {
     ...token,

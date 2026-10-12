@@ -78,7 +78,7 @@ export async function sessionRevoked(userId: string, sid: string | null, iat: nu
   let revoked = Boolean(u?.sessions_valid_after && iat != null && iat < Math.floor(new Date(u.sessions_valid_after).getTime() / 1000));
   if (!revoked && sid) {
     const [s] = await db()`SELECT revoked_at FROM user_sessions WHERE id = ${sid} AND user_id = ${userId}`;
-    revoked = Boolean(s?.revoked_at);
+    revoked = !s || Boolean(s.revoked_at);
   }
   sessionCache.set(key, { at: Date.now(), revoked });
   if (sessionCache.size > 10_000) sessionCache.clear();

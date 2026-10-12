@@ -261,3 +261,5 @@ Adım 6 başlangıcı: 2026-10-09 22:17 UTC. Yayın hesabı/imza bilgileri yok; 
 - Güncel ana API production build üzerinde gerçek HTTP saha 6 + sync 4 + oturum 4 grubu geçti. Yerel web validate 92 paket/630 test başarılı. iOS son kaynak için başarılı native CI henüz yok; Keychain/test imzası düzeltmesi doğrulanmadı.
 - Kod ve belge taslak PR #59; güvenli oturum PR #58; ayrı web cihaz yüzeyi taslak PR #60. #54–57 yalnız mobil entegrasyona alındı; #58–60 CI geçmediği için alınmadı.
 - iOS simülatör/TestFlight/Play iç test talimatı: `docs/MOBILE_RELEASE.md`. API tek kaynak: `contracts/mobile/openapi.json`.
+
+Web self-service: `/account` içinden `/mobile-devices` sayfasına ulaşılır. Her action güncel giriş ve üyelik üzerinden yalnız kendi cihazlarını kapatır; bekleyen saha kayıtları cihazda korunur.

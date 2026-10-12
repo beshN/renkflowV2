@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { resolveMemberAccess } from '@/lib/security/member-access.server';
+import { resolveMemberAccess, sessionRevoked } from '@/lib/security/member-access.server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
 import { UserRole } from '@/lib/features/auth/permissions';
@@ -61,6 +61,9 @@ export async function requireWorkOrderActor(): Promise<WorkOrderActor> {
   if (!access || access.deactivated) {
     throw new WorkOrderApiError('Unauthorized', 401);
   }
+
+  if ((session.sessionId || session.issuedAt !== undefined) && await sessionRevoked(session.user.id, session.sessionId ?? null, session.issuedAt ?? null))
+    throw new WorkOrderApiError('Oturumunuz kapatıldı.', 401);
 
   return {
     userId: session.user.id,

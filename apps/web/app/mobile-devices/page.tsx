@@ -1,16 +1,32 @@
 import Link from 'next/link';
-import {deviceOwner} from './identity';
-import {revokeDevice} from './actions';
-import {mobileDevices} from '@/lib/features/mobile/sessions';
+import { deviceOwner } from './identity';
+import { revokeDevice } from './actions';
+import { RevokeButton } from './RevokeButton';
+import { mobileDevices } from '@/lib/features/mobile/sessions';
+import { WorkOrderApiError } from '@/lib/features/work-orders/security';
+import { PageHeader } from '@/components/kit';
+
 export const dynamic='force-dynamic';
+const date=(value:string)=>new Intl.DateTimeFormat('tr-TR',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Istanbul'}).format(new Date(value));
+
 export default async function MobileDevicesPage() {
- const owner=await deviceOwner(),{devices}=await mobileDevices(owner.userId,owner.tenantId);
- return <main className="min-h-screen bg-background px-6 py-12 text-foreground"><div className="mx-auto max-w-3xl space-y-8">
-  <Link href="/dashboard" className="text-sm underline underline-offset-4">Panele dön</Link>
-  <div><p className="mb-2 text-xs uppercase tracking-widest text-muted-foreground">RenkFlow Saha</p><h1 className="text-3xl font-semibold">Mobil cihazlarınız</h1><p className="mt-3 text-muted-foreground">Bir cihazın oturumunu kapattığınızda erişimi hemen kesilir. Bekleyen saha kayıtları o cihazda korunur; göndermek için yeniden giriş gerekir.</p></div>
-  {devices.length===0?<p className="rounded-xl border p-6">Henüz mobil oturum açılmamış.</p>:<ul className="space-y-3">{devices.map((device:{id:string;platform:string;lastSeenAt:string;revoked:boolean})=><li key={device.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-6">
-   <div><h2 className="font-semibold">{device.platform==='ios'?'iPhone / iPad':'Android'}</h2><p className="mt-1 text-sm text-muted-foreground">Son giriş: {new Intl.DateTimeFormat('tr-TR',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Istanbul'}).format(new Date(device.lastSeenAt))}</p><p className="mt-1 text-sm">{device.revoked?'Oturum kapatıldı':'Etkin oturum'}</p></div>
-   {!device.revoked&&<form action={revokeDevice}><input type="hidden" name="id" value={device.id}/><button className="min-h-12 rounded-lg border px-4 font-medium hover:bg-muted" type="submit">Oturumu kapat</button></form>}
-  </li>)}</ul>}
- </div></main>;
+  const owner=await deviceOwner();
+  let data:Awaited<ReturnType<typeof mobileDevices>>;
+  try { data=await mobileDevices(owner.userId,owner.tenantId,{includeExpiry:true}); }
+  catch(error) {
+    if(!(error instanceof WorkOrderApiError) || error.status!==503) throw error;
+    return <main className="rf-page mx-auto max-w-3xl py-8"><p role="alert" className="rf-panel">Mobil cihaz bilgileri şu anda alınamıyor. Biraz sonra tekrar deneyin.</p><Link href="/account" className="rf-secondary-button mt-4 inline-flex">Hesabıma dön</Link></main>;
+  }
+  return <main className="rf-page mx-auto max-w-3xl space-y-5 py-8">
+    <Link href="/account" className="text-sm text-muted-foreground underline underline-offset-4">Hesabıma dön</Link>
+    <PageHeader eyebrow="Hesabım" title="Mobil cihazlarım" hint="Bir cihazın oturumunu kapattığınızda erişimi kesilir. Bekleyen saha kayıtları o cihazda korunur; göndermek için yeniden giriş gerekir." />
+    {data.devices.length===0 ? <p className="rf-panel text-sm text-muted-foreground">Henüz mobil oturum açılmamış.</p> : <ul className="space-y-3">{data.devices.map(device=>{
+      const expired=Boolean(device.expiresAt && new Date(device.expiresAt).getTime()<=Date.now());
+      const closed=device.revoked || expired;
+      return <li key={device.id} className="rf-panel flex flex-wrap items-center justify-between gap-4">
+        <div><h2 className="font-semibold">{device.platform==='ios' ? 'iPhone / iPad' : 'Android'}</h2><p className="mt-1 text-xs text-muted-foreground">Son etkinlik: {date(device.lastSeenAt)}</p><p className="mt-1 text-sm">{device.revoked ? 'Oturum kapatıldı' : expired ? 'Oturumun süresi doldu' : 'Etkin oturum'}</p></div>
+        {closed ? null : <form action={revokeDevice}><input type="hidden" name="id" value={device.id}/><RevokeButton /></form>}
+      </li>;
+    })}</ul>}
+  </main>;
 }

@@ -108,6 +108,18 @@ async function main() {
   assert.equal(await access.sessionRevoked(ids.accountant, null, iat), true, 'tokens issued before "close all" no longer count');
   assert.equal(await access.sessionRevoked(ids.accountant, sid2, Math.floor(Date.now() / 1000) + 2), true);
 
+  // Another process may revoke a session without clearing this process's hint cache.
+  const remoteSid = await identity.openSession(ids.office, tenantId);
+  assert.ok(remoteSid);
+  assert.equal(await access.sessionRevoked(ids.office, remoteSid, iat, { cached: true }), false);
+  await db`UPDATE user_sessions SET revoked_at=now() WHERE id=${remoteSid}`;
+  assert.equal(await identity.refreshSessionIdentity({ id: ids.office, tenantId, sid: remoteSid, iat }), null, 'revoked cookie cannot renew using a cached allowance');
+  assert.equal(await access.sessionRevoked(ids.office, null, iat, { cached: true }), false);
+  await db`UPDATE users SET sessions_valid_after=now() WHERE id=${ids.office}`;
+  assert.equal(await identity.refreshSessionIdentity({ id: ids.office, tenantId, iat }), null, 'legacy cookie cannot renew after a remote sign-out-everywhere');
+  await db`DELETE FROM user_sessions WHERE id=${remoteSid}`;
+  assert.equal(await access.sessionRevoked(ids.office, remoteSid, Math.floor(Date.now() / 1000)+2), true, 'deleted tracked sessions remain invalid');
+
   // A manager closes a member's sessions in this firm only (the person may belong to other firms).
   const otherTenant = randomUUID();
   await db`INSERT INTO tenants (id, name, slug) VALUES (${otherTenant}, 'Başka Firma', ${'other-' + otherTenant.slice(0, 8)})`;

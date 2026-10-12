@@ -7,7 +7,7 @@
  * 3. Handle authorization errors
  */
 
-import { resolveMemberAccess } from '@/lib/security/member-access.server';
+import { resolveMemberAccess, sessionRevoked } from '@/lib/security/member-access.server';
 import { DEFAULT_PRESET, can, permissionRequirement, type FieldGroup, type Matrix } from '@/lib/security/access-matrix';
 import 'server-only';
 import { auth } from '@/auth';
@@ -76,6 +76,8 @@ export async function getServerUserContext(): Promise<ServerUserContext> {
   }
   const access = await resolveMemberAccess(session.user.id, session.user.tenantId);
   if (!access || access.deactivated) throw new AuthenticationError('Firma üyeliğiniz artık aktif değil');
+  if ((session.sessionId || session.issuedAt !== undefined) && await sessionRevoked(session.user.id, session.sessionId ?? null, session.issuedAt ?? null))
+    throw new AuthenticationError('Oturumunuz kapatıldı. Yeniden giriş yapın.');
   const membership = { role: access.base };
 
   return {

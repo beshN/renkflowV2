@@ -308,6 +308,7 @@ export const authConfig: NextAuthConfig = {
         session.user.tenantIndustry = token.tenantIndustry as string;
         session.user.templateKey = token.templateKey as string;
         session.sessionId = typeof token.sid === 'string' ? token.sid : undefined;
+        session.issuedAt = typeof token.iat === 'number' ? token.iat : undefined;
       }
       return session;
     },
