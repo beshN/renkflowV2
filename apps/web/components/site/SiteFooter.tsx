@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { BrandMark } from '@/components/brand/BrandMark';
-import { COMPANY, companyLegalName, socialLinks, telHref } from '@/lib/core/company';
+import { COMPANY, socialLinks, telHref } from '@/lib/core/company';
 
 const SOCIAL_LABELS: Record<string, string> = { instagram: 'Instagram', youtube: 'YouTube', linkedin: 'LinkedIn' };
 
@@ -34,7 +34,7 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-6 text-[12px] text-muted-foreground sm:px-8">
-          <span>© {new Date().getFullYear()} RenkFlow · {companyLegalName()}</span>
+          <span>© {new Date().getFullYear()} RenkFlow · {COMPANY.shortName}</span>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
             {socialLinks().map(({ network, url }) => (
               <a key={network} href={url} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">{SOCIAL_LABELS[network] ?? network}</a>

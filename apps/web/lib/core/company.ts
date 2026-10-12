@@ -9,9 +9,9 @@ export const COMPANY = {
   /** Trading name used across the site. */
   shortName: 'Renk Alüminyum',
   /** Full legal title as registered (ticaret unvanı), used as the KVKK data controller. */
-  legalName: '',
+  legalName: 'Renk Alüminyum Kepenk ve Çatı Sistemleri İnşaat San. Tic. Ltd. Şti.',
   /** Office address (also the KVKK contact address), single line. */
-  address: 'Orgeneral Eşref Bitlis Cd. Gençosman Mh. No:37/B, Güngören / İstanbul',
+  address: 'Gençosman Mah. Orgeneral Eşref Bitlis Cad. No: 37/B, 34165 Güngören / İstanbul',
   /** Phone in international format, e.g. +90 212 000 00 00. */
   phone: '+90 212 563 21 32',
   /** WhatsApp number in international format; digits are used for the wa.me link. */
@@ -21,10 +21,10 @@ export const COMPANY = {
   privacyEmail: '',
   /** Optional registry details shown in the privacy notice. */
   mersisNo: '',
-  taxOffice: '',
-  taxNumber: '',
+  taxOffice: 'Esenler',
+  taxNumber: '7340074530',
   /** Weekday support hours, e.g. "Hafta içi 09:00–18:00". */
-  hours: '',
+  hours: 'Hafta içi 09:00–18:30',
   social: {
     linkedin: '',
     instagram: 'https://www.instagram.com/renkaluminum/',
