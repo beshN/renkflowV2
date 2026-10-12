@@ -5,7 +5,7 @@ import '@/styles/design-system.css'
 import './globals.css'
 import '@/styles/workspace.css'
 import '@/styles/theme.css'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { ClientComponents } from '@/components/layout/ClientComponents'
 
@@ -23,6 +23,17 @@ const geistMono = Geist_Mono({
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://renkflow.com';
 
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#fbfbfb' },
+    { media: '(prefers-color-scheme: dark)', color: '#0d0d0f' },
+  ],
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
@@ -96,18 +107,6 @@ export default function RootLayout({
   return (
     <html lang="tr" suppressHydrationWarning>
       <head>
-        {/* Preconnect to Google Fonts for faster loading */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {/* Material Symbols loaded async to prevent render blocking */}
-        <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-          rel="stylesheet"
-        />
-        {/* PWA Meta Tags */}
-        <meta name="theme-color" content="#fbfbfb" />
-        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0b0c" />
-        <link rel="canonical" href={baseUrl} />
         
         {/* iOS PWA Configuration */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -115,8 +114,6 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="RenkFlow" />
         <link rel="apple-touch-icon" href="/logo-r.png" />
         
-        {/* Mobile Viewport */}
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         

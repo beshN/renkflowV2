@@ -57,8 +57,8 @@ export function WorkspaceHeader() {
       {detail && <><ChevronRight size={13} className="text-muted-foreground/60" /><span className="text-muted-foreground">Detay</span></>}
     </div>
     <div className="ml-auto flex shrink-0 items-center gap-1.5 md:gap-3">
-      <button type="button" onClick={openCommands} aria-label="Çalışma alanında ara" className="rf-global-search flex h-8 items-center gap-2 border border-border bg-card px-2.5 text-xs text-muted-foreground">
-        <Search size={15} /><span className="hidden xl:inline">Sipariş, müşteri veya modül ara</span><kbd className="rf-kbd hidden sm:inline-flex">⌘ K</kbd>
+      <button type="button" onClick={openCommands} aria-label="Sipariş, müşteri veya modül ara" aria-keyshortcuts="Meta+K Control+K" className="rf-global-search flex h-8 items-center gap-2 border border-border bg-card px-2.5 text-xs text-muted-foreground">
+        <Search size={15} /><span className="hidden xl:inline">Sipariş, müşteri veya modül ara</span><kbd aria-hidden="true" className="rf-kbd hidden sm:inline-flex">⌘ K</kbd>
       </button>
       {user && hasPermission(user.role, 'orders.create') && <Link href="/new-order" className="rf-primary-button !hidden h-8 items-center gap-1.5 px-3 text-xs sm:!inline-flex"><Plus size={15} /> Yeni sipariş</Link>}
       <div className="hidden h-6 w-px bg-border sm:block" />

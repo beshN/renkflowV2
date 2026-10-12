@@ -28,7 +28,7 @@ export function TearCalendar({ date = new Date() }: { date?: Date }) {
       type="button"
       onClick={() => setTears((n) => n + 1)}
       title="Yaprağı kopar"
-      aria-label={`Bugün ${day} ${month}`}
+      aria-label={`${month} ${day}, bugün`}
       className="group relative h-[46px] w-[42px] shrink-0 [perspective:300px]"
     >
       <span aria-hidden className="absolute inset-0 translate-y-[3px] scale-[0.94] rounded-[7px] border border-border bg-card" />

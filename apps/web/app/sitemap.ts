@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
 import { isComingSoonMode } from '@/lib/launch/comingSoonGate';
+import { blogPosts } from '@/lib/core/marketing-content';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,14 +42,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/docs',
     '/security',
     '/status',
-    '/auth/login',
     '/signup',
   ];
 
-  return staticPages.map((route) => ({
+  const pages: MetadataRoute.Sitemap = staticPages.map((route) => ({
     url: `${baseUrl}${route}`,
-    lastModified: new Date(),
     changeFrequency: route === '' ? 'weekly' : 'monthly',
     priority: route === '' ? 1 : route === '/pricing' ? 0.9 : 0.8,
   }));
+  const posts: MetadataRoute.Sitemap = blogPosts.map((post) => ({
+    url: `${baseUrl}/blog/${post.id}`,
+    changeFrequency: 'yearly',
+    priority: 0.6,
+  }));
+  return [...pages, ...posts];
 }

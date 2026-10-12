@@ -486,3 +486,9 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 /* Theme switch: the new theme grows as a circle from the toggle (see theme-reveal.ts). */
 ::view-transition-old(root),
 ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+
+/* Older screens use mid-grey -500 text without a dark: variant; on dark cards that
+   is ~3.7:1. Lift it to the muted token (≈6.9:1) unless a dark colour is set. */
+.dark :is(.text-slate-500, .text-gray-500, .text-zinc-500, .text-neutral-500):not([class*='dark:text-']) {
+  color: hsl(var(--muted-foreground));
+}

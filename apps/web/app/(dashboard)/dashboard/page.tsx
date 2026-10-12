@@ -84,7 +84,7 @@ function Lane({ title, icon: Icon, tone, orders, href, today, loading }: {
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
         {loading ? [0, 1, 2].map((i) => <Skeleton key={i} className="h-[92px] w-60 shrink-0" />)
           : orders.length ? orders.slice(0, 8).map((o) => <OrderMini key={o.id} order={o} today={today} />)
-          : <span className="grid h-[92px] w-60 shrink-0 place-items-center rounded-md border border-dashed border-border text-muted-foreground" aria-label="Boş"><PackageCheck size={20} aria-hidden /></span>}
+          : <span className="grid h-[92px] w-60 shrink-0 place-items-center rounded-md border border-dashed border-border text-muted-foreground" role="img" aria-label="Boş"><PackageCheck size={20} aria-hidden /></span>}
       </div>
     </section>
   );

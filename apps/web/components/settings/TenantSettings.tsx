@@ -105,9 +105,10 @@ export function TenantSettings() {
             />
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Üretim alanı</label>
+              <label htmlFor="tenant-template" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Üretim alanı</label>
               <div className="relative">
                 <select
+                  id="tenant-template"
                   value={formData.templateKey}
                   onChange={(e) => setFormData({ ...formData, templateKey: e.target.value as TemplateKey })}
                   className="w-full h-11 px-4 rounded-xl border border-slate-200/50 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm text-slate-900 dark:text-white appearance-none focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all text-sm shadow-sm"
@@ -138,10 +139,11 @@ export function TenantSettings() {
             />
             
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Marka Rengi</label>
+              <label htmlFor="tenant-brand-color" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Marka Rengi</label>
               <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800">
                 <div className="relative w-12 h-10 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
                    <input
+                    id="tenant-brand-color"
                     type="color"
                     value={formData.brandColor}
                     onChange={(e) => setFormData({ ...formData, brandColor: e.target.value })}
