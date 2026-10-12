@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import colors from "tailwindcss/colors";
 
 const config: Config = {
   darkMode: ["class"],
@@ -23,6 +24,11 @@ const config: Config = {
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
       },
       colors: {
+        // The design system is built on neutral greys. Blue-tinted slate/gray
+        // utilities left in older screens would show up as navy patches in dark
+        // mode, so both resolve to the same neutral scale as the theme tokens.
+        slate: colors.zinc,
+        gray: colors.zinc,
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

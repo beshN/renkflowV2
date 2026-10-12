@@ -33,6 +33,7 @@ import { ColorChip } from '@/components/colors/ColorSwatch';
 import { colorKey } from '@/lib/features/colors/color-spec';
 import { useToast } from '@/lib/context/ToastContext';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
+import { CopyChip } from '@/components/spells/CopyChip';
 
 type PdfViewerProps = { fileUrl: string; fileName: string; onClose?: () => void };
 const PDFViewer = dynamic<PdfViewerProps>(() => import('@/components/pdf-viewer/PDFViewerV2').then((m) => m.default), { ssr: false });
@@ -255,8 +256,9 @@ export default function OrderDetailPage() {
           <div className="rf-panel border border-border p-6 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-6">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                <h1 className="group flex items-center gap-1.5 text-2xl font-bold tracking-tight text-foreground">
                   Sipariş #{order.orderNumber}
+                  <CopyChip value={order.orderNumber} label="Sipariş numarasını" className="h-7 w-7 [&_svg]:h-3.5 [&_svg]:w-3.5" />
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {[order.customerName, order.customerCompany, formatDate(order.createdAt)].filter(Boolean).join(' · ')}

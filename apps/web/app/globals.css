@@ -531,7 +531,7 @@
 }
 
 .dark .skeleton-base {
-  background: linear-gradient(90deg, rgba(30, 41, 59, 0.5) 0%, rgba(51, 65, 85, 0.7) 45%, rgba(30, 41, 59, 0.5) 100%);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.08) 45%, rgba(255, 255, 255, 0.04) 100%);
 }
 
 .skeleton-shimmer {

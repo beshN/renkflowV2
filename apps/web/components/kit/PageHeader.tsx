@@ -15,8 +15,10 @@ const TONE: Record<NonNullable<Kpi['tone']>, string> = {
  * One header per page: eyebrow, a single h1, a live KPI strip (each KPI opens its list) and one
  * primary action. Explanations live in the (i) tip, not in sentences under the title.
  */
-export function PageHeader({ eyebrow, title, hint, kpis, action, className }: {
+export function PageHeader({ eyebrow, title, hint, kpis, action, leading, className }: {
   eyebrow?: React.ReactNode;
+  /** Shown to the left of the title block, e.g. a date tile. */
+  leading?: React.ReactNode;
   title: string;
   hint?: string;
   kpis?: Kpi[];
@@ -26,9 +28,12 @@ export function PageHeader({ eyebrow, title, hint, kpis, action, className }: {
   return (
     <header className={cn('space-y-3 border-b border-border pb-4', className)}>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          {eyebrow && <p className="rf-eyebrow">{eyebrow}</p>}
-          <h1 className="rf-page-title flex items-center gap-2">{title}{hint && <HintTip text={hint} />}</h1>
+        <div className="flex min-w-0 items-end gap-3">
+          {leading}
+          <div className="min-w-0">
+            {eyebrow && <p className="rf-eyebrow">{eyebrow}</p>}
+            <h1 className="rf-page-title flex items-center gap-2">{title}{hint && <HintTip text={hint} />}</h1>
+          </div>
         </div>
         {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
       </div>

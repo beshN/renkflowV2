@@ -23,6 +23,7 @@ import type { Order } from '@/lib/types';
 import { SavedOrderViews } from '@/components/features/orders/SavedOrderViews';
 import { readOrderFilters, orderFiltersQuery } from '@/lib/features/orders/saved-views';
 import { canViewFinancialFields } from '@/lib/auth/permissions';
+import { CopyChip } from '@/components/spells/CopyChip';
 
 const views: { id: OrderView; label: string }[] = [{ id: 'all', label: 'Tüm siparişler' }, { id: 'active', label: 'Aktif işler' }, { id: 'overdue', label: 'Gecikenler' }, { id: 'today', label: 'Bugün teslim' }, { id: 'completed', label: 'Tamamlanan' }];
 const filters: RFFilter[] = [{ key: 'status', label: 'Sipariş durumu', type: 'select', options: [...ORDER_STATUS_STEPS.map(step => ({ value: step.key, label: step.label })), { value: 'on_hold', label: 'Beklemede' }, { value: 'cancelled', label: 'İptal' }] }];
@@ -142,7 +143,7 @@ function OrdersWorkspace() {
     } finally { setDeleting(false); }
   }
   const columns: RFColumn<Order>[] = [
-    { key: 'orderNumber', label: 'Sipariş', width: 'w-32', render: (_, row) => <Link href={'/orders/' + row.id} onClick={event => event.stopPropagation()} className="font-semibold text-primary hover:underline">{row.orderNumber}</Link> },
+    { key: 'orderNumber', label: 'Sipariş', width: 'w-32', render: (_, row) => <span className="group inline-flex items-center gap-1"><Link href={'/orders/' + row.id} onClick={event => event.stopPropagation()} className="font-semibold text-primary hover:underline">{row.orderNumber}</Link><CopyChip value={row.orderNumber} label="Sipariş numarasını" /></span> },
     { key: 'customerName', label: 'Müşteri / ürün', render: (_, row) => <div className="min-w-[180px]"><p className="font-medium">{row.customerName}</p><p className="mt-1 max-w-[260px] truncate text-[11px] text-muted-foreground">{row.productName || 'Ürün belirtilmedi'}</p></div> },
     { key: 'quantity', label: 'Adet', align: 'right', width: 'w-16', render: value => <span className="tabular-nums">{value ?? '—'}</span> },
     { key: 'deliveryDate', label: 'Termin', width: 'w-36', render: (_, row) => editingDate === row.id

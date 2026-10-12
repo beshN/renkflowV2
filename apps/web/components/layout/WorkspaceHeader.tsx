@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
+import { switchThemeWithReveal } from '@/lib/shared/utils/theme-reveal';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Bell, ChevronRight, Menu, Moon, Plus, Search, Sun, X, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -61,7 +62,7 @@ export function WorkspaceHeader() {
       </button>
       {user && hasPermission(user.role, 'orders.create') && <Link href="/new-order" className="rf-primary-button !hidden h-8 items-center gap-1.5 px-3 text-xs sm:!inline-flex"><Plus size={15} /> Yeni sipariş</Link>}
       <div className="hidden h-6 w-px bg-border sm:block" />
-      <button type="button" aria-label="Temayı değiştir" className="rf-icon-button" onClick={() => setTheme(isDark ? 'light' : 'dark')}>
+      <button type="button" aria-label="Temayı değiştir" className="rf-icon-button" onClick={(event) => switchThemeWithReveal(isDark ? 'light' : 'dark', setTheme, event.currentTarget)}>
         {isDark ? <Sun size={17} /> : <Moon size={17} />}
       </button>
       <Link href="/notifications" aria-label="Bildirimler" className="rf-icon-button"><Bell size={17} /></Link>
