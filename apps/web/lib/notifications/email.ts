@@ -112,7 +112,7 @@ export async function sendPasswordResetEmail(
     </head>
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #1e293b; margin: 0;">RenkFlow</h1>
+        <img src="https://renkflow.com/email-assets/header-logo.png" alt="RenkFlow" width="222" height="44" style="display:block;margin:0 auto;" />
       </div>
       <h2 style="color: #1e293b;">Merhaba ${userName}!</h2>
       <p style="color: #64748b; line-height: 1.6;">
@@ -175,7 +175,7 @@ export async function sendWaitlistEmail(email: string) {
     </head>
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #1e293b; margin: 0;">RenkFlow</h1>
+        <img src="https://renkflow.com/email-assets/header-logo.png" alt="RenkFlow" width="222" height="44" style="display:block;margin:0 auto;" />
       </div>
       <h2 style="color: #1e293b;">Bekleme Listesine Hoş Geldiniz!</h2>
       <p style="color: #64748b; line-height: 1.6;">
@@ -235,7 +235,7 @@ export async function sendInviteEmail(
     </head>
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #1e293b; margin: 0;">RenkFlow</h1>
+        <img src="https://renkflow.com/email-assets/header-logo.png" alt="RenkFlow" width="222" height="44" style="display:block;margin:0 auto;" />
       </div>
       <h2 style="color: #1e293b;">Bir Davet Aldınız!</h2>
       <p style="color: #64748b; line-height: 1.6;">

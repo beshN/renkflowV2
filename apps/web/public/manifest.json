@@ -16,13 +16,19 @@
   "dir": "ltr",
   "icons": [
     {
-      "src": "/logo-r.png",
-      "sizes": "1024x1024",
+      "src": "/brand/icon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/logo-r.png",
+      "src": "/brand/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/brand/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -36,8 +42,9 @@
       "url": "/new-order",
       "icons": [
         {
-          "src": "/logo-r.png",
-          "sizes": "1024x1024"
+          "src": "/brand/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
         }
       ]
     },
@@ -48,8 +55,9 @@
       "url": "/orders",
       "icons": [
         {
-          "src": "/logo-r.png",
-          "sizes": "1024x1024"
+          "src": "/brand/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
         }
       ]
     },
@@ -60,8 +68,9 @@
       "url": "/dashboard",
       "icons": [
         {
-          "src": "/logo-r.png",
-          "sizes": "1024x1024"
+          "src": "/brand/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
         }
       ]
     }

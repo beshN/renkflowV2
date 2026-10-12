@@ -1,3 +1,4 @@
+import { BRAND_ARTWORK } from '@/components/brand/artwork';
 import { ImageResponse } from 'next/og';
 
 export const alt = 'RenkFlow · Ölçüye özel her proje için tek operasyon altyapısı';
@@ -18,8 +19,7 @@ export default function OpengraphImage() {
       <div style={{ width: '100%', height: '100%', display: 'flex', background: '#fafafa', color: '#111113', padding: '72px 80px', fontSize: 24 }}>
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: '#111113', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>R</div>
-            <div style={{ fontSize: 30, letterSpacing: -0.5 }}>RenkFlow</div>
+            <svg width="244" height="48" viewBox={`0 0 ${BRAND_ARTWORK.full.width} ${BRAND_ARTWORK.full.height}`} fill="#111113"><path fillRule="evenodd" d={BRAND_ARTWORK.full.path}/></svg>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ fontSize: 64, lineHeight: 1.05, letterSpacing: -2.5, color: '#6b6b73' }}>Ölçüye özel her proje için</div>

@@ -5,6 +5,7 @@
  * Designed for both screen viewing and high-quality printing (PDF generation)
  */
 
+import { BrandSymbol } from '@/components/brand/BrandSymbol';
 import { forwardRef } from 'react';
 import { cn } from '@/lib/utils';
 import { formatFinanceCurrency } from '@/lib/utils/finance';
@@ -170,7 +171,7 @@ export const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceProps>(({
         )}
         
         <div className="text-center text-xs text-slate-400">
-          <p>RenkFlow ile oluşturulmuştur</p>
+          <p className="flex items-center justify-center gap-2"><BrandSymbol className="h-3 w-3.5 text-foreground print:!text-black" />RenkFlow ile oluşturulmuştur</p>
         </div>
       </div>
 
