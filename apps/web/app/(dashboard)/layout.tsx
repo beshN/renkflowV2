@@ -1,5 +1,6 @@
 'use client';
 
+import { WorkspaceTitle } from '@/components/brand/WorkspaceTitle';
 import { ReactNode, useEffect, useState } from 'react';
 import { AppleSidebar } from '@/components/layout/AppleSidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
@@ -23,6 +24,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     <div className="rf-app-shell rf-dashboard-shell relative flex min-h-screen overflow-x-clip">
 
       <AuthProviders>
+        <WorkspaceTitle />
         <WorkspaceCommands>
         <a href="#workspace-content" className="rf-skip-link">İçeriğe geç</a>
         <AppleSidebar 

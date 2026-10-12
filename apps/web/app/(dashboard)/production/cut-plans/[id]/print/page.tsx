@@ -1,4 +1,5 @@
 "use client";
+import { BrandMark } from '@/components/brand/BrandMark';
 import { use, useEffect, useState } from "react";
 import { requestJson } from "@/lib/shared/network";
 import { ColorChip } from "@/components/colors/ColorSwatch";
@@ -43,6 +44,7 @@ export default function CutPlanPrint({ params }: { params: Promise<{ id: string 
       <button className="rf-primary-button mb-6 print:hidden" onClick={() => window.print()}>Yazdır / PDF olarak kaydet</button>
       <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
         <div>
+          <BrandMark href="/production" size="sm" className="mb-3" />
           <h1 className="text-xl font-semibold">{sheet.rework ? "Rework kesim föyü" : "Kesim föyü"} · {sheet.code}</h1>
           <p className="mt-1 text-xs text-muted-foreground">{STATUS[sheet.status] ?? sheet.status} · {new Date(sheet.createdAt).toLocaleString("tr-TR")}</p>
         </div>

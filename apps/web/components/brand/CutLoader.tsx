@@ -1,3 +1,4 @@
+import { BrandSymbol } from './BrandSymbol';
 import { cn } from '@/lib/utils';
 
 type CutLoaderProps = {
@@ -14,6 +15,7 @@ type CutLoaderProps = {
 export function CutLoader({ variant = 'area', label = 'Sayfa açılıyor', className }: CutLoaderProps) {
   const bar = (
     <div className={cn('flex flex-col items-center gap-4', variant === 'inline' && 'gap-2')} role="status" aria-live="polite">
+      {variant !== 'inline' && <BrandSymbol className="h-9 w-10 text-foreground" />}
       <div className={variant === 'inline' ? 'w-24' : 'w-44'}>
         <div className="rf-cutload" aria-hidden>
           <span className="rf-cutload-seg" /><span className="rf-cutload-seg" /><span className="rf-cutload-seg" />

@@ -1,5 +1,6 @@
 'use client';
 
+import { BrandSymbol } from '@/components/brand/BrandSymbol';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -45,7 +46,7 @@ export default function OrderDocumentPage() {
       </div>
       <table className="my-8 w-full text-sm"><caption className="sr-only">Sipariş ürün özeti</caption><thead><tr className="border-y border-border bg-accent text-left text-[10px] uppercase tracking-wider text-muted-foreground"><th scope="col" className="px-3 py-3 font-medium">Ürün / sistem</th><th scope="col" className="px-3 py-3 text-right font-medium">Adet</th><th scope="col" className="px-3 py-3 text-right font-medium">Toplam</th></tr></thead><tbody><tr className="border-b border-border"><td className="px-3 py-5">{order.productName}</td><td className="px-3 py-5 text-right tabular-nums">{order.quantity}</td><td className="px-3 py-5 text-right tabular-nums">{order.totalAmount > 0 ? formatCurrency(order.totalAmount, order.currency) : 'Fiyatlandırılmadı'}</td></tr></tbody></table>
       {order.notes && <section className="mb-8"><h2 className="rf-eyebrow">Üretim ve sevkiyat notları</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-7">{order.notes}</p></section>}
-      <footer className="mt-12 flex flex-wrap justify-between gap-4 border-t border-border pt-5 text-[10px] text-muted-foreground"><p>RenkFlow · {order.orderNumber}</p><p>Operasyon amaçlı sipariş dökümü. Mali fatura yerine geçmez.</p></footer>
+      <footer className="mt-12 flex flex-wrap justify-between gap-4 border-t border-border pt-5 text-[10px] text-muted-foreground"><p className="flex items-center gap-2"><BrandSymbol className="h-3 w-3.5 text-foreground print:!text-black" />RenkFlow · {order.orderNumber}</p><p>Operasyon amaçlı sipariş dökümü. Mali fatura yerine geçmez.</p></footer>
     </article>}
   </div>;
 }

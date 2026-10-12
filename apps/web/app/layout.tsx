@@ -69,9 +69,9 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: '/logo-r.png',
-    shortcut: '/logo-r.png',
-    apple: '/logo-r.png',
+    icon: [{url:'/brand/favicon.svg',type:'image/svg+xml'},{url:'/favicon.ico',sizes:'any'}],
+    shortcut: '/favicon.ico',
+    apple: '/brand/apple-touch-icon.png',
   },
   manifest: '/manifest.json',
   openGraph: {
@@ -112,14 +112,14 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="RenkFlow" />
-        <link rel="apple-touch-icon" href="/logo-r.png" />
+        <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
         
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         
         {/* Microsoft Tile */}
         <meta name="msapplication-TileColor" content="#111113" />
-        <meta name="msapplication-TileImage" content="/logo-r.png" />
+        <meta name="msapplication-TileImage" content="/brand/icon-192.png" />
       </head>
       <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}>
         <Providers>

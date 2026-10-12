@@ -1,5 +1,6 @@
 "use client";
 import { use, useEffect, useState } from "react";
+import { BrandMark } from '@/components/brand/BrandMark';
 import Image from "next/image";
 import { Quotation } from "@/lib/features/quotations/types";
 import { requestJson } from "@/lib/shared/network";
@@ -141,6 +142,7 @@ export default function QuotationPrint({
       <div className="mt-8 whitespace-pre-wrap text-xs leading-6">
         {q.notes}
         {q.termsAndConditions && <p className="mt-4">{q.termsAndConditions}</p>}
+        <div className="mt-6"><BrandMark href="/" size="sm" /></div>
       </div>
     </div>
   );

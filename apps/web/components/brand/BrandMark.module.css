@@ -1,0 +1,12 @@
+.brand {--brand-height:28px;display:inline-flex;align-items:center;gap:calc(var(--brand-height)*.22);min-width:0;flex-shrink:0;color:hsl(var(--foreground));text-decoration:none;transition:gap 180ms ease}
+.brand[data-size=sm] {--brand-height:24px}
+.brand[data-size=lg] {--brand-height:32px}
+.brand[data-tone=light] {color:#fff}
+.symbol {height:var(--brand-height);width:calc(var(--brand-height)*216/194);flex-shrink:0;overflow:visible}
+.word {display:flex;align-items:center;max-width:calc(var(--brand-height)*728/194);opacity:1;overflow:hidden;transform:translateX(0);transition:max-width 180ms ease,opacity 140ms ease,transform 180ms ease;pointer-events:none}
+.word svg {height:calc(var(--brand-height)*122/194);width:calc(var(--brand-height)*728/194);max-width:none;flex-shrink:0}
+.brand[data-compact=true] {gap:0}
+.brand[data-compact=true] .word {max-width:0;opacity:0;transform:translateX(-6px)}
+@media(prefers-reduced-motion:reduce) {.brand,.word {transition:none;transform:none}}
+
+@media print {.brand {color:#111;transition:none}.word {transition:none}}

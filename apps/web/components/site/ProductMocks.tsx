@@ -1,5 +1,7 @@
 'use client';
 
+import { BrandMark } from '@/components/brand/BrandMark';
+
 import { motion, useReducedMotion } from 'framer-motion';
 import { Boxes, ClipboardList, Factory, Home, QrCode, Receipt, Search, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -50,7 +52,7 @@ export function WorkspaceMock() {
     <Frame label="renkflow.app/dashboard">
       <div className="grid grid-cols-[176px_1fr] max-md:grid-cols-1">
         <aside className="border-r border-border bg-muted/30 p-3 max-md:hidden">
-          <div className="mb-4 flex items-center gap-2 px-2 pt-1"><span className="rf-logo h-5 w-5 text-[9px] font-bold">R</span><span className="text-[12px] font-semibold">RenkFlow</span></div>
+          <div className="mb-4 flex items-center gap-2 px-2 pt-1"><BrandMark href="/" size="sm" /></div>
           {nav.map(([Icon, label], index) => (
             <div key={label} className={cn('mb-px flex h-7 items-center gap-2 rounded-md px-2 text-[11.5px]', index === 1 ? 'bg-card font-medium text-foreground shadow-[0_0_0_1px_hsl(var(--border))]' : 'text-muted-foreground')}>
               <Icon size={13} strokeWidth={1.75} className={index === 1 ? 'text-primary' : ''} />{label}
