@@ -35,7 +35,7 @@ export function forgetMemberAccess(userId: string, tenantId: string) {
 export async function resolveMemberAccess(userId: string, tenantId: string, options: { cached?: boolean } = {}): Promise<MemberAccess | null> {
   const key = `${tenantId}:${userId}`;
   const hit = cache.get(key);
-  // Only the proxy reads through the cache (≤30 s); server guards read fresh, so a demotion counts at once.
+  // Session identity hints may cache; permission and redaction guards always read fresh.
   if (options.cached && hit && Date.now() - hit.at < TTL_MS) return hit.value;
   let value: MemberAccess | null = null;
   if (await accessColumns()) {
@@ -113,10 +113,10 @@ export async function logAccessDenied(a: { tenantId: string; userId: string; pat
  */
 export async function accessDecision(userId: string, tenantId: string, path: string, method: string, session: { sid: string | null; iat: number | null } = { sid: null, iat: null }) {
   const need = routeRequirement(path, method);
-  const access = await resolveMemberAccess(userId, tenantId, { cached: true });
-  if (!access) return null; // not a member: the route's own guard answers 401
+  const access = await resolveMemberAccess(userId, tenantId);
+  if (!access) return { status: 401 as const, reason: 'membership_removed', need };
   if (access.deactivated) return { status: 401 as const, reason: 'deactivated', need };
-  if (await sessionRevoked(userId, session.sid, session.iat, { cached: true })) return { status: 401 as const, reason: 'session_revoked', need };
+  if (await sessionRevoked(userId, session.sid, session.iat)) return { status: 401 as const, reason: 'session_revoked', need };
   // A member on their base role's own preset keeps exactly today's access: the route checks decide.
   // The matrix narrows only for a job preset or a custom role.
   if (!need || access.roleKey === DEFAULT_PRESET[access.base]) return null;
@@ -126,10 +126,10 @@ export async function accessDecision(userId: string, tenantId: string, path: str
 
 /**
  * Field groups to strip from this member's responses: only for a job preset or custom role (the
- * base role's own preset keeps today's DTOs, e.g. the worker's technical view). Cached like the gate.
+ * base role's own preset keeps today's DTOs, e.g. the worker's technical view). Read fresh per request.
  */
 export async function narrowedHiddenFields(userId: string, tenantId: string): Promise<FieldGroup[]> {
-  const access = await resolveMemberAccess(userId, tenantId, { cached: true });
+  const access = await resolveMemberAccess(userId, tenantId);
   if (!access || access.roleKey === DEFAULT_PRESET[access.base]) return [];
   return access.hidden;
 }
