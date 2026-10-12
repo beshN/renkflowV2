@@ -1,107 +1,84 @@
-# RenkFlow Launch Mode Runbook
+# RenkFlow Launch Runbook
 
-## Overview
+RenkFlow runs on **Vercel** (project `renkflowv2`, team `beshnovski-projects`, region `fra1`).
+Production domains: `renkflow.com` (primary), `www.renkflow.com` (308 → apex), `panel.renkflow.com`.
+Pushing to `main` deploys to production through the Vercel Git integration.
 
-RenkFlow launch gate is controlled by `PUBLIC_SITE_MODE` and runs on **Cloud Run only**.
+## Site mode
 
-## Environment Contract
+| `PUBLIC_SITE_MODE` | Behavior |
+|---|---|
+| `off` (or unset) | Full site. This is the launch setting. |
+| `coming-soon` | Teaser mode. Only `/`, `/coming-soon`, `/auth/login`, `/api/auth/*`, `/api/subscribe` and static assets stay reachable. |
 
-| Variable | Value | Behavior |
-|---|---|---|
-| `PUBLIC_SITE_MODE` | `off` | Default production mode. Full site access. |
-| `PUBLIC_SITE_MODE` | `coming-soon` | Teaser mode. Keeps `/`, `/coming-soon`, `/auth/login`, `/api/auth/*`, `/api/subscribe`, static assets reachable. |
-
-## Quick Commands
-
-### Read current mode
+Change it in Vercel → Project → Settings → Environment Variables (Production), then redeploy:
 
 ```bash
-gcloud run services describe renkflow-web \
-  --region europe-west3 \
-  --format='value(spec.template.spec.containers[0].env)'
+vercel env rm PUBLIC_SITE_MODE production
+vercel env add PUBLIC_SITE_MODE production   # enter: off  (or coming-soon)
+vercel --prod
 ```
 
-### Enable coming-soon mode
+Environment variable changes only apply to new deployments.
 
-```bash
-gcloud run services update renkflow-web \
-  --region europe-west3 \
-  --set-env-vars "PUBLIC_SITE_MODE=coming-soon"
-```
+## Before launch
 
-### Disable coming-soon mode (full launch)
+- [ ] `npm run validate` is green on `main` (CI does this on every push).
+- [ ] Latest production deployment is `READY` in Vercel and points at the expected commit.
+- [ ] Resend: `renkflow.com` is verified at https://resend.com/domains (SPF, DKIM, return-path DNS records). Without it, verification, password-reset and invite emails fail with `403 domain is not verified`.
+- [ ] Company details in `apps/web/lib/core/company.ts` are filled in (legal name and address feed the KVKK notice on `/privacy`).
+- [ ] Optional: `NEXT_PUBLIC_GA_MEASUREMENT_ID` set in Production if analytics is wanted. It only loads after the visitor accepts analytics cookies.
+- [ ] Database migrations are applied separately with `npm run db:deploy` (they never run during the build).
 
-```bash
-gcloud run services update renkflow-web \
-  --region europe-west3 \
-  --set-env-vars "PUBLIC_SITE_MODE=off"
-```
-
-## Smoke Tests
-
-### Live mode (`PUBLIC_SITE_MODE=off`)
+## Smoke tests
 
 ```bash
 ./apps/web/scripts/smoke-live.sh https://renkflow.com
 ```
 
-### Coming-soon mode (`PUBLIC_SITE_MODE=coming-soon`)
+Coming-soon mode:
 
 ```bash
 ./apps/web/scripts/smoke-coming-soon.sh https://renkflow.com
 ```
 
-### Coverage summary
-
 | Category | Expectation |
 |---|---|
 | Root | `GET /` and `HEAD /` return `200` |
 | Auth surface | `/auth/login` and `/api/auth/session` reachable |
-| Protected routes | `/dashboard` redirects to `/auth/login` (live) or `/coming-soon` (launch) |
-| Public routes | `/features`, `/pricing`, `/blog` return `200` in live mode |
+| Protected routes | `/dashboard` redirects to `/auth/login` (live) or `/coming-soon` (teaser) |
+| Public routes | `/features`, `/pricing`, `/blog` return `200` |
 | SEO | `/robots.txt` and `/sitemap.xml` return `200` |
+
+Then by hand: sign in, open the dashboard, create and delete a test record, request a password reset and confirm the email arrives.
 
 ## Rollback
 
-```bash
-gcloud run revisions list --service renkflow-web --region europe-west3
+Vercel → Project → Deployments → pick the last good production deployment → **Instant Rollback**, or:
 
-gcloud run services update-traffic renkflow-web \
-  --region europe-west3 \
-  --to-revisions=<previous-revision>=100
+```bash
+vercel rollback <deployment-url-or-id>
 ```
 
-## Common Issues
+A rollback only switches the application. Database migrations are additive and are not reversed; confirm the older build is compatible with the current schema first.
+
+## Common issues
 
 ### Site still shows coming-soon
-
-1. Confirm Cloud Run has `PUBLIC_SITE_MODE=off`.
-2. Redeploy latest revision.
+1. Confirm `PUBLIC_SITE_MODE` is `off` or absent for Production.
+2. Redeploy (env changes need a new deployment).
 3. Run `smoke-live.sh`.
 
-### `/api/auth/session` fails
+### `/api/auth/session` fails or every page returns 500
+1. The proxy refuses to run in production without `AUTH_SECRET` / `NEXTAUTH_SECRET`; check they are set.
+2. Check `NEXTAUTH_URL` / `APP_URL` match `https://renkflow.com`.
+3. Read runtime logs: Vercel → Project → Logs, filter `level:error`.
 
-1. Check proxy route policy (`apps/web/proxy.ts`).
-2. Confirm `AUTH_SECRET` and `NEXTAUTH_SECRET` are set and equal.
-3. Validate NextAuth route health: `/api/auth/[...nextauth]`.
+### Emails are not delivered
+1. Check the Resend dashboard for the domain status and the failed message.
+2. `RESEND_API_KEY` and `EMAIL_FROM` must be set for Production.
 
-### Smoke tests fail right after deploy
+## After launch
 
-1. Wait 30-60 seconds for revision warmup.
-2. Retry smoke.
-3. Check Cloud Run logs for startup/config errors.
-
-## Pre-Launch Checklist
-
-- [ ] `PUBLIC_SITE_MODE=coming-soon` confirmed when campaign mode is intended.
-- [ ] `smoke-coming-soon.sh` green.
-- [ ] `DATABASE_URL` bound from Secret Manager.
-- [ ] `STORAGE_BACKEND=gcs` and `GCS_BUCKET_NAME` set.
-
-## Full Launch Checklist
-
-- [ ] `PUBLIC_SITE_MODE=off`.
-- [ ] `smoke-live.sh` green.
-- [ ] Login and `/api/auth/session` verified.
-- [ ] Protected route redirect behavior verified.
-- [ ] 30 minute post-release monitoring completed.
+- [ ] Watch Vercel runtime errors and logs for 30 minutes.
+- [ ] Submit `https://renkflow.com/sitemap.xml` in Google Search Console.

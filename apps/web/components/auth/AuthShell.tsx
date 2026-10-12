@@ -52,7 +52,7 @@ function Showcase() {
       <BrandMark href="/" size="lg" className="w-fit" />
       <div className="my-auto max-w-[500px] py-12">
         <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className="text-[13px] font-medium text-primary">Renk Alüminyum operasyon platformu</motion.p>
-        <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.05, ease: EASE }} className="mt-4 text-[38px] font-semibold leading-[1.08] tracking-[-0.04em] xl:text-[44px]">
+        <motion.h1 initial={{ y: 10 }} animate={{ y: 0 }} transition={{ duration: 0.6, delay: 0.05, ease: EASE }} className="mt-4 text-[38px] font-semibold leading-[1.08] tracking-[-0.04em] xl:text-[44px]">
           Ölçüye özel her proje, <span className="text-muted-foreground">tek bir çalışma alanında.</span>
         </motion.h1>
 
@@ -95,9 +95,10 @@ export function AuthShell({ eyebrow, title, description, icon, children, footer 
           <BrandMark href="/" className="lg:invisible" />
           <Link href="/security" className="flex items-center gap-1.5 hover:text-foreground"><ShieldCheck size={14} /> Kurumsal erişim</Link>
         </div>
+        {/* The form is visible in the server-rendered first paint; it only drifts into place. */}
         <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ y: 8 }}
+          animate={{ y: 0 }}
           transition={{ duration: 0.45, ease: EASE }}
           className="mx-auto my-auto w-full max-w-[380px] py-12"
         >

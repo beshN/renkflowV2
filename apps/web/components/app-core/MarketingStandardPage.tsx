@@ -1,3 +1,5 @@
+import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
 
 import { HighlightGrid, MarketingShell, RelatedLinks } from '@/components/app-core/MarketingShell';
@@ -5,6 +7,9 @@ import { marketingPages, type MarketingPageKey } from '@/lib/core/marketing-cont
 
 type MarketingStandardPageProps = {
   pageKey: MarketingPageKey;
+  /** Extra page-specific content shown under the highlights. */
+  children?: ReactNode;
+  hideClosing?: boolean;
 };
 
 const SUMMARIES: Record<MarketingPageKey, { title: string; detail: string }> = {
@@ -43,7 +48,19 @@ const RELATED: Record<MarketingPageKey, MarketingPageKey[]> = {
   status: ['changelog', 'contact', 'security'],
 };
 
-export function MarketingStandardPage({ pageKey }: MarketingStandardPageProps) {
+export function marketingMetadata(pageKey: MarketingPageKey): Metadata {
+  const page = marketingPages[pageKey];
+  const title = SUMMARIES[pageKey].title;
+  const description = page?.description ?? SUMMARIES[pageKey].detail;
+  return {
+    title,
+    description,
+    alternates: { canonical: `/${pageKey}` },
+    openGraph: { title, description, url: `/${pageKey}` },
+  };
+}
+
+export function MarketingStandardPage({ pageKey, children, hideClosing }: MarketingStandardPageProps) {
   const page = marketingPages[pageKey];
 
   if (!page) {
@@ -59,8 +76,10 @@ export function MarketingStandardPage({ pageKey }: MarketingStandardPageProps) {
         { href: page.primaryCta.href, label: page.primaryCta.label },
         { href: page.secondaryCta.href, label: page.secondaryCta.label, variant: 'secondary' },
       ]}
+      hideClosing={hideClosing}
     >
       <HighlightGrid items={page.highlights} />
+      {children}
       <RelatedLinks links={RELATED[pageKey].map((key) => ({ href: `/${key}`, ...SUMMARIES[key] }))} />
     </MarketingShell>
   );

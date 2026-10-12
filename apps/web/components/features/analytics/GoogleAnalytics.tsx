@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Script from 'next/script';
 
 // Cast Script to a narrowed type to keep TS happy with inline analytics snippets.
@@ -10,8 +11,34 @@ const ScriptComponent = Script as React.ComponentType<{
   children?: React.ReactNode;
 }>;
 
+export const COOKIE_CONSENT_KEY = 'cookie-consent';
+export const COOKIE_CONSENT_EVENT = 'cookie-consent-change';
+
+function hasAnalyticsConsent() {
+  try {
+    const raw = localStorage.getItem(COOKIE_CONSENT_KEY);
+    return Boolean(raw && JSON.parse(raw)?.analytics === true);
+  } catch {
+    return false;
+  }
+}
+
 export default function GoogleAnalytics({ GA_MEASUREMENT_ID }: { GA_MEASUREMENT_ID: string }) {
-  if (!GA_MEASUREMENT_ID) {
+  // Analytics only loads after the visitor accepts analytics cookies (KVKK / cookie policy).
+  const [consented, setConsented] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setConsented(hasAnalyticsConsent());
+    sync();
+    window.addEventListener(COOKIE_CONSENT_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(COOKIE_CONSENT_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+
+  if (!GA_MEASUREMENT_ID || !consented) {
     return null;
   }
 
@@ -36,6 +63,7 @@ export default function GoogleAnalytics({ GA_MEASUREMENT_ID }: { GA_MEASUREMENT_
           gtag('js', new Date());
           gtag('config', '${GA_MEASUREMENT_ID}', {
             page_path: window.location.pathname,
+            anonymize_ip: true,
           });
         `}
       </ScriptComponent>

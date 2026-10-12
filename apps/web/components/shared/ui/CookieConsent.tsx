@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Cookie } from "lucide-react";
+import { COOKIE_CONSENT_EVENT } from "@/components/features/analytics/GoogleAnalytics";
 
 export default function CookieConsent() {
   const pathname = usePathname();
@@ -54,6 +55,7 @@ export default function CookieConsent() {
         timestamp: new Date().toISOString(),
       }),
     );
+    window.dispatchEvent(new Event(COOKIE_CONSENT_EVENT));
     setShowBanner(false);
   };
 
@@ -67,6 +69,7 @@ export default function CookieConsent() {
         timestamp: new Date().toISOString(),
       }),
     );
+    window.dispatchEvent(new Event(COOKIE_CONSENT_EVENT));
     setShowBanner(false);
   };
 

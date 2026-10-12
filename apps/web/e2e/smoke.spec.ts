@@ -6,6 +6,7 @@ import { test, expect } from '@playwright/test';
  */
 
 const publicRoutes = [
+  '/',
   '/about',
   '/pricing',
   '/features',
@@ -22,7 +23,6 @@ const publicRoutes = [
   '/docs',
   '/security',
   '/status',
-  '/full-landing',
   '/blog',
   '/careers',
   '/coming-soon',
@@ -38,10 +38,16 @@ test.describe('Smoke: Public Routes', () => {
 });
 
 test.describe('Smoke: Auth Redirects', () => {
-  test('/ should redirect into the panel flow', async ({ request }) => {
-    const response = await request.fetch('/', { method: 'HEAD', maxRedirects: 0 });
-    expect([302, 303, 307, 308]).toContain(response.status());
-    expect(response.headers()['location'] || '').toContain('/dashboard');
+  test('/full-landing should permanently redirect to /', async ({ request }) => {
+    const response = await request.fetch('/full-landing', { method: 'HEAD', maxRedirects: 0 });
+    expect([301, 308]).toContain(response.status());
+    expect(new URL(response.headers()['location'] || '', 'http://x').pathname).toBe('/');
+  });
+
+  test('unknown blog posts should not be indexable', async ({ request }) => {
+    // Landing pages stream, so Next.js marks not-found results with noindex instead of a 404 status.
+    const response = await request.fetch('/blog/olmayan-yazi');
+    expect(await response.text()).toContain('<meta name="robots" content="noindex"/>');
   });
 
   test('/auth/signup should redirect to /signup', async ({ request }) => {

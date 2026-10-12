@@ -1,3 +1,5 @@
+import { COMPANY } from '@/lib/core/company';
+
 export type MarketingHighlight = {
   title: string;
   detail: string;
@@ -137,7 +139,7 @@ export const marketingPages = {
     badge: 'İletişim',
     title: 'Konuşalım.',
     description: 'Demo talebi, teklif veya destek için bize yazın. İş günlerinde aynı gün içinde dönüş yapıyoruz.',
-    primaryCta: { href: 'mailto:info@renkflow.com', label: 'info@renkflow.com' },
+    primaryCta: { href: `mailto:${COMPANY.email}`, label: COMPANY.email },
     secondaryCta: { href: '/faq', label: 'Sık sorulanlar' },
     highlights: [
       { title: 'Satış ve demo', detail: 'Ekibinizle birlikte ürünü kendi örnek siparişleriniz üzerinden gösterelim.' },

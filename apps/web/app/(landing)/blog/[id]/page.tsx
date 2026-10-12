@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
@@ -7,6 +8,22 @@ import { blogPosts } from '@/lib/core/marketing-content';
 
 export function generateStaticParams() {
   return blogPosts.map((post) => ({ id: post.id }));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const post = blogPosts.find((item) => item.id === id);
+  if (!post) return { title: 'Yazı bulunamadı' };
+  return {
+    title: post.title,
+    description: post.summary,
+    alternates: { canonical: `/blog/${post.id}` },
+    openGraph: { type: 'article', title: post.title, description: post.summary, url: `/blog/${post.id}` },
+  };
 }
 
 export default async function BlogDetailPage({

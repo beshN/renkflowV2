@@ -1,6 +1,12 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { MarketingShell } from '@/components/app-core/MarketingShell';
+
+export const metadata: Metadata = {
+  title: 'Yakında',
+  robots: { index: false, follow: false },
+};
 
 export default function ComingSoonPage() {
   return (

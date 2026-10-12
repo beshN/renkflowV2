@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { BrandMark } from '@/components/brand/BrandMark';
+import { COMPANY, companyLegalName, telHref } from '@/lib/core/company';
 
 const COLUMNS = [
   { title: 'Ürün', links: [['Özellikler', '/features'], ['Entegrasyonlar', '/integrations'], ['Fiyatlandırma', '/pricing'], ['Yol haritası', '/roadmap'], ['Sürüm notları', '/changelog']] },
@@ -15,7 +16,8 @@ export function SiteFooter() {
         <div className="max-w-xs">
           <BrandMark href="/" />
           <p className="mt-4 text-[13px] leading-6 text-muted-foreground">Pergola ve cam sistemleri için keşiften montaja operasyon yönetimi.</p>
-          <a href="mailto:info@renkflow.com" className="mt-4 inline-block text-[13px] text-foreground underline-offset-4 hover:underline">info@renkflow.com</a>
+          <a href={`mailto:${COMPANY.email}`} className="mt-4 block text-[13px] text-foreground underline-offset-4 hover:underline">{COMPANY.email}</a>
+          {COMPANY.phone && <a href={telHref(COMPANY.phone)} className="mt-1.5 block text-[13px] text-foreground underline-offset-4 hover:underline">{COMPANY.phone}</a>}
         </div>
         {COLUMNS.map((column) => (
           <div key={column.title}>
@@ -30,7 +32,7 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-6 text-[12px] text-muted-foreground sm:px-8">
-          <span>© {new Date().getFullYear()} RenkFlow · Renk Alüminyum</span>
+          <span>© {new Date().getFullYear()} RenkFlow · {companyLegalName()}</span>
           <Link href="/status" className="inline-flex items-center gap-2 hover:text-foreground">Sistem durumu</Link>
         </div>
       </div>
