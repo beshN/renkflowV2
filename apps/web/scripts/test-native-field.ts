@@ -1,3 +1,4 @@
+import { localTestDatabaseURL } from "./local-test-database";
 import mobileSpec from '../../../contracts/mobile/openapi.json';
 /** Real route/service/database checks; hard-wired to the isolated local test DB. */
 import assert from 'node:assert/strict';
@@ -9,7 +10,7 @@ import { writeFile } from 'node:fs/promises';
 
 async function main() {
   process.env.AUTH_SECRET = 'field-integration-local-only-12345678901234567890';
-  process.env.DATABASE_URL = 'postgres://postgres:renkflow-local-only@127.0.0.1:55432/renkflow_test';
+  process.env.DATABASE_URL = localTestDatabaseURL();
   process.env.STORAGE_BACKEND = 'local';
   delete process.env.PRIVATE_ACCESS_EMAIL;
   const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });

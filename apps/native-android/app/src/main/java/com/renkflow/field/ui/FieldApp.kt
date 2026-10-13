@@ -139,7 +139,9 @@ import java.util.Locale
     }
     if(installations) InstallationView(state,model) {installations=false}
     operation?.let { op ->
-        OperationSheet(op, state, writable, onDismiss = { operation = null }, onCommand = { model.command(it); operation = null }, upload = model::uploadPhoto)
+        OperationSheet(op, state, writable, onDismiss = { operation = null }, onCommand = { model.command(it); operation = null }, upload = { jobId, bytes, done ->
+            state.session?.let { model.uploadPhoto(jobId, bytes, sessionScope(it), done) }
+        })
     }
 }
 
@@ -174,8 +176,11 @@ import java.util.Locale
 
 @Composable private fun Brand() {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Surface(color = OnInk, shape = RoundedCornerShape(8.dp)) { Icon(painterResource(R.drawable.ic_brand_mark), null, Modifier.padding(10.dp).size(28.dp), tint = Ink) }
-        Column { Text(tr(R.string.text_renkflow_6ac42), color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.SemiBold); Text(tr(R.string.text_saha_uygulamasi_30117), color = OnInk.copy(alpha = 0.65f), style = MaterialTheme.typography.labelSmall) }
+        Icon(painterResource(R.drawable.ic_brand_mark), null, Modifier.size(40.dp,36.dp), tint = Color.White)
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Icon(painterResource(R.drawable.ic_brand_wordmark), contentDescription = "RenkFlow", modifier = Modifier.size(145.dp,25.dp), tint = Color.White)
+            Text(tr(R.string.text_saha_uygulamasi_30117), color = Color.White.copy(alpha = 0.65f), style = MaterialTheme.typography.labelSmall)
+        }
     }
 }
 
@@ -342,7 +347,7 @@ import java.util.Locale
             }
         }
         item {CuttingPlans(state.snapshot?.cutPlans.orEmpty().filter {it.bars.any {bar->bar.pieces.any {p->p.workOrderId==job.id}}},state.snapshot?.workOrders.orEmpty(),model::openJob)}
-        item {FieldEventView(state.references,writable,save={kind,code,count,note,photo->model.fieldEvent(kind,job.id,code,count,note,photo)},upload={bytes,done->model.uploadPhoto(job.id,bytes,done)})}
+        item {FieldEventView(state.references,writable,save={kind,code,count,note,photo->model.fieldEvent(kind,job.id,code,count,note,photo)},upload={bytes,done->state.session?.let {model.uploadPhoto(job.id,bytes,sessionScope(it),done)}})}
         item { SectionTitle(tr(R.string.text_kontrol_listesi_4914c), tr(R.string.text_zorunlu_adimlari_dogrulayin_5c79a)) }
         items(job.checklist, key = { it.id }) { item ->
             Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surface) {

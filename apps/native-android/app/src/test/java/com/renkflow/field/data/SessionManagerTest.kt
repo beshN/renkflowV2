@@ -26,4 +26,17 @@ class SessionManagerTest {
         val store=object:SessionStorage {override fun read()=saved;override fun write(value:Session) {fail("Should not write")}}
         try {SessionManager(store).token(saved.server,token("old"));fail("Old session should be refused")} catch(e:ApiException) {assertEquals(401,e.status)}
     }
+    @Test fun wrongRefreshIdentityDoesNotReplaceSavedCredentials()=runTest {
+        val server=MockWebServer();server.start()
+        try {
+            val user=User("u","worker@test.invalid",tenantId="t",role="worker")
+            var saved=Session(server.url("/").toString().trimEnd('/'),token("sid"),0,user,"old-refresh","sid","device")
+            val store=object:SessionStorage {override fun read()=saved;override fun write(value:Session) {saved=value}}
+            val foreign=User("other","other@test.invalid",tenantId="foreign",role="worker")
+            server.enqueue(MockResponse().setBody("""{"data":${fieldJson.encodeToString(LoginResult(foreign,token("other-sid"),900,"unexpected","other-sid","other-device"))}}"""))
+            try {SessionManager(store).token(saved.server,saved.token);fail("Foreign refresh should fail")} catch(e:ApiException) {assertEquals(502,e.status)}
+            assertEquals(user.id,saved.user.id);assertEquals("old-refresh",saved.refreshToken);assertNotNull(saved.refreshRequestId)
+        } finally {server.shutdown()}
+    }
+
 }

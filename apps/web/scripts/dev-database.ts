@@ -1,4 +1,5 @@
 /** Local-only persistent database. Never uses DATABASE_URL or a remote server. */
+import { localTestDatabasePort } from "./local-test-database";
 import EmbeddedPostgres from "embedded-postgres";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -10,7 +11,7 @@ async function main() {
     databaseDir: directory,
     user: "postgres",
     password: "renkflow-local-only",
-    port: 55432,
+    port: localTestDatabasePort(),
     persistent: true,
     postgresFlags: ["-h", "127.0.0.1"],
     // Same encoding as production (Neon is UTF8); without it the cluster defaults to SQL_ASCII.
@@ -24,7 +25,7 @@ async function main() {
     await engine.initialise();
   await engine.start();
   const admin = postgres(
-    "postgres://postgres:renkflow-local-only@127.0.0.1:55432/postgres",
+    `postgres://postgres:renkflow-local-only@127.0.0.1:${localTestDatabasePort()}/postgres`,
   );
   for (const name of ["renkflow_dev", "renkflow_test"]) {
     if (!(await admin`SELECT 1 FROM pg_database WHERE datname=${name}`).length)
@@ -40,7 +41,7 @@ async function main() {
   await admin.end();
   for (const name of ["renkflow_dev", "renkflow_test"]) {
     const db = postgres(
-      `postgres://postgres:renkflow-local-only@127.0.0.1:55432/${name}`,
+      `postgres://postgres:renkflow-local-only@127.0.0.1:${localTestDatabasePort()}/${name}`,
       { onnotice: () => {} },
     );
     if (!(await db`SELECT to_regclass('public.orders') AS name`)[0].name) {
@@ -58,7 +59,7 @@ async function main() {
     await db.end();
   }
   console.log(
-    "Local PostgreSQL ready: 127.0.0.1:55432 · renkflow_dev / renkflow_test",
+    `Local PostgreSQL ready: 127.0.0.1:${localTestDatabasePort()} · renkflow_dev / renkflow_test`,
   );
   async function stop() {
     await engine.stop();

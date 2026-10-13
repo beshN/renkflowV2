@@ -17,10 +17,10 @@ private final class SessionProtocol:URLProtocol {
     override func tearDown() {vault.clear();SessionProtocol.handler=nil;super.tearDown()}
     func testRotationSavesRequestBeforeNetworkAndNewRefreshAfterAck() async throws {
         let user=FieldUser(id:"u",email:"worker@test.invalid",role:"worker",tenantId:"t")
-        let saved=Session(server:"https://renkflow.com",token:token("sid"),expiresAt:.distantPast,user:user,refreshToken:"old",sessionId:"sid",deviceId:"device")
+        let saved=Session(server:"https://renkflow.com",token:token("sid"),expiresAt:.distantPast,user:user,refreshToken:"old",sessionId:"sid",deviceId:"ABCDEFAB-1234-4000-8000-ABCDEF123456")
         try vault.save("session",value:saved)
         var capturedBody:Data?
-        let response=LoginResult(user:user,accessToken:token("sid"),expiresIn:900,refreshToken:"new",sessionId:"sid",deviceId:"device")
+        let response=LoginResult(user:user,accessToken:token("sid"),expiresIn:900,refreshToken:"new",sessionId:"sid",deviceId:"abcdefab-1234-4000-8000-abcdef123456")
         let json=try JSONSerialization.jsonObject(with:JSONEncoder().encode(response)),bytes=try JSONSerialization.data(withJSONObject:["data":json])
         SessionProtocol.handler={request in
             if let body=request.httpBody {capturedBody=body}
@@ -44,4 +44,22 @@ private final class SessionProtocol:URLProtocol {
         do {_ = try await SessionManager().token(server:saved.server,requested:token("old"));XCTFail("Stale session was accepted")} catch let error as FieldAPIError {XCTAssertEqual(error.status,401)}
         XCTAssertEqual(vault.read("session",as:Session.self)?.sessionId,"new")
     }
+    func testWrongRefreshIdentityDoesNotReplaceSavedCredentials() async throws {
+        let user=FieldUser(id:"u",email:"worker@test.invalid",role:"worker",tenantId:"t")
+        let saved=Session(server:"https://renkflow.com",token:token("sid"),expiresAt:.distantPast,user:user,refreshToken:"old",sessionId:"sid",deviceId:"device")
+        try vault.save("session",value:saved)
+        let foreign=FieldUser(id:"another-user",email:"other@test.invalid",role:"worker",tenantId:"another-tenant")
+        let response=LoginResult(user:foreign,accessToken:token("different"),expiresIn:900,refreshToken:"unexpected",sessionId:"different",deviceId:"other-device")
+        let json=try JSONSerialization.jsonObject(with:JSONEncoder().encode(response)),bytes=try JSONSerialization.data(withJSONObject:["data":json])
+        SessionProtocol.handler={_ in bytes}
+        let config=URLSessionConfiguration.ephemeral;config.protocolClasses=[SessionProtocol.self]
+        do {
+            _ = try await SessionManager(vault:vault,api:FieldAPI(session:URLSession(configuration:config))).token(server:saved.server,requested:saved.token)
+            XCTFail("Foreign account refresh should be rejected")
+        } catch let error as FieldAPIError {XCTAssertEqual(error.status,502)}
+        let retained=try XCTUnwrap(vault.read("session",as:Session.self))
+        XCTAssertEqual(retained.user.id,user.id);XCTAssertEqual(retained.refreshToken,"old")
+        XCTAssertNotNil(retained.refreshRequestId)
+    }
+
 }

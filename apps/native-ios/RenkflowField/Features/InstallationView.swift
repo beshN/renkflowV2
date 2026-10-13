@@ -44,8 +44,8 @@ struct InstallationView:View {
                     } else {Text(L("text_kayit_yukleniyor_cevrimdisiysa_daha_once_actigin_3e69a"))}
                 }
             }.task(id:photoItem) {
-                guard let photoItem,let id=selected else {return};preparing=true;defer {preparing=false}
-                do {guard let bytes=try await photoItem.loadTransferable(type:Data.self) else {return};let saved=await store.uploadInstallationPhoto(id,bytes:try jpegForUpload(bytes));photoMessage=saved ? L("text_fotograf_cihazda_kaydedildi_51f1d") : L("text_fotograf_kaydedilemedi_822b0")} catch {photoMessage=L("text_fotograf_hazirlanamadi_2156d")}
+                guard let photoItem,let id=selected,let auth=store.session else {return};let photoScope=sessionScope(auth);preparing=true;defer {preparing=false}
+                do {guard let bytes=try await photoItem.loadTransferable(type:Data.self) else {return};let saved=await store.uploadInstallationPhoto(id,bytes:try jpegForUpload(bytes),expectedScope:photoScope);photoMessage=saved ? L("text_fotograf_cihazda_kaydedildi_51f1d") : L("text_fotograf_kaydedilemedi_822b0")} catch {photoMessage=L("text_fotograf_hazirlanamadi_2156d")}
             }.navigationTitle(L("text_montaj_1e486")).toolbar {ToolbarItem(placement:.cancellationAction) {Button("Kapat") {dismiss()}}}
         }
     }

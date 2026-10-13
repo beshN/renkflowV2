@@ -1,5 +1,7 @@
 package com.renkflow.field.data
 
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -33,7 +35,7 @@ class OutboxSync(private val store: OfflineStore, private val sender: OutboxSend
                 store.dao.update(row.copy(state="delivered",resultURL=url,reason=null,payload=if(row.kind=="photo") "{}" else row.payload))
                 delivered++
             } catch (e: Exception) {
-                if (e is CancellationException) { store.dao.update(row.copy(state="pending")); throw e }
+                if (e is CancellationException) { withContext(NonCancellable) { store.dao.update(row.copy(state="pending")) }; throw e }
                 val api = e as? ApiException
                 when (api?.status) {
                     409 -> store.dao.update(row.copy(state="conflict",reason=api.message,canRetry=api.canRetry))

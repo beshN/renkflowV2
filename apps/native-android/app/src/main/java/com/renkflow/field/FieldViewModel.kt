@@ -85,7 +85,9 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 api.me(auth);if(generation!=epoch) return@launch
                 lastValidation=System.currentTimeMillis();loadSnapshot(auth)
+                if(generation!=epoch) return@launch
                 state.value.selectedId?.let { id-> val job=api.details(auth,id);cacheDetail(auth,job);if(generation==epoch && state.value.selectedId==id) mutable.update { it.copy(detail=overlayJob(job,offline.dao.pending(sessionScope(auth)))) } }
+                if(generation!=epoch) return@launch
                 mutable.update { it.copy(accessBlocked=false,busy=false) };sync()
             } catch(e: Exception) { if(generation==epoch) fail(e) }
             finally { if(generation==epoch) mutable.update { it.copy(busy=false) } }
@@ -164,10 +166,13 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
     fun closeJob() { mutable.update { it.copy(selectedId=null,detail=null) } }
     fun scan(code: String) {
         val auth=state.value.session ?: return
+        val generation=epoch
         viewModelScope.launch {
-            try { require(code.trim().isNotEmpty() && code.length<=1000) { tr(R.string.text_gecerli_bir_etiket_kodu_girin_540aa) };val result=api.scan(auth,code.trim());offline.save(sessionScope(auth),"scan:${code.trim()}",fieldJson.encodeToString(result));mutable.update { it.copy(scan=result) } }
+            try { require(code.trim().isNotEmpty() && code.length<=1000) { tr(R.string.text_gecerli_bir_etiket_kodu_girin_540aa) };val result=api.scan(auth,code.trim());if(generation!=epoch) return@launch;offline.save(sessionScope(auth),"scan:${code.trim()}",fieldJson.encodeToString(result));mutable.update { it.copy(scan=result) } }
             catch(e: Exception) {
+                if(generation!=epoch) return@launch
                 val cached=offline.dao.cache(sessionScope(auth),"scan:${code.trim()}")?.let { runCatching { fieldJson.decodeFromString<ScanResult>(it.payload) }.getOrNull() }
+                if(generation!=epoch) return@launch
                 if(cached!=null) mutable.update { it.copy(scan=cached,stale=true) } else fail(e)
             }
         }
@@ -217,33 +222,39 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
                     private val sender=APIOutboxSender(offline,api,auth)
                     override suspend fun send(record: OutboxRecord): String? { if(generation!=epoch) throw CancellationException();return sender.send(record) }
                 }).drain(sessionScope(auth))
-                if(generation==epoch && (result.delivered>0 || offline.dao.pending(sessionScope(auth)).any { it.state in listOf("conflict","blocked") })) { loadSnapshot(auth);state.value.selectedId?.let { id->val job=overlayJob(api.details(auth,id),offline.dao.pending(sessionScope(auth)));cacheDetail(auth,job);mutable.update { it.copy(detail=job) } } }
+                if(generation==epoch && (result.delivered>0 || offline.dao.pending(sessionScope(auth)).any { it.state in listOf("conflict","blocked") })) { loadSnapshot(auth);if(generation!=epoch) return@launch;state.value.selectedId?.let { id->val job=overlayJob(api.details(auth,id),offline.dao.pending(sessionScope(auth)));cacheDetail(auth,job);if(generation==epoch && state.value.selectedId==id) mutable.update { it.copy(detail=job) } } }
                 if(result.retry && generation==epoch) { mutable.update { it.copy(stale=true) };FieldSyncWorker.schedule(getApplication()) }
             } catch(e: Exception) { if(generation==epoch) fail(e) }
             finally { if(generation==epoch) mutable.update { it.copy(syncing=false) } }
         }
     }
-    fun uploadPhoto(jobId: String,base64: String,onUploaded: (String)->Unit) {
+    fun uploadPhoto(jobId: String,base64: String,expectedScope:String,onUploaded: (String)->Unit) {
         val auth=state.value.session ?: return
+        if(sessionScope(auth)!=expectedScope) return
         if(!writable()) return
+        val generation=epoch
         viewModelScope.launch {
             try {
                 require(base64.length<=2_800_000) { tr(R.string.text_fotograf_cok_buyuk_36537) }
                 val id=UUID.randomUUID().toString()
                 offline.dao.enqueue(OutboxRecord(scope=sessionScope(auth),commandId=id,kind="photo",payload=fieldJson.encodeToString(LocalPhoto(jobId,base64))))
+                if(generation!=epoch) return@launch
                 onUploaded("local://$id");FieldSyncWorker.schedule(getApplication());sync()
-            } catch(e: Exception) { fail(e) }
+            } catch(e: Exception) { if(generation==epoch) fail(e) }
         }
     }
-    fun uploadInstallationPhoto(id:String,base64:String,onSaved:()->Unit) {
+    fun uploadInstallationPhoto(id:String,base64:String,expectedScope:String,onSaved:()->Unit) {
         val auth=state.value.session ?: return
+        if(sessionScope(auth)!=expectedScope) return
         if(state.value.references?.capabilities?.installationEdit!=true || state.value.updateRequired || state.value.accessBlocked) return
+        val generation=epoch
         viewModelScope.launch {
             try {
                 require(base64.length<=2_800_000)
                 offline.dao.enqueue(OutboxRecord(scope=sessionScope(auth),commandId=UUID.randomUUID().toString(),kind="photo",payload=fieldJson.encodeToString(LocalPhoto(base64=base64,installationId=id))))
+                if(generation!=epoch) return@launch
                 onSaved();FieldSyncWorker.schedule(getApplication());sync()
-            } catch(e:Exception) {fail(e)}
+            } catch(e:Exception) {if(generation==epoch) fail(e)}
         }
     }
     fun discard(row: OutboxRecord) = viewModelScope.launch {
@@ -253,6 +264,7 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
     fun reapply(row: OutboxRecord) {
         val auth=state.value.session ?: return
         if(!row.canRetry || row.state!="conflict" || row.scope!=sessionScope(auth) || state.value.busy) return
+        val generation=epoch
         mutable.update {it.copy(busy=true)}
         viewModelScope.launch {
             try {
@@ -274,8 +286,8 @@ class FieldViewModel(application: Application) : AndroidViewModel(application) {
                     offline.dao.update(row.copy(state="delivered",reason=tr(R.string.text_yeni_islemle_yeniden_gonderildi_c3082)))
                 }
                 FieldSyncWorker.schedule(getApplication());sync()
-            } catch(e: Exception) { fail(e) }
-            finally {mutable.update {it.copy(busy=false)}}
+            } catch(e: Exception) { if(generation==epoch) fail(e) }
+            finally {if(generation==epoch) mutable.update {it.copy(busy=false)}}
         }
     }
     private fun fail(error: Exception) {
