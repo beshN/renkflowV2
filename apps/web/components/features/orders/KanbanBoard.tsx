@@ -143,7 +143,7 @@ const DroppableColumn = memo(function DroppableColumn({
         <div className="flex items-center gap-2">
           {!isCollapsed && wipExceeded && (
             <span className="text-[10px] font-semibold text-red-600 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full">
-              WIP {orders.length}/{column.wipLimit}
+              Sınır {orders.length}/{column.wipLimit}
             </span>
           )}
           <motion.span 

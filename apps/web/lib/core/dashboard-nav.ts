@@ -19,13 +19,12 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
     items: [
       { id: 'dashboard', label: 'Genel bakış', href: '/dashboard' },
       { id: 'assistant', allowedRoles: ['owner', 'admin', 'office', 'accountant'], label: 'Asistan', href: '/assistant' },
+      { id: 'quotations', allowedRoles: ROUTE_ROLES['/quotations'], label: 'Teklifler', href: '/quotations', requiresPermission: 'orders.view' },
       { id: 'orders', label: 'Siparişler', href: '/orders', requiresPermission: 'orders.view' },
-      { id: 'new-order', label: 'Yeni sipariş', href: '/new-order', requiresPermission: 'orders.create' },
       { id: 'calendar', allowedRoles: ROUTE_ROLES['/calendar'], label: 'Takvim', href: '/calendar', requiresPermission: 'orders.view' },
       { id: 'production', allowedRoles: ROUTE_ROLES['/production'], label: 'Üretim merkezi', href: '/production', requiresPermission: 'orders.view' },
       { id: 'factory', allowedRoles: ROUTE_ROLES['/factory'], label: 'Usta ekranı', href: '/factory', requiresPermission: 'orders.view' },
       { id: 'work-orders', label: 'İş emirleri', href: '/work-orders', requiresPermission: 'orders.view' },
-      { id: 'kanban', label: 'Üretim akışı', href: '/kanban', requiresPermission: 'kanban.view' },
       { id: 'shipments', allowedRoles: ROUTE_ROLES['/shipments'], label: 'Sevkiyat', href: '/shipments', requiresPermission: 'orders.view' },
       { id: 'installations', allowedRoles: ROUTE_ROLES['/installations'], label: 'Montaj', href: '/installations' },
       { id: 'service', allowedRoles: ROUTE_ROLES['/service'], label: 'Servis ve garanti', href: '/service' },
@@ -35,7 +34,7 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
     id: 'supply-chain', label: 'Malzeme & depo', subtitle: 'Profil, aksesuar ve tedarik',
     items: [
       { id: 'warehouse', label: 'Depo & raf yönetimi', href: '/warehouse', allowedRoles: ['owner','admin','office','accountant'] },
-      { id: 'scan', label: 'QR / barkod terminali', href: '/warehouse/scan', allowedRoles: ['owner','admin','office','accountant','worker'] },
+      { id: 'scan', label: 'QR / barkod terminali', href: '/warehouse/scan', allowedRoles: ['worker'] },
       { id: 'inventory', label: 'Profil & malzeme stoğu', href: '/inventory', requiresPermission: 'inventory.view' },
       { id: 'scrap', allowedRoles: ROUTE_ROLES['/scrap'], label: 'Hurda & profil artıkları', href: '/scrap', requiresPermission: 'inventory.view' },
       { id: 'purchases', allowedRoles: ROUTE_ROLES['/purchases'], label: 'Satın alma', href: '/purchases', requiresPermission: 'inventory.view' },
@@ -49,7 +48,6 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
     items: [
       { id: 'leads', allowedRoles: ROUTE_ROLES['/leads'], label: 'Potansiyel müşteriler', href: '/leads' },
       { id: 'crm', label: 'Müşteriler', href: '/crm', requiresPermission: 'customers.view' },
-      { id: 'quotations', allowedRoles: ROUTE_ROLES['/quotations'], label: 'Teklifler', href: '/quotations', requiresPermission: 'orders.view' },
       { id: 'reports', label: 'Raporlar', href: '/reports', requiresPermission: 'reports.view' },
       { id: 'team', label: 'Ekip ve yetkiler', href: '/team', requiresPermission: 'team.view' },
       { id: 'vehicles', allowedRoles: ROUTE_ROLES['/vehicles'], label: 'Araç filosu', href: '/vehicles' },

@@ -93,6 +93,9 @@ function Select({
   label: string;
   options: Array<{ id: string; name: string }>;
 }) {
+  // A single choice is not a question: it is filled in and the field stays out of the way.
+  if (options.length === 1)
+    return <input type="hidden" name={name} value={options[0].id} />;
   return (
     <label className="block text-xs">
       {label}
@@ -332,7 +335,7 @@ export default function ProductionWorkspace() {
               />
               {[
                 ["sourceWarehouseId", "Hammadde", "RAW"],
-                ["wipWarehouseId", "Üretim / WIP", "WIP"],
+                ["wipWarehouseId", "Üretim deposu", "WIP"],
                 ["targetWarehouseId", "Mamul", "FINISHED"],
               ].map(([name, label, type]) => (
                 <Select
@@ -518,14 +521,8 @@ export default function ProductionWorkspace() {
         <>
           <section className="rf-panel">
             <h2 className="rf-section-title mb-4">Ortak kesim havuzu</h2>
-            <p className="mb-4 text-xs leading-6 text-muted-foreground">
-              Seçilen siparişlerin aynı profil ve renkteki parçaları birlikte
-              hesaplanır. Fiziksel çubuk ve artık stoğu kullanılır; farklı
-              boylar (ör. 6 m ve 7 m) arasından parçaların en iyi doldurduğu
-              boy seçilir. Dört deterministik yerleşim karşılaştırılır: en az
-              yeni çubuk, sonra en az yeni malzeme, sonra en az fire. Optimum
-              garantisi yoktur. Onaydan önce stok ayrılmaz; onayda çubuklar
-              ayrılır, kalıcı düşüm ölçülen kesimle yapılır.
+            <p className="mb-4 text-xs text-muted-foreground">
+              Aynı profil ve renkteki parçalar, eldeki çubuk ve artıklar da kullanılarak en az fireyle birlikte kesilir.
             </p>
             <div className="mb-4">
               <EstimateNotice text={cuttingEstimateNotice(data.cutting?.source)} onOpenSettings={manager ? openCuttingSettings : undefined} />
@@ -564,7 +561,7 @@ export default function ProductionWorkspace() {
           </section>
           {data.rework.some((r: any) => r.profile_status === "pending") && (
             <section className="rf-panel space-y-3">
-              <h2 className="rf-section-title">Rework profil havuzu</h2>
+              <h2 className="rf-section-title">Yeniden işlem profilleri</h2>
               <p className="text-xs text-muted-foreground">
                 Ek profiller ilk reçeteden ayrı kesilir. Ustanın işi, bu kesim
                 gerçekleşene kadar bekler.
@@ -1541,15 +1538,7 @@ export default function ProductionWorkspace() {
               Bildirim kuyruğu ve teslimat geçmişi
             </h2>
             <p className="mb-4 text-xs text-muted-foreground">
-              E-posta:{" "}
-              {data.providers.email
-                ? "Sağlayıcı yapılandırılmış"
-                : "Resend anahtarı gerekli"}{" "}
-              · WhatsApp:{" "}
-              {data.providers.whatsapp
-                ? "Sağlayıcı yapılandırılmış"
-                : "Meta erişim bilgileri gerekli"}
-              . Kanal ayarları malzeme ve kapasite bölümündedir.
+              E-posta: {data.providers.email ? "açık" : "kapalı"} · WhatsApp: {data.providers.whatsapp ? "açık" : "kapalı"}
             </p>
             <div className="space-y-3">
               {data.notifications.map((n: any) => (

@@ -125,10 +125,10 @@ export function ProductConfigurator({ family, currency, initial, onApply, onClos
   return (
     <div className="space-y-3 rounded-md border border-border p-3" role="group" aria-label={`${options.family.label} yapılandırma`}>
       <div className="grid gap-3 sm:grid-cols-4">
-        <label className="text-xs sm:col-span-2">Model (reçete)
+        <label className="text-xs sm:col-span-2">Model
           <select className="rf-input mt-2 w-full" value={recipeId} onChange={(e) => { setRecipeId(e.target.value); setCustom({}); setPreview(null); }}>
             <option value="">Seçin</option>
-            {options.recipes.map((r) => <option key={r.id} value={r.id}>{r.name} ({r.code} · s{r.version})</option>)}
+            {options.recipes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
         </label>
         {options.family.dimensions.map((d) => (

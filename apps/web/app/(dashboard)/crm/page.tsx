@@ -158,24 +158,7 @@ export default function CRMPage() {
       <AppleNavbar title="Müşteri Yönetimi" showSearch={false} />
 
       <main className="flex-1 p-4 md:p-8">
-        {/* Stats Bar */}
-        <div className="grid gap-4 sm:grid-cols-3 mb-6">
-          {[
-            { label: 'Toplam Müşteri', value: total, icon: Building2, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
-            { label: 'Bu Sayfada Siparişli', value: customers.filter(c => parseInt(c.order_count) > 0).length, icon: ShoppingBag, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' },
-            { label: 'Bu Sayfada', value: customers.length, icon: TrendingUp, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20' },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-4 flex items-center gap-4 shadow-sm">
-              <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', color)}>
-                <Icon size={18} />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">{label}</p>
-                <p className="text-xl font-bold text-foreground">{value}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <p className="mb-3 flex items-center gap-2 text-xs text-muted-foreground"><Building2 size={14} aria-hidden /><span className="font-semibold tabular-nums text-foreground">{total}</span> müşteri</p>
 
         <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm">
           <RFListView<Customer>

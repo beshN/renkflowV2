@@ -20,6 +20,8 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
+const ROLE_TR: Record<string, string> = { owner: 'Sahip', admin: 'Yönetici', office: 'Ofis', accountant: 'Muhasebe', worker: 'Usta', sales: 'Satış' };
+
 type CreateWorkOrderDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -234,7 +236,7 @@ export function CreateWorkOrderDialog({
                 <option value="">{copy.detail.unassigned}</option>
                 {members.map((member) => (
                   <option key={member.id} value={member.id}>
-                    {member.name} ({member.role})
+                    {member.name}{ROLE_TR[member.role] ? ` · ${ROLE_TR[member.role]}` : ""}
                   </option>
                 ))}
               </select>
