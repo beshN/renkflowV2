@@ -24,7 +24,7 @@ Bu belge programın durum tablosudur. Her iş kendi dalında ve PR'ında yapıl�
 
 ## Production'da bulunan açıklar (14 Ekim, salt okunur sorgu)
 
-- `audit_logs` tablosu yok (`002_audit_logs.sql` hiç uygulanmamış). `AuditLogService` bu tabloya yazıyor; finans toplu işlemleri ve QR denetim kayıtları canlıda kayboluyor. Faz 1'deki denetim kaydı işinde ele alınacak.
+- `audit_logs` tablosu yok (`002_audit_logs.sql` hiç uygulanmamış). Denetim kayıtları bundan etkilenmiyor: `AuditLogService` dahil tüm yazıcılar K5'ten beri `activity_logs`'a yazıyor. Bu tabloyu yalnızca hiçbir yerden çağrılmayan `/api/tenant/activity` rotası okuyordu.
 - `automation_rules` ve `time_entries` yok (`003_enterprise_features.sql`). Otomasyon kuralları canlıda çalışamaz.
 - `sso_states` yok (`004_add_enterprise_features.sql`). SSO girişi canlıda çalışamaz.
 - `001_add_indexes.sql`'deki sipariş ve kullanıcı indeksleri yok. Performans işinde ele alınacak.
