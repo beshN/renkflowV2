@@ -42,7 +42,7 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
       { id: 'suppliers', allowedRoles: ROUTE_ROLES['/suppliers'], label: 'Tedarikçiler', href: '/suppliers', requiresPermission: 'inventory.view' },
     ],
   },
-  { id: 'finance', label: 'Finans & muhasebe', subtitle: 'Tahsilat ve mali kontrol', items: [{id:'finance',label:'Finans',href:'/finance',requiresPermission:'finance.view'},{id:'receivables',label:'Alacaklar',href:'/finance/receivables',requiresPermission:'finance.view'},{id:'invoices',label:'Faturalar',href:'/finance/invoices',requiresPermission:'finance.view'},{id:'accounting',label:'Muhasebe',href:'/accounting',requiresPermission:'finance.view'}] },
+  { id: 'finance', label: 'Finans & muhasebe', subtitle: 'Tahsilat ve mali kontrol', items: [{id:'finance',label:'Finans',href:'/finance',requiresPermission:'finance.view'},{id:'receivables',label:'Alacaklar',href:'/finance/receivables',requiresPermission:'finance.view'},{id:'invoices',label:'Faturalar',href:'/finance/invoices',requiresPermission:'finance.view'},{id:'personnel',label:'Personel',href:'/finance/employees',requiresPermission:'finance.employees.view'},{id:'accounting',label:'Muhasebe',href:'/accounting',requiresPermission:'finance.view'}] },
   {
     id: 'management', label: 'Yönetim', subtitle: 'Müşteriler, raporlar ve ekip',
     items: [

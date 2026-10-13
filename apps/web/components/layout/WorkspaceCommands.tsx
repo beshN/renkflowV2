@@ -18,6 +18,7 @@ type Action = { id: string; title: string; keywords: string; href: string; icon:
 const ACTIONS: Action[] = [
   { id: 'a-quote', title: 'Yeni teklif', keywords: 'yeni teklif fiyat pergola yapılandır', href: '/quotations/new', icon: FilePlus2, roles: ['owner', 'admin', 'office'] },
   { id: 'a-order', title: 'Yeni sipariş', keywords: 'yeni sipariş oluştur', href: '/new-order', icon: PackagePlus, roles: ['owner', 'admin', 'office'] },
+  { id: 'a-foy', title: 'İmalat föyü oku', keywords: 'föy foy imalat pdf oku içe aktar kesim listesi pergola', href: '/orders/foy', icon: FileText, roles: ['owner', 'admin', 'office'] },
   { id: 'a-count', title: 'Stok sayımı', keywords: 'stok sayım sayımı çubuk açılış', href: '/inventory/opening-count', icon: ClipboardList, roles: ['owner', 'admin', 'office'] },
   { id: 'a-cut', title: 'Kesim planı', keywords: 'kesim plan çubuk fire', href: '/production?tab=cutting', icon: Scissors, roles: ['owner', 'admin', 'office'] },
   { id: 'a-board', title: 'Sipariş panosu', keywords: 'pano kanban sürükle aşama', href: '/orders?mode=board', icon: Columns3, roles: ['owner', 'admin', 'office', 'accountant'] },
