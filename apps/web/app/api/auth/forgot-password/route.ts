@@ -7,19 +7,7 @@ import { resolveServerBaseUrl } from '@/lib/shared/config/runtime-env';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 import { sendPasswordResetEmail } from '@/lib/email';
-
-// Generate cryptographically secure token using Web Crypto API (Edge compatible)
-function generateSecureToken(): string {
-  const array = new Uint8Array(32);
-  globalThis.crypto.getRandomValues(array);
-  return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
-async function hashToken(token: string): Promise<string> {
-  const data = new TextEncoder().encode(token);
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
+import { generateResetToken, hashResetToken } from '@/lib/features/auth/reset-token';
 
 export async function POST(request: NextRequest) {
   const limit = await consumeRateLimit('passwordReset', getClientIp(request.headers));
@@ -82,8 +70,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate secure reset token
-    const resetToken = generateSecureToken();
-    const resetTokenHash = await hashToken(resetToken);
+    const resetToken = generateResetToken();
+    const resetTokenHash = await hashResetToken(resetToken);
     const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
 
     // Save token to database
