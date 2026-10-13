@@ -4,6 +4,8 @@ Tarih: 6 Ekim 2026 · Dal: `claude/wonderful-faraday-w67fb4` · Kapsam: `apps/we
 
 Bu belge kod yazmadan önce yapılan denetimin sonucudur. Hiçbir uygulama kodu değiştirilmedi.
 
+> **Güncelleme (14 Ekim 2026):** Bu belge tarihsel taban çizgisidir. K1–K8 birleşti; ayrıntılar `docs/PROGRESS.md`'de. Güncel eksik listesi ve program durumu `docs/ROADMAP.md`'de.
+
 ## Nasıl denetlendi
 
 | Adım | Ortam | Sonuç |
