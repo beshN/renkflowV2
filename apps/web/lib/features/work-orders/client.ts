@@ -67,6 +67,9 @@ const WorkOrderSchema = z.object({
   }).nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  boardPosition: z.number().optional().default(0),
+  revision: z.number().int().positive().optional().default(1),
+  manufacturing: z.object({ bomId: z.string().uuid(), reservationStatus: z.string() }).nullable().optional(),
 });
 
 const WorkOrderChecklistItemSchema = z.object({
@@ -104,6 +107,7 @@ const WorkOrderListResponseSchema = z.object({
   success: z.literal(true),
   data: z.array(WorkOrderSchema),
   pagination: PaginationSchema,
+  capabilities: z.object({ create: z.boolean(), edit: z.boolean(), assign: z.boolean(), transition: z.boolean(), close: z.boolean(), comment: z.boolean(), checklist: z.boolean() }).optional(),
 });
 
 const WorkOrderSummaryResponseSchema = z.object({
@@ -177,6 +181,7 @@ export type WorkOrderComment = z.infer<typeof WorkOrderCommentSchema>;
 export type WorkOrderSummary = z.infer<typeof WorkOrderSummaryResponseSchema>['data'];
 export type WorkOrderDetails = z.infer<typeof WorkOrderDetailResponseSchema>['data'];
 export type TenantMember = z.infer<typeof TenantMembersResponseSchema>['members'][number];
+export type WorkOrderCapabilities = NonNullable<z.infer<typeof WorkOrderListResponseSchema>['capabilities']>;
 
 export type ListWorkOrdersQuery = {
   page?: number;
@@ -186,6 +191,7 @@ export type ListWorkOrdersQuery = {
   assignedToUserId?: string;
   search?: string;
   includeClosed?: boolean;
+  sort?: 'priority' | 'board';
 };
 
 export type CreateWorkOrderInput = {
@@ -216,6 +222,9 @@ export type UpdateWorkOrderInput = {
   blockedReasonDetail?: string | null;
   assignedToUserId?: string | null;
   appendChecklistItems?: Array<{ title: string; required?: boolean }>;
+  expectedUpdatedAt?: string;
+  expectedRevision?: number;
+  boardPlacement?: { beforeId: string | null; afterId: string | null };
 };
 
 export class WorkOrderClientError extends Error {
@@ -261,6 +270,7 @@ function buildQueryString(query: ListWorkOrdersQuery): string {
   if (query.priority) params.set('priority', query.priority);
   if (query.assignedToUserId) params.set('assignedToUserId', query.assignedToUserId);
   if (query.search) params.set('search', query.search);
+  if (query.sort) params.set('sort', query.sort);
   if (query.includeClosed !== undefined) {
     params.set('includeClosed', query.includeClosed ? 'true' : 'false');
   }
@@ -302,7 +312,19 @@ export async function listWorkOrders(query: ListWorkOrdersQuery = {}) {
   return {
     data: response.data,
     pagination: response.pagination,
+    capabilities: response.capabilities,
   };
+}
+
+/** The board must not silently hide jobs after the first 25 cards. */
+export async function listKanbanWorkOrders() {
+  const first = await listWorkOrders({ pageSize: 100, sort: 'board', includeClosed: true });
+  const rows = [...first.data];
+  for (let page = 2; page <= first.pagination.totalPages; page += 4) {
+    const pages = await Promise.all(Array.from({ length: Math.min(4, first.pagination.totalPages - page + 1) }, (_, index) => listWorkOrders({ page: page + index, pageSize: 100, sort: 'board', includeClosed: true })));
+    rows.push(...pages.flatMap(result => result.data));
+  }
+  return { data: [...new Map(rows.map(row => [row.id, row])).values()], capabilities: first.capabilities };
 }
 
 export async function getWorkOrderSummary(): Promise<WorkOrderSummary> {

@@ -45,6 +45,7 @@ export async function GET(
     }
 
     const data = await getWorkOrderDetails(actor.tenantId, parsedParams.data.workOrderId);
+    if (actor.role === 'worker' && data.assignedTo !== actor.userId) throw new WorkOrderApiError('İş emri bulunamadı', 404);
     return NextResponse.json({ success: true, data });
   } catch (error) {
     if (error instanceof WorkOrderApiError) {
@@ -86,6 +87,8 @@ export async function PATCH(
     if (keys.includes('assignedToUserId')) {
       requireWorkOrderPermission(actor, 'assign');
     }
+    if (keys.includes('boardPlacement')) requireWorkOrderPermission(actor, 'transition');
+    if (keys.includes('appendChecklistItems')) requireWorkOrderPermission(actor, 'edit');
 
     const rawStatus = (parsedBody.data as Record<string, unknown>).status;
     if (typeof rawStatus === 'string' && (WORK_ORDER_STATUSES as readonly string[]).includes(rawStatus)) {

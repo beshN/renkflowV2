@@ -1,5 +1,3 @@
-import 'server-only';
-
 export const WORK_ORDER_STATUSES = [
   'open',
   'in_progress',
