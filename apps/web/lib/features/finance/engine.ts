@@ -28,19 +28,26 @@ export const DEFAULT_PAYMENT_TERMS_DAYS = 30;
 
 // Invoice lines ---------------------------------------------------------------------------------
 
-export type LineInput = { quantity: number; unitPrice: number; vatPercent: number };
-/** One line: net = quantity × unit price, VAT on the net, both rounded to kuruş per line. */
+export type LineInput = { quantity: number; unitPrice: number; vatPercent: number; /** Share of the VAT withheld (tevkifat, 4/10 → 40). */ withholdingPercent?: number };
+/**
+ * One line: net = quantity × unit price, VAT on the net, both rounded to kuruş per line.
+ * Withholding (tevkifat) is the withheld share of that VAT: the buyer pays it to the tax office.
+ */
 export function lineTotals(l: LineInput) {
   const net = money(l.quantity * l.unitPrice);
   const vat = money((net * l.vatPercent) / 100);
-  return { net, vat, gross: money(net + vat) };
+  const withholding = money((vat * (l.withholdingPercent ?? 0)) / 100);
+  return { net, vat, gross: money(net + vat), withholding };
 }
 /** Invoice totals are the sum of the rounded lines (what is printed adds up). */
 export function invoiceTotals(lines: LineInput[]) {
   const t = lines.map(lineTotals);
   const subtotal = money(t.reduce((s, x) => s + x.net, 0));
   const vatTotal = money(t.reduce((s, x) => s + x.vat, 0));
-  return { subtotal, vatTotal, total: money(subtotal + vatTotal) };
+  const total = money(subtotal + vatTotal);
+  const withholdingTotal = money(t.reduce((s, x) => s + x.withholding, 0));
+  // What the buyer owes the seller.
+  return { subtotal, vatTotal, total, withholdingTotal, payable: money(total - withholdingTotal) };
 }
 
 /**

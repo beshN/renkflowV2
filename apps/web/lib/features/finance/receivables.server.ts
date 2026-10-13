@@ -17,9 +17,11 @@ const iso = (d: unknown) => (d ? (d instanceof Date ? d.toISOString() : String(d
  * Every customer's issued invoices and collections (TRY), keyed by the order's customer card (or
  * name when the order has none). Cancelled invoices and drafts are not receivables.
  */
+// A receivable is what the buyer owes the seller: with withholding (tevkifat) that is the total less
+// the withheld VAT (payable_total, migration 053); older invoices have only the total.
 async function ledger(tenantId: string) {
   const [invoices, payments] = await Promise.all([
-    sql`SELECT i.id, i.invoice_number, i.issued_on, i.due_on, i.total, i.order_id, i.issued_by, o.order_number, o.customer_id, o.customer_name, i.customer_name AS invoice_customer
+    sql`SELECT i.id, i.invoice_number, i.issued_on, i.due_on, coalesce((to_jsonb(i) ->> 'payable_total')::numeric, i.total) AS total, i.order_id, i.issued_by, o.order_number, o.customer_id, o.customer_name, i.customer_name AS invoice_customer
       FROM invoices i JOIN orders o ON o.id = i.order_id WHERE i.tenant_id = ${tenantId} AND i.status = 'issued' AND i.currency = 'TRY'`,
     sql`SELECT p.id, p.amount, p.method, p.paid_at, p.reference, p.order_id, p.invoice_id, o.order_number, o.customer_id, o.customer_name
       FROM payments p JOIN orders o ON o.id = p.order_id WHERE p.tenant_id = ${tenantId} AND p.currency = 'TRY'`,
@@ -79,7 +81,7 @@ export async function customerStatement(actor: WorkOrderActor, key: string, from
   const found = (await ledger(actor.tenantId)).find((x) => x.key === key);
   // A cancelled invoice stays in the history: its debit on the day it was issued, a reversal on the
   // day it was cancelled — so a statement already sent for a past period does not change.
-  const cancelled = (await sql`SELECT i.invoice_number, i.issued_on, i.cancelled_at, i.total, o.order_number, o.customer_id, o.customer_name
+  const cancelled = (await sql`SELECT i.invoice_number, i.issued_on, i.cancelled_at, coalesce((to_jsonb(i) ->> 'payable_total')::numeric, i.total) AS total, o.order_number, o.customer_id, o.customer_name
     FROM invoices i JOIN orders o ON o.id = i.order_id WHERE i.tenant_id = ${actor.tenantId} AND i.status = 'cancelled' AND i.invoice_number IS NOT NULL AND i.currency = 'TRY'`)
     .filter((i: Row) => customerKey(i.customer_id, i.customer_name) === key);
   if (!found && !cancelled.length) throw new WorkOrderApiError('Müşteri bulunamadı', 404);
