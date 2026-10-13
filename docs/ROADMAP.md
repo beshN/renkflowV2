@@ -22,6 +22,15 @@ Bu belge programın durum tablosudur. Her iş kendi dalında ve PR'ında yapıl�
   - Repoda konum verisi yok. KVKK açığı, veri sahibi talepleri (DSR) ile saklama ve imha işlerinde.
   - Parola alt sınırı 6 karakter. CSP yok. SSO `client_secret` düz metin. RLS fiilen etkisiz.
 
+## Production'da bulunan açıklar (14 Ekim, salt okunur sorgu)
+
+- `audit_logs` tablosu yok (`002_audit_logs.sql` hiç uygulanmamış). `AuditLogService` bu tabloya yazıyor; finans toplu işlemleri ve QR denetim kayıtları canlıda kayboluyor. Faz 1'deki denetim kaydı işinde ele alınacak.
+- `automation_rules` ve `time_entries` yok (`003_enterprise_features.sql`). Otomasyon kuralları canlıda çalışamaz.
+- `sso_states` yok (`004_add_enterprise_features.sql`). SSO girişi canlıda çalışamaz.
+- `001_add_indexes.sql`'deki sipariş ve kullanıcı indeksleri yok. Performans işinde ele alınacak.
+- Mobil migration'lar (`lib/features/mobile/migrations`) hiçbir deploy betiğinde değildi; production'a elle uygulanmışlar. Migration defteri PR'ı ile deploy yoluna alındı.
+- PITR penceresi 6 saat. Ayrıntı: `docs/runbooks/backup-restore.md`.
+
 ## Durum
 
 Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dış bağımlılık bekliyor
@@ -33,20 +42,20 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 | Yerel değişikliklerin ayıklanması | ✅ | Hepsi `backup/local-2026-10-14` ve `backup/stash-2026-10-06` dallarında. Çoğu #69 ve ölü kod temizliğiyle aşıldı; taşınacak bir şey çıkmadı. |
 | PR #76 (Claude Sonnet 5.5) | ✅ | CI ve Vercel yeşil, birleşti. |
 | Temel test ölçümü | ✅ | Yukarıda. |
-| Yol haritası ve AUDIT notu | 🔄 | Bu PR. |
+| Yol haritası ve AUDIT notu | ✅ | #77 |
 
 ### Faz 1: Güvenilirlik ve güvenlik
 
-| İş | Durum |
-|---|---|
-| Hata izleme (Sentry, `instrumentation.ts`), üretim logger'ı, gerçek `/api/ready` | ⬜ |
-| CI'nın GitHub-hosted Ubuntu + Postgres'e taşınması; entegrasyon betikleri ve Playwright smoke testinin kapıya eklenmesi | ⬜ |
-| Yedekleme ve geri yükleme runbook'u, prova; migration defteri ve kapsama testi | ⬜ |
-| Parola politikası (en az 10 karakter, tek doğrulayıcı), düz reset token eşleşmesinin kaldırılması, mobil JWT için dev-secret fallback'inin kaldırılması, CSP | ⬜ |
-| İki adımlı doğrulama (TOTP) ve kurtarma kodları; SSO sırlarının şifrelenmesi | ⬜ |
-| Denetim kaydının tek servise indirilmesi; eksik olayların eklenmesi | ⬜ |
-| Postgres RLS ve firma izolasyonu testi | ⬜ |
-| Yük testi ve Web Vitals | ⬜ |
+| İş | Durum | Not |
+|---|---|---|
+| Hata izleme (Sentry, `instrumentation.ts`), gerçek `/api/ready` | 🔄 | #80. Canlı için Sentry DSN gerekiyor. |
+| 26 entegrasyon betiğinin sıfır veritabanında CI kapısına alınması | 🔄 | #79. GitHub-hosted runner hesapta kullanılamadığı için self-hosted Mac'te. Playwright smoke testi sonra. |
+| Yedekleme ve geri yükleme runbook'u, prova; migration defteri ve kapsama testi | 🔄 | `docs/runbooks/backup-restore.md`, `schema_migrations`, `npm run db:status` |
+| Düz reset token eşleşmesinin kaldırılması, CSP, SSO sırlarının şifrelenmesi | 🔄 | #78. Parola politikası zaten 10 karakter ve tek doğrulayıcıydı; mobil JWT fallback'i production'da zaten hata veriyor. |
+| İki adımlı doğrulama (TOTP) ve kurtarma kodları | ⬜ | |
+| Denetim kaydının tek servise indirilmesi; eksik olayların eklenmesi | ⬜ | |
+| Postgres RLS ve firma izolasyonu testi | ⬜ | |
+| Yük testi ve Web Vitals | ⬜ | |
 
 ### Faz 2: Türkiye yasal uyumu
 

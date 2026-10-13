@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import postgres from "postgres";
 import { readFileSync } from "node:fs";
-import { ensureBackendSchema } from "./ensure-backend-schema";
+import { DEPLOY_BOOTSTRAP_MIGRATIONS, ensureBackendSchema, ensureMigrationLedger, recordMigration } from "./ensure-backend-schema";
 /** Explicit, additive release step. Never run this from next build or load development env implicitly. */
 async function main() {
  const file=process.argv.find(a=>a.startsWith("--env-file="))?.slice(11);
@@ -29,7 +29,8 @@ async function main() {
    await db.begin(async tx=> {await tx.unsafe(bootstrap);});
    console.log("[db] Empty database initialized without demo data");
   } else if(!base.tenants || !base.users || !base.orders) throw new Error("Core schema is incomplete; no destructive repair attempted");
-  for(const file of ["002_add_tenant_templates.sql","003_add_order_custom_fields.sql","003_order_qr.sql","004_inventory.sql","005_inventory_stock_cache.sql","0005_add_integrations.sql"]) await db.unsafe(readFileSync(`lib/db/migrations/${file}`,"utf8"));
+  await ensureMigrationLedger(db);
+  for(const file of DEPLOY_BOOTSTRAP_MIGRATIONS) {const raw=readFileSync(`lib/db/migrations/${file}`,"utf8");await db.unsafe(raw);await recordMigration(db,file,raw);}
   await ensureBackendSchema(db);
   console.log("[db] Additive deployment migrations completed");
  } finally {
