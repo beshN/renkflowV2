@@ -12,6 +12,7 @@ import { sql, withTransaction } from '@/lib/db';
 import { SAML } from '@node-saml/node-saml';
 import { parseStringPromise } from 'xml2js';
 import crypto from 'node:crypto';
+import { openSecret, sealSecret } from '@/lib/security/secret-box';
 import {
   Configuration,
   ClientSecretPost,
@@ -23,6 +24,9 @@ import {
   randomPKCECodeVerifier,
   skipSubjectCheck,
 } from 'openid-client';
+
+// OIDC client secrets are stored sealed; rows written before this change are still read as plain text.
+const SSO_SECRET_PURPOSE = 'sso.client_secret';
 
 // ============================================
 // Types
@@ -121,7 +125,7 @@ export async function createSSOProvider(
       ${data.type},
       ${data.metadata || null},
       ${data.clientId || null},
-      ${data.clientSecret || null},
+      ${data.clientSecret ? sealSecret(data.clientSecret, SSO_SECRET_PURPOSE) : null},
       ${data.authorizationUrl || null},
       ${data.tokenUrl || null},
       ${data.userInfoUrl || null},
@@ -139,7 +143,7 @@ export async function createSSOProvider(
     ...provider,
     tenantId: provider.tenant_id,
     clientId: provider.client_id,
-    clientSecret: provider.client_secret,
+    clientSecret: data.clientSecret,
     authorizationUrl: provider.authorization_url,
     tokenUrl: provider.token_url,
     userInfoUrl: provider.user_info_url,
@@ -494,7 +498,7 @@ async function createOidcConfig(provider: any, redirectUri: string): Promise<Con
       new URL(provider.issuer_url),
       provider.client_id,
       clientMetadata,
-      ClientSecretPost(provider.client_secret),
+      ClientSecretPost(openSecret(provider.client_secret, SSO_SECRET_PURPOSE) ?? ''),
     );
   }
 
@@ -509,7 +513,7 @@ async function createOidcConfig(provider: any, redirectUri: string): Promise<Con
     serverMetadata,
     provider.client_id,
     clientMetadata,
-    ClientSecretPost(provider.client_secret),
+    ClientSecretPost(openSecret(provider.client_secret, SSO_SECRET_PURPOSE) ?? ''),
   );
 }
 
