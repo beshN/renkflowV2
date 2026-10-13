@@ -6,6 +6,7 @@ import { resolveAuthSecret } from '@/lib/shared/config/runtime-env';
 import { evaluateRouteAccess } from '@/lib/features/auth/route-access';
 import { accessDecision, logAccessDenied, narrowedHiddenFields } from '@/lib/security/member-access.server';
 import { HIDDEN_FIELDS_HEADER } from '@/lib/security/field-header';
+import { SECURITY_HEADERS } from '@/lib/security/security-headers';
 
 const AUTH_SECRET =
   resolveAuthSecret({
@@ -143,20 +144,11 @@ function buildLoginRedirect(request: NextRequest): NextResponse {
   return NextResponse.redirect(loginUrl, 302);
 }
 
-const PROXY_SECURITY_HEADERS: Record<string, string> = {
-  'X-DNS-Prefetch-Control': 'on',
-  'X-Frame-Options': 'DENY',
-  'X-Content-Type-Options': 'nosniff',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(self), microphone=(), geolocation=()',
-  'X-XSS-Protection': '1; mode=block',
-};
-
 function withProxySecurityHeaders(
   response: NextResponse,
   options: { isSecureRequest: boolean },
 ): NextResponse {
-  Object.entries(PROXY_SECURITY_HEADERS).forEach(([key, value]) => {
+  Object.entries(SECURITY_HEADERS).forEach(([key, value]) => {
     response.headers.set(key, value);
   });
 
