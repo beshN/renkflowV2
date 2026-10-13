@@ -9,27 +9,35 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Bell, ChevronRight, Menu, Moon, Plus, Search, Sun, X, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useMemberAccess } from '@/lib/hooks/useMemberAccess';
-import { DASHBOARD_QUICK_LINKS, getVisibleNavGroups } from '@/lib/core/dashboard-nav';
+import { DASHBOARD_QUICK_LINKS, activeNavHref, getVisibleNavGroups } from '@/lib/core/dashboard-nav';
 import { hasPermission } from '@/lib/auth/permissions';
 import { useWorkspaceCommands } from './WorkspaceCommands';
 import { cn } from '@/lib/utils';
+import { NavigationGroup } from './NavigationGroup';
 import { BrandMark } from '@/components/brand/BrandMark';
 
 /** Screens reached without a menu item still need their own breadcrumb. */
-const OFF_MENU_SECTIONS: Record<string, string> = { '/search': 'Arama' };
+const OFF_MENU_SECTIONS: Record<string, string> = { '/search': 'Arama', '/new-order': 'Yeni sipariş', '/kanban': 'Sipariş panosu' };
 
 export function WorkspaceHeader() {
   const pathname = usePathname();
   const { user } = useAuth();
   const memberAccess = useMemberAccess();
+  const navGroups = getVisibleNavGroups(user?.role, memberAccess);
+  const activeHref = activeNavHref(pathname, navGroups);
   const { resolvedTheme, setTheme } = useTheme();
   const { openCommands } = useWorkspaceCommands();
   const [mobileOpen, setMobileOpen] = useState(false);
+  useEffect(() => {
+    const open = () => setMobileOpen(true);
+    window.addEventListener('rf:open-navigation', open);
+    return () => window.removeEventListener('rf:open-navigation', open);
+  }, []);
   // The resolved theme is only known in the browser; render a neutral icon until mounted.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const isDark = mounted && resolvedTheme === 'dark';
-  const current = DASHBOARD_QUICK_LINKS.find(item => item.href !== '/dashboard' && (pathname === item.href || pathname.startsWith(item.href + '/')));
+  const current = [...DASHBOARD_QUICK_LINKS].sort((a, b) => b.href.length - a.href.length).find(item => item.href !== '/dashboard' && (pathname === item.href || pathname.startsWith(item.href + '/')));
   const offMenu = Object.keys(OFF_MENU_SECTIONS).find(href => pathname === href || pathname.startsWith(href + '/'));
   const section = current?.label || (offMenu && OFF_MENU_SECTIONS[offMenu]) || 'Genel bakış';
   const detail = current && pathname !== current.href;
@@ -42,10 +50,12 @@ export function WorkspaceHeader() {
           <div className="mb-6 flex items-center justify-between"><Dialog.Title asChild><span><BrandMark href="/dashboard" /></span></Dialog.Title><Dialog.Close aria-label="Ana menüyü kapat" className="rf-icon-button"><X size={20} /></Dialog.Close></div>
           <Dialog.Description className="sr-only">Çalışma alanı modülleri</Dialog.Description>
           <nav className="flex-1 space-y-5 overflow-y-auto" aria-label="Mobil modüller">
-            {getVisibleNavGroups(user?.role, memberAccess).map(group => <div key={group.id}><p className="sb-muted mb-2 px-3 text-[11px] font-medium">{group.label}</p>
-              {group.items.filter(item => !item.action).map(item => <Link key={item.id} href={item.href} onClick={() => setMobileOpen(false)} aria-current={pathname === item.href ? 'page' : undefined}
-                className={cn('rf-nav-item flex items-center justify-between px-3 py-2.5 text-sm', pathname === item.href && 'rf-nav-active')}>{item.label}<ArrowUpRight size={14} className="opacity-40" /></Link>)}
-            </div>)}
+            {navGroups.map(group => <NavigationGroup key={group.id} label={group.label}
+              active={group.items.some(item => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/')))}
+              initiallyOpen={group.id === 'general' || group.id === 'sales' || user?.role === 'worker'}>
+              {group.items.filter(item => !item.action).map(item => <Link key={item.id} href={item.href} onClick={() => setMobileOpen(false)} aria-current={activeHref === item.href ? 'page' : undefined}
+                className={cn('rf-nav-item flex items-center justify-between px-3 py-2.5 text-sm', activeHref === item.href && 'rf-nav-active')}>{item.label}<ArrowUpRight size={14} className="opacity-40" /></Link>)}
+            </NavigationGroup>)}
           </nav>
         </Dialog.Content>
       </Dialog.Portal>

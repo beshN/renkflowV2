@@ -131,10 +131,10 @@ export function ProductConfigurator({ family, currency, initial, onApply, onClos
   return (
     <div className="space-y-3 rounded-md border border-border p-3" role="group" aria-label={`${options.family.label} yapılandırma`}>
       <div className="grid gap-3 sm:grid-cols-4">
-        <label className="text-xs sm:col-span-2">Model (reçete)
+        <label className="text-xs sm:col-span-2">Model
           <select className="rf-input mt-2 w-full" value={recipeId} onChange={(e) => { setRecipeId(e.target.value); setCustom({}); setPreview(null); }}>
             <option value="">Seçin</option>
-            {options.recipes.map((r) => <option key={r.id} value={r.id}>{r.name} ({r.code} · s{r.version})</option>)}
+            {options.recipes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
         </label>
         {options.family.dimensions.map((d) => (
@@ -167,13 +167,13 @@ export function ProductConfigurator({ family, currency, initial, onApply, onClos
         stockColors={options.colors.stock}
       />
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="rf-secondary-button" disabled={busy || !recipeId || !color} onClick={() => void calculate()}>{busy ? 'Hesaplanıyor…' : 'Malzeme listesi ve fiyatı hesapla'}</button>
+        <button type="button" className="rf-secondary-button" disabled={busy || !recipeId || !color} onClick={() => void calculate()}>{busy ? 'Hesaplanıyor…' : 'Fiyatı hesapla'}</button>
         <button type="button" className="rf-secondary-button" onClick={onClose}>Vazgeç</button>
       </div>
       {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
       {preview && (
         <div className="space-y-3">
-          <BomTables bom={preview.bom} />
+          <details><summary className="cursor-pointer text-xs font-medium">Malzeme ve kesim listesi</summary><div className="mt-3"><BomTables bom={preview.bom} /></div></details>
           {preview.price.source === 'matrix' ? (
             <p className="text-sm">Birim fiyat (fiyat matrisinden): <strong>{money(preview.price.matrixUnitPrice!, currency)}</strong> <span className="text-xs text-muted-foreground">{preview.price.lines.map((l) => `${l.label}: ${money(l.amount, currency)}`).join(' · ')}</span></p>
           ) : (

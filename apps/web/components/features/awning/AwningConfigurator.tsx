@@ -19,10 +19,7 @@ import type {
 const views: [AwningView, string][] = [
   ["perspective", "Perspektif"],
   ["front", "Ön"],
-  ["side", "Yan"],
   ["top", "Üst"],
-  ["under", "Alt"],
-  ["detail", "Mekanizma"],
 ];
 export function AwningConfigurator({
   value = DEFAULT_AWNING,
@@ -283,7 +280,7 @@ export function AwningConfigurator({
           </p>
         )}
         <div>
-          <h3 className="rf-section-title">Teknik yapılandırma</h3>
+          <h3 className="rf-section-title">Ölçü ve renk</h3>
           <p className="mt-1 text-xs text-muted-foreground">
             Ölçüler milimetre cinsindedir.
           </p>
@@ -402,9 +399,6 @@ export function AwningConfigurator({
             <span>%{draft.brightness}</span>
           </label>
         </fieldset>
-        <p className="rounded-md bg-muted p-3 text-xs leading-5">
-          {awningSummary(draft)}
-        </p>
         {!readOnly && onApply && (
           <button
             type="button"

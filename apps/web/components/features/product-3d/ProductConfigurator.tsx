@@ -22,10 +22,7 @@ import type {
 const views: Array<[ProductView, string]> = [
   ["perspective", "Perspektif"],
   ["front", "Ön"],
-  ["side", "Yan"],
   ["top", "Üst"],
-  ["under", "Alt"],
-  ["detail", "Mekanizma"],
 ];
 export function ProductConfigurator({
   value,
@@ -189,7 +186,7 @@ export function ProductConfigurator({
             className={`pointer-events-none absolute left-5 top-5 z-10 ${time > 70 ? "text-slate-100" : "text-[#203641]"}`}
           >
             <p className="text-[10px] font-semibold uppercase tracking-[.18em]">
-              RENK / {meta.name}
+              {meta.name}
             </p>
             <p className="mt-1 text-sm tabular-nums">
               En {draft.widthMm} mm · {roof ? `Açılım ${draft.projectionMm} mm · Montaj ${draft.heightMm} mm` : `Yükseklik ${draft.heightMm} mm`}
@@ -308,7 +305,7 @@ export function ProductConfigurator({
               %{Math.round(opening)}
             </output>
             <div className="flex flex-wrap gap-1">
-              {[0, 25, 50, 75, 100].map((n) => (
+              {[0, 100].map((n) => (
                 <button
                   key={n}
                   type="button"
@@ -319,54 +316,27 @@ export function ProductConfigurator({
                     controller.current?.setOpening(n);
                   }}
                 >
-                  %{n}
+                  {draft.kind === 'wind-piston' ? (n ? 'Yüksek' : 'Alçak') : (n ? 'Açık' : 'Kapalı')}
                 </button>
               ))}
             </div>
           </div>
         )}
-        <label className="flex items-center gap-3 text-xs">
-          Gündüz / gece
-          <input
-            aria-label="Gündüz gece ışığı"
-            type="range"
-            min={0}
-            max={100}
-            value={time}
-            onChange={(e) => {
-              setTime(+e.target.value);
-              controller.current?.setTime(+e.target.value);
-            }}
-          />
-          <span>
-            {time < 30 ? "Gündüz" : time < 75 ? "Gün batımı" : "Gece"}
-          </span>
-        </label>
-        <p className="text-[11px] leading-5 text-muted-foreground">
-          Ölçüye göre görsel sunum. Üretim uygunluğu onaylı reçete ve projeyle
-          doğrulanır.
-        </p>
-        <details className="rounded-md border border-border p-3 text-xs leading-5">
-          <summary className="cursor-pointer font-medium">
-            Ürün detayları ve referans
-          </summary>
-          <ul className="mt-2 list-disc pl-4">
-            {meta.details.map((d) => (
-              <li key={d}>{d}</li>
-            ))}
-          </ul>
-          {meta.uncertainty && (
-            <p className="mt-2 text-muted-foreground">{meta.uncertainty}</p>
-          )}
-          <a
-            className="mt-2 inline-block text-primary underline"
-            href={`https://www.renkaluminyum.com${meta.source}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Gerçek ürünü incele
-          </a>
+        <details className="text-xs">
+          <summary className="cursor-pointer py-2 text-muted-foreground">Görünüm seçenekleri</summary>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2">Açı
+              <select className="rf-input" aria-label="Diğer kamera açıları" value={view} onChange={e => { const next = e.target.value as ProductView; setView(next); controller.current?.selectView(next); }}>
+                {[['perspective', 'Perspektif'], ['front', 'Ön'], ['side', 'Yan'], ['top', 'Üst'], ['under', 'Alt'], ['detail', 'Yakın plan']].map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+              </select>
+            </label>
+            <label className="flex items-center gap-2">Işık
+              <input aria-label="Gündüz gece ışığı" type="range" min={0} max={100} value={time} onChange={e => { setTime(+e.target.value); controller.current?.setTime(+e.target.value); }} />
+              <span>{time < 30 ? 'Gündüz' : time < 75 ? 'Gün batımı' : 'Gece'}</span>
+            </label>
+          </div>
         </details>
+        <p className="text-[11px] text-muted-foreground">Ürün görseli temsili olup uygulama çizimi yerine geçmez.</p>
       </div>
       <div className="space-y-4">
         {error && ready && (
@@ -378,7 +348,7 @@ export function ProductConfigurator({
           </p>
         )}
         <h3 className="rf-section-title">
-          {readOnly ? "Kaydedilmiş seçimler" : "3D görünüm seçimleri"}
+          {readOnly ? "Ürün özellikleri" : "Ölçü ve renk"}
         </h3>
         <fieldset disabled={readOnly} className="space-y-4 disabled:opacity-80">
           {showProductPicker && (
