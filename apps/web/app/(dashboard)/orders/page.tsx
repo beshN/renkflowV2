@@ -4,7 +4,7 @@ import { Suspense, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Plus, RefreshCw, Download, Trash2, X, FileText, List, Columns3, AlertOctagon, Truck, Activity } from 'lucide-react';
+import { Plus, RefreshCw, Download, Trash2, X, FileText, List, Columns3, AlertOctagon, Truck, Activity, ScanText } from 'lucide-react';
 import { toast } from 'sonner';
 import { HealthBadge, HintTip, LifecycleStrip, PageHeader, withUndo } from '@/components/kit';
 import { OrdersBoard } from '@/components/features/orders/OrdersBoard';
@@ -174,6 +174,7 @@ function OrdersWorkspace() {
         </div>
         <button onClick={reload} disabled={isValidating || isLoading} className="rf-icon-button grid h-9 w-9 place-items-center border border-border bg-card disabled:opacity-40" aria-label="Siparişleri yenile"><RefreshCw size={15} className={isValidating ? 'animate-spin motion-reduce:animate-none' : ''} /></button>
         <button onClick={exportCsv} disabled={isLoading || Boolean(error) || !filtered.length} aria-label="CSV dışa aktar" className="rf-icon-button grid h-9 w-9 place-items-center border border-border bg-card disabled:opacity-40"><Download size={15} /></button>
+        {user && hasPermission(user.role, 'orders.create') && <Link href="/orders/foy" className="rf-secondary-button h-9 items-center gap-2 px-3 text-xs"><ScanText size={14} /> Föy oku</Link>}
         {user && hasPermission(user.role, 'orders.create') && <Link href="/new-order" className="rf-primary-button h-9 items-center gap-2 px-3 text-xs"><Plus size={14} /> Yeni sipariş</Link>}
       </>} />
     {user && <SavedOrderViews key={`${user.tenantId}:${user.id}:${user.role}`} filters={currentFilters} selectedId={params.get('savedView') || ''} onApply={(filters,id)=>{
