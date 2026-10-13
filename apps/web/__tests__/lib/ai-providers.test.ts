@@ -14,7 +14,6 @@ jest.mock('openai', () => jest.fn().mockImplementation((options: Record<string, 
         }),
       },
     },
-    responses: { parse: jest.fn(async () => { throw new Error('openai path not expected here'); }) },
   };
 }));
 const usageRows: unknown[][] = [];
@@ -34,14 +33,16 @@ const saved = { ...process.env };
 beforeEach(() => {
   clients.length = 0; requests.length = 0; usageRows.length = 0;
   process.env = { ...saved };
-  for (const key of ['AI_PROVIDER', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'GEMINI_BASE_URL', 'GEMINI_MODEL', 'ZAI_API_KEY', 'ZAI_BASE_URL', 'ZAI_MODEL']) delete process.env[key];
+  for (const key of ['AI_PROVIDER', 'ANTHROPIC_API_KEY', 'ANTHROPIC_MODEL', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'GEMINI_BASE_URL', 'GEMINI_MODEL', 'ZAI_API_KEY', 'ZAI_BASE_URL', 'ZAI_MODEL']) delete process.env[key];
   completion = { content: JSON.stringify(EXTRACTION), finish: 'stop' };
 });
 afterAll(() => { process.env = saved; });
 
 describe('provider selection', () => {
-  it('stays on OpenAI unless chosen, and refuses an unknown provider instead of guessing', () => {
-    expect(activeProvider()).toBe('openai');
+  it('stays on Anthropic unless chosen, and refuses an unknown provider instead of guessing', () => {
+    expect(activeProvider()).toBe('anthropic');
+    expect(providerConfig('anthropic')).toMatchObject({ model: 'claude-sonnet-5-5', apiKey: null });
+    expect(providerUnavailable('anthropic')).toMatch(/ANTHROPIC_API_KEY/);
     process.env.AI_PROVIDER = 'Gemini';
     expect(activeProvider()).toBe('gemini');
     process.env.AI_PROVIDER = 'claude';

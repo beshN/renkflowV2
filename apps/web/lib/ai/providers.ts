@@ -1,32 +1,33 @@
 import 'server-only';
 
 /**
- * Model providers the app can be pointed at. Production stays on OpenAI (gpt-6-luna) until the
- * evaluation set (evals/) shows a winner; the deployment contract (lib/config/deployment-env.ts)
- * enforces that. Gemini and GLM are reached through their OpenAI-compatible Chat Completions
- * endpoints, so one client serves both. Keys, addresses and model ids come from the environment.
+ * Model providers the app can be pointed at. The product runs on Anthropic Claude (claude-sonnet-5-5);
+ * the deployment contract (lib/config/deployment-env.ts) enforces that. OpenAI, Gemini and GLM stay
+ * reachable through their (OpenAI-compatible) Chat Completions endpoints so evals/ can compare order
+ * extraction across providers. Keys, addresses and model ids come from the environment.
  *
- * Data protection: every provider receives the same masked text (lib/ai/privacy.ts). All three are
+ * Data protection: every provider receives the same masked text (lib/ai/privacy.ts). All of them are
  * outside Turkey, so sending order text to any of them is a cross-border transfer (KVKK).
  */
-export type ProviderId = 'openai' | 'gemini' | 'glm';
+export type ProviderId = 'anthropic' | 'openai' | 'gemini' | 'glm';
 
 type ProviderSpec = {
   label: string;
   keyEnv: string;
-  /** Null for OpenAI: its own SDK default is used and the Responses API path ignores it. */
+  /** Null for Anthropic and OpenAI: their own SDK default is used. */
   baseUrlEnv: string | null;
   defaultBaseUrl: string | null;
   modelEnv: string;
   defaultModel: string;
   /** How the provider is asked for structured output on Chat Completions. */
   structuredOutput: 'json_schema' | 'json_object';
-  /** Request fields that keep reasoning low, matching `reasoning.effort: low` on the OpenAI path. */
+  /** Chat Completions request fields that keep reasoning low (unused on the Anthropic path). */
   lowReasoning: Record<string, unknown>;
 };
 
 export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
-  openai: { label: 'OpenAI', keyEnv: 'OPENAI_API_KEY', baseUrlEnv: null, defaultBaseUrl: null, modelEnv: 'OPENAI_MODEL', defaultModel: 'gpt-6-luna', structuredOutput: 'json_schema', lowReasoning: {} },
+  anthropic: { label: 'Anthropic Claude', keyEnv: 'ANTHROPIC_API_KEY', baseUrlEnv: null, defaultBaseUrl: null, modelEnv: 'ANTHROPIC_MODEL', defaultModel: 'claude-sonnet-5-5', structuredOutput: 'json_schema', lowReasoning: {} },
+  openai: { label: 'OpenAI', keyEnv: 'OPENAI_API_KEY', baseUrlEnv: null, defaultBaseUrl: null, modelEnv: 'OPENAI_MODEL', defaultModel: 'gpt-6-luna', structuredOutput: 'json_schema', lowReasoning: { reasoning_effort: 'low' } },
   // https://ai.google.dev/gemini-api/docs/openai
   gemini: { label: 'Google Gemini', keyEnv: 'GEMINI_API_KEY', baseUrlEnv: 'GEMINI_BASE_URL', defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/', modelEnv: 'GEMINI_MODEL', defaultModel: 'gemini-3.8-flash', structuredOutput: 'json_schema', lowReasoning: { reasoning_effort: 'low' } },
   // Z.ai (international); the mainland endpoint is https://open.bigmodel.cn/api/paas/v4/. GLM has
@@ -38,9 +39,9 @@ export function isProviderId(value: string): value is ProviderId {
   return Object.prototype.hasOwnProperty.call(PROVIDERS, value);
 }
 
-/** The provider chosen in the environment (AI_PROVIDER), OpenAI when unset. An unknown value is an error, not a fallback. */
+/** The provider chosen in the environment (AI_PROVIDER), Anthropic when unset. An unknown value is an error, not a fallback. */
 export function activeProvider(): ProviderId {
-  const value = process.env.AI_PROVIDER?.trim().toLowerCase() || 'openai';
+  const value = process.env.AI_PROVIDER?.trim().toLowerCase() || 'anthropic';
   if (!isProviderId(value)) throw new Error(`AI_PROVIDER geçersiz: ${value}. Geçerli değerler: ${Object.keys(PROVIDERS).join(', ')}.`);
   return value;
 }

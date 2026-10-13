@@ -10,28 +10,41 @@ export type AIRequestMeta = {
   onUsage?: (usage: { inputTokens: number | null; outputTokens: number | null; costUsd: number | null; latencyMs: number }) => void;
 };
 
-type Tokens = { input_tokens?: number | null; output_tokens?: number | null } | null | undefined;
+/** Anthropic reports prompt-cache reads and writes apart from input_tokens; OpenAI-style usage has neither. */
+type Tokens = { input_tokens?: number | null; output_tokens?: number | null; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null } | null | undefined;
+
+/** Anthropic list prices, USD per million tokens. */
+const DEFAULT_PRICES: Record<string, { input: number; output: number }> = {
+  'claude-sonnet-5-5': { input: 2, output: 10 },
+};
 
 /**
- * USD per million tokens, from AI_MODEL_PRICES_USD_PER_MTOK, e.g.
- * {"gpt-6-luna":{"input":1.25,"output":10}}. No price, no cost: tokens are still recorded and the
- * cost stays null rather than being guessed.
+ * USD per million tokens, from AI_MODEL_PRICES_USD_PER_MTOK (e.g. {"claude-sonnet-5-5":{"input":2,"output":10}}),
+ * else the built-in list price. No price, no cost: tokens are still recorded and the cost stays null
+ * rather than being guessed.
  */
 export function modelPrice(model: string): { input: number; output: number } | null {
   try {
     const table = JSON.parse(process.env.AI_MODEL_PRICES_USD_PER_MTOK || '{}') as Record<string, { input?: unknown; output?: unknown }>;
     const entry = table[model];
-    if (!entry || typeof entry.input !== 'number' || typeof entry.output !== 'number') return null;
-    return { input: entry.input, output: entry.output };
+    if (entry && typeof entry.input === 'number' && typeof entry.output === 'number') return { input: entry.input, output: entry.output };
   } catch {
-    return null;
+    // A malformed table falls back to the built-in prices.
   }
+  return DEFAULT_PRICES[model] ?? null;
+}
+
+/** Every input token the model read, cached or not. */
+export function inputTokens(usage: Tokens): number | null {
+  if (!usage || usage.input_tokens == null) return null;
+  return usage.input_tokens + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0);
 }
 
 export function costUsd(model: string, usage: Tokens): number | null {
   const price = modelPrice(model);
   if (!price || !usage) return null;
-  const input = usage.input_tokens ?? 0;
+  // Cache reads cost 0.1x and 5-minute cache writes 1.25x the input price.
+  const input = (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) * 0.1 + (usage.cache_creation_input_tokens ?? 0) * 1.25;
   const output = usage.output_tokens ?? 0;
   return Number(((input * price.input + output * price.output) / 1_000_000).toFixed(6));
 }
@@ -44,7 +57,7 @@ export async function recordAIUsage(entry: AIRequestMeta & { provider: string; m
     await sql`
       INSERT INTO ai_usage (tenant_id, user_id, feature, provider, model, input_tokens, output_tokens, cost_usd, latency_ms, status, error_code)
       VALUES (${entry.tenantId ?? null}, ${entry.userId ?? null}, ${entry.feature}, ${entry.provider}, ${entry.model},
-        ${entry.usage?.input_tokens ?? null}, ${entry.usage?.output_tokens ?? null}, ${costUsd(entry.model, entry.usage)},
+        ${inputTokens(entry.usage)}, ${entry.usage?.output_tokens ?? null}, ${costUsd(entry.model, entry.usage)},
         ${Math.round(entry.latencyMs)}, ${entry.status}, ${entry.errorCode ?? null})
     `;
   } catch (error) {
@@ -75,7 +88,7 @@ export async function withUsage<T extends { usage?: Tokens }>(meta: AIRequestMet
       const { onUsage, ...entry } = meta;
       await recordAIUsage({ ...entry, provider, model, usage, latencyMs, status: 'error', errorCode: errorCode.slice(0, 80) });
       try {
-        onUsage?.({ inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, costUsd: costUsd(model, usage), latencyMs });
+        onUsage?.({ inputTokens: inputTokens(usage), outputTokens: usage?.output_tokens ?? null, costUsd: costUsd(model, usage), latencyMs });
       } catch {
         // The caller's report must not hide the model error.
       }
@@ -88,7 +101,7 @@ export async function withUsage<T extends { usage?: Tokens }>(meta: AIRequestMet
     const { onUsage, ...entry } = meta;
     // Awaited on purpose: one small insert, and a cost record that may silently vanish is worse.
     await recordAIUsage({ ...entry, provider, model, usage: response.usage, latencyMs, status: 'ok' });
-    onUsage?.({ inputTokens: response.usage?.input_tokens ?? null, outputTokens: response.usage?.output_tokens ?? null, costUsd: costUsd(model, response.usage), latencyMs });
+    onUsage?.({ inputTokens: inputTokens(response.usage), outputTokens: response.usage?.output_tokens ?? null, costUsd: costUsd(model, response.usage), latencyMs });
   }
   return response;
 }

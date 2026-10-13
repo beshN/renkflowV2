@@ -58,4 +58,48 @@ describe('measures without a unit', () => {
     expect(parseDims('3x4')).toEqual({ widthMm: 3000, projectionMm: 4000 });
     expect(parseDims('2,5x2')).toEqual({ widthMm: 2500, projectionMm: 2000 });
   });
+
+  describe('read-only questions', () => {
+    it('order status', () => {
+      expect(parseCommand('RF-1042 nerede').command).toEqual({ intent: 'order_status', order: 'RF-1042' });
+      expect(parseCommand('RF 1042 ne durumda').command).toEqual({ intent: 'order_status', order: 'RF-1042' });
+      expect(parseCommand('ORD-12 ne zaman teslim').command).toEqual({ intent: 'order_status', order: 'ORD-12' });
+    });
+    it('a change to an order is still a what-if, not a status question', () => {
+      expect(parseCommand("ORD-12'yi öne al").command).toMatchObject({ intent: 'what_if', scenario: 'expedite' });
+      expect(parseCommand("ORD-12'ye 2 gün ekle").command).toMatchObject({ intent: 'what_if', scenario: 'delay' });
+    });
+    it("a customer's orders", () => {
+      expect(parseCommand("Kaya İnşaat'ın siparişleri").command).toEqual({ intent: 'customer_orders', customer: 'Kaya İnşaat' });
+      expect(parseCommand('Ahmet Yılmaz siparişleri neler').command).toEqual({ intent: 'customer_orders', customer: 'Ahmet Yılmaz' });
+      expect(parseCommand("Ayşe Hanım'ın siparişlerini listele").command).toEqual({ intent: 'customer_orders', customer: 'Ayşe' });
+      expect(parseCommand('demir yapının işleri').command).toEqual({ intent: 'customer_orders', customer: 'Demir Yapı' });
+    });
+    it('a name ending in -in keeps its n, and generic words are not customers', () => {
+      expect(parseCommand('Berkin siparişleri').command).toEqual({ intent: 'customer_orders', customer: 'Berkin' });
+      for (const t of ['bugünkü siparişler', 'tüm siparişler', 'açık siparişleri göster']) expect(parseCommand(t).command.intent).not.toBe('customer_orders');
+    });
+    it('deliveries by day', () => {
+      expect(parseCommand('bugün teslimatlar').command).toEqual({ intent: 'deliveries', period: 'today' });
+      expect(parseCommand('yarın teslimatlar').command).toEqual({ intent: 'deliveries', period: 'tomorrow' });
+      expect(parseCommand('bu hafta sevkiyat').command).toEqual({ intent: 'deliveries', period: 'this_week' });
+    });
+    it('late work stays a late list, not a delivery list', () => {
+      expect(parseCommand('bu hafta geciken işler').command.intent).toBe('list_late');
+    });
+    it('low stock is not a bar-count question', () => {
+      expect(parseCommand('kritik stok').command).toEqual({ intent: 'low_stock' });
+      expect(parseCommand('stok azalan malzemeler').command).toEqual({ intent: 'low_stock' });
+      expect(parseCommand('7016 mat kaç çubuk var').command.intent).toBe('stock_query');
+    });
+    it('overdue invoices and open purchases', () => {
+      expect(parseCommand('vadesi geçen faturalar').command).toEqual({ intent: 'overdue_invoices' });
+      expect(parseCommand('kim ödemedi').command).toEqual({ intent: 'overdue_invoices' });
+      expect(parseCommand('yoldaki malzemeler').command).toEqual({ intent: 'open_purchases' });
+      expect(parseCommand('bekleyen satın almalar').command).toEqual({ intent: 'open_purchases' });
+    });
+    it('a quote request that mentions purchasing words stays a quote', () => {
+      expect(parseCommand("Ahmet Bey'e 3x4 pergola teklif hazırla antrasit").command.intent).toBe('quote_draft');
+    });
+  });
 });

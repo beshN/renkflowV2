@@ -1,6 +1,6 @@
 /**
  * Assistant eval (gece 3): Turkish commands and pasted quote requests, slang included.
- *   npm run evals:assistant -- --provider rules,openai,gemini,glm
+ *   npm run evals:assistant -- --provider rules,anthropic,openai,gemini,glm
  * "rules" is the deterministic reader the product uses first (no model, no cost). A model provider
  * runs the product's own model path (commands: AIService.parseCommand, OpenAI only; quote requests:
  * AIService.analyzeText) and is listed as not run when its key is missing — no numbers are made up.
@@ -34,7 +34,7 @@ async function runModel(id: string): Promise<AssistantScore[]> {
     const t0 = performance.now();
     try {
       if (c.task === 'command') {
-        if (id !== 'openai') { out.push({ id: c.id, task: c.task, pass: false, fabricated: 0, wrong: [], latencyMs: 0, error: 'komut yolu yalnız OpenAI' }); continue; }
+        if (id !== 'anthropic') { out.push({ id: c.id, task: c.task, pass: false, fabricated: 0, wrong: [], latencyMs: 0, error: 'komut yolu yalnız Anthropic' }); continue; }
         const command = await getAIService().parseCommand(c.input, { feature: 'eval.assistant' });
         const complete = command.intent !== 'unknown' && !(command.intent === 'quote_draft' && (!command.widthMm || !command.family));
         out.push(scoreCommand(c, { command: command as any, missing: complete ? [] : ['?'] }, performance.now() - t0));

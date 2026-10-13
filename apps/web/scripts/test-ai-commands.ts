@@ -127,7 +127,51 @@ async function main() {
   const mm: any = await runCommand(owner, { text: "Zeynep Arslan'a 3000x4000 pergola teklif 9016" });
   assert.equal(mm.lines[1].value, 'Pergola 3 × 4 m');
 
-  for (const t of ['stock_lots', 'warehouse_locations', 'warehouses', 'inventory_items', 'quotation_items', 'quotations', 'work_orders', 'orders', 'ai_suggestions'])
+  // Read-only questions: one order's status, a customer's orders, deliveries by day, low stock.
+  const [t1] = await db`INSERT INTO orders (tenant_id, order_number, customer_name, status, total_amount, delivery_date, product_name)
+    VALUES (${tenantId}, ${'RF-' + n + '501'}, 'Kaya İnşaat', 'in_production', 8000, ${day(0)}, 'Zip perde') RETURNING id, order_number`;
+  await db`INSERT INTO orders (tenant_id, order_number, customer_name, status, total_amount, delivery_date, product_name)
+    VALUES (${tenantId}, ${'RF-' + n + '502'}, 'Kaya İnşaat', 'approved', 9000, ${day(1)}, 'Tente')`;
+  await db`INSERT INTO work_orders (tenant_id, order_id, title, status) VALUES (${tenantId}, ${t1.id}, 'Kesim', 'done'), (${tenantId}, ${t1.id}, 'Montaj', 'open')`;
+  const st: any = await runCommand(owner, { text: `${t1.order_number} nerede` });
+  assert.equal(st.type, 'list');
+  assert.equal(st.rows.length, 1);
+  assert.equal(st.rows[0].href, `/orders/${t1.id}`);
+  assert.deepEqual([st.rows[0].cells[1], st.rows[0].cells[4], st.rows[0].cells[5]], ['Kaya İnşaat', '0 gün', '1/2 iş emri bitti']);
+  assert.match(st.title, /Üretimde/);
+  assert.equal(((await runCommand(owner, { text: 'RF-0000 ne durumda' })) as any).type, 'need', 'an unknown order is said, not guessed');
+  const co: any = await runCommand(owner, { text: "Kaya İnşaat'ın siparişleri" });
+  assert.equal(co.type, 'list');
+  assert.deepEqual(co.rows.map((r: any) => r.cells[0]).sort(), [t1.order_number, 'RF-' + n + '502']);
+  const dToday: any = await runCommand(owner, { text: 'bugün teslimatlar' });
+  assert.ok(dToday.rows.some((r: any) => r.cells[0] === t1.order_number));
+  assert.ok(!dToday.rows.some((r: any) => r.cells[0] === 'RF-' + n + '502'));
+  const dTomorrow: any = await runCommand(owner, { text: 'yarın teslimatlar' });
+  assert.deepEqual(dTomorrow.rows.map((r: any) => r.cells[0]), ['RF-' + n + '502']);
+  const [lowItem] = await db`INSERT INTO inventory_items (tenant_id, name, sku, stock_uom, min_stock) VALUES (${tenantId}, 'Vida M6', ${'VD-' + tenantId.slice(0, 5)}, 'adet', 100) RETURNING id`;
+  await db`INSERT INTO stock_balances (tenant_id, item_id, warehouse_id, on_hand_qty) VALUES (${tenantId}, ${lowItem.id}, ${wh.id}, 30)`;
+  const low: any = await runCommand(owner, { text: 'kritik stok' });
+  assert.equal(low.type, 'list');
+  assert.equal(low.rows.length, 1, 'only the item below its minimum');
+  assert.equal(low.rows[0].cells[0], 'Vida M6');
+  const [sup] = await db`INSERT INTO suppliers (tenant_id, name, is_active) VALUES (${tenantId}, 'Alüminyum A.Ş.', true) RETURNING id`;
+  await db`INSERT INTO purchase_orders (tenant_id, supplier_id, purchase_order_number, status, expected_at) VALUES (${tenantId}, ${sup.id}, ${'PO-' + n + '1'}, 'submitted', ${day(-3)}), (${tenantId}, ${sup.id}, ${'PO-' + n + '2'}, 'received', ${day(-9)})`;
+  const pur: any = await runCommand(owner, { text: 'yoldaki malzemeler' });
+  assert.equal(pur.type, 'list');
+  assert.deepEqual(pur.rows.map((r: any) => [r.cells[0], r.cells[3]]), [['PO-' + n + '1', '3 gün gecikti']], 'only what is still on its way');
+  const inv: any = await runCommand(owner, { text: 'vadesi geçen faturalar' });
+  assert.equal(inv.type, 'list', 'finance reads work for the owner even with no invoices');
+  assert.equal(((await runCommand(actor('worker'), { text: 'vadesi geçen faturalar' })) as any).type, 'denied');
+  // A worker may ask about stock but not about orders; a price-hiding role sees no amounts here either.
+  assert.equal(((await runCommand(actor('worker'), { text: 'kritik stok' })) as any).type, 'list');
+  assert.equal(((await runCommand(actor('worker'), { text: `${t1.order_number} nerede` })) as any).type, 'denied');
+  await team.updateMember(owner as any, ids.office, { accessRole: priceHidden });
+  access.forgetMemberAccess(ids.office, tenantId);
+  assert.ok(!((await runCommand(actor('office'), { text: `${t1.order_number} nerede` })) as any).columns.includes('Tutar'));
+  await team.updateMember(owner as any, ids.office, { accessRole: null });
+  access.forgetMemberAccess(ids.office, tenantId);
+
+  for (const t of ['purchase_orders', 'suppliers', 'stock_balances', 'stock_lots', 'warehouse_locations', 'warehouses', 'inventory_items', 'quotation_items', 'quotations', 'work_orders', 'orders', 'ai_suggestions'])
     await db`DELETE FROM ${db(t)} WHERE tenant_id = ${tenantId}`;
   await db`DELETE FROM tenants WHERE id = ${tenantId}`;
   await db`DELETE FROM users WHERE id = ANY(${Object.values(ids)}::uuid[])`;

@@ -197,7 +197,7 @@ export async function productionOverview(actor: WorkOrderActor) {
     notificationAttempts,
     inboundMessages,
     providers: {
-      ai: !!process.env.OPENAI_API_KEY,
+      ai: !!process.env.ANTHROPIC_API_KEY?.trim(),
       email: !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
       whatsapp: !!(
         process.env.WHATSAPP_ACCESS_TOKEN &&

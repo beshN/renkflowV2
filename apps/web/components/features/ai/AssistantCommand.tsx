@@ -21,7 +21,7 @@ export function speechRecognition(): (new () => any) | null {
   return ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) ?? null;
 }
 
-const EXAMPLES = ["Ahmet Bey'e 3x4 pergola teklif hazırla antrasit", 'bu hafta geciken işler', '7016 mat kaç çubuk var', "ORD-12'ye 2 gün ekle"];
+const EXAMPLES = ['bugün teslimatlar', 'bu hafta geciken işler', 'kritik stok', 'RF-1042 nerede', "Ahmet Bey'e 3x4 pergola teklif hazırla antrasit", '7016 mat kaç çubuk var', "ORD-12'ye 2 gün ekle"];
 
 /**
  * "Asistan": a command box and result cards (not a chat). Questions come back as a card; anything

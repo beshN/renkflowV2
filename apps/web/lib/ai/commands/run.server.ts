@@ -30,12 +30,18 @@ export type CommandResult =
   | { type: 'need'; message: string; missing: string[]; examples: string[] }
   | { type: 'denied'; message: string };
 
-const EXAMPLES = ["Ahmet Bey'e 3x4 pergola teklif hazırla antrasit", 'bu hafta geciken işler', '7016 mat kaç çubuk var', "ORD-12'yi öne al", "ORD-12'ye 2 gün ekle"];
+const EXAMPLES = ["Ahmet Bey'e 3x4 pergola teklif hazırla antrasit", 'bu hafta geciken işler', '7016 mat kaç çubuk var', "ORD-12'yi öne al", "ORD-12'ye 2 gün ekle", 'RF-1042 nerede', 'yarın teslimatlar', 'kritik stok', 'Kaya İnşaat siparişleri', 'vadesi geçen faturalar', 'yoldaki malzemeler'];
 const NEEDS: Record<Exclude<Command['intent'], 'unknown'>, { module: Module; action: Action; what: string }> = {
   quote_draft: { module: 'quotations', action: 'create', what: 'teklif hazırlama' },
   list_late: { module: 'orders', action: 'view', what: 'siparişleri görme' },
   stock_query: { module: 'inventory', action: 'view', what: 'stoğu görme' },
   what_if: { module: 'orders', action: 'view', what: 'siparişleri görme' },
+  order_status: { module: 'orders', action: 'view', what: 'siparişleri görme' },
+  customer_orders: { module: 'orders', action: 'view', what: 'siparişleri görme' },
+  deliveries: { module: 'orders', action: 'view', what: 'siparişleri görme' },
+  low_stock: { module: 'inventory', action: 'view', what: 'stoğu görme' },
+  overdue_invoices: { module: 'finance', action: 'view', what: 'finansı görme' },
+  open_purchases: { module: 'purchasing', action: 'view', what: 'satın almayı görme' },
 };
 
 /**
@@ -68,7 +74,7 @@ export async function runCommand(actor: WorkOrderActor, raw: unknown): Promise<C
   const access = await resolveMemberAccess(actor.userId, actor.tenantId);
   const need = NEEDS[cmd.intent];
   // Order-level answers name customers and dates: never for the shop floor (workers use their own job screens).
-  if (actor.role === 'worker' && cmd.intent !== 'stock_query') return { type: 'denied', message: `Bu komut için yetkiniz yok (${need.what}).` };
+  if (actor.role === 'worker' && cmd.intent !== 'stock_query' && cmd.intent !== 'low_stock') return { type: 'denied', message: `Bu komut için yetkiniz yok (${need.what}).` };
   if (!access || access.deactivated || !can(access, need.module, need.action)) return { type: 'denied', message: `Bu komut için yetkiniz yok (${need.what}).` };
   const hidePrices = access.hidden.includes('price');
   // Previews wait for approval; only the roles that may approve a command's kind get one.
@@ -82,6 +88,12 @@ export async function runCommand(actor: WorkOrderActor, raw: unknown): Promise<C
   }
   if (cmd.intent === 'list_late') return lateList(actor, cmd.period, hidePrices);
   if (cmd.intent === 'stock_query') return stockAnswer(actor, cmd.color, cmd.item);
+  if (cmd.intent === 'order_status') return orderStatus(actor, cmd.order, hidePrices);
+  if (cmd.intent === 'customer_orders') return customerOrders(actor, cmd.customer, hidePrices);
+  if (cmd.intent === 'deliveries') return deliveries(actor, cmd.period, hidePrices);
+  if (cmd.intent === 'low_stock') return lowStock(actor);
+  if (cmd.intent === 'overdue_invoices') return overdueInvoiceList(actor, hidePrices);
+  if (cmd.intent === 'open_purchases') return openPurchases(actor);
   return whatIf(actor, cmd, mayApprove && can(access, 'orders', 'edit'), source);
 }
 
@@ -139,7 +151,7 @@ async function quotePreview(actor: WorkOrderActor, cmd: Extract<Command, { inten
     // The same command the same day is one preview (a repeated or shared command does not pile up drafts).
     dedupeKey: `${actor.userId}:${istanbulToday()}:${createHash('sha256').update(JSON.stringify(payload)).digest('hex').slice(0, 32)}`,
     kind: QUOTE_KIND, title: `${customer.name} için teklif taslağı`, rationale: `Komut: ${label}${cmd.color ? `, ${cmd.color}` : ''}, ${payload.quantity} adet.`,
-    payload, source: source === 'model' ? 'model' : 'system', model: source === 'model' ? providerConfig('openai').model : null, uncertain: warnings.length > 0, uncertaintyNote: warnings.join(' ') || null,
+    payload, source: source === 'model' ? 'model' : 'system', model: source === 'model' ? providerConfig('anthropic').model : null, uncertain: warnings.length > 0, uncertaintyNote: warnings.join(' ') || null,
   });
   return {
     type: 'preview', suggestionId: String(r.suggestion.id), version: Number(r.suggestion.version), title: `${customer.name} için teklif taslağı`, source,
@@ -191,6 +203,111 @@ async function lateList(actor: WorkOrderActor, period: 'overdue' | 'today' | 'th
   };
 }
 
+// Order status, a customer's orders, deliveries, low stock (read only) ------------------------------
+
+// The same names the order screens use (components/shared/ui/StatusStepper.tsx), plus the legacy and rare ones.
+const STATUS_LABEL: Record<string, string> = {
+  new: 'Yeni', pending: 'Yeni', pending_approval: 'Onay Bekliyor', approved: 'Onaylandı', preparing_materials: 'Malzeme Hazırlanıyor', ready_for_production: 'Üretime Hazır',
+  in_production: 'Üretimde', quality_check: 'Kalite Kontrol', ready: 'Sevkiyata Hazır', ready_for_shipment: 'Sevkiyata Hazır', shipped: 'Sevk Edildi',
+  delivered: 'Teslim Edildi', completed: 'Tamamlandı', on_hold: 'Beklemede', cancelled: 'İptal',
+};
+const statusLabel = (s: unknown) => STATUS_LABEL[String(s)] ?? String(s);
+const dmy = (d: string | null) => (d ? d.split('-').reverse().join('.') : '—');
+const tl = (v: unknown) => `${Number(v).toLocaleString('tr-TR')} ₺`;
+
+async function orderStatus(actor: WorkOrderActor, order: string, hidePrices: boolean): Promise<CommandResult> {
+  const found = await findOrders(actor.tenantId, order);
+  if (!found.length) return { type: 'need', message: `"${order}" numaralı sipariş bulunamadı.`, missing: ['sipariş numarası'], examples: EXAMPLES.slice(5, 6) };
+  if (found.length > 1) return { type: 'need', message: `"${order}" birden çok siparişe uyuyor (${found.slice(0, 5).map((o: Row) => o.order_number).join(', ')}); tam numarayı yazın.`, missing: ['sipariş numarası'], examples: [] };
+  const promised = await columnExists('orders', 'promised_date');
+  const [o] = await sql`SELECT id, order_number, customer_name, product_name, status, delivery_date, total_amount${promised ? sql`, promised_date` : sql``} FROM orders WHERE tenant_id = ${actor.tenantId} AND id = ${found[0].id}`;
+  const [w] = await tableExists('work_orders')
+    ? await sql`SELECT count(*)::int AS total, count(*) FILTER (WHERE status = 'done')::int AS done, count(*) FILTER (WHERE status = 'blocked')::int AS blocked FROM work_orders WHERE tenant_id = ${actor.tenantId} AND order_id = ${o.id} AND status <> 'cancelled'`
+    : [{ total: 0, done: 0, blocked: 0 }];
+  const due = day(o.promised_date) ?? day(o.delivery_date);
+  const left = due ? Math.round((Date.parse(due + 'T00:00:00Z') - Date.parse(istanbulToday() + 'T00:00:00Z')) / 86_400_000) : null;
+  const open = !['shipped', 'delivered', 'completed', 'cancelled'].includes(String(o.status));
+  const jobs = Number(w.total) ? `${w.done}/${w.total} iş emri bitti${Number(w.blocked) ? `, ${w.blocked} tanesi engelli` : ''}` : 'iş emri yok';
+  return {
+    type: 'list', title: `${o.order_number}: ${statusLabel(o.status)}`, empty: '',
+    columns: ['Sipariş', 'Müşteri', 'Ürün', 'Termin', 'Kalan', 'Üretim', ...(hidePrices ? [] : ['Tutar'])],
+    rows: [{ href: `/orders/${o.id}`, cells: [o.order_number, o.customer_name ?? '—', o.product_name ?? '—', dmy(due), left === null || !open ? '—' : left < 0 ? `${-left} gün geçti` : `${left} gün`, jobs, ...(hidePrices ? [] : [tl(o.total_amount)])] }],
+  };
+}
+
+async function customerOrders(actor: WorkOrderActor, customer: string, hidePrices: boolean): Promise<CommandResult> {
+  const q = fold(customer);
+  const rows = (await sql`SELECT id, order_number, customer_name, product_name, status, delivery_date, total_amount FROM orders
+    WHERE tenant_id = ${actor.tenantId} AND customer_name IS NOT NULL ORDER BY created_at DESC LIMIT 2000`)
+    .filter((r: Row) => fold(String(r.customer_name)).includes(q)).slice(0, 15);
+  return {
+    type: 'list', title: `${customer} · son siparişler`, empty: `"${customer}" adına sipariş bulunamadı.`,
+    columns: ['Sipariş', 'Müşteri', 'Ürün', 'Termin', 'Durum', ...(hidePrices ? [] : ['Tutar'])],
+    rows: rows.map((r: Row) => ({ href: `/orders/${r.id}`, cells: [r.order_number, r.customer_name, r.product_name ?? '—', dmy(day(r.delivery_date)), statusLabel(r.status), ...(hidePrices ? [] : [tl(r.total_amount)])] })),
+  };
+}
+
+async function deliveries(actor: WorkOrderActor, period: 'today' | 'tomorrow' | 'this_week', hidePrices: boolean): Promise<CommandResult> {
+  const today = istanbulToday();
+  const dow = (new Date(today + 'T12:00:00Z').getUTCDay() + 6) % 7;
+  const [from, to] = period === 'today' ? [today, today] : period === 'tomorrow' ? [addDays(today, 1), addDays(today, 1)] : [today, addDays(today, 6 - dow)];
+  const promised = await columnExists('orders', 'promised_date');
+  const due = promised ? sql`coalesce(o.promised_date, o.delivery_date::date)` : sql`o.delivery_date::date`;
+  const rows = await sql`SELECT o.id, o.order_number, o.customer_name, o.product_name, o.status, o.total_amount, ${due} AS due FROM orders o
+    WHERE o.tenant_id = ${actor.tenantId} AND o.status NOT IN ('shipped', 'delivered', 'completed', 'cancelled') AND ${due} BETWEEN ${from}::date AND ${to}::date ORDER BY ${due}, o.order_number LIMIT 50`;
+  const title = { today: 'Bugün teslim edilecekler', tomorrow: 'Yarın teslim edilecekler', this_week: 'Bu hafta teslim edilecekler' }[period];
+  return {
+    type: 'list', title, empty: 'Bu aralıkta teslim edilecek açık sipariş yok.',
+    columns: ['Sipariş', 'Müşteri', 'Ürün', 'Teslim', 'Durum', ...(hidePrices ? [] : ['Tutar'])],
+    rows: rows.map((r: Row) => ({ href: `/orders/${r.id}`, cells: [r.order_number, r.customer_name ?? '—', r.product_name ?? '—', dmy(day(r.due)), statusLabel(r.status), ...(hidePrices ? [] : [tl(r.total_amount)])] })),
+  };
+}
+
+async function lowStock(actor: WorkOrderActor): Promise<CommandResult> {
+  if (!(await tableExists('stock_balances'))) return { type: 'answer', title: 'Kritik stok', lines: [], note: 'Stok bakiyesi bu kurulumda tutulmuyor.' };
+  const { unitLabel } = await import('@/lib/features/inventory/vocabulary');
+  const rows = await sql`SELECT i.id, i.name, i.stock_uom, i.min_stock, COALESCE(b.qty, 0) AS on_hand, COALESCE(r.qty, 0) AS reserved, COALESCE(b.qty, 0) - COALESCE(r.qty, 0) AS available
+    FROM inventory_items i
+    LEFT JOIN LATERAL (SELECT SUM(on_hand_qty) AS qty FROM stock_balances WHERE tenant_id = ${actor.tenantId} AND item_id = i.id) b ON true
+    LEFT JOIN LATERAL (SELECT SUM(l.reserved_qty - l.consumed_qty - l.released_qty) AS qty FROM stock_reservation_lines l JOIN stock_reservations h ON h.id = l.reservation_id AND h.tenant_id = l.tenant_id
+      WHERE l.tenant_id = ${actor.tenantId} AND l.item_id = i.id AND h.status = 'active') r ON true
+    WHERE i.tenant_id = ${actor.tenantId} AND i.active AND i.min_stock > 0 AND COALESCE(b.qty, 0) - COALESCE(r.qty, 0) < i.min_stock
+    ORDER BY (COALESCE(b.qty, 0) - COALESCE(r.qty, 0)) / i.min_stock, i.name LIMIT 30`;
+  const n = (v: unknown) => Number(v).toLocaleString('tr-TR', { maximumFractionDigits: 2 });
+  return {
+    type: 'list', title: 'Minimum stoğun altındaki malzemeler', empty: 'Minimum stoğun altında malzeme yok.',
+    columns: ['Malzeme', 'Kullanılabilir', 'Minimum', 'Eksik', 'Eldeki'],
+    rows: rows.map((r: Row) => ({ href: '/inventory', cells: [r.name, `${n(r.available)} ${unitLabel(r.stock_uom)}`, `${n(r.min_stock)} ${unitLabel(r.stock_uom)}`, `${n(Number(r.min_stock) - Number(r.available))} ${unitLabel(r.stock_uom)}`, `${n(r.on_hand)} ${unitLabel(r.stock_uom)}`] })),
+  };
+}
+
+async function overdueInvoiceList(actor: WorkOrderActor, hidePrices: boolean): Promise<CommandResult> {
+  const { overdueOpenInvoices } = await import('@/lib/features/finance/receivables.server');
+  const rows = (await overdueOpenInvoices(actor.tenantId)).sort((a, b) => b.daysOverdue - a.daysOverdue).slice(0, 30);
+  return {
+    type: 'list', title: 'Vadesi geçmiş faturalar', empty: 'Vadesi geçmiş açık fatura yok.',
+    columns: ['Fatura', 'Müşteri', 'Vade', 'Gecikme', ...(hidePrices ? [] : ['Açık tutar'])],
+    rows: rows.map((r) => ({ href: '/finance/receivables', cells: [r.number, r.customer ?? '—', dmy(r.dueOn), `${r.daysOverdue} gün`, ...(hidePrices ? [] : [tl(r.open)])] })),
+  };
+}
+
+async function openPurchases(actor: WorkOrderActor): Promise<CommandResult> {
+  if (!(await tableExists('purchase_orders'))) return { type: 'answer', title: 'Bekleyen satın almalar', lines: [], note: 'Satın alma siparişi bu kurulumda tutulmuyor.' };
+  const today = istanbulToday();
+  const rows = await sql`SELECT p.id, p.purchase_order_number, p.status, p.expected_at, s.name AS supplier_name FROM purchase_orders p
+    LEFT JOIN suppliers s ON s.id = p.supplier_id AND s.tenant_id = p.tenant_id
+    WHERE p.tenant_id = ${actor.tenantId} AND p.status IN ('submitted', 'partially_received') ORDER BY p.expected_at NULLS LAST, p.created_at LIMIT 30`;
+  return {
+    type: 'list', title: 'Yolda olan ya da gelmesi beklenen satın almalar', empty: 'Bekleyen satın alma yok.',
+    columns: ['Satın alma', 'Tedarikçi', 'Beklenen', 'Kalan', 'Durum'],
+    rows: rows.map((r: Row) => {
+      const due = day(r.expected_at);
+      const left = due ? Math.round((Date.parse(due + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 86_400_000) : null;
+      return { href: '/purchases', cells: [r.purchase_order_number, r.supplier_name ?? '—', dmy(due), left === null ? 'tarih yok' : left < 0 ? `${-left} gün gecikti` : `${left} gün`, r.status === 'partially_received' ? 'Kısmen geldi' : 'Gönderildi'] };
+    }),
+  };
+}
+
 // Stock ---------------------------------------------------------------------------------------------
 
 async function stockAnswer(actor: WorkOrderActor, color: string | null, item: string | null): Promise<CommandResult> {
@@ -220,16 +337,21 @@ async function stockAnswer(actor: WorkOrderActor, color: string | null, item: st
 
 // What-if -----------------------------------------------------------------------------------------
 
-async function whatIf(actor: WorkOrderActor, cmd: Extract<Command, { intent: 'what_if' }>, canEdit: boolean, source: 'rules' | 'model'): Promise<CommandResult> {
-  const ref = cmd.order.replace(/\s+/g, '').toUpperCase();
+/** Orders a reference names: the exact number (separators ignored), else a number ending in "-<digits>" exactly ("ORD-12" never matches "ORD-112"). */
+async function findOrders(tenantId: string, order: string): Promise<Row[]> {
+  const ref = order.replace(/\s+/g, '').toUpperCase();
   const compact = ref.replace(/[^A-Z0-9]/g, '');
-  // The exact number (separators ignored); else a number ending in "-<digits>" exactly ("ORD-12" never matches "ORD-112").
-  let orders = await sql`SELECT id, order_number, status, delivery_date, version FROM orders WHERE tenant_id = ${actor.tenantId}
+  let orders = await sql`SELECT id, order_number, status, delivery_date, version FROM orders WHERE tenant_id = ${tenantId}
     AND regexp_replace(upper(order_number), '[^A-Z0-9]', '', 'g') = ${compact} ORDER BY created_at DESC LIMIT 2`;
   const digits = ref.match(/(\d+)$/)?.[1];
   if (!orders.length && digits)
-    orders = await sql`SELECT id, order_number, status, delivery_date, version FROM orders WHERE tenant_id = ${actor.tenantId}
+    orders = await sql`SELECT id, order_number, status, delivery_date, version FROM orders WHERE tenant_id = ${tenantId}
       AND order_number ~ ${'[-/ ]0*' + String(Number(digits)) + '$'} ORDER BY created_at DESC LIMIT 6`;
+  return orders;
+}
+
+async function whatIf(actor: WorkOrderActor, cmd: Extract<Command, { intent: 'what_if' }>, canEdit: boolean, source: 'rules' | 'model'): Promise<CommandResult> {
+  const orders = await findOrders(actor.tenantId, cmd.order);
   if (!orders.length) return { type: 'need', message: `"${cmd.order}" numaralı sipariş bulunamadı.`, missing: ['sipariş numarası'], examples: EXAMPLES.slice(3) };
   if (orders.length > 1)
     return { type: 'need', message: `"${cmd.order}" birden çok siparişe uyuyor (${orders.slice(0, 5).map((o: Row) => o.order_number).join(', ')}); tam numarayı yazın.`, missing: ['sipariş numarası'], examples: [] };
