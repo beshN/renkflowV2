@@ -37,6 +37,19 @@ class OfflineStoreTest {
         coroutineScope {awaitAll(async {OutboxSync(store,sender).drain("scope")},async {OutboxSync(store,sender).drain("scope")})}
         assertEquals(1,sends);assertTrue(store.dao.pending("scope").isEmpty());assertEquals("delivered",store.dao.find("scope",value.idempotencyKey)?.state)
     }
+    @Test fun cancellationRestoresPendingRowBeforeTheCoroutineExits()=runBlocking {
+        val value=request();store.enqueue("scope",value)
+        val entered=CompletableDeferred<Unit>()
+        val drain=launch {OutboxSync(store,object:OutboxSender {
+            override suspend fun send(record:OutboxRecord):String? {entered.complete(Unit);awaitCancellation()}
+        }).drain("scope")}
+        entered.await();drain.cancelAndJoin()
+        val pending=store.dao.find("scope",value.idempotencyKey)!!
+        assertEquals("pending",pending.state);assertEquals(value.idempotencyKey,pending.commandId)
+        var delivered=0
+        OutboxSync(store,object:OutboxSender {override suspend fun send(record:OutboxRecord):String? {delivered++;return null}}).drain("scope")
+        assertEquals(1,delivered);assertEquals("delivered",store.dao.find("scope",value.idempotencyKey)?.state)
+    }
     @Test fun recoveryRetriesSendingWithSameUUID()=runBlocking {
         val value=request();store.enqueue("scope",value);val row=store.dao.pending("scope").single();store.dao.update(row.copy(state="sending"))
         store.db.close();store=open();store.prepare();assertEquals("pending",store.dao.pending("scope").single().state);assertEquals(value.idempotencyKey,store.dao.pending("scope").single().commandId)

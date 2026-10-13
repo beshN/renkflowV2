@@ -21,24 +21,15 @@ enum FieldColor {
         Color(uiColor: UIColor { traits in uiColor(traits.userInterfaceStyle == .dark ? dark : light) })
     }
 }
-struct BrandGlyph: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: 7, y: 19)); path.addLine(to: CGPoint(x: 7, y: 5))
-        path.addLine(to: CGPoint(x: 12.5, y: 5))
-        path.addCurve(to: CGPoint(x: 16.75, y: 9.25), control1: CGPoint(x: 14.847, y: 5), control2: CGPoint(x: 16.75, y: 6.903))
-        path.addCurve(to: CGPoint(x: 12.5, y: 13.5), control1: CGPoint(x: 16.75, y: 11.597), control2: CGPoint(x: 14.847, y: 13.5))
-        path.addLine(to: CGPoint(x: 7, y: 13.5))
-        path.move(to: CGPoint(x: 12.5, y: 13.5)); path.addLine(to: CGPoint(x: 17, y: 19))
-        return path.applying(CGAffineTransform(scaleX: rect.width / 24, y: rect.height / 24))
-    }
-}
 struct Brand: View {
     var body: some View {
         HStack(spacing: 12) {
-            BrandGlyph().stroke(FieldColor.ink, style: StrokeStyle(lineWidth: 2.8, lineCap: .round, lineJoin: .round)).frame(width: 28, height: 28).padding(10).background(FieldColor.onInk, in: RoundedRectangle(cornerRadius: 8)).accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) { Text(L("text_renkflow_6ac42")).font(.system(size: 27, weight: .semibold)).foregroundStyle(.white); Text(L("text_saha_uygulamasi_30117")).font(.caption2.weight(.semibold)).tracking(1.5).foregroundStyle(.white.opacity(0.65)) }
-        }
+            Image("BrandSymbol").resizable().scaledToFit().frame(width:40,height:36).foregroundStyle(.white)
+            VStack(alignment:.leading,spacing:5) {
+                Image("BrandWordmark").resizable().scaledToFit().frame(width:145,height:25).foregroundStyle(.white)
+                Text(L("text_saha_uygulamasi_30117")).font(.caption2.weight(.semibold)).tracking(1.5).foregroundStyle(.white.opacity(0.65))
+            }
+        }.accessibilityElement(children:.ignore).accessibilityLabel("RenkFlow Saha")
     }
 }
 struct StatusPill: View {

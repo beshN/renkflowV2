@@ -26,8 +26,8 @@ struct FieldEventView:View {
                             TextField(L("text_aciklama_istege_bagli_e4db2"),text:$note,axis:.vertical)
                             Button(L("text_kaydet_c1fe2")) {Task {await store.fieldEvent(kind,jobID:jobID,reason:code,count:Int(count) ?? 1,note:note,photo:photo);show=false}}.buttonStyle(FieldButton()).disabled(!store.writable || preparing || code.isEmpty || note.count>500 || kind=="scrap" && !(1...100000).contains(Int(count) ?? 0))
                         }.task(id:photoItem) {
-                            guard let photoItem else {return};preparing=true;photoError=false;defer {preparing=false}
-                            do {guard let bytes=try await photoItem.loadTransferable(type:Data.self) else {photoError=true;return};photo=await store.uploadPhoto(jobID:jobID,bytes:try jpegForUpload(bytes));photoError=photo==nil} catch {photoError=true}
+                            guard let photoItem,let auth=store.session else {return};let photoScope=sessionScope(auth);preparing=true;photoError=false;defer {preparing=false}
+                            do {guard let bytes=try await photoItem.loadTransferable(type:Data.self) else {photoError=true;return};photo=await store.uploadPhoto(jobID:jobID,bytes:try jpegForUpload(bytes),expectedScope:photoScope);photoError=photo==nil} catch {photoError=true}
                         }.navigationTitle(L("text_saha_bildirimi_6c0dc")).toolbar {ToolbarItem(placement:.cancellationAction) {Button(L("text_vazgec_39a8d")) {show=false}}}
                     }
                 }

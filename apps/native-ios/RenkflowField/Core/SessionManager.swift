@@ -6,6 +6,11 @@ func tokenSessionID(_ token:String)->String? {
     guard let bytes=Data(base64Encoded:encoded),let json=try? JSONSerialization.jsonObject(with:bytes) as? [String:Any] else {return nil}
     return json["sid"] as? String
 }
+private func sameDeviceIdentifier(_ first:String?,_ second:String?)->Bool {
+    guard let first,let second else {return false}
+    if let a=UUID(uuidString:first),let b=UUID(uuidString:second) {return a==b}
+    return first==second
+}
 actor SessionManager {
     static let shared=SessionManager()
     private let vault:SecureVault
@@ -24,6 +29,11 @@ actor SessionManager {
         var pending=saved;let request=saved.refreshRequestId ?? UUID().uuidString;pending.refreshRequestId=request;try vault.save("session",value:pending)
         let body=try JSONEncoder().encode(["refreshToken":refresh,"requestId":request,"deviceId":device])
         let result=try await api.request(LoginResult.self,server:saved.server,path:"auth/refresh",body:body)
+        guard result.sessionId==saved.sessionId, sameDeviceIdentifier(result.deviceId,saved.deviceId),
+              result.user.id==saved.user.id, result.user.tenantId==saved.user.tenantId,
+              tokenSessionID(result.accessToken)==saved.sessionId else {
+            throw FieldAPIError(status:502,message:L("text_sunucudan_beklenmeyen_yanit_alindi_86e16"))
+        }
         guard let latest=vault.read("session",as:Session.self),latest.sessionId==saved.sessionId,latest.refreshToken==saved.refreshToken else {throw FieldAPIError(status:401,message:L("text_cihaz_oturumu_degisti_5ca29"))}
         var next=saved;next.token=result.accessToken;next.expiresAt=Date().addingTimeInterval(result.expiresIn);next.user=result.user;next.refreshToken=result.refreshToken;next.sessionId=result.sessionId;next.deviceId=result.deviceId;next.refreshRequestId=nil
         try vault.save("session",value:next);return next

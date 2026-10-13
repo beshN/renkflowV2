@@ -2,11 +2,11 @@
 
 The new field clients are independent native applications. `apps/native-ios` uses SwiftUI, URLSession, Keychain, AVFoundation and PhotosPicker. `apps/native-android` uses Kotlin, Jetpack Compose, OkHttp, Android Keystore, the system photo picker and Google Code Scanner. The old Expo client in `apps/mobile` is retained as legacy code and is not used by these apps.
 
-The native design tokens mirror the current `apps/web/styles/theme.css`: neutral light/dark surfaces, solid cobalt accents, thin borders and the same geometric R mark. Fonts, navigation, controls and scanning remain native to each platform.
+The native design tokens mirror the current `apps/web/styles/theme.css`: neutral light/dark surfaces, solid cobalt accents, thin borders and the approved RenkFlow symbol and wordmark. Fonts, navigation, controls and scanning remain native to each platform.
 
 ## Scope
 
-- Company address and existing account sign-in; validate persisted sessions with `/api/v1/auth/me`.
+- Company address and existing account sign-in; device sessions and rotating refresh tokens through `/api/mobile/v1/auth`.
 - Field overview, priority work orders, search and status filters.
 - Assigned work-order details, required checklists, field comments and block reporting.
 - Production operations: start, pause, partial completion, pass/fail and measured quality results, job photo upload.
@@ -17,7 +17,7 @@ Workers see their assigned work orders and production operations. Office, admin 
 
 ## Backend prerequisite
 
-The same branch adds `/api/v1/field/[...path]` to the existing web backend. Deploy this backend change to a preview before testing the clients against it. No migration, new database or separate auth provider is needed. `PUBLIC_SITE_MODE=coming-soon` intentionally keeps private application APIs unavailable; use an application-enabled deployment.
+The clients use the existing `/api/mobile/v1` contract backed by the field services described below. Version 1.2.1 (build 4) keeps the minimum supported client at 1.2.0; the session UUID normalization fix requires no additional migration or auth provider. `PUBLIC_SITE_MODE=coming-soon` intentionally keeps private application APIs unavailable; use an application-enabled deployment.
 
 All field endpoints require a verified bearer JWT and current database membership. The optional private-pilot email restriction is also enforced. Explicit response projections exclude customer details, costs, financial fields and recipe snapshots. Existing production services enforce assignment, optimistic versions, material availability, machine capacity, quantity and quality checks.
 
@@ -56,8 +56,9 @@ Open `apps/native-ios/RenkflowField.xcodeproj` in Xcode 16 or later. Select the 
 xcodebuild test \
   -project apps/native-ios/RenkflowField.xcodeproj \
   -scheme RenkflowField \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
-  CODE_SIGNING_ALLOWED=NO
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- \
+  CODE_SIGN_ENTITLEMENTS="$PWD/apps/native-ios/RenkflowField/Simulator.entitlements"
 ```
 
 The Xcode project is checked in. Regenerate it only after adding/removing native files:
@@ -72,7 +73,9 @@ For device builds and TestFlight, set your Apple development team in Xcode and a
 
 Only HTTPS company origins are accepted. Credentials are never sent through redirects. Tokens and pending command payloads are stored in device-bound Keychain / Android Keystore encrypted storage. Passwords are not persisted. Expired/revoked sessions clear local session state.
 
-There is no offline mutation queue in this first version. After a failed refresh, the last in-memory snapshot is visibly marked stale and new writes require a refresh. A production command is durably recorded before sending; a timeout retains the same command UUID and operation version. The visible retry button replays that exact command through the backend's existing idempotency mechanism. Other writes are disabled while the result is unresolved. Deterministic rejection clears the pending command and requires refreshing; accepted quality failures are displayed as blocked operations.
+SwiftData (iOS) and Room (Android) durably store snapshots and the offline outbox, isolated by server, company and user. Each action keeps its idempotency UUID until the server acknowledges it. Restart, reconnect and interrupted sends preserve that identity. Visible pending, conflict and blocked states distinguish a local action from server acceptance. Version conflicts require deliberate review and reapplication; assignment and membership rejection cannot be forced through by retrying.
+
+Account changes invalidate in-flight work. Late scans, refreshes, photo preparation and retry failures cannot mutate a new account's session or queue. Refresh responses must match the saved session, user, company and device. Device UUID comparisons are case independent, including older iOS devices with uppercase identifiers.
 
 Job photos are normalized to JPEG, downsampled to 1600 pixels and limited to 2 MB before uploading. The adapter limits the actual streamed JSON body below Vercel's request size limit. Photo uploads use the existing production storage service; a configured private Blob backend is needed for live uploads. Uploading a photo does not automatically complete an operation.
 
@@ -84,8 +87,14 @@ The isolated database integration test uses the real password login, bearer veri
 
 ```sh
 cd apps/web
-npm run db:local      # Keep running in one terminal.
-npm run test:field    # Run in another terminal; uses only local renkflow_test.
+RENKFLOW_TEST_DB_PORT=55434 npm run db:local # Keep running; use an unoccupied local port.
+RENKFLOW_TEST_DB_PORT=55434 npm run test:field    # Run in another terminal; uses only local renkflow_test.
 ```
 
 Before pilot distribution, run the following with a test company and physical devices: login, restore/expire session, scan an assigned job and a foreign-company label, update a checklist, add a field note, start/pause an operation, complete a partial quantity with passing and failing quality checks, upload a photo, retry a timed-out command, and confirm changes in the web application. Store publishing and signing are separate release steps.
+
+## Release 1.2.1 checks
+
+Generate contracts from `contracts/mobile/openapi.json`; do not hand-edit platform version constants. The live fixture is mutable: regenerate it before each platform suite and serialize suites using it. Android Gradle commands accept `--no-watch-fs` for machines where the native file watcher hangs. The fixture refuses occupied ports instead of stopping unrelated development services. Live tests use disposable local data and never production credentials.
+
+An APK or simulator build is a test artifact, not a Play Store or TestFlight release. Distribution requires the existing owner's Android release key or Apple developer team and signing certificates. Validate camera scanning, background reconnect and physical-device photo handling during factory acceptance.

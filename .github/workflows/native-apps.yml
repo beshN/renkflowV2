@@ -4,15 +4,17 @@ on:
   pull_request:
     paths: ['apps/native-*/**', 'apps/web/lib/features/field/**', 'apps/web/app/api/v1/field/**', 'apps/web/app/api/mobile/**', 'apps/web/lib/features/mobile/**', 'contracts/mobile/**', 'scripts/generate-mobile-contract.py', 'scripts/mobile/**', 'scripts/generate-native-ios-project.py', '.github/workflows/native-apps.yml']
   push:
-    branches: ['codex/mobile-integration']
+    branches: ['main', 'codex/mobile-integration']
     paths: ['apps/native-*/**', 'apps/web/lib/features/mobile/**', 'apps/web/app/api/mobile/**', 'contracts/mobile/**', 'scripts/mobile/**', '.github/workflows/native-apps.yml']
+env:
+  RENKFLOW_TEST_DB_PORT: 55434
 permissions:
   contents: read
 concurrency:
   group: native-${{ github.ref }}
   cancel-in-progress: true
 # GitHub-hosted runners are unavailable for this account; like validate.yml, every job runs on
-# the self-hosted Mac. Jobs there share one machine, so each frees the fixture ports first and last.
+# the self-hosted Mac. Jobs there share one machine, so each stops only its own tracked fixture processes.
 jobs:
   mobile-contract:
     runs-on: [self-hosted, macOS]
@@ -48,9 +50,9 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-      - name: Free fixture ports
+      - name: Stop owned fixture processes
         if: always()
-        run: for port in 3043 3022 55432; do lsof -nP -tiTCP:$port -sTCP:LISTEN | xargs kill 2>/dev/null || true; done
+        run: python3 ../../scripts/mobile/fixture-processes.py stop
       - name: Start isolated local web contract server
         working-directory: apps/web
         run: |
@@ -68,7 +70,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
-      - run: ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+      - run: ./gradlew --no-watch-fs :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
       - name: Test native Android UI and encrypted persistence
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -81,7 +83,7 @@ jobs:
           emulator-boot-timeout: 300
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
           script: |
-            ./gradlew :app:connectedDebugAndroidTest
+            ./gradlew --no-watch-fs :app:connectedDebugAndroidTest
             mkdir -p app/build/screenshots
             adb pull /sdcard/renkflow-field-login.png app/build/screenshots/android-login.png
       - uses: actions/upload-artifact@v4
@@ -92,9 +94,9 @@ jobs:
             apps/native-android/app/build/outputs/apk/debug/*.apk
             apps/native-android/app/build/reports/
             apps/native-android/app/build/screenshots/
-      - name: Free fixture ports
+      - name: Stop owned fixture processes
         if: always()
-        run: for port in 3043 3022 55432; do lsof -nP -tiTCP:$port -sTCP:LISTEN | xargs kill 2>/dev/null || true; done
+        run: python3 ../../scripts/mobile/fixture-processes.py stop
   ios:
     runs-on: [self-hosted, macOS]
     timeout-minutes: 45
@@ -108,9 +110,9 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-      - name: Free fixture ports
+      - name: Stop owned fixture processes
         if: always()
-        run: for port in 3043 3022 55432; do lsof -nP -tiTCP:$port -sTCP:LISTEN | xargs kill 2>/dev/null || true; done
+        run: python3 ../../scripts/mobile/fixture-processes.py stop
       - name: Start isolated local web contract server
         working-directory: apps/web
         run: |
@@ -126,12 +128,15 @@ jobs:
           python3 - <<'PY' >> "$GITHUB_ENV"
           import json
           data = json.load(open('/tmp/simulators.json'))
-          phones = [d for devices in data['devices'].values() for d in devices if 'iPhone' in d['name'] and d['isAvailable']]
+          import os, subprocess
+          phones = [(runtime, d) for runtime, devices in data['devices'].items() for d in devices if 'iPhone' in d['name'] and d['isAvailable']]
           if not phones: raise SystemExit('No iPhone simulator available')
-          print('FIELD_SIMULATOR=' + phones[0]['udid'])
+          runtime, phone = phones[0]
+          device = subprocess.check_output(['xcrun', 'simctl', 'create', 'RenkFlow CI ' + os.environ['GITHUB_RUN_ID'], phone['deviceTypeIdentifier'], runtime], text=True).strip()
+          print('FIELD_SIMULATOR=' + device)
           PY
       - name: Build and test native iOS app
-        run: xcodebuild test -project RenkflowField.xcodeproj -scheme RenkflowField -destination "platform=iOS Simulator,id=$FIELD_SIMULATOR" -resultBundlePath build/FieldTests.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS="$PWD/RenkflowField/Simulator.entitlements"
+        run: xcodebuild test -project RenkflowField.xcodeproj -scheme RenkflowField -parallel-testing-enabled NO -test-timeouts-enabled YES -maximum-test-execution-time-allowance 60 -destination "platform=iOS Simulator,id=$FIELD_SIMULATOR" -resultBundlePath build/FieldTests.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS="$PWD/RenkflowField/Simulator.entitlements"
       - name: Export iOS screenshots
         if: always()
         run: |
@@ -145,6 +150,11 @@ jobs:
           path: |
             apps/native-ios/build/FieldTests.xcresult
             apps/native-ios/build/screenshots/
-      - name: Free fixture ports
+      - name: Stop owned fixture processes and simulator
         if: always()
-        run: for port in 3043 3022 55432; do lsof -nP -tiTCP:$port -sTCP:LISTEN | xargs kill 2>/dev/null || true; done
+        run: |
+          python3 ../../scripts/mobile/fixture-processes.py stop
+          if [ -n "${FIELD_SIMULATOR:-}" ]; then
+            xcrun simctl shutdown "$FIELD_SIMULATOR" || true
+            xcrun simctl delete "$FIELD_SIMULATOR"
+          fi

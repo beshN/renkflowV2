@@ -1,4 +1,5 @@
 package com.renkflow.field.ui
+import com.renkflow.field.data.sessionScope
 import com.renkflow.field.data.tr
 import com.renkflow.field.R
 import androidx.compose.foundation.layout.*
@@ -28,7 +29,7 @@ import java.time.LocalDate
     val context=LocalContext.current;val scope=rememberCoroutineScope()
     val picker=rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) {uri ->
         val id=selected
-        if(uri!=null && id!=null) scope.launch {preparing=true;try {val bytes=withContext(Dispatchers.IO) {photoBase64(context,uri)};model.uploadInstallationPhoto(id,bytes) {photoMessage=tr(R.string.text_fotograf_cihazda_kaydedildi_51f1d)}} catch(_:Exception) {photoMessage=tr(R.string.text_fotograf_hazirlanamadi_2156d)} finally {preparing=false}}
+        if(uri!=null && id!=null) scope.launch {val photoScope=state.session?.let(::sessionScope) ?: return@launch;preparing=true;try {val bytes=withContext(Dispatchers.IO) {photoBase64(context,uri)};model.uploadInstallationPhoto(id,bytes,photoScope) {photoMessage=tr(R.string.text_fotograf_cihazda_kaydedildi_51f1d)}} catch(_:Exception) {photoMessage=tr(R.string.text_fotograf_hazirlanamadi_2156d)} finally {preparing=false}}
     }
     val writable=state.references?.capabilities?.installationEdit==true && !state.accessBlocked && !state.updateRequired
     ModalBottomSheet(onDismissRequest=close) {
