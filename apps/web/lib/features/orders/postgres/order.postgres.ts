@@ -1,3 +1,4 @@
+import { requireVisualizationStorage, storeVisualization } from '@/lib/features/product-3d/storage';
 import { verifiedFileKey } from "@/lib/storage/upload-reference";
 import { applyOrderStatus } from '@/lib/features/sales/order-status.server';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
@@ -182,7 +183,7 @@ export class PostgresOrderService implements IOrderService {
 
     const row = resultRows[0];
     const itemRows = await sql`SELECT * FROM order_items WHERE order_id = ${id} ORDER BY created_at, id`;
-    const items = itemRows.map((i:any) => ({id:i.id,productName:i.product_name,quantity:Number(i.quantity),unitPrice:Number(i.unit_price),totalPrice:Number(i.total_price),color:i.color,widthMm:i.width_mm==null?null:Number(i.width_mm),heightMm:i.height_mm==null?null:Number(i.height_mm),projectionMm:i.projection_mm==null?null:Number(i.projection_mm),mountingHeightMm:i.mounting_height_mm==null?null:Number(i.mounting_height_mm),awningConfiguration:i.awning_configuration,awningPreview:i.awning_preview,motorType:i.motor_type,ledType:i.led_type,fabricType:i.fabric_type,notes:i.notes,customParameters:i.custom_parameters || {},quantityUnit:i.quantity_unit || "adet"}));
+    const items = itemRows.map((i:any) => ({id:i.id,productName:i.product_name,quantity:Number(i.quantity),unitPrice:Number(i.unit_price),totalPrice:Number(i.total_price),color:i.color,widthMm:i.width_mm==null?null:Number(i.width_mm),heightMm:i.height_mm==null?null:Number(i.height_mm),projectionMm:i.projection_mm==null?null:Number(i.projection_mm),mountingHeightMm:i.mounting_height_mm==null?null:Number(i.mounting_height_mm),productVisualization:i.product_visualization,awningConfiguration:i.awning_configuration,awningPreview:i.awning_preview,motorType:i.motor_type,ledType:i.led_type,fabricType:i.fabric_type,notes:i.notes,customParameters:i.custom_parameters || {},quantityUnit:i.quantity_unit || "adet"}));
     
     // Generate signed URLs for documents
     const documents = await Promise.all((row.documents || []).map(async (doc: any) => ({
@@ -253,9 +254,10 @@ export class PostgresOrderService implements IOrderService {
         }
 
         if (formData.items && formData.items.length > 0) {
+          await requireVisualizationStorage("order_items",formData.items);
           for (const sourceItem of formData.items) {
             const item = sourceItem.awningConfiguration ? applyAwning(sourceItem, sourceItem.awningConfiguration) : sourceItem;
-            await tx.sql`
+            const [visualLine] = await tx.sql`
               INSERT INTO order_items (
                 order_id, product_name, quantity, unit_price, total_price,
                 color, width_mm, height_mm, motor_type, led_type, fabric_type, notes, projection_mm, mounting_height_mm, awning_configuration, awning_preview, custom_parameters, quantity_unit
@@ -264,8 +266,9 @@ export class PostgresOrderService implements IOrderService {
                 ${orderId}, ${item.productName}, ${item.quantity}, ${item.unitPrice || 0}, ${item.totalPrice || 0},
                 ${item.color || null}, ${item.widthMm || null}, ${item.heightMm || null}, 
                 ${item.motorType || null}, ${item.ledType || null}, ${item.fabricType || null}, ${item.notes || null}, ${item.projectionMm || null}, ${item.mountingHeightMm || null}, ${item.awningConfiguration ? JSON.stringify(item.awningConfiguration) : null}::text::jsonb, ${item.awningPreview || null}, ${JSON.stringify(item.customParameters || {})}::text::jsonb, ${item.quantityUnit || "adet"}
-              )
+              ) RETURNING id
             `;
+            await storeVisualization(tx.sql,"order_items",tenantId,visualLine.id,item.productVisualization);
           }
         }
 

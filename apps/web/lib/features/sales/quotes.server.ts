@@ -13,6 +13,9 @@ import {
   type QuoteSnapshot,
 } from './engine';
 import { istanbulToday } from './order-status.server';
+import { ProductVisualizationSchema } from '@/lib/features/product-3d/catalog';
+import { stableJson } from '@/lib/features/products/configuration';
+const publicVisualization=(value:unknown)=>{const parsed=ProductVisualizationSchema.safeParse(value);return parsed.success?parsed.data:null;};
 
 const OFFICE = ['owner', 'admin', 'office'];
 const MANAGERS = ['owner', 'admin'];
@@ -149,6 +152,7 @@ export function snapshotOf(q: any, items: any[]): QuoteSnapshot {
     items: items.map((i) => ({
       productName: i.product_name, quantity: Number(i.quantity), unitPrice: Number(i.unit_price), discountPercent: Number(i.discount_percent),
       widthMm: num(i.width_mm), heightMm: num(i.height_mm), projectionMm: num(i.projection_mm), color: i.color ?? null, notes: i.notes ?? null,
+      ...(i.product_visualization?{visualization:stableJson(i.product_visualization.configuration)}:{}),
     })),
   };
 }
@@ -342,6 +346,9 @@ export async function publicQuote(token: string) {
       discountPercent: Number(i.discount_percent), totalPrice: Number(i.total_price), color: i.color ?? null,
       widthMm: i.width_mm == null ? null : Number(i.width_mm), heightMm: i.height_mm == null ? null : Number(i.height_mm),
       family: i.product_configuration?.family ?? null,
+      productVisualization: publicVisualization(i.product_visualization),
+      awningConfiguration: i.awning_configuration??null,
+      awningPreview: i.awning_preview??null,
       parameters: i.product_configuration?.parameters
         ? { widthMm: i.product_configuration.parameters.widthMm ?? null, projectionMm: i.product_configuration.parameters.projectionMm ?? null, mountingHeightMm: i.product_configuration.parameters.mountingHeightMm ?? null }
         : null,

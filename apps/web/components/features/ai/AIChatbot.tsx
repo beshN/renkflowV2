@@ -20,6 +20,7 @@ import {
   Trash2,
   RotateCcw,
   ArrowDown,
+  Clock, FileText, Factory, Package, ChartNoAxesCombined, CircleHelp, type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -40,12 +41,13 @@ interface Message {
   feedback?: 'positive' | 'negative' | null;
   isError?: boolean;
   actions?: AssistantAction[];
+  sources?: string[];
 }
 
 interface QuickAction {
   id: string;
   label: string;
-  icon: string;
+  icon: LucideIcon;
   query: string;
 }
 
@@ -54,13 +56,14 @@ interface QuickAction {
 // ============================================
 
 const quickActions: QuickAction[] = [
-  { id: 'overdue', label: 'Geciken Siparişler', icon: '⏰', query: 'Bu ay geciken siparişler neler?' },
-  { id: 'revenue', label: 'Gelir Özeti', icon: '💰', query: 'Bu ay toplam ne kadar gelir elde ettik?' },
-  { id: 'production', label: 'Üretim Durumu', icon: '🏭', query: 'Üretimdeki siparişlerin durumu nedir?' },
-  { id: 'top', label: 'En İyi Müşteriler', icon: '👑', query: 'En çok sipariş veren müşteriler kimler?' },
-  { id: 'kanban', label: 'Kanban Durumu', icon: '📋', query: 'Kanban panosundaki sipariş dağılımı nasıl?' },
-  { id: 'help', label: 'Ne Yapabilirsin?', icon: '❓', query: 'Neler yapabilirsin? Bana yeteneklerini anlat.' },
+  { id: 'overdue', label: 'Teslimat riskleri', icon: Clock, query: 'Geciken siparişleri ve sıradaki somut adımları özetle.' },
+  { id: 'sales', label: 'Teklif takibi', icon: FileText, query: 'Açık teklifleri durum ve geçerliliklerine göre özetle; takip önceliklerini belirt.' },
+  { id: 'production', label: 'Üretim ve kapasite', icon: Factory, query: 'Üretimdeki darboğazları ve teslimata etkilerini mevcut kayıtlara göre açıkla.' },
+  { id: 'stock', label: 'Stok öncelikleri', icon: Package, query: 'Kritik stokları ve üretim için kontrol etmem gereken malzemeleri göster.' },
+  { id: 'revenue', label: 'Finansal görünüm', icon: ChartNoAxesCombined, query: 'Bu ayın sipariş değerini ve tahsilatını para birimlerini ayırarak açıkla.' },
+  { id: 'help', label: 'Ürün danışmanı', icon: CircleHelp, query: 'Renk ürünlerini kullanım alanı ve mekanizma açısından karşılaştır; teknik bilgilerin kaynağını belirt.' },
 ];
+const SOURCE_LABELS:Record<string,string>={orders:'Siparişler',jobs:'Üretim işleri',operations:'Operasyonlar',stock:'Stok',materials:'Malzemeler',quotations:'Teklifler','quote-detail':'Teklif detayı','order-detail':'Sipariş detayı',customers:'Müşteriler',purchases:'Satın alma',suppliers:'Tedarikçiler',shipments:'Sevkiyat',recipes:'Reçeteler',financialOrders:'Sipariş değerleri',payments:'Tahsilatlar',metrics:'Sipariş özeti',warehouses:'Depolar',locations:'Raflar',counts:'Sayımlar',notifications:'Bildirimler'};
 
 const MAX_INPUT_LENGTH = 1000;
 const MAX_HISTORY = 20;
@@ -458,6 +461,7 @@ export function AIChatbot() {
         timestamp: new Date(),
         suggestions: data.suggestions,
         actions: data.actions,
+        sources: Array.isArray(data.toolsUsed)?data.toolsUsed.filter((s:unknown):s is string=>typeof s==='string'&&!!SOURCE_LABELS[s]):[],
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -654,10 +658,10 @@ export function AIChatbot() {
                         <Sparkles className="w-7 h-7 text-blue-600" />
                       </div>
                       <h4 className="font-semibold text-slate-900 dark:text-white">
-                        {greeting}{user?.name ? `, ${user.name.split(' ')[0]}` : ''}! 👋
+                        {greeting}{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
                       </h4>
                       <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                        Size nasıl yardımcı olabilirim?
+                        Kayıtlara dayanan analiz, ürün danışmanlığı ve sonraki adımlar.
                       </p>
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-2 font-medium">
@@ -670,7 +674,7 @@ export function AIChatbot() {
                           onClick={() => handleSend(action.query)}
                           className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-left group"
                         >
-                          <span className="group-hover:scale-110 transition-transform">{action.icon}</span>
+                          <action.icon size={15} className="shrink-0 text-muted-foreground" aria-hidden/>
                           <span className="truncate text-xs">{action.label}</span>
                         </button>
                       ))}
@@ -727,6 +731,8 @@ export function AIChatbot() {
                             <div className="space-y-0.5">{renderMarkdown(message.content, handleNavigate)}</div>
                           )}
                         </div>
+
+                        {message.role==='assistant'&&!message.isError&&!!message.sources?.length&&<details className="mt-2 text-[10px] text-muted-foreground"><summary className="cursor-pointer">İncelenen kayıt kaynakları</summary><p className="mt-1 leading-5">{message.sources.map(s=>SOURCE_LABELS[s]).join(' · ')}</p></details>}
 
                         {/* Suggestions */}
                         {message.actions?.map((action,index)=><button key={index} className="rf-secondary-button mt-2 text-xs" disabled={actionBusy} onClick={()=>{if(action.kind==='navigate'){const href=safeAssistantHref(action.href);if(href)handleNavigate(href);}else {setActionError('');const key=message.id+':'+index;let commandId=actionIds.current.get(key);if(!commandId){commandId=crypto.randomUUID();actionIds.current.set(key,commandId);}setPendingAction({action,commandId});}}}>{action.title}</button>)}

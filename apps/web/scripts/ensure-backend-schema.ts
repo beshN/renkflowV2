@@ -142,6 +142,7 @@ export async function ensureBackendSchema(sql: SqlClient, options: EnsureOptions
     '046_fleet.sql',
     '047_finance_foundation.sql',
     '048_ai_assistant.sql',
+    '049_product_visualization.sql',
     '049_personnel.sql',
   ]) {
     const raw = fs.readFileSync(path.join(migrationsDir, file), 'utf8');

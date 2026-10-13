@@ -3,27 +3,25 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Home, Receipt, Settings, Search, Boxes, ClipboardList } from 'lucide-react';
+import { Home, Receipt, Menu, Boxes, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
-import { hasPermission, type Permission, type UserRole } from '@/lib/auth/permissions';
+import { getVisibleNavGroups } from '@/lib/core/dashboard-nav';
+import { useMemberAccess } from '@/lib/hooks/useMemberAccess';
 
 const navItems = [
   { icon: Home, label: 'Genel bakış', href: '/dashboard' },
-  { icon: Receipt, label: 'Siparişler', href: '/orders', requiresPermission: 'orders.view' as Permission },
-  { icon: ClipboardList, label: 'İş Emri', href: '/work-orders', requiresPermission: 'orders.view' as Permission },
-  { icon: Boxes, label: 'Stok', href: '/inventory', requiresPermission: 'inventory.view' as Permission },
-  { icon: Settings, label: 'Ayarlar', href: '/settings' },
+  { icon: Receipt, label: 'Siparişler', href: '/orders' },
+  { icon: ClipboardList, label: 'İş emirleri', href: '/work-orders' },
+  { icon: Boxes, label: 'Stok', href: '/inventory' },
 ];
 
 export function MobileBottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const access = useMemberAccess();
 
-  const visibleItems = navItems.filter((item) => {
-    if (!item.requiresPermission) return true;
-    if (!user?.role) return false;
-    return hasPermission(user.role as UserRole, item.requiresPermission);
-  });
+  const allowed = new Set(getVisibleNavGroups(user?.role, access).flatMap(group => group.items.map(item => item.href)));
+  const visibleItems = navItems.filter(item => allowed.has(item.href));
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 rf-topbar border-t border-slate-200/70 dark:border-slate-800/70 safe-bottom">
@@ -59,6 +57,10 @@ export function MobileBottomNav() {
             </Link>
           );
         })}
+        <button type="button" onClick={() => window.dispatchEvent(new Event('rf:open-navigation'))} aria-label="Ana menüyü aç"
+          className="flex min-touch min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-subtle-light dark:text-subtle-dark">
+          <Menu size={20} /><span className="text-[10px] font-medium">Menü</span>
+        </button>
       </div>
     </nav>
   );

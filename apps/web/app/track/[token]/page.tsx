@@ -1,7 +1,7 @@
 "use client";
 import { use, useEffect, useState } from "react";
 import { BadgeCheck, CalendarCheck2, Factory, FileText, MessageCircle, PackageCheck, Scissors, Truck, Wrench } from "lucide-react";
-import { AwningDialog } from "@/components/features/awning/AwningConfigurator";
+import { ProductDialog } from "@/components/features/product-3d/ProductDialog";
 import { ProductDrawing } from "@/components/drawing/ProductDrawing";
 import { ColorChip } from "@/components/colors/ColorSwatch";
 import { ProgressRing, Skeleton, Timeline } from "@/components/kit";
@@ -118,7 +118,7 @@ export default function Tracking({ params }: { params: Promise<{ token: string }
                   {planned > 0 && <ProgressRing value={produced} max={planned} label={`${produced} / ${planned} üretildi`} center={`${produced}/${planned}`} />}
                 </div>
                 {item.parameters && <ProductDrawing family={item.family ?? "pergola"} widthMm={item.parameters.widthMm} projectionMm={item.parameters.projectionMm} heightMm={item.parameters.mountingHeightMm} color={item.color} className="h-auto max-h-64 w-full" />}
-                {item.awning_configuration && <AwningDialog configuration={item.awning_configuration} previewImage={item.awning_preview} readOnly label="Onaylı 3D görünümü aç" />}
+                {(item.awning_configuration || item.product_visualization) && <ProductDialog visualization={item.product_visualization} awningConfiguration={item.awning_configuration} previewImage={item.awning_preview} readOnly label="Kaydedilmiş 3D görünümü aç" />}
               </section>
             );
           })}

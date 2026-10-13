@@ -9,6 +9,7 @@ import { requireSameOriginJson } from '@/lib/features/manufacturing/http-securit
 import { canAccessRoute, hasPermission } from '@/lib/features/auth/permissions';
 import { consumeRateLimit, rateLimitHeaders } from '@/lib/security/rate-limit';
 import { ModelBlockedError } from '@/lib/ai/policy';
+import { routeRequirement } from '@/lib/security/access-matrix';
 const input=z.object({message:z.string().trim().min(1).max(2000),mode:z.enum(['chat','proactive']).default('chat'),context:z.object({currentPath:z.string().max(240).optional()}).optional(),history:z.array(z.object({role:z.enum(['user','assistant']),content:z.string().max(4000)})).max(20).default([]),search:z.string().max(160).optional()});
 export async function POST(req:NextRequest) {
  try {
@@ -20,13 +21,15 @@ export async function POST(req:NextRequest) {
   const body=input.parse(JSON.parse(text)),path=body.context?.currentPath || '/dashboard';
   const query=body.search || body.message.match(/\bRF[-\s]?\d+\b/i)?.[0] || '';
   const [snapshot,knownNames]=await Promise.all([assistantSnapshot(actor,path,query),tenantPersonalNames(actor.tenantId)]);
-  const answer=await getAIService().assist(body.message,{currentPath:path},snapshot.data,body.history,(category,query)=>searchAssistant(actor,category,query),{tenantId:actor.tenantId,userId:actor.userId,feature:body.mode==='proactive'?'assistant.proactive':'assistant.chat'},knownNames);
+  const searched=new Set<string>();
+  const answer=await getAIService().assist(body.message,{currentPath:path},snapshot.data,body.history,(category,query)=>{searched.add(category);return searchAssistant(actor,category,query);},{tenantId:actor.tenantId,userId:actor.userId,feature:body.mode==='proactive'?'assistant.proactive':'assistant.chat'},knownNames);
   const actions=(body.mode==='proactive'?[]:answer.actions).slice(0,3).filter(action=>{
-   if(action.kind==='navigate') {const href=safeAssistantHref(action.href);return !!href && canAccessRoute(actor.role,new URL(href,'https://internal.invalid').pathname);}
-   if(action.kind==='orderNote')return hasPermission(actor.role,'orders.edit') && actor.role!=='worker';
-   return hasPermission(actor.role,'orders.create') && ['owner','admin','office'].includes(actor.role);
+   const permissions=snapshot.data.access?.permissions??{};
+   if(action.kind==='navigate') {const href=safeAssistantHref(action.href);if(!href)return false;const pathname=new URL(href,'https://internal.invalid').pathname,need=routeRequirement(pathname,'GET');return canAccessRoute(actor.role,pathname)&&(!need||permissions[need.module]?.includes(need.action)||need.orCreate&&permissions[need.module]?.includes('create'));}
+   if(action.kind==='orderNote')return hasPermission(actor.role,'orders.edit') && actor.role!=='worker' && permissions.orders?.includes('edit');
+   return hasPermission(actor.role,'orders.create') && ['owner','admin','office'].includes(actor.role) && permissions.orders?.includes('create');
   });
-  return NextResponse.json({success:true,response:answer.answer,suggestions:answer.suggestions.slice(0,4),actions,toolsUsed:Object.keys(snapshot.data).filter(k=>Array.isArray(snapshot.data[k]) && !['unavailable'].includes(k)),confidence:null},{headers:{'Cache-Control':'private, no-store'}});
+  return NextResponse.json({success:true,response:answer.answer,suggestions:answer.suggestions.slice(0,4),actions,toolsUsed:[...new Set([...Object.keys(snapshot.data).filter(k=>Array.isArray(snapshot.data[k]) && !['unavailable'].includes(k)),...searched])],context:{generatedAt:snapshot.data.generatedAt,scope:snapshot.data.scope},confidence:null},{headers:{'Cache-Control':'private, no-store'}});
  } catch(error) {
   if(error instanceof WorkOrderApiError)return NextResponse.json({error:error.message},{status:error.status});
   if(error instanceof ModelBlockedError)return NextResponse.json({error:error.message,code:error.block},{status:409});

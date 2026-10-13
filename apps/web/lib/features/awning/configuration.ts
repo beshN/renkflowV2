@@ -89,6 +89,7 @@ export function applyAwning<T extends { heightMm?: number }>(
   const c = AwningConfigurationSchema.parse(configuration);
   return {
     ...item,
+    productVisualization: undefined,
     awningConfiguration: c,
     widthMm: c.widthMm,
     projectionMm: c.projectionMm,

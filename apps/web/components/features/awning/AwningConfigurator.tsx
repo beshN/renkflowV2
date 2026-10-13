@@ -19,21 +19,22 @@ import type {
 const views: [AwningView, string][] = [
   ["perspective", "Perspektif"],
   ["front", "Ön"],
-  ["side", "Yan"],
   ["top", "Üst"],
-  ["under", "Alt"],
-  ["detail", "Mekanizma"],
 ];
 export function AwningConfigurator({
   value = DEFAULT_AWNING,
   readOnly = false,
   previewImage,
   onApply,
+  onChange,
+  onValidationChange,
 }: {
   value?: AwningConfiguration;
   readOnly?: boolean;
   previewImage?: string;
   onApply?: (value: AwningConfiguration, image?: string) => void;
+  onChange?: (value: AwningConfiguration, image?: string) => void;
+  onValidationChange?: (message: string) => void;
 }) {
   const [draft, setDraft] = useState(value),
     [opening, setOpening] = useState(85),
@@ -83,9 +84,32 @@ export function AwningConfigurator({
   }, []);
   useEffect(() => {
     const valid = AwningConfigurationSchema.safeParse(draft);
-    if (ready && valid.success)
-      controller.current?.setConfiguration(valid.data);
+    if (!ready || !valid.success) return;
+    const timer = window.setTimeout(() => controller.current?.setConfiguration(valid.data), 80);
+    return () => window.clearTimeout(timer);
   }, [draft, ready]);
+  const changeHandler = useRef(onChange), validationHandler = useRef(onValidationChange);
+  changeHandler.current = onChange;
+  validationHandler.current = onValidationChange;
+  const emitted = useRef('');
+  useEffect(() => {
+    if (readOnly || !changeHandler.current) return;
+    const valid = AwningConfigurationSchema.safeParse(draft);
+    validationHandler.current?.(valid.success ? '' : valid.error.issues.map(i => i.message).join(' · '));
+    if (!valid.success) return;
+    const signature = JSON.stringify(valid.data);
+    if (emitted.current !== signature) {
+      emitted.current = signature;
+      changeHandler.current(valid.data);
+    }
+    if (!ready || sceneError) return;
+    const timer = window.setTimeout(() => {
+      let image: string | undefined;
+      try { image = controller.current?.capture(); } catch { /* Values remain usable. */ }
+      if (image) changeHandler.current?.(valid.data, image);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [draft, ready, sceneError, opening, view, time]);
   function update<K extends keyof AwningConfiguration>(
     key: K,
     value: AwningConfiguration[K],
@@ -256,7 +280,7 @@ export function AwningConfigurator({
           </p>
         )}
         <div>
-          <h3 className="rf-section-title">Teknik yapılandırma</h3>
+          <h3 className="rf-section-title">Ölçü ve renk</h3>
           <p className="mt-1 text-xs text-muted-foreground">
             Ölçüler milimetre cinsindedir.
           </p>
@@ -375,9 +399,6 @@ export function AwningConfigurator({
             <span>%{draft.brightness}</span>
           </label>
         </fieldset>
-        <p className="rounded-md bg-muted p-3 text-xs leading-5">
-          {awningSummary(draft)}
-        </p>
         {!readOnly && onApply && (
           <button
             type="button"

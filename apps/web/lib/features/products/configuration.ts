@@ -75,6 +75,7 @@ export function configuredLine<T extends LineFields>(item: T, c: ProductConfigur
     unitPrice: c.price.source === 'matrix' ? c.price.matrixUnitPrice! : typedPrice,
     awningConfiguration: undefined,
     awningPreview: undefined,
+    productVisualization: undefined,
     productConfiguration: c,
   };
 }

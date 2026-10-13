@@ -1,0 +1,51 @@
+.document { --foreground: 220 12% 14%; --muted-foreground: 210 12% 45%; --border: 220 12% 90%; --background: 0 0% 100%; max-width: 850px; margin: 0 auto; padding: 38px 42px; background: #fff; color: #20252b; font-family: Arial, Helvetica, sans-serif; font-size: 13px; line-height: 1.5; border: 1px solid #e4e7eb; border-radius: 8px; }
+.heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-bottom: 22px; border-bottom: 2px solid #20252b; }
+.logo { width: 145px; height: 68px; object-fit: contain; object-position: left center; }
+.firm { font-size: 24px; font-weight: 700; }
+.title { text-align: right; min-width: 0; }
+.title h1 { margin: 0; font-size: 27px; letter-spacing: -.8px; font-weight: 600; }
+.number { margin-top: 5px; font-size: 11px; color: #4e5863; overflow-wrap: anywhere; }
+.date { margin-top: 3px; font-size: 11px; color: #66717c; }
+.customer { display: flex; justify-content: space-between; gap: 24px; margin: 25px 0 26px; }
+.label { font-size: 11px; color: #66717c; margin-bottom: 3px; }
+.customer h2 { font-size: 17px; font-weight: 600; overflow-wrap: anywhere; }
+.meta { flex-shrink: 0; font-size: 11px; }
+.meta div { display: flex; justify-content: space-between; gap: 18px; }
+.meta dt { color: #66717c; }
+.meta dd { font-weight: 500; text-align: right; }
+.item { break-inside: avoid; margin-bottom: 22px; padding-bottom: 20px; border-bottom: 1px solid #e4e7eb; }
+.item h3 { display: flex; gap: 10px; align-items: baseline; margin-bottom: 12px; font-size: 14px; font-weight: 600; }
+.item h3 span { font-size: 11px; font-weight: 400; color: #77828c; }
+.preview { display: block; width: 100%; height: 210px; object-fit: contain; background: #f6f7f6; border-radius: 3px; }
+.drawing { width: 100%; height: auto; max-height: 210px; color: #20252b; }
+.specification { font-size: 11px; color: #4e5863; margin: 9px 0 12px; }
+.prices { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; font-variant-numeric: tabular-nums; }
+.prices th { background: #f5f6f7; font-weight: 500; color: #66717c; font-size: 10px; }
+.prices th, .prices td { padding: 8px 10px; text-align: right; }
+.prices th:first-child, .prices td:first-child { text-align: left; }
+.prices td { border-bottom: 1px solid #e4e7eb; }
+.prices td:last-child { font-weight: 600; }
+.closing { display: grid; grid-template-columns: minmax(0, 1fr) 275px; gap: 28px; }
+.conditions { font-size: 11px; color: #4e5863; }
+.conditions div + div { margin-top: 14px; }
+.conditions h2 { color: #20252b; font-size: 11px; font-weight: 600; margin-bottom: 5px; }
+.conditions p, .note { white-space: pre-wrap; overflow-wrap: anywhere; }
+.totals { font-size: 12px; font-variant-numeric: tabular-nums; break-inside: avoid; }
+.totals div { display: flex; justify-content: space-between; gap: 20px; padding: 4px 0; }
+.totals dd { text-align: right; white-space: nowrap; }
+.totals .total { border-top: 1px solid #20252b; margin-top: 9px; padding-top: 12px; font-size: 16px; font-weight: 700; }
+.totals .exchange { font-size: 10px; color: #66717c; margin-top: 6px; flex-wrap: wrap; }
+.note { margin-top: 8px; font-size: 11px; color: #4e5863; }
+.footnote { font-size: 9px; color: #77828c; margin-top: 25px; border-top: 1px solid #e4e7eb; padding-top: 10px; }
+@media (max-width: 540px) { .document { padding: 22px 16px; } .logo { width: 105px; } .title h1 { font-size: 22px; } .customer { flex-direction: column; gap: 12px; } .meta { align-self: flex-start; } .closing { grid-template-columns: 1fr; gap: 20px; } .totals { margin-left: auto; width: min(100%, 300px); } .prices th, .prices td { padding: 7px 4px; } .prices { font-size: 11px; } .preview { height: 180px; } }
+@media print {
+  @page { size: A4; margin: 14mm; }
+  .document { padding: 0; margin: 0; width: 100%; max-width: none; border: 0; border-radius: 0; font-size: 11px; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .heading { padding-bottom: 16px; }
+  .customer { display: flex; flex-direction: row; margin: 20px 0; }
+  .meta { align-self: auto; }
+  .item h3 { break-after: avoid; }
+  .preview, .drawing { height: 52mm; max-height: 52mm; }
+  .closing { grid-template-columns: minmax(0, 1fr) 72mm; }
+  .conditions div { break-inside: avoid; }
+}

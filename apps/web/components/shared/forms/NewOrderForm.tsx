@@ -4,7 +4,10 @@ import { prepareBrowserFile, type UploadedFileReference } from '@/lib/storage/cl
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, Plus, Trash2 } from 'lucide-react';
-import { AwningDialog } from '@/components/features/awning/AwningConfigurator';
+import { InlineProductEditor } from '@/components/features/product-3d/InlineProductEditor';
+import { applyInlineVisualization } from '@/lib/features/product-3d/inline';
+import { defaultVisualization, productMeta } from '@/lib/features/product-3d/catalog';
+import { DEFAULT_AWNING } from '@/lib/features/awning/configuration';
 import { applyAwning } from '@/lib/features/awning/configuration';
 
 import { Button } from '@/components/ui/Button';
@@ -81,6 +84,8 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
   }, [form.customerName, form.customerId]);
 
   const [rawTotalAmount, setRawTotalAmount] = useState(String(initialData?.totalAmount ?? '0'));
+  const [editorKeys, setEditorKeys] = useState(() => initialItems(initialData).map(() => crypto.randomUUID()));
+  const invalid3d = useRef<Record<number, string>>({});
   const [items, setItems] = useState<NewOrderItemData[]>(() => initialItems(initialData));
 
   useEffect(() => {
@@ -90,6 +95,8 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
         setRawTotalAmount(String(initialData.totalAmount));
       }
       setItems(initialItems(initialData));
+      setEditorKeys(initialItems(initialData).map(() => crypto.randomUUID()));
+      invalid3d.current = {};
     }
   }, [initialData]);
 
@@ -113,6 +120,7 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
 
   const validate = (): boolean => {
     const nextErrors: FieldErrors = {};
+    items.forEach((_, index) => { if (invalid3d.current[index]) nextErrors[`items.${index}.configuration`] = invalid3d.current[index]; });
 
     if (!form.customerName.trim()) {
       nextErrors.customerName = 'Müşteri adı zorunlu alandır.';
@@ -221,6 +229,7 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
   };
 
   const addItem = () => {
+    setEditorKeys(prev => [...prev, crypto.randomUUID()]);
     setItems((prev) => [
       ...prev,
       { productName: '', quantity: 1, unitPrice: 0, totalPrice: 0 },
@@ -244,6 +253,8 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
   };
 
   const removeItem = (index: number) => {
+    setEditorKeys(prev => prev.length > 1 ? prev.filter((_, i) => i !== index) : prev);
+    invalid3d.current = Object.fromEntries(Object.entries(invalid3d.current).filter(([i]) => Number(i) !== index).map(([i, message]) => [Number(i) > index ? Number(i) - 1 : Number(i), message]));
     setItems((prev) => prev.length > 1 ? prev.filter((_, i) => i !== index) : prev);
   };
 
@@ -361,7 +372,7 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
         ) : (
           <div className="space-y-4">
             {items.map((item, idx) => (
-              <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-md border border-slate-200 dark:border-slate-800 relative group">
+              <div key={editorKeys[idx]} className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-md border border-slate-200 dark:border-slate-800 relative group">
                 <button
                   type="button"
                   onClick={() => removeItem(idx)}
@@ -391,7 +402,7 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
                       min={1}
                       step="any"
                       placeholder="2400"
-                      disabled={Boolean(item.awningConfiguration)}
+                      disabled={Boolean(item.awningConfiguration || item.productVisualization)}
                       value={item.widthMm ?? ''}
                       onChange={(e) => updateItem(idx, 'widthMm', e.target.value ? Number(e.target.value) : undefined)}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
@@ -404,6 +415,7 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
                       min={1}
                       step="any"
                       placeholder="2100"
+                      disabled={Boolean(item.productVisualization)}
                       value={item.heightMm ?? ''}
                       onChange={(e) => updateItem(idx, 'heightMm', e.target.value ? Number(e.target.value) : undefined)}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900"
@@ -413,7 +425,7 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
                     <span className="mb-1.5 block text-xs font-medium text-slate-500">RAL renk / yüzey</span>
                     <input
                       type="text"
-                      disabled={Boolean(item.awningConfiguration)}
+                      disabled={Boolean(item.awningConfiguration || item.productVisualization)}
                       value={item.color || ''}
                       placeholder="RAL 7016 Mat"
                       onChange={(e) => updateItem(idx, 'color', e.target.value)}
@@ -457,9 +469,25 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
                     placeholder="Örn: 40×40 profil · bağlantı ve aksesuar detayları"
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-slate-700 dark:bg-slate-900" />
                 </label>
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <AwningDialog configuration={item.awningConfiguration} previewImage={item.awningPreview} onApply={(c,image)=>setItems(prev=>prev.map((entry,i)=>i===idx?applyAwning({...entry,productName:entry.productName||'WINMAX Makaslı Tente'},c,image):entry))}/>
-                  {item.awningConfiguration && <span className="text-xs text-muted-foreground">Açılım: {item.awningConfiguration.projectionMm} mm · Montaj: {item.awningConfiguration.mountingHeightMm} mm</span>}
+                <div className="mt-4 border-t border-border pt-4">
+                  <InlineProductEditor
+                    label={`Kalem ${idx + 1} ürün seçimi`}
+                    productName={item.productName} visualization={item.productVisualization}
+                    awningConfiguration={item.awningConfiguration} previewImage={item.awningPreview}
+                    onValidationChange={message => { invalid3d.current[idx] = message; }}
+                    onSelect={kind => {
+                      invalid3d.current[idx] = '';
+                      setItems(prev => prev.map((entry, i) => {
+                        if (i !== idx) return entry;
+                        const plain = { ...entry, awningConfiguration: undefined, awningPreview: undefined, productVisualization: undefined };
+                        if (!kind) return { ...plain, productName: '', widthMm: undefined, heightMm: undefined, projectionMm: undefined, mountingHeightMm: undefined, color: undefined };
+                        if (kind === 'makasli') return applyAwning({ ...plain, productName: 'WINMAX Makaslı Tente' }, DEFAULT_AWNING);
+                        return applyInlineVisualization({ ...plain, productName: productMeta(kind).name }, { configuration: defaultVisualization(kind) });
+                      }));
+                    }}
+                    onChange={v => setItems(prev => prev.map((entry, i) => i === idx ? applyInlineVisualization(entry, v) : entry))}
+                    onChangeAwning={(c, image) => setItems(prev => prev.map((entry, i) => i === idx ? applyAwning({ ...entry, productVisualization: undefined, awningPreview: undefined }, c, image) : entry))}
+                  />
                 </div>
                 {Object.entries(errors).filter(([key]) => key.startsWith(`items.${idx}.`) && !key.endsWith('productName')).map(([key, message]) => <p key={key} role="alert" className="mt-1 text-xs text-rose-600">{message}</p>)}
               </div>
