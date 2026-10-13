@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { requestJson } from '@/lib/shared/network';
 import { NewOrderFormData } from '@/lib/types';
-import { ArrowLeft, FileUp, Loader2, ClipboardCheck, Info } from 'lucide-react';
+import { ArrowLeft, FileUp, Loader2, Info } from 'lucide-react';
 import { ORDER_MAX_UPLOAD_SIZE_BYTES } from '@/lib/features/orders/constants';
 import { celebrate } from '@/components/spells/celebrate';
 
@@ -51,7 +51,7 @@ export default function NewOrderPage() {
   const [aiFormData, setAiFormData] = useState<NewOrderFormData | undefined>();
   const [isExtracting, setIsExtracting] = useState(false);
   const [aiAvailable, setAiAvailable] = useState<boolean | null>(null);
-  const [capabilityError, setCapabilityError] = useState(false);
+  const [, setCapabilityError] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
@@ -160,29 +160,22 @@ export default function NewOrderPage() {
     <div className="rf-page">
       <Link href="/orders" className="mb-6 inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft size={14} /> Siparişlere dön</Link>
       <div className="mb-7">
-        <p className="rf-eyebrow">Sipariş yönetimi / Yeni kayıt</p>
-        <h1 className="rf-page-title">Yeni sipariş oluşturun</h1>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">Müşteri, teknik ölçüler ve teslimat bilgilerini üretim ekibiniz için bir araya getirin.</p>
+        <p className="rf-eyebrow">Siparişler</p>
+        <h1 className="rf-page-title">Yeni sipariş</h1>
       </div>
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_290px]">
         <NewOrderForm onSubmit={handleSubmit} initialData={aiFormData} submitError={submitError} />
         <aside className="space-y-5 xl:sticky xl:top-20">
           <section className="rf-panel border border-border p-5" aria-busy={isExtracting}>
-            <div className="mb-4 flex items-center gap-2.5"><FileUp size={18} className="text-primary" /><h2 className="rf-section-title">Belgeden sipariş taslağı</h2></div>
-            <p className="text-xs leading-6 text-muted-foreground">Belgedeki bilgileri forma aktarın. Kaydetmeden önce ürün, adet ve ölçüleri mutlaka doğrulayın.</p>
+            <div className="mb-4 flex items-center gap-2.5"><FileUp size={18} className="text-primary" /><h2 className="rf-section-title">Belgeden doldur</h2></div>
             <div className="relative mt-4 rounded-md border border-dashed border-input bg-accent/50 p-6 text-center focus-within:ring-2 focus-within:ring-primary">
               <input type="file" className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed" accept="application/pdf,image/png,image/jpeg" aria-label="Sipariş belgesi seç" onChange={handleFileUpload} disabled={isExtracting || aiAvailable !== true} />
               {isExtracting ? <Loader2 size={23} className="mx-auto mb-3 animate-spin text-primary" /> : <FileUp size={23} className="mx-auto mb-3 text-muted-foreground" />}
               <p className="text-xs font-medium">{isExtracting ? 'Belge analiz ediliyor…' : 'Belge seçin'}</p>
               <p className="mt-2 text-[10px] text-muted-foreground">PDF, JPG, PNG · En fazla 10 MB</p>
             </div>
-            {aiAvailable !== true && <div className="mt-4 flex items-start gap-2 text-[11px] leading-5 text-muted-foreground"><Info size={14} className="mt-0.5 shrink-0" /><p>{capabilityError ? 'Belge analizinin kullanılabilirliği kontrol edilemedi. Bilgileri elle girebilirsiniz.' : aiAvailable === false ? 'Belge analizi henüz etkinleştirilmedi. Bilgileri elle girip teknik belgeleri siparişe ekleyebilirsiniz.' : 'Belge analizi kontrol ediliyor…'}</p></div>}
-          </section>
-          <section className="rf-panel border border-border p-5">
-            <div className="flex items-center gap-2.5"><ClipboardCheck size={18} className="text-primary" /><h2 className="rf-section-title">Kayıt kontrolü</h2></div>
-            <ol className="mt-5 space-y-4">
-              {['Ölçüleri milimetre olarak doğrulayın.', 'Profil serisi ve RAL rengini belirtin.', 'Teknik çizim ve müşteri onayını ekleyin.', 'Termin ve sevkiyat notlarını kontrol edin.'].map((text, index) => <li key={text} className="flex items-start gap-3 text-xs leading-5 text-muted-foreground"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-border text-[10px] tabular-nums">{String(index + 1).padStart(2, '0')}</span>{text}</li>)}
-            </ol>
+            {aiAvailable === false && <p className="mt-3 flex items-start gap-2 text-[11px] text-muted-foreground"><Info size={14} className="mt-0.5 shrink-0" />Belge okuma kapalı.</p>}
+            <Link href="/orders/foy" className="mt-3 inline-flex text-xs font-medium text-primary hover:underline">İmalat föyü mü? Föy okuyucuyu açın →</Link>
           </section>
         </aside>
       </div>

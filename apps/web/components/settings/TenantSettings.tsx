@@ -130,7 +130,7 @@ export function TenantSettings() {
             </div>
 
             <Input
-              label="Logo URL"
+              label="Logo bağlantısı (isteğe bağlı)"
               type="url"
               variant="glass"
               value={formData.logoUrl}
