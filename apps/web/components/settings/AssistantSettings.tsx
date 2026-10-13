@@ -61,15 +61,18 @@ export function AssistantSettings() {
             <label className="flex items-start gap-2"><input type="checkbox" checked={kvkk} onChange={(e) => setKvkk(e.target.checked)} className="mt-1" />
               <span><ShieldCheck size={14} className="inline" aria-hidden /> Model sağlayıcısının (yurt dışı) verileri işlemesinin KVKK kapsamında yurt dışına aktarım olduğunu, hukuki dayanağın firmamızca sağlandığını onaylıyorum. Kişisel veriler (ad, telefon, adres) gerekmedikçe gönderilmez, gönderilmesi gerektiğinde maskelenir.</span></label>
             <button type="button" className="rf-primary-button text-sm" disabled={!s.modelKeyConfigured || !kvkk && !s.kvkkAckAt} onClick={() => void save({mode:'assist',...(kvkk?{kvkkAck:true}:{})}, 'Sohbet açıldı')}>Modeli aç</button>
-            {!s.modelKeyConfigured && <p className="text-xs text-muted-foreground">Model anahtarı bu kurulumda tanımlı değil: açılsa bile model çağrılamaz, kural motoru çalışır.</p>}
+            {!s.modelKeyConfigured && <p className="text-xs text-muted-foreground">Yapay zekâ anahtarı tanımlı değil; asistan yalnız hazır kurallarla çalışır.</p>}
           </div>
         )}
         {s.kvkkAckAt && s.kvkkAckAt !== 'before-048' && <p className="text-xs text-muted-foreground">KVKK onayı: {new Date(s.kvkkAckAt).toLocaleString('tr-TR')}</p>}
       </fieldset>
+      <details className="rounded-md border border-border px-3 py-2">
+        <summary className="cursor-pointer select-none text-sm font-medium">Gelişmiş ayarlar</summary>
+        <div className="mt-3 space-y-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="text-sm">Firma günlük model bütçesi (USD) <HintTip text="Boş = sınırsız. Maliyet yalnız model fiyatları yapılandırıldığında hesaplanır." />
+        <label className="text-sm">Günlük harcama sınırı (USD) <HintTip text="Boş = sınırsız. Maliyet yalnız model fiyatları yapılandırıldığında hesaplanır." />
           <input type="number" min={0} step="0.5" className="rf-input mt-1 w-full" defaultValue={s.dailyBudgetUsd ?? ''} onBlur={(e) => void save({ dailyBudgetUsd: e.target.value === '' ? null : Number(e.target.value) })} /></label>
-        <label className="text-sm">Kişi başı günlük model çağrısı
+        <label className="text-sm">Kişi başı günlük soru sınırı
           <input type="number" min={0} max={5000} className="rf-input mt-1 w-full" defaultValue={s.userDailyCalls} onBlur={(e) => void save({ userDailyCalls: Number(e.target.value) })} /></label>
         <label className="text-sm">Kâr tabanı (%) <HintTip text="Fiyat önerisinde tahmini kâr bunun altına düşerse uyarır. Yalnız malzeme maliyeti bilinen tekliflerde kontrol edilir." />
           <input type="number" min={0} max={90} className="rf-input mt-1 w-full" defaultValue={s.profitFloorPercent} onBlur={(e) => Number(e.target.value) !== s.profitFloorPercent && void save({ profitFloorPercent: Number(e.target.value) })} /></label>
@@ -83,8 +86,8 @@ export function AssistantSettings() {
         </div>
       </fieldset>
       <div className="space-y-2">
-        <h3 className="text-sm font-medium">Dedektörler <HintTip text="Her dedektör kayıtlara bakıp öneri hazırlar. Sessiz gün: reddedilen ya da onaylanan aynı durum bu kadar gün tekrar önerilmez." /></h3>
-        <ul className="divide-y divide-border rounded-md border border-border" aria-label="Dedektörler">
+        <h3 className="text-sm font-medium">Öneri türleri <HintTip text="Asistanın hangi konularda öneri hazırlayacağı. Sessiz gün: aynı öneri bu kadar gün tekrar gelmez." /></h3>
+        <ul className="divide-y divide-border rounded-md border border-border" aria-label="Öneri türleri">
           {s.detectors.map((d) => (
             <li key={d.key} className="flex flex-wrap items-center gap-3 p-2 text-sm">
               <label className="flex min-w-[12rem] flex-1 items-center gap-2"><input type="checkbox" checked={d.enabled} onChange={(e) => void detectorPatch(d, { enabled: e.target.checked })} /> {d.label}</label>
@@ -94,6 +97,8 @@ export function AssistantSettings() {
           ))}
         </ul>
       </div>
+        </div>
+      </details>
       <QualityFixes />
     </section>
   );

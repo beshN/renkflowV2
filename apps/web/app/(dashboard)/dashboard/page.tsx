@@ -38,12 +38,14 @@ type Summary = {
 const STEP_COLORS = ['#c7d2fe', '#a5b4fc', '#7c8ff0', '#2f55f4', '#1b3fa8', '#a1a1aa'];
 const SECTIONS = ['morning', 'today', 'activities', 'suggestions', 'flow', 'health', 'paint', 'week'] as const;
 type Section = (typeof SECTIONS)[number];
+const DEFAULT_HIDDEN: Section[] = ['activities', 'flow', 'health', 'paint', 'week'];
 const SECTION_LABELS: Record<Section, string> = { morning: 'Sabah özeti', today: 'Bugünün işi', activities: 'Aktiviteler', suggestions: 'Önerilenler', flow: 'Sipariş akışı', health: 'Riskteki siparişler', paint: 'Renk kuyruğu', week: 'Bu hafta' };
 const LAYOUT_KEY = 'rf-dashboard-layout';
 
 /** Card order and hidden cards, per browser. Falls back to the default when storage is unavailable. */
 function useLayout() {
-  const [layout, setLayout] = useState<{ order: Section[]; hidden: Section[] }>({ order: [...SECTIONS], hidden: [] });
+  // A first visit shows what needs doing today; the rest is one click away (Düzenle → göster).
+  const [layout, setLayout] = useState<{ order: Section[]; hidden: Section[] }>({ order: [...SECTIONS], hidden: [...DEFAULT_HIDDEN] });
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || 'null');

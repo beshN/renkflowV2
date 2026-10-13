@@ -110,7 +110,7 @@ export function OrderBillingPanel({ orderId }: { orderId: string }) {
               <li key={i.id} className="rf-panel flex flex-wrap items-center gap-2 p-2 text-sm">
                 <span className="font-mono font-semibold">{i.number ?? 'Taslak'}</span>
                 <StatusChip tone={INVOICE_TONE[i.status]} label={INVOICE_STATUS_LABELS[i.status]} />
-                <StatusChip tone="muted" label="e-fatura: bağlanmadı" />
+
                 <span className="tabular-nums">{cur(i.grandTotal)}</span>
                 {i.dueOn && <span className="text-xs text-muted-foreground">vade {dmy(i.dueOn)}</span>}
                 {i.cancelReason && <span className="text-xs text-muted-foreground">({i.cancelReason})</span>}
