@@ -1,5 +1,9 @@
 import { PRODUCT_CATALOG, type ProductKind, type ProductVisualization, attachVisualization, productMeta } from './catalog';
-import type { AwningConfiguration } from '../awning/configuration';
+import { BODY_COLORS, type AwningConfiguration } from '../awning/configuration';
+
+export function visualColorName(hex: string) {
+  return BODY_COLORS.find(([, value]) => value.toLowerCase() === hex.toLowerCase())?.[0] ?? `Özel renk (${hex})`;
+}
 
 export type InlineProduct = ProductKind | 'makasli' | '';
 export function selectedProduct(line: { productName?: string; productVisualization?: ProductVisualization | null; awningConfiguration?: AwningConfiguration | null }): InlineProduct {
@@ -21,6 +25,6 @@ export function applyInlineVisualization<T extends { productName: string; unitPr
     heightMm: c.heightMm,
     projectionMm: roof ? c.projectionMm : undefined,
     mountingHeightMm: roof ? c.heightMm : undefined,
-    color: c.bodyColor,
+    color: visualColorName(c.bodyColor),
   };
 }

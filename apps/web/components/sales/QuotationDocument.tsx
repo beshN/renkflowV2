@@ -6,6 +6,7 @@ import { productMeta } from '@/lib/features/product-3d/catalog';
 import { configurationSummary, type ProductConfiguration } from '@/lib/features/products/configuration';
 import { ProductDrawing } from '@/components/drawing/ProductDrawing';
 import styles from './QuotationDocument.module.css';
+import { visualColorName } from '@/lib/features/product-3d/inline';
 
 const date = (value: string | Date) => new Date(typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value).toLocaleDateString('tr-TR');
 
@@ -32,6 +33,7 @@ export function QuotationDocument({ quote: q, firmName, logoUrl }: { quote: Quot
     {q.items.map((item, index) => {
       const image = item.productVisualization?.image || item.awningPreview;
       const visual = item.productVisualization?.configuration;
+      const color = item.color?.startsWith('#') ? visualColorName(item.color) : item.color;
       const dimensions = visual ? `${visual.widthMm} × ${productMeta(visual.kind).category === 'roof' ? visual.projectionMm : visual.heightMm} mm` : [item.widthMm, item.heightMm].filter(Boolean).join(' × ');
       return <section key={item.id || index} className={styles.item}>
         <h3><span>{String(index + 1).padStart(2, '0')}</span>{item.productName}</h3>
@@ -39,7 +41,7 @@ export function QuotationDocument({ quote: q, firmName, logoUrl }: { quote: Quot
           : item.productConfiguration?.parameters ? <ProductDrawing family={item.productConfiguration.family} widthMm={item.productConfiguration.parameters.widthMm} projectionMm={item.productConfiguration.parameters.projectionMm} heightMm={item.productConfiguration.parameters.mountingHeightMm} color={item.productConfiguration.color} className={styles.drawing} /> : null}
         {item.productConfiguration?.recipe ? <p className={styles.specification}>{configurationSummary(item.productConfiguration as ProductConfiguration)}</p>
           : item.awningConfiguration ? <p className={styles.specification}>{awningSummary(item.awningConfiguration)}</p>
-          : (dimensions || item.color) ? <p className={styles.specification}>{dimensions}{!visual && dimensions ? ' mm' : ''}{item.color ? ` · ${item.color}` : ''}</p> : null}
+          : (dimensions || color) ? <p className={styles.specification}>{dimensions}{!visual && dimensions ? ' mm' : ''}{color ? ` · ${color}` : ''}</p> : null}
         <table className={styles.prices} aria-label={`${item.productName} fiyatları`}>
           <thead><tr><th scope="col">Miktar</th><th scope="col">Birim fiyat</th><th scope="col">İndirim</th><th scope="col">Tutar</th></tr></thead>
           <tbody><tr><td>{item.quantity} adet</td><td>{formatCurrency(item.unitPrice, q.currency)}</td><td>{item.discountPercent > 0 ? `%${item.discountPercent}` : '—'}</td><td>{formatCurrency(item.totalPrice, q.currency)}</td></tr></tbody>
