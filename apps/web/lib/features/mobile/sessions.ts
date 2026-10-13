@@ -10,6 +10,7 @@ import {isPrivateAccessAllowed} from '@/lib/features/auth/private-access';
 import {WorkOrderApiError} from '@/lib/features/work-orders/security';
 import {currentMobileAccess} from './access';
 import {validateMobileDTO} from './contract';
+import {recordAudit,recordAuditAfterCommit} from '@/lib/audit/audit-log';
 const ACCESS_SECONDS=900;
 const secret=()=>resolveAuthSecret({context:'mobile.sessions',allowMissing:false,allowDevelopmentFallback:process.env.NODE_ENV!=='production',developmentFallback:'development-only-fallback-secret'})!;
 const hash=(value:string)=>createHash('sha256').update(value).digest('hex');
@@ -35,7 +36,8 @@ export async function mobileLogin(request:NextRequest,raw:unknown,platform:strin
  if(!attempt.allowed) throw new WorkOrderApiError('Çok fazla giriş denemesi. Biraz bekleyin.',429);
  const [r]=await sql`SELECT u.id,u.email,u.name,u.password,u.email_verified,m.tenant_id,m.role FROM users u LEFT JOIN LATERAL(SELECT * FROM tenant_members WHERE user_id=u.id ORDER BY CASE role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END,created_at LIMIT 1) m ON true WHERE u.email=${email}`;
  const valid=await verifyPassword(input.password,r?.password);
- if(!r||!valid||!isPrivateAccessAllowed(email)) throw new WorkOrderApiError('E-posta veya şifre hatalı.',401);
+ // Failed attempts on a member account are recorded without awaiting (same timing as unknown accounts).
+ if(!r||!valid||!isPrivateAccessAllowed(email)) {if(r?.tenant_id) void recordAuditAfterCommit({tenantId:r.tenant_id,actorId:r.id,entityType:'user',entityId:r.id,action:'login_failed',metadata:{method:'mobile',platform}});throw new WorkOrderApiError('E-posta veya şifre hatalı.',401);}
  if(!r.email_verified) throw new WorkOrderApiError('Önce e-posta adresinizi doğrulayın.',401);
  if(!r.tenant_id||!['owner','admin','office','worker'].includes(r.role)) throw new WorkOrderApiError('Bu hesap saha uygulamasına erişemiyor.',403);
  const user={id:r.id,email:r.email,name:r.name||'Kullanıcı',role:r.role,tenantId:r.tenant_id},sid=randomUUID(),token=access(user,sid);
@@ -48,6 +50,7 @@ export async function mobileLogin(request:NextRequest,raw:unknown,platform:strin
   await tx`INSERT INTO user_sessions(id,user_id,tenant_id,user_agent) VALUES(${sid},${user.id},${user.tenantId},${'RenkFlow '+platform})`;
   await tx`INSERT INTO mobile_sessions(id,tenant_id,user_id,device_id,platform,expires_at) VALUES(${sid},${user.tenantId},${user.id},${deviceId},${platform},now()+interval '30 days')`;
   await tx`INSERT INTO mobile_refresh_tokens(token_hash,session_id) VALUES(${hash(refreshToken)},${sid})`;
+  await recordAudit(tx,{tenantId:user.tenantId,actorId:user.id,entityType:'user',entityId:user.id,action:'login_succeeded',metadata:{method:'mobile',platform,deviceId}});
  });await clearLoginAttempts(email);
  return {user,accessToken:token,expiresIn:ACCESS_SECONDS,refreshToken,sessionId:sid,deviceId};
 }

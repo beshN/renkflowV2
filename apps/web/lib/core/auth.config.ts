@@ -7,6 +7,7 @@ import AzureAD from 'next-auth/providers/azure-ad';
 import Credentials from 'next-auth/providers/credentials';
 import { clearLoginAttempts, consumeLoginAttempt, verifyPassword } from '@/lib/features/auth/login-guard';
 import { getClientIp } from '@/lib/security/rate-limit';
+import { recordAuditAfterCommit } from '@/lib/audit/audit-log';
 
 import { getSql } from '@/lib/db';
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_BY_KEY } from '@/lib/config/templates';
@@ -232,6 +233,11 @@ export const authConfig: NextAuthConfig = {
 
           if (!user || !isPasswordValid) {
             if (DEBUG) console.log('[AUTH] Invalid credentials');
+            // Recorded for existing members only, and not awaited: the response time must not
+            // tell an existing account from an unknown one.
+            if (user?.tenant_id) {
+              void recordAuditAfterCommit({ tenantId: user.tenant_id, actorId: user.id, entityType: 'user', entityId: user.id, action: 'login_failed', metadata: { method: 'password' } });
+            }
             throw createCredentialsError('invalid_credentials');
           }
 
@@ -246,6 +252,7 @@ export const authConfig: NextAuthConfig = {
           }
 
           await clearLoginAttempts(normalizedEmail);
+          await recordAuditAfterCommit({ tenantId: user.tenant_id, actorId: user.id, entityType: 'user', entityId: user.id, action: 'login_succeeded', metadata: { method: 'password' } });
           if (DEBUG) console.log('[AUTH] Login successful for:', maskEmail(user.email));
 
           return {

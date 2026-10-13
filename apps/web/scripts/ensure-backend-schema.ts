@@ -155,6 +155,7 @@ export const BACKEND_MIGRATIONS = [
   '048_ai_assistant.sql',
   '049_product_visualization.sql',
   '049_personnel.sql',
+  '051_activity_log_immutable.sql',
 ];
 
 /** Mobile API tables (sessions, offline receipts, uploads, push devices); applied after 045 (installations). */

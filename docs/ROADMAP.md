@@ -53,7 +53,7 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 | Yedekleme ve geri yükleme runbook'u, prova; migration defteri ve kapsama testi | 🔄 | `docs/runbooks/backup-restore.md`, `schema_migrations`, `npm run db:status` |
 | Düz reset token eşleşmesinin kaldırılması, CSP, SSO sırlarının şifrelenmesi | 🔄 | #78. Parola politikası zaten 10 karakter ve tek doğrulayıcıydı; mobil JWT fallback'i production'da zaten hata veriyor. |
 | İki adımlı doğrulama (TOTP) ve kurtarma kodları | ⬜ | |
-| Denetim kaydının tek servise indirilmesi; eksik olayların eklenmesi | ⬜ | |
+| Denetim kaydı: değiştirilemezlik, giriş ve dönem kapama olayları | 🔄 | Tek servis (`activity_logs`) zaten K5'te kurulmuştu. Bu iş: 051 migration'ı ile kayıtlar yalnız eklenebilir; web ve mobil girişler, dönem kapama kaydediliyor; yetim `/api/tenant/activity` silindi. |
 | Postgres RLS ve firma izolasyonu testi | ⬜ | |
 | Yük testi ve Web Vitals | ⬜ | |
 
