@@ -43,6 +43,7 @@ let debugPage;
         ALLOW_LOCAL_DATABASE: "1",
         NATIVE_INVENTORY_ENABLED: "1",
         OPENAI_API_KEY: "",
+        ANTHROPIC_API_KEY: "",
         RESEND_API_KEY: "",
         WHATSAPP_ACCESS_TOKEN: "",
       },

@@ -3,18 +3,22 @@ const sent: unknown[] = [];
 const ECHO = { echo: true };
 let reply: Record<string, unknown> = {};
 jest.mock('server-only', () => ({}));
-jest.mock('openai', () => jest.fn().mockImplementation(() => ({
-  responses: {
-    parse: jest.fn(async (request: { input?: Array<{ role?: string; content?: unknown }> }) => {
-      sent.push(request);
-      // Echo mode: the "model" answers with the (masked) user message it received.
-      const lastUser = [...(request.input ?? [])].reverse().find((item) => item.role === 'user')?.content;
-      const parsed = reply === ECHO ? { answer: lastUser, actions: [] } : reply;
-      return { status: 'completed', output: [], output_parsed: parsed, output_text: '', usage: { input_tokens: 1200, output_tokens: 300 } };
-    }),
-  },
-})));
-jest.mock('openai/helpers/zod', () => ({ zodTextFormat: () => ({ type: 'json_schema' }), zodResponseFormat: () => ({ type: 'json_schema', json_schema: { schema: {} } }) }));
+jest.mock('@anthropic-ai/sdk', () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation(() => ({
+    messages: {
+      parse: jest.fn(async (request: { messages?: Array<{ role?: string; content?: unknown }> }) => {
+        // Serialized now: the service keeps appending to the same messages array.
+        sent.push(JSON.parse(JSON.stringify(request)));
+        // Echo mode: the "model" answers with the (masked) user message it received.
+        const lastUser = [...(request.messages ?? [])].reverse().find((item) => item.role === 'user')?.content;
+        const parsed = reply === ECHO ? { answer: lastUser, suggestions: [], actions: [] } : reply;
+        return { stop_reason: 'end_turn', content: [], parsed_output: parsed, usage: { input_tokens: 1200, output_tokens: 300 } };
+      }),
+    },
+  })),
+}));
+jest.mock('@anthropic-ai/sdk/helpers/zod', () => ({ zodOutputFormat: () => ({ type: 'json_schema' }) }));
 const usageRows: unknown[][] = [];
 jest.mock('@/lib/db', () => ({ sql: jest.fn((_s: TemplateStringsArray, ...values: unknown[]) => { usageRows.push(values); return Promise.resolve([]); }) }));
 
@@ -25,8 +29,10 @@ const PII = ['Örnek Yapı', 'ÖRNEK YAPI', 'Ayşe Demir', 'ayse@ornek.com', '53
 beforeEach(() => {
   sent.length = 0;
   usageRows.length = 0;
-  process.env.OPENAI_API_KEY = 'test-key';
-  process.env.AI_MODEL_PRICES_USD_PER_MTOK = JSON.stringify({ 'gpt-6-luna': { input: 1, output: 10 } });
+  process.env.ANTHROPIC_API_KEY = 'test-key';
+  delete process.env.AI_PROVIDER;
+  delete process.env.ANTHROPIC_MODEL;
+  process.env.AI_MODEL_PRICES_USD_PER_MTOK = JSON.stringify({ 'claude-haiku-5-5': { input: 1, output: 10 } });
 });
 
 it('sends the assistant no customer names, contacts or addresses, and restores them in the reply', async () => {
@@ -52,14 +58,24 @@ it('masks e-mails and phones in inbound text and restores extracted fields', asy
 });
 
 it('records tokens, latency and the configured cost for each model call', async () => {
-  reply = { answer: 'Tamam', actions: [] };
+  reply = { answer: 'Tamam', suggestions: [], actions: [] };
   await new AIService().assist('Merhaba', {}, {}, [], undefined, { tenantId: 't', userId: 'u', feature: 'assistant.chat' });
   const row = usageRows.find((values) => values.includes('assistant.chat'))!;
-  expect(row).toEqual(expect.arrayContaining(['t', 'u', 'assistant.chat', 'openai', 'gpt-6-luna', 1200, 300, 0.0042, 'ok']));
+  expect(row).toEqual(expect.arrayContaining(['t', 'u', 'assistant.chat', 'anthropic', 'claude-haiku-5-5', 1200, 300, 0.0042, 'ok']));
+});
+
+it('prices Claude Haiku 5.5 by default, counting prompt-cache reads and writes', async () => {
+  const { costUsd, inputTokens } = await import('@/lib/ai/usage');
+  delete process.env.AI_MODEL_PRICES_USD_PER_MTOK;
+  const usage = { input_tokens: 1000, cache_read_input_tokens: 10000, cache_creation_input_tokens: 2000, output_tokens: 400 };
+  expect(inputTokens(usage)).toBe(13000);
+  // (1000 + 10000 × 0.1 + 2000 × 1.25) × $0.10 + 400 × $0.50, per million tokens.
+  expect(costUsd('claude-haiku-5-5', usage)).toBe(0.00065);
+  expect(costUsd('unknown-model', usage)).toBeNull();
 });
 
 it('masks a name restored into chat history in an earlier turn when the firm knows it', async () => {
-  reply = { answer: 'Tamam', actions: [] };
+  reply = { answer: 'Tamam', suggestions: [], actions: [] };
   await new AIService().assist('Onun siparişi ne oldu?', {}, {}, [{ role: 'assistant', content: 'Mehmet Demir için 2 sipariş var.' }], undefined, undefined, ['Mehmet Demir']);
   expect(JSON.stringify(sent)).not.toContain('Mehmet Demir');
 });

@@ -139,7 +139,7 @@ async function quotePreview(actor: WorkOrderActor, cmd: Extract<Command, { inten
     // The same command the same day is one preview (a repeated or shared command does not pile up drafts).
     dedupeKey: `${actor.userId}:${istanbulToday()}:${createHash('sha256').update(JSON.stringify(payload)).digest('hex').slice(0, 32)}`,
     kind: QUOTE_KIND, title: `${customer.name} için teklif taslağı`, rationale: `Komut: ${label}${cmd.color ? `, ${cmd.color}` : ''}, ${payload.quantity} adet.`,
-    payload, source: source === 'model' ? 'model' : 'system', model: source === 'model' ? providerConfig('openai').model : null, uncertain: warnings.length > 0, uncertaintyNote: warnings.join(' ') || null,
+    payload, source: source === 'model' ? 'model' : 'system', model: source === 'model' ? providerConfig('anthropic').model : null, uncertain: warnings.length > 0, uncertaintyNote: warnings.join(' ') || null,
   });
   return {
     type: 'preview', suggestionId: String(r.suggestion.id), version: Number(r.suggestion.version), title: `${customer.name} için teklif taslağı`, source,

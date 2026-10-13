@@ -17,9 +17,9 @@ export function inspectDeploymentEnvironment(env: Environment) {
   if (env.API_CORS_ALLOW_ALL === "true") errors.push("API_CORS_ALLOW_ALL must be false");
   if (env.AUTH_DEBUG === "true") errors.push("AUTH_DEBUG must be false");
   if (env.NATIVE_INVENTORY_ENABLED !== "1") errors.push("NATIVE_INVENTORY_ENABLED must be 1 for the manufacturing platform");
-  required("OPENAI_API_KEY");
-  if (env.AI_PROVIDER !== "openai") errors.push("AI_PROVIDER must be openai");
-  if (env.OPENAI_MODEL !== "gpt-6-luna") errors.push("OPENAI_MODEL must be gpt-6-luna");
+  required("ANTHROPIC_API_KEY");
+  if (env.AI_PROVIDER && env.AI_PROVIDER !== "anthropic") errors.push("AI_PROVIDER must be anthropic (or unset)");
+  if (env.ANTHROPIC_MODEL && env.ANTHROPIC_MODEL !== "claude-haiku-5-5") errors.push("ANTHROPIC_MODEL must be claude-haiku-5-5 (or unset)");
   if (target === "production") {
    required("APP_URL"); required("CRON_SECRET");
    if (env.CRON_SECRET && env.CRON_SECRET.trim().length < 32) errors.push("CRON_SECRET must contain at least 32 characters");

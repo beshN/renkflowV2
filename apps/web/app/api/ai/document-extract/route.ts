@@ -1,13 +1,13 @@
 import { resolveUploadedFile } from "@/lib/storage/upload-reference";
 import { NextRequest, NextResponse } from 'next/server';
-import { getAIService } from '@/lib/ai/service';
+import { aiAvailable, getAIService } from '@/lib/ai/service';
 import { auth } from '@/auth';
 import { hasPermission } from '@/lib/features/auth/permissions';
 
 export async function GET() {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: 'Oturum açmanız gerekiyor.' }, { status: 401 });
-  return NextResponse.json({ available: Boolean(process.env.OPENAI_API_KEY?.trim()) }, { headers: { 'Cache-Control': 'no-store' } });
+  return NextResponse.json({ available: aiAvailable() }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 export async function POST(req: NextRequest) {
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Oturum açmanız gerekiyor.' }, { status: 401 });
     }
-    if (!process.env.OPENAI_API_KEY?.trim()) {
+    if (!aiAvailable()) {
       return NextResponse.json({ error: 'Belge analizi henüz etkinleştirilmedi. Sipariş bilgilerini elle girebilirsiniz.' }, { status: 503 });
     }
 

@@ -10,7 +10,7 @@ export type EvalProvider = { name: string; model: string; available: () => strin
  * on the given provider (lib/ai/providers.ts). A provider without its key is reported as not run,
  * so no comparison can be reported without having actually run.
  */
-export function productProvider(id: ProviderId = 'openai'): EvalProvider {
+export function productProvider(id: ProviderId = 'anthropic'): EvalProvider {
   const { model } = providerConfig(id);
   return {
     name: id,

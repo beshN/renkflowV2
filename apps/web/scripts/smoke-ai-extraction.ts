@@ -35,11 +35,11 @@ async function main() {
     assert.equal(pdf.extractedData.items[0].mountingHeightMm, 3200);
     assert.equal(pdf.extractedData.items[0].quantity, 1);
     console.log(
-      "PASS · actual GPT-6 Luna native PDF extraction from synthetic quote",
+      "PASS · actual Claude native PDF extraction from synthetic quote",
     );
   }
   console.log(
-    "PASS · actual GPT-6 Luna Responses image extraction: units, separate projection/mounting height, quantity",
+    "PASS · actual Claude image extraction: units, separate projection/mounting height, quantity",
   );
 }
 main()

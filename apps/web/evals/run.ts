@@ -1,6 +1,6 @@
 /**
  * Repeatable evaluation: accuracy, made-up values, latency, tokens and cost per provider.
- *   npm run evals -- --task order-extraction --provider openai,gemini,glm [--limit 5]
+ *   npm run evals -- --task order-extraction --provider anthropic,openai,gemini,glm [--limit 5]
  * Each provider runs the same cases through the same product path. A provider without its key is
  * listed as not run; no numbers are produced for it. Results go to
  * evals/results/<time>-<task>-<provider>.json and one comparison table is printed.
@@ -42,14 +42,14 @@ export function selectProviders(list: string, file?: string): EvalProvider[] {
       if (!file) throw new Error('replay sağlayıcısı için --file <kayıt.json> gerekli.');
       return replayProvider(file);
     }
-    if (!isProviderId(name)) throw new Error(`Bilinmeyen sağlayıcı: ${name}. Geçerli: openai, gemini, glm, replay.`);
+    if (!isProviderId(name)) throw new Error(`Bilinmeyen sağlayıcı: ${name}. Geçerli: anthropic, openai, gemini, glm, replay.`);
     return productProvider(name);
   });
 }
 
 async function main() {
   const task = arg('task', 'order-extraction')!;
-  const providers = selectProviders(arg('provider', 'openai')!, arg('file'));
+  const providers = selectProviders(arg('provider', 'anthropic')!, arg('file'));
   const limit = Number(arg('limit', '0'));
   const cases = loadDataset(task).slice(0, limit > 0 ? limit : undefined);
   const skipped = providers.flatMap((p) => { const reason = p.available(); return reason ? [{ provider: p, reason }] : []; });
