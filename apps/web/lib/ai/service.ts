@@ -5,12 +5,13 @@ import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import type { z } from "zod";
 import { DocumentExtractionModelSchema, normalizeExtraction } from "./extraction";
+import { FoyDocSchema, emptyFoy, type FoyDoc } from "@/lib/features/foy/types";
 import { AssistantReplyModelSchema, assistantDraft } from './assistant-contract';
 import { createMasker, personalValues } from './privacy';
 import { COMMAND_INSTRUCTIONS, ModelCommandSchema, fromModel } from './commands/parse';
 import { withUsage, type AIRequestMeta } from './usage';
 import { activeProvider, providerConfig, providerUnavailable, PROVIDERS, type ProviderId } from './providers';
-import { ASSISTANT_INSTRUCTIONS, DOCUMENT_INSTRUCTIONS, ORDER_TEXT_INSTRUCTIONS } from './prompts';
+import { ASSISTANT_INSTRUCTIONS, DOCUMENT_INSTRUCTIONS, FOY_INSTRUCTIONS, ORDER_TEXT_INSTRUCTIONS } from './prompts';
 
 export interface AIMessage {
   role: "user" | "assistant" | "system";
@@ -106,6 +107,37 @@ function parsedOrThrow<T>(response: ParsedMessage<T>, failure: string): T {
 /** Fixed instructions marked for the prompt cache: later calls read them at a tenth of the input price. */
 function cachedSystem(text: string): Anthropic.TextBlockParam[] {
   return [{ type: 'text', text, cache_control: { type: 'ephemeral' } }];
+}
+
+/**
+ * The föy answer format as an example of the exact shape (every key, nulls and empty lists). Models
+ * copy a sample shape more reliably than they follow a JSON Schema. Built once; fixed text, so cached.
+ */
+const FOY_SHAPE = {
+  ...emptyFoy(),
+  series: [{ label: "Classic", checked: null }], lights: [{ label: "LED", checked: null }],
+  systems: [{ bays: [{ ironInner: null, railInner: null }], railOuter: null, projection: null, height: null }],
+  cutList: [{ profile: "50*100", kind: "demir", lengthCm: null, widthCm: null, quantity: null }],
+  fabricSize: { widthCm: null, lengthCm: null }, valanceSize: { widthCm: null, heightCm: null },
+  windbreaker: { orderDate: "2026-10-01", deliveryDate: "2026-10-20", systemCount: null, planter: "VAR", crate: "YOK", widthCm: null, heightCm: null, frameCm: null, frameQty: null, sashCm: null, sashQty: null,
+    sashGlass: { thicknessMm: null, widthCm: null, heightCm: null, quantity: null }, frameGlass: { thicknessMm: null, widthCm: null, heightCm: null, quantity: null }, totalKg: null, pistonTable: [{ widthCm: 100, kg: 11 }] },
+};
+const FOY_JSON_RULE = [
+  "",
+  "",
+  "Yanıtı yalnız tek bir JSON nesnesi olarak ver; markdown, açıklama veya kod bloğu ekleme. Nesne tam olarak aşağıdaki örnekle aynı anahtarları taşır.",
+  "Örnekteki değerler yalnız biçimi gösterir: belgede olmayan alan null, olmayan liste [] olur; pergola föyünde windbreaker null, rüzgâr kırıcı föyünde systems ve cutList [] olabilir.",
+  "Tarihler YYYY-MM-DD. windbreaker.planter ve windbreaker.crate (ÇİÇEKLİK, SANDIK) true/false değil, föyde yazıldığı gibi metindir (\"VAR\", \"YOK\", \"2 ADET\"); yazı yoksa null.",
+  "template: pergola | windbreaker | unknown. assembly: montajli | demonte | null. kind: demir | dere | led | boru | kumas | sac | diger.",
+  JSON.stringify(FOY_SHAPE),
+].join("\n");
+
+/** A PDF as a document block, anything else (PNG, JPEG, WebP) as an image block. */
+function documentBlock(base64: string, mime: string, title: string): Anthropic.ContentBlockParam {
+  const data = base64.replace(/\s+/g, "");
+  return mime === "application/pdf"
+    ? { type: "document", source: { type: "base64", media_type: "application/pdf", data }, title }
+    : { type: "image", source: { type: "base64", media_type: mime as "image/png" | "image/jpeg" | "image/webp" | "image/gif", data } };
 }
 
 const SEARCH_TOOL: Anthropic.Tool = {
@@ -310,13 +342,47 @@ export class AIService {
     });
     return data;
   }
+  /**
+   * Reads a Renk imalat föyü the text layer could not fully read: a scan, a photo, or a page that is
+   * an embedded picture (the rüzgâr kırıcı measurement table). What the text layer already read is
+   * sent along as fixed: the model fills gaps, never overrides. The file itself cannot be masked
+   * (KVKK note in docs/AI-AUDIT.md).
+   */
+  async analyzeFoy(base64: string, mime: string, known: FoyDoc | null, meta?: AIRequestMeta): Promise<FoyDoc> {
+    const fixed = known ? "\nMetin katmanından kesin okunmuş değerler (bunları değiştirme, yalnız null olanları doldur):\n" + JSON.stringify(known).slice(0, 20000) : "";
+    // The föy schema has more nullable fields than structured output compiles (16), so the model is
+    // given the schema and its JSON is checked here: an answer outside the schema is an error.
+    const model = this.model();
+    const read = () => withUsage(meta, 'anthropic', model, async () => {
+      const response = await anthropicClient().messages.create({
+        model, max_tokens: 16000, output_config: { effort: 'high' },
+        system: cachedSystem(FOY_INSTRUCTIONS + FOY_JSON_RULE),
+        messages: [{ role: "user", content: [documentBlock(base64, mime, "foy.pdf"), { type: "text", text: "Föyü şemaya göre çıkar." + fixed }] }],
+      }, LONG_CALL);
+      if (response.stop_reason === "refusal") throw unusable("Model bu isteği yanıtlamadı.", "refusal", response.usage);
+      const text = response.content.filter((b) => b.type === "text").map((b) => b.text).join("").trim();
+      if (response.stop_reason !== "end_turn" || !text) throw unusable("Föy okunamadı; elle kontrol gerekli.", "invalid_output", response.usage);
+      let raw: unknown;
+      try {
+        raw = JSON.parse(text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
+      } catch {
+        throw unusable("Föy okunamadı; elle kontrol gerekli.", "invalid_output", response.usage);
+      }
+      const parsed = FoyDocSchema.safeParse(raw);
+      if (!parsed.success) throw unusable("Föy okunamadı; elle kontrol gerekli.", "invalid_output", response.usage);
+      return { data: parsed.data, usage: response.usage };
+    });
+    try {
+      return (await read()).data;
+    } catch (error) {
+      // An answer outside the shape is asked for once more; any other error is final.
+      if ((error as { code?: string })?.code !== "invalid_output") throw error;
+      return (await read()).data;
+    }
+  }
   /** The file itself cannot be masked: the model reads it as sent (docs/AI-AUDIT.md, KVKK note). */
   async analyzeDocument(base64: string, mime: string, prompt?: string, meta?: AIRequestMeta) {
-    const data = base64.replace(/\s+/g, "");
-    const file: Anthropic.ContentBlockParam =
-      mime === "application/pdf"
-        ? { type: "document", source: { type: "base64", media_type: "application/pdf", data }, title: "siparis.pdf" }
-        : { type: "image", source: { type: "base64", media_type: mime as "image/png" | "image/jpeg" | "image/webp" | "image/gif", data } };
+    const file = documentBlock(base64, mime, "siparis.pdf");
     const model = this.model();
     const { extracted, rawText, usage } = await withUsage(meta, 'anthropic', model, async () => {
       const response = await anthropicClient().messages.parse({

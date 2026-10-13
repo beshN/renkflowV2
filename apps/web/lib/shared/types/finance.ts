@@ -119,7 +119,7 @@ export type UpdateEmployeeInput = z.infer<typeof UpdateEmployeeSchema>;
 // Employee Ledger Entry Types
 // ============================================
 
-export const LedgerEntryKindSchema = z.enum(['salary', 'advance', 'deduction', 'payment']);
+export const LedgerEntryKindSchema = z.enum(['salary', 'advance', 'deduction', 'payment', 'bonus']);
 export type LedgerEntryKind = z.infer<typeof LedgerEntryKindSchema>;
 
 export const EmployeeLedgerEntrySchema = z.object({
@@ -193,8 +193,9 @@ export const DOCUMENT_TYPE_LABELS: Record<OrderDocumentType, string> = {
 };
 
 export const LEDGER_KIND_LABELS: Record<LedgerEntryKind, string> = {
-  salary: 'Maaş',
+  salary: 'Maaş ödemesi',
   advance: 'Avans',
   deduction: 'Kesinti',
-  payment: 'Ödeme',
+  payment: 'Diğer ödeme',
+  bonus: 'Prim',
 };
