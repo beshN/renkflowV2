@@ -6,7 +6,7 @@ Kod okunarak çıkarıldı; production'da çalıştırılmadı. Model anahtarı 
 
 | Bileşen | Durum | Kanıt | Not |
 |---|---|---|---|
-| `lib/ai/service.ts` (`assist`, `analyzeText`, `analyzeDocument`) | çalışıyor | `service.ts` | Anthropic Claude (Messages API, yapılandırılmış çıktı), model `ANTHROPIC_MODEL` ya da `claude-sonnet-5-5`; talimatlar `lib/ai/prompts.ts`'de. Hata olunca yanıt uydurmuyor, hata fırlatıyor. **Bu PR ile:** metin istemlerinde kişisel veri maskeleniyor, her istek `ai_usage`'a yazılıyor. |
+| `lib/ai/service.ts` (`assist`, `analyzeText`, `analyzeDocument`) | çalışıyor | `service.ts` | Anthropic Claude (Messages API, yapılandırılmış çıktı), model `ANTHROPIC_MODEL` ya da `claude-sonnet-5-5`; talimatlar `lib/ai/prompts.ts`'de. Hata olunca yanıt uydurmuyor, hata fırlatıyor. Asistanın çalışma alanı verisi ve talimatları prompt önbelleğine alınır (saat önbellek dışında tutulur), aynı konuşmadaki takip soruları girdi tokenını %90 ucuza okur. **Bu PR ile:** metin istemlerinde kişisel veri maskeleniyor, her istek `ai_usage`'a yazılıyor. |
 | `service.ts` `query()` / `queryWithContext()` | ölü | yalnız `scripts/test-ai.ts` | Sabit öneri metni döndürüyor; uygulamada kullanılmıyor. |
 | `lib/ai/workspace.ts` (öneri/uyarı listesi, arama) | çalışıyor | `buildInsights`, `searchAssistant` | Model değil, SQL. Rol bazlı kapsam var. |
 | `components/features/ai/AIChatbot.tsx` | çalışıyor | `app/(dashboard)/layout.tsx` | Tüm panel sayfalarında. **Bu PR ile:** model anahtarı yoksa sohbet kutusu yerine "kapalı" notu gösteriliyor (önceden açılıp mesajda hata veriyordu). |
@@ -19,6 +19,7 @@ Kod okunarak çıkarıldı; production'da çalıştırılmadı. Model anahtarı 
 | `lib/ai/tools.ts`, `lib/ai/index.ts`, `AIChat.tsx`, `useChat` (iki kopya) | ölü | importer yok | Faz 7 kararına kadar bırakıldı. |
 | `assistant_drafts` | tablo yok | `022_assistant_drafts.sql` | Migration yalnız `intake_drafts.source`'a `'assistant'` değerini ekliyor. |
 | Öneri türü: **Kesim planı** (`production.cutting_plan`) | çalışıyor | `lib/ai/suggestions/kinds/cutting-plan.ts` | Model çağırmaz: sipariş girişte okunur, kesimler reçeteden, hesap kesim motorundan. Kesim bekleyen işler birlikte planlanır; stok yetmiyorsa öneri yapılmaz (satın alma ihtiyacı planda görünür). Onay planı kaydeder ve çubukları ayırır; o arada stok değiştiyse onay reddedilir, öneri bekler. Tahmini değerlerle yapılmışsa "Emin değilim" notu taşır. Reddedilen durum tekrar önerilmez; durum (havuz, stok, boy, değer, yerleşim) değişince eski öneri süresi dolmuş sayılır ve onay, planın parmak izi farklıysa reddedilir. Müşteri adı ve fiyat içermez. |
+| Taslak inceleme: **Müşteriye sorulacaklar** | çalışıyor | `lib/ai/extract/missing-info.ts`, `app/(dashboard)/production/intake/[id]/page.tsx` | Model çağırmaz: taslakta eksik adet/ölçü/renk/teslim tarihi varsa müşteriye gönderilecek hazır mesaj üretir; kişi kopyalayıp kendisi gönderir. İsteğe bağlı alanlar (motor, LED, kumaş) sorulmaz. |
 | Pazarlama sitesi | AI iddiası yok | `components/site`, `marketing-content.ts` | Yalnız "panel içindeki asistan" geçiyor. |
 
 ## Kişisel veri (KVKK)

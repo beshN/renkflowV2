@@ -175,9 +175,15 @@ export class AIService {
     // Customer and person names, e-mails and phones leave the server only as placeholders. knownNames
     // (the firm's customers, suppliers, members) also covers names restored into earlier chat turns.
     const masker = createMasker([...knownNames, ...personalValues(ctx), ...personalValues(data)]);
-    const workspace = masker.mask(JSON.stringify({ context: ctx, verifiedWorkspaceData: data }).slice(0, 75000));
+    // The clock goes after the cached block: the data is the same on the next question of the same
+    // conversation (unless records changed), and a timestamp inside it would make every call a miss.
+    const { generatedAt, ...stableData } = data as { generatedAt?: unknown };
+    const workspace = masker.mask(JSON.stringify({ context: ctx, verifiedWorkspaceData: stableData }).slice(0, 75000));
     const messages: Anthropic.MessageParam[] = [
-      { role: 'user', content: `<calisma_alani_verisi>\n${workspace}\n</calisma_alani_verisi>` },
+      { role: 'user', content: [
+        { type: 'text', text: `<calisma_alani_verisi>\n${workspace}\n</calisma_alani_verisi>`, cache_control: { type: 'ephemeral' } },
+        { type: 'text', text: `<simdi>${typeof generatedAt === 'string' ? generatedAt : new Date().toISOString()}</simdi>` },
+      ] },
       ...history.slice(-12).map((m) => ({ role: m.role === 'assistant' ? 'assistant' as const : 'user' as const, content: masker.mask(m.content.slice(0, 2000)) })),
       { role: 'user', content: masker.mask(message) },
     ];

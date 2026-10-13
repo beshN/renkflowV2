@@ -46,3 +46,14 @@ it('drops an order draft that does not fit the stored order shape and keeps vali
  expect(reply.actions).toHaveLength(1);
  expect(reply.actions[0].draft?.items[0]).toMatchObject({quantity:2,widthMm:5000,projectionMm:3500});
 });
+it('caches the workspace data and keeps the clock outside the cached block',async()=>{
+ mockModel(answer({answer:'Tamam.',suggestions:[],actions:[]}));
+ await new AIService().assist('Merhaba',{}, {generatedAt:'2026-10-13T09:00:00.000Z',orders:[{order_number:'RF-1'}]},[]);
+ const [first]=requests[0].messages;
+ expect(first.role).toBe('user');
+ expect(first.content[0].cache_control).toEqual({type:'ephemeral'});
+ expect(first.content[0].text).toContain('RF-1');
+ expect(first.content[0].text).not.toContain('2026-10-13T09:00');
+ expect(first.content[1].text).toBe('<simdi>2026-10-13T09:00:00.000Z</simdi>');
+ expect(first.content[1].cache_control).toBeUndefined();
+});

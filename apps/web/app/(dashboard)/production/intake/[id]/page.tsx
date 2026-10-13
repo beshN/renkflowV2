@@ -2,6 +2,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { intakeReviewFields, ExtractionEvidence } from "@/lib/ai/extraction";
+import { missingInfoMessage } from "@/lib/ai/extract/missing-info";
 import useSWR from "swr";
 import { AwningDialog } from "@/components/features/awning/AwningConfigurator";
 import { applyAwning } from "@/lib/features/awning/configuration";
@@ -21,6 +22,32 @@ const fieldLabels: Record<string, string> = {
   email: "E-posta",
   phone: "Telefon",
 };
+/** What the customer still has to tell us, as a message to copy and send. */
+function AskCustomer({ message }: { message: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <section className="rf-panel space-y-2">
+      <h2 className="rf-section-title">Müşteriye sorulacaklar</h2>
+      <p className="text-xs text-muted-foreground">Taslakta eksik bilgi var. Mesajı kopyalayıp müşteriye kendiniz gönderin.</p>
+      <textarea readOnly rows={Math.min(14, message.split("\n").length + 1)} className="w-full rounded border bg-transparent p-2 text-xs" value={message} />
+      <button
+        type="button"
+        className="rf-secondary-button min-h-8 text-xs"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(message);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          } catch {
+            // No clipboard permission: the text is selectable above.
+          }
+        }}
+      >
+        {copied ? "Kopyalandı" : "Mesajı kopyala"}
+      </button>
+    </section>
+  );
+}
 function Review({ draft, onSource }: { draft: any; onSource: (page: number) => void }) {
   const d = draft.extracted_data,
     [form, setForm] = useState<any>({
@@ -115,6 +142,7 @@ function Review({ draft, onSource }: { draft: any; onSource: (page: number) => v
       }}
       className="space-y-4"
     >
+      {missingInfoMessage(d) && <AskCustomer message={missingInfoMessage(d)!} />}
       <section className="rf-panel space-y-4">
         <h2 className="rf-section-title">Alanları belgeyle karşılaştırın</h2>
         {(draft.warnings || []).map((w: string, i: number) => (
