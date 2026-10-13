@@ -11,6 +11,7 @@ import {WorkOrderApiError} from '@/lib/features/work-orders/security';
 import {currentMobileAccess} from './access';
 import {validateMobileDTO} from './contract';
 import {recordAudit,recordAuditAfterCommit} from '@/lib/audit/audit-log';
+import {isMfaEnabled} from '@/lib/features/auth/mfa.server';
 const ACCESS_SECONDS=900;
 const secret=()=>resolveAuthSecret({context:'mobile.sessions',allowMissing:false,allowDevelopmentFallback:process.env.NODE_ENV!=='production',developmentFallback:'development-only-fallback-secret'})!;
 const hash=(value:string)=>createHash('sha256').update(value).digest('hex');
@@ -40,6 +41,8 @@ export async function mobileLogin(request:NextRequest,raw:unknown,platform:strin
  if(!r||!valid||!isPrivateAccessAllowed(email)) {if(r?.tenant_id) void recordAuditAfterCommit({tenantId:r.tenant_id,actorId:r.id,entityType:'user',entityId:r.id,action:'login_failed',metadata:{method:'mobile',platform}});throw new WorkOrderApiError('E-posta veya şifre hatalı.',401);}
  if(!r.email_verified) throw new WorkOrderApiError('Önce e-posta adresinizi doğrulayın.',401);
  if(!r.tenant_id||!['owner','admin','office','worker'].includes(r.role)) throw new WorkOrderApiError('Bu hesap saha uygulamasına erişemiyor.',403);
+ // The field app cannot ask for a second-step code yet; letting such accounts in would bypass it.
+ if(await isMfaEnabled(sql,r.id)) throw new WorkOrderApiError('İki adımlı doğrulama açık hesaplar saha uygulamasına henüz giriş yapamaz. Web üzerinden giriş yapın.',403);
  const user={id:r.id,email:r.email,name:r.name||'Kullanıcı',role:r.role,tenantId:r.tenant_id},sid=randomUUID(),token=access(user,sid);
  const permissions=await currentMobileAccess({userId:r.id,tenantId:r.tenant_id,role:r.role},jwt.sign({sub:r.id,iat:Math.floor(Date.now()/1000)},secret()));
  if(!permissions.production.view&&!permissions.inventory.view&&!permissions.installations.view) throw new WorkOrderApiError('Saha yetkiniz yok.',403);

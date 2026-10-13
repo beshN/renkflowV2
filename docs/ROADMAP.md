@@ -52,7 +52,7 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 | 26 entegrasyon betiğinin sıfır veritabanında CI kapısına alınması | 🔄 | #79. GitHub-hosted runner hesapta kullanılamadığı için self-hosted Mac'te. Playwright smoke testi sonra. |
 | Yedekleme ve geri yükleme runbook'u, prova; migration defteri ve kapsama testi | 🔄 | `docs/runbooks/backup-restore.md`, `schema_migrations`, `npm run db:status` |
 | Düz reset token eşleşmesinin kaldırılması, CSP, SSO sırlarının şifrelenmesi | 🔄 | #78. Parola politikası zaten 10 karakter ve tek doğrulayıcıydı; mobil JWT fallback'i production'da zaten hata veriyor. |
-| İki adımlı doğrulama (TOTP) ve kurtarma kodları | ⬜ | |
+| İki adımlı doğrulama (TOTP) ve kurtarma kodları | 🔄 | Web girişi ve Hesabım ekranı. Saha uygulaması kod soramadığı için 2FA açık hesapları reddediyor; uygulamaya kod adımı eklemek ayrı bir iş. Rol bazında zorunlu tutma sonra. |
 | Denetim kaydı: değiştirilemezlik, giriş ve dönem kapama olayları | 🔄 | Tek servis (`activity_logs`) zaten K5'te kurulmuştu. Bu iş: 051 migration'ı ile kayıtlar yalnız eklenebilir; web ve mobil girişler, dönem kapama kaydediliyor; yetim `/api/tenant/activity` silindi. |
 | Postgres RLS ve firma izolasyonu testi | ⬜ | |
 | Yük testi ve Web Vitals | ⬜ | |
