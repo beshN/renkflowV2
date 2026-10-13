@@ -19,7 +19,7 @@ export function inspectDeploymentEnvironment(env: Environment) {
   if (env.NATIVE_INVENTORY_ENABLED !== "1") errors.push("NATIVE_INVENTORY_ENABLED must be 1 for the manufacturing platform");
   required("ANTHROPIC_API_KEY");
   if (env.AI_PROVIDER && env.AI_PROVIDER !== "anthropic") errors.push("AI_PROVIDER must be anthropic (or unset)");
-  if (env.ANTHROPIC_MODEL && env.ANTHROPIC_MODEL !== "claude-haiku-5-5") errors.push("ANTHROPIC_MODEL must be claude-haiku-5-5 (or unset)");
+  if (env.ANTHROPIC_MODEL && env.ANTHROPIC_MODEL !== "claude-sonnet-5-5") errors.push("ANTHROPIC_MODEL must be claude-sonnet-5-5 (or unset)");
   if (target === "production") {
    required("APP_URL"); required("CRON_SECRET");
    if (env.CRON_SECRET && env.CRON_SECRET.trim().length < 32) errors.push("CRON_SECRET must contain at least 32 characters");

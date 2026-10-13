@@ -41,7 +41,7 @@ afterAll(() => { process.env = saved; });
 describe('provider selection', () => {
   it('stays on Anthropic unless chosen, and refuses an unknown provider instead of guessing', () => {
     expect(activeProvider()).toBe('anthropic');
-    expect(providerConfig('anthropic')).toMatchObject({ model: 'claude-haiku-5-5', apiKey: null });
+    expect(providerConfig('anthropic')).toMatchObject({ model: 'claude-sonnet-5-5', apiKey: null });
     expect(providerUnavailable('anthropic')).toMatch(/ANTHROPIC_API_KEY/);
     process.env.AI_PROVIDER = 'Gemini';
     expect(activeProvider()).toBe('gemini');

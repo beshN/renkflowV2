@@ -13,13 +13,13 @@ export type AIRequestMeta = {
 /** Anthropic reports prompt-cache reads and writes apart from input_tokens; OpenAI-style usage has neither. */
 type Tokens = { input_tokens?: number | null; output_tokens?: number | null; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null } | null | undefined;
 
-/** Anthropic list prices, USD per million tokens, for prompts up to 100K tokens (ours stay well under). */
+/** Anthropic list prices, USD per million tokens. */
 const DEFAULT_PRICES: Record<string, { input: number; output: number }> = {
-  'claude-haiku-5-5': { input: 0.1, output: 0.5 },
+  'claude-sonnet-5-5': { input: 2, output: 10 },
 };
 
 /**
- * USD per million tokens, from AI_MODEL_PRICES_USD_PER_MTOK (e.g. {"claude-haiku-5-5":{"input":0.1,"output":0.5}}),
+ * USD per million tokens, from AI_MODEL_PRICES_USD_PER_MTOK (e.g. {"claude-sonnet-5-5":{"input":2,"output":10}}),
  * else the built-in list price. No price, no cost: tokens are still recorded and the cost stays null
  * rather than being guessed.
  */

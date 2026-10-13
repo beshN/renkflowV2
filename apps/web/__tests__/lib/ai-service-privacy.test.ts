@@ -32,7 +32,7 @@ beforeEach(() => {
   process.env.ANTHROPIC_API_KEY = 'test-key';
   delete process.env.AI_PROVIDER;
   delete process.env.ANTHROPIC_MODEL;
-  process.env.AI_MODEL_PRICES_USD_PER_MTOK = JSON.stringify({ 'claude-haiku-5-5': { input: 1, output: 10 } });
+  process.env.AI_MODEL_PRICES_USD_PER_MTOK = JSON.stringify({ 'claude-sonnet-5-5': { input: 1, output: 10 } });
 });
 
 it('sends the assistant no customer names, contacts or addresses, and restores them in the reply', async () => {
@@ -61,16 +61,16 @@ it('records tokens, latency and the configured cost for each model call', async 
   reply = { answer: 'Tamam', suggestions: [], actions: [] };
   await new AIService().assist('Merhaba', {}, {}, [], undefined, { tenantId: 't', userId: 'u', feature: 'assistant.chat' });
   const row = usageRows.find((values) => values.includes('assistant.chat'))!;
-  expect(row).toEqual(expect.arrayContaining(['t', 'u', 'assistant.chat', 'anthropic', 'claude-haiku-5-5', 1200, 300, 0.0042, 'ok']));
+  expect(row).toEqual(expect.arrayContaining(['t', 'u', 'assistant.chat', 'anthropic', 'claude-sonnet-5-5', 1200, 300, 0.0042, 'ok']));
 });
 
-it('prices Claude Haiku 5.5 by default, counting prompt-cache reads and writes', async () => {
+it('prices Claude Sonnet 5.5 by default, counting prompt-cache reads and writes', async () => {
   const { costUsd, inputTokens } = await import('@/lib/ai/usage');
   delete process.env.AI_MODEL_PRICES_USD_PER_MTOK;
   const usage = { input_tokens: 1000, cache_read_input_tokens: 10000, cache_creation_input_tokens: 2000, output_tokens: 400 };
   expect(inputTokens(usage)).toBe(13000);
-  // (1000 + 10000 × 0.1 + 2000 × 1.25) × $0.10 + 400 × $0.50, per million tokens.
-  expect(costUsd('claude-haiku-5-5', usage)).toBe(0.00065);
+  // (1000 + 10000 × 0.1 + 2000 × 1.25) × $2 + 400 × $10, per million tokens.
+  expect(costUsd('claude-sonnet-5-5', usage)).toBe(0.0130);
   expect(costUsd('unknown-model', usage)).toBeNull();
 });
 

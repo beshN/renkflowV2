@@ -1,7 +1,7 @@
 import 'server-only';
 
 /**
- * Model providers the app can be pointed at. The product runs on Anthropic Claude (claude-haiku-5-5);
+ * Model providers the app can be pointed at. The product runs on Anthropic Claude (claude-sonnet-5-5);
  * the deployment contract (lib/config/deployment-env.ts) enforces that. OpenAI, Gemini and GLM stay
  * reachable through their (OpenAI-compatible) Chat Completions endpoints so evals/ can compare order
  * extraction across providers. Keys, addresses and model ids come from the environment.
@@ -26,7 +26,7 @@ type ProviderSpec = {
 };
 
 export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
-  anthropic: { label: 'Anthropic Claude', keyEnv: 'ANTHROPIC_API_KEY', baseUrlEnv: null, defaultBaseUrl: null, modelEnv: 'ANTHROPIC_MODEL', defaultModel: 'claude-haiku-5-5', structuredOutput: 'json_schema', lowReasoning: {} },
+  anthropic: { label: 'Anthropic Claude', keyEnv: 'ANTHROPIC_API_KEY', baseUrlEnv: null, defaultBaseUrl: null, modelEnv: 'ANTHROPIC_MODEL', defaultModel: 'claude-sonnet-5-5', structuredOutput: 'json_schema', lowReasoning: {} },
   openai: { label: 'OpenAI', keyEnv: 'OPENAI_API_KEY', baseUrlEnv: null, defaultBaseUrl: null, modelEnv: 'OPENAI_MODEL', defaultModel: 'gpt-6-luna', structuredOutput: 'json_schema', lowReasoning: { reasoning_effort: 'low' } },
   // https://ai.google.dev/gemini-api/docs/openai
   gemini: { label: 'Google Gemini', keyEnv: 'GEMINI_API_KEY', baseUrlEnv: 'GEMINI_BASE_URL', defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/', modelEnv: 'GEMINI_MODEL', defaultModel: 'gemini-3.8-flash', structuredOutput: 'json_schema', lowReasoning: { reasoning_effort: 'low' } },

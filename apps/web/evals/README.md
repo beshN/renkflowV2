@@ -15,5 +15,5 @@ npm run evals:export -- --kind cutting_plan                          # düzeltme
 - Anahtar yoksa komut çalışmaz ve sonuç üretmez; tahmini rakam yazılmaz.
 - Kullanıcının bir öneriyi düzeltmesi `ai_feedback_examples`'a kaydedilir; `evals:export` bunları kişisel alanları çıkarılmış hâlde veri setine yazar.
 - Anahtarı olmayan sağlayıcı tabloda "çalıştırılmadı" satırıyla görünür, onun için rakam üretilmez; istenen sağlayıcılardan biri bile çalışmadıysa çıkış kodu 2. Sağlayıcılar yan yana, her sağlayıcının vakaları sırayla çalışır. Hatalı vakanın süresi, token ve maliyeti de sayılır.
-- Production sağlayıcısı Anthropic Claude Haiku 5.5'tir: `lib/config/deployment-env.ts` production'da `ANTHROPIC_API_KEY` ister; `AI_PROVIDER` ve `ANTHROPIC_MODEL` boşsa ya da `anthropic` / `claude-haiku-5-5` ise geçer. Değiştirmek bilinçli bir sözleşme değişikliğidir.
+- Production sağlayıcısı Anthropic Claude Sonnet 5.5'tir: `lib/config/deployment-env.ts` production'da `ANTHROPIC_API_KEY` ister; `AI_PROVIDER` ve `ANTHROPIC_MODEL` boşsa ya da `anthropic` / `claude-sonnet-5-5` ise geçer. Değiştirmek bilinçli bir sözleşme değişikliğidir.
 - Kapsam: sağlayıcı seçimi şimdilik sipariş metni çıkarımında (`analyzeText`). Sohbet (araç çağrılı), komut ve belge (PDF/görsel) analizi Claude'da kalır.
