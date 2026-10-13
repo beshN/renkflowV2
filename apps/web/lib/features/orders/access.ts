@@ -31,6 +31,7 @@ export function technicalOrder(order: Order): Order {
       heightMm: item.heightMm,
       projectionMm: item.projectionMm,
       mountingHeightMm: item.mountingHeightMm,
+      productVisualization: item.productVisualization,
       awningConfiguration: item.awningConfiguration,
       awningPreview: item.awningPreview,
       motorType: item.motorType,

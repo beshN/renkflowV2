@@ -41,7 +41,7 @@ export async function mobileLogin(request:NextRequest,raw:unknown,platform:strin
  const user={id:r.id,email:r.email,name:r.name||'Kullanıcı',role:r.role,tenantId:r.tenant_id},sid=randomUUID(),token=access(user,sid);
  const permissions=await currentMobileAccess({userId:r.id,tenantId:r.tenant_id,role:r.role},jwt.sign({sub:r.id,iat:Math.floor(Date.now()/1000)},secret()));
  if(!permissions.production.view&&!permissions.inventory.view&&!permissions.installations.view) throw new WorkOrderApiError('Saha yetkiniz yok.',403);
- await schema();const refreshToken=randomBytes(48).toString('base64url'),deviceId=input.deviceId??randomUUID();
+ await schema();const refreshToken=randomBytes(48).toString('base64url'),deviceId=(input.deviceId??randomUUID()).toLowerCase();
  await sql.begin(async(tx:any)=>{
   // Signing in again on this installation closes its old sessions; its scoped outbox remains local.
   await tx`UPDATE user_sessions SET revoked_at=now() WHERE id IN(SELECT id FROM mobile_sessions WHERE tenant_id=${user.tenantId} AND user_id=${user.id} AND device_id=${deviceId}) AND revoked_at IS NULL`;
@@ -52,7 +52,8 @@ export async function mobileLogin(request:NextRequest,raw:unknown,platform:strin
  return {user,accessToken:token,expiresIn:ACCESS_SECONDS,refreshToken,sessionId:sid,deviceId};
 }
 export async function mobileRefresh(raw:unknown) {
- const input=validateMobileDTO('RefreshInput',raw) as {refreshToken:string;requestId:string;deviceId:string};await schema();
+ const parsed=validateMobileDTO('RefreshInput',raw) as {refreshToken:string;requestId:string;deviceId:string};
+ const input={...parsed,deviceId:parsed.deviceId.toLowerCase(),requestId:parsed.requestId.toLowerCase()};await schema();
  // Return an invalid marker and commit revocation BEFORE throwing (a thrown transaction rolls it back).
  const result=await sql.begin(async(tx:any)=>{
   const [r]=await tx`SELECT t.*,s.device_id,s.user_id,s.tenant_id,s.expires_at,s.created_at AS signed_at,u.revoked_at FROM mobile_refresh_tokens t JOIN mobile_sessions s ON s.id=t.session_id JOIN user_sessions u ON u.id=s.id WHERE t.token_hash=${hash(input.refreshToken)} FOR UPDATE OF t,u`;

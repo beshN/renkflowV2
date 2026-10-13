@@ -311,8 +311,8 @@ function Location({ v, onChanged, onError }: { v: Vehicle; onChanged: () => Prom
           )}
         </>
       )}
-      <section className="rf-panel space-y-2 p-3" aria-labelledby="devices-title">
-        <h2 id="devices-title" className="flex items-center gap-2 text-sm font-semibold"><KeyRound size={14} aria-hidden /> Cihazlar <HintTip text="Cihaz (ya da ağ geçidi) konumu POST /api/telemetry/ingest adresine 'Authorization: Bearer <jeton>' ile gönderir. Jeton yalnız bir kez gösterilir; kaybolursa cihazı kapatıp yenisini ekleyin." /></h2>
+      <details className="rf-panel space-y-2 p-3" aria-labelledby="devices-title">
+        <summary className="cursor-pointer list-none"><h2 id="devices-title" className="inline-flex items-center gap-2 text-sm font-semibold"><KeyRound size={14} aria-hidden /> Cihazlar <HintTip text="Araca takılan takip cihazı konumu otomatik gönderir. Kurulumu teknik ekip yapar." /></h2></summary>
         {v.devices.map((d) => (
           <p key={d.id} className="flex flex-wrap items-center gap-2 text-sm">
             <span className="font-medium">{d.label}</span>
@@ -325,8 +325,8 @@ function Location({ v, onChanged, onError }: { v: Vehicle; onChanged: () => Prom
           <label className="text-xs">Cihaz adı<input className="rf-input mt-1" required maxLength={80} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Teltonika FMB920" /></label>
           <button type="submit" className="rf-secondary-button text-sm">Cihaz ekle</button>
         </form>
-        {token && <label className="block text-xs">Cihaz jetonu (yalnız şimdi gösterilir)<input readOnly className="rf-input mt-1 w-full font-mono text-xs" value={token} onFocus={(e) => e.currentTarget.select()} /></label>}
-      </section>
+        {token && <label className="block text-xs">Bağlantı kodu (yalnız şimdi gösterilir, cihaza girin)<input readOnly className="rf-input mt-1 w-full font-mono text-xs" value={token} onFocus={(e) => e.currentTarget.select()} /></label>}
+      </details>
     </div>
   );
 }

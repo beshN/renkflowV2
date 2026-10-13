@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   verified:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS]
     steps:
       - uses: actions/checkout@v4
       - name: Require successful native tests for this exact commit
@@ -31,7 +31,7 @@ jobs:
   android:
     needs: verified
     if: inputs.platform == 'android' || inputs.platform == 'both'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS]
     defaults:
       run:
         working-directory: apps/native-android
@@ -65,7 +65,7 @@ jobs:
         run: |
           export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/field-release.keystore"
           export MOBILE_BUILD_NUMBER=$((100000 + GITHUB_RUN_NUMBER))
-          ./gradlew --no-daemon :app:bundleRelease
+          ./gradlew --no-watch-fs --no-daemon :app:bundleRelease
       - uses: actions/upload-artifact@v4
         with:
           name: RenkFlow-Saha-Play-Internal-AAB

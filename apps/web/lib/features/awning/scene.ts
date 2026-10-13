@@ -259,7 +259,10 @@ export function createAwningScene(
   resize();
   return {
     setConfiguration(c: AwningConfiguration) {
-      state = toSceneState(c, state.opening, state.time);
+      const next = toSceneState(c, state.opening, state.time);
+      const appearanceOnly = next.width === state.width && next.depth === state.depth && next.height === state.height && next.light === state.light;
+      state = next;
+      if (appearanceOnly) { model.setAppearance(state); render(); return; }
       scene.remove(model.group);
       model.dispose();
       model = createAwning(state);

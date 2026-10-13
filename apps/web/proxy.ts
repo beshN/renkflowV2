@@ -60,6 +60,7 @@ const PUBLIC_PREFIXES = ['/blog/', '/docs/', '/public/', '/track/', '/teklif/', 
 const AUTH_ENTRY_PAGES = new Set(['/auth/login', '/auth/forgot-password', '/auth/update-password', '/signup']);
 
 function isPublicPage(pathname: string): boolean {
+  if (process.env.NODE_ENV === "development" && pathname === "/product-3d-lab") return true;
   if (PUBLIC_EXACT_PATHS.has(pathname)) {
     return true;
   }

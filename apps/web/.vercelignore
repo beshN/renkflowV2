@@ -2,6 +2,7 @@
 !**/.env.example
 !**/.env.*.example
 **/.data/**
+**/.local/**
 **/node_modules/**
 **/.git/**
 **/.next/**

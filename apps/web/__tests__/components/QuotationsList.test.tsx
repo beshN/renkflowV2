@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import QuotationsPage from '@/app/(dashboard)/quotations/page';
 import { requestJson } from '@/lib/shared/network';
 
@@ -19,8 +19,8 @@ it('renders quotations without a validity date instead of crashing the list', as
   ] } });
   render(<QuotationsPage />);
   await screen.findByText('TEK-100');
-  expect(screen.getByText('Taslak')).toBeInTheDocument();
-  expect(screen.getByText('Gönderildi')).toBeInTheDocument();
+  expect(within(screen.getByRole('table')).getByText('Taslak')).toBeInTheDocument();
+  expect(within(screen.getByRole('table')).getByText('Gönderildi')).toBeInTheDocument();
   expect(screen.getByText('01.11.2026')).toBeInTheDocument();
   expect(screen.getByText(/2\.500,00/)).toBeInTheDocument();
 });

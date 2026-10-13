@@ -1,3 +1,4 @@
+import { ProductVisualizationSchema } from '@/lib/features/product-3d/catalog';
 import { AwningConfigurationSchema, AwningPreviewSchema } from '@/lib/features/awning/configuration';
 import { z } from 'zod';
 import { CurrencySchema } from '@/lib/types/currency';
@@ -132,6 +133,7 @@ const optionalNotes = z.preprocess(
 // ============================================
 
 export const orderItemSchema = z.object({
+  productVisualization: ProductVisualizationSchema.optional(),
   awningConfiguration: AwningConfigurationSchema.optional(),
   awningPreview: AwningPreviewSchema.optional(),
   projectionMm: z.coerce.number().positive().optional(),

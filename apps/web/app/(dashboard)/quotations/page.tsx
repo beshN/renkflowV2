@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, Plus } from 'lucide-react';
 import { RFListView } from '@/components/shared/views/RFListView';
@@ -8,15 +8,16 @@ import { useAuth } from '@/lib/context/AuthContext';
 import { useApiCollection } from '@/lib/hooks/useApiCollection';
 import { Quotation } from '@/lib/features/quotations/types';
 import { formatCurrency } from '@/lib/utils';
-import { Navbar } from '@/components/layout/Navbar';
 import Link from 'next/link';
 import { PRICE_MATRIX_READ_ROLES } from '@/lib/features/products/price-matrix';
 import { ROUTE_ROLES } from '@/lib/features/auth/permissions';
+import { PageHeader } from '@/components/kit';
 
 export default function QuotationsPage() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
   const { data: quotations, loading, error, reload } = useApiCollection<Quotation>('/api/v1/quotations', 'Teklifler alınamadı.');
+  const [status,setStatus]=useState('all');
 
   useEffect(() => {
     if (!isLoading && !user) router.replace('/auth/login');
@@ -34,26 +35,29 @@ export default function QuotationsPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col bg-slate-50/50 dark:bg-slate-950/50">
-      <Navbar title="Teklifler" />
-      
-      <main className="w-full flex-1 p-4 md:p-8">
+    <div className="rf-page space-y-6">
+      <PageHeader eyebrow="SATIŞ / TEKLİFLER" title="Teklif yönetimi" hint="Ürün seçimi, fiyatlandırma, müşteri takibi ve siparişe geçiş." action={<Link href="/quotations/new" className="rf-primary-button"><Plus size={15}/> Yeni teklif</Link>} kpis={[
+        {label:'teklif',value:quotations.length},
+        {label:'taslak',value:quotations.filter(q=>q.status==='draft').length},
+        {label:'yanıt bekliyor',value:quotations.filter(q=>q.status==='sent').length,tone:'warning'},
+        {label:'kabul edildi',value:quotations.filter(q=>q.status==='accepted').length,tone:'success'},
+      ]}/>
+      <main className="w-full space-y-4">
         {PRICE_MATRIX_READ_ROLES.includes(user.role) && (
           <div className="mb-4 flex justify-end gap-2">
             {ROUTE_ROLES['/products'].includes(user.role) && <Link href="/products" className="rf-secondary-button">Ürün reçeteleri</Link>}
             <Link href="/quotations/price-matrix" className="rf-secondary-button">Fiyat matrisi</Link>
           </div>
         )}
+        <div role="group" aria-label="Teklif durumuna göre filtrele" className="flex flex-wrap gap-2">
+          {[['all','Tümü'],...Object.entries(statusMap).map(([key,value])=>[key,value.label])].map(([key,label])=><button type="button" key={key} aria-pressed={status===key} className="min-h-10 rounded-md border border-border px-3 text-xs aria-pressed:border-primary/40 aria-pressed:bg-primary/5 aria-pressed:text-primary" onClick={()=>setStatus(key)}>{label}</button>)}
+        </div>
         <RFListView
-          data={quotations}
-          title="Teklif Listesi"
-          description="Tüm teklifleri görüntüleyin ve yönetin."
+          hideHeader
+          data={status==='all'?quotations:quotations.filter(q=>q.status===status)}
+          title="Teklifler"
+          description="Müşteri, geçerlilik ve satış aşamasını birlikte takip edin."
           icon={<FileText className="h-5 w-5 text-sky-500" />}
-          primaryAction={{
-            label: "Yeni Teklif",
-            icon: <Plus className="h-4 w-4" />,
-            onClick: () => router.push('/quotations/new'),
-          }}
           isLoading={loading}
           error={error || null}
           onRetry={reload}

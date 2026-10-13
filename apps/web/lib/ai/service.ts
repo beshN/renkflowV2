@@ -7,6 +7,7 @@ import type { z } from "zod";
 import { DocumentExtractionModelSchema, normalizeExtraction } from "./extraction";
 import { FoyDocSchema, emptyFoy, type FoyDoc } from "@/lib/features/foy/types";
 import { AssistantReplyModelSchema, assistantDraft } from './assistant-contract';
+import { assistantContext, ASSISTANT_SEARCH_CATEGORIES } from './assistant-context';
 import { createMasker, personalValues } from './privacy';
 import { COMMAND_INSTRUCTIONS, ModelCommandSchema, fromModel } from './commands/parse';
 import { withUsage, type AIRequestMeta } from './usage';
@@ -147,7 +148,7 @@ const SEARCH_TOOL: Anthropic.Tool = {
   input_schema: {
     type: 'object',
     properties: {
-      category: { type: 'string', enum: ['orders', 'customers', 'materials', 'jobs'], description: 'Aranacak kayıt türü' },
+      category: { type: 'string', enum: [...ASSISTANT_SEARCH_CATEGORIES], description: 'Aranacak kayıt türü (order-detail / quote-detail: tek kaydın ayrıntısı)' },
       query: { type: 'string', description: 'Ad, kod veya sipariş numarası (ör. RF-1024, Ahmet, 7016)' },
     },
     required: ['category', 'query'],
@@ -155,7 +156,11 @@ const SEARCH_TOOL: Anthropic.Tool = {
   },
 };
 /** Search rounds per answer; the last request still has the tool but may not call it. */
-const SEARCH_ROUNDS = 2;
+const SEARCH_ROUNDS = 3;
+/** A whole answer, searches included, may take this long (Vercel functions have a fixed budget). */
+const ASSISTANT_DEADLINE_MS = 45_000;
+/** Searches run per model turn. */
+const SEARCH_CALLS_PER_TURN = 4;
 
 export class AIService {
   private model() {
@@ -178,7 +183,7 @@ export class AIService {
     // The clock goes after the cached block: the data is the same on the next question of the same
     // conversation (unless records changed), and a timestamp inside it would make every call a miss.
     const { generatedAt, ...stableData } = data as { generatedAt?: unknown };
-    const workspace = masker.mask(JSON.stringify({ context: ctx, verifiedWorkspaceData: stableData }).slice(0, 75000));
+    const workspace = masker.mask(assistantContext(ctx, stableData));
     const messages: Anthropic.MessageParam[] = [
       { role: 'user', content: [
         { type: 'text', text: `<calisma_alani_verisi>\n${workspace}\n</calisma_alani_verisi>`, cache_control: { type: 'ephemeral' } },
@@ -189,13 +194,14 @@ export class AIService {
     ];
     const tools = search ? [SEARCH_TOOL] : [];
     const model = this.model();
+    const deadline = AbortSignal.timeout(ASSISTANT_DEADLINE_MS);
     const call = (lastRound: boolean) => withUsage(meta, 'anthropic', model, async () => {
       const response = await anthropicClient().messages.parse({
         model, max_tokens: 8000, output_config: { effort: 'medium', format: zodOutputFormat(AssistantReplyModelSchema) },
         system: cachedSystem(ASSISTANT_INSTRUCTIONS), messages,
         // The tool stays declared (earlier rounds refer to it); the last round may only answer.
         ...(tools.length ? { tools, tool_choice: lastRound ? { type: 'none' as const } : { type: 'auto' as const } } : {}),
-      });
+      }, { signal: deadline });
       if (response.stop_reason === 'refusal') throw unusable('Model bu isteği yanıtlamadı.', 'refusal', response.usage);
       return response;
     });
@@ -204,19 +210,20 @@ export class AIService {
       // The whole assistant turn goes back unchanged (thinking blocks included), then every result in one user turn.
       messages.push({ role: 'assistant', content: response.content });
       const results: Anthropic.ToolResultBlockParam[] = [];
+      let searches = 0;
       for (const block of response.content) {
         if (block.type !== 'tool_use') continue;
         let result: unknown = { error: 'Arama tamamlanamadı.' };
         try {
           const args = masker.restore(block.input) as { category?: unknown; query?: unknown };
-          if (block.name === 'search_workspace' && search && typeof args.category === 'string' && ['orders','customers','materials','jobs'].includes(args.category) && typeof args.query === 'string') {
+          if (searches++ < SEARCH_CALLS_PER_TURN && block.name === 'search_workspace' && search && typeof args.category === 'string' && (ASSISTANT_SEARCH_CATEGORIES as readonly string[]).includes(args.category) && typeof args.query === 'string') {
             result = await search(args.category, args.query);
             masker.know(personalValues(result));
           }
         } catch {
           // Keep the assistant useful without exposing database errors.
         }
-        results.push({ type: 'tool_result', tool_use_id: block.id, content: masker.mask(JSON.stringify(result)) });
+        results.push({ type: 'tool_result', tool_use_id: block.id, content: masker.mask(assistantContext({}, { searchResult: result })) });
       }
       messages.push({ role: 'user', content: results });
       response = await call(round === SEARCH_ROUNDS - 1);

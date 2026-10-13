@@ -80,7 +80,8 @@ import Combine
         do {
             _ = try await api.me(auth);guard generation==epoch else {return}
             lastValidation=Date();try await loadSnapshot(auth)
-            if let id=selectedID {let job=try overlayJob(await api.details(auth,id:id),rows:outbox);try cacheDetail(auth,job:job);if generation==epoch && selectedID==id {detail=job}}
+            guard generation==epoch else {return}
+            if let id=selectedID {let fetched=try await api.details(auth,id:id);guard generation==epoch else {return};let job=try overlayJob(fetched,rows:outbox);try cacheDetail(auth,job:job);if selectedID==id {detail=job}}
             accessBlocked=false;busy=false;await sync()
         } catch {if generation==epoch {fail(error)}}
     }
@@ -154,11 +155,12 @@ import Combine
     }
     func closeJob() {selectedID=nil;detail=nil}
     func scan(_ code: String) async {
-        guard let auth=session else {return};let value=code.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard let auth=session else {return};let generation=epoch;let value=code.trimmingCharacters(in:.whitespacesAndNewlines)
         do {
             guard !value.isEmpty,value.count<=1000 else {throw FieldAPIError(status:400,message:L("text_gecerli_bir_etiket_kodu_girin_540aa"))}
-            let result=try await api.scan(auth,code:value);let store=try storage();try store.setCache(sessionScope(auth),key:"scan:"+value,data:JSONEncoder().encode(result));try store.context.save();scanResult=result
+            let result=try await api.scan(auth,code:value);guard generation==epoch else {return};let store=try storage();try store.setCache(sessionScope(auth),key:"scan:"+value,data:JSONEncoder().encode(result));try store.context.save();scanResult=result
         } catch {
+            guard generation==epoch else {return}
             if let cached=try? storage().read(sessionScope(auth),key:"scan:"+value,as:ScanResult.self) {scanResult=cached;stale=true} else {fail(error)}
         }
     }
@@ -201,24 +203,26 @@ import Combine
         do {
             let store=try storage(),sender=APIOutboxSender(store:try storage(),api:api,auth:auth)
             let result=try await OutboxSync(store:store,send:{[weak self] row in guard self?.epoch==generation else {throw CancellationError()};return try await sender.send(row)}).drain(sessionScope(auth))
+            guard generation==epoch else {return}
             reloadQueue()
             if generation==epoch && (result.delivered>0 || outbox.contains {$0.state=="conflict" || $0.state=="blocked"}) {
                 try await loadSnapshot(auth)
-                if let id=selectedID {let job=try overlayJob(await api.details(auth,id:id),rows:outbox);try cacheDetail(auth,job:job);detail=job}
+                guard generation==epoch else {return}
+                if let id=selectedID {let fetched=try await api.details(auth,id:id);guard generation==epoch else {return};let job=try overlayJob(fetched,rows:outbox);try cacheDetail(auth,job:job);if selectedID==id {detail=job}}
             }
             if result.retry {stale=true;FieldBackgroundSync.schedule()}
         } catch {if generation==epoch {fail(error)}}
     }
-    func uploadPhoto(jobID: String,bytes: Data) async -> String? {
-        guard let auth=session,writable else {return nil}
+    func uploadPhoto(jobID: String,bytes: Data,expectedScope:String) async -> String? {
+        guard let auth=session,writable,sessionScope(auth)==expectedScope else {return nil}
         do {
             guard bytes.count<=2_000_000 else {throw FieldAPIError(status:400,message:L("text_fotograf_cok_buyuk_36537"))}
             let row=try storage().photo(sessionScope(auth),value:LocalPhoto(workOrderId:jobID,base64:bytes.base64EncodedString()))
             reloadQueue();FieldBackgroundSync.schedule();Task {await sync()};return "local://"+row.commandID
         } catch {fail(error);return nil}
     }
-    func uploadInstallationPhoto(_ id:String,bytes:Data) async -> Bool {
-        guard let auth=session,!updateRequired,!accessBlocked,references?.capabilities.installationEdit==true else {return false}
+    func uploadInstallationPhoto(_ id:String,bytes:Data,expectedScope:String) async -> Bool {
+        guard let auth=session,!updateRequired,!accessBlocked,references?.capabilities.installationEdit==true,sessionScope(auth)==expectedScope else {return false}
         do {
             guard bytes.count<=2_000_000 else {throw FieldAPIError(status:400,message:L("text_fotograf_cok_buyuk_36537"))}
             _ = try storage().photo(sessionScope(auth),value:LocalPhoto(base64:bytes.base64EncodedString(),installationId:id))
@@ -231,7 +235,8 @@ import Combine
     }
     func reapply(_ row: OutboxRecord) async {
         guard let auth=session,row.scope==sessionScope(auth),row.state=="conflict",row.canRetry,!busy else {return}
-        busy=true;defer {busy=false}
+        let generation=epoch
+        busy=true;defer {if generation==epoch {busy=false}}
         do {
             var request=try JSONDecoder().decode(SyncRequest.self,from:row.payload)
             let fresh=try await api.snapshot(auth);guard fresh.permissions.transition else {throw FieldAPIError(status:403,message:L("text_yazma_yetkiniz_yok_42bfb"))}
@@ -239,18 +244,20 @@ import Combine
             case "operation":
                 guard let op=fresh.operations.first(where:{$0.id==request.data["operationId"]?.text}),op.status != "done" else {throw FieldAPIError(status:404,message:L("text_operasyon_artik_size_atanmamis_veya_kapatilmis_060c2"))};request.data["version"] = .number(Double(op.version))
             case "checklist":
-                let job=try await api.details(auth,id:request.workOrderId!)
+                guard let jobID=request.workOrderId else {throw FieldAPIError(status:400,message:"İş emri kimliği eksik; kayıt korunuyor.")}
+                let job=try await api.details(auth,id:jobID)
                 guard !["done","cancelled"].contains(job.status),let item=job.checklist?.first(where:{$0.id==request.data["itemId"]?.text}) else {throw FieldAPIError(status:404,message:L("text_kontrol_ogesi_artik_uygulanamaz_57d98"))};request.data["expectedCompleted"] = .bool(item.completed)
             case "transition":
-                let job=try await api.details(auth,id:request.workOrderId!)
+                guard let jobID=request.workOrderId else {throw FieldAPIError(status:400,message:"İş emri kimliği eksik; kayıt korunuyor.")}
+                let job=try await api.details(auth,id:jobID)
                 guard !["done","cancelled"].contains(job.status),let revision=job.updatedAt else {throw FieldAPIError(status:409,message:L("text_kapatilan_is_yeniden_uygulanamaz_4674f"))};request.data["expectedUpdatedAt"] = .string(revision)
             default: throw FieldAPIError(status:400,message:L("text_bu_islem_yeniden_uygulanamaz_e701c"))
             }
             request.idempotencyKey=UUID().uuidString
-            guard session.map(sessionScope)==sessionScope(auth) else {return}
+            guard generation==epoch, session.map(sessionScope)==sessionScope(auth) else {return}
             try storage().rebase(sessionScope(auth),row:row,request:request)
             reloadQueue();FieldBackgroundSync.schedule();await sync()
-        } catch {fail(error)}
+        } catch {if generation==epoch {fail(error)}}
     }
     private func fail(_ failure: Error) {
         if failure is CancellationError {return}

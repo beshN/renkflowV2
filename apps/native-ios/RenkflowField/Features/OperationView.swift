@@ -68,13 +68,14 @@ struct OperationView: View {
                 .sheet(isPresented:$rework) {ReworkView(operation:operation).environmentObject(store)}
                 .onAppear { count = String(Int(operation.plannedQty - operation.completedQty)) }
                 .task(id: photoItem) {
-                    guard let photoItem else { return }
+                    guard let photoItem,let auth=store.session else { return }
+                    let photoScope=sessionScope(auth)
                     preparing = true; photoError = nil
                     defer { preparing = false }
                     do {
                         guard let data = try await photoItem.loadTransferable(type: Data.self) else { throw FieldAPIError(status: 0, message: L("text_fotograf_okunamadi_c6d4b")) }
                         let bytes = try jpegForUpload(data)
-                        photoURL = await store.uploadPhoto(jobID: operation.workOrderId, bytes: bytes)
+                        photoURL = await store.uploadPhoto(jobID: operation.workOrderId, bytes: bytes,expectedScope:photoScope)
                     } catch { photoError = error.localizedDescription }
                 }
                 .confirmationDialog(L("text_1_adet_kaydedilsin_mi_d43b8", String(describing: count)), isPresented: $confirm, titleVisibility: .visible) {

@@ -5,8 +5,12 @@ import { ProductDrawing } from "@/components/drawing/ProductDrawing";
 import { ColorChip } from "@/components/colors/ColorSwatch";
 import { Skeleton, StatusChip } from "@/components/kit";
 import { formatCurrency } from "@/lib/utils";
+import Image from 'next/image';
+import { ProductDialog } from '@/components/features/product-3d/ProductDialog';
+import type { ProductVisualization } from '@/lib/features/product-3d/catalog';
+import type { AwningConfiguration } from '@/lib/features/awning/configuration';
 
-type Item = { productName: string; description: string | null; quantity: number; unitPrice: number; discountPercent: number; totalPrice: number; color: string | null; widthMm: number | null; heightMm: number | null; family: string | null; parameters: { widthMm: number | null; projectionMm: number | null; mountingHeightMm: number | null } | null };
+type Item = { productVisualization?:ProductVisualization|null;awningConfiguration?:AwningConfiguration|null;awningPreview?:string|null; productName: string; description: string | null; quantity: number; unitPrice: number; discountPercent: number; totalPrice: number; color: string | null; widthMm: number | null; heightMm: number | null; family: string | null; parameters: { widthMm: number | null; projectionMm: number | null; mountingHeightMm: number | null } | null };
 type Quote = {
   firm: string; quotationNumber: string; revision: number; customerName: string; status: string; decidable: boolean; decidedAt: string | null; decidedBy: string | null;
   validUntil: string | null; currency: string; vatPercent: number; subtotal: number; discountAmount: number; taxAmount: number; totalAmount: number; notes: string | null; terms: string | null; items: Item[];
@@ -46,23 +50,31 @@ export default function QuoteApproval({ params }: { params: Promise<{ token: str
 
   const done = quote.status === "accepted" || quote.status === "rejected";
   return (
-    <main className="mx-auto min-h-screen max-w-3xl space-y-5 bg-background p-4 pt-8 sm:p-6 sm:pt-12">
-      <header className="space-y-1">
-        <p className="rf-eyebrow">{quote.firm}</p>
-        <h1 className="flex flex-wrap items-center gap-2 text-2xl font-semibold tracking-tight">
-          <FileText size={22} aria-hidden /> {quote.quotationNumber}
-          <span className="text-sm font-normal text-muted-foreground">rev. {quote.revision}</span>
-        </h1>
-        <p className="text-sm text-muted-foreground">{quote.customerName}</p>
-        {quote.validUntil && <p className="inline-flex items-center gap-1 text-xs text-muted-foreground"><CalendarClock size={13} aria-hidden /> {new Date(quote.validUntil + "T00:00:00").toLocaleDateString("tr-TR")} tarihine kadar geçerli</p>}
+    <main className="mx-auto min-h-screen max-w-4xl space-y-6 bg-background p-4 pt-8 sm:p-8 sm:pt-12">
+      <header className="space-y-5 border-b border-border pb-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="rf-eyebrow">{quote.firm}</p>
+            <h1 className="mt-2 flex items-center gap-2 text-3xl font-semibold tracking-tight"><FileText size={24} aria-hidden /> Fiyat teklifi</h1>
+          </div>
+          <div className="text-sm sm:text-right">
+            <p className="break-all font-medium">{quote.quotationNumber}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Revizyon {quote.revision} · {quote.currency}</p>
+          </div>
+        </div>
+        <div className="rounded-lg bg-muted/40 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+          <div><p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Müşteri</p><p className="mt-1 break-words font-semibold">{quote.customerName}</p></div>
+          {quote.validUntil && <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground sm:mt-0"><CalendarClock size={14} aria-hidden /> {new Date(quote.validUntil + "T00:00:00").toLocaleDateString("tr-TR")} tarihine kadar geçerli</p>}
+        </div>
       </header>
 
-      <ul className="space-y-3">
+      <h2 className="text-base font-semibold">Ürün ve uygulama kapsamı <span className="ml-2 text-xs font-normal text-muted-foreground">{quote.items.length} kalem</span></h2>
+      <ul className="space-y-4">
         {quote.items.map((item, i) => (
           <li key={i} className="rf-panel space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="font-semibold">{item.productName}</p>
+                <h3 className="font-semibold">{i + 1}. {item.productName}</h3>
                 <p className="text-sm text-muted-foreground">
                   {item.quantity} adet{item.widthMm ? ` · ${item.widthMm}${item.heightMm ? ` × ${item.heightMm}` : ""} mm` : ""}
                   {item.color ? <> · <ColorChip color={item.color} size={14} showName /></> : null}
@@ -70,16 +82,21 @@ export default function QuoteApproval({ params }: { params: Promise<{ token: str
                 {item.description && <p className="text-xs text-muted-foreground">{item.description}</p>}
               </div>
               <p className="text-right text-sm tabular-nums">
+                <span className="mb-1 block text-[10px] uppercase tracking-wide text-muted-foreground">Kalem toplamı</span>
                 <span className="block font-semibold">{formatCurrency(item.totalPrice, quote.currency)}</span>
+                <span className="mt-1 block text-xs text-muted-foreground">Birim: {formatCurrency(item.unitPrice, quote.currency)}</span>
                 {item.discountPercent > 0 && <span className="text-xs text-muted-foreground">%{item.discountPercent} indirimli</span>}
               </p>
             </div>
             {item.parameters && <ProductDrawing family={item.family ?? "pergola"} widthMm={item.parameters.widthMm} projectionMm={item.parameters.projectionMm} heightMm={item.parameters.mountingHeightMm} color={item.color} className="h-auto max-h-56 w-full" />}
+            {(item.productVisualization?.image||item.awningPreview)&&<Image src={item.productVisualization?.image||item.awningPreview!} alt={`${item.productName} 3D görünümü`} width={900} height={600} unoptimized className="max-h-64 w-full rounded-md bg-[#eceeeb] object-contain"/>}
+            {(item.productVisualization||item.awningConfiguration)&&<ProductDialog visualization={item.productVisualization} awningConfiguration={item.awningConfiguration} previewImage={item.awningPreview} readOnly label="Ürünü 3D inceleyin"/>}
           </li>
         ))}
       </ul>
 
       <section className="rf-panel space-y-1.5 text-sm tabular-nums" aria-label="Toplam">
+        <h2 className="mb-4 text-base font-semibold">Teklif toplamı</h2>
         <p className="flex justify-between"><span>Ara toplam</span><span>{formatCurrency(quote.subtotal, quote.currency)}</span></p>
         {quote.discountAmount > 0 && <p className="flex justify-between"><span>İndirim</span><span>−{formatCurrency(quote.discountAmount, quote.currency)}</span></p>}
         <p className="flex justify-between text-muted-foreground"><span>KDV %{quote.vatPercent}</span><span>{formatCurrency(quote.taxAmount, quote.currency)}</span></p>
@@ -88,8 +105,8 @@ export default function QuoteApproval({ params }: { params: Promise<{ token: str
 
       {(quote.notes || quote.terms) && (
         <section className="rf-panel space-y-2 text-sm">
-          {quote.notes && <p className="whitespace-pre-line">{quote.notes}</p>}
-          {quote.terms && <p className="whitespace-pre-line text-muted-foreground">{quote.terms}</p>}
+          {quote.notes && <div><h2 className="mb-2 font-semibold">Teklif açıklaması</h2><p className="whitespace-pre-line">{quote.notes}</p></div>}
+          {quote.terms && <div className={quote.notes ? "border-t border-border pt-4" : undefined}><h2 className="mb-2 font-semibold">Ödeme, teslimat ve montaj koşulları</h2><p className="whitespace-pre-line text-muted-foreground">{quote.terms}</p></div>}
         </section>
       )}
 
@@ -100,6 +117,8 @@ export default function QuoteApproval({ params }: { params: Promise<{ token: str
         </section>
       ) : quote.decidable ? (
         <form className="rf-panel space-y-3" onSubmit={(e) => { e.preventDefault(); void decide("accept"); }}>
+          <h2 className="text-base font-semibold">Teklif değerlendirmesi</h2>
+          <p className="text-sm text-muted-foreground">Ürün kapsamını ve ticari koşulları inceleyerek kararınızı iletebilirsiniz.</p>
           <label className="block text-sm">Adınız soyadınız
             <input required minLength={2} maxLength={120} autoComplete="name" className="rf-input mt-1 w-full" value={name} onChange={(e) => setName(e.target.value)} />
           </label>

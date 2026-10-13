@@ -2,6 +2,7 @@
 !**/.env.example
 !**/.env.*.example
 **/.data/**
+**/.local/**
 **/node_modules/**
 **/.git/**
 **/.next/**
@@ -15,3 +16,7 @@
 apps/mobile/**
 apps/dashboard/**
 patterns-demo/**
+
+# Native clients are built in their own workflows, never in the web deployment.
+apps/native-android/**
+apps/native-ios/**
