@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   ANODIZED, DEFAULT_FINISH, FINISHES, RAL_GROUPS, RAW_LABEL, colorKey, formatColor, parseColor, searchRal,
   type Finish, type RalGroup,
@@ -24,6 +24,20 @@ function StockMark({ inStock }: { inStock: boolean | undefined }) {
     : <span className="sr-only">stokta yok</span>;
 }
 
+const RalOption = memo(function RalOption({ code, name, hex, selected, stocked, focused, index, onFocus, onPick }: {
+  code: string; name: string; hex: string; selected: boolean; stocked?: boolean; focused: boolean; index: number;
+  onFocus: (index: number) => void; onPick: (code: string, index: number) => void;
+}) {
+  return <button type="button" role="option" aria-selected={selected} aria-label={`RAL ${code} ${name}${stocked ? ', stokta' : ''}`}
+    tabIndex={focused ? 0 : -1} onFocus={() => onFocus(index)} onClick={() => onPick(code, index)}
+    className={cn('flex min-h-[64px] flex-col items-stretch gap-1 rounded-md border p-1 text-left text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-ring', selected ? 'border-primary ring-2 ring-primary/30' : 'border-transparent hover:border-border')}
+    style={{ contentVisibility: 'auto', containIntrinsicSize: '72px 86px' }}>
+    <span className="block h-8 w-full rounded-[4px] border border-black/15 dark:border-white/20" style={{ background: hex }} />
+    <span className="flex items-center justify-between gap-1 font-medium tabular-nums">{code}{stocked && <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-600" />}</span>
+    <span className="truncate text-muted-foreground">{name}</span>
+  </button>;
+});
+
 /**
  * The one colour picker: every RAL Classic colour (search by code or name, filter by group), the
  * non-RAL finishes and a named custom colour; the paint finish is chosen apart from the colour.
@@ -39,6 +53,8 @@ export function ColorPicker({ value, onChange, favorites = [], stockColors, labe
   label?: string;
 }) {
   const uid = useId();
+  const changeHandler = useRef(onChange);
+  changeHandler.current = onChange;
   const spec = parseColor(value);
   const [kind, setKind] = useState<Kind>(spec.kind === 'text' ? 'ral' : spec.kind);
   const [finish, setFinish] = useState<Finish>(spec.kind === 'ral' || (spec.kind === 'custom' && spec.finish) ? (spec.finish ?? DEFAULT_FINISH) : DEFAULT_FINISH);
@@ -74,6 +90,10 @@ export function ColorPicker({ value, onChange, favorites = [], stockColors, labe
   const results = useMemo(() => searchRal(query, group), [query, group]);
   const selectedCode = spec.kind === 'ral' ? spec.code : null;
 
+  const pickOption = useCallback((code: string, index: number) => {
+    setActive(index);
+    changeHandler.current(formatColor({ kind: 'ral', code, finish, finishAssumed: false }));
+  }, [finish]);
   const pickRal = (code: string, f: Finish = finish) => onChange(formatColor({ kind: 'ral', code, finish: f, finishAssumed: false }));
   const setCustom = (name: string, hex: string | null, f: Finish | null) => {
     setCustomName(name);
@@ -186,30 +206,9 @@ export function ColorPicker({ value, onChange, favorites = [], stockColors, labe
               onKeyDown={onGridKey}
               className="grid max-h-72 grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-1.5 overflow-y-auto rounded-md border border-border p-1.5"
             >
-              {results.map((c, i) => {
-                const selected = c.code === selectedCode;
-                const stocked = inStock(`RAL ${c.code} ${finish}`);
-                return (
-                  <button
-                    key={c.code}
-                    type="button"
-                    role="option"
-                    aria-selected={selected}
-                    aria-label={`RAL ${c.code} ${c.name}${stocked ? ', stokta' : ''}`}
-                    tabIndex={i === focusIndex ? 0 : -1}
-                    onFocus={() => setActive(i)}
-                    onClick={() => { setActive(i); pickRal(c.code); }}
-                    className={cn('flex min-h-[64px] flex-col items-stretch gap-1 rounded-md border p-1 text-left text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-ring', selected ? 'border-primary ring-2 ring-primary/30' : 'border-transparent hover:border-border')}
-                  >
-                    <span className="block h-8 w-full rounded-[4px] border border-black/15 dark:border-white/20" style={{ background: c.hex }} />
-                    <span className="flex items-center justify-between gap-1 font-medium tabular-nums">
-                      {c.code}
-                      {stocked && <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-600" />}
-                    </span>
-                    <span className="truncate text-muted-foreground">{c.name}</span>
-                  </button>
-                );
-              })}
+              {results.map((c, i) => <RalOption key={c.code} code={c.code} name={c.name} hex={c.hex}
+                selected={c.code === selectedCode} stocked={inStock(`RAL ${c.code} ${finish}`)} focused={i === focusIndex}
+                index={i} onFocus={setActive} onPick={pickOption} />)}
             </div>
           ) : (
             <p className="text-xs text-muted-foreground" role="status">&quot;{query}&quot; için RAL rengi yok. Kod (7016) ya da ad (antrasit) yazın.</p>

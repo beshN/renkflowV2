@@ -1229,3 +1229,10 @@ pre, code {
   border: 0;
   contain: strict;
 }
+
+/* Only quotation documents suppress the dashboard chrome when printing. */
+@media print {
+  body:has(.quotation-print) { background: #fff !important; color: #20252b !important; }
+  body:has(.quotation-print) header, body:has(.quotation-print) nav, body:has(.quotation-print) aside, body:has(.quotation-print) .print-action, body:has(.quotation-print) [data-ai-chatbot], body:has(.quotation-print) .rf-command-launcher, body:has(.quotation-print) .pwa-install-prompt, body:has(.quotation-print) #assistant-context-slot, body:has(.quotation-print) .rf-skip-link { display: none !important; }
+  body:has(.quotation-print) .rf-dashboard-shell, body:has(.quotation-print) .rf-dashboard-shell > div, body:has(.quotation-print) #workspace-content, body:has(.quotation-print) #workspace-content > div { display: block !important; min-height: 0 !important; height: auto !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; transform: none !important; }
+}

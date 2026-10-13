@@ -145,6 +145,7 @@ export function glassModel(c: VisualizationConfiguration) {
     g.add(fixed);
     addFrame(fixed, w - 0.1, low - 0.08, 0.008, !piston);
     const p = new T.Group();
+    p.name = piston ? 'piston-moving-pane' : 'manual-moving-pane';
     g.add(p);
     moving.push(p);
     addFrame(p, w - 0.1, low - 0.09, piston ? 0.008 : 0.006, !piston);
@@ -175,14 +176,14 @@ export function glassModel(c: VisualizationConfiguration) {
           post - 0.014,
           post - 0.014,
           0.0025,
-          low - 0.065,
-          [0, -low / 2 + 0.006, 0],
+          low - 0.045,
+          [0, -low / 2, 0],
           "y",
           inner,
         );
         b.box(
           [post - 0.009, 0.01, post - 0.009],
-          [0, low / 2 - 0.055, 0],
+          [0, low / 2 - 0.05, 0],
           b.rubber,
           inner,
         );
@@ -256,5 +257,5 @@ export function glassModel(c: VisualizationConfiguration) {
     };
   }
   update(0);
-  return { group: g, update, dispose: () => b.dispose() };
+  return { group: g, update, setAppearance: (next: VisualizationConfiguration) => b.setAppearance(next), dispose: () => b.dispose() };
 }
