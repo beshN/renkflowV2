@@ -11,7 +11,7 @@ import {
   WorkOrderPriority,
   WorkOrderStatus,
 } from './status';
-import { WorkOrderActor, WorkOrderApiError } from './security';
+import { WorkOrderActor, WorkOrderApiError, requireWorkOrderPermission } from './security';
 import { colorInfo } from '@/lib/features/colors/color-spec';
 import { createProductionWorkOrder } from '@/lib/features/manufacturing/manufacturing.service';
 import { CreateProductionWorkOrderInputSchema } from '@/lib/features/manufacturing/types';
@@ -64,8 +64,11 @@ export const UpdateWorkOrderInputSchema = z
     blockedReasonCategory: WorkOrderBlockReasonCategorySchema.nullable().optional(),
     blockedReasonDetail: z.string().trim().max(1000).nullable().optional(),
     appendChecklistItems: z.array(ChecklistInputSchema).max(100).optional(),
+    expectedUpdatedAt: z.string().datetime().optional(),
+    expectedRevision: z.number().int().positive().optional(),
+    boardPlacement: z.object({ beforeId: z.string().uuid().nullable(), afterId: z.string().uuid().nullable() }).optional(),
   })
-  .refine((input) => Object.keys(input).length > 0, {
+  .refine((input) => Object.keys(input).some(key => !['expectedUpdatedAt','expectedRevision'].includes(key)), {
     message: 'No changes supplied',
   });
 
@@ -80,6 +83,7 @@ export const ListWorkOrdersQuerySchema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((value) => value === 'true'),
+  sort: z.enum(['priority', 'board']).default('priority'),
 });
 
 export const WorkOrderCommentInputSchema = z.object({
@@ -112,6 +116,8 @@ type WorkOrderRow = {
   assigned_to: string | null;
   created_at: string | Date;
   updated_at: string | Date;
+  board_position?: number | null;
+  revision?: number;
   assignee_name?: string | null;
   creator_name?: string | null;
   checklist_total?: number;
@@ -202,6 +208,8 @@ function mapWorkOrderRow(row: WorkOrderRow) {
     } : null,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
+    boardPosition: Number(row.board_position ?? 0),
+    revision: Number(row.revision ?? 1),
   };
 }
 
@@ -276,7 +284,7 @@ async function insertWorkOrderEvent(
   `;
 }
 
-async function loadWorkOrderForUpdate(tx: any, tenantId: string, workOrderId: string) {
+async function loadWorkOrderForUpdate(tx: any, tenantId: string, workOrderId: string, actor?: WorkOrderActor) {
   const result = await tx`
     SELECT *
     FROM work_orders
@@ -287,7 +295,7 @@ async function loadWorkOrderForUpdate(tx: any, tenantId: string, workOrderId: st
   `;
   const rows = result as WorkOrderRow[];
   const workOrder = rows[0];
-  if (!workOrder) {
+  if (!workOrder || actor?.role === 'worker' && workOrder.assigned_to !== actor.userId) {
     throw new WorkOrderApiError('İş emri bulunamadı', 404);
   }
   return workOrder;
@@ -397,6 +405,7 @@ export async function listWorkOrders(
       ) cc ON true
       WHERE ${whereSql}
       ORDER BY
+        ${query.sort === 'board' ? 'w.board_position ASC, w.id ASC,' : ''}
         CASE w.priority
           WHEN 'critical' THEN 0
           WHEN 'high' THEN 1
@@ -645,13 +654,25 @@ export async function updateWorkOrder(
   input: z.infer<typeof UpdateWorkOrderInputSchema>
 ) {
   return withTransaction(async (tx) => {
-    const existing = await loadWorkOrderForUpdate(tx, actor.tenantId, workOrderId);
+    if (input.boardPlacement) {
+      requireWorkOrderPermission(actor, 'transition');
+      await tx`SELECT pg_advisory_xact_lock(hashtextextended(${actor.tenantId}, 50))`;
+    }
+    const existing = await loadWorkOrderForUpdate(tx, actor.tenantId, workOrderId, actor);
+    if (actor.role === 'worker' && existing.assigned_to !== actor.userId) throw new WorkOrderApiError('İş emri bulunamadı', 404);
+    if (input.expectedRevision !== undefined && input.expectedRevision !== Number(existing.revision ?? 1)) throw new WorkOrderApiError('Bu kart başka biri tarafından güncellendi. Pano yenilendi; değişikliği yeniden yapın.', 409);
+    if (input.expectedUpdatedAt && new Date(existing.updated_at).getTime() !== new Date(input.expectedUpdatedAt).getTime()) {
+      throw new WorkOrderApiError('Bu kart başka biri tarafından güncellendi. Pano yenilendi; değişikliği yeniden yapın.', 409);
+    }
 
     if (input.assignedToUserId) {
       await ensureTenantMember(tx, actor.tenantId, input.assignedToUserId);
     }
 
     const targetStatus = input.status || existing.status;
+    if (existing.bom_id && input.status && input.status !== existing.status) {
+      throw new WorkOrderApiError('Malzemeli üretim emirlerinin durumunu Üretim ekranındaki malzeme aktarımı ve üretim kaydı ile değiştirin.', 409);
+    }
     if (input.status && !canTransitionWorkOrderStatus(existing.status, input.status)) {
       throw new WorkOrderApiError(
         `Durum geçişi izinli değil: ${existing.status} -> ${input.status}`,
@@ -737,6 +758,26 @@ export async function updateWorkOrder(
       completedAt,
     };
 
+    let boardPosition = Number(existing.board_position ?? 0);
+    if (input.boardPlacement) {
+      const { beforeId, afterId } = input.boardPlacement;
+      if (beforeId === workOrderId || afterId === workOrderId || (beforeId && beforeId === afterId)) throw new WorkOrderApiError('Geçersiz kart sırası', 400);
+      const readNeighbours = async () => {
+        const neighbours = await tx`SELECT id, status, board_position FROM work_orders WHERE tenant_id = ${actor.tenantId} AND (id = ${beforeId} OR id = ${afterId})` as Array<{ id: string; status: string; board_position: number }>;
+        if ([beforeId, afterId].some(id => id && !neighbours.some(row => row.id === id && row.status === targetStatus))) throw new WorkOrderApiError('Sütundaki kartlar değişti. Panoyu yenileyip yeniden deneyin.', 409);
+        const previous = beforeId ? Number(neighbours.find(row => row.id === beforeId)!.board_position) : null;
+        const next = afterId ? Number(neighbours.find(row => row.id === afterId)!.board_position) : null;
+        return { previous, next };
+      };
+      let { previous, next } = await readNeighbours();
+      if (previous !== null && next !== null && next < previous) throw new WorkOrderApiError('Kart sırası değişti. Panoyu yenileyip yeniden deneyin.', 409);
+      if (previous !== null && next !== null && next - previous < 0.000001) {
+        await tx`WITH ranked AS (SELECT id, row_number() OVER (ORDER BY board_position, id) * 1024 AS position FROM work_orders WHERE tenant_id = ${actor.tenantId} AND status = ${targetStatus}) UPDATE work_orders w SET board_position = r.position FROM ranked r WHERE w.id = r.id`;
+        ({ previous, next } = await readNeighbours());
+      }
+      boardPosition = previous !== null && next !== null ? (previous + next) / 2 : previous !== null ? previous + 1024 : next !== null ? next - 1024 : 1024;
+    }
+
     await tx`
       UPDATE work_orders
       SET
@@ -755,6 +796,8 @@ export async function updateWorkOrder(
         blocked_at = ${nextPayload.blockedAt},
         assigned_to = ${nextPayload.assignedTo},
         completed_at = ${nextPayload.completedAt},
+        board_position = ${boardPosition},
+        revision = revision + 1,
         updated_at = NOW()
       WHERE id = ${workOrderId}
         AND tenant_id = ${actor.tenantId}
@@ -811,6 +854,7 @@ export async function updateWorkOrder(
               }
             : null,
         appendedChecklistItems: input.appendChecklistItems?.length || 0,
+        boardPosition: input.boardPlacement ? { from: existing.board_position ?? 0, to: boardPosition } : null,
       },
       createdBy: actor.userId,
     });
@@ -843,7 +887,7 @@ export async function addWorkOrderComment(
   body: string
 ) {
   return withTransaction(async (tx) => {
-    await loadWorkOrderForUpdate(tx, actor.tenantId, workOrderId);
+    await loadWorkOrderForUpdate(tx, actor.tenantId, workOrderId, actor);
 
     const insertResult = await tx`
       INSERT INTO work_order_comments (
@@ -902,7 +946,7 @@ export async function toggleWorkOrderChecklistItem(
   completed: boolean
 ) {
   return withTransaction(async (tx) => {
-    await loadWorkOrderForUpdate(tx, actor.tenantId, workOrderId);
+    await loadWorkOrderForUpdate(tx, actor.tenantId, workOrderId, actor);
 
     const itemRows = await tx`
       SELECT *

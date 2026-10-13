@@ -155,6 +155,7 @@ export const BACKEND_MIGRATIONS = [
   '048_ai_assistant.sql',
   '049_product_visualization.sql',
   '049_personnel.sql',
+  '050_work_order_kanban.sql',
   '051_activity_log_immutable.sql',
   '052_user_mfa.sql',
   '053_e_belge_core.sql',
