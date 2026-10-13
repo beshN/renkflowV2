@@ -6,7 +6,8 @@ import path from "node:path";
 import postgres from "postgres";
 import { ensureBackendSchema } from "./ensure-backend-schema";
 async function main() {
-  const directory = path.resolve(".data/postgres");
+  // RENKFLOW_TEST_DB_DIR gives a throwaway cluster (the integration runner uses a fresh temp dir).
+  const directory = path.resolve(process.env.RENKFLOW_TEST_DB_DIR || ".data/postgres");
   const engine = new EmbeddedPostgres({
     databaseDir: directory,
     user: "postgres",

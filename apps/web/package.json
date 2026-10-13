@@ -20,6 +20,7 @@
     "type-check:manufacturing": "tsc --noEmit -p tsconfig.manufacturing.json",
     "test": "jest",
     "test:manufacturing": "jest --config jest.manufacturing.config.js --runInBand",
+    "test:integration": "tsx scripts/run-integration-tests.ts",
     "test:e2e": "playwright test",
     "start:standalone": "if [ -f .next/standalone/server.js ]; then node -r dotenv/config .next/standalone/server.js dotenv_config_path=.env.local; elif [ -f .next/standalone/apps/web/server.js ]; then node -r dotenv/config .next/standalone/apps/web/server.js dotenv_config_path=.env.local; else echo 'Standalone server output not found. Run npm run build first.' && exit 1; fi",
     "start:next": "next start",

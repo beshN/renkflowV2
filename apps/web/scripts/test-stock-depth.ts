@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import postgres from 'postgres';
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
+import { localTestDatabaseURL } from './local-test-database';
 
 async function main() {
   process.env.AUTH_SECRET = 'integration-test-secret-local-only-1234567890';
-  process.env.DATABASE_URL = 'postgres://postgres:renkflow-local-only@127.0.0.1:55432/renkflow_test';
+  process.env.DATABASE_URL = localTestDatabaseURL();
   process.env.NATIVE_INVENTORY_ENABLED = '1';
   const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
   assert.equal((await db`SELECT current_database() AS name`)[0].name, 'renkflow_test');
