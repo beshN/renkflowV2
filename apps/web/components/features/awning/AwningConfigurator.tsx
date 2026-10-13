@@ -29,11 +29,15 @@ export function AwningConfigurator({
   readOnly = false,
   previewImage,
   onApply,
+  onChange,
+  onValidationChange,
 }: {
   value?: AwningConfiguration;
   readOnly?: boolean;
   previewImage?: string;
   onApply?: (value: AwningConfiguration, image?: string) => void;
+  onChange?: (value: AwningConfiguration, image?: string) => void;
+  onValidationChange?: (message: string) => void;
 }) {
   const [draft, setDraft] = useState(value),
     [opening, setOpening] = useState(85),
@@ -83,9 +87,32 @@ export function AwningConfigurator({
   }, []);
   useEffect(() => {
     const valid = AwningConfigurationSchema.safeParse(draft);
-    if (ready && valid.success)
-      controller.current?.setConfiguration(valid.data);
+    if (!ready || !valid.success) return;
+    const timer = window.setTimeout(() => controller.current?.setConfiguration(valid.data), 80);
+    return () => window.clearTimeout(timer);
   }, [draft, ready]);
+  const changeHandler = useRef(onChange), validationHandler = useRef(onValidationChange);
+  changeHandler.current = onChange;
+  validationHandler.current = onValidationChange;
+  const emitted = useRef('');
+  useEffect(() => {
+    if (readOnly || !changeHandler.current) return;
+    const valid = AwningConfigurationSchema.safeParse(draft);
+    validationHandler.current?.(valid.success ? '' : valid.error.issues.map(i => i.message).join(' · '));
+    if (!valid.success) return;
+    const signature = JSON.stringify(valid.data);
+    if (emitted.current !== signature) {
+      emitted.current = signature;
+      changeHandler.current(valid.data);
+    }
+    if (!ready || sceneError) return;
+    const timer = window.setTimeout(() => {
+      let image: string | undefined;
+      try { image = controller.current?.capture(); } catch { /* Values remain usable. */ }
+      if (image) changeHandler.current?.(valid.data, image);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [draft, ready, sceneError, opening, view, time]);
   function update<K extends keyof AwningConfiguration>(
     key: K,
     value: AwningConfiguration[K],

@@ -96,14 +96,17 @@ export function guillotinePositions(height: number, opening: number) {
   };
 }
 export function windPose(height: number, opening: number, piston: boolean) {
-  const low = piston ? 1.05 : height * 0.55,
-    travel = Math.max(0, height - low),
+  const low = piston ? Math.min(1.05, Math.max(height * 0.55, (height + 0.135) / 2)) : height * 0.55,
+    // The moving pane is 90 mm shorter than the low tower. Its top, rather than
+    // the pane's nominal centre, must reach the selected overall height.
+    travel = Math.max(0, height - low + (piston ? 0.045 : 0)),
     t = clamp01(opening / 100);
+  const lift = travel * (piston ? t : 1 - t);
   return {
     low,
     travel,
-    lift: travel * (1 - t),
-    overlap: low - travel * (1 - t),
+    lift,
+    overlap: low - lift,
   };
 }
 export function slidingPositions(

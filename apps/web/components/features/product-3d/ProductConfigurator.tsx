@@ -32,12 +32,16 @@ export function ProductConfigurator({
   kind = "pergola",
   readOnly = false,
   onApply,
+  onChange,
+  onValidationChange,
   showProductPicker = false,
 }: {
   value?: ProductVisualization;
   kind?: ProductKind;
   readOnly?: boolean;
   onApply?: (v: ProductVisualization) => void;
+  onChange?: (value: ProductVisualization, image?: string) => void;
+  onValidationChange?: (message: string) => void;
   showProductPicker?: boolean;
 }) {
   const [draft, setDraft] = useState<VisualizationConfiguration>(
@@ -54,6 +58,10 @@ export function ProductConfigurator({
     controller = useRef<ProductStage | null>(null),
     initial = useRef(draft),
     rendered = useRef("");
+  const readonlySignature = readOnly && value ? JSON.stringify(value.configuration) : '';
+  useEffect(() => {
+    if (readonlySignature) setDraft(JSON.parse(readonlySignature));
+  }, [readonlySignature]);
   const meta = productMeta(draft.kind),
     roof = meta.category === "roof",
     motion = meta.motion !== "none";
@@ -106,6 +114,7 @@ export function ProductConfigurator({
     let cancelled = false;
     setRendering(true);
     setError("");
+    const timer = window.setTimeout(() => {
     controller.current
       ?.setConfiguration(valid.data)
       .then(() => {
@@ -120,10 +129,34 @@ export function ProductConfigurator({
           setError("Ürün görünümü yüklenemedi.");
         }
       });
+    }, 80);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [draft, ready]);
+  const changeHandler = useRef(onChange), validationHandler = useRef(onValidationChange);
+  changeHandler.current = onChange;
+  validationHandler.current = onValidationChange;
+  const emitted = useRef('');
+  useEffect(() => {
+    if (readOnly || !changeHandler.current) return;
+    const valid = VisualizationConfigurationSchema.safeParse(draft);
+    validationHandler.current?.(valid.success ? '' : valid.error.issues.map(i => i.message).join(' · '));
+    if (!valid.success) return;
+    const valuesSignature = JSON.stringify(valid.data);
+    if (emitted.current !== valuesSignature) {
+      emitted.current = valuesSignature;
+      changeHandler.current({ configuration: valid.data });
+    }
+    if (!ready || rendering || rendered.current !== valuesSignature) return;
+    const timer = window.setTimeout(() => {
+      let image: string | undefined;
+      try { image = controller.current?.capture(); } catch { /* Values remain usable. */ }
+      if (image) changeHandler.current?.({ configuration: valid.data, image });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [draft, ready, rendering, opening, view, time]);
   const update = <K extends keyof VisualizationConfiguration>(
     key: K,
     v: VisualizationConfiguration[K],
@@ -159,8 +192,7 @@ export function ProductConfigurator({
               RENK / {meta.name}
             </p>
             <p className="mt-1 text-sm tabular-nums">
-              {draft.widthMm / 10} ×{" "}
-              {(roof ? draft.projectionMm : draft.heightMm) / 10} cm
+              En {draft.widthMm} mm · {roof ? `Açılım ${draft.projectionMm} mm · Montaj ${draft.heightMm} mm` : `Yükseklik ${draft.heightMm} mm`}
             </p>
           </div>
           <canvas
@@ -256,11 +288,11 @@ export function ProductConfigurator({
               <Play size={16} />
             </button>
             <label className="flex min-w-36 flex-1 items-center gap-3 text-xs">
-              {meta.motion === "tilt" ? "Lamel açısı" : "Açıklık"}
+              {draft.kind === "wind-piston" ? "Cam yüksekliği" : meta.motion === "tilt" ? "Lamel açısı" : "Açıklık"}
               <input
-                aria-label="Ürün açıklığı"
+                aria-label={draft.kind === "wind-piston" ? "Cam yüksekliği" : "Ürün açıklığı"}
                 disabled={!ready || rendering}
-                aria-valuetext={`%${Math.round(opening)} açık`}
+                aria-valuetext={draft.kind === "wind-piston" ? `%${Math.round(opening)} yükseklikte` : `%${Math.round(opening)} açık`}
                 className="min-w-0 flex-1"
                 type="range"
                 min={0}

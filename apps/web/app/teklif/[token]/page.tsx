@@ -63,7 +63,7 @@ export default function QuoteApproval({ params }: { params: Promise<{ token: str
           </div>
         </div>
         <div className="rounded-lg bg-muted/40 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
-          <div><p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Sunulan firma / müşteri</p><p className="mt-1 break-words font-semibold">{quote.customerName}</p></div>
+          <div><p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Müşteri</p><p className="mt-1 break-words font-semibold">{quote.customerName}</p></div>
           {quote.validUntil && <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground sm:mt-0"><CalendarClock size={14} aria-hidden /> {new Date(quote.validUntil + "T00:00:00").toLocaleDateString("tr-TR")} tarihine kadar geçerli</p>}
         </div>
       </header>
@@ -96,7 +96,7 @@ export default function QuoteApproval({ params }: { params: Promise<{ token: str
       </ul>
 
       <section className="rf-panel space-y-1.5 text-sm tabular-nums" aria-label="Toplam">
-        <h2 className="mb-4 text-base font-semibold">Ticari özet</h2>
+        <h2 className="mb-4 text-base font-semibold">Teklif toplamı</h2>
         <p className="flex justify-between"><span>Ara toplam</span><span>{formatCurrency(quote.subtotal, quote.currency)}</span></p>
         {quote.discountAmount > 0 && <p className="flex justify-between"><span>İndirim</span><span>−{formatCurrency(quote.discountAmount, quote.currency)}</span></p>}
         <p className="flex justify-between text-muted-foreground"><span>KDV %{quote.vatPercent}</span><span>{formatCurrency(quote.taxAmount, quote.currency)}</span></p>

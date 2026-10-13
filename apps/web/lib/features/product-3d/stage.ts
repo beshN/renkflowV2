@@ -1,7 +1,7 @@
 import * as T from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { createProductModel, type ProductModel } from "./model";
-import { productMeta, type VisualizationConfiguration } from "./catalog";
+import { sameGeometry, productMeta, type VisualizationConfiguration } from "./catalog";
 export type ProductView =
   "perspective" | "front" | "side" | "top" | "under" | "detail";
 export async function createProductStage(
@@ -367,6 +367,12 @@ export async function createProductStage(
   }
   async function setConfiguration(next: VisualizationConfiguration) {
     const request = ++version;
+    if (model && sameGeometry(c, next)) {
+      c = next;
+      model.setAppearance(next);
+      setTime(time);
+      return;
+    }
     const built = await createProductModel(next);
     if (disposed || request !== version) {
       built.dispose();

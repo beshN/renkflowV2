@@ -328,3 +328,8 @@ export function visualizationForRecipe(
   });
   return parsed.success ? { configuration: parsed.data } : undefined;
 }
+
+/** Colour and brightness edits reuse the existing GPU geometry and camera. */
+export function sameGeometry(a: VisualizationConfiguration, b: VisualizationConfiguration) {
+  return a.kind === b.kind && a.widthMm === b.widthMm && a.projectionMm === b.projectionMm && a.heightMm === b.heightMm && a.mounting === b.mounting && a.glass === b.glass && a.screen === b.screen && (a.led === 'off') === (b.led === 'off');
+}

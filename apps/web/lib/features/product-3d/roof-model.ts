@@ -387,5 +387,5 @@ export function roofModel(c: VisualizationConfiguration) {
     };
   }
   update(0);
-  return { group: g, update, dispose: () => b.dispose() };
+  return { group: g, update, setAppearance: (next: VisualizationConfiguration) => b.setAppearance(next), dispose: () => b.dispose() };
 }

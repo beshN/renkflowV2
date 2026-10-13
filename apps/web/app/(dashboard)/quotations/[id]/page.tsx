@@ -3,8 +3,11 @@ import { use, useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, Save, FileText } from "lucide-react";
-import { ProductDialog } from "@/components/features/product-3d/ProductDialog";
-import { attachVisualization,visualizationForRecipe } from "@/lib/features/product-3d/catalog";
+import { InlineProductEditor } from "@/components/features/product-3d/InlineProductEditor";
+import { applyInlineVisualization } from "@/lib/features/product-3d/inline";
+import { defaultVisualization, productMeta } from "@/lib/features/product-3d/catalog";
+import { DEFAULT_AWNING } from "@/lib/features/awning/configuration";
+import { visualizationForRecipe } from "@/lib/features/product-3d/catalog";
 import {
   applyAwning,
   awningSummary,
@@ -20,17 +23,15 @@ import { canEditQuotation } from "@/lib/features/quotations/permissions";
 import { formatCurrency } from "@/lib/utils";
 import { requestJson } from "@/lib/shared/network";
 import { BomTables, ProductConfigurator } from "@/components/features/products/ProductConfigurator";
-import { PRODUCT_FAMILIES } from "@/lib/features/products/families";
 import { configuredLine, configurationSummary, unconfiguredLine, type ProductConfiguration } from "@/lib/features/products/configuration";
 import { ColorChip } from "@/components/colors/ColorSwatch";
 import { RecordButton } from "@/components/records/RecordDrawer";
 import { QuoteSalesPanel } from "@/components/sales/QuoteSalesPanel";
 import { MeasureChangeBanner } from "@/components/field/MeasureChangeBanner";
 import { customerDiscountFor, quoteTotals, VAT_RATES } from "@/lib/features/sales/engine";
-import Image from 'next/image';
-import { visualizationSummary } from '@/lib/features/product-3d/catalog';
 
 const emptyItem = (): QuotationItem => ({
+  id: crypto.randomUUID(),
   productName: "",
   quantity: 1,
   unitPrice: 0,
@@ -42,6 +43,7 @@ export default function QuotationPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const invalid3d = useRef<Record<number, string>>({});
   const creationKey = useRef(crypto.randomUUID());
   const { id } = use(params),
     isNew = id === "new";
@@ -51,7 +53,6 @@ export default function QuotationPage({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
-    [configuring, setConfiguring] = useState<{ index: number; family: string } | null>(null),
     [converted, setConverted] = useState<ConversionResult | null>(null),
     [templates, setTemplates] = useState<Array<{ id: string; name: string; items: any[]; notes: string | null; terms: string | null; vatPercent: number | null }>>([]),
     [reloadKey, setReloadKey] = useState(0),
@@ -129,11 +130,12 @@ export default function QuotationPage({
     requestJson<{ templates: typeof templates }>("/api/v1/quotations/templates").then((r) => { if (r.ok && r.data) setTemplates(r.data.templates); });
   }, [isNew, session?.user?.tenantId]);
   function applyTemplate(templateId: string) {
+    invalid3d.current = {};
     const t = templates.find((x) => x.id === templateId);
     if (!t) return;
     setForm((prev) => ({
       ...prev,
-      items: t.items.map((i: any) => ({ ...emptyItem(), ...i, totalPrice: 0 })),
+      items: t.items.map((i: any) => ({ ...emptyItem(), ...i, id: crypto.randomUUID(), totalPrice: 0 })),
       notes: t.notes || prev.notes,
       termsAndConditions: t.terms || prev.termsAndConditions,
       vatPercent: t.vatPercent ?? prev.vatPercent,
@@ -149,6 +151,7 @@ export default function QuotationPage({
   }
   /** A configured product fills the line as the server will on save; a typed price is kept only when the matrix gave none. */
   function applyConfiguration(index: number, c: ProductConfiguration) {
+    invalid3d.current[index] = '';
     setForm((prev) => ({
       ...prev,
       items: prev.items.map((item, i) => {
@@ -157,13 +160,14 @@ export default function QuotationPage({
         return configuredLine(item, c, wasMatrix ? 0 : item.unitPrice);
       }),
     }));
-    setConfiguring(null);
   }
   async function save() {
     setError("");
     setMessage("");
     setBusy(true);
     try {
+      const configurationError = form.items.map((_, index) => invalid3d.current[index]).find(Boolean);
+      if (configurationError) throw new Error(configurationError);
       const payload=CreateQuotationSchema.safeParse(form);
       if(!payload.success)throw new Error(payload.error.issues.map(issue=>issue.message).join(' · '));
       const r = await requestJson<{ data: Quotation }>(
@@ -392,7 +396,7 @@ export default function QuotationPage({
           )}
         </div>
         {form.items.map((item, index) => (
-          <article key={index} className="rf-panel space-y-4">
+          <article key={item.id ?? index} className="rf-panel space-y-4">
             <div className="flex items-center gap-3">
               <span className="rounded bg-muted px-2 py-1 text-xs tabular-nums">
                 {String(index + 1).padStart(2, "0")}
@@ -413,10 +417,10 @@ export default function QuotationPage({
                   className="rf-icon-button"
                   aria-label={`Kalem ${index + 1} sil`}
                   onClick={() =>
-                    setForm((prev) => ({
+                    { invalid3d.current = Object.fromEntries(Object.entries(invalid3d.current).filter(([i]) => Number(i) !== index).map(([i, message]) => [Number(i) > index ? Number(i) - 1 : Number(i), message])); setForm((prev) => ({
                       ...prev,
                       items: prev.items.filter((_, i) => i !== index),
-                    }))
+                    })); }
                   }
                 >
                   <Trash2 size={16} />
@@ -442,27 +446,6 @@ export default function QuotationPage({
                   <summary className="cursor-pointer">Malzeme ve kesim listesi</summary>
                   <div className="mt-2"><BomTables bom={(item.productConfiguration as ProductConfiguration).bom} /></div>
                 </details>
-              </div>
-            )}
-            {editable && configuring?.index === index && (
-              <ProductConfigurator
-                family={configuring.family}
-                currency={form.currency}
-                initial={item.productConfiguration?.family === configuring.family ? item.productConfiguration : undefined}
-                onApply={(c) => applyConfiguration(index, c)}
-                onClose={() => setConfiguring(null)}
-              />
-            )}
-            {editable && configuring?.index !== index && (
-              <div className="flex flex-wrap gap-2">
-                {PRODUCT_FAMILIES.map((f) => (
-                  <button key={f.key} type="button" className="rf-secondary-button" onClick={() => setConfiguring({ index, family: f.key })}>
-                    {item.productConfiguration?.family === f.key ? `${f.label} yapılandırmasını değiştir` : `${f.label} yapılandır`}
-                  </button>
-                ))}
-                {item.productConfiguration && (
-                  <button type="button" className="rf-secondary-button" onClick={() => setForm((prev) => ({ ...prev, items: prev.items.map((entry, i) => (i === index ? unconfiguredLine(entry) : entry)) }))}>Yapılandırmayı kaldır</button>
-                )}
               </div>
             )}
             <div className="grid gap-4 sm:grid-cols-4">
@@ -507,31 +490,35 @@ export default function QuotationPage({
                 {awningSummary(item.awningConfiguration)}
               </p>
             )}
-            {(item.productVisualization||item.awningPreview)&&<div className="flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-3 sm:flex-row sm:items-center">
-              {(item.productVisualization?.image||item.awningPreview)&&<Image src={item.productVisualization?.image||item.awningPreview!} alt={`${item.productName} 3D ürün görünümü`} width={360} height={240} unoptimized className="h-28 w-full rounded bg-[#eceeeb] object-contain sm:w-40"/>}
-              <div><p className="text-xs font-medium">Ürün görselleştirmesi</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{item.productVisualization?visualizationSummary(item.productVisualization):'WINMAX Makaslı Tente · Kaydedilmiş görünüm'}</p></div>
-            </div>}
-            {item.productConfiguration && visualizationForRecipe(item.productConfiguration) && <ProductDialog visualization={visualizationForRecipe(item.productConfiguration)} readOnly label="3D görünüm"/>}
-            {!item.productConfiguration && <div className="flex flex-wrap items-center gap-3">
-              <ProductDialog
-                visualization={item.productVisualization}
-                awningConfiguration={item.awningConfiguration}
-                previewImage={item.awningPreview}
-                readOnly={!editable}
-                label={editable ? "3D yapılandır" : "3D görünüm"}
-                onApply={v=>setForm(prev=>({...prev,items:prev.items.map((entry,i)=>i===index?attachVisualization(entry,v):entry)}))}
-                onApplyAwning={(c, image) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    items: prev.items.map((entry, i) =>
-                      i === index ? applyAwning(entry, c, image) : entry,
-                    ),
-                  }))
-                }
+            {(!editable || !item.productConfiguration) && <InlineProductEditor
+              label={`Kalem ${index + 1} ürün seçimi`}
+              productName={item.productName}
+              visualization={item.productConfiguration ? visualizationForRecipe(item.productConfiguration) : item.productVisualization}
+              awningConfiguration={item.awningConfiguration} previewImage={item.awningPreview}
+              readOnly={!editable || !!item.productConfiguration}
+              onValidationChange={message => { invalid3d.current[index] = message; }}
+              onSelect={kind => {
+                invalid3d.current[index] = '';
+                setForm(prev => ({ ...prev, items: prev.items.map((entry, i) => {
+                  if (i !== index) return entry;
+                  const plain = { ...entry, productVisualization: undefined, awningConfiguration: undefined, awningPreview: undefined };
+                  if (!kind) return { ...plain, productName: '', widthMm: undefined, heightMm: undefined, projectionMm: undefined, mountingHeightMm: undefined, color: undefined };
+                  if (kind === 'makasli') return applyAwning({ ...plain, productName: 'WINMAX Makaslı Tente' }, DEFAULT_AWNING);
+                  return applyInlineVisualization({ ...plain, productName: productMeta(kind).name }, { configuration: defaultVisualization(kind) });
+                }) }));
+              }}
+              onChange={v => setForm(prev => ({ ...prev, items: prev.items.map((entry, i) => i === index ? applyInlineVisualization(entry, v) : entry) }))}
+              onChangeAwning={(c, image) => setForm(prev => ({ ...prev, items: prev.items.map((entry, i) => i === index ? applyAwning({ ...entry, productVisualization: undefined, awningPreview: undefined }, c, image) : entry) }))}
+            />}
+            {editable && (item.productConfiguration || item.productVisualization?.configuration.kind === 'pergola') && <div className="space-y-3 border-t border-border pt-4">
+              <h3 className="text-sm font-medium">Reçete ve fiyatlandırma</h3>
+              <ProductConfigurator
+                key={`${index}-${item.productConfiguration?.family ?? 'pergola'}`}
+                family={item.productConfiguration?.family ?? 'pergola'} currency={form.currency}
+                initial={item.productConfiguration}
+                onApply={c => applyConfiguration(index, c)}
+                onClose={() => { if (item.productConfiguration) setForm(prev => ({ ...prev, items: prev.items.map((entry, i) => i === index ? unconfiguredLine(entry) : entry) })); }}
               />
-              <span className="text-[11px] text-muted-foreground">
-                Teklif fiyatını satış çalışanı belirler.
-              </span>
             </div>}
             <label className="block text-xs">
               Kalem notu
@@ -574,7 +561,7 @@ export default function QuotationPage({
           </label>
         </section>
         <section className="rf-panel space-y-3 text-sm lg:sticky lg:top-20 lg:self-start">
-          <h2 className="rf-section-title">Ticari özet</h2>
+          <h2 className="rf-section-title">Teklif toplamı</h2>
           <p className="flex justify-between">
             <span>Ara toplam</span>
             <span>{formatCurrency(subtotal, form.currency)}</span>

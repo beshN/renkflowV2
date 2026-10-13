@@ -87,6 +87,14 @@ export class Parts {
     this.materials.add(m);
     return m;
   }
+  setAppearance(config: VisualizationConfiguration) {
+    this.metal.color.set(config.bodyColor);
+    this.fabric.color.set(config.fabricColor);
+    const light = config.led === 'white' ? '#e4f2ff' : '#ffd8a0';
+    this.led.color.set(config.led === 'off' ? '#dddcd1' : light);
+    this.led.emissive.set(light);
+    this.led.emissiveIntensity = config.led === 'off' ? 0 : config.brightness / 100 * 3.5;
+  }
   mesh(
     geometry: T.BufferGeometry,
     material: T.Material = this.metal,
@@ -392,17 +400,17 @@ export class Parts {
       mesh.castShadow = false;
       this.box(
         [width, 0.002, thickness],
-        [0, height / 2, z],
+        [0, height / 2 - 0.001, z],
         this.glassEdge,
         g,
       );
       this.box(
         [width, 0.002, thickness],
-        [0, -height / 2, z],
+        [0, -height / 2 + 0.001, z],
         this.glassEdge,
         g,
       );
-      for (const x of [-width / 2, width / 2])
+      for (const x of [-width / 2 + 0.001, width / 2 - 0.001])
         this.box([0.002, height, thickness], [x, 0, z], this.glassEdge, g);
     };
     sheet(0);
