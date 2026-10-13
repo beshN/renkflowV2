@@ -1590,6 +1590,7 @@ export async function publicTracking(token: string) {
   const configured = await columnExists("order_items", "product_configuration");
   const items =
     await sql`SELECT id,product_name,quantity,awning_configuration,awning_preview,color,
+      to_jsonb(order_items)->'product_visualization' AS product_visualization,
       ${configured ? sql`product_configuration->'parameters'` : sql`NULL::jsonb`} AS parameters,
       ${configured ? sql`product_configuration->>'family'` : sql`NULL::text`} AS family
       FROM order_items WHERE order_id=${link.order_id}`;

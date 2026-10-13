@@ -50,6 +50,7 @@ export function customerDiscountFor(rules: Array<{ family: string | null; discou
 // Quote revisions ----------------------------------------------------------------------------------
 
 export type SnapshotLine = {
+  visualization?: string | null;
   productName: string;
   quantity: number;
   unitPrice: number;
@@ -77,6 +78,7 @@ export type LineDiff = { kind: 'added' | 'removed' | 'changed'; productName: str
 const LINE_FIELDS: Array<[keyof SnapshotLine, string]> = [
   ['quantity', 'Adet'], ['unitPrice', 'Birim fiyat'], ['discountPercent', 'İndirim %'], ['widthMm', 'Genişlik'],
   ['heightMm', 'Yükseklik'], ['projectionMm', 'Açılım'], ['color', 'Renk'], ['notes', 'Not'],
+  ['visualization','3D ürün seçimi'],
 ];
 const HEAD_FIELDS: Array<[keyof QuoteSnapshot, string]> = [
   ['currency', 'Para birimi'], ['discountPercent', 'Genel indirim %'], ['vatPercent', 'KDV %'], ['validUntil', 'Geçerlilik'],

@@ -1,6 +1,6 @@
 # Dependencies
-node_modules/
-*/node_modules/
+node_modules
+*/node_modules
 **/.DS_Store
 .codex/
 .vscode/
@@ -55,3 +55,5 @@ next-env.d.ts
 !**/.env.example
 !**/.env.*.example
 **/.data/
+
+.local/

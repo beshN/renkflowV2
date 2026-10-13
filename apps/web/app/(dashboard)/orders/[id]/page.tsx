@@ -1,6 +1,7 @@
 'use client';
-import { AwningDialog } from '@/components/features/awning/AwningConfigurator';
+import { ProductDialog } from '@/components/features/product-3d/ProductDialog';
 import type { AwningConfiguration } from '@/lib/features/awning/configuration';
+import type { ProductVisualization } from '@/lib/features/product-3d/catalog';
 
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -72,6 +73,7 @@ interface OrderDetail {
   createdAt: string;
   updatedAt: string;
   items?: Array<{
+    productVisualization?: ProductVisualization;
     awningConfiguration?: AwningConfiguration;
     awningPreview?: string;
     projectionMm?: number;
@@ -421,7 +423,7 @@ export default function OrderDetailPage() {
                                 {item.quantity && <span>{item.quantity} adet</span>}
                                 {item.color && <span className="inline-flex items-center gap-1">· <ColorChip color={item.color} size={16} /></span>}
                                 {(item.widthMm || item.heightMm) && <span>· {item.widthMm}×{item.heightMm} mm</span>}
-                                {item.awningConfiguration && <AwningDialog configuration={item.awningConfiguration} previewImage={item.awningPreview} readOnly label="3D görünüm"/>}
+                                {(item.awningConfiguration || item.productVisualization) && <ProductDialog visualization={item.productVisualization} awningConfiguration={item.awningConfiguration} previewImage={item.awningPreview} readOnly label="3D görünüm"/>}
                               </div>
                               {item.notes && <p className="mt-1 text-xs text-muted-foreground">{item.notes}</p>}
                             </div>

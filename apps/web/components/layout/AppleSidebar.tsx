@@ -10,7 +10,8 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useMemberAccess } from '@/lib/hooks/useMemberAccess';
-import { getVisibleNavGroups } from '@/lib/core/dashboard-nav';
+import { activeNavHref, getVisibleNavGroups } from '@/lib/core/dashboard-nav';
+import { NavigationGroup } from './NavigationGroup';
 import { BrandMark } from '@/components/brand/BrandMark';
 
 const NAV_ICONS: Record<string, LucideIcon> = {
@@ -36,6 +37,7 @@ export function AppleSidebar({ collapsed, setCollapsed, onExpandedChange }: Appl
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expanded = !collapsed || hovered;
   const navGroups = useMemo(() => getVisibleNavGroups(user?.role, memberAccess), [user?.role, memberAccess]);
+  const activeHref = activeNavHref(pathname, navGroups);
   useEffect(() => { onExpandedChange?.(!collapsed); }, [collapsed, onExpandedChange]);
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
   function openPreview() { if (closeTimer.current) clearTimeout(closeTimer.current); setHovered(true); }
@@ -61,18 +63,19 @@ export function AppleSidebar({ collapsed, setCollapsed, onExpandedChange }: Appl
       <div className={cn('min-w-0 flex-1', !expanded && 'sr-only')}><p className="truncate text-xs font-medium">{user?.tenantName || 'Renk Alüminyum'}</p><p className="sb-muted mt-0.5 text-[11px]">Üretim operasyonları</p></div>
     </div>
     <nav className="flex-1 overflow-x-hidden overflow-y-auto px-3 pb-4" aria-label="Modüller">
-      {navGroups.map(group => <div key={group.id} className="mt-5">
-        <div className="mb-1.5 h-4 px-3"><span className={cn('sb-muted whitespace-nowrap text-[11px] font-medium', !expanded && 'invisible')}>{group.label}</span></div>
-        <div className="space-y-px">{group.items.filter(item => !item.action).map(item => {
+      {navGroups.map(group => <NavigationGroup key={group.id} label={group.label} expanded={expanded}
+        active={group.items.some(item => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/')))}
+        initiallyOpen={group.id === 'general' || group.id === 'sales' || (group.id === 'production' && !navGroups.some(g => g.id === 'sales'))}>
+        {group.items.filter(item => !item.action).map(item => {
           const Icon = NAV_ICONS[item.id] || LayoutGrid;
-          const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));
+          const active = activeHref === item.href;
           return <Link key={item.id} href={item.href} aria-current={active ? 'page' : undefined} title={!expanded ? item.label : undefined} data-anim={NAV_ANIM[item.id] || 'nudge'}
-            className={cn('rf-nav-item relative flex h-8 items-center gap-3 whitespace-nowrap px-2.5 text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[hsl(var(--ring))]', active && 'rf-nav-active')}>
+            className={cn('rf-nav-item relative flex h-9 items-center gap-3 whitespace-nowrap px-2.5 text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[hsl(var(--ring))]', active && 'rf-nav-active')}>
             {active && <motion.span layoutId="rf-nav-pill" aria-hidden className="rf-nav-pill absolute inset-0 rounded-[7px]" transition={{ type: 'spring', stiffness: 520, damping: 40 }} />}
             <Icon size={16} strokeWidth={1.75} className="relative shrink-0" /><span className={cn('relative', !expanded && 'sr-only')}>{item.label}</span>
           </Link>;
-        })}</div>
-      </div>)}
+        })}
+      </NavigationGroup>)}
     </nav>
     <div className="sb-line shrink-0 border-t px-3 py-3">
       <div className="flex items-center gap-2.5 px-1.5 py-1.5">

@@ -1,3 +1,4 @@
+import { requireVisualizationStorage, storeVisualization } from '@/lib/features/product-3d/storage';
 import { applyAwning } from "../awning/configuration";
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
@@ -56,6 +57,7 @@ export async function approveIntake(
   office(a);
   z.string().uuid().parse(id);
   const data = IntakeApprovalSchema.parse(raw);
+  await requireVisualizationStorage("order_items",data.items);
   data.items = data.items.map((i) => {
     const item = i.awningConfiguration
       ? applyAwning(i, i.awningConfiguration)
@@ -95,8 +97,10 @@ export async function approveIntake(
         randomUUID().slice(0, 4).toUpperCase();
     const [order] =
       await tx`INSERT INTO orders(tenant_id,order_number,customer_name,email,phone,product_name,quantity,total_amount,currency,notes,delivery_date,status)VALUES(${a.tenantId},${number},${data.customerName},${data.email},${data.phone},${data.items[0].productName},${data.items.reduce((s, i) => s + i.quantity, 0)},${total},${data.currency},${data.notes},${data.deliveryDate || null},'pending')RETURNING id`;
-    for (const i of data.items)
-      await tx`INSERT INTO order_items(order_id,product_name,quantity,unit_price,total_price,color,width_mm,height_mm,projection_mm,mounting_height_mm,motor_type,led_type,fabric_type,awning_configuration,awning_preview,notes,custom_parameters,quantity_unit)VALUES(${order.id},${i.productName},${i.quantity},${i.unitPrice ?? i.totalPrice / i.quantity},${i.totalPrice},${i.color || null},${i.widthMm || null},${i.heightMm || null},${i.projectionMm || null},${i.mountingHeightMm || null},${i.motorType || null},${i.ledType || null},${i.fabricType || null},${i.awningConfiguration ? JSON.stringify(i.awningConfiguration) : null}::text::jsonb,${i.awningPreview || null},${i.notes || null},${JSON.stringify(i.customParameters || {})}::text::jsonb,${i.quantityUnit || "adet"})`;
+    for (const i of data.items) {
+      const [visualLine] = await tx`INSERT INTO order_items(order_id,product_name,quantity,unit_price,total_price,color,width_mm,height_mm,projection_mm,mounting_height_mm,motor_type,led_type,fabric_type,awning_configuration,awning_preview,notes,custom_parameters,quantity_unit)VALUES(${order.id},${i.productName},${i.quantity},${i.unitPrice ?? i.totalPrice / i.quantity},${i.totalPrice},${i.color || null},${i.widthMm || null},${i.heightMm || null},${i.projectionMm || null},${i.mountingHeightMm || null},${i.motorType || null},${i.ledType || null},${i.fabricType || null},${i.awningConfiguration ? JSON.stringify(i.awningConfiguration) : null}::text::jsonb,${i.awningPreview || null},${i.notes || null},${JSON.stringify(i.customParameters || {})}::text::jsonb,${i.quantityUnit || "adet"}) RETURNING id`;
+      await storeVisualization(tx,"order_items",a.tenantId,visualLine.id,i.productVisualization);
+    }
     for (const file of draft.documents) {
       const [stored] =
         await tx`SELECT name,mime,COALESCE(size_bytes,octet_length(body)) AS size FROM production_files WHERE tenant_id=${a.tenantId} AND id=${file.id}`;

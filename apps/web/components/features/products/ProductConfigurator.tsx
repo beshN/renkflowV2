@@ -6,6 +6,8 @@ import { readNumber } from '@/lib/features/products/csv';
 import { formatQty } from '@/lib/features/inventory/vocabulary';
 import { ColorPicker } from '@/components/colors/ColorPicker';
 import { ProductDrawing } from '@/components/drawing/ProductDrawing';
+import { ProductConfigurator as Product3DEditor } from '@/components/features/product-3d/ProductConfigurator';
+import { visualizationForRecipe } from '@/lib/features/product-3d/catalog';
 import { SkeletonRows } from '@/components/kit';
 import type { ConfigurationChoice, ProductConfiguration } from '@/lib/features/products/configuration';
 import { formatCurrency } from '@/lib/utils';
@@ -68,7 +70,9 @@ export function ProductConfigurator({ family, currency, initial, onApply, onClos
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    void requestJson<Options>(`/api/v1/products/configure?family=${family}`).then((r) => {
+    const controller = new AbortController();
+    void requestJson<Options>(`/api/v1/products/configure?family=${family}`, { signal: controller.signal }).then((r) => {
+      if (controller.signal.aborted) return;
       if (r.ok && r.data) {
         setOptions(r.data);
         if (recipeId && !r.data.recipes.some((x) => x.id === recipeId)) {
@@ -77,9 +81,11 @@ export function ProductConfigurator({ family, currency, initial, onApply, onClos
         } else if (!recipeId && r.data.recipes.length === 1) setRecipeId(r.data.recipes[0].id);
       } else setError(r.error || 'Yapılandırma seçenekleri alınamadı');
     });
+    return () => controller.abort();
   }, [family]);
 
   const recipe = options?.recipes.find((r) => r.id === recipeId);
+  const visual = visualizationForRecipe({ family, color, parameters: { widthMm: readNumber(dims.widthMm ?? '') ?? 0, projectionMm: readNumber(dims.projectionMm ?? '') ?? 0, mountingHeightMm: readNumber(dims.mountingHeightMm ?? '') ?? 0, led } });
 
   const calculate = async () => {
     setError('');
@@ -152,7 +158,7 @@ export function ProductConfigurator({ family, currency, initial, onApply, onClos
       </div>
       {/* Redraws as the measures are typed; the frame takes the chosen colour. */}
       <div className="rounded-md border border-border bg-background p-2">
-        <ProductDrawing family={family} widthMm={readNumber(dims.widthMm ?? '')} projectionMm={readNumber(dims.projectionMm ?? '')} heightMm={readNumber(dims.mountingHeightMm ?? '')} color={color} className="h-auto w-full max-h-72" />
+        {visual ? <Product3DEditor value={visual} readOnly /> : <ProductDrawing family={family} widthMm={readNumber(dims.widthMm ?? '')} projectionMm={readNumber(dims.projectionMm ?? '')} heightMm={readNumber(dims.mountingHeightMm ?? '')} color={color} className="h-auto w-full max-h-72" />}
       </div>
       <ColorPicker
         value={color}
@@ -161,13 +167,13 @@ export function ProductConfigurator({ family, currency, initial, onApply, onClos
         stockColors={options.colors.stock}
       />
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="rf-secondary-button" disabled={busy || !recipeId || !color} onClick={() => void calculate()}>{busy ? 'Hesaplanıyor…' : 'Malzeme listesi ve fiyatı hesapla'}</button>
+        <button type="button" className="rf-secondary-button" disabled={busy || !recipeId || !color} onClick={() => void calculate()}>{busy ? 'Hesaplanıyor…' : 'Fiyatı hesapla'}</button>
         <button type="button" className="rf-secondary-button" onClick={onClose}>Vazgeç</button>
       </div>
       {error && <p role="alert" className="text-xs text-rose-600">{error}</p>}
       {preview && (
         <div className="space-y-3">
-          <BomTables bom={preview.bom} />
+          <details><summary className="cursor-pointer text-xs font-medium">Malzeme ve kesim listesi</summary><div className="mt-3"><BomTables bom={preview.bom} /></div></details>
           {preview.price.source === 'matrix' ? (
             <p className="text-sm">Birim fiyat (fiyat matrisinden): <strong>{money(preview.price.matrixUnitPrice!, currency)}</strong> <span className="text-xs text-muted-foreground">{preview.price.lines.map((l) => `${l.label}: ${money(l.amount, currency)}`).join(' · ')}</span></p>
           ) : (

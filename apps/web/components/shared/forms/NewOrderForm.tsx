@@ -4,7 +4,10 @@ import { prepareBrowserFile, type UploadedFileReference } from '@/lib/storage/cl
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, Plus, Trash2 } from 'lucide-react';
-import { AwningDialog } from '@/components/features/awning/AwningConfigurator';
+import { InlineProductEditor } from '@/components/features/product-3d/InlineProductEditor';
+import { applyInlineVisualization } from '@/lib/features/product-3d/inline';
+import { defaultVisualization, productMeta } from '@/lib/features/product-3d/catalog';
+import { DEFAULT_AWNING } from '@/lib/features/awning/configuration';
 import { applyAwning } from '@/lib/features/awning/configuration';
 
 import { Button } from '@/components/ui/Button';
@@ -81,6 +84,8 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
   }, [form.customerName, form.customerId]);
 
   const [rawTotalAmount, setRawTotalAmount] = useState(String(initialData?.totalAmount ?? '0'));
+  const [editorKeys, setEditorKeys] = useState(() => initialItems(initialData).map(() => crypto.randomUUID()));
+  const invalid3d = useRef<Record<number, string>>({});
   const [items, setItems] = useState<NewOrderItemData[]>(() => initialItems(initialData));
 
   useEffect(() => {
@@ -90,6 +95,8 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
         setRawTotalAmount(String(initialData.totalAmount));
       }
       setItems(initialItems(initialData));
+      setEditorKeys(initialItems(initialData).map(() => crypto.randomUUID()));
+      invalid3d.current = {};
     }
   }, [initialData]);
 
@@ -113,6 +120,7 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
 
   const validate = (): boolean => {
     const nextErrors: FieldErrors = {};
+    items.forEach((_, index) => { if (invalid3d.current[index]) nextErrors[`items.${index}.configuration`] = invalid3d.current[index]; });
 
     if (!form.customerName.trim()) {
       nextErrors.customerName = 'Müşteri adı zorunlu alandır.';
@@ -221,6 +229,7 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
   };
 
   const addItem = () => {
+    setEditorKeys(prev => [...prev, crypto.randomUUID()]);
     setItems((prev) => [
       ...prev,
       { productName: '', quantity: 1, unitPrice: 0, totalPrice: 0 },
@@ -244,6 +253,8 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
   };
 
   const removeItem = (index: number) => {
+    setEditorKeys(prev => prev.length > 1 ? prev.filter((_, i) => i !== index) : prev);
+    invalid3d.current = Object.fromEntries(Object.entries(invalid3d.current).filter(([i]) => Number(i) !== index).map(([i, message]) => [Number(i) > index ? Number(i) - 1 : Number(i), message]));
     setItems((prev) => prev.length > 1 ? prev.filter((_, i) => i !== index) : prev);
   };
 
@@ -322,7 +333,7 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
         ) : (
           <div className="space-y-3">
             {items.map((item, idx) => (
-              <div key={idx} className="relative rounded-md border border-border bg-muted/30 p-3">
+              <div key={editorKeys[idx]} className="relative rounded-md border border-border bg-muted/30 p-3">
                 {items.length > 1 && (
                   <button type="button" onClick={() => removeItem(idx)} aria-label={`${idx + 1}. kalemi sil`} className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:text-rose-600">
                     <Trash2 size={15} />
@@ -336,11 +347,11 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
                   </label>
                   <label>
                     <span className={label}>Genişlik (mm)</span>
-                    <input type="number" min={1} step="any" inputMode="numeric" placeholder="4000" disabled={Boolean(item.awningConfiguration)} value={item.widthMm ?? ''} onChange={(e) => updateItem(idx, 'widthMm', e.target.value ? Number(e.target.value) : undefined)} className={input} />
+                    <input type="number" min={1} step="any" inputMode="numeric" placeholder="4000" disabled={Boolean(item.awningConfiguration || item.productVisualization)} value={item.widthMm ?? ''} onChange={(e) => updateItem(idx, 'widthMm', e.target.value ? Number(e.target.value) : undefined)} className={input} />
                   </label>
                   <label>
                     <span className={label}>Açılım (mm)</span>
-                    <input type="number" min={1} step="any" inputMode="numeric" placeholder="3500" disabled={Boolean(item.awningConfiguration)} value={item.projectionMm ?? ''} onChange={(e) => updateItem(idx, 'projectionMm', e.target.value ? Number(e.target.value) : undefined)} className={input} />
+                    <input type="number" min={1} step="any" inputMode="numeric" placeholder="3500" disabled={Boolean(item.awningConfiguration || item.productVisualization)} value={item.projectionMm ?? ''} onChange={(e) => updateItem(idx, 'projectionMm', e.target.value ? Number(e.target.value) : undefined)} className={input} />
                   </label>
                   <label>
                     <span className={label}>Adet *</span>
@@ -352,12 +363,12 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
                   <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <label className="col-span-2 sm:col-span-1">
                       <span className={label}>RAL renk / yüzey</span>
-                      <input type="text" disabled={Boolean(item.awningConfiguration)} value={item.color || ''} placeholder="RAL 7016 Mat" onChange={(e) => updateItem(idx, 'color', e.target.value)} className={input} />
+                      <input type="text" disabled={Boolean(item.awningConfiguration || item.productVisualization)} value={item.color || ''} placeholder="RAL 7016 Mat" onChange={(e) => updateItem(idx, 'color', e.target.value)} className={input} />
                       {item.color?.trim() && <ColorChip color={item.color} size={16} showName className="mt-1.5 text-xs" />}
                     </label>
                     <label>
                       <span className={label}>Ürün yüksekliği (mm)</span>
-                      <input type="number" min={1} step="any" placeholder="2500" value={item.heightMm ?? ''} onChange={(e) => updateItem(idx, 'heightMm', e.target.value ? Number(e.target.value) : undefined)} className={input} />
+                      <input type="number" min={1} step="any" placeholder="2500" disabled={Boolean(item.productVisualization)} value={item.heightMm ?? ''} onChange={(e) => updateItem(idx, 'heightMm', e.target.value ? Number(e.target.value) : undefined)} className={input} />
                     </label>
                     <label>
                       <span className={label}>Birim fiyat ({form.currency})</span>
@@ -371,12 +382,28 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
                       <span className={label}>Kalem notu</span>
                       <input value={item.notes || ''} onChange={(e) => updateItem(idx, 'notes', e.target.value)} placeholder="Profil serisi, aksesuar…" className={input} />
                     </label>
-                    <div className="col-span-2 flex flex-wrap items-center gap-3 sm:col-span-4">
-                      <AwningDialog configuration={item.awningConfiguration} previewImage={item.awningPreview} onApply={(c,image)=>setItems(prev=>prev.map((entry,i)=>i===idx?applyAwning({...entry,productName:entry.productName||'Makaslı tente'},c,image):entry))}/>
-                      {item.awningConfiguration && <span className="text-xs text-muted-foreground">Açılım: {item.awningConfiguration.projectionMm} mm · Montaj: {item.awningConfiguration.mountingHeightMm} mm</span>}
-                    </div>
                   </div>
                 </details>
+                <div className="mt-3">
+                  <InlineProductEditor
+                    label={`Kalem ${idx + 1} ürün seçimi`}
+                    productName={item.productName} visualization={item.productVisualization}
+                    awningConfiguration={item.awningConfiguration} previewImage={item.awningPreview}
+                    onValidationChange={message => { invalid3d.current[idx] = message; }}
+                    onSelect={kind => {
+                      invalid3d.current[idx] = '';
+                      setItems(prev => prev.map((entry, i) => {
+                        if (i !== idx) return entry;
+                        const plain = { ...entry, awningConfiguration: undefined, awningPreview: undefined, productVisualization: undefined };
+                        if (!kind) return { ...plain, productName: '', widthMm: undefined, heightMm: undefined, projectionMm: undefined, mountingHeightMm: undefined, color: undefined };
+                        if (kind === 'makasli') return applyAwning({ ...plain, productName: 'WINMAX Makaslı Tente' }, DEFAULT_AWNING);
+                        return applyInlineVisualization({ ...plain, productName: productMeta(kind).name }, { configuration: defaultVisualization(kind) });
+                      }));
+                    }}
+                    onChange={v => setItems(prev => prev.map((entry, i) => i === idx ? applyInlineVisualization(entry, v) : entry))}
+                    onChangeAwning={(c, image) => setItems(prev => prev.map((entry, i) => i === idx ? applyAwning({ ...entry, productVisualization: undefined, awningPreview: undefined }, c, image) : entry))}
+                  />
+                </div>
                 {Object.entries(errors).filter(([key]) => key.startsWith(`items.${idx}.`) && !key.endsWith('productName')).map(([key, message]) => <p key={key} role="alert" className="mt-1 text-xs text-rose-600">{message}</p>)}
               </div>
             ))}

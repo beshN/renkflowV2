@@ -1,3 +1,4 @@
+import { ProductVisualizationSchema } from '@/lib/features/product-3d/catalog';
 import {
   AwningConfigurationSchema,
   AwningPreviewSchema,
@@ -8,6 +9,7 @@ import { VAT_RATES } from "@/lib/features/sales/engine";
 import { ConfigurationChoiceSchema, type ProductConfiguration } from "@/lib/features/products/configuration";
 
 export const QuotationItemSchema = z.object({
+  productVisualization: ProductVisualizationSchema.optional(),
   awningConfiguration: AwningConfigurationSchema.optional(),
   awningPreview: AwningPreviewSchema.optional(),
   projectionMm: z.coerce.number().positive().optional(),
