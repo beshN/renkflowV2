@@ -37,9 +37,9 @@ function SortableItem({ id, columnId, label, disabled, children }: { id: string;
 
 function Column<T extends { id: string }>({ column, renderCard, getItemLabel, disabled, onAddCard }: { column: KanbanColumn<T>; renderCard: RFKanbanViewProps<T>['renderCard']; getItemLabel: (item: T) => string; disabled: boolean; onAddCard?: (id: string) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id, disabled, data: { kind: 'column', columnId: column.id } });
-  return <section ref={setNodeRef} aria-label={column.title + ' sütunu'} className={cn('flex w-[min(320px,calc(100vw-3rem))] shrink-0 flex-col rounded-2xl border border-border bg-muted/45 transition-colors', isOver && 'border-primary bg-primary/5 ring-2 ring-primary/20')}>
+  return <section ref={setNodeRef} aria-label={column.title + ' sütunu'} className={cn('flex h-[calc(100dvh-22rem)] min-h-96 w-[min(320px,calc(100vw-3rem))] shrink-0 flex-col rounded-2xl border border-border bg-muted/45 transition-colors', isOver && 'border-primary bg-primary/5 ring-2 ring-primary/20')}>
     <div className="flex items-center gap-2 px-4 py-4"><span className={cn('h-2.5 w-2.5 rounded-full', column.color || 'bg-slate-400')} /><h2 className="flex-1 text-sm font-semibold">{column.title}</h2><span className="rounded-md bg-background px-2 py-0.5 text-xs tabular-nums text-muted-foreground">{column.items.length}</span></div>
-    <div className="min-h-40 space-y-3 px-3 pb-3">
+    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain px-3 pb-3">
       <SortableContext id={column.id} items={column.items.map(item => item.id)} strategy={verticalListSortingStrategy}>
         {column.items.map(item => <SortableItem key={item.id} id={item.id} columnId={column.id} label={getItemLabel(item)} disabled={disabled}>{renderCard(item)}</SortableItem>)}
       </SortableContext>
