@@ -8,6 +8,8 @@ async function main() {
     await import("../lib/features/manufacturing/inbound.service");
   const { drainStorageCleanup } =
     await import("../lib/features/orders/deletion.service");
+  const { drainEInvoices } =
+    await import("../lib/features/einvoice/document.server");
   let stopped = false;
   process.on("SIGINT", () => {
     stopped = true;
@@ -20,6 +22,7 @@ async function main() {
       ["inbound", drainInbound],
       ["notifications", drainNotifications],
       ["storage-cleanup", drainStorageCleanup],
+      ["e-invoices", () => drainEInvoices(10)],
     ] as const) {
       try {
         await drain();

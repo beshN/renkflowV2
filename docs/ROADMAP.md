@@ -62,7 +62,7 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 | İş | Durum | Not |
 |---|---|---|
 | Fatura alan modeli (seri, numara, satır KDV'si, tevkifat) ve firmanın yasal kimliği | 🔄 | Fatura modeli 047'de zaten vardı (keşif raporu yanılmıştı). Bu iş: yasal kimlik (Ayarlar → Fatura), GİB numara serisi, tevkifat ve istisna, UBL-TR üretici. Tasarım: `docs/superpowers/specs/2026-10-14-e-belge-design.md` |
-| `EInvoiceProvider`, sahte sağlayıcı, gönderim kuyruğu, ekran durumları | ⬜ | UBL-TR üretici yukarıdaki işte. |
+| `EInvoiceProvider`, sahte sağlayıcı, gönderim kuyruğu, ekran durumları | 🔄 | Kesmede e-Fatura/e-Arşiv ayrımı, RNK/RNA serileri, kuyruk (gönder → sorgula → kabul/ret, hata ve yeniden deneme), iptal kuralları, XML indirme, müşteri fatura bilgileri. Gerçek entegratör seçilince yalnızca bir adaptör yazılacak. |
 | Gerçek entegratör adaptörü | ⏸ | |
 | Tekdüzen hesap planı, otomatik yevmiye, defter bazlı bilanço; hesap, yevmiye ve mizan ekranları | ⬜ | |
 | KDV beyanname taslağı ve Ba/Bs raporu | ⬜ | |

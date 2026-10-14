@@ -158,6 +158,7 @@ export const BACKEND_MIGRATIONS = [
   '051_activity_log_immutable.sql',
   '052_user_mfa.sql',
   '053_e_belge_core.sql',
+  '054_e_belge_addresses.sql',
   '055_exchange_rates.sql',
 ];
 
