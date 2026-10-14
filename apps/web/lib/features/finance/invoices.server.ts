@@ -8,6 +8,10 @@ import { resolveMemberAccess } from '@/lib/security/member-access.server';
 import { can, type Action } from '@/lib/security/access-matrix';
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
 import { exemptionCode, UNIT_CODES, withholdingCode, type UnitCode } from '@/lib/features/einvoice/codes';
+import { cancelEBelge, eBelgeProvider, prepareEBelge, retryEInvoice, ublInput } from '@/lib/features/einvoice/document.server';
+import { buildUblInvoice } from '@/lib/features/einvoice/ubl';
+import { syncLedger } from '@/lib/features/accounting/posting.server';
+import { effectiveRate } from '@/lib/features/fx/rates.server';
 import {
   COLLECTION_METHODS, DEFAULT_VAT_PERCENT, draftProblems, dueDate, estimateProfit, headerDiscountRatio, invoiceTotals, invoiceableLines, lineTotals, money, roundTo,
 } from './engine';
@@ -91,6 +95,7 @@ const invoiceDto = (i: Row) => ({
   customerName: i.customer_name as string, issuedOn: iso(i.issued_on), dueOn: iso(i.due_on), currency: i.currency as string,
   // 'grandTotal', not 'total': a whole-number 'total' next to a list reads as a page count to the redactor.
   subtotal: Number(i.subtotal), vatTotal: Number(i.vat_total), grandTotal: Number(i.total), withholdingTotal: Number(i.withholding_total ?? 0), payableTotal: payable(i), typeCode: (i.invoice_type_code ?? 'SATIS') as string, eInvoice: i.e_invoice_status as string,
+  documentType: (i.document_type ?? null) as string | null, ettn: i.ettn ? String(i.ettn) : null, eInvoiceError: (i.e_invoice_error ?? null) as string | null,
   cancelReason: i.cancel_reason ?? null, createdAt: i.created_at,
 });
 
@@ -222,6 +227,9 @@ export async function createInvoiceDraft(actor: WorkOrderActor, orderId: string,
     if (eBelgeColumns) {
       await tx`UPDATE invoices SET withholding_total = ${t.withholdingTotal}, payable_total = ${t.payable}, invoice_type_code = ${invoiceTypeCode(lines)} WHERE id = ${inv.id}`;
     }
+    if (c && (await columnExists('invoices', 'customer_city'))) {
+      await tx`UPDATE invoices SET customer_city = ${c.city ?? null}, customer_district = ${c.district ?? null} WHERE id = ${inv.id}`;
+    }
     let position = 0;
     for (const l of lines) {
       const x = lineTotals(l);
@@ -268,10 +276,28 @@ export async function issueInvoice(actor: WorkOrderActor, id: string, raw: unkno
     }
     const dueOn = d.dueOn ?? dueDate(issuedOn, terms);
     if (dueOn < issuedOn) fail('Vade, fatura tarihinden önce olamaz');
-    const number = await nextInvoiceNumber(tx, actor.tenantId);
+    // A foreign-currency invoice takes the TCMB forex buying rate in force on its date (unless one
+    // was entered): the ledger and the e-Belge both need it.
+    if (i.currency && i.currency !== 'TRY' && !i.exchange_rate && (await columnExists('invoices', 'exchange_rate'))) {
+      const fx = await effectiveRate(tx, i.currency, issuedOn).catch(() => null);
+      if (fx) {
+        await tx`UPDATE invoices SET exchange_rate = ${fx.rate} WHERE id = ${id}`;
+        i.exchange_rate = fx.rate;
+      }
+    }
+    // With an e-Belge provider the number comes from the GİB series and the invoice is queued for
+    // sending; without one it keeps the firm's internal FTR- numbering.
+    const provider = await eBelgeProvider();
+    const eBelge = provider ? await prepareEBelge(tx, provider, i, issuedOn) : null;
+    const number = eBelge?.number ?? (await nextInvoiceNumber(tx, actor.tenantId));
     await tx`UPDATE invoices SET status = 'issued', invoice_number = ${number}, issued_on = ${issuedOn}, due_on = ${dueOn}, issued_by = ${actor.userId}, issued_at = now(), version = version + 1, updated_at = now() WHERE id = ${id}`;
-    await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'order', entityId: i.order_id, action: 'invoice_issued', metadata: { invoiceId: id, number, total: Number(i.total), dueOn } });
-    return { id, number, issuedOn, dueOn };
+    if (eBelge && provider) {
+      await tx`UPDATE invoices SET document_type = ${eBelge.documentType}, profile = ${eBelge.profile}, ettn = ${eBelge.ettn}, e_invoice_status = 'queued',
+        e_invoice_provider = ${provider.name}, e_invoice_attempts = 0, e_invoice_next_attempt_at = now() WHERE id = ${id}`;
+    }
+    await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'order', entityId: i.order_id, action: 'invoice_issued', metadata: { invoiceId: id, number, total: Number(i.total), dueOn, ...(eBelge ? { documentType: eBelge.documentType, ettn: eBelge.ettn } : {}) } });
+    await syncLedger(tx, actor.tenantId, { invoiceId: id });
+    return { id, number, issuedOn, dueOn, eBelge: eBelge ? { documentType: eBelge.documentType, ettn: eBelge.ettn, status: 'queued' } : null };
   });
 }
 
@@ -283,9 +309,32 @@ export async function cancelInvoice(actor: WorkOrderActor, id: string, raw: unkn
     const i = await loadInvoice(tx, actor.tenantId, id);
     if (i.status !== 'issued') fail('Yalnız kesilmiş fatura iptal edilir; taslak silinir', 409);
     await writablePeriod(tx, actor.tenantId, iso(i.issued_on)!);
+    await cancelEBelge(tx, i);
     await tx`UPDATE invoices SET status = 'cancelled', cancel_reason = ${reason}, cancelled_by = ${actor.userId}, cancelled_at = now(), version = version + 1, updated_at = now() WHERE id = ${id}`;
     await tx`UPDATE payments SET invoice_id = NULL WHERE tenant_id = ${actor.tenantId} AND invoice_id = ${id}`;
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'order', entityId: i.order_id, action: 'invoice_cancelled', note: reason, metadata: { invoiceId: id, number: i.invoice_number } });
+    await syncLedger(tx, actor.tenantId, { invoiceId: id });
+  });
+}
+
+/** Puts a failed e-Belge back in the send queue (after its cause is fixed). */
+export async function retryInvoiceSend(actor: WorkOrderActor, id: string) {
+  await requireFinance(actor, 'edit');
+  await withTransaction(async (tx: any) => {
+    const i = await loadInvoice(tx, actor.tenantId, id);
+    await retryEInvoice(tx, i);
+    await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'order', entityId: i.order_id, action: 'e_invoice_retried', metadata: { invoiceId: id, number: i.invoice_number } });
+  });
+}
+
+/** The invoice's UBL-TR XML (unsigned; the provider signs what it sends). */
+export async function invoiceXml(actor: WorkOrderActor, id: string) {
+  await requireFinance(actor);
+  return withTransaction(async (tx: any) => {
+    const [i] = await tx`SELECT * FROM invoices WHERE tenant_id = ${actor.tenantId} AND id = ${id}`;
+    if (!i) fail('Fatura bulunamadı', 404);
+    if (!i.ettn) fail('Bu fatura e-Belge olarak kesilmedi', 409);
+    return { filename: `${i.invoice_number}.xml`, xml: buildUblInvoice(await ublInput(tx, i)) };
   });
 }
 
@@ -338,6 +387,7 @@ export async function recordCollection(actor: WorkOrderActor, raw: unknown) {
     const [p] = await tx`INSERT INTO payments (tenant_id, order_id, amount, currency, method, paid_at, note, created_by, invoice_id, reference, cheque_due_on)
       VALUES (${actor.tenantId}, ${d.orderId}, ${d.amount}, ${o.currency ?? 'TRY'}, ${d.method}, ${paidAt}, ${d.note || null}, ${actor.userId}, ${d.invoiceId ?? null}, ${d.reference || null}, ${d.chequeDueOn ?? null}) RETURNING id`;
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'order', entityId: d.orderId, action: 'collection_recorded', metadata: { paymentId: p.id, amount: d.amount, method: d.method, invoiceId: d.invoiceId ?? null } });
+    await syncLedger(tx, actor.tenantId, { paymentId: String(p.id) });
     return { id: String(p.id) };
   });
 }
@@ -358,10 +408,15 @@ export async function getInvoice(actor: WorkOrderActor, id: string) {
   if (!i) fail('Fatura bulunamadı', 404);
   const [lines, [tenant]] = await Promise.all([
     sql`SELECT * FROM invoice_lines WHERE invoice_id = ${id} ORDER BY position`,
-    sql`SELECT name FROM tenants WHERE id = ${actor.tenantId}`,
+    // to_jsonb: the legal identity columns exist from migration 053 on.
+    sql`SELECT name, to_jsonb(tenants) AS t FROM tenants WHERE id = ${actor.tenantId}`,
   ]);
+  const t = (tenant?.t ?? {}) as Row;
+  const sellerAddress = [t.address_line, t.district, t.city].filter(Boolean).join(', ') || null;
   return {
-    ...invoiceDto(i), seller: tenant?.name ?? null, taxNumber: i.customer_tax_number ?? null, taxOffice: i.customer_tax_office ?? null, address: i.customer_address ?? null, notes: i.notes ?? null,
+    ...invoiceDto(i), seller: (t.legal_name as string) || tenant?.name || null, sellerTaxNumber: t.tax_number ?? null, sellerTaxOffice: t.tax_office ?? null, sellerAddress,
+    taxNumber: i.customer_tax_number ?? null, taxOffice: i.customer_tax_office ?? null,
+    address: [i.customer_address, i.customer_district, i.customer_city].filter(Boolean).join(', ') || null, notes: i.notes ?? null,
     lines: lines.map((l: Row) => ({ id: String(l.id), description: l.description, quantity: Number(l.quantity), unitPrice: Number(l.unit_price), vatPercent: Number(l.vat_percent), netAmount: Number(l.net_amount), vatAmount: Number(l.vat_amount) })),
   };
 }

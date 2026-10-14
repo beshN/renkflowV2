@@ -34,6 +34,7 @@ import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { cn } from '@/lib/utils';
 import { BankStatementUpload } from './BankStatementUpload';
+import { LedgerPanel } from './LedgerPanel';
 
 export type AccountingTab =
   | 'overview'
@@ -42,7 +43,8 @@ export type AccountingTab =
   | 'cash-flow'
   | 'taxes'
   | 'benchmark'
-  | 'control-tower';
+  | 'control-tower'
+  | 'ledger';
 
 interface AccountingDashboardProps {
   period?: string;
@@ -508,6 +510,8 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
 
   return (
     <div className="space-y-6">
+      {activeTab === 'ledger' && <LedgerPanel period={normalizedPeriod} />}
+
       {activeTab === 'overview' && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -13,13 +13,13 @@ export function cronAuthorized(request: Request) {
  const expected = Buffer.from(`Bearer ${secret}`);
  return actual.length === expected.length && timingSafeEqual(actual,expected);
 }
-export async function runCron(request: Request, queue: "inbound" | "notifications" | "storage-cleanup") {
+export async function runCron(request: Request, queue: "inbound" | "notifications" | "storage-cleanup" | "e-invoices" | "fx") {
  const headers = {"Cache-Control":"no-store"};
  if (!cronAuthorized(request)) return Response.json({error:"Unauthorized"},{status:401,headers});
  // Preview DBs and providers stay isolated; Vercel only schedules production crons.
  if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "production") return Response.json({error:"Cron is disabled in previews"},{status:403,headers});
  try {
-  const result = queue === "inbound" ? await drainInbound(1) : queue === "notifications" ? await drainNotifications(5) : {cleanup:await drainStorageCleanup(undefined,20),orphaned:await sweepAbandonedUploads(),expiredRateLimits:await pruneRateLimitBuckets(),vehiclePositions:await pruneVehiclePositions(),detectors:await (await import('@/lib/ai/detectors/cron.server')).runDetectorsDue()};
+  const result = queue === "fx" ? await (await import("@/lib/features/fx/rates.server")).syncTcmb((await import("@/lib/db")).sql) : queue === "inbound" ? await drainInbound(1) : queue === "notifications" ? await drainNotifications(5) : queue === "e-invoices" ? await (await import("@/lib/features/einvoice/document.server")).drainEInvoices(10) : {cleanup:await drainStorageCleanup(undefined,20),orphaned:await sweepAbandonedUploads(),expiredRateLimits:await pruneRateLimitBuckets(),vehiclePositions:await pruneVehiclePositions(),detectors:await (await import('@/lib/ai/detectors/cron.server')).runDetectorsDue()};
   return Response.json({ok:true,queue,result},{headers});
  } catch {
   console.error(`[cron] ${queue} failed`);

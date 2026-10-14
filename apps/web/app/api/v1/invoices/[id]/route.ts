@@ -3,7 +3,7 @@ import { requireSameOriginJson } from '@/lib/features/manufacturing/http-securit
 import { requireWorkOrderActor } from '@/lib/features/work-orders/security';
 import { NO_STORE, recordError } from '@/lib/features/records/http';
 import { redactedJson } from '@/lib/security/field-access.server';
-import { cancelInvoice, deleteDraft, getInvoice, issueInvoice } from '@/lib/features/finance/invoices.server';
+import { cancelInvoice, deleteDraft, getInvoice, issueInvoice, retryInvoiceSend } from '@/lib/features/finance/invoices.server';
 
 export const dynamic = 'force-dynamic';
 type Ctx = { params: Promise<{ id: string }> };
@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   }
 }
 
-/** { action: 'issue', issuedOn?, dueOn? } | { action: 'cancel', reason }. */
+/** { action: 'issue', issuedOn?, dueOn? } | { action: 'cancel', reason } | { action: 'retry' } (failed e-Belge). */
 export async function POST(req: NextRequest, { params }: Ctx) {
   try {
     requireSameOriginJson(req, 10_000);
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const { action, ...body } = (await req.json()) as Record<string, unknown>;
     if (action === 'issue') return redactedJson(await issueInvoice(actor, id, body), { headers: NO_STORE });
     if (action === 'cancel') { await cancelInvoice(actor, id, body); return redactedJson({ ok: true }, { headers: NO_STORE }); }
+    if (action === 'retry') { await retryInvoiceSend(actor, id); return redactedJson({ ok: true }, { headers: NO_STORE }); }
     return recordError(new SyntaxError('action'), 'invoices');
   } catch (e) {
     return recordError(e, 'invoices');
