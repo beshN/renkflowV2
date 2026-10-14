@@ -65,24 +65,24 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 | `EInvoiceProvider`, sahte sağlayıcı, gönderim kuyruğu, ekran durumları | 🔄 | Kesmede e-Fatura/e-Arşiv ayrımı, RNK/RNA serileri, kuyruk (gönder → sorgula → kabul/ret, hata ve yeniden deneme), iptal kuralları, XML indirme, müşteri fatura bilgileri. Gerçek entegratör seçilince yalnızca bir adaptör yazılacak. |
 | Gerçek entegratör adaptörü | ⏸ | |
 | Tekdüzen hesap planı, otomatik yevmiye, defter bazlı bilanço; hesap, yevmiye ve mizan ekranları | 🔄 | Satış (120/600/601/391, tevkifatlı), tahsilat (100/101/102/108), iptal ve silinen tahsilat ters kaydı, KDV kayıtları, mizan ve yevmiye ekranı. Defter bazlı bilanço ve gider kayıtları sonraki adım. |
-| KDV beyanname taslağı ve Ba/Bs raporu | ⬜ | |
-| Banka ekstresi ayrıştırıcıları (CSV, MT940, OFX) | ⬜ | |
+| KDV dönem özeti (beyanname için) | ⬜ | **Ba/Bs kaldırıldı:** 565 Sıra No'lu VUK Genel Tebliği (RG 25.09.2024) ile Eylül 2024'ten itibaren Ba/Bs bildirimi yok; bu madde rapordan çıkarıldı. Kalan iş: muhasebeciye oran bazında satış matrahı/KDV, tevkifat ve indirilecek KDV özeti. |
+| Banka ekstresi ayrıştırıcıları (CSV, MT940, OFX) | 🔄 | Dosya yükleme, önizleme, tekrar yüklemede mükerrersiz ve eşleşmeyi koruyan içe aktarma. Bankadan otomatik çekme (açık bankacılık) banka sözleşmesi gerektirir. |
 | TCMB kur servisi ve tarihli kur tablosu | 🔄 | `exchange_rates`, günlük cron (Hobby'de çalışır), teklifte "TCMB'den al". Faturaya kur, e-Belge gönderimi birleşince eklenecek. |
 | Bordro köprüsü (yasal alanlar ve dışa aktarım) | ⬜ | |
-| KVKK: veri sahibi talepleri, saklama ve imha, silme akışı, rıza defteri | ⬜ | |
+| KVKK: veri sahibi talepleri, saklama ve imha, silme akışı, rıza defteri | 🔄 | Başvuru defteri (30 gün), veri dökümü, anonimleştirme (faturalar korunur), saklama belgesi `docs/kvkk.md`; günlük temizlik cron'u canlıda ilk kez çalışacak. Otomatik imha kuralı firma kararı bekliyor. |
 
 ### Faz 3: ERP derinliği
 
-| İş | Durum |
-|---|---|
-| Toplu içe aktarma sihirbazı (müşteri, tedarikçi, ürün, stok) | ⬜ |
-| Teklif isteği (RFQ) e-postası; SMS kanalı | ⬜ |
-| Müşteri portalı (sihirli bağlantıyla giriş) | ⬜ |
-| Ekipman bakımı ve fason üretim | ⬜ |
-| Stok maliyet yöntemi (ağırlıklı ortalama, FIFO) | ⬜ |
-| Özel alanlar ve pivot rapor | ⬜ |
-| `time_entries` tablosunun montaj ve servis işlerine bağlanması | ⬜ |
-| Genel API ve imzalı webhook'lar (öncelik dışı) | ⬜ |
+| İş | Durum | Not |
+|---|---|---|
+| Toplu içe aktarma sihirbazı (müşteri, tedarikçi, ürün, stok) | 🔄 | Müşteri listesi: CSV, otomatik sütun eşleme, kuru çalıştırma önizlemesi, VKN/e-posta/telefonla mükerrersiz, boş alan tamamlama. Tedarikçi ve ürün sonraki adım. |
+| Teklif isteği (RFQ) e-postası; SMS kanalı | ⬜ | |
+| Müşteri portalı (sihirli bağlantıyla giriş) | ⬜ | |
+| Ekipman bakımı ve fason üretim | ⬜ | |
+| Stok maliyet yöntemi (ağırlıklı ortalama, FIFO) | ⬜ | |
+| Özel alanlar ve pivot rapor | ⬜ | |
+| `time_entries` tablosunun montaj ve servis işlerine bağlanması | ⬜ | |
+| Genel API ve imzalı webhook'lar (öncelik dışı) | ⬜ | |
 
 ### Faz 4: Kullanım kalitesi
 

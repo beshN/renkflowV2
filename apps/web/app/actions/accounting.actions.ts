@@ -2089,7 +2089,7 @@ function mapBankStatementItem(
 
 export async function importBankStatementLines(
   input: ImportBankStatementInput
-): Promise<{ success: boolean; importedCount: number; error?: string }> {
+): Promise<{ success: boolean; importedCount: number; skippedCount?: number; error?: string }> {
   try {
     const session = await getSession();
     const reconciliationTableReady = await tableExists('bank_statement_lines');
@@ -2161,10 +2161,11 @@ export async function importBankStatementLines(
     }
 
     let importedCount = 0;
+    let skippedCount = 0;
     await sql.begin(async (tx: any) => {
       for (const line of normalizedLines) {
         if (line.externalId && line.accountId) {
-          await tx`
+          const inserted = await tx`
             INSERT INTO bank_statement_lines (
               tenant_id,
               account_id,
@@ -2198,19 +2199,25 @@ export async function importBankStatementLines(
               null,
               ${session.user.id}
             )
+            -- A line already imported is left as it is: re-uploading a statement must not undo matches.
             ON CONFLICT (tenant_id, account_id, external_id)
             WHERE external_id IS NOT NULL
-            DO UPDATE SET
-              statement_date = EXCLUDED.statement_date,
-              description = EXCLUDED.description,
-              reference = EXCLUDED.reference,
-              amount = EXCLUDED.amount,
-              reconciliation_status = 'unmatched',
-              matched_payment_id = NULL,
-              matched_expense_id = NULL,
-              matched_at = NULL,
-              updated_at = timezone('utc'::text, now())
+            DO NOTHING
+            RETURNING id
           `;
+          if (!(inserted as any[]).length) { skippedCount += 1; continue; }
+        } else if (line.externalId) {
+          // No bank account chosen: the unique index does not apply (NULL account), so check by hand.
+          const inserted = await tx`
+            INSERT INTO bank_statement_lines (tenant_id, account_id, source, external_id, statement_date, description, reference, amount, currency, reconciliation_status, imported_by)
+            SELECT ${session.user.tenantId}, NULL, 'manual_import', ${line.externalId}, ${line.statementDate}, ${line.description}, ${line.reference}, ${line.amount}, 'TRY', 'unmatched', ${session.user.id}
+            WHERE NOT EXISTS (
+              SELECT 1 FROM bank_statement_lines
+              WHERE tenant_id = ${session.user.tenantId} AND account_id IS NULL AND external_id = ${line.externalId}
+            )
+            RETURNING id
+          `;
+          if (!(inserted as any[]).length) { skippedCount += 1; continue; }
         } else {
           await tx`
             INSERT INTO bank_statement_lines (
@@ -2245,7 +2252,7 @@ export async function importBankStatementLines(
     });
 
     revalidatePath('/accounting');
-    return { success: true, importedCount };
+    return { success: true, importedCount, skippedCount };
   } catch (error) {
     console.error('[Accounting] Import bank statement lines error:', error);
     return { success: false, importedCount: 0, error: 'Banka hareketleri aktarılırken hata oluştu.' };
