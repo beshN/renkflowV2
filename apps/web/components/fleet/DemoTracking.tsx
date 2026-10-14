@@ -53,7 +53,7 @@ export function DemoTracking({ onClose }: { onClose: () => void }) {
               </span>
               <span className="flex flex-col items-end gap-1">
                 <StatusChip tone={s.status === 'driving' ? 'success' : 'neutral'} label={s.status === 'driving' ? 'Yolda' : 'Durdu'} />
-                <span className="text-sm font-semibold tabular-nums">{s.speedKmh} km/s</span>
+                <span className="text-sm font-semibold tabular-nums">{s.speedKmh} km/sa</span>
               </span>
             </button>
           </li>
