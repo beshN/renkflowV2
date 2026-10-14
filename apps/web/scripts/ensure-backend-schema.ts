@@ -158,6 +158,7 @@ export const BACKEND_MIGRATIONS = [
   '051_activity_log_immutable.sql',
   '052_user_mfa.sql',
   '053_e_belge_core.sql',
+  '055_exchange_rates.sql',
 ];
 
 /** Mobile API tables (sessions, offline receipts, uploads, push devices); applied after 045 (installations). */
