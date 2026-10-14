@@ -73,16 +73,16 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 
 ### Faz 3: ERP derinliği
 
-| İş | Durum |
-|---|---|
-| Toplu içe aktarma sihirbazı (müşteri, tedarikçi, ürün, stok) | ⬜ |
-| Teklif isteği (RFQ) e-postası; SMS kanalı | ⬜ |
-| Müşteri portalı (sihirli bağlantıyla giriş) | ⬜ |
-| Ekipman bakımı ve fason üretim | ⬜ |
-| Stok maliyet yöntemi (ağırlıklı ortalama, FIFO) | ⬜ |
-| Özel alanlar ve pivot rapor | ⬜ |
-| `time_entries` tablosunun montaj ve servis işlerine bağlanması | ⬜ |
-| Genel API ve imzalı webhook'lar (öncelik dışı) | ⬜ |
+| İş | Durum | Not |
+|---|---|---|
+| Toplu içe aktarma sihirbazı (müşteri, tedarikçi, ürün, stok) | 🔄 | Müşteri listesi: CSV, otomatik sütun eşleme, kuru çalıştırma önizlemesi, VKN/e-posta/telefonla mükerrersiz, boş alan tamamlama. Tedarikçi ve ürün sonraki adım. |
+| Teklif isteği (RFQ) e-postası; SMS kanalı | ⬜ | |
+| Müşteri portalı (sihirli bağlantıyla giriş) | ⬜ | |
+| Ekipman bakımı ve fason üretim | ⬜ | |
+| Stok maliyet yöntemi (ağırlıklı ortalama, FIFO) | ⬜ | |
+| Özel alanlar ve pivot rapor | ⬜ | |
+| `time_entries` tablosunun montaj ve servis işlerine bağlanması | ⬜ | |
+| Genel API ve imzalı webhook'lar (öncelik dışı) | ⬜ | |
 
 ### Faz 4: Kullanım kalitesi
 

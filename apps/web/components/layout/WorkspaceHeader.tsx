@@ -19,6 +19,9 @@ import { BrandMark } from '@/components/brand/BrandMark';
 /** Screens reached without a menu item still need their own breadcrumb. */
 const OFF_MENU_SECTIONS: Record<string, string> = { '/search': 'Arama', '/new-order': 'Yeni sipariş', '/kanban': 'Sipariş panosu' };
 
+/** Sub-pages with their own name in the breadcrumb (others read "Detay"). */
+const SUBPAGE_LABELS: Record<string, string> = { '/crm/import': 'İçe aktar' };
+
 export function WorkspaceHeader() {
   const pathname = usePathname();
   const { user } = useAuth();
@@ -64,7 +67,7 @@ export function WorkspaceHeader() {
       <Link href="/dashboard" className="hidden text-muted-foreground hover:text-foreground lg:block">Çalışma alanı</Link>
       <ChevronRight size={13} className="hidden text-muted-foreground/60 lg:block" />
       <span className="truncate font-medium text-foreground">{section}</span>
-      {detail && <><ChevronRight size={13} className="text-muted-foreground/60" /><span className="text-muted-foreground">Detay</span></>}
+      {detail && <><ChevronRight size={13} className="text-muted-foreground/60" /><span className="text-muted-foreground">{SUBPAGE_LABELS[pathname] ?? 'Detay'}</span></>}
     </div>
     <div className="ml-auto flex shrink-0 items-center gap-1.5 md:gap-3">
       <button type="button" onClick={openCommands} aria-label="Sipariş, müşteri veya modül ara" aria-keyshortcuts="Meta+K Control+K" className="rf-global-search flex h-8 items-center gap-2 border border-border bg-card px-2.5 text-xs text-muted-foreground">
