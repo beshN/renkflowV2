@@ -1,3 +1,5 @@
+import { assistantFormHref } from '@/lib/ai/assistant-form-drafts';
+import { assistantModelInfo } from '@/lib/ai/model-info';
 import { NextRequest, NextResponse } from 'next/server';
 import { tenantPersonalNames } from '@/lib/ai/known-names';
 import { z, ZodError } from 'zod';
@@ -26,10 +28,12 @@ export async function POST(req:NextRequest) {
   const actions=(body.mode==='proactive'?[]:answer.actions).slice(0,3).filter(action=>{
    const permissions=snapshot.data.access?.permissions??{};
    if(action.kind==='navigate') {const href=safeAssistantHref(action.href);if(!href)return false;const pathname=new URL(href,'https://internal.invalid').pathname,need=routeRequirement(pathname,'GET');return canAccessRoute(actor.role,pathname)&&(!need||permissions[need.module]?.includes(need.action)||need.orCreate&&permissions[need.module]?.includes('create'));}
+   if(action.kind==='warehouseDraft')return ['owner','admin'].includes(actor.role) && permissions.inventory?.includes('edit') && Boolean(assistantFormHref(action.kind,action.note));
+   if(action.kind==='attendanceDraft')return hasPermission(actor.role,'finance.employees.edit') && permissions.finance?.includes('edit') && Boolean(assistantFormHref(action.kind,action.note));
    if(action.kind==='orderNote')return hasPermission(actor.role,'orders.edit') && actor.role!=='worker' && permissions.orders?.includes('edit');
    return hasPermission(actor.role,'orders.create') && ['owner','admin','office'].includes(actor.role) && permissions.orders?.includes('create');
   });
-  return NextResponse.json({success:true,response:answer.answer,suggestions:answer.suggestions.slice(0,4),actions,toolsUsed:[...new Set([...Object.keys(snapshot.data).filter(k=>Array.isArray(snapshot.data[k]) && !['unavailable'].includes(k)),...searched])],context:{generatedAt:snapshot.data.generatedAt,scope:snapshot.data.scope},confidence:null},{headers:{'Cache-Control':'private, no-store'}});
+  return NextResponse.json({success:true,model:assistantModelInfo(answer.modelUsed),response:answer.answer,suggestions:answer.suggestions.slice(0,4),actions,toolsUsed:[...new Set([...Object.keys(snapshot.data).filter(k=>Array.isArray(snapshot.data[k]) && !['unavailable'].includes(k)),...searched])],context:{generatedAt:snapshot.data.generatedAt,scope:snapshot.data.scope},confidence:null},{headers:{'Cache-Control':'private, no-store'}});
  } catch(error) {
   if(error instanceof WorkOrderApiError)return NextResponse.json({error:error.message},{status:error.status});
   if(error instanceof ModelBlockedError)return NextResponse.json({error:error.message,code:error.block},{status:409});

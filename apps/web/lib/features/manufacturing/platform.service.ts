@@ -1,3 +1,4 @@
+import { WarehouseInputSchema } from '../warehouse/setup';
 import "server-only";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -392,17 +393,18 @@ async function execute(
   }
   if (action === "warehouse.save") {
     manager(a);
-    const d = z
-      .object({
-        code: text,
-        name: text,
-        type: z.enum(["RAW", "WIP", "FINISHED", "REUSABLE_REMNANTS", "SCRAP", "REJECTED"]),
-      })
-      .parse(data);
-    return (
-      await tx`INSERT INTO warehouses(tenant_id,code,name,warehouse_type)VALUES(${t},${d.code},${d.name},${d.type})RETURNING *`
-    )[0];
+    const d = WarehouseInputSchema.parse(data);
+    let code = d.code;
+    if (!code) {
+      const [r] = await tx`SELECT COUNT(*) AS n FROM warehouses WHERE tenant_id=${t}`;
+      let n = Number(r.n) + 1;
+      code = `DEP-${String(n).padStart(3, '0')}`;
+      while ((await tx`SELECT id FROM warehouses WHERE tenant_id=${t} AND UPPER(code)=UPPER(${code})`).length) code = `DEP-${String(++n).padStart(3, '0')}`;
+    }
+    if ((await tx`SELECT id FROM warehouses WHERE tenant_id=${t} AND UPPER(code)=UPPER(${code})`).length) fail('Bu depo kodu zaten kayıtlı', 409);
+    return (await tx`INSERT INTO warehouses(tenant_id,code,name,warehouse_type)VALUES(${t},${code},${d.name},${d.type})RETURNING *`)[0];
   }
+
   if (action === "center.save" || action === "resource.save") {
     manager(a);
     const resource=action==='resource.save', d=resource ? ResourceSchema.parse(data) : CenterSchema.parse(data);

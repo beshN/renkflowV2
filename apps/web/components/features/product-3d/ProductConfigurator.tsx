@@ -1,4 +1,5 @@
 "use client";
+import { useConfigurationDraft } from '@/lib/hooks/useConfigurationDraft';
 import { useEffect, useRef, useState } from "react";
 import { Expand, Play, RotateCcw, Check } from "lucide-react";
 import Image from "next/image";
@@ -41,7 +42,7 @@ export function ProductConfigurator({
   onValidationChange?: (message: string) => void;
   showProductPicker?: boolean;
 }) {
-  const [draft, setDraft] = useState<VisualizationConfiguration>(
+  const [draft, setDraft] = useConfigurationDraft<VisualizationConfiguration>(
     value?.configuration ?? defaultVisualization(kind),
   );
   const [opening, setOpening] = useState(0),
@@ -55,10 +56,6 @@ export function ProductConfigurator({
     controller = useRef<ProductStage | null>(null),
     initial = useRef(draft),
     rendered = useRef("");
-  const readonlySignature = readOnly && value ? JSON.stringify(value.configuration) : '';
-  useEffect(() => {
-    if (readonlySignature) setDraft(JSON.parse(readonlySignature));
-  }, [readonlySignature]);
   const meta = productMeta(draft.kind),
     roof = meta.category === "roof",
     motion = meta.motion !== "none";
@@ -111,7 +108,7 @@ export function ProductConfigurator({
     let cancelled = false;
     setRendering(true);
     setError("");
-    const timer = window.setTimeout(() => {
+    const frame = requestAnimationFrame(() => {
     controller.current
       ?.setConfiguration(valid.data)
       .then(() => {
@@ -126,10 +123,10 @@ export function ProductConfigurator({
           setError("Ürün görünümü yüklenemedi.");
         }
       });
-    }, 80);
+    });
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
+      cancelAnimationFrame(frame);
     };
   }, [draft, ready]);
   const changeHandler = useRef(onChange), validationHandler = useRef(onValidationChange);
@@ -153,7 +150,7 @@ export function ProductConfigurator({
       if (image) changeHandler.current?.({ configuration: valid.data, image });
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [draft, ready, rendering, opening, view, time]);
+  }, [draft, ready, rendering, opening, view, time, readOnly]);
   const update = <K extends keyof VisualizationConfiguration>(
     key: K,
     v: VisualizationConfiguration[K],

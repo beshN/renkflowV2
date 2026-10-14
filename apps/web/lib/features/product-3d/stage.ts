@@ -366,6 +366,7 @@ export async function createProductStage(
     renderer.forceContextLoss();
   }
   async function setConfiguration(next: VisualizationConfiguration) {
+    if (disposed || lost) return;
     const request = ++version;
     if (model && sameGeometry(c, next)) {
       c = next;
@@ -378,6 +379,8 @@ export async function createProductStage(
       built.dispose();
       return;
     }
+    const sameProduct = c.kind === next.kind;
+    const previous = dimensions();
     if (model) {
       scene.remove(model.group);
       model.dispose();
@@ -386,7 +389,13 @@ export async function createProductStage(
     model = built;
     scene.add(model.group);
     model.update(opening);
-    selectView(view);
+    if (!sameProduct || request === 1) selectView(view);
+    else {
+      const current = dimensions();
+      target.y += (current.h - previous.h) * 0.57;
+      target.z += (current.roof ? current.d - previous.d : 0) * 0.48;
+      distance *= Math.max(1, current.w / previous.w, current.h / previous.h);
+    }
     setTime(time);
     resize();
   }

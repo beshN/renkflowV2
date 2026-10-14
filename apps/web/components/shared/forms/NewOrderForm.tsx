@@ -4,6 +4,8 @@ import { prepareBrowserFile, type UploadedFileReference } from '@/lib/storage/cl
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, Plus, Trash2 } from 'lucide-react';
+import { ProductNameInput } from '@/components/features/product-3d/ProductNameInput';
+import { applyProductSelection } from '@/lib/features/product-3d/product-search';
 import { InlineProductEditor } from '@/components/features/product-3d/InlineProductEditor';
 import { applyInlineVisualization } from '@/lib/features/product-3d/inline';
 import { defaultVisualization, productMeta } from '@/lib/features/product-3d/catalog';
@@ -342,7 +344,7 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
                 <div className="grid grid-cols-2 gap-3 pr-6 sm:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
                   <label className="col-span-2 sm:col-span-1">
                     <span className={label}>Ürün / sistem *</span>
-                    <input type="text" value={item.productName} required placeholder="Örn: Makaslı pergola" onChange={(e) => updateItem(idx, 'productName', e.target.value)} className={input} />
+                    <ProductNameInput label={`Kalem ${idx + 1} ürün adı`} value={item.productName} className={input} onChange={name => updateItem(idx, 'productName', name)} onSelect={kind => setItems(prev => prev.map((entry, i) => i === idx ? applyProductSelection(entry, kind) : entry))} />
                     {errors[`items.${idx}.productName`] && <span className="mt-1 block text-xs text-rose-600">{errors[`items.${idx}.productName`]}</span>}
                   </label>
                   <label>
@@ -390,16 +392,7 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
                     productName={item.productName} visualization={item.productVisualization}
                     awningConfiguration={item.awningConfiguration} previewImage={item.awningPreview}
                     onValidationChange={message => { invalid3d.current[idx] = message; }}
-                    onSelect={kind => {
-                      invalid3d.current[idx] = '';
-                      setItems(prev => prev.map((entry, i) => {
-                        if (i !== idx) return entry;
-                        const plain = { ...entry, awningConfiguration: undefined, awningPreview: undefined, productVisualization: undefined };
-                        if (!kind) return { ...plain, productName: '', widthMm: undefined, heightMm: undefined, projectionMm: undefined, mountingHeightMm: undefined, color: undefined };
-                        if (kind === 'makasli') return applyAwning({ ...plain, productName: 'WINMAX Makaslı Tente' }, DEFAULT_AWNING);
-                        return applyInlineVisualization({ ...plain, productName: productMeta(kind).name }, { configuration: defaultVisualization(kind) });
-                      }));
-                    }}
+                    onSelect={kind => setItems(prev => prev.map((entry, i) => i === idx ? applyProductSelection(entry, kind) : entry))}
                     onChange={v => setItems(prev => prev.map((entry, i) => i === idx ? applyInlineVisualization(entry, v) : entry))}
                     onChangeAwning={(c, image) => setItems(prev => prev.map((entry, i) => i === idx ? applyAwning({ ...entry, productVisualization: undefined, awningPreview: undefined }, c, image) : entry))}
                   />

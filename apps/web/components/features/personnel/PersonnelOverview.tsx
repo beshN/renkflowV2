@@ -1,7 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { AttendanceEntryDialog } from './AttendanceEntryDialog';
+import type { AttendancePolicy } from '@/lib/features/personnel/attendance-policy';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { AlertTriangle, CalendarRange, HandCoins, List, Plus, UserRound, Users, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
@@ -17,7 +19,7 @@ type Row = {
   attendance: Array<{ day: string; kind: AttendanceKind; deducted: boolean; note: string | null }>;
 };
 type Overview = {
-  period: string; today: string; rows: Row[];
+  period: string; today: string; rows: Row[]; policy: AttendancePolicy;
   totals: { active: number; earned: Record<string, number>; advance: Record<string, number>; remaining: Record<string, number>; absentDays: number; missingPay: number };
   canEdit: boolean; canLedger: boolean; canDeleteLedger: boolean;
 };
@@ -39,6 +41,9 @@ export function PersonnelOverview() {
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const [attendanceDraft, setAttendanceDraft] = useState<{employeeId:string;day:string;kind:AttendanceKind} | null>(null);
+  useEffect(() => { const q = new URLSearchParams(window.location.search), employeeId = q.get('employeeId'), day = q.get('day'), kind = q.get('kind'); if (q.get('attendance') === 'new') setAttendanceOpen(true); if (employeeId && day && kind && kind in ATTENDANCE) { setAttendanceDraft({ employeeId, day, kind: kind as AttendanceKind }); setAttendanceOpen(true); } }, []);
+  const [attendanceOpen, setAttendanceOpen] = useState(false);
   const [period, setPeriodState] = useState(params.get('period') || '');
   const view = params.get('view') === 'puantaj' ? 'puantaj' : 'list';
   const { data, error, loading, busy, act } = usePersonnel<Overview>(period ? `period=${period}` : '');
@@ -66,7 +71,7 @@ export function PersonnelOverview() {
   return (
     <div className="rf-page space-y-5">
       <PageHeader eyebrow="Finans & muhasebe" title="Personel"
-        hint="Aylık maaş 30 gün esasıyla hesaplanır: bir gün = maaş / 30. Gelmediği gün, yarım gün ve ücretsiz izin maaştan kesilir; raporlu, ücretli izin ve yıllık izin kesilmez (gün bazında değiştirilebilir). Avans ve maaş ödemeleri seçtiğiniz ayın kalanından düşer. Tutarlar net ücrettir; resmi bordro muhasebecinizdedir."
+        hint="Aylık maaş 30 gün esasıyla hesaplanır: bir gün = maaş / 30. Gelmediği gün, yarım gün ve ücretsiz izin maaştan kesilir; raporlu, ücretli izin ve yıllık izin kesilmez. Avans ve maaş ödemeleri seçtiğiniz ayın kalanından düşer. Tutarlar net ücrettir; resmi bordro muhasebecinizdedir."
         kpis={data ? [
           { label: 'aktif çalışan', value: data.totals.active, icon: Users },
           { label: 'bu ay hak edilen', value: sumText(data.totals.earned), icon: Wallet },
@@ -83,6 +88,8 @@ export function PersonnelOverview() {
           {data?.canEdit && <button type="button" onClick={() => setCreating(true)} className="rf-primary-button h-9 items-center gap-2 px-3 text-xs"><Plus size={14} /> Çalışan ekle</button>}
         </>} />
 
+      {data && <div className="flex flex-wrap gap-2">{data.canEdit && <button className="rf-primary-button" onClick={() => { setAttendanceDraft(null); setAttendanceOpen(true); }}>Devamsızlık / izin ekle</button>}<Link className="rf-secondary-button" href="/settings#personel">Kesinti kuralları</Link></div>}
+      {data && <AttendanceEntryDialog open={attendanceOpen} initial={attendanceDraft} onClose={() => setAttendanceOpen(false)} busy={busy} rows={rows} today={data.today} policy={data.policy} onSave={input => act('attendance.set', input)} />}
       {error && <p role="alert" className="rounded-md border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-950/30 dark:text-rose-200">{error}</p>}
       {data && data.totals.missingPay > 0 && (
         <p className="flex items-center gap-2 rounded-md border border-amber-600/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-900 dark:text-amber-200"><AlertTriangle size={14} />{data.totals.missingPay} çalışanın ücreti girilmemiş; hesap için kartına ücret ekleyin.</p>
@@ -169,7 +176,7 @@ export function PersonnelOverview() {
 
       <EmployeeDialog open={creating} onClose={() => setCreating(false)} employee={null} busy={busy} onSave={async (input) => { await act('employee.save', input); toast.success('Çalışan eklendi'); }} />
       {ledger && data && (
-        <LedgerDialog open onClose={() => setLedger(null)} busy={busy} employeeName={ledger.row.fullName} currency={ledger.row.currency} defaultKind={ledger.kind} period={p} today={data.today}
+        <LedgerDialog open onClose={() => setLedger(null)} busy={busy} employeeName={ledger.row.fullName} currency={ledger.row.currency} defaultKind={ledger.kind} calculation={ledger.row.pay} period={p} today={data.today}
           onSave={async (input) => { await act('ledger.add', { ...input, employeeId: ledger.row.id }); toast.success('Kaydedildi'); }} />
       )}
     </div>

@@ -1,4 +1,5 @@
 import "server-only";
+import { hasPermission } from '@/lib/auth/permissions';
 import { sql } from "@/lib/db";
 import { resolveMemberAccess } from "@/lib/security/member-access.server";
 import {
@@ -49,7 +50,11 @@ export async function searchAssistantRecords(
     ? query
     : null;
   let result: unknown;
-  if (category === "quotations" && can(access, "quotations", "view"))
+  if (category === 'employees' && can(access,'finance','view') && hasPermission(actor.role,'finance.employees.view'))
+    result = await sql`SELECT id, full_name, department, active FROM employees WHERE tenant_id=${t} AND full_name ILIKE ${q} ORDER BY full_name LIMIT 20`;
+  else if (category === 'warehouses' && can(access,'inventory','view'))
+    result = await sql`SELECT id,code,name,warehouse_type FROM warehouses WHERE tenant_id=${t} AND active AND (name ILIKE ${q} OR code ILIKE ${q}) ORDER BY code LIMIT 30`;
+  else if (category === "quotations" && can(access, "quotations", "view"))
     result =
       await sql`SELECT id,quotation_number,customer_name,status,currency,total_amount,valid_until FROM quotations WHERE tenant_id=${t} AND (quotation_number ILIKE ${q} OR customer_name ILIKE ${q}) ORDER BY created_at DESC LIMIT 20`;
   else if (category === "purchases" && can(access, "purchasing", "view"))

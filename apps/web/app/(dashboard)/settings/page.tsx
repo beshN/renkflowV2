@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
+import { AttendancePolicySettings } from '@/components/settings/AttendancePolicySettings';
 import { TenantSettings } from '@/components/settings/TenantSettings';
 import { LegalIdentitySettings } from '@/components/settings/LegalIdentitySettings';
 import { PrivacyRequests } from '@/components/settings/PrivacyRequests';
@@ -21,6 +22,7 @@ const TABS = [
   { id: 'uretim', label: 'Üretim ve renkler' },
   { id: 'teklif', label: 'Teklif' },
   { id: 'asistan', label: 'Asistan' },
+  { id: 'personel', label: 'Çalışanlar' },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
@@ -53,7 +55,8 @@ export default function SettingsPage() {
           {tab === 'kvkk' && panel(<PrivacyRequests />)}
           {tab === 'uretim' && <>{panel(<ProductionSettings />)}{panel(<ColorCatalogSettings />)}{panel(<ProductionReasonSettings />)}</>}
           {tab === 'teklif' && <>{panel(<QuoteRulesSettings />)}{panel(<RecordSettings />)}</>}
-          {tab === 'asistan' && <>
+          {tab === 'personel' && panel(<AttendancePolicySettings />)}
+      {tab === 'asistan' && <>
             <div id="asistan" className="rf-panel p-5 md:p-6"><AssistantSettings /></div>
             <details className="rf-panel p-5 md:p-6"><summary className="cursor-pointer text-sm font-semibold">Asistan performansı</summary><div className="mt-4"><AssistantPerformance /></div></details>
           </>}

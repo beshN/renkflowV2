@@ -100,6 +100,8 @@ export const ASSISTANT_SEARCH_CATEGORIES = [
   "suppliers",
   "shipments",
   "recipes",
+  "employees",
+  "warehouses",
   "order-detail",
   "quote-detail",
 ] as const;

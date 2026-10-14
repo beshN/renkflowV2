@@ -163,6 +163,7 @@ export const BACKEND_MIGRATIONS = [
   '056_ledger_posting.sql',
   '057_kvkk_requests.sql',
   '058_expense_vat.sql',
+  '059_attendance_policy.sql',
 ];
 
 /** Mobile API tables (sessions, offline receipts, uploads, push devices); applied after 045 (installations). */

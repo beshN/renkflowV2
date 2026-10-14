@@ -6,7 +6,7 @@ import type { ModelUnavailableReason } from '@/lib/ai/policy';
 import type { AssistantInsight } from '@/lib/ai/workspace';
 export function useAssistantInsights() {
  const {user}=useAuth(),pathname=usePathname(),scope=user?[user.tenantId,user.id,user.role].join(':'):'';
- const [result,setResult]=useState<{scope:string;path:string;insights:AssistantInsight[];brief:string;modelEnabled?:boolean;modelUnavailableReason?:ModelUnavailableReason}>({scope:'',path:'',insights:[],brief:''});
+ const [result,setResult]=useState<{scope:string;path:string;model?:{provider:string;id:string;label:string;verifiedResponse:boolean};insights:AssistantInsight[];brief:string;modelEnabled?:boolean;modelUnavailableReason?:ModelUnavailableReason}>({scope:'',path:'',insights:[],brief:''});
  useEffect(()=>{
   if(!scope)return;
   let active=true,controller:AbortController|null=null,fetching=false;
@@ -17,7 +17,7 @@ export function useAssistantInsights() {
     const res=await fetch('/api/ai/insights?path='+encodeURIComponent(pathname),{signal:controller.signal,cache:'no-store'});
     if(!res.ok)return;
     const data=await res.json();if(!active)return;
-    setResult({scope,path:pathname,insights:data.insights || [],brief:'',modelEnabled:Boolean(data.modelEnabled),modelUnavailableReason:data.modelUnavailableReason??undefined});
+    setResult({scope,path:pathname,model:data.model,insights:data.insights || [],brief:'',modelEnabled:Boolean(data.modelEnabled),modelUnavailableReason:data.modelUnavailableReason??undefined});
     // Model review runs automatically, once per scope per three minutes; alerts stay available without it.
     const key='rf.assistant.brief:'+scope;
     let saved:any=null;try{saved=JSON.parse(sessionStorage.getItem(key)||'null');}catch{/* Storage is optional. */}

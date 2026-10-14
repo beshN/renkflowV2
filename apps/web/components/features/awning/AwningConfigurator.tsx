@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useConfigurationDraft } from '@/lib/hooks/useConfigurationDraft';
 import Image from "next/image";
 import { Box, Expand, Play, RotateCcw, Check, X } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -20,6 +21,9 @@ const views: [AwningView, string][] = [
   ["perspective", "Perspektif"],
   ["front", "Ön"],
   ["top", "Üst"],
+  ["side", "Yan"],
+  ["under", "Alt"],
+  ["detail", "Mekanizma"],
 ];
 export function AwningConfigurator({
   value = DEFAULT_AWNING,
@@ -36,7 +40,8 @@ export function AwningConfigurator({
   onChange?: (value: AwningConfiguration, image?: string) => void;
   onValidationChange?: (message: string) => void;
 }) {
-  const [draft, setDraft] = useState(value),
+  const [draft, setDraft] = useConfigurationDraft(value);
+  const
     [opening, setOpening] = useState(85),
     [time, setTime] = useState(0),
     [error, setError] = useState(""),
@@ -85,8 +90,8 @@ export function AwningConfigurator({
   useEffect(() => {
     const valid = AwningConfigurationSchema.safeParse(draft);
     if (!ready || !valid.success) return;
-    const timer = window.setTimeout(() => controller.current?.setConfiguration(valid.data), 80);
-    return () => window.clearTimeout(timer);
+    const frame = requestAnimationFrame(() => controller.current?.setConfiguration(valid.data));
+    return () => cancelAnimationFrame(frame);
   }, [draft, ready]);
   const changeHandler = useRef(onChange), validationHandler = useRef(onValidationChange);
   changeHandler.current = onChange;
@@ -109,7 +114,7 @@ export function AwningConfigurator({
       if (image) changeHandler.current?.(valid.data, image);
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [draft, ready, sceneError, opening, view, time]);
+  }, [draft, ready, sceneError, opening, view, time, readOnly]);
   function update<K extends keyof AwningConfiguration>(
     key: K,
     value: AwningConfiguration[K],
@@ -131,10 +136,11 @@ export function AwningConfigurator({
   }
   return (
     <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <style>{`.rf-awning-stage:fullscreen {width:100vw;height:100dvh;border:0;border-radius:0}.rf-awning-stage:fullscreen canvas {width:100vw;height:100dvh}`}</style>
       <div className="min-w-0 space-y-3">
         <div
           ref={stage}
-          className="relative overflow-hidden rounded-lg border border-border bg-[#eceeeb]"
+          className="rf-awning-stage relative overflow-hidden rounded-lg border border-border bg-[#eceeeb]"
         >
           <div
             className={`pointer-events-none absolute left-5 top-5 z-10 ${time > 70 ? "text-slate-100" : "text-[#203641]"}`}

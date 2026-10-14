@@ -1,3 +1,4 @@
+import { assistantFormHref } from '@/lib/ai/assistant-form-drafts';
 import { NextRequest,NextResponse } from 'next/server';
 import { z,ZodError } from 'zod';
 import { createHash } from 'node:crypto';
@@ -16,6 +17,17 @@ export async function POST(req:NextRequest) {
   const access=await resolveMemberAccess(a.userId,a.tenantId);if(!access||access.deactivated)throw new WorkOrderApiError('Etkin firma üyeliği gerekli.',403);
   const {commandId,action}=schema.parse(JSON.parse(text));
   if(action.kind==='navigate') {const href=safeAssistantHref(action.href);if(!href || !canAccessRoute(a.role,new URL(href,'https://internal.invalid').pathname))throw new WorkOrderApiError('Bu ekran mevcut rolünüz için kullanılamıyor.',403);return NextResponse.json({href});}
+  if (action.kind === 'warehouseDraft' || action.kind === 'attendanceDraft') {
+    const href = assistantFormHref(action.kind, action.note);
+    if (!href) throw new WorkOrderApiError('Form bilgileri geçersiz.', 400);
+    if (action.kind === 'warehouseDraft' && (!['owner','admin'].includes(a.role) || !can(access,'inventory','edit'))) throw new WorkOrderApiError('Depo oluşturma yetkisi gerekli.',403);
+    if (action.kind === 'attendanceDraft') {
+      if (!hasPermission(a.role,'finance.employees.edit') || !can(access,'finance','edit')) throw new WorkOrderApiError('Çalışan devam kaydı düzenleme yetkisi gerekli.',403);
+      const employeeId = new URL(href, 'https://internal.invalid').searchParams.get('employeeId');
+      if (!(await sql`SELECT id FROM employees WHERE tenant_id=${a.tenantId} AND id=${employeeId}`).length) throw new WorkOrderApiError('Çalışan bulunamadı.',404);
+    }
+    return NextResponse.json({ href, message: 'Form hazırlandı. Bilgileri inceleyip kaydedin.' }, {headers:{'Cache-Control':'private, no-store'}});
+  }
   const hash=createHash('sha256').update(JSON.stringify({kind:'assistant',action})).digest('hex');
   const result=await withTransaction(async(tx:any)=>{
    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${a.tenantId},0))`;

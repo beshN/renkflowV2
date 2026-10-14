@@ -4,7 +4,7 @@ import { requireSameOriginJson } from '@/lib/features/manufacturing/http-securit
 import { requireWorkOrderActor } from '@/lib/features/work-orders/security';
 import { NO_STORE, recordError } from '@/lib/features/records/http';
 import { redactedJson } from '@/lib/security/field-access.server';
-import { addLedger, deleteLedger, employeeDetail, personnelOverview, saveEmployee, setAttendance } from '@/lib/features/personnel/service.server';
+import { attendancePolicy, saveAttendancePolicy, addLedger, deleteLedger, employeeDetail, personnelOverview, saveEmployee, setAttendance } from '@/lib/features/personnel/service.server';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +12,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     const actor = await requireWorkOrderActor();
+    if (req.nextUrl.searchParams.get('view') === 'policy') return redactedJson(await attendancePolicy(actor), { headers: NO_STORE });
     const period = req.nextUrl.searchParams.get('period');
     const employeeId = req.nextUrl.searchParams.get('employeeId');
     return redactedJson(employeeId ? await employeeDetail(actor, employeeId, period) : await personnelOverview(actor, period), { headers: NO_STORE });
@@ -20,14 +21,14 @@ export async function GET(req: NextRequest) {
   }
 }
 
-const Body = z.object({ action: z.enum(['employee.save', 'attendance.set', 'ledger.add', 'ledger.delete']), input: z.unknown() });
+const Body = z.object({ action: z.enum(['employee.save', 'attendance.set', 'ledger.add', 'ledger.delete', 'policy.save']), input: z.unknown() });
 
 export async function POST(req: NextRequest) {
   try {
     requireSameOriginJson(req, 200_000);
     const actor = await requireWorkOrderActor();
     const { action, input } = Body.parse(await req.json());
-    const run = { 'employee.save': saveEmployee, 'attendance.set': setAttendance, 'ledger.add': addLedger, 'ledger.delete': deleteLedger }[action];
+    const run = { 'policy.save': saveAttendancePolicy, 'employee.save': saveEmployee, 'attendance.set': setAttendance, 'ledger.add': addLedger, 'ledger.delete': deleteLedger }[action];
     return redactedJson(await run(actor, input), { headers: NO_STORE });
   } catch (e) {
     if (e instanceof z.ZodError) {
