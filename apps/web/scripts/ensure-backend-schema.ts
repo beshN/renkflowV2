@@ -162,6 +162,7 @@ export const BACKEND_MIGRATIONS = [
   '055_exchange_rates.sql',
   '056_ledger_posting.sql',
   '057_kvkk_requests.sql',
+  '058_expense_vat.sql',
   '060_e_invoice_document_snapshot.sql',
 ];
 

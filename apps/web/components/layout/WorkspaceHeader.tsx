@@ -19,6 +19,9 @@ import { BrandMark } from '@/components/brand/BrandMark';
 /** Screens reached without a menu item still need their own breadcrumb. */
 const OFF_MENU_SECTIONS: Record<string, string> = { '/search': 'Arama', '/new-order': 'Yeni sipariş', '/kanban': 'Sipariş panosu' };
 
+/** Sub-pages with their own name in the breadcrumb (others read "Detay"). */
+const SUBPAGE_LABELS: Record<string, string> = { '/crm/import': 'İçe aktar' };
+
 export function WorkspaceHeader() {
   const pathname = usePathname();
   const { user } = useAuth();

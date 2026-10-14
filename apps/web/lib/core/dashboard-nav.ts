@@ -27,6 +27,7 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
   ] },
   { id: 'production', label: 'Üretim', subtitle: '', items: [
     { id: 'products', allowedRoles: ROUTE_ROLES['/products'], label: 'Ürünler', href: '/products' },
+    { id: 'cut-list', allowedRoles: ['owner', 'admin', 'office'], label: 'Kesim listesi', href: '/orders/foy', requiresPermission: 'orders.create' },
     { id: 'production', allowedRoles: ROUTE_ROLES['/production'], label: 'Üretim', href: '/production', requiresPermission: 'orders.view' },
     { id: 'work-orders', label: 'İş emirleri', href: '/work-orders', requiresPermission: 'orders.view' },
     { id: 'factory', allowedRoles: ROUTE_ROLES['/factory'], label: 'Atölye', href: '/factory', requiresPermission: 'orders.view' },

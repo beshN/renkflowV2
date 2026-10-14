@@ -45,7 +45,6 @@ export default function QuotationsPage() {
       <main className="w-full space-y-4">
         {PRICE_MATRIX_READ_ROLES.includes(user.role) && (
           <div className="mb-4 flex justify-end gap-2">
-            {ROUTE_ROLES['/products'].includes(user.role) && <Link href="/products" className="rf-secondary-button">Ürün reçeteleri</Link>}
             <Link href="/quotations/price-matrix" className="rf-secondary-button">Fiyat matrisi</Link>
           </div>
         )}

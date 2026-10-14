@@ -477,6 +477,7 @@ export const AccountingWorkspaceSchema = z.object({
 // ============================================
 
 export const ExpenseCategorySchema = z.enum([
+  'materials',
   'rent',
   'utilities',
   'salaries',
@@ -561,6 +562,7 @@ export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
 };
 
 export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
+  materials: 'Malzeme ve hammadde alışı (stok)',
   rent: 'Kira',
   utilities: 'Elektrik/Su/Doğalgaz',
   salaries: 'Maaşlar',
