@@ -4,6 +4,7 @@ import postgres from 'postgres';
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { chromium } from 'playwright';
+import { localTestDatabaseURL } from './local-test-database';
 
 // A synthetic count list laid out like the printed one; every figure is made up.
 function html() {
@@ -25,13 +26,14 @@ function html() {
 
 async function main() {
   process.env.AUTH_SECRET = 'integration-test-secret-local-only-1234567890';
-  process.env.DATABASE_URL = 'postgres://postgres:renkflow-local-only@127.0.0.1:55432/renkflow_test';
+  process.env.DATABASE_URL = localTestDatabaseURL();
   process.env.NATIVE_INVENTORY_ENABLED = '1';
   const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
   assert.equal((await db`SELECT current_database() AS name`)[0].name, 'renkflow_test');
   for (const file of ['029_ai_suggestions.sql', '031_stock_model.sql', '032_stock_counts.sql', '033_opening_bar_count.sql']) await db.unsafe(readFileSync(`lib/db/migrations/${file}`, 'utf8'));
 
-  const browser = await chromium.launch({ headless: true, executablePath: '/opt/pw-browsers/chromium' });
+  // Playwright's own browser by default; PLAYWRIGHT_CHROMIUM_PATH points at a preinstalled one (containers).
+  const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined });
   const page = await browser.newPage();
   await page.setContent(html());
   const pdf = await page.pdf({ width: '595px', height: '842px', printBackground: false });
