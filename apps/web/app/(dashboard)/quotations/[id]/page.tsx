@@ -495,13 +495,7 @@ export default function QuotationPage({
               onValidationChange={message => { invalid3d.current[index] = message; }}
               onSelect={kind => {
                 invalid3d.current[index] = '';
-                setForm(prev => ({ ...prev, items: prev.items.map((entry, i) => {
-                  if (i !== index) return entry;
-                  const plain = { ...entry, productVisualization: undefined, awningConfiguration: undefined, awningPreview: undefined };
-                  if (!kind) return { ...plain, productName: '', widthMm: undefined, heightMm: undefined, projectionMm: undefined, mountingHeightMm: undefined, color: undefined };
-                  if (kind === 'makasli') return applyAwning({ ...plain, productName: 'WINMAX Makaslı Tente' }, DEFAULT_AWNING);
-                  return applyInlineVisualization({ ...plain, productName: productMeta(kind).name }, { configuration: defaultVisualization(kind) });
-                }) }));
+                setForm(prev => ({ ...prev, items: prev.items.map((entry, i) => i === index ? applyProductSelection(entry, kind) : entry) }));
               }}
               onChange={v => setForm(prev => ({ ...prev, items: prev.items.map((entry, i) => i === index ? applyInlineVisualization(entry, v) : entry) }))}
               onChangeAwning={(c, image) => setForm(prev => ({ ...prev, items: prev.items.map((entry, i) => i === index ? applyAwning({ ...entry, productVisualization: undefined, awningPreview: undefined }, c, image) : entry) }))}

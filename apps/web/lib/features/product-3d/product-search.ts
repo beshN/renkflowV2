@@ -18,7 +18,7 @@ type ProductFields = {
 };
 export function applyProductSelection<T extends ProductFields>(entry: T, kind: InlineProduct) {
   if (kind && selectedProduct(entry) === kind && (entry.awningConfiguration || entry.productVisualization || entry.productConfiguration)) return { ...entry, productName: PRODUCT_OPTIONS.find(p => p.kind === kind)!.name };
-  const plain = { ...entry, heightMm: undefined, productConfiguration: undefined, productVisualization: undefined, awningConfiguration: undefined, awningPreview: undefined };
+  const plain = { ...entry, motorType: undefined, ledType: undefined, fabricType: undefined, heightMm: undefined, productConfiguration: undefined, productVisualization: undefined, awningConfiguration: undefined, awningPreview: undefined };
   if (!kind) return { ...plain, productName: '', widthMm: undefined, heightMm: undefined, projectionMm: undefined, mountingHeightMm: undefined, color: undefined };
   if (kind === 'makasli') return applyAwning({ ...plain, productName: 'WINMAX Makaslı Tente' }, DEFAULT_AWNING);
   const product = PRODUCT_OPTIONS.find(p => p.kind === kind)!;

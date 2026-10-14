@@ -399,7 +399,7 @@ async function execute(
       const [r] = await tx`SELECT COUNT(*) AS n FROM warehouses WHERE tenant_id=${t}`;
       let n = Number(r.n) + 1;
       code = `DEP-${String(n).padStart(3, '0')}`;
-      while ((await tx`SELECT id FROM warehouses WHERE tenant_id=${t} AND code=${code}`).length) code = `DEP-${String(++n).padStart(3, '0')}`;
+      while ((await tx`SELECT id FROM warehouses WHERE tenant_id=${t} AND UPPER(code)=UPPER(${code})`).length) code = `DEP-${String(++n).padStart(3, '0')}`;
     }
     if ((await tx`SELECT id FROM warehouses WHERE tenant_id=${t} AND UPPER(code)=UPPER(${code})`).length) fail('Bu depo kodu zaten kayıtlı', 409);
     return (await tx`INSERT INTO warehouses(tenant_id,code,name,warehouse_type)VALUES(${t},${code},${d.name},${d.type})RETURNING *`)[0];

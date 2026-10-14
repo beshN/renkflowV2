@@ -38,6 +38,8 @@ async function main() {
  const key=randomUUID(),warehouse=await productionCommand(actor,{commandId:key,action:'warehouse.save',data:{name:'Ana Depo',type:'RAW'}});
  assert.match(warehouse.code,/^DEP-\d+$/); assert.equal((await productionCommand(actor,{commandId:key,action:'warehouse.save',data:{name:'Ana Depo',type:'RAW'}})).id,warehouse.id);
  await assert.rejects(()=>productionCommand(actor,{commandId:randomUUID(),action:'warehouse.save',data:{name:'Duplicate',code:warehouse.code.toLowerCase(),type:'RAW'}}),/zaten/);
+ await db`INSERT INTO warehouses(tenant_id,code,name,warehouse_type) VALUES(${tenant.id},'dep-003','Legacy code','RAW')`;
+ const automatic=await productionCommand(actor,{commandId:randomUUID(),action:'warehouse.save',data:{name:'Next automatic',type:'RAW'}});assert.equal(automatic.code,'DEP-004');
  const [other]=await db`INSERT INTO tenants(name,slug) VALUES('Other QA',${'other-'+randomUUID()}) RETURNING id`;
  const [otherUser]=await db`INSERT INTO users(name,email) VALUES('Other QA',${randomUUID()+'@example.invalid'}) RETURNING id`;
  await db`INSERT INTO tenant_members(tenant_id,user_id,role) VALUES(${other.id},${otherUser.id},'owner')`;

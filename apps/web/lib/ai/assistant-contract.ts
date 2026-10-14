@@ -24,5 +24,5 @@ export function safeAssistantHref(value:string|null) {
  if(!value || !value.startsWith('/') || value.startsWith('//') || /[\\\u0000-\u001f]/.test(value)) return null;
  const u=new URL(value,'https://internal.invalid');
  if(!/^\/(dashboard|orders|new-order|quotations|production|factory|work-orders|kanban|warehouse|inventory|scrap|purchases|receipts|suppliers|shipments|finance|accounting|crm|reports|team|settings|notifications|search)(\/|$)/.test(u.pathname))return null;
- return u.pathname+u.search;
+ return u.pathname+u.search+u.hash;
 }

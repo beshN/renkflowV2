@@ -199,6 +199,7 @@ export function LedgerDialog({ open, onClose, busy, employeeName, currency, defa
           setError(err instanceof Error ? err.message : 'Kaydedilemedi');
         }
       }}>
+        {kind === 'salary' && <p className="text-xs text-muted-foreground">Ödeme ayı: {periodLabel(period)}. Farklı bir ay için önce personel ekranında ayı seçin.</p>}
         {calculation && kind === 'salary' && <PayCutReview pay={calculation} currency={currency} />}
         <div role="radiogroup" aria-label="Hareket türü" className="flex flex-wrap gap-1.5">
           {LEDGER_ORDER.map((k) => (
@@ -210,11 +211,11 @@ export function LedgerDialog({ open, onClose, busy, employeeName, currency, defa
           <summary className="cursor-pointer select-none text-xs font-medium text-muted-foreground">Tarih, ay ve açıklama · {trDate(today)}, {periodLabel(period)}</summary>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <Field label="Tarih" name="entryDate" type="date" required defaultValue={today} />
-            <Field label="Hangi ayın maaşı" name="period" type="month" required defaultValue={period} />
+            <Field key={kind === 'salary' ? 'salary-month' : 'other-month'} label="Hangi ayın maaşı" name="period" type="month" required readOnly={kind === 'salary'} defaultValue={period} />
             <div className="sm:col-span-2"><Field label="Açıklama" name="note" maxLength={2000} placeholder={kind === 'advance' ? 'Ör. bayram avansı' : ''} /></div>
           </div>
         </details>
-        <div className="flex justify-end border-t border-border pt-4"><button type="submit" className="rf-primary-button h-9 px-4 text-xs" disabled={busy}>{busy ? 'Kaydediliyor…' : 'Kaydet'}</button></div>
+        <div className="flex justify-end border-t border-border pt-4"><button type="submit" className="rf-primary-button h-9 px-4 text-xs" disabled={busy || (kind === 'salary' && Boolean(calculation?.reviewRequired))}>{busy ? 'Kaydediliyor…' : 'Kaydet'}</button></div>
       </form>
     </BusinessDialog>
   );

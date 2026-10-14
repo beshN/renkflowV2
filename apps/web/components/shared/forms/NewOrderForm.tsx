@@ -392,16 +392,7 @@ export function NewOrderForm({ onSubmit, initialData, submitError }: NewOrderFor
                     productName={item.productName} visualization={item.productVisualization}
                     awningConfiguration={item.awningConfiguration} previewImage={item.awningPreview}
                     onValidationChange={message => { invalid3d.current[idx] = message; }}
-                    onSelect={kind => {
-                      invalid3d.current[idx] = '';
-                      setItems(prev => prev.map((entry, i) => {
-                        if (i !== idx) return entry;
-                        const plain = { ...entry, awningConfiguration: undefined, awningPreview: undefined, productVisualization: undefined };
-                        if (!kind) return { ...plain, productName: '', widthMm: undefined, heightMm: undefined, projectionMm: undefined, mountingHeightMm: undefined, color: undefined };
-                        if (kind === 'makasli') return applyAwning({ ...plain, productName: 'WINMAX Makaslı Tente' }, DEFAULT_AWNING);
-                        return applyInlineVisualization({ ...plain, productName: productMeta(kind).name }, { configuration: defaultVisualization(kind) });
-                      }));
-                    }}
+                    onSelect={kind => setItems(prev => prev.map((entry, i) => i === idx ? applyProductSelection(entry, kind) : entry))}
                     onChange={v => setItems(prev => prev.map((entry, i) => i === idx ? applyInlineVisualization(entry, v) : entry))}
                     onChangeAwning={(c, image) => setItems(prev => prev.map((entry, i) => i === idx ? applyAwning({ ...entry, productVisualization: undefined, awningPreview: undefined }, c, image) : entry))}
                   />

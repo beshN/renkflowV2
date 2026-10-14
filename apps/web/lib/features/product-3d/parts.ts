@@ -4,7 +4,7 @@ export type Point = [number, number];
 const Y = new T.Vector3(0, 1, 0);
 export class Parts {
   readonly group = new T.Group();
-  readonly metal: T.MeshStandardMaterial;
+  readonly metal: T.MeshPhysicalMaterial;
   readonly steel: T.MeshStandardMaterial;
   readonly rubber: T.MeshStandardMaterial;
   readonly fabric: T.MeshStandardMaterial;
@@ -20,10 +20,8 @@ export class Parts {
     [];
   private cache = new Map<string, T.BufferGeometry>();
   constructor(readonly config: VisualizationConfiguration) {
-    this.metal = this.material(config.bodyColor, {
-      metalness: 0.22,
-      roughness: 0.36,
-    });
+    this.metal = new T.MeshPhysicalMaterial({ color: config.bodyColor, metalness: 0.35, roughness: 0.3, clearcoat: 0.25, clearcoatRoughness: 0.45 });
+    this.materials.add(this.metal);
     this.steel = this.material("#c8c9c7", { metalness: 0.8, roughness: 0.23 });
     this.rubber = this.material("#252b2a", { roughness: 0.88 });
     const weave = new Uint8Array(64 * 64 * 4),
