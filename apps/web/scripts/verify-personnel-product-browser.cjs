@@ -2,7 +2,7 @@
 const {chromium}=require('@playwright/test');
 const sharp=require('sharp');
 const fs=require('node:fs'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
-const origin=process.env.PILOT_ORIGIN || 'http://127.0.0.1:3025';
+const origin=process.env.RENKFLOW_TEST_BROWSER_ORIGIN || 'http://127.0.0.1:3025';
 if(new URL(origin).hostname!=='127.0.0.1')throw Error('Local test server required');
 const fixture=JSON.parse(fs.readFileSync('../../.data/personnel-browser-fixture.json','utf8'));
 (async()=>{
