@@ -159,6 +159,8 @@ export const BACKEND_MIGRATIONS = [
   '052_user_mfa.sql',
   '053_e_belge_core.sql',
   '054_e_belge_addresses.sql',
+  '055_exchange_rates.sql',
+  '056_ledger_posting.sql',
 ];
 
 /** Mobile API tables (sessions, offline receipts, uploads, push devices); applied after 045 (installations). */
