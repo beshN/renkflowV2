@@ -82,6 +82,7 @@ export async function executeProcurement(tx: any, actor: WorkOrderActor, action:
   requireProcurementWrite(actor);
   const t = actor.tenantId;
   if (action === 'procurement.supplier.save') {
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${t + ':supplier-create'}, 0))`;
     const d = SupplierInputSchema.parse(raw);
     if (d.id) {
       const [current] = await tx`SELECT * FROM suppliers WHERE tenant_id=${t} AND id=${d.id} FOR UPDATE`;

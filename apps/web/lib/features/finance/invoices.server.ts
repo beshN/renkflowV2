@@ -8,7 +8,7 @@ import { resolveMemberAccess } from '@/lib/security/member-access.server';
 import { can, type Action } from '@/lib/security/access-matrix';
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
 import { exemptionCode, UNIT_CODES, withholdingCode, type UnitCode } from '@/lib/features/einvoice/codes';
-import { cancelEBelge, eBelgeProvider, prepareEBelge, retryEInvoice, ublInput } from '@/lib/features/einvoice/document.server';
+import { cancelEBelge, eBelgeProvider, invoiceDocument, prepareEBelge, retryEInvoice, ublInput } from '@/lib/features/einvoice/document.server';
 import { buildUblInvoice } from '@/lib/features/einvoice/ubl';
 import { syncLedger } from '@/lib/features/accounting/posting.server';
 import { effectiveRate } from '@/lib/features/fx/rates.server';
@@ -294,6 +294,9 @@ export async function issueInvoice(actor: WorkOrderActor, id: string, raw: unkno
     if (eBelge && provider) {
       await tx`UPDATE invoices SET document_type = ${eBelge.documentType}, profile = ${eBelge.profile}, ettn = ${eBelge.ettn}, e_invoice_status = 'queued',
         e_invoice_provider = ${provider.name}, e_invoice_attempts = 0, e_invoice_next_attempt_at = now() WHERE id = ${id}`;
+      const [issued] = await tx`SELECT * FROM invoices WHERE id = ${id}`;
+      const xml = buildUblInvoice(await ublInput(tx, issued));
+      await tx`UPDATE invoices SET e_invoice_xml = ${xml}, e_invoice_recipient_alias = ${eBelge.alias} WHERE id = ${id}`;
     }
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'order', entityId: i.order_id, action: 'invoice_issued', metadata: { invoiceId: id, number, total: Number(i.total), dueOn, ...(eBelge ? { documentType: eBelge.documentType, ettn: eBelge.ettn } : {}) } });
     await syncLedger(tx, actor.tenantId, { invoiceId: id });
@@ -331,10 +334,11 @@ export async function retryInvoiceSend(actor: WorkOrderActor, id: string) {
 export async function invoiceXml(actor: WorkOrderActor, id: string) {
   await requireFinance(actor);
   return withTransaction(async (tx: any) => {
-    const [i] = await tx`SELECT * FROM invoices WHERE tenant_id = ${actor.tenantId} AND id = ${id}`;
+    const [i] = await tx`SELECT * FROM invoices WHERE tenant_id = ${actor.tenantId} AND id = ${id} FOR UPDATE`;
     if (!i) fail('Fatura bulunamadı', 404);
     if (!i.ettn) fail('Bu fatura e-Belge olarak kesilmedi', 409);
-    return { filename: `${i.invoice_number}.xml`, xml: buildUblInvoice(await ublInput(tx, i)) };
+    if (!(await columnExists('invoices', 'e_invoice_xml'))) fail('e-Belge veritabanı güncellemesi (060) uygulanmamış', 503);
+    return { filename: `${i.invoice_number}.xml`, xml: await invoiceDocument(tx, i) };
   });
 }
 

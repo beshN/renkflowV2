@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, FileText, RefreshCw, Wallet } from 'lucide-react';
 
-import { Navbar } from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
@@ -14,7 +13,7 @@ import { formatCurrency } from '@/lib/utils';
 import { type OrderWithPayments } from '@/lib/types/finance';
 
 export default function FinanceOverviewPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
 
   const [currency,setCurrency]=useState('TRY');
@@ -71,6 +70,8 @@ export default function FinanceOverviewPage() {
     return()=>{requestSequence.current++;};
   }, [hasAccess,user?.tenantId,user?.id]);
 
+  if (authLoading) return <div className="rf-page" role="status">Finans verileri alınıyor…</div>;
+
   if (!hasAccess) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
@@ -86,15 +87,13 @@ export default function FinanceOverviewPage() {
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-slate-50/50 dark:bg-slate-950/50">
-      <Navbar title="Finans Kontrolü" showSearch={false} />
-
-      <main className="w-full flex-1 p-4 md:p-8">
+      <div className="w-full flex-1 p-4 md:p-8">
         {loadError && <p role="alert" className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{loadError}</p>}
         <section className="rf-panel rounded-2xl p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Finans Komuta Ekranı</h1>
-              <p className="mt-1 text-sm text-slate-500">Tahsilat ve açık bakiye görünümü sipariş kayıtlarıyla senkronize çalışır.</p>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Finans</h1>
+              <p className="mt-1 text-sm text-slate-500">Tahsilatları ve kalan alacakları takip edin.</p>
             </div>
             <div className="flex items-center gap-2">
               <Button type="button" variant="secondary" size="sm" onClick={() => void load(true)} isLoading={isRefreshing}>
@@ -165,7 +164,7 @@ export default function FinanceOverviewPage() {
             </div>
           </div>
         </section>
-      </main>
+      </div>
     </div>
   );
 }

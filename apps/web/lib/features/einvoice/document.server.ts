@@ -31,8 +31,8 @@ export async function eBelgeProvider(): Promise<EInvoiceProvider | null> {
     throw new WorkOrderApiError(error instanceof Error ? error.message : 'e-Belge sağlayıcısı yapılandırılamadı', 503);
   }
   if (!provider) return null;
-  if (!(await columnExists('invoices', 'ettn')) || !(await columnExists('invoices', 'customer_city'))) {
-    throw new WorkOrderApiError('e-Belge açık ama veritabanı güncellemesi (053–054) uygulanmamış', 503);
+  if (!(await columnExists('invoices', 'ettn')) || !(await columnExists('invoices', 'customer_city')) || !(await columnExists('invoices', 'e_invoice_xml'))) {
+    throw new WorkOrderApiError('e-Belge açık ama veritabanı güncellemesi (053–054, 060) uygulanmamış', 503);
   }
   return provider;
 }
@@ -111,6 +111,21 @@ export async function prepareEBelge(tx: Db, provider: EInvoiceProvider, invoice:
   return { number, documentType, profile, ettn: randomUUID(), alias };
 }
 
+/** A legacy document can be frozen only before its first send attempt. Never invent sent XML. */
+export async function invoiceDocument(tx: Db, invoice: Row): Promise<string> {
+  if (invoice.e_invoice_xml) return invoice.e_invoice_xml;
+  if (invoice.e_invoice_status !== 'queued' || Number(invoice.e_invoice_attempts) !== 0) {
+    throw new WorkOrderApiError('Bu eski e-Belgenin özgün XML kaydı yok; belgeyi entegratörden alın', 409);
+  }
+  const xml = buildUblInvoice(await ublInput(tx, invoice));
+  const [customer] = invoice.customer_id ? await tx`SELECT e_invoice_alias FROM customers WHERE id = ${invoice.customer_id} AND tenant_id = ${invoice.tenant_id}` : [null];
+  const alias = customer?.e_invoice_alias ?? null;
+  await tx`UPDATE invoices SET e_invoice_xml = ${xml}, e_invoice_recipient_alias = ${alias} WHERE id = ${invoice.id}`;
+  invoice.e_invoice_xml = xml;
+  invoice.e_invoice_recipient_alias = alias;
+  return xml;
+}
+
 async function audit(tx: Db, invoice: Row, action: string, metadata: Record<string, unknown> = {}) {
   await recordAudit(tx, { tenantId: invoice.tenant_id, actorId: null, entityType: 'order', entityId: invoice.order_id, action, metadata: { invoiceId: invoice.id, number: invoice.invoice_number, ...metadata } });
 }
@@ -134,14 +149,14 @@ async function claimOne(where: Db, work: (tx: Db, invoice: Row) => Promise<void>
 export async function drainEInvoices(limit = 10) {
   const provider = eInvoiceProvider();
   if (!provider || !(await columnExists('invoices', 'ettn'))) return { skipped: true };
+  if (!(await columnExists('invoices', 'e_invoice_xml'))) throw new WorkOrderApiError('e-Belge veritabanı güncellemesi (060) uygulanmamış', 503);
   const result = { sent: 0, accepted: 0, rejected: 0, failed: 0 };
 
   for (let i = 0; i < limit; i++) {
     const claimed = await claimOne(sql`e_invoice_status IN ('queued', 'error') AND status = 'issued' AND e_invoice_attempts < ${MAX_ATTEMPTS}`, async (tx, invoice) => {
       try {
-        const xml = buildUblInvoice(await ublInput(tx, invoice));
-        const [customer] = invoice.customer_id ? await tx`SELECT e_invoice_alias FROM customers WHERE id = ${invoice.customer_id}` : [null];
-        const { providerId } = await provider.send({ ettn: invoice.ettn, number: invoice.invoice_number, documentType: invoice.document_type, recipientAlias: customer?.e_invoice_alias ?? null, xml });
+        const xml = await invoiceDocument(tx, invoice);
+        const { providerId } = await provider.send({ ettn: invoice.ettn, number: invoice.invoice_number, documentType: invoice.document_type, recipientAlias: invoice.e_invoice_recipient_alias ?? null, xml });
         await tx`UPDATE invoices SET e_invoice_status = 'sent', e_invoice_provider_id = ${providerId}, e_invoice_sent_at = now(), e_invoice_error = NULL,
           e_invoice_attempts = e_invoice_attempts + 1, e_invoice_next_attempt_at = now() + make_interval(mins => ${POLL_MINUTES}), updated_at = now() WHERE id = ${invoice.id}`;
         await audit(tx, invoice, 'e_invoice_sent', { provider: provider.name, documentType: invoice.document_type });
@@ -160,13 +175,20 @@ export async function drainEInvoices(limit = 10) {
 
   for (let i = 0; i < limit; i++) {
     const claimed = await claimOne(sql`e_invoice_status = 'sent'`, async (tx, invoice) => {
-      const answer = await provider.status(invoice.e_invoice_provider_id).catch((error) => ({ status: 'sent' as const, message: error instanceof Error ? error.message : undefined }));
+      const answer = await provider.status(invoice.e_invoice_provider_id).catch((error) => ({ status: 'error' as const, message: error instanceof Error ? error.message : 'Sağlayıcıya ulaşılamadı' }));
       if (answer.status === 'accepted' || answer.status === 'rejected') {
         await tx`UPDATE invoices SET e_invoice_status = ${answer.status}, e_invoice_error = ${answer.message ?? null}, e_invoice_next_attempt_at = NULL, updated_at = now() WHERE id = ${invoice.id}`;
         await audit(tx, invoice, answer.status === 'accepted' ? 'e_invoice_accepted' : 'e_invoice_rejected', answer.message ? { message: answer.message } : {});
         result[answer.status]++;
       } else {
-        await tx`UPDATE invoices SET e_invoice_next_attempt_at = now() + make_interval(mins => ${POLL_MINUTES}) WHERE id = ${invoice.id}`;
+        // Delivery may already have happened. Keep polling that provider ID rather than queueing
+        // another send; surface the transient failure so it is not silently hidden from the user.
+        const message = answer.status === 'error' ? (answer.message || 'e-Belge durumu sorgulanamadı').slice(0, 500) : null;
+        await tx`UPDATE invoices SET e_invoice_error = ${message}, e_invoice_next_attempt_at = now() + make_interval(mins => ${POLL_MINUTES}), updated_at = now() WHERE id = ${invoice.id}`;
+        if (message) {
+          if (invoice.e_invoice_error !== message) await audit(tx, invoice, 'e_invoice_poll_failed', { error: message });
+          result.failed++;
+        }
       }
     });
     if (!claimed) break;
@@ -178,6 +200,7 @@ export async function drainEInvoices(limit = 10) {
 export async function retryEInvoice(tx: Db, invoice: Row) {
   if (!['error', 'rejected'].includes(invoice.e_invoice_status)) throw new WorkOrderApiError('Yalnız hatalı ya da reddedilmiş e-Belge yeniden gönderilir', 409);
   if (invoice.e_invoice_status === 'rejected') throw new WorkOrderApiError('Reddedilen e-Fatura yeniden gönderilmez: iptal edip yeni fatura kesin', 409);
+  if (!invoice.e_invoice_xml) throw new WorkOrderApiError('Bu eski e-Belgenin özgün XML kaydı yok; belgeyi entegratörden alın', 409);
   await tx`UPDATE invoices SET e_invoice_status = 'queued', e_invoice_error = NULL, e_invoice_attempts = 0, e_invoice_next_attempt_at = now(), updated_at = now() WHERE id = ${invoice.id}`;
 }
 

@@ -105,7 +105,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="tr" suppressHydrationWarning>
+    <html lang="tr" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         
         {/* iOS PWA Configuration */}

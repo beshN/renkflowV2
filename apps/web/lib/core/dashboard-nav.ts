@@ -1,6 +1,6 @@
 import type { Permission } from '@/lib/auth/permissions';
 import { canAccessFinance, hasPermission, ROUTE_ROLES, type UserRole } from '@/lib/auth/permissions';
-import { meets, routeRequirement, type Matrix } from '@/lib/security/access-matrix';
+import { BASE_CAPS, meets, routeRequirement, type Matrix, type Module, type Action } from '@/lib/security/access-matrix';
 
 export type DashboardNavItem = {
   id: string; label: string; href: string;
@@ -26,6 +26,7 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
     { id: 'leads', allowedRoles: ROUTE_ROLES['/leads'], label: 'Müşteri adayları', href: '/leads' },
   ] },
   { id: 'production', label: 'Üretim', subtitle: '', items: [
+    { id: 'products', allowedRoles: ROUTE_ROLES['/products'], label: 'Ürünler', href: '/products' },
     { id: 'cut-list', allowedRoles: ['owner', 'admin', 'office'], label: 'Kesim listesi', href: '/orders/foy', requiresPermission: 'orders.create' },
     { id: 'production', allowedRoles: ROUTE_ROLES['/production'], label: 'Üretim', href: '/production', requiresPermission: 'orders.view' },
     { id: 'work-orders', label: 'İş emirleri', href: '/work-orders', requiresPermission: 'orders.view' },
@@ -81,11 +82,34 @@ export function getVisibleNavGroups(role?: UserRole, access?: NavAccess) {
       // A job preset or custom role hides the modules it cannot view (the proxy refuses them anyway).
       const need = access?.narrowed && !item.action ? routeRequirement(item.href, 'GET') : null;
       if (need && access && !meets(access, need)) return false;
-      if (!role) return !item.requiresPermission && !item.requiresFinanceAccess && !item.adminOnly && !item.action;
+      if (!role) return item.id === 'dashboard';
       if (item.allowedRoles && !item.allowedRoles.includes(role)) return false;
       if (item.adminOnly && role !== 'owner' && role !== 'admin') return false;
       if (item.requiresFinanceAccess && !canAccessFinance(role)) return false;
       return !item.requiresPermission || hasPermission(role, item.requiresPermission);
     }),
   })).filter(group => group.items.length > 0);
+}
+
+/** Daily destinations only. The full, permission-filtered directory remains available. */
+export function getPrimaryNavItems(role?: UserRole, access?: NavAccess) {
+  const ids: Record<UserRole, string[]> = {
+    owner: ['dashboard', 'orders', 'crm', 'production', 'inventory', 'finance'],
+    admin: ['dashboard', 'orders', 'crm', 'production', 'inventory', 'finance'],
+    office: ['dashboard', 'orders', 'crm', 'production', 'inventory'],
+    accountant: ['dashboard', 'finance', 'invoices', 'accounting'],
+    worker: ['dashboard', 'factory', 'work-orders', 'scan'],
+    member: ['dashboard', 'orders', 'crm'],
+  };
+  const available = new Map(getVisibleNavGroups(role, access).flatMap(group => group.items).map(item => [item.id, item]));
+  return (role ? ids[role] : ['dashboard']).flatMap(id => {
+    const item = available.get(id);
+    return item ? [item] : [];
+  });
+}
+
+/** Quick actions obey both the base role and its narrowed create/view permissions. */
+export function canUseWorkspaceAction(role: UserRole | undefined, access: NavAccess, need: { module: Module; action: Action }) {
+  if (!role || !meets({ permissions: BASE_CAPS[role] }, need)) return false;
+  return !access?.narrowed || meets(access, need);
 }

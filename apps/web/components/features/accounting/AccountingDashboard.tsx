@@ -33,8 +33,8 @@ import { formatCurrency } from '@/lib/utils';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { cn } from '@/lib/utils';
-import { BankStatementUpload } from './BankStatementUpload';
 import { LedgerPanel } from './LedgerPanel';
+import { BankStatementUpload } from './BankStatementUpload';
 import { VatReturnPanel } from './VatReturnPanel';
 
 export type AccountingTab =

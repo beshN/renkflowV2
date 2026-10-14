@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { requestJson } from '@/lib/shared/network';
 import { readTextFile } from '@/lib/shared/read-text-file';
@@ -8,14 +8,18 @@ import { SkeletonRows } from '@/components/kit';
 
 type Recipe = { id: string; code: string; name: string; version: number; status: string; rule_count: number; example_count: number; created_at: string };
 type Family = { key: string; label: string; profileCodes: string[]; recipes: Recipe[] };
-type Overview = { available: boolean; canImport: boolean; families: Family[]; finishedItems: Array<{ id: string; sku: string; name: string }> };
+type Overview = { available: boolean; canImport: boolean; canCreateCards: boolean; families: Family[]; finishedItems: Array<{ id: string; sku: string; name: string }> };
 type Summary = { materials: number; profiles: number; parameters: number; operations: number; checks: number; skipped: number; limits: Record<string, number> };
-type Result = { ok: true; dryRun: boolean; summary: Summary; recipe?: { id: string; code: string; version: number } } | { ok: false; errors: string[] };
+type Result = { ok: true; dryRun: boolean; summary: Summary; previewHash: string; recipe?: { id: string; code: string; version: number } } | { ok: false; errors: string[] };
 
 const STATUS: Record<string, string> = { draft: 'Taslak (örnekler bekleniyor)', published: 'Yayında', archived: 'Arşiv' };
 
 
 export default function ProductsPage() {
+  const lock = useRef(false);
+  const fileSequence = useRef(0);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; fileSequence.current++; }; }, []);
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
   const [family, setFamily] = useState('pergola');
@@ -25,33 +29,39 @@ export default function ProductsPage() {
 
   const load = useCallback(async () => {
     const r = await requestJson<Overview>('/api/v1/products/recipes');
+    if (!mounted.current) return;
     if (r.ok && r.data) setData(r.data);
     else setError(r.error || 'Ürün reçeteleri alınamadı');
   }, []);
   useEffect(() => { void load(); }, [load]);
 
   const send = async (form: HTMLFormElement, dryRun: boolean) => {
+    if (lock.current) return;
     if (!file) return setError('Doldurulmuş şablonu seçin');
+    if (!dryRun && !(result?.ok && result.dryRun)) return setError('Dosyayı önce önizleyin');
     const f = new FormData(form);
+    lock.current = true;
     setBusy(true);
     setError('');
     try {
       const r = await requestJson<Result>('/api/v1/products/recipes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ family, code: f.get('code'), name: f.get('name'), finishedItemId: f.get('finishedItemId'), fileName: file.name, text: file.text, dryRun }),
+        body: JSON.stringify({ family, code: f.get('code'), name: f.get('name'), finishedItemId: f.get('finishedItemId'), fileName: file.name, text: file.text, dryRun, ...(!dryRun && result?.ok ? { previewHash: result.previewHash } : {}) }),
       }, { timeoutMs: 60000, fallbackError: 'Reçete okunamadı' });
-      if (!r.ok || !r.data) return setError(r.error || 'Reçete okunamadı');
+      if (!mounted.current) return;
+      if (!r.ok || !r.data) { setResult(null); return setError(r.error || 'Reçete okunamadı'); }
       setResult(r.data);
       if (r.data.ok && !r.data.dryRun) await load();
     } finally {
-      setBusy(false);
+      lock.current = false;
+      if (mounted.current) setBusy(false);
     }
   };
 
-  if (!data) return <main className="rf-page">{error ? <p role="alert">{error}</p> : <SkeletonRows rows={6} />}</main>;
+  if (!data) return <div className="rf-page">{error ? <p role="alert">{error}</p> : <SkeletonRows rows={6} />}</div>;
   return (
-    <main className="rf-page space-y-5">
+    <div className="rf-page space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="rf-eyebrow">ÜRÜN · REÇETE</p>
@@ -62,7 +72,7 @@ export default function ProductsPage() {
             örnek ölçüyle doğrulanmadan yayınlanmaz ve teklifte kullanılmaz.
           </p>
         </div>
-        <Link className="rf-secondary-button" href="/quotations/price-matrix">Fiyat matrisi</Link>
+        <div className="flex flex-wrap gap-2">{data.canCreateCards && <Link className="rf-secondary-button" href="/products/import">Ürün kartlarını içe aktar</Link>}<Link className="rf-secondary-button" href="/quotations/price-matrix">Fiyat matrisi</Link></div>
       </div>
       {!data.available && <p className="text-sm text-muted-foreground">Bu kurulumda ürün reçeteleri henüz etkin değil (veritabanı güncellemesi bekleniyor).</p>}
 
@@ -74,7 +84,7 @@ export default function ProductsPage() {
           </div>
           <p className="text-xs text-muted-foreground">Profil kodları (sayım listesi): {f.profileCodes.join(', ')}</p>
           {f.recipes.length ? (
-            <table className="w-full text-left text-sm">
+            <><div className="hidden overflow-x-auto sm:block"><table className="w-full text-left text-sm">
               <thead><tr>{['Kod', 'Ad', 'Sürüm', 'Malzeme satırı', 'Örnek', 'Durum'].map((h) => <th key={h} className="p-2 text-xs text-muted-foreground">{h}</th>)}</tr></thead>
               <tbody>
                 {f.recipes.map((r) => (
@@ -84,7 +94,12 @@ export default function ProductsPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
+            <div className="space-y-2 sm:hidden">{f.recipes.map((r) => <article key={r.id} className="space-y-1 rounded-lg border border-border p-3 break-words">
+              <p className="text-xs text-muted-foreground">{r.code} · Sürüm {r.version}</p><p className="font-medium">{r.name}</p>
+              <p className="text-xs text-muted-foreground">{r.rule_count} malzeme satırı · {r.example_count} örnek</p>
+              <Link className="text-sm underline" href="/production?tab=recipes">{STATUS[r.status] ?? r.status}</Link>
+            </article>)}</div></>
           ) : (
             <p className="text-sm text-amber-700 dark:text-amber-300">Bu ailenin reçetesi yok; teklifte malzeme listesi çıkarılamaz.</p>
           )}
@@ -94,7 +109,8 @@ export default function ProductsPage() {
       {data.canImport && data.available && (
         <section className="rf-panel space-y-3" aria-label="Reçete yükle">
           <h2 className="font-semibold">Doldurulmuş reçete şablonunu yükle</h2>
-          <form className="grid gap-3 sm:grid-cols-2" onChange={() => setResult(null)} onSubmit={(e) => { e.preventDefault(); void send(e.currentTarget, true); }}>
+          <form className="grid gap-3 sm:grid-cols-2" onChange={() => { setResult(null); setError(''); }} onSubmit={(e) => { e.preventDefault(); void send(e.currentTarget, true); }}>
+            <fieldset disabled={busy} className="contents">
             <label className="block text-xs">Ürün ailesi
               <select className="rf-input mt-2 w-full" value={family} onChange={(e) => { setFamily(e.target.value); setResult(null); }}>
                 {data.families.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
@@ -110,13 +126,17 @@ export default function ProductsPage() {
             <label className="block text-xs">Reçete adı<input name="name" required className="rf-input mt-2 w-full" /></label>
             <label className="block text-xs sm:col-span-2">CSV dosyası (en fazla 1 MB)
               <input type="file" accept=".csv,text/csv" className="rf-input mt-2 w-full" onChange={async (e) => {
+                const sequence = ++fileSequence.current;
                 const f = e.target.files?.[0];
                 setResult(null);
                 setError('');
                 setFile(null);
                 if (!f) return;
                 if (f.size > 1_000_000) return setError('Dosya en fazla 1 MB olabilir');
-                setFile({ name: f.name, text: await readTextFile(f) });
+                try {
+                  const text = await readTextFile(f);
+                  if (mounted.current && sequence === fileSequence.current) setFile({ name: f.name, text });
+                } catch { if (mounted.current && sequence === fileSequence.current) setError('CSV dosyası okunamadı'); }
               }} />
             </label>
             <div className="flex gap-2 sm:col-span-2">
@@ -125,6 +145,7 @@ export default function ProductsPage() {
                 <button type="button" className="rf-primary-button" disabled={busy} onClick={(e) => void send(e.currentTarget.form!, false)}>Taslak reçete olarak kaydet</button>
               )}
             </div>
+            </fieldset>
           </form>
           {result && !result.ok && (
             <div role="alert" className="text-sm text-rose-700 dark:text-rose-300">
@@ -142,6 +163,6 @@ export default function ProductsPage() {
         </section>
       )}
       {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}
-    </main>
+    </div>
   );
 }

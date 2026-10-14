@@ -65,6 +65,8 @@ export function readRecipeCsv(text: string, ctx: { items: TemplateItem[]; workCe
   const missingColumns = RECIPE_COLUMNS.filter((c) => !header.includes(c));
   if (missingColumns.length) return { ok: false, errors: [`Eksik sütun: ${missingColumns.join(', ')}`] };
   const errors: string[] = [];
+  if (new Set(header).size !== header.length) return { ok: false, errors: ['Aynı sütun birden fazla kez yazılmış'] };
+  if (records.length > 2001) return { ok: false, errors: ['Bir reçete dosyası en fazla 2.000 satır olabilir'] };
   const parameterDefinitions: NonNullable<RecipeParts['parameterDefinitions']> = [];
   const rules: RecipeParts['rules'] = [];
   const operations: RecipeParts['operations'] = [];
@@ -72,8 +74,10 @@ export function readRecipeCsv(text: string, ctx: { items: TemplateItem[]; workCe
   const limits: Record<string, number> = {};
   const formulaRows: Array<{ line: number; label: string; formula: string }> = [];
   let skipped = 0;
-  const bySku = new Map(ctx.items.map((i) => [fold(i.sku), i]));
-  const centers = new Map(ctx.workCenters.map((c) => [fold(c), c]));
+  const bySku = new Map<string, TemplateItem[]>();
+  for (const item of ctx.items) bySku.set(fold(item.sku), [...(bySku.get(fold(item.sku)) ?? []), item]);
+  const centers = new Map<string, string[]>();
+  for (const code of ctx.workCenters) centers.set(fold(code), [...(centers.get(fold(code)) ?? []), code]);
   for (const { cells, line } of records.slice(1)) {
     const get = (c: Column) => cells[header.indexOf(c)] ?? '';
     const say = (m: string) => errors.push(`Satır ${line}: ${m}`);
@@ -122,7 +126,9 @@ export function readRecipeCsv(text: string, ctx: { items: TemplateItem[]; workCe
         skipped++;
         continue;
       }
-      const item = bySku.get(fold(get('kod')));
+      const matches = bySku.get(fold(get('kod'))) ?? [];
+      if (matches.length > 1) { say('Stok kodu birden fazla kartla eşleşiyor; kartları inceleyin'); continue; }
+      const [item] = matches;
       if (!item) {
         say(`"${get('kod')}" kodlu etkin stok kartı yok`);
         continue;
@@ -142,14 +148,16 @@ export function readRecipeCsv(text: string, ctx: { items: TemplateItem[]; workCe
         skipped++;
         continue;
       }
-      const center = centers.get(fold(get('kod')));
+      const matchingCenters = centers.get(fold(get('kod'))) ?? [];
+      if (matchingCenters.length > 1) { say('İş merkezi kodu birden fazla kayıtla eşleşiyor; merkezleri inceleyin'); continue; }
+      const [center] = matchingCenters;
       if (!center) say(`"${get('kod')}" tanımlı bir iş merkezi değil`);
       if (!get('ad')) say('operasyon adı gerekli');
       if (!minutes) say('süre formülü (miktar_formulu) gerekli');
       operations.push({ name: get('ad'), workCenterCode: center ?? get('kod'), minutesFormula: minutes ?? '0', conditionFormula: condition, qualityChecks: [] });
     } else if (kind === 'sinir') {
       const key = fold(get('kod')) as keyof typeof LIMITS;
-      if (!(key in LIMITS)) {
+      if (!Object.hasOwn(LIMITS, key)) {
         say('sınır kodu en, acilim ya da yukseklik olmalı');
         continue;
       }

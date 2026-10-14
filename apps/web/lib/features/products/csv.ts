@@ -43,6 +43,7 @@ export function parseCsvRecords(text: string): Array<{ cells: string[]; line: nu
       start = line;
     } else cell += c;
   }
+  if (quoted) throw new Error('CSV dosyasında kapanmamış tırnak var. Dosyayı kontrol edin.');
   if (cell !== '' || row.length) {
     row.push(cell);
     records.push({ cells: row.map((v) => v.trim()), line: start });

@@ -65,7 +65,6 @@ export function MfaPanel() {
         <form onSubmit={confirm} className="space-y-3">
           <p className="text-sm">1. Doğrulama uygulamasıyla kodu okutun ya da anahtarı elle girin. 2. Uygulamanın gösterdiği kodu yazın.</p>
           <div className="flex flex-wrap items-center gap-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={setup.qrDataUrl} alt="Doğrulama uygulaması için QR kod" width={180} height={180} className="rounded-lg border border-border bg-white p-1" />
             <p className="text-xs text-muted-foreground">Anahtar: <code className="break-all font-mono text-foreground">{setup.secret.match(/.{1,4}/g)?.join(' ')}</code></p>
           </div>

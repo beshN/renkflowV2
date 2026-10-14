@@ -6,6 +6,13 @@ Bu belge programın durum tablosudur. Her iş kendi dalında ve PR'ında yapıl�
 
 ## Kararlar
 
+- **Kullanım kolaylığı (kullanıcının yeni önceliği):** Her bölüm günlük işe göre
+  düzenlenecek. Bir ana işlem, gerekli alanlar, kısa ve anlaşılır adlar; seyrek
+  kullanılan formlar ve teknik ayrıntılar istenince açılacak. Mobil, açık/koyu
+  tema, klavye, geri düğmesi ve daraltılmış roller kabul ölçütü. Kritik uyarılar,
+  veri doğrulaması ve onaylar sadeleştirme sırasında kaybolmamalı. Yeni ERP
+  paketleri bu ölçüt sağlanmadan tamamlandı sayılmayacak.
+
 - **Strateji:** RenkFlow, Renk Alüminyum'un kendi aracı olarak kalıyor. Genel API, self-servis kayıt ve abonelik ödemesi öncelik dışı. Firma ayrımı (RLS) yine sertleştirilecek.
 - **e-Fatura:** Önce sağlayıcıdan bağımsız bir `EInvoiceProvider` arayüzü, UBL-TR üretimi ve sahte (mock) sağlayıcı yazılacak. Entegratör seçilince tek bir adaptör eklenecek.
 - **Bordro:** SGK ve vergi hesaplayan bir motor yazılmayacak. Personel kartına yasal alanlar eklenecek ve muhasebeci için dışa aktarım hazırlanacak.
@@ -48,12 +55,13 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 
 | İş | Durum | Not |
 |---|---|---|
-| Hata izleme (Sentry, `instrumentation.ts`), gerçek `/api/ready` | 🔄 | #80. Canlı için Sentry DSN gerekiyor. |
-| 26 entegrasyon betiğinin sıfır veritabanında CI kapısına alınması | 🔄 | #79. GitHub-hosted runner hesapta kullanılamadığı için self-hosted Mac'te. Playwright smoke testi sonra. |
-| Yedekleme ve geri yükleme runbook'u, prova; migration defteri ve kapsama testi | 🔄 | `docs/runbooks/backup-restore.md`, `schema_migrations`, `npm run db:status` |
-| Düz reset token eşleşmesinin kaldırılması, CSP, SSO sırlarının şifrelenmesi | 🔄 | #78. Parola politikası zaten 10 karakter ve tek doğrulayıcıydı; mobil JWT fallback'i production'da zaten hata veriyor. |
-| İki adımlı doğrulama (TOTP) ve kurtarma kodları | 🔄 | Web girişi ve Hesabım ekranı. Saha uygulaması kod soramadığı için 2FA açık hesapları reddediyor; uygulamaya kod adımı eklemek ayrı bir iş. Rol bazında zorunlu tutma sonra. |
-| Denetim kaydı: değiştirilemezlik, giriş ve dönem kapama olayları | 🔄 | Tek servis (`activity_logs`) zaten K5'te kurulmuştu. Bu iş: 051 migration'ı ile kayıtlar yalnız eklenebilir; web ve mobil girişler, dönem kapama kaydediliyor; yetim `/api/tenant/activity` silindi. |
+| Hata izleme (Sentry, `instrumentation.ts`), gerçek `/api/ready` | ✅ | #80 birleşti. Kod hazır; canlı hata iletimi için Sentry DSN ve teslimat doğrulaması hâlâ gerekiyor. |
+| Entegrasyon betiklerinin sıfır veritabanında CI kapısına alınması | ✅ | #79 birleşti. Runner yeni test-*.ts betiklerini de otomatik kapsıyor. Tarayıcı ve axe kapısı ayrı açık iş. |
+| Migration defteri ve kapsama testi | ✅ | #81 birleşti; `schema_migrations`, `npm run db:status`. |
+| Gerçek yedek geri yükleme provası | ⬜ | Runbook var; salt okunur dal karşılaştırması restore provası sayılmaz. Ayrı dalda restore, veri/şema/uygulama doğrulaması ve süre kaydı gerekiyor. |
+| Düz reset token eşleşmesinin kaldırılması, CSP, SSO sırlarının şifrelenmesi | ✅ | #78 birleşti. Parola politikası zaten 10 karakter ve tek doğrulayıcıydı; mobil JWT fallback'i production'da zaten hata veriyor. |
+| Web iki adımlı doğrulama (TOTP) ve kurtarma kodları | ✅ | #83 birleşti; web girişi ve Hesabım ekranı. Saha uygulaması kod soramadığı için 2FA açık hesapları reddediyor; uygulamaya kod adımı eklemek ayrı bir iş. Rol bazında zorunlu tutma sonra. |
+| Denetim kaydı: değiştirilemezlik, giriş ve dönem kapama olayları | ✅ | #82 birleşti. Tek servis (`activity_logs`) zaten K5'te kurulmuştu. Bu iş: 051 migration'ı ile kayıtlar yalnız eklenebilir; web ve mobil girişler, dönem kapama kaydediliyor; yetim `/api/tenant/activity` silindi. |
 | Postgres RLS ve firma izolasyonu testi | ⬜ | |
 | Yük testi ve Web Vitals | ⬜ | |
 
@@ -73,22 +81,44 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 
 ### Faz 3: ERP derinliği
 
-| İş | Durum | Not |
-|---|---|---|
-| Toplu içe aktarma sihirbazı (müşteri, tedarikçi, ürün, stok) | 🔄 | Müşteri listesi: CSV, otomatik sütun eşleme, kuru çalıştırma önizlemesi, VKN/e-posta/telefonla mükerrersiz, boş alan tamamlama. Tedarikçi ve ürün sonraki adım. |
-| Teklif isteği (RFQ) e-postası; SMS kanalı | ⬜ | |
-| Müşteri portalı (sihirli bağlantıyla giriş) | ⬜ | |
-| Ekipman bakımı ve fason üretim | ⬜ | |
-| Stok maliyet yöntemi (ağırlıklı ortalama, FIFO) | ⬜ | |
-| Özel alanlar ve pivot rapor | ⬜ | |
-| `time_entries` tablosunun montaj ve servis işlerine bağlanması | ⬜ | |
-| Genel API ve imzalı webhook'lar (öncelik dışı) | ⬜ | |
+| İş | Durum |
+|---|---|
+| Toplu içe aktarma sihirbazı (müşteri, tedarikçi, ürün, stok) | 🔄 — müşteri, tedarikçi, ürün/mamul kartı ve CSV stok sayımı yerelde tamamlandı; reçete önizlemesi bağlandı. #91 draft, production pilotu ayrı |
+| Teklif isteği (RFQ) e-postası; SMS kanalı | ⬜ |
+| Müşteri portalı (sihirli bağlantıyla giriş) | ⬜ |
+| Ekipman bakımı ve fason üretim | ⬜ |
+| Stok maliyet yöntemi (ağırlıklı ortalama, FIFO) | ⬜ |
+| Özel alanlar ve pivot rapor | ⬜ |
+| `time_entries` tablosunun montaj ve servis işlerine bağlanması | ⬜ |
+| Genel API ve imzalı webhook'lar (öncelik dışı) | ⬜ |
 
 ### Faz 4: Kullanım kalitesi
 
 | İş | Durum |
 |---|---|
-| Sayfa başlığı standardı (`PageHeader`); iç içe `<main>` ve çift `<h1>` düzeltmesi | ⬜ |
+| Günlük iş odaklı menü, uzun form ve raporların gerektiğinde açılması | 🔄 — ortak menü, Bugün, üretim, ayarlar ve muhasebe sadeleştirildi; diğer modüllerde ayrıntılı kullanım incelemesi sürmeli |
+| Sayfa başlığı standardı (`PageHeader`); iç içe `<main>` ve çift `<h1>` düzeltmesi | 🔄 — ayarlar/muhasebe/finans ve önceki aktarım ekranları düzeltildi; bütün sayfalar bitmiş sayılmaz |
 | Etiketsiz alanlar; CI'da axe testi | ⬜ |
 | Dokunmatik montaj takvimi | ⬜ |
 | Mağaza yayını | ⏸ |
+
+## Codex devam kaydı — 14 Ekim 2026
+
+Kullanıcının isteğiyle Claude limitteyken geliştirme `codex/director-audit-20261014`
+dalında sürüyor. Claude'un asıl çalışma ağacı korunuyor. #87, #88, #89 ve #90
+bu geliştirme dalında birleştirildi; ayrı PR'ları şu an CI/Vercel başarılı ama
+main'e birleşmiş kabul edilmiyor. Birleşik migration ve ekran çakışmaları çözüldü.
+
+Yeni işler ve kabul kanıtları: [CONTINUATION.md](CONTINUATION.md).
+Tamamlanan kod ile canlı bağlantı/gerçek veri doğrulaması ayrı takip ediliyor.
+
+14 Ekim üçüncü tur: kullanıcı otomasyonu durdurdu. Son ürün/reçete paketi ve
+39/39 DB entegrasyonu kaydedildi; genel ERP programı tamamlanmış değildir.
+Otomatik geliştirme ve Claude devri durdu; ayrıntı CONTINUATION.md içinde.
+
+14 Ekim manuel devam: kullanıcı bütün bölümlerde basit kullanım ve çakışmasız
+devam istedi. Önce `origin/main@fa196305` devam dalına birleştirildi; ana daldaki
+KDV, kesim listesi, demo araç takibi ve form sadeleştirmeleri korundu. İncelenmiş
+aktarımlar eski müşteri taslağıyla değiştirilmedi. Sonraki paket önceliği mevcut
+modüllerde günlük iş/form/isteğe bağlı alan incelemesi; bakım ve fason dahil
+sonraki işlevler de yukarıdaki kullanım kabul ölçütüne tabi. Otomasyon kapalıdır.

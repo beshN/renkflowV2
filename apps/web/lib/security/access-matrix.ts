@@ -121,6 +121,7 @@ export function sanitizeMatrix(base: UserRole, raw: unknown): Matrix {
 const API_MODULES: Array<[string, Module | null]> = [
   ['/api/v1/orders', 'orders'], ['/api/orders', 'orders'], ['/api/v1/quotations', 'quotations'], ['/api/v1/sales/settings', 'settings'],
   ['/api/v1/customers', 'customers'], ['/api/v1/crm', 'crm'], ['/api/v1/leads', 'crm'], ['/api/v1/installations', 'installations'], ['/api/v1/service', 'service'],
+  ['/api/v1/products/import', 'inventory'], ['/api/v1/products/recipes', 'production'],
   ['/api/v1/production', 'production'], ['/api/v1/work-orders', 'production'], ['/api/v1/inventory', 'inventory'], ['/api/v1/stock', 'inventory'],
   ['/api/v1/warehouse', 'inventory'], ['/api/v1/procurement', 'purchasing'], ['/api/v1/purchases', 'purchasing'], ['/api/v1/suppliers', 'purchasing'],
   ['/api/v1/finance', 'finance'], ['/api/v1/payments', 'finance'], ['/api/v1/accounting', 'finance'], ['/api/v1/invoices', 'finance'],
@@ -131,6 +132,7 @@ const API_MODULES: Array<[string, Module | null]> = [
 ];
 const PAGE_MODULES: Array<[string, Module]> = [
   ['/orders', 'orders'], ['/kanban', 'orders'], ['/calendar', 'orders'], ['/quotations', 'quotations'], ['/crm', 'customers'], ['/customers', 'customers'],
+  ['/products/import', 'inventory'], ['/products', 'production'],
   ['/leads', 'crm'], ['/installations', 'installations'], ['/service', 'service'], ['/production', 'production'],
   ['/work-orders', 'production'], ['/inventory', 'inventory'], ['/warehouse', 'inventory'], ['/purchases', 'purchasing'], ['/receipts', 'purchasing'],
   ['/suppliers', 'purchasing'], ['/finance', 'finance'], ['/accounting', 'finance'], ['/reports', 'reports'], ['/analytics', 'reports'],
