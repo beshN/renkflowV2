@@ -8,6 +8,7 @@ import { postStockEntryInTransaction } from '@/lib/features/manufacturing/invent
 import { pdfTextItems } from './extract';
 import { parseCountDocument, type CountRow } from './parse';
 import { itemIdentity, rowStates } from './identity';
+import { parseCountCsv, MAX_COUNT_CSV_CHARS } from './csv';
 
 export { itemIdentity, rowStates };
 
@@ -55,36 +56,51 @@ export const CountImportPayloadSchema = z.object({
 });
 export type CountImportPayload = z.infer<typeof CountImportPayloadSchema>;
 
-const UploadSchema = z.object({
+const PdfUploadSchema = z.object({
+  format: z.literal('pdf').optional(),
   fileName: z.string().trim().min(1).max(200),
   base64: z.string().min(8).max(Math.ceil((MAX_BYTES * 4) / 3) + 8),
   warehouseId: z.string().uuid(),
 });
 
+const UploadSchema = z.union([PdfUploadSchema, z.object({
+  format: z.literal('csv'),
+  fileName: z.string().trim().min(1).max(200),
+  text: z.string().min(1).max(MAX_COUNT_CSV_CHARS),
+  warehouseId: z.string().uuid(),
+})]);
+
 function manager(actor: WorkOrderActor) {
   if (!['owner', 'admin'].includes(actor.role)) fail('Sayım listesini firma yöneticisi içe aktarabilir', 403);
 }
 
-/** Reads the PDF, checks it, and files it as a suggestion. Nothing is written to stock here. */
+/** Reads the PDF or CSV, checks it, and files it as a suggestion. Nothing is written to stock here. */
 export async function fileCountImport(actor: WorkOrderActor, raw: unknown) {
   manager(actor);
   const input = UploadSchema.parse(raw);
-  const bytes = Buffer.from(input.base64, 'base64');
-  if (bytes.length > MAX_BYTES) fail('Dosya en fazla 3 MB olabilir', 413);
-  if (bytes.subarray(0, 5).toString('latin1') !== '%PDF-') fail('PDF dosyası seçin');
-  const sha256 = createHash('sha256').update(bytes).digest('hex');
   const [warehouse] = await sql`SELECT id, name FROM warehouses WHERE tenant_id = ${actor.tenantId} AND id = ${input.warehouseId} AND warehouse_type = 'RAW' AND active = true`;
   if (!warehouse) fail('Geçerli bir hammadde deposu seçin');
+  let document;
+  let sha256: string;
+  if (input.format === 'csv') {
+    try { document = parseCountCsv(input.text); }
+    catch (error) { fail(error instanceof Error ? error.message : 'CSV okunamadı'); }
+    // Encoding, delimiters and row order must not turn the same count into a new document.
+    const canonicalRows = document!.rows.map((row) => JSON.stringify({ ...row, ref: undefined, page: undefined })).sort();
+    sha256 = createHash('sha256').update('count-csv-v1:' + JSON.stringify(canonicalRows)).digest('hex');
+  } else {
+    const bytes = Buffer.from(input.base64, 'base64');
+    if (bytes.length > MAX_BYTES) fail('Dosya en fazla 3 MB olabilir', 413);
+    if (bytes.subarray(0, 5).toString('latin1') !== '%PDF-') fail('PDF dosyası seçin');
+    sha256 = createHash('sha256').update(bytes).digest('hex');
+    try { document = parseCountDocument(await pdfTextItems(new Uint8Array(bytes))); }
+    catch (error) {
+      fail(error instanceof Error && /en fazla/.test(error.message) ? error.message : 'PDF okunamadı');
+    }
+  }
+  document = document!;
   if ((await sql`SELECT 1 FROM stock_count_documents WHERE tenant_id = ${actor.tenantId} AND file_sha256 = ${sha256}`).length)
     fail('Bu sayım listesi daha önce içe aktarıldı', 409);
-  let parsed;
-  try {
-    parsed = parseCountDocument(await pdfTextItems(new Uint8Array(bytes)));
-  } catch (error) {
-    if (!(error instanceof Error && /en fazla/.test(error.message))) console.error('[count import] PDF read failed:', error instanceof Error ? error.message : error);
-    fail(error instanceof Error && /en fazla/.test(error.message) ? error.message : 'PDF okunamadı');
-  }
-  const document = parsed!;
   if (!document.rows.length)
     fail('PDF\'te sayım tablosu bulunamadı. Taranmış (resim) PDF okunamaz; metin içeren sayım listesi gerekli.');
   const rows = document.rows;
@@ -107,9 +123,9 @@ export async function fileCountImport(actor: WorkOrderActor, raw: unknown) {
     kind: COUNT_IMPORT_KIND,
     title: `Sayım listesi${document.date ? ' ' + document.date : ''}: ${rows.length} satır${uncertain.length ? `, ${uncertain.length} emin değilim` : ''}`,
     rationale: [
-      `"${input.fileName}" (${document.pages} sayfa) kesin kurallarla okundu; model kullanılmadı.`,
+      `"${input.fileName}" (${input.format === 'csv' ? 'CSV' : `${document.pages} sayfa`}) kesin kurallarla okundu; model kullanılmadı.`,
       `${counted.length} adet/takım satırı ${warehouse.name} deposuna açılış stoğu olarak yazılır (yalnız mevcut stoktan fazlası).`,
-      `${metres.length} metre/boy satırı stok kartı olarak açılır; çubukların boy ve adedi açılış sayımı ekranında girilir, PDF'teki toplam karşılaştırma için tutulur.`,
+      `${metres.length} metre/boy satırı stok kartı olarak açılır; çubukların boy ve adedi açılış sayımı ekranında girilir, listedeki toplam karşılaştırma için tutulur.`,
       'Malzeme kartı: profil kodu + ölçü + işlenmiş hâl; renk çubukta tutulur. Onaylanmadan hiçbir stok yazılmaz.',
     ].join('\n'),
     payload,
@@ -131,10 +147,14 @@ export async function fileCountImport(actor: WorkOrderActor, raw: unknown) {
 async function resolveItem(tx: any, tenantId: string, row: CountRow) {
   const identity = itemIdentity(row);
   const unit = row.unit === 'boy' ? 'm' : row.unit!;
-  const [existing] = row.code
-    ? await tx`SELECT * FROM inventory_items WHERE tenant_id = ${tenantId} AND lower(profile_code) = lower(${row.code}) AND lower(coalesce(size_label, '')) = lower(${row.size ?? ''}) AND processed_states = ${identity.states}::text[] AND coalesce(piece_length_mm, 0) = ${row.pieceLengthMm ?? 0} LIMIT 1`
-    : await tx`SELECT * FROM inventory_items WHERE tenant_id = ${tenantId} AND sku = ${identity.sku} LIMIT 1`;
+  const candidates = row.code
+    ? await tx`SELECT id, sku, name, active, stock_uom FROM inventory_items WHERE tenant_id = ${tenantId} AND lower(profile_code) = lower(${row.code}) AND lower(coalesce(size_label, '')) = lower(${row.size ?? ''}) AND processed_states = ${identity.states}::text[] AND coalesce(piece_length_mm, 0) = ${row.pieceLengthMm ?? 0} LIMIT 2`
+    : await tx`SELECT id, sku, name, active, stock_uom FROM inventory_items WHERE tenant_id = ${tenantId} AND sku = ${identity.sku} LIMIT 1`;
+  if (candidates.length > 1) return { item: null, note: 'Bu profil kimliği birden fazla kartla eşleşiyor; kartları inceleyin' };
+  const [existing] = candidates;
   if (existing) {
+    const sameName = (s: string) => s.trim().replace(/\s+/g, ' ').toLocaleLowerCase('tr-TR');
+    if (!row.code && sameName(existing.name) !== sameName(identity.name)) return { item: null, note: `Stok kodu (${existing.sku}) farklı adlı bir malzemeye ait; kartı inceleyin` };
     // An archived card is not reused silently, and a second one cannot be made beside it.
     if (!existing.active) return { item: null, note: `Bu kalemin kartı (${existing.sku}) pasif; önce kartı etkinleştirin` };
     if (existing.stock_uom !== unit) return { item: null, note: `Mevcut kartın birimi ${existing.stock_uom}, listede ${unit}` };
@@ -159,6 +179,7 @@ async function resolveItem(tx: any, tenantId: string, row: CountRow) {
 export async function applyCountImport(tx: any, actor: WorkOrderActor, payload: CountImportPayload, suggestionId: string) {
   manager(actor);
   const t = actor.tenantId;
+  await tx`SELECT pg_advisory_xact_lock(hashtextextended(${t + ':count-import'}, 0))`;
   const [warehouse] = await tx`SELECT id FROM warehouses WHERE tenant_id = ${t} AND id = ${payload.warehouseId} AND warehouse_type = 'RAW' AND active = true`;
   if (!warehouse) fail('Sayım deposu artık kullanılamıyor', 409);
   const [taken] = await tx`SELECT id FROM stock_count_documents WHERE tenant_id = ${t} AND file_sha256 = ${payload.document.sha256}`;
@@ -185,9 +206,11 @@ export async function applyCountImport(tx: any, actor: WorkOrderActor, payload: 
   const lines: any[] = [];
   const byItem = new Map<string, typeof rows>();
   for (const r of rows) if (r.status === 'applied') byItem.set(r.item.id, [...(byItem.get(r.item.id) ?? []), r]);
-  for (const [itemId, group] of byItem) {
+  for (const [itemId, group] of [...byItem].sort(([a], [b]) => a.localeCompare(b))) {
+    // Lock before calculating the receipt, using the same balance row as every stock movement.
+    await tx`INSERT INTO stock_balances (tenant_id, item_id, warehouse_id, on_hand_qty) VALUES (${t}, ${itemId}, ${warehouse.id}, 0) ON CONFLICT (tenant_id, item_id, warehouse_id) DO NOTHING`;
     const counted = group.reduce((sum, r) => sum + Number(r.row.quantity), 0);
-    const [balance] = await tx`SELECT on_hand_qty FROM stock_balances WHERE tenant_id = ${t} AND item_id = ${itemId} AND warehouse_id = ${warehouse.id}`;
+    const [balance] = await tx`SELECT on_hand_qty FROM stock_balances WHERE tenant_id = ${t} AND item_id = ${itemId} AND warehouse_id = ${warehouse.id} FOR UPDATE`;
     const delta = counted - Number(balance?.on_hand_qty ?? 0);
     if (delta < 0) {
       for (const r of group) {
@@ -235,7 +258,7 @@ export async function countImports(actor: WorkOrderActor) {
     SELECT d.id, d.title, d.count_date, d.file_name, d.created_at, d.stock_entry_id, w.name AS warehouse_name,
       (SELECT json_agg(json_build_object('id', l.id, 'ref', l.ref, 'section', l.section, 'code', l.code, 'name', l.name, 'color', l.color,
         'quantity', l.quantity, 'unit', l.unit, 'pieceLengthMm', l.piece_length_mm, 'issues', l.issues, 'status', l.status, 'note', l.note, 'itemId', l.item_id)
-        ORDER BY l.created_at, l.ref) FROM stock_count_lines l WHERE l.document_id = d.id) AS lines
+        ORDER BY l.created_at, CASE WHEN l.ref ~ '^csv-[0-9]+$' THEN substring(l.ref from 5)::numeric END, l.ref) FROM stock_count_lines l WHERE l.document_id = d.id AND l.tenant_id = d.tenant_id) AS lines
     FROM stock_count_documents d JOIN warehouses w ON w.id = d.warehouse_id AND w.tenant_id = d.tenant_id
     WHERE d.tenant_id = ${actor.tenantId}
     ORDER BY d.created_at DESC

@@ -4,7 +4,7 @@ import { applyCountImport, COUNT_IMPORT_KIND, CountImportPayloadSchema, type Cou
 import { registerSuggestionKind } from '../kinds';
 
 /**
- * Stock count list (PDF) import: read with fixed rules, no model. Approval creates the cards,
+ * Stock count list (PDF or CSV) import: read with fixed rules, no model. Approval creates the cards,
  * writes opening stock for counted pieces and leaves metre rows for the bar-by-bar count.
  */
 registerSuggestionKind<CountImportPayload>({

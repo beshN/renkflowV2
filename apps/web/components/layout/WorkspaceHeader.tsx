@@ -41,7 +41,7 @@ export function WorkspaceHeader() {
   const offMenu = Object.keys(OFF_MENU_SECTIONS).find(href => pathname === href || pathname.startsWith(href + '/'));
   const section = current?.label || (offMenu && OFF_MENU_SECTIONS[offMenu]) || 'Genel bakış';
   const detail = current && pathname !== current.href;
-  const detailLabel = pathname.endsWith('/import') ? 'İçe aktar' : 'Detay';
+  const detailLabel = pathname.endsWith('/count-import') ? 'Sayım aktarımı' : pathname.endsWith('/opening-count') ? 'Çubuk sayımı' : pathname.endsWith('/import') ? 'İçe aktar' : 'Detay';
   return <header className="rf-workspace-header sticky top-0 z-40 flex h-16 shrink-0 items-center gap-3 px-4 md:px-7">
     <Dialog.Root open={mobileOpen} onOpenChange={setMobileOpen}>
       <Dialog.Trigger asChild><button className="rf-icon-button md:!hidden" aria-label="Ana menüyü aç"><Menu size={21} /></button></Dialog.Trigger>

@@ -73,7 +73,7 @@ export function ExtractPanel() {
       {tab === 'quote' && <QuoteFromMessage />}
       {tab === 'offer' && <OfferToRfq />}
       {tab === 'count' && (
-        <p className="text-sm">Sayım PDF’i satır satır okunur ve her satır ayrı onaylanır. <Link href="/inventory/count-import" className="text-primary hover:underline">Sayım listesi yükle</Link></p>
+        <p className="text-sm">PDF veya CSV sayımı satır satır okunur; yönetici onayından sonra geçerli satırlar uygulanır. <Link href="/inventory/count-import" className="text-primary hover:underline">Sayım listesi yükle</Link></p>
       )}
       <p className="text-xs text-muted-foreground"><span className="rounded bg-amber-100 px-1 dark:bg-amber-900/40">Sarı</span> alanlar emin olunmayan ya da bulunamayan değerlerdir; onaylamadan önce kontrol edin.</p>
     </section>

@@ -76,7 +76,7 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 
 | İş | Durum |
 |---|---|
-| Toplu içe aktarma sihirbazı (müşteri, tedarikçi, ürün, stok) | 🔄 — müşteri ve tedarikçi yerelde doğrulandı; ürün/stok akışları ayrıca tamamlanacak |
+| Toplu içe aktarma sihirbazı (müşteri, tedarikçi, ürün, stok) | 🔄 — müşteri, tedarikçi ve CSV stok sayımı yerelde doğrulandı; genel ürün/mamul kartı ve reçete önizleme güvenilirliği açık |
 | Teklif isteği (RFQ) e-postası; SMS kanalı | ⬜ |
 | Müşteri portalı (sihirli bağlantıyla giriş) | ⬜ |
 | Ekipman bakımı ve fason üretim | ⬜ |

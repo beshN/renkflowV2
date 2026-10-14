@@ -11,6 +11,7 @@ const headers = { 'Cache-Control': 'private, no-store' };
 
 function error(e: unknown) {
   if (e instanceof WorkOrderApiError) return redactedJson({ error: e.message }, { status: e.status, headers });
+  if (e instanceof SyntaxError) return redactedJson({ error: 'Geçersiz JSON' }, { status: 400, headers });
   if (e instanceof ZodError) return redactedJson({ error: 'Geçersiz istek' }, { status: 400, headers });
   console.error('[count import]', e instanceof Error ? e.message : 'failed');
   return redactedJson({ error: 'Sayım listesi işlenemedi.' }, { status: 500, headers });
@@ -33,7 +34,7 @@ export async function GET() {
   }
 }
 
-/** POST { fileName, base64, warehouseId }: reads the PDF and files it as a suggestion to approve. */
+/** POST PDF or CSV: reads the count list and files it as a suggestion to approve. */
 export async function POST(req: NextRequest) {
   try {
     requireSameOriginJson(req, 4_500_000);

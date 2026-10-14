@@ -13,7 +13,7 @@ async function main() {
       throw new Error('Local test DB required');
     const tenantId = randomUUID(),
       ownerId = randomUUID(),
-      workerId = randomUUID();
+      workerId = randomUUID(), warehouseId = randomUUID();
     const email = 'import-' + ownerId.slice(0, 8) + '@test.local',
       password = 'DirectorLocal!2026';
     await db`INSERT INTO tenants (id,name,slug) VALUES (${tenantId}, 'Aktarım Deneme Atölyesi', ${'preview-' + tenantId})`;
@@ -23,6 +23,7 @@ async function main() {
     await db`INSERT INTO tenant_members (tenant_id,user_id,role) VALUES (${tenantId},${workerId},'worker')`;
     await db`INSERT INTO customers (tenant_id,full_name,email,tax_number) VALUES (${tenantId},'Örnek Yapı','kayitli@ornek.com','1234567890')`;
     await db`INSERT INTO suppliers (tenant_id,name,tax_number) VALUES (${tenantId},'Örnek Profil','9876543210')`;
+    await db`INSERT INTO warehouses (id,tenant_id,code,name,warehouse_type) VALUES (${warehouseId},${tenantId},'HAM','Deneme hammadde deposu','RAW')`;
     mkdirSync('.data', { recursive: true });
     writeFileSync(
       '.data/import-preview-fixture.json',
@@ -30,6 +31,7 @@ async function main() {
         {
           tenantId,
           ownerId,
+          warehouseId,
           email,
           password,
           workerEmail: 'worker-' + workerId.slice(0, 8) + '@test.local',

@@ -52,6 +52,33 @@ Bu PR'lar GitHub'da henüz açık olabilir; yalnız yerel merge üretime geçiş
 Adresler: `/crm/import`, `/suppliers/import`. Liste ekranlarından erişiliyor.
 API: `/api/v1/customers/import`, `/api/v1/procurement/suppliers/import`.
 
+### Stok sayımı CSV aktarımı — ikinci geliştirme paketi
+
+- `/inventory/count-import` artık PDF yanında CSV kabul ediyor. Türkçe CSV
+  şablonu, UTF-8/Windows-1254 okuma, virgül/noktalı virgül ve BOM var; 2 MB ve
+  500 satır sınırı uygulanıyor. Malzeme, miktar ve birim zorunlu. Bilinmeyen veya
+  tekrarlanan sütunlar reddediliyor; satırdaki hatalar açıkça gösteriliyor.
+- Adet/takım/boy tam sayı kalıyor. Metre profilinde kod, gramaj ve toplam ağırlık;
+  boyda mm cinsinden çubuk boyu gerekiyor. Ölçü/renk/durum çelişkisi, gramaj
+  tutarsızlığı, yinelenen kalem ve geçersiz sayı uygulamaya alınmıyor. Boyasız
+  renk boyalı karta dönüşmüyor; sözlük prototip adları geçerli birim sayılmıyor.
+- Mevcut yönetici öneri/onay yolu korunuyor: yükleme stoğa yazmaz. Adet/takım
+  onayda yalnız mevcut bakiyeyi aşan fark kadar girer. Metre/boy kartı onaydan
+  sonra fiziksel çubuk sayımı bekler; boyları/adetleri tahmin edilmez.
+- CSV'nin kodlaması, ayıracı veya satır sırası değişince aynı içerik yeni belge
+  sayılmıyor. Aynı firmanın iki depo kuyruğunda eşzamanlı onay da tek belge
+  oluşturur; diğer işlem 409 alır. Farklı firmanın aynı listesi ayrı kalır.
+- Sayım onayları firma kilidiyle sıralanıyor; bakiye farkı, diğer stok
+  hareketlerinin kullandığı bakiye satırı kilitlenerek hesaplanıyor. Eşzamanlı
+  20/30 sayımları 30 stok bırakır, iki farkı üst üste eklemez.
+- Üretilen stok kodu farklı adlı karta çarpışırsa satır durur. Bir profil kimliği
+  birden fazla kartla eşleşirse rastgele kart seçilmez. Pasif kart canlandırılmaz.
+- Mobil kartlar, renk gösterimi, dosya satırı, 50 satırlık sayfalama, açık/koyu
+  tema; iç içe main düzeltmesi ve sayım breadcrumb'ı var. Dosya/depo değişikliği
+  eski sonucu temizler; çift gönderim, okuma hatası ve unmount ele alındı.
+- Yeni migration gerekmiyor. Genel ürün/mamul kartı aktarımı ve reçete aktarımının
+  önizleme bağlama kontrolü ayrı açık işler; toplu aktarım programı bitmiş değil.
+
 ### Fatura güvenilirliği
 
 - Önceki Codex düzeltmesi: XML ve alıcı posta kutusu kesim anında saklanıyor.
@@ -71,7 +98,11 @@ bastırma uyarısı düzeltildi.
 
 ## Doğrulama
 
-- `npm run test:integration`: **37/37** betik, sıfırdan kurulmuş yerel PostgreSQL.
+- Önceki birleşik paket: `npm run test:integration` **37/37** betik geçti.
+- CSV sayım paketinin son kontrolü: taze yerel PostgreSQL ile **5/5** betik
+  (`count-csv`, `count-import`, `warehouse`, `stock-depth`, `stock-threshold`).
+  Yeni `test-count-csv.ts` runner tarafından otomatik keşfedilir; güncel tüm
+  38 betik birlikte yeniden koşulmuş diye raporlanmamalı.
 - Gerçek tarayıcı: sentetik sahip hesabıyla müşteri ve tedarikçi CSV'si →
   önizleme → boş alan doldurma → onay → kayıt; tekrar yüklemede yeni kayıt yok.
 - Önizleme arası müşteri notu değiştirilince kayıt durdu; yenilenen önizlemeden
@@ -80,8 +111,17 @@ bastırma uyarısı düzeltildi.
   önizleme 409; bozuk CSV 400. Reddedilen isteklerde veritabanı değişmedi.
 - 390 px mobil: yatay sayfa taşması yok, tek h1, iç içe main yok, etiketsiz alan
   yok. Açık/koyu tema kontrol edildi. Konsolda yeni uygulama hatası görülmedi.
-- Son tam `npm run validate` başarılı: **149 paket / 1.091 Jest testi**, tip
+- Son tam `npm run validate` başarılı: **150 paket / 1.105 Jest testi**, tip
   kontrolü, hatasız/uyarısız lint, ortam/backend/firma kapsamı kapıları ve production build.
+
+- CSV sayımı: 14 yeni ayrıştırıcı testi; gerçek HTTP sahibi/usta oturumu,
+  yönetici onayı ve SQL sonucu. Çalışan ve cross-site 403, hatalı JSON/başlık/depo
+  400, tekrar belge 409. Onaylanan geçerli satır tam 7 adet, belirsiz satır sıfır.
+- Gerçek tarayıcıda CSV yükleme → satır önizleme → Önerilenler → Onayla:
+  24 adet işlendi, profil `needs_bars`, kesirli takım `uncertain` kaldı. SQL ile
+  doğrulandı. 51 satır önizlemede ilk sayfa 50, ikinci sayfa 1 satır gösterdi.
+- 390×844 mobilde document genişliği 379 px, tek h1, iç içe main ve etiketsiz
+  alan yok; konsolda error/warn yok. Açık/koyu tema görselleri kaydedildi.
 
 Görseller ve ayrıntılı raporlar `/Volumes/HIKSEMI/RenkFlow V2/review-reports` içinde.
 Yalnız sentetik yerel veri kullanıldı; üretim verisi veya hesap sırları taşınmadı.
@@ -102,7 +142,12 @@ AUTH_SECRET ile sunucuyu açıp `npm run test:imports:http -- http://127.0.0.1:3
 
 ## Sıradaki geliştirme paketleri
 
-1. Ürün ve stok toplu aktarımının mevcut CSV/sayım akışlarıyla tamamlanması.
+1. Genel ürün/mamul kartı CSV aktarımı ve reçete aktarımının tamamlanması.
+   Mevcut `/products` aile reçetesi CSV'si; genel ürün kataloğu aktarımı değil.
+   `recipe-template.service.ts` önizlemesi fingerprint taşımıyor ve mevcut UI
+   alan değişikliğinde önizlemeyi temizlemiyor; kaydın incelenen dosya/alan/kart
+   sürümüne bağlanması sonraki paketin güvenilirlik işi. CSV stok sayımı bitti;
+   fiziksel çubuk onayı korunuyor.
 2. Ekipman bakım planı, arıza/duruş defteri ve gerçek verilere dayalı OEE.
    Planlı süre, çalışılan süre, ideal çevrim ve sağlam/red üretim olmadan yüzde uydurmayın.
 3. Fason iş akışı; verilen malzeme, teslimat, kısmi kabul, maliyet ve kalite bağlantısı.
@@ -128,4 +173,14 @@ stratejisi korunuyor; bunlar sessizce tamamlandı veya kullanıcı isteğinden
 Limit açıldığında bu dosyayı ve güncel git diff/commitleri Claude'a iletin.
 Asıl oturumda canlı bir iş varken aynı session'ı ikinci süreçte resume etmeyin.
 Bildirim gerçekten gönderilip yanıt alınmadıysa gönderildi demeyin.
+14 Ekim ikinci tur kontrolü: resmi Claude Code CLI, **13:20 Europe/Istanbul**
+limit sıfırlama saatini hâlâ bildiriyor. Asıl ERP oturumu `idle`, son kayıt
+09:26:34; bu tur devir gönderilmedi ve asıl ağaca dokunulmadı.
 30 dakikalık sohbet takibi geliştirme ve devir işlemini sürdürüyor.
+
+## PR durumu
+
+Draft PR: https://github.com/beshN/renkflowV2/pull/91.
+Önceki `9da8180c` için GitHub validate ve Vercel başarılı, mergeable olduğu
+14 Ekim 07:34 UTC sonrasında doğrulandı. Yeni CSV paketinin push kontrolleri
+ayrıca izlenecek; eski yeşil sonucu yeni commit'e mal etmeyin.
