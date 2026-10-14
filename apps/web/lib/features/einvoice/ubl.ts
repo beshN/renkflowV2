@@ -211,8 +211,8 @@ export function buildUblInvoice(inv: UblInvoice): string {
     : '';
   return '<?xml version="1.0" encoding="UTF-8"?>'
     + `<Invoice ${NS}>`
-    // Signature placeholder, filled by the provider (XAdES).
-    + '<ext:UBLExtensions><ext:UBLExtension><ext:ExtensionContent/></ext:UBLExtension></ext:UBLExtensions>'
+    // No UBLExtensions here: an empty ExtensionContent is invalid against the UBL 2.1 schema; the
+    // provider adds the block with its XAdES signature when it signs the document.
     + el('cbc:UBLVersionID', '2.1')
     + el('cbc:CustomizationID', 'TR1.2')
     + el('cbc:ProfileID', inv.profile)

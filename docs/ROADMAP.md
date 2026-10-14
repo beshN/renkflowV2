@@ -65,7 +65,7 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 | `EInvoiceProvider`, sahte sağlayıcı, gönderim kuyruğu, ekran durumları | 🔄 | Kesmede e-Fatura/e-Arşiv ayrımı, RNK/RNA serileri, kuyruk (gönder → sorgula → kabul/ret, hata ve yeniden deneme), iptal kuralları, XML indirme, müşteri fatura bilgileri. Gerçek entegratör seçilince yalnızca bir adaptör yazılacak. |
 | Gerçek entegratör adaptörü | ⏸ | |
 | Tekdüzen hesap planı, otomatik yevmiye, defter bazlı bilanço; hesap, yevmiye ve mizan ekranları | ⬜ | |
-| KDV beyanname taslağı ve Ba/Bs raporu | ⬜ | |
+| KDV dönem özeti (beyanname için) | ⬜ | **Ba/Bs kaldırıldı:** 565 Sıra No'lu VUK Genel Tebliği (RG 25.09.2024) ile Eylül 2024'ten itibaren Ba/Bs bildirimi yok; bu madde rapordan çıkarıldı. Kalan iş: muhasebeciye oran bazında satış matrahı/KDV, tevkifat ve indirilecek KDV özeti. |
 | Banka ekstresi ayrıştırıcıları (CSV, MT940, OFX) | ⬜ | |
 | TCMB kur servisi ve tarihli kur tablosu | 🔄 | `exchange_rates`, günlük cron (Hobby'de çalışır), teklifte "TCMB'den al". Faturaya kur, e-Belge gönderimi birleşince eklenecek. |
 | Bordro köprüsü (yasal alanlar ve dışa aktarım) | ⬜ | |
