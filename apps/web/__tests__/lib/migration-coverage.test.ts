@@ -10,7 +10,6 @@ import { join } from 'node:path';
 jest.mock('dotenv', () => ({ config: jest.fn() }));
 jest.mock('postgres', () => jest.fn());
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const schema = require('../../scripts/ensure-backend-schema');
 
 const ROOT = join(__dirname, '..', '..');

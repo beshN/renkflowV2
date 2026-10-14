@@ -101,12 +101,27 @@ async function main() {
     assert.equal(sentDocument.xml, originalXml, 'delivery uses the immutable issue-time XML');
     assert.equal(sentDocument.recipientAlias, originalAlias, 'delivery uses the issue-time recipient');
 
+    // Poll failures are visible and audited, but never cause an ambiguous delivery to be resent.
+    const originalStatus = MockProvider.prototype.status;
+    MockProvider.prototype.status = async () => ({ status: 'error', message: 'Geçici sorgulama hatası' });
+    await due(early.id);
+    await drainEInvoices(10);
+    assert.equal((await row(early.id)).e_invoice_status, 'sent');
+    assert.match((await row(early.id)).e_invoice_error, /Geçici sorgulama/);
+    MockProvider.prototype.status = async () => { throw new Error('Bağlantı kesildi'); };
+    await due(early.id);
+    await drainEInvoices(10);
+    assert.match((await row(early.id)).e_invoice_error, /Bağlantı kesildi/);
+    assert.equal(sentDocuments.filter((document) => document.ettn === r.ettn).length, 1);
+    MockProvider.prototype.status = originalStatus;
+
     // Polling turns sent into accepted.
     await due(early.id);
     await due(consumer.id);
     const polled = await drainEInvoices(10);
     assert.equal((polled as any).accepted, 2);
     assert.equal((await row(early.id)).e_invoice_status, 'accepted');
+    assert.equal((await row(early.id)).e_invoice_error, null);
 
     // An accepted e-Fatura cannot be cancelled here; an accepted e-Arşiv can.
     await assert.rejects(inv.cancelInvoice(acc, early.id, { reason: 'müşteri vazgeçti' }), /iade faturası/);
@@ -160,7 +175,7 @@ async function main() {
     assert.equal((await inv.invoiceXml(acc, legacy.id)).xml, legacyXml);
 
     const actions = new Set((await db`SELECT action FROM activity_logs WHERE tenant_id = ${tenantId}`).map((x) => x.action));
-    for (const action of ['e_invoice_sent', 'e_invoice_accepted', 'e_invoice_failed', 'e_invoice_rejected', 'e_invoice_retried', 'invoice_cancelled']) assert(actions.has(action), `audit has ${action}`);
+    for (const action of ['e_invoice_sent', 'e_invoice_accepted', 'e_invoice_failed', 'e_invoice_rejected', 'e_invoice_retried', 'e_invoice_poll_failed', 'invoice_cancelled']) assert(actions.has(action), `audit has ${action}`);
 
     console.log('PASS · e-Belge with the mock provider: e-Fatura/e-Arşiv by registration on RNK/RNA series, refusals spend no number, queued cannot be cancelled, parallel workers send once, poll → accepted, e-Arşiv cancel vs e-Fatura refused, failure kept and retried, rejection not resent, XML export, all audited');
   } finally {

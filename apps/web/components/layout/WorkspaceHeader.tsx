@@ -41,6 +41,7 @@ export function WorkspaceHeader() {
   const offMenu = Object.keys(OFF_MENU_SECTIONS).find(href => pathname === href || pathname.startsWith(href + '/'));
   const section = current?.label || (offMenu && OFF_MENU_SECTIONS[offMenu]) || 'Genel bakış';
   const detail = current && pathname !== current.href;
+  const detailLabel = pathname.endsWith('/import') ? 'İçe aktar' : 'Detay';
   return <header className="rf-workspace-header sticky top-0 z-40 flex h-16 shrink-0 items-center gap-3 px-4 md:px-7">
     <Dialog.Root open={mobileOpen} onOpenChange={setMobileOpen}>
       <Dialog.Trigger asChild><button className="rf-icon-button md:!hidden" aria-label="Ana menüyü aç"><Menu size={21} /></button></Dialog.Trigger>
@@ -64,7 +65,7 @@ export function WorkspaceHeader() {
       <Link href="/dashboard" className="hidden text-muted-foreground hover:text-foreground lg:block">Çalışma alanı</Link>
       <ChevronRight size={13} className="hidden text-muted-foreground/60 lg:block" />
       <span className="truncate font-medium text-foreground">{section}</span>
-      {detail && <><ChevronRight size={13} className="text-muted-foreground/60" /><span className="text-muted-foreground">Detay</span></>}
+      {detail && <><ChevronRight size={13} className="text-muted-foreground/60" /><span className="text-muted-foreground">{detailLabel}</span></>}
     </div>
     <div className="ml-auto flex shrink-0 items-center gap-1.5 md:gap-3">
       <button type="button" onClick={openCommands} aria-label="Sipariş, müşteri veya modül ara" aria-keyshortcuts="Meta+K Control+K" className="rf-global-search flex h-8 items-center gap-2 border border-border bg-card px-2.5 text-xs text-muted-foreground">

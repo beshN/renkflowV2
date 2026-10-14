@@ -48,12 +48,13 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 
 | İş | Durum | Not |
 |---|---|---|
-| Hata izleme (Sentry, `instrumentation.ts`), gerçek `/api/ready` | 🔄 | #80. Canlı için Sentry DSN gerekiyor. |
-| 26 entegrasyon betiğinin sıfır veritabanında CI kapısına alınması | 🔄 | #79. GitHub-hosted runner hesapta kullanılamadığı için self-hosted Mac'te. Playwright smoke testi sonra. |
-| Yedekleme ve geri yükleme runbook'u, prova; migration defteri ve kapsama testi | 🔄 | `docs/runbooks/backup-restore.md`, `schema_migrations`, `npm run db:status` |
-| Düz reset token eşleşmesinin kaldırılması, CSP, SSO sırlarının şifrelenmesi | 🔄 | #78. Parola politikası zaten 10 karakter ve tek doğrulayıcıydı; mobil JWT fallback'i production'da zaten hata veriyor. |
-| İki adımlı doğrulama (TOTP) ve kurtarma kodları | 🔄 | Web girişi ve Hesabım ekranı. Saha uygulaması kod soramadığı için 2FA açık hesapları reddediyor; uygulamaya kod adımı eklemek ayrı bir iş. Rol bazında zorunlu tutma sonra. |
-| Denetim kaydı: değiştirilemezlik, giriş ve dönem kapama olayları | 🔄 | Tek servis (`activity_logs`) zaten K5'te kurulmuştu. Bu iş: 051 migration'ı ile kayıtlar yalnız eklenebilir; web ve mobil girişler, dönem kapama kaydediliyor; yetim `/api/tenant/activity` silindi. |
+| Hata izleme (Sentry, `instrumentation.ts`), gerçek `/api/ready` | ✅ | #80 birleşti. Kod hazır; canlı hata iletimi için Sentry DSN ve teslimat doğrulaması hâlâ gerekiyor. |
+| Entegrasyon betiklerinin sıfır veritabanında CI kapısına alınması | ✅ | #79 birleşti. Runner yeni test-*.ts betiklerini de otomatik kapsıyor. Tarayıcı ve axe kapısı ayrı açık iş. |
+| Migration defteri ve kapsama testi | ✅ | #81 birleşti; `schema_migrations`, `npm run db:status`. |
+| Gerçek yedek geri yükleme provası | ⬜ | Runbook var; salt okunur dal karşılaştırması restore provası sayılmaz. Ayrı dalda restore, veri/şema/uygulama doğrulaması ve süre kaydı gerekiyor. |
+| Düz reset token eşleşmesinin kaldırılması, CSP, SSO sırlarının şifrelenmesi | ✅ | #78 birleşti. Parola politikası zaten 10 karakter ve tek doğrulayıcıydı; mobil JWT fallback'i production'da zaten hata veriyor. |
+| Web iki adımlı doğrulama (TOTP) ve kurtarma kodları | ✅ | #83 birleşti; web girişi ve Hesabım ekranı. Saha uygulaması kod soramadığı için 2FA açık hesapları reddediyor; uygulamaya kod adımı eklemek ayrı bir iş. Rol bazında zorunlu tutma sonra. |
+| Denetim kaydı: değiştirilemezlik, giriş ve dönem kapama olayları | ✅ | #82 birleşti. Tek servis (`activity_logs`) zaten K5'te kurulmuştu. Bu iş: 051 migration'ı ile kayıtlar yalnız eklenebilir; web ve mobil girişler, dönem kapama kaydediliyor; yetim `/api/tenant/activity` silindi. |
 | Postgres RLS ve firma izolasyonu testi | ⬜ | |
 | Yük testi ve Web Vitals | ⬜ | |
 
@@ -75,7 +76,7 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 
 | İş | Durum |
 |---|---|
-| Toplu içe aktarma sihirbazı (müşteri, tedarikçi, ürün, stok) | ⬜ |
+| Toplu içe aktarma sihirbazı (müşteri, tedarikçi, ürün, stok) | 🔄 — müşteri ve tedarikçi yerelde doğrulandı; ürün/stok akışları ayrıca tamamlanacak |
 | Teklif isteği (RFQ) e-postası; SMS kanalı | ⬜ |
 | Müşteri portalı (sihirli bağlantıyla giriş) | ⬜ |
 | Ekipman bakımı ve fason üretim | ⬜ |
@@ -92,3 +93,13 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 | Etiketsiz alanlar; CI'da axe testi | ⬜ |
 | Dokunmatik montaj takvimi | ⬜ |
 | Mağaza yayını | ⏸ |
+
+## Codex devam kaydı — 14 Ekim 2026
+
+Kullanıcının isteğiyle Claude limitteyken geliştirme `codex/director-audit-20261014`
+dalında sürüyor. Claude'un asıl çalışma ağacı korunuyor. #87, #88, #89 ve #90
+bu geliştirme dalında birleştirildi; ayrı PR'ları şu an CI/Vercel başarılı ama
+main'e birleşmiş kabul edilmiyor. Birleşik migration ve ekran çakışmaları çözüldü.
+
+Yeni işler ve kabul kanıtları: [CONTINUATION.md](CONTINUATION.md).
+Tamamlanan kod ile canlı bağlantı/gerçek veri doğrulaması ayrı takip ediliyor.

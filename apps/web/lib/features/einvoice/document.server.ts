@@ -175,13 +175,20 @@ export async function drainEInvoices(limit = 10) {
 
   for (let i = 0; i < limit; i++) {
     const claimed = await claimOne(sql`e_invoice_status = 'sent'`, async (tx, invoice) => {
-      const answer = await provider.status(invoice.e_invoice_provider_id).catch((error) => ({ status: 'sent' as const, message: error instanceof Error ? error.message : undefined }));
+      const answer = await provider.status(invoice.e_invoice_provider_id).catch((error) => ({ status: 'error' as const, message: error instanceof Error ? error.message : 'Sağlayıcıya ulaşılamadı' }));
       if (answer.status === 'accepted' || answer.status === 'rejected') {
         await tx`UPDATE invoices SET e_invoice_status = ${answer.status}, e_invoice_error = ${answer.message ?? null}, e_invoice_next_attempt_at = NULL, updated_at = now() WHERE id = ${invoice.id}`;
         await audit(tx, invoice, answer.status === 'accepted' ? 'e_invoice_accepted' : 'e_invoice_rejected', answer.message ? { message: answer.message } : {});
         result[answer.status]++;
       } else {
-        await tx`UPDATE invoices SET e_invoice_next_attempt_at = now() + make_interval(mins => ${POLL_MINUTES}) WHERE id = ${invoice.id}`;
+        // Delivery may already have happened. Keep polling that provider ID rather than queueing
+        // another send; surface the transient failure so it is not silently hidden from the user.
+        const message = answer.status === 'error' ? (answer.message || 'e-Belge durumu sorgulanamadı').slice(0, 500) : null;
+        await tx`UPDATE invoices SET e_invoice_error = ${message}, e_invoice_next_attempt_at = now() + make_interval(mins => ${POLL_MINUTES}), updated_at = now() WHERE id = ${invoice.id}`;
+        if (message) {
+          if (invoice.e_invoice_error !== message) await audit(tx, invoice, 'e_invoice_poll_failed', { error: message });
+          result.failed++;
+        }
       }
     });
     if (!claimed) break;

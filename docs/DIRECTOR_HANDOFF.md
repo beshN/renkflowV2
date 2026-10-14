@@ -1,5 +1,8 @@
 # Codex direktör denetimi — 14 Ekim 2026
 
+**Güncel durum:** geliştirme artık `docs/CONTINUATION.md` dosyasında takip ediliyor.
+Aşağıdaki bulgular ilk denetimin kaydıdır; XML ve polling düzeltmeleri tamamlandı.
+
 Aktif Claude görevi: **RenkFlow ERP genel durum**, `c5b9899e-44e6-4028-be38-5cfe2da0e16b`.
 Asıl proje `/Users/beshnovski/Desktop/renkflowV2`. Denetim ve düzeltme ayrı
 `codex/director-audit-20261014` dalında, `/Users/beshnovski/Desktop/renkflow-director-audit`.

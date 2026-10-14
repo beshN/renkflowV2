@@ -78,7 +78,7 @@ export function InvoiceDocument({ id }: { id: string }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const load = () => requestJson<Doc>(`/api/v1/invoices/${id}`, { cache: 'no-store' }).then((r) => (r.ok && r.data ? setD(r.data) : setError(r.error || 'Fatura alınamadı')));
-  useEffect(() => { void load(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, [id]);
   async function retry() {
     setBusy(true);
     const r = await requestJson(`/api/v1/invoices/${id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'retry' }) });

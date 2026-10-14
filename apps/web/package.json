@@ -65,7 +65,9 @@
     "test:warehouse:browser": "node scripts/verify-warehouse-browser.cjs",
     "test:field": "tsx --require ./scripts/register-server-only.cjs scripts/test-native-field.ts",
     "prebuild": "node scripts/sync-pdf-worker.cjs",
-    "predev": "node scripts/sync-pdf-worker.cjs"
+    "predev": "node scripts/sync-pdf-worker.cjs",
+    "preview:imports:seed": "tsx scripts/prepare-contact-import-preview.ts",
+    "test:imports:http": "tsx --require ./scripts/register-server-only.cjs scripts/verify-contact-import-http.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
