@@ -1,7 +1,7 @@
 /** Disposable local database only. Exercises actual permissions, snapshots, edits and replay. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import postgres from 'postgres';
 import bcrypt from 'bcryptjs';
 import { localTestDatabaseURL } from './local-test-database';
@@ -45,7 +45,8 @@ async function main() {
  await db`INSERT INTO tenant_members(tenant_id,user_id,role) VALUES(${other.id},${otherUser.id},'owner')`;
  await assert.rejects(()=>setAttendance({...actor,tenantId:other.id,userId:otherUser.id},{employeeId:employee.id,days:['2026-10-14'],kind:'absent'}),/bulunamadı/);
  await db.unsafe(migration); assert.equal((await employeeDetail(actor,employee.id,'2026-10')).attendance[0].deductionSnapshot?.dailyRate,1000);
- writeFileSync('../../.data/personnel-browser-fixture.json',JSON.stringify({email,password,tenantId:tenant.id,employeeId:employee.id,warehouseId:warehouse.id}));
+ mkdirSync('../../.data',{recursive:true});
+ writeFileSync('../../.data/personnel-browser-fixture.json',JSON.stringify({email,password,tenantId:tenant.id,employeeId:employee.id,warehouseId:warehouse.id}),{mode:0o600});
  console.log('PASS attendance policy snapshots, paid leave protection, salary replay, immutable pay receipt, warehouse creation/replay, duplicate code and tenant isolation');
  await db.end();
 }
