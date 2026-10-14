@@ -6,6 +6,7 @@
  */
 
 import { sql } from '@/lib/db';
+import { recordAudit } from '@/lib/audit/audit-log';
 import { z } from 'zod';
 import { getServerUserContext,requirePermission } from '@/lib/features/auth/serverAuth';
 import { revalidatePath } from 'next/cache';
@@ -2675,30 +2676,49 @@ export async function setPeriodCloseStatus(
       return { success: false, error: 'Dönem kapanış tablosu hazır değil.' };
     }
 
-    await sql`
-      INSERT INTO accounting_period_closes (
-        tenant_id,
-        period,
-        status,
-        closed_note,
-        closed_by,
-        closed_at
-      ) VALUES (
-        ${session.user.tenantId},
-        ${period},
-        ${input.status},
-        ${input.note || null},
-        ${session.user.id},
-        ${input.status === 'open' ? null : new Date().toISOString()}
-      )
-      ON CONFLICT (tenant_id, period)
-      DO UPDATE SET
-        status = EXCLUDED.status,
-        closed_note = EXCLUDED.closed_note,
-        closed_by = EXCLUDED.closed_by,
-        closed_at = EXCLUDED.closed_at,
-        updated_at = timezone('utc'::text, now())
-    `;
+    // The status change and its audit record commit together: a period close without a trace
+    // (or a trace without the close) must not exist.
+    await sql.begin(async (tx: any) => {
+      const [previous] = await tx`
+        SELECT status FROM accounting_period_closes
+        WHERE tenant_id = ${session.user.tenantId} AND period = ${period}
+        FOR UPDATE
+      `;
+      await tx`
+        INSERT INTO accounting_period_closes (
+          tenant_id,
+          period,
+          status,
+          closed_note,
+          closed_by,
+          closed_at
+        ) VALUES (
+          ${session.user.tenantId},
+          ${period},
+          ${input.status},
+          ${input.note || null},
+          ${session.user.id},
+          ${input.status === 'open' ? null : new Date().toISOString()}
+        )
+        ON CONFLICT (tenant_id, period)
+        DO UPDATE SET
+          status = EXCLUDED.status,
+          closed_note = EXCLUDED.closed_note,
+          closed_by = EXCLUDED.closed_by,
+          closed_at = EXCLUDED.closed_at,
+          updated_at = timezone('utc'::text, now())
+      `;
+      await recordAudit(tx, {
+        tenantId: session.user.tenantId,
+        actorId: session.user.id,
+        entityType: 'accounting_period',
+        entityId: session.user.tenantId,
+        action: 'period_status_changed',
+        changes: { status: { from: previous?.status ?? 'open', to: input.status } },
+        note: input.note || null,
+        metadata: { period },
+      });
+    });
 
     const state = await getPeriodCloseStateInternal(session, period);
     revalidatePath('/accounting');

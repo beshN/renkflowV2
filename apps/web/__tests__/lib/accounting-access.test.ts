@@ -34,3 +34,16 @@ it('prevents an accountant from reopening a closed period',async()=>{
  (requirePermission as jest.Mock).mockImplementation(()=>{});
  await expect(setPeriodCloseStatus({period:'2026-10',status:'open'})).resolves.toEqual({success:false,error:'Dönem durumunu firma yöneticisi değiştirebilir.'});
 });
+it('writes the period status change and its audit record in one transaction',async()=>{
+ allowFinance();(tableExists as jest.Mock).mockResolvedValue(true);
+ const tx=jest.fn().mockResolvedValueOnce([{status:'soft_closed'}]).mockResolvedValue([]);
+ (sql as unknown as {begin:jest.Mock}).begin=jest.fn(async(fn:(t:unknown)=>unknown)=>fn(tx));
+ (sql as unknown as jest.Mock).mockResolvedValue([]);
+ await setPeriodCloseStatus({period:'2026-10',status:'hard_closed',note:'Ay sonu'});
+ const statements=tx.mock.calls.map((call)=>call[0].join('?'));
+ expect(statements[1]).toContain('INSERT INTO accounting_period_closes');
+ expect(statements[2]).toContain('INSERT INTO activity_logs');
+ const auditValues=tx.mock.calls[2].slice(1);
+ expect(auditValues).toEqual(expect.arrayContaining(['accounting_period','period_status_changed','Ay sonu']));
+ expect(auditValues.find((v:unknown)=>typeof v==='string'&&v.includes('"from":"soft_closed"'))).toContain('"to":"hard_closed"');
+});
