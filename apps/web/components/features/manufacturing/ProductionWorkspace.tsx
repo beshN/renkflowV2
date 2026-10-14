@@ -244,7 +244,7 @@ export default function ProductionWorkspace() {
         aria-label="Üretim bölümleri"
         className="flex gap-1 overflow-x-auto border-b border-border"
       >
-        {tabs.map(([id, label, Icon]) => (
+        {tabs.filter(([id]) => id !== "recipes").map(([id, label, Icon]) => (
           <button
             key={id}
             className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-xs ${tab === id ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}
@@ -265,6 +265,13 @@ export default function ProductionWorkspace() {
       )}
       {tab === "overview" && (
         <>
+          <Link href="/orders/foy" className="rf-panel flex flex-wrap items-center justify-between gap-3 border-primary/40 hover:border-primary">
+            <span>
+              <span className="block text-sm font-semibold">Kesim listesi yükle</span>
+              <span className="block text-xs text-muted-foreground">Föyü yükleyin: hangi profil hangi çubuktan kesilecek, artık ve hurdadan neler kullanılacak, ne kadar fire çıkacak otomatik hesaplanır.</span>
+            </span>
+            <span className="rf-primary-button text-xs">Föyü yükle</span>
+          </Link>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[
               [

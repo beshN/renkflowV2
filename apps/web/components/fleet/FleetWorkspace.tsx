@@ -7,6 +7,7 @@ import { EmptyState, HintTip, PageHeader, Skeleton, StatusChip } from '@/compone
 import { requestJson } from '@/lib/shared/network';
 import { DOCUMENT_KIND_LABELS, DOC_LEVEL_LABEL, VEHICLE_STATUS_LABELS, VEHICLE_TYPES, VEHICLE_TYPE_LABELS, formatPlate, type DocLevel, type DocumentKind, type VehicleStatus, type VehicleType } from '@/lib/features/fleet/engine';
 import { TileMap } from './TileMap';
+import { DemoTracking } from './DemoTracking';
 
 type Card = {
   id: string; plate: string; make: string | null; model: string | null; modelYear: number | null; type: VehicleType; status: VehicleStatus; driverName: string | null; odometerKm: number | null;
@@ -24,6 +25,8 @@ export function FleetWorkspace() {
   const [live, setLive] = useState<Live | null>(null);
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
+  // The demo opens by itself while no vehicle has reported a position, so the screen is never an empty map.
+  const [demo, setDemo] = useState<boolean | null>(null);
   const load = useCallback(async () => {
     const [a, b] = await Promise.all([requestJson<{ vehicles: Card[] }>('/api/v1/vehicles', { cache: 'no-store' }), requestJson<Live>('/api/v1/vehicles?view=live', { cache: 'no-store' })]);
     if (a.ok && a.data) setCards(a.data.vehicles); else setError(a.error || 'Araçlar alınamadı');
@@ -71,7 +74,10 @@ export function FleetWorkspace() {
         <h2 id="live-title" className="rf-section-title flex items-center gap-2"><MapPinned size={16} aria-hidden /> Canlı filo haritası <HintTip text="Her aracın son bildirdiği konum. Konum yalnız araca bağlı cihazdan gelir; saklama süresi aşağıdan ayarlanır." /></h2>
         {live && live.vehicles.length ? (
           <TileMap label="Araçların son konumu" markers={live.vehicles.map((v) => ({ id: v.vehicleId, lat: v.lat, lng: v.lng, label: formatPlate(v.plate) }))} />
-        ) : <EmptyState title={live?.devices ? 'Cihaz bağlı; henüz konum gelmedi' : 'Cihaz bağla: bir aracın Konum sekmesinden cihaz ekleyin'} icon={Radio} />}
+        ) : null}
+        {(demo ?? !live?.vehicles.length) ? <DemoTracking onClose={() => setDemo(false)} /> : (
+          <button type="button" className="rf-secondary-button text-sm" onClick={() => setDemo(true)}>Demo takibi göster</button>
+        )}
         <Retention onError={setError} />
       </section>
     </div>

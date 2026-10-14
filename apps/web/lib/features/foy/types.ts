@@ -39,6 +39,15 @@ export const FoyCutRowSchema = z.object({
   quantity: z.number().int().nonnegative().nullable(),
 });
 
+/** A steel piece from a drawing page ("50*100 DEMİR · 3 ADET · 280 cm DİKEY"): the length is the dimension drawn largest. */
+export const FoyIronCutSchema = z.object({
+  profile: z.string().max(60),
+  lengthCm: cm,
+  quantity: z.number().int().nonnegative().nullable(),
+  orientation: z.enum(['dikey', 'yatay']).nullable(),
+  page: z.number().int().positive(),
+});
+
 export const FoyWindbreakerSchema = z.object({
   orderDate: z.string().nullable(),
   deliveryDate: z.string().nullable(),
@@ -77,6 +86,8 @@ export const FoyDocSchema = z.object({
   valanceSize: z.object({ widthCm: cm, heightCm: cm }).nullable(),
   /** Free text of the steel drawings (later pages), e.g. "4 ADET 50*100 DEMİR DİKEY DEMİRLER". */
   ironNotes: z.array(z.string().max(300)).max(40),
+  /** The steel pieces with their lengths, read from the same drawing pages. */
+  ironCuts: z.array(FoyIronCutSchema).max(40).default([]),
   windbreaker: FoyWindbreakerSchema.nullable(),
   /** Pages whose content is an image the text layer cannot read. */
   unreadPages: z.array(z.number().int().positive()).max(20),
@@ -86,6 +97,7 @@ export type FoyOption = z.infer<typeof FoyOptionSchema>;
 export type FoyBay = z.infer<typeof FoyBaySchema>;
 export type FoySystem = z.infer<typeof FoySystemSchema>;
 export type FoyCutRow = z.infer<typeof FoyCutRowSchema>;
+export type FoyIronCut = z.infer<typeof FoyIronCutSchema>;
 export type FoyWindbreaker = z.infer<typeof FoyWindbreakerSchema>;
 export type FoyDoc = z.infer<typeof FoyDocSchema>;
 
@@ -93,7 +105,7 @@ export function emptyFoy(template: FoyDoc['template'] = 'unknown'): FoyDoc {
   return {
     template, date: null, customer: null, address: null, ral: null, finish: null, fabric: null,
     series: [], lights: [], assembly: null, crated: null, notes: [], systems: [], cutList: [],
-    fabricSize: null, valanceSize: null, ironNotes: [], windbreaker: null, unreadPages: [],
+    fabricSize: null, valanceSize: null, ironNotes: [], ironCuts: [], windbreaker: null, unreadPages: [],
   };
 }
 
