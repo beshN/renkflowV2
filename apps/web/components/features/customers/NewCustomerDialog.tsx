@@ -67,11 +67,7 @@ export function NewCustomerDialog({ open, onClose, onCreated }: { open: boolean;
       <form onSubmit={(e) => { e.preventDefault(); void submit(new FormData(e.currentTarget)); }}>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Müşteri adı *" name="fullName" required maxLength={200} autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
-          <Field label="Firma adı" name="companyName" maxLength={200} autoComplete="off" />
           <Field label="Telefon" name="phone" type="tel" maxLength={60} />
-          <Field label="E-posta" name="email" type="email" maxLength={320} />
-          <Field label="Vergi no" name="taxNumber" maxLength={40} />
-          <Field label="Vergi dairesi" name="taxOffice" maxLength={120} />
         </div>
         {similar.length > 0 && (
           <div className="mt-4 rounded border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
@@ -86,8 +82,17 @@ export function NewCustomerDialog({ open, onClose, onCreated }: { open: boolean;
             </ul>
           </div>
         )}
-        <label className="mt-4 block text-xs font-medium">Adres<textarea name="address" rows={2} maxLength={1000} className="rf-input mt-2 w-full" /></label>
-        <label className="mt-4 block text-xs font-medium">Not<textarea name="notes" rows={2} maxLength={5000} className="rf-input mt-2 w-full" /></label>
+        <details className="mt-4 rounded-md border border-border/70 px-3 py-2 [&_summary::-webkit-details-marker]:hidden">
+          <summary className="cursor-pointer select-none text-xs font-medium text-muted-foreground hover:text-foreground">Firma, e-posta, vergi ve adres (isteğe bağlı)</summary>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <Field label="Firma adı" name="companyName" maxLength={200} autoComplete="off" />
+            <Field label="E-posta" name="email" type="email" maxLength={320} />
+            <Field label="Vergi no" name="taxNumber" maxLength={40} />
+            <Field label="Vergi dairesi" name="taxOffice" maxLength={120} />
+          </div>
+          <label className="mt-4 block text-xs font-medium">Adres<textarea name="address" rows={2} maxLength={1000} className="rf-input mt-2 w-full" /></label>
+          <label className="mt-4 block text-xs font-medium">Not<textarea name="notes" rows={2} maxLength={5000} className="rf-input mt-2 w-full" /></label>
+        </details>
         <div className="mt-5 flex justify-end gap-2 border-t border-border pt-4">
           <button type="button" className="rf-secondary-button" onClick={onClose} disabled={busy}>Vazgeç</button>
           <button type="submit" className="rf-primary-button" disabled={busy}>{busy ? 'Kaydediliyor…' : 'Müşteriyi kaydet'}</button>

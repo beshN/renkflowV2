@@ -177,10 +177,13 @@ function OrdersWorkspace() {
         {user && hasPermission(user.role, 'orders.create') && <Link href="/orders/foy" className="rf-secondary-button h-9 items-center gap-2 px-3 text-xs"><ScanText size={14} /> Föy oku</Link>}
         {user && hasPermission(user.role, 'orders.create') && <Link href="/new-order" className="rf-primary-button h-9 items-center gap-2 px-3 text-xs"><Plus size={14} /> Yeni sipariş</Link>}
       </>} />
-    {user && <SavedOrderViews key={`${user.tenantId}:${user.id}:${user.role}`} filters={currentFilters} selectedId={params.get('savedView') || ''} onApply={(filters,id)=>{
+    {user && <details className="group" open={Boolean(params.get('savedView'))}>
+      <summary className="cursor-pointer select-none text-xs font-medium text-muted-foreground hover:text-foreground">Kayıtlı görünümler</summary>
+      <div className="mt-2"><SavedOrderViews key={`${user.tenantId}:${user.id}:${user.role}`} filters={currentFilters} selectedId={params.get('savedView') || ''} onApply={(filters,id)=>{
       const query=orderFiltersQuery(filters),next=new URLSearchParams(query);if(id)next.set('savedView',id);
       window.history.pushState(null,'',pathname+(next.toString()?'?'+next.toString():''));setSelected([]);
-    }}/>}
+    }}/></div>
+    </details>}
     <div className="rf-tabs" role="group" aria-label="Sipariş görünümleri">{views.map(item => <button type="button" key={item.id} aria-pressed={view === item.id} onClick={() => updateParams({ view: item.id === 'all' ? '' : item.id, status: '', stage: '' })}>{item.label}<span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">{isLoading || error && !orders.length ? '—' : counts[item.id]}</span></button>)}</div>
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><FileText size={14} aria-hidden /><span className="tabular-nums">{isLoading ? '·' : filtered.length}</span>{lcIndex >= 0 && <button onClick={() => updateParams({ lc: '' })} className="flex items-center gap-1.5 rounded border border-border bg-card px-2 py-1 text-[10px]">{LIFECYCLE[lcIndex].label}<X size={12} /></button>}{stage && stageLabels[stage] && <button onClick={() => updateParams({ stage: '' })} className="flex items-center gap-1.5 rounded border border-border bg-card px-2 py-1 text-[10px]">{stageLabels[stage]}<X size={12} /></button>}{status && <button onClick={() => updateParams({ status: '' })} className="flex items-center gap-1.5 rounded border border-border bg-card px-2 py-1 text-[10px]">{ORDER_STATUS_STEPS.find(step => step.key === normalizeOrderStatus(status))?.label || status}<X size={12} /></button>}

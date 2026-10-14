@@ -1,5 +1,5 @@
 import { isFlipped, isUpright, isVertical, parseNumber, titleCase, upper, type FoyItem, type FoyLayout, type FoySegment } from './layout';
-import { emptyFoy, type FoyCutRow, type FoyDoc, type FoyOption, type FoyPartKind, type FoySystem, type FoyWindbreaker } from './types';
+import { emptyFoy, type FoyCutRow, type FoyDoc, type FoyIronCut, type FoyOption, type FoyPartKind, type FoySystem, type FoyWindbreaker } from './types';
 
 /**
  * Reads a Renk imalat föyü from its text layer and drawn lines, no model involved. Two templates
@@ -173,8 +173,39 @@ function parsePergola(layout: FoyLayout, all: It[]): FoyDoc {
     .filter((i) => i.page > 1 && !isNum(i) && /ADET|DEMİR|DELİK|KAYNA|DUVAR|OLACAK|OLMAYACAK/.test(i.u))
     .sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x)
     .map((i) => i.text.trim());
+  doc.ironCuts = ironCuts(all);
   doc.unreadPages = layout.imagePages;
   return doc;
+}
+
+/**
+ * The steel pieces of the drawing pages: per page the profile ("50*100 DEMİR"), the quantity
+ * ("3 ADET") and the length, which is the figure printed largest (hole spacings such as 100 / 200 /
+ * 300 or "140" are drawn smaller). Dikey / yatay comes from the page's own caption. A page whose
+ * length cannot be told apart keeps the piece with a null length: nothing is guessed.
+ */
+function ironCuts(all: It[]): FoyIronCut[] {
+  const out: FoyIronCut[] = [];
+  const pages = [...new Set(all.filter((i) => i.page > 1).map((i) => i.page))].sort((a, b) => a - b);
+  for (const page of pages) {
+    const items = all.filter((i) => i.page === page);
+    const profile = items.map((i) => i.u.match(/(\d+)\s*[*X×]\s*(\d+)\s*DEMİR/)).find(Boolean);
+    const qty = items.map((i) => i.u.match(/^(\d+)\s*ADET/)).find(Boolean);
+    if (!profile || !qty) continue;
+    const figures = items.filter((i) => isNum(i) && (isUpright(i) || isVertical(i)) && /^[\d.,\s]+$/.test(i.text));
+    const biggest = Math.max(0, ...figures.map((i) => i.size));
+    const top = figures.filter((i) => i.size >= biggest - 1);
+    const values = [...new Set(top.map((i) => parseNumber(i.text)).filter((v): v is number => v !== null))];
+    const caption = items.map((i) => i.u).join(' ');
+    out.push({
+      profile: `${profile[1]}*${profile[2]}`,
+      lengthCm: values.length === 1 ? values[0] : null,
+      quantity: Number(qty[1]),
+      orientation: /DİKEY/.test(caption) ? 'dikey' : /YATAY/.test(caption) ? 'yatay' : null,
+      page,
+    });
+  }
+  return out;
 }
 
 function parseWindbreaker(layout: FoyLayout, all: It[]): FoyDoc {

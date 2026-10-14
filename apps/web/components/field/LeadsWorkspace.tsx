@@ -144,18 +144,25 @@ function NewLead({ onClose, onCreated, onError }: { onClose: () => void; onCreat
     <label className="text-xs">{label}<input className="rf-input mt-1 w-full" value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} {...props} /></label>
   );
   return (
-    <form onSubmit={save} className="rf-panel grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Yeni potansiyel müşteri">
-      {input('title', 'Konu', { required: true, placeholder: 'Bahçe pergolası' })}
-      {input('contactName', 'Kişi', { required: true })}
-      {input('companyName', 'Firma')}
-      {input('phone', 'Telefon', { type: 'tel' })}
-      {input('email', 'E-posta', { type: 'email' })}
-      {input('address', 'Adres')}
-      <label className="text-xs">Kaynak<select className="rf-input mt-1 w-full" value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })}>{LEAD_SOURCES.map((s) => <option key={s} value={s}>{LEAD_SOURCE_LABELS[s]}</option>)}</select></label>
-      <label className="text-xs">Ürün ailesi<select className="rf-input mt-1 w-full" value={f.productFamily} onChange={(e) => setF({ ...f, productFamily: e.target.value })}><option value="">Diğer</option>{PRODUCT_FAMILIES.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}</select></label>
-      {input('estimatedValue', 'Tahmini tutar (₺)', { type: 'number', min: 0 })}
-      {input('nextFollowUp', 'Sonraki takip', { type: 'date' })}
-      <div className="flex items-end gap-2 sm:col-span-2">
+    <form onSubmit={save} className="rf-panel space-y-3 p-3" aria-label="Yeni potansiyel müşteri">
+      <div className="grid gap-2 sm:grid-cols-3">
+        {input('title', 'Konu', { required: true, placeholder: 'Bahçe pergolası' })}
+        {input('contactName', 'Kişi', { required: true })}
+        {input('phone', 'Telefon', { type: 'tel' })}
+      </div>
+      <details className="rounded-md border border-border/70 px-3 py-2 [&_summary::-webkit-details-marker]:hidden">
+        <summary className="cursor-pointer select-none text-xs font-medium text-muted-foreground hover:text-foreground">Firma, e-posta, kaynak, tutar ve takip (isteğe bağlı)</summary>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {input('companyName', 'Firma')}
+          {input('email', 'E-posta', { type: 'email' })}
+          {input('address', 'Adres')}
+          <label className="text-xs">Kaynak<select className="rf-input mt-1 w-full" value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })}>{LEAD_SOURCES.map((s) => <option key={s} value={s}>{LEAD_SOURCE_LABELS[s]}</option>)}</select></label>
+          <label className="text-xs">Ürün ailesi<select className="rf-input mt-1 w-full" value={f.productFamily} onChange={(e) => setF({ ...f, productFamily: e.target.value })}><option value="">Diğer</option>{PRODUCT_FAMILIES.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}</select></label>
+          {input('estimatedValue', 'Tahmini tutar (₺)', { type: 'number', min: 0 })}
+          {input('nextFollowUp', 'Sonraki takip', { type: 'date' })}
+        </div>
+      </details>
+      <div className="flex items-end gap-2">
         <button type="submit" className="rf-primary-button text-sm">Kaydet</button>
         <button type="button" className="rf-secondary-button text-sm" onClick={onClose}>Vazgeç</button>
       </div>
