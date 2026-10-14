@@ -67,7 +67,7 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 | Tekdüzen hesap planı, otomatik yevmiye, defter bazlı bilanço; hesap, yevmiye ve mizan ekranları | ⬜ | |
 | KDV beyanname taslağı ve Ba/Bs raporu | ⬜ | |
 | Banka ekstresi ayrıştırıcıları (CSV, MT940, OFX) | ⬜ | |
-| TCMB kur servisi ve tarihli kur tablosu | ⬜ | |
+| TCMB kur servisi ve tarihli kur tablosu | 🔄 | `exchange_rates`, günlük cron (Hobby'de çalışır), teklifte "TCMB'den al". Faturaya kur, e-Belge gönderimi birleşince eklenecek. |
 | Bordro köprüsü (yasal alanlar ve dışa aktarım) | ⬜ | |
 | KVKK: veri sahibi talepleri, saklama ve imha, silme akışı, rıza defteri | ⬜ | |
 

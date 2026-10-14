@@ -6,5 +6,11 @@
   "outputDirectory": ".next",
   "regions": [
     "fra1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/fx",
+      "schedule": "45 13 * * 1-5"
+    }
   ]
 }
