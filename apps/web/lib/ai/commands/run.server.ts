@@ -28,6 +28,7 @@ export type CommandResult =
   | { type: 'list'; title: string; columns: string[]; rows: Array<{ cells: string[]; href?: string }>; empty: string }
   | { type: 'answer'; title: string; lines: Array<{ label: string; value: string }>; note?: string }
   | { type: 'need'; message: string; missing: string[]; examples: string[] }
+  | { type: 'text'; text: string; suggestions: string[]; source: 'model' }
   | { type: 'denied'; message: string };
 
 const EXAMPLES = ["Ahmet Bey'e 3x4 pergola teklif hazırla antrasit", 'bu hafta geciken işler', '7016 mat kaç çubuk var', "ORD-12'yi öne al", "ORD-12'ye 2 gün ekle", 'RF-1042 nerede', 'yarın teslimatlar', 'kritik stok', 'Kaya İnşaat siparişleri', 'vadesi geçen faturalar', 'yoldaki malzemeler'];
@@ -69,7 +70,12 @@ export async function runCommand(actor: WorkOrderActor, raw: unknown): Promise<C
     }
   }
   const cmd = parsed.command;
-  if (cmd.intent === 'unknown') return { type: 'need', message: parsed.missing.length ? `Eksik: ${parsed.missing.join(', ')}.` : 'Bu komutu anlayamadım.', missing: parsed.missing, examples: EXAMPLES };
+  if (cmd.intent === 'unknown') {
+    if (parsed.missing.length) return { type: 'need', message: `Eksik: ${parsed.missing.join(', ')}.`, missing: parsed.missing, examples: EXAMPLES };
+    // Not a command: answer it (everyday talk, a question for the assistant, a search of the records).
+    const { freeformAnswer } = await import('./freeform.server');
+    return freeformAnswer(actor, input.text, EXAMPLES);
+  }
 
   const access = await resolveMemberAccess(actor.userId, actor.tenantId);
   const need = NEEDS[cmd.intent];

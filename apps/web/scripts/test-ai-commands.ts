@@ -83,6 +83,19 @@ async function main() {
   assert.equal(((await runCommand(actor('worker'), { text: 'bu hafta geciken işler' })) as any).type, 'denied');
   assert.equal(((await runCommand(actor('worker'), { text: "Ahmet'e 3x4 pergola teklif" })) as any).type, 'denied');
 
+  // Text that is not a command is answered, never "anlayamadım": small talk, a search of the records, an honest "found nothing".
+  const hello: any = await runCommand(owner, { text: 'naber' });
+  assert.equal(hello.type, 'need');
+  assert.match(hello.message, /İyiyim/);
+  const search: any = await runCommand(owner, { text: 'Yılmaz hakkında ne var' });
+  assert.equal(search.type, 'list', 'a name in the text finds matching records');
+  assert.ok(search.rows.length >= 1 && /^\/(crm|orders)\//.test(search.rows[0].href ?? ''), 'rows link to the matching card or order');
+  const nothing: any = await runCommand(owner, { text: 'qwxzy plmokn' });
+  assert.equal(nothing.type, 'need');
+  assert.match(nothing.message, /bulamadım/);
+  assert.doesNotMatch(nothing.message, /anlayamadım/);
+  assert.equal(((await runCommand(actor('worker'), { text: 'naber' })) as any).type, 'need', 'small talk needs no permission');
+
   // Bar stock by colour.
   const [wh] = await db`INSERT INTO warehouses (tenant_id, code, name, warehouse_type) VALUES (${tenantId}, ${'RAW-' + tenantId.slice(0, 4)}, 'Hammadde', 'RAW') RETURNING id`;
   const [item] = await db`INSERT INTO inventory_items (tenant_id, name, sku, stock_uom) VALUES (${tenantId}, 'Taşıyıcı profil', ${'TP-' + tenantId.slice(0, 5)}, 'm') RETURNING id`;

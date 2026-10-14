@@ -12,6 +12,7 @@ type Result =
   | { type: 'list'; title: string; columns: string[]; rows: Array<{ cells: string[]; href?: string }>; empty: string }
   | { type: 'answer'; title: string; lines: Array<{ label: string; value: string }>; note?: string }
   | { type: 'need'; message: string; missing: string[]; examples: string[] }
+  | { type: 'text'; text: string; suggestions: string[]; source: 'model' }
   | { type: 'denied'; message: string };
 type Card = { id: number; text: string; result: Result | null; error?: string; done?: { href?: string; label: string } };
 
@@ -104,6 +105,10 @@ function ResultView({ card, onChoose, onDecide, onExample }: { card: Card; onCho
   if (r.type === 'need') return (
     <div className="space-y-2 text-sm"><p>{r.message}</p>
       {r.examples.length > 0 && <div className="flex flex-wrap gap-1.5">{r.examples.map((e) => <button key={e} type="button" className="rf-secondary-button text-xs" onClick={() => onExample(e)}>{e}</button>)}</div>}</div>
+  );
+  if (r.type === 'text') return (
+    <div className="space-y-2 text-sm"><p className="whitespace-pre-line">{r.text}</p>
+      {r.suggestions.length > 0 && <div className="flex flex-wrap gap-1.5">{r.suggestions.map((e) => <button key={e} type="button" className="rf-secondary-button text-xs" onClick={() => onExample(e)}>{e}</button>)}</div>}</div>
   );
   if (r.type === 'choose') return (
     <div className="space-y-2 text-sm"><p className="font-medium">{r.question}</p>
