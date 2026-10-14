@@ -554,12 +554,13 @@ export function AIChatbot() {
   if (!user) return null;
   const formSummary = pendingAction ? assistantFormSummary(pendingAction.action.kind, pendingAction.action.note) : null;
   const adviceKey=storageKey+':'+pathname+':'+insights.map(i=>i.id+i.detail).join('|');
+  // "Nothing to report" is not advice: the banner appears only when there is something to act on.
   // These screens show the same signals as cards and counts; a sentence on top only repeats them.
   const VISUAL_SCREENS=['/dashboard','/orders','/factory','/factory/wall'];
 
   return (
     <>
-      {!isOpen && adviceSlot && insights.length>0 && dismissedAdvice!==adviceKey && !VISUAL_SCREENS.includes(pathname) && createPortal(<div className="mx-auto w-full max-w-[1600px] px-4 pt-4 md:px-7 print:hidden"><aside aria-label="Asistanın otomatik önerisi" className="rf-advice flex items-center gap-3 rounded-lg border border-border px-3 py-2 text-xs shadow-[var(--rf-shadow-soft)]">
+      {!isOpen && adviceSlot && insights.length>0 && insights[0].id!=='clear' && dismissedAdvice!==adviceKey && !VISUAL_SCREENS.includes(pathname) && createPortal(<div className="mx-auto w-full max-w-[1600px] px-4 pt-4 md:px-7 print:hidden"><aside aria-label="Asistanın otomatik önerisi" className="rf-advice flex items-center gap-3 rounded-lg border border-border px-3 py-2 text-xs shadow-[var(--rf-shadow-soft)]">
         <span className="rf-icon-chip !h-6 !w-6 !rounded-md" aria-hidden><Sparkles size={13}/></span>
         <p className="min-w-0 flex-1 leading-5"><span className="font-semibold">Asistan önerisi · </span><span className="text-muted-foreground">{brief || insights[0].detail}</span></p>
         <button onClick={()=>setIsOpen(true)} className="hidden shrink-0 font-medium text-primary hover:underline sm:inline">{insights[0].title} →</button>

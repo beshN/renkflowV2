@@ -6,6 +6,10 @@
  */
 
 import { sql } from '@/lib/db';
+import { syncLedger, type SyncResult } from '@/lib/features/accounting/posting.server';
+import { loadVatReturn } from '@/lib/features/accounting/vat-return.server';
+import { vatReturnCsv, type VatReturn } from '@/lib/features/accounting/vat-return';
+import { addExpense, deleteExpense, listExpenses, type ExpenseView } from '@/lib/features/accounting/expenses.server';
 import { recordAudit } from '@/lib/audit/audit-log';
 import { z } from 'zod';
 import { getServerUserContext,requirePermission } from '@/lib/features/auth/serverAuth';
@@ -958,7 +962,8 @@ export async function getProfitLossReport(
       marketing: expenseMap.marketing || 0,
       depreciation: depreciationForPeriod,
       other: Object.entries(expenseMap)
-        .filter(([category]) => !['rent', 'utilities', 'marketing', 'tax'].includes(category))
+        // Material purchases are stock: their cost reaches the P&L through cost of goods sold on shipment.
+        .filter(([category]) => !['rent', 'utilities', 'marketing', 'tax', 'materials'].includes(category))
         .reduce((sum, [, value]) => sum + value, 0),
       total: 0,
     };
@@ -971,6 +976,9 @@ export async function getProfitLossReport(
         operatingExpenses.other
     );
 
+    if (expenseMap.materials) {
+      warnings.push('Malzeme alışları gider sayılmaz; maliyetleri sevkiyatta satış maliyetine yansır (alış KDV\'si KDV özetine girer).');
+    }
     const grossProfit = round2(grossRevenue - costOfGoodsSold);
     const operatingProfit = round2(grossProfit - operatingExpenses.total);
     const profitBeforeTax = operatingProfit;
@@ -1242,41 +1250,9 @@ export async function getCashFlowReport(
 export async function getTaxSummary(period: string): Promise<TaxSummary> {
   try {
     const session = await getSession();
-
-    const vatTransactions = await sql`
-      SELECT
-        type,
-        COALESCE(SUM(tax_amount), 0) as total
-      FROM tax_transactions
-      WHERE tenant_id = ${session.user.tenantId}
-        AND period = ${period}
-        AND tax_type = 'vat'
-      GROUP BY type
-    `;
-
-    const vatPayable = toNumber(
-      (vatTransactions as { type: string; total: string }[]).find((transaction) => transaction.type === 'output')?.total
-    );
-    const vatReceivable = toNumber(
-      (vatTransactions as { type: string; total: string }[]).find((transaction) => transaction.type === 'input')?.total
-    );
-
-    const withholding = await sql`
-      SELECT COALESCE(SUM(tax_amount), 0) as total
-      FROM tax_transactions
-      WHERE tenant_id = ${session.user.tenantId}
-        AND period = ${period}
-        AND tax_type = 'withholding'
-    `;
-
-    const withholdingTax = toNumber((withholding as any[])[0]?.total);
-
-    return {
-      vatPayable: round2(vatPayable),
-      vatReceivable: round2(vatReceivable),
-      netVat: round2(vatPayable - vatReceivable),
-      withholdingTax: round2(withholdingTax),
-    };
+    // Same computation as the VAT summary, so the cards and the summary never disagree.
+    const v = await loadVatReturn(sql, session.user.tenantId, normalizePeriod(period));
+    return { vatPayable: v.output.vat, vatReceivable: v.input.vat, netVat: v.net, withholdingTax: v.output.withheld };
   } catch (error) {
     console.error('[Accounting] Tax summary error:', error);
     return { vatPayable: 0, vatReceivable: 0, netVat: 0, withholdingTax: 0 };
@@ -2113,7 +2089,7 @@ function mapBankStatementItem(
 
 export async function importBankStatementLines(
   input: ImportBankStatementInput
-): Promise<{ success: boolean; importedCount: number; error?: string }> {
+): Promise<{ success: boolean; importedCount: number; skippedCount?: number; error?: string }> {
   try {
     const session = await getSession();
     const reconciliationTableReady = await tableExists('bank_statement_lines');
@@ -2185,10 +2161,11 @@ export async function importBankStatementLines(
     }
 
     let importedCount = 0;
+    let skippedCount = 0;
     await sql.begin(async (tx: any) => {
       for (const line of normalizedLines) {
         if (line.externalId && line.accountId) {
-          await tx`
+          const inserted = await tx`
             INSERT INTO bank_statement_lines (
               tenant_id,
               account_id,
@@ -2222,19 +2199,25 @@ export async function importBankStatementLines(
               null,
               ${session.user.id}
             )
+            -- A line already imported is left as it is: re-uploading a statement must not undo matches.
             ON CONFLICT (tenant_id, account_id, external_id)
             WHERE external_id IS NOT NULL
-            DO UPDATE SET
-              statement_date = EXCLUDED.statement_date,
-              description = EXCLUDED.description,
-              reference = EXCLUDED.reference,
-              amount = EXCLUDED.amount,
-              reconciliation_status = 'unmatched',
-              matched_payment_id = NULL,
-              matched_expense_id = NULL,
-              matched_at = NULL,
-              updated_at = timezone('utc'::text, now())
+            DO NOTHING
+            RETURNING id
           `;
+          if (!(inserted as any[]).length) { skippedCount += 1; continue; }
+        } else if (line.externalId) {
+          // No bank account chosen: the unique index does not apply (NULL account), so check by hand.
+          const inserted = await tx`
+            INSERT INTO bank_statement_lines (tenant_id, account_id, source, external_id, statement_date, description, reference, amount, currency, reconciliation_status, imported_by)
+            SELECT ${session.user.tenantId}, NULL, 'manual_import', ${line.externalId}, ${line.statementDate}, ${line.description}, ${line.reference}, ${line.amount}, 'TRY', 'unmatched', ${session.user.id}
+            WHERE NOT EXISTS (
+              SELECT 1 FROM bank_statement_lines
+              WHERE tenant_id = ${session.user.tenantId} AND account_id IS NULL AND external_id = ${line.externalId}
+            )
+            RETURNING id
+          `;
+          if (!(inserted as any[]).length) { skippedCount += 1; continue; }
         } else {
           await tx`
             INSERT INTO bank_statement_lines (
@@ -2269,7 +2252,7 @@ export async function importBankStatementLines(
     });
 
     revalidatePath('/accounting');
-    return { success: true, importedCount };
+    return { success: true, importedCount, skippedCount };
   } catch (error) {
     console.error('[Accounting] Import bank statement lines error:', error);
     return { success: false, importedCount: 0, error: 'Banka hareketleri aktarılırken hata oluştu.' };
@@ -2860,6 +2843,13 @@ export async function getAccountingWorkspace(period?: string): Promise<Accountin
   const range = getPeriodRange(period);
   const notes: string[] = ['Bu çalışma alanı TRY kayıtlarını raporlar; USD ve EUR tahsilatları kendi para birimleriyle Finans ekranında izlenir.', 'Operasyonel mali özetler yasal bilanço veya vergi beyannamesi yerine geçmez.'];
   const session = await getSession();
+  // Books anything a write path left unposted, so the reports below read a complete ledger.
+  const ledger = await syncLedger(sql, session.user.tenantId).catch((error) => {
+    console.error('[Accounting] ledger sync failed', error instanceof Error ? error.message : error);
+    return null;
+  });
+  if (ledger?.awaitingRate) notes.push(`${ledger.awaitingRate} dövizli fatura kur girilmediği için yevmiyeye işlenmedi.`);
+  if (ledger?.skippedClosed) notes.push(`${ledger.skippedClosed} kayıt kesin kapanmış döneme düştüğü için işlenmedi.`);
 
   const capabilityChecks = await Promise.all([
     tableExists('accounts'),
@@ -3000,4 +2990,91 @@ export async function getAccountingWorkspace(period?: string): Promise<Accountin
     capabilities,
     notes,
   };
+}
+
+
+// ============================================
+// Ledger view (yevmiye ve mizan)
+// ============================================
+
+export type LedgerEntryView = { id: string; number: string; date: string; type: string; description: string; total: number; source: string | null;
+  lines: Array<{ code: string; name: string; debit: number; credit: number; description: string | null }> };
+
+/** Books what is missing (any finance role may trigger it; it only posts what the records say). */
+export async function syncLedgerNow(): Promise<SyncResult> {
+  const session = await getSession();
+  const result = await syncLedger(sql, session.user.tenantId);
+  revalidatePath('/accounting');
+  return result;
+}
+
+/** The period's trial balance and its entries with their lines. */
+export async function getLedgerView(period?: string): Promise<{ trialBalance: TrialBalanceReport; entries: LedgerEntryView[] }> {
+  const session = await getSession();
+  const normalizedPeriod = normalizePeriod(period);
+  const trialBalance = await getTrialBalance(normalizedPeriod);
+  if (!(await tableExists('journal_entries')) || !(await tableExists('journal_entry_lines'))) return { trialBalance, entries: [] };
+  const rows = await sql`
+    SELECT je.id, je.entry_number, je.entry_date, je.type, je.description, je.total_debit, to_jsonb(je) ->> 'source_key' AS source_key,
+      coalesce(json_agg(json_build_object('code', a.code, 'name', a.name, 'debit', l.debit, 'credit', l.credit, 'description', l.description) ORDER BY l.line_no) FILTER (WHERE l.id IS NOT NULL), '[]') AS lines
+    FROM journal_entries je
+    LEFT JOIN journal_entry_lines l ON l.journal_entry_id = je.id
+    LEFT JOIN accounts a ON a.id = l.account_id
+    WHERE je.tenant_id = ${session.user.tenantId} AND je.period = ${normalizedPeriod}
+    GROUP BY je.id
+    ORDER BY je.entry_date, je.created_at
+    LIMIT 500`;
+  return {
+    trialBalance,
+    entries: (rows as any[]).map((r) => ({
+      id: String(r.id), number: r.entry_number, date: new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(new Date(r.entry_date)),
+      type: r.type, description: r.description, total: toNumber(r.total_debit), source: r.source_key ?? null,
+      lines: (r.lines as any[]).map((l) => ({ code: l.code, name: l.name, debit: toNumber(l.debit), credit: toNumber(l.credit), description: l.description ?? null })),
+    })),
+  };
+}
+
+// ============================================
+// VAT period summary and purchase records
+// ============================================
+
+const allows = (context: Awaited<ReturnType<typeof getServerUserContext>>, permission: Parameters<typeof requirePermission>[1]) => {
+  try { requirePermission(context, permission); return true; } catch { return false; }
+};
+
+/** The period's VAT summary (output by rate, withholding, exemptions, deductible VAT, carry-forward) and its purchase records. */
+export async function getVatReturnView(period?: string): Promise<{ summary: VatReturn; csv: string; expenses: ExpenseView[]; canAdd: boolean; canDelete: boolean }> {
+  const context = await getServerUserContext();
+  requirePermission(context, 'finance.view');
+  const normalizedPeriod = normalizePeriod(period);
+  const [summary, expenses] = await Promise.all([
+    loadVatReturn(sql, context.tenantId, normalizedPeriod),
+    (await tableExists('expenses')) ? listExpenses(sql, context.tenantId, normalizedPeriod) : Promise.resolve([]),
+  ]);
+  return { summary, csv: vatReturnCsv(summary), expenses, canAdd: allows(context, 'finance.ledger.create'), canDelete: allows(context, 'finance.ledger.delete') };
+}
+
+export async function addExpenseRecord(input: unknown): Promise<{ ok: true; expense: ExpenseView } | { ok: false; error: string }> {
+  const context = await getServerUserContext();
+  requirePermission(context, 'finance.ledger.create');
+  try {
+    const expense = await addExpense(sql, { tenantId: context.tenantId, userId: context.userId }, input);
+    revalidatePath('/accounting');
+    return { ok: true, expense };
+  } catch (error) {
+    if (error instanceof z.ZodError) return { ok: false, error: error.issues[0]?.message ?? 'Bilgiler eksik' };
+    return { ok: false, error: error instanceof Error ? error.message : 'Gider kaydedilemedi' };
+  }
+}
+
+export async function deleteExpenseRecord(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const context = await getServerUserContext();
+  requirePermission(context, 'finance.ledger.delete');
+  try {
+    await deleteExpense(sql, { tenantId: context.tenantId, userId: context.userId }, z.string().uuid().parse(id));
+    revalidatePath('/accounting');
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Gider silinemedi' };
+  }
 }

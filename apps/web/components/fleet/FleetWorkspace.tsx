@@ -7,6 +7,7 @@ import { EmptyState, HintTip, PageHeader, Skeleton, StatusChip } from '@/compone
 import { requestJson } from '@/lib/shared/network';
 import { DOCUMENT_KIND_LABELS, DOC_LEVEL_LABEL, VEHICLE_STATUS_LABELS, VEHICLE_TYPES, VEHICLE_TYPE_LABELS, formatPlate, type DocLevel, type DocumentKind, type VehicleStatus, type VehicleType } from '@/lib/features/fleet/engine';
 import { TileMap } from './TileMap';
+import { DemoTracking } from './DemoTracking';
 
 type Card = {
   id: string; plate: string; make: string | null; model: string | null; modelYear: number | null; type: VehicleType; status: VehicleStatus; driverName: string | null; odometerKm: number | null;
@@ -24,6 +25,8 @@ export function FleetWorkspace() {
   const [live, setLive] = useState<Live | null>(null);
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
+  // The demo opens by itself while no vehicle has reported a position, so the screen is never an empty map.
+  const [demo, setDemo] = useState<boolean | null>(null);
   const load = useCallback(async () => {
     const [a, b] = await Promise.all([requestJson<{ vehicles: Card[] }>('/api/v1/vehicles', { cache: 'no-store' }), requestJson<Live>('/api/v1/vehicles?view=live', { cache: 'no-store' })]);
     if (a.ok && a.data) setCards(a.data.vehicles); else setError(a.error || 'Araçlar alınamadı');
@@ -71,7 +74,10 @@ export function FleetWorkspace() {
         <h2 id="live-title" className="rf-section-title flex items-center gap-2"><MapPinned size={16} aria-hidden /> Canlı filo haritası <HintTip text="Her aracın son bildirdiği konum. Konum yalnız araca bağlı cihazdan gelir; saklama süresi aşağıdan ayarlanır." /></h2>
         {live && live.vehicles.length ? (
           <TileMap label="Araçların son konumu" markers={live.vehicles.map((v) => ({ id: v.vehicleId, lat: v.lat, lng: v.lng, label: formatPlate(v.plate) }))} />
-        ) : <EmptyState title={live?.devices ? 'Cihaz bağlı; henüz konum gelmedi' : 'Cihaz bağla: bir aracın Konum sekmesinden cihaz ekleyin'} icon={Radio} />}
+        ) : null}
+        {(demo ?? !live?.vehicles.length) ? <DemoTracking onClose={() => setDemo(false)} /> : (
+          <button type="button" className="rf-secondary-button text-sm" onClick={() => setDemo(true)}>Demo takibi göster</button>
+        )}
         <Retention onError={setError} />
       </section>
     </div>
@@ -86,14 +92,21 @@ function NewVehicle({ onClose, onSaved, onError }: { onClose: () => void; onSave
     if (!r.ok) onError(r.error || 'Kaydedilemedi'); else await onSaved();
   }
   return (
-    <form onSubmit={save} className="rf-panel grid gap-2 p-3 sm:grid-cols-3" aria-label="Yeni araç">
-      <label className="text-xs">Plaka<input className="rf-input mt-1 w-full font-mono uppercase" required placeholder="34 ABC 123" value={f.plate} onChange={(e) => setF({ ...f, plate: e.target.value })} /></label>
-      <label className="text-xs">Marka<input className="rf-input mt-1 w-full" value={f.make} onChange={(e) => setF({ ...f, make: e.target.value })} /></label>
-      <label className="text-xs">Model<input className="rf-input mt-1 w-full" value={f.model} onChange={(e) => setF({ ...f, model: e.target.value })} /></label>
-      <label className="text-xs">Model yılı<input type="number" className="rf-input mt-1 w-full" value={f.modelYear} onChange={(e) => setF({ ...f, modelYear: e.target.value })} /></label>
-      <label className="text-xs">Tür<select className="rf-input mt-1 w-full" value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}>{VEHICLE_TYPES.map((t) => <option key={t} value={t}>{VEHICLE_TYPE_LABELS[t]}</option>)}</select></label>
-      <label className="text-xs">Km<input type="number" min={0} className="rf-input mt-1 w-full" value={f.odometerKm} onChange={(e) => setF({ ...f, odometerKm: e.target.value })} /></label>
-      <div className="flex gap-2 sm:col-span-3"><button type="submit" className="rf-primary-button text-sm">Kaydet</button><button type="button" className="rf-secondary-button text-sm" onClick={onClose}>Vazgeç</button></div>
+    <form onSubmit={save} className="rf-panel space-y-3 p-3" aria-label="Yeni araç">
+      <div className="grid gap-2 sm:grid-cols-2">
+        <label className="text-xs">Plaka<input className="rf-input mt-1 w-full font-mono uppercase" required placeholder="34 ABC 123" value={f.plate} onChange={(e) => setF({ ...f, plate: e.target.value })} /></label>
+        <label className="text-xs">Tür<select className="rf-input mt-1 w-full" value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}>{VEHICLE_TYPES.map((t) => <option key={t} value={t}>{VEHICLE_TYPE_LABELS[t]}</option>)}</select></label>
+      </div>
+      <details className="rounded-md border border-border/70 px-3 py-2 [&_summary::-webkit-details-marker]:hidden">
+        <summary className="cursor-pointer select-none text-xs font-medium text-muted-foreground hover:text-foreground">Marka, model, yıl ve km (isteğe bağlı)</summary>
+        <div className="mt-3 grid gap-2 sm:grid-cols-4">
+          <label className="text-xs">Marka<input className="rf-input mt-1 w-full" value={f.make} onChange={(e) => setF({ ...f, make: e.target.value })} /></label>
+          <label className="text-xs">Model<input className="rf-input mt-1 w-full" value={f.model} onChange={(e) => setF({ ...f, model: e.target.value })} /></label>
+          <label className="text-xs">Model yılı<input type="number" className="rf-input mt-1 w-full" value={f.modelYear} onChange={(e) => setF({ ...f, modelYear: e.target.value })} /></label>
+          <label className="text-xs">Km<input type="number" min={0} className="rf-input mt-1 w-full" value={f.odometerKm} onChange={(e) => setF({ ...f, odometerKm: e.target.value })} /></label>
+        </div>
+      </details>
+      <div className="flex gap-2"><button type="submit" className="rf-primary-button text-sm">Kaydet</button><button type="button" className="rf-secondary-button text-sm" onClick={onClose}>Vazgeç</button></div>
     </form>
   );
 }

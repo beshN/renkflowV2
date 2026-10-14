@@ -44,6 +44,7 @@ import { executeProcurement } from "./purchasing.service";
 import { recordAudit, UUID_PATTERN } from "@/lib/audit/audit-log";
 import { canonicalColor, colorInfo } from "../colors/color-spec";
 import { cutView } from "./cut-view";
+import { syncLedger } from "@/lib/features/accounting/posting.server";
 const uuid = z.string().uuid();
 const text = z.string().trim().min(1).max(180);
 const num = (v: unknown) => Number(v || 0);
@@ -266,6 +267,8 @@ export async function productionCommand(a: WorkOrderActor, raw: unknown) {
     await event(tx, a, command.action, { commandId: command.commandId });
     // Money movements also go to the firm audit trail; a replayed command returned above without a second record.
     if (command.action.startsWith("finance.")) await recordFinanceAudit(tx, a, command, result);
+    // Collections are booked to the ledger in the same transaction (120 against cash/bank).
+    if (command.action === "finance.payment.create" && (result as { id?: string } | undefined)?.id) await syncLedger(tx, a.tenantId, { paymentId: String((result as { id: string }).id) });
     return result || { ok: true };
   });
 }

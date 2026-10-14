@@ -119,6 +119,7 @@ const FOY_SHAPE = {
   series: [{ label: "Classic", checked: null }], lights: [{ label: "LED", checked: null }],
   systems: [{ bays: [{ ironInner: null, railInner: null }], railOuter: null, projection: null, height: null }],
   cutList: [{ profile: "50*100", kind: "demir", lengthCm: null, widthCm: null, quantity: null }],
+  ironCuts: [{ profile: "50*100", lengthCm: null, quantity: null, orientation: "dikey", page: 2 }],
   fabricSize: { widthCm: null, lengthCm: null }, valanceSize: { widthCm: null, heightCm: null },
   windbreaker: { orderDate: "2026-10-01", deliveryDate: "2026-10-20", systemCount: null, planter: "VAR", crate: "YOK", widthCm: null, heightCm: null, frameCm: null, frameQty: null, sashCm: null, sashQty: null,
     sashGlass: { thicknessMm: null, widthCm: null, heightCm: null, quantity: null }, frameGlass: { thicknessMm: null, widthCm: null, heightCm: null, quantity: null }, totalKg: null, pistonTable: [{ widthCm: 100, kg: 11 }] },

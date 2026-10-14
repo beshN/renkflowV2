@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { EmptyState, PageHeader, StatusChip } from '@/components/kit';
 import { ColorSwatch } from '@/components/colors/ColorSwatch';
 import { FoySchema } from './FoySchema';
+import { FoyCutPlan } from './FoyCutPlan';
 import { cn } from '@/lib/utils';
 import type { FoyCheck, FoyFeatures } from '@/lib/features/foy/rules';
 import type { FoyDoc, FoyPartKind } from '@/lib/features/foy/types';
@@ -105,18 +106,6 @@ function Preview({ entry, onCustomer, onCreate, creating }: { entry: Entry; onCu
         <p className="flex items-start gap-2 rounded-md border border-amber-600/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-900 dark:text-amber-200"><AlertTriangle size={14} className="mt-0.5 shrink-0" />{a.model.blocked}</p>
       )}
 
-      <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Spec label="Föy tarihi">{trDate(d.date)}</Spec>
-        <Spec label="Renk">{color ? <><ColorSwatch color={color} size={14} />{color}</> : '—'}</Spec>
-        <Spec label={d.template === 'windbreaker' ? 'Ürün' : 'Kumaş'}>{d.template === 'windbreaker' ? 'Rüzgâr kırıcı' : d.fabric ?? '—'}</Spec>
-        <Spec label="Montaj">{[d.assembly === 'montajli' ? 'Montajlı' : d.assembly === 'demonte' ? 'Demonte' : null, d.crated ? 'Sandıklı' : null].filter(Boolean).join(' · ') || '—'}</Spec>
-        {d.series.length > 0 && <Spec label="Seri">{d.series.filter((o) => o.checked).map((o) => o.label).join(', ') || '—'}</Spec>}
-        {d.lights.length > 0 && <Spec label="Işık">{d.lights.filter((o) => o.checked).map((o) => o.label).join(', ') || 'Işıksız'}</Spec>}
-        {d.template === 'pergola' && <Spec label="Sistem">{f.systems} × {d.systems[0]?.bays.length ?? 0} bölme</Spec>}
-        {d.windbreaker?.deliveryDate && <Spec label="Teslim">{trDate(d.windbreaker.deliveryDate)}</Spec>}
-      </section>
-      {extras.length > 0 && <div className="flex flex-wrap gap-1.5">{extras.map((x) => <span key={x} className="rounded-full border border-border px-2 py-0.5 text-[11px]">{x}</span>)}</div>}
-
       <section className="rounded-lg border border-border bg-card p-3">
         <h3 className="mb-1 flex items-center gap-1.5 text-xs font-semibold"><Users size={14} />Müşteri</h3>
         <div className="space-y-1.5">
@@ -134,6 +123,23 @@ function Preview({ entry, onCustomer, onCreate, creating }: { entry: Entry; onCu
           </label>
         </div>
       </section>
+
+      {d.template === 'pergola' && <FoyCutPlan doc={d} />}
+
+      <details className="rounded-lg border border-border" open={a.summary.warn > 0}>
+        <summary className="cursor-pointer px-3 py-2 text-xs font-semibold">Föy ayrıntıları ve kontroller{a.summary.warn > 0 ? ` (${a.summary.warn} uyarı)` : ''}</summary>
+        <div className="space-y-4 p-3">
+      <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Spec label="Föy tarihi">{trDate(d.date)}</Spec>
+        <Spec label="Renk">{color ? <><ColorSwatch color={color} size={14} />{color}</> : '—'}</Spec>
+        <Spec label={d.template === 'windbreaker' ? 'Ürün' : 'Kumaş'}>{d.template === 'windbreaker' ? 'Rüzgâr kırıcı' : d.fabric ?? '—'}</Spec>
+        <Spec label="Montaj">{[d.assembly === 'montajli' ? 'Montajlı' : d.assembly === 'demonte' ? 'Demonte' : null, d.crated ? 'Sandıklı' : null].filter(Boolean).join(' · ') || '—'}</Spec>
+        {d.series.length > 0 && <Spec label="Seri">{d.series.filter((o) => o.checked).map((o) => o.label).join(', ') || '—'}</Spec>}
+        {d.lights.length > 0 && <Spec label="Işık">{d.lights.filter((o) => o.checked).map((o) => o.label).join(', ') || 'Işıksız'}</Spec>}
+        {d.template === 'pergola' && <Spec label="Sistem">{f.systems} × {d.systems[0]?.bays.length ?? 0} bölme</Spec>}
+        {d.windbreaker?.deliveryDate && <Spec label="Teslim">{trDate(d.windbreaker.deliveryDate)}</Spec>}
+      </section>
+      {extras.length > 0 && <div className="flex flex-wrap gap-1.5">{extras.map((x) => <span key={x} className="rounded-full border border-border px-2 py-0.5 text-[11px]">{x}</span>)}</div>}
 
       {d.systems.length > 0 && (
         <section className="space-y-2 rounded-lg border border-border bg-card p-3">
@@ -189,6 +195,9 @@ function Preview({ entry, onCustomer, onCreate, creating }: { entry: Entry; onCu
           )}
         </section>
       )}
+
+        </div>
+      </details>
 
       <div className="sticky bottom-0 -mx-1 flex items-center justify-end gap-2 border-t border-border bg-background/95 px-1 py-3 backdrop-blur">
         {entry.order ? (
@@ -253,8 +262,8 @@ export function FoyWorkbench() {
 
   return (
     <div className="rf-page space-y-5">
-      <PageHeader eyebrow="Sipariş & üretim" title="İmalat föyü"
-        hint="Föy PDF'ini bırakın: başlık, işaret kutuları, bölme ölçüleri, kesim listesi ve kumaş/saçak ölçüleri metin katmanından birebir okunur; ölçüler föyün kendi kurallarıyla karşılaştırılır. Resim sayfalar ve fotoğraflar, asistan modu açıksa görsel modelle okunur. Siz onaylamadan hiçbir şey kaydedilmez."
+      <PageHeader eyebrow="Üretim" title="Kesim listesi"
+        hint="Föy PDF'ini ya da fotoğrafını yükleyin. Hangi profil hangi çubuktan kesilecek, hangi artık ya da hurda boy kullanılacak, ne kadar fire çıkacak ve neyin alınması gerektiği hesaplanır. Siz onaylamadan hiçbir şey kaydedilmez."
         kpis={entries.length ? [
           { label: 'föy', value: entries.length, icon: FileText },
           { label: 'kontrol bekliyor', value: entries.filter((e) => (e.result?.summary.warn ?? 0) > 0 && e.state !== 'done').length, icon: AlertTriangle, tone: 'warning' },
@@ -271,7 +280,7 @@ export function FoyWorkbench() {
       >
         {!entries.length ? (
           <div className={cn('rounded-xl border-2 border-dashed border-border transition-colors', drag && 'border-primary bg-primary/5')}>
-            <EmptyState icon={Upload} title="Föyleri buraya bırakın" action={{ label: 'Dosya seç', onClick: () => input.current?.click() }} />
+            <EmptyState icon={Upload} title="Föyü buraya bırakın" action={{ label: 'Dosya seç', onClick: () => input.current?.click() }} />
           </div>
         ) : (
           <>

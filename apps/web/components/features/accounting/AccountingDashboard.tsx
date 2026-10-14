@@ -33,6 +33,9 @@ import { formatCurrency } from '@/lib/utils';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { cn } from '@/lib/utils';
+import { BankStatementUpload } from './BankStatementUpload';
+import { LedgerPanel } from './LedgerPanel';
+import { VatReturnPanel } from './VatReturnPanel';
 
 export type AccountingTab =
   | 'overview'
@@ -41,7 +44,8 @@ export type AccountingTab =
   | 'cash-flow'
   | 'taxes'
   | 'benchmark'
-  | 'control-tower';
+  | 'control-tower'
+  | 'ledger';
 
 interface AccountingDashboardProps {
   period?: string;
@@ -507,6 +511,8 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
 
   return (
     <div className="space-y-6">
+      {activeTab === 'ledger' && <LedgerPanel period={normalizedPeriod} />}
+
       {activeTab === 'overview' && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -809,36 +815,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
         </>
       )}
 
-      {activeTab === 'taxes' && (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <div className="xl:col-span-2 bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-orange-600" />
-              Vergi Durumu ({toMonthLabel(workspace.period)})
-            </h3>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <TaxCard title="KDV Ödenecek" value={workspace.taxSummary.vatPayable} tone="danger" />
-              <TaxCard title="KDV İndirilecek" value={workspace.taxSummary.vatReceivable} tone="success" />
-              <TaxCard
-                title="Net KDV"
-                value={workspace.taxSummary.netVat}
-                tone={workspace.taxSummary.netVat >= 0 ? 'danger' : 'success'}
-              />
-              <TaxCard title="Stopaj" value={workspace.taxSummary.withholdingTax} tone="warning" />
-            </div>
-            {workspace.taxSummary.netVat > 0 && (
-              <div className="mt-4 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/10 p-3 text-sm text-amber-900 dark:text-amber-100">
-                Bu dönemde net KDV ödemesi var: {formatCurrency(workspace.taxSummary.netVat)}
-              </div>
-            )}
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
-            <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Beyan takvimi</h4>
-            <p className="text-sm leading-6 text-muted-foreground">Bu özet, firma kayıtlarındaki vergi tutarlarını gösterir. Beyan ve ödeme tarihleri bu ekranda tanımlı değildir; güncel takvim muhasebe sorumlusu tarafından doğrulanmalıdır.</p>
-          </div>
-        </div>
-      )}
+      {activeTab === 'taxes' && <VatReturnPanel period={normalizedPeriod} />}
 
       {activeTab === 'control-tower' && (
         <div className="space-y-6">
@@ -988,6 +965,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
 
             <div className="xl:col-span-2 bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
               <h4 className="font-semibold text-slate-900 dark:text-white mb-3">Banka Hareketleri</h4>
+              <BankStatementUpload disabled={workspace.periodCloseState.locked} onImported={async (message) => { showToast(message, 'success'); await loadWorkspace(); }} />
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4">
                 <input
                   type="date"
@@ -1320,30 +1298,6 @@ function MetricLine({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between py-1">
       <span className="text-slate-600 dark:text-slate-400">{label}</span>
       <span className="font-semibold text-slate-900 dark:text-white">{value}</span>
-    </div>
-  );
-}
-
-function TaxCard({
-  title,
-  value,
-  tone,
-}: {
-  title: string;
-  value: number;
-  tone: 'danger' | 'success' | 'warning';
-}) {
-  const toneClass =
-    tone === 'danger'
-      ? 'text-rose-600'
-      : tone === 'success'
-        ? 'text-emerald-600'
-        : 'text-amber-600';
-
-  return (
-    <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl">
-      <p className="text-xs text-slate-500">{title}</p>
-      <p className={cn('text-lg font-bold mt-1', toneClass)}>{formatCurrency(value)}</p>
     </div>
   );
 }

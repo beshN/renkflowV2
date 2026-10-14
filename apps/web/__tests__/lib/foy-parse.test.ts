@@ -134,3 +134,19 @@ describe('kurallar sentetik föyde uyarı verir', () => {
     expect(severities(d).led_count).toBe('warn');
   });
 });
+
+describe('demir çizimleri: boy ve adet', () => {
+  const iron = (name: string) => read(name).ironCuts.map((c) => [c.profile, c.lengthCm, c.quantity, c.orientation, c.page]);
+  it('G: dikey 280 × 3 ve yatay 392,5 × 2, deliklerin aralık ölçüleri boy sayılmaz', () => {
+    expect(iron('pergola-g')).toEqual([['50*100', 280, 3, 'dikey', 2], ['50*100', 392.5, 2, 'yatay', 3]]);
+  });
+  it('D: aynı çizim düzeni', () => {
+    expect(iron('pergola-d')).toEqual([['50*100', 280, 3, 'dikey', 2], ['50*100', 392.5, 2, 'yatay', 3]]);
+  });
+  it('A: üç bölmeli yatay demirde boyu seçemezse null bırakır, tahmin etmez', () => {
+    expect(iron('pergola-a')).toEqual([['50*100', 280, 4, 'dikey', 2], ['50*100', null, 1, 'yatay', 3]]);
+  });
+  it('demir sayfası olmayan föyde boş', () => {
+    expect(iron('pergola-c')).toEqual([]);
+  });
+});

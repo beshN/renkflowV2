@@ -18,6 +18,7 @@ import {
 import { isMissingRelationError, tableExists } from '@/lib/db/schema-guard';
 import { assertPeriodWritable, periodFromDateInput } from '@/lib/features/accounting/period-lock';
 import { recordAuditAfterCommit } from '@/lib/audit/audit-log';
+import { syncLedger } from '@/lib/features/accounting/posting.server';
 
 /**
  * Create a new payment for an order
@@ -173,6 +174,8 @@ export async function deletePayment(paymentId: string): Promise<void> {
     RETURNING order_id, amount, currency, method, paid_at
   `;
   if (removed[0]) {
+    // The collection's ledger entry gets its reversal.
+    await syncLedger(sql, context.tenantId).catch((e) => console.error('[ledger] after payment delete', e instanceof Error ? e.message : e));
     await recordAuditAfterCommit({ tenantId: context.tenantId, actorId: context.userId, entityType: 'payment', entityId: paymentId, action: 'payment.delete', metadata: { ...removed[0] } });
   }
 

@@ -39,7 +39,7 @@ function mergeModel(base: FoyDoc, model: FoyDoc): { doc: FoyDoc; filled: string[
   };
   if (base.template === 'unknown' && model.template !== 'unknown') { doc.template = model.template; filled.push('template'); }
   for (const k of ['date', 'customer', 'address', 'ral', 'finish', 'fabric', 'assembly', 'crated', 'fabricSize', 'valanceSize', 'windbreaker'] as const) take(k, (v) => v === null);
-  for (const k of ['series', 'lights', 'notes', 'systems', 'cutList', 'ironNotes'] as const) take(k, (v) => !(v as unknown[]).length);
+  for (const k of ['series', 'lights', 'notes', 'systems', 'cutList', 'ironNotes', 'ironCuts'] as const) take(k, (v) => !(v as unknown[]).length);
   // The rüzgâr kırıcı table comes only from the picture: fill its empty fields one by one.
   if (base.windbreaker && model.windbreaker) {
     const wb = { ...base.windbreaker };

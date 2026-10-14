@@ -109,6 +109,7 @@ export const FOY_INSTRUCTIONS = [
   "İşaret kutusu: içinde çarpı (X) olan seçenek checked=true, boş kutu false, göremiyorsan null.",
   "Karşılıklı/sırt sırta birden çok sistem varsa her birini systems içinde ayrı yaz; bölmeleri soldan sağa sırala.",
   "Kesim listesi satırlarını yazıldığı gibi koru (profile metni aynen); boş hücre null. Kumaş satırında '991X400' gibi değer lengthCm=991, widthCm=400.",
+  "Demir çizimi sayfaları (ön/arka görünüş): her sayfa için ironCuts içine bir satır yaz: profile (örn. '50*100'), quantity ('3 ADET' → 3), lengthCm (çizimde en büyük puntoyla yazılan boy; delik aralığı ölçüleri 100/200/300 ya da 140 gibi küçük yazılanlar boy değildir), orientation ('DİKEY DEMİRLER' → dikey, 'YATAY DEMİRLER' → yatay, yazmıyorsa null), page. Boyu seçemiyorsan lengthCm null.",
   "Okuyamadığın veya belgede olmayan alanı null bırak. Tahmin etme, hesaplama yapma, çizimin ölçeğinden ölçü çıkarma.",
   "unreadPages alanına yine okuyamadığın sayfaları yaz; okuduysan boş bırak.",
 ].join("\n");
