@@ -15,7 +15,7 @@ type Db = any;
 type Actor = { tenantId: string; userId: string };
 
 export const EXPENSE_CATEGORIES = {
-  materials: 'Malzeme ve hammadde',
+  materials: 'Malzeme ve hammadde alışı (stok)',
   rent: 'Kira',
   utilities: 'Elektrik, su, doğalgaz',
   salaries: 'Personel',

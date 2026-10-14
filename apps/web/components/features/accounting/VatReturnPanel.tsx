@@ -10,7 +10,7 @@ type View = Awaited<ReturnType<typeof getVatReturnView>>;
 const tl = (n: number) => formatCurrency(n, 'TRY');
 const dmy = (d: string) => d.split('-').reverse().join('.');
 const CATEGORIES: Record<string, string> = {
-  materials: 'Malzeme ve hammadde', rent: 'Kira', utilities: 'Elektrik, su, doğalgaz', salaries: 'Personel', marketing: 'Reklam', office: 'Ofis',
+  materials: 'Malzeme ve hammadde alışı (stok)', rent: 'Kira', utilities: 'Elektrik, su, doğalgaz', salaries: 'Personel', marketing: 'Reklam', office: 'Ofis',
   travel: 'Yol ve araç', maintenance: 'Bakım ve onarım', insurance: 'Sigorta', taxes: 'Vergi ve harç', other: 'Diğer',
 };
 const VAT_OPTIONS = [20, 10, 1, 0];

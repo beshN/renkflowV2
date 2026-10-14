@@ -962,7 +962,8 @@ export async function getProfitLossReport(
       marketing: expenseMap.marketing || 0,
       depreciation: depreciationForPeriod,
       other: Object.entries(expenseMap)
-        .filter(([category]) => !['rent', 'utilities', 'marketing', 'tax'].includes(category))
+        // Material purchases are stock: their cost reaches the P&L through cost of goods sold on shipment.
+        .filter(([category]) => !['rent', 'utilities', 'marketing', 'tax', 'materials'].includes(category))
         .reduce((sum, [, value]) => sum + value, 0),
       total: 0,
     };
@@ -975,6 +976,9 @@ export async function getProfitLossReport(
         operatingExpenses.other
     );
 
+    if (expenseMap.materials) {
+      warnings.push('Malzeme alışları gider sayılmaz; maliyetleri sevkiyatta satış maliyetine yansır (alış KDV\'si KDV özetine girer).');
+    }
     const grossProfit = round2(grossRevenue - costOfGoodsSold);
     const operatingProfit = round2(grossProfit - operatingExpenses.total);
     const profitBeforeTax = operatingProfit;
