@@ -7,8 +7,10 @@ kalitesini yükseltmek. Program tamamlanmadı; aşağıdaki işler bitmiş sayı
 
 ## Çalışma alanları
 
-- Asıl Claude projesi: `/Users/beshnovski/Desktop/renkflowV2`,
-  `claude/customer-import` dalında korunmuş commit edilmemiş taslaklar.
+- Asıl Claude projesi: `/Users/beshnovski/Desktop/renkflowV2`.
+  Önceki müşteri taslaklarına dokunulmadı. Son manuel devam kontrolünde proje
+  `claude/roadmap-vat` dalında, yalnız `.claude/launch.json` izlenmiyordu;
+  bu çalışma alanı değiştirilmedi.
 - Codex devamı: `/Users/beshnovski/Desktop/renkflow-director-audit`,
   `codex/director-audit-20261014` dalı. Çalışmaya bu dalın güncel HEAD'i üzerinden
   devam edin; eski Claude taslağını tekrar üstüne kopyalamayın.
@@ -184,6 +186,11 @@ AUTH_SECRET ile sunucuyu açıp `npm run test:imports:http -- http://127.0.0.1:3
 
 ## Sıradaki geliştirme paketleri
 
+**Yeni öncelik:** Kullanıcı bütün siteyi karmaşık bulduğunu ve kalan görevlerin
+basit kullanıma göre yapılmasını açıkça söyledi. Önce kalan modüllerin günlük
+iş, form ve isteğe bağlı alanlarını inceleyin; aşağıdaki yeni işlevler de aynı
+sadelik kabul ölçütüne tabi. Otomasyon yeniden açılmamalı; mevcut devam manueldir.
+
 1. Ekipman bakım planı, arıza/duruş defteri ve gerçek verilere dayalı OEE.
    Planlı süre, çalışılan süre, ideal çevrim ve sağlam/red üretim olmadan yüzde uydurmayın.
 2. Fason iş akışı; verilen malzeme, teslimat, kısmi kabul, maliyet ve kalite bağlantısı.
@@ -225,3 +232,55 @@ Draft PR: https://github.com/beshN/renkflowV2/pull/91.
 14 Ekim üçüncü tur başında doğrulandı. Son ürün/reçete push'undaki kontrolleri
 önceki commit'in yeşil sonucu ile karıştırmayın. Otomasyon durduğundan yeni
 CI/devir takipleri otomatik sürdürülecek diye söz verilmemeli.
+
+## Manuel kullanım sadeleştirmesi — 14 Ekim
+
+Kullanıcı çakışmasız devam istedi. Temiz `4efee736` dalına önce
+`origin/main@fa196305` birleştirildi (`f6a5a631`). KDV/gider kaydı, kesim listesi,
+demir föyü okuma, araç demo takibi ve önceki form sadeleştirmeleri korundu.
+Eski müşteri importunun çakışan yedi dosyasında incelenmiş sürüm tutuldu;
+ürün/kesim listesi menüleri, KDV paneli, breadcrumb, 058 ve 060 migration'ları
+birlikte korundu. Asıl Claude ağacına ve oturumuna yazılmadı.
+
+- Ortak masaüstü menüsünde role göre en çok altı günlük bağlantı var. Tüm izinli
+  bölümler ayrı aranabilir menüden erişiliyor; listede 14 sonuç sınırı yok.
+  Mobil üst/alt menü aynı dizini açıyor. Türkçe harfsiz `urun` araması `Ürünler`
+  buluyor. Oturum yüklenirken yetkili bölümler yanlışlıkla görünmüyor.
+- Yeni sipariş, teklif, sayım ve diğer ortak kısayollar daraltılmış oluşturma
+  yetkisine de uyuyor. Bugün ekranında izinsiz kart/kısayollar gizleniyor;
+  usta ve muhasebe günlük menüsü ayrı. Asistan için yetkisiz komut bağlantısı
+  kaldırıldı. Sunucu yetki denetimleri değiştirilmedi.
+- Üretimde günlük işler, kesim ve iş planı önde; reçete ve diğer bölümler
+  seçiciden erişiliyor. Kalite/analitik ayrı bölümde, yeniden işlem vakaları ve
+  hatalar günlük görünümde korunuyor. Büyük dört sayaç kısa özet satırına indi.
+  Üretim emri ve beş stok/tanım formu istenince açılıyor; stokta aynı anda bir
+  form açık. Ziyaret edilmiş form kapanırken değerleri korunuyor. Stok ters
+  kaydı gerekçesiyle birlikte ayrı açılır işlem oldu.
+- Ayarlarda tek konu, üretim/renk/neden ve teklif/kayıt formlarında tek açılır
+  işlem var. Muhasebede üç günlük rapor ve diğer raporlar seçicisi var; KDV
+  gider formu gerektiğinde açılıyor. Ayarlar/muhasebe/finansta iç içe main
+  kaldırıldı; finansın başlığı ve açıklaması basitleşti.
+- Bölüm seçimi ve geri düğmesi, reçete/kesim/lot bağlantıları ve kesim ayarı
+  hash'i korunuyor. Muhasebede rapor doğrudan `?tab=taxes` ile açılabilir.
+  Asistan şeridi yalnız bulunduğunuz bölümle ilgili öneri gösteriyor; genel
+  öneriler asistanın kendi panelinde kalıyor.
+
+Tarayıcı kabulü: sahip, usta ve salt okunur yönetici; tüm bölümlere erişim ve
+daraltılmış menü; Türkçe harfsiz arama, Escape/fokus dönüşü; tek stok formu,
+formlar arasında değer korunması, depo kaydı; kesim ayarı doğrudan bağlantısı,
+seçici ve geri düğmesi; KDV formu → yerel gider → rapor/CSV. SQL: depo
+`UI-SADE` RAW, gider 1.000 TL ve 200 TL KDV. Yalnız izole sentetik veriler.
+390 px üretim/ayar/muhasebe/usta ekranında yatay sayfa taşması yok; tek h1,
+iç içe main yok. Açık/koyu tema ve konsol kontrolü, yeni error/warn yok.
+
+Bu paket bütün modüllerin tüm iç formlarının sadeleştiği anlamına gelmez.
+Genel kullanım programı açık; diğer ekranlardaki seyrek/teknik alanlar ve
+sayfa içi rol kısayolları sıradaki inceleme konusu. Otomasyon PAUSED kalır.
+Claude'a bu tur devir gönderilmedi.
+
+Son doğrulama: `npm run validate` başarılı — 154 paket / 1.161 Jest testi,
+tip kontrolü, uyarısız lint, güvenlik kapıları ve build. Birleştirilmiş ana dal
+dahil taze PostgreSQL'de 41/41 entegrasyon betiği geçti. Gerçek HTTP/session
+import kontrolü de başarılı: sahip/usta/daraltılmış yönetici/cross-site ve
+eskimiş/tekrar önizleme yolları korundu. Loglar, SQL ve ekran kanıtları
+`review-reports/2026-10-14-simple-*` dosyalarında. Canlı deploy/migration yok.

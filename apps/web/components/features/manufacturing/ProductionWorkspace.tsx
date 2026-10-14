@@ -2,20 +2,15 @@
 import { ProductionInsights } from '@/components/production/ProductionInsights';
 import { CutPlanVersions } from '@/components/production/CutPlanVersions';
 import { prepareFileUpload } from "@/lib/storage/client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Box,
-  Layers,
-  Scissors,
-  CalendarClock,
-  Warehouse,
-  Mail,
-  FileSearch,
   Plus,
   RefreshCw,
   ArrowUpRight,
 } from "lucide-react";
+import { SectionPicker } from "@/components/kit/SectionPicker";
+import { TaskDisclosure } from "@/components/kit/TaskDisclosure";
 import { useProduction } from "./useProduction";
 import { QualityIntelligence,ReworkCases } from "./QualityIntelligence";
 import { ProductionAnalytics } from "./ProductionAnalytics";
@@ -39,13 +34,14 @@ function EstimateNotice({ text, onOpenSettings }: { text: string | null; onOpenS
   );
 }
 const tabs = [
-  ["overview", "Üretim merkezi", Layers],
-  ["recipes", "Reçeteler", Box],
-  ["cutting", "Toplu kesim", Scissors],
-  ["planning", "Çizelgeleme", CalendarClock],
-  ["stock", "Malzeme ve kapasite", Warehouse],
-  ["intake", "Belgeden sipariş", FileSearch],
-  ["communication", "Müşteri iletişimi", Mail],
+  { id: 'overview', label: 'Üretim işleri' },
+  { id: 'cutting', label: 'Kesim' },
+  { id: 'planning', label: 'İş planı' },
+  { id: 'recipes', label: 'Reçeteler' },
+  { id: 'stock', label: 'Stok ve tanımlar' },
+  { id: 'reports', label: 'Kalite ve raporlar' },
+  { id: 'intake', label: 'Belgeden sipariş' },
+  { id: 'communication', label: 'Müşteri bildirimleri' },
 ] as const;
 const status: Record<string, string> = {
   open: "Hazırlık",
@@ -128,24 +124,36 @@ export default function ProductionWorkspace() {
     [localError, setLocalError] = useState(""),
     [measured, setMeasured] = useState<Record<string, number>>({}),
     [correctionReason, setCorrectionReason] = useState(""),
-    qrLoaded = useRef(false);
+    [stockTask, setStockTask] = useState<string | null>(null);
   useEffect(() => {
-    if (!data || qrLoaded.current) return;
-    const q = new URLSearchParams(window.location.search);
-    if (tabs.some(([id]) => id === q.get("tab"))) setTab(q.get("tab")!);
-    if (q.has("cut")) setTab("cutting");
-    if (q.has("lot")) setTab("stock");
-    qrLoaded.current = true;
-  }, [data]);
+    const read = () => {
+      const q = new URLSearchParams(window.location.search);
+      const next = q.has('cut') ? 'cutting' : q.has('lot') ? 'stock' : q.get('tab');
+      setTab(tabs.some(item => item.id === next) ? next! : 'overview');
+      setStockTask(window.location.hash === '#cutting-settings' ? 'settings' : null);
+    };
+    read();
+    window.addEventListener('popstate', read);
+    window.addEventListener('hashchange', read);
+    return () => { window.removeEventListener('popstate', read); window.removeEventListener('hashchange', read); };
+  }, []);
   useEffect(() => {
-    if (tab === "stock" && data && window.location.hash === "#cutting-settings")
-      document.getElementById("cutting-settings")?.scrollIntoView({ block: "start" });
-  }, [tab, data]);
+    if (tab === 'stock' && data && stockTask === 'settings')
+      document.getElementById('cutting-settings')?.scrollIntoView({ block: 'start' });
+  }, [tab, data, stockTask]);
+  function pickTab(id: string) {
+    const query = new URLSearchParams(window.location.search);
+    query.set('tab', id);
+    if (id !== 'cutting') query.delete('cut');
+    if (id !== 'stock') query.delete('lot');
+    window.history.pushState(null, '', '/production?' + query.toString());
+    setTab(id);
+  }
   function openCuttingSettings() {
     const query = new URLSearchParams(window.location.search);
-    query.set("tab", "stock");
-    window.history.replaceState(null, "", "/production?" + query.toString() + "#cutting-settings");
-    setTab("stock");
+    query.set('tab', 'stock'); query.delete('cut');
+    window.history.pushState(null, '', '/production?' + query.toString() + '#cutting-settings');
+    setTab('stock'); setStockTask('settings');
   }
   useEffect(() => {
     if(tab!=="cutting" || !data)return;
@@ -176,7 +184,7 @@ export default function ProductionWorkspace() {
   if (!data)
     return (
       <div className="rf-page space-y-4">
-        <h1 className="rf-page-title">Üretim merkezi</h1>
+        <h1 className="rf-page-title">Üretim</h1>
         {error ? <p role="alert">{error}</p> : <div role="status" className="space-y-2"><span className="sr-only">Üretim verileri alınıyor</span>{[0, 1, 2, 3].map((i) => <div key={i} className="h-12 animate-pulse rounded-md bg-muted motion-reduce:animate-none" />)}</div>}
         <button className="rf-input" onClick={refresh}>
           Tekrar dene
@@ -222,9 +230,9 @@ export default function ProductionWorkspace() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="rf-eyebrow">RENK ALÜMİNYUM / ÜRETİM</p>
-          <h1 className="rf-page-title">Üretim merkezi</h1>
+          <h1 className="rf-page-title">Üretim</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Siparişten kesime, sahadan sevkiyata tek çalışma alanı.
+            Üretim işlerini takip edin, kesimi ve iş planını hazırlayın.
           </p>
         </div>
         <div className="flex gap-2">
@@ -240,21 +248,7 @@ export default function ProductionWorkspace() {
           </Link>
         </div>
       </div>
-      <nav
-        aria-label="Üretim bölümleri"
-        className="flex gap-1 overflow-x-auto border-b border-border"
-      >
-        {tabs.filter(([id]) => id !== "recipes").map(([id, label, Icon]) => (
-          <button
-            key={id}
-            className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-xs ${tab === id ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}
-            onClick={() => { setTab(id); const query = new URLSearchParams(window.location.search); query.set("tab", id); window.history.replaceState(null, "", "/production?" + query.toString()); }}
-          >
-            <Icon size={15} />
-            {label}
-          </button>
-        ))}
-      </nav>
+      <SectionPicker label="Üretim bölümleri" items={tabs} value={tab} onChange={pickTab} primary={['overview', 'cutting', 'planning']} />
       {(error || localError) && (
         <p
           role="alert"
@@ -268,11 +262,11 @@ export default function ProductionWorkspace() {
           <Link href="/orders/foy" className="rf-panel flex flex-wrap items-center justify-between gap-3 border-primary/40 hover:border-primary">
             <span>
               <span className="block text-sm font-semibold">Kesim listesi yükle</span>
-              <span className="block text-xs text-muted-foreground">Föyü yükleyin: hangi profil hangi çubuktan kesilecek, artık ve hurdadan neler kullanılacak, ne kadar fire çıkacak otomatik hesaplanır.</span>
+              <span className="block text-xs text-muted-foreground">Föyü yükleyerek profil kesim planını hazırlayın.</span>
             </span>
             <span className="rf-primary-button text-xs">Föyü yükle</span>
           </Link>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <ul aria-label="Üretim özeti" className="flex flex-wrap gap-2">
             {[
               [
                 "Aktif üretim",
@@ -284,22 +278,16 @@ export default function ProductionWorkspace() {
               ["İstasyonda bekleyen", ready.length],
               ["Yeniden işlem", data.rework?.length || 0],
             ].map(([label, value]) => (
-              <section key={label} className="rf-panel">
-                <p className="text-xs text-muted-foreground">{label}</p>
-                <p className="mt-3 text-3xl font-semibold tabular-nums">
+              <li key={label} className="flex min-h-10 items-center gap-2 rounded-md border border-border bg-card px-3">
+                <span className="text-xs text-muted-foreground">{label}</span>
+                <span className="text-base font-semibold tabular-nums">
                   {value}
-                </p>
-              </section>
+                </span>
+              </li>
             ))}
-          </div>
-          <ProductionAnalytics data={data.analytics} />
-          <ProductionInsights />
-          <QualityIntelligence data={data.qualityAnalytics} preferences={data.preferences} manager={manager} command={command} busy={busy} />
-          <ReworkCases cases={data.rework} operations={ops} jobs={jobs} onResolve={payload=>command("rework.resolve",payload)} />
-          <section className="rf-panel">
-            <h2 className="rf-section-title mb-5">
-              Sipariş kaleminden üretim emri
-            </h2>
+          </ul>
+          {(data.rework?.length || 0) > 0 && <ReworkCases cases={data.rework} operations={ops} jobs={jobs} onResolve={payload=>command("rework.resolve",payload)} />}
+          <TaskDisclosure title="Üretim emri oluştur">
             <form
               className="grid items-end gap-3 md:grid-cols-3"
               onSubmit={submit("job.create")}
@@ -358,7 +346,7 @@ export default function ProductionWorkspace() {
                 Üretim emri oluştur
               </button>
             </form>
-          </section>
+          </TaskDisclosure>
           <section className="rf-panel overflow-x-auto">
             <h2 className="rf-section-title mb-5">Üretim emirleri</h2>
             {jobs.length ? (
@@ -444,6 +432,11 @@ export default function ProductionWorkspace() {
           </section>
         </>
       )}
+      {tab === 'reports' && <>
+        <ProductionAnalytics data={data.analytics} />
+        <ProductionInsights />
+        <QualityIntelligence data={data.qualityAnalytics} preferences={data.preferences} manager={manager} command={command} busy={busy} />
+      </>}
       {tab === "recipes" && (
         <>
           <div className="flex justify-between">
@@ -914,11 +907,13 @@ export default function ProductionWorkspace() {
       )}
       {tab === "stock" && (
         <>
-          <div className="grid gap-5 xl:grid-cols-2">
+          <div className="grid items-start gap-5 xl:grid-cols-2">
             {manager && (
               <>
+                <TaskDisclosure title="Malzeme veya ürün kartı oluştur" group="production-stock" open={stockTask === 'material'}
+                  onToggle={expanded => setStockTask(current => expanded ? 'material' : current === 'material' ? null : current)}>
                 <form
-                  className="rf-panel space-y-4"
+                  className="space-y-4"
                   onSubmit={async (e) => {
                     e.preventDefault();
                     const form = e.currentTarget;
@@ -932,7 +927,6 @@ export default function ProductionWorkspace() {
                     if (await run("material.save", d)) form.reset();
                   }}
                 >
-                  <h2 className="rf-section-title">Malzeme / mamul kartı</h2>
                   <p className="text-xs text-muted-foreground">
                     Kalem = profil kodu + ölçü + işlenmiş hâl. Boyalı, boyasız,
                     delikli ve hazır hâller ayrı kalemdir. Profilin rengi ve
@@ -988,11 +982,13 @@ export default function ProductionWorkspace() {
                     Kartı oluştur
                   </button>
                 </form>
+                </TaskDisclosure>
+                <TaskDisclosure title="Depo ekle" group="production-stock" open={stockTask === 'warehouse'}
+                  onToggle={expanded => setStockTask(current => expanded ? 'warehouse' : current === 'warehouse' ? null : current)}>
                 <form
-                  className="rf-panel space-y-4"
+                  className="space-y-4"
                   onSubmit={submit("warehouse.save")}
                 >
-                  <h2 className="rf-section-title">Depo tanımı</h2>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field name="code" label="Depo kodu" />
                     <Field name="name" label="Depo adı" />
@@ -1011,15 +1007,17 @@ export default function ProductionWorkspace() {
                       .join(" / ")}
                   </p>
                 </form>
+                </TaskDisclosure>
+                <TaskDisclosure title="Stok girişi yap" group="production-stock" open={stockTask === 'receive'}
+                  onToggle={expanded => setStockTask(current => expanded ? 'receive' : current === 'receive' ? null : current)}>
                 <form
-                  className="rf-panel space-y-4"
+                  className="space-y-4"
                   onSubmit={submit("stock.receive", [
                     "quantity",
                     "lengthMm",
                     "unitCost",
                   ])}
                 >
-                  <h2 className="rf-section-title">Fiziksel stok girişi</h2>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Select
                       name="itemId"
@@ -1063,9 +1061,11 @@ export default function ProductionWorkspace() {
                     Stok girişini kaydet
                   </button>
                 </form>
+                </TaskDisclosure>
+                <TaskDisclosure title="Kesim ve bildirim ayarları" group="production-stock" id="cutting-settings" open={stockTask === 'settings'}
+                  onToggle={expanded => setStockTask(current => expanded ? 'settings' : current === 'settings' ? null : current)}>
                 <form
-                  id="cutting-settings"
-                  className="rf-panel space-y-4"
+                  className="space-y-4"
                   onSubmit={async (e) => {
                     e.preventDefault();
                     const f = new FormData(e.currentTarget);
@@ -1085,9 +1085,6 @@ export default function ProductionWorkspace() {
                     await run("preferences.save", d);
                   }}
                 >
-                  <h2 className="rf-section-title">
-                    Kesim ve iletişim ayarları
-                  </h2>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {[
                       ["kerfMm", "Testere payı · mm", "kerf_mm"],
@@ -1159,8 +1156,11 @@ export default function ProductionWorkspace() {
                     Ayarları kaydet
                   </button>
                 </form>
+                </TaskDisclosure>
+                <TaskDisclosure title="İş merkezi ve vardiya" group="production-stock" open={stockTask === 'center'}
+                  onToggle={expanded => setStockTask(current => expanded ? 'center' : current === 'center' ? null : current)}>
                 <form
-                  className="rf-panel space-y-4 xl:col-span-2"
+                  className="space-y-4"
                   onSubmit={async (e) => {
                     e.preventDefault();
                     const f = new FormData(e.currentTarget),
@@ -1182,7 +1182,6 @@ export default function ProductionWorkspace() {
                     await run("center.save", d);
                   }}
                 >
-                  <h2 className="rf-section-title">İş merkezi ve vardiya</h2>
                   <div className="grid gap-3 sm:grid-cols-3">
                     <Field
                       name="code"
@@ -1237,6 +1236,7 @@ export default function ProductionWorkspace() {
                       .join(" / ")}
                   </p>
                 </form>
+                </TaskDisclosure>
               </>
             )}
           </div>
@@ -1305,8 +1305,8 @@ export default function ProductionWorkspace() {
         </>
       )}
       {tab === "stock" && manager && (
-        <section className="rf-panel space-y-4">
-          <h2 className="rf-section-title">Onaylı stok düzeltmesi</h2>
+        <TaskDisclosure title="Stok girişini düzelt">
+          <div className="space-y-4">
           <label className="block text-xs">
             Düzeltme gerekçesi
             <input
@@ -1342,7 +1342,8 @@ export default function ProductionWorkspace() {
                 </button>
               </div>
             ))}
-        </section>
+          </div>
+        </TaskDisclosure>
       )}
       {tab === "intake" && (
         <>

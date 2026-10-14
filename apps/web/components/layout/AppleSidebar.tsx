@@ -5,13 +5,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import type { LucideIcon } from 'lucide-react';
-import { Home, Receipt, PlusCircle, ClipboardList, KanbanSquare, Search, Bell, Wallet, Boxes, BarChart3, Users, Settings, LogOut, PanelLeftClose, PanelLeftOpen, LayoutGrid, FileText, Building2, Truck, ShoppingCart, PackageCheck, Recycle, ScanLine, Warehouse, Factory, ChevronDown, Target, Wrench, LifeBuoy, ScrollText, UserCog, CalendarDays, Calculator, Sparkles, IdCard } from 'lucide-react';
+import { Home, Receipt, PlusCircle, ClipboardList, KanbanSquare, Search, Bell, Wallet, Boxes, BarChart3, Users, Settings, LogOut, PanelLeftClose, PanelLeftOpen, LayoutGrid, FileText, Building2, Truck, ShoppingCart, PackageCheck, Recycle, ScanLine, Warehouse, Factory, ArrowUpRight, Target, Wrench, LifeBuoy, ScrollText, UserCog, CalendarDays, Calculator, Sparkles, IdCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useMemberAccess } from '@/lib/hooks/useMemberAccess';
-import { activeNavHref, getVisibleNavGroups } from '@/lib/core/dashboard-nav';
-import { NavigationGroup } from './NavigationGroup';
+import { activeNavHref, getVisibleNavGroups, getPrimaryNavItems } from '@/lib/core/dashboard-nav';
+import { useWorkspaceCommands } from './WorkspaceCommands';
 import { BrandMark } from '@/components/brand/BrandMark';
 
 const NAV_ICONS: Record<string, LucideIcon> = {
@@ -38,6 +38,9 @@ export function AppleSidebar({ collapsed, setCollapsed, onExpandedChange }: Appl
   const expanded = !collapsed || hovered;
   const navGroups = useMemo(() => getVisibleNavGroups(user?.role, memberAccess), [user?.role, memberAccess]);
   const activeHref = activeNavHref(pathname, navGroups);
+  const primary = getPrimaryNavItems(user?.role, memberAccess);
+  const { openModules } = useWorkspaceCommands();
+  const currentExtra = navGroups.flatMap(group => group.items).find(item => item.href === activeHref && !primary.some(link => link.id === item.id));
   useEffect(() => { onExpandedChange?.(!collapsed); }, [collapsed, onExpandedChange]);
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
   function openPreview() { if (closeTimer.current) clearTimeout(closeTimer.current); setHovered(true); }
@@ -63,19 +66,22 @@ export function AppleSidebar({ collapsed, setCollapsed, onExpandedChange }: Appl
       <div className={cn('min-w-0 flex-1', !expanded && 'sr-only')}><p className="truncate text-xs font-medium">{user?.tenantName || 'Renk Alüminyum'}</p><p className="sb-muted mt-0.5 text-[11px]">Üretim operasyonları</p></div>
     </div>
     <nav className="flex-1 overflow-x-hidden overflow-y-auto px-3 pb-4" aria-label="Modüller">
-      {navGroups.map(group => <NavigationGroup key={group.id} label={group.label} expanded={expanded}
-        active={group.items.some(item => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/')))}
-        initiallyOpen={group.id === 'general' || group.id === 'sales' || (group.id === 'production' && !navGroups.some(g => g.id === 'sales'))}>
-        {group.items.filter(item => !item.action).map(item => {
-          const Icon = NAV_ICONS[item.id] || LayoutGrid;
-          const active = activeHref === item.href;
-          return <Link key={item.id} href={item.href} aria-current={active ? 'page' : undefined} title={!expanded ? item.label : undefined} data-anim={NAV_ANIM[item.id] || 'nudge'}
-            className={cn('rf-nav-item relative flex h-9 items-center gap-3 whitespace-nowrap px-2.5 text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[hsl(var(--ring))]', active && 'rf-nav-active')}>
-            {active && <motion.span layoutId="rf-nav-pill" aria-hidden className="rf-nav-pill absolute inset-0 rounded-[7px]" transition={{ type: 'spring', stiffness: 520, damping: 40 }} />}
-            <Icon size={16} strokeWidth={1.75} className="relative shrink-0" /><span className={cn('relative', !expanded && 'sr-only')}>{item.label}</span>
-          </Link>;
-        })}
-      </NavigationGroup>)}
+      <p className={cn('sb-muted px-2.5 pb-2 pt-5 text-[11px] font-medium', !expanded && 'sr-only')}>Günlük işler</p>
+      {primary.map(item => {
+        const Icon = NAV_ICONS[item.id] || LayoutGrid;
+        const active = activeHref === item.href;
+        return <Link key={item.id} href={item.href} aria-current={active ? 'page' : undefined} title={!expanded ? item.label : undefined} data-anim={NAV_ANIM[item.id] || 'nudge'}
+          className={cn('rf-nav-item relative mb-1 flex min-h-11 items-center gap-3 whitespace-nowrap px-2.5 text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[hsl(var(--ring))]', active && 'rf-nav-active')}>
+          {active && <motion.span layoutId="rf-nav-pill" aria-hidden className="rf-nav-pill absolute inset-0 rounded-[7px]" transition={{ type: 'spring', stiffness: 520, damping: 40 }} />}
+          <Icon size={16} strokeWidth={1.75} className="relative shrink-0" /><span className={cn('relative', !expanded && 'sr-only')}>{item.label}</span>
+        </Link>;
+      })}
+      <button type="button" onClick={openModules} title={!expanded ? 'Tüm bölümler' : undefined} className="rf-nav-item mt-3 flex min-h-11 w-full items-center gap-3 whitespace-nowrap border-t border-[var(--sb-line)] px-2.5 text-[13px] font-medium">
+        <LayoutGrid size={16} className="shrink-0" /><span className={cn(!expanded && 'sr-only')}>Tüm bölümler</span>
+      </button>
+      {currentExtra && <Link href={currentExtra.href} aria-current="page" title={!expanded ? currentExtra.label : undefined} className="rf-nav-item rf-nav-active mt-1 flex min-h-11 items-center gap-3 px-2.5 text-[13px] font-medium">
+        <ArrowUpRight size={16} className="shrink-0" /><span className={cn(!expanded && 'sr-only')}>{currentExtra.label}</span>
+      </Link>}
     </nav>
     <div className="sb-line shrink-0 border-t px-3 py-3">
       <div className="flex items-center gap-2.5 px-1.5 py-1.5">

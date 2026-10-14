@@ -8,7 +8,8 @@ import {
 } from 'lucide-react';
 import { useOrders } from '@/lib/hooks/useOrders';
 import { useAuth } from '@/lib/context/AuthContext';
-import { hasPermission } from '@/lib/auth/permissions';
+import { canUseWorkspaceAction, getVisibleNavGroups } from '@/lib/core/dashboard-nav';
+import { useMemberAccess } from '@/lib/hooks/useMemberAccess';
 import { businessDate, isOpenOrder, isOverdueOrder } from '@/lib/features/orders/workspace';
 import { LIFECYCLE, lifecycleIndex, orderHealth } from '@/lib/features/orders/lifecycle';
 import type { Order } from '@/lib/types';
@@ -94,6 +95,7 @@ function Lane({ title, icon: Icon, tone, orders, href, today, loading }: {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const access = useMemberAccess();
   const { orders, isLoading, error, refresh, isValidating } = useOrders();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
@@ -119,17 +121,22 @@ export default function DashboardPage() {
   const steps = LIFECYCLE.map((step, i) => ({ key: step.key, label: step.label, color: STEP_COLORS[i], href: `/orders?lc=${step.key}`, value: open.filter((o) => lifecycleIndex(o.status) === i).length }));
   const trend = summary?.trend ?? [];
   const n = (v: unknown) => (v === undefined || v === null ? '—' : Number(v));
-  const canCreate = user && hasPermission(user.role, 'orders.create');
+  const canCreate = canUseWorkspaceAction(user?.role, access, { module: 'quotations', action: 'create' });
+  const canViewOrders = canUseWorkspaceAction(user?.role, access, { module: 'orders', action: 'view' });
+  const canViewProduction = canUseWorkspaceAction(user?.role, access, { module: 'production', action: 'view' });
+  const canCount = canUseWorkspaceAction(user?.role, access, { module: 'inventory', action: 'create' });
+  const visiblePaths = new Set(getVisibleNavGroups(user?.role, access).flatMap(group => group.items.map(item => item.href)));
+  const visibleSection = (section: Section) => ['today', 'flow', 'health', 'week'].includes(section) ? canViewOrders : section === 'paint' ? canViewProduction : true;
   const manager = user && ['owner', 'admin', 'office'].includes(user.role);
 
   const shortcuts = [
     { href: '/quotations/new', label: 'Yeni teklif', icon: FilePlus2, show: canCreate },
-    { href: '/calendar', label: 'Takvim', icon: CalendarDays, show: user && user.role !== 'worker' },
-    { href: '/production?tab=cutting', label: 'Kesim', icon: Scissors, show: manager },
-    { href: '/inventory/opening-count', label: 'Sayım', icon: ClipboardList, show: manager },
-    { href: '/warehouse/scan', label: 'Tara', icon: ScanLine, show: true },
-    { href: '/factory/wall', label: 'Duvar', icon: LayoutGrid, show: manager },
-    { href: '/warehouse', label: 'Depo', icon: Warehouse, show: manager },
+    { href: '/calendar', label: 'Takvim', icon: CalendarDays, show: visiblePaths.has('/calendar') },
+    { href: '/production?tab=cutting', label: 'Kesim', icon: Scissors, show: manager && visiblePaths.has('/production') },
+    { href: '/inventory/opening-count', label: 'Sayım', icon: ClipboardList, show: manager && canCount },
+    { href: '/warehouse/scan', label: 'Tara', icon: ScanLine, show: visiblePaths.has('/warehouse/scan') },
+    { href: '/factory/wall', label: 'Duvar', icon: LayoutGrid, show: manager && visiblePaths.has('/factory') },
+    { href: '/warehouse', label: 'Depo', icon: Warehouse, show: visiblePaths.has('/warehouse') },
   ].filter((s) => s.show);
 
   const sections: Record<Section, React.ReactNode> = {
@@ -218,16 +225,16 @@ export default function DashboardPage() {
           {canCreate && <Link href="/quotations/new" className="rf-primary-button h-9 px-3.5 text-xs"><FilePlus2 size={15} /> Yeni teklif</Link>}
         </>}
       />
-      {error && !orders.length && <p role="alert" className="rf-alert text-sm"><AlertOctagon size={16} aria-hidden /> Siparişler alınamadı</p>}
+      {canViewOrders && error && !orders.length && <p role="alert" className="rf-alert text-sm"><AlertOctagon size={16} aria-hidden /> Siparişler alınamadı</p>}
 
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <StatCard label="Açık sipariş" icon={Factory} href="/orders?view=active" loading={isLoading} value={open.length} trend={trend.map((t) => t.created)} />
-        <StatCard label="Geciken" icon={AlertOctagon} href="/orders?view=overdue" loading={isLoading} value={overdue.length} tone={overdue.length ? 'danger' : 'neutral'} />
-        <StatCard label="Kesim bekleyen iş" icon={Scissors} href="/production?tab=cutting" loading={summaryLoading} value={n(summary?.cutting?.waiting)} />
-        <StatCard label="Bugün teslim" icon={Truck} href="/orders?view=today" loading={isLoading} value={dueToday.length} trend={trend.map((t) => t.completed)} />
+        {canViewOrders && <StatCard label="Açık sipariş" icon={Factory} href="/orders?view=active" loading={isLoading} value={open.length} trend={trend.map((t) => t.created)} />}
+        {canViewOrders && <StatCard label="Geciken" icon={AlertOctagon} href="/orders?view=overdue" loading={isLoading} value={overdue.length} tone={overdue.length ? 'danger' : 'neutral'} />}
+        {canViewProduction && <StatCard label="Kesim bekleyen iş" icon={Scissors} href="/production?tab=cutting" loading={summaryLoading} value={n(summary?.cutting?.waiting)} />}
+        {canViewOrders && <StatCard label="Bugün teslim" icon={Truck} href="/orders?view=today" loading={isLoading} value={dueToday.length} trend={trend.map((t) => t.completed)} />}
       </div>
 
-      {manager && (user?.role === 'owner' || user?.role === 'admin') && <FleetHealthCard />}
+      {visiblePaths.has('/vehicles') && (user?.role === 'owner' || user?.role === 'admin') && <FleetHealthCard />}
 
       <nav aria-label="Kısayollar" className="-mx-1 flex gap-2 overflow-x-auto px-1">
         {shortcuts.map((s) => (
@@ -238,7 +245,7 @@ export default function DashboardPage() {
       </nav>
 
       <div className="grid items-start gap-4 xl:grid-cols-2">
-        {layout.order.map((s) => {
+        {layout.order.filter(visibleSection).map((s) => {
           const hidden = layout.hidden.includes(s);
           if (hidden && !editing) return null;
           const wide = s === 'morning' || s === 'today' || s === 'suggestions' || s === 'activities';
@@ -257,7 +264,7 @@ export default function DashboardPage() {
           );
         })}
       </div>
-      {!isLoading && !orders.length && !error && <EmptyState title="İlk sipariş" action={canCreate ? { label: 'Yeni teklif', href: '/quotations/new' } : undefined} />}
+      {canViewOrders && !isLoading && !orders.length && !error && <EmptyState title="İlk sipariş" action={canCreate ? { label: 'Yeni teklif', href: '/quotations/new' } : undefined} />}
     </div>
   );
 }

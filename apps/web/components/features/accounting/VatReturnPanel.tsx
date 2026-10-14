@@ -5,6 +5,7 @@ import { Download, Trash2 } from 'lucide-react';
 import { EmptyState, Skeleton } from '@/components/kit';
 import { addExpenseRecord, deleteExpenseRecord, getVatReturnView } from '@/app/actions/accounting.actions';
 import { formatCurrency } from '@/lib/shared/utils';
+import { TaskDisclosure } from '@/components/kit/TaskDisclosure';
 
 type View = Awaited<ReturnType<typeof getVatReturnView>>;
 const tl = (n: number) => formatCurrency(n, 'TRY');
@@ -127,6 +128,7 @@ export function VatReturnPanel({ period }: { period: string }) {
       <section aria-labelledby="kdv-expenses" className="rf-panel space-y-3 p-4">
         <h2 id="kdv-expenses" className="rf-section-title">Alış faturaları ve giderler · {v.period}</h2>
         {view.canAdd && (
+          <TaskDisclosure title="Alış faturası veya gider ekle">
           <form onSubmit={(e) => void submit(e)} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-describedby="expense-help">
             <div className="text-sm"><label htmlFor={`${uid}-date`}>Belge tarihi</label><input id={`${uid}-date`} type="date" required className="rf-input mt-1 w-full" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
             <div className="text-sm"><label htmlFor={`${uid}-vendor`}>Tedarikçi</label><input id={`${uid}-vendor`} required maxLength={200} className="rf-input mt-1 w-full" value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })} /></div>
@@ -142,6 +144,7 @@ export function VatReturnPanel({ period }: { period: string }) {
             </div>
             {formError && <p role="alert" className="text-sm text-rose-700 dark:text-rose-300 sm:col-span-2 lg:col-span-4">{formError}</p>}
           </form>
+          </TaskDisclosure>
         )}
         {view.expenses.length === 0 ? <p className="text-sm text-muted-foreground">Bu dönemde kayıt yok.</p> : (
           <div className="overflow-x-auto">

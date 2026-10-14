@@ -9,26 +9,28 @@ import { ArrowUpRight, Command, Search, X, FileText, CornerDownLeft, Zap, FilePl
 import { useAuth } from '@/lib/context/AuthContext';
 import { useOrders } from '@/lib/hooks/useOrders';
 import { useMemberAccess } from '@/lib/hooks/useMemberAccess';
-import { getVisibleNavGroups } from '@/lib/core/dashboard-nav';
+import { getVisibleNavGroups, canUseWorkspaceAction } from '@/lib/core/dashboard-nav';
 import { hasPermission } from '@/lib/auth/permissions';
 import { cn } from '@/lib/utils';
+import { ModuleDirectory } from './ModuleDirectory';
+import type { Module, Action as AccessAction } from '@/lib/security/access-matrix';
 
-type Action = { id: string; title: string; keywords: string; href: string; icon: LucideIcon; roles?: string[] };
+type Action = { id: string; title: string; keywords: string; href: string; icon: LucideIcon; roles?: string[]; need: { module: Module; action: AccessAction } };
 /** Things to do, not only places to go: typed as a verb ("yeni teklif", "sayım", "kesim"). */
 const ACTIONS: Action[] = [
-  { id: 'a-quote', title: 'Yeni teklif', keywords: 'yeni teklif fiyat pergola yapılandır', href: '/quotations/new', icon: FilePlus2, roles: ['owner', 'admin', 'office'] },
-  { id: 'a-order', title: 'Yeni sipariş', keywords: 'yeni sipariş oluştur', href: '/new-order', icon: PackagePlus, roles: ['owner', 'admin', 'office'] },
-  { id: 'a-foy', title: 'İmalat föyü oku', keywords: 'föy foy imalat pdf oku içe aktar kesim listesi pergola', href: '/orders/foy', icon: FileText, roles: ['owner', 'admin', 'office'] },
-  { id: 'a-count', title: 'Stok sayımı', keywords: 'stok sayım sayımı çubuk açılış', href: '/inventory/opening-count', icon: ClipboardList, roles: ['owner', 'admin', 'office'] },
-  { id: 'a-cut', title: 'Kesim planı', keywords: 'kesim plan çubuk fire', href: '/production?tab=cutting', icon: Scissors, roles: ['owner', 'admin', 'office'] },
-  { id: 'a-board', title: 'Sipariş panosu', keywords: 'pano kanban sürükle aşama', href: '/orders?mode=board', icon: Columns3, roles: ['owner', 'admin', 'office', 'accountant'] },
-  { id: 'a-cal', title: 'Takvim', keywords: 'takvim teslim montaj hafta plan', href: '/calendar', icon: CalendarDays, roles: ['owner', 'admin', 'office', 'accountant'] },
-  { id: 'a-scan', title: 'Barkod / QR tara', keywords: 'tara barkod qr okut', href: '/warehouse/scan', icon: ScanLine },
-  { id: 'a-factory', title: 'Fabrika modu', keywords: 'fabrika usta atölye iş başla bitti', href: '/factory', icon: Factory, roles: ['owner', 'admin', 'office', 'worker'] },
-  { id: 'a-wall', title: 'Duvar ekranı', keywords: 'duvar tv ekran atölye', href: '/factory/wall', icon: LayoutGrid, roles: ['owner', 'admin', 'office'] },
+  { id: 'a-quote', need: { module: 'quotations', action: 'create' }, title: 'Yeni teklif', keywords: 'yeni teklif fiyat pergola yapılandır', href: '/quotations/new', icon: FilePlus2, roles: ['owner', 'admin', 'office'] },
+  { id: 'a-order', need: { module: 'orders', action: 'create' }, title: 'Yeni sipariş', keywords: 'yeni sipariş oluştur', href: '/new-order', icon: PackagePlus, roles: ['owner', 'admin', 'office'] },
+  { id: 'a-foy', need: { module: 'orders', action: 'create' }, title: 'İmalat föyü oku', keywords: 'föy foy imalat pdf oku içe aktar kesim listesi pergola', href: '/orders/foy', icon: FileText, roles: ['owner', 'admin', 'office'] },
+  { id: 'a-count', need: { module: 'inventory', action: 'create' }, title: 'Stok sayımı', keywords: 'stok sayım sayımı çubuk açılış', href: '/inventory/opening-count', icon: ClipboardList, roles: ['owner', 'admin', 'office'] },
+  { id: 'a-cut', need: { module: 'production', action: 'create' }, title: 'Kesim planı', keywords: 'kesim plan çubuk fire', href: '/production?tab=cutting', icon: Scissors, roles: ['owner', 'admin', 'office'] },
+  { id: 'a-board', need: { module: 'orders', action: 'view' }, title: 'Sipariş panosu', keywords: 'pano kanban sürükle aşama', href: '/orders?mode=board', icon: Columns3, roles: ['owner', 'admin', 'office', 'accountant'] },
+  { id: 'a-cal', need: { module: 'orders', action: 'view' }, title: 'Takvim', keywords: 'takvim teslim montaj hafta plan', href: '/calendar', icon: CalendarDays, roles: ['owner', 'admin', 'office', 'accountant'] },
+  { id: 'a-scan', need: { module: 'inventory', action: 'view' }, title: 'Barkod / QR tara', keywords: 'tara barkod qr okut', href: '/warehouse/scan', icon: ScanLine },
+  { id: 'a-factory', need: { module: 'production', action: 'view' }, title: 'Fabrika modu', keywords: 'fabrika usta atölye iş başla bitti', href: '/factory', icon: Factory, roles: ['owner', 'admin', 'office', 'worker'] },
+  { id: 'a-wall', need: { module: 'production', action: 'view' }, title: 'Duvar ekranı', keywords: 'duvar tv ekran atölye', href: '/factory/wall', icon: LayoutGrid, roles: ['owner', 'admin', 'office'] },
 ];
 
-const CommandContext = createContext<{ openCommands: () => void }>({ openCommands: () => {} });
+const CommandContext = createContext<{ openCommands: () => void; openModules: () => void }>({ openCommands: () => {}, openModules: () => {} });
 export const useWorkspaceCommands = () => useContext(CommandContext);
 
 function CommandResults({ close }: { close: () => void }) {
@@ -49,9 +51,12 @@ function CommandResults({ close }: { close: () => void }) {
       .slice(0, 6).map(order => ({ id: order.id, title: order.orderNumber + ' · ' + order.customerName, subtitle: order.productName, href: '/orders/' + order.id, type: 'order' })) : [];
     // Customers, quotations and stock are searched on the search page (server side, per role).
     // Free text can also go to the assistant as a command ("bu hafta geciken işler", "7016 kaç çubuk").
-    const ask = foldText(query).length >= 4 ? [{ id: 'ask-assistant', title: `Asistana sor: “${query.trim()}”`, subtitle: 'Komut: sonuç kartı ya da onay bekleyen önizleme', href: '/assistant?q=' + encodeURIComponent(query.trim()), type: 'action', icon: Sparkles }] : [];
+    const ask = getVisibleNavGroups(user?.role, memberAccess).some(group => group.items.some(item => item.id === 'assistant')) && foldText(query).length >= 4 ? [{ id: 'ask-assistant', title: `Asistana sor: “${query.trim()}”`, subtitle: 'Komut: sonuç kartı ya da onay bekleyen önizleme', href: '/assistant?q=' + encodeURIComponent(query.trim()), type: 'action', icon: Sparkles }] : [];
     const all = foldText(query).length >= SEARCH_MIN_LENGTH ? [{ id: 'search-all', title: `“${query.trim()}” için tüm sonuçlar`, subtitle: 'Sipariş, müşteri, teklif ve stokta ara', href: '/search?q=' + encodeURIComponent(query.trim()), type: 'search' }] : [];
-    const actions = ACTIONS.filter((a) => (!a.roles || (user && a.roles.includes(user.role))) && (!keyword || foldText(a.keywords + ' ' + a.title).includes(foldText(keyword))))
+    const actions = ACTIONS.filter((a) => {
+      if (!user || (a.roles && !a.roles.includes(user.role))) return false;
+      return canUseWorkspaceAction(user.role, memberAccess, a.need);
+    }).filter((a) => (!keyword || foldText(a.keywords + ' ' + a.title).includes(foldText(keyword))))
       .map((a) => ({ id: a.id, title: a.title, subtitle: 'Eylem', href: a.href, type: 'action', icon: a.icon }));
     return [...(keyword ? [] : actions), ...matches, ...(keyword ? actions : []), ...ask, ...all, ...pages].slice(0, 14);
   }, [query, user, orders, memberAccess]);
@@ -96,13 +101,15 @@ function CommandResults({ close }: { close: () => void }) {
 
 export function WorkspaceCommands({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [modulesOpen, setModulesOpen] = useState(false);
   const previousFocus = useRef<HTMLElement | null>(null);
-  const context = useMemo(() => ({ openCommands: () => { previousFocus.current = document.activeElement as HTMLElement; setOpen(true); } }), []);
+  const context = useMemo(() => ({ openCommands: () => { previousFocus.current = document.activeElement as HTMLElement; setModulesOpen(false); setOpen(true); }, openModules: () => { previousFocus.current = document.activeElement as HTMLElement; setOpen(false); setModulesOpen(true); } }), []);
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         previousFocus.current = document.activeElement as HTMLElement;
+        setModulesOpen(false);
         setOpen(value => !value);
         return;
       }
@@ -112,6 +119,7 @@ export function WorkspaceCommands({ children }: { children: ReactNode }) {
       if (event.key === '/' && !typing && !event.metaKey && !event.ctrlKey && !event.altKey) {
         event.preventDefault();
         previousFocus.current = document.activeElement as HTMLElement;
+        setModulesOpen(false);
         setOpen(true);
       }
     };
@@ -128,6 +136,15 @@ export function WorkspaceCommands({ children }: { children: ReactNode }) {
           <Dialog.Title className="sr-only">Çalışma alanında arama</Dialog.Title>
           <Dialog.Description className="sr-only">Modül veya sipariş seçin. Yukarı ve aşağı ok tuşlarıyla gezin, Enter ile açın.</Dialog.Description>
           {open && <CommandResults close={() => setOpen(false)} />}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+    <Dialog.Root open={modulesOpen} onOpenChange={setModulesOpen}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-[80] bg-slate-950/45 backdrop-blur-[3px]" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-[81] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-2xl outline-none"
+          onCloseAutoFocus={event => { event.preventDefault(); previousFocus.current?.focus(); }}>
+          {modulesOpen && <ModuleDirectory close={() => setModulesOpen(false)} />}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

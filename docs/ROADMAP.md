@@ -6,6 +6,13 @@ Bu belge programın durum tablosudur. Her iş kendi dalında ve PR'ında yapıl�
 
 ## Kararlar
 
+- **Kullanım kolaylığı (kullanıcının yeni önceliği):** Her bölüm günlük işe göre
+  düzenlenecek. Bir ana işlem, gerekli alanlar, kısa ve anlaşılır adlar; seyrek
+  kullanılan formlar ve teknik ayrıntılar istenince açılacak. Mobil, açık/koyu
+  tema, klavye, geri düğmesi ve daraltılmış roller kabul ölçütü. Kritik uyarılar,
+  veri doğrulaması ve onaylar sadeleştirme sırasında kaybolmamalı. Yeni ERP
+  paketleri bu ölçüt sağlanmadan tamamlandı sayılmayacak.
+
 - **Strateji:** RenkFlow, Renk Alüminyum'un kendi aracı olarak kalıyor. Genel API, self-servis kayıt ve abonelik ödemesi öncelik dışı. Firma ayrımı (RLS) yine sertleştirilecek.
 - **e-Fatura:** Önce sağlayıcıdan bağımsız bir `EInvoiceProvider` arayüzü, UBL-TR üretimi ve sahte (mock) sağlayıcı yazılacak. Entegratör seçilince tek bir adaptör eklenecek.
 - **Bordro:** SGK ve vergi hesaplayan bir motor yazılmayacak. Personel kartına yasal alanlar eklenecek ve muhasebeci için dışa aktarım hazırlanacak.
@@ -89,7 +96,8 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 
 | İş | Durum |
 |---|---|
-| Sayfa başlığı standardı (`PageHeader`); iç içe `<main>` ve çift `<h1>` düzeltmesi | ⬜ |
+| Günlük iş odaklı menü, uzun form ve raporların gerektiğinde açılması | 🔄 — ortak menü, Bugün, üretim, ayarlar ve muhasebe sadeleştirildi; diğer modüllerde ayrıntılı kullanım incelemesi sürmeli |
+| Sayfa başlığı standardı (`PageHeader`); iç içe `<main>` ve çift `<h1>` düzeltmesi | 🔄 — ayarlar/muhasebe/finans ve önceki aktarım ekranları düzeltildi; bütün sayfalar bitmiş sayılmaz |
 | Etiketsiz alanlar; CI'da axe testi | ⬜ |
 | Dokunmatik montaj takvimi | ⬜ |
 | Mağaza yayını | ⏸ |
@@ -107,3 +115,10 @@ Tamamlanan kod ile canlı bağlantı/gerçek veri doğrulaması ayrı takip edil
 14 Ekim üçüncü tur: kullanıcı otomasyonu durdurdu. Son ürün/reçete paketi ve
 39/39 DB entegrasyonu kaydedildi; genel ERP programı tamamlanmış değildir.
 Otomatik geliştirme ve Claude devri durdu; ayrıntı CONTINUATION.md içinde.
+
+14 Ekim manuel devam: kullanıcı bütün bölümlerde basit kullanım ve çakışmasız
+devam istedi. Önce `origin/main@fa196305` devam dalına birleştirildi; ana daldaki
+KDV, kesim listesi, demo araç takibi ve form sadeleştirmeleri korundu. İncelenmiş
+aktarımlar eski müşteri taslağıyla değiştirilmedi. Sonraki paket önceliği mevcut
+modüllerde günlük iş/form/isteğe bağlı alan incelemesi; bakım ve fason dahil
+sonraki işlevler de yukarıdaki kullanım kabul ölçütüne tabi. Otomasyon kapalıdır.
