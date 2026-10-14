@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
+import * as Sentry from '@sentry/nextjs';
 import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
 
 export default function GlobalError({
@@ -10,6 +12,11 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Error boundaries swallow the error; report it (no-op without a Sentry DSN).
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+
   return (
     <html lang="tr">
       <body className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6">

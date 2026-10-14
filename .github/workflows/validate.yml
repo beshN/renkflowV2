@@ -29,13 +29,20 @@ jobs:
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
+        # No actions cache: the self-hosted runner keeps ~/.npm between runs, and uploading the
+        # cache to GitHub after every run took several minutes.
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
 
       - name: Install dependencies
         run: npm --prefix apps/web ci --workspaces=false --legacy-peer-deps
 
       - name: Run backend and frontend validation gate
         run: npm --prefix apps/web run validate
+
+      # Every scripts/test-*.ts against a fresh throwaway PostgreSQL (temp dir, free port, no remote URL).
+      # The PDF fixture uses the Chromium already in the runner's Playwright cache; `playwright install`
+      # hung on this runner, so it is not run here (install it on the runner once when Playwright updates).
+      - name: Integration tests on an isolated local database
+        timeout-minutes: 10
+        run: npm --prefix apps/web run test:integration

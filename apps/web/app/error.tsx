@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
+import * as Sentry from '@sentry/nextjs';
 import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
 
 export default function Error({
@@ -10,6 +12,11 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Error boundaries swallow the error; report it (no-op without a Sentry DSN).
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6">
       <div role="alert" className="w-full max-w-lg rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl shadow-xl p-8">
