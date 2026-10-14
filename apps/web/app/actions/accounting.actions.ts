@@ -7,6 +7,9 @@
 
 import { sql } from '@/lib/db';
 import { syncLedger, type SyncResult } from '@/lib/features/accounting/posting.server';
+import { loadVatReturn } from '@/lib/features/accounting/vat-return.server';
+import { vatReturnCsv, type VatReturn } from '@/lib/features/accounting/vat-return';
+import { addExpense, deleteExpense, listExpenses, type ExpenseView } from '@/lib/features/accounting/expenses.server';
 import { recordAudit } from '@/lib/audit/audit-log';
 import { z } from 'zod';
 import { getServerUserContext,requirePermission } from '@/lib/features/auth/serverAuth';
@@ -959,7 +962,8 @@ export async function getProfitLossReport(
       marketing: expenseMap.marketing || 0,
       depreciation: depreciationForPeriod,
       other: Object.entries(expenseMap)
-        .filter(([category]) => !['rent', 'utilities', 'marketing', 'tax'].includes(category))
+        // Material purchases are stock: their cost reaches the P&L through cost of goods sold on shipment.
+        .filter(([category]) => !['rent', 'utilities', 'marketing', 'tax', 'materials'].includes(category))
         .reduce((sum, [, value]) => sum + value, 0),
       total: 0,
     };
@@ -972,6 +976,9 @@ export async function getProfitLossReport(
         operatingExpenses.other
     );
 
+    if (expenseMap.materials) {
+      warnings.push('Malzeme alışları gider sayılmaz; maliyetleri sevkiyatta satış maliyetine yansır (alış KDV\'si KDV özetine girer).');
+    }
     const grossProfit = round2(grossRevenue - costOfGoodsSold);
     const operatingProfit = round2(grossProfit - operatingExpenses.total);
     const profitBeforeTax = operatingProfit;
@@ -1243,41 +1250,9 @@ export async function getCashFlowReport(
 export async function getTaxSummary(period: string): Promise<TaxSummary> {
   try {
     const session = await getSession();
-
-    const vatTransactions = await sql`
-      SELECT
-        type,
-        COALESCE(SUM(tax_amount), 0) as total
-      FROM tax_transactions
-      WHERE tenant_id = ${session.user.tenantId}
-        AND period = ${period}
-        AND tax_type = 'vat'
-      GROUP BY type
-    `;
-
-    const vatPayable = toNumber(
-      (vatTransactions as { type: string; total: string }[]).find((transaction) => transaction.type === 'output')?.total
-    );
-    const vatReceivable = toNumber(
-      (vatTransactions as { type: string; total: string }[]).find((transaction) => transaction.type === 'input')?.total
-    );
-
-    const withholding = await sql`
-      SELECT COALESCE(SUM(tax_amount), 0) as total
-      FROM tax_transactions
-      WHERE tenant_id = ${session.user.tenantId}
-        AND period = ${period}
-        AND tax_type = 'withholding'
-    `;
-
-    const withholdingTax = toNumber((withholding as any[])[0]?.total);
-
-    return {
-      vatPayable: round2(vatPayable),
-      vatReceivable: round2(vatReceivable),
-      netVat: round2(vatPayable - vatReceivable),
-      withholdingTax: round2(withholdingTax),
-    };
+    // Same computation as the VAT summary, so the cards and the summary never disagree.
+    const v = await loadVatReturn(sql, session.user.tenantId, normalizePeriod(period));
+    return { vatPayable: v.output.vat, vatReceivable: v.input.vat, netVat: v.net, withholdingTax: v.output.withheld };
   } catch (error) {
     console.error('[Accounting] Tax summary error:', error);
     return { vatPayable: 0, vatReceivable: 0, netVat: 0, withholdingTax: 0 };
@@ -3057,4 +3032,49 @@ export async function getLedgerView(period?: string): Promise<{ trialBalance: Tr
       lines: (r.lines as any[]).map((l) => ({ code: l.code, name: l.name, debit: toNumber(l.debit), credit: toNumber(l.credit), description: l.description ?? null })),
     })),
   };
+}
+
+// ============================================
+// VAT period summary and purchase records
+// ============================================
+
+const allows = (context: Awaited<ReturnType<typeof getServerUserContext>>, permission: Parameters<typeof requirePermission>[1]) => {
+  try { requirePermission(context, permission); return true; } catch { return false; }
+};
+
+/** The period's VAT summary (output by rate, withholding, exemptions, deductible VAT, carry-forward) and its purchase records. */
+export async function getVatReturnView(period?: string): Promise<{ summary: VatReturn; csv: string; expenses: ExpenseView[]; canAdd: boolean; canDelete: boolean }> {
+  const context = await getServerUserContext();
+  requirePermission(context, 'finance.view');
+  const normalizedPeriod = normalizePeriod(period);
+  const [summary, expenses] = await Promise.all([
+    loadVatReturn(sql, context.tenantId, normalizedPeriod),
+    (await tableExists('expenses')) ? listExpenses(sql, context.tenantId, normalizedPeriod) : Promise.resolve([]),
+  ]);
+  return { summary, csv: vatReturnCsv(summary), expenses, canAdd: allows(context, 'finance.ledger.create'), canDelete: allows(context, 'finance.ledger.delete') };
+}
+
+export async function addExpenseRecord(input: unknown): Promise<{ ok: true; expense: ExpenseView } | { ok: false; error: string }> {
+  const context = await getServerUserContext();
+  requirePermission(context, 'finance.ledger.create');
+  try {
+    const expense = await addExpense(sql, { tenantId: context.tenantId, userId: context.userId }, input);
+    revalidatePath('/accounting');
+    return { ok: true, expense };
+  } catch (error) {
+    if (error instanceof z.ZodError) return { ok: false, error: error.issues[0]?.message ?? 'Bilgiler eksik' };
+    return { ok: false, error: error instanceof Error ? error.message : 'Gider kaydedilemedi' };
+  }
+}
+
+export async function deleteExpenseRecord(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const context = await getServerUserContext();
+  requirePermission(context, 'finance.ledger.delete');
+  try {
+    await deleteExpense(sql, { tenantId: context.tenantId, userId: context.userId }, z.string().uuid().parse(id));
+    revalidatePath('/accounting');
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Gider silinemedi' };
+  }
 }
