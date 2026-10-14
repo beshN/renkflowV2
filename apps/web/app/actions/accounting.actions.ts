@@ -6,6 +6,7 @@
  */
 
 import { sql } from '@/lib/db';
+import { syncLedger, type SyncResult } from '@/lib/features/accounting/posting.server';
 import { recordAudit } from '@/lib/audit/audit-log';
 import { z } from 'zod';
 import { getServerUserContext,requirePermission } from '@/lib/features/auth/serverAuth';
@@ -2860,6 +2861,13 @@ export async function getAccountingWorkspace(period?: string): Promise<Accountin
   const range = getPeriodRange(period);
   const notes: string[] = ['Bu çalışma alanı TRY kayıtlarını raporlar; USD ve EUR tahsilatları kendi para birimleriyle Finans ekranında izlenir.', 'Operasyonel mali özetler yasal bilanço veya vergi beyannamesi yerine geçmez.'];
   const session = await getSession();
+  // Books anything a write path left unposted, so the reports below read a complete ledger.
+  const ledger = await syncLedger(sql, session.user.tenantId).catch((error) => {
+    console.error('[Accounting] ledger sync failed', error instanceof Error ? error.message : error);
+    return null;
+  });
+  if (ledger?.awaitingRate) notes.push(`${ledger.awaitingRate} dövizli fatura kur girilmediği için yevmiyeye işlenmedi.`);
+  if (ledger?.skippedClosed) notes.push(`${ledger.skippedClosed} kayıt kesin kapanmış döneme düştüğü için işlenmedi.`);
 
   const capabilityChecks = await Promise.all([
     tableExists('accounts'),
@@ -2999,5 +3007,47 @@ export async function getAccountingWorkspace(period?: string): Promise<Accountin
     closeChecklist,
     capabilities,
     notes,
+  };
+}
+
+
+// ============================================
+// Ledger view (yevmiye ve mizan)
+// ============================================
+
+export type LedgerEntryView = { id: string; number: string; date: string; type: string; description: string; total: number; source: string | null;
+  lines: Array<{ code: string; name: string; debit: number; credit: number; description: string | null }> };
+
+/** Books what is missing (any finance role may trigger it; it only posts what the records say). */
+export async function syncLedgerNow(): Promise<SyncResult> {
+  const session = await getSession();
+  const result = await syncLedger(sql, session.user.tenantId);
+  revalidatePath('/accounting');
+  return result;
+}
+
+/** The period's trial balance and its entries with their lines. */
+export async function getLedgerView(period?: string): Promise<{ trialBalance: TrialBalanceReport; entries: LedgerEntryView[] }> {
+  const session = await getSession();
+  const normalizedPeriod = normalizePeriod(period);
+  const trialBalance = await getTrialBalance(normalizedPeriod);
+  if (!(await tableExists('journal_entries')) || !(await tableExists('journal_entry_lines'))) return { trialBalance, entries: [] };
+  const rows = await sql`
+    SELECT je.id, je.entry_number, je.entry_date, je.type, je.description, je.total_debit, to_jsonb(je) ->> 'source_key' AS source_key,
+      coalesce(json_agg(json_build_object('code', a.code, 'name', a.name, 'debit', l.debit, 'credit', l.credit, 'description', l.description) ORDER BY l.line_no) FILTER (WHERE l.id IS NOT NULL), '[]') AS lines
+    FROM journal_entries je
+    LEFT JOIN journal_entry_lines l ON l.journal_entry_id = je.id
+    LEFT JOIN accounts a ON a.id = l.account_id
+    WHERE je.tenant_id = ${session.user.tenantId} AND je.period = ${normalizedPeriod}
+    GROUP BY je.id
+    ORDER BY je.entry_date, je.created_at
+    LIMIT 500`;
+  return {
+    trialBalance,
+    entries: (rows as any[]).map((r) => ({
+      id: String(r.id), number: r.entry_number, date: new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(new Date(r.entry_date)),
+      type: r.type, description: r.description, total: toNumber(r.total_debit), source: r.source_key ?? null,
+      lines: (r.lines as any[]).map((l) => ({ code: l.code, name: l.name, debit: toNumber(l.debit), credit: toNumber(l.credit), description: l.description ?? null })),
+    })),
   };
 }

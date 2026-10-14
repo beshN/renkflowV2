@@ -27,6 +27,7 @@ import { configuredLine, configurationSummary, unconfiguredLine, type ProductCon
 import { ColorChip } from "@/components/colors/ColorSwatch";
 import { RecordButton } from "@/components/records/RecordDrawer";
 import { QuoteSalesPanel } from "@/components/sales/QuoteSalesPanel";
+import { TcmbRateButton } from "@/components/sales/TcmbRateButton";
 import { MeasureChangeBanner } from "@/components/field/MeasureChangeBanner";
 import { customerDiscountFor, quoteTotals, VAT_RATES } from "@/lib/features/sales/engine";
 
@@ -616,9 +617,10 @@ export default function QuotationPage({
             </label>
           )}
           {salesOn && form.currency !== "TRY" && (
-            <p className="text-[11px] text-muted-foreground">
-              {form.fxRate ? `≈ ${formatCurrency(total * form.fxRate, "TRY")} · ` : ""}Kur elle girilir; banka kur servisi bağlanmadı.
-            </p>
+            <div className="space-y-1 text-[11px] text-muted-foreground">
+              {form.fxRate ? <p>≈ {formatCurrency(total * form.fxRate, "TRY")}</p> : null}
+              <TcmbRateButton currency={form.currency} disabled={!editable} onRate={(rate) => setForm((prev) => ({ ...prev, fxRate: rate }))} />
+            </div>
           )}
         </section>
       </div>
