@@ -33,6 +33,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { cn } from '@/lib/utils';
+import { BankStatementUpload } from './BankStatementUpload';
 import { LedgerPanel } from './LedgerPanel';
 
 export type AccountingTab =
@@ -992,6 +993,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
 
             <div className="xl:col-span-2 bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
               <h4 className="font-semibold text-slate-900 dark:text-white mb-3">Banka Hareketleri</h4>
+              <BankStatementUpload disabled={workspace.periodCloseState.locked} onImported={async (message) => { showToast(message, 'success'); await loadWorkspace(); }} />
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4">
                 <input
                   type="date"
