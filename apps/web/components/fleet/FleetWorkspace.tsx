@@ -92,14 +92,21 @@ function NewVehicle({ onClose, onSaved, onError }: { onClose: () => void; onSave
     if (!r.ok) onError(r.error || 'Kaydedilemedi'); else await onSaved();
   }
   return (
-    <form onSubmit={save} className="rf-panel grid gap-2 p-3 sm:grid-cols-3" aria-label="Yeni araç">
-      <label className="text-xs">Plaka<input className="rf-input mt-1 w-full font-mono uppercase" required placeholder="34 ABC 123" value={f.plate} onChange={(e) => setF({ ...f, plate: e.target.value })} /></label>
-      <label className="text-xs">Marka<input className="rf-input mt-1 w-full" value={f.make} onChange={(e) => setF({ ...f, make: e.target.value })} /></label>
-      <label className="text-xs">Model<input className="rf-input mt-1 w-full" value={f.model} onChange={(e) => setF({ ...f, model: e.target.value })} /></label>
-      <label className="text-xs">Model yılı<input type="number" className="rf-input mt-1 w-full" value={f.modelYear} onChange={(e) => setF({ ...f, modelYear: e.target.value })} /></label>
-      <label className="text-xs">Tür<select className="rf-input mt-1 w-full" value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}>{VEHICLE_TYPES.map((t) => <option key={t} value={t}>{VEHICLE_TYPE_LABELS[t]}</option>)}</select></label>
-      <label className="text-xs">Km<input type="number" min={0} className="rf-input mt-1 w-full" value={f.odometerKm} onChange={(e) => setF({ ...f, odometerKm: e.target.value })} /></label>
-      <div className="flex gap-2 sm:col-span-3"><button type="submit" className="rf-primary-button text-sm">Kaydet</button><button type="button" className="rf-secondary-button text-sm" onClick={onClose}>Vazgeç</button></div>
+    <form onSubmit={save} className="rf-panel space-y-3 p-3" aria-label="Yeni araç">
+      <div className="grid gap-2 sm:grid-cols-2">
+        <label className="text-xs">Plaka<input className="rf-input mt-1 w-full font-mono uppercase" required placeholder="34 ABC 123" value={f.plate} onChange={(e) => setF({ ...f, plate: e.target.value })} /></label>
+        <label className="text-xs">Tür<select className="rf-input mt-1 w-full" value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}>{VEHICLE_TYPES.map((t) => <option key={t} value={t}>{VEHICLE_TYPE_LABELS[t]}</option>)}</select></label>
+      </div>
+      <details className="rounded-md border border-border/70 px-3 py-2 [&_summary::-webkit-details-marker]:hidden">
+        <summary className="cursor-pointer select-none text-xs font-medium text-muted-foreground hover:text-foreground">Marka, model, yıl ve km (isteğe bağlı)</summary>
+        <div className="mt-3 grid gap-2 sm:grid-cols-4">
+          <label className="text-xs">Marka<input className="rf-input mt-1 w-full" value={f.make} onChange={(e) => setF({ ...f, make: e.target.value })} /></label>
+          <label className="text-xs">Model<input className="rf-input mt-1 w-full" value={f.model} onChange={(e) => setF({ ...f, model: e.target.value })} /></label>
+          <label className="text-xs">Model yılı<input type="number" className="rf-input mt-1 w-full" value={f.modelYear} onChange={(e) => setF({ ...f, modelYear: e.target.value })} /></label>
+          <label className="text-xs">Km<input type="number" min={0} className="rf-input mt-1 w-full" value={f.odometerKm} onChange={(e) => setF({ ...f, odometerKm: e.target.value })} /></label>
+        </div>
+      </details>
+      <div className="flex gap-2"><button type="submit" className="rf-primary-button text-sm">Kaydet</button><button type="button" className="rf-secondary-button text-sm" onClick={onClose}>Vazgeç</button></div>
     </form>
   );
 }
