@@ -20,6 +20,13 @@ async function main() {
     const inv = await import('../lib/features/finance/invoices.server');
     const identity = await import('../lib/features/einvoice/identity.server');
     const { drainEInvoices } = await import('../lib/features/einvoice/document.server');
+    const { MockProvider } = await import('../lib/features/einvoice/provider');
+    const sentDocuments: Array<{ ettn: string; xml: string; recipientAlias?: string | null }> = [];
+    const originalSend = MockProvider.prototype.send;
+    MockProvider.prototype.send = async function (document) {
+      sentDocuments.push(document);
+      return originalSend.call(this, document);
+    };
     const year = new Date().getFullYear();
 
     const tenantId = randomUUID();
@@ -79,11 +86,20 @@ async function main() {
     await assert.rejects(inv.cancelInvoice(acc, early.id, { reason: 'deneme iptali' }), /gönderimi sürüyor/);
 
     // Two workers at once send each invoice once.
+    const originalXml = (await inv.invoiceXml(acc, early.id)).xml;
+    const originalAlias = (await row(early.id)).e_invoice_recipient_alias;
+    await db`UPDATE tenants SET legal_name = 'Değişmiş Firma Unvanı' WHERE id = ${tenantId}`;
+    await db`UPDATE customers SET e_invoice_alias = 'urn:mail:changed@test.local' WHERE id = ${(await row(early.id)).customer_id}`;
+    assert.equal((await inv.invoiceXml(acc, early.id)).xml, originalXml,
+      'changing the legal identity must not rewrite an issued document');
     const results = await Promise.all([drainEInvoices(10), drainEInvoices(10)]);
     assert.equal(results.reduce((s: number, x: any) => s + (x.sent ?? 0), 0), 2);
     r = await row(early.id);
     assert.equal(r.e_invoice_status, 'sent');
     assert.match(r.e_invoice_provider_id, /^mock:e_fatura:/);
+    const sentDocument = sentDocuments.find((document) => document.ettn === r.ettn)!;
+    assert.equal(sentDocument.xml, originalXml, 'delivery uses the immutable issue-time XML');
+    assert.equal(sentDocument.recipientAlias, originalAlias, 'delivery uses the issue-time recipient');
 
     // Polling turns sent into accepted.
     await due(early.id);
@@ -126,6 +142,22 @@ async function main() {
     assert.equal(filename, `RNK${year}000000001.xml`);
     assert(xml.includes(`<cbc:ID>RNK${year}000000001</cbc:ID>`) && xml.includes(`<cbc:UUID>${(await row(early.id)).ettn}</cbc:UUID>`));
     assert(xml.includes('<cbc:ProfileID>TEMELFATURA</cbc:ProfileID>'));
+    assert.equal(xml, originalXml, 'the downloaded XML is exactly the delivered XML');
+
+    // Historical deliveries have no recoverable original; do not silently replace them.
+    await db`UPDATE invoices SET e_invoice_xml = NULL WHERE id = ${early.id}`;
+    await assert.rejects(inv.invoiceXml(acc, early.id), /özgün XML kaydı yok/);
+    await db`UPDATE invoices SET e_invoice_status = 'error' WHERE id = ${early.id}`;
+    await assert.rejects(inv.retryInvoiceSend(acc, early.id), /özgün XML kaydı yok/);
+
+    // A legacy queued invoice with no attempt yet can be frozen safely once.
+    const legacy = await invoiceFor('Legacy Sıra', null, 'İzmir');
+    await inv.issueInvoice(acc, legacy.id, {});
+    await db`UPDATE invoices SET e_invoice_xml = NULL WHERE id = ${legacy.id}`;
+    const legacyXml = (await inv.invoiceXml(acc, legacy.id)).xml;
+    assert.equal((await row(legacy.id)).e_invoice_xml, legacyXml);
+    await db`UPDATE tenants SET legal_name = 'Bir Sonraki Unvan' WHERE id = ${tenantId}`;
+    assert.equal((await inv.invoiceXml(acc, legacy.id)).xml, legacyXml);
 
     const actions = new Set((await db`SELECT action FROM activity_logs WHERE tenant_id = ${tenantId}`).map((x) => x.action));
     for (const action of ['e_invoice_sent', 'e_invoice_accepted', 'e_invoice_failed', 'e_invoice_rejected', 'e_invoice_retried', 'invoice_cancelled']) assert(actions.has(action), `audit has ${action}`);
