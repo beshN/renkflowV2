@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
 import { TenantSettings } from '@/components/settings/TenantSettings';
+import { LegalIdentitySettings } from '@/components/settings/LegalIdentitySettings';
 import { ProductionSettings } from '@/components/settings/ProductionSettings';
 import { ColorCatalogSettings } from '@/components/settings/ColorCatalogSettings';
 import { RecordSettings } from '@/components/settings/RecordSettings';
@@ -14,6 +15,7 @@ import { cn } from '@/lib/utils';
 
 const TABS = [
   { id: 'firma', label: 'Firma' },
+  { id: 'fatura', label: 'Fatura' },
   { id: 'uretim', label: 'Üretim ve renkler' },
   { id: 'teklif', label: 'Teklif' },
   { id: 'asistan', label: 'Asistan' },
@@ -45,6 +47,7 @@ export default function SettingsPage() {
         </div>
         <div role="tabpanel" className="space-y-5">
           {tab === 'firma' && panel(<TenantSettings />)}
+          {tab === 'fatura' && panel(<LegalIdentitySettings />)}
           {tab === 'uretim' && <>{panel(<ProductionSettings />)}{panel(<ColorCatalogSettings />)}{panel(<ProductionReasonSettings />)}</>}
           {tab === 'teklif' && <>{panel(<QuoteRulesSettings />)}{panel(<RecordSettings />)}</>}
           {tab === 'asistan' && <>

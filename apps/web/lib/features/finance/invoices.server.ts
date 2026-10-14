@@ -7,6 +7,7 @@ import { columnExists, tableExists } from '@/lib/db/schema-guard';
 import { resolveMemberAccess } from '@/lib/security/member-access.server';
 import { can, type Action } from '@/lib/security/access-matrix';
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
+import { exemptionCode, UNIT_CODES, withholdingCode, type UnitCode } from '@/lib/features/einvoice/codes';
 import {
   COLLECTION_METHODS, DEFAULT_VAT_PERCENT, draftProblems, dueDate, estimateProfit, headerDiscountRatio, invoiceTotals, invoiceableLines, lineTotals, money, roundTo,
 } from './engine';
@@ -82,11 +83,14 @@ async function orderLines(db: any, orderId: string, ratio: number) {
   });
 }
 
+/** What the buyer owes on an invoice: total less withheld VAT (053), or the total on older ones. */
+const payable = (i: Row) => Number(i.payable_total ?? i.total);
+
 const invoiceDto = (i: Row) => ({
   id: String(i.id), number: i.invoice_number ?? null, status: i.status as string, orderId: String(i.order_id), orderNumber: i.order_number ?? null,
   customerName: i.customer_name as string, issuedOn: iso(i.issued_on), dueOn: iso(i.due_on), currency: i.currency as string,
   // 'grandTotal', not 'total': a whole-number 'total' next to a list reads as a page count to the redactor.
-  subtotal: Number(i.subtotal), vatTotal: Number(i.vat_total), grandTotal: Number(i.total), eInvoice: i.e_invoice_status as string,
+  subtotal: Number(i.subtotal), vatTotal: Number(i.vat_total), grandTotal: Number(i.total), withholdingTotal: Number(i.withholding_total ?? 0), payableTotal: payable(i), typeCode: (i.invoice_type_code ?? 'SATIS') as string, eInvoice: i.e_invoice_status as string,
   cancelReason: i.cancel_reason ?? null, createdAt: i.created_at,
 });
 
@@ -156,17 +160,41 @@ export async function orderBilling(actor: WorkOrderActor, orderId: string) {
       lines: invLines.filter((l: Row) => String(l.invoice_id) === String(i.id)).map((l: Row) => ({ id: String(l.id), orderItemId: l.order_item_id ? String(l.order_item_id) : null, description: l.description, quantity: Number(l.quantity), unitPrice: Number(l.unit_price), vatPercent: Number(l.vat_percent), netAmount: Number(l.net_amount), vatAmount: Number(l.vat_amount) })),
     })),
     payments: payments.map((p: Row) => ({ id: String(p.id), amount: Number(p.amount), currency: p.currency, method: p.method, paidAt: p.paid_at, note: p.note ?? null, reference: p.reference ?? null, chequeDueOn: iso(p.cheque_due_on), invoiceId: p.invoice_id ? String(p.invoice_id) : null, invoiceNumber: p.invoice_number ?? null })),
-    summary: { invoiceTotal: money(issued.reduce((s: number, i: Row) => s + Number(i.total), 0)), collected, balance: money(Math.max(total, issued.reduce((s: number, i: Row) => s + Number(i.total), 0)) - collected) },
+    summary: { invoiceTotal: money(issued.reduce((s: number, i: Row) => s + Number(i.total), 0)), collected, balance: money(Math.max(total, issued.reduce((s: number, i: Row) => s + payable(i), 0)) - collected) },
     estimatedProfit: await orderProfit(actor.tenantId, orderId, total, String(o.currency)),
   };
 }
 
+// Per-line tax treatment (e-Belge): GİB withholding / exemption codes from lib/features/einvoice/codes.ts.
+const LineTax = {
+  withholdingCode: z.string().trim().refine((c) => !!withholdingCode(c), 'Tanınmayan tevkifat kodu').nullish(),
+  exemptionCode: z.string().trim().refine((c) => !!exemptionCode(c), 'Tanınmayan istisna kodu').nullish(),
+  exemptionReason: z.string().trim().max(250).nullish(),
+  unitCode: z.enum(Object.keys(UNIT_CODES) as [UnitCode, ...UnitCode[]]).optional(),
+};
 const DraftInput = z.object({
-  lines: z.array(z.object({ orderItemId: z.string().uuid(), quantity: z.coerce.number().positive().max(1e6) })).max(200).default([]),
-  extra: z.array(z.object({ description: z.string().trim().min(1).max(300), quantity: z.coerce.number().positive().max(1e6), unitPrice: z.coerce.number().min(0).max(1e9) })).max(20).default([]),
+  lines: z.array(z.object({ orderItemId: z.string().uuid(), quantity: z.coerce.number().positive().max(1e6), ...LineTax })).max(200).default([]),
+  extra: z.array(z.object({ description: z.string().trim().min(1).max(300), quantity: z.coerce.number().positive().max(1e6), unitPrice: z.coerce.number().min(0).max(1e9), ...LineTax })).max(20).default([]),
   vatPercent: z.coerce.number().min(0).max(100).optional(),
   notes: z.string().trim().max(2000).nullish(),
 }).strict();
+
+type LineTaxInput = { withholdingCode?: string | null; exemptionCode?: string | null; exemptionReason?: string | null; unitCode?: UnitCode };
+function lineTax(l: LineTaxInput) {
+  return {
+    withholdingCode: l.withholdingCode || null,
+    withholdingPercent: withholdingCode(l.withholdingCode)?.percent ?? 0,
+    exemptionCode: l.exemptionCode || null,
+    exemptionReason: l.exemptionReason || null,
+    unitCode: l.unitCode ?? 'C62',
+  };
+}
+/** SATIS, or TEVKIFAT / ISTISNA when a line needs it (GİB checks the pairing). */
+export function invoiceTypeCode(lines: Array<{ withholdingCode: string | null; exemptionCode: string | null }>): 'SATIS' | 'TEVKIFAT' | 'ISTISNA' {
+  if (lines.some((l) => l.withholdingCode)) return 'TEVKIFAT';
+  if (lines.some((l) => exemptionCode(l.exemptionCode)?.invoiceType === 'ISTISNA')) return 'ISTISNA';
+  return 'SATIS';
+}
 
 /** A draft invoice from an order: some or all of what is left on each line, plus free lines (shipping). */
 export async function createInvoiceDraft(actor: WorkOrderActor, orderId: string, raw: unknown) {
@@ -180,21 +208,31 @@ export async function createInvoiceDraft(actor: WorkOrderActor, orderId: string,
     if (problems.length) fail(problems.join('; '));
     const vat = d.vatPercent ?? pricing.vat;
     const lines = [
-      ...d.lines.map((l) => { const src = left.find((x) => x.id === l.orderItemId)!; return { orderItemId: l.orderItemId, description: src.description || 'Kalem', quantity: l.quantity, unitPrice: src.unitPrice, vatPercent: vat }; }),
-      ...d.extra.map((e) => ({ orderItemId: null, description: e.description, quantity: e.quantity, unitPrice: e.unitPrice, vatPercent: vat })),
+      ...d.lines.map((l) => { const src = left.find((x) => x.id === l.orderItemId)!; return { orderItemId: l.orderItemId, description: src.description || 'Kalem', quantity: l.quantity, unitPrice: src.unitPrice, vatPercent: vat, ...lineTax(l) }; }),
+      ...d.extra.map((e) => ({ orderItemId: null, description: e.description, quantity: e.quantity, unitPrice: e.unitPrice, vatPercent: vat, ...lineTax(e) })),
     ];
     const t = invoiceTotals(lines);
+    // Columns of migration 053; before it, invoices keep the plain sale model.
+    const eBelgeColumns = await columnExists('invoices', 'payable_total');
+    if (!eBelgeColumns && lines.some((l) => l.withholdingCode || l.exemptionCode)) fail('Tevkifat ve istisna bu kurulumda henüz etkin değil');
     const [c] = o.customer_id ? await tx`SELECT * FROM customers WHERE tenant_id = ${actor.tenantId} AND id = ${o.customer_id}` : [null];
     const [inv] = await tx`INSERT INTO invoices (tenant_id, order_id, customer_id, customer_name, customer_tax_number, customer_tax_office, customer_address, currency, subtotal, vat_total, total, notes, created_by)
       VALUES (${actor.tenantId}, ${orderId}, ${o.customer_id ?? null}, ${(c?.company_name || c?.full_name || o.customer_name || 'Müşteri') as string}, ${c?.tax_number ?? null}, ${c?.tax_office ?? null},
         ${c?.billing_address ?? c?.address ?? null}, ${o.currency ?? 'TRY'}, ${t.subtotal}, ${t.vatTotal}, ${t.total}, ${d.notes || null}, ${actor.userId}) RETURNING id`;
+    if (eBelgeColumns) {
+      await tx`UPDATE invoices SET withholding_total = ${t.withholdingTotal}, payable_total = ${t.payable}, invoice_type_code = ${invoiceTypeCode(lines)} WHERE id = ${inv.id}`;
+    }
     let position = 0;
     for (const l of lines) {
       const x = lineTotals(l);
-      await tx`INSERT INTO invoice_lines (tenant_id, invoice_id, order_item_id, position, description, quantity, unit_price, vat_percent, net_amount, vat_amount)
-        VALUES (${actor.tenantId}, ${inv.id}, ${l.orderItemId}, ${position++}, ${l.description}, ${l.quantity}, ${l.unitPrice}, ${l.vatPercent}, ${x.net}, ${x.vat})`;
+      const [line] = await tx`INSERT INTO invoice_lines (tenant_id, invoice_id, order_item_id, position, description, quantity, unit_price, vat_percent, net_amount, vat_amount)
+        VALUES (${actor.tenantId}, ${inv.id}, ${l.orderItemId}, ${position++}, ${l.description}, ${l.quantity}, ${l.unitPrice}, ${l.vatPercent}, ${x.net}, ${x.vat}) RETURNING id`;
+      if (eBelgeColumns) {
+        await tx`UPDATE invoice_lines SET unit_code = ${l.unitCode}, withholding_code = ${l.withholdingCode}, withholding_percent = ${l.withholdingPercent},
+          withholding_amount = ${x.withholding}, exemption_code = ${l.exemptionCode}, exemption_reason = ${l.exemptionReason} WHERE id = ${line.id}`;
+      }
     }
-    await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'order', entityId: orderId, action: 'invoice_drafted', metadata: { invoiceId: inv.id, lines: lines.length, total: t.total } });
+    await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'order', entityId: orderId, action: 'invoice_drafted', metadata: { invoiceId: inv.id, lines: lines.length, total: t.total, withholding: t.withholdingTotal } });
     return { id: String(inv.id), ...t };
   });
 }
@@ -288,9 +326,12 @@ export async function recordCollection(actor: WorkOrderActor, raw: unknown) {
       if (!i || i.status !== 'issued') fail('Fatura bu siparişte kesilmiş görünmüyor');
     }
     const [paid] = await tx`SELECT coalesce(sum(amount), 0) AS total FROM payments WHERE tenant_id = ${actor.tenantId} AND order_id = ${d.orderId}`;
-    // What can be collected: the order total, or what was invoiced on it if more (extra lines such as shipping).
-    const [billed] = await tx`SELECT coalesce(sum(total), 0) AS total FROM invoices WHERE tenant_id = ${actor.tenantId} AND order_id = ${d.orderId} AND status = 'issued'`;
-    const cap = Math.max(Number(o.total_amount), Number(billed.total));
+    // What can be collected: the order total less the VAT withheld on its invoices (the buyer pays that
+    // to the tax office), or what was invoiced if more (extra lines such as shipping).
+    const [billed] = await tx`SELECT coalesce(sum(coalesce((to_jsonb(invoices) ->> 'payable_total')::numeric, total)), 0) AS total,
+        coalesce(sum(coalesce((to_jsonb(invoices) ->> 'withholding_total')::numeric, 0)), 0) AS withheld
+      FROM invoices WHERE tenant_id = ${actor.tenantId} AND order_id = ${d.orderId} AND status = 'issued'`;
+    const cap = Math.max(Number(o.total_amount) - Number(billed.withheld), Number(billed.total));
     if (Number(paid.total) + d.amount > cap + 0.005) fail(`Tahsilat siparişin kalanını aşamaz (kalan ${money(cap - Number(paid.total))})`);
     await writablePeriod(tx, actor.tenantId, d.paidOn);
     const paidAt = `${d.paidOn}T12:00:00+03:00`;

@@ -6,9 +6,19 @@ const today = '2026-10-09';
 
 describe('invoice lines', () => {
   it('VAT on the net, rounded per line; totals add the printed lines', () => {
-    expect(lineTotals({ quantity: 3, unitPrice: 33.335, vatPercent: 20 })).toEqual({ net: 100.01, vat: 20, gross: 120.01 });
-    expect(invoiceTotals([{ quantity: 1, unitPrice: 0.05, vatPercent: 20 }, { quantity: 1, unitPrice: 0.05, vatPercent: 20 }])).toEqual({ subtotal: 0.1, vatTotal: 0.02, total: 0.12 });
-    expect(invoiceTotals([{ quantity: 2, unitPrice: 1000, vatPercent: 20 }, { quantity: 1, unitPrice: 500, vatPercent: 10 }])).toEqual({ subtotal: 2500, vatTotal: 450, total: 2950 });
+    expect(lineTotals({ quantity: 3, unitPrice: 33.335, vatPercent: 20 })).toEqual({ net: 100.01, vat: 20, gross: 120.01, withholding: 0 });
+    expect(invoiceTotals([{ quantity: 1, unitPrice: 0.05, vatPercent: 20 }, { quantity: 1, unitPrice: 0.05, vatPercent: 20 }])).toEqual({ subtotal: 0.1, vatTotal: 0.02, total: 0.12, withholdingTotal: 0, payable: 0.12 });
+    expect(invoiceTotals([{ quantity: 2, unitPrice: 1000, vatPercent: 20 }, { quantity: 1, unitPrice: 500, vatPercent: 10 }])).toEqual({ subtotal: 2500, vatTotal: 450, total: 2950, withholdingTotal: 0, payable: 2950 });
+  });
+  it('withholding (tevkifat) takes its share of the VAT out of what the buyer pays', () => {
+    // 601 yapım işleri, 4/10: 10 000 net, 2 000 VAT, 800 withheld, buyer pays 11 200.
+    expect(lineTotals({ quantity: 1, unitPrice: 10000, vatPercent: 20, withholdingPercent: 40 })).toEqual({ net: 10000, vat: 2000, gross: 12000, withholding: 800 });
+    expect(invoiceTotals([
+      { quantity: 1, unitPrice: 10000, vatPercent: 20, withholdingPercent: 40 },
+      { quantity: 2, unitPrice: 250, vatPercent: 20 },
+    ])).toEqual({ subtotal: 10500, vatTotal: 2100, total: 12600, withholdingTotal: 800, payable: 11800 });
+    // Rounded to kuruş on the line: 0.33 VAT × 7/10 = 0.231 → 0.23.
+    expect(lineTotals({ quantity: 1, unitPrice: 1.65, vatPercent: 20, withholdingPercent: 70 }).withholding).toBe(0.23);
   });
 });
 

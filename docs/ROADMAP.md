@@ -16,7 +16,7 @@ Bu belge programın durum tablosudur. Her iş kendi dalında ve PR'ında yapıl�
 - Jest: 135 suite, **970 test**, hepsi geçiyor (Node 24, `npm --prefix apps/web ci`).
 - Entegrasyon betikleri: 27 adet `npm run test:*`. Henüz CI'da çalışmıyorlar.
 - Kod doğrulamasıyla düzelen tespitler:
-  - "Fatura" ayrı bir kayıt değil: sipariş ve tahsilattan türetilen bir görünüm. KDV toplamı 0, satıcı bilgisi sabit.
+  - Fatura modeli 047'de var (taslak, kesme, iptal, kısmi faturalama, tahsilat). Eksik olan e-Belge tarafı: yasal kimlik, GİB numarası, tevkifat ve istisna, UBL-TR, gönderim.
   - Yevmiye ve mizan kodu var, ama hiçbir işlem otomatik kayıt atmıyor ve arayüzde görünmüyorlar.
   - K8 (çubuk boyu karışımı) yapılmış. Bu konuda `AUDIT.md` eski.
   - Repoda konum verisi yok. KVKK açığı, veri sahibi talepleri (DSR) ile saklama ve imha işlerinde.
@@ -59,17 +59,17 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 
 ### Faz 2: Türkiye yasal uyumu
 
-| İş | Durum |
-|---|---|
-| Fatura alan modeli (seri, numara, satır KDV'si, tevkifat) ve firmanın yasal kimliği | ⬜ |
-| `EInvoiceProvider`, UBL-TR üretimi, sahte sağlayıcı, gönderim kuyruğu | ⬜ |
-| Gerçek entegratör adaptörü | ⏸ |
-| Tekdüzen hesap planı, otomatik yevmiye, defter bazlı bilanço; hesap, yevmiye ve mizan ekranları | ⬜ |
-| KDV beyanname taslağı ve Ba/Bs raporu | ⬜ |
-| Banka ekstresi ayrıştırıcıları (CSV, MT940, OFX) | ⬜ |
-| TCMB kur servisi ve tarihli kur tablosu | ⬜ |
-| Bordro köprüsü (yasal alanlar ve dışa aktarım) | ⬜ |
-| KVKK: veri sahibi talepleri, saklama ve imha, silme akışı, rıza defteri | ⬜ |
+| İş | Durum | Not |
+|---|---|---|
+| Fatura alan modeli (seri, numara, satır KDV'si, tevkifat) ve firmanın yasal kimliği | 🔄 | Fatura modeli 047'de zaten vardı (keşif raporu yanılmıştı). Bu iş: yasal kimlik (Ayarlar → Fatura), GİB numara serisi, tevkifat ve istisna, UBL-TR üretici. Tasarım: `docs/superpowers/specs/2026-10-14-e-belge-design.md` |
+| `EInvoiceProvider`, sahte sağlayıcı, gönderim kuyruğu, ekran durumları | ⬜ | UBL-TR üretici yukarıdaki işte. |
+| Gerçek entegratör adaptörü | ⏸ | |
+| Tekdüzen hesap planı, otomatik yevmiye, defter bazlı bilanço; hesap, yevmiye ve mizan ekranları | ⬜ | |
+| KDV beyanname taslağı ve Ba/Bs raporu | ⬜ | |
+| Banka ekstresi ayrıştırıcıları (CSV, MT940, OFX) | ⬜ | |
+| TCMB kur servisi ve tarihli kur tablosu | ⬜ | |
+| Bordro köprüsü (yasal alanlar ve dışa aktarım) | ⬜ | |
+| KVKK: veri sahibi talepleri, saklama ve imha, silme akışı, rıza defteri | ⬜ | |
 
 ### Faz 3: ERP derinliği
 
