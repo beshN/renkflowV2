@@ -104,14 +104,23 @@ async function main() {
     const closed = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(last).slice(0, 7);
     await db`INSERT INTO accounting_period_closes (tenant_id, period, status) VALUES (${tenantId}, ${closed}, 'hard_closed')`;
     await db`INSERT INTO payments (tenant_id, order_id, amount, currency, method, paid_at) VALUES (${tenantId}, ${b.orderId}, 100, 'TRY', 'cash', ${`${closed}-15T12:00:00+03:00`})`;
+    // An older foreign-currency invoice issued without a rate waits for one.
+    const [legacy] = await db`INSERT INTO invoices (tenant_id, invoice_number, order_id, customer_name, status, issued_on, due_on, currency, subtotal, vat_total, total)
+      VALUES (${tenantId}, 'ESKI-GBP-1', ${b.orderId}, 'UK Ltd', 'issued', ${today}, ${today}, 'GBP', 100, 20, 120) RETURNING id`;
+    const pending = await syncLedger(db, tenantId);
+    assert.deepEqual([pending.posted, pending.skippedClosed, pending.awaitingRate], [0, 1, 1]);
+    await db`UPDATE invoices SET exchange_rate = 60 WHERE id = ${legacy.id}`;
+    assert.equal((await syncLedger(db, tenantId)).posted, 1);
+    assert.deepEqual(byAccount(await entries(`invoice:${legacy.id}`)), { 120: 7200, 600: -6000, 391: -1200 });
+
+    // A new EUR invoice takes the TCMB rate in force on its date when issued (stored bulletin of the
+    // day before, so no network) and is booked in TRY at once.
+    const yesterday = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(new Date(Date.now() - 86_400_000));
+    await db`INSERT INTO exchange_rates (bulletin_date, currency, forex_buying) VALUES (${yesterday}, 'EUR', 50) ON CONFLICT (bulletin_date, currency) DO UPDATE SET forex_buying = 50`;
     const eur = await order(1000, 'EUR');
     const d4 = await inv.createInvoiceDraft(acc, eur.orderId, { lines: [{ orderItemId: eur.itemId, quantity: 1 }] });
     await inv.issueInvoice(acc, d4.id, {});
-    const pending = await syncLedger(db, tenantId);
-    assert.deepEqual([pending.posted, pending.skippedClosed, pending.awaitingRate], [0, 1, 1]);
-    // With a rate the EUR invoice is booked in TRY.
-    await db`UPDATE invoices SET exchange_rate = 50 WHERE id = ${d4.id}`;
-    assert.equal((await syncLedger(db, tenantId)).posted, 1);
+    assert.equal(Number((await db`SELECT exchange_rate FROM invoices WHERE id = ${d4.id}`)[0].exchange_rate), 50);
     assert.deepEqual(byAccount(await entries(`invoice:${d4.id}`)), { 120: 60000, 600: -50000, 391: -10000 });
 
     // An account with entries cannot be deleted on its own (checked at commit, so a firm-wide
@@ -120,7 +129,7 @@ async function main() {
     const [fk] = await db`SELECT condeferrable, condeferred FROM pg_constraint WHERE conname = 'journal_entry_lines_account_id_fkey'`;
     assert.deepEqual([fk.condeferrable, fk.condeferred], [true, true]);
 
-    console.log('PASS · ledger: 120/600/391 sale, 601 withholding keeps 391 at collected VAT, bank and cash collections from both paths, cancel and deleted-collection reversals, idempotent re-sync, balanced trial balance, VAT rows net, closed period and missing FX rate wait, EUR booked at its rate; account with entries protected, firm deletion cascades');
+    console.log('PASS · ledger: 120/600/391 sale, 601 withholding keeps 391 at collected VAT, bank and cash collections from both paths, cancel and deleted-collection reversals, idempotent re-sync, balanced trial balance, VAT rows net, closed period and a legacy invoice without a rate wait, a new EUR invoice is stamped with the TCMB rate and booked at once; account with entries protected, firm deletion cascades');
   } finally {
     await db.end({ timeout: 5 });
   }
