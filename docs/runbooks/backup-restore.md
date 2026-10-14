@@ -16,6 +16,7 @@ Son doğrulama: 14 Ekim 2026. Production sayılarını ve politikayı değiştir
 
 ## Yedekler
 
+0. **`db:deploy` yalnızca güncel `main` checkout'undan çalıştırılır.** 14 Ekim'de bir kez özellik dalından çalıştırıldı ve henüz birleşmemiş 054 production'a gitti. Zararsızdı (yalnız boş sütun ekliyordu), ama sıra bozuldu. Önce `git switch main && git pull` ve `npm run db:status`.
 1. **Migration öncesi dal (zorunlu).** `npm run db:deploy` çalıştırmadan önce production'dan bir dal açılır. Ad biçimi: `backup-before-<iş>-<YYYY-MM-DD>`. 13 Ekim itibarıyla bu dallar var: `backup-before-kanban-050-20261013`, `backup-before-049-2026-10-13`, `backup-before-mobile-2026-10-13`, `yedek-production-2026-10-11-goc-040-048-oncesi`, `backup-before-029-036-2026-10-08`.
 2. **PITR.** Son 6 saat içindeki herhangi bir ana dönülebilir.
 3. **Mantıksal döküm.** Henüz yok; aşağıdaki "Açık işler" bölümünde.

@@ -6,5 +6,11 @@
   "outputDirectory": ".next",
   "regions": [
     "fra1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/storage-cleanup",
+      "schedule": "0 0 * * *"
+    }
   ]
 }
