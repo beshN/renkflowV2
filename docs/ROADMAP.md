@@ -69,7 +69,7 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 | Banka ekstresi ayrıştırıcıları (CSV, MT940, OFX) | 🔄 | Dosya yükleme, önizleme, tekrar yüklemede mükerrersiz ve eşleşmeyi koruyan içe aktarma. Bankadan otomatik çekme (açık bankacılık) banka sözleşmesi gerektirir. |
 | TCMB kur servisi ve tarihli kur tablosu | 🔄 | `exchange_rates`, günlük cron (Hobby'de çalışır), teklifte "TCMB'den al". Faturaya kur, e-Belge gönderimi birleşince eklenecek. |
 | Bordro köprüsü (yasal alanlar ve dışa aktarım) | ⬜ | |
-| KVKK: veri sahibi talepleri, saklama ve imha, silme akışı, rıza defteri | ⬜ | |
+| KVKK: veri sahibi talepleri, saklama ve imha, silme akışı, rıza defteri | 🔄 | Başvuru defteri (30 gün), veri dökümü, anonimleştirme (faturalar korunur), saklama belgesi `docs/kvkk.md`; günlük temizlik cron'u canlıda ilk kez çalışacak. Otomatik imha kuralı firma kararı bekliyor. |
 
 ### Faz 3: ERP derinliği
 
