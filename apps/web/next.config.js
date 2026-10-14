@@ -13,7 +13,9 @@ const nextConfig = {
   // pdfjs loads its worker from its own folder at run time; bundled, the worker cannot be found.
   serverExternalPackages: ['pdfjs-dist'],
   outputFileTracingIncludes: {
-    '/api/v1/inventory/count-import': ['./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'],
+    // PDF reading is also reachable through shared AI commands and inbound-processing APIs.
+    // Include this one dynamic asset for APIs; keep pages/client bundles unchanged.
+    '/api/**': ['./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'],
   },
 
   // Image Optimization with CDN

@@ -65,7 +65,8 @@
     "test:warehouse:browser": "node scripts/verify-warehouse-browser.cjs",
     "test:field": "tsx --require ./scripts/register-server-only.cjs scripts/test-native-field.ts",
     "prebuild": "node scripts/sync-pdf-worker.cjs",
-    "predev": "node scripts/sync-pdf-worker.cjs"
+    "predev": "node scripts/sync-pdf-worker.cjs",
+    "postbuild": "node scripts/verify-pdf-server-bundle.cjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
