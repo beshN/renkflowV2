@@ -10,6 +10,7 @@ import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orde
 import { exemptionCode, UNIT_CODES, withholdingCode, type UnitCode } from '@/lib/features/einvoice/codes';
 import { cancelEBelge, eBelgeProvider, prepareEBelge, retryEInvoice, ublInput } from '@/lib/features/einvoice/document.server';
 import { buildUblInvoice } from '@/lib/features/einvoice/ubl';
+import { syncLedger } from '@/lib/features/accounting/posting.server';
 import { effectiveRate } from '@/lib/features/fx/rates.server';
 import {
   COLLECTION_METHODS, DEFAULT_VAT_PERCENT, draftProblems, dueDate, estimateProfit, headerDiscountRatio, invoiceTotals, invoiceableLines, lineTotals, money, roundTo,
@@ -295,6 +296,7 @@ export async function issueInvoice(actor: WorkOrderActor, id: string, raw: unkno
         e_invoice_provider = ${provider.name}, e_invoice_attempts = 0, e_invoice_next_attempt_at = now() WHERE id = ${id}`;
     }
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'order', entityId: i.order_id, action: 'invoice_issued', metadata: { invoiceId: id, number, total: Number(i.total), dueOn, ...(eBelge ? { documentType: eBelge.documentType, ettn: eBelge.ettn } : {}) } });
+    await syncLedger(tx, actor.tenantId, { invoiceId: id });
     return { id, number, issuedOn, dueOn, eBelge: eBelge ? { documentType: eBelge.documentType, ettn: eBelge.ettn, status: 'queued' } : null };
   });
 }
@@ -311,6 +313,7 @@ export async function cancelInvoice(actor: WorkOrderActor, id: string, raw: unkn
     await tx`UPDATE invoices SET status = 'cancelled', cancel_reason = ${reason}, cancelled_by = ${actor.userId}, cancelled_at = now(), version = version + 1, updated_at = now() WHERE id = ${id}`;
     await tx`UPDATE payments SET invoice_id = NULL WHERE tenant_id = ${actor.tenantId} AND invoice_id = ${id}`;
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'order', entityId: i.order_id, action: 'invoice_cancelled', note: reason, metadata: { invoiceId: id, number: i.invoice_number } });
+    await syncLedger(tx, actor.tenantId, { invoiceId: id });
   });
 }
 
@@ -384,6 +387,7 @@ export async function recordCollection(actor: WorkOrderActor, raw: unknown) {
     const [p] = await tx`INSERT INTO payments (tenant_id, order_id, amount, currency, method, paid_at, note, created_by, invoice_id, reference, cheque_due_on)
       VALUES (${actor.tenantId}, ${d.orderId}, ${d.amount}, ${o.currency ?? 'TRY'}, ${d.method}, ${paidAt}, ${d.note || null}, ${actor.userId}, ${d.invoiceId ?? null}, ${d.reference || null}, ${d.chequeDueOn ?? null}) RETURNING id`;
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'order', entityId: d.orderId, action: 'collection_recorded', metadata: { paymentId: p.id, amount: d.amount, method: d.method, invoiceId: d.invoiceId ?? null } });
+    await syncLedger(tx, actor.tenantId, { paymentId: String(p.id) });
     return { id: String(p.id) };
   });
 }
