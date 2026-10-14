@@ -66,7 +66,7 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 | Gerçek entegratör adaptörü | ⏸ | |
 | Tekdüzen hesap planı, otomatik yevmiye, defter bazlı bilanço; hesap, yevmiye ve mizan ekranları | 🔄 | Satış (120/600/601/391, tevkifatlı), tahsilat (100/101/102/108), iptal ve silinen tahsilat ters kaydı, KDV kayıtları, mizan ve yevmiye ekranı. Defter bazlı bilanço ve gider kayıtları sonraki adım. |
 | KDV beyanname taslağı ve Ba/Bs raporu | ⬜ | |
-| Banka ekstresi ayrıştırıcıları (CSV, MT940, OFX) | ⬜ | |
+| Banka ekstresi ayrıştırıcıları (CSV, MT940, OFX) | 🔄 | Dosya yükleme, önizleme, tekrar yüklemede mükerrersiz ve eşleşmeyi koruyan içe aktarma. Bankadan otomatik çekme (açık bankacılık) banka sözleşmesi gerektirir. |
 | TCMB kur servisi ve tarihli kur tablosu | 🔄 | `exchange_rates`, günlük cron (Hobby'de çalışır), teklifte "TCMB'den al". Faturaya kur, e-Belge gönderimi birleşince eklenecek. |
 | Bordro köprüsü (yasal alanlar ve dışa aktarım) | ⬜ | |
 | KVKK: veri sahibi talepleri, saklama ve imha, silme akışı, rıza defteri | ⬜ | |
