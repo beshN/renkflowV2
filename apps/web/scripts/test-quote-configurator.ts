@@ -47,7 +47,9 @@ async function main() {
   // The firm's recipe (made-up rule) imported as a draft, then published with two worked examples.
   const csv = toCsv([[...RECIPE_COLUMNS], ['sinir', 'en', '', '', '', '', '', '', '', '1000', '6000'], ['sinir', 'acilim', '', '', '', '', '', '', '', '1000', '5000'], ['sinir', 'yukseklik', '', '', '', '', '', '', '', '2000', '3000'],
     ['malzeme', '108-BOYALI', '', 'profil', 'm', '2', 'widthMm-20', '', '', '', ''], ['operasyon', 'KESIM', 'Kesim', '', '', '15', '', '', '', '', '']]);
-  const imported: any = await importFamilyRecipe(owner as any, { family: 'pergola', code: 'PRG', name: 'Test pergola', finishedItemId: pergola, text: csv, dryRun: false });
+  const recipeInput = { family: 'pergola', code: 'PRG', name: 'Test pergola', finishedItemId: pergola, text: csv };
+  const recipePreview: any = await importFamilyRecipe(owner, recipeInput);
+  const imported: any = await importFamilyRecipe(owner, { ...recipeInput, dryRun: false, previewHash: recipePreview.previewHash });
   const draftChoice = { family: 'pergola', recipeId: imported.recipe.id, color: 'Test Gri', parameters: { widthMm: 3000, projectionMm: 2500, mountingHeightMm: 2500 } };
   await assert.rejects(previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }), /yayında değil/);
   const [row] = await db`SELECT * FROM production_recipes WHERE id = ${imported.recipe.id}`;

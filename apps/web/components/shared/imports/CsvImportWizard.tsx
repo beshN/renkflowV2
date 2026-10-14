@@ -46,6 +46,7 @@ type Config = {
   noun: string;
   description: string;
   canFill?: boolean;
+  maxRows?: number;
   allowNameDuplicates?: boolean;
   fieldLabels?: Record<string, string>;
 };
@@ -108,6 +109,7 @@ export function CsvImportWizard({
   noun,
   description,
   canFill = true,
+  maxRows = 2000,
   allowNameDuplicates = true,
   fieldLabels = {},
 }: Config) {
@@ -363,7 +365,7 @@ export function CsvImportWizard({
             }}
           />
           <p className="mt-3 text-xs text-muted-foreground">
-            En fazla 2 MB ve 2.000 satır · Türkçe Excel CSV dosyaları
+            En fazla 2 MB ve {maxRows.toLocaleString('tr-TR')} satır · Türkçe Excel CSV dosyaları
             desteklenir
           </p>
           {fileName && (
@@ -389,7 +391,7 @@ export function CsvImportWizard({
             </button>
           )}
         </div>
-        <fieldset
+        {(canFill || allowNameDuplicates) && <fieldset
           className="space-y-3 border-t border-border pt-4 text-sm"
           disabled={busy || Boolean(done)}
         >
@@ -447,7 +449,7 @@ export function CsvImportWizard({
               </span>
             </label>
           )}
-        </fieldset>
+        </fieldset>}
         {busy && (
           <p role="status" className="flex items-center gap-2 text-sm">
             <Loader2
@@ -490,13 +492,10 @@ export function CsvImportWizard({
                 : 'Henüz bir kayıt değişmedi. Aşağıdaki sonuçları kontrol edip aktarımı onaylayın.'}
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className={`grid grid-cols-2 gap-3 ${canFill ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
             {[
               [shown.summary.new, 'Yeni kart'],
-              [
-                shown.summary.filled,
-                done ? 'Tamamlanan kart' : 'Tamamlanacak kart',
-              ],
+              ...(canFill ? [[shown.summary.filled, done ? 'Tamamlanan kart' : 'Tamamlanacak kart']] : []),
               [shown.summary.exists, 'Zaten kayıtlı'],
               [
                 shown.summary.errors + shown.summary.nameMatches,
@@ -541,7 +540,7 @@ export function CsvImportWizard({
                 }}
               >
                 <option value="all">Tümü ({shown.rows.length})</option>
-                {(Object.keys(OUTCOME) as Outcome[]).map((outcome) => (
+                {(Object.keys(OUTCOME) as Outcome[]).filter((outcome) => (outcome !== 'fill' || canFill) && (outcome !== 'name_match' || allowNameDuplicates)).map((outcome) => (
                   <option key={outcome} value={outcome}>
                     {OUTCOME[outcome][done ? 'after' : 'before']} (
                     {shown.rows.filter((row) => row.outcome === outcome).length}

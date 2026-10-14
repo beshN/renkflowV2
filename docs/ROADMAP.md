@@ -76,7 +76,7 @@ Durum değerleri: ⬜ başlamadı · 🔄 sürüyor · ✅ birleşti · ⏸ dı�
 
 | İş | Durum |
 |---|---|
-| Toplu içe aktarma sihirbazı (müşteri, tedarikçi, ürün, stok) | 🔄 — müşteri, tedarikçi ve CSV stok sayımı yerelde doğrulandı; genel ürün/mamul kartı ve reçete önizleme güvenilirliği açık |
+| Toplu içe aktarma sihirbazı (müşteri, tedarikçi, ürün, stok) | 🔄 — müşteri, tedarikçi, ürün/mamul kartı ve CSV stok sayımı yerelde tamamlandı; reçete önizlemesi bağlandı. #91 draft, production pilotu ayrı |
 | Teklif isteği (RFQ) e-postası; SMS kanalı | ⬜ |
 | Müşteri portalı (sihirli bağlantıyla giriş) | ⬜ |
 | Ekipman bakımı ve fason üretim | ⬜ |
@@ -103,3 +103,7 @@ main'e birleşmiş kabul edilmiyor. Birleşik migration ve ekran çakışmaları
 
 Yeni işler ve kabul kanıtları: [CONTINUATION.md](CONTINUATION.md).
 Tamamlanan kod ile canlı bağlantı/gerçek veri doğrulaması ayrı takip ediliyor.
+
+14 Ekim üçüncü tur: kullanıcı otomasyonu durdurdu. Son ürün/reçete paketi ve
+39/39 DB entegrasyonu kaydedildi; genel ERP programı tamamlanmış değildir.
+Otomatik geliştirme ve Claude devri durdu; ayrıntı CONTINUATION.md içinde.

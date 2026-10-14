@@ -91,3 +91,18 @@ describe('recipe template', () => {
     expect(all).toMatch(/yukseklik sınırı/);
   });
 });
+
+it('rejects duplicate columns rather than choosing the first', () => {
+  const result = readRecipeCsv(header + ';kod\nmalzeme;VIDA;;malzeme;adet;2;;;;;;VIDA', {items,workCenters:['KESIM']});
+  expect(result).toMatchObject({ok:false, errors:[expect.stringMatching(/birden fazla/)]});
+});
+it('never chooses the last card for a case-folded SKU collision', () => {
+  const result = readRecipeCsv(rows('malzeme;VIDA;;malzeme;adet;2;;;;;'), {items:[...items,{...items[3],id:id(8),sku:'vida'}],workCenters:['KESIM']});
+  expect(result.ok).toBe(false);
+  if (!result.ok) expect(result.errors.join()).toMatch(/birden fazla kart/);
+});
+it('never chooses an arbitrary centre for a case-folded code collision', () => {
+  const result = readRecipeCsv(rows('operasyon;kesim;Kesim;;;15;;;;;'), {items,workCenters:['KESIM','kesim']});
+  expect(result.ok).toBe(false);
+  if (!result.ok) expect(result.errors.join()).toMatch(/birden fazla kayıt/);
+});

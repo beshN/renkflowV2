@@ -66,6 +66,7 @@ async function main() {
     };
     const owner = await login(fixture.email);
     const worker = await login(fixture.workerEmail);
+    const restricted = await login(fixture.restrictedAdminEmail);
     const customerPath = '/api/v1/customers/import';
     const supplierPath = '/api/v1/procurement/suppliers/import';
     const input = {
@@ -159,6 +160,35 @@ async function main() {
     const [balance] = await db`SELECT b.on_hand_qty FROM stock_balances b JOIN inventory_items i ON i.id=b.item_id AND i.tenant_id=b.tenant_id WHERE b.tenant_id=${fixture.tenantId} AND i.name=${itemName}`;
     assert.equal(Number(balance.on_hand_qty), 7);
     assert.equal((await post(owner, countPath, countInput)).status, 409);
+    const materialPath = '/api/v1/products/import';
+    const materialSku = 'HTTP-MAT-' + randomUUID().slice(0,8);
+    const materialInput = { text: `Stok kodu;Ad;Tür;Birim\n${materialSku};HTTP mamul;mamul;adet` };
+    assert.equal((await post(worker,materialPath,materialInput)).status,403);
+    assert.equal((await post(restricted,materialPath,materialInput)).status,403);
+    assert.equal((await post(owner,materialPath,materialInput,'https://foreign.invalid')).status,403);
+    const materialPreviewResponse = await post(owner,materialPath,materialInput);
+    assert.equal(materialPreviewResponse.status,200);
+    const materialPreview = await materialPreviewResponse.json();
+    assert.equal((await post(owner,materialPath,{...materialInput,dryRun:false})).status,409);
+    assert.equal((await post(owner,materialPath,{...materialInput,text:materialInput.text.replace('HTTP mamul','Başka mamul'),dryRun:false,previewHash:materialPreview.previewHash})).status,409);
+    assert.equal((await post(owner,materialPath,{...materialInput,dryRun:false,previewHash:materialPreview.previewHash})).status,200);
+    assert.equal((await db`SELECT count(*)::int AS n FROM inventory_items WHERE tenant_id=${fixture.tenantId} AND sku=${materialSku}`)[0].n,1);
+    assert.equal((await db`SELECT count(*)::int AS n FROM stock_balances b JOIN inventory_items i ON i.id=b.item_id AND i.tenant_id=b.tenant_id WHERE b.tenant_id=${fixture.tenantId} AND i.sku=${materialSku}`)[0].n,0);
+    const recipePath = '/api/v1/products/recipes';
+    const recipeInput = { family:'pergola', code:'HTTP-RCP-' + randomUUID().slice(0,8), name:'HTTP reçete', finishedItemId:fixture.finishedItemId, text:readFileSync('.data/recipe-preview.csv','utf8') };
+    assert.equal((await post(worker,recipePath,recipeInput)).status,403);
+    assert.equal((await post(restricted,recipePath,recipeInput)).status,403);
+    assert.equal((await post(owner,recipePath,recipeInput,'https://foreign.invalid')).status,403);
+    assert.equal((await post(owner,recipePath,{...recipeInput,dryRun:false})).status,409);
+    const recipePreviewResponse = await post(owner,recipePath,recipeInput);
+    assert.equal(recipePreviewResponse.status,200);
+    const recipePreview = await recipePreviewResponse.json();
+    assert(recipePreview.ok);
+    assert.equal((await post(owner,recipePath,{...recipeInput,name:'Başka reçete',dryRun:false,previewHash:recipePreview.previewHash})).status,409);
+    assert.equal((await post(owner,recipePath,{...recipeInput,dryRun:false,previewHash:recipePreview.previewHash})).status,200);
+    assert.equal((await db`SELECT status FROM production_recipes WHERE tenant_id=${fixture.tenantId} AND code=${recipeInput.code}`)[0].status,'draft');
+    assert.equal((await post(owner,recipePath,{...recipeInput,dryRun:false,previewHash:recipePreview.previewHash})).status,409);
+    console.log('PASS · products/recipe HTTP: role/CSRF protections, reviewed creation only, changed data/replay 409, product card without stock, recipe remains draft');
     console.log('PASS · stock CSV HTTP/session: manager approval posts exactly 7 pieces, uncertain row excluded, roles/cross-site/warehouse/header denied, duplicate 409');
     console.log(
       'PASS · real HTTP/session: owner preview succeeds, worker/cross-site requests denied, missing/stale confirmation 409, bad CSV 400 and database unchanged',

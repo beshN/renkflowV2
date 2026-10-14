@@ -26,6 +26,7 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
     { id: 'leads', allowedRoles: ROUTE_ROLES['/leads'], label: 'Müşteri adayları', href: '/leads' },
   ] },
   { id: 'production', label: 'Üretim', subtitle: '', items: [
+    { id: 'products', allowedRoles: ROUTE_ROLES['/products'], label: 'Ürünler', href: '/products' },
     { id: 'production', allowedRoles: ROUTE_ROLES['/production'], label: 'Üretim', href: '/production', requiresPermission: 'orders.view' },
     { id: 'work-orders', label: 'İş emirleri', href: '/work-orders', requiresPermission: 'orders.view' },
     { id: 'factory', allowedRoles: ROUTE_ROLES['/factory'], label: 'Atölye', href: '/factory', requiresPermission: 'orders.view' },

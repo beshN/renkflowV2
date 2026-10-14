@@ -122,3 +122,10 @@ describe('password policy', () => {
     expect(passwordProblem('Pergola-7016-guclu')).toBeNull();
   });
 });
+
+it('product cards and recipes use their actual module gates', () => {
+  expect(routeRequirement('/api/v1/products/import','POST')).toEqual({module:'inventory',action:'create'});
+  expect(routeRequirement('/api/v1/products/recipes','POST')).toEqual({module:'production',action:'create'});
+  expect(routeRequirement('/products/import','GET')).toEqual({module:'inventory',action:'view'});
+  expect(routeRequirement('/products','GET')).toEqual({module:'production',action:'view'});
+});

@@ -76,8 +76,43 @@ API: `/api/v1/customers/import`, `/api/v1/procurement/suppliers/import`.
 - Mobil kartlar, renk gösterimi, dosya satırı, 50 satırlık sayfalama, açık/koyu
   tema; iç içe main düzeltmesi ve sayım breadcrumb'ı var. Dosya/depo değişikliği
   eski sonucu temizler; çift gönderim, okuma hatası ve unmount ele alındı.
-- Yeni migration gerekmiyor. Genel ürün/mamul kartı aktarımı ve reçete aktarımının
-  önizleme bağlama kontrolü ayrı açık işler; toplu aktarım programı bitmiş değil.
+- Bu paket yeni migration gerektirmiyor. Ürün/mamul ve reçete paketi aşağıda
+  ayrıca tamamlandı; genel ERP geliştirme programı bitmiş değil.
+
+### Ürün kartları ve reçete önizlemesi — üçüncü geliştirme paketi
+
+- `/products/import` mamul, hammadde ve sarf kartlarını 500 satırlık CSV ile
+  önizleyip açar. Türkçe şablon, BOM/UTF-8/Windows-1254, sayı/birim/durum
+  doğrulaması, satır sonuçları ve hata raporu ortak sihirbazdan gelir.
+- Manuel kart açma ve aktarım aynı `MaterialInputSchema` ve üretim komutunu
+  kullanır. Stok miktarı, bakiye ve lot oluşmaz. Kayıtlı kart değişmez; farklı
+  bilgiler, arşiv, yinelenen SKU/profil kimliği ve birden fazla eşleşme durur.
+- Kullanıcı/firma/dosya/adaya bağlı önizleme hash'i zorunlu. Adaylar kilitlenir;
+  eşzamanlı aktarım veya aradaki manuel kart açma eski incelemeyi 409 ile durdurur.
+  Yeni kartlar, komutlar ve denetim aynı işlemde yazılır.
+- Reçete API'sinin önizlemesiz kayıt açığı önce testte yeniden üretildi.
+  Önizleme artık dosya, alanlar, kullanıcı/firma, mamul, malzeme, iş merkezi ve
+  son reçetenin içeriği/sürümü/örneklerine bağlı. Eksik/değişmiş hash 409'dur.
+  Aile kodu kaydı, taslak kaydı ve audit aynı transaction içinde; eski ayrı
+  claim/kayıt penceresi kaldırıldı. Üretim komutlarının idempotency yolu korundu.
+- Reçete formunun alan değişince önizlemeyi temizleyen kontrolü zaten vardı.
+  Eksik sunucu doğrulaması ve istek sırasında alan kilidi eklendi; dosya okuma
+  yarışları/unmount ele alındı. Taslak örnekleri korunur, yayın kuralları sürer.
+- CSV'deki tekrarlanan başlık ve harf katlama sonrası birden fazla SKU/iş merkezi
+  artık rastgele ilk/son kaydı seçmez. Sayım ve kart yaratma aynı firma kilidini
+  kullanır; bakiye satırı kilitleri de korunur.
+- Ürün aktarımı inventory.create, reçete aktarımı production.create/edit
+  matrisini ve firma yöneticisi rolünü kontrol eder. Yeni yollar proxy haritasına
+  alındı; API içinde güncel oturum ve daraltılmış yetki ayrıca kontrol edilir.
+- Ürünler menüsü, ürün/stock kartı aktarım bağlantıları, sayfa başlığı,
+  breadcrumb ve mobil reçete kartları tamamlandı. Gereksiz boş alan doldurma
+  seçenekleri kart aktarımında gösterilmez. Yeni migration yok.
+
+Kabul: yeni mamul kartı → reçete önizleme → ad değişince onay kaldırılması →
+yeniden önizleme → taslak kaydı gerçek tarayıcı ve SQL ile doğrulandı. Üç ürün
+kartı açıldı, aynı listede dört mevcut kart atlandı, bir hatalı satır korundu.
+Profil 6 m / 1,25 kg/m saklandı; yeni kartlarda stok bakiyesi yok. Mobil 390 px,
+tek h1, iç içe main/etiketsiz alan yok; açık/koyu tema ve konsol kontrol edildi.
 
 ### Fatura güvenilirliği
 
@@ -98,11 +133,18 @@ bastırma uyarısı düzeltildi.
 
 ## Doğrulama
 
+Ürün/reçete paketi: 39/39 taze DB entegrasyonu, gerçek HTTP/session rol ve
+daraltılmış yönetici/cross-site 403, eksik/değişmiş/tekrar önizleme 409. Kart
+açmada bakiye/lot yok; reçete taslak kalır. Önizlemesiz kayıt açığı önce kırmızı
+testle yeniden üretildi, düzeltmeden sonra geçti. Son validate bütün kapılarla
+başarılı. Son statik route-guard kontrolünün yeni yardımcıyı tanımama sorunu,
+oturum kontrolünü API rotalarında açık tutarak çözüldü; kapı gevşetilmedi.
+
 - Önceki birleşik paket: `npm run test:integration` **37/37** betik geçti.
 - CSV sayım paketinin son kontrolü: taze yerel PostgreSQL ile **5/5** betik
   (`count-csv`, `count-import`, `warehouse`, `stock-depth`, `stock-threshold`).
   Yeni `test-count-csv.ts` runner tarafından otomatik keşfedilir; güncel tüm
-  38 betik birlikte yeniden koşulmuş diye raporlanmamalı.
+  betiklerin tamamı ürün/reçete paketinden sonra yeniden koşuldu: **39/39** başarılı.
 - Gerçek tarayıcı: sentetik sahip hesabıyla müşteri ve tedarikçi CSV'si →
   önizleme → boş alan doldurma → onay → kayıt; tekrar yüklemede yeni kayıt yok.
 - Önizleme arası müşteri notu değiştirilince kayıt durdu; yenilenen önizlemeden
@@ -111,7 +153,7 @@ bastırma uyarısı düzeltildi.
   önizleme 409; bozuk CSV 400. Reddedilen isteklerde veritabanı değişmedi.
 - 390 px mobil: yatay sayfa taşması yok, tek h1, iç içe main yok, etiketsiz alan
   yok. Açık/koyu tema kontrol edildi. Konsolda yeni uygulama hatası görülmedi.
-- Son tam `npm run validate` başarılı: **150 paket / 1.105 Jest testi**, tip
+- Son tam `npm run validate` başarılı: **151 paket / 1.118 Jest testi**, tip
   kontrolü, hatasız/uyarısız lint, ortam/backend/firma kapsamı kapıları ve production build.
 
 - CSV sayımı: 14 yeni ayrıştırıcı testi; gerçek HTTP sahibi/usta oturumu,
@@ -142,23 +184,17 @@ AUTH_SECRET ile sunucuyu açıp `npm run test:imports:http -- http://127.0.0.1:3
 
 ## Sıradaki geliştirme paketleri
 
-1. Genel ürün/mamul kartı CSV aktarımı ve reçete aktarımının tamamlanması.
-   Mevcut `/products` aile reçetesi CSV'si; genel ürün kataloğu aktarımı değil.
-   `recipe-template.service.ts` önizlemesi fingerprint taşımıyor ve mevcut UI
-   alan değişikliğinde önizlemeyi temizlemiyor; kaydın incelenen dosya/alan/kart
-   sürümüne bağlanması sonraki paketin güvenilirlik işi. CSV stok sayımı bitti;
-   fiziksel çubuk onayı korunuyor.
-2. Ekipman bakım planı, arıza/duruş defteri ve gerçek verilere dayalı OEE.
+1. Ekipman bakım planı, arıza/duruş defteri ve gerçek verilere dayalı OEE.
    Planlı süre, çalışılan süre, ideal çevrim ve sağlam/red üretim olmadan yüzde uydurmayın.
-3. Fason iş akışı; verilen malzeme, teslimat, kısmi kabul, maliyet ve kalite bağlantısı.
-4. Native Android/iOS girişte 2FA kod/kurtarma akışı. Web MFA tamamlandı diye
+2. Fason iş akışı; verilen malzeme, teslimat, kısmi kabul, maliyet ve kalite bağlantısı.
+3. Native Android/iOS girişte 2FA kod/kurtarma akışı. Web MFA tamamlandı diye
    saha uygulamasının MFA desteğini tamamlandı saymayın.
-5. RLS/firma izolasyonu ve CI'da gerçek tarayıcı/erişilebilirlik kapısı.
-6. Defter bazlı raporların giderlerle tamamlanması; bordro köprüsü ve muhasebeci
+4. RLS/firma izolasyonu ve CI'da gerçek tarayıcı/erişilebilirlik kapısı.
+5. Defter bazlı raporların giderlerle tamamlanması; bordro köprüsü ve muhasebeci
    dışa aktarımı. Yasal hesap kurallarını resmi kaynaklardan doğrulayın.
-7. Müşteri portalı, belge erişimi, RFQ e-postası ve uygun sağlayıcıyla SMS.
-8. Özel alanlar, pivot rapor ve montaj/servis zaman kayıtları.
-9. Sayfa başlığı/form/listelerin tutarlılığı; dokunmatik montaj takvimi;
+6. Müşteri portalı, belge erişimi, RFQ e-postası ve uygun sağlayıcıyla SMS.
+7. Özel alanlar, pivot rapor ve montaj/servis zaman kayıtları.
+8. Sayfa başlığı/form/listelerin tutarlılığı; dokunmatik montaj takvimi;
    ölçülmüş yük/Web Vitals, gerçek yedek geri yükleme provası.
 
 Her paket gerçek veritabanı, rol/firmalar arası negatif testler, ilgili ekran
@@ -176,11 +212,16 @@ Bildirim gerçekten gönderilip yanıt alınmadıysa gönderildi demeyin.
 14 Ekim ikinci tur kontrolü: resmi Claude Code CLI, **13:20 Europe/Istanbul**
 limit sıfırlama saatini hâlâ bildiriyor. Asıl ERP oturumu `idle`, son kayıt
 09:26:34; bu tur devir gönderilmedi ve asıl ağaca dokunulmadı.
-30 dakikalık sohbet takibi geliştirme ve devir işlemini sürdürüyor.
+Kullanıcı 14 Ekim üçüncü tur sırasında otomasyonu durdurmayı açıkça istedi.
+`renkflow-claude-direkt-r-denetimi` PAUSED olarak doğrulandı. Otomatik geliştirme
+ve Claude takibi/devir çalışmayacak. Son ürün/reçete paketi kayda alınarak
+bırakıldı. Bu durdurma genel ERP programının tamamlandığı anlamına gelmez.
+Yeni otomatik takip kullanıcı yeniden istemedikçe açılmamalı.
 
 ## PR durumu
 
 Draft PR: https://github.com/beshN/renkflowV2/pull/91.
-Önceki `9da8180c` için GitHub validate ve Vercel başarılı, mergeable olduğu
-14 Ekim 07:34 UTC sonrasında doğrulandı. Yeni CSV paketinin push kontrolleri
-ayrıca izlenecek; eski yeşil sonucu yeni commit'e mal etmeyin.
+`f061d6fd` CSV sayımı için GitHub validate ve Vercel başarılı olduğu
+14 Ekim üçüncü tur başında doğrulandı. Son ürün/reçete push'undaki kontrolleri
+önceki commit'in yeşil sonucu ile karıştırmayın. Otomasyon durduğundan yeni
+CI/devir takipleri otomatik sürdürülecek diye söz verilmemeli.

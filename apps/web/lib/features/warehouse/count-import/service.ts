@@ -179,7 +179,7 @@ async function resolveItem(tx: any, tenantId: string, row: CountRow) {
 export async function applyCountImport(tx: any, actor: WorkOrderActor, payload: CountImportPayload, suggestionId: string) {
   manager(actor);
   const t = actor.tenantId;
-  await tx`SELECT pg_advisory_xact_lock(hashtextextended(${t + ':count-import'}, 0))`;
+  await tx`SELECT pg_advisory_xact_lock(hashtextextended(${t}, 0))`;
   const [warehouse] = await tx`SELECT id FROM warehouses WHERE tenant_id = ${t} AND id = ${payload.warehouseId} AND warehouse_type = 'RAW' AND active = true`;
   if (!warehouse) fail('Sayım deposu artık kullanılamıyor', 409);
   const [taken] = await tx`SELECT id FROM stock_count_documents WHERE tenant_id = ${t} AND file_sha256 = ${payload.document.sha256}`;

@@ -19,7 +19,7 @@ import {
   CutDemand,
 } from "./cutting-engine";
 import { CUTTING_DEFAULTS, cuttingEstimateNotice, firmCuttingParameters, type CuttingParameterSource } from "./cutting-defaults";
-import { COUNT_UNITS, normalizeStates, PROCESSED_STATES, STOCK_UNITS, unitLabel } from "../inventory/vocabulary";
+import { COUNT_UNITS, normalizeStates, unitLabel } from "../inventory/vocabulary";
 import { schedulingSnapshot, scheduleSnapshot } from "./planning.service";
 import {allocateMaterialLots,qualityContext} from "./traceability.service";
 import {executeQuality,qualityAnalytics} from "./quality.service";
@@ -30,6 +30,7 @@ import {
   transitionOperation,
 } from "./platform-contract";
 import { postStockEntryInTransaction } from "./inventory.service";
+import { MaterialInputSchema } from '../inventory/material-contract';
 import { AwningConfigurationSchema } from "../awning/configuration";
 import { columnExists } from "@/lib/db/schema-guard";
 import { noteOrderDates } from "@/lib/features/sales/order-status.server";
@@ -237,6 +238,10 @@ export async function enqueueOrderNotice(
   }
 }
 export async function productionCommand(a: WorkOrderActor, raw: unknown) {
+  return sql.begin((tx: any) => productionCommandInTransaction(tx, a, raw));
+}
+/** Shares the production lock, idempotency and validation with transactional imports. */
+export async function productionCommandInTransaction(tx: any, a: WorkOrderActor, raw: unknown) {
   const command = z
     .object({
       commandId: z.string().uuid(),
@@ -245,31 +250,29 @@ export async function productionCommand(a: WorkOrderActor, raw: unknown) {
     })
     .parse(raw);
   const hash = createHash("sha256").update(js(command)).digest("hex");
-  return sql.begin(async (tx: any) => {
-    // One pilot tenant's stock and operation commands are serialized, including first insertion.
-    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${a.tenantId},0))`;
-    const [old] =
-      await tx`SELECT * FROM production_commands WHERE tenant_id=${a.tenantId} AND command_id=${command.commandId}`;
-    if (old) {
-      if (old.actor_id !== a.userId || old.request_hash !== hash)
-        fail("Komut anahtarı başka bir işlemde kullanılmış");
-      return old.result;
-    }
-    const result = await execute(
-      tx,
-      a,
-      command.action,
-      command.data,
-      command.commandId,
-    );
-    await tx`INSERT INTO production_commands(tenant_id,command_id,actor_id,request_hash,result)VALUES(${a.tenantId},${command.commandId},${a.userId},${hash},${js(result || { ok: true })}::text::jsonb)`;
-    await event(tx, a, command.action, { commandId: command.commandId });
-    // Money movements also go to the firm audit trail; a replayed command returned above without a second record.
-    if (command.action.startsWith("finance.")) await recordFinanceAudit(tx, a, command, result);
-    // Collections are booked to the ledger in the same transaction (120 against cash/bank).
-    if (command.action === "finance.payment.create" && (result as { id?: string } | undefined)?.id) await syncLedger(tx, a.tenantId, { paymentId: String((result as { id: string }).id) });
-    return result || { ok: true };
-  });
+  // One pilot tenant's stock and operation commands are serialized, including first insertion.
+  await tx`SELECT pg_advisory_xact_lock(hashtextextended(${a.tenantId},0))`;
+  const [old] =
+    await tx`SELECT * FROM production_commands WHERE tenant_id=${a.tenantId} AND command_id=${command.commandId}`;
+  if (old) {
+    if (old.actor_id !== a.userId || old.request_hash !== hash)
+      fail("Komut anahtarı başka bir işlemde kullanılmış");
+    return old.result;
+  }
+  const result = await execute(
+    tx,
+    a,
+    command.action,
+    command.data,
+    command.commandId,
+  );
+  await tx`INSERT INTO production_commands(tenant_id,command_id,actor_id,request_hash,result)VALUES(${a.tenantId},${command.commandId},${a.userId},${hash},${js(result || { ok: true })}::text::jsonb)`;
+  await event(tx, a, command.action, { commandId: command.commandId });
+  // Money movements also go to the firm audit trail; a replayed command returned above without a second record.
+  if (command.action.startsWith("finance.")) await recordFinanceAudit(tx, a, command, result);
+  // Collections are booked to the ledger in the same transaction (120 against cash/bank).
+  if (command.action === "finance.payment.create" && (result as { id?: string } | undefined)?.id) await syncLedger(tx, a.tenantId, { paymentId: String((result as { id: string }).id) });
+  return result || { ok: true };
 }
 const FINANCE_AUDIT_ENTITY: Record<string, string> = { payment: "payment", employee: "employee", ledger: "employee_ledger_entry" };
 const FINANCE_AUDIT_FIELDS = ["id", "orderId", "employeeId", "amount", "currency", "method", "paidAt", "kind", "entryDate", "fullName", "active"];
@@ -351,28 +354,9 @@ async function execute(
   office(a);
   if (action === "material.save") {
     manager(a);
-    const d = z
-      .object({
-        sku: text,
-        name: text,
-        itemType: z.enum(["raw_material", "finished_good", "consumable"]),
-        uom: z.enum(STOCK_UNITS),
-        standardLengthMm: z.number().nonnegative().default(0),
-        weightPerMeterKg: z.number().nonnegative().default(0),
-        minStock: z.number().nonnegative().finite().max(1000000).default(0),
-        // Identity: profile code + size + processed states (+ piece length for counted pieces).
-        profileCode: z.string().trim().max(40).optional().transform((v) => v || null),
-        sizeLabel: z.string().trim().max(40).optional().transform((v) => v || null),
-        processedStates: z.array(z.enum(PROCESSED_STATES)).max(5).default([]),
-        pieceLengthMm: z.number().int().positive().max(30000).nullish(),
-      })
-      .parse(data);
-    if (d.uom === "m" && (!d.standardLengthMm || !d.weightPerMeterKg))
-      fail("Profilin boyunu ve kg/m bilgisini doğrulayın", 400);
-    if (COUNT_UNITS.has(d.uom) && !Number.isInteger(d.minStock))
-      fail(`Minimum stok ${unitLabel(d.uom)} biriminde tam sayı olmalı`, 400);
-    if (d.uom === "m" && d.pieceLengthMm)
-      fail("Metre ile tutulan profilde boy her çubukta girilir, kartta değil", 400);
+    const parsedMaterial = MaterialInputSchema.safeParse(data);
+    if (!parsedMaterial.success) fail(parsedMaterial.error.issues.map((i) => i.message).join(', '), 400);
+    const d = parsedMaterial.data;
     const states = normalizeStates(d.processedStates);
     if (d.profileCode) {
       const [same] = await tx`SELECT sku FROM inventory_items WHERE tenant_id=${t} AND lower(profile_code)=lower(${d.profileCode}) AND lower(coalesce(size_label,''))=lower(${d.sizeLabel ?? ""}) AND processed_states=${states}::text[] AND coalesce(piece_length_mm,0)=${d.pieceLengthMm ?? 0}`;
