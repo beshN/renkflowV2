@@ -1,6 +1,7 @@
 import { redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
+import { columnExists } from '@/lib/db/schema-guard';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { CreateCustomerSchema, customerErrorResponse, requireCustomerActor } from '@/lib/features/customers/api';
 
@@ -99,6 +100,11 @@ export async function POST(req: NextRequest) {
       )
       RETURNING *
     `;
+    // City and district exist from migration 054 on.
+    if ((input.city || input.district) && (await columnExists('customers', 'city'))) {
+      const [updated] = await sql`UPDATE customers SET city = ${input.city ?? null}, district = ${input.district ?? null} WHERE id = ${(rows[0] as { id: string }).id} RETURNING *`;
+      rows[0] = updated;
+    }
 
     await sql`
       INSERT INTO activity_logs (tenant_id, entity_type, entity_id, action, actor_id, actor_name)

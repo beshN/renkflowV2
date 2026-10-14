@@ -3,14 +3,21 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, FileText, Printer } from 'lucide-react';
-import { EmptyState, PageHeader, Skeleton, StatusChip } from '@/components/kit';
+import { ArrowLeft, Download, FileText, Printer, RefreshCw } from 'lucide-react';
+import { EmptyState, PageHeader, Skeleton, StatusChip, type Tone } from '@/components/kit';
 import { requestJson } from '@/lib/shared/network';
 import { formatCurrency } from '@/lib/shared/utils';
 import { INVOICE_STATUS_LABELS, type InvoiceStatus } from '@/lib/features/finance/engine';
 import { INVOICE_TONE } from './OrderBillingPanel';
 
-type Row = { id: string; number: string | null; status: InvoiceStatus; orderId: string; orderNumber: string | null; customerName: string; issuedOn: string | null; dueOn: string | null; currency: string; grandTotal: number };
+type EBelgeStatus = 'not_connected' | 'queued' | 'sent' | 'accepted' | 'rejected' | 'error' | 'cancelled';
+type Row = {
+  id: string; number: string | null; status: InvoiceStatus; orderId: string; orderNumber: string | null; customerName: string; issuedOn: string | null; dueOn: string | null;
+  currency: string; grandTotal: number; withholdingTotal: number; payableTotal: number; eInvoice: EBelgeStatus; documentType: 'e_fatura' | 'e_arsiv' | null; ettn: string | null; eInvoiceError: string | null;
+};
+const E_BELGE_LABELS: Record<EBelgeStatus, string> = { not_connected: 'Bağlı değil', queued: 'Gönderilecek', sent: 'Gönderildi', accepted: 'Kabul edildi', rejected: 'Reddedildi', error: 'Hata', cancelled: 'İptal edildi' };
+const E_BELGE_TONE: Record<EBelgeStatus, Tone> = { not_connected: 'neutral', queued: 'info', sent: 'info', accepted: 'success', rejected: 'danger', error: 'danger', cancelled: 'neutral' };
+const DOCUMENT_TYPE_LABELS = { e_fatura: 'e-Fatura', e_arsiv: 'e-Arşiv' } as const;
 const dmy = (d: string | null) => (d ? d.split('-').reverse().join('.') : '—');
 
 /** All invoices of the firm, by status. */
@@ -28,7 +35,7 @@ export function InvoicesWorkspace() {
   }, [status]);
   return (
     <div className="space-y-4">
-      <PageHeader eyebrow="Finans" title="Faturalar" hint="Faturalar siparişin 'Fatura & tahsilat' sekmesinden taslak olarak açılır, kesilince numara alır. e-fatura/e-arşiv entegrasyonu bağlanmadı: buradaki belgeler GİB'e gönderilmez."
+      <PageHeader eyebrow="Finans" title="Faturalar" hint="Faturalar siparişin 'Fatura & tahsilat' sekmesinden taslak olarak açılır, kesilince numara alır. e-Belge sütunu GİB'e gönderim durumunu gösterir; 'Bağlı değil' olanlar firma içi kayıttır ve GİB'e gönderilmez."
         action={<Link href="/finance/receivables" className="rf-secondary-button text-sm">Alacaklar</Link>} />
       <div className="flex flex-wrap gap-1" role="group" aria-label="Durum">
         {(['', 'draft', 'issued', 'cancelled'] as const).map((s) => (
@@ -38,8 +45,8 @@ export function InvoicesWorkspace() {
       {error && <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">{error}</p>}
       {!rows ? <Skeleton className="h-40" /> : rows.length === 0 ? <EmptyState title="Fatura yok" icon={FileText} /> : (
         <div className="rf-panel overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
-            <thead><tr className="text-left text-xs text-muted-foreground"><th className="p-2">No</th><th className="p-2">Müşteri</th><th className="p-2">Sipariş</th><th className="p-2">Tarih</th><th className="p-2">Vade</th><th className="p-2 text-right">Tutar</th><th className="p-2">Durum</th></tr></thead>
+          <table className="w-full min-w-[680px] text-sm">
+            <thead><tr className="text-left text-xs text-muted-foreground"><th className="p-2">No</th><th className="p-2">Müşteri</th><th className="p-2">Sipariş</th><th className="p-2">Tarih</th><th className="p-2">Vade</th><th className="p-2 text-right">Tutar</th><th className="p-2">Durum</th><th className="p-2">e-Belge</th></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} className="border-t border-border">
@@ -49,6 +56,7 @@ export function InvoicesWorkspace() {
                   <td className="p-2">{dmy(r.issuedOn)}</td><td className="p-2">{dmy(r.dueOn)}</td>
                   <td className="p-2 text-right tabular-nums">{formatCurrency(r.grandTotal, r.currency)}</td>
                   <td className="p-2"><StatusChip tone={INVOICE_TONE[r.status]} label={INVOICE_STATUS_LABELS[r.status]} /></td>
+                  <td className="p-2">{r.status === 'draft' ? '—' : <StatusChip tone={E_BELGE_TONE[r.eInvoice] ?? 'neutral'} label={`${r.documentType ? `${DOCUMENT_TYPE_LABELS[r.documentType]} · ` : ''}${E_BELGE_LABELS[r.eInvoice] ?? r.eInvoice}`} />}</td>
                 </tr>
               ))}
             </tbody>
@@ -60,15 +68,25 @@ export function InvoicesWorkspace() {
 }
 
 type Doc = Row & {
-  seller: string | null; taxNumber: string | null; taxOffice: string | null; address: string | null; notes: string | null; subtotal: number; vatTotal: number; cancelReason: string | null;
+  seller: string | null; sellerTaxNumber: string | null; sellerTaxOffice: string | null; sellerAddress: string | null; taxNumber: string | null; taxOffice: string | null; address: string | null; notes: string | null; subtotal: number; vatTotal: number; cancelReason: string | null;
   lines: Array<{ id: string; description: string; quantity: number; unitPrice: number; vatPercent: number; netAmount: number; vatAmount: number }>;
 };
 
-/** One invoice as a printable page; clearly not an e-invoice. */
+/** One invoice as a printable page, with its e-Belge state (or a note that it is not an e-invoice). */
 export function InvoiceDocument({ id }: { id: string }) {
   const [d, setD] = useState<Doc | null>(null);
   const [error, setError] = useState('');
-  useEffect(() => { void requestJson<Doc>(`/api/v1/invoices/${id}`, { cache: 'no-store' }).then((r) => (r.ok && r.data ? setD(r.data) : setError(r.error || 'Fatura alınamadı'))); }, [id]);
+  const [busy, setBusy] = useState(false);
+  const load = () => requestJson<Doc>(`/api/v1/invoices/${id}`, { cache: 'no-store' }).then((r) => (r.ok && r.data ? setD(r.data) : setError(r.error || 'Fatura alınamadı')));
+  useEffect(() => { void load(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function retry() {
+    setBusy(true);
+    const r = await requestJson(`/api/v1/invoices/${id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'retry' }) });
+    setBusy(false);
+    if (!r.ok) { setError(r.error || 'Yeniden gönderilemedi'); return; }
+    setError('');
+    await load();
+  }
   if (!d) return error ? <p role="alert" className="rf-panel text-sm">{error}</p> : <Skeleton className="h-64" />;
   const cur = (n: number) => formatCurrency(n, d.currency);
   return (
@@ -78,9 +96,22 @@ export function InvoiceDocument({ id }: { id: string }) {
         <button type="button" className="rf-primary-button inline-flex items-center gap-1 text-sm" onClick={() => window.print()}><Printer size={14} aria-hidden /> Yazdır</button>
       </div>
       <article className="rf-panel mx-auto max-w-3xl space-y-4 p-5 print:border-0 print:shadow-none" aria-label="Fatura">
-        <p role="note" className="rounded-md border border-border bg-muted px-3 py-2 text-xs">Bu belge firma içi fatura kaydıdır; e-fatura/e-arşiv değildir. GİB entegrasyonu bağlanmadı.</p>
+        {d.status !== 'draft' && d.eInvoice !== 'not_connected' ? (
+          <section aria-label="e-Belge" className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted px-3 py-2 text-xs print:hidden">
+            <StatusChip tone={E_BELGE_TONE[d.eInvoice] ?? 'neutral'} label={`${d.documentType ? DOCUMENT_TYPE_LABELS[d.documentType] : 'e-Belge'} · ${E_BELGE_LABELS[d.eInvoice] ?? d.eInvoice}`} />
+            {d.ettn && <span>ETTN <span className="font-mono">{d.ettn}</span></span>}
+            {d.eInvoiceError && <span role="alert" className="text-rose-700 dark:text-rose-300">{d.eInvoiceError}</span>}
+            <span className="flex-1" />
+            {d.eInvoice === 'error' && <button type="button" className="rf-secondary-button inline-flex items-center gap-1 text-xs" disabled={busy} onClick={() => void retry()}><RefreshCw size={12} aria-hidden /> Yeniden dene</button>}
+            {d.ettn && <a href={`/api/v1/invoices/${d.id}/xml`} className="rf-secondary-button inline-flex items-center gap-1 text-xs"><Download size={12} aria-hidden /> XML</a>}
+          </section>
+        ) : (
+          <p role="note" className="rounded-md border border-border bg-muted px-3 py-2 text-xs">Bu belge firma içi fatura kaydıdır; e-fatura/e-arşiv değildir. GİB'e gönderilmedi.</p>
+        )}
         <header className="flex flex-wrap justify-between gap-4">
-          <div><p className="text-xs text-muted-foreground">Satıcı</p><p className="font-semibold">{d.seller ?? '—'}</p></div>
+          <div><p className="text-xs text-muted-foreground">Satıcı</p><p className="font-semibold">{d.seller ?? '—'}</p>
+            {(d.sellerTaxOffice || d.sellerTaxNumber) && <p className="text-xs">{[d.sellerTaxOffice, d.sellerTaxNumber && `VKN/TCKN ${d.sellerTaxNumber}`].filter(Boolean).join(' · ')}</p>}
+            {d.sellerAddress && <p className="text-xs">{d.sellerAddress}</p>}</div>
           <div className="text-right">
             <p className="text-lg font-bold">{d.status === 'draft' ? 'TASLAK FATURA' : 'FATURA'} <span className="font-mono">{d.number ?? ''}</span></p>
             <StatusChip tone={INVOICE_TONE[d.status]} label={INVOICE_STATUS_LABELS[d.status]} />
@@ -98,6 +129,10 @@ export function InvoiceDocument({ id }: { id: string }) {
           <dt>Ara toplam</dt><dd className="text-right tabular-nums">{cur(d.subtotal)}</dd>
           <dt>KDV</dt><dd className="text-right tabular-nums">{cur(d.vatTotal)}</dd>
           <dt className="font-semibold">Genel toplam</dt><dd className="text-right font-semibold tabular-nums">{cur(d.grandTotal)}</dd>
+          {d.withholdingTotal > 0 && <>
+            <dt>KDV tevkifatı</dt><dd className="text-right tabular-nums">−{cur(d.withholdingTotal)}</dd>
+            <dt className="font-semibold">Ödenecek</dt><dd className="text-right font-semibold tabular-nums">{cur(d.payableTotal)}</dd>
+          </>}
         </dl>
         {d.notes && <p className="text-xs">{d.notes}</p>}
         {d.cancelReason && <p className="text-xs text-rose-700 dark:text-rose-300">İptal: {d.cancelReason}</p>}

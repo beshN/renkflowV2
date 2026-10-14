@@ -2,6 +2,7 @@ import { redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { sql } from '@/lib/db';
+import { columnExists } from '@/lib/db/schema-guard';
 import { requireSameOrigin, requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { customerErrorResponse, parseCustomerUpdate, requireCustomerActor } from '@/lib/features/customers/api';
 
@@ -52,6 +53,9 @@ export async function PUT(req: NextRequest, { params }: CustomerRouteContext) {
     const id = await customerId(params);
     if (!id) return notFound();
     const updates = parseCustomerUpdate(await req.json());
+    if (updates.some(([column]) => column === 'city' || column === 'district') && !(await columnExists('customers', 'city'))) {
+      return redactedJson({ error: 'İl ve ilçe alanları bu kurulumda henüz etkin değil.' }, { status: 503 });
+    }
 
     const oldRows = await sql`SELECT * FROM customers WHERE id = ${id} AND tenant_id = ${actor.tenantId} AND is_active = true`;
     if (oldRows.length === 0) return notFound();

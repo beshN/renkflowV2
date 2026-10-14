@@ -40,6 +40,9 @@ const customerFields = {
   taxOffice: optionalText(120),
   billingAddress: optionalText(1000),
   shippingAddress: optionalText(1000),
+  // Separate fields for e-Belge (migration 054).
+  city: optionalText(80),
+  district: optionalText(80),
   creditLimit: z.number().finite().nonnegative().max(9_999_999_999.99).nullable().optional(), // numeric(12,2)
   paymentTerms: z.number().int().min(0).max(365).optional(),
   notes: optionalText(5000),
@@ -71,6 +74,8 @@ export const CUSTOMER_COLUMNS: Record<keyof typeof customerFields, string> = {
   taxOffice: 'tax_office',
   billingAddress: 'billing_address',
   shippingAddress: 'shipping_address',
+  city: 'city',
+  district: 'district',
   creditLimit: 'credit_limit',
   paymentTerms: 'payment_terms',
   notes: 'notes',
