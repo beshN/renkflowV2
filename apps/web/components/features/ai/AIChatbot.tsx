@@ -1,5 +1,6 @@
 'use client';
 
+import { assistantFormSummary } from '@/lib/ai/assistant-form-drafts';
 import { modelUnavailableMessage } from '@/lib/ai/policy';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
@@ -37,6 +38,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  modelLabel?: string;
   suggestions?: string[];
   feedback?: 'positive' | 'negative' | null;
   isError?: boolean;
@@ -266,7 +268,7 @@ function saveMessages(messages: Message[], storageKey: string) {
 // ============================================
 
 export function AIChatbot() {
-  const {insights,brief,modelEnabled,modelUnavailableReason} = useAssistantInsights();
+  const {insights,brief,modelEnabled,modelUnavailableReason,model} = useAssistantInsights();
   // Without a model key the chat cannot answer: say so instead of offering a box that only errors.
   const chatOff = modelEnabled === false;
   const [pendingAction,setPendingAction]=useState<{action:AssistantAction;commandId:string}|null>(null);
@@ -459,6 +461,7 @@ export function AIChatbot() {
         role: 'assistant',
         content: data.response || 'Üzgünüm, yanıt oluşturulamadı.',
         timestamp: new Date(),
+        modelLabel: data.model?.verifiedResponse ? data.model.label : undefined,
         suggestions: data.suggestions,
         actions: data.actions,
         sources: Array.isArray(data.toolsUsed)?data.toolsUsed.filter((s:unknown):s is string=>typeof s==='string'&&!!SOURCE_LABELS[s]):[],
@@ -549,6 +552,7 @@ export function AIChatbot() {
   }, [storageKey]);
 
   if (!user) return null;
+  const formSummary = pendingAction ? assistantFormSummary(pendingAction.action.kind, pendingAction.action.note) : null;
   const adviceKey=storageKey+':'+pathname+':'+insights.map(i=>i.id+i.detail).join('|');
   // These screens show the same signals as cards and counts; a sentence on top only repeats them.
   const VISUAL_SCREENS=['/dashboard','/orders','/factory','/factory/wall'];
@@ -562,9 +566,9 @@ export function AIChatbot() {
         <button aria-label="Öneriyi gizle" onClick={()=>setDismissedAdvice(adviceKey)} className="rf-icon-button !h-7 !w-7 shrink-0"><X size={14}/></button>
       </aside></div>,adviceSlot)}
       {pendingAction && <BusinessDialog title={pendingAction.action.title} open onClose={()=>setPendingAction(null)} busy={actionBusy} error={actionError}>
-        <p className="text-sm mb-4">{pendingAction.action.kind==='orderNote'?'Aşağıdaki not sipariş geçmişine eklenecek.':'Sipariş taslağı hazırlanacak. Ölçü, fiyat ve ürün kalemlerini sonraki ekranda kontrol edip onaylayacaksınız.'}</p>
-        <pre className="whitespace-pre-wrap rounded border p-3 text-xs max-h-64 overflow-auto">{pendingAction.action.note || JSON.stringify(pendingAction.action.draft,null,2)}</pre>
-        <div className="flex justify-end gap-2 mt-4"><button className="rf-secondary-button" disabled={actionBusy} onClick={()=>setPendingAction(null)}>Vazgeç</button><button className="rf-primary-button" disabled={actionBusy} onClick={()=>void applyAction()}>{actionBusy?'Kaydediliyor…':'Onayla ve uygula'}</button></div>
+        <p className="text-sm mb-4">{pendingAction.action.kind==='orderNote'?'Aşağıdaki not sipariş geçmişine eklenecek.':['warehouseDraft','attendanceDraft'].includes(pendingAction.action.kind)?'Kayıt formu hazırlanacak. Sonraki ekranda bilgileri inceleyip kaydedebilirsiniz.':'Sipariş taslağı hazırlanacak. Ölçü, fiyat ve ürün kalemlerini sonraki ekranda kontrol edip onaylayacaksınız.'}</p>
+        {formSummary ? <dl className="space-y-2 rounded-lg border p-3 text-sm">{formSummary.map(row => <div key={row.label} className="flex justify-between gap-4"><dt className="text-muted-foreground">{row.label}</dt><dd className="text-right font-medium">{row.value}</dd></div>)}</dl> : <pre className="whitespace-pre-wrap rounded border p-3 text-xs max-h-64 overflow-auto">{pendingAction.action.note || JSON.stringify(pendingAction.action.draft,null,2)}</pre>}
+        <div className="flex justify-end gap-2 mt-4"><button className="rf-secondary-button" disabled={actionBusy} onClick={()=>setPendingAction(null)}>Vazgeç</button><button className="rf-primary-button" disabled={actionBusy} onClick={()=>void applyAction()}>{actionBusy?'Hazırlanıyor…':formSummary?'Kayıt formunu aç':'Onayla ve uygula'}</button></div>
       </BusinessDialog>}
       {/* Floating Action Button */}
       <AnimatePresence>
@@ -609,7 +613,7 @@ export function AIChatbot() {
                   <Bot className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-sm">RenkFlow AI</h3>
+                  <h3 className="font-semibold text-sm">RenkFlow AI</h3>{model && <p className="text-[10px] text-muted-foreground" title={model.id}>{model.label}</p>}
                   <div className="flex items-center gap-1">
                     <p className="text-xs text-white/70">Belge ve operasyon yardımcısı</p>
                   </div>
@@ -732,7 +736,8 @@ export function AIChatbot() {
                           )}
                         </div>
 
-                        {message.role==='assistant'&&!message.isError&&!!message.sources?.length&&<details className="mt-2 text-[10px] text-muted-foreground"><summary className="cursor-pointer">İncelenen kayıt kaynakları</summary><p className="mt-1 leading-5">{message.sources.map(s=>SOURCE_LABELS[s]).join(' · ')}</p></details>}
+                        {message.role==='assistant'&&!message.isError&&!!message.sources?.length&&<details className="mt-2 text-[10px] text-muted-foreground"><summary className="cursor-pointer">İncelenen kayıt kaynakları</summary><p className="mt-1 leading-5">{message.modelLabel && <p className="mt-2 text-[10px] text-muted-foreground">{message.modelLabel} ile yanıtlandı</p>}
+                        {message.sources.map(s=>SOURCE_LABELS[s]).join(' · ')}</p></details>}
 
                         {/* Suggestions */}
                         {message.actions?.map((action,index)=><button key={index} className="rf-secondary-button mt-2 text-xs" disabled={actionBusy} onClick={()=>{if(action.kind==='navigate'){const href=safeAssistantHref(action.href);if(href)handleNavigate(href);}else {setActionError('');const key=message.id+':'+index;let commandId=actionIds.current.get(key);if(!commandId){commandId=crypto.randomUUID();actionIds.current.set(key,commandId);}setPendingAction({action,commandId});}}}>{action.title}</button>)}

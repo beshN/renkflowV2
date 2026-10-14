@@ -7,7 +7,7 @@ import { requestJson } from '@/lib/shared/network';
 import { AI_MODES, AI_MODE_LABELS, ASSISTANT_FEATURES, FEATURE_LABELS, type AiMode } from '@/lib/ai/policy';
 
 type Detector = { key: string; label: string; thresholdLabel: string | null; enabled: boolean; quietDays: number; threshold?: number };
-type Settings = { mode: AiMode; kvkkAckAt: string | null; dailyBudgetUsd: number | null; userDailyCalls: number; modelKeyConfigured: boolean; detectors: Detector[]; features: Record<string, boolean>; profitFloorPercent: number };
+type Settings = { model?: {label:string;id:string}; mode: AiMode; kvkkAckAt: string | null; dailyBudgetUsd: number | null; userDailyCalls: number; modelKeyConfigured: boolean; detectors: Detector[]; features: Record<string, boolean>; profitFloorPercent: number };
 type Perf = {
   available: boolean; days: number;
   perKind?: Array<{ kind: string; label: string; filed: number; approved: number; rejected: number; expired: number; pending: number; edited: number; acceptance: number | null; medianHoursToDecide: number | null; rejectReasons: Record<string, number>; minutesSaved: number }>;
@@ -46,6 +46,7 @@ export function AssistantSettings() {
       <h2 id="ai-settings-title" className="flex items-center gap-2 text-lg font-semibold"><Bot size={18} aria-hidden /> Asistan</h2>
       {error && <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">{error}</p>}
       {notice && <p role="status" className="text-sm text-emerald-700 dark:text-emerald-300">{notice}</p>}
+      {s.model && <p className="rounded-lg border border-border bg-muted/40 p-3 text-sm"><span className="font-semibold">Etkin model: {s.model.label}</span><span className="mt-1 block font-mono text-xs text-muted-foreground">{s.model.id}</span></p>}
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">Çalışma biçimi</legend>
         <div className="grid gap-2 sm:grid-cols-3">

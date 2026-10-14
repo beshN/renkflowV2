@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { DocumentExtractionSchema } from './extraction';
 export const AssistantActionSchema=z.object({
- kind:z.enum(['navigate','orderNote','orderDraft']), title:z.string().max(120), href:z.string().nullable(), orderId:z.string().nullable(), note:z.string().nullable(), draft:DocumentExtractionSchema.nullable(),
+ kind:z.enum(['navigate','orderNote','orderDraft','warehouseDraft','attendanceDraft']), title:z.string().max(120), href:z.string().nullable(), orderId:z.string().nullable(), note:z.string().nullable(), draft:DocumentExtractionSchema.nullable(),
 });
 export const AssistantReplySchema=z.object({answer:z.string(),suggestions:z.array(z.string()),actions:z.array(AssistantActionSchema)});
 /**

@@ -1,6 +1,8 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { BusinessDialog } from '@/components/shared/ui/BusinessDialog';
+import { WAREHOUSE_TYPES } from '@/lib/features/warehouse/setup';
 import {
   ArrowRight,
   Boxes,
@@ -21,7 +23,7 @@ export default function WarehouseOverview() {
   const { data, error, busy, online, refresh, command } = useWarehouse(),
     [query, setQuery] = useState(""),
     [warehouse, setWarehouse] = useState(""),
-    [tab, setTab] = useState("locations");
+    [tab, setTab] = useState("warehouses");
   const [create, setCreate] = useState(false),
     [warehouseId, setWarehouseId] = useState(""),
     [code, setCode] = useState(""),
@@ -29,6 +31,20 @@ export default function WarehouseOverview() {
     [type, setType] = useState("shelf"),
     [feedback, setFeedback] = useState(""),
     [localError, setLocalError] = useState("");
+  const [createWarehouse, setCreateWarehouse] = useState(false);
+  const [warehouseName, setWarehouseName] = useState('');
+  const [warehouseCode, setWarehouseCode] = useState('');
+  const [warehouseType, setWarehouseType] = useState('RAW');
+  useEffect(() => { const q = new URLSearchParams(window.location.search); if (q.get('create') === 'warehouse') { setCreateWarehouse(true); setWarehouseName(q.get('name')?.slice(0, 100) || ''); setWarehouseCode(q.get('code')?.slice(0, 40) || ''); const type = q.get('type'); if (type && type in WAREHOUSE_TYPES) setWarehouseType(type); } }, []);
+  async function addWarehouse(e: React.FormEvent) {
+    e.preventDefault(); setLocalError('');
+    try {
+      const result = await command('save', { name: warehouseName, code: warehouseCode, type: warehouseType });
+      setCreateWarehouse(false); setWarehouseName(''); setWarehouseCode('');
+      setWarehouse(result.id); setWarehouseId(result.id); setTab('locations');
+      setFeedback('Depo eklendi. Şimdi bu depoya raf ekleyebilirsiniz.');
+    } catch (e) { setLocalError((e as Error).message); }
+  }
   const [reviews, setReviews] = useState<Record<string, string>>({});
   const rows = useMemo(
     () =>
@@ -96,35 +112,10 @@ export default function WarehouseOverview() {
   const pending = data.counts.filter((c: any) => c.status === "pending").length;
   return (
     <div className="space-y-6">
-      <section className="rf-operations-banner">
-        <div className="relative z-10">
-          <p className="text-[13px] font-medium text-primary">
-            Fiziksel stok. Dijital iz.
-          </p>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Her malzeme doğru yerde.
-          </h2>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-            Rafı ve malzemeyi okutun, işlemi doğrulayın. Üretimden kalan her
-            kullanılabilir parça bir sonraki iş için görünür olsun.
-          </p>
-          <Link
-            href="/warehouse/scan"
-            className="rf-primary-button mt-5 min-h-11 px-4 text-sm"
-          >
-            <ScanLine size={18} />
-            Tarama terminalini aç
-            <ArrowRight size={16} />
-          </Link>
-        </div>
-        <div className="rf-warehouse-illustration" aria-hidden="true">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-            <span key={n} className={n === 5 ? "active" : ""}>
-              <Boxes size={24} />
-            </span>
-          ))}
-        </div>
-      </section>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">Önce deponuzu ekleyin, ardından raflarını tanımlayın. Stok giriş ve çıkışları tarama terminalindedir.</p>
+        <Link href="/warehouse/scan" className="rf-secondary-button"><ScanLine size={17} /> Stok işlemi yap</Link>
+      </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           {
@@ -187,7 +178,8 @@ export default function WarehouseOverview() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="rf-tabs" role="group" aria-label="Depo görünümü">
           {[
-            ["locations", "Raf yerleşimi"],
+            ["warehouses", "Depolar"],
+            ["locations", "Raflar"],
             ["moves", "Hareket defteri"],
             ["counts", "Sayım & kontrol"],
           ].map(([key, label]) => (
@@ -209,18 +201,20 @@ export default function WarehouseOverview() {
           >
             <RefreshCw size={16} />
           </button>
+          {manager && <button className="rf-primary-button" onClick={() => { setLocalError(''); setCreateWarehouse(true); }}><Plus size={17} /> Depo ekle</button>}
           {writable && (
             <button
               className="rf-primary-button"
-              onClick={() => setCreate(!create)}
+              disabled={!data.warehouses.length}
+              onClick={() => { setLocalError(''); setWarehouseId(warehouse || data.warehouses[0]?.id || ''); setCreate(true); }}
             >
               <Plus size={17} />
-              Yeni raf
+              Raf ekle
             </button>
           )}
         </div>
       </div>
-      {create && (
+      <BusinessDialog open={create} title="Raf ekle" busy={busy} error={localError} onClose={() => setCreate(false)}>
         <form onSubmit={add} className="rf-panel space-y-4">
           <h2 className="rf-section-title">Raf tanımla</h2>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -290,7 +284,19 @@ export default function WarehouseOverview() {
             </button>
           </div>
         </form>
-      )}
+      </BusinessDialog>
+      <BusinessDialog open={createWarehouse && Boolean(manager)} title="Depo ekle" busy={busy} error={localError} onClose={() => setCreateWarehouse(false)}>
+        <form onSubmit={addWarehouse} className="space-y-4">
+          <label className="rf-field">Depo adı<input autoFocus required minLength={2} maxLength={100} className="rf-input" value={warehouseName} onChange={e => setWarehouseName(e.target.value)} placeholder="Örn. Ana hammadde deposu" /></label>
+          <label className="rf-field">Depoda ne tutulacak?<select className="rf-input" value={warehouseType} onChange={e => setWarehouseType(e.target.value)}>{Object.entries(WAREHOUSE_TYPES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+          <details><summary className="cursor-pointer text-sm text-muted-foreground">Depo kodu (isteğe bağlı)</summary><label className="rf-field mt-3">Kod<input className="rf-input" maxLength={40} value={warehouseCode} onChange={e => setWarehouseCode(e.target.value)} placeholder="Boş bırakırsanız otomatik oluşturulur" /></label></details>
+          <div className="flex gap-2"><button className="rf-primary-button" disabled={busy || !online}>Depoyu ekle</button><button type="button" className="rf-secondary-button" disabled={busy} onClick={() => setCreateWarehouse(false)}>Vazgeç</button></div>
+        </form>
+      </BusinessDialog>
+      {tab === 'warehouses' && <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Depolar">
+        {!data.warehouses.length && <div className="rf-panel sm:col-span-2"><h2 className="font-semibold">İlk deponuzu ekleyin</h2><p className="mt-2 text-sm text-muted-foreground">Depo adı ve türü yeterli. Raf ve etiketleri daha sonra ekleyebilirsiniz.</p>{manager && <button className="rf-primary-button mt-4" onClick={() => setCreateWarehouse(true)}>Depo ekle</button>}</div>}
+        {data.warehouses.map((w: any) => <article className="rf-panel space-y-3" key={w.id}><div className="flex items-center gap-2"><Boxes size={19} /><h2 className="font-semibold">{w.name}</h2></div><p className="text-xs text-muted-foreground">{w.code} · {WAREHOUSE_TYPES[w.warehouse_type as keyof typeof WAREHOUSE_TYPES] || w.warehouse_type}</p><p className="text-sm">{data.locations.filter((l: any) => l.warehouse_id === w.id && l.location_type !== 'unassigned').length} raf</p><button className="rf-secondary-button" onClick={() => { setWarehouse(w.id); setWarehouseId(w.id); setTab('locations'); }}>Rafları aç <ArrowRight size={15} /></button></article>)}
+      </section>}
       {tab === "locations" && (
         <>
           <div className="flex flex-wrap gap-3">

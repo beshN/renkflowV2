@@ -1,5 +1,6 @@
 'use client';
 
+import { PayCutReview } from './PayCutReview';
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -19,7 +20,7 @@ type Detail = {
   leave: { entitled: number; used: number; remaining: number; yearStart: string; nextAnniversary: string; serviceYears: number; eligible: boolean } | null;
   pay: MonthPay; payDate: string | null; months: MonthPay[];
   attendance: Array<{ id: string; day: string; kind: AttendanceKind; deducted: boolean; note: string | null }>;
-  ledger: Array<{ id: string; kind: LedgerKind; amount: number; currency: string; entryDate: string; period: string; note: string | null; createdBy: string | null }>;
+  ledger: Array<{ id: string; kind: LedgerKind; amount: number; currency: string; entryDate: string; period: string; note: string | null; createdBy: string | null; payrollSnapshot?: { currency: string; calculation: MonthPay } | null }>;
   otherCurrency: boolean; canEdit: boolean; canLedger: boolean; canDeleteLedger: boolean;
 };
 
@@ -48,6 +49,7 @@ function Breakdown({ pay, currency, payDate }: { pay: MonthPay; currency: string
     <div>
       {line('Ücret esası', m(pay.base), undefined, `${pay.basisDays} gün × ${m(pay.dailyRate)}`)}
       {pay.absenceCut > 0 && line('Devamsızlık kesintisi', `− ${m(pay.absenceCut)}`, 'text-rose-700 dark:text-rose-300', `${pay.deductedDays.toLocaleString('tr-TR')} gün`)}
+      {pay.deductions?.length > 0 && <details className="mb-2 rounded-md border border-border p-3"><summary className="cursor-pointer text-xs font-medium">Gün bazında kesinti hesabı ve kayıt anındaki kurallar</summary><ul className="mt-2 space-y-2 text-xs">{pay.deductions.map(d => <li key={d.day}><span className="font-medium">{trDate(d.day)} · {ATTENDANCE[d.kind].label}</span><p className="text-muted-foreground">{d.cutDays.toLocaleString('tr-TR')} günlük × {m(d.dailyRate)} = {m(d.amount)} · {d.policyVersion === null ? 'eski kayıt kuralı' : `kural sürümü ${d.policyVersion}`}</p></li>)}</ul></details>}
       {pay.bonus > 0 && line('Prim', `+ ${m(pay.bonus)}`, 'text-emerald-700 dark:text-emerald-300')}
       {pay.deduction > 0 && line('Kesinti', `− ${m(pay.deduction)}`, 'text-rose-700 dark:text-rose-300')}
       {line('Hak edilen', m(pay.earned), 'border-t border-border font-semibold')}
@@ -179,7 +181,7 @@ export function EmployeeDetail({ id }: { id: string }) {
                     <td className="whitespace-nowrap px-4 py-2 tabular-nums">{trDate(l.entryDate)}</td>
                     <td className="px-2 py-2"><span className={cn('rounded px-1.5 py-0.5 text-[11px] font-medium', l.kind === 'bonus' ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300' : l.kind === 'deduction' ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300' : l.kind === 'advance' ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300' : 'bg-primary/10 text-primary')}>{LEDGER[l.kind].label}</span></td>
                     <td className="whitespace-nowrap px-2 py-2 capitalize text-muted-foreground">{periodLabel(l.period)}</td>
-                    <td className="px-2 py-2 text-muted-foreground">{l.note || '—'}{l.createdBy && <span className="ml-1 text-[11px]">· {l.createdBy}</span>}</td>
+                    <td className="px-2 py-2 text-muted-foreground">{l.note || '—'}{l.payrollSnapshot && <details className="mt-2"><summary className="cursor-pointer text-xs text-primary">Ödeme anındaki gün kuralları ve kesinti hesabı</summary><PayCutReview pay={l.payrollSnapshot.calculation} currency={l.payrollSnapshot.currency} /></details>}{l.createdBy && <span className="ml-1 text-[11px]">· {l.createdBy}</span>}</td>
                     <td className="whitespace-nowrap px-2 py-2 text-right font-medium tabular-nums">{money(l.amount, l.currency)}</td>
                     <td className="px-2 py-2">{data.canDeleteLedger && (
                       <button type="button" aria-label="Hareketi sil" disabled={busy} className="rf-icon-button grid h-7 w-7 place-items-center text-muted-foreground hover:text-rose-600"
@@ -199,7 +201,7 @@ export function EmployeeDetail({ id }: { id: string }) {
 
       <EmployeeDialog open={editing} onClose={() => setEditing(false)} employee={e} busy={busy} onSave={async (input) => { await act('employee.save', input); toast.success('Kaydedildi'); }} />
       {ledgerKind && (
-        <LedgerDialog open onClose={() => setLedgerKind(null)} busy={busy} employeeName={e.fullName} currency={e.currency} defaultKind={ledgerKind} period={data.period} today={data.today}
+        <LedgerDialog open onClose={() => setLedgerKind(null)} busy={busy} employeeName={e.fullName} currency={e.currency} defaultKind={ledgerKind} calculation={data.pay} period={data.period} today={data.today}
           onSave={async (input) => { await act('ledger.add', { ...input, employeeId: e.id }); toast.success('Kaydedildi'); }} />
       )}
     </main>

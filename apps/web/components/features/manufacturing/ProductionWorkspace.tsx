@@ -1342,7 +1342,7 @@ export default function ProductionWorkspace() {
           <section className="rf-panel">
             <h2 className="rf-section-title">Belgeden sipariş taslağı</h2>
             <p className="my-3 text-xs leading-6 text-muted-foreground">
-              PDF, çizim veya fotoğraftaki yazılı alanlar GPT-6 Luna ile
+              PDF, çizim veya fotoğraftaki yazılı alanlar etkin yapay zekâ modeli ile
               çıkarılır. Belirsiz değerler kontrol ekranında görünür. Sipariş
               yalnız sizin onayınızla oluşur.
             </p>

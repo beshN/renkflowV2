@@ -1,6 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { PayCutReview } from './PayCutReview';
+import type { MonthPay } from '@/lib/features/personnel/payroll';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { ChevronLeft, ChevronRight, Eraser } from 'lucide-react';
 import { BusinessDialog, BusinessField as Field } from '@/components/shared/ui/BusinessDialog';
@@ -90,10 +92,10 @@ export function DayMenu({ children, current, deducted, onPick, disabled }: {
           ))}
           {current && (
             <>
-              <label className="flex items-center gap-2 border-t border-border px-2 pt-2 text-[12px]">
+              {ATTENDANCE[current].deducted && <label className="flex items-center gap-2 border-t border-border px-2 pt-2 text-[12px]">
                 <input type="checkbox" checked={Boolean(deducted)} onChange={(e) => { onPick(current, e.target.checked); setOpen(false); }} />
                 Bu gün maaştan kesilsin
-              </label>
+              </label>}
               <button type="button" onClick={() => { onPick(null); setOpen(false); }} className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] text-muted-foreground hover:bg-accent"><Eraser size={14} />Normal gün (temizle)</button>
             </>
           )}
@@ -174,10 +176,13 @@ export function EmployeeDialog({ open, onClose, employee, busy, onSave }: { open
 }
 
 const LEDGER_ORDER: LedgerKind[] = ['advance', 'salary', 'bonus', 'deduction', 'payment'];
-export function LedgerDialog({ open, onClose, busy, employeeName, currency, defaultKind = 'advance', period, today, onSave }: {
+export function LedgerDialog({ open, onClose, busy, employeeName, currency, defaultKind = 'advance', period, today, onSave, calculation }: {
   open: boolean; onClose: () => void; busy: boolean; employeeName: string; currency: string; defaultKind?: LedgerKind; period: string; today: string;
+  calculation?: MonthPay;
   onSave: (input: Record<string, unknown>) => Promise<unknown>;
 }) {
+  const commandId = useRef(crypto.randomUUID());
+  useEffect(() => { if (open) commandId.current = crypto.randomUUID(); }, [open]);
   const [error, setError] = useState('');
   const [kind, setKind] = useState<LedgerKind>(defaultKind);
   useEffect(() => { if (open) setKind(defaultKind); }, [open, defaultKind]);
@@ -187,13 +192,14 @@ export function LedgerDialog({ open, onClose, busy, employeeName, currency, defa
         ev.preventDefault();
         const f = new FormData(ev.currentTarget);
         try {
-          await onSave({ kind, amount: Number(String(f.get('amount')).replace(',', '.')), entryDate: String(f.get('entryDate')), period: String(f.get('period')) || null, note: String(f.get('note') ?? '') });
+          await onSave({ commandId: commandId.current, kind, amount: Number(String(f.get('amount')).replace(',', '.')), entryDate: String(f.get('entryDate')), period: String(f.get('period')) || null, note: String(f.get('note') ?? '') });
           setError('');
           onClose();
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Kaydedilemedi');
         }
       }}>
+        {calculation && kind === 'salary' && <PayCutReview pay={calculation} currency={currency} />}
         <div role="radiogroup" aria-label="Hareket türü" className="flex flex-wrap gap-1.5">
           {LEDGER_ORDER.map((k) => (
             <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={cn('h-9 rounded-md border px-3 text-xs font-medium', kind === k ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-accent')}>{LEDGER[k].label}</button>

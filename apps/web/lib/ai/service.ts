@@ -231,6 +231,7 @@ export class AIService {
     const reply = parsedOrThrow(response, 'AI yanıtı tamamlanamadı.');
     const restored = masker.restore(reply) as z.infer<typeof AssistantReplyModelSchema>;
     return {
+      modelUsed: typeof response.model === 'string' ? response.model : undefined,
       answer: restored.answer,
       suggestions: restored.suggestions,
       // A draft that does not fit the stored order shape is dropped, not half-filled.
