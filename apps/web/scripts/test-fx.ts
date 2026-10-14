@@ -10,6 +10,7 @@ import postgres from 'postgres';
 import { localTestDatabaseURL } from './local-test-database';
 
 async function main() {
+  process.env.AUTH_SECRET = 'fx-integration-local-only-1234567890123456789';
   process.env.DATABASE_URL = localTestDatabaseURL();
   const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
   try {
@@ -57,7 +58,23 @@ async function main() {
     const [count] = await db`SELECT count(*)::int AS n FROM exchange_rates WHERE bulletin_date = '2026-10-13'`;
     assert.equal(count.n, published['13102026'].match(/<Currency /g)!.length);
 
-    console.log('PASS · TCMB: rate in force = previous bulletin, weekend → Friday, stored bulletins reused, per-unit JPY, TRY/unknown/no-bulletin → null, idempotent daily sync');
+    // Issuing a EUR invoice stores the rate in force on its date (13.10 bulletin for 14.10).
+    const inv = await import('../lib/features/finance/invoices.server');
+    const { randomUUID } = await import('node:crypto');
+    const tenantId = randomUUID();
+    const userId = randomUUID();
+    await db`INSERT INTO tenants (id, name, slug) VALUES (${tenantId}, 'Kur Test', ${'fx-' + tenantId.slice(0, 8)})`;
+    await db`INSERT INTO users (id, email, name) VALUES (${userId}, ${`acc-${userId}@test.local`}, 'Muhasebe')`;
+    await db`INSERT INTO tenant_members (tenant_id, user_id, role) VALUES (${tenantId}, ${userId}, 'accountant')`;
+    const [o] = await db`INSERT INTO orders (tenant_id, order_number, customer_name, status, total_amount, currency, product_name) VALUES (${tenantId}, 'FX-1', 'GmbH', 'approved', 1200, 'EUR', 'Pergola') RETURNING id`;
+    const [it] = await db`INSERT INTO order_items (order_id, product_name, quantity, unit_price, total_price) VALUES (${o.id}, 'Pergola', 1, 1000, 1000) RETURNING id`;
+    const acc = { tenantId, userId, role: 'accountant' as any };
+    const draft = await inv.createInvoiceDraft(acc, String(o.id), { lines: [{ orderItemId: it.id, quantity: 1 }] });
+    await inv.issueInvoice(acc, draft.id, { issuedOn: '2026-10-14' });
+    const [issued] = await db`SELECT exchange_rate::float AS r FROM invoices WHERE id = ${draft.id}`;
+    assert.equal(issued.r, 55.1128, 'EUR invoice takes the TCMB rate in force on its date');
+
+    console.log('PASS · TCMB: rate in force = previous bulletin, weekend → Friday, stored bulletins reused, per-unit JPY, TRY/unknown/no-bulletin → null, idempotent daily sync, EUR invoice stamped with its date’s rate');
   } finally {
     await db.end({ timeout: 5 });
   }

@@ -10,6 +10,7 @@ import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orde
 import { exemptionCode, UNIT_CODES, withholdingCode, type UnitCode } from '@/lib/features/einvoice/codes';
 import { cancelEBelge, eBelgeProvider, prepareEBelge, retryEInvoice, ublInput } from '@/lib/features/einvoice/document.server';
 import { buildUblInvoice } from '@/lib/features/einvoice/ubl';
+import { effectiveRate } from '@/lib/features/fx/rates.server';
 import {
   COLLECTION_METHODS, DEFAULT_VAT_PERCENT, draftProblems, dueDate, estimateProfit, headerDiscountRatio, invoiceTotals, invoiceableLines, lineTotals, money, roundTo,
 } from './engine';
@@ -274,6 +275,15 @@ export async function issueInvoice(actor: WorkOrderActor, id: string, raw: unkno
     }
     const dueOn = d.dueOn ?? dueDate(issuedOn, terms);
     if (dueOn < issuedOn) fail('Vade, fatura tarihinden önce olamaz');
+    // A foreign-currency invoice takes the TCMB forex buying rate in force on its date (unless one
+    // was entered): the ledger and the e-Belge both need it.
+    if (i.currency && i.currency !== 'TRY' && !i.exchange_rate && (await columnExists('invoices', 'exchange_rate'))) {
+      const fx = await effectiveRate(tx, i.currency, issuedOn).catch(() => null);
+      if (fx) {
+        await tx`UPDATE invoices SET exchange_rate = ${fx.rate} WHERE id = ${id}`;
+        i.exchange_rate = fx.rate;
+      }
+    }
     // With an e-Belge provider the number comes from the GİB series and the invoice is queued for
     // sending; without one it keeps the firm's internal FTR- numbering.
     const provider = await eBelgeProvider();
