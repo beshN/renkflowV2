@@ -222,24 +222,31 @@ export function FoyWorkbench() {
   const input = useRef<HTMLInputElement>(null);
   const patch = useCallback((key: string, p: Partial<Entry>) => setEntries((list) => list.map((e) => (e.key === key ? { ...e, ...p } : e))), []);
 
+  const readEntry = useCallback(async (entry: Entry) => {
+    patch(entry.key, { state: 'reading', error: undefined });
+    if (entry.file.size > MAX) {
+      patch(entry.key, { state: 'error', error: 'Dosya 3 MB’tan büyük' });
+      return;
+    }
+    try {
+      const base64 = await toBase64(entry.file);
+      const result = await post<Analysis>('/api/v1/orders/foy', { name: entry.file.name, mime: entry.mime, base64 });
+      const top = result.customers[0];
+      patch(entry.key, { state: 'ready', base64, result,
+        customerId: top && top.reason !== 'içeriyor' ? top.id : null,
+        customerName: top && top.reason !== 'içeriyor' ? top.name : result.doc.customer || result.doc.address || entry.file.name.replace(/\.[a-z]+$/i, '') });
+    } catch (err) {
+      patch(entry.key, { state: 'error', error: err instanceof Error ? err.message : 'Okunamadı' });
+    }
+  }, [patch]);
   const add = useCallback(async (files: FileList | File[]) => {
     const list = [...files].filter((f) => ACCEPT.includes(f.type));
     if (!list.length) return toast.error('PDF ya da fotoğraf seçin');
     const fresh: Entry[] = list.map((file) => ({ key: `${file.name}-${file.size}-${Math.random().toString(36).slice(2, 7)}`, file, mime: file.type, state: 'reading' }));
     setEntries((cur) => [...fresh, ...cur]);
     setSelected((s) => s ?? fresh[0].key);
-    for (const e of fresh) {
-      if (e.file.size > MAX) { patch(e.key, { state: 'error', error: 'Dosya 3 MB’tan büyük' }); continue; }
-      try {
-        const base64 = await toBase64(e.file);
-        const result = await post<Analysis>('/api/v1/orders/foy', { name: e.file.name, mime: e.mime, base64 });
-        const top = result.customers[0];
-        patch(e.key, { state: 'ready', base64, result, customerId: top && top.reason !== 'içeriyor' ? top.id : null, customerName: top && top.reason !== 'içeriyor' ? top.name : result.doc.customer || result.doc.address || e.file.name.replace(/\.[a-z]+$/i, '') });
-      } catch (err) {
-        patch(e.key, { state: 'error', error: err instanceof Error ? err.message : 'Okunamadı' });
-      }
-    }
-  }, [patch]);
+    for (const entry of fresh) await readEntry(entry);
+  }, [readEntry]);
 
   const current = entries.find((e) => e.key === selected) ?? null;
   const create = async () => {
@@ -304,7 +311,7 @@ export function FoyWorkbench() {
               {current?.result ? (
                 <Preview entry={current} creating={creating} onCreate={create} onCustomer={(id, name) => patch(current.key, { customerId: id, customerName: name })} />
               ) : current?.state === 'error' ? (
-                <EmptyState icon={X} title={current.error ?? 'Okunamadı'} />
+                <EmptyState icon={X} title={current.error ?? 'Okunamadı'} action={{ label: 'Tekrar oku', onClick: () => void readEntry(current) }} />
               ) : (
                 <div className="grid place-items-center py-16 text-muted-foreground"><Loader2 className="animate-spin motion-reduce:animate-none" /></div>
               )}

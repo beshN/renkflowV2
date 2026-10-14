@@ -1,4 +1,6 @@
 'use client';
+
+import { measurementSummary } from '@/lib/features/orders/measurement-summary';
 import { ProductDialog } from '@/components/features/product-3d/ProductDialog';
 import type { AwningConfiguration } from '@/lib/features/awning/configuration';
 import type { ProductVisualization } from '@/lib/features/product-3d/catalog';
@@ -360,9 +362,9 @@ export default function OrderDetailPage() {
                       const distinct = colors.filter((c, i) => colors.findIndex((x) => colorKey(x) === colorKey(c)) === i);
                       return distinct.length ? <span className="flex flex-wrap gap-x-3 gap-y-1">{distinct.map((c) => <ColorChip key={c} color={c} size={18} showName />)}</span> : null;
                     })()} />
-                    {(order.widthMm || order.heightMm) && (
+                    {measurementSummary(order) && (
                       <InfoRow icon={Maximize2} label="Ölçüler" value={
-                        `${order.widthMm || '?'} × ${order.heightMm || '?'} mm`
+                        measurementSummary(order)
                       } />
                     )}
                     <InfoRow icon={LayoutGrid} label="Motor Tipi" value={order.motorType} />
@@ -422,7 +424,7 @@ export default function OrderDetailPage() {
                               <div className="mt-0.5 flex flex-wrap gap-2 text-xs text-muted-foreground">
                                 {item.quantity && <span>{item.quantity} adet</span>}
                                 {item.color && <span className="inline-flex items-center gap-1">· <ColorChip color={item.color} size={16} /></span>}
-                                {(item.widthMm || item.heightMm) && <span>· {item.widthMm}×{item.heightMm} mm</span>}
+                                {measurementSummary(item) && <span>· {measurementSummary(item)}</span>}
                                 {(item.awningConfiguration || item.productVisualization) && <ProductDialog visualization={item.productVisualization} awningConfiguration={item.awningConfiguration} previewImage={item.awningPreview} readOnly label="3D görünüm"/>}
                               </div>
                               {item.notes && <p className="mt-1 text-xs text-muted-foreground">{item.notes}</p>}
