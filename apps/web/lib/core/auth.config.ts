@@ -8,6 +8,7 @@ import Credentials from 'next-auth/providers/credentials';
 import { clearLoginAttempts, consumeLoginAttempt, verifyPassword } from '@/lib/features/auth/login-guard';
 import { getClientIp } from '@/lib/security/rate-limit';
 import { recordAuditAfterCommit } from '@/lib/audit/audit-log';
+import { isMfaEnabled, verifyMfaCode } from '@/lib/features/auth/mfa.server';
 
 import { getSql } from '@/lib/db';
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_BY_KEY } from '@/lib/config/templates';
@@ -48,6 +49,20 @@ function createCredentialsError(code: string) {
   const error = new CredentialsSignin();
   error.code = code;
   return error;
+}
+
+/**
+ * Second step for accounts with two-step sign-in. Throws `otp_required` when no code came with the
+ * request (the login page then asks for it) and `otp_invalid` for a wrong or reused code.
+ */
+async function requireSecondFactor(sql: ReturnType<typeof getSql>, user: { id: string; tenant_id: string }, otp: unknown) {
+  if (!(await isMfaEnabled(sql, user.id))) return;
+  const code = typeof otp === 'string' ? otp.trim() : '';
+  if (!code) throw createCredentialsError('otp_required');
+  if (!(await verifyMfaCode(sql, { userId: user.id, tenantId: user.tenant_id, code }))) {
+    void recordAuditAfterCommit({ tenantId: user.tenant_id, actorId: user.id, entityType: 'user', entityId: user.id, action: 'login_failed', metadata: { method: 'otp' } });
+    throw createCredentialsError('otp_invalid');
+  }
 }
 
 function mapAuthErrorToCode(message: string) {
@@ -105,6 +120,7 @@ export const authConfig: NextAuthConfig = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
         ticket: { label: 'Ticket', type: 'text' },
+        otp: { label: 'Code', type: 'text' },
       },
       async authorize(credentials, request) {
         if (DEBUG) console.log('[AUTH] Starting authorize...');
@@ -165,6 +181,9 @@ export const authConfig: NextAuthConfig = {
             if (!user.tenant_id) {
               throw createCredentialsError('tenant_not_found');
             }
+
+            // Before the ticket is spent, so it still works when the page comes back with the code.
+            await requireSecondFactor(sql, user, credentials.otp);
 
             await sql`
               UPDATE users SET verification_token = NULL WHERE id = ${user.id}
@@ -250,6 +269,8 @@ export const authConfig: NextAuthConfig = {
             if (DEBUG) console.log('[AUTH] User has no tenant membership');
             throw createCredentialsError('tenant_not_found');
           }
+
+          await requireSecondFactor(sql, user, credentials.otp);
 
           await clearLoginAttempts(normalizedEmail);
           await recordAuditAfterCommit({ tenantId: user.tenant_id, actorId: user.id, entityType: 'user', entityId: user.id, action: 'login_succeeded', metadata: { method: 'password' } });

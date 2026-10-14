@@ -22,6 +22,9 @@ export default function LoginPage() {
   const callbackUrl = sanitizeCallback(searchParams.get('callbackUrl'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // Second step: shown once the password is accepted for an account with two-step sign-in.
+  const [otpStep, setOtpStep] = useState(false);
+  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [googleEnabled, setGoogleEnabled] = useState(false);
@@ -39,11 +42,15 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      const result = await signIn('credentials', { email: email.trim().toLowerCase(), password, redirect: false, callbackUrl });
+      const result = await signIn('credentials', { email: email.trim().toLowerCase(), password, ...(otpStep ? { otp } : {}), redirect: false, callbackUrl });
       if (!result || result.error) {
+        if (result?.code === 'otp_required') { setOtpStep(true); return; }
         setError(result?.code === 'rate_limited'
           ? 'Çok fazla giriş denemesi yapıldı. Lütfen birkaç dakika bekleyip tekrar deneyin.'
-          : 'E-posta veya şifre doğrulanamadı. Bilgilerinizi kontrol edip tekrar deneyin.');
+          : result?.code === 'otp_invalid'
+            ? 'Kod doğrulanamadı. Uygulamadaki güncel kodu ya da kullanılmamış bir kurtarma kodunu girin.'
+            : 'E-posta veya şifre doğrulanamadı. Bilgilerinizi kontrol edip tekrar deneyin.');
+        if (result?.code === 'otp_invalid') setOtp('');
         return;
       }
       router.push(callbackUrl);
@@ -64,8 +71,11 @@ export default function LoginPage() {
       footer={<>Yeni bir hesap mı gerekiyor? <Link href="/signup" className="font-medium text-primary hover:underline">Hesap oluşturun</Link></>}
     >
       <form method="post" onSubmit={handleSubmit} className="space-y-5" aria-busy={!ready || loading}>
-        <Input type="email" name="email" autoComplete="username" label="E-posta adresi" placeholder="ad@sirket.com" value={email} onChange={e => setEmail(e.target.value)} required disabled={!ready || loading} />
-        <div className="space-y-3">
+        <Input type="email" name="email" autoComplete="username" label="E-posta adresi" placeholder="ad@sirket.com" value={email} onChange={e => setEmail(e.target.value)} required disabled={!ready || loading} readOnly={otpStep} />
+        {otpStep && (
+          <Input type="text" name="otp" inputMode="numeric" autoComplete="one-time-code" autoFocus label="Doğrulama kodu" hint="Doğrulama uygulamanızdaki 6 haneli kod ya da bir kurtarma kodu." value={otp} onChange={e => setOtp(e.target.value)} required minLength={6} maxLength={20} disabled={loading} />
+        )}
+        <div className={otpStep ? 'hidden' : 'space-y-3'}>
           <Input type="password" name="password" autoComplete="current-password" label="Şifre" value={password} onChange={e => setPassword(e.target.value)} required disabled={!ready || loading} />
           <div className="flex justify-end"><Link href="/auth/forgot-password" className="text-xs font-medium text-primary hover:underline">Şifremi unuttum</Link></div>
         </div>
