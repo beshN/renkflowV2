@@ -160,6 +160,7 @@ export const BACKEND_MIGRATIONS = [
   '053_e_belge_core.sql',
   '054_e_belge_addresses.sql',
   '055_exchange_rates.sql',
+  '056_ledger_posting.sql',
   '060_e_invoice_document_snapshot.sql',
 ];
 
