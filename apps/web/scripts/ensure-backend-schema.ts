@@ -181,6 +181,7 @@ export const BACKEND_MIGRATIONS = [
   '073_vertical_recipe_geometry.sql',
   '074_revision_material_decisions.sql',
   '075_company_research.sql',
+  '076_e_invoice_document_snapshot.sql',
 ];
 
 /** Mobile API tables (sessions, offline receipts, uploads, push devices); applied after 045 (installations). */
