@@ -101,9 +101,9 @@ export function FoyCutPlan({ doc }: { doc: FoyDoc }) {
         </div>
       ))}
 
-      {result?.problems.filter((p) => !p.ironPage).map((p) => (
-        <p key={p.label} className="text-xs text-muted-foreground"><b>{p.label}</b>: {p.reason}.</p>
-      ))}
+      {result && result.problems.some((p) => !p.ironPage) && (
+        <p className="text-xs text-muted-foreground">Plana girmeyenler: {result.problems.filter((p) => !p.ironPage).map((p) => `${p.label} (${p.reason.toLocaleLowerCase('tr-TR')})`).join(' · ')}.</p>
+      )}
 
       {result?.plan.groups.map((g) => (
         <div key={`${g.itemId}-${g.color}`} className="overflow-hidden rounded-md border border-border">
