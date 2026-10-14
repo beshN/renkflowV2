@@ -2,6 +2,7 @@
 import { RecordPanel } from '@/components/records/RecordDrawer';
 import { CustomerPriceRules } from '@/components/sales/CustomerPriceRules';
 import { CustomerBillingDetails } from '@/components/sales/CustomerBillingDetails';
+import { CustomerPrivacyActions } from '@/components/sales/CustomerPrivacyActions';
 import { CustomerMemoryCard } from '@/components/features/ai/CustomerMemoryCard';
 import { useAuth } from '@/lib/context/AuthContext';
 
@@ -70,6 +71,7 @@ export default function CustomerDetailPage() {
           >
             <div className="space-y-6">
               <CustomerMemoryCard customerId={customerId} />
+              {['owner', 'admin'].includes(user?.role ?? '') && <CustomerPrivacyActions customerId={customerId} customerName={customer.full_name} anonymized={Boolean(customer.anonymized_at)} onErased={loadCustomer} />}
               <CustomerBillingDetails key={customer.updated_at} customerId={customerId} customer={customer} canEdit={['owner', 'admin', 'office'].includes(user?.role ?? '')} onSaved={loadCustomer} />
               <CustomerPriceRules customerId={customerId} canEdit={['owner', 'admin', 'office'].includes(user?.role ?? '')} />
               {/* Info Cards */}
