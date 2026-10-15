@@ -7,6 +7,7 @@ import { configurationSummary, type ProductConfiguration } from '@/lib/features/
 import { ProductDrawing } from '@/components/drawing/ProductDrawing';
 import styles from './QuotationDocument.module.css';
 import { visualColorName } from '@/lib/features/product-3d/inline';
+import { StandardTerms } from './StandardTerms';
 
 const date = (value: string | Date) => new Date(typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value).toLocaleDateString('tr-TR');
 
@@ -64,5 +65,6 @@ export function QuotationDocument({ quote: q, firmName, logoUrl }: { quote: Quot
     </div>
     {q.customerDecidedAt && q.status === 'accepted' && <p className={styles.note}>Müşteri onayı: {q.customerDecisionName} · {date(q.customerDecidedAt)}</p>}
     {q.items.some(i => i.productVisualization || i.awningConfiguration) && <p className={styles.footnote}>Ürün görselleri temsili olup uygulama çizimi yerine geçmez.</p>}
+    <StandardTerms firmName={name} />
   </div>;
 }

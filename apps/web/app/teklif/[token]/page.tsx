@@ -6,6 +6,8 @@ import { ColorChip } from "@/components/colors/ColorSwatch";
 import { Skeleton, StatusChip } from "@/components/kit";
 import { formatCurrency } from "@/lib/utils";
 import Image from 'next/image';
+import { StandardTerms } from '@/components/sales/StandardTerms';
+import { standardTermsFor } from '@/lib/features/sales/standard-terms';
 import { ProductDialog } from '@/components/features/product-3d/ProductDialog';
 import type { ProductVisualization } from '@/lib/features/product-3d/catalog';
 import type { AwningConfiguration } from '@/lib/features/awning/configuration';
@@ -108,6 +110,13 @@ export default function QuoteApproval({ params }: { params: Promise<{ token: str
           {quote.notes && <div><h2 className="mb-2 font-semibold">Teklif açıklaması</h2><p className="whitespace-pre-line">{quote.notes}</p></div>}
           {quote.terms && <div className={quote.notes ? "border-t border-border pt-4" : undefined}><h2 className="mb-2 font-semibold">Ödeme, teslimat ve montaj koşulları</h2><p className="whitespace-pre-line text-muted-foreground">{quote.terms}</p></div>}
         </section>
+      )}
+
+      {standardTermsFor(quote.firm) && (
+        <details className="rf-panel text-sm">
+          <summary className="cursor-pointer font-semibold">Satış, iptal ve iade koşulları</summary>
+          <div className="mt-4"><StandardTerms firmName={quote.firm} variant="plain" /></div>
+        </details>
       )}
 
       {done ? (
