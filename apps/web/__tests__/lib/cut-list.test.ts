@@ -33,6 +33,56 @@ const placed = (plan: ReturnType<typeof planCutList>) => {
   return out;
 };
 
+describe('paint and mixed length planning', () => {
+  const row = (lengthMm: number, quantity = 1, color = COLOR) => ({ ...foyCutRows(sheet()).rows[1], id: `r-${lengthMm}-${color}`, lengthMm, quantity, color });
+  const run = (rows: ReturnType<typeof row>[], lots: StockLot[], extra = {}) => planCutList({ rows, items, lots, parameters: CUTTING_DEFAULTS, ...extra });
+
+  it('uses matching paint first and raw stock only for the shortfall', () => {
+    const p = run([row(3795, 3)], [bar('paint', 'led', 6000, COLOR), bar('raw', 'led', 8000, 'Boyasız')]);
+    expect(p.summary.toBuy).toBe(0);
+    expect(p.summary.toPaint).toBe(1);
+    expect(p.groups[0].bars.find((b) => b.lotId === 'paint')?.paintTo).toBeNull();
+    expect(p.groups[0].bars.find((b) => b.lotId === 'raw')?.paintTo).toBe(COLOR);
+  });
+  it('compares different physical stock lengths and accounts for saw loss', () => {
+    const p = run([row(3900), row(2800, 2)], [bar('four', 'led', 4000, 'Boyasız'), bar('six', 'led', 6000, 'Boyasız'), bar('long', 'led', 11000, 'Boyasız')]);
+    expect(p.summary.toBuy).toBe(0);
+    expect(p.groups[0].bars.reduce((s, b) => s + b.sourceLengthMm, 0)).toBe(10000);
+    for (const b of p.groups[0].bars) expect(b.usedMm + b.leftoverMm).toBeCloseTo(b.sourceLengthMm, 3);
+  });
+  it('does not treat unknown colour, another paint or anodising as raw', () => {
+    for (const color of ['', 'RAL 9005 Mat', 'Eloksal natürel']) {
+      const p = run([row(3795)], [bar('other', 'led', 6000, color)]);
+      expect(p.summary.toPaint).toBe(0);
+      expect(p.summary.toBuy).toBe(1);
+    }
+  });
+  it('never allocates one raw bar to two colours', () => {
+    const p = run([row(3795), row(3795, 1, 'RAL 9005 Mat')], [bar('one', 'led', 6000, 'Boyasız')]);
+    expect(p.summary.toPaint).toBe(1);
+    expect(p.summary.toBuy).toBe(1);
+    expect(p.groups.flatMap((g) => g.bars).map((b) => b.lotId)).toEqual(['one']);
+  });
+  it('shares painted/raw cards of the same section but never substitutes drilled stock', () => {
+    const cards: StockItem[] = [
+      { ...items[2], profileCode: '108', sizeLabel: '40x60', processedStates: ['boyali'] },
+      { ...items[2], id: 'raw', name: '108 40x60 Boyasız', profileCode: '108', sizeLabel: '40x60', processedStates: ['boyasiz'] },
+      { ...items[2], id: 'drilled', profileCode: '108', sizeLabel: '40x60', processedStates: ['boyasiz', 'delikli'] },
+    ];
+    const p = run([row(3795, 2)], [bar('raw', 'raw', 8000, 'Boyasız'), bar('wrong', 'drilled', 4000, 'Boyasız')], { items: cards, choices: { [row(3795).id]: 'led' } });
+    expect(p.summary.toBuy).toBe(0);
+    expect(p.groups[0].bars.map((b) => b.lotId)).toEqual(['raw']);
+    expect(p.groups[0].bars[0].sourceItemName).toBe('108 40x60 Boyasız');
+  });
+  it('buys only the residual demand on configured supplier lengths', () => {
+    const p = run([row(3795, 3)], [bar('raw', 'led', 8000, 'Boyasız')], { purchaseLengthsMm: [4000, 6000, 8000] });
+    expect(p.summary.toPaint).toBe(1);
+    expect(p.summary.toBuy).toBe(1);
+    expect(p.groups[0].missing).toEqual([{ lengthMm: 3795, count: 1 }]);
+    expect(p.groups[0].buy).toEqual({ bars: 1, lengthMm: 4000 });
+  });
+});
+
 describe('cut rows of a sheet', () => {
   it('lists every cuttable piece in mm, painted parts in the order colour, steel unpainted', () => {
     const { rows, color } = foyCutRows(sheet());
