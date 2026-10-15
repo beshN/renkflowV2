@@ -657,18 +657,18 @@ export default function QuotationPage({
               </button>
             </>
           )}
-          {["draft", "sent", "accepted"].includes(quotation?.status || "") && (
+          {quotation?.status === "accepted" && (
             <button
               disabled={busy}
               className="rf-primary-button"
               onClick={() => action("convert")}
             >
-              Siparişe dönüştür
+              Sipariş dosyasını aç
             </button>
           )}
-          {quotation?.convertedToOrderId && (
+          {(quotation?.orderFileId || quotation?.convertedToOrderId) && (
             <Link
-              href={`/orders/${quotation.convertedToOrderId}`}
+              href={`/orders/${quotation.orderFileId || quotation.convertedToOrderId}`}
               className="text-sm text-primary"
             >
               Siparişi aç →

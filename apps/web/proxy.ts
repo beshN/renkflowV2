@@ -99,7 +99,7 @@ async function accessGate(request: NextRequest, token: Awaited<ReturnType<typeof
   await logAccessDenied({ tenantId, userId, path: pathname, method, module: decision.need?.module ?? null, action: decision.need?.action ?? null, reason: decision.reason });
   if (api || method !== 'GET') return withProxySecurityHeaders(NextResponse.json({ error: 'Bu işlem için yetkiniz yok.' }, { status: 403 }), { isSecureRequest });
   const dashboardUrl = request.nextUrl.clone();
-  dashboardUrl.pathname = '/dashboard';
+  dashboardUrl.pathname = decision.reason==='worker_scope'?'/production/worker':'/dashboard';
   dashboardUrl.search = '';
   return withProxySecurityHeaders(NextResponse.redirect(dashboardUrl, 302), { isSecureRequest });
 }

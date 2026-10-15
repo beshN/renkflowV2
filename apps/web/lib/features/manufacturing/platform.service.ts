@@ -1,3 +1,6 @@
+import {partGroups,syncDailyStages} from './daily-progress.server';
+import { allocatePhysicalCuts, type StockItem, type StockLot } from './cut-list';
+import { physicalBars } from './cut-stock';
 import { WarehouseInputSchema } from '../warehouse/setup';
 import "server-only";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
@@ -31,9 +34,11 @@ import {
   transitionOperation,
 } from "./platform-contract";
 import { postStockEntryInTransaction } from "./inventory.service";
+import {requireCap} from '../field/common.server';
 import { AwningConfigurationSchema } from "../awning/configuration";
-import { columnExists } from "@/lib/db/schema-guard";
+import { columnExists, tableExists } from "@/lib/db/schema-guard";
 import { noteOrderDates } from "@/lib/features/sales/order-status.server";
+import { requireCommercialApproval } from "@/lib/features/orders/quote-file.server";
 import { PRODUCTION_LEAD_ROLES, productionLead } from "../settings/production-settings.service";
 import type { ProductConfiguration } from "../products/configuration";
 import { bomRecalcBlocker } from "../production/engine";
@@ -73,6 +78,7 @@ async function hasStandardLengthColumn(db: any) {
 }
 export function recipe(row: any) {
   return RecipeSchema.parse({
+    ...(row.geometry==='vertical'?{geometry:'vertical'}:{}),...(row.verification_source?{verificationSource:row.verification_source}:{}),
     code: row.code,
     name: row.name,
     version: row.version,
@@ -245,6 +251,8 @@ export async function productionCommand(a: WorkOrderActor, raw: unknown) {
       data: z.record(z.string(), z.unknown()),
     })
     .parse(raw);
+  if(a.role==='worker' && !command.action.startsWith('warehouse.') && !['operation','cut.complete','shipment.create','shipment.delivered'].includes(command.action)) fail('Bu işlem Usta ekranında kullanılamaz',403);
+  if(['operation','cut.complete','shipment.create','shipment.delivered'].includes(command.action))await requireCap(a,'production','edit','Günlük üretim kaydı');
   const hash = createHash("sha256").update(js(command)).digest("hex");
   return sql.begin(async (tx: any) => {
     // One pilot tenant's stock and operation commands are serialized, including first insertion.
@@ -349,7 +357,7 @@ async function execute(
     return { ok: true };
   }
 
-  office(a);
+  if(a.role!=="worker" || !["cut.complete","shipment.create","shipment.delivered"].includes(action)) office(a);
   if (action === "material.save") {
     manager(a);
     const d = z
@@ -600,7 +608,7 @@ async function execute(
       fail("Yayınlanmış reçete değişmez; yeni sürüm oluşturun");
     if(existing && existing.edit_revision !== (d.editRevision || 1))fail("Reçete başka cihazda değişti; güncel sürümü açın");
     const [row] =
-      await tx`INSERT INTO production_recipes(tenant_id,code,name,version,finished_item_id,rules,operations,limits,examples,parameter_definitions,constraints,created_by)VALUES(${t},${d.code},${d.name},${d.version},${d.finishedItemId},${js(d.rules)}::text::jsonb,${js(d.operations)}::text::jsonb,${js(d.limits)}::text::jsonb,${js(d.examples)}::text::jsonb,${js(d.parameterDefinitions || [])}::text::jsonb,${js(d.constraints || [])}::text::jsonb,${a.userId})ON CONFLICT(tenant_id,code,version)DO UPDATE SET name=EXCLUDED.name,finished_item_id=EXCLUDED.finished_item_id,rules=EXCLUDED.rules,operations=EXCLUDED.operations,limits=EXCLUDED.limits,examples=EXCLUDED.examples,parameter_definitions=EXCLUDED.parameter_definitions,constraints=EXCLUDED.constraints,edit_revision=production_recipes.edit_revision+1 RETURNING *`;
+      await tx`INSERT INTO production_recipes(tenant_id,code,name,version,finished_item_id,rules,operations,limits,examples,parameter_definitions,constraints,geometry,verification_source,created_by)VALUES(${t},${d.code},${d.name},${d.version},${d.finishedItemId},${js(d.rules)}::text::jsonb,${js(d.operations)}::text::jsonb,${js(d.limits)}::text::jsonb,${js(d.examples)}::text::jsonb,${js(d.parameterDefinitions || [])}::text::jsonb,${js(d.constraints || [])}::text::jsonb,${d.geometry||existing?.geometry||'roof'},${d.verificationSource||existing?.verification_source||null},${a.userId})ON CONFLICT(tenant_id,code,version)DO UPDATE SET name=EXCLUDED.name,finished_item_id=EXCLUDED.finished_item_id,rules=EXCLUDED.rules,operations=EXCLUDED.operations,limits=EXCLUDED.limits,examples=EXCLUDED.examples,parameter_definitions=EXCLUDED.parameter_definitions,constraints=EXCLUDED.constraints,geometry=EXCLUDED.geometry,verification_source=EXCLUDED.verification_source,edit_revision=production_recipes.edit_revision+1 RETURNING *`;
     return row;
   }
   if (action === "recipe.publish") {
@@ -608,6 +616,7 @@ async function execute(
     const [row] =
       await tx`SELECT * FROM production_recipes WHERE tenant_id=${t} AND id=${uuid.parse(data.id)}`;
     if (!row) fail("Reçete bulunamadı", 404);
+    if(row.geometry==='vertical'&&!row.verification_source)fail('Dikey ürün reçetesinin doğrulanmış teknik kaynağını belirtin',400);
     if(row.edit_revision !== (data.editRevision || 1))fail("Reçete değişti; örnekleri yeniden kontrol edin");
     if(row.status !== "draft")fail("Yalnız taslak reçete yayınlanabilir");
     validateRecipeExamples(recipe(row));
@@ -658,7 +667,7 @@ async function execute(
     await tx`UPDATE customer_tracking_links SET revoked_at=now()WHERE tenant_id=${t} AND id=${uuid.parse(data.id)}`;
     return { ok: true };
   }
-  if (action === "shipment.create") return ship(tx, a, data, key);
+  if (action === "shipment.create") return shipProducedQuantity(tx, a, data, key);
   if (action === "shipment.delivered") {
     const d = z
       .object({ id: uuid, version: z.number().int().positive() })
@@ -671,6 +680,7 @@ async function execute(
       shipment.status === "delivered"
     )
       fail("Sevkiyat değişti veya teslim edilmiş");
+    if(a.role==='worker' && !(await tx`SELECT id FROM work_orders WHERE tenant_id=${t} AND id=${shipment.work_order_id} AND assigned_to=${a.userId}`).length)fail('Bu yükleme size ait değil',403);
     await tx`UPDATE production_shipments SET status='delivered',version=version+1,delivered_at=now()WHERE tenant_id=${t} AND id=${shipment.id}`;
     if (shipment.erp_shipment_id)
       await tx`UPDATE shipments SET status='delivered',actual_date=CURRENT_DATE,updated_at=now()WHERE tenant_id=${t} AND id=${shipment.erp_shipment_id}`;
@@ -737,6 +747,11 @@ async function createJob(
   const [r] =
     await tx`SELECT * FROM production_recipes WHERE tenant_id=${t} AND id=${d.recipeId} AND status='published'`;
   if (!item || !r) fail("Onaylı reçete veya sipariş kalemi bulunamadı", 404);
+  await requireCommercialApproval(tx, t, item.oid);
+  if(await columnExists('orders','quotation_id')) {
+    const [file]=await tx`SELECT to_jsonb(orders)->>'technical_file_required' AS required FROM orders WHERE tenant_id=${t} AND id=${item.oid}`;
+    if(file?.required==='true' && !(await tx`SELECT id FROM order_technical_revisions WHERE tenant_id=${t} AND order_id=${item.oid} AND status='approved'`).length) fail('Önce siparişin teknik planını onaylayın');
+  }
   // A line configured in the quote is built with the recipe, measures, options and colour it was quoted with.
   const pc = item.product_configuration as ProductConfiguration | null | undefined;
   if (pc && pc.recipeId !== r.id) fail(`Bu kalem teklifte "${pc.recipe.code}" reçetesinin ${pc.recipe.version}. sürümüyle yapılandırıldı; aynı reçeteyi seçin`, 400);
@@ -813,13 +828,13 @@ async function createJob(
  * has left the team is not replaced by a guess. Otherwise nothing is guessed and the line is
  * reported as waiting, with the reason, for the work order to be opened in the production screen.
  */
-export async function createJobsForConfiguredOrder(tx: any, a: WorkOrderActor, orderId: string) {
+export async function createJobsForConfiguredOrder(tx: any, a: WorkOrderActor, orderId: string, technicalRevisionId?:string) {
   const created: Array<{ id: string; orderItemId: string; title: string; assignedTo: string; assigneeRole: string; color: string | null }> = [];
   const pending: Array<{ orderItemId: string; productName: string; reason: string }> = [];
   if (!(await columnExists("order_items", "product_configuration"))) return { created, pending };
   const t = a.tenantId;
   const lines = await tx`SELECT oi.id, oi.product_name, oi.product_configuration FROM order_items oi JOIN orders o ON o.id = oi.order_id
-    WHERE o.tenant_id = ${t} AND o.id = ${orderId} AND oi.product_configuration IS NOT NULL ORDER BY oi.created_at, oi.id`;
+    WHERE o.tenant_id = ${t} AND o.id = ${orderId} AND jsonb_typeof(oi.product_configuration)='object' ORDER BY oi.created_at, oi.id`;
   if (!lines.length) return { created, pending };
   const waitAll = (reason: string) => {
     for (const l of lines) pending.push({ orderItemId: l.id, productName: l.product_name, reason });
@@ -844,7 +859,7 @@ export async function createJobsForConfiguredOrder(tx: any, a: WorkOrderActor, o
     const pc = l.product_configuration as ProductConfiguration;
     try {
       const job = await tx.savepoint((sp: any) =>
-        createJob(sp, a, { orderItemId: l.id, recipeId: pc.recipeId, sourceWarehouseId: source, wipWarehouseId: wip, targetWarehouseId: target, assignedTo: assignee }, `quote-order:${l.id}`),
+        createJob(sp, a, { orderItemId: l.id, recipeId: pc.recipeId, sourceWarehouseId: source, wipWarehouseId: wip, targetWarehouseId: target, assignedTo: assignee }, technicalRevisionId?`technical-order:${technicalRevisionId}:${l.id}`:`quote-order:${l.id}`),
       );
       created.push({ id: job.id, orderItemId: l.id, title: job.title, assignedTo: assignee, assigneeRole: member.role, color: typeof job.configuration?.bodyName === "string" && job.configuration.bodyName ? canonicalColor(job.configuration.bodyName) : null });
     } catch (error) {
@@ -911,21 +926,27 @@ async function computeCut(
         })),
       );
   if (!demand.length) fail("Bu havuzda profil kesim ihtiyacı yok");
-  const lots =
-    await tx`SELECT l.*,w.warehouse_type FROM stock_lots l JOIN warehouses w ON w.id=l.warehouse_id AND w.tenant_id=l.tenant_id WHERE l.tenant_id=${a.tenantId} AND l.status='available' AND l.remaining_qty>0 AND w.warehouse_type IN('RAW','REUSABLE_REMNANTS') ORDER BY l.id`;
-  const result = optimizeCuts(
-    demand,
-    lots.map((l: any) => ({
-      id: l.id,
-      itemId: l.item_id,
-      color: l.metadata.color || "",
-      lengthMm: num(l.remaining_qty) * 1000,
-      unitCost: num(l.metadata.unitCost),
-      currency:l.metadata.currency || null,
-      isRemnant: l.metadata.isRemnant === true,
-    })),
-    parameters,
-  );
+  for (const job of jobs) await requireCommercialApproval(tx,a.tenantId,job.order_id);
+  const itemRows = await tx`SELECT * FROM inventory_items WHERE tenant_id=${a.tenantId} AND active=true`;
+  const items:StockItem[]=itemRows.map((i:any)=>({id:i.id,name:i.name,sku:i.sku,profileCode:i.profile_code,sizeLabel:i.size_label,processedStates:i.processed_states||[],standardLengthMm:num(i.standard_length_m)*1000}));
+  const relevantIds=new Set(demand.map(d=>d.itemId));
+  const relevantProfiles=new Set(items.filter(i=>relevantIds.has(i.id)).map(i=>i.profileCode));
+  const lots = await tx`SELECT l.*,w.warehouse_type FROM stock_lots l JOIN warehouses w ON w.id=l.warehouse_id AND w.tenant_id=l.tenant_id WHERE l.tenant_id=${a.tenantId} AND w.active=true AND l.status='available' AND l.remaining_qty>0 AND w.warehouse_type IN('RAW','REUSABLE_REMNANTS')
+    AND NOT EXISTS(SELECT 1 FROM stock_reservation_lines rl JOIN stock_reservations rh ON rh.id=rl.reservation_id AND rh.tenant_id=rl.tenant_id WHERE rl.tenant_id=l.tenant_id AND rl.lot_id=l.id AND rh.status='active' AND rl.reserved_qty>rl.consumed_qty+rl.released_qty) ORDER BY l.id`;
+  const stockProblems:Array<{itemId:string;lotNumber:string;reason:string}>=[];
+  const sources:StockLot[]=lots.flatMap((l:any)=>{
+    const i=itemRows.find((i:any)=>i.id===l.item_id);
+    if(!i || (!relevantIds.has(i.id) && (!i.profile_code||!relevantProfiles.has(i.profile_code))))return [];
+    const decoded=physicalBars({id:l.id,itemId:l.item_id,lotNumber:l.lot_number,quantity:num(l.remaining_qty),uom:i.stock_uom,lengthM:l.length_m,pieceLengthMm:i.piece_length_mm,color:l.metadata?.color||(i.processed_states?.includes('boyasiz')?'Boyasız':''),kind:l.metadata?.isRemnant||l.warehouse_type==='REUSABLE_REMNANTS'?'remnant':'new',unitCost:num(l.metadata?.unitCost)});
+    if(decoded.problem) stockProblems.push({itemId:i.id,lotNumber:l.lot_number,reason:decoded.problem});
+    return decoded.bars;
+  });
+  const allocation=allocatePhysicalCuts(demand,items,sources,parameters);
+  const packed=allocation.result || optimizeCuts([],[],parameters);
+  const inputMm=allocation.allBars.reduce((n,b)=>n+b.source.lengthMm,0),wasteMm=allocation.allBars.reduce((n,b)=>n+b.lossMm,0);
+  const result={...packed,bars:allocation.allBars,unfulfilled:allocation.unfulfilled,stockProblems,
+    newBars:allocation.allBars.filter(b=>!b.source.isRemnant).length,newMaterialMm:allocation.allBars.filter(b=>!b.source.isRemnant).reduce((n,b)=>n+b.source.lengthMm,0),inputMm,wasteMm,reusableMm:allocation.allBars.reduce((n,b)=>n+(b.reusable?b.remainingMm:0),0),
+    wastePercent:stockProblems.length||allocation.unfulfilled.length||!allocation.allBars.length?null:wasteMm/inputMm*100};
   // Bars to buy for what stock cannot cover, on each profile's own standard length.
   const missingItems = [...new Set(result.unfulfilled.map((p) => p.itemId))];
   const standard = new Map<string, number>(
@@ -945,7 +966,7 @@ async function computeCut(
     ...planPurchase(result.unfulfilled, (itemId) => barChoice.get(itemId)?.lengthMm || standard.get(itemId) || parameters.standardLengthMm, parameters),
     barChoice: Object.fromEntries(barChoice),
   };
-  return { ids, reworkIds, demand, parameters, result: { ...result, parameterSource: firm.source, purchase } };
+  return { ids, reworkIds, demand, parameters, result: { ...result, parameterSource: firm.source, purchase:stockProblems.length?{lines:[],tooLong:[],barChoice:{},uncertain:true}:purchase } };
 }
 async function previewCut(
   tx: any,
@@ -1013,12 +1034,14 @@ async function cutAction(
   data: Record<string, unknown>,
   key: string,
 ) {
-  manager(a);
+  if(action !== "cut.complete") manager(a);
+  else if(!["owner","admin","office","worker"].includes(a.role)) fail("Kesim kaydı yetkiniz yok",403);
   const d = z
       .object({
         id: uuid,
         version: z.number().int().positive(),
         confirmed: z.boolean().optional(),
+        sourceLotIds:z.array(uuid).min(1).max(20000).optional(),
         // Approving a plan made with default or unconfirmed values must be said explicitly.
         acceptEstimate: z.boolean().optional(),
         actualBars: z
@@ -1037,8 +1060,16 @@ async function cutAction(
   if (!plan) fail("Kesim planı bulunamadı", 404);
   if (plan.version !== d.version) fail("Plan değişti; güncel kaydı açın");
   const reworkPlan = plan.rework_ids.length > 0;
+  const planJobs=await tx`SELECT id,assigned_to,order_id,technical_revision_id FROM work_orders WHERE tenant_id=${t} AND id=ANY(${plan.work_order_ids}::uuid[])`;
+  if(a.role==='worker' && planJobs.some((j:any)=>j.assigned_to!==a.userId)) fail('Kesim size atanmadı',403);
+  for(const j of planJobs) {
+    await requireCommercialApproval(tx,t,j.order_id);
+    if(j.technical_revision_id && (await tx`SELECT status FROM order_technical_revisions WHERE tenant_id=${t} AND id=${j.technical_revision_id}`)[0]?.status!=='approved')fail('Teknik plan güncel değil; yeni planı açın');
+  }
+
   if (action === "cut.cancel") {
-    if (plan.status === "completed")
+    if(!['draft','approved'].includes(plan.status))fail('Bu kesim planı artık değiştirilemez');
+    if (plan.status === "completed"||(await tx`SELECT lot_id FROM cutting_plan_sources WHERE tenant_id=${t} AND plan_id=${plan.id} AND consumed=true LIMIT 1`).length)
       fail(
         "Gerçekleşmiş kesim iptal edilemez; ters stok kaydı ve yeni plan gerekir",
       );
@@ -1052,7 +1083,7 @@ async function cutAction(
     )[0];
   }
   if (action === "cut.approve") {
-    if (plan.status !== "draft" || plan.result.unfulfilled.length)
+    if (plan.status !== "draft" || plan.result.unfulfilled.length || plan.result.stockProblems?.length)
       fail("Eksik profil olan plan onaylanamaz");
     if (cuttingEstimateNotice(plan.result.parameterSource) && !d.acceptEstimate)
       fail("Bu plan doğrulanmamış kesim değerleriyle hesaplandı; tahmini olduğunu kabul ederek onaylayın", 400);
@@ -1079,6 +1110,7 @@ async function cutAction(
       if (
         !lot ||
         lot.status !== "available" ||
+        !uuid.safeParse(bar.source.id).success ||
         Math.abs(num(lot.remaining_qty) * 1000 - bar.source.lengthMm) > 0.001
       )
         fail("Profil stoku değişti; planı yeniden hesaplayın");
@@ -1109,13 +1141,21 @@ async function cutAction(
     await tx`SELECT * FROM work_orders WHERE tenant_id=${t} AND id=ANY(${plan.work_order_ids}::uuid[]) FOR UPDATE`;
   const lines: any[] = [];
   const actual: any[] = [];
+  const consumed=await tx`SELECT lot_id FROM cutting_plan_sources WHERE tenant_id=${t} AND plan_id=${plan.id} AND consumed=true`;
+  const consumedIds=new Set(consumed.map((r:any)=>r.lot_id));
+  const remainingBars=plan.result.bars.filter((b:any)=>!consumedIds.has(b.source.id));
+  const selected=d.sourceLotIds?new Set(d.sourceLotIds):new Set(remainingBars.map((b:any)=>b.source.id));
+  if(selected.size!==d.sourceLotIds?.length && d.sourceLotIds)fail('Çubuklar yinelenemez',400);
+  if(!selected.size || [...selected].some(id=>!remainingBars.some((b:any)=>b.source.id===id)))fail('Yalnız kesilmeyi bekleyen çubuklar seçilebilir',409);
+  const selectedBars=remainingBars.filter((b:any)=>selected.has(b.source.id));
+  const allCompleted=selectedBars.length===remainingBars.length;
   if (
     d.actualBars &&
-    (d.actualBars.length !== plan.result.bars.length ||
+    (d.actualBars.length !== selectedBars.length || d.actualBars.some(b=>!selected.has(b.lotId)) ||
       new Set(d.actualBars.map((b) => b.lotId)).size !== d.actualBars.length)
   )
     fail("Her kaynak profilin kalan ölçüsünü girin", 400);
-  for (const planned of plan.result.bars) {
+  for (const planned of selectedBars) {
     const measured =
       d.actualBars?.find((b) => b.lotId === planned.source.id)?.remainingMm ??
       planned.remainingMm;
@@ -1163,12 +1203,19 @@ async function cutAction(
         uom: "m",
         metadata: { planId: plan.id, workOrderId: jobId },
       });
-      await tx`UPDATE work_order_materials SET transferred_qty=transferred_qty+${length},reserved_qty=reserved_qty+${length} WHERE tenant_id=${t} AND work_order_id=${jobId} AND item_id=${lot.item_id}`;
+      await tx`UPDATE work_order_materials SET transferred_qty=transferred_qty+${length},reserved_qty=reserved_qty+${length} WHERE tenant_id=${t} AND work_order_id=${jobId} AND item_id=${bar.source.itemId}`;
+    }
+    if(lot.item_id !== bar.source.itemId) for(const [jobId,length] of allocated) {
+      await tx`DELETE FROM work_order_materials WHERE tenant_id=${t} AND work_order_id=${jobId} AND item_id=${bar.source.itemId} AND required_qty<=${length}+0.000001 AND consumed_qty=0`;
+      await tx`UPDATE work_order_materials SET required_qty=required_qty-${length},transferred_qty=GREATEST(0,transferred_qty-${length}),reserved_qty=GREATEST(0,reserved_qty-${length}) WHERE tenant_id=${t} AND work_order_id=${jobId} AND item_id=${bar.source.itemId}`;
+      const job=jobs.find((j:any)=>j.id===jobId);
+      await tx`INSERT INTO work_order_materials(tenant_id,work_order_id,item_id,source_warehouse_id,required_qty,reserved_qty,transferred_qty,uom,snapshot) VALUES(${t},${jobId},${lot.item_id},${job.source_warehouse_id},${length},${length},${length},'m',${js({source:'compatible-raw-stock',paintTo:bar.source.paintTo,planId:plan.id})}::text::jsonb)
+        ON CONFLICT(tenant_id,work_order_id,item_id,source_warehouse_id) DO UPDATE SET required_qty=work_order_materials.required_qty+EXCLUDED.required_qty,reserved_qty=work_order_materials.reserved_qty+EXCLUDED.reserved_qty,transferred_qty=work_order_materials.transferred_qty+EXCLUDED.transferred_qty`;
     }
     let remnantId: string | null = null;
     if (bar.reusable) {
       const [r] =
-        await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,lot_number,original_qty,remaining_qty,length_m,weight_kg,metadata)VALUES(${t},${lot.item_id},${remnantWarehouse.id},${"ART-" + randomUUID().slice(0, 12)},${bar.remainingMm / 1000},${bar.remainingMm / 1000},${bar.remainingMm / 1000},${(bar.remainingMm / 1000) * num(lot.weight_per_meter_kg)},${js({ ...lot.metadata, isRemnant: true, parentLotId: lot.id, planId: plan.id })}::text::jsonb)RETURNING id`;
+        await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,lot_number,original_qty,remaining_qty,length_m,weight_kg,metadata)VALUES(${t},${lot.item_id},${remnantWarehouse.id},${"ART-" + randomUUID().slice(0, 12)},${bar.remainingMm / 1000},${bar.remainingMm / 1000},${bar.remainingMm / 1000},${num(lot.weight_per_meter_kg)>0?(bar.remainingMm / 1000) * num(lot.weight_per_meter_kg):null},${js({ ...lot.metadata, isRemnant: true, parentLotId: lot.id, planId: plan.id })}::text::jsonb)RETURNING id`;
       remnantId = r.id;
       lines.push({
         itemId: lot.item_id,
@@ -1179,7 +1226,7 @@ async function cutAction(
         metadata: { planId: plan.id, isRemnant: true },
       });
     }
-    const weightKg = (bar.lossMm / 1000) * num(lot.weight_per_meter_kg),
+    const weightKg = num(lot.weight_per_meter_kg)>0?(bar.lossMm / 1000) * num(lot.weight_per_meter_kg):null,
       cost = (bar.lossMm / 1000) * num(lot.metadata.unitCost);
     await tx`INSERT INTO cutting_losses(tenant_id,plan_id,lot_id,length_mm,weight_kg,cost)VALUES(${t},${plan.id},${lot.id},${bar.lossMm},${weightKg},${cost})`;
     actual.push({
@@ -1203,9 +1250,11 @@ async function cutAction(
     },
     { allowReservedStock: true },
   );
-  await tx`UPDATE stock_reservations SET status='consumed',updated_at=now()WHERE tenant_id=${t} AND idempotency_key=${"cut-plan:" + plan.id}`;
-  await tx`UPDATE cutting_plan_sources SET consumed=true WHERE tenant_id=${t} AND plan_id=${plan.id}`;
-  if (reworkPlan) {
+  await tx`UPDATE stock_reservation_lines SET consumed_qty=reserved_qty-released_qty WHERE tenant_id=${t} AND reservation_id IN(SELECT id FROM stock_reservations WHERE tenant_id=${t} AND idempotency_key=${"cut-plan:"+plan.id}) AND lot_id=ANY(${[...selected]}::uuid[])`;
+  if(allCompleted)await tx`UPDATE stock_reservations SET status='consumed',updated_at=now()WHERE tenant_id=${t} AND idempotency_key=${"cut-plan:" + plan.id}`;
+  await tx`UPDATE cutting_plan_sources SET consumed=true WHERE tenant_id=${t} AND plan_id=${plan.id} AND lot_id=ANY(${[...selected]}::uuid[])`;
+  if(await tableExists('production_parts')) await tx`UPDATE production_parts SET state=CASE WHEN target_color IS NULL THEN 'cut' ELSE 'paint_waiting' END,cut_at=now(),updated_by=${a.userId} WHERE tenant_id=${t} AND cut_plan_id=${plan.id} AND source_lot_id=ANY(${[...selected]}::uuid[]) AND state='planned'`;
+  if (reworkPlan && allCompleted) {
     const requests =
       await tx`SELECT * FROM production_rework WHERE tenant_id=${t} AND id=ANY(${plan.rework_ids}::uuid[])`;
     for (const request of requests) {
@@ -1246,11 +1295,12 @@ async function cutAction(
       planId: plan.id,
       reworkIds: plan.rework_ids,
     });
-  } else
+  } else if(!reworkPlan && allCompleted)
     for (const job of jobs)
       await prepareMaterials(tx, a, job, key + ":" + job.id);
+  for(const job of jobs)await syncDailyStages(tx,t,job.id,a.userId);
   return (
-    await tx`UPDATE cutting_plans SET status='completed',version=version+1,completed_at=now(),actual=${js({ bars: actual, stockEntryId: stock.id })}::text::jsonb WHERE tenant_id=${t} AND id=${plan.id} RETURNING *`
+    await tx`UPDATE cutting_plans SET status=${allCompleted?'completed':'approved'},version=version+1,completed_at=${allCompleted?new Date():null},actual=${js({ bars:[...(plan.actual?.bars||[]),...actual],stockEntryIds:[...(plan.actual?.stockEntryIds||(plan.actual?.stockEntryId?[plan.actual.stockEntryId]:[])),stock.id] })}::text::jsonb WHERE tenant_id=${t} AND id=${plan.id} RETURNING *`
   )[0];
 }
 async function prepareMaterials(
@@ -1258,6 +1308,7 @@ async function prepareMaterials(
   a: WorkOrderActor,
   job: any,
   key: string,
+  allowPartialProfiles = false,
 ) {
   const materials =
     await tx`SELECT * FROM work_order_materials WHERE tenant_id=${a.tenantId} AND work_order_id=${job.id}`;
@@ -1266,7 +1317,10 @@ async function prepareMaterials(
   for (const m of materials) {
     const missing = num(m.required_qty) - num(m.transferred_qty);
     if (missing <= 0.000001) continue;
-    if (profileIds.includes(m.item_id)) fail("Kesim malzeme dengesi eksik");
+    if (profileIds.includes(m.item_id)) {
+      if(allowPartialProfiles)continue;
+      fail("Kesim malzeme dengesi eksik");
+    }
     const [card]=await tx`SELECT id,stock_uom FROM inventory_items WHERE tenant_id=${a.tenantId} AND id=${m.item_id}`;
     lines.push(...await allocateMaterialLots(tx,a,job,card,missing),{itemId:m.item_id,warehouseId:job.wip_warehouse_id,quantityDelta:missing,uom:m.uom,metadata:{workOrderId:job.id}});
   }
@@ -1278,8 +1332,9 @@ async function prepareMaterials(
       idempotencyKey: key,
       lines,
     });
-  await tx`UPDATE work_order_materials SET transferred_qty=required_qty,reserved_qty=required_qty WHERE tenant_id=${a.tenantId} AND work_order_id=${job.id}`;
-  await tx`UPDATE work_orders SET reservation_status='transferred'WHERE tenant_id=${a.tenantId} AND id=${job.id}`;
+  await tx`UPDATE work_order_materials SET transferred_qty=required_qty,reserved_qty=required_qty WHERE tenant_id=${a.tenantId} AND work_order_id=${job.id} AND NOT(item_id=ANY(${allowPartialProfiles?profileIds:[]}::uuid[]))`;
+  const [missing]=await tx`SELECT id FROM work_order_materials WHERE tenant_id=${a.tenantId} AND work_order_id=${job.id} AND transferred_qty+0.000001<required_qty LIMIT 1`;
+  await tx`UPDATE work_orders SET reservation_status=${missing?'partial':'transferred'} WHERE tenant_id=${a.tenantId} AND id=${job.id}`;
 }
 async function operation(
   tx: any,
@@ -1301,6 +1356,21 @@ async function operation(
   if (op.version !== d.version)
     fail("Operasyon başka cihazda değişti. Güncel kayıtla karşılaştırın.");
   if (job.status === "cancelled") fail("Üretim iptal edilmiş");
+  await requireCommercialApproval(tx, t, job.order_id);
+  if(job.technical_revision_id) {
+    const [technical]=await tx`SELECT status,technical FROM order_technical_revisions WHERE tenant_id=${t} AND id=${job.technical_revision_id}`;
+    if(technical?.status!=='approved')fail('Teknik plan güncel değil; yeni planı açın');
+    if(d.action==='complete' && !/kesim|cut|boya|paint|delik|delme|drill/i.test(op.name)) {
+      if(technical.technical.drilling?.some((r:any)=>r.problem))fail('Delik kuralları doğrulanmadan son hazırlık tamamlanamaz');
+      const groups=await partGroups(tx,t,job.id);
+      const available=groups.length?Math.min(...groups.map(g=>Math.floor(g.ready.length*num(job.planned_qty)/g.parts.length))):0;
+      if((d.quantity||0)>available)fail('Boyadan gelmeyen veya kesilmemiş parçalar var; yalnız hazır miktar tamamlanabilir');
+    }
+
+    if(['start','complete'].includes(d.action)&&/kesim|cut|boya|paint/i.test(op.name)&&!op.quality_checks?.length)fail('Bu aşama kesim ve boya miktarı kayıtlarından otomatik güncellenir');
+    if(d.action==='complete'&&(await tx`SELECT id FROM production_operations WHERE tenant_id=${t} AND work_order_id=${job.id} AND position<${op.position} AND completed_qty<${Number(op.completed_qty)+(d.quantity||0)}`).length)fail('Önceki aşamada bu miktar henüz tamamlanmadı');
+    if(d.action==='start' && /delik|delme|drill/i.test(op.name) && technical.technical.drilling?.some((r:any)=>r.problem))fail('Doğrulanmış delik kuralları tamamlanmadan bu işlem başlatılamaz');
+  }
   for (const path of d.photos) {
     const fileId = path.split("/").pop();
     if (
@@ -1414,14 +1484,14 @@ async function operation(
       fail("İş merkezi kapasitesi dolu; çalışan işin bitmesini bekleyin");
     if (
       (
-        await tx`SELECT id FROM production_operations WHERE tenant_id=${t} AND work_order_id=${job.id} AND position<${op.position} AND status<>'done'`
+        await tx`SELECT id FROM production_operations WHERE tenant_id=${t} AND work_order_id=${job.id} AND position<${op.position} AND (${job.technical_revision_id?sql`completed_qty<=${num(op.completed_qty)}`:sql`status<>'done'`})`
       ).length
     )
       fail("Önceki aşama tamamlanmadı");
     if (job.reservation_status !== "transferred") {
-      if (job.bom_snapshot.cuts.length)
+      if (job.bom_snapshot.cuts.length&&!job.technical_revision_id)
         fail("Onaylı kesim ve malzeme transferi tamamlanmalı");
-      await prepareMaterials(tx, a, job, key + ":prepare");
+      await prepareMaterials(tx, a, job, key + ":prepare",!!job.technical_revision_id);
     }
     await tx`UPDATE work_orders SET status='in_progress',revision=revision+1 WHERE tenant_id=${t} AND id=${job.id}`;
     await tx`UPDATE orders SET status='in_production',version=version+1 WHERE tenant_id=${t} AND id=${job.order_id}`;
@@ -1450,7 +1520,7 @@ async function operation(
   if (d.action === "complete") {
     const [next] =
       await tx`SELECT * FROM production_operations WHERE tenant_id=${t} AND work_order_id=${job.id} AND position>${op.position} ORDER BY position LIMIT 1`;
-    if (state.status === "done" && next)
+    if(next && (job.technical_revision_id?state.completedQty>num(next.completed_qty)&&next.status==='waiting':state.status==='done'))
       await tx`UPDATE production_operations SET status='ready',ready_at=now(),version=version+1 WHERE tenant_id=${t} AND id=${next.id}`;
     if (!next) {
       await finishQuantity(tx, a, job, d.quantity!, key);
@@ -1489,10 +1559,23 @@ async function finishQuantity(
     fail("Üretilen miktar planı aşamaz");
   const materials =
     await tx`SELECT * FROM work_order_materials WHERE tenant_id=${a.tenantId} AND work_order_id=${job.id}`;
+  const profileConsumption=new Map<string,number>(),assembledIds:string[]=[],profileItemIds=new Set<string>(job.bom_snapshot.cuts.map((c:any)=>c.itemId));
+  if(job.technical_revision_id){
+    const [technical]=await tx`SELECT technical FROM order_technical_revisions WHERE tenant_id=${a.tenantId} AND id=${job.technical_revision_id}`;
+    if(technical?.technical?.drilling?.some((r:any)=>r.problem))fail('Delik kuralları doğrulanmadan ürün tamamlanamaz');
+    for(const group of await partGroups(tx,a.tenantId,job.id)){
+      const required=group.parts.length*quantity/num(job.planned_qty);
+      if(!Number.isInteger(required)||group.ready.length<required)fail('Bu miktar için hazır parça takımı tamamlanmalı');
+      for(const p of group.parts)profileItemIds.add(p.item_id);
+      for(const p of group.ready.slice(0,required)){assembledIds.push(p.id);profileConsumption.set(p.item_id,(profileConsumption.get(p.item_id)||0)+num(p.length_mm)/1000);}
+    }
+    if(!assembledIds.length&&job.bom_snapshot.cuts.length)fail('Üretime ait hazır fiziksel parçalar bulunamadı');
+    if([...profileConsumption.keys()].some(id=>!materials.some((m:any)=>m.item_id===id)))fail('Fiziksel parçanın WIP malzeme ilişkisi bulunamadı');
+  }
   const lines: any[] = [];
   for (const m of materials) {
     const qty = Number(
-      ((num(m.required_qty) * quantity) / num(job.planned_qty)).toFixed(6),
+      (job.technical_revision_id&&profileItemIds.has(m.item_id)?(profileConsumption.get(m.item_id)||0):(num(m.required_qty) * quantity) / num(job.planned_qty)).toFixed(6),
     );
     if (qty <= 0) continue;
     if (num(m.consumed_qty) + qty > num(m.transferred_qty) + 0.000001)
@@ -1524,12 +1607,13 @@ async function finishQuantity(
     await tx`SELECT COUNT(*) AS n FROM production_runs WHERE tenant_id=${a.tenantId} AND work_order_id=${job.id}`;
   const [run] =
     await tx`INSERT INTO production_runs(tenant_id,work_order_id,run_number,produced_qty,stock_entry_id,idempotency_key,completed_by)VALUES(${a.tenantId},${job.id},${num(count.n) + 1},${quantity},${entry.id},${key},${a.userId})RETURNING id`;
+  if(assembledIds.length)await tx`UPDATE production_parts SET state='assembled',production_run_id=${run.id},updated_by=${a.userId} WHERE tenant_id=${a.tenantId} AND id=ANY(${assembledIds}::uuid[])`;
   for (let n = 1; n <= quantity; n++)
     await tx`INSERT INTO production_units(tenant_id,work_order_id,serial,production_run_id)VALUES(${a.tenantId},${job.id},${num(job.produced_qty) + n},${run.id})`;
   const done = num(job.produced_qty) + quantity === num(job.planned_qty);
   await tx`UPDATE work_orders SET produced_qty=produced_qty+${quantity},status=${done ? "done" : "in_progress"},reservation_status=${done ? "consumed" : "transferred"},completed_at=${done ? new Date() : null},revision=revision+1 WHERE tenant_id=${a.tenantId} AND id=${job.id}`;
 }
-async function ship(
+export async function shipProducedQuantity(
   tx: any,
   a: WorkOrderActor,
   data: Record<string, unknown>,
@@ -1541,11 +1625,28 @@ async function ship(
       quantity: z.number().int().positive(),
       carrier: z.string().max(100).default(""),
       trackingNumber: z.string().max(100).default(""),
+      technicalRevisionId:uuid.optional(),photos:z.array(z.string().max(500)).max(6).default([]),
+      checkedIds:z.array(z.string().max(100)).max(100).default([]),vehiclePlate:z.string().trim().max(30).optional(),notes:z.string().trim().max(1000).optional(),
     })
     .parse(data);
   const [job] =
     await tx`SELECT * FROM work_orders WHERE tenant_id=${a.tenantId} AND id=${d.workOrderId} FOR UPDATE`;
   if (!job) fail("Üretim emri bulunamadı", 404);
+  if(job.status==='cancelled')fail('İptal edilmiş üretim listesinden yükleme yapılamaz');
+  if(a.role==='worker'&&job.assigned_to!==a.userId)fail('Yükleme yetkiniz yok',403);
+  await requireCommercialApproval(tx,a.tenantId,job.order_id);
+  if(job.technical_revision_id) {
+    if(d.technicalRevisionId!==job.technical_revision_id)fail('Güncel teknik sürümle yükleme yapın');
+    const [r]=await tx`SELECT status,technical FROM order_technical_revisions WHERE tenant_id=${a.tenantId} AND id=${job.technical_revision_id}`;
+    if(r?.status!=='approved')fail('Teknik plan güncel değil');
+    if(!d.photos.length)fail('Araca yüklenen ürünlerin fotoğrafı gerekli',400);
+    const required=(r.technical.loadingChecklist||[]).map((c:any)=>c.id);
+    if(!required.length||required.some((id:string)=>!d.checkedIds.includes(id))||d.checkedIds.some(id=>!required.includes(id)))fail('Ürün ve aksesuar tamlık kontrolünü tamamlayın',400);
+  }
+  for(const path of d.photos) {
+      const prefix=`/api/v1/production/files/${a.tenantId}/`,fileId=path.slice(prefix.length);
+      if(!path.startsWith(prefix)||!uuid.safeParse(fileId).success||!(await tx`SELECT f.id FROM production_files f JOIN work_orders w ON w.id=f.work_order_id AND w.tenant_id=f.tenant_id WHERE f.tenant_id=${a.tenantId} AND f.id=${fileId} AND w.order_id=${job.order_id} AND f.mime LIKE 'image/%'`).length)fail('Yükleme fotoğrafı bu siparişe ait değil',400);
+  }
   const [qty] =
     await tx`SELECT COALESCE(SUM(quantity),0) AS shipped FROM production_shipments WHERE tenant_id=${a.tenantId} AND work_order_id=${job.id}`;
   if (num(qty.shipped) + d.quantity > num(job.produced_qty))
@@ -1572,6 +1673,7 @@ async function ship(
   await tx`INSERT INTO shipment_items(tenant_id,shipment_id,order_id,order_item_id,product_name,quantity)VALUES(${a.tenantId},${erp.id},${job.order_id},${job.order_item_id},${job.title},${d.quantity})`;
   const [row] =
     await tx`INSERT INTO production_shipments(tenant_id,order_id,work_order_id,quantity,carrier,tracking_number,stock_entry_id,created_by,erp_shipment_id)VALUES(${a.tenantId},${job.order_id},${job.id},${d.quantity},${d.carrier},${d.trackingNumber},${entry.id},${a.userId},${erp.id})RETURNING *`;
+  if(job.technical_revision_id)await tx`UPDATE production_shipments SET technical_revision_id=${job.technical_revision_id},photos=${js(d.photos)}::text::jsonb,loading_checklist=${js(d.checkedIds)}::text::jsonb,vehicle_plate=${d.vehiclePlate||null},notes=${d.notes||null} WHERE tenant_id=${a.tenantId} AND id=${row.id}`;
   const all =
     await tx`SELECT oi.quantity,COALESCE((SELECT SUM(s.quantity) FROM production_shipments s JOIN work_orders w ON w.id=s.work_order_id WHERE s.tenant_id=${a.tenantId} AND w.order_item_id=oi.id),0) AS shipped FROM order_items oi WHERE order_id=${job.order_id}`;
   const complete = all.every((r: any) => num(r.shipped) >= num(r.quantity));

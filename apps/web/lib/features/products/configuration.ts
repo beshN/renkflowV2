@@ -11,7 +11,7 @@ export const ConfigurationChoiceSchema = z.object({
   recipeId: z.string().uuid('Reçete seçin'),
   parameters: z.object({
     widthMm: z.number().int('En tam sayı (mm) olmalı').positive('En gerekli').max(100000),
-    projectionMm: z.number().int('Açılım tam sayı (mm) olmalı').positive('Açılım gerekli').max(100000),
+    projectionMm: z.number().int('Açılım tam sayı (mm) olmalı').nonnegative().max(100000).default(0),
     mountingHeightMm: z.number().int('Yükseklik tam sayı (mm) olmalı').positive('Yükseklik gerekli').max(100000),
     motor: z.boolean().default(false),
     led: z.boolean().default(false),
@@ -46,7 +46,8 @@ export type ProductConfiguration = ConfigurationChoice & {
 export function configurationSummary(c: Pick<ProductConfiguration, 'familyLabel' | 'recipe' | 'parameters' | 'color'>) {
   const p = c.parameters;
   const options = [p.motor ? 'motorlu' : null, p.led ? 'LED' : null, ...Object.entries(p.customParameters).filter(([, v]) => v !== false && v !== 0).map(([k, v]) => (v === true ? k : `${k}: ${v}`))].filter(Boolean);
-  return `${c.familyLabel} · ${c.recipe.name} · ${p.widthMm} × ${p.projectionMm} mm, yükseklik ${p.mountingHeightMm} mm · ${c.color}${options.length ? ' · ' + options.join(', ') : ''}`;
+  const dimensions=p.projectionMm===0?`${p.widthMm} × ${p.mountingHeightMm} mm`:`${p.widthMm} × ${p.projectionMm} mm, yükseklik ${p.mountingHeightMm} mm`;
+  return `${c.familyLabel} · ${c.recipe.name} · ${dimensions} · ${c.color}${options.length ? ' · ' + options.join(', ') : ''}`;
 }
 
 type LineFields = {
@@ -70,7 +71,7 @@ export function configuredLine<T extends LineFields>(item: T, c: ProductConfigur
     description: configurationSummary(c),
     color: c.color,
     widthMm: c.parameters.widthMm,
-    projectionMm: c.parameters.projectionMm,
+    projectionMm: c.parameters.projectionMm||undefined,
     mountingHeightMm: c.parameters.mountingHeightMm,
     unitPrice: c.price.source === 'matrix' ? c.price.matrixUnitPrice! : typedPrice,
     awningConfiguration: undefined,

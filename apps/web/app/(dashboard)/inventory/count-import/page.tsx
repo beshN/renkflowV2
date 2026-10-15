@@ -6,10 +6,10 @@ import { requestJson } from '@/lib/shared/network';
 import { unitLabel } from '@/lib/features/inventory/vocabulary';
 import { SkeletonRows } from '@/components/kit';
 
-type Row = { ref: string; section: string; code: string | null; name: string; color: string | null; quantity: number | null; unit: string | null; pieceLengthMm: number | null; issues: string[]; status?: string; note?: string | null };
+type Row = { ref: string; section: string; code: string | null; name: string; color: string | null; quantity: number | null; unit: string | null; pieceLengthMm: number | null; weightPerMeterKg?:number|null; weightKg?:number|null; issues: string[]; status?: string; note?: string | null };
 type Doc = { id: string; title: string | null; count_date: string | null; file_name: string; created_at: string; warehouse_name: string; lines: Row[] | null };
 type Overview = { available: boolean; canImport?: boolean; documents: Doc[]; warehouses: Array<{ id: string; code: string; name: string }> };
-type Filed = { suggestionId: string; created: boolean; document: { title: string | null; date: string | null; pages: number }; summary: { rows: number; counted: number; metres: number; uncertain: number }; rows: Row[] };
+type Filed = { mode:'opening'|'technical';suggestionId: string; created: boolean; document: { title: string | null; date: string | null; pages: number }; summary: { rows: number; counted: number; metres: number; uncertain: number }; rows: Row[] };
 
 const STATUS: Record<string, string> = { applied: 'Stoğa yazıldı', needs_bars: 'Çubuk sayımı bekliyor', uncertain: 'Emin değilim · uygulanmadı', skipped: 'Atlandı', counted: 'Çubuklar sayıldı' };
 
@@ -37,8 +37,8 @@ function RowsTable({ rows, status }: { rows: Row[]; status: (row: Row) => { labe
               <tr key={row.ref} className="border-t border-border align-top">
                 <td className="p-2 text-xs text-muted-foreground">{row.section}</td>
                 <td className="p-2">{row.code || '—'}</td>
-                <td className="p-2">{row.name}</td>
-                <td className="p-2 whitespace-nowrap">{quantity(row)}</td>
+                <td className="p-2">{row.name}{row.color&&<p className="text-xs text-muted-foreground">{row.color}</p>}</td>
+                <td className="p-2 whitespace-nowrap">{quantity(row)}{row.weightPerMeterKg!=null&&<p className="text-xs text-muted-foreground">{row.weightPerMeterKg} kg/m</p>}{row.weightKg!=null&&<p className="text-xs text-muted-foreground">Toplam {row.weightKg} kg</p>}</td>
                 <td className={`p-2 text-xs ${s.tone}`}>
                   {s.label}
                   {row.issues.length > 0 && <ul className="mt-1 list-disc pl-4">{row.issues.map((i) => <li key={i}>{i}</li>)}</ul>}
@@ -57,6 +57,7 @@ export default function CountImportPage() {
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [mode,setMode]=useState<'technical'|'opening'>('technical');
   const [filed, setFiled] = useState<Filed | null>(null);
   const load = useCallback(async () => {
     const r = await requestJson<Overview>('/api/v1/inventory/count-import');
@@ -76,7 +77,7 @@ export default function CountImportPage() {
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
             Basılı sayım listesi (PDF) kesin kurallarla okunur; model kullanılmaz. Okunan satırlar bir öneri olarak
             &quot;Önerilenler&quot;e düşer ve onaylanmadan stoğa hiçbir şey yazılmaz. Gramajı tutmayan, kodu veya birimi eksik
-            satırlar &quot;emin değilim&quot; diye işaretlenir ve uygulanmaz.
+            satırlar &quot;emin değilim&quot; diye işaretlenir ve uygulanmaz. Tarihî belgelerde teknik bilgi aktarımını seçin; miktarlar güncel stok olarak yazılmaz.
           </p>
         </div>
         <div className="flex gap-2"><Link className="rf-secondary-button" href="/inventory/opening-count">Çubuk sayımı</Link><Link className="rf-secondary-button" href="/inventory">Stok listesine dön</Link></div>
@@ -84,7 +85,7 @@ export default function CountImportPage() {
 
       {data.canImport && (
         <form
-          className="rf-panel grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+          className="rf-panel grid gap-3 sm:grid-cols-2 sm:items-end"
           onSubmit={async (e) => {
             e.preventDefault();
             const form = new FormData(e.currentTarget);
@@ -100,15 +101,16 @@ export default function CountImportPage() {
             const r = await requestJson<{ data: Filed }>('/api/v1/inventory/count-import', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ fileName: file.name, base64: btoa(binary), warehouseId: form.get('warehouseId') }),
+              body: JSON.stringify({ mode,fileName: file.name, base64: btoa(binary), warehouseId: form.get('warehouseId') }),
             }, { timeoutMs: 60000, fallbackError: 'Sayım listesi okunamadı' });
             setBusy(false);
             if (r.ok && r.data) setFiled(r.data.data);
             else setError(r.error || 'Sayım listesi okunamadı');
           }}
         >
+          <label className="block text-xs">Aktarım amacı<select className="rf-input mt-2 w-full" value={mode} onChange={e=>setMode(e.target.value as typeof mode)}><option value="technical">Teknik bilgiler — tarihî miktarlar stoğa eklenmez</option><option value="opening">Gerçek açılış sayımı</option></select></label><p className="text-xs text-muted-foreground">{mode==='technical'?'kg/m ve kaynak aktarılır. Toplam kg, metre ve adet yalnız belgede korunur; mevcut gramaj çelişkileri değiştirilmez.':'Bu seçenek güncel fiziksel açılış sayımı içindir. Tarihî başvuru belgesinde kullanmayın.'}</p>
           <label className="block text-xs">Sayım listesi (PDF, en fazla 3 MB)<input name="file" type="file" accept="application/pdf,.pdf" required className="rf-input mt-2 w-full" /></label>
-          <label className="block text-xs">Açılış stoğunun yazılacağı depo
+          <label className="block text-xs">{mode==='technical'?'İlgili depo (stok hareketi oluşturulmaz)':'Açılış stoğunun yazılacağı depo'}
             <select name="warehouseId" required className="rf-input mt-2 w-full">
               <option value="">Seçin</option>
               {data.warehouses.map((w) => <option key={w.id} value={w.id}>{w.name} ({w.code})</option>)}
@@ -123,12 +125,12 @@ export default function CountImportPage() {
         <section className="rf-panel space-y-3" aria-label="Okunan sayım listesi">
           <h2 className="font-semibold">{filed.document.title || 'Sayım listesi'} {filed.document.date || ''} · {filed.document.pages} sayfa</h2>
           <p className="text-sm">
-            {filed.summary.rows} satır okundu: {filed.summary.counted} açılış stoğu, {filed.summary.metres} çubuk sayımı bekleyecek,{' '}
+            {filed.summary.rows} satır okundu. {filed.mode==='technical'?'Yalnız teknik bilgi aktarılacak; stok miktarı değişmeyecek.':`${filed.summary.counted} açılış stoğu, ${filed.summary.metres} çubuk sayımı bekleyecek.`}{' '}
             <strong>{filed.summary.uncertain} emin değilim</strong>.{' '}
             {filed.created ? 'Öneri oluşturuldu; ' : 'Bu liste zaten onay bekliyor; '}
             <Link className="underline" href="/dashboard">Önerilenler&apos;den onaylayın</Link>.
           </p>
-          <RowsTable rows={filed.rows} status={plan} />
+          <RowsTable rows={filed.rows} status={row=>filed.mode==='technical'?{label:row.issues.length?'Teknik kontrol gerekli':'Teknik bilgi · stok değişmez',tone:'text-muted-foreground'}:plan(row)} />
         </section>
       )}
 

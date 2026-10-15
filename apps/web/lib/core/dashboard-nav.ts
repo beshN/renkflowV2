@@ -26,13 +26,13 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
     { id: 'leads', allowedRoles: ROUTE_ROLES['/leads'], label: 'Müşteri adayları', href: '/leads' },
   ] },
   { id: 'production', label: 'Üretim', subtitle: '', items: [
+    {id:'worker',label:'Usta ekranı',href:'/production/worker',allowedRoles:['owner','admin','office','worker']},
     { id: 'cut-list', allowedRoles: ['owner', 'admin', 'office'], label: 'Kesim listesi', href: '/orders/foy', requiresPermission: 'orders.create' },
     { id: 'production', allowedRoles: ROUTE_ROLES['/production'], label: 'Üretim', href: '/production', requiresPermission: 'orders.view' },
     { id: 'work-orders', label: 'İş emirleri', href: '/work-orders', requiresPermission: 'orders.view' },
     { id: 'factory', allowedRoles: ROUTE_ROLES['/factory'], label: 'Atölye', href: '/factory', requiresPermission: 'orders.view' },
     { id: 'shipments', allowedRoles: ROUTE_ROLES['/shipments'], label: 'Sevkiyat', href: '/shipments', requiresPermission: 'orders.view' },
     { id: 'installations', allowedRoles: ROUTE_ROLES['/installations'], label: 'Montaj', href: '/installations' },
-    { id: 'service', allowedRoles: ROUTE_ROLES['/service'], label: 'Servis', href: '/service' },
   ] },
   { id: 'supply-chain', label: 'Stok ve tedarik', subtitle: '', items: [
     { id: 'inventory', label: 'Stok', href: '/inventory', requiresPermission: 'inventory.view' },
@@ -78,6 +78,7 @@ export function getVisibleNavGroups(role?: UserRole, access?: NavAccess) {
   return DASHBOARD_NAV_GROUPS.map(group => ({
     ...group,
     items: group.items.filter(item => {
+      if(role==='worker' && !['worker','account','logout'].includes(item.id))return false;
       // A job preset or custom role hides the modules it cannot view (the proxy refuses them anyway).
       const need = access?.narrowed && !item.action ? routeRequirement(item.href, 'GET') : null;
       if (need && access && !meets(access, need)) return false;

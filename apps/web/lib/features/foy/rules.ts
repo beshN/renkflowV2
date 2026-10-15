@@ -178,8 +178,7 @@ function windbreakerChecks(doc: FoyDoc): FoyCheck[] {
   if (wb.orderDate && wb.deliveryDate && wb.deliveryDate < wb.orderDate) out.push({ id: 'delivery', severity: 'warn', title: 'Teslim siparişten önce', detail: `${wb.orderDate} → ${wb.deliveryDate}` });
   if (wb.widthCm !== null && wb.pistonTable.length) {
     const exact = wb.pistonTable.find((p) => p.widthCm === wb.widthCm);
-    const kg = exact?.kg ?? Math.round(wb.widthCm / 10 + 1);
-    out.push({ id: 'piston', severity: 'info', title: `Piston ${fmt(kg)} kg`, detail: exact ? `Föydeki tablodan (${fmt(wb.widthCm)} cm).` : `Tabloda ${fmt(wb.widthCm)} cm yok; tablodaki eğilimle (genişlik / 10 + 1) hesaplandı, usta onaylasın.` });
+    out.push(exact?{id:'piston',severity:'info',title:`Piston ${fmt(exact.kg)} kg`,detail:`Föydeki tablodan (${fmt(wb.widthCm)} cm); mekanizma uygunluğu teknik kontrolde doğrulanmalı.`}:{id:'piston',severity:'warn',title:'Piston kapasitesi doğrulanmalı',detail:`Tabloda ${fmt(wb.widthCm)} cm için değer yok. Kapasite tahmin edilmedi.`});
   }
   if (wb.frameCm !== null && wb.sashCm !== null && !near(wb.sashCm, wb.frameCm - 2, 0.05)) out.push({ id: 'sash', severity: 'info', title: 'Kanat = kasa − 2 değil', detail: `Kasa ${fmt(wb.frameCm)}, kanat ${fmt(wb.sashCm)}. Tek örnekten çıkan kural; bilgi olarak.` });
   return out;

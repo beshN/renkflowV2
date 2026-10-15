@@ -73,7 +73,10 @@ async function main() {
   const [stored] = await db`SELECT token_hash FROM vehicle_devices WHERE id = ${device.id}`;
   assert.notEqual(stored.token_hash, device.token);
   const now = Date.now();
-  const t = (min: number) => new Date(now - min * 60_000).toISOString();
+  // Keep route points on one Istanbul calendar day, including runs just after midnight.
+  const routeAnchor = new Date(now - 86_400_000);
+  routeAnchor.setUTCHours(12, 0, 0, 0);
+  const t = (min: number) => new Date(routeAnchor.getTime() - min * 60_000).toISOString();
   const positions = [
     { t: t(60), lat: 41.0, lng: 29.0, speed: 0, ignition: true, odometer: 82010 },
     { t: t(50), lat: 41.03, lng: 29.0, speed: 40, ignition: true },
@@ -90,7 +93,7 @@ async function main() {
   const live = await fleet.fleetLive(owner);
   assert.equal(live.vehicles[0].plate, '34RF2026');
   assert.equal(live.vehicles[0].lat, 41.06);
-  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(new Date(now - 40 * 60_000));
+  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(new Date(routeAnchor.getTime() - 40 * 60_000));
   const route = await fleet.vehicleRoute(owner, v.id, today);
   assert.equal(route.points.length, 3);
   assert.ok(Math.abs(route.distanceKm - 6.7) < 0.2, `route ${route.distanceKm} km`);

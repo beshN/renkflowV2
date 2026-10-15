@@ -27,7 +27,7 @@ const ACTIONS: Action[] = [
   { id: 'a-board', title: 'Sipariş panosu', keywords: 'pano kanban sürükle aşama', href: '/orders?mode=board', icon: Columns3, roles: ['owner', 'admin', 'office', 'accountant'] },
   { id: 'a-cal', title: 'Takvim', keywords: 'takvim teslim montaj hafta plan', href: '/calendar', icon: CalendarDays, roles: ['owner', 'admin', 'office', 'accountant'] },
   { id: 'a-scan', title: 'Barkod / QR tara', keywords: 'tara barkod qr okut', href: '/warehouse/scan', icon: ScanLine },
-  { id: 'a-factory', title: 'Fabrika modu', keywords: 'fabrika usta atölye iş başla bitti', href: '/factory', icon: Factory, roles: ['owner', 'admin', 'office', 'worker'] },
+  { id: 'a-factory', title: 'Usta ekranı', keywords: 'fabrika usta atölye ürün üretim başla bitti', href: '/production/worker', icon: Factory, roles: ['owner', 'admin', 'office', 'worker'] },
   { id: 'a-wall', title: 'Duvar ekranı', keywords: 'duvar tv ekran atölye', href: '/factory/wall', icon: LayoutGrid, roles: ['owner', 'admin', 'office'] },
 ];
 
@@ -47,14 +47,14 @@ function CommandResults({ close }: { close: () => void }) {
     const pages = getVisibleNavGroups(user?.role, memberAccess).flatMap(group => group.items
       .filter(item => !item.action && (!keyword || item.label.toLocaleLowerCase('tr-TR').includes(keyword)))
       .map(item => ({ id: item.id, title: item.label, subtitle: group.label, href: item.href, type: 'module' })));
-    const matches = keyword && user && hasPermission(user.role, 'orders.view') ? orders
+    const matches = user?.role!=='worker' && keyword && user && hasPermission(user.role, 'orders.view') ? orders
       .filter(order => [order.orderNumber, order.customerName, order.productName].some(value => value?.toLocaleLowerCase('tr-TR').includes(keyword)))
       .slice(0, 6).map(order => ({ id: order.id, title: order.orderNumber + ' · ' + order.customerName, subtitle: order.productName, href: '/orders/' + order.id, type: 'order' })) : [];
     // Customers, quotations and stock are searched on the search page (server side, per role).
     // Free text can also go to the assistant as a command ("bu hafta geciken işler", "7016 kaç çubuk").
-    const ask = foldText(query).length >= 4 ? [{ id: 'ask-assistant', title: `Asistana sor: “${query.trim()}”`, subtitle: 'Komut: sonuç kartı ya da onay bekleyen önizleme', href: '/assistant?q=' + encodeURIComponent(query.trim()), type: 'action', icon: Sparkles }] : [];
-    const all = foldText(query).length >= SEARCH_MIN_LENGTH ? [{ id: 'search-all', title: `“${query.trim()}” için tüm sonuçlar`, subtitle: 'Sipariş, müşteri, teklif ve stokta ara', href: '/search?q=' + encodeURIComponent(query.trim()), type: 'search' }] : [];
-    const actions = ACTIONS.filter((a) => (!a.roles || (user && a.roles.includes(user.role))) && (!keyword || foldText(a.keywords + ' ' + a.title).includes(foldText(keyword))))
+    const ask = user?.role!=='worker' && foldText(query).length >= 4 ? [{ id: 'ask-assistant', title: `Asistana sor: “${query.trim()}”`, subtitle: 'Komut: sonuç kartı ya da onay bekleyen önizleme', href: '/assistant?q=' + encodeURIComponent(query.trim()), type: 'action', icon: Sparkles }] : [];
+    const all = user?.role!=='worker' && foldText(query).length >= SEARCH_MIN_LENGTH ? [{ id: 'search-all', title: `“${query.trim()}” için tüm sonuçlar`, subtitle: 'Sipariş, müşteri, teklif ve stokta ara', href: '/search?q=' + encodeURIComponent(query.trim()), type: 'search' }] : [];
+    const actions = ACTIONS.filter((a) => (user?.role!=='worker'||a.href==='/production/worker') && (!a.roles || (user && a.roles.includes(user.role))) && (!keyword || foldText(a.keywords + ' ' + a.title).includes(foldText(keyword))))
       .map((a) => ({ id: a.id, title: a.title, subtitle: 'Eylem', href: a.href, type: 'action', icon: a.icon }));
     return [...(keyword ? [] : actions), ...matches, ...(keyword ? actions : []), ...ask, ...all, ...pages].slice(0, 14);
   }, [query, user, orders, memberAccess]);

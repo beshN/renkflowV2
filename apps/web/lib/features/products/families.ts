@@ -14,9 +14,11 @@ export type ProductFamily = {
   priceAxes: [DimensionKey, DimensionKey];
   /** Profile codes of the family's stock cards, as on the count list. */
   profileCodes: readonly string[];
+  geometry?:'roof'|'vertical';
 };
 
 export const PRODUCT_FAMILIES: readonly ProductFamily[] = [
+  {key:'makasli',label:'Makaslı tente',dimensions:[{key:'widthMm',label:'En (mm)'},{key:'projectionMm',label:'Açılım (mm)'},{key:'mountingHeightMm',label:'Montaj yüksekliği (mm)'}],priceAxes:['widthMm','projectionMm'],profileCodes:['170']},
   {
     key: 'pergola',
     label: 'Pergola',
@@ -28,6 +30,7 @@ export const PRODUCT_FAMILIES: readonly ProductFamily[] = [
     priceAxes: ['widthMm', 'projectionMm'],
     profileCodes: ['108', '107', '6056', '5979', '187', '164', '5980', '6017', '6015', '330'],
   },
+  ...(['wind-manual','wind-piston','giyotin'] as const).map(key=>({key,label:key==='wind-manual'?'Manuel rüzgâr kırıcı':key==='wind-piston'?'Pistonlu rüzgâr kırıcı':'Motorlu giyotin',geometry:'vertical' as const,dimensions:[{key:'widthMm' as const,label:'En (mm)'},{key:'mountingHeightMm' as const,label:'Ürün yüksekliği (mm)'}],priceAxes:['widthMm','mountingHeightMm'] as [DimensionKey,DimensionKey],profileCodes:[]})),
 ];
 
 export const productFamily = (key: string) => PRODUCT_FAMILIES.find((f) => f.key === key) ?? null;

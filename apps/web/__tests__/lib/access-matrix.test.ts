@@ -41,6 +41,9 @@ describe('roles never exceed their base role', () => {
 describe('route requirements', () => {
   it('maps API paths and methods to module and action', () => {
     expect(routeRequirement('/api/v1/orders', 'GET')).toEqual({ module: 'orders', action: 'view' });
+    const operator=effectiveAccess('worker',{key:'custom',name:'Atölye',permissions:{production:['edit'],inventory:['view']},hidden:[]});
+    expect(meets(operator,routeRequirement('/api/v1/production','POST')!)).toBe(true);
+    expect(meets(operator,routeRequirement('/api/v1/warehouse','POST')!)).toBe(true);
     expect(routeRequirement('/api/v1/orders', 'POST')).toEqual({ module: 'orders', action: 'create' });
     expect(routeRequirement('/api/v1/orders/abc/sales', 'POST')).toEqual({ module: 'orders', action: 'edit', orCreate: true });
     expect(routeRequirement('/api/v1/orders/abc', 'PATCH')).toEqual({ module: 'orders', action: 'edit' });

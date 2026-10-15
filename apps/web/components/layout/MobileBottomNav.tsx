@@ -11,7 +11,7 @@ import { useMemberAccess } from '@/lib/hooks/useMemberAccess';
 const navItems = [
   { icon: Home, label: 'Genel bakış', href: '/dashboard' },
   { icon: Receipt, label: 'Siparişler', href: '/orders' },
-  { icon: ClipboardList, label: 'İş emirleri', href: '/work-orders' },
+  { icon: ClipboardList, label: 'Usta ekranı', href: '/production/worker' },
   { icon: Boxes, label: 'Stok', href: '/inventory' },
 ];
 

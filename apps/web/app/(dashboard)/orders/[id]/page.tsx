@@ -1,5 +1,6 @@
 'use client';
 
+import { OrderTechnicalPanel } from '@/components/features/orders/OrderTechnicalPanel';
 import { measurementSummary } from '@/lib/features/orders/measurement-summary';
 import { ProductDialog } from '@/components/features/product-3d/ProductDialog';
 import type { AwningConfiguration } from '@/lib/features/awning/configuration';
@@ -48,6 +49,7 @@ const PDFViewer = dynamic<PdfViewerProps>(() => import('@/components/pdf-viewer/
 interface OrderDetail {
   version?: number;
   productionManaged?: boolean;
+  quotationId?: string|null;
   financialHidden?: boolean;
   id: string;
   orderNumber: string;
@@ -279,10 +281,10 @@ export default function OrderDetailPage() {
               </div>
             </div>
 
-            <LifecycleStrip status={order.status} className="mb-5" />
+            {order.quotationId ? <OrderTechnicalPanel orderId={order.id}/> : <LifecycleStrip status={order.status} className="mb-5" />}
             {order.productionManaged && <p className="flex items-center gap-2 rounded-md border border-border bg-accent px-4 py-2 text-xs text-muted-foreground"><Lock size={14} aria-hidden /> Üretimden güncellenir <HintTip text="Bu siparişin durumu üretim ve sevkiyat işlemlerinden hesaplanır; elle değiştirilemez." /><Link href={user?.role === 'worker' ? '/factory' : '/production'} className="ml-auto font-medium text-primary hover:underline">Operasyon</Link></p>}
             {/* Status Stepper */}
-            <div className="overflow-x-auto pb-2">
+            <div className="hidden">
               <StatusStepper
                 steps={ORDER_STATUS_STEPS}
                 currentStatus={order.status}

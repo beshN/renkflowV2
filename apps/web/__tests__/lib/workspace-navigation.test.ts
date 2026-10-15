@@ -1,7 +1,7 @@
 import {activeNavHref, getVisibleNavGroups} from '@/lib/core/dashboard-nav';
 const paths=(role:Parameters<typeof getVisibleNavGroups>[0])=>getVisibleNavGroups(role).flatMap(g=>g.items.map(i=>i.href));
 it('shows only modules the factory employee can actually access',()=>{
- expect(paths('worker')).toContain('/factory');
+ expect(paths('worker')).toContain('/production/worker');
  for(const path of ['/production','/finance','/accounting','/purchases','/quotations','/crm'])expect(paths('worker')).not.toContain(path);
 });
 it('groups quotes and orders together and keeps deployed personnel accessible without duplicate action links', () => {

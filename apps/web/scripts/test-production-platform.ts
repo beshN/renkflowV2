@@ -291,7 +291,11 @@ async function main() {
   assert.equal(revision.version, quote.version + 1);
   assert.equal(quote.items[0].unitPrice, 12345);
   assert.equal(quote.items[0].heightMm, 2100);
+  let approvedCommercialQuote=await quotes.updateStatus(tenant.id,quote.id,'sent',revision.version,user.id,'owner');
+  approvedCommercialQuote=await quotes.updateStatus(tenant.id,quote.id,'accepted',approvedCommercialQuote.version,user.id,'owner');
   const conversion = await quotes.convertToOrder(tenant.id, quote.id, user.id);
+  // Legacy engine fixture: old orders keep their established job/operation workflow.
+  await db`UPDATE orders SET technical_file_required=false WHERE id=${conversion.orderId}`;
   assert.deepEqual(
     await quotes.convertToOrder(tenant.id, quote.id, user.id),
     conversion,

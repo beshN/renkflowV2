@@ -10,8 +10,14 @@ export const ProductionFileSchema = z.object({
   base64: z.string().min(1).max(14_000_000).regex(/^[A-Za-z0-9+/]*={0,2}$/).optional(),
   blobPath: z.string().max(700).optional(),
   workOrderId: z.string().uuid().optional(),
+  purchaseOrderId: z.string().uuid().optional(),
 }).refine(d => Boolean(d.base64) !== Boolean(d.blobPath), "Bir dosya kaynağı gerekli");
 export type ProductionFileInput = z.infer<typeof ProductionFileSchema>;
+export function validateProductionBytes(buffer:Buffer,mime:ProductionFileInput['mime']) {
+  if(buffer.length>10*1024*1024)throw new WorkOrderApiError('Dosya en fazla 10 MB olabilir',413);
+  const magic=mime==='application/pdf'?buffer.subarray(0,4).toString()==='%PDF':mime==='image/jpeg'?buffer[0]===255&&buffer[1]===216:mime==='image/png'?buffer.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])):buffer.subarray(0,4).toString()==='RIFF'&&buffer.subarray(8,12).toString()==='WEBP';
+  if(!magic)throw new WorkOrderApiError('Dosya içeriği seçilen biçime uymuyor',400);
+}
 export async function readProductionInput(actor: WorkOrderActor, input: ProductionFileInput): Promise<Buffer> {
   if (input.base64) return Buffer.from(input.base64, "base64");
   const key = validateStorageKey(input.blobPath!);
@@ -36,7 +42,8 @@ export async function readProductionInput(actor: WorkOrderActor, input: Producti
 }
 export async function storeProductionFile(actor: WorkOrderActor, raw: unknown, bytes?: Buffer) {
   const d = ProductionFileSchema.parse(raw);
-  if (actor.role === "worker") {
+  if(d.purchaseOrderId && !(await sql`SELECT id FROM purchase_orders WHERE tenant_id=${actor.tenantId} AND id=${d.purchaseOrderId} AND status IN('submitted','partially_received')`).length)throw new WorkOrderApiError('Teslim alınabilir satın alma bulunamadı',404);
+  if (actor.role === "worker" && !d.purchaseOrderId) {
     if (
       !d.workOrderId ||
       !(
@@ -46,32 +53,20 @@ export async function storeProductionFile(actor: WorkOrderActor, raw: unknown, b
       throw new WorkOrderApiError("Bu işe fotoğraf ekleyemezsiniz", 403);
     if (d.mime === "application/pdf")
       throw new WorkOrderApiError("Yalnız iş fotoğrafı yükleyebilirsiniz", 403);
-  } else if (!["owner", "admin", "office"].includes(actor.role))
+  } else if (!["owner", "admin", "office"].includes(actor.role) && !(actor.role==='worker'&&d.purchaseOrderId))
     throw new WorkOrderApiError("Dosya yükleme yetkiniz yok", 403);
   if (d.workOrderId && !(await sql`SELECT id FROM work_orders WHERE tenant_id=${actor.tenantId} AND id=${d.workOrderId}`).length)
     throw new WorkOrderApiError("İş emri bulunamadı", 404);
   const buffer = bytes || await readProductionInput(actor, d);
-  if (buffer.length > 10 * 1024 * 1024)
-    throw new WorkOrderApiError("Dosya en fazla 10 MB olabilir", 413);
-  const magic =
-    d.mime === "application/pdf"
-      ? buffer.subarray(0, 4).toString() === "%PDF"
-      : d.mime === "image/jpeg"
-        ? buffer[0] === 255 && buffer[1] === 216
-        : d.mime === "image/png"
-          ? buffer.subarray(1, 4).toString() === "PNG"
-          : buffer.subarray(0, 4).toString() === "RIFF" &&
-            buffer.subarray(8, 12).toString() === "WEBP";
-  if (!magic)
-    throw new WorkOrderApiError("Dosya içeriği seçilen biçime uymuyor", 400);
+  validateProductionBytes(buffer,d.mime);
   // Files received by webhooks are also stored in Blob. Existing bytea rows remain readable.
   const key = d.blobPath || `production/${actor.tenantId}/${randomUUID()}`;
   if (d.blobPath && !validateStorageKey(key).startsWith(`uploads/${actor.tenantId}/${actor.userId}/`))
     throw new WorkOrderApiError("Bu yüklemeyi kullanamazsınız", 403);
   if (d.blobPath) {
-    const [old] = await sql`SELECT id,name,mime,work_order_id,created_by FROM production_files WHERE tenant_id=${actor.tenantId} AND file_path=${key}`;
+    const [old] = await sql`SELECT id,name,mime,work_order_id,purchase_order_id,created_by FROM production_files WHERE tenant_id=${actor.tenantId} AND file_path=${key}`;
     if (old) {
-      if (old.created_by!==actor.userId || old.work_order_id!==(d.workOrderId || null) || old.mime!==d.mime || old.name!==d.name) throw new WorkOrderApiError("Bu yükleme başka bir kayda bağlı",409);
+      if (old.created_by!==actor.userId || old.work_order_id!==(d.workOrderId || null) || old.purchase_order_id!==(d.purchaseOrderId || null) || old.mime!==d.mime || old.name!==d.name) throw new WorkOrderApiError("Bu yükleme başka bir kayda bağlı",409);
       return {id:old.id,name:old.name,mime:old.mime,url:`/api/v1/production/files/${actor.tenantId}/${old.id}`};
     }
   }
@@ -83,6 +78,7 @@ export async function storeProductionFile(actor: WorkOrderActor, raw: unknown, b
     if (!d.blobPath) await deleteFile(key).catch(() => {});
     throw error;
   }
+  if(d.purchaseOrderId)await sql`UPDATE production_files SET purchase_order_id=${d.purchaseOrderId} WHERE tenant_id=${actor.tenantId} AND id=${f.id}`;
   return {
     id: f.id,
     name: d.name,

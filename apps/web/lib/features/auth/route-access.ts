@@ -14,5 +14,5 @@ export function evaluateRouteAccess(role: unknown, pathname: string, method: str
   if (typeof role !== 'string' || !ROLES.includes(role)) return { type: 'next' };
   if (canAccessRoute(role as UserRole, pathname)) return { type: 'next' };
   const upper = method.toUpperCase();
-  return upper === 'GET' || upper === 'HEAD' ? { type: 'redirect', destination: '/dashboard' } : { type: 'forbidden' };
+  return upper === 'GET' || upper === 'HEAD' ? { type: 'redirect', destination: role==='worker'?'/production/worker':'/dashboard' } : { type: 'forbidden' };
 }

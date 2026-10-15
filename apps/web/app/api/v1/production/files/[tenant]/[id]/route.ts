@@ -13,8 +13,10 @@ export async function GET(
       return new Response("Not found", { status: 404 });
     z.string().uuid().parse(id);
     const [f] =
-      await sql`SELECT f.* FROM production_files f WHERE f.tenant_id=${a.tenantId} AND f.id=${id} AND (${["owner", "admin", "office", "accountant"].includes(a.role)} OR (${a.role === "worker"} AND f.work_order_id IN(SELECT id FROM work_orders WHERE tenant_id=${a.tenantId} AND (assigned_to=${a.userId} OR EXISTS(SELECT 1 FROM production_operations p WHERE p.work_order_id=work_orders.id AND p.tenant_id=${a.tenantId} AND p.assigned_to=${a.userId})))))`;
+      await sql`SELECT f.* FROM production_files f WHERE f.tenant_id=${a.tenantId} AND f.id=${id} AND (${["owner", "admin", "office", "accountant"].includes(a.role)} OR (${a.role === "worker"} AND ((f.created_by=${a.userId} AND (to_jsonb(f)->>'purchase_order_id') IS NOT NULL) OR f.work_order_id IN(SELECT id FROM work_orders WHERE tenant_id=${a.tenantId} AND (assigned_to=${a.userId} OR EXISTS(SELECT 1 FROM production_operations p WHERE p.work_order_id=work_orders.id AND p.tenant_id=${a.tenantId} AND p.assigned_to=${a.userId}))))))`;
     if (!f) return new Response("Not found", { status: 404 });
+    // Original invoices may contain prices. Workers use the extracted technical lines and job photos.
+    if(a.role==='worker'&&(f.mime==='application/pdf'||(await sql`SELECT id FROM receiving_documents WHERE tenant_id=${a.tenantId} AND file_id=${f.id} LIMIT 1`).length))return new Response('Bu belge yerine teknik mal kabul satırlarını kullanın',{status:403});
     const content = f.file_path ? (await readFile(f.file_path)).body : new Uint8Array(f.body);
     return new Response(content, {
       headers: {

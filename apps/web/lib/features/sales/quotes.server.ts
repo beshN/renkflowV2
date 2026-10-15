@@ -1,4 +1,6 @@
+import { acceptQuoteFile,reopenQuoteFile } from '../orders/quote-file.server';
 import 'server-only';
+import {syncLeadQuoteState} from '../field/quote-sync.server';
 
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
@@ -168,9 +170,11 @@ export async function reviseQuote(actor: WorkOrderActor, id: string, reason: str
   const why = reason.trim();
   if (why.length < 3) throw new WorkOrderApiError('Revizyon gerekçesi yazın', 400);
   return withTransaction(async (tx: any) => {
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${actor.tenantId},0))`;
     const { q, items } = await loadQuote(tx, actor.tenantId, id, true);
     if (!['sent', 'accepted', 'rejected', 'expired'].includes(q.status))
       throw new WorkOrderApiError(q.status === 'draft' ? 'Taslak teklif zaten düzenlenebilir' : 'Siparişe dönüşen teklif revize edilemez', 409);
+    await reopenQuoteFile(tx,actor.tenantId,id);
     await tx`INSERT INTO quotation_revisions (tenant_id, quotation_id, revision, status, snapshot, reason, created_by)
       VALUES (${actor.tenantId}, ${id}, ${q.revision}, ${q.status}, ${JSON.stringify(snapshotOf(q, items))}::text::jsonb, ${why}, ${actor.userId})`;
     await tx`UPDATE quotation_approval_links SET revoked_at = now() WHERE tenant_id = ${actor.tenantId} AND quotation_id = ${id} AND revoked_at IS NULL`;
@@ -178,6 +182,7 @@ export async function reviseQuote(actor: WorkOrderActor, id: string, reason: str
       discount_approved_percent = NULL, discount_approved_by = NULL, discount_approved_at = NULL,
       customer_decided_at = NULL, customer_decision_name = NULL, customer_decision_ip = NULL, customer_decision_agent = NULL, customer_decision_note = NULL
       WHERE tenant_id = ${actor.tenantId} AND id = ${id}`;
+    await syncLeadQuoteState(tx,actor.tenantId,id);
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'quotation', entityId: id, action: 'revised', note: why, changes: { revizyon: { from: q.revision, to: q.revision + 1 }, status: { from: q.status, to: 'draft' } } });
     return { revision: q.revision + 1 };
   });
@@ -372,9 +377,9 @@ export async function publicDecision(token: string, raw: unknown, client: { ip: 
   if (!limit.allowed) throw new WorkOrderApiError('Çok fazla deneme; biraz sonra tekrar deneyin', 429);
   const d = DecisionSchema.parse(raw);
   const result = await withTransaction(async (tx: any) => {
-    // Quote first, then link: the same lock order as revising and creating links (no deadlock).
     const seen = await linkFor(tx, token);
     if (!seen) throw new WorkOrderApiError('Bağlantı geçersiz veya süresi dolmuş', 404);
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${seen.tenant_id},0))`;
     const { q } = await loadQuote(tx, seen.tenant_id, seen.quotation_id, true);
     const l = await linkFor(tx, token, true);
     if (!l) throw new WorkOrderApiError('Bağlantı geçersiz veya süresi dolmuş', 404);
@@ -387,6 +392,7 @@ export async function publicDecision(token: string, raw: unknown, client: { ip: 
     await tx`UPDATE quotations SET status = ${to}, version = version + 1, updated_at = now(), customer_decided_at = now(), customer_decision_name = ${d.name},
       customer_decision_ip = ${client.ip.slice(0, 64)}, customer_decision_agent = ${agent}, customer_decision_note = ${d.note || null}
       WHERE id = ${q.id}`;
+    if (to === 'accepted') await acceptQuoteFile(tx, l.tenant_id, q.id);
     await tx`UPDATE quotation_approval_links SET used_at = now() WHERE id = ${l.id}`;
     await recordAudit(tx, { tenantId: l.tenant_id, actorId: null, entityType: 'quotation', entityId: q.id, action: d.decision === 'accept' ? 'customer_accepted' : 'customer_rejected', changes: { status: { from: 'sent', to } }, metadata: { name: d.name, ip: client.ip.slice(0, 64), agent, revision: q.revision, note: d.note || null } });
     return { tenantId: l.tenant_id as string, quoteId: q.id as string, number: q.quotation_number as string, createdBy: q.created_by as string | null, status: to };

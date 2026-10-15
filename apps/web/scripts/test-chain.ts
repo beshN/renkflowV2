@@ -73,8 +73,12 @@ async function main() {
   assert.equal(report.bySource.find((s) => s.source === 'referral')?.conversionPct, 100);
 
   // 3. Quote → order (existing conversion).
+  let accepted=await quotationService.updateStatus(tenantId,l.quotationId!,'sent',quote.version,ids.office,'office');
+  accepted=await quotationService.updateStatus(tenantId,l.quotationId!,'accepted',accepted.version,ids.office,'office');
   const conversion: any = await quotationService.convertToOrder(tenantId, l.quotationId!, ids.office, undefined, 'office');
   const orderId = String(conversion.orderId);
+  // This suite exercises pre-existing installation/service records.
+  await db`UPDATE orders SET technical_file_required=false WHERE id=${orderId}`;
   const [order] = await db`SELECT status, order_number FROM orders WHERE id = ${orderId}`;
 
   // 4. Order → installation plan in one call; checklist seeded; conflict warned, not blocked.
@@ -153,7 +157,10 @@ async function main() {
 
   // Signed before production finished: the queue's refresh files the suggestion once the order is ready.
   const late = await quotationService.createQuotation(tenantId, { customerId: l.customerId!, customerName: 'Deniz Kaya', currency: 'TRY', discountPercent: 0, items: [{ productName: 'Pergola', quantity: 1, unitPrice: 0, discountPercent: 0, totalPrice: 0 }] } as any, ids.office);
+  let lateAccepted=await quotationService.updateStatus(tenantId,late.id,'sent',late.version,ids.office,'office');
+  lateAccepted=await quotationService.updateStatus(tenantId,late.id,'accepted',lateAccepted.version,ids.office,'office');
   const lateOrder = String(((await quotationService.convertToOrder(tenantId, (late as any).id, ids.office, undefined, 'office')) as any).orderId);
+  await db`UPDATE orders SET technical_file_required=false WHERE id=${lateOrder}`;
   const latePlan = await inst.planInstallation(office, lateOrder, { date: '2026-10-22' });
   await inst.updateInstallation(office, latePlan.id, { status: 'in_progress' });
   const lateToken = (await inst.createSignoffLink(office, latePlan.id)).path.split('/').pop()!;

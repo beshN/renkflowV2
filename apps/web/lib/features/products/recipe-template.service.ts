@@ -66,6 +66,7 @@ const ImportSchema = z.object({
   fileName: z.string().trim().max(200).default('recete.csv'),
   text: z.string().min(1, 'Dosya boş').max(1_000_000, 'Dosya en fazla 1 MB olabilir'),
   dryRun: z.boolean().default(true),
+  verificationSource:z.string().trim().min(5).max(1000).optional(),
 });
 
 /**
@@ -76,7 +77,8 @@ export async function importFamilyRecipe(actor: WorkOrderActor, raw: unknown) {
   if (!FIRM_MANAGER_ROLES.includes(actor.role)) fail('Reçeteyi firma yöneticisi yükler', 403);
   const input = ImportSchema.parse(raw);
   if (!productFamily(input.family)) fail('Bilinmeyen ürün ailesi');
-  const read = readRecipeCsv(input.text, await context(actor.tenantId));
+  const family=productFamily(input.family)!;
+  const read = readRecipeCsv(input.text, {...await context(actor.tenantId),geometry:family.geometry});
   if (!read.ok) return { ok: false as const, errors: read.errors };
   const summary = {
     materials: read.parts.rules.length,
@@ -119,6 +121,7 @@ export async function importFamilyRecipe(actor: WorkOrderActor, raw: unknown) {
         // Worked examples already entered on the draft stay; publishing checks them against the new rules.
         examples: draft ? latest.examples : [],
         ...read.parts,
+        geometry:family.geometry||'roof',verificationSource:input.verificationSource,
       },
     });
   } catch (error) {

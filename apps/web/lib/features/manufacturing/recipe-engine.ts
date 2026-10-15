@@ -20,7 +20,7 @@ export const RecipeRuleSchema = z
   });
 export const RecipeParametersSchema = z.object({
   widthMm: z.number().positive().finite(),
-  projectionMm: z.number().positive().finite(),
+  projectionMm: z.number().nonnegative().finite(),
   mountingHeightMm: z.number().positive().finite(),
   quantity: z.number().int().positive().max(10000),
   motor: z.boolean().default(true),
@@ -39,6 +39,8 @@ export const RecipeParameterDefinitionSchema = z.object({
   if(p.defaultValue !== undefined && typeof p.defaultValue !== (p.type==="number"?"number":"boolean"))c.addIssue({code:"custom",message:"Varsayılan parametre türü geçersiz"});
 });
 export const RecipeSchema = z.object({
+  geometry:z.enum(['roof','vertical']).optional(),
+  verificationSource:z.string().trim().min(5).max(1000).optional(),
   editRevision:z.number().int().positive().optional(),
   parameterDefinitions:z.array(RecipeParameterDefinitionSchema).max(30).refine(v=>new Set(v.map(p=>p.key)).size===v.length,"Parametre kodları benzersiz olmalı").optional(),
   constraints:z.array(z.object({formula:Formula,message:z.string().trim().min(1).max(250)})).max(30).optional(),
@@ -63,8 +65,8 @@ export const RecipeSchema = z.object({
   limits: z.object({
     minWidthMm: z.number().positive(),
     maxWidthMm: z.number().positive(),
-    minProjectionMm: z.number().positive(),
-    maxProjectionMm: z.number().positive(),
+    minProjectionMm: z.number().nonnegative(),
+    maxProjectionMm: z.number().nonnegative(),
     minMountingHeightMm: z.number().positive(),
     maxMountingHeightMm: z.number().positive(),
   }),
@@ -194,6 +196,8 @@ export function calculateRecipe(
   const recipe = RecipeSchema.parse(raw),
     params = RecipeParametersSchema.parse(input),
     l = recipe.limits;
+  if(recipe.geometry==='vertical'){if(params.projectionMm!==0||l.minProjectionMm!==0||l.maxProjectionMm!==0)throw new Error('Dikey üründe açılım uygulanmaz; reçetede açılım sınırları 0 olmalı');}
+  else if(params.projectionMm<=0||l.minProjectionMm<=0||l.maxProjectionMm<=0)throw new Error('Açılım pozitif olmalı');
   for (const [value, min, max, label] of [
     [params.widthMm, l.minWidthMm, l.maxWidthMm, "En"],
     [params.projectionMm, l.minProjectionMm, l.maxProjectionMm, "Açılım"],
@@ -218,11 +222,11 @@ export function calculateRecipe(
   }
   const variables = {
     ...custom,
-    widthMm:params.widthMm, projectionMm:params.projectionMm,mountingHeightMm:params.mountingHeightMm,
+    widthMm:params.widthMm, projectionMm:params.projectionMm,mountingHeightMm:params.mountingHeightMm,heightMm:params.mountingHeightMm,
     motor: Number(params.motor),
     led: Number(params.led),
     quantity: 1,
-    areaM2: (params.widthMm * params.projectionMm) / 1_000_000,
+    areaM2: (params.widthMm * (recipe.geometry==='vertical'?params.mountingHeightMm:params.projectionMm)) / 1_000_000,
   };
   for(const constraint of recipe.constraints || [])if(!evaluateFormula(constraint.formula,variables))throw new Error(constraint.message);
   const cuts: Array<{ itemId: string; lengthMm: number; quantity: number }> =

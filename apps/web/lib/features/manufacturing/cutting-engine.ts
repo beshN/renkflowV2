@@ -26,6 +26,9 @@ export type CutDemand = {
   orderItemId?: string;
 };
 export type CutSource = {
+  stockItemId?: string;
+  stockColor?: string;
+  paintTo?: string | null;
   id: string;
   itemId: string;
   color: string;

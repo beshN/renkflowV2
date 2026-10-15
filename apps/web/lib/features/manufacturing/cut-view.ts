@@ -24,7 +24,7 @@ export function cutView(plan: { id: string; status: string; result: any }, visib
   return {
     id: plan.id,
     status: plan.status,
-    wastePercent: plan.result?.wastePercent === undefined ? null : num(plan.result.wastePercent),
+    wastePercent: plan.result?.wastePercent == null ? null : num(plan.result.wastePercent),
     bars: bars.map((b: any) => ({
       id: String(b.source?.id ?? ''),
       itemId: String(b.source?.itemId ?? ''),

@@ -1,3 +1,4 @@
+import { requireCommercialApproval } from '../orders/quote-file.server';
 import 'server-only';
 
 import { columnExists } from '@/lib/db/schema-guard';
@@ -31,6 +32,11 @@ export async function applyOrderStatus(
   const problem = transitionProblem(o.from, o.to, o.note);
   if (problem) throw new WorkOrderApiError(problem, 409);
   if (o.from === o.to) return false;
+  if(PAST_APPROVAL.includes(o.to)&&o.to!=='approved'&&await columnExists('orders','quotation_id')){
+    const [file]=await tx`SELECT to_jsonb(orders)->>'technical_file_required' AS required FROM orders WHERE tenant_id=${o.tenantId} AND id=${o.orderId}`;
+    if(file?.required==='true'&&!(await tx`SELECT id FROM order_technical_revisions WHERE tenant_id=${o.tenantId} AND order_id=${o.orderId} AND status='approved'`).length)throw new WorkOrderApiError('Siparişin teknik planı onaylanmadan üretim veya teslim aşamasına geçilemez',409);
+  }
+  if(PAST_APPROVAL.includes(o.to)) await requireCommercialApproval(tx,o.tenantId,o.orderId,o.from==='on_hold');
   await tx`UPDATE orders SET status=${o.to}, version=version+1, updated_at=now() WHERE tenant_id=${o.tenantId} AND id=${o.orderId}`;
   await noteOrderDates(tx, o.tenantId, o.orderId, o.to);
   const name = o.actorName ?? (o.actorId ? (await tx`SELECT name FROM users WHERE id=${o.actorId}`)[0]?.name : null) ?? 'Kullanıcı';

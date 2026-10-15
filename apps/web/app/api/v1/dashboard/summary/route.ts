@@ -14,8 +14,8 @@ export async function GET() {
           COUNT(*) FILTER (WHERE status IN ('new', 'pending', 'pending_approval')) AS pending_count,
           COUNT(*) FILTER (WHERE status IN ('ready_for_shipment', 'ready')) AS ready_for_shipment,
           COUNT(*) FILTER (WHERE delivery_date::date = CURRENT_DATE) AS today_deliveries
-        FROM orders
-        WHERE tenant_id = ${tenantId}
+        FROM orders o
+        WHERE tenant_id = ${tenantId} AND COALESCE((to_jsonb(o)->>'provisional')::boolean,false)=false
       `,
       sql`
         SELECT
@@ -39,8 +39,8 @@ export async function GET() {
       }),
       sql`
         SELECT COUNT(*) AS overdue_count
-        FROM orders
-        WHERE tenant_id = ${tenantId}
+        FROM orders o
+        WHERE tenant_id = ${tenantId} AND COALESCE((to_jsonb(o)->>'provisional')::boolean,false)=false
           AND delivery_date < CURRENT_DATE
           AND status NOT IN ('completed', 'cancelled', 'delivered', 'shipped')
       `,
@@ -54,8 +54,8 @@ export async function GET() {
       // Last 14 days, oldest first: orders opened and orders finished per day (the KPI sparklines).
       sql`
         SELECT d::date AS day,
-          (SELECT COUNT(*) FROM orders o WHERE o.tenant_id = ${tenantId} AND o.created_at::date = d::date)::int AS created,
-          (SELECT COUNT(*) FROM orders o WHERE o.tenant_id = ${tenantId} AND o.status IN ('completed', 'delivered') AND o.updated_at::date = d::date)::int AS completed
+          (SELECT COUNT(*) FROM orders o WHERE o.tenant_id = ${tenantId} AND COALESCE((to_jsonb(o)->>'provisional')::boolean,false)=false AND o.created_at::date = d::date)::int AS created,
+          (SELECT COUNT(*) FROM orders o WHERE o.tenant_id = ${tenantId} AND COALESCE((to_jsonb(o)->>'provisional')::boolean,false)=false AND o.status IN ('completed', 'delivered') AND o.updated_at::date = d::date)::int AS completed
         FROM generate_series(CURRENT_DATE - 13, CURRENT_DATE, interval '1 day') AS d
         ORDER BY d
       `,
@@ -65,7 +65,7 @@ export async function GET() {
           COUNT(*) FILTER (WHERE created_at >= date_trunc('week', now()))::int AS created,
           COUNT(*) FILTER (WHERE status IN ('completed', 'delivered') AND updated_at >= date_trunc('week', now()))::int AS completed,
           COUNT(*) FILTER (WHERE status IN ('completed', 'delivered') AND updated_at >= date_trunc('week', now()) AND (delivery_date IS NULL OR updated_at::date <= delivery_date::date))::int AS on_time
-        FROM orders WHERE tenant_id = ${tenantId}
+        FROM orders o WHERE tenant_id = ${tenantId} AND COALESCE((to_jsonb(o)->>'provisional')::boolean,false)=false
       `,
       // Open jobs per colour: the paint queue (jobs of one colour go to the paint shop together).
       sql`

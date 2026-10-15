@@ -8,6 +8,7 @@ import { EmptyState, PageHeader, StatusChip } from '@/components/kit';
 import { ColorSwatch } from '@/components/colors/ColorSwatch';
 import { FoySchema } from './FoySchema';
 import { FoyCutPlan } from './FoyCutPlan';
+import type { TechnicalFamily } from '@/lib/features/orders/technical';
 import { cn } from '@/lib/utils';
 import type { FoyCheck, FoyFeatures } from '@/lib/features/foy/rules';
 import type { FoyDoc, FoyPartKind } from '@/lib/features/foy/types';
@@ -29,6 +30,8 @@ type Entry = {
   state: 'reading' | 'ready' | 'error' | 'done';
   error?: string;
   result?: Analysis;
+  choices?: Record<string,string>;
+  reviewedDoc?: FoyDoc;
   customerId?: string | null;
   customerName?: string;
   order?: { href: string; orderNumber: string };
@@ -86,7 +89,7 @@ function Spec({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-function Preview({ entry, onCustomer, onCreate, creating }: { entry: Entry; onCustomer: (id: string | null, name: string) => void; onCreate: () => void; creating: boolean }) {
+function Preview({ entry, onCustomer, onCreate, creating, orderMode=false,family,onReview }: { orderMode?:boolean;family?:TechnicalFamily;onReview?:(doc:FoyDoc,choices:Record<string,string>)=>void;entry: Entry; onCustomer: (id: string | null, name: string) => void; onCreate: () => void; creating: boolean }) {
   const a = entry.result!;
   const d = a.doc;
   const f = a.features;
@@ -106,7 +109,7 @@ function Preview({ entry, onCustomer, onCreate, creating }: { entry: Entry; onCu
         <p className="flex items-start gap-2 rounded-md border border-amber-600/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-900 dark:text-amber-200"><AlertTriangle size={14} className="mt-0.5 shrink-0" />{a.model.blocked}</p>
       )}
 
-      <section className="rounded-lg border border-border bg-card p-3">
+      {!orderMode&&<section className="rounded-lg border border-border bg-card p-3">
         <h3 className="mb-1 flex items-center gap-1.5 text-xs font-semibold"><Users size={14} />Müşteri</h3>
         <div className="space-y-1.5">
           {a.customers.map((c) => (
@@ -122,9 +125,9 @@ function Preview({ entry, onCustomer, onCreate, creating }: { entry: Entry; onCu
             <input aria-label="Yeni müşteri adı" value={entry.customerId ? fallbackName : entry.customerName ?? fallbackName} disabled={Boolean(entry.customerId)} onChange={(e) => onCustomer(null, e.target.value)} className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-[13px] disabled:opacity-50" />
           </label>
         </div>
-      </section>
+      </section>}
 
-      {d.template === 'pergola' && <FoyCutPlan doc={d} />}
+      {d.template === 'pergola' && <FoyCutPlan doc={d} family={family} onReview={onReview} />}
 
       <details className="rounded-lg border border-border" open={a.summary.warn > 0}>
         <summary className="cursor-pointer px-3 py-2 text-xs font-semibold">Föy ayrıntıları ve kontroller{a.summary.warn > 0 ? ` (${a.summary.warn} uyarı)` : ''}</summary>
@@ -205,7 +208,7 @@ function Preview({ entry, onCustomer, onCreate, creating }: { entry: Entry; onCu
         ) : (
           <button type="button" disabled={creating || d.template === 'unknown'} onClick={onCreate} className="rf-primary-button h-9 items-center gap-2 px-3 text-xs">
             {creating ? <Loader2 size={14} className="animate-spin motion-reduce:animate-none" /> : <CheckCircle2 size={14} />}
-            Onayla, sipariş oluştur
+            {orderMode?'Listeyi siparişe ekle':'Onayla, sipariş oluştur'}
           </button>
         )}
       </div>
@@ -214,10 +217,11 @@ function Preview({ entry, onCustomer, onCreate, creating }: { entry: Entry; onCu
 }
 
 /** Drop one or more imalat föyü; each is read, checked and turned into an order on approval. */
-export function FoyWorkbench() {
+export function FoyWorkbench({orderId,family,expectedRevision=0,onAttached,controlled=false}:{controlled?:boolean;orderId?:string;family?:TechnicalFamily;expectedRevision?:number;onAttached?:()=>void}={}) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [revisionReason,setRevisionReason]=useState('');
   const [drag, setDrag] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const patch = useCallback((key: string, p: Partial<Entry>) => setEntries((list) => list.map((e) => (e.key === key ? { ...e, ...p } : e))), []);
@@ -251,10 +255,15 @@ export function FoyWorkbench() {
   const current = entries.find((e) => e.key === selected) ?? null;
   const create = async () => {
     if (!current?.result) return;
+    if(controlled&&revisionReason.trim().length<5){toast.error('Revizyon gerekçesini yazın');return;}
     setCreating(true);
     try {
+      if(orderId) {
+        await post(`/api/v1/orders/${orderId}/technical`,{action:'attach',data:{name:current.file.name,doc:current.reviewedDoc||current.result.doc,family:family||'other',choices:current.choices||{},expectedRevision,revisionReason:controlled?revisionReason:undefined,file:current.base64?{name:current.file.name,mime:current.mime,base64:current.base64}:undefined}});
+        toast.success('Liste mevcut siparişe eklendi');onAttached?.();return;
+      }
       const r = await post<{ href: string; orderNumber: string; attached: boolean }>('/api/v1/orders/foy/order', {
-        name: current.file.name, doc: current.result.doc, customerId: current.customerId ?? null,
+        name: current.file.name, doc: current.reviewedDoc||current.result.doc, customerId: current.customerId ?? null,
         customerName: (current.customerName || current.result.doc.customer || current.result.doc.address || 'Föyden sipariş').trim(),
         file: current.base64 ? { name: current.file.name, mime: current.mime, base64: current.base64 } : undefined,
       });
@@ -268,7 +277,8 @@ export function FoyWorkbench() {
   };
 
   return (
-    <div className="rf-page space-y-5">
+    <div className={orderId?"space-y-5":"rf-page space-y-5"}>
+      {controlled&&<label className="block text-sm">Revizyon gerekçesi<textarea className="rf-input mt-1 w-full" rows={2} maxLength={1000} value={revisionReason} onChange={e=>setRevisionReason(e.target.value)} placeholder="Değişen ölçü veya teknik bilgiyi açıklayın"/><span className="mt-1 block text-xs text-muted-foreground">Liste eklenince mevcut sürümde üretim durur. Yetkili onayından sonra güncel sürümle devam edilir.</span></label>}
       <PageHeader eyebrow="Üretim" title="Kesim listesi"
         hint="Föy PDF'ini ya da fotoğrafını yükleyin. Hangi profil hangi çubuktan kesilecek, hangi artık ya da hurda boy kullanılacak, ne kadar fire çıkacak ve neyin alınması gerektiği hesaplanır. Siz onaylamadan hiçbir şey kaydedilmez."
         kpis={entries.length ? [
@@ -309,7 +319,7 @@ export function FoyWorkbench() {
             </ul>
             <div className="min-w-0">
               {current?.result ? (
-                <Preview entry={current} creating={creating} onCreate={create} onCustomer={(id, name) => patch(current.key, { customerId: id, customerName: name })} />
+                <Preview entry={current} orderMode={!!orderId} family={family} onReview={(doc,choices)=>patch(current.key,{reviewedDoc:doc,choices})} creating={creating} onCreate={create} onCustomer={(id, name) => patch(current.key, { customerId: id, customerName: name })} />
               ) : current?.state === 'error' ? (
                 <EmptyState icon={X} title={current.error ?? 'Okunamadı'} action={{ label: 'Tekrar oku', onClick: () => void readEntry(current) }} />
               ) : (

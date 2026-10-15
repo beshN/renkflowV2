@@ -12,6 +12,8 @@ import {
   type LeadStage, type Measures,
 } from './engine';
 import { isoDay, nextNumber, requireCap, requireChain } from './common.server';
+import {SalesProfileSchema,salesPriority} from './sales-context';
+import {leadSalesContext} from './sales-context.server';
 
 const LeadInput = z.object({
   title: z.string().trim().min(1).max(200),
@@ -25,24 +27,36 @@ const LeadInput = z.object({
   estimatedValue: z.coerce.number().min(0).max(1e12).nullish(),
   ownerId: z.string().uuid().nullish(),
   nextFollowUp: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+  salesProfile:SalesProfileSchema.optional(),
+  duplicateReason:z.string().trim().min(5).max(500).optional(),
 }).strict();
 
 /** For edits: every field optional and none defaulted (a missing source must not reset it). */
 const LeadPatch = LeadInput.extend({ source: z.enum(LEAD_SOURCES).optional() }).partial();
 
 const LEAD_FIELDS = `l.id, l.lead_number, l.title, l.contact_name, l.company_name, l.phone, l.email, l.address, l.source, l.stage, l.lost_reason, l.lost_note,
-  l.product_family, l.estimated_value, l.owner_id, l.next_follow_up, l.customer_id, l.quotation_id, l.closed_at, l.stage_changed_at, l.version, l.created_at, l.updated_at`;
+  l.product_family, l.estimated_value, l.owner_id, l.next_follow_up, l.customer_id, l.quotation_id, l.closed_at, l.stage_changed_at, l.version, l.created_at, l.updated_at,to_jsonb(l)->'sales_profile' AS sales_profile,to_jsonb(l)->'priority_override' AS priority_override`;
 
 function leadDto(r: any) {
   return {
     id: String(r.id), number: r.lead_number as string, title: r.title as string, contactName: r.contact_name as string, companyName: r.company_name ?? null,
     phone: r.phone ?? null, email: r.email ?? null, address: r.address ?? null, mapUrl: mapLink(r.address), source: r.source as string,
-    stage: r.stage as LeadStage, lostReason: r.lost_reason ?? null, lostNote: r.lost_note ?? null, productFamily: r.product_family ?? null,
+    stage: (['accepted','converted'].includes(r.quotation_status)?'won':r.stage) as LeadStage, lostReason: r.lost_reason ?? null, lostNote: r.lost_note ?? null, productFamily: r.product_family ?? null,
+    quotationStatus:r.quotation_status||null,quotationRevision:r.quotation_revision||null,
+    salesProfile:SalesProfileSchema.parse(r.sales_profile||{}),priority:salesPriority(r.sales_profile,r.priority_override),
     estimatedValue: r.estimated_value === null || r.estimated_value === undefined ? null : Number(r.estimated_value),
     ownerId: r.owner_id ? String(r.owner_id) : null, ownerName: r.owner_name ?? null, nextFollowUp: isoDay(r.next_follow_up),
     customerId: r.customer_id ? String(r.customer_id) : null, quotationId: r.quotation_id ? String(r.quotation_id) : null, quotationNumber: r.quotation_number ?? null,
     closedAt: r.closed_at, stageChangedAt: r.stage_changed_at, version: Number(r.version), createdAt: r.created_at, updatedAt: r.updated_at,
   };
+}
+
+const phoneIdentity=(s:string|null|undefined)=>(s||'').replace(/\D/g,'').replace(/^00/,'');
+async function checkDuplicate(db:any,tenantId:string,phone:string|null|undefined,email:string|null|undefined,except?:string,reason?:string){
+  const p=phoneIdentity(phone),e=(email||'').trim().toLowerCase();
+  if(!p&&!e)return;
+  const duplicates=await db`SELECT id,lead_number FROM leads WHERE tenant_id=${tenantId} AND (${!except} OR id<>${except||null}) AND ((${!!e} AND lower(trim(email))=${e}) OR (${p.length>=7} AND regexp_replace(regexp_replace(phone,'[^0-9]','','g'),'^00','')=${p})) LIMIT 5`;
+  if(duplicates.length&&!reason)throw new WorkOrderApiError(`Aynı telefon veya e-posta ile kayıt var (${duplicates.map((r:any)=>r.lead_number).join(', ')}). Ayrı proje talebiyse mükerrer kayıt gerekçesini yazın.`,409);
 }
 
 async function loadLead(db: any, tenantId: string, id: string, lock = false) {
@@ -64,11 +78,11 @@ export async function listLeads(actor: WorkOrderActor) {
   await requireChain();
   await requireCap(actor, 'crm', 'view', 'Potansiyel müşterileri görme');
   const rows = await sql.unsafe(`
-    SELECT ${LEAD_FIELDS}, u.name AS owner_name, q.quotation_number,
+    SELECT ${LEAD_FIELDS}, u.name AS owner_name, q.quotation_number,q.status AS quotation_status,q.revision AS quotation_revision,
       (SELECT count(*)::int FROM site_surveys s WHERE s.tenant_id = l.tenant_id AND s.lead_id = l.id AND s.status <> 'cancelled') AS surveys
     FROM leads l LEFT JOIN users u ON u.id = l.owner_id LEFT JOIN quotations q ON q.id = l.quotation_id AND q.tenant_id = l.tenant_id
     WHERE l.tenant_id = $1 ORDER BY l.stage_changed_at DESC LIMIT 500`, [actor.tenantId]);
-  return rows.map((r: any) => ({ ...leadDto(r), surveys: Number(r.surveys) }));
+  return rows.map((r: any) => ({ ...leadDto(r), surveys: Number(r.surveys) })).sort((a:any,b:any)=>a.priority.rank-b.priority.rank||Number(b.priority.foreign)-Number(a.priority.foreign)||b.priority.quantity-a.priority.quantity);
 }
 
 export async function createLead(actor: WorkOrderActor, raw: unknown) {
@@ -77,13 +91,16 @@ export async function createLead(actor: WorkOrderActor, raw: unknown) {
   const d = LeadInput.parse(raw);
   if (d.productFamily && !productFamily(d.productFamily)) throw new WorkOrderApiError('Bilinmeyen ürün ailesi', 400);
   return withTransaction(async (tx: any) => {
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${actor.tenantId},0))`;
     await checkOwner(tx, actor.tenantId, d.ownerId);
+    await checkDuplicate(tx,actor.tenantId,d.phone,d.email,undefined,d.duplicateReason);
     const number = await nextNumber(tx, actor.tenantId, 'leads', 'lead_number', 'POT');
     const [row] = await tx`
       INSERT INTO leads (tenant_id, lead_number, title, contact_name, company_name, phone, email, address, source, product_family, estimated_value, owner_id, next_follow_up, created_by)
       VALUES (${actor.tenantId}, ${number}, ${d.title}, ${d.contactName}, ${d.companyName || null}, ${d.phone || null}, ${d.email || null}, ${d.address || null},
         ${d.source}, ${d.productFamily || null}, ${d.estimatedValue ?? null}, ${d.ownerId ?? actor.userId}, ${d.nextFollowUp || null}, ${actor.userId})
       RETURNING id`;
+    if(d.salesProfile)await tx`UPDATE leads SET sales_profile=${JSON.stringify(d.salesProfile)}::text::jsonb WHERE tenant_id=${actor.tenantId} AND id=${row.id}`;
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'lead', entityId: row.id, action: 'created', metadata: { number, source: d.source } });
     return { id: String(row.id), number };
   });
@@ -95,9 +112,12 @@ export async function updateLead(actor: WorkOrderActor, id: string, raw: unknown
   const d = LeadPatch.parse(raw);
   if (d.productFamily && !productFamily(d.productFamily)) throw new WorkOrderApiError('Bilinmeyen ürün ailesi', 400);
   await withTransaction(async (tx: any) => {
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${actor.tenantId},0))`;
     const before = await loadLead(tx, actor.tenantId, id, true);
     if (before.stage === 'won' || before.stage === 'lost') throw new WorkOrderApiError('Kapanmış kayıt düzenlenemez; önce yeniden açın', 409);
     await checkOwner(tx, actor.tenantId, d.ownerId);
+    if(d.phone!==undefined||d.email!==undefined)await checkDuplicate(tx,actor.tenantId,d.phone===undefined?before.phone:d.phone,d.email===undefined?before.email:d.email,id,d.duplicateReason);
+    if(d.salesProfile)await tx`UPDATE leads SET sales_profile=${JSON.stringify(d.salesProfile)}::text::jsonb WHERE tenant_id=${actor.tenantId} AND id=${id}`;
     const next = {
       title: d.title ?? before.title, contact_name: d.contactName ?? before.contact_name, company_name: d.companyName === undefined ? before.company_name : d.companyName || null,
       phone: d.phone === undefined ? before.phone : d.phone || null, email: d.email === undefined ? before.email : d.email || null,
@@ -194,12 +214,12 @@ export async function convertLead(actor: WorkOrderActor, id: string) {
 export async function getLead(actor: WorkOrderActor, id: string) {
   await requireChain();
   await requireCap(actor, 'crm', 'view', 'Potansiyel müşteriyi görme');
-  const [r] = await sql.unsafe(`SELECT ${LEAD_FIELDS}, u.name AS owner_name, q.quotation_number FROM leads l LEFT JOIN users u ON u.id = l.owner_id
+  const [r] = await sql.unsafe(`SELECT ${LEAD_FIELDS}, u.name AS owner_name, q.quotation_number,q.status AS quotation_status,q.revision AS quotation_revision FROM leads l LEFT JOIN users u ON u.id = l.owner_id
     LEFT JOIN quotations q ON q.id = l.quotation_id AND q.tenant_id = l.tenant_id WHERE l.tenant_id = $1 AND l.id = $2`, [actor.tenantId, id]);
   if (!r) throw new WorkOrderApiError('Potansiyel müşteri bulunamadı', 404);
   const surveys = await sql`SELECT s.*, u.name AS assignee_name FROM site_surveys s LEFT JOIN users u ON u.id = s.assigned_to
     WHERE s.tenant_id = ${actor.tenantId} AND s.lead_id = ${id} ORDER BY s.scheduled_at NULLS LAST, s.created_at`;
-  return { ...leadDto(r), surveys: surveys.map(surveyDto) };
+  return { ...leadDto(r), surveys: surveys.map(surveyDto),salesContext:await leadSalesContext(actor,id) };
 }
 
 function surveyDto(s: any) {
@@ -285,6 +305,6 @@ export async function measureChangesForQuote(actor: WorkOrderActor, quotationId:
 export async function leadReport(actor: WorkOrderActor, from?: string, to?: string) {
   await requireChain();
   await requireCap(actor, 'crm', 'view', 'Dönüşüm raporu');
-  const rows = await sql`SELECT source, stage, created_at, closed_at FROM leads WHERE tenant_id = ${actor.tenantId}`;
+  const rows = await sql`SELECT l.source,CASE WHEN q.status IN('accepted','converted') THEN 'won' ELSE l.stage END AS stage,l.created_at,COALESCE(l.closed_at,CASE WHEN q.status IN('accepted','converted') THEN q.customer_decided_at ELSE NULL END) AS closed_at FROM leads l LEFT JOIN quotations q ON q.id=l.quotation_id AND q.tenant_id=l.tenant_id WHERE l.tenant_id = ${actor.tenantId}`;
   return conversionReport(rows.map((r: any) => ({ source: r.source, stage: r.stage, createdAt: new Date(r.created_at).toISOString(), closedAt: r.closed_at ? new Date(r.closed_at).toISOString() : null })), from, to);
 }
