@@ -31,6 +31,14 @@ export const CommandSchema = z.discriminatedUnion('intent', [
 export type Command = z.infer<typeof CommandSchema>;
 export type Parsed = { command: Command; confidence: 'high' | 'medium' | 'low'; missing: string[] };
 
+/** A question about existing quotations must never turn into a new quote preview. */
+export function isQuoteDraftRequest(text: string): boolean {
+  const parsed = parseCommand(text).command;
+  if (parsed.intent !== 'quote_draft') return false;
+  if (/hazırla|oluştur|çıkar|çıkart|teklif yap/iu.test(text)) return true;
+  return !/incele|özetle|analiz|durum|listele|karşılaştır|nedir|hakkında|anlat|teklifler/iu.test(text);
+}
+
 const lower = (s: string) => s.toLocaleLowerCase('tr-TR');
 const num = (s: string) => Number(s.replace(',', '.'));
 
