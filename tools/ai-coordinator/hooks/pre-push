@@ -1,0 +1,14 @@
+#!/bin/sh
+# RenkFlow AI: modeller (ve onların oturumları) korumalı dallara push edemez.
+# İnsan sahiplerin kasıtlı push'u için: RENKFLOW_ALLOW_PROTECTED_PUSH=1 git push ...
+zero=0000000000000000000000000000000000000000
+while read local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main|refs/heads/master|refs/heads/production|refs/heads/release)
+      if [ "$RENKFLOW_ALLOW_PROTECTED_PUSH" != "1" ]; then
+        echo "⛔ pre-push: '$remote_ref' korumalı. Değişiklikler ai/* dalı + PR ile gitmeli." >&2
+        exit 1
+      fi;;
+  esac
+done
+exit 0

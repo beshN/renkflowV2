@@ -1,0 +1,8 @@
+{
+  "models": {
+    "argon":  { "cli": "gemini", "model": null, "label": "Gemini 4 Argon",  "role": "Ana geliştirici: UX ve fabrika simülasyonu" },
+    "sol":    { "cli": "codex",  "model": null, "label": "GPT-6.1 Sol",     "role": "Mimari, iş kuralları, güvenlik, bağımsız denetim" },
+    "sonnet": { "cli": "claude", "model": null, "label": "Claude Sonnet 5.5", "role": "Koordinatör" }
+  },
+  "limits": { "timeoutMs": 900000, "maxAttempts": 3, "maxTotalRuns": 60, "maxRunsPerTask": 8, "maxTotalUsd": 25, "maxUsdPerRun": 2, "maxConsecutiveFailures": 3 }
+}

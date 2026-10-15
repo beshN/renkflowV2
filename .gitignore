@@ -57,3 +57,11 @@ next-env.d.ts
 **/.data/
 
 .local/
+.ai-worktrees/
+
+# AI koordinatör çalışma zamanı durumu (TASK_BOARD.json izlenir; geri kalanı yerel)
+ai-workspace/.board.lock/
+ai-workspace/STOP
+ai-workspace/reports/usage.json
+ai-workspace/reports/events.jsonl
+tools/ai-coordinator/node_modules/

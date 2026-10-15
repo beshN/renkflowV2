@@ -1,0 +1,16 @@
+{
+  "id": "PILOT-001",
+  "title": "Pilot: atölye ekranı için UX notu (üretim kodu değişmez)",
+  "description": "Yalnızca ai-workspace/ux/pilot-ux-note.md dosyasını oluştur. İçerik: ai-workspace/PROJECT_CONTEXT.md ve FACTORY_RULES.md'yi okuyarak, atölye çalışanının kullanacağı bir 'iş emri kartı' ekranı için en fazla 10 maddelik, Türkçe, sade UX önerileri. Kod, konfigürasyon veya başka dosya değiştirme.",
+  "kind": "docs",
+  "owner": "argon",
+  "reviewer": "sol",
+  "priority": "P1",
+  "acceptance": [
+    "ai-workspace/ux/pilot-ux-note.md oluşturuldu",
+    "En fazla 10 madde, Türkçe, sade dil",
+    "Alüminyum profilin satın alınan malzeme olduğu varsayımıyla çelişmiyor",
+    "Gizli bilgi, gerçek müşteri verisi veya kod içermiyor"
+  ],
+  "files": ["ai-workspace/ux/pilot-ux-note.md"]
+}

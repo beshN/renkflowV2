@@ -1,0 +1,17 @@
+{
+  "name": "@renkflow/ai-coordinator",
+  "private": true,
+  "version": "0.1.0",
+  "description": "RenkFlow çoklu-model görev koordinatörü (bağımlılıksız; Node >=22.18, TypeScript tip-silme)",
+  "type": "module",
+  "scripts": {
+    "start": "node src/cli.ts start",
+    "doctor": "node src/cli.ts doctor",
+    "type-check": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test test/coordinator.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^5.9.3"
+  }
+}
