@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Loader2, Recycle, Scissors, ShoppingCart } from 'lucide-react';
+import { AlertTriangle, Loader2, Paintbrush, Recycle, Scissors, ShoppingCart } from 'lucide-react';
 import { StatusChip } from '@/components/kit';
 import { requestJson } from '@/lib/shared/network';
 import type { CutListPlan, CutRow, PlannedBar, RowProblem } from '@/lib/features/manufacturing/cut-list';
@@ -14,6 +14,7 @@ type Result = {
   plan: CutListPlan;
   estimateNotice: string | null;
   stock: { items: number; bars: number };
+  stockProblems?: Array<{ lotNumber: string; itemName: string; reason: string }>;
 };
 
 const cm = (mm: number) => (mm / 10).toLocaleString('tr-TR', { maximumFractionDigits: 1, useGrouping: false });
@@ -66,13 +67,22 @@ export function FoyCutPlan({ doc }: { doc: FoyDoc }) {
           <StatusChip tone="neutral" label={`${s.pieces} parça`} />
           {s.remnantsUsed > 0 && <StatusChip tone="success" icon={Recycle} label={`${s.remnantsUsed} artık kullanılıyor`} />}
           {s.scrapUsed > 0 && <StatusChip tone="warning" icon={Recycle} label={`${s.scrapUsed} hurda boy kullanılıyor`} />}
-          {s.toBuy > 0 ? <StatusChip tone="danger" icon={ShoppingCart} label={`${s.toBuy} çubuk alınacak`} /> : s.pieces > 0 && <StatusChip tone="success" label="Stok yetiyor" />}
+          {s.toPaint > 0 && <StatusChip tone="warning" icon={Paintbrush} label={`${s.toPaint} boyasız çubuktan kesilip boyanacak`} />}
+          {s.toBuy > 0 ? <StatusChip tone={result?.stockProblems?.length ? 'warning' : 'danger'} icon={ShoppingCart} label={`${s.toBuy} çubuk${result?.stockProblems?.length ? ' eksik görünüyor' : ' satın alma önerisi'}`} /> : s.pieces > 0 && !result?.plan.unmatched.length && !result?.plan.groups.some((g) => g.tooLong.length) && <StatusChip tone="success" label="Stok yetiyor" />}
           {s.pieces > 0 && <StatusChip tone="neutral" label={`Fire %${s.wastePercent.toLocaleString('tr-TR')}`} />}
         </>}
       </div>
 
       {error && <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">{error}</p>}
       {result?.estimateNotice && <p className="text-xs text-muted-foreground">{result.estimateNotice}</p>}
+      <p className="text-xs text-muted-foreground">Önce uygun renkli stok, eksik parçalar için boyasız stok değerlendirilir. Boyasız parçalar kesildikten sonra istenen renge boyaya gönderilir. Plan stok ayırmaz.</p>
+      {!!result?.stockProblems?.length && <div className="rounded-md border border-amber-600/30 bg-amber-500/5 p-2.5 text-xs" role="status">
+        <p className="font-medium">Bazı stokların fiziksel boyları eksik. Satın alma önerisi bu kayıtlar tamamlanana kadar kesin değildir.</p>
+        <details className="mt-1"><summary className="cursor-pointer">Kontrol edilecek {result.stockProblems.length} stok kaydı</summary>
+          <ul className="mt-1 space-y-1">{result.stockProblems.slice(0, 20).map((p) => <li key={p.lotNumber}>{p.itemName} · {p.lotNumber}: {p.reason}.</li>)}</ul>
+          {result.stockProblems.length > 20 && <p className="mt-1">Diğer kayıtların fiziksel boylarını da Stok → Depo'dan kontrol edin.</p>}
+        </details>
+      </div>}
 
       {unreadIron.length > 0 && (
         <div className="space-y-1.5 rounded-md border border-amber-600/30 bg-amber-500/5 p-2.5 text-xs">
@@ -118,6 +128,7 @@ export function FoyCutPlan({ doc }: { doc: FoyDoc }) {
                   <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${SOURCE[b.sourceKind].cls}`}>{SOURCE[b.sourceKind].label}</span>
                   <span className="tabular-nums"><b>{cm(b.sourceLengthMm)} cm</b> <span className="text-xs text-muted-foreground">{b.lotNumber}</span></span>
                   <span className="min-w-0 flex-1 tabular-nums">{b.cuts.map((c) => `${cm(c.lengthMm)}${c.count > 1 ? ` × ${c.count}` : ''}`).join(' + ')}</span>
+                  {b.paintTo && <span className="flex w-full items-center gap-1 text-xs text-amber-800 dark:text-amber-300"><Paintbrush size={13} aria-hidden />{b.sourceItemName}: boyasız stoktan kes → {b.paintTo} boyaya gönder. Kalan parça boyasız stokta kalır.</span>}
                   <span className={`text-xs tabular-nums ${b.leftover === 'keep' ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                     {b.leftover === 'none' ? 'kalan yok' : b.leftover === 'keep' ? `${cm(b.leftoverMm)} cm artık olarak kalır` : `${cm(b.leftoverMm)} cm fire`}
                   </span>
@@ -127,7 +138,7 @@ export function FoyCutPlan({ doc }: { doc: FoyDoc }) {
           )}
           {g.buy && (
             <p className="flex items-center gap-1.5 border-t border-border/60 bg-rose-500/5 px-3 py-1.5 text-[13px] text-rose-800 dark:text-rose-300">
-              <ShoppingCart size={14} aria-hidden /> Stok yetmiyor: <b>{g.buy.bars} çubuk × {cm(g.buy.lengthMm)} cm</b> alınmalı
+              <ShoppingCart size={14} aria-hidden /> {result.stockProblems?.length ? 'Boyları bilinen stoktan karşılanamadı:' : 'Uygun stok yetersiz; satın alma önerisi:'} <b>{g.buy.bars} çubuk × {cm(g.buy.lengthMm)} cm</b>
               <span className="text-xs">({g.missing.map((m) => `${cm(m.lengthMm)} × ${m.count}`).join(', ')} karşılanamadı)</span>
             </p>
           )}
@@ -135,7 +146,7 @@ export function FoyCutPlan({ doc }: { doc: FoyDoc }) {
         </div>
       ))}
       {result && !result.plan.groups.length && !result.plan.unmatched.length && <p className="text-sm text-muted-foreground">Bu föyde profil kesim listesi bulunamadı.</p>}
-      {result && result.stock.bars === 0 && <p className="text-xs text-muted-foreground">Stokta çubuk kaydı yok; plandaki her şey satın alma olarak görünür. Çubukları Stok → Depo'dan girin.</p>}
+      {result && result.stock.bars === 0 && !result.stockProblems?.length && <p className="text-xs text-muted-foreground">Bu listeye uygun kullanılabilir çubuk kaydı yok. Fiziksel boyları ve adetleri Stok → Depo'dan kontrol edin.</p>}
     </section>
   );
 }
