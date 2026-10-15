@@ -1,4 +1,5 @@
 import * as T from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { createAwning } from "./model";
 import { AwningConfiguration, toSceneState } from "./configuration";
 export type AwningView =
@@ -28,11 +29,16 @@ export function createAwningScene(
   renderer.shadowMap.type = T.PCFSoftShadowMap;
   renderer.outputColorSpace = T.SRGBColorSpace;
   renderer.toneMapping = T.ACESFilmicToneMapping;
+  const pmrem = new T.PMREMGenerator(renderer), room = new RoomEnvironment();
+  const environment = pmrem.fromScene(room, 0.04);
+  room.dispose();
+  scene.environment = environment.texture;
+  scene.environmentIntensity = 0.8;
   const hemi = new T.HemisphereLight("#ddeaff", "#7f796b", 2.8),
     sun = new T.DirectionalLight("#fff5e6", 3.2);
   sun.position.set(-3, 9, 6);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, {
     left: -12,
     right: 12,
@@ -130,7 +136,8 @@ export function createAwningScene(
     const bg = new T.Color("#eceeeb").lerp(new T.Color("#111b2a"), night);
     (scene.background as T.Color).copy(bg);
     scene.fog!.color.copy(bg);
-    renderer.toneMappingExposure = 1.15 + night * 0.3;
+    scene.environmentIntensity = 0.8 - night * 0.55;
+    renderer.toneMappingExposure = 1.05 + night * 0.15;
     render();
   }
   const resize = () => {
@@ -261,13 +268,18 @@ export function createAwningScene(
     setConfiguration(c: AwningConfiguration) {
       const next = toSceneState(c, state.opening, state.time);
       const appearanceOnly = next.width === state.width && next.depth === state.depth && next.height === state.height && next.light === state.light;
+      if (disposed || lost) return;
+      const previous = state;
       state = next;
       if (appearanceOnly) { model.setAppearance(state); render(); return; }
       scene.remove(model.group);
       model.dispose();
       model = createAwning(state);
       scene.add(model.group);
-      selectView(view);
+      // Keep the camera angle during edits and gently fit growing dimensions.
+      target.y += (state.height - previous.height) / 100 * 0.55;
+      target.z += (state.depth - previous.depth) / 100 * 0.4;
+      distance *= Math.max(1, state.width / previous.width, state.height / previous.height);
       render();
     },
     setOpening(value: number) {
@@ -328,6 +340,8 @@ export function createAwningScene(
       geometries.forEach((g) => g.dispose());
       materials.forEach((m) => m.dispose());
       sun.shadow.dispose();
+      environment.dispose();
+      pmrem.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
     },

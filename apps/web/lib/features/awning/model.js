@@ -11,7 +11,7 @@ export function createAwning(state){
  const g=new T.Group(),materials=[],dynamic=[],rails=[],lights=[],cables=[],carriages=[],ownedGeometries=[];
  const {w,d,h,n}=dimensions(state);
  const mat=(color,extra={})=>{const m=new T.MeshStandardMaterial({color,roughness:.55,...extra});materials.push(m);return m};
- const metal=mat(state.body,{metalness:.22,roughness:.36}),steel=mat('#c8c9c7',{metalness:.8,roughness:.23}),rubber=mat('#242727'),fabric=mat(state.fabric,{roughness:.92,side:T.DoubleSide,transparent:false,opacity:1,depthWrite:true});
+ const metal=new T.MeshPhysicalMaterial({color:state.body,metalness:.35,roughness:.3,clearcoat:.25,clearcoatRoughness:.45});materials.push(metal);const steel=mat('#c8c9c7',{metalness:.8,roughness:.23}),rubber=mat('#242727'),fabric=mat(state.fabric,{roughness:.92,side:T.DoubleSide,transparent:false,opacity:1,depthWrite:true});
  const weaveData=new Uint8Array(32*32*4);for(let yy=0;yy<32;yy++)for(let xx=0;xx<32;xx++){const value=((xx%4<2)===(yy%4<2))?205:245,idx=(yy*32+xx)*4;weaveData.set([value,value,value,255],idx)}const weave=new T.DataTexture(weaveData,32,32,T.RGBAFormat);weave.wrapS=weave.wrapT=T.RepeatWrapping;weave.repeat.set(w*32,d*32);weave.needsUpdate=true;for(const m of [fabric]){m.bumpMap=weave;m.bumpScale=.00065}
  const lit=state.light!=='off'&&state.brightness>0,ledColor=state.light==='warm'?'#ffd9a0':'#e2f1ff';
  const led=mat(lit?ledColor:'#d0d1c9',{emissive:ledColor,emissiveIntensity:lit?state.brightness/100*3:0});

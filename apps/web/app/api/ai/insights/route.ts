@@ -1,3 +1,4 @@
+import { assistantModelInfo } from '@/lib/ai/model-info';
 import { NextRequest,NextResponse } from 'next/server';
 import { requireWorkOrderActor,WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { assistantSnapshot } from '@/lib/ai/workspace';
@@ -15,6 +16,6 @@ export async function GET(req:NextRequest) {
    if(cache.size>200)cache.clear();cache.set(key,entry);
   }
   const modelUnavailableReason=modelConfigurationBlock(await getAiSettings(a.tenantId),aiAvailable());
-  return NextResponse.json({...entry.value,modelEnabled:modelUnavailableReason===null,modelUnavailableReason},{headers:{'Cache-Control':'private, no-store'}});
+  return NextResponse.json({...entry.value,model:assistantModelInfo(),modelEnabled:modelUnavailableReason===null,modelUnavailableReason},{headers:{'Cache-Control':'private, no-store'}});
  }catch(e){if(e instanceof WorkOrderApiError)return NextResponse.json({error:e.message},{status:e.status});console.error('[Insights]',e instanceof Error?e.message:'failed');return NextResponse.json({error:'Operasyon özeti alınamadı.'},{status:503});}
 }

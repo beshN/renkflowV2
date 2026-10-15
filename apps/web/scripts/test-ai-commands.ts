@@ -54,6 +54,14 @@ async function main() {
   assert.deepEqual([q.status, String(q.customer_id), q.customer_name], ['draft', String(a1.id), 'Ahmet Yılmaz']);
   const [qi] = await db`SELECT width_mm, projection_mm, color FROM quotation_items WHERE quotation_id = ${done.result.quotationId}`;
   assert.deepEqual([Number(qi.width_mm), Number(qi.projection_mm), qi.color], [3000, 4000, 'RAL 7016']);
+  // Commercial terms remain explicit through preview, approval and persisted quotation totals.
+  const commercial: any = await runCommand(owner, { text: "Ahmet Bey'e 10x5 tente teklif 300.000tl üzerinden yüzde 5 iskonto 0 kdv", customerId: a1.id });
+  assert.equal(commercial.type, 'preview');
+  assert.ok(commercial.lines.some((l: any) => l.label === 'KDV' && l.value === '%0'));
+  const priced: any = await svc.decideSuggestion(owner, commercial.suggestionId, { action: 'approve', expectedVersion: commercial.version });
+  const [price] = await db`SELECT discount_percent, vat_percent, total_amount FROM quotations WHERE id=${priced.result.quotationId}`;
+  assert.deepEqual([Number(price.discount_percent), Number(price.vat_percent), Number(price.total_amount)], [5, 0, 285000]);
+  assert.equal((await runCommand(owner, { text: "Ahmet Bey'e 2 adet 10x5 tente teklif 300.000tl", customerId: a1.id })).type, 'need', 'ambiguous unit/total price must be clarified');
   // A new name → a draft for that name (no card is made up).
   const fresh: any = await runCommand(owner, { text: "Zeynep Arslan'a 4x5 pergola teklif 9016" });
   assert.equal(fresh.type, 'preview');
@@ -85,16 +93,16 @@ async function main() {
 
   // Text that is not a command is answered, never "anlayamadım": small talk, a search of the records, an honest "found nothing".
   const hello: any = await runCommand(owner, { text: 'naber' });
-  assert.equal(hello.type, 'need');
-  assert.match(hello.message, /İyiyim/);
+  assert.equal(hello.type, 'answer');
+  assert.match(hello.note, /İyiyim/);
   const search: any = await runCommand(owner, { text: 'Yılmaz hakkında ne var' });
   assert.equal(search.type, 'list', 'a name in the text finds matching records');
   assert.ok(search.rows.length >= 1 && /^\/(crm|orders)\//.test(search.rows[0].href ?? ''), 'rows link to the matching card or order');
   const nothing: any = await runCommand(owner, { text: 'qwxzy plmokn' });
-  assert.equal(nothing.type, 'need');
-  assert.match(nothing.message, /bulamadım/);
-  assert.doesNotMatch(nothing.message, /anlayamadım/);
-  assert.equal(((await runCommand(actor('worker'), { text: 'naber' })) as any).type, 'need', 'small talk needs no permission');
+  assert.equal(nothing.type, 'answer');
+  assert.ok(nothing.note.length > 20, 'with nothing found the person still gets the reason (model off) and what to use instead');
+  assert.doesNotMatch(nothing.note, /anlayamadım/);
+  assert.equal(((await runCommand(actor('worker'), { text: 'naber' })) as any).type, 'answer', 'small talk needs no permission');
 
   // Bar stock by colour.
   const [wh] = await db`INSERT INTO warehouses (tenant_id, code, name, warehouse_type) VALUES (${tenantId}, ${'RAW-' + tenantId.slice(0, 4)}, 'Hammadde', 'RAW') RETURNING id`;

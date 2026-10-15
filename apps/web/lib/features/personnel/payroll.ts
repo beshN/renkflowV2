@@ -1,3 +1,4 @@
+import type { AttendanceSnapshot } from './attendance-policy';
 /**
  * Personnel arithmetic, pure and testable. Pay here is the net amount the firm agreed to pay, not a
  * legal payroll (bordro): SGK, income tax and stamp duty stay with the accountant.
@@ -11,7 +12,7 @@ export type AttendanceKind = 'absent' | 'half_day' | 'sick' | 'paid_leave' | 'un
 export type LedgerKind = 'salary' | 'advance' | 'deduction' | 'payment' | 'bonus';
 
 export const ATTENDANCE: Record<AttendanceKind, { label: string; short: string; days: number; deducted: boolean; tone: string }> = {
-  absent: { label: 'Gelmedi (izinsiz)', short: 'D', days: 1, deducted: true, tone: 'rose' },
+  absent: { label: 'Habersiz gelmedi', short: 'D', days: 1, deducted: true, tone: 'rose' },
   half_day: { label: 'Yarım gün', short: '½', days: 0.5, deducted: true, tone: 'amber' },
   sick: { label: 'Raporlu', short: 'R', days: 1, deducted: false, tone: 'sky' },
   paid_leave: { label: 'Ücretli izin', short: 'Ü', days: 1, deducted: false, tone: 'emerald' },
@@ -35,8 +36,9 @@ export type Employee = {
   pay_type: PayType;
   pay_amount: number | null;
   pay_day?: number | null;
+  pay_currency?: string;
 };
-export type Attendance = { day: string; kind: AttendanceKind; deducted: boolean };
+export type Attendance = { day: string; kind: AttendanceKind; deducted: boolean; deductionSnapshot?: AttendanceSnapshot | null };
 export type Ledger = { kind: LedgerKind; amount: number; entry_date: string; period?: string | null };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -94,6 +96,9 @@ export type MonthPay = {
   days: Record<AttendanceKind, number>;
   deductedDays: number;
   absenceCut: number;
+  reviewRequired?: boolean;
+  deductions: Array<{ day: string; kind: AttendanceKind; cutDays: number; dailyRate: number | null; amount: number; policyVersion: number | null; currency?: string }>;
+
   bonus: number;
   deduction: number;
   advance: number;
@@ -107,12 +112,11 @@ export type MonthPay = {
 export function monthPay(e: Employee, period: string, attendance: Attendance[], ledger: Ledger[]): MonthPay {
   const range = employedRange(e, period);
   const days = Object.fromEntries(Object.keys(ATTENDANCE).map((k) => [k, 0])) as Record<AttendanceKind, number>;
+  const applicable = attendance.filter(a => periodOf(a.day) === period && range && a.day >= range[0] && a.day <= range[1]).sort((a,b) => a.day.localeCompare(b.day));
   let deductedDays = 0;
-  for (const a of attendance) {
-    if (periodOf(a.day) !== period || !range || a.day < range[0] || a.day > range[1]) continue;
-    const d = ATTENDANCE[a.kind].days;
-    days[a.kind] += d;
-    if (a.deducted) deductedDays += d;
+  for (const a of applicable) {
+    days[a.kind] += ATTENDANCE[a.kind].days;
+    if (a.deducted) deductedDays += a.deductionSnapshot?.cutDays ?? ATTENDANCE[a.kind].days;
   }
   const mine = ledger.filter((l) => (l.period || periodOf(l.entry_date)) === period);
   const sum = (k: LedgerKind) => round2(mine.filter((l) => l.kind === k).reduce((s, l) => s + Number(l.amount), 0));
@@ -124,10 +128,16 @@ export function monthPay(e: Employee, period: string, attendance: Attendance[], 
   const basisDays = e.pay_type === 'daily' ? workingDays(e, period) : monthlyBasisDays(e, period);
   const dailyRate = amount === null ? null : e.pay_type === 'daily' ? amount : amount / 30;
   const base = dailyRate === null ? null : round2(dailyRate * basisDays);
-  const absenceCut = dailyRate === null ? 0 : round2(Math.min(dailyRate * deductedDays, base ?? 0));
-  const earned = base === null ? null : round2(base - absenceCut + bonus - deduction);
+  const deductions = applicable.filter(a => a.deducted).map(a => {
+    const cutDays = a.deductionSnapshot?.cutDays ?? ATTENDANCE[a.kind].days;
+    const rate = a.deductionSnapshot ? a.deductionSnapshot.dailyRate : dailyRate;
+    return { day: a.day, kind: a.kind, cutDays, dailyRate: rate === null ? null : round2(rate), amount: rate === null ? 0 : round2(rate * cutDays), policyVersion: a.deductionSnapshot?.policyVersion ?? null, currency: a.deductionSnapshot?.currency ?? e.pay_currency };
+  });
+  const reviewRequired = deductions.some(d => d.cutDays > 0 && (d.dailyRate === null || Boolean(e.pay_currency && d.currency && d.currency !== e.pay_currency)));
+  const absenceCut = round2(Math.min(deductions.reduce((sum, d) => sum + d.amount, 0), base ?? 0));
+  const earned = base === null || reviewRequired ? null : round2(base - absenceCut + bonus - deduction);
   const remaining = earned === null ? null : round2(earned - advance - paid);
-  return { period, dailyRate: dailyRate === null ? null : round2(dailyRate), basisDays, base, days, deductedDays, absenceCut, bonus, deduction, advance, paid, earned, remaining };
+  return { period, dailyRate: dailyRate === null ? null : round2(dailyRate), basisDays, base, days, deductedDays, absenceCut, deductions, reviewRequired, bonus, deduction, advance, paid, earned, remaining };
 }
 
 /** Whole years, months and days between two dates. */

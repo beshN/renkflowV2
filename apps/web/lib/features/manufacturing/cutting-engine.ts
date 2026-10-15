@@ -14,6 +14,8 @@ export type ItemCuttingParameters = z.infer<typeof ItemCuttingParametersSchema>;
 export type CutOptions = {
   /** Profile (item) id → values that differ from the firm's, e.g. a thicker saw for one profile. */
   itemParameters?: Record<string, ItemCuttingParameters>;
+  /** Advisory cutting: minimise material taken before the number of newly opened bars. */
+  objective?: 'material';
 };
 export type CutDemand = {
   itemId: string;
@@ -250,6 +252,7 @@ export function optimizeCuts(
     ranked = [...variants].sort(
       (a, b) =>
         a.unfulfilled.length - b.unfulfilled.length ||
+        (options.objective === 'material' ? mm(a.newMaterialMm) - mm(b.newMaterialMm) : 0) ||
         a.newBars - b.newBars ||
         mm(a.newMaterialMm) - mm(b.newMaterialMm) ||
         mm(a.wasteMm) - mm(b.wasteMm),

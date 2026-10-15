@@ -1,3 +1,4 @@
+import { assistantModelInfo } from '@/lib/ai/model-info';
 import { NextRequest } from 'next/server';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { requireWorkOrderActor, WorkOrderApiError } from '@/lib/features/work-orders/security';
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic';
 async function view(tenantId: string) {
   const s = await getAiSettings(tenantId);
   return {
-    ...s, modelKeyConfigured: aiAvailable(),
+    ...s, model:assistantModelInfo(), modelKeyConfigured: aiAvailable(),
     detectors: listDetectors().map((d) => ({ key: d.key, label: d.label, icon: d.icon, thresholdLabel: d.thresholdLabel ?? null, defaults: d.defaults, ...detectorSettings(d.defaults, s.detectors[d.key]) })),
   };
 }

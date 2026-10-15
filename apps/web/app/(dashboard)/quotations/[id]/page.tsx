@@ -3,6 +3,8 @@ import { use, useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, Save, FileText } from "lucide-react";
+import { ProductNameInput } from '@/components/features/product-3d/ProductNameInput';
+import { applyProductSelection } from '@/lib/features/product-3d/product-search';
 import { InlineProductEditor } from "@/components/features/product-3d/InlineProductEditor";
 import { applyInlineVisualization } from "@/lib/features/product-3d/inline";
 import { defaultVisualization, productMeta } from "@/lib/features/product-3d/catalog";
@@ -402,16 +404,9 @@ export default function QuotationPage({
               <span className="rounded bg-muted px-2 py-1 text-xs tabular-nums">
                 {String(index + 1).padStart(2, "0")}
               </span>
-              <input
-                aria-label={`Kalem ${index + 1} ürün adı`}
-                placeholder="Ürün veya sistem adı"
-                disabled={!editable}
-                value={item.productName}
-                className="rf-input flex-1"
-                onChange={(e) =>
-                  updateItem(index, "productName", e.target.value)
-                }
-              />
+              <ProductNameInput label={`Kalem ${index + 1} ürün adı`} disabled={!editable} value={item.productName}
+                onChange={name => updateItem(index, 'productName', name)}
+                onSelect={kind => { invalid3d.current[index] = ''; setForm(prev => ({ ...prev, items: prev.items.map((entry, i) => i === index ? applyProductSelection(entry, kind) : entry) })); }} />
               {editable && form.items.length > 1 && (
                 <button
                   type="button"
@@ -500,13 +495,7 @@ export default function QuotationPage({
               onValidationChange={message => { invalid3d.current[index] = message; }}
               onSelect={kind => {
                 invalid3d.current[index] = '';
-                setForm(prev => ({ ...prev, items: prev.items.map((entry, i) => {
-                  if (i !== index) return entry;
-                  const plain = { ...entry, productVisualization: undefined, awningConfiguration: undefined, awningPreview: undefined };
-                  if (!kind) return { ...plain, productName: '', widthMm: undefined, heightMm: undefined, projectionMm: undefined, mountingHeightMm: undefined, color: undefined };
-                  if (kind === 'makasli') return applyAwning({ ...plain, productName: 'WINMAX Makaslı Tente' }, DEFAULT_AWNING);
-                  return applyInlineVisualization({ ...plain, productName: productMeta(kind).name }, { configuration: defaultVisualization(kind) });
-                }) }));
+                setForm(prev => ({ ...prev, items: prev.items.map((entry, i) => i === index ? applyProductSelection(entry, kind) : entry) }));
               }}
               onChange={v => setForm(prev => ({ ...prev, items: prev.items.map((entry, i) => i === index ? applyInlineVisualization(entry, v) : entry) }))}
               onChangeAwning={(c, image) => setForm(prev => ({ ...prev, items: prev.items.map((entry, i) => i === index ? applyAwning({ ...entry, productVisualization: undefined, awningPreview: undefined }, c, image) : entry) }))}

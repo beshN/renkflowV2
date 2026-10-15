@@ -16,6 +16,9 @@ import { cn } from '@/lib/utils';
 type Action = { id: string; title: string; keywords: string; href: string; icon: LucideIcon; roles?: string[] };
 /** Things to do, not only places to go: typed as a verb ("yeni teklif", "sayım", "kesim"). */
 const ACTIONS: Action[] = [
+  { id: 'a-warehouse', title: 'Depo ekle', keywords: 'depo yeni hammadde malzeme alan', href: '/warehouse?create=warehouse', icon: PackagePlus, roles: ['owner','admin'] },
+  { id: 'a-attendance', title: 'Devamsızlık / izin kaydı', keywords: 'çalışan personel devamsızlık izin gelmedi maaş kesinti', href: '/finance/employees?attendance=new', icon: CalendarDays, roles: ['owner','admin','accountant'] },
+  { id: 'a-personnel-rules', title: 'Maaş kesinti kuralları', keywords: 'personel izin gün katsayı maaş kesinti ayar', href: '/settings#personel', icon: CalendarDays, roles: ['owner','admin'] },
   { id: 'a-quote', title: 'Yeni teklif', keywords: 'yeni teklif fiyat pergola yapılandır', href: '/quotations/new', icon: FilePlus2, roles: ['owner', 'admin', 'office'] },
   { id: 'a-order', title: 'Yeni sipariş', keywords: 'yeni sipariş oluştur', href: '/new-order', icon: PackagePlus, roles: ['owner', 'admin', 'office'] },
   { id: 'a-foy', title: 'İmalat föyü oku', keywords: 'föy foy imalat pdf oku içe aktar kesim listesi pergola', href: '/orders/foy', icon: FileText, roles: ['owner', 'admin', 'office'] },

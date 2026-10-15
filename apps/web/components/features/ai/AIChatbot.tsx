@@ -1,5 +1,6 @@
 'use client';
 
+import { assistantFormSummary } from '@/lib/ai/assistant-form-drafts';
 import { modelUnavailableMessage } from '@/lib/ai/policy';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
@@ -7,10 +8,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
-  Send, 
   Sparkles, 
-  Bot, 
-  User,
   Minimize2,
   Maximize2,
   Copy,
@@ -20,12 +18,14 @@ import {
   Trash2,
   RotateCcw,
   ArrowDown,
-  Clock, FileText, Factory, Package, ChartNoAxesCombined, CircleHelp, type LucideIcon,
+  ArrowUp, ArrowUpRight, Loader2, Clock, FileText, Factory, Package, ChartNoAxesCombined, CircleHelp, type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { useAssistantInsights } from '@/lib/hooks/useAssistantInsights';
 import { safeAssistantHref, type AssistantAction } from '@/lib/ai/assistant-contract';
+import { requestJson } from '@/lib/shared/network';
+import { CommandResultView, type AssistantCommandCard } from './AssistantCommand';
 import { BusinessDialog } from '@/components/shared/ui/BusinessDialog';
 
 // ============================================
@@ -37,11 +37,13 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  modelLabel?: string;
   suggestions?: string[];
   feedback?: 'positive' | 'negative' | null;
   isError?: boolean;
   actions?: AssistantAction[];
   sources?: string[];
+  command?: AssistantCommandCard;
 }
 
 interface QuickAction {
@@ -166,16 +168,10 @@ function renderInline(text: string, onNavigate?: (path: string) => void): React.
     } else if (match[5] && match[6]) {
       // Markdown link [text](url)
       const href = match[6];
-      const isInternal = href.startsWith('/');
-      parts.push(
-        <button
-          key={`a-${match.index}`}
-          onClick={() => isInternal && onNavigate ? onNavigate(href) : window.open(href, '_blank')}
-          className="text-blue-500 hover:underline hover:text-blue-600 cursor-pointer inline"
-        >
-          {match[5]}
-        </button>
-      );
+      const internal = href.startsWith('/') ? safeAssistantHref(href) : null;
+      if (internal) parts.push(<button key={`a-${match.index}`} onClick={() => onNavigate?.(internal)} className="text-primary underline underline-offset-4">{match[5]}</button>);
+      else if (/^https?:\/\//i.test(href)) parts.push(<a key={`a-${match.index}`} href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4">{match[5]}</a>);
+      else parts.push(match[5]);
     } else if (match[0].startsWith('(/')) {
       // Bare route like (/orders)
       const path = match[0].slice(1, -1); // remove parens
@@ -203,26 +199,6 @@ function renderInline(text: string, onNavigate?: (path: string) => void): React.
 // Typing Indicator
 // ============================================
 
-function TypingIndicator() {
-  return (
-    <div className="flex items-center gap-1 px-1">
-      {[0, 1, 2].map((i) => (
-        <motion.div
-          key={i}
-          className="w-1.5 h-1.5 rounded-full bg-blue-500"
-          animate={{ y: [0, -4, 0] }}
-          transition={{
-            duration: 0.6,
-            repeat: Infinity,
-            delay: i * 0.15,
-            ease: 'easeInOut',
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
 // ============================================
 // Storage helpers
 // ============================================
@@ -234,6 +210,7 @@ interface StoredMessage {
   timestamp: string;
   suggestions?: string[];
   isError?: boolean;
+  modelLabel?: string;
 }
 
 function loadMessages(storageKey: string): Message[] {
@@ -256,6 +233,7 @@ function saveMessages(messages: Message[], storageKey: string) {
       timestamp: m.timestamp.toISOString(),
       suggestions: m.suggestions,
       isError: m.isError,
+      modelLabel: m.modelLabel,
     }));
     localStorage.setItem(storageKey, JSON.stringify(toStore));
   } catch {}
@@ -266,7 +244,7 @@ function saveMessages(messages: Message[], storageKey: string) {
 // ============================================
 
 export function AIChatbot() {
-  const {insights,brief,modelEnabled,modelUnavailableReason} = useAssistantInsights();
+  const {insights,brief,modelEnabled,modelUnavailableReason,model} = useAssistantInsights();
   // Without a model key the chat cannot answer: say so instead of offering a box that only errors.
   const chatOff = modelEnabled === false;
   const [pendingAction,setPendingAction]=useState<{action:AssistantAction;commandId:string}|null>(null);
@@ -280,7 +258,7 @@ export function AIChatbot() {
   const router = useRouter();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -351,10 +329,16 @@ export function AIChatbot() {
 
   // Focus textarea when chat opens
   useEffect(() => {
-    if (isOpen && !isMinimized) {
+    if (isOpen) {
       setTimeout(() => textareaRef.current?.focus(), 100);
     }
-  }, [isOpen, isMinimized]);
+  }, [isOpen]);
+
+  useEffect(() => {
+    const open = () => setIsOpen(true);
+    window.addEventListener('renkflow-assistant-open', open);
+    return () => window.removeEventListener('renkflow-assistant-open', open);
+  }, []);
 
   // Cleanup abort controller on unmount
   useEffect(() => {
@@ -387,8 +371,8 @@ export function AIChatbot() {
     return 'İyi akşamlar';
   }, []);
 
-  const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim() || isLoading) return;
+  const sendMessage = useCallback(async (content: string, customerId?: string) => {
+    if (!content.trim() || isLoading || abortRef.current || chatOff || modelEnabled === undefined) return;
 
     const trimmed = content.trim();
     const userMessage: Message = {
@@ -407,8 +391,6 @@ export function AIChatbot() {
       textareaRef.current.style.height = 'auto';
     }
 
-    // Abort previous request if still pending
-    abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -428,6 +410,7 @@ export function AIChatbot() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: trimmed,
+          ...(customerId ? { customerId } : {}),
           history,
           context: {
             currentPath: pathname,
@@ -459,7 +442,9 @@ export function AIChatbot() {
         role: 'assistant',
         content: data.response || 'Üzgünüm, yanıt oluşturulamadı.',
         timestamp: new Date(),
+        modelLabel: data.model?.verifiedResponse ? data.model.label : undefined,
         suggestions: data.suggestions,
+        command: data.command ? { id: Date.now(), text: trimmed, result: data.command } : undefined,
         actions: data.actions,
         sources: Array.isArray(data.toolsUsed)?data.toolsUsed.filter((s:unknown):s is string=>typeof s==='string'&&!!SOURCE_LABELS[s]):[],
       };
@@ -495,14 +480,26 @@ export function AIChatbot() {
     } finally {
       if(abortRef.current===controller){setIsLoading(false);abortRef.current = null;}
     }
-  }, [isLoading, pathname, user?.name]);
+  }, [isLoading, pathname, user?.name, chatOff, modelEnabled]);
+
+  const [commandBusy, setCommandBusy] = useState<string | null>(null);
+  const commandLock = useRef(false);
+  const decideCommand = async (message: Message, action: 'approve' | 'reject') => {
+    const result = message.command?.result;
+    if (result?.type !== 'preview' || commandLock.current) return;
+    commandLock.current = true; setCommandBusy(message.id);
+    const scope = scopeRef.current;
+    const r = await requestJson<{ result?: { href?: string } }>(`/api/v1/ai/suggestions/${result.suggestionId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, expectedVersion: result.version }) }, { timeoutMs: 30_000 });
+    if (scope === scopeRef.current) setMessages(current => current.map(m => m.id !== message.id || !m.command ? m : { ...m, command: { ...m.command, error: r.ok ? undefined : r.error || 'Karar kaydedilemedi', done: r.ok ? { label: action === 'approve' ? 'Taslak oluşturuldu' : 'Vazgeçildi', href: r.data?.result?.href } : undefined } }));
+    commandLock.current = false; setCommandBusy(null);
+  };
 
   const handleSend = useCallback((content?: string) => {
     sendMessage(content || input);
   }, [input, sendMessage]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleSend();
     }
@@ -544,355 +541,106 @@ export function AIChatbot() {
   }, [sendMessage]);
 
   const handleClearChat = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setIsLoading(false);
     setMessages([]);
     localStorage.removeItem(storageKey);
   }, [storageKey]);
 
   if (!user) return null;
+  const formSummary = pendingAction ? assistantFormSummary(pendingAction.action.kind, pendingAction.action.note) : null;
   const adviceKey=storageKey+':'+pathname+':'+insights.map(i=>i.id+i.detail).join('|');
   // "Nothing to report" is not advice: the banner appears only when there is something to act on.
   // These screens show the same signals as cards and counts; a sentence on top only repeats them.
-  const VISUAL_SCREENS=['/dashboard','/orders','/factory','/factory/wall'];
+  const VISUAL_SCREENS=['/dashboard','/orders','/factory','/factory/wall','/assistant'];
 
   return (
     <>
-      {!isOpen && adviceSlot && insights.length>0 && insights[0].id!=='clear' && dismissedAdvice!==adviceKey && !VISUAL_SCREENS.includes(pathname) && createPortal(<div className="mx-auto w-full max-w-[1600px] px-4 pt-4 md:px-7 print:hidden"><aside aria-label="Asistanın otomatik önerisi" className="rf-advice flex items-center gap-3 rounded-lg border border-border px-3 py-2 text-xs shadow-[var(--rf-shadow-soft)]">
-        <span className="rf-icon-chip !h-6 !w-6 !rounded-md" aria-hidden><Sparkles size={13}/></span>
-        <p className="min-w-0 flex-1 leading-5"><span className="font-semibold">Asistan önerisi · </span><span className="text-muted-foreground">{brief || insights[0].detail}</span></p>
-        <button onClick={()=>setIsOpen(true)} className="hidden shrink-0 font-medium text-primary hover:underline sm:inline">{insights[0].title} →</button>
-        <button aria-label="Öneriyi gizle" onClick={()=>setDismissedAdvice(adviceKey)} className="rf-icon-button !h-7 !w-7 shrink-0"><X size={14}/></button>
-      </aside></div>,adviceSlot)}
-      {pendingAction && <BusinessDialog title={pendingAction.action.title} open onClose={()=>setPendingAction(null)} busy={actionBusy} error={actionError}>
-        <p className="text-sm mb-4">{pendingAction.action.kind==='orderNote'?'Aşağıdaki not sipariş geçmişine eklenecek.':'Sipariş taslağı hazırlanacak. Ölçü, fiyat ve ürün kalemlerini sonraki ekranda kontrol edip onaylayacaksınız.'}</p>
-        <pre className="whitespace-pre-wrap rounded border p-3 text-xs max-h-64 overflow-auto">{pendingAction.action.note || JSON.stringify(pendingAction.action.draft,null,2)}</pre>
-        <div className="flex justify-end gap-2 mt-4"><button className="rf-secondary-button" disabled={actionBusy} onClick={()=>setPendingAction(null)}>Vazgeç</button><button className="rf-primary-button" disabled={actionBusy} onClick={()=>void applyAction()}>{actionBusy?'Kaydediliyor…':'Onayla ve uygula'}</button></div>
+      {!isOpen && adviceSlot && insights.length > 0 && insights[0].id !== 'clear' && dismissedAdvice !== adviceKey && !VISUAL_SCREENS.includes(pathname) && createPortal(
+        <div className="mx-auto w-full max-w-[1600px] px-4 pt-4 md:px-7 print:hidden"><aside aria-label="Asistanın otomatik önerisi" className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-xs">
+          <Sparkles size={15} className="shrink-0 text-primary" aria-hidden />
+          <p className="min-w-0 flex-1 leading-5 text-muted-foreground">{brief || insights[0].detail}</p>
+          <button onClick={() => setIsOpen(true)} className="shrink-0 font-medium text-foreground hover:underline">İncele</button>
+          <button aria-label="Öneriyi gizle" onClick={() => setDismissedAdvice(adviceKey)} className="rf-icon-button !h-8 !w-8 shrink-0"><X size={14} /></button>
+        </aside></div>, adviceSlot)}
+      {pendingAction && <BusinessDialog title={pendingAction.action.title} open onClose={() => setPendingAction(null)} busy={actionBusy} error={actionError}>
+        <p className="mb-4 text-sm">{pendingAction.action.kind === 'orderNote' ? 'Aşağıdaki not sipariş geçmişine eklenecek.' : ['warehouseDraft', 'attendanceDraft'].includes(pendingAction.action.kind) ? 'Kayıt formu hazırlanacak. Bilgileri sonraki ekranda inceleyip kaydedebilirsiniz.' : 'Sipariş taslağı hazırlanacak. Ürün, ölçü ve fiyatları sonraki ekranda kontrol edeceksiniz.'}</p>
+        {formSummary ? <dl className="space-y-2 rounded-lg border border-border p-3 text-sm">{formSummary.map(row => <div key={row.label} className="flex justify-between gap-4"><dt className="text-muted-foreground">{row.label}</dt><dd className="text-right font-medium">{row.value}</dd></div>)}</dl> : <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg border border-border p-3 text-xs">{pendingAction.action.note || JSON.stringify(pendingAction.action.draft, null, 2)}</pre>}
+        <div className="mt-4 flex justify-end gap-2"><button className="rf-secondary-button" disabled={actionBusy} onClick={() => setPendingAction(null)}>Vazgeç</button><button className="rf-primary-button" disabled={actionBusy} onClick={() => void applyAction()}>{actionBusy ? 'Hazırlanıyor…' : formSummary ? 'Kayıt formunu aç' : 'Onayla ve uygula'}</button></div>
       </BusinessDialog>}
-      {/* Floating Action Button */}
       <AnimatePresence>
-        {!isOpen && (
-          <motion.button
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setIsOpen(true)}
-            className={cn("rf-logo fixed right-4 md:right-6 z-50 w-11 h-11 !rounded-full shadow-lg shadow-black/10 transition-transform duration-150 hover:scale-105 active:scale-95 print:hidden", pathname === "/new-order" ? "bottom-40 md:bottom-24" : "bottom-24 md:bottom-6")}
-            aria-label="AI Asistanı Aç"
-          >
-            <Sparkles className="w-6 h-6" />
-            {insights.some(i=>i.priority==='high') && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-amber-500 border-2 border-white" aria-label="Operasyon önerisi var"/>}
-          </motion.button>
-        )}
+        {!isOpen && <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsOpen(true)}
+          className={cn('fixed right-4 z-50 inline-flex h-12 items-center gap-2 rounded-xl border border-border bg-foreground px-4 text-sm font-medium text-background shadow-lg transition-transform hover:-translate-y-0.5 md:right-6 print:hidden', pathname === '/new-order' ? 'bottom-40 md:bottom-24' : 'bottom-24 md:bottom-6')}
+          aria-label="AI Asistanı Aç"><Sparkles size={17} aria-hidden /><span>Asistan</span>{insights.some(i => i.priority === 'high') && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-label="Operasyon önerisi var" />}</motion.button>}
       </AnimatePresence>
-
-      {/* Chat Window */}
       <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ 
-              opacity: 1, 
-              y: 0, 
-              scale: 1,
-              height: isMinimized ? 'auto' : '600px'
-            }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className={cn(
-              "fixed bottom-24 right-4 md:bottom-6 md:right-6 z-50 w-[calc(100vw-2rem)] max-w-[420px] max-h-[calc(100dvh-8rem)] md:max-h-[calc(100dvh-3rem)] bg-popover text-popover-foreground border border-border rounded-xl shadow-2xl shadow-black/10 overflow-hidden flex flex-col",
-              isMinimized && "md:w-[300px]"
-            )}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 bg-[hsl(var(--rf-ink))] text-[hsl(var(--rf-ink-foreground))]">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                  <Bot className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm">RenkFlow AI</h3>
-                  <div className="flex items-center gap-1">
-                    <p className="text-xs text-white/70">Belge ve operasyon yardımcısı</p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-0.5">
-                {messages.length > 0 && (
-                  <button
-                    onClick={handleClearChat}
-                    className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                    aria-label="Sohbeti temizle"
-                    title="Sohbeti temizle"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                <button
-                  onClick={() => setIsMinimized(!isMinimized)}
-                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                  aria-label={isMinimized ? 'Genişlet' : 'Küçült'}
-                >
-                  {isMinimized ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
-                </button>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                  aria-label="Kapat"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+        {isOpen && <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }} transition={{ duration: 0.15 }}
+          role="dialog" aria-labelledby="assistant-chat-title" onKeyDown={(e) => { if (e.key === 'Escape') setIsOpen(false); }}
+          className={cn('fixed bottom-24 right-3 z-50 flex max-h-[calc(100dvh-8rem)] w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-[0_20px_80px_-20px_rgba(0,0,0,0.45)] md:bottom-6 md:right-6 md:max-h-[calc(100dvh-3rem)] print:hidden', isExpanded ? 'h-[820px] max-w-[820px]' : 'h-[700px] max-w-[460px]')}>
+          <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-5 py-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-primary/5 text-primary"><Sparkles size={19} aria-hidden /></div>
+              <div className="min-w-0"><h2 id="assistant-chat-title" className="text-sm font-semibold tracking-tight">RenkFlow Asistan</h2>
+                <p className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground"><span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', chatOff ? 'bg-amber-500' : modelEnabled ? 'bg-emerald-500' : 'bg-muted-foreground/50')} aria-hidden />{chatOff ? 'Kayıt desteği · AI kapalı' : modelEnabled ? `${model?.label ?? 'AI'} · kullanıma hazır` : 'Bağlantı kontrol ediliyor'}</p>
               </div>
             </div>
-
-            {!isMinimized && (
-              <>
-                {/* Welcome + Quick Actions */}
-                {insights.length>0 && <div className="p-3 border-b text-xs space-y-2" aria-label="Otomatik operasyon önerileri">
-                  <p className="font-semibold">Sizin için kontrol ettim</p>
-                  {brief && <p className="leading-5 text-muted-foreground">{brief}</p>}
-                  {insights.slice(0,2).map(insight=><button key={insight.id} onClick={()=>handleNavigate(insight.href)} className="block w-full rounded border p-2 text-left"><strong>{insight.title}</strong><span className="block mt-1 text-muted-foreground">{insight.detail}</span><span className="block mt-1 text-primary">{insight.action} →</span></button>)}
-                </div>}
-                {messages.length === 0 && !chatOff && (
-                  <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-                    <div className="text-center mb-4">
-                      <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                        <Sparkles className="w-7 h-7 text-blue-600" />
-                      </div>
-                      <h4 className="font-semibold text-slate-900 dark:text-white">
-                        {greeting}{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
-                      </h4>
-                      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                        Kayıtlara dayanan analiz, ürün danışmanlığı ve sonraki adımlar.
-                      </p>
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-2 font-medium">
-                      Hızlı erişim:
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {quickActions.map((action) => (
-                        <button
-                          key={action.id}
-                          onClick={() => handleSend(action.query)}
-                          className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-left group"
-                        >
-                          <action.icon size={15} className="shrink-0 text-muted-foreground" aria-hidden/>
-                          <span className="truncate text-xs">{action.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Messages */}
-                <div
-                  ref={messagesContainerRef}
-                  onScroll={handleScroll}
-                  className="flex-1 overflow-y-auto p-4 space-y-4 relative scroll-smooth"
-                >
-                  {messages.map((message) => (
-                    <motion.div
-                      key={message.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className={cn(
-                        "flex gap-2.5",
-                        message.role === 'user' ? "flex-row-reverse" : ""
-                      )}
-                    >
-                      {/* Avatar */}
-                      <div className={cn(
-                        "w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5",
-                        message.role === 'user' 
-                          ? "bg-blue-600 text-white" 
-                          : message.isError
-                            ? "bg-red-500 text-white"
-                            : "bg-[hsl(var(--rf-ink))] text-[hsl(var(--rf-ink-foreground))]"
-                      )}>
-                        {message.role === 'user' ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
-                      </div>
-
-                      {/* Message Content */}
-                      <div className={cn(
-                        "flex flex-col",
-                        message.role === 'user' ? "items-end" : "items-start",
-                        "max-w-[85%]"
-                      )}>
-                        <div className={cn(
-                          "rounded-2xl px-3.5 py-2.5",
-                          message.role === 'user'
-                            ? "bg-blue-600 text-white rounded-br-md"
-                            : message.isError
-                              ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-bl-md border border-red-200 dark:border-red-800"
-                              : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-bl-md"
-                        )}>
-                          {message.role === 'user' ? (
-                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                          ) : (
-                            <div className="space-y-0.5">{renderMarkdown(message.content, handleNavigate)}</div>
-                          )}
-                        </div>
-
-                        {message.role==='assistant'&&!message.isError&&!!message.sources?.length&&<details className="mt-2 text-[10px] text-muted-foreground"><summary className="cursor-pointer">İncelenen kayıt kaynakları</summary><p className="mt-1 leading-5">{message.sources.map(s=>SOURCE_LABELS[s]).join(' · ')}</p></details>}
-
-                        {/* Suggestions */}
-                        {message.actions?.map((action,index)=><button key={index} className="rf-secondary-button mt-2 text-xs" disabled={actionBusy} onClick={()=>{if(action.kind==='navigate'){const href=safeAssistantHref(action.href);if(href)handleNavigate(href);}else {setActionError('');const key=message.id+':'+index;let commandId=actionIds.current.get(key);if(!commandId){commandId=crypto.randomUUID();actionIds.current.set(key,commandId);}setPendingAction({action,commandId});}}}>{action.title}</button>)}
-                        {message.role === 'assistant' && message.suggestions && message.suggestions.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {message.suggestions.map((suggestion, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => handleSend(suggestion)}
-                                disabled={isLoading}
-                                className="text-xs px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors disabled:opacity-50 border border-blue-200 dark:border-blue-800"
-                              >
-                                {suggestion}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Actions (copy, feedback, retry) */}
-                        {message.role === 'assistant' && !message.isError && (
-                          <div className="flex items-center gap-0.5 mt-1">
-                            <button
-                              onClick={() => handleCopy(message.id, message.content)}
-                              className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded transition-colors"
-                              title="Kopyala"
-                            >
-                              {copiedId === message.id ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                            </button>
-                            <button
-                              onClick={() => handleFeedback(message.id, 'positive')}
-                              className={cn(
-                                "p-1 rounded transition-colors",
-                                message.feedback === 'positive'
-                                  ? "text-green-500"
-                                  : "text-slate-400 hover:text-green-500"
-                              )}
-                              title="Faydalı"
-                            >
-                              <ThumbsUp className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => handleFeedback(message.id, 'negative')}
-                              className={cn(
-                                "p-1 rounded transition-colors",
-                                message.feedback === 'negative'
-                                  ? "text-red-500"
-                                  : "text-slate-400 hover:text-red-500"
-                              )}
-                              title="Faydalı değil"
-                            >
-                              <ThumbsDown className="w-3 h-3" />
-                            </button>
-                            <span className="text-[10px] text-slate-400 ml-1">
-                              {message.timestamp.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Error retry */}
-                        {message.isError && (
-                          <button
-                            onClick={handleRetry}
-                            disabled={isLoading}
-                            className="mt-1.5 flex items-center gap-1 text-xs text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
-                          >
-                            <RotateCcw className="w-3 h-3" />
-                            Tekrar dene
-                          </button>
-                        )}
-
-                        {/* User message timestamp */}
-                        {message.role === 'user' && (
-                          <span className="text-[10px] text-slate-400 mt-1">
-                            {message.timestamp.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        )}
-                      </div>
-                    </motion.div>
-                  ))}
-                  
-                  {/* Typing Indicator */}
-                  {isLoading && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="flex gap-2.5"
-                    >
-                      <div className="w-7 h-7 rounded-full bg-[hsl(var(--rf-ink))] text-[hsl(var(--rf-ink-foreground))] flex items-center justify-center">
-                        <Bot className="w-3.5 h-3.5" />
-                      </div>
-                      <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-bl-md px-4 py-3">
-                        <TypingIndicator />
-                      </div>
-                    </motion.div>
-                  )}
-                  <div ref={messagesEndRef} />
+            <div className="flex shrink-0 items-center gap-0.5">
+              {!!messages.length && <button onClick={handleClearChat} className="rf-icon-button !h-9 !w-9" aria-label="Sohbeti temizle" title="Yeni sohbet"><Trash2 size={15} /></button>}
+              <button onClick={() => setIsExpanded(!isExpanded)} className="rf-icon-button !h-9 !w-9" aria-label={isExpanded ? 'Normal boyuta dön' : 'Sohbeti genişlet'} title={isExpanded ? 'Normal boyut' : 'Genişlet'}>{isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</button>
+              <button onClick={() => setIsOpen(false)} className="rf-icon-button !h-9 !w-9" aria-label="Kapat"><X size={18} /></button>
+            </div>
+          </header>
+          <div ref={messagesContainerRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
+            {!!insights.filter(i => i.id !== 'clear').length && <details className="mb-6 rounded-xl border border-border bg-muted/20 text-xs" open={messages.length === 0}>
+              <summary className="cursor-pointer px-3.5 py-3 font-medium text-foreground">Gündeminizde · {insights.filter(i => i.id !== 'clear').length} konu<span className="ml-2 font-normal text-muted-foreground">Kayıt kontrolü</span></summary>
+              <div className="space-y-2 border-t border-border p-3">{brief && <p className="mb-3 leading-6 text-muted-foreground">{brief}</p>}{insights.filter(i => i.id !== 'clear').slice(0, 2).map(insight => <button key={insight.id} onClick={() => handleNavigate(insight.href)} className="block w-full rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted"><span className="block font-medium">{insight.title}</span><span className="mt-1 block leading-5 text-muted-foreground">{insight.detail}</span><span className="mt-2 inline-flex items-center gap-1 font-medium text-primary">{insight.action}<ArrowUpRight size={12} aria-hidden /></span></button>)}</div>
+            </details>}
+            {!messages.length && !chatOff && <div className="pb-2 pt-2">
+              <p className="text-xs text-muted-foreground">{greeting}{user.name ? `, ${user.name.split(' ')[0]}` : ''}</p>
+              <h3 className="mt-2 text-2xl font-semibold leading-tight tracking-tight">İşlerinizi birlikte<br />netleştirelim.</h3>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">Siparişleriniz, üretim ve stok hakkında sorun. İşlem gerektiren adımları önce inceleyin.</p>
+              <div className="mt-6 grid grid-cols-2 gap-2">{quickActions.filter(a => user.role !== 'worker' || ['production', 'stock', 'help'].includes(a.id)).map(action => <button key={action.id} onClick={() => setInput(action.query)} className="group flex min-h-16 items-center gap-2.5 rounded-xl border border-border p-3 text-left text-xs transition-colors hover:border-primary/30 hover:bg-muted/40"><action.icon size={16} className="shrink-0 text-muted-foreground" aria-hidden /><span className="flex-1 leading-5">{action.label}</span><ArrowUpRight size={12} className="shrink-0 text-muted-foreground/60" aria-hidden /></button>)}</div>
+            </div>}
+            <div className="space-y-6" role="log" aria-live="polite" aria-label="Sohbet mesajları" aria-relevant="additions">
+              {messages.map(message => <div key={message.id} className={cn('flex flex-col', message.role === 'user' ? 'items-end' : 'items-start')}>
+                {message.role === 'assistant' && <p className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground"><Sparkles size={12} aria-hidden />Asistan</p>}
+                <div className={cn('min-w-0 break-words text-sm leading-7', message.role === 'user' ? 'max-w-[88%] whitespace-pre-wrap rounded-xl rounded-tr-sm border border-border bg-muted/60 px-4 py-3' : message.isError ? 'w-full rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-destructive' : 'w-full text-foreground/90')}>
+                  {message.role === 'user' ? message.content : message.command ? <><CommandResultView card={message.command} busy={commandBusy === message.id} onChoose={(customerId) => void sendMessage(message.command!.text, customerId)} onDecide={(action) => void decideCommand(message, action)} onExample={(text) => setInput(text)} />{message.command.error && <p className="mt-2 text-xs text-destructive" role="alert">{message.command.error}</p>}</> : renderMarkdown(message.content, handleNavigate)}
                 </div>
-
-                {/* Scroll to bottom button */}
-                <AnimatePresence>
-                  {showScrollBtn && (
-                    <motion.button
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      onClick={scrollToBottom}
-                      className="absolute bottom-[90px] left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-colors z-10"
-                    >
-                      <ArrowDown className="w-4 h-4" />
-                    </motion.button>
-                  )}
-                </AnimatePresence>
-
-                {/* Input */}
-                {chatOff ? (
-                  <p role="note" className="p-3 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
-                    {modelUnavailableMessage(modelUnavailableReason)} Yukarıdaki uyarılar kayıtlarınızdan doğrudan hesaplanır.
-                    {['owner','admin'].includes(user.role) && <button type="button" onClick={()=>handleNavigate('/settings#asistan')} className="mt-2 block font-medium text-primary underline underline-offset-4">Asistan ayarlarını aç</button>}
-                  </p>
-                ) : (
-                <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                  <div className="flex gap-2 items-end">
-                    <textarea
-                      ref={textareaRef}
-                      value={input}
-                      onChange={(e) => setInput(e.target.value.slice(0, MAX_INPUT_LENGTH))}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Bir soru sorun..."
-                      rows={1}
-                      className="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white resize-none max-h-[120px] leading-relaxed"
-                    />
-                    <button
-                      onClick={() => handleSend()}
-                      disabled={!input.trim() || isLoading}
-                      className={cn(
-                        "p-2.5 rounded-xl transition-all shrink-0",
-                        input.trim() && !isLoading
-                          ? "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                          : "bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed"
-                      )}
-                      aria-label="Gönder"
-                    >
-                      <Send className="w-4 h-4" />
-                    </button>
+                {message.role === 'assistant' && !message.isError && <>
+                  {message.command?.result && <p className="mt-2 text-[10px] text-muted-foreground">{message.command.result.type === 'preview' && message.command.result.source === 'model' ? 'AI ile yorumlandı · hesap ve kayıt kontrolü yapıldı' : 'Komut ve kayıt kontrolü ile hazırlandı'}</p>}
+                  {message.modelLabel && <p className="mt-2 inline-flex items-center gap-1 text-[10px] text-muted-foreground"><Check size={11} aria-hidden />{message.modelLabel} ile yanıtlandı</p>}
+                  {!!message.sources?.length && <details className="mt-2 text-[11px] text-muted-foreground"><summary className="cursor-pointer">Başvurulan kayıtlar</summary><p className="mt-1 leading-5">{message.sources.map(s => SOURCE_LABELS[s]).join(' · ')}</p></details>}
+                  {!!message.actions?.length && <div className="mt-3 flex flex-wrap gap-2">{message.actions.map((action, index) => <button key={index} className="rf-secondary-button !rounded-lg text-xs" disabled={actionBusy} onClick={() => {
+                    if (action.kind === 'navigate') { const href = safeAssistantHref(action.href); if (href) handleNavigate(href); }
+                    else { setActionError(''); const key = message.id + ':' + index; let commandId = actionIds.current.get(key); if (!commandId) { commandId = crypto.randomUUID(); actionIds.current.set(key, commandId); } setPendingAction({ action, commandId }); }
+                  }}>{action.title}<ArrowUpRight size={12} aria-hidden /></button>)}</div>}
+                  {!!message.suggestions?.length && <div className="mt-3 flex flex-wrap gap-1.5">{message.suggestions.map((suggestion, index) => <button key={index} disabled={isLoading} onClick={() => setInput(suggestion)} className="rounded-lg border border-border px-2.5 py-1.5 text-left text-xs leading-5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40">{suggestion}</button>)}</div>}
+                  <div className="mt-2 flex items-center gap-1 text-muted-foreground/60">
+                    <button onClick={() => handleCopy(message.id, message.content)} className="rf-icon-button !h-8 !w-8" aria-label="Yanıtı kopyala">{copiedId === message.id ? <Check size={13} /> : <Copy size={13} />}</button>
+                    <button onClick={() => handleFeedback(message.id, 'positive')} aria-pressed={message.feedback === 'positive'} className={cn('rf-icon-button !h-8 !w-8', message.feedback === 'positive' && 'text-emerald-600')} aria-label="Faydalı"><ThumbsUp size={13} /></button>
+                    <button onClick={() => handleFeedback(message.id, 'negative')} aria-pressed={message.feedback === 'negative'} className={cn('rf-icon-button !h-8 !w-8', message.feedback === 'negative' && 'text-destructive')} aria-label="Faydalı değil"><ThumbsDown size={13} /></button>
+                    <time className="ml-auto text-[10px]" dateTime={message.timestamp.toISOString()}>{message.timestamp.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</time>
                   </div>
-                  <div className="flex items-center justify-between mt-1.5 px-1">
-                    <p className="text-[10px] text-slate-400">
-                      Shift+Enter ile yeni satır
-                    </p>
-                    <p className="text-[10px] text-slate-400">
-                      {input.length}/{MAX_INPUT_LENGTH}
-                    </p>
-                  </div>
-                </div>
-                )}
-              </>
-            )}
-          </motion.div>
-        )}
+                </>}
+                {message.isError && <button onClick={handleRetry} disabled={isLoading} className="mt-2 inline-flex min-h-9 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"><RotateCcw size={13} />Tekrar dene</button>}
+              </div>)}
+              {isLoading && <div role="status" className="flex items-center gap-2 py-2 text-xs text-muted-foreground"><Loader2 size={15} className="animate-spin motion-reduce:animate-none" aria-hidden />Kayıtlar inceleniyor, yanıt hazırlanıyor…</div>}
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+          {showScrollBtn && <button onClick={scrollToBottom} className="absolute bottom-36 left-1/2 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-md" aria-label="Son mesaja git"><ArrowDown size={15} /></button>}
+          {chatOff ? <div className="shrink-0 border-t border-border bg-muted/20 px-5 py-4 text-xs leading-6 text-muted-foreground" role="note">{modelUnavailableMessage(modelUnavailableReason)}
+            {['owner', 'admin'].includes(user.role) && <button type="button" onClick={() => handleNavigate('/settings#asistan')} className="mt-2 block font-medium text-foreground underline underline-offset-4">Asistan ayarlarını aç</button>}
+          </div> : <form className="shrink-0 border-t border-border bg-card p-4" onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
+            <div className="overflow-hidden rounded-xl border border-border bg-background focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10">
+              <textarea ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value.slice(0, MAX_INPUT_LENGTH))} onKeyDown={handleKeyDown} placeholder="Bir soru sorun veya yapmak istediğinizi yazın…" aria-label="Asistana mesaj" rows={2} disabled={modelEnabled === undefined} className="max-h-[120px] min-h-[64px] w-full resize-none bg-transparent px-3.5 pt-3 text-sm leading-6 outline-none placeholder:text-muted-foreground/70 disabled:opacity-50" />
+              <div className="flex items-center justify-between gap-2 px-3 pb-2.5"><span className="text-[10px] text-muted-foreground">İşlemler onayınızla uygulanır</span><button type="submit" disabled={!input.trim() || isLoading || modelEnabled === undefined} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-30" aria-label="Gönder"><ArrowUp size={17} /></button></div>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground"><span>Enter gönder · Shift+Enter yeni satır</span><span>{input.length}/{MAX_INPUT_LENGTH}</span></div>
+          </form>}
+        </motion.section>}
       </AnimatePresence>
     </>
   );

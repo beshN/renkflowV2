@@ -4,9 +4,9 @@
  * were thrown on the scrap pile (hurda), which are used first when a piece fits them. The cutting
  * itself is the firm's engine (cutting-engine.ts); nothing here is a second algorithm.
  */
-import { canonicalColor, colorKey } from '../colors/color-spec';
+import { canonicalColor, colorKey, parseColor } from '../colors/color-spec';
 import type { FoyDoc, FoyPartKind } from '../foy/types';
-import { optimizeCuts, planPurchase, type CutDemand, type CutSource, type CuttingParameters } from './cutting-engine';
+import { chooseBarLengths, optimizeCuts, planPurchase, type CutDemand, type CutSource, type CuttingParameters } from './cutting-engine';
 
 const CUT_KINDS: FoyPartKind[] = ['demir', 'dere', 'led', 'boru'];
 const KIND_LABEL: Record<FoyPartKind, string> = { demir: 'Demir', dere: 'Dere', led: 'LED profili', boru: 'Boru', kumas: 'Kumaş', sac: 'Sac', diger: 'Diğer' };
@@ -59,7 +59,7 @@ export function foyCutRows(doc: FoyDoc): { rows: CutRow[]; problems: RowProblem[
   return { rows: [...rows.values()], problems, color };
 }
 
-export type StockItem = { id: string; name: string; sku: string; profileCode: string | null; standardLengthMm: number | null };
+export type StockItem = { id: string; name: string; sku: string; profileCode: string | null; standardLengthMm: number | null; sizeLabel?: string | null; processedStates?: string[] };
 
 /** "50*100", "50 x 100", "50×100" → "50x100". */
 const dims = (text: string) => {
@@ -67,6 +67,11 @@ const dims = (text: string) => {
   return m ? `${m[1].replace(',', '.')}x${m[2].replace(',', '.')}` : null;
 };
 const plain = (text: string) => text.toLocaleLowerCase('tr-TR').replace(/ı/g, 'i').normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+export const stockProfileIdentity = (item: StockItem) => item.profileCode && item.processedStates ? [
+  plain(item.profileCode).trim(), plain(item.sizeLabel ?? '').replace(/\s+/g, ''),
+  [...(item.processedStates ?? [])].filter((s) => !['boyali', 'boyasiz'].includes(plain(s))).sort().join(','),
+].join('\u0000') : item.id;
 
 /**
  * The stock profile a sheet row stands for: by section ("50*100", "40 * 60") and kind word (demir,
@@ -91,7 +96,8 @@ export function matchItems(row: Pick<CutRow, 'kind' | 'profile'>, items: StockIt
     return { item, score };
   }).filter((s) => s.score >= 4).sort((a, b) => b.score - a.score || a.item.name.localeCompare(b.item.name));
   const top = scored.filter((s) => s.score === scored[0]?.score);
-  return { itemId: top.length === 1 ? top[0].item.id : null, candidates: top.map((s) => s.item) };
+  const sameProfile = top.length > 0 && new Set(top.map((s) => stockProfileIdentity(s.item))).size === 1;
+  return { itemId: sameProfile ? top[0].item.id : null, candidates: top.map((s) => s.item) };
 }
 
 export type StockLot = { id: string; itemId: string; lotNumber: string; lengthMm: number; color: string; kind: 'new' | 'remnant' | 'scrap'; unitCost?: number };
@@ -101,6 +107,8 @@ export type PlannedBar = {
   lotId: string;
   sourceKind: StockLot['kind'];
   sourceLengthMm: number;
+  sourceItemName: string;
+  paintTo: string | null;
   /** Cut pieces on this bar in cutting order, with how many of each. */
   cuts: Array<{ lengthMm: number; count: number; label: string }>;
   usedMm: number;
@@ -130,6 +138,7 @@ export type CutListPlan = {
     remnantsUsed: number;
     scrapUsed: number;
     toBuy: number;
+    toPaint: number;
     wasteMm: number;
     wastePercent: number;
     keptMm: number;
@@ -143,26 +152,46 @@ const sameLength = (a: number, b: number) => Math.abs(a - b) < 0.0005;
  * Plans the cuts. `choices` maps a row id to the profile the person picked when the match was not
  * unique. Everything the engine could not place is reported as missing (and as bars to buy), never dropped.
  */
-export function planCutList(input: { rows: CutRow[]; items: StockItem[]; lots: StockLot[]; parameters: CuttingParameters; choices?: Record<string, string> }): CutListPlan {
+export function planCutList(input: { rows: CutRow[]; items: StockItem[]; lots: StockLot[]; parameters: CuttingParameters; choices?: Record<string, string>; purchaseLengthsMm?: number[] }): CutListPlan {
   const { rows, items, lots, parameters } = input;
   const byId = new Map(items.map((i) => [i.id, i]));
   const unmatched: CutListPlan['unmatched'] = [];
   const demand: CutDemand[] = [];
-  const rowItem = new Map<string, string>();
+
   for (const row of rows) {
     const chosen = input.choices?.[row.id];
     const match = chosen && byId.has(chosen) ? { itemId: chosen, candidates: [] as StockItem[] } : matchItems(row, items);
     if (!match.itemId) { unmatched.push({ rowId: row.id, label: row.label, candidates: match.candidates }); continue; }
-    rowItem.set(row.id, match.itemId);
     demand.push({ itemId: match.itemId, color: row.color, lengthMm: row.lengthMm, quantity: row.quantity, workOrderId: 'liste', orderItemId: row.id });
   }
 
+  // Different physical lengths and painted/raw cards may share a profile, but section and
+  // machining states must agree. Never substitute merely because two names sound alike.
+  const family = new Map(items.map((item) => [item.id, stockProfileIdentity(item)]));
+  const canonical = new Map<string, string>();
+  for (const d of demand) if (!canonical.has(family.get(d.itemId)!)) canonical.set(family.get(d.itemId)!, d.itemId);
+  const planningItem = (id: string) => canonical.get(family.get(id) ?? id) ?? id;
+  for (const d of demand) d.itemId = planningItem(d.itemId);
   const kindOf = new Map(lots.map((l) => [l.id, l.kind]));
   const lotById = new Map(lots.map((l) => [l.id, l]));
-  // Leftovers and scrap are both "used up first" by the engine; the lot kind keeps them apart for the report.
-  const sources: CutSource[] = lots.map((l) => ({ id: l.id, itemId: l.itemId, color: l.color, lengthMm: l.lengthMm, unitCost: l.unitCost ?? 0, isRemnant: l.kind !== 'new' }));
-  const empty = !demand.length;
-  const result = empty ? null : optimizeCuts(demand, sources, parameters);
+  const sources: CutSource[] = lots.map((l) => ({ id: l.id, itemId: planningItem(l.itemId), color: parseColor(l.color).kind === 'raw' && demand.some((d) => d.itemId === planningItem(l.itemId) && !d.color) ? '' : l.color, lengthMm: l.lengthMm, unitCost: l.unitCost ?? 0, isRemnant: l.kind !== 'new' }));
+  // First use stock in the required finish. Only remaining demand may consume explicitly raw
+  // bars, and each physical bar is removed from the shared pool immediately after allocation.
+  const result = demand.length ? optimizeCuts(demand, sources, parameters, { objective: 'material' }) : null;
+  const used = new Set(result?.bars.map((b) => b.source.id));
+  const paintTargets = new Map<string, string>();
+  const paintPlans = [];
+  let unfulfilled = result?.unfulfilled ?? [];
+  const colors = [...new Set(unfulfilled.map((p) => p.color))].filter((c) => ['ral', 'custom'].includes(parseColor(c).kind)).sort();
+  for (const color of colors) {
+    const waiting = unfulfilled.filter((p) => p.color === color);
+    const raw = sources.filter((s) => !used.has(s.id) && parseColor(lotById.get(s.id)?.color).kind === 'raw').map((s) => ({ ...s, color }));
+    const paint = optimizeCuts(waiting, raw, parameters, { objective: 'material' });
+    for (const b of paint.bars) { used.add(b.source.id); paintTargets.set(b.source.id, color); }
+    paintPlans.push(paint);
+    unfulfilled = [...unfulfilled.filter((p) => p.color !== color), ...paint.unfulfilled];
+  }
+  const allBars = [...(result?.bars ?? []), ...paintPlans.flatMap((p) => p.bars)];
   const rowOf = new Map(rows.map((r) => [r.id, r]));
 
   const groups = new Map<string, PlannedGroup>();
@@ -178,7 +207,7 @@ export function planCutList(input: { rows: CutRow[]; items: StockItem[]; lots: S
   for (const d of demand) groupFor(d.itemId, d.color).pieces += d.quantity;
 
   let remnantsUsed = 0, scrapUsed = 0, barsFromStock = 0, keptMm = 0;
-  for (const bar of result?.bars ?? []) {
+  for (const bar of allBars) {
     const lot = lotById.get(bar.source.id)!;
     const color = bar.pieces.length ? rowOf.get(bar.pieces[0].orderItemId ?? '')?.color ?? bar.source.color : bar.source.color;
     const g = groupFor(bar.source.itemId, color);
@@ -195,7 +224,7 @@ export function planCutList(input: { rows: CutRow[]; items: StockItem[]; lots: S
     else barsFromStock++;
     if (bar.reusable) keptMm += bar.remainingMm;
     g.bars.push({
-      lotNumber: lot.lotNumber, lotId: lot.id, sourceKind: kind, sourceLengthMm: lot.lengthMm, cuts,
+      lotNumber: lot.lotNumber, lotId: lot.id, sourceKind: kind, sourceLengthMm: lot.lengthMm, sourceItemName: byId.get(lot.itemId)?.name ?? '—', paintTo: paintTargets.get(lot.id) ?? null, cuts,
       usedMm: Math.round((lot.lengthMm - bar.remainingMm) * 10) / 10,
       leftoverMm: Math.round(bar.remainingMm * 10) / 10,
       leftover: bar.remainingMm <= 0 ? 'none' : bar.reusable ? 'keep' : 'scrap',
@@ -204,10 +233,11 @@ export function planCutList(input: { rows: CutRow[]; items: StockItem[]; lots: S
 
   // Pieces no stock bar could take → bars to buy on each profile's standard length.
   let toBuy = 0;
-  if (result?.unfulfilled.length) {
+  if (unfulfilled.length) {
     const standard = (itemId: string) => byId.get(itemId)?.standardLengthMm || parameters.standardLengthMm;
-    const purchase = planPurchase(result.unfulfilled, standard, parameters);
-    const colorOfItem = new Map(result.unfulfilled.map((p) => [`${p.itemId}\u0000${colorKey(p.color)}`, p.color]));
+    const choices = input.purchaseLengthsMm?.length ? chooseBarLengths(unfulfilled, (id) => [standard(id), ...input.purchaseLengthsMm!], parameters, { objective: 'material' }) : new Map();
+    const purchase = planPurchase(unfulfilled, (id) => choices.get(id)?.lengthMm ?? standard(id), parameters, { objective: 'material' });
+    const colorOfItem = new Map(unfulfilled.map((p) => [`${p.itemId}\u0000${colorKey(p.color)}`, p.color]));
     for (const line of purchase.lines) {
       const g = groupFor(line.itemId, colorOfItem.get(`${line.itemId}\u0000${colorKey(line.color)}`) ?? line.color);
       g.buy = { bars: line.bars, lengthMm: line.lengthMm };
@@ -224,7 +254,7 @@ export function planCutList(input: { rows: CutRow[]; items: StockItem[]; lots: S
       }
       return out;
     };
-    for (const [key, list] of tally(result.unfulfilled)) {
+    for (const [key, list] of tally(unfulfilled)) {
       const [itemId] = key.split('\u0000');
       groupFor(itemId, colorOfItem.get(key) ?? '').missing = list.sort((a, b) => b.lengthMm - a.lengthMm);
     }
@@ -240,9 +270,9 @@ export function planCutList(input: { rows: CutRow[]; items: StockItem[]; lots: S
     unmatched,
     summary: {
       pieces: demand.reduce((s, d) => s + d.quantity, 0),
-      barsFromStock, remnantsUsed, scrapUsed, toBuy,
-      wasteMm: Math.round((result?.wasteMm ?? 0) * 10) / 10,
-      wastePercent: Math.round((result?.wastePercent ?? 0) * 10) / 10,
+      barsFromStock, remnantsUsed, scrapUsed, toBuy, toPaint: paintTargets.size,
+      wasteMm: Math.round(allBars.reduce((sum, b) => sum + b.lossMm, 0) * 10) / 10,
+      wastePercent: Math.round((allBars.length ? allBars.reduce((sum, b) => sum + b.lossMm, 0) / allBars.reduce((sum, b) => sum + b.source.lengthMm, 0) * 100 : 0) * 10) / 10,
       keptMm: Math.round(keptMm * 10) / 10,
     },
     algorithm: result?.algorithm ?? '—',

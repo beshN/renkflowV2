@@ -7,6 +7,7 @@ import { consumeRateLimit, rateLimitHeaders } from '@/lib/security/rate-limit';
 import { runCommand } from '@/lib/ai/commands/run.server';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 /** A typed or spoken command → a result card or an approval-gated preview. Never applies anything itself. */
 export async function POST(req: NextRequest) {

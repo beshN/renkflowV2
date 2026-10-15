@@ -14,22 +14,24 @@ import { getAiSettings } from '@/lib/ai/gate.server';
 import { colorKey } from '@/lib/features/colors/color-spec';
 import { istanbulToday } from '@/lib/features/sales/order-status.server';
 import { canTransition } from '@/lib/features/orders/transition-rules';
-import { parseCommand, type Command } from './parse';
+import { quoteCommercialTerms } from './commercial';
+import { answerCommand } from './conversation.server';
+import { isQuoteDraftRequest, parseCommand, type Command } from './parse';
 import { comparePlans, explain, releasedMaterial, type PlanJob } from './whatif';
 
 type Row = Record<string, any>;
 const day = (v: unknown) => (v ? (v instanceof Date ? v.toISOString() : String(v)).slice(0, 10) : null);
 const addDays = (d: string, n: number) => new Date(Date.parse(d + 'T00:00:00Z') + n * 86_400_000).toISOString().slice(0, 10);
 const fold = (s: string) => s.toLocaleLowerCase('tr-TR').replace(/[^a-z0-9çğıöşü ]/g, '').trim();
+const familyLabel = (family: string) => ({ pergola: 'Pergola', awning: 'Tente', guillotine: 'Giyotin cam', zip: 'Zip perde', rolling_roof: 'Rolling roof', winter_garden: 'Kış bahçesi' }[family] ?? family);
 
-export type CommandResult =
+export type CommandResult = (
   | { type: 'preview'; suggestionId: string; version: number; title: string; summary: string; lines: Array<{ label: string; value: string }>; warnings: string[]; source: 'rules' | 'model' }
   | { type: 'choose'; question: string; field: 'customerId'; options: Array<{ value: string; label: string; hint?: string }> }
   | { type: 'list'; title: string; columns: string[]; rows: Array<{ cells: string[]; href?: string }>; empty: string }
   | { type: 'answer'; title: string; lines: Array<{ label: string; value: string }>; note?: string }
   | { type: 'need'; message: string; missing: string[]; examples: string[] }
-  | { type: 'text'; text: string; suggestions: string[]; source: 'model' }
-  | { type: 'denied'; message: string };
+  | { type: 'denied'; message: string }) & { processing?: { source: 'rules' | 'model'; label: string }; suggestions?: string[] };
 
 const EXAMPLES = ["Ahmet Bey'e 3x4 pergola teklif hazırla antrasit", 'bu hafta geciken işler', '7016 mat kaç çubuk var', "ORD-12'yi öne al", "ORD-12'ye 2 gün ekle", 'RF-1042 nerede', 'yarın teslimatlar', 'kritik stok', 'Kaya İnşaat siparişleri', 'vadesi geçen faturalar', 'yoldaki malzemeler'];
 const NEEDS: Record<Exclude<Command['intent'], 'unknown'>, { module: Module; action: Action; what: string }> = {
@@ -51,10 +53,13 @@ const NEEDS: Record<Exclude<Command['intent'], 'unknown'>, { module: Module; act
  * preview that waits for approval; questions come back as a result card.
  */
 export async function runCommand(actor: WorkOrderActor, raw: unknown): Promise<CommandResult> {
-  const input = z.object({ text: z.string().trim().min(2).max(500), customerId: z.string().uuid().optional() }).parse(raw);
+  const input = z.object({ text: z.string().trim().min(2).max(2000), customerId: z.string().uuid().optional() }).parse(raw);
   let parsed = parseCommand(input.text);
   let source: 'rules' | 'model' = 'rules';
-  if (parsed.command.intent === 'unknown' && parsed.missing.length === 0) {
+  if (parsed.command.intent === 'quote_draft' && !isQuoteDraftRequest(input.text)) return answerCommand(actor, input.text);
+  const mutation = /teklif|oluştur|hazırla|ekle|kaydet|iptal|ertele|öne al/iu.test(input.text);
+  if (!mutation && ((parsed.command.intent === 'unknown' && parsed.missing.length === 0) || /neden|nasıl|öner|değerlendir|analiz|öncelik|karşılaştır/iu.test(input.text))) return answerCommand(actor, input.text);
+  if ((parsed.command.intent === 'unknown' && parsed.missing.length === 0) || (parsed.command.intent === 'quote_draft' && (!parsed.command.customer || !parsed.command.widthMm || !parsed.command.projectionMm))) {
     const ai = await getAiSettings(actor.tenantId);
     if (ai.mode === 'assist' && ai.kvkkAckAt) {
       try {
@@ -71,10 +76,8 @@ export async function runCommand(actor: WorkOrderActor, raw: unknown): Promise<C
   }
   const cmd = parsed.command;
   if (cmd.intent === 'unknown') {
-    if (parsed.missing.length) return { type: 'need', message: `Eksik: ${parsed.missing.join(', ')}.`, missing: parsed.missing, examples: EXAMPLES };
-    // Not a command: answer it (everyday talk, a question for the assistant, a search of the records).
-    const { freeformAnswer } = await import('./freeform.server');
-    return freeformAnswer(actor, input.text, EXAMPLES);
+    if (!parsed.missing.length) return answerCommand(actor, input.text);
+    return { type: 'need', message: `Eksik: ${parsed.missing.join(', ')}.`, missing: parsed.missing, examples: EXAMPLES };
   }
 
   const access = await resolveMemberAccess(actor.userId, actor.tenantId);
@@ -88,9 +91,13 @@ export async function runCommand(actor: WorkOrderActor, raw: unknown): Promise<C
 
   if (cmd.intent === 'quote_draft') {
     if (!mayApprove) return { type: 'denied', message: 'Teklif taslağını asistanla ofis rolleri hazırlar.' };
+    const commercialIssues = quoteCommercialTerms(input.text).issues;
+    if (commercialIssues?.length) return { type: 'need', message: commercialIssues.join(' '), missing: ['ticari koşullar'], examples: [] };
+    if ((cmd.quantity ?? 1) > 1 && quoteCommercialTerms(input.text).unitPrice !== undefined && !/birim|tanesi|her biri/iu.test(input.text))
+      return { type: 'need', message: 'Yazdığınız fiyat birim fiyat mı? Birden fazla ürün için fiyatın kapsamını belirtin.', missing: ['birim fiyat bilgisi'], examples: [] };
     const missing = [!cmd.customer && !input.customerId && 'müşteri', (!cmd.widthMm || !cmd.projectionMm) && 'ölçü (ör. 3x4)'].filter((x): x is string => Boolean(x));
     if (missing.length) return { type: 'need', message: `Teklif için eksik: ${missing.join(', ')}.`, missing, examples: EXAMPLES.slice(0, 1) };
-    return quotePreview(actor, cmd, input.customerId, hidePrices, source, access.hidden.includes('cost') || access.hidden.includes('profit'));
+    return quotePreview(actor, cmd, input.customerId, hidePrices, source, access.hidden.includes('cost') || access.hidden.includes('profit'), input.text);
   }
   if (cmd.intent === 'list_late') return lateList(actor, cmd.period, hidePrices);
   if (cmd.intent === 'stock_query') return stockAnswer(actor, cmd.color, cmd.item);
@@ -105,7 +112,7 @@ export async function runCommand(actor: WorkOrderActor, raw: unknown): Promise<C
 
 // Quote draft ---------------------------------------------------------------------------------------
 
-async function quotePreview(actor: WorkOrderActor, cmd: Extract<Command, { intent: 'quote_draft' }>, customerId: string | undefined, hidePrices: boolean, source: 'rules' | 'model', hideProfit = true): Promise<CommandResult> {
+async function quotePreview(actor: WorkOrderActor, cmd: Extract<Command, { intent: 'quote_draft' }>, customerId: string | undefined, hidePrices: boolean, source: 'rules' | 'model', hideProfit = true, originalText = ''): Promise<CommandResult> {
   let customer: { id: string | null; name: string };
   if (customerId) {
     const [c] = await sql`SELECT id, full_name, company_name FROM customers WHERE tenant_id = ${actor.tenantId} AND id = ${customerId}`;
@@ -124,9 +131,10 @@ async function quotePreview(actor: WorkOrderActor, cmd: Extract<Command, { inten
   if (!customer.id) warnings.push(`"${customer.name}" kayıtlı müşterilerde yok; teklif bu adla açılır, müşteri kartı siparişe dönüşte bağlanır.`);
   if (!cmd.color) warnings.push('Renk belirtilmedi; teklifte boş kalır.');
   // Price from the firm's matrix when one recipe is mapped to the family; never a guessed price.
-  let unitPrice: number | null = null;
+  const terms = quoteCommercialTerms(originalText);
+  let unitPrice: number | null = terms.unitPrice ?? null;
   let priceNote = 'Fiyat matrisi yok; fiyat elle girilecek';
-  if ((await tableExists('product_family_recipes')) && (await tableExists('price_matrices'))) {
+  if (unitPrice === null && (await tableExists('product_family_recipes')) && (await tableExists('price_matrices'))) {
     const recipes = await sql`SELECT recipe_code FROM product_family_recipes WHERE tenant_id = ${actor.tenantId} AND family = ${family}`;
     if (recipes.length === 1) {
       const { quotePrice } = await import('@/lib/features/products/price-matrix.service');
@@ -137,7 +145,7 @@ async function quotePreview(actor: WorkOrderActor, cmd: Extract<Command, { inten
   if (unitPrice === null) warnings.push(priceNote);
   // Price hint from the firm's own accepted quotes (evidence only: the draft keeps the matrix price).
   const hint: Array<{ label: string; value: string }> = [];
-  if (!hidePrices) {
+  if (!hidePrices && terms.unitPrice === undefined) {
     const { getAiSettings, featureOn } = await import('@/lib/ai/gate.server');
     const ai = await getAiSettings(actor.tenantId);
     if (featureOn(ai, 'price_hint')) {
@@ -150,8 +158,8 @@ async function quotePreview(actor: WorkOrderActor, cmd: Extract<Command, { inten
       for (const w of s.warnings.filter((x) => /kâr|matristen/.test(x))) warnings.push(w);
     }
   }
-  const payload = { customerId: customer.id, customerName: customer.name, family, widthMm: cmd.widthMm!, projectionMm: cmd.projectionMm!, quantity: cmd.quantity ?? 1, color: cmd.color, unitPrice };
-  const label = `${family === 'pergola' ? 'Pergola' : family} ${(cmd.widthMm! / 1000).toLocaleString('tr-TR')} × ${(cmd.projectionMm! / 1000).toLocaleString('tr-TR')} m`;
+  const payload = { customerId: customer.id, customerName: customer.name, family, widthMm: cmd.widthMm!, projectionMm: cmd.projectionMm!, quantity: cmd.quantity ?? 1, color: cmd.color, unitPrice, ...terms };
+  const label = `${familyLabel(family)} ${(cmd.widthMm! / 1000).toLocaleString('tr-TR')} × ${(cmd.projectionMm! / 1000).toLocaleString('tr-TR')} m`;
   const { fileSuggestion } = await import('@/lib/ai/suggestions/service');
   const r = await fileSuggestion(sql, actor.tenantId, actor.userId, {
     // The same command the same day is one preview (a repeated or shared command does not pile up drafts).
@@ -164,7 +172,11 @@ async function quotePreview(actor: WorkOrderActor, cmd: Extract<Command, { inten
     summary: 'Onaylarsanız taslak teklif açılır; müşteriye gönderilmez.',
     lines: [
       { label: 'Müşteri', value: customer.name + (customer.id ? '' : ' (yeni)') }, { label: 'Ürün', value: label }, { label: 'Renk', value: cmd.color ?? '—' }, { label: 'Adet', value: String(payload.quantity) },
-      ...(hidePrices ? [] : [{ label: 'Birim fiyat', value: unitPrice === null ? 'elle girilecek' : `${unitPrice.toLocaleString('tr-TR')} ₺ (matris)` }]),
+      ...(hidePrices ? [] : [{ label: 'Birim fiyat', value: unitPrice === null ? 'elle girilecek' : `${unitPrice.toLocaleString('tr-TR')} ${terms.currency ?? 'TRY'} (${terms.unitPrice !== undefined ? 'isteğinizden' : 'matris'})` }]),
+      ...(hidePrices ? [] : [
+        ...(terms.discountPercent === undefined ? [] : [{ label: 'İskonto', value: `%${terms.discountPercent}` }]),
+        ...(terms.vatPercent === undefined ? [] : [{ label: 'KDV', value: `%${terms.vatPercent}` }]),
+      ]),
       ...hint,
     ],
     warnings,
@@ -174,14 +186,14 @@ async function quotePreview(actor: WorkOrderActor, cmd: Extract<Command, { inten
 const QUOTE_KIND = 'command.quote_draft';
 registerSuggestionKind({
   kind: QUOTE_KIND, label: 'Komut: teklif taslağı', icon: 'FileText', roles: ['owner', 'admin', 'office'], access: { module: 'quotations', action: 'create' },
-  payloadSchema: z.object({ customerId: z.string().uuid().nullable(), customerName: z.string().min(1).max(200), family: z.string(), widthMm: z.number().int().positive(), projectionMm: z.number().int().positive(), quantity: z.number().int().positive(), color: z.string().nullable(), unitPrice: z.number().nullable() }),
+  payloadSchema: z.object({ customerId: z.string().uuid().nullable(), customerName: z.string().min(1).max(200), family: z.string(), widthMm: z.number().int().positive(), projectionMm: z.number().int().positive(), quantity: z.number().int().positive(), color: z.string().nullable(), unitPrice: z.number().nullable(), discountPercent: z.number().min(0).max(100).optional(), vatPercent: z.number().refine((v) => [0, 1, 10, 20].includes(v)).optional(), currency: z.enum(['TRY', 'EUR', 'USD']).optional() }),
   apply: async (tx, actor, p, suggestion) => {
     const { quotationService } = await import('@/lib/features/quotations/service');
     void tx; // the quotation service runs its own transaction (idempotent on the suggestion id)
     const { CreateQuotationSchema } = await import('@/lib/features/quotations/types');
     const q = await quotationService.createQuotation(actor.tenantId, CreateQuotationSchema.parse({
-      idempotencyKey: suggestion.id, customerId: p.customerId ?? undefined, customerName: p.customerName,
-      items: [{ productName: `${p.family === 'pergola' ? 'Pergola' : p.family} ${p.widthMm / 1000} × ${p.projectionMm / 1000} m`, quantity: p.quantity, unitPrice: p.unitPrice ?? 0, color: p.color ?? undefined, widthMm: p.widthMm, projectionMm: p.projectionMm, description: 'Asistan komutundan taslak' }],
+      idempotencyKey: suggestion.id, currency: p.currency, discountPercent: p.discountPercent, vatPercent: p.vatPercent, applyCustomerPrices: false, customerId: p.customerId ?? undefined, customerName: p.customerName,
+      items: [{ productName: `${familyLabel(p.family)} ${p.widthMm / 1000} × ${p.projectionMm / 1000} m`, quantity: p.quantity, unitPrice: p.unitPrice ?? 0, color: p.color ?? undefined, widthMm: p.widthMm, projectionMm: p.projectionMm, description: 'Asistan komutundan taslak' }],
       internalNotes: `Asistan komutu (${suggestion.title})`,
     }), actor.userId);
     return { quotationId: q.id, number: (q as any).quotationNumber ?? null, href: `/quotations/${q.id}` };
