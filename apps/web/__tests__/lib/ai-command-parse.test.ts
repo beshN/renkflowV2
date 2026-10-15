@@ -1,4 +1,12 @@
-import { parseColorWords, parseCommand, parseCustomer, parseDims, parseOrderRef } from '@/lib/ai/commands/parse';
+import { isQuoteDraftRequest, parseColorWords, parseCommand, parseCustomer, parseDims, parseOrderRef } from '@/lib/ai/commands/parse';
+
+it('routes quotation creation to review while keeping quotation analysis in the model conversation', () => {
+  expect(isQuoteDraftRequest('Açık teklifleri durum ve geçerliliklerine göre özetle')).toBe(false);
+  expect(isQuoteDraftRequest('Teklifleri karşılaştır')).toBe(false);
+  expect(isQuoteDraftRequest("Ahmet Yılmaz'a pergola teklif")).toBe(true);
+  expect(isQuoteDraftRequest("Romanya'ya 10x5 tente teklif 300.000tl yüzde 5 iskonto 0 kdv")).toBe(true);
+  expect(isQuoteDraftRequest('Bir müşteri için teklif hazırlamak istiyorum')).toBe(true);
+});
 
 describe('command parser (Turkish, deterministic)', () => {
   it('quote draft from a one-liner', () => {

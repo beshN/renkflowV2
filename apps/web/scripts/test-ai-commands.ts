@@ -54,6 +54,14 @@ async function main() {
   assert.deepEqual([q.status, String(q.customer_id), q.customer_name], ['draft', String(a1.id), 'Ahmet Yılmaz']);
   const [qi] = await db`SELECT width_mm, projection_mm, color FROM quotation_items WHERE quotation_id = ${done.result.quotationId}`;
   assert.deepEqual([Number(qi.width_mm), Number(qi.projection_mm), qi.color], [3000, 4000, 'RAL 7016']);
+  // Commercial terms remain explicit through preview, approval and persisted quotation totals.
+  const commercial: any = await runCommand(owner, { text: "Ahmet Bey'e 10x5 tente teklif 300.000tl üzerinden yüzde 5 iskonto 0 kdv", customerId: a1.id });
+  assert.equal(commercial.type, 'preview');
+  assert.ok(commercial.lines.some((l: any) => l.label === 'KDV' && l.value === '%0'));
+  const priced: any = await svc.decideSuggestion(owner, commercial.suggestionId, { action: 'approve', expectedVersion: commercial.version });
+  const [price] = await db`SELECT discount_percent, vat_percent, total_amount FROM quotations WHERE id=${priced.result.quotationId}`;
+  assert.deepEqual([Number(price.discount_percent), Number(price.vat_percent), Number(price.total_amount)], [5, 0, 285000]);
+  assert.equal((await runCommand(owner, { text: "Ahmet Bey'e 2 adet 10x5 tente teklif 300.000tl", customerId: a1.id })).type, 'need', 'ambiguous unit/total price must be clarified');
   // A new name → a draft for that name (no card is made up).
   const fresh: any = await runCommand(owner, { text: "Zeynep Arslan'a 4x5 pergola teklif 9016" });
   assert.equal(fresh.type, 'preview');
