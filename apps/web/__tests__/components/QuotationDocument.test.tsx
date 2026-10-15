@@ -19,3 +19,27 @@ test('prints persisted prices, formatted dates and visuals without redundant hea
   expect(screen.queryByText(/TİCARİ TEKLİF|SUNULAN FİRMA|Gizli maliyet/)).not.toBeInTheDocument();
   expect(screen.getAllByText('İndirim')).toHaveLength(1);
 });
+
+describe('standard terms of sale', () => {
+  it("are appended to the firm's own quotation, word for word, after the quote", () => {
+    const { container } = render(<QuotationDocument quote={quote} firmName="Renk Alüminyum" />);
+    const terms = screen.getByRole('region', { name: 'Satış, iptal ve iade koşulları' });
+    expect(terms).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Genel satış koşulları' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'İptal ve iade koşulları' })).toBeInTheDocument();
+    for (let n = 1; n <= 15; n++) expect(screen.getByRole('heading', { level: 3, name: new RegExp(`^${n}\\. `) })).toBeInTheDocument();
+    expect(screen.getByText(/Toplam tutarın %50'si siparişin onaylanmasıyla peşin olarak tahsil edilir/)).toBeInTheDocument();
+    expect(screen.getByText(/%35'lik ikinci kısım üretim bittiğinde/)).toBeInTheDocument();
+    expect(screen.getByText(/haftalık %0\.5 depolama ve finansman bedeli/)).toBeInTheDocument();
+    expect(screen.getByText(/komple ürün iadesi kabul edilmez/)).toBeInTheDocument();
+    expect(screen.getByText('RENK ALÜMİNYUM')).toBeInTheDocument();
+    // After the totals, as the last part of the document.
+    const all = [...container.querySelectorAll('section')];
+    expect(all[all.length - 1]).toBe(terms);
+  });
+  it('are not put on another firm\'s quotation', () => {
+    render(<QuotationDocument quote={quote} firmName="Test Firma" />);
+    expect(screen.queryByRole('region', { name: 'Satış, iptal ve iade koşulları' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Genel satış koşulları/)).not.toBeInTheDocument();
+  });
+});
