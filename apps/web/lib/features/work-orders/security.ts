@@ -1,4 +1,5 @@
 import 'server-only';
+import type { StationCapability } from '@/lib/features/stations/contract';
 
 import { resolveMemberAccess } from '@/lib/security/member-access.server';
 import { auth } from '@/auth';
@@ -17,6 +18,8 @@ export type WorkOrderPermission =
   | 'delete';
 
 export type WorkOrderActor = {
+  /** Constructed only from a verified station cookie, never from member API input. */
+  station?: StationCapability;
   userId: string;
   tenantId: string;
   role: UserRole;

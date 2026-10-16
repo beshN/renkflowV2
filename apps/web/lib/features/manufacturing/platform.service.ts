@@ -1,3 +1,4 @@
+import { assertStationOperation, requireStationChecklist } from '@/lib/features/stations/security.server';
 import { WarehouseInputSchema } from '../warehouse/setup';
 import "server-only";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
@@ -217,7 +218,8 @@ async function event(
   workOrderId?: string,
   operationId?: string,
 ) {
-  await tx`INSERT INTO production_events(tenant_id,work_order_id,operation_id,event_type,payload,actor_id)VALUES(${a.tenantId},${workOrderId || null},${operationId || null},${kind},${js(payload)}::text::jsonb,${a.userId})`;
+  const detail=a.station ? {stationDeviceId:a.station.deviceId,workCenterCode:a.station.workCenterCode,data:payload} : payload;
+  await tx`INSERT INTO production_events(tenant_id,work_order_id,operation_id,event_type,payload,actor_id)VALUES(${a.tenantId},${workOrderId || null},${operationId || null},${kind},${js(detail)}::text::jsonb,${a.userId})`;
 }
 export async function enqueueOrderNotice(
   tx: any,
@@ -249,6 +251,7 @@ export async function productionCommand(a: WorkOrderActor, raw: unknown) {
   return sql.begin(async (tx: any) => {
     // One pilot tenant's stock and operation commands are serialized, including first insertion.
     await tx`SELECT pg_advisory_xact_lock(hashtextextended(${a.tenantId},0))`;
+    await assertStationOperation(tx,a,command.action,command.data);
     const [old] =
       await tx`SELECT * FROM production_commands WHERE tenant_id=${a.tenantId} AND command_id=${command.commandId}`;
     if (old) {
@@ -1296,11 +1299,12 @@ async function operation(
   if (!op) fail("Operasyon bulunamadı", 404);
   const [job] =
     await tx`SELECT * FROM work_orders WHERE tenant_id=${t} AND id=${op.work_order_id} FOR UPDATE`;
-  if (a.role === "worker" && op.assigned_to !== a.userId)
+  if (a.role === "worker" && !a.station && op.assigned_to !== a.userId)
     fail("Bu iş size atanmadı", 403);
   if (op.version !== d.version)
     fail("Operasyon başka cihazda değişti. Güncel kayıtla karşılaştırın.");
   if (job.status === "cancelled") fail("Üretim iptal edilmiş");
+  if(d.action === "complete") await requireStationChecklist(tx,a,op);
   for (const path of d.photos) {
     const fileId = path.split("/").pop();
     if (

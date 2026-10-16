@@ -18,7 +18,7 @@ export async function prepareFileUpload(input: BrowserFileInput) {
 }
 
 export type UploadedFileReference = {name:string;mime:string;blobPath:string};
-export async function prepareBrowserFile(file:File, purpose:"order"|"finance"|"qr"="order", qrToken?:string):Promise<File|UploadedFileReference> {
+export async function prepareBrowserFile(file:File, purpose:"order"|"finance"|"qr"|"knowledge"="order", qrToken?:string):Promise<File|UploadedFileReference> {
  const response=await fetch("/api/storage/upload",{cache:"no-store",signal:AbortSignal.timeout(15000)});
  const config=await response.json();
  if(!response.ok) throw new Error(config.error || "Yükleme yetkisi alınamadı");

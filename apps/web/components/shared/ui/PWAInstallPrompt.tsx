@@ -25,6 +25,7 @@ export default function PWAInstallPrompt() {
       pathname.startsWith('/coming-soon') ||
       pathname.startsWith('/auth/') ||
       pathname.startsWith('/signup') ||
+      pathname === '/station' ||
       pathname.startsWith('/pricing') ||
       pathname.startsWith('/features') ||
       pathname.startsWith('/about') ||

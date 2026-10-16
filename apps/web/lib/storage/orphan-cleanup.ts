@@ -12,7 +12,7 @@ export async function sweepAbandonedUploads() {
   let deleted=0;
   for (const file of page.blobs) {
    if(file.uploadedAt.getTime()>Date.now()-7*24*60*60*1000)continue;
-   const [refs]=await tx`SELECT EXISTS(SELECT 1 FROM documents WHERE file_path=${file.pathname}) OR EXISTS(SELECT 1 FROM order_documents WHERE file_url=${file.pathname}) OR EXISTS(SELECT 1 FROM production_files WHERE file_path=${file.pathname}) AS present`;
+   const [refs]=await tx`SELECT EXISTS(SELECT 1 FROM documents WHERE file_path=${file.pathname}) OR EXISTS(SELECT 1 FROM order_documents WHERE file_url=${file.pathname}) OR EXISTS(SELECT 1 FROM production_files WHERE file_path=${file.pathname}) OR EXISTS(SELECT 1 FROM knowledge_revisions WHERE file_path=${file.pathname}) AS present`;
    if(refs.present)continue;
    await deleteFile(file.pathname);
    deleted++;
