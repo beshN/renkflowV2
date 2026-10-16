@@ -137,7 +137,8 @@ export function StationWorkspace() {
       url: string;
       mime: string;
     } | null>(null);
-  const pairingRequested = useRef(false);
+  const pairingRequested = useRef(false),
+    readSequence = useRef(0);
   const inFlight = useRef(false),
     alive = useRef(true),
     pending = useRef<{
@@ -147,9 +148,16 @@ export function StationWorkspace() {
   const load = useCallback(async (query: string, signal?: AbortSignal) => {
     if (inFlight.current || pairingRequested.current) return;
     inFlight.current = true;
+    const sequence = ++readSequence.current;
     try {
       const result = await api("?q=" + encodeURIComponent(query), { signal });
-      if (!alive.current || signal?.aborted || pairingRequested.current) return;
+      if (
+        !alive.current ||
+        signal?.aborted ||
+        pairingRequested.current ||
+        sequence !== readSequence.current
+      )
+        return;
       setData(result);
       setPairing(false);
       setUpdated(
@@ -160,14 +168,22 @@ export function StationWorkspace() {
       );
       setError("");
     } catch (e) {
-      if (signal?.aborted || !alive.current || pairingRequested.current) return;
+      if (
+        signal?.aborted ||
+        !alive.current ||
+        pairingRequested.current ||
+        sequence !== readSequence.current
+      )
+        return;
       if (e instanceof StationRequestError && e.status === 401) {
         setPairing(true);
         setData(null);
       } else setError(e instanceof Error ? e.message : "Bağlantı kurulamadı.");
     } finally {
-      inFlight.current = false;
-      if (alive.current) setLoading(false);
+      if (sequence === readSequence.current) {
+        inFlight.current = false;
+        if (alive.current) setLoading(false);
+      }
     }
   }, []);
   useEffect(() => {
@@ -184,6 +200,8 @@ export function StationWorkspace() {
       if (!fragment) return;
       // An explicit new enrollment takes precedence over an existing device cookie.
       pairingRequested.current = true;
+      readSequence.current += 1;
+      inFlight.current = false;
       pending.current = null;
       setPairing(true);
       setCode(fragment);
@@ -230,6 +248,9 @@ export function StationWorkspace() {
   }, [op?.id, op?.version]);
   async function pair(e: React.FormEvent) {
     e.preventDefault();
+    pairingRequested.current = true;
+    readSequence.current += 1;
+    inFlight.current = false;
     setBusy(true);
     setError("");
     try {

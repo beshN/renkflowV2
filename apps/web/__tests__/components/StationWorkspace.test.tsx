@@ -96,3 +96,41 @@ it("switches an already open station into pairing without letting a late old-dev
     screen.getByRole("heading", { name: "Tableti istasyona bağlayın" }),
   ).toBeInTheDocument();
 });
+
+it("ignores a response from the previous device even after the replacement device has paired successfully", async () => {
+  let resolveOld!: (value: Response) => void;
+  global.fetch = jest
+    .fn()
+    .mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveOld = resolve;
+        }),
+    )
+    .mockImplementationOnce(() => ok({ ok: true }))
+    .mockImplementation(() =>
+      ok(overview("Yeni paketleme tableti")),
+    ) as unknown as typeof fetch;
+  render(<StationWorkspace />);
+  await act(async () => {
+    jest.advanceTimersByTime(250);
+  });
+  act(() => {
+    window.history.replaceState(null, "", "/station#pair=" + "c".repeat(32));
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Tableti bağla" }));
+  await act(async () => {});
+  expect(
+    screen.getByRole("heading", { name: "Yeni paketleme tableti" }),
+  ).toBeInTheDocument();
+  await act(async () => {
+    resolveOld(await ok(overview("Eski istasyon")));
+  });
+  expect(
+    screen.queryByRole("heading", { name: "Eski istasyon" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("heading", { name: "Yeni paketleme tableti" }),
+  ).toBeInTheDocument();
+});
