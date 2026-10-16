@@ -21,3 +21,10 @@ The existing Auth.js, private storage and production-command services remain in 
 - A fresh production backup branch is required before production migrations, in accordance with `docs/runbooks/backup-restore.md`. The Neon branch limit must be resolved without silently deleting backups. Production migrations run from the merged current main checkout.
 - `*.renkflow.com` is associated with the Vercel project, but external DNS and wildcard TLS are not yet configured. Hostinger login is pending. Existing mail and verification records must be preserved when connecting DNS.
 - Company-host OAuth has not been end-to-end verified; the existing central Google callback registration remains unchanged. Do not claim it is validated by password-login tests.
+
+## Additional station audit
+
+- A new pairing link now takes precedence over an existing station cookie, including hash navigation and late responses from the former assignment. Two component regression tests cover both cases.
+- Browser QA at 1024×768 created a station from Settings, assigned a work center, custom checklist and knowledge instruction, paired it without a staff PIN, and opened the technical PDF. The same device was reassigned to warehouse and packing through Settings; stock search/location/movements and the order's two-piece accessory check were verified. Revocation returned the existing device to the pairing screen with no job data.
+- Station integration checks now read a real PDF stream and verify that an instruction changed to office-only immediately disappears from station lists and its old file link is denied. Unassigned devices cannot read it.
+- Preview commit `afe82375` passed the complete web validation gate and all isolated integration scripts; its deployed `/api/health/ready` reports ready. Unauthenticated knowledge and station API requests both return application HTTP 401 after Vercel authentication. These cloud checks do not prove wildcard DNS/TLS.

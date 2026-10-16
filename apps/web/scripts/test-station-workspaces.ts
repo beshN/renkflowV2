@@ -1,7 +1,7 @@
 /** Device authority stays separate from member authority; real transitions retain production invariants. */
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import postgres from "postgres";
 import bcrypt from "bcryptjs";
 import { NextRequest } from "next/server";
@@ -126,6 +126,22 @@ async function main() {
       await db`INSERT INTO production_operations(tenant_id,work_order_id,position,name,work_center_code,planned_minutes,status,planned_qty) VALUES(${tenant.id},${job.id},${position},${name},${code},5,${position === 0 ? "ready" : "waiting"},1) RETURNING id,version`;
     ops.push(op);
   }
+  const knowledge = await import("../lib/features/knowledge/service.server");
+  const technicalPdf = readFileSync(
+    "__tests__/fixtures/foy/pergola-two-systems.pdf",
+  );
+  const instruction = await knowledge.saveKnowledge(actor, {
+    title: "Makaslı tente · Montaj talimatı",
+    content:
+      "1. Profil ölçülerini çizimle karşılaştırın.\n2. Bağlantıları kontrol edin.\n3. Son kontrolü kaydedin.",
+    visibility: "company",
+    version: 0,
+    file: {
+      name: "montaj-talimatı.pdf",
+      mime: "application/pdf",
+      base64: technicalPdf.toString("base64"),
+    },
+  });
   const admin = await import("../lib/features/stations/admin.server");
   const service = await import("../lib/features/stations/service.server");
   const security = await import("../lib/features/stations/security.server");
@@ -143,6 +159,7 @@ async function main() {
         workCenterCode: code,
         warehouseId,
         checklistLabels: kind === "warehouse" ? [] : ["Ölçüler doğrulandı"],
+        instructionIds: kind === "assembly" ? [instruction.id] : [],
       },
     });
   const cut = await create("cutting", "CUT", null),
@@ -227,6 +244,50 @@ async function main() {
     0,
   );
   assert.ok(!JSON.stringify(warehouseView).includes("unit_cost"));
+  assert.equal(
+    (await service.stationOverview(assembling.device)).instructions[0].id,
+    instruction.id,
+  );
+  assert.equal(
+    (
+      await new Response(
+        (
+          await service.stationFile(
+            assembling.device,
+            "knowledge",
+            instruction.id,
+          )
+        ).body,
+      ).arrayBuffer()
+    ).byteLength,
+    technicalPdf.length,
+  );
+  await assert.rejects(
+    () => service.stationFile(cutting.device, "knowledge", instruction.id),
+    (e: any) => e.status === 404,
+  );
+  await knowledge.saveKnowledge(actor, {
+    id: instruction.id,
+    version: 1,
+    title: "Montaj talimatı",
+    visibility: "office",
+  });
+  assert.equal(
+    (await service.stationOverview(assembling.device)).instructions.length,
+    0,
+  );
+  await assert.rejects(
+    () => service.stationFile(assembling.device, "knowledge", instruction.id),
+    (e: any) => e.status === 404,
+  );
+  await knowledge.saveKnowledge(actor, {
+    id: instruction.id,
+    version: 2,
+    title: "Makaslı tente · Montaj talimatı",
+    content:
+      "1. Profil ölçülerini çizimle karşılaştırın.\n2. Bağlantıları kontrol edin.\n3. Son kontrolü kaydedin.",
+    visibility: "company",
+  });
   const snapshotData = await service.stationOverview(cutting.device);
   assert.equal(snapshotData.operations.length, 1);
   assert.equal(snapshotData.operations[0].configuration.widthMm, 4000);
@@ -238,7 +299,7 @@ async function main() {
   assert.ok(!JSON.stringify(snapshotData).includes("PRIVATE"));
   assert.ok(!JSON.stringify(snapshotData).includes("unitPrice"));
   const [technical] =
-    await db`INSERT INTO production_files(tenant_id,work_order_id,created_by,name,mime,body) VALUES(${tenant.id},${job.id},${owner.id},'teknik.pdf','application/pdf',${Buffer.from("%PDF technical")}) RETURNING id`;
+    await db`INSERT INTO production_files(tenant_id,work_order_id,created_by,name,mime,body) VALUES(${tenant.id},${job.id},${owner.id},'teknik.pdf','application/pdf',${technicalPdf}) RETURNING id`;
   assert.equal(
     (await service.stationFile(cutting.device, "production", technical.id))
       .mime,
@@ -419,6 +480,21 @@ async function main() {
     const [browserJob] =
       await db`INSERT INTO work_orders(tenant_id,title,category,order_id,production_item_id,planned_qty,production_uom,source_warehouse_id,wip_warehouse_id,target_warehouse_id,configuration,bom_snapshot,created_by,reservation_status,status) SELECT tenant_id,'Makaslı tente · tablet testi',category,${browserOrder.id},production_item_id,1,production_uom,source_warehouse_id,wip_warehouse_id,target_warehouse_id,configuration,bom_snapshot,created_by,'transferred','open' FROM work_orders WHERE id=${job.id} RETURNING id`;
     await db`INSERT INTO production_operations(tenant_id,work_order_id,position,name,work_center_code,planned_minutes,status,planned_qty) SELECT tenant_id,${browserJob.id},position,name,work_center_code,planned_minutes,CASE WHEN position=0 THEN 'ready' ELSE 'waiting' END,1 FROM production_operations WHERE work_order_id=${job.id}`;
+    await db`INSERT INTO production_files(tenant_id,work_order_id,created_by,name,mime,body) VALUES(${tenant.id},${browserJob.id},${owner.id},'teknik.pdf','application/pdf',${technicalPdf})`;
+    await db`INSERT INTO work_order_materials(tenant_id,work_order_id,item_id,source_warehouse_id,required_qty,transferred_qty,reserved_qty,uom) VALUES(${tenant.id},${browserJob.id},${accessory.id},${raw.id},2,2,2,'adet')`;
+    await postStockEntry(actor, {
+      entryType: "MATERIAL_RECEIPT",
+      idempotencyKey: randomUUID(),
+      lines: [
+        {
+          itemId: accessory.id,
+          warehouseId: wip.id,
+          quantityDelta: 2,
+          uom: "adet",
+          metadata: {},
+        },
+      ],
+    });
     mkdirSync("../../.data", { recursive: true });
     writeFileSync(
       "../../.data/station-browser-fixture.json",

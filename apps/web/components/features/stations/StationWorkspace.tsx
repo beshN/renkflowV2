@@ -137,6 +137,7 @@ export function StationWorkspace() {
       url: string;
       mime: string;
     } | null>(null);
+  const pairingRequested = useRef(false);
   const inFlight = useRef(false),
     alive = useRef(true),
     pending = useRef<{
@@ -144,11 +145,11 @@ export function StationWorkspace() {
       data: Record<string, unknown>;
     } | null>(null);
   const load = useCallback(async (query: string, signal?: AbortSignal) => {
-    if (inFlight.current) return;
+    if (inFlight.current || pairingRequested.current) return;
     inFlight.current = true;
     try {
       const result = await api("?q=" + encodeURIComponent(query), { signal });
-      if (!alive.current || signal?.aborted) return;
+      if (!alive.current || signal?.aborted || pairingRequested.current) return;
       setData(result);
       setPairing(false);
       setUpdated(
@@ -159,7 +160,7 @@ export function StationWorkspace() {
       );
       setError("");
     } catch (e) {
-      if (signal?.aborted || !alive.current) return;
+      if (signal?.aborted || !alive.current || pairingRequested.current) return;
       if (e instanceof StationRequestError && e.status === 401) {
         setPairing(true);
         setData(null);
@@ -176,17 +177,36 @@ export function StationWorkspace() {
       disconnect = () => setOnline(false);
     window.addEventListener("online", connect);
     window.addEventListener("offline", disconnect);
-    const fragment = new URLSearchParams(window.location.hash.slice(1)).get(
-      "pair",
-    );
-    if (fragment) {
+    const readPairingLink = () => {
+      const fragment = new URLSearchParams(window.location.hash.slice(1)).get(
+        "pair",
+      );
+      if (!fragment) return;
+      // An explicit new enrollment takes precedence over an existing device cookie.
+      pairingRequested.current = true;
+      pending.current = null;
+      setPairing(true);
       setCode(fragment);
-      window.history.replaceState(null, "", window.location.pathname);
-    }
+      setData(null);
+      setSelected("");
+      setPreview(null);
+      setQ("");
+      setError("");
+      setMessage("");
+      setLoading(false);
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search,
+      );
+    };
+    readPairingLink();
+    window.addEventListener("hashchange", readPairingLink);
     return () => {
       alive.current = false;
       window.removeEventListener("online", connect);
       window.removeEventListener("offline", disconnect);
+      window.removeEventListener("hashchange", readPairingLink);
     };
   }, []);
   useEffect(() => {
@@ -214,6 +234,7 @@ export function StationWorkspace() {
     setError("");
     try {
       await api("/pair", post({ code }));
+      pairingRequested.current = false;
       setCode("");
       await load(q);
     } catch (e) {
@@ -447,7 +468,7 @@ export function StationWorkspace() {
               </button>
             </form>
             <p className="text-xs text-muted-foreground">
-              Yalnız kendi fabrikasına ait kod bu tablette kullanılabilir.
+              Eşleştirme kodu yalnız ilgili fabrikanın istasyonuna erişim verir.
               Bağlantı yönetici tarafından her an kapatılabilir.
             </p>
           </section>
@@ -549,7 +570,9 @@ export function StationWorkspace() {
                     ))
                   ) : (
                     <p className="p-8 text-muted-foreground">
-                      Henüz stok hareketi yok.
+                      {q.trim()
+                        ? "Aramanıza uygun stok hareketi yok."
+                        : "Henüz stok hareketi yok."}
                     </p>
                   )}
                   <p className="p-4 text-xs leading-5 text-muted-foreground">
