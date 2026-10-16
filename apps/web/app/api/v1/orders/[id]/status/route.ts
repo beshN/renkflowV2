@@ -1,5 +1,6 @@
 import { redactedSuccess } from '@/lib/security/field-access.server';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
+import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { NextRequest } from 'next/server';
 import { getAPIUser, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
 import { orderService } from '@/lib/services/orderService.server';
@@ -20,6 +21,7 @@ export async function OPTIONS() {
 // PATCH /api/v1/orders/:id/status - Update order status
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    requireSameOriginJson(request);
     const user = await getAPIUser(request);
     
     if (!user) {
@@ -69,7 +71,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     console.error('Update order status error:', error);
     
     if (error instanceof TenantMismatchError) {
-      return errorResponse('Bu siparişin durumunu güncelleme yetkiniz bulunmuyor', 403);
+      // A cross-tenant id is answered exactly like an unknown id, so order existence is not disclosed.
+      return errorResponse('Sipariş bulunamadı', 404);
     }
     
     if (error instanceof ZodError) {

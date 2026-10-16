@@ -1,6 +1,6 @@
 import { redactedSuccess } from '@/lib/security/field-access.server';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
-import { requireSameOrigin } from '@/lib/features/manufacturing/http-security';
+import { requireSameOrigin, requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { visibleOrdersForActor } from '@/lib/features/orders/access';
 import { NextRequest } from 'next/server';
 import { getAPIUser, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
@@ -63,7 +63,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   } catch (error: unknown) {
     console.error('Get order error:', error);
     if (error instanceof TenantMismatchError) {
-      return errorResponse('Bu siparişe erişim yetkiniz bulunmuyor', 403);
+      // A cross-tenant id is answered exactly like an unknown id, so order existence is not disclosed.
+      return errorResponse('Sipariş bulunamadı', 404);
     }
     if (error instanceof AuthorizationError) {
       return errorResponse(error.message, 403);
@@ -75,6 +76,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PATCH /api/v1/orders/:id - Update order
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    requireSameOriginJson(request);
     const user = await getAPIUser(request);
     
     if (!user) {
@@ -122,13 +124,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   } catch (error: unknown) {
     console.error('Update order error:', error);
     
+    if (error instanceof WorkOrderApiError) {
+      return errorResponse(error.message, error.status);
+    }
+    
     if (error instanceof ZodError) {
       const errors = formatValidationErrors(error);
       return errorResponse('Geçersiz veri: ' + Object.values(errors).join(', '), 400);
     }
 
     if (error instanceof TenantMismatchError) {
-      return errorResponse('Bu siparişi güncelleme yetkiniz bulunmuyor', 403);
+      // A cross-tenant id is answered exactly like an unknown id, so order existence is not disclosed.
+      return errorResponse('Sipariş bulunamadı', 404);
     }
     
     if (error instanceof AuthorizationError) {
@@ -181,7 +188,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);
     console.error('Delete order error:', error);
     if (error instanceof TenantMismatchError) {
-      return errorResponse('Bu siparişi silme yetkiniz bulunmuyor', 403);
+      // A cross-tenant id is answered exactly like an unknown id, so order existence is not disclosed.
+      return errorResponse('Sipariş bulunamadı', 404);
     }
     
     if (error instanceof AuthorizationError) {

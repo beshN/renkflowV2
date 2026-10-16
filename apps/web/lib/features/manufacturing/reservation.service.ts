@@ -1,10 +1,12 @@
 import 'server-only';
 
-import { withTransaction } from '@/lib/db/transaction';
+import { withRetry, withTransaction, type TransactionContext } from '@/lib/db/transaction';
 import { ManufacturingActor } from './types';
 import { assertNativeInventoryEnabled } from './mode';
 
-async function loadReservation(tx: any, tenantId: string, reservationId: string) {
+type Tx = TransactionContext['sql'];
+
+async function loadReservation(tx: Tx, tenantId: string, reservationId: string) {
   const rows = await tx`
     SELECT * FROM stock_reservations
     WHERE tenant_id = ${tenantId} AND id = ${reservationId}
@@ -25,7 +27,11 @@ export async function reserveWorkOrderMaterials(
   assertNativeInventoryEnabled();
   if (idempotencyKey.trim().length < 8) throw new Error('Geçerli bir idempotency anahtarı gerekli');
 
-  return withTransaction(async ({ sql: tx }) => {
+  // SERIALIZABLE can surface transient 40001 serialization failures
+  // (e.g. competing reservations on the same stock). Retry instead of
+  // failing the whole API request; the idempotency-key lookup at the top
+  // keeps retries safe.
+  return withRetry(() => withTransaction(async ({ sql: tx }) => {
     const existing = await tx`
       SELECT id, work_order_id FROM stock_reservations
       WHERE tenant_id = ${actor.tenantId} AND idempotency_key = ${idempotencyKey}
@@ -127,7 +133,7 @@ export async function reserveWorkOrderMaterials(
       )
     `;
     return loadReservation(tx, actor.tenantId, reservation.id);
-  }, { isolationLevel: 'SERIALIZABLE' });
+  }, { isolationLevel: 'SERIALIZABLE' }));
 }
 
 export async function releaseWorkOrderReservation(
@@ -135,7 +141,7 @@ export async function releaseWorkOrderReservation(
   workOrderId: string,
 ) {
   assertNativeInventoryEnabled();
-  return withTransaction(async ({ sql: tx }) => {
+  return withRetry(() => withTransaction(async ({ sql: tx }) => {
     const workOrders = await tx`
       SELECT id, reservation_status FROM work_orders
       WHERE tenant_id = ${actor.tenantId} AND id = ${workOrderId}
@@ -168,5 +174,5 @@ export async function releaseWorkOrderReservation(
       WHERE tenant_id = ${actor.tenantId} AND id = ${workOrderId}
     `;
     return { released: true, workOrderId };
-  }, { isolationLevel: 'SERIALIZABLE' });
+  }, { isolationLevel: 'SERIALIZABLE' }));
 }
