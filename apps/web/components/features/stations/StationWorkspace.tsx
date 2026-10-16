@@ -1,5 +1,5 @@
-'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+"use client";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Camera,
   RefreshCw,
@@ -12,17 +12,18 @@ import {
   FileText,
   WifiOff,
   ClipboardCheck,
-} from 'lucide-react';
-import { BrandMark } from '@/components/brand/BrandMark';
-import { ProductDrawing } from '@/components/drawing/ProductDrawing';
-import { CutDiagram } from '@/components/drawing/CutDiagram';
-import { cn } from '@/lib/utils';
+} from "lucide-react";
+import LazyPDFViewer from "@/components/features/pdf-viewer/LazyPDFViewer";
+import { BrandMark } from "@/components/brand/BrandMark";
+import { ProductDrawing } from "@/components/drawing/ProductDrawing";
+import { CutDiagram } from "@/components/drawing/CutDiagram";
+import { cn } from "@/lib/utils";
 import type {
   StationCheck,
   StationKind,
-} from '@/lib/features/stations/contract';
-import type { CutView } from '@/lib/features/manufacturing/cut-view';
-import type { QualityCheck } from '@/lib/features/manufacturing/quality';
+} from "@/lib/features/stations/contract";
+import type { CutView } from "@/lib/features/manufacturing/cut-view";
+import type { QualityCheck } from "@/lib/features/manufacturing/quality";
 type Op = {
   id: string;
   workOrderId: string;
@@ -85,11 +86,11 @@ type Data = {
   }[];
 };
 const names: Record<string, string> = {
-  running: 'Çalışıyor',
-  ready: 'İşe hazır',
-  paused: 'Duraklatıldı',
-  waiting: 'Önceki aşama bekleniyor',
-  blocked: 'Kontrol bekliyor',
+  running: "Çalışıyor",
+  ready: "İşe hazır",
+  paused: "Duraklatıldı",
+  waiting: "Önceki aşama bekleniyor",
+  blocked: "Kontrol bekliyor",
 };
 class StationRequestError extends Error {
   constructor(
@@ -100,37 +101,37 @@ class StationRequestError extends Error {
   }
 }
 async function api(path: string, options?: RequestInit) {
-  const r = await fetch('/api/station' + path, {
-    cache: 'no-store',
+  const r = await fetch("/api/station" + path, {
+    cache: "no-store",
     ...options,
   });
   const b = await r.json();
   if (!r.ok)
-    throw new StationRequestError(b.error || 'İşlem tamamlanamadı.', r.status);
+    throw new StationRequestError(b.error || "İşlem tamamlanamadı.", r.status);
   return b.data;
 }
 const post = (body: unknown) => ({
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
   body: JSON.stringify(body),
 });
-const fileUrl = (kind: 'production' | 'knowledge', id: string) =>
-  '/api/station/file?' + new URLSearchParams({ kind, id });
+const fileUrl = (kind: "production" | "knowledge", id: string) =>
+  "/api/station/file?" + new URLSearchParams({ kind, id });
 export function StationWorkspace() {
   const [data, setData] = useState<Data | null>(null),
-    [error, setError] = useState(''),
+    [error, setError] = useState(""),
     [pairing, setPairing] = useState(false),
-    [code, setCode] = useState(''),
+    [code, setCode] = useState(""),
     [busy, setBusy] = useState(false),
-    [q, setQ] = useState(''),
-    [selected, setSelected] = useState(''),
+    [q, setQ] = useState(""),
+    [selected, setSelected] = useState(""),
     [online, setOnline] = useState(true),
     [loading, setLoading] = useState(true),
-    [updated, setUpdated] = useState(''),
+    [updated, setUpdated] = useState(""),
     [quality, setQuality] = useState<Record<string, string>>({}),
     [quantity, setQuantity] = useState(1),
     [photos, setPhotos] = useState<string[]>([]),
-    [message, setMessage] = useState(''),
+    [message, setMessage] = useState(""),
     [preview, setPreview] = useState<{
       name: string;
       url: string;
@@ -146,23 +147,23 @@ export function StationWorkspace() {
     if (inFlight.current) return;
     inFlight.current = true;
     try {
-      const result = await api('?q=' + encodeURIComponent(query), { signal });
+      const result = await api("?q=" + encodeURIComponent(query), { signal });
       if (!alive.current || signal?.aborted) return;
       setData(result);
       setPairing(false);
       setUpdated(
-        new Date().toLocaleTimeString('tr-TR', {
-          hour: '2-digit',
-          minute: '2-digit',
+        new Date().toLocaleTimeString("tr-TR", {
+          hour: "2-digit",
+          minute: "2-digit",
         }),
       );
-      setError('');
+      setError("");
     } catch (e) {
       if (signal?.aborted || !alive.current) return;
       if (e instanceof StationRequestError && e.status === 401) {
         setPairing(true);
         setData(null);
-      } else setError(e instanceof Error ? e.message : 'Bağlantı kurulamadı.');
+      } else setError(e instanceof Error ? e.message : "Bağlantı kurulamadı.");
     } finally {
       inFlight.current = false;
       if (alive.current) setLoading(false);
@@ -173,19 +174,19 @@ export function StationWorkspace() {
     setOnline(navigator.onLine);
     const connect = () => setOnline(true),
       disconnect = () => setOnline(false);
-    window.addEventListener('online', connect);
-    window.addEventListener('offline', disconnect);
+    window.addEventListener("online", connect);
+    window.addEventListener("offline", disconnect);
     const fragment = new URLSearchParams(window.location.hash.slice(1)).get(
-      'pair',
+      "pair",
     );
     if (fragment) {
       setCode(fragment);
-      window.history.replaceState(null, '', window.location.pathname);
+      window.history.replaceState(null, "", window.location.pathname);
     }
     return () => {
       alive.current = false;
-      window.removeEventListener('online', connect);
-      window.removeEventListener('offline', disconnect);
+      window.removeEventListener("online", connect);
+      window.removeEventListener("offline", disconnect);
     };
   }, []);
   useEffect(() => {
@@ -210,13 +211,13 @@ export function StationWorkspace() {
   async function pair(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    setError('');
+    setError("");
     try {
-      await api('/pair', post({ code }));
-      setCode('');
+      await api("/pair", post({ code }));
+      setCode("");
       await load(q);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Eşleştirme yapılamadı.');
+      setError(e instanceof Error ? e.message : "Eşleştirme yapılamadı.");
     } finally {
       setBusy(false);
     }
@@ -224,10 +225,10 @@ export function StationWorkspace() {
   async function check(c: StationCheck) {
     if (!op) return;
     setBusy(true);
-    setError('');
+    setError("");
     try {
       await api(
-        '/check',
+        "/check",
         post({
           operationId: op.id,
           operationVersion: op.version,
@@ -238,7 +239,7 @@ export function StationWorkspace() {
       );
       await load(q);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Kontrol kaydedilemedi.');
+      setError(e instanceof Error ? e.message : "Kontrol kaydedilemedi.");
     } finally {
       setBusy(false);
     }
@@ -246,8 +247,8 @@ export function StationWorkspace() {
   async function operate(action: string, retry = false) {
     if (!op && !retry) return;
     setBusy(true);
-    setError('');
-    setMessage('');
+    setError("");
+    setMessage("");
     try {
       if (!retry)
         pending.current = {
@@ -256,22 +257,22 @@ export function StationWorkspace() {
             operationId: op!.id,
             version: op!.version,
             action,
-            quantity: action === 'complete' ? quantity : undefined,
+            quantity: action === "complete" ? quantity : undefined,
             qualityResults: op!.qualityChecks.map((c) => ({
               checkId: c.id,
-              ...(c.kind === 'measurement'
+              ...(c.kind === "measurement"
                 ? {
                     value:
-                      quality[c.id] === '' || quality[c.id] === undefined
+                      quality[c.id] === "" || quality[c.id] === undefined
                         ? undefined
                         : Number(quality[c.id]),
                   }
-                : c.kind === 'pass_fail'
+                : c.kind === "pass_fail"
                   ? {
                       passed:
                         quality[c.id] === undefined
                           ? undefined
-                          : quality[c.id] === 'true',
+                          : quality[c.id] === "true",
                     }
                   : {}),
             })),
@@ -279,16 +280,16 @@ export function StationWorkspace() {
             additionalMaterials: [],
           },
         };
-      const result = await api('/operate', post(pending.current));
+      const result = await api("/operate", post(pending.current));
       pending.current = null;
       setMessage(
         result.qualityRejected
-          ? 'Kalite kontrolü geçilemedi. İş kontrol bekliyor.'
-          : action === 'complete'
-            ? 'Üretim kaydı sunucuda tamamlandı.'
-            : action === 'start'
-              ? 'İş başlatıldı.'
-              : 'İş duraklatıldı.',
+          ? "Kalite kontrolü geçilemedi. İş kontrol bekliyor."
+          : action === "complete"
+            ? "Üretim kaydı sunucuda tamamlandı."
+            : action === "start"
+              ? "İş başlatıldı."
+              : "İş duraklatıldı.",
       );
       await load(q);
     } catch (e) {
@@ -297,7 +298,7 @@ export function StationWorkspace() {
       setError(
         e instanceof Error
           ? e.message
-          : 'Sunucu onayı alınamadı. Bağlantıyı kontrol edip aynı işlemi tekrar deneyin.',
+          : "Sunucu onayı alınamadı. Bağlantıyı kontrol edip aynı işlemi tekrar deneyin.",
       );
     } finally {
       setBusy(false);
@@ -306,43 +307,43 @@ export function StationWorkspace() {
   async function photo(file: File | null) {
     if (!file || !op) return;
     setBusy(true);
-    setError('');
+    setError("");
     try {
       if (
-        !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) ||
+        !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
         file.size > 20 * 1024 * 1024
       )
-        throw Error('JPEG, PNG veya WebP fotoğraf seçin (en fazla 20 MB).');
+        throw Error("JPEG, PNG veya WebP fotoğraf seçin (en fazla 20 MB).");
       const bitmap = await createImageBitmap(file),
         scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-      const canvas = document.createElement('canvas');
+      const canvas = document.createElement("canvas");
       canvas.width = Math.round(bitmap.width * scale);
       canvas.height = Math.round(bitmap.height * scale);
-      const context = canvas.getContext('2d');
+      const context = canvas.getContext("2d");
       if (!context) {
         bitmap.close();
-        throw Error('Fotoğraf işlenemedi.');
+        throw Error("Fotoğraf işlenemedi.");
       }
       context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
       bitmap.close();
-      const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+      const base64 = canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
       if (base64.length > 3_000_000)
-        throw Error('Fotoğraf çok büyük. Daha küçük bir fotoğraf seçin.');
+        throw Error("Fotoğraf çok büyük. Daha küçük bir fotoğraf seçin.");
       const result = await api(
-        '/photo',
+        "/photo",
         post({
           operationId: op.id,
           version: op.version,
-          name: 'istasyon-fotograf.jpg',
+          name: "istasyon-fotograf.jpg",
           base64,
         }),
       );
       setPhotos((v) => [...v, result.url].slice(-6));
       setMessage(
-        'Fotoğraf yüklendi. İşi tamamladığınızda kalite kaydına eklenecek.',
+        "Fotoğraf yüklendi. İşi tamamladığınızda kalite kaydına eklenecek.",
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Fotoğraf yüklenemedi.');
+      setError(e instanceof Error ? e.message : "Fotoğraf yüklenemedi.");
     } finally {
       setBusy(false);
     }
@@ -355,14 +356,14 @@ export function StationWorkspace() {
           <BrandMark href="/station" size="sm" />
           <div className="border-l border-border pl-5">
             <h1 className="text-lg font-semibold">
-              {data?.device.name ?? 'RenkFlow İstasyon'}
+              {data?.device.name ?? "RenkFlow İstasyon"}
             </h1>
             <p className="text-sm text-muted-foreground">
               {data
                 ? data.device.label +
-                  ' · ' +
-                  (data.device.workCenterCode ?? 'Depo terminali')
-                : 'Sabit fabrika tableti'}
+                  " · " +
+                  (data.device.workCenterCode ?? "Depo terminali")
+                : "Sabit fabrika tableti"}
             </p>
           </div>
         </div>
@@ -394,7 +395,7 @@ export function StationWorkspace() {
             {pending.current && (
               <button
                 disabled={controlsDisabled}
-                onClick={() => operate('', true)}
+                onClick={() => operate("", true)}
                 className="rf-secondary-button min-h-12 px-4"
               >
                 Aynı işlemi tekrar dene
@@ -442,7 +443,7 @@ export function StationWorkspace() {
                 disabled={controlsDisabled}
                 className="rf-primary-button min-h-14 w-full text-base"
               >
-                {busy ? 'Bağlanıyor…' : 'Tableti bağla'}
+                {busy ? "Bağlanıyor…" : "Tableti bağla"}
               </button>
             </form>
             <p className="text-xs text-muted-foreground">
@@ -453,8 +454,8 @@ export function StationWorkspace() {
         ) : !data ? (
           <p role="status" className="py-20 text-center text-muted-foreground">
             {loading
-              ? 'İstasyon açılıyor…'
-              : 'İstasyon verileri alınamadı. Yenile düğmesini kullanın.'}
+              ? "İstasyon açılıyor…"
+              : "İstasyon verileri alınamadı. Yenile düğmesini kullanın."}
           </p>
         ) : (
           <>
@@ -463,20 +464,20 @@ export function StationWorkspace() {
               <input
                 className="w-full bg-transparent text-lg outline-none"
                 aria-label={
-                  data.device.kind === 'warehouse'
-                    ? 'Stok veya raf ara'
-                    : 'Sipariş ara'
+                  data.device.kind === "warehouse"
+                    ? "Stok veya raf ara"
+                    : "Sipariş ara"
                 }
                 placeholder={
-                  data.device.kind === 'warehouse'
-                    ? 'Stok adı, ürün kodu veya raf ara…'
-                    : 'Sipariş numarası veya ürün ara…'
+                  data.device.kind === "warehouse"
+                    ? "Stok adı, ürün kodu veya raf ara…"
+                    : "Sipariş numarası veya ürün ara…"
                 }
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
             </label>
-            {data.device.kind === 'warehouse' ? (
+            {data.device.kind === "warehouse" ? (
               <div className="grid items-start gap-5 xl:grid-cols-[1.3fr_1fr]">
                 <section className="rf-panel overflow-hidden">
                   <h2 className="border-b border-border p-5 text-lg font-semibold">
@@ -486,19 +487,19 @@ export function StationWorkspace() {
                     <div className="divide-y divide-border">
                       {data.balances.map((b, i) => (
                         <article
-                          key={b.id + ':' + b.location_code + ':' + i}
+                          key={b.id + ":" + b.location_code + ":" + i}
                           className="flex min-h-24 items-center justify-between gap-4 p-5"
                         >
                           <div className="min-w-0">
                             <h3 className="font-semibold">{b.name}</h3>
                             <p className="mt-1 text-sm text-muted-foreground">
-                              {b.sku} · Raf {b.location_code} ·{' '}
+                              {b.sku} · Raf {b.location_code} ·{" "}
                               {b.location_name}
                             </p>
                           </div>
                           <div className="shrink-0 text-right">
                             <strong className="text-xl tabular-nums">
-                              {Number(b.quantity).toLocaleString('tr-TR')}
+                              {Number(b.quantity).toLocaleString("tr-TR")}
                             </strong>
                             <span className="ml-2 text-sm text-muted-foreground">
                               {b.stock_uom}
@@ -526,22 +527,22 @@ export function StationWorkspace() {
                         <div>
                           <h3 className="font-medium">{m.name}</h3>
                           <p className="mt-1 text-sm text-muted-foreground">
-                            Raf {m.location_code} ·{' '}
-                            {new Date(m.created_at).toLocaleString('tr-TR')}
+                            Raf {m.location_code} ·{" "}
+                            {new Date(m.created_at).toLocaleString("tr-TR")}
                           </p>
                         </div>
                         <span
                           className={cn(
-                            'whitespace-nowrap font-semibold tabular-nums',
+                            "whitespace-nowrap font-semibold tabular-nums",
                             Number(m.quantity_delta) > 0
-                              ? 'text-emerald-600'
-                              : 'text-amber-600',
+                              ? "text-emerald-600"
+                              : "text-amber-600",
                           )}
                         >
-                          {Number(m.quantity_delta) > 0 ? '+' : ''}
+                          {Number(m.quantity_delta) > 0 ? "+" : ""}
                           {Number(m.quantity_delta).toLocaleString(
-                            'tr-TR',
-                          )}{' '}
+                            "tr-TR",
+                          )}{" "}
                           {m.stock_uom}
                         </span>
                       </article>
@@ -560,11 +561,11 @@ export function StationWorkspace() {
             ) : (
               <div className="grid items-start gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
                 <aside
-                  className={cn('space-y-3', op && 'hidden lg:block')}
+                  className={cn("space-y-3", op && "hidden lg:block")}
                   aria-label="İstasyon işleri"
                 >
                   <h2 className="px-1 text-lg font-semibold">
-                    İş kuyruğu{' '}
+                    İş kuyruğu{" "}
                     <span className="text-muted-foreground">
                       {data.operations.length}
                     </span>
@@ -576,11 +577,11 @@ export function StationWorkspace() {
                         onClick={() => {
                           setSelected(o.id);
                           setPreview(null);
-                          setMessage('');
+                          setMessage("");
                         }}
                         className={cn(
-                          'rf-panel min-h-28 w-full space-y-2 p-5 text-left transition-colors hover:bg-muted/40',
-                          selected === o.id && 'border-primary',
+                          "rf-panel min-h-28 w-full space-y-2 p-5 text-left transition-colors hover:bg-muted/40",
+                          selected === o.id && "border-primary",
                         )}
                       >
                         <span className="block text-lg font-semibold">
@@ -608,7 +609,7 @@ export function StationWorkspace() {
                   {op ? (
                     <>
                       <button
-                        onClick={() => setSelected('')}
+                        onClick={() => setSelected("")}
                         className="rf-secondary-button min-h-12 px-4 lg:hidden"
                       >
                         <ArrowLeft size={18} /> İş kuyruğu
@@ -628,10 +629,10 @@ export function StationWorkspace() {
                       </div>
                       <div className="grid gap-3 sm:grid-cols-3">
                         {[
-                          ['En', op.configuration.widthMm],
-                          ['Açılım', op.configuration.projectionMm],
+                          ["En", op.configuration.widthMm],
+                          ["Açılım", op.configuration.projectionMm],
                           [
-                            'Montaj yüksekliği',
+                            "Montaj yüksekliği",
                             op.configuration.mountingHeightMm,
                           ],
                         ].map(([label, v]) => (
@@ -643,22 +644,22 @@ export function StationWorkspace() {
                               {label}
                             </p>
                             <strong className="mt-1 block text-xl tabular-nums">
-                              {typeof v === 'number'
-                                ? v.toLocaleString('tr-TR') + ' mm'
-                                : 'Kayıt yok'}
+                              {typeof v === "number"
+                                ? v.toLocaleString("tr-TR") + " mm"
+                                : "Kayıt yok"}
                             </strong>
                           </div>
                         ))}
                       </div>
                       <div className="text-base">
-                        Gövde:{' '}
+                        Gövde:{" "}
                         <strong>
-                          {op.configuration.bodyName || 'Belirtilmedi'}
-                        </strong>{' '}
-                        · Motor: {op.configuration.motor ? 'Var' : 'Yok'} · LED:{' '}
-                        {op.configuration.led ? 'Var' : 'Yok'}
+                          {op.configuration.bodyName || "Belirtilmedi"}
+                        </strong>{" "}
+                        · Motor: {op.configuration.motor ? "Var" : "Yok"} · LED:{" "}
+                        {op.configuration.led ? "Var" : "Yok"}
                       </div>
-                      {data.device.kind === 'assembly' && (
+                      {data.device.kind === "assembly" && (
                         <ProductDrawing
                           family={op.configuration.family}
                           widthMm={op.configuration.widthMm}
@@ -671,7 +672,7 @@ export function StationWorkspace() {
                           className="mx-auto max-h-96 w-full"
                         />
                       )}
-                      {data.device.kind === 'cutting' &&
+                      {data.device.kind === "cutting" &&
                         data.cutPlans
                           .filter((p) =>
                             p.bars.some((b) =>
@@ -698,17 +699,17 @@ export function StationWorkspace() {
                           ))}
                       <fieldset className="space-y-3">
                         <legend className="mb-3 text-lg font-semibold">
-                          {data.device.kind === 'packing'
-                            ? 'Aksesuar ve paket kontrolü'
-                            : 'Kontrol listesi'}
+                          {data.device.kind === "packing"
+                            ? "Aksesuar ve paket kontrolü"
+                            : "Kontrol listesi"}
                         </legend>
                         {op.checklist.map((c) => (
                           <label
                             key={c.key}
                             className={cn(
-                              'flex min-h-16 items-center gap-4 rounded-xl border border-border px-4 text-base',
+                              "flex min-h-16 items-center gap-4 rounded-xl border border-border px-4 text-base",
                               c.checked &&
-                                'border-emerald-500/25 bg-emerald-500/5',
+                                "border-emerald-500/25 bg-emerald-500/5",
                             )}
                           >
                             <input
@@ -716,7 +717,7 @@ export function StationWorkspace() {
                               className="h-6 w-6 shrink-0 accent-emerald-600"
                               checked={c.checked}
                               disabled={
-                                controlsDisabled || op.status === 'waiting'
+                                controlsDisabled || op.status === "waiting"
                               }
                               onChange={() => check(c)}
                             />
@@ -737,11 +738,11 @@ export function StationWorkspace() {
                               <span className="block text-base font-medium">
                                 {c.name}
                               </span>
-                              {c.kind === 'pass_fail' ? (
+                              {c.kind === "pass_fail" ? (
                                 <select
                                   aria-label={c.name}
                                   className="rf-input h-14 w-full text-base"
-                                  value={quality[c.id] ?? ''}
+                                  value={quality[c.id] ?? ""}
                                   onChange={(e) =>
                                     setQuality({
                                       ...quality,
@@ -753,7 +754,7 @@ export function StationWorkspace() {
                                   <option value="true">Uygun</option>
                                   <option value="false">Uygun değil</option>
                                 </select>
-                              ) : c.kind === 'measurement' ? (
+                              ) : c.kind === "measurement" ? (
                                 <>
                                   <input
                                     aria-label={c.name}
@@ -761,7 +762,7 @@ export function StationWorkspace() {
                                     inputMode="decimal"
                                     step="any"
                                     className="rf-input h-14 w-full text-lg"
-                                    value={quality[c.id] ?? ''}
+                                    value={quality[c.id] ?? ""}
                                     onChange={(e) =>
                                       setQuality({
                                         ...quality,
@@ -793,7 +794,7 @@ export function StationWorkspace() {
                             disabled={controlsDisabled || photos.length >= 6}
                             onChange={(e) => {
                               void photo(e.target.files?.[0] ?? null);
-                              e.target.value = '';
+                              e.target.value = "";
                             }}
                           />
                         </label>
@@ -803,21 +804,21 @@ export function StationWorkspace() {
                         </span>
                       </div>
                       <div className="grid gap-3 sm:grid-cols-2">
-                        {['ready', 'paused', 'blocked'].includes(op.status) && (
+                        {["ready", "paused", "blocked"].includes(op.status) && (
                           <button
                             disabled={controlsDisabled}
-                            onClick={() => operate('start')}
+                            onClick={() => operate("start")}
                             className="rf-primary-button min-h-16 px-6 text-lg"
                           >
-                            <Play size={22} />{' '}
-                            {op.status === 'paused' ? 'Devam et' : 'İşi başlat'}
+                            <Play size={22} />{" "}
+                            {op.status === "paused" ? "Devam et" : "İşi başlat"}
                           </button>
                         )}
-                        {op.status === 'running' && (
+                        {op.status === "running" && (
                           <>
                             <button
                               disabled={controlsDisabled}
-                              onClick={() => operate('pause')}
+                              onClick={() => operate("pause")}
                               className="rf-secondary-button min-h-16 px-6 text-lg"
                             >
                               <Pause size={22} /> Duraklat
@@ -841,18 +842,18 @@ export function StationWorkspace() {
                                 controlsDisabled ||
                                 op.checklist.some((c) => !c.checked) ||
                                 (op.qualityChecks.some(
-                                  (c) => c.kind === 'photo',
+                                  (c) => c.kind === "photo",
                                 ) &&
                                   photos.length === 0)
                               }
-                              onClick={() => operate('complete')}
+                              onClick={() => operate("complete")}
                               className="rf-primary-button min-h-16 px-6 text-lg sm:col-span-2"
                             >
                               <Check size={24} /> İşi tamamla
                             </button>
                           </>
                         )}
-                        {op.status === 'waiting' && (
+                        {op.status === "waiting" && (
                           <p className="rounded-lg bg-muted/50 p-4 text-sm sm:col-span-2">
                             Önceki üretim aşaması tamamlandığında bu iş
                             başlatılabilir.
@@ -876,7 +877,7 @@ export function StationWorkspace() {
                                   setPreview({
                                     name: f.name,
                                     mime: f.mime,
-                                    url: fileUrl('production', f.id),
+                                    url: fileUrl("production", f.id),
                                   })
                                 }
                                 className="rf-secondary-button min-h-14 w-full justify-start px-4"
@@ -902,7 +903,7 @@ export function StationWorkspace() {
                                     setPreview({
                                       name: doc.file_name!,
                                       mime: doc.mime!,
-                                      url: fileUrl('knowledge', doc.id),
+                                      url: fileUrl("knowledge", doc.id),
                                     })
                                   }
                                   className="rf-secondary-button mt-4 min-h-14 px-4"
@@ -925,13 +926,14 @@ export function StationWorkspace() {
                               Kapat
                             </button>
                           </div>
-                          {preview.mime === 'application/pdf' ? (
-                            <iframe
-                              title={preview.name}
-                              src={preview.url}
-                              className="h-[70vh] w-full rounded-xl border border-border"
+                          {preview.mime === "application/pdf" ? (
+                            <LazyPDFViewer
+                              key={preview.url}
+                              fileUrl={preview.url}
+                              fileName={preview.name}
+                              onClose={() => setPreview(null)}
                             />
-                          ) : preview.mime.startsWith('image/') ? (
+                          ) : preview.mime.startsWith("image/") ? (
                             <img
                               src={preview.url}
                               alt={preview.name}

@@ -16,6 +16,7 @@ import {
   Link2,
 } from "lucide-react";
 import { toast } from "sonner";
+import LazyPDFViewer from "@/components/features/pdf-viewer/LazyPDFViewer";
 import { cn } from "@/lib/utils";
 import { prepareBrowserFile } from "@/lib/storage/client";
 import { ORDER_ALLOWED_FILE_TYPES } from "@/lib/features/orders/constants";
@@ -91,6 +92,7 @@ export function KnowledgeWorkspace() {
     [editing, setEditing] = useState(false),
     [busy, setBusy] = useState(false),
     [showHistory, setShowHistory] = useState(false),
+    [previewPdf, setPreviewPdf] = useState(false),
     [categoryName, setCategoryName] = useState(""),
     [categoryForm, setCategoryForm] = useState(false),
     [file, setFile] = useState<File | null>(null),
@@ -136,6 +138,7 @@ export function KnowledgeWorkspace() {
     detailRequest.current?.abort();
     const abort = new AbortController();
     detailRequest.current = abort;
+    setPreviewPdf(false);
     setSelected(id);
     setDetail(null);
     setEditing(false);
@@ -181,6 +184,7 @@ export function KnowledgeWorkspace() {
   }
   function clearSelection() {
     detailRequest.current?.abort();
+    setPreviewPdf(false);
     setSelected(null);
     setDetail(null);
     setEditing(false);
@@ -695,11 +699,25 @@ export function KnowledgeWorkspace() {
                     </a>
                   </div>
                   {detail.revision.mime === "application/pdf" ? (
-                    <iframe
-                      title="PDF belge önizlemesi"
-                      src={contentUrl}
-                      className="h-[65vh] min-h-80 w-full rounded-lg border border-border"
-                    />
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewPdf(true)}
+                        className="rf-secondary-button min-h-12 px-4"
+                      >
+                        <FileText size={18} /> PDF önizlemesini aç
+                      </button>
+                      {previewPdf && (
+                        <LazyPDFViewer
+                          key={contentUrl}
+                          fileUrl={contentUrl}
+                          fileName={
+                            detail.revision.file_name || detail.revision.title
+                          }
+                          onClose={() => setPreviewPdf(false)}
+                        />
+                      )}
+                    </>
                   ) : detail.revision.mime?.startsWith("image/") ? (
                     <img
                       src={contentUrl}

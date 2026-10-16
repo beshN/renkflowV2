@@ -12,9 +12,9 @@ The existing Auth.js, private storage and production-command services remain in 
 
 - 160 Jest suites / 1,158 tests passed, plus the latest hostname redirect cases. Typecheck, lint and standalone production build passed.
 - All 44 isolated PostgreSQL integration scripts passed. Additional station checks validate searched warehouse balances/movements and required packing accessories against actual WIP consumption, with exact replay producing one manufacturing entry.
-- Actual tablet-sized browser → API → database verification covers text document creation/revision/history, administrator pairing, operation start, mandatory checks and successful completion. Company-host password sign-in/sign-out stays on the company address. Screenshots are local QA artifacts, not production data.
+- Actual tablet-sized browser → API → database verification covers text document creation/revision/history, administrator pairing, operation start, mandatory checks and successful completion. Company-host password sign-in/sign-out stays on the company address. Authenticated PDF.js preview renders both pages of the technical drawing; browser-dependent PDF iframes have been replaced in the new workspaces. Screenshots are local QA artifacts, not production data.
 - PDF attachment persistence, visibility and bytes are integration-tested. Browser file selection is pending the user's Chrome extension file-URL permission; it is not claimed as verified.
-- Migrations 060–062 ran twice on the existing production-derived `verify-attendance-policy-20261014` Neon verification branch (`br-long-sky-b2c5crey`); ledger is 68/68. Tenant/user/order counts remained 1/3/2. This branch and current production had identical pre-change migration ledgers. The account's branch limit prevented a new verification branch; no old backups were deleted.
+- Migrations 060–062 ran twice on the existing production-derived `verify-attendance-policy-20261014` Neon verification branch (`br-long-sky-b2c5crey`); ledger is 68/68. Tenant/user/order counts remained 1/3/2. This branch and current production had identical pre-change migration ledgers. The account's branch limit prevented a new verification branch; no old backups were deleted. The independent Vercel Preview database is also migrated and reports 68/68.
 
 ## Release prerequisites still open
 

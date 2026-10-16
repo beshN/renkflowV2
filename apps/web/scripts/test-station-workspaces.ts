@@ -379,6 +379,17 @@ async function main() {
       ),
     ),
   );
+  const [internalJob] =
+    await db`INSERT INTO work_orders(tenant_id,title,category,production_item_id,planned_qty,production_uom,source_warehouse_id,wip_warehouse_id,target_warehouse_id,bom_snapshot,created_by,reservation_status,status) VALUES(${tenant.id},'Private internal title','production',${finished.id},1,'adet',${raw.id},${wip.id},${finishedWarehouse.id},${JSON.stringify(snapshot)}::text::jsonb,${owner.id},'transferred','open') RETURNING id`;
+  await db`INSERT INTO production_operations(tenant_id,work_order_id,position,name,work_center_code,planned_minutes,status,planned_qty) VALUES(${tenant.id},${internalJob.id},0,'Kesim','CUT',5,'ready',1)`;
+  const internalView = await service.stationOverview(cutting.device);
+  assert.equal(internalView.operations.length, 1);
+  assert.equal(
+    internalView.operations[0].orderNumber,
+    "İE-" + internalJob.id.slice(0, 8),
+  );
+  assert.equal(internalView.operations[0].productName, "Makaslı tente");
+  assert.ok(!JSON.stringify(internalView).includes("Private internal title"));
   const current = (await admin.stationSettings(actor)).devices.find(
     (d) => d.id === cut.id,
   )!;
