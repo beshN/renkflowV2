@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
 import { AttendancePolicySettings } from '@/components/settings/AttendancePolicySettings';
+import { CompanyAddressSettings } from '@/components/settings/CompanyAddressSettings';
+import { StationSettings } from '@/components/features/stations/StationSettings';
 import { TenantSettings } from '@/components/settings/TenantSettings';
 import { LegalIdentitySettings } from '@/components/settings/LegalIdentitySettings';
 import { PrivacyRequests } from '@/components/settings/PrivacyRequests';
@@ -23,6 +25,7 @@ const TABS = [
   { id: 'teklif', label: 'Teklif' },
   { id: 'asistan', label: 'Asistan' },
   { id: 'personel', label: 'Çalışanlar' },
+  { id: 'tabletler', label: 'İstasyon tabletleri' },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
@@ -50,11 +53,12 @@ export default function SettingsPage() {
           ))}
         </div>
         <div role="tabpanel" className="space-y-5">
-          {tab === 'firma' && panel(<TenantSettings />)}
+          {tab === 'firma' && <>{panel(<TenantSettings />)}{panel(<CompanyAddressSettings />)}</>}
           {tab === 'fatura' && panel(<LegalIdentitySettings />)}
           {tab === 'kvkk' && panel(<PrivacyRequests />)}
           {tab === 'uretim' && <>{panel(<ProductionSettings />)}{panel(<ColorCatalogSettings />)}{panel(<ProductionReasonSettings />)}</>}
           {tab === 'teklif' && <>{panel(<QuoteRulesSettings />)}{panel(<RecordSettings />)}</>}
+          {tab === 'tabletler' && panel(<StationSettings />)}
           {tab === 'personel' && panel(<AttendancePolicySettings />)}
       {tab === 'asistan' && <>
             <div id="asistan" className="rf-panel p-5 md:p-6"><AssistantSettings /></div>

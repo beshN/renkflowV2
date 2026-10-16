@@ -1,3 +1,4 @@
+import { assertCompanyHostTenant } from '@/lib/features/company/host.server';
 import 'server-only';
 
 import { resolveMemberAccess } from '@/lib/security/member-access.server';
@@ -106,6 +107,7 @@ export async function verifyAPIToken(request: NextRequest): Promise<APIUser | nu
         return null;
       }
 
+      await assertCompanyHostTenant(decoded.tenantId, (request.headers.get('host') || new URL(request.url).host));
       return {
         id: userId,
         email: decoded.email,

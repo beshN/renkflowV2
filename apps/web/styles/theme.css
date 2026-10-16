@@ -375,23 +375,12 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 /* Mobile drawer has no sliding pill; give the active row the same surface. */
 .rf-nav-active:not(:has(.rf-nav-pill)) { background: var(--sb-active); box-shadow: 0 0 0 1px var(--sb-line); }
 
-@keyframes rf-ic-nudge { 40% { transform: translateY(-2px); } }
-@keyframes rf-ic-drive { 30% { transform: translateX(3px); } 60% { transform: translateX(-1px); } }
-@keyframes rf-ic-spin { to { transform: rotate(90deg); } }
-@keyframes rf-ic-ring { 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
-@keyframes rf-ic-blink { 50% { transform: scaleY(0.7); } }
-@keyframes rf-ic-tilt { 50% { transform: rotate(-10deg); } }
-@keyframes rf-ic-lift { 40% { transform: translateY(-2px) scale(1.06); } }
-@keyframes rf-ic-grow { 40% { transform: scale(1.14); } }
+/* Quiet navigation: state changes move, icons stay legible and still. */
+.rf-sidebar-label { opacity: 1; transition: opacity 160ms ease; }
+.rf-sidebar[data-expanded='false'] .rf-sidebar-label { opacity: 0; }
 @media (prefers-reduced-motion: no-preference) {
-  .rf-nav-item:hover svg { animation: rf-ic-nudge 420ms var(--rf-ease); }
-  .rf-nav-item[data-anim='drive']:hover svg { animation-name: rf-ic-drive; }
-  .rf-nav-item[data-anim='spin']:hover svg { animation-name: rf-ic-spin; }
-  .rf-nav-item[data-anim='ring']:hover svg { animation-name: rf-ic-ring; animation-duration: 600ms; }
-  .rf-nav-item[data-anim='blink']:hover svg { animation-name: rf-ic-blink; }
-  .rf-nav-item[data-anim='tilt']:hover svg { animation-name: rf-ic-tilt; }
-  .rf-nav-item[data-anim='lift']:hover svg { animation-name: rf-ic-lift; }
-  .rf-nav-item[data-anim='grow']:hover svg { animation-name: rf-ic-grow; }
+  .rf-nav-group:not([hidden]) { animation: rf-nav-reveal 160ms ease-out; }
+  @keyframes rf-nav-reveal { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
 }
 .rf-nav-active::before,
 .rf-dashboard-shell .rf-nav-active::before { display: none; }

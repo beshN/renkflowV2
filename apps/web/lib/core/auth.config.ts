@@ -1,11 +1,23 @@
+import { companyAuthRedirect } from '@/lib/features/company/host';
+import {
+  companyForHost,
+  currentCompany,
+} from '@/lib/features/company/host.server';
 import { isPrivateAccessAllowed } from '@/lib/features/auth/private-access';
-import { openSession, refreshSessionIdentity } from '@/lib/features/auth/session-identity';
+import {
+  openSession,
+  refreshSessionIdentity,
+} from '@/lib/features/auth/session-identity';
 import type { NextAuthConfig } from 'next-auth';
 import { CredentialsSignin } from 'next-auth';
 import Google from 'next-auth/providers/google';
 import AzureAD from 'next-auth/providers/azure-ad';
 import Credentials from 'next-auth/providers/credentials';
-import { clearLoginAttempts, consumeLoginAttempt, verifyPassword } from '@/lib/features/auth/login-guard';
+import {
+  clearLoginAttempts,
+  consumeLoginAttempt,
+  verifyPassword,
+} from '@/lib/features/auth/login-guard';
 import { getClientIp } from '@/lib/security/rate-limit';
 import { recordAuditAfterCommit } from '@/lib/audit/audit-log';
 import { isMfaEnabled, verifyMfaCode } from '@/lib/features/auth/mfa.server';
@@ -23,18 +35,21 @@ const AUTH_SECRET = resolveAuthSecret({
   allowMissing: IS_BUILD_TIME,
 });
 const AUTH_TRUST_HOST =
-  Boolean(process.env.VERCEL) || process.env.AUTH_TRUST_HOST === 'true' ||
+  Boolean(process.env.VERCEL) ||
+  process.env.AUTH_TRUST_HOST === 'true' ||
   (!IS_PRODUCTION && process.env.AUTH_TRUST_HOST !== 'false');
 
 if (!AUTH_SECRET && !IS_BUILD_TIME) {
   throw new Error(
     '[RenkFlow] FATAL: AUTH_SECRET or NEXTAUTH_SECRET environment variable is required.\n' +
-      'Please set one of these in your .env file or deployment environment.'
+      'Please set one of these in your .env file or deployment environment.',
   );
 }
 
 if (AUTH_SECRET && AUTH_SECRET.length < 32) {
-  console.warn('[RenkFlow] WARNING: AUTH_SECRET should be at least 32 characters for security');
+  console.warn(
+    '[RenkFlow] WARNING: AUTH_SECRET should be at least 32 characters for security',
+  );
 }
 
 const DEBUG = process.env.AUTH_DEBUG === 'true' || !IS_PRODUCTION;
@@ -55,12 +70,29 @@ function createCredentialsError(code: string) {
  * Second step for accounts with two-step sign-in. Throws `otp_required` when no code came with the
  * request (the login page then asks for it) and `otp_invalid` for a wrong or reused code.
  */
-async function requireSecondFactor(sql: ReturnType<typeof getSql>, user: { id: string; tenant_id: string }, otp: unknown) {
+async function requireSecondFactor(
+  sql: ReturnType<typeof getSql>,
+  user: { id: string; tenant_id: string },
+  otp: unknown,
+) {
   if (!(await isMfaEnabled(sql, user.id))) return;
   const code = typeof otp === 'string' ? otp.trim() : '';
   if (!code) throw createCredentialsError('otp_required');
-  if (!(await verifyMfaCode(sql, { userId: user.id, tenantId: user.tenant_id, code }))) {
-    void recordAuditAfterCommit({ tenantId: user.tenant_id, actorId: user.id, entityType: 'user', entityId: user.id, action: 'login_failed', metadata: { method: 'otp' } });
+  if (
+    !(await verifyMfaCode(sql, {
+      userId: user.id,
+      tenantId: user.tenant_id,
+      code,
+    }))
+  ) {
+    void recordAuditAfterCommit({
+      tenantId: user.tenant_id,
+      actorId: user.id,
+      entityType: 'user',
+      entityId: user.id,
+      action: 'login_failed',
+      metadata: { method: 'otp' },
+    });
     throw createCredentialsError('otp_invalid');
   }
 }
@@ -96,22 +128,26 @@ export const authConfig: NextAuthConfig = {
   providers: [
     // Only add Google if credentials are configured
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-      ? [Google({
-          clientId: process.env.GOOGLE_CLIENT_ID,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        })]
+      ? [
+          Google({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+        ]
       : []),
     // Only add Azure AD if credentials are configured
     ...(process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET
-      ? [AzureAD({
-          clientId: process.env.AZURE_AD_CLIENT_ID,
-          clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
-          authorization: {
-            params: {
-              tenant: process.env.AZURE_AD_TENANT_ID || 'common'
-            }
-          }
-        })]
+      ? [
+          AzureAD({
+            clientId: process.env.AZURE_AD_CLIENT_ID,
+            clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
+            authorization: {
+              params: {
+                tenant: process.env.AZURE_AD_TENANT_ID || 'common',
+              },
+            },
+          }),
+        ]
       : []),
     // Always add Credentials provider
     Credentials({
@@ -124,24 +160,35 @@ export const authConfig: NextAuthConfig = {
       },
       async authorize(credentials, request) {
         if (DEBUG) console.log('[AUTH] Starting authorize...');
-        
+
         try {
           const sql = getSql();
+          const company = await companyForHost(
+            request.headers.get('host') || new URL(request.url).host,
+          );
           const normalizedEmail = credentials?.email
             ? (credentials.email as string).trim().toLowerCase()
             : '';
-          
+
           if (normalizedEmail) {
-            const attempt = await consumeLoginAttempt(getClientIp(request.headers), normalizedEmail);
+            const attempt = await consumeLoginAttempt(
+              getClientIp(request.headers),
+              normalizedEmail,
+            );
             if (!attempt.allowed) throw createCredentialsError('rate_limited');
           }
 
-          if (!isPrivateAccessAllowed(normalizedEmail)) throw createCredentialsError('invalid_credentials');
+          if (!isPrivateAccessAllowed(normalizedEmail))
+            throw createCredentialsError('invalid_credentials');
 
           // Ticket-based Login (SSO/Magic Link)
           if (credentials?.ticket && normalizedEmail) {
-            if (DEBUG) console.log('[AUTH] Attempting ticket login for:', normalizedEmail);
-            
+            if (DEBUG)
+              console.log(
+                '[AUTH] Attempting ticket login for:',
+                normalizedEmail,
+              );
+
             const users = await sql`
               SELECT u.*, tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url, t.industry, t.template_key
               FROM users u
@@ -149,6 +196,8 @@ export const authConfig: NextAuthConfig = {
                 SELECT tenant_id, role
                 FROM tenant_members
                 WHERE user_id = u.id
+                AND (${company?.id ?? null}::uuid IS NULL OR tenant_id=${company?.id ?? null}::uuid)
+                AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL
                 ORDER BY
                   -- A firm where the member was deactivated comes last (the column exists from migration 044 on).
                   (to_jsonb(tenant_members) ->> 'deactivated_at') IS NOT NULL,
@@ -189,7 +238,11 @@ export const authConfig: NextAuthConfig = {
               UPDATE users SET verification_token = NULL WHERE id = ${user.id}
             `;
 
-            if (DEBUG) console.log('[AUTH] Ticket login successful for:', maskEmail(user.email));
+            if (DEBUG)
+              console.log(
+                '[AUTH] Ticket login successful for:',
+                maskEmail(user.email),
+              );
 
             return {
               id: user.id,
@@ -213,7 +266,7 @@ export const authConfig: NextAuthConfig = {
           }
 
           if (DEBUG) console.log('[AUTH] Checking database connection...');
-          
+
           // Query user from database
           const users = await sql`
             SELECT u.*, tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url, t.industry, t.template_key
@@ -222,6 +275,8 @@ export const authConfig: NextAuthConfig = {
               SELECT tenant_id, role
               FROM tenant_members
               WHERE user_id = u.id
+                AND (${company?.id ?? null}::uuid IS NULL OR tenant_id=${company?.id ?? null}::uuid)
+                AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL
               ORDER BY
                 -- A firm where the member was deactivated comes last (the column exists from migration 044 on).
                 (to_jsonb(tenant_members) ->> 'deactivated_at') IS NOT NULL,
@@ -242,20 +297,34 @@ export const authConfig: NextAuthConfig = {
           `;
 
           const usersRows = users as any[];
-          if (DEBUG) console.log('[AUTH] Query complete, found users:', usersRows.length);
+          if (DEBUG)
+            console.log(
+              '[AUTH] Query complete, found users:',
+              usersRows.length,
+            );
 
           const user = usersRows[0];
 
           // The error code reaches the client, so unknown accounts, OAuth-only
           // accounts and wrong passwords must share one code and similar timing.
-          const isPasswordValid = await verifyPassword(credentials.password as string, user?.password);
+          const isPasswordValid = await verifyPassword(
+            credentials.password as string,
+            user?.password,
+          );
 
           if (!user || !isPasswordValid) {
             if (DEBUG) console.log('[AUTH] Invalid credentials');
             // Recorded for existing members only, and not awaited: the response time must not
             // tell an existing account from an unknown one.
             if (user?.tenant_id) {
-              void recordAuditAfterCommit({ tenantId: user.tenant_id, actorId: user.id, entityType: 'user', entityId: user.id, action: 'login_failed', metadata: { method: 'password' } });
+              void recordAuditAfterCommit({
+                tenantId: user.tenant_id,
+                actorId: user.id,
+                entityType: 'user',
+                entityId: user.id,
+                action: 'login_failed',
+                metadata: { method: 'password' },
+              });
             }
             throw createCredentialsError('invalid_credentials');
           }
@@ -273,8 +342,16 @@ export const authConfig: NextAuthConfig = {
           await requireSecondFactor(sql, user, credentials.otp);
 
           await clearLoginAttempts(normalizedEmail);
-          await recordAuditAfterCommit({ tenantId: user.tenant_id, actorId: user.id, entityType: 'user', entityId: user.id, action: 'login_succeeded', metadata: { method: 'password' } });
-          if (DEBUG) console.log('[AUTH] Login successful for:', maskEmail(user.email));
+          await recordAuditAfterCommit({
+            tenantId: user.tenant_id,
+            actorId: user.id,
+            entityType: 'user',
+            entityId: user.id,
+            action: 'login_succeeded',
+            metadata: { method: 'password' },
+          });
+          if (DEBUG)
+            console.log('[AUTH] Login successful for:', maskEmail(user.email));
 
           return {
             id: user.id,
@@ -305,6 +382,32 @@ export const authConfig: NextAuthConfig = {
     }),
   ],
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      let requestHeaders: Headers;
+      try {
+        const { headers } = await import('next/headers');
+        requestHeaders = await headers();
+      } catch {
+        const base = new URL(baseUrl);
+        return companyAuthRedirect(
+          url,
+          baseUrl,
+          base.host,
+          base.protocol === 'https:',
+          process.env.NODE_ENV !== 'production',
+        );
+      }
+      return companyAuthRedirect(
+        url,
+        baseUrl,
+        requestHeaders.get('host'),
+        requestHeaders.get('x-forwarded-proto') === 'https' ||
+          (process.env.NODE_ENV === 'production' &&
+            process.env.ALLOW_INSECURE_HTTP !== '1'),
+        process.env.NODE_ENV !== 'production' ||
+          process.env.ALLOW_INSECURE_HTTP === '1',
+      );
+    },
     async authorized({ auth }) {
       return !!auth?.user;
     },
@@ -319,7 +422,10 @@ export const authConfig: NextAuthConfig = {
         token.tenantIndustry = user.tenantIndustry;
         token.templateKey = user.templateKey;
         // Each sign-in is a session of its own (listed and closable on the sessions screen).
-        const sid = await openSession(String(user.id), user.tenantId as string | undefined);
+        const sid = await openSession(
+          String(user.id),
+          user.tenantId as string | undefined,
+        );
         if (sid) token.sid = sid;
       }
 
@@ -330,12 +436,19 @@ export const authConfig: NextAuthConfig = {
         session.user.id = token.id as string;
         session.user.tenantId = token.tenantId as string;
         session.user.tenantName = token.tenantName as string;
-        session.user.role = token.role as 'owner' | 'admin' | 'accountant' | 'member' | 'office' | 'worker';
+        session.user.role = token.role as
+          | 'owner'
+          | 'admin'
+          | 'accountant'
+          | 'member'
+          | 'office'
+          | 'worker';
         session.user.brandColor = token.brandColor as string;
         session.user.logoUrl = token.logoUrl as string;
         session.user.tenantIndustry = token.tenantIndustry as string;
         session.user.templateKey = token.templateKey as string;
-        session.sessionId = typeof token.sid === 'string' ? token.sid : undefined;
+        session.sessionId =
+          typeof token.sid === 'string' ? token.sid : undefined;
       }
       return session;
     },
@@ -345,6 +458,7 @@ export const authConfig: NextAuthConfig = {
       if (account?.provider !== 'credentials' && user.email) {
         try {
           const sql = getSql();
+          const company = await currentCompany();
           const normalizedEmail = user.email.trim().toLowerCase();
           const resolvedUserId = await sql.begin(async (tx: any) => {
             const upsertedUsers = await tx`
@@ -368,17 +482,27 @@ export const authConfig: NextAuthConfig = {
               SELECT tenant_id
               FROM tenant_members
               WHERE user_id = ${targetUserId}
+              AND (${company?.id ?? null}::uuid IS NULL OR tenant_id=${company?.id ?? null}::uuid)
+              AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL
               LIMIT 1
             `;
             const membershipRows = memberships as Array<{ tenant_id: string }>;
 
             if (membershipRows.length === 0) {
+              if (
+                company ||
+                (
+                  await tx`SELECT 1 FROM tenant_members WHERE user_id=${targetUserId}`
+                ).length
+              )
+                throw new Error('Aktif şirket üyeliği bulunamadı');
               const oauthTemplate = TEMPLATE_BY_KEY[DEFAULT_TEMPLATE_KEY];
-              const slugSeed = (user.name || normalizedEmail.split('@')[0] || 'tenant')
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-|-$/g, '')
-                .slice(0, 36) || 'tenant';
+              const slugSeed =
+                (user.name || normalizedEmail.split('@')[0] || 'tenant')
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, '-')
+                  .replace(/^-|-$/g, '')
+                  .slice(0, 36) || 'tenant';
 
               let tenantId = '';
               for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -420,6 +544,8 @@ export const authConfig: NextAuthConfig = {
                 SELECT tenant_id, role
                 FROM tenant_members
                 WHERE user_id = u.id
+                AND (${company?.id ?? null}::uuid IS NULL OR tenant_id=${company?.id ?? null}::uuid)
+                AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL
                 ORDER BY
                   -- A firm where the member was deactivated comes last (the column exists from migration 044 on).
                   (to_jsonb(tenant_members) ->> 'deactivated_at') IS NOT NULL,

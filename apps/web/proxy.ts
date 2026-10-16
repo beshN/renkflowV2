@@ -1,3 +1,4 @@
+import { companyForHost, CompanyHostError } from '@/lib/features/company/host.server';
 import { isPrivateAccessAllowed, privateAccessEmail } from '@/lib/features/auth/private-access';
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
@@ -52,6 +53,7 @@ const PUBLIC_EXACT_PATHS = new Set([
   '/careers',
   '/security',
   '/status',
+  '/station',
   // Social share cards must be fetchable by link-preview crawlers.
   '/opengraph-image',
   '/twitter-image',
@@ -184,8 +186,29 @@ export async function proxy(request: NextRequest) {
     return withProxySecurityHeaders(NextResponse.redirect(httpsUrl, 301), { isSecureRequest: false });
   }
 
+  // Reject unknown company hosts before routes, authentication and server actions execute.
+  // Host-only Auth.js cookies remain independent for every company address.
+  let companyScoped = false;
+  if (!isStaticAsset(pathname)) {
+    try {
+      const company = await companyForHost(request.headers.get('host') || request.nextUrl.host);
+      if (company) {
+        companyScoped = true;
+        const token = await sessionToken(request);
+        if (token?.tenantId && token.tenantId !== company.id && pathname !== '/api/auth/signout')
+          return withProxySecurityHeaders(NextResponse.json({ error: 'Bu şirket için oturum açın.' }, { status: 403 }), { isSecureRequest });
+        if (pathname === '/') {
+          const destination = request.nextUrl.clone(); destination.pathname = token ? '/dashboard' : '/auth/login';
+          return withProxySecurityHeaders(NextResponse.redirect(destination, 302), { isSecureRequest });
+        }
+      }
+    } catch (e) {
+      return withProxySecurityHeaders(NextResponse.json({ error: e instanceof CompanyHostError ? e.message : 'Şirket adresi doğrulanamadı.' }, { status: e instanceof CompanyHostError ? e.status : 503 }), { isSecureRequest });
+    }
+  }
+
   const publicSiteMode = normalizePublicSiteMode(process.env.PUBLIC_SITE_MODE || 'off');
-  if (isComingSoonMode(publicSiteMode)) {
+  if (isComingSoonMode(publicSiteMode) && !companyScoped) {
     const action = evaluateComingSoonRequest(pathname, method, publicSiteMode);
 
     if (action.type === 'subscribeOptions') {
@@ -247,6 +270,14 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname.startsWith('/api/')) {
+    // Device APIs authenticate their host-only station cookie (pairing uses a one-time code).
+    // A member cookie cannot authorize them and they never fall back to a member role.
+    if (pathname === '/api/station' || pathname.startsWith('/api/station/')) {
+      const next=await forwardHiddenFields(request,null);
+      const response=withProxySecurityHeaders(next,{isSecureRequest});
+      if(pathname==='/api/station/file') response.headers.set('X-Frame-Options','SAMEORIGIN');
+      return response;
+    }
     // These handlers perform their own credential and private-pilot checks.
     const mobileBearerRoute = pathname === '/api/v1/auth/login' || pathname === '/api/v1/auth/me' || pathname.startsWith('/api/v1/field/') || pathname.startsWith('/api/mobile/v1/');
     if(privateAccessEmail() && !mobileBearerRoute && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/cron/') && !pathname.startsWith('/api/telemetry/') && !(await isAuthenticated(request))) return withProxySecurityHeaders(NextResponse.json({error:'Oturum açmanız gerekiyor.'},{status:401}),{isSecureRequest});
@@ -265,7 +296,7 @@ export async function proxy(request: NextRequest) {
       }
     }
     const response = withProxySecurityHeaders(next, { isSecureRequest });
-    if (pathname.startsWith('/api/v1/production/files/') || pathname === '/api/storage/content' || /^\/api\/orders\/documents\/[^/]+\/content$/.test(pathname)) response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+    if (pathname.startsWith('/api/v1/production/files/') || pathname === '/api/storage/content' || /^\/api\/v1\/knowledge\/[^/]+\/content$/.test(pathname) || /^\/api\/orders\/documents\/[^/]+\/content$/.test(pathname)) response.headers.set('X-Frame-Options', 'SAMEORIGIN');
     return response;
   }
 
