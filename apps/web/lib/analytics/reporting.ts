@@ -333,7 +333,7 @@ export async function getDashboardSummary(tenantId: string): Promise<DashboardSu
   const weeklyQuery = await sql`
     SELECT 
       COUNT(CASE WHEN created_at >= ${lastWeek.toISOString()} THEN 1 END) as this_week,
-      COUNT(CASE WHEN created_at >= ${lastWeek.toISOString()} - INTERVAL '7 days' 
+      COUNT(CASE WHEN created_at >= ${lastWeek.toISOString()}::timestamptz - INTERVAL '7 days' 
                   AND created_at < ${lastWeek.toISOString()} THEN 1 END) as last_week
     FROM orders
     WHERE tenant_id = ${tenantId}
@@ -345,7 +345,7 @@ export async function getDashboardSummary(tenantId: string): Promise<DashboardSu
   const monthlyQuery = await sql`
     SELECT 
       COUNT(CASE WHEN created_at >= ${lastMonth.toISOString()} THEN 1 END) as this_month,
-      COUNT(CASE WHEN created_at >= ${lastMonth.toISOString()} - INTERVAL '30 days' 
+      COUNT(CASE WHEN created_at >= ${lastMonth.toISOString()}::timestamptz - INTERVAL '30 days' 
                   AND created_at < ${lastMonth.toISOString()} THEN 1 END) as last_month
     FROM orders
     WHERE tenant_id = ${tenantId}
