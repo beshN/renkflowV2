@@ -55,6 +55,8 @@ export async function addExpense(db: Db, actor: Actor, raw: unknown): Promise<Ex
   const vat = r2((input.net * input.vatPercent) / 100);
   return db.begin(async (tx: Db) => {
     if (input.documentNumber) {
+      // Two entries of the same document at once must not both pass the check.
+      await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`${actor.tenantId}:expense:${input.vendor.toLowerCase()}:${input.documentNumber}`}, 0))`;
       const [dup] = await tx`SELECT id FROM expenses WHERE tenant_id = ${actor.tenantId} AND lower(vendor) = lower(${input.vendor}) AND document_number = ${input.documentNumber} LIMIT 1`;
       if (dup) throw new Error('Bu tedarikçinin aynı numaralı belgesi zaten kayıtlı');
     }

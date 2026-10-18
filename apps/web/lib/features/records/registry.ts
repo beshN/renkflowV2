@@ -55,7 +55,7 @@ export const RECORDS: Record<RecordType, Def> = {
         db`SELECT count(*)::int AS n, min(id::text) AS first FROM quotations WHERE tenant_id = ${a.tenantId} AND converted_to_order_id = ${id}`,
         db`SELECT count(*)::int AS n FROM work_orders WHERE tenant_id = ${a.tenantId} AND order_id = ${id}`,
         optional('production_shipments', () => db`SELECT count(*)::int AS n FROM production_shipments WHERE tenant_id = ${a.tenantId} AND order_id = ${id}`),
-        optional('payments', () => db`SELECT count(*)::int AS n FROM payments WHERE order_id = ${id}`),
+        optional('payments', () => db`SELECT count(*)::int AS n FROM payments WHERE tenant_id = ${a.tenantId} AND order_id = ${id}`),
       ]);
       return [
         { key: 'quotation', label: 'Teklif', count: n(q.n), href: q.first ? `/quotations/${q.first}` : '/quotations' },

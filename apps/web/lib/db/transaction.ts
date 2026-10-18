@@ -68,7 +68,23 @@ export async function withTransaction<T>(
 
   const isolationLevel = sanitizeIsolationLevel(options.isolationLevel || 'READ COMMITTED');
   const timeout = options.timeout || 30000; // 30 seconds default
-  
+
+  // SERIALIZABLE / REPEATABLE READ transactions abort when a concurrent one wins (40001) and any
+  // transaction may be chosen as a deadlock victim (40P01). Both roll back completely, so running the
+  // callback again is safe; only these levels are retried because their callbacks do database work
+  // only (READ COMMITTED callbacks may upload files and are not repeated).
+  const retryable = isolationLevel !== 'READ COMMITTED';
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await runOnce();
+    } catch (error) {
+      const code = (error as { code?: string })?.code;
+      if (!retryable || attempt >= MAX_ATTEMPTS || (code !== '40001' && code !== '40P01')) throw error;
+      await new Promise((resolve) => setTimeout(resolve, Math.min(400, 15 * 2 ** attempt) * (0.5 + Math.random())));
+    }
+  }
+
+  async function runOnce(): Promise<T> {
   const startTime = Date.now();
 
   try {
@@ -104,7 +120,16 @@ export async function withTransaction<T>(
     return result;
   } catch (error) {
     const duration = Date.now() - startTime;
-    
+    const code = (error as { code?: string })?.code;
+    const status = (error as { status?: unknown })?.status;
+    // Expected outcomes are not failures: a business rule refusing the change (an error with an HTTP
+    // status below 500), an intentional rollback, or a conflict that is about to be retried.
+    const expected = error instanceof RollbackError || (typeof status === 'number' && status < 500) || (retryable && (code === '40001' || code === '40P01'));
+    if (expected) {
+      if (error instanceof RollbackError) throw new Error('Transaction was rolled back');
+      throw error;
+    }
+
     // Enhanced error logging for production debugging
     console.error('[Transaction] Failed after', duration, 'ms');
     console.error('[Transaction] Error details:', {
@@ -124,7 +149,10 @@ export async function withTransaction<T>(
     
     throw error;
   }
+  }
 }
+
+const MAX_ATTEMPTS = 6;
 
 /**
  * Savepoint utilities for nested transactions

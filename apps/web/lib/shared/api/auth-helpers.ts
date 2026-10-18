@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import jwt from 'jsonwebtoken';
 import { sql } from '@/lib/db';
+import { isMfaEnabled } from '@/lib/features/auth/mfa.server';
 import {
   IS_BUILD_TIME,
   IS_PRODUCTION,
@@ -63,6 +64,19 @@ async function resolveTenantMembership(userId: string, tenantId: string): Promis
   return { role: access.base };
 }
 
+/**
+ * A bearer token stops working when its owner's sign-ins are closed (new password, "sign out
+ * everywhere": users.sessions_valid_after) and once the account turns on two-step sign-in, which
+ * this password-only token cannot satisfy.
+ */
+async function apiTokenStillValid(userId: string, issuedAtSeconds: number | undefined): Promise<boolean> {
+  if (!issuedAtSeconds) return false;
+  const [user] = await sql`SELECT to_jsonb(u) ->> 'sessions_valid_after' AS valid_after FROM users u WHERE id = ${userId}`;
+  if (!user) return false;
+  if (user.valid_after && issuedAtSeconds * 1000 < new Date(user.valid_after).getTime()) return false;
+  return !(await isMfaEnabled(sql, userId));
+}
+
 // Standard API response helpers with CORS headers
 export function successResponse<T>(data: T, message?: string): NextResponse<APIResponse<T>> {
   return NextResponse.json({
@@ -92,19 +106,21 @@ export async function verifyAPIToken(request: NextRequest): Promise<APIUser | nu
     const token = authHeader.substring(7);
     
     try {
-      const decoded = jwt.verify(token, EFFECTIVE_JWT_SECRET) as unknown as {
+      const decoded = jwt.verify(token, EFFECTIVE_JWT_SECRET, { algorithms: ['HS256'] }) as unknown as {
         id?: string;
         sub: string;
         email: string;
         name: string;
         role: string;
         tenantId: string;
+        iat?: number;
       };
 
       const userId = decoded.sub || decoded.id || '';
       if (!userId || !decoded.tenantId) {
         return null;
       }
+      if (!(await apiTokenStillValid(userId, decoded.iat))) return null;
 
       return {
         id: userId,
