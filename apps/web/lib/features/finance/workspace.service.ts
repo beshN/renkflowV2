@@ -5,6 +5,7 @@ import { WorkOrderActor,WorkOrderApiError } from '@/lib/features/work-orders/sec
 import { hasPermission,type Permission } from '@/lib/auth/permissions';
 import { CurrencySchema } from '@/lib/types/currency';
 import { PaymentMethodSchema,LedgerEntryKindSchema } from '@/lib/types/finance';
+import { collectionCap } from './collection-cap.server';
 const uuid=z.string().uuid();
 const optionalText=z.string().trim().max(180).default('');
 function permission(a:WorkOrderActor,p:Permission){if(!hasPermission(a.role,p))throw new WorkOrderApiError('Finans işlem yetkiniz yok',403);}
@@ -52,7 +53,9 @@ export async function executeFinance(tx:any,a:WorkOrderActor,action:string,raw:u
     if(!order)fail('Sipariş bulunamadı',404);
     if(order.currency!==d.currency)fail('Tahsilat para birimi siparişle aynı olmalı',400);
     const [paid]=await tx`SELECT COALESCE(SUM(amount),0)AS total FROM payments WHERE tenant_id=${t} AND order_id=${d.orderId} AND currency=${d.currency}`;
-    if(Number(paid.total)+d.amount>Number(order.total_amount)+0.005)fail('Tahsilat siparişin kalan tutarını aşamaz');
+    // The same limit as the invoice screen: VAT withheld by the buyer is not collectable.
+    const cap=await collectionCap(tx,t,d.orderId,Number(order.total_amount));
+    if(Number(paid.total)+d.amount>cap+0.005)fail('Tahsilat siparişin kalan tutarını aşamaz');
     await writablePeriod(tx,a,d.paidAt);
     return (await tx`INSERT INTO payments(tenant_id,order_id,amount,currency,method,paid_at,note,created_by)VALUES(${t},${d.orderId},${d.amount},${d.currency},${d.method},${d.paidAt},${d.note || null},${a.userId})RETURNING *`)[0];
   }

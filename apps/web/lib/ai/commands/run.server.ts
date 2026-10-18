@@ -401,7 +401,7 @@ async function whatIf(actor: WorkOrderActor, cmd: Extract<Command, { intent: 'wh
 /** The plan before and after the change, from the same scheduler the planning screen uses. */
 async function simulate(tenantId: string, orderId: string, cmd: Extract<Command, { intent: 'what_if' }>) {
   const today = istanbulToday();
-  const [o] = await sql`SELECT delivery_date${(await columnExists('orders', 'promised_date')) ? sql`, promised_date` : sql``} FROM orders WHERE id = ${orderId}`;
+  const [o] = await sql`SELECT delivery_date${(await columnExists('orders', 'promised_date')) ? sql`, promised_date` : sql``} FROM orders WHERE tenant_id = ${tenantId} AND id = ${orderId}`;
   const base = day(o?.promised_date) ?? day(o?.delivery_date) ?? today;
   const newPromise = cmd.scenario === 'delay' ? addDays(base > today ? base : today, cmd.days ?? 1) : null;
   let plan = { newlyLate: [] as PlanJob[], noLongerLate: [] as PlanJob[], ownLateAfter: false, ownFinish: null as string | null, shifted: [] as Array<PlanJob & { shiftHours: number }> };

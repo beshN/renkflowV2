@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { successResponse, errorResponse, handleCORS, generateAPIToken } from '@/lib/api/auth-helpers';
 import { getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
 import { clearLoginAttempts, consumeLoginAttempt, verifyPassword } from '@/lib/features/auth/login-guard';
+import { isMfaEnabled } from '@/lib/features/auth/mfa.server';
 import { isPrivateAccessAllowed } from '@/lib/features/auth/private-access';
 import { sessionManager } from '@/lib/redis';
 
@@ -88,6 +89,13 @@ export async function POST(request: NextRequest) {
 
     if (!user.tenant_id) {
       return errorResponse('Kullanıcının aktif tenant üyeliği bulunamadı', 403);
+    }
+
+    // This token is password-only: an account with two-step sign-in must sign in on the web (as the
+    // field app does), or the second step could be skipped. Checked after the password, so the
+    // answer reveals nothing to someone who does not know it.
+    if (await isMfaEnabled(sql, user.id)) {
+      return errorResponse('İki adımlı doğrulama açık hesaplar bu API ile giriş yapamaz. Web üzerinden giriş yapın.', 403);
     }
 
     await clearLoginAttempts(email);
