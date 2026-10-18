@@ -2,7 +2,7 @@
  * Automatic ledger entries (Tekdüzen Hesap Planı): every template balances, withholding keeps the
  * withheld VAT out of 391, and reversals mirror the original.
  */
-import { CHART, COLLECTION_ACCOUNT, collectionLines, isBalanced, reversed, saleLines } from '@/lib/features/accounting/chart';
+import { CHART, COLLECTION_ACCOUNT, collectionLines, isBalanced, reversed, saleLines, expenseLines } from '@/lib/features/accounting/chart';
 
 const totals = (lines: ReturnType<typeof saleLines>) => Object.fromEntries(lines.map((l) => [l.account, l.debit || -l.credit]));
 
@@ -54,3 +54,29 @@ describe('reversal and chart', () => {
     for (const code of ['100', '101', '102', '108', '120', '391', '600', '601', ...Object.values(COLLECTION_ACCOUNT)]) expect(codes).toContain(code);
   });
 });
+
+describe('purchase records', () => {
+  const byAccount = (lines: ReturnType<typeof expenseLines>) => Object.fromEntries(lines.map((l) => [l.account, l.debit || -l.credit]));
+
+  it('books a deductible expense to 770 and 191 against 320', () => {
+    const lines = expenseLines({ net: 1000, vat: 200, deductible: true, category: 'office', label: 'Kırtasiye' });
+    expect(byAccount(lines)).toEqual({ 770: 1000, 191: 200, 320: -1200 });
+    expect(isBalanced(lines)).toBe(true);
+  });
+
+  it('puts material purchases on 150 (stock) and marketing on 760', () => {
+    expect(byAccount(expenseLines({ net: 5000, vat: 1000, deductible: true, category: 'materials', label: 'Profil' }))).toEqual({ 150: 5000, 191: 1000, 320: -6000 });
+    expect(byAccount(expenseLines({ net: 100, vat: 20, deductible: true, category: 'marketing', label: 'Reklam' }))).toEqual({ 760: 100, 191: 20, 320: -120 });
+  });
+
+  it('adds non-deductible VAT to the cost and leaves 191 alone', () => {
+    const lines = expenseLines({ net: 100, vat: 10, deductible: false, category: 'other', label: 'Yemek' });
+    expect(byAccount(lines)).toEqual({ 770: 110, 320: -110 });
+    expect(isBalanced(lines)).toBe(true);
+  });
+
+  it('a zero-rate purchase has no VAT line', () => {
+    expect(byAccount(expenseLines({ net: 300, vat: 0, deductible: true, category: 'rent', label: 'Kira' }))).toEqual({ 770: 300, 320: -300 });
+  });
+});
+

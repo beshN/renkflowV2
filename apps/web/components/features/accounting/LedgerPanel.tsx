@@ -52,7 +52,7 @@ export function LedgerPanel({ period }: { period: string }) {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="flex-1 text-xs text-muted-foreground">Kesilen faturalar ve tahsilatlar Tekdüzen hesap planına otomatik işlenir (120 / 600 / 391, kasa ve banka). İptal ve silinen tahsilat ters kayıtla kapanır; kayıtlar değiştirilmez.</p>
+        <p className="flex-1 text-xs text-muted-foreground">Kesilen faturalar, tahsilatlar ve alış faturaları/giderler Tekdüzen hesap planına otomatik işlenir (120 / 600 / 391, kasa ve banka; 150 / 770 / 191 / 320). İptal, silinen tahsilat ve silinen gider ters kayıtla kapanır; kayıtlar değiştirilmez.</p>
         <button type="button" className="rf-secondary-button inline-flex items-center gap-1 text-xs" onClick={() => void sync()} disabled={busy}><RefreshCw size={12} aria-hidden /> Eksik kayıtları işle</button>
       </div>
       {note && <p role="status" className="text-xs">{note}</p>}
