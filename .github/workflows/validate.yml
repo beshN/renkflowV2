@@ -10,6 +10,8 @@ on:
       - claude/n3-ai-assistant
   push:
     branches:
+      # main too: two PRs that pass on their own can still break each other once both are merged.
+      - main
       - codex/**
 
 # Aynı dalda yeni bir push gelince eski çalışma iptal olur; ayrıca aynı dal için hem `push` hem
@@ -43,6 +45,7 @@ jobs:
       # Every scripts/test-*.ts against a fresh throwaway PostgreSQL (temp dir, free port, no remote URL).
       # The PDF fixture uses the Chromium already in the runner's Playwright cache; `playwright install`
       # hung on this runner, so it is not run here (install it on the runner once when Playwright updates).
+      # Each script has its own 180 s limit (scripts/run-integration-tests.ts), so a hang is reported by name.
       - name: Integration tests on an isolated local database
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: npm --prefix apps/web run test:integration

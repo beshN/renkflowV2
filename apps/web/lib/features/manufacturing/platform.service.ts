@@ -246,6 +246,26 @@ export async function productionCommand(a: WorkOrderActor, raw: unknown) {
     })
     .parse(raw);
   const hash = createHash("sha256").update(js(command)).digest("hex");
+  // A dropped database connection (restart, network) fails the command before or after its commit.
+  // The command id makes a second run safe: either it was not stored and runs now, or it was and its
+  // stored result is returned. So connection-level failures are retried here, not shown to the user.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await runProductionCommand(a, command, hash);
+    } catch (error) {
+      if (attempt >= 3 || !isConnectionLoss(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 100 * attempt));
+    }
+  }
+}
+
+const CONNECTION_LOSS_CODES = new Set(["57P01", "57P02", "57P03", "08000", "08003", "08006", "08001", "08004", "CONNECTION_CLOSED", "CONNECTION_ENDED", "CONNECTION_DESTROYED", "ECONNRESET", "EPIPE", "ETIMEDOUT"]);
+function isConnectionLoss(error: unknown) {
+  const code = (error as { code?: unknown })?.code;
+  return typeof code === "string" && CONNECTION_LOSS_CODES.has(code);
+}
+
+async function runProductionCommand(a: WorkOrderActor, command: { commandId: string; action: string; data: Record<string, unknown> }, hash: string) {
   return sql.begin(async (tx: any) => {
     // One pilot tenant's stock and operation commands are serialized, including first insertion.
     await tx`SELECT pg_advisory_xact_lock(hashtextextended(${a.tenantId},0))`;

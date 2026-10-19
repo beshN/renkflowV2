@@ -6,6 +6,7 @@ import { recordAudit } from '@/lib/audit/audit-log';
 import { columnExists } from '@/lib/db/schema-guard';
 import { VAT_RATES } from '@/lib/features/einvoice/codes';
 import { assertPeriodWritable } from './period-lock';
+import { syncLedger } from './posting.server';
 
 // Purchase invoices and expenses (alış faturası, gider): the source of deductible VAT. The amount is
 // entered before VAT and the VAT is computed from the rate, so the summary never depends on someone
@@ -54,6 +55,8 @@ export async function addExpense(db: Db, actor: Actor, raw: unknown): Promise<Ex
   const vat = r2((input.net * input.vatPercent) / 100);
   return db.begin(async (tx: Db) => {
     if (input.documentNumber) {
+      // Two entries of the same document at once must not both pass the check.
+      await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`${actor.tenantId}:expense:${input.vendor.toLowerCase()}:${input.documentNumber}`}, 0))`;
       const [dup] = await tx`SELECT id FROM expenses WHERE tenant_id = ${actor.tenantId} AND lower(vendor) = lower(${input.vendor}) AND document_number = ${input.documentNumber} LIMIT 1`;
       if (dup) throw new Error('Bu tedarikçinin aynı numaralı belgesi zaten kayıtlı');
     }
@@ -62,6 +65,7 @@ export async function addExpense(db: Db, actor: Actor, raw: unknown): Promise<Ex
       VALUES (${actor.tenantId}, ${input.category}, ${input.description}, ${input.net}, 'TRY', ${input.date}, ${input.vendor}, ${input.deductible}, ${vat}, ${input.vatPercent}, ${input.documentNumber}, ${actor.userId})
       RETURNING *`;
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'expense', entityId: row.id, action: 'created', metadata: { net: input.net, vat, vatPercent: input.vatPercent, documentNumber: input.documentNumber } });
+    await syncLedger(tx, actor.tenantId, { expenseId: String(row.id) });
     return view(row);
   });
 }
@@ -81,6 +85,8 @@ export async function deleteExpense(db: Db, actor: Actor, id: string): Promise<v
   await db.begin(async (tx: Db) => {
     await tx`DELETE FROM expenses WHERE id = ${id} AND tenant_id = ${actor.tenantId}`;
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'expense', entityId: id, action: 'deleted', metadata: { description: row.description, net: Number(row.amount), vat: Number(row.tax_amount) } });
+    // The booked entry stays; a reversal closes it.
+    await syncLedger(tx, actor.tenantId, { expenseId: id });
   });
 }
 

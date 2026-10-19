@@ -9,6 +9,7 @@ export const CHART: readonly ChartAccount[] = [
   { code: '102', name: 'Bankalar', type: 'asset' },
   { code: '108', name: 'Diğer Hazır Değerler', type: 'asset' },
   { code: '120', name: 'Alıcılar', type: 'asset' },
+  { code: '150', name: 'İlk Madde ve Malzeme', type: 'asset' },
   { code: '191', name: 'İndirilecek KDV', type: 'asset' },
   { code: '320', name: 'Satıcılar', type: 'liability' },
   { code: '340', name: 'Alınan Sipariş Avansları', type: 'liability' },
@@ -17,7 +18,15 @@ export const CHART: readonly ChartAccount[] = [
   { code: '600', name: 'Yurt İçi Satışlar', type: 'revenue' },
   { code: '601', name: 'Yurt Dışı Satışlar', type: 'revenue' },
   { code: '602', name: 'Diğer Gelirler', type: 'revenue' },
+  { code: '760', name: 'Pazarlama Satış ve Dağıtım Giderleri', type: 'expense' },
+  { code: '770', name: 'Genel Yönetim Giderleri', type: 'expense' },
 ];
+
+/** Where a purchase record is booked, by its category. Material purchases are stock, not expense. */
+export const EXPENSE_ACCOUNT: Record<string, string> = {
+  materials: '150',
+  marketing: '760',
+};
 
 /** Where a collection lands, by payment method. */
 export const COLLECTION_ACCOUNT: Record<string, string> = {
@@ -68,6 +77,23 @@ export function collectionLines(p: { amount: number; method: string; label: stri
     { account: COLLECTION_ACCOUNT[p.method] ?? '102', debit: amount, credit: 0, description: p.label },
     { account: '120', debit: 0, credit: amount, description: p.label },
   ];
+}
+
+/**
+ * Purchase invoice or expense, unpaid until the supplier payment is recorded:
+ *   150/760/770        net (+ VAT when it cannot be deducted)   (debit)
+ *   191 İndirilecek KDV VAT, when deductible                     (debit)
+ *   320 Satıcılar       net + VAT                                (credit)
+ */
+export function expenseLines(x: { net: number; vat: number; deductible: boolean; category: string; label: string }): LedgerLine[] {
+  const net = round2(x.net);
+  const vat = round2(x.vat);
+  const lines: LedgerLine[] = [
+    { account: EXPENSE_ACCOUNT[x.category] ?? '770', debit: x.deductible ? net : round2(net + vat), credit: 0, description: x.label },
+  ];
+  if (x.deductible && vat > 0) lines.push({ account: '191', debit: vat, credit: 0, description: `${x.label} indirilecek KDV` });
+  lines.push({ account: '320', debit: 0, credit: round2(net + vat), description: x.label });
+  return lines.filter((l) => l.debit > 0 || l.credit > 0);
 }
 
 /** The same entry with debits and credits swapped (cancellation, deleted collection). */

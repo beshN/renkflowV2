@@ -11,6 +11,7 @@ import { exemptionCode, UNIT_CODES, withholdingCode, type UnitCode } from '@/lib
 import { cancelEBelge, eBelgeProvider, prepareEBelge, retryEInvoice, ublInput } from '@/lib/features/einvoice/document.server';
 import { buildUblInvoice } from '@/lib/features/einvoice/ubl';
 import { syncLedger } from '@/lib/features/accounting/posting.server';
+import { collectionCap } from './collection-cap.server';
 import { effectiveRate } from '@/lib/features/fx/rates.server';
 import {
   COLLECTION_METHODS, DEFAULT_VAT_PERCENT, draftProblems, dueDate, estimateProfit, headerDiscountRatio, invoiceTotals, invoiceableLines, lineTotals, money, roundTo,
@@ -375,12 +376,7 @@ export async function recordCollection(actor: WorkOrderActor, raw: unknown) {
       if (!i || i.status !== 'issued') fail('Fatura bu siparişte kesilmiş görünmüyor');
     }
     const [paid] = await tx`SELECT coalesce(sum(amount), 0) AS total FROM payments WHERE tenant_id = ${actor.tenantId} AND order_id = ${d.orderId}`;
-    // What can be collected: the order total less the VAT withheld on its invoices (the buyer pays that
-    // to the tax office), or what was invoiced if more (extra lines such as shipping).
-    const [billed] = await tx`SELECT coalesce(sum(coalesce((to_jsonb(invoices) ->> 'payable_total')::numeric, total)), 0) AS total,
-        coalesce(sum(coalesce((to_jsonb(invoices) ->> 'withholding_total')::numeric, 0)), 0) AS withheld
-      FROM invoices WHERE tenant_id = ${actor.tenantId} AND order_id = ${d.orderId} AND status = 'issued'`;
-    const cap = Math.max(Number(o.total_amount) - Number(billed.withheld), Number(billed.total));
+    const cap = await collectionCap(tx, actor.tenantId, d.orderId, Number(o.total_amount));
     if (Number(paid.total) + d.amount > cap + 0.005) fail(`Tahsilat siparişin kalanını aşamaz (kalan ${money(cap - Number(paid.total))})`);
     await writablePeriod(tx, actor.tenantId, d.paidOn);
     const paidAt = `${d.paidOn}T12:00:00+03:00`;

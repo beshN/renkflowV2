@@ -2,7 +2,8 @@
  * VAT period summary on the isolated local test database only: real invoices (plain, withheld,
  * exempt, cancelled) and purchase records give the summary the accountant files from; it matches
  * the ledger's 391 account, carries deductible VAT forward, and purchase records respect duplicate
- * document numbers and closed periods.
+ * document numbers and closed periods, and purchase records are booked (150/770 + 191 / 320) and
+ * reversed when deleted.
  */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -76,6 +77,18 @@ async function main() {
         AND j.source_key IS DISTINCT FROM ${'invoice:' + old}`; // moved to last month by hand above, booked this month
     assert.equal(ledger.vat, v.output.vat, '391 matches the summary');
 
+    // Purchase records are booked too: 191 holds exactly the deductible VAT of the month, material
+    // purchases go to 150 (stock), the non-deductible meal goes to 770 with its VAT.
+    const balance = async (code: string, p = period) => Number((await db`
+      SELECT coalesce(sum(l.debit - l.credit), 0)::float AS b FROM journal_entries j
+      JOIN journal_entry_lines l ON l.journal_entry_id = j.id JOIN accounts a ON a.id = l.account_id
+      WHERE j.tenant_id = ${tenantId} AND j.period = ${p} AND a.code = ${code}`)[0].b);
+    assert.equal(await balance('191'), v.input.vat, '191 matches deductible VAT');
+    assert.equal(await balance('191', previous), before.input.vat, '191 of last month');
+    assert.equal(await balance('150'), 3000);
+    assert.equal(await balance('770'), 110 + 250);
+    assert.equal(await balance('320'), -(3600 + 110 + 275));
+
     // Purchase records: duplicate document numbers are refused, closed periods are refused, deletes are audited.
     await assert.rejects(addExpense(db, { tenantId, userId }, { date: `${period}-02`, vendor: 'cam ltd.', documentNumber: 'CAM1', description: 'Tekrar', category: 'materials', net: 1, vatPercent: 20 }), /aynı numaralı/);
     await assert.rejects(addExpense(db, { tenantId, userId }, { date: `${period}-02`, vendor: 'X', description: 'Y', category: 'materials', net: 1, vatPercent: 18 }), /KDV oranı/);
@@ -87,6 +100,12 @@ async function main() {
     const office = listed.find((x) => x.vendor === 'Kırtasiye')!;
     await deleteExpense(db, { tenantId, userId }, office.id);
     assert.equal((await loadVatReturn(db, tenantId, period)).input.vat, 600);
+    assert.equal(await balance('191'), 600, 'the deleted record is reversed in the ledger');
+    const [reversal] = await db`SELECT count(*)::int AS n FROM journal_entries WHERE tenant_id = ${tenantId} AND source_key = ${'expense-delete:' + office.id}`;
+    assert.equal(reversal.n, 1);
+    const { syncLedger } = await import('../lib/features/accounting/posting.server');
+    const again = await syncLedger(db, tenantId);
+    assert.equal(again.posted, 0, 're-sync books nothing twice');
     const [audit] = await db`SELECT count(*)::int AS n FROM activity_logs WHERE tenant_id = ${tenantId} AND entity_type = 'expense' AND action = 'deleted'`;
     assert.equal(audit.n, 1);
 

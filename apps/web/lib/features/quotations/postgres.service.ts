@@ -260,7 +260,7 @@ export class PostgresQuotationService implements IQuotationService {
         // An accepted quote stays good after its date (the customer said yes in time); an open one does not.
         if (q.status !== "accepted" && q.valid_until && new Date(q.valid_until).toISOString().slice(0, 10) < istanbulToday())
           throw new WorkOrderApiError("Teklifin süresi doldu; revize edip yeniden gönderin", 409);
-        const settings = await getQuoteSettings(tenantId);
+        const settings = await getQuoteSettings(tenantId, tx);
         const effective = effectiveDiscountPercent(items.map((i: any) => ({ quantity: Number(i.quantity), unitPrice: Number(i.unit_price), discountPercent: Number(i.discount_percent) })), Number(q.discount_percent));
         if (!["owner", "admin"].includes(actorRole ?? "") && needsDiscountApproval(effective, settings.discountApprovalPercent, q.discount_approved_percent == null ? null : Number(q.discount_approved_percent)))
           throw new WorkOrderApiError(`İndirim %${effective} firma eşiği %${settings.discountApprovalPercent} üzerinde; önce yönetici onayı gerekli`, 409);

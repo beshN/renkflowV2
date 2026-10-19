@@ -36,9 +36,10 @@ const iso = (d: unknown) => (d ? new Date(d as string).toISOString().slice(0, 10
 export type QuoteSettings = { discountApprovalPercent: number; defaultValidDays: number; defaultVatPercent: number };
 const DEFAULTS: QuoteSettings = { discountApprovalPercent: 10, defaultValidDays: 15, defaultVatPercent: 20 };
 
-export async function getQuoteSettings(tenantId: string): Promise<QuoteSettings> {
+/** `db`: the caller's transaction when there is one (a second pool connection inside a transaction can starve the pool). */
+export async function getQuoteSettings(tenantId: string, db: any = sql): Promise<QuoteSettings> {
   if (!(await salesAvailable())) return DEFAULTS;
-  const [r] = await sql`SELECT * FROM quote_settings WHERE tenant_id = ${tenantId}`;
+  const [r] = await db`SELECT * FROM quote_settings WHERE tenant_id = ${tenantId}`;
   return r ? { discountApprovalPercent: Number(r.discount_approval_percent), defaultValidDays: Number(r.default_valid_days), defaultVatPercent: Number(r.default_vat_percent) } : DEFAULTS;
 }
 

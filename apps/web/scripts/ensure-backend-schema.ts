@@ -164,6 +164,7 @@ export const BACKEND_MIGRATIONS = [
   '057_kvkk_requests.sql',
   '058_expense_vat.sql',
   '059_attendance_policy.sql',
+  '063_hot_path_indexes.sql',
 ];
 
 /** Mobile API tables (sessions, offline receipts, uploads, push devices); applied after 045 (installations). */

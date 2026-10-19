@@ -1,9 +1,9 @@
 import 'server-only';
 
 import { columnExists, tableExists } from '@/lib/db/schema-guard';
-import { CHART, collectionLines, isBalanced, reversed, saleLines, type LedgerLine } from './chart';
+import { CHART, collectionLines, expenseLines, isBalanced, reversed, saleLines, type LedgerLine } from './chart';
 
-// Automatic ledger (yevmiye) entries for invoices and collections. syncLedger books every business
+// Automatic ledger (yevmiye) entries for invoices, collections and purchase records. syncLedger books every business
 // record that has no entry yet and reverses the ones that were cancelled or deleted; each entry is
 // keyed by its source, so it is safe to run after every change and again on demand.
 
@@ -11,7 +11,7 @@ type Db = any;
 type Row = Record<string, any>;
 
 export type SyncResult = { posted: number; skippedClosed: number; awaitingRate: number; failed: number };
-type Scope = { invoiceId?: string; paymentId?: string };
+type Scope = { invoiceId?: string; paymentId?: string; expenseId?: string };
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 const istanbulDay = (d: Date) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(d);
@@ -36,7 +36,7 @@ async function hardClosed(db: Db, tenantId: string, period: string): Promise<boo
   return row?.status === 'hard_closed';
 }
 
-type Entry = { sourceKey: string; entryNumber: string; date: string; type: 'invoice' | 'payment' | 'adjustment'; description: string; lines: LedgerLine[]; orderId?: string | null; invoiceId?: string | null };
+type Entry = { sourceKey: string; entryNumber: string; date: string; type: 'invoice' | 'payment' | 'expense' | 'adjustment'; description: string; lines: LedgerLine[]; orderId?: string | null; invoiceId?: string | null };
 
 /** Inserts one balanced entry; false when the source already has one. */
 async function postEntry(db: Db, tenantId: string, accounts: Record<string, string>, e: Entry): Promise<boolean> {
@@ -87,10 +87,10 @@ export async function syncLedger(db: Db, tenantId: string, scope: Scope = {}): P
   const result: SyncResult = { posted: 0, skippedClosed: 0, awaitingRate: 0, failed: 0 };
   if (!(await ledgerReady())) return result;
   const accounts = await chartIds(db, tenantId);
-  const onlyPayments = Boolean(scope.paymentId) && !scope.invoiceId;
-  const onlyInvoices = Boolean(scope.invoiceId) && !scope.paymentId;
+  // A scoped sync only touches the records it names; an unscoped one touches everything.
+  const scoped = Boolean(scope.invoiceId || scope.paymentId || scope.expenseId);
 
-  if (!onlyPayments) {
+  if (!scoped || scope.invoiceId) {
     const invoices = await db`
       SELECT i.*, EXISTS (SELECT 1 FROM invoice_lines l WHERE l.invoice_id = i.id AND (to_jsonb(l) ->> 'exemption_code') = '301') AS exported,
         EXISTS (SELECT 1 FROM journal_entries j WHERE j.tenant_id = i.tenant_id AND j.source_key = 'invoice:' || i.id) AS booked,
@@ -127,7 +127,7 @@ export async function syncLedger(db: Db, tenantId: string, scope: Scope = {}): P
     }
   }
 
-  if (!onlyInvoices) {
+  if (!scoped || scope.paymentId) {
     const payments = await db`
       SELECT p.*, o.order_number FROM payments p JOIN orders o ON o.id = p.order_id
       WHERE p.tenant_id = ${tenantId} AND p.currency = 'TRY'
@@ -154,6 +154,37 @@ export async function syncLedger(db: Db, tenantId: string, scope: Scope = {}): P
         const original: LedgerLine[] = lines.map((l: Row) => ({ account: l.account, debit: Number(l.debit), credit: Number(l.credit), description: l.description ?? '' }));
         await guarded(db, (d) => postEntry(d, tenantId, accounts, { sourceKey: `payment-delete:${String(o.source_key).slice(8)}`, entryNumber: `${o.entry_number}-SIL`, date: today, type: 'adjustment', description: `Silinen tahsilat ${o.entry_number}`, lines: reversed(original, 'Silindi') }), result, `payment-delete ${o.source_key}`);
       }
+    }
+  }
+
+  if ((!scoped || scope.expenseId) && (await tableExists('expenses'))) {
+    const expenses = await db`
+      SELECT e.id, e.date, e.category, e.description, e.vendor, e.amount, e.tax_amount, e.is_tax_deductible, to_jsonb(e) ->> 'document_number' AS document_number
+      FROM expenses e
+      WHERE e.tenant_id = ${tenantId} AND e.currency = 'TRY'
+        AND (${scope.expenseId ?? null}::uuid IS NULL OR e.id = ${scope.expenseId ?? null}::uuid)
+        AND NOT EXISTS (SELECT 1 FROM journal_entries j WHERE j.tenant_id = e.tenant_id AND j.source_key = 'expense:' || e.id)`;
+    for (const e of expenses as Row[]) {
+      const date = day(e.date);
+      if (await hardClosed(db, tenantId, date.slice(0, 7))) { result.skippedClosed++; continue; }
+      const label = [e.vendor, e.document_number, e.description].filter(Boolean).join(' · ');
+      const lines = expenseLines({ net: Number(e.amount), vat: Number(e.tax_amount), deductible: Boolean(e.is_tax_deductible), category: e.category, label });
+      await guarded(db, (d) => postEntry(d, tenantId, accounts, { sourceKey: `expense:${e.id}`, entryNumber: `GDR-${String(e.id).slice(0, 8)}`, date, type: 'expense', description: `Alış/gider · ${label}`, lines }), result, `expense ${e.id}`);
+    }
+
+    // A deleted purchase record keeps its entry and gets a reversal dated the day it is noticed.
+    const orphans = await db`
+      SELECT j.id, j.source_key, j.entry_number FROM journal_entries j
+      WHERE j.tenant_id = ${tenantId} AND j.source_key LIKE 'expense:%'
+        AND (${scope.expenseId ?? null}::text IS NULL OR j.source_key = 'expense:' || ${scope.expenseId ?? null}::text)
+        AND NOT EXISTS (SELECT 1 FROM expenses e WHERE 'expense:' || e.id = j.source_key)
+        AND NOT EXISTS (SELECT 1 FROM journal_entries r WHERE r.tenant_id = j.tenant_id AND r.source_key = 'expense-delete:' || substring(j.source_key FROM 9))`;
+    for (const o of orphans as Row[]) {
+      const today = istanbulDay(new Date());
+      if (await hardClosed(db, tenantId, today.slice(0, 7))) { result.skippedClosed++; continue; }
+      const lines = await db`SELECT a.code AS account, l.debit, l.credit, l.description FROM journal_entry_lines l JOIN accounts a ON a.id = l.account_id WHERE l.journal_entry_id = ${o.id} ORDER BY l.line_no`;
+      const original: LedgerLine[] = lines.map((l: Row) => ({ account: l.account, debit: Number(l.debit), credit: Number(l.credit), description: l.description ?? '' }));
+      await guarded(db, (d) => postEntry(d, tenantId, accounts, { sourceKey: `expense-delete:${String(o.source_key).slice(8)}`, entryNumber: `${o.entry_number}-SIL`, date: today, type: 'adjustment', description: `Silinen gider ${o.entry_number}`, lines: reversed(original, 'Silindi') }), result, `expense-delete ${o.source_key}`);
     }
   }
   return result;
