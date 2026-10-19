@@ -106,6 +106,7 @@ export default function SignupPage() {
                       <LayoutTemplate size={18} />
                   </div>
                   <select
+                      aria-label="Sektör şablonu"
                       value={templateKey}
                       onChange={(e) => setTemplateKey(e.target.value as TemplateKey)}
                       className={cn(

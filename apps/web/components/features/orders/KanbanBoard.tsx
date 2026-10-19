@@ -575,7 +575,7 @@ export function KanbanBoard({ orders, onOrderStatusChange, onOrderDelete }: Kanb
         </div>
       </div>
 
-      <div className="flex gap-5 overflow-x-auto pb-4 px-1 -mx-1 scroll-smooth snap-x snap-mandatory md:snap-none">
+      <div tabIndex={0} role="region" aria-label="Sipariş panosu" className="flex gap-5 overflow-x-auto pb-4 px-1 -mx-1 scroll-smooth snap-x snap-mandatory md:snap-none">
         {columns
           .filter((column) => statusFilter === 'all' || column.status === statusFilter)
           .map((column, index) => {

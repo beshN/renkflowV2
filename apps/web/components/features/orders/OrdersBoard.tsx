@@ -89,7 +89,7 @@ export function OrdersBoard({ orders, canMove, onMove }: {
   };
   return (
     <DndContext sensors={sensors} onDragEnd={onDragEnd} accessibility={{ screenReaderInstructions: { draggable: 'Taşımak için boşluk, sütun seçmek için oklar, bırakmak için boşluk.' } }}>
-      <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+      <div tabIndex={0} role="region" aria-label="Sipariş panosu" className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
         {orders.some((o) => lifecycleIndex(o.status) < 0) && (
           <section aria-label="Beklemede / iptal" className="flex w-[220px] shrink-0 flex-col rounded-lg border border-dashed border-border lg:w-[200px]">
             <h2 className="flex items-center justify-between px-3 py-2 text-sm font-semibold text-muted-foreground">Beklemede<span className="rounded-full bg-muted px-2 text-xs tabular-nums">{orders.filter((o) => lifecycleIndex(o.status) < 0).length}</span></h2>

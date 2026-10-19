@@ -42,7 +42,7 @@ export function StockThresholdPanel() {
         {canDraft && <Link href="/dashboard" className="text-sm underline">Önerilenler</Link>}
       </div>
       <p className="text-xs text-muted-foreground">Kullanılabilir = hammadde ve artık depolarındaki stok − ayrılanlar. Yolda = gönderilmiş siparişlerin gelmeyen kısmı. Sipariş noktası = minimum (+ tanımlıysa tedarik süresi boyunca tüketim).</p>
-      <div className="overflow-x-auto">
+      <div tabIndex={0} role="region" aria-label="Sipariş noktası tablosu" className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead><tr>{['Malzeme', 'Kullanılabilir', 'Sipariş noktası', 'Yolda', 'Taslakta', 'Durum'].map((h) => <th key={h} className="p-2 text-xs text-muted-foreground">{h}</th>)}</tr></thead>
           <tbody>

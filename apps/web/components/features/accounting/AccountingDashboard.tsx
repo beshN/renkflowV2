@@ -170,7 +170,7 @@ const BENCHMARK_ROWS: BenchmarkRow[] = [
 ];
 
 function trendClass(value: number): string {
-  return value >= 0 ? 'text-green-600' : 'text-red-600';
+  return value >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400';
 }
 
 function toMonthLabel(period: string): string {
@@ -483,7 +483,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
       value: workspace.profitLoss?.netProfit || 0,
       trend: workspace.periodComparison.netProfitChangePct,
       icon: <TrendingUp className="w-5 h-5" />,
-      colorClass: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20',
+      colorClass: 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20',
     },
     {
       title: 'Toplam Gelir',
@@ -497,7 +497,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
       value: workspace.profitLoss?.operatingExpenses.total || 0,
       trend: workspace.periodComparison.expenseChangePct,
       icon: <TrendingDown className="w-5 h-5" />,
-      colorClass: 'text-rose-600 bg-rose-50 dark:bg-rose-900/20',
+      colorClass: 'text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20',
     },
     {
       title: 'Nakit Pozisyonu',
@@ -561,7 +561,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
 
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
-                <ClipboardCheck className="w-5 h-5 text-emerald-600" />
+                <ClipboardCheck className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
                 Dönem Kapanış
               </h3>
               <div className="text-sm text-slate-500 mb-3">
@@ -579,9 +579,9 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                   <div key={item.id} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
                     <div className="flex items-center gap-2">
                       {item.status === 'done' ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <CheckCircle2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                       ) : item.status === 'warning' ? (
-                        <AlertTriangle className="w-4 h-4 text-amber-600" />
+                        <AlertTriangle className="w-4 h-4 text-amber-700 dark:text-amber-400" />
                       ) : (
                         <Clock3 className="w-4 h-4 text-slate-400" />
                       )}
@@ -620,7 +620,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                   return (
                     <div key={row.key} className="flex items-center justify-between">
                       <span className="text-slate-600 dark:text-slate-400">{row.label}</span>
-                      <span className={cn('font-semibold', favorable ? 'text-emerald-600' : 'text-rose-600')}>
+                      <span className={cn('font-semibold', favorable ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400')}>
                         {row.variance >= 0 ? '+' : ''}
                         {row.variancePct.toFixed(1)}%
                       </span>
@@ -629,7 +629,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                 })}
               </div>
               {!workspace.budgetVsActual.hasBudget && (
-                <p className="text-xs text-amber-600 mt-3">Dönem bütçesi tanımlı değil.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mt-3">Dönem bütçesi tanımlı değil.</p>
               )}
             </div>
 
@@ -655,16 +655,16 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
               </div>
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div className="rounded-lg bg-rose-50 dark:bg-rose-900/20 p-2 text-center">
-                  <p className="font-semibold text-rose-600">{workspace.compliance.criticalCount}</p>
-                  <p className="text-slate-500">Kritik</p>
+                  <p className="font-semibold text-rose-700 dark:text-rose-400">{workspace.compliance.criticalCount}</p>
+                  <p className="text-slate-700 dark:text-slate-300">Kritik</p>
                 </div>
                 <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 p-2 text-center">
-                  <p className="font-semibold text-amber-600">{workspace.compliance.warningCount}</p>
-                  <p className="text-slate-500">Uyarı</p>
+                  <p className="font-semibold text-amber-700 dark:text-amber-400">{workspace.compliance.warningCount}</p>
+                  <p className="text-slate-700 dark:text-slate-300">Uyarı</p>
                 </div>
                 <div className="rounded-lg bg-sky-50 dark:bg-sky-900/20 p-2 text-center">
-                  <p className="font-semibold text-sky-600">{workspace.compliance.infoCount}</p>
-                  <p className="text-slate-500">Bilgi</p>
+                  <p className="font-semibold text-sky-700 dark:text-sky-400">{workspace.compliance.infoCount}</p>
+                  <p className="text-slate-700 dark:text-slate-300">Bilgi</p>
                 </div>
               </div>
             </div>
@@ -741,7 +741,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
 
                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
                   <h4 className="font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                    <Scale className="w-4 h-4 text-rose-600" />
+                    <Scale className="w-4 h-4 text-rose-700 dark:text-rose-400" />
                     Yükümlülükler
                   </h4>
                   <BalanceRow label="Kısa Vadeli Borçlar" value={workspace.balanceSheet.liabilities.currentLiabilities.total} />
@@ -750,7 +750,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
 
                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
                   <h4 className="font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <ShieldCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                     Öz Sermaye
                   </h4>
                   <BalanceRow label="Cari Dönem Kârı" value={workspace.balanceSheet.equity.currentYearProfit} />
@@ -840,7 +840,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                       : 'Open'}
                 </span>
                 {workspace.periodCloseState.locked && (
-                  <span className="text-xs text-rose-600">Kilitli</span>
+                  <span className="text-xs text-rose-700 dark:text-rose-400">Kilitli</span>
                 )}
               </div>
               <p className="text-xs text-slate-500 mt-3">
@@ -890,7 +890,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
               </div>
               <div className="space-y-2">
                 {workspace.compliance.issues.length === 0 && (
-                  <p className="text-sm text-emerald-600">Açık uyum problemi görünmüyor.</p>
+                  <p className="text-sm text-emerald-700 dark:text-emerald-400">Açık uyum problemi görünmüyor.</p>
                 )}
                 {workspace.compliance.issues.map((issue) => (
                   <div key={issue.code} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
@@ -900,9 +900,9 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                         className={cn(
                           'text-xs font-semibold',
                           issue.severity === 'critical'
-                            ? 'text-rose-600'
+                            ? 'text-rose-700 dark:text-rose-400'
                             : issue.severity === 'warning'
-                              ? 'text-amber-600'
+                              ? 'text-amber-700 dark:text-amber-400'
                               : 'text-sky-600'
                         )}
                       >
@@ -959,7 +959,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                 {isAutoMatching ? 'Eşleştiriliyor...' : 'Otomatik Eşleştir'}
               </button>
               {workspace.periodCloseState.locked && (
-                <p className="text-xs text-rose-600 mt-2">Hard close açıkken mutabakat güncellenemez.</p>
+                <p className="text-xs text-rose-700 dark:text-rose-400 mt-2">Hard close açıkken mutabakat güncellenemez.</p>
               )}
             </div>
 
@@ -1129,7 +1129,7 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                       <p className="col-span-1 text-slate-600 dark:text-slate-400">{row.label}</p>
                       <p className="col-span-1 text-right text-slate-500">Bütçe {formatCurrency(row.planned)}</p>
                       <p className="col-span-1 text-right text-slate-500">Fiili {formatCurrency(row.actual)}</p>
-                      <p className={cn('col-span-1 text-right font-semibold', favorable ? 'text-emerald-600' : 'text-rose-600')}>
+                      <p className={cn('col-span-1 text-right font-semibold', favorable ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400')}>
                         {row.variance >= 0 ? '+' : ''}
                         {row.variancePct.toFixed(1)}%
                       </p>
@@ -1149,8 +1149,8 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                       <span className="text-slate-500">Güven %{point.confidencePct}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 mt-2">
-                      <span className="text-emerald-600">+{formatCurrency(point.projectedInflow)}</span>
-                      <span className="text-rose-600">-{formatCurrency(point.projectedOutflow)}</span>
+                      <span className="text-emerald-700 dark:text-emerald-400">+{formatCurrency(point.projectedInflow)}</span>
+                      <span className="text-rose-700 dark:text-rose-400">-{formatCurrency(point.projectedOutflow)}</span>
                       <span className={cn('font-semibold', trendClass(point.projectedNet))}>
                         {formatCurrency(point.projectedEndingCash)}
                       </span>
@@ -1195,11 +1195,11 @@ export function AccountingDashboard({ period, activeTab = 'overview' }: Accounti
                     </div>
                     <div className="flex items-center gap-2">
                       {done ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <CheckCircle2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                       ) : (
-                        <XCircle className="w-4 h-4 text-rose-600" />
+                        <XCircle className="w-4 h-4 text-rose-700 dark:text-rose-400" />
                       )}
-                      <span className={cn('text-sm font-medium', done ? 'text-emerald-600' : 'text-rose-600')}>
+                      <span className={cn('text-sm font-medium', done ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400')}>
                         {done ? 'Aktif' : 'Eksik'}
                       </span>
                     </div>
@@ -1254,7 +1254,7 @@ function ProfitLossRow({
       <span className={cn('text-slate-600 dark:text-slate-400', bold && 'font-semibold text-slate-900 dark:text-white')}>
         {label}
       </span>
-      <span className={cn('font-mono', bold && 'font-semibold', highlight && 'text-emerald-600', negative && 'text-rose-600')}>
+      <span className={cn('font-mono', bold && 'font-semibold', highlight && 'text-emerald-700 dark:text-emerald-400', negative && 'text-rose-700 dark:text-rose-400')}>
         {negative ? '-' : ''}
         {formatCurrency(Math.abs(value))}
       </span>
@@ -1267,7 +1267,7 @@ function ComparisonRow({ label, value, inverse = false }: { label: string; value
   return (
     <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 p-3">
       <span className="text-sm text-slate-600 dark:text-slate-400">{label}</span>
-      <span className={cn('text-sm font-semibold', good ? 'text-emerald-600' : 'text-rose-600')}>
+      <span className={cn('text-sm font-semibold', good ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400')}>
         {value >= 0 ? '+' : ''}
         {value.toFixed(1)}%
       </span>
