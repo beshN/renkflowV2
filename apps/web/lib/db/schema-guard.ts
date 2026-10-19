@@ -1,33 +1,43 @@
-import { sql } from '@/lib/db';
+import * as database from '@/lib/db';
 
 type CachedTableState = {
   exists: boolean;
   checkedAt: number;
 };
 
+// Schema checks let code ship before its migration. They run inside transactions, so they use their
+// own one-connection client (never the pool the transaction is holding), share a single query when
+// asked at once, keep "exists" for good (migrations only add) and recheck "missing" every 5 minutes.
+// A failed check is not cached and is not turned into "missing": that would silently skip writes
+// (ledger, tax rows) until the cache expired; the error goes up and the request can be retried.
 const tableExistsCache = new Map<string, CachedTableState>();
 const TABLE_EXISTS_TTL_MS = 5 * 60 * 1000;
+const inFlight = new Map<string, Promise<boolean>>();
+
+function metaSql() {
+  return typeof database.getMetaSql === 'function' ? database.getMetaSql() : database.sql;
+}
+
+async function cachedCheck(cache: Map<string, CachedTableState>, key: string, query: () => Promise<boolean>): Promise<boolean> {
+  const cached = cache.get(key);
+  if (cached && (cached.exists || Date.now() - cached.checkedAt < TABLE_EXISTS_TTL_MS)) return cached.exists;
+  let pending = inFlight.get(key);
+  if (!pending) {
+    pending = query().then((exists) => {
+      cache.set(key, { exists, checkedAt: Date.now() });
+      return exists;
+    }).finally(() => inFlight.delete(key));
+    inFlight.set(key, pending);
+  }
+  return pending;
+}
 
 export async function tableExists(tableName: string): Promise<boolean> {
   const normalized = tableName.trim().toLowerCase();
-  const cached = tableExistsCache.get(normalized);
-
-  if (cached && Date.now() - cached.checkedAt < TABLE_EXISTS_TTL_MS) {
-    return cached.exists;
-  }
-
-  try {
-    const result = await sql`
-      SELECT to_regclass(${`public.${normalized}`}) as regclass
-    `;
-    const rows = result as Array<{ regclass: string | null }>;
-    const exists = Boolean(rows[0]?.regclass);
-    tableExistsCache.set(normalized, { exists, checkedAt: Date.now() });
-    return exists;
-  } catch {
-    tableExistsCache.set(normalized, { exists: false, checkedAt: Date.now() });
-    return false;
-  }
+  return cachedCheck(tableExistsCache, 'table:' + normalized, async () => {
+    const [row] = await metaSql()`SELECT to_regclass(${`public.${normalized}`}) AS regclass`;
+    return Boolean(row?.regclass);
+  });
 }
 
 export function isMissingRelationError(error: unknown, relationNames: string[] = []): boolean {
@@ -62,14 +72,8 @@ const columnExistsCache = new Map<string, CachedTableState>();
 /** Whether a column exists yet (a release adds it with a migration that may run after the code). */
 export async function columnExists(tableName: string, columnName: string): Promise<boolean> {
   const key = `${tableName.trim().toLowerCase()}.${columnName.trim().toLowerCase()}`;
-  const cached = columnExistsCache.get(key);
-  if (cached && (cached.exists || Date.now() - cached.checkedAt < TABLE_EXISTS_TTL_MS)) return cached.exists;
-  try {
-    const [row] = await sql`SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = ${tableName} AND column_name = ${columnName}) AS ok`;
-    const exists = Boolean(row?.ok);
-    columnExistsCache.set(key, { exists, checkedAt: Date.now() });
-    return exists;
-  } catch {
-    return false;
-  }
+  return cachedCheck(columnExistsCache, 'column:' + key, async () => {
+    const [row] = await metaSql()`SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = ${tableName} AND column_name = ${columnName}) AS ok`;
+    return Boolean(row?.ok);
+  });
 }

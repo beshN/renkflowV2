@@ -144,6 +144,22 @@ export function getSql() {
 
 export const sql = getSql();
 
+let cachedMetaClient: any = null;
+/**
+ * A separate one-connection client for schema checks (lib/db/schema-guard.ts). Those checks run
+ * inside transactions; on the main pool, a burst of transactions holding every connection while each
+ * waits for one more to check the schema locked up until the transaction timeout.
+ */
+export function getMetaSql() {
+  if (!cachedMetaClient) {
+    const databaseUrl = process.env.DATABASE_URL;
+    if (IS_BUILD_TIME || !databaseUrl) return getSql();
+    const runtimeConfig = resolveDatabaseRuntimeConfig(databaseUrl);
+    cachedMetaClient = postgres(runtimeConfig.connectionString, { connect_timeout: 10, idle_timeout: 20, max: 1, max_lifetime: 300, prepare: false, ...runtimeConfig.clientOptions });
+  }
+  return cachedMetaClient;
+}
+
 export async function sqlQuery(query: string, params: unknown[] = []): Promise<any[]> {
   const client = getSql();
   return client.unsafe(query, params);
