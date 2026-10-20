@@ -34,8 +34,8 @@ type Summary = {
   paint?: Array<{ color: string; jobs: number; pieces: number }>;
 };
 
-// Lifecycle colours: one cobalt ramp, the last step neutral. Each segment also has a label and a link.
-const STEP_COLORS = ['#c7d2fe', '#a5b4fc', '#7c8ff0', '#2f55f4', '#1b3fa8', '#a1a1aa'];
+// Lifecycle colours: one anthracite ramp, the last step neutral. Each segment also has a label and a link.
+const STEP_COLORS = ['#c2c8ca', '#a6b1b6', '#7f8a90', '#56626a', '#2e3538', '#dce0e0'];
 const SECTIONS = ['morning', 'today', 'activities', 'suggestions', 'flow', 'health', 'paint', 'week'] as const;
 type Section = (typeof SECTIONS)[number];
 const DEFAULT_HIDDEN: Section[] = ['activities', 'flow', 'health', 'paint', 'week'];
@@ -220,7 +220,7 @@ export default function DashboardPage() {
       />
       {error && !orders.length && <p role="alert" className="rf-alert text-sm"><AlertOctagon size={16} aria-hidden /> Siparişler alınamadı</p>}
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <div className="rf-metric-strip grid grid-cols-2 xl:grid-cols-4">
         <StatCard label="Açık sipariş" icon={Factory} href="/orders?view=active" loading={isLoading} value={open.length} trend={trend.map((t) => t.created)} />
         <StatCard label="Geciken" icon={AlertOctagon} href="/orders?view=overdue" loading={isLoading} value={overdue.length} tone={overdue.length ? 'danger' : 'neutral'} />
         <StatCard label="Kesim bekleyen iş" icon={Scissors} href="/production?tab=cutting" loading={summaryLoading} value={n(summary?.cutting?.waiting)} />
@@ -229,10 +229,10 @@ export default function DashboardPage() {
 
       {manager && (user?.role === 'owner' || user?.role === 'admin') && <FleetHealthCard />}
 
-      <nav aria-label="Kısayollar" className="-mx-1 flex gap-2 overflow-x-auto px-1">
+      <nav aria-label="Kısayollar" className="rf-toolbar -mx-1 flex overflow-x-auto px-1">
         {shortcuts.map((s) => (
-          <Link key={s.href} href={s.href} className="flex min-w-[76px] flex-col items-center gap-1 rounded-md border border-border bg-card px-3 py-2 text-[11px] font-medium hover:border-primary/40">
-            <s.icon size={20} aria-hidden className="text-primary" />{s.label}
+          <Link key={s.href} href={s.href} className="rf-toolbar-item">
+            <s.icon size={16} aria-hidden />{s.label}
           </Link>
         ))}
       </nav>

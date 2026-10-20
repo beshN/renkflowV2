@@ -571,7 +571,7 @@ export function AIChatbot() {
       </BusinessDialog>}
       <AnimatePresence>
         {!isOpen && <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsOpen(true)}
-          className={cn('fixed right-4 z-50 inline-flex h-12 items-center gap-2 rounded-xl border border-border bg-foreground px-4 text-sm font-medium text-background shadow-lg transition-transform hover:-translate-y-0.5 md:right-6 print:hidden', pathname === '/new-order' ? 'bottom-40 md:bottom-24' : 'bottom-24 md:bottom-6')}
+          className={cn('fixed right-4 z-50 inline-flex h-12 items-center gap-2 rounded-xl border border-white/10 bg-[hsl(var(--rf-ink))] px-4 text-sm font-medium text-[hsl(var(--rf-ink-foreground))] shadow-lg transition-transform hover:-translate-y-0.5 md:right-6 print:hidden', pathname === '/new-order' ? 'bottom-40 md:bottom-24' : 'bottom-24 md:bottom-6')}
           aria-label="AI Asistanı Aç"><Sparkles size={17} aria-hidden /><span>Asistan</span>{insights.some(i => i.priority === 'high') && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-label="Operasyon önerisi var" />}</motion.button>}
       </AnimatePresence>
       <AnimatePresence>

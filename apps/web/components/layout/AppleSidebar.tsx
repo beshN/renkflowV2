@@ -26,6 +26,9 @@ const NAV_ICONS: Record<string, LucideIcon> = {
 const NAV_ANIM: Record<string, string> = {
   shipments: 'drive', settings: 'spin', notifications: 'ring', scan: 'blink', search: 'tilt', 'new-order': 'spin', inventory: 'lift', warehouse: 'lift', receipts: 'lift', reports: 'grow', finance: 'tilt', team: 'nudge', production: 'grow', factory: 'grow', scrap: 'spin',
 };
+/** RAL 9016, 9006, 7016 and 8017, then the accent colour: the frame colours a pergola shop sells most, in the brand strip. */
+const RAL_STRIP = ['#f1f0ea', '#a5a8a6', '#4a5256', '#6b4a3a', 'var(--acc-chrome)'];
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]!.toLocaleUpperCase('tr-TR')).join('');
 const ROLE_LABELS = { owner: 'Yönetici', admin: 'Yönetici', accountant: 'Muhasebe', office: 'Ofis', worker: 'Üretim', member: 'Ekip üyesi' };
 interface AppleSidebarProps { collapsed: boolean; setCollapsed: (collapsed: boolean) => void; onExpandedChange?: (expanded: boolean) => void }
 
@@ -52,15 +55,16 @@ export function AppleSidebar({ collapsed, setCollapsed, onExpandedChange }: Appl
     onFocusCapture={openPreview} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) closePreview(); }}
     onKeyDown={event => { if (event.key === 'Escape') setHovered(false); }}
     className={cn('rf-sidebar fixed left-0 top-0 z-50 hidden h-dvh flex-col overflow-hidden md:flex transition-[width] duration-150 motion-reduce:transition-none', expanded ? 'w-[252px]' : 'w-[72px]', collapsed && expanded && 'shadow-xl')}>
-    <div className="sb-line flex h-16 shrink-0 items-center justify-between gap-3 border-b px-5">
+    <div aria-hidden className="rf-ral-strip shrink-0">{RAL_STRIP.map(c => <span key={c} style={{ background: c }} />)}</div>
+    <div className="sb-line flex h-[60px] shrink-0 items-center justify-between gap-3 border-b px-5">
       <BrandMark href="/dashboard" compact={!expanded} />
       {expanded && <button type="button" onClick={togglePinned} aria-expanded={!collapsed} aria-label={collapsed ? 'Menüyü sabitle' : 'Menüyü daralt'} className="sb-muted sb-hover rounded-md p-1.5">
         {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
       </button>}
     </div>
-    <div className="sb-line mx-3 mb-1 mt-4 flex h-12 shrink-0 items-center gap-2.5 rounded-lg border bg-[var(--sb-active)] px-2.5">
-      <span className="sb-line sb-muted flex h-7 w-7 shrink-0 items-center justify-center rounded-md border"><Building2 size={14} /></span>
-      <div className={cn('min-w-0 flex-1', !expanded && 'sr-only')}><p className="truncate text-xs font-medium">{user?.tenantName || 'Renk Alüminyum'}</p><p className="sb-muted mt-0.5 text-[11px]">Üretim operasyonları</p></div>
+    <div className="sb-line mx-3 mb-1 mt-3 flex h-12 shrink-0 items-center gap-2.5 border-b px-1.5 pb-3 pt-1">
+      <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[4px] bg-[var(--acc-cta)] font-display text-[12px] font-bold text-[var(--acc-cta-fg)] ring-1 ring-white/15">{initials(user?.tenantName || 'Renk Alüminyum')}</span>
+      <div className={cn('min-w-0 flex-1', !expanded && 'sr-only')}><p className="truncate text-[13px] font-semibold">{user?.tenantName || 'Renk Alüminyum'}</p><p className="sb-muted mt-0.5 text-[11px]">Üretim operasyonları</p></div>
     </div>
     <nav className="flex-1 overflow-x-hidden overflow-y-auto px-3 pb-4" aria-label="Modüller">
       {navGroups.map(group => <NavigationGroup key={group.id} label={group.label} expanded={expanded}
@@ -70,8 +74,8 @@ export function AppleSidebar({ collapsed, setCollapsed, onExpandedChange }: Appl
           const Icon = NAV_ICONS[item.id] || LayoutGrid;
           const active = activeHref === item.href;
           return <Link key={item.id} href={item.href} aria-current={active ? 'page' : undefined} title={!expanded ? item.label : undefined} data-anim={NAV_ANIM[item.id] || 'nudge'}
-            className={cn('rf-nav-item relative flex h-9 items-center gap-3 whitespace-nowrap px-2.5 text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[hsl(var(--ring))]', active && 'rf-nav-active')}>
-            {active && <motion.span layoutId="rf-nav-pill" aria-hidden className="rf-nav-pill absolute inset-0 rounded-[7px]" transition={{ type: 'spring', stiffness: 520, damping: 40 }} />}
+            className={cn('rf-nav-item relative flex h-8 items-center gap-3 whitespace-nowrap px-2.5 text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[hsl(var(--ring))]', active && 'rf-nav-active')}>
+            {active && <motion.span layoutId="rf-nav-pill" aria-hidden className="rf-nav-pill absolute inset-0 rounded-[4px]" transition={{ type: 'spring', stiffness: 520, damping: 40 }} />}
             <Icon size={16} strokeWidth={1.75} className="relative shrink-0" /><span className={cn('relative', !expanded && 'sr-only')}>{item.label}</span>
           </Link>;
         })}
@@ -79,7 +83,7 @@ export function AppleSidebar({ collapsed, setCollapsed, onExpandedChange }: Appl
     </nav>
     <div className="sb-line shrink-0 border-t px-3 py-3">
       <div className="flex items-center gap-2.5 px-1.5 py-1.5">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--rf-ink))] text-[11px] font-semibold text-[hsl(var(--rf-ink-foreground))]">{user?.name?.[0]?.toLocaleUpperCase('tr-TR') || 'R'}</span>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] font-semibold text-[var(--sb-fg)] ring-1 ring-white/15">{user?.name?.[0]?.toLocaleUpperCase('tr-TR') || 'R'}</span>
         <span className={cn('min-w-0 flex-1', !expanded && 'sr-only')}><span className="block truncate text-xs font-medium">{user?.name || 'Kullanıcı'}</span><span className="sb-muted mt-0.5 block text-[11px]">{user ? ROLE_LABELS[user.role] : 'Çalışma alanı'}</span></span>
         {expanded && <button type="button" onClick={() => signOut({ callbackUrl: '/auth/login' })} aria-label="Çıkış yap" title="Çıkış yap" className="sb-muted sb-hover rounded-md p-2"><LogOut size={15} /></button>}
       </div>

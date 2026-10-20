@@ -29,7 +29,7 @@ export function StatCard({ label, value, icon: Icon, trend, href, tone = 'neutra
         {Icon && <Icon size={16} aria-hidden className={TONE[tone].chip} />}
       </span>
       <span className="mt-3 flex items-end justify-between gap-2">
-        {loading ? <Skeleton className="h-9 w-14" /> : <span className={cn('text-3xl font-semibold tabular-nums tracking-tight', TONE[tone].value)}>{value}</span>}
+        {loading ? <Skeleton className="h-9 w-14" /> : <span className={cn('rf-metric-value', TONE[tone].value)}>{value}</span>}
         {trend && !loading && <Sparkline values={trend} label={`${label} eğilimi`} />}
       </span>
     </>

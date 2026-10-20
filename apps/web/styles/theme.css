@@ -1,10 +1,11 @@
 /*
  * RenkFlow design system.
  *
- * Restrained by intent: neutral surfaces, 1px hairlines, one solid cobalt accent
- * and short, purposeful motion. No gradients, glows or decorative blur. Loaded
- * after every other stylesheet so these tokens are the single source of truth for
- * landing, auth and workspace pages alike.
+ * Taken from the trade it serves: RAL 7016 anthracite (the colour of most pergola
+ * frames) for the chrome, a cool aluminium grey for the canvas, and anodised bronze
+ * for anything you can act on and for markers. Crisp 6px corners, hairlines, no
+ * gradients or glows. Loaded after every other stylesheet so these tokens are the
+ * single source of truth for landing, auth and workspace pages alike.
  */
 
 :root,
@@ -12,52 +13,55 @@
 .rf-dashboard-shell,
 .rf-auth-shell,
 .rf-command-dialog {
-  --background: 0 0% 98.4%;
-  --foreground: 240 8% 7%;
+  --background: 120 4% 95.1%;
+  --foreground: 200 13% 13.5%;
   --card: 0 0% 100%;
-  --card-foreground: 240 8% 7%;
+  --card-foreground: 200 13% 13.5%;
   --popover: 0 0% 100%;
-  --popover-foreground: 240 8% 7%;
-  --primary: 229 89% 56%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 240 5% 96%;
-  --secondary-foreground: 240 8% 10%;
-  --muted: 240 5% 96%;
-  --muted-foreground: 240 4% 44%;
-  --accent: 240 5% 95.5%;
-  --accent-foreground: 240 8% 10%;
-  --destructive: 0 72% 50%;
+  --popover-foreground: 200 13% 13.5%;
+  --primary: var(--acc-primary);
+  --primary-foreground: var(--acc-primary-fg);
+  --secondary: 150 4.5% 91.4%;
+  --secondary-foreground: 200 13% 13.5%;
+  --muted: 150 4.5% 91.4%;
+  --muted-foreground: 201 7.2% 38%;
+  --accent: 150 4.5% 92.5%;
+  --accent-foreground: 200 13% 13.5%;
+  --destructive: 0 70% 44%;
   --destructive-foreground: 0 0% 100%;
-  --border: 240 6% 90.5%;
-  --input: 240 6% 86%;
-  --ring: 229 89% 56%;
-  --rf-primary-text: 229 89% 56%;
-  --radius: 8px;
+  --border: 160 4.1% 85.7%;
+  --input: 180 4.5% 78.2%;
+  --ring: var(--acc-text);
+  --rf-primary-text: var(--acc-text);
+  --radius: 6px;
 
-  --rf-ink: 240 8% 7%;
+  --rf-ink: 198 9.8% 20%;
   --rf-ink-foreground: 0 0% 100%;
-  --rf-bg: #fbfbfb;
-  --rf-bg-muted: #f4f4f5;
+  /* Marker colour (where you are, what needs you); see the accent palettes below. */
+  --rf-mark: var(--acc-mark);
+  --rf-anthracite: #2a3134;
+  --rf-bg: #f2f3f2;
+  --rf-bg-muted: #e8eae9;
   --rf-surface: #ffffff;
-  --rf-surface-soft: #fafafa;
-  --rf-border: #e4e4e7;
-  --rf-text: #111113;
-  --rf-text-muted: #6b6b73;
-  --rf-accent: #2f55f4;
-  --rf-accent-strong: #1b3fa8;
-  --rf-brand-50: #eff3fe;
-  --rf-brand-100: #dfe7fc;
-  --rf-brand-500: #4a6cf7;
-  --rf-brand-600: #2f55f4;
-  --rf-brand-700: #1b3fa8;
-  --rf-brand-900: #10245f;
-  --rf-success: #15803d;
-  --rf-warning: #b45309;
-  --rf-danger: #dc2626;
-  --rf-focus-ring: hsl(229 89% 56% / 22%);
-  --rf-radius: 10px;
-  --rf-shadow-soft: 0 1px 2px rgb(17 17 19 / 4%);
-  --rf-shadow: 0 1px 2px rgb(17 17 19 / 4%), 0 8px 24px -12px rgb(17 17 19 / 12%);
+  --rf-surface-soft: #f7f8f7;
+  --rf-border: #d9dcdb;
+  --rf-text: #1e2427;
+  --rf-text-muted: #5a6368;
+  --rf-accent: hsl(var(--acc-text));
+  --rf-accent-strong: hsl(var(--acc-text));
+  --rf-brand-50: #f1f4f5;
+  --rf-brand-100: #e3e9eb;
+  --rf-brand-500: #627a85;
+  --rf-brand-600: #4e6670;
+  --rf-brand-700: #40545c;
+  --rf-brand-900: #2a373d;
+  --rf-success: #1d7a4a;
+  --rf-warning: #a35f00;
+  --rf-danger: #b42318;
+  --rf-focus-ring: hsl(var(--acc-text) / 22%);
+  --rf-radius: 6px;
+  --rf-shadow-soft: none;
+  --rf-shadow: 0 1px 0 rgb(30 36 39 / 4%), 0 12px 28px -18px rgb(30 36 39 / 22%);
   --rf-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -66,52 +70,73 @@
 .dark .rf-dashboard-shell,
 .dark .rf-auth-shell,
 .dark .rf-command-dialog {
-  /* Graphite elevation ladder: sidebar 4% < canvas 5.5% < card 8.5% < popover 10.5% < hover 13%. */
-  --background: 240 5% 5.5%;
-  --foreground: 240 6% 93%;
-  --card: 240 5% 8.5%;
-  --card-foreground: 240 6% 93%;
-  --popover: 240 5% 10.5%;
-  --popover-foreground: 240 6% 93%;
-  /* Fill colour: white text on it passes AA (4.8:1). Text in this hue uses --rf-primary-text. */
-  --primary: 228 82% 60%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 240 4% 13%;
-  --secondary-foreground: 240 6% 93%;
-  --muted: 240 4% 12%;
-  --muted-foreground: 240 5% 64%;
-  --accent: 240 4% 13%;
-  --accent-foreground: 240 6% 93%;
-  --destructive: 0 72% 58%;
+  /* Anthracite at night, not black: chrome 11.8% < canvas 14.3% < card 18% < raised 21%,
+     with hairlines light enough to read, so panels separate without shadows. */
+  --background: 200 12.3% 14.3%;
+  --foreground: 192 12.2% 92%;
+  --card: 200 13% 18%;
+  --card-foreground: 192 12.2% 92%;
+  --popover: 198 12.1% 21%;
+  --popover-foreground: 192 12.2% 92%;
+  /* Fill colour from the accent palette; text in this hue uses --rf-primary-text. */
+  --primary: var(--acc-primary);
+  --primary-foreground: var(--acc-primary-fg);
+  --secondary: 200 12.2% 19.2%;
+  --secondary-foreground: 192 12.2% 92%;
+  --muted: 200 12.2% 19.2%;
+  --muted-foreground: 199 9.9% 68.2%;
+  --accent: 198 12.1% 21%;
+  --accent-foreground: 192 12.2% 92%;
+  --destructive: 0 65% 55%;
   --destructive-foreground: 0 0% 100%;
-  --border: 240 4% 16%;
-  --input: 240 4% 21%;
-  --ring: 228 100% 72%;
-  --rf-primary-text: 228 100% 77%;
+  --border: 202 12.1% 25.9%;
+  --input: 204 12.5% 31.4%;
+  --ring: var(--acc-text);
+  --rf-primary-text: var(--acc-text);
 
-  --rf-ink: 0 0% 98%;
-  --rf-ink-foreground: 240 8% 7%;
-  --rf-bg: #0d0d0f;
-  --rf-bg-muted: #121214;
-  --rf-surface: #151517;
-  --rf-surface-soft: #19191c;
-  --rf-border: #28282c;
-  --rf-text: #ececee;
-  --rf-text-muted: #9d9da6;
-  --rf-accent: #8aa1ff;
-  --rf-accent-strong: #aebdff;
-  --rf-brand-50: #141a30;
-  --rf-brand-100: #1a2342;
-  --rf-brand-500: #6682ff;
-  --rf-brand-600: #4567ed;
-  --rf-brand-700: #8aa1ff;
-  --rf-brand-900: #dfe6ff;
-  --rf-success: #4ade80;
-  --rf-warning: #fbbf24;
-  --rf-danger: #f87171;
-  --rf-focus-ring: hsl(228 100% 72% / 30%);
-  --rf-shadow-soft: inset 0 1px 0 rgb(255 255 255 / 3%);
-  --rf-shadow: inset 0 1px 0 rgb(255 255 255 / 4%), 0 16px 40px -20px rgb(0 0 0 / 85%);
+  /* Ink buttons and avatars become a raised anthracite, not a glaring white block. */
+  --rf-ink: 202 12.1% 30%;
+  --rf-ink-foreground: 0 0% 100%;
+  --rf-mark: var(--acc-mark);
+  --rf-bg: #202629;
+  --rf-bg-muted: #2b3337;
+  --rf-surface: #283034;
+  --rf-surface-soft: #2b3337;
+  --rf-border: #3a444a;
+  --rf-text: #e8eced;
+  --rf-text-muted: #a6b1b6;
+  --rf-accent: hsl(var(--acc-text));
+  --rf-accent-strong: hsl(var(--acc-text));
+  --rf-brand-50: #2a373d;
+  --rf-brand-100: #34444b;
+  --rf-brand-500: #8297a0;
+  --rf-brand-600: #627a85;
+  --rf-brand-700: #a8b7bd;
+  --rf-brand-900: #e3e9eb;
+  --rf-success: #6fd3a0;
+  --rf-warning: #e9b86b;
+  --rf-danger: #f29a90;
+  --rf-focus-ring: hsl(var(--acc-text) / 30%);
+  --rf-shadow-soft: none;
+  --rf-shadow: inset 0 1px 0 rgb(255 255 255 / 4%), 0 18px 40px -22px rgb(0 0 0 / 70%);
+}
+
+/* ---------- Accent: anodised bronze ----------
+ * One accent drives buttons, links, focus rings, the active menu line and the call to
+ * action: the bronze of anodised aluminium, warm against the cold anthracite.
+ *   --acc-primary / -fg : fill colour of primary buttons and its text (HSL channels)
+ *   --acc-text          : the accent as text, links and rings on the page (HSL channels)
+ *   --acc-mark          : small markers on page surfaces
+ *   --acc-chrome        : the accent on anthracite chrome (menu line, strip)
+ *   --acc-cta / -fg     : call-to-action button on anthracite
+ */
+:root {
+  --acc-primary: 29 38.5% 35.7%; --acc-primary-fg: 0 0% 100%; --acc-text: 29 38.5% 35.7%;
+  --acc-mark: #7e5a38; --acc-chrome: #c9a07a; --acc-cta: #b48960; --acc-cta-fg: #1e2427;
+}
+html.dark {
+  --acc-primary: 29 35.9% 54.1%; --acc-primary-fg: 200 13% 13.5%; --acc-text: 30 48.1% 69%;
+  --acc-mark: #d6b08a;
 }
 
 /* Links and accent text: a lighter tint of the fill so it reads on dark surfaces (7.5:1). */
@@ -122,11 +147,16 @@ html { color-scheme: light; }
 html.dark { color-scheme: dark; }
 body {
   background: hsl(var(--background));
-  letter-spacing: -0.011em;
-  font-feature-settings: 'ss01', 'cv11';
+  letter-spacing: 0;
   text-rendering: optimizeLegibility;
 }
-::selection { background: hsl(var(--primary) / 18%); }
+/* Headings in wide Archivo: the one typographic voice of the brand. */
+h1, h2, .rf-page-title, .font-display {
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  font-stretch: 112%;
+  letter-spacing: -0.02em;
+}
+::selection { background: hsl(var(--primary) / 22%); }
 .font-mono, code, kbd { font-family: var(--font-mono), ui-monospace, monospace; }
 
 .rf-app-shell,
@@ -139,7 +169,7 @@ body {
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: hsl(var(--rf-ink));
   color: hsl(var(--rf-ink-foreground));
 }
@@ -182,12 +212,40 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 .rf-metric::before { display: none; }
 .rf-metric:hover { border-color: hsl(var(--foreground) / 18%); }
 .rf-metric-value {
-  font-size: 32px;
-  line-height: 1.1;
-  letter-spacing: -0.04em;
-  font-weight: 600;
+  font-family: var(--font-display), var(--font-sans), sans-serif;
+  font-stretch: 112%;
+  font-size: 34px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
+/* Related figures sit in one instrument panel, divided by hairlines, not in loose cards. */
+.rf-metric-strip {
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--rf-radius);
+  background: hsl(var(--border));
+}
+.rf-metric-strip > .rf-metric { border: 0; border-radius: 0; min-height: 124px; }
+.rf-metric-strip > a.rf-metric { box-shadow: inset 0 0 0 0 var(--rf-mark); transition: box-shadow 160ms var(--rf-ease), background-color 160ms; }
+.rf-metric-strip > a.rf-metric:hover { box-shadow: inset 0 3px 0 0 var(--rf-mark); background: hsl(var(--card)); }
+/* Shortcuts read as one tool rail. */
+.rf-toolbar { gap: 0; }
+.rf-toolbar-item {
+  display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0;
+  height: 36px; padding: 0 14px;
+  border: 1px solid hsl(var(--border)); margin-left: -1px;
+  background: hsl(var(--card)); color: hsl(var(--foreground));
+  font-size: 13px; font-weight: 500;
+  transition: background-color 140ms, color 140ms;
+}
+.rf-toolbar-item:first-child { margin-left: 0; border-radius: var(--rf-radius) 0 0 var(--rf-radius); }
+.rf-toolbar-item:last-child { border-radius: 0 var(--rf-radius) var(--rf-radius) 0; }
+.rf-toolbar-item svg { color: hsl(var(--muted-foreground)); }
+.rf-toolbar-item:hover { background: hsl(var(--accent)); }
+.rf-toolbar-item:hover svg { color: hsl(var(--rf-primary-text)); }
 
 /* ---------- Controls ---------- */
 
@@ -198,7 +256,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   gap: 0.45rem;
   padding: 0.55rem 0.9rem;
   border: 1px solid hsl(var(--primary));
-  border-radius: 8px;
+  border-radius: 6px;
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
   font-size: 13px;
@@ -215,7 +273,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  border-radius: 8px;
+  border-radius: 6px;
   background: hsl(var(--rf-ink));
   color: hsl(var(--rf-ink-foreground));
   font-weight: 550;
@@ -231,7 +289,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   gap: 0.45rem;
   padding: 0.55rem 0.85rem;
   border: 1px solid hsl(var(--border));
-  border-radius: 8px;
+  border-radius: 6px;
   background: hsl(var(--card));
   color: hsl(var(--foreground));
   font-size: 13px;
@@ -251,7 +309,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 .rf-dashboard-shell textarea {
   border: 1px solid hsl(var(--input));
   background-color: hsl(var(--card));
-  border-radius: 8px;
+  border-radius: 6px;
   color: hsl(var(--foreground));
   font-size: 13px;
   transition: border-color 140ms, box-shadow 140ms;
@@ -292,8 +350,8 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   margin-top: 4px;
   font-size: clamp(24px, 2.2vw, 30px);
   line-height: 1.15;
-  letter-spacing: -0.035em;
-  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-weight: 650;
 }
 .rf-section-title { font-size: 14px; font-weight: 600; letter-spacing: -0.015em; }
 
@@ -302,12 +360,12 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 .rf-tabs button:hover { color: hsl(var(--foreground)); }
 .rf-tabs button[aria-pressed='true']::after { height: 2px; border-radius: 2px 2px 0 0; background: hsl(var(--foreground)); }
 
-.rf-module-nav { gap: 2px; padding: 3px; border-radius: 9px; background: hsl(var(--muted)); border: 1px solid hsl(var(--border)); }
-.rf-module-nav a { border-radius: 6px; padding: 8px 12px; transition: background 140ms, color 140ms; }
+.rf-module-nav { gap: 2px; padding: 3px; border-radius: 7px; background: hsl(var(--muted)); border: 1px solid hsl(var(--border)); }
+.rf-module-nav a { border-radius: 4px; padding: 8px 12px; transition: background 140ms, color 140ms; }
 .rf-module-nav a:hover { color: hsl(var(--foreground)); }
 .rf-module-nav a[aria-current='page'] { background: hsl(var(--card)); color: hsl(var(--foreground)); box-shadow: 0 1px 2px rgb(17 17 19 / 8%), 0 0 0 1px hsl(var(--border)); }
 
-.rf-alert { border-radius: 10px; border-color: hsl(38 92% 50% / 30%); background: hsl(48 96% 89% / 45%); color: #854d0e; }
+.rf-alert { border-radius: 6px; border-color: hsl(38 92% 50% / 30%); background: hsl(48 96% 89% / 45%); color: #854d0e; }
 .dark .rf-alert { border-color: hsl(38 92% 50% / 25%); background: hsl(38 92% 50% / 8%); color: #fcd34d; }
 
 .rf-chip {
@@ -340,40 +398,47 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 .rf-dashboard-shell,
 .dark .rf-dashboard-shell { background: hsl(var(--background)); }
 
-/* Light sidebar in light mode, near-black in dark mode: chrome follows the theme. */
+/* Anthracite rail in both themes: the frame colour of the product, and a clear edge
+   between navigation and work. A light capri line marks where you are. */
 .rf-sidebar,
 .rf-dashboard-shell .rf-sidebar {
-  --sb-bg: #f7f7f8;
-  --sb-fg: #18181b;
-  --sb-muted: #6b6b73;
-  --sb-hover: rgb(24 24 27 / 5%);
-  --sb-active: #ffffff;
-  --sb-line: #e4e4e7;
+  --sb-bg: #2a3134;
+  --sb-fg: #eef0f0;
+  --sb-muted: #a9b2b6;
+  --sb-hover: rgb(255 255 255 / 6%);
+  --sb-active: rgb(255 255 255 / 9%);
+  --sb-line: rgb(255 255 255 / 9%);
+  --sb-mark: var(--acc-chrome);
   background: var(--sb-bg);
   color: var(--sb-fg);
-  border-right: 1px solid var(--sb-line);
+  border-right: 1px solid #1f2528;
   box-shadow: none;
+  color-scheme: dark;
 }
 .dark .rf-sidebar,
 .dark .rf-dashboard-shell .rf-sidebar {
-  --sb-bg: #0a0a0b;
-  --sb-fg: #ececee;
-  --sb-muted: #91919a;
-  --sb-hover: rgb(255 255 255 / 4.5%);
-  --sb-active: #18181b;
-  --sb-line: #1c1c20;
+  --sb-bg: #1a1f22;
+  --sb-hover: rgb(255 255 255 / 5%);
+  --sb-active: rgb(255 255 255 / 7.5%);
+  --sb-line: rgb(255 255 255 / 7%);
+  border-right-color: #2b3337;
 }
+.rf-sidebar [data-brand] { color: var(--sb-fg); }
 .rf-sidebar .sb-muted { color: var(--sb-muted); }
 .rf-sidebar .sb-line { border-color: var(--sb-line); }
 .rf-sidebar .sb-hover:hover { background: var(--sb-hover); color: var(--sb-fg); }
-.rf-nav-item { color: var(--sb-muted); border-radius: 7px; transition: background 120ms, color 120ms; }
+.rf-sidebar :focus-visible { outline: 2px solid var(--sb-mark); outline-offset: -2px; }
+.rf-nav-item { color: var(--sb-muted); border-radius: 4px; transition: background 120ms, color 120ms; }
 .rf-nav-item:hover { background: var(--sb-hover); color: var(--sb-fg); }
 .rf-nav-active,
 .rf-dashboard-shell .rf-nav-active { color: var(--sb-fg); background: transparent; box-shadow: none; }
 .rf-nav-active:hover { background: transparent; }
-.rf-nav-pill { background: var(--sb-active); box-shadow: 0 0 0 1px var(--sb-line), 0 1px 2px rgb(17 17 19 / 5%); }
+.rf-nav-pill { background: var(--sb-active); box-shadow: inset 3px 0 0 var(--sb-mark); }
 /* Mobile drawer has no sliding pill; give the active row the same surface. */
-.rf-nav-active:not(:has(.rf-nav-pill)) { background: var(--sb-active); box-shadow: 0 0 0 1px var(--sb-line); }
+.rf-nav-active:not(:has(.rf-nav-pill)) { background: var(--sb-active); box-shadow: inset 3px 0 0 var(--sb-mark); }
+/* The RAL strip: the firm's most used frame colours, the brand's one decorative device. */
+.rf-ral-strip { display: flex; height: 3px; }
+.rf-ral-strip > span { flex: 1; }
 
 @keyframes rf-ic-nudge { 40% { transform: translateY(-2px); } }
 @keyframes rf-ic-drive { 30% { transform: translateX(3px); } 60% { transform: translateX(-1px); } }
@@ -396,7 +461,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 .rf-nav-active::before,
 .rf-dashboard-shell .rf-nav-active::before { display: none; }
 .rf-nav-active svg,
-.rf-dashboard-shell .rf-nav-active svg { color: hsl(var(--primary)); }
+.rf-dashboard-shell .rf-nav-active svg { color: var(--sb-mark); }
 
 .rf-workspace-header {
   background: hsl(var(--background) / 85%);
@@ -405,10 +470,10 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   border-bottom: 1px solid hsl(var(--border));
   box-shadow: none;
 }
-.rf-global-search { border-radius: 8px; transition: border-color 140ms, background-color 140ms; }
+.rf-global-search { border-radius: 6px; transition: border-color 140ms, background-color 140ms; }
 .rf-global-search:hover { border-color: hsl(var(--foreground) / 20%); }
 
-.rf-result-icon { border-radius: 8px; color: hsl(var(--foreground)); background: hsl(var(--muted)); border: 1px solid hsl(var(--border)); box-shadow: none; }
+.rf-result-icon { border-radius: 6px; color: hsl(var(--foreground)); background: hsl(var(--muted)); border: 1px solid hsl(var(--border)); box-shadow: none; }
 .rf-quick-operations a { border-radius: var(--rf-radius); box-shadow: var(--rf-shadow-soft); transition: border-color 160ms var(--rf-ease); }
 .rf-quick-operations a:hover { border-color: hsl(var(--foreground) / 18%); }
 .rf-workspace-footer { font-family: var(--font-mono), monospace; font-size: 10.5px; letter-spacing: 0.01em; }
@@ -492,3 +557,64 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 .dark :is(.text-slate-500, .text-gray-500, .text-zinc-500, .text-neutral-500):not([class*='dark:text-']) {
   color: hsl(var(--muted-foreground));
 }
+
+/* ---------- Brand chrome: anthracite surfaces (site header, landing hero) ---------- */
+
+.rf-chrome,
+.rf-site-header {
+  --chrome-bg: #2a3134;
+  --chrome-fg: #f3f5f5;
+  --chrome-muted: #b4bcc0;
+  --chrome-line: rgb(255 255 255 / 11%);
+  --rf-mark: var(--acc-chrome);
+  background: var(--chrome-bg);
+  color: var(--chrome-fg);
+  color-scheme: dark;
+}
+.dark .rf-chrome,
+.dark .rf-site-header { --chrome-bg: #1a1f22; --chrome-line: rgb(255 255 255 / 9%); }
+.rf-chrome [data-brand],
+.rf-site-header [data-brand] { color: var(--chrome-fg); }
+.rf-chrome :focus-visible,
+.rf-site-header :focus-visible { outline: 2px solid var(--rf-mark); outline-offset: 2px; }
+
+/* Drafting grid of a technical drawing, faded toward the edges. */
+.rf-blueprint {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 5%) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 5%) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse at 70% 40%, #000 20%, transparent 75%);
+  mask-image: radial-gradient(ellipse at 70% 40%, #000 20%, transparent 75%);
+}
+
+/* The call to action on anthracite, in the accent colour. */
+.rf-accent-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+  border-radius: 4px;
+  background: var(--acc-cta);
+  color: var(--acc-cta-fg);
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 14%);
+  transition: filter 140ms, transform 120ms var(--rf-ease);
+}
+.rf-accent-button:hover { filter: brightness(1.08); }
+.rf-accent-button:active { transform: translateY(0.5px); }
+
+.rf-chrome-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+  border-radius: 4px;
+  border: 1px solid rgb(255 255 255 / 22%);
+  color: var(--chrome-fg);
+  font-weight: 500;
+  transition: background-color 140ms, border-color 140ms;
+}
+.rf-chrome-button:hover { background: rgb(255 255 255 / 7%); border-color: rgb(255 255 255 / 35%); }
+
+.rf-site-header { border-bottom: 1px solid var(--chrome-line); }
+.rf-site-header .rf-icon-button { color: var(--chrome-muted); }
+.rf-site-header .rf-icon-button:hover { background: rgb(255 255 255 / 7%); color: var(--chrome-fg); }
+
+/* Section marker: a small capri square before a short plain label. */
+.rf-marker { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; color: hsl(var(--muted-foreground)); }
+.rf-marker::before { content: ''; width: 8px; height: 8px; background: var(--rf-mark); flex-shrink: 0; }
