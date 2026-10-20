@@ -315,6 +315,18 @@ export async function resolveOrderQrToken(token: string): Promise<ResolvedOrderQ
       throw new Error('QR token geçersiz, pasif veya süresi dolmuş');
     }
 
+    const orderId = String(row.order_id);
+    // A worker sees an order only when they work on it — the same boundary as executeOrderQrAction,
+    // so a scanned token cannot disclose another order's customer identity.
+    if (
+      context.role === 'worker' &&
+      !(
+        await sql`SELECT id FROM work_orders w WHERE w.tenant_id=${context.tenantId} AND w.order_id=${orderId} AND (w.assigned_to=${context.userId} OR EXISTS(SELECT 1 FROM production_operations p WHERE p.work_order_id=w.id AND p.tenant_id=${context.tenantId} AND p.assigned_to=${context.userId}))`
+      ).length
+    ) {
+      throw new Error('Bu sipariş size atanmamış');
+    }
+
     const tokenActions = parseAllowedActions(row.allowed_actions);
     const allowedActions = tokenActions.filter((actionKey) => {
       const definition = getOrderQrActionDefinition(actionKey);
