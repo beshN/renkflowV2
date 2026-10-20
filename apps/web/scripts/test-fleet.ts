@@ -72,14 +72,18 @@ async function main() {
   const device = await fleet.createDevice(owner, v.id, { label: 'Test cihazı' });
   const [stored] = await db`SELECT token_hash FROM vehicle_devices WHERE id = ${device.id}`;
   assert.notEqual(stored.token_hash, device.token);
-  const now = Date.now();
+  // The route is read per Istanbul day: just after midnight, points from the last hour would
+  // straddle two days, so start them before midnight then.
+  const [hh, mm] = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date()).split(':').map(Number);
+  const minutesIntoDay = hh * 60 + mm;
+  const now = Date.now() - (minutesIntoDay < 65 ? (minutesIntoDay + 5) * 60_000 : 0);
   const t = (min: number) => new Date(now - min * 60_000).toISOString();
   const positions = [
     { t: t(60), lat: 41.0, lng: 29.0, speed: 0, ignition: true, odometer: 82010 },
     { t: t(50), lat: 41.03, lng: 29.0, speed: 40, ignition: true },
     { t: t(40), lat: 41.06, lng: 29.0, speed: 40, ignition: true, odometer: 82017 },
     { t: t(30), lat: 0, lng: 0 },
-    { t: new Date(now + 3_600_000).toISOString(), lat: 41, lng: 29 },
+    { t: new Date(Date.now() + 3_600_000).toISOString(), lat: 41, lng: 29 },
   ];
   const r1 = await fleet.ingestTelemetry(device.token, { positions });
   assert.deepEqual([r1.stored, r1.rejected], [3, { koordinat: 1, 'gelecek zaman': 1 }]);
