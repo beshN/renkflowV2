@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, ArrowUpRight, Check, FileText, Lock, ScrollText, ShieldCheck, Users } from 'lucide-react';
 import { Reveal, Stagger, StaggerItem } from '@/components/motion';
+import { CutDemo } from './CutDemo';
 import { CuttingMock, FinanceMock, WarehouseMock, WorkspaceMock } from './ProductMocks';
 import { ProfileDrawing } from '@/components/brand/ProfileDrawing';
 
@@ -16,8 +17,8 @@ const FEATURES = [
   {
     eyebrow: 'Kesim ve üretim',
     title: 'Her profil boyu, planlanmış bir kesim.',
-    body: 'Her proje kendi ölçüsüyle gelir. Siparişteki ölçülerden kesim listesi çıkar; parçalar stoktaki farklı boylara ve önceki işlerden kalan artıklara yerleştirilir. Kullanılabilir artık ölçüsüyle stoğa geri yazılır.',
-    points: ['Farklı boylardan kesim planı', 'Artık parçaların ölçüsüyle takibi', 'Usta için kesim listesi'],
+    body: 'Sipariş föyünü yüklediğinizde kesim listesi okunur. Parçalar önce depodaki artıklara, kalanı tam çubuklara yerleştirilir; ne kadar fire çıkacağı ve neyin satın alınacağı görünür. Kullanılabilir artık ölçüsüyle stoğa geri yazılır.',
+    points: ['Föyden otomatik kesim listesi', 'Artık ve hurda boyların önce kullanılması', 'Fire ve satın alma önerisi'],
     mock: <CuttingMock />,
   },
   {
@@ -54,6 +55,7 @@ const TRUST = [
 const FAQ = [
   { q: 'Mevcut verilerimizi aktarabilir miyiz?', a: 'Müşteri, ürün ve stok listeleriniz Excel veya CSV dosyalarından içeri alınır. Aktarım sırasında ekibimiz yanınızda olur.' },
   { q: 'Standart ölçü olmayan projelerde nasıl çalışır?', a: 'RenkFlow ölçüye özel iş için tasarlandı. Her sipariş kendi ölçüleri, renk ve aksesuar bilgisiyle girilir; kesim listesi bu ölçülerden çıkar.' },
+  { q: 'Sipariş föyünü yükleyebilir miyim?', a: 'Föy PDF olarak yüklenir, parça listesi otomatik okunur ve okunan değerleri kontrol edebilirsiniz. Ardından depodaki artık ve hurda boylar da hesaba katılarak kesim planı çıkar.' },
   { q: 'Atölyede kimler kullanabilir?', a: 'Usta ekranı tablet ve telefonda çalışır. Üretim rolündeki kullanıcı yalnızca kendisine atanan işleri görür.' },
   { q: 'Kurulum ne kadar sürer?', a: 'Listelerinizin hazır olma durumuna göre ekipler genellikle birkaç gün içinde günlük işini RenkFlow’da yapmaya başlar.' },
   { q: 'Muhasebe programımızla çalışır mı?', a: 'Sipariş listesi ve raporlar CSV olarak dışa aktarılır; sürümlenmiş API (v1) ile entegrasyon kurulabilir. e-Fatura ve e-Arşiv gönderimi bu sürümde yok.' },
@@ -159,6 +161,11 @@ const ROLES = {
   Ofis: ['Siparişler', 'Teklifler', 'Sevkiyat', 'Müşteriler'],
   Muhasebe: ['Faturalar', 'Tahsilatlar', 'Raporlar'],
 } as const;
+const ROLE_NOTE = {
+  Usta: 'Yalnızca kendisine atanan işleri ve kesim listesini görür.',
+  Ofis: 'Talepten sevkiyata siparişin tüm akışını yönetir.',
+  Muhasebe: 'Tahsilat ve bakiyeyi sipariş bazında izler.',
+} as const;
 
 function useCycle(length: number, ms: number) {
   const reduce = useReducedMotion();
@@ -226,7 +233,8 @@ function RoleSwitcher() {
           </button>
         ))}
       </div>
-      <ul className="mt-4 space-y-1.5">
+      <p className="mt-3 min-h-10 text-[13px] leading-5 text-muted-foreground">{ROLE_NOTE[role]}</p>
+      <ul className="mt-2 space-y-1.5">
         <AnimatePresence mode="popLayout" initial={false}>
           {ROLES[role].map((item, index) => (
             <motion.li key={role + item} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25, delay: index * 0.04 }} className="flex items-center gap-2 text-[13px]"><span className="h-1 w-1 rounded-full bg-primary" />{item}</motion.li>
@@ -267,6 +275,21 @@ function Bento() {
         <Tile className="md:col-span-2" label="Tek kayıt" title="Sipariş bir kez girilir." detail="Kesimden tahsilata kadar her adım aynı kaydı kullanır."><div className="flex h-full items-center"><FlowChain /></div></Tile>
         <Tile className="md:col-span-2" label="Rol bazlı" title="Herkes kendi işini görür." detail="Usta, ofis ve muhasebe için ayrı, sade ekranlar."><RoleSwitcher /></Tile>
       </Stagger>
+    </section>
+  );
+}
+
+function CutSection() {
+  return (
+    <section className="border-y border-border bg-muted/30">
+      <div className="mx-auto max-w-6xl px-5 py-24 sm:px-8 md:py-32">
+        <Reveal className="max-w-2xl">
+          <p className="text-[13px] font-medium text-primary">Kesim planı</p>
+          <h2 className="mt-3 text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.04] tracking-[-0.04em]">Föyü yükleyin, hangi boydan ne kesileceğini görün.</h2>
+          <p className="mt-4 text-[16px] leading-7 text-muted-foreground">Sipariş föyü okunur, parçalar önce depodaki artıklara, kalanı tam çubuklara yerleşir. Aşağıdaki plan gerçek hesaplama motoruyla çalışır; boyları değiştirip deneyin.</p>
+        </Reveal>
+        <div className="mt-12"><CutDemo /></div>
+      </div>
     </section>
   );
 }
@@ -398,6 +421,7 @@ export function HomeLanding() {
       <Hero />
       <ModuleStrip />
       <Bento />
+      <CutSection />
       <FeatureRows />
       <Workflow />
       <Trust />

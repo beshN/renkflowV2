@@ -36,7 +36,7 @@ export function StockHeatmap() {
         )}
       </div>
       {!data ? <Skeleton className="h-40 w-full" /> : !view.colors.length ? <EmptyState title="Çubuk yok" /> : (
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Çubuk ısı haritası" className="overflow-x-auto">
           <table className="border-separate border-spacing-1 text-xs">
             <thead>
               <tr><th className="sr-only">Renk</th>{view.lengths.map((l) => <th key={l} className="px-1 text-right font-medium tabular-nums text-muted-foreground">{l.toLocaleString('tr-TR')}</th>)}</tr>

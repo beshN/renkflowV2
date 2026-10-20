@@ -15,7 +15,7 @@ export function Frame({ children, className, label = 'renkflow.app' }: { childre
       <div className="flex h-9 items-center gap-2 border-b border-border bg-muted/40 px-3.5">
         <span className="h-2.5 w-2.5 rounded-full bg-foreground/10" /><span className="h-2.5 w-2.5 rounded-full bg-foreground/10" /><span className="h-2.5 w-2.5 rounded-full bg-foreground/10" />
         <span className="mx-auto rounded-md bg-background px-3 py-0.5 font-mono text-[10.5px] text-muted-foreground">{label}</span>
-        <span className="shrink-0 whitespace-nowrap rounded bg-foreground/[0.06] px-1.5 py-0.5 text-[9.5px] font-medium text-muted-foreground">Örnek veri</span>
+        <span className="shrink-0 whitespace-nowrap rounded bg-foreground/[0.06] px-1.5 py-0.5 text-[9.5px] font-medium text-foreground/70">Örnek veri</span>
       </div>
       {children}
     </div>
@@ -120,7 +120,7 @@ export function CuttingMock() {
                     {cut}
                   </motion.div>
                 ))}
-                <div className="flex flex-1 items-center justify-center bg-[repeating-linear-gradient(135deg,transparent_0_4px,hsl(var(--foreground)/0.08)_4px_5px)] text-[9.5px] text-muted-foreground">{rest >= 500 ? 'stoğa' : ''}</div>
+                <div className="flex flex-1 items-center justify-center bg-[repeating-linear-gradient(135deg,transparent_0_4px,hsl(var(--foreground)/0.08)_4px_5px)] text-[9.5px] text-foreground/70">{rest >= 500 ? 'stoğa' : ''}</div>
               </div>
             </div>
           );
