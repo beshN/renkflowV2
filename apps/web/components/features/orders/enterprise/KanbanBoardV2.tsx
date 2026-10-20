@@ -545,7 +545,7 @@ export const KanbanBoardV2: React.FC<KanbanBoardV2Props> = ({
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 p-4 overflow-x-auto min-h-[600px]">
+        <div tabIndex={0} role="region" aria-label="Sipariş panosu" className="flex gap-4 p-4 overflow-x-auto min-h-[600px]">
           {columns.map((column) => (
             <KanbanColumn
               key={column.status}

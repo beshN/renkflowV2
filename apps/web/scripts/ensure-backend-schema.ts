@@ -167,6 +167,7 @@ export const BACKEND_MIGRATIONS = [
   '060_company_addresses.sql',
   '061_company_knowledge.sql',
   '062_station_devices.sql',
+  '063_hot_path_indexes.sql',
 ];
 
 /** Mobile API tables (sessions, offline receipts, uploads, push devices); applied after 045 (installations). */

@@ -99,7 +99,7 @@ export function RFKanbanView<T extends { id: string }>({
   }
 
   return (
-    <div className="flex h-full gap-4 overflow-x-auto pb-4 items-start min-h-[500px]">
+    <div tabIndex={0} role="region" aria-label="Kanban panosu" className="flex h-full gap-4 overflow-x-auto pb-4 items-start min-h-[500px]">
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
         {columns.map((col) => (
           <div key={col.id} className="flex-shrink-0 w-80 max-h-full flex flex-col rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">

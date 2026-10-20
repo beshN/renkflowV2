@@ -300,7 +300,7 @@ export function RFListView<T extends { id: string }>({
 
       {/* Table */}
       <div className="rf-table-container flex-1 overflow-hidden rounded-lg border border-border bg-card shadow-sm" aria-busy={isLoading}>
-        <div className="overflow-x-auto h-full">
+        <div tabIndex={0} role="region" aria-label="Liste tablosu" className="overflow-x-auto h-full">
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 bg-neutral-50/90 dark:bg-neutral-900/90 backdrop-blur-sm">
               <tr className="border-b border-neutral-200 dark:border-neutral-800">

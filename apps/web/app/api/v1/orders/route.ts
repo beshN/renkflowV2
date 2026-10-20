@@ -1,5 +1,6 @@
 import { redactedSuccess } from '@/lib/security/field-access.server';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
+import { requireSameOrigin } from '@/lib/features/manufacturing/http-security';
 import { visibleOrdersForActor } from '@/lib/features/orders/access';
 import { NextRequest } from 'next/server';
 import { getAPIUser, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
@@ -55,6 +56,7 @@ export async function POST(request: NextRequest) {
   let files: File[] = [];
   let references: z.infer<typeof UploadReferenceSchema>[] = [];
   try {
+    requireSameOrigin(request);
     const user = await getAPIUser(request);
     
     if (!user) {

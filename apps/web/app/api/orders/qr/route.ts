@@ -1,7 +1,6 @@
 import { redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
-import { hasPermission, type UserRole } from '@/lib/auth/permissions';
+import { AuthenticationError, AuthorizationError, getServerUserContext, requirePermission } from '@/lib/features/auth/serverAuth';
 import { sql } from '@/lib/db';
 import { resolveServerBaseUrl } from '@/lib/shared/config/runtime-env';
 import { z } from 'zod';
@@ -13,20 +12,21 @@ const QuerySchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return redactedJson({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const tenantId = (session.user as any).tenantId as string | undefined;
-  const role = ((session.user as any).role as UserRole | undefined) ?? 'member';
-
-  if (!tenantId) {
-    return redactedJson({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  if (!hasPermission(role, 'orders.qr.manage')) {
-    return redactedJson({ error: 'Forbidden' }, { status: 403 });
+  let tenantId: string;
+  try {
+    // Resolve the member's effective access (base role narrowed by a job preset or custom role)
+    // rather than trusting the session's base role: a narrowing role must also hold the permission.
+    const context = await getServerUserContext();
+    requirePermission(context, 'orders.qr.manage');
+    tenantId = context.tenantId;
+  } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return redactedJson({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof AuthorizationError) {
+      return redactedJson({ error: 'Forbidden' }, { status: 403 });
+    }
+    throw error;
   }
 
   const parsed = QuerySchema.safeParse({

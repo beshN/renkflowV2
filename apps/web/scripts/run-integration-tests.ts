@@ -28,13 +28,25 @@ function freePort(): Promise<number> {
   });
 }
 
-function run(command: string, args: string[], env: NodeJS.ProcessEnv): Promise<{ code: number; output: string }> {
+// A script that hangs is stopped and reported by name, instead of silently using up the CI step's time.
+const SCRIPT_TIMEOUT_MS = Number(process.env.RENKFLOW_TEST_SCRIPT_TIMEOUT_S || 180) * 1000;
+
+function run(command: string, args: string[], env: NodeJS.ProcessEnv, timeoutMs = SCRIPT_TIMEOUT_MS): Promise<{ code: number; output: string; timedOut: boolean }> {
   return new Promise((resolve) => {
     const child = spawn(command, args, { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
     let output = '';
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGTERM');
+      setTimeout(() => child.kill('SIGKILL'), 5_000).unref();
+    }, timeoutMs);
     child.stdout.on('data', (chunk) => (output += chunk));
     child.stderr.on('data', (chunk) => (output += chunk));
-    child.on('close', (code) => resolve({ code: code ?? 1, output }));
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      resolve({ code: timedOut ? 1 : code ?? 1, output: timedOut ? `${output}\n[timed out after ${timeoutMs / 1000} s]` : output, timedOut });
+    });
   });
 }
 
@@ -86,7 +98,7 @@ async function main() {
         console.log(`ok   ${script} (${seconds} s)`);
       } else {
         failures.push(script);
-        console.log(`FAIL ${script} (${seconds} s)\n${result.output.trim()}\n`);
+        console.log(`FAIL ${script} (${seconds} s${result.timedOut ? ', timed out' : ''})\n${result.output.trim()}\n`);
       }
     }
   } finally {
