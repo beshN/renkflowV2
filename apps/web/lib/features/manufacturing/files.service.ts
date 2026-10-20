@@ -36,7 +36,11 @@ export async function readProductionInput(actor: WorkOrderActor, input: Producti
 }
 export async function storeProductionFile(actor: WorkOrderActor, raw: unknown, bytes?: Buffer) {
   const d = ProductionFileSchema.parse(raw);
-  if (actor.role === "worker") {
+  if (actor.station) {
+    if (!d.workOrderId || !(await sql`SELECT id FROM production_operations WHERE tenant_id=${actor.tenantId} AND work_order_id=${d.workOrderId} AND work_center_code=${actor.station.workCenterCode}`).length)
+      throw new WorkOrderApiError("Bu iş istasyona ait değil",403);
+    if(d.mime==='application/pdf') throw new WorkOrderApiError("İstasyondan yalnız fotoğraf yüklenebilir",403);
+  } else if (actor.role === "worker") {
     if (
       !d.workOrderId ||
       !(

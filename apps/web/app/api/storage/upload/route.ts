@@ -1,3 +1,4 @@
+import { requireModuleAccess } from '@/lib/security/module-access.server';
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextRequest, NextResponse } from "next/server";
 import { ORDER_ALLOWED_FILE_TYPES } from "@/lib/features/orders/constants";
@@ -21,10 +22,12 @@ export async function POST(request: NextRequest) {
    onBeforeGenerateToken: async (pathname, payload) => {
     requireSameOriginJson(request, 32000);
     const actor = await requireWorkOrderActor();
-    const input = z.object({workOrderId:z.string().uuid().optional(),mime:z.enum(ORDER_ALLOWED_FILE_TYPES),purpose:z.enum(["production","order","finance","qr"]).default("production"),qrToken:z.string().min(32).max(200).optional()}).parse(JSON.parse(payload || "{}"));
+    const input = z.object({workOrderId:z.string().uuid().optional(),mime:z.enum(ORDER_ALLOWED_FILE_TYPES),purpose:z.enum(["production","order","finance","qr","knowledge"]).default("production"),qrToken:z.string().min(32).max(200).optional()}).parse(JSON.parse(payload || "{}"));
     const key = validateStorageKey(pathname);
     if (!key.startsWith(`uploads/${actor.tenantId}/${actor.userId}/`) || !/^[a-f0-9-]{36}$/.test(key.split('/').pop() || '')) throw new WorkOrderApiError("Geçersiz yükleme yolu",403);
-    if (input.purpose === "qr") {
+    if (input.purpose === "knowledge") {
+      await requireModuleAccess(actor,'knowledge','create');
+    } else if (input.purpose === "qr") {
       if(!input.qrToken || !hasPermission(actor.role,"orders.qr.photo") || (!input.mime.startsWith("image/") && input.mime!=="application/pdf")) throw new WorkOrderApiError("QR yükleme yetkisi yok",403);
       const [qr] = await sql`SELECT q.order_id,q.allowed_actions FROM order_qr_tokens q JOIN orders o ON o.id=q.order_id AND o.tenant_id=q.tenant_id WHERE q.tenant_id=${actor.tenantId} AND q.token=${input.qrToken} AND q.active=true AND (q.expires_at IS NULL OR q.expires_at>now())`;
       if(!qr || !Array.isArray(qr.allowed_actions) || !qr.allowed_actions.includes("photo.upload")) throw new WorkOrderApiError("QR yükleme yetkisi yok",403);

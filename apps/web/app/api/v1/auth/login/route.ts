@@ -1,3 +1,4 @@
+import { companyForHost } from '@/lib/features/company/host.server';
 import { NextRequest } from 'next/server';
 import { successResponse, errorResponse, handleCORS, generateAPIToken } from '@/lib/api/auth-helpers';
 import { getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
       return errorResponse('E-posta veya şifre hatalı', 401);
     }
 
+    const company = await companyForHost((request.headers.get('host') || new URL(request.url).host));
     // Find user
     const users = await sql`
       SELECT 
@@ -58,6 +60,8 @@ export async function POST(request: NextRequest) {
         SELECT tenant_id, role
         FROM tenant_members
         WHERE user_id = u.id
+        AND (${company?.id ?? null}::uuid IS NULL OR tenant_id=${company?.id ?? null}::uuid)
+        AND (to_jsonb(tenant_members)->>'deactivated_at') IS NULL
         ORDER BY
           CASE role
             WHEN 'owner' THEN 0
