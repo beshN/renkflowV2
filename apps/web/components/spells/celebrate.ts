@@ -13,7 +13,7 @@ export function celebrate(origin?: { x: number; y: number }) {
   layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden';
   document.body.appendChild(layer);
 
-  const tones = ['#c9ccd3', '#9ea3ad', '#e4e6ea', '#2f55f4', '#7b818c'];
+  const tones = ['#c9ccd3', '#9ea3ad', '#e4e6ea', '#626e75', '#7b818c'];
   const pieces = 26;
   let finished = 0;
   for (let i = 0; i < pieces; i += 1) {

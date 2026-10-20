@@ -1,5 +1,38 @@
 import type { Config } from "tailwindcss";
-import colors from "tailwindcss/colors";
+
+/** Anthracite grey scale; 950, 900 and 800 are the dark theme's canvas, card and hairline. */
+const anthracite = {
+  50: "#f6f7f7",
+  100: "#edefef",
+  200: "#dce0e0",
+  300: "#c2c8ca",
+  400: "#a6b1b6",
+  500: "#626e75",
+  600: "#56626a",
+  700: "#4a555b",
+  800: "#3a444a",
+  900: "#283034",
+  950: "#202629",
+};
+
+/**
+ * Steel: a desaturated, anthracite-hued blue-grey. Older screens' blue/sky/indigo
+ * utilities (info chips, links, step markers) resolve to it, so no bright blue is
+ * left in the product; the accent colour itself comes from the theme tokens.
+ */
+const steel = {
+  50: "#f1f4f5",
+  100: "#e3e9eb",
+  200: "#c9d3d7",
+  300: "#a8b7bd",
+  400: "#8297a0",
+  500: "#627a85",
+  600: "#4e6670",
+  700: "#40545c",
+  800: "#34444b",
+  900: "#2a373d",
+  950: "#1c2529",
+};
 
 const config: Config = {
   darkMode: ["class"],
@@ -20,15 +53,20 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
-        display: ["var(--font-sans)", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "var(--font-sans)", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
       },
       colors: {
-        // The design system is built on neutral greys. Blue-tinted slate/gray
-        // utilities left in older screens would show up as navy patches in dark
-        // mode, so both resolve to the same neutral scale as the theme tokens.
-        slate: colors.zinc,
-        gray: colors.zinc,
+        // Every grey in the product is the same anthracite scale as the theme
+        // tokens (RAL 7016 hue), so older screens written with slate/gray/zinc/
+        // neutral utilities match the chrome instead of showing foreign greys.
+        slate: anthracite,
+        gray: anthracite,
+        zinc: anthracite,
+        neutral: anthracite,
+        blue: steel,
+        sky: steel,
+        indigo: steel,
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -84,11 +122,14 @@ const config: Config = {
           gray6: "#F2F2F7",
         },
       },
+      // Crisp, machined corners: panels 6–10px, never pill-soft cards.
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-        "3xl": "1.5rem", // Commonly used in iOS
+        xl: "8px",
+        "2xl": "10px",
+        "3xl": "12px",
       },
       keyframes: {
         "accordion-down": {

@@ -6,17 +6,28 @@ import './globals.css'
 import '@/styles/workspace.css'
 import '@/styles/theme.css'
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Archivo, IBM_Plex_Mono, IBM_Plex_Sans } from 'next/font/google'
 import { ClientComponents } from '@/components/layout/ClientComponents'
 
-const geist = Geist({
+// Interface text: IBM Plex Sans, an engineered grotesque that reads well in dense tables.
+const plexSans = IBM_Plex_Sans({
   subsets: ['latin', 'latin-ext'],
   variable: '--font-sans',
   display: 'swap',
 })
 
-const geistMono = Geist_Mono({
+// Headings: Archivo set wide, the lettering of machine plates and profile catalogues.
+const archivo = Archivo({
   subsets: ['latin', 'latin-ext'],
+  axes: ['wdth'],
+  variable: '--font-display',
+  display: 'swap',
+})
+
+// Codes, lot numbers and measurements.
+const plexMono = IBM_Plex_Mono({
+  subsets: ['latin', 'latin-ext'],
+  weight: ['400', '500', '600'],
   variable: '--font-mono',
   display: 'swap',
 })
@@ -30,8 +41,8 @@ export const viewport: Viewport = {
   maximumScale: 5,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fbfbfb' },
-    { media: '(prefers-color-scheme: dark)', color: '#0d0d0f' },
+    { media: '(prefers-color-scheme: light)', color: '#f2f3f2' },
+    { media: '(prefers-color-scheme: dark)', color: '#16191b' },
   ],
 }
 
@@ -121,7 +132,7 @@ export default function RootLayout({
         <meta name="msapplication-TileColor" content="#111113" />
         <meta name="msapplication-TileImage" content="/brand/icon-192.png" />
       </head>
-      <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}>
+      <body className={`${plexSans.variable} ${archivo.variable} ${plexMono.variable} font-sans antialiased`}>
         <Providers>
           <ErrorBoundary>
             <SyncStatusBar />

@@ -10,6 +10,9 @@ import { ArrowRight, Menu, Moon, Sun, X } from 'lucide-react';
 import { BrandMark } from '@/components/brand/BrandMark';
 import { cn } from '@/lib/utils';
 
+/** RAL 9016, 9006, 7016 and 8017, then the accent colour, the brand strip shared with the workspace menu. */
+const RAL_STRIP = ['#f1f0ea', '#a5a8a6', '#4a5256', '#6b4a3a', 'var(--acc-chrome)'];
+
 export const SITE_NAV = [
   { label: 'Özellikler', href: '/features' },
   { label: 'Entegrasyonlar', href: '/integrations' },
@@ -44,14 +47,15 @@ export function SiteHeader() {
   useEffect(() => setOpen(false), [pathname]);
 
   return (
-    <header className={cn('sticky top-0 z-50 transition-[background-color,border-color,color] duration-200', scrolled ? 'border-b border-border bg-background/80 backdrop-blur-md' : 'border-b border-transparent')}>
+    <header className={cn('rf-site-header sticky top-0 z-50 transition-shadow duration-200', scrolled && 'shadow-[0_8px_24px_-16px_rgb(0_0_0/0.6)]')}>
+      <div aria-hidden className="rf-ral-strip">{RAL_STRIP.map((c) => <span key={c} style={{ background: c }} />)}</div>
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-5 sm:px-8">
         <BrandMark href="/" />
         <nav aria-label="Ana menü" className="hidden items-center gap-1 md:flex">
           {SITE_NAV.map((item) => {
             const active = pathname === item.href;
             return (
-              <Link key={item.href} href={item.href} aria-current={active ? 'page' : undefined} className={cn('rounded-md px-3 py-1.5 text-[13.5px] transition-colors', active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>
+              <Link key={item.href} href={item.href} aria-current={active ? 'page' : undefined} className={cn('rounded-[4px] px-3 py-1.5 text-[13.5px] transition-colors', active ? 'text-[var(--chrome-fg)] shadow-[inset_0_-2px_0_var(--rf-mark)]' : 'text-[var(--chrome-muted)] hover:text-[var(--chrome-fg)]')}>
                 {item.label}
               </Link>
             );
@@ -59,10 +63,8 @@ export function SiteHeader() {
         </nav>
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
-          <Link href="/auth/login" className="hidden rounded-md px-3 py-1.5 text-[13.5px] text-muted-foreground transition-colors hover:text-foreground sm:block">Giriş yap</Link>
-          <Link href="/contact" className="rf-ink-button group h-8 whitespace-nowrap px-3.5 text-[13px] max-sm:!hidden">
-            Demo talep edin <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-          </Link>
+          <Link href="/auth/login" className="hidden rounded-[4px] px-3 py-1.5 text-[13.5px] text-[var(--chrome-muted)] transition-colors hover:text-[var(--chrome-fg)] sm:block">Giriş yap</Link>
+          <Link href="/contact" className="rf-accent-button h-8 whitespace-nowrap px-3.5 text-[13px] max-sm:!hidden">Demo talep edin</Link>
           <Dialog.Root open={open} onOpenChange={setOpen}>
             <Dialog.Trigger asChild>
               <button type="button" aria-label="Menüyü aç" className="rf-icon-button inline-flex h-8 w-8 items-center justify-center md:!hidden"><Menu size={18} /></button>

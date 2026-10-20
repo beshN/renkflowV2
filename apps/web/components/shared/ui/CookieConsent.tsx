@@ -86,15 +86,15 @@ export default function CookieConsent() {
           transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
           className="fixed bottom-4 left-4 z-50 w-[calc(100vw-2rem)] max-w-[380px] print:hidden"
         >
-          <div className="rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-[0_16px_40px_-16px_rgb(17_17_19/0.25)]">
-            <div className="flex items-center gap-2 text-[13.5px] font-medium"><Cookie className="h-4 w-4 text-muted-foreground" />{text.title}</div>
-            <p className="mt-2 text-[12.5px] leading-5 text-muted-foreground">
+          <div className="rf-chrome rounded-[6px] border border-[var(--chrome-line)] p-4 shadow-[0_16px_40px_-16px_rgb(0_0_0/0.55)]">
+            <div className="flex items-center gap-2 text-[13.5px] font-medium"><Cookie className="h-4 w-4 text-[var(--chrome-muted)]" />{text.title}</div>
+            <p className="mt-2 text-[12.5px] leading-5 text-[var(--chrome-muted)]">
               {text.short}{" "}
-              <Link href="/cookies" className="text-foreground underline underline-offset-2">{text.policy}</Link>
+              <Link href="/cookies" className="text-[var(--chrome-fg)] underline underline-offset-2">{text.policy}</Link>
             </p>
             <div className="mt-4 flex gap-2">
-              <button onClick={acceptNecessary} className="rf-secondary-button h-8 flex-1 px-3 text-[12.5px]">{text.necessary}</button>
-              <button onClick={acceptAll} className="rf-ink-button h-8 flex-1 px-3 text-[12.5px]">{text.acceptAll}</button>
+              <button onClick={acceptNecessary} className="rf-chrome-button h-8 flex-1 px-3 text-[12.5px]">{text.necessary}</button>
+              <button onClick={acceptAll} className="rf-accent-button h-8 flex-1 px-3 text-[12.5px]">{text.acceptAll}</button>
             </div>
           </div>
         </motion.div>

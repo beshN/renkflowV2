@@ -33,13 +33,13 @@ function EventLog() {
     return () => clearInterval(timer);
   }, [reduce]);
   return (
-    <ol className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card text-[12.5px]" aria-label="Örnek operasyon akışı">
+    <ol className="divide-y divide-[var(--chrome-line)] overflow-hidden rounded-[6px] border border-[var(--chrome-line)] bg-white/[0.03] text-[12.5px]" aria-label="Örnek operasyon akışı">
       {EVENTS.slice(0, count).map(([time, ref, text, where], index) => (
         <motion.li key={ref + index} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: EASE }} className="flex items-center gap-3 px-4 py-2.5">
-          <span className="w-10 shrink-0 tabular-nums text-muted-foreground">{time}</span>
-          <span className="w-[68px] shrink-0 font-medium text-primary">{ref}</span>
+          <span className="w-10 shrink-0 font-mono tabular-nums text-[var(--chrome-muted)]">{time}</span>
+          <span className="w-[68px] shrink-0 font-mono font-medium text-[var(--rf-mark)]">{ref}</span>
           <span className="min-w-0 flex-1 truncate">{text}</span>
-          <span className="hidden shrink-0 text-muted-foreground xl:inline">{where}</span>
+          <span className="hidden shrink-0 text-[var(--chrome-muted)] xl:inline">{where}</span>
         </motion.li>
       ))}
     </ol>
@@ -48,28 +48,29 @@ function EventLog() {
 
 function Showcase() {
   return (
-    <aside className="relative hidden min-h-screen flex-col overflow-hidden border-r border-border bg-muted/40 px-12 py-10 lg:flex xl:px-16">
-      <BrandMark href="/" size="lg" className="w-fit" />
-      <div className="my-auto max-w-[500px] py-12">
-        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className="text-[13px] font-medium text-primary">Renk Alüminyum operasyon platformu</motion.p>
-        <motion.h1 initial={{ y: 10 }} animate={{ y: 0 }} transition={{ duration: 0.6, delay: 0.05, ease: EASE }} className="mt-4 text-[38px] font-semibold leading-[1.08] tracking-[-0.04em] xl:text-[44px]">
-          Ölçüye özel her proje, <span className="text-muted-foreground">tek bir çalışma alanında.</span>
+    <aside className="rf-chrome relative hidden min-h-screen flex-col overflow-hidden px-12 py-10 lg:flex xl:px-16">
+      <div aria-hidden className="rf-blueprint absolute inset-0" />
+      <BrandMark href="/" size="lg" className="relative w-fit" />
+      <div className="relative my-auto max-w-[500px] py-12">
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className="flex items-center gap-2.5 text-[13px] text-[var(--chrome-muted)]"><span aria-hidden className="h-2 w-2 bg-[var(--rf-mark)]" />Renk Alüminyum operasyon platformu</motion.p>
+        <motion.h1 initial={{ y: 10 }} animate={{ y: 0 }} transition={{ duration: 0.6, delay: 0.05, ease: EASE }} className="mt-4 text-[36px] font-bold leading-[1.06] xl:text-[42px]">
+          Ölçüye özel her proje, tek bir çalışma alanında.
         </motion.h1>
 
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.12, ease: EASE }} className="mt-10 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--rf-shadow)]">
-          <Magnifier className="px-10 pb-3 pt-8 text-foreground/70" lens={<div className="px-10 pb-3 pt-8 text-foreground"><ProfileDrawing instant /></div>}><ProfileDrawing delay={0.4} /></Magnifier>
-          <div className="grid grid-cols-4 border-t border-border text-[12px]">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.12, ease: EASE }} className="mt-10 overflow-hidden rounded-[6px] border border-[var(--chrome-line)] [--rf-drawing-accent:var(--rf-mark)]">
+          <Magnifier className="px-10 pb-3 pt-8 text-white/75" lens={<div className="px-10 pb-3 pt-8 text-foreground"><ProfileDrawing instant /></div>}><ProfileDrawing delay={0.4} /></Magnifier>
+          <div className="grid grid-cols-4 border-t border-[var(--chrome-line)] text-[12px]">
             {[['Profil', '6017 · 100×150'], ['Kesit', 'A–A'], ['Ölçek', '1:1'], ['Revizyon', '03']].map(([label, value]) => (
-              <div key={label} className="border-r border-border px-4 py-3 last:border-r-0"><p className="text-[11px] text-muted-foreground">{label}</p><p className="mt-0.5 font-medium">{value}</p></div>
+              <div key={label} className="border-r border-[var(--chrome-line)] px-4 py-3 last:border-r-0"><p className="text-[11px] text-[var(--chrome-muted)]">{label}</p><p className="mt-0.5 whitespace-nowrap font-mono text-[11.5px] font-medium">{value}</p></div>
             ))}
           </div>
         </motion.div>
 
         <div className="mt-5"><EventLog /></div>
       </div>
-      <ul className="grid grid-cols-3 gap-6 border-t border-border pt-6">
+      <ul className="relative grid grid-cols-3 gap-6 border-t border-[var(--chrome-line)] pt-6">
         {POINTS.map(({ icon: Icon, label }) => (
-          <li key={label} className="flex items-start gap-2.5 text-[12.5px] leading-5 text-muted-foreground"><Icon size={15} strokeWidth={1.75} className="mt-0.5 shrink-0 text-foreground" />{label}</li>
+          <li key={label} className="flex items-start gap-2.5 text-[12.5px] leading-5 text-[var(--chrome-muted)]"><Icon size={15} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--rf-mark)]" />{label}</li>
         ))}
       </ul>
     </aside>
@@ -104,7 +105,7 @@ export function AuthShell({ eyebrow, title, description, icon, children, footer 
         >
           {icon && <div className="mb-6"><span className="rf-icon-chip !h-10 !w-10 !rounded-lg !text-foreground">{icon}</span></div>}
           {eyebrow && <p className="rf-eyebrow">{eyebrow}</p>}
-          <h2 className="mt-1.5 text-[28px] font-semibold leading-tight tracking-[-0.035em]">{title}</h2>
+          <h2 className="mt-1.5 text-[28px] font-bold leading-tight">{title}</h2>
           {description && <p className="mt-2.5 text-sm leading-6 text-muted-foreground">{description}</p>}
           <div className="mt-8">{children}</div>
           {footer && <div className="mt-8 border-t border-border pt-6 text-[13px] leading-6 text-muted-foreground">{footer}</div>}

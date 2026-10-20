@@ -8,7 +8,7 @@ import { ColorChip } from '@/components/colors/ColorSwatch';
 import { cn } from '@/lib/utils';
 
 // One colour per job, plus its number written on every piece, so colour is never the only cue.
-const JOB_COLORS = ['#2f55f4', '#0f766e', '#b45309', '#7c3aed', '#be123c', '#0369a1', '#4d7c0f', '#a21caf'];
+const JOB_COLORS = ['#4e6670', '#0f766e', '#b45309', '#7c3aed', '#be123c', '#6b4a3a', '#4d7c0f', '#a21caf'];
 
 type Job = { id: string; title: string; color?: string | null };
 

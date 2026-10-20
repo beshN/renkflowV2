@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
-import { ArrowRight, ArrowUpRight, Check, FileText, Lock, ScrollText, ShieldCheck, Users } from 'lucide-react';
+import { ArrowUpRight, Check, Lock, ScrollText, ShieldCheck, Users } from 'lucide-react';
 import { Reveal, Stagger, StaggerItem } from '@/components/motion';
 import { CutDemo } from './CutDemo';
 import { CuttingMock, FinanceMock, WarehouseMock, WorkspaceMock } from './ProductMocks';
@@ -105,31 +105,57 @@ function Showcase() {
   );
 }
 
+const SPEC = [
+  ['Kesim', 'Föyden kesim listesi; artık ve hurda boylar önce kullanılır'],
+  ['Teklif', 'Ölçü, renk ve aksesuarla teklif; müşteri bağlantıdan onaylar'],
+  ['Depo', 'Profil kodu, RAL rengi ve boy bazında stok ve paket etiketi'],
+  ['Tahsilat', 'Sipariş bazında bakiye; ofis ve atölye aynı kayıtta'],
+] as const;
+
 function Hero() {
   const reduce = useReducedMotion();
-  const rise = (delay: number) => ({ initial: reduce ? false : { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.7, delay, ease: EASE } });
   // Headline and copy are visible in the server-rendered first paint; they only drift into place.
   const settle = (delay: number) => ({ initial: reduce ? false : { y: 10 }, animate: { y: 0 }, transition: { duration: 0.7, delay, ease: EASE } });
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-background via-background to-muted/50">
-      <div className="relative mx-auto max-w-6xl px-5 pb-20 pt-16 sm:px-8 md:pb-28 md:pt-24">
-        <motion.div {...rise(0)}>
-          <Link href="/changelog" className="rf-chip transition-colors hover:text-foreground"><span className="rf-status-dot" aria-hidden /> Pergola ve cam sistemleri için geliştirildi <ArrowRight size={12} /></Link>
-        </motion.div>
-        <div className="mt-10 grid items-end gap-10 lg:grid-cols-[1.5fr_0.5fr]">
-          <motion.h1 {...settle(0)} className="text-[clamp(38px,5.2vw,68px)] font-semibold leading-[1.04] tracking-[-0.045em] [text-wrap:balance]">
-            <span className="block text-muted-foreground">Ölçüye özel her proje için</span><span className="block">tek operasyon altyapısı.</span>
-          </motion.h1>
-          <motion.div {...settle(0.06)} className="lg:pb-3">
-            <p className="text-[16px] leading-7 text-muted-foreground">Pergola, giyotin cam, tente ve tavan projelerinde teklif, kesim planı, depo ve tahsilat aynı veride. Ofis ve atölye her an aynı tabloya bakar.</p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/contact" className="rf-ink-button group h-11 px-5 text-[14px]">Demo talep edin <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" /></Link>
-              <Link href="/auth/login" className="rf-secondary-button h-11 px-5 text-[14px]">Giriş yap</Link>
-            </div>
+    <section className="rf-chrome relative overflow-hidden">
+      <div aria-hidden className="rf-blueprint absolute inset-0" />
+      <div className="relative mx-auto grid max-w-6xl gap-12 px-5 pb-20 pt-14 sm:px-8 md:pb-24 md:pt-20 lg:grid-cols-[1.2fr_0.8fr] lg:gap-8">
+        <div>
+          <motion.p {...settle(0)} className="flex items-center gap-2.5 text-[13px] text-[var(--chrome-muted)]"><span aria-hidden className="h-2 w-2 bg-[var(--rf-mark)]" />Pergola, giyotin cam ve tente üreticileri için</motion.p>
+          <motion.h1 {...settle(0.04)} className="mt-6 text-[clamp(34px,4.3vw,56px)] font-bold leading-[1.04] [text-wrap:balance]">Ölçüye özel her proje için tek operasyon altyapısı.</motion.h1>
+          <motion.p {...settle(0.08)} className="mt-6 max-w-xl text-[16.5px] leading-7 text-[var(--chrome-muted)]">Teklif, kesim planı, depo ve tahsilat aynı veride. Ofis ve atölye her an aynı tabloya bakar; föy yüklenir, kesim listesi hazır gelir.</motion.p>
+          <motion.div {...settle(0.12)} className="mt-9 flex flex-wrap gap-3">
+            <Link href="/contact" className="rf-accent-button h-11 px-5 text-[14px]">Demo talep edin</Link>
+            <Link href="/auth/login" className="rf-chrome-button h-11 px-5 text-[14px]">Giriş yap</Link>
           </motion.div>
+          <motion.dl {...settle(0.16)} className="mt-14 grid max-w-2xl border-t border-[var(--chrome-line)] sm:grid-cols-2">
+            {SPEC.map(([term, detail]) => (
+              <div key={term} className="border-b border-[var(--chrome-line)] py-4 sm:odd:pr-6 sm:even:border-l sm:even:pl-6">
+                <dt className="font-display text-[13px] font-semibold">{term}</dt>
+                <dd className="mt-1 text-[13.5px] leading-6 text-[var(--chrome-muted)]">{detail}</dd>
+              </div>
+            ))}
+          </motion.dl>
         </div>
-        <motion.div {...rise(0.24)} className="mt-16"><Showcase /></motion.div>
+        <div className="relative hidden lg:block">
+          <div className="sticky top-24 text-white/75 [--rf-drawing-accent:var(--rf-mark)]">
+            <ProfileDrawing delay={0.3} />
+            <p className="mt-2 text-center font-mono text-[11px] text-[var(--chrome-muted)]">Taşıyıcı profil kesiti · 100 × 150 mm · RAL 7016</p>
+          </div>
+        </div>
       </div>
+    </section>
+  );
+}
+
+function Tour() {
+  return (
+    <section className="mx-auto max-w-6xl px-5 pt-20 sm:px-8 md:pt-24">
+      <Reveal className="max-w-2xl">
+        <h2 className="text-[clamp(26px,3.2vw,40px)] font-bold leading-[1.06]">Her ekran, atölyenin diliyle.</h2>
+        <p className="mt-3 text-[16px] leading-7 text-muted-foreground">Sipariş listesinden depo rafına kadar ekipler aynı kayıtları görür.</p>
+      </Reveal>
+      <div className="mt-10"><Showcase /></div>
     </section>
   );
 }
@@ -263,8 +289,8 @@ function Bento() {
     <section className="mx-auto max-w-6xl px-5 py-24 sm:px-8 md:py-32">
       <Reveal className="flex flex-wrap items-end justify-between gap-6">
         <div className="max-w-2xl">
-          <p className="text-[13px] font-medium text-primary">Neden RenkFlow</p>
-          <h2 className="mt-3 text-[clamp(30px,4vw,52px)] font-semibold leading-[1.02] tracking-[-0.045em]">Defter, Excel ve mesaj gruplarında kaybolan bilgi <span className="text-muted-foreground">artık tek yerde.</span></h2>
+          <p className="rf-marker">Neden RenkFlow</p>
+          <h2 className="mt-3 text-[clamp(30px,4vw,52px)] font-bold leading-[1.02]">Defter, Excel ve mesaj gruplarında kaybolan bilgi artık tek yerde.</h2>
         </div>
         <Link href="/features" className="inline-flex items-center gap-1.5 text-[14px] font-medium hover:underline">Tüm özellikler <ArrowUpRight size={15} /></Link>
       </Reveal>
@@ -284,8 +310,8 @@ function CutSection() {
     <section className="border-y border-border bg-muted/30">
       <div className="mx-auto max-w-6xl px-5 py-24 sm:px-8 md:py-32">
         <Reveal className="max-w-2xl">
-          <p className="text-[13px] font-medium text-primary">Kesim planı</p>
-          <h2 className="mt-3 text-[clamp(28px,3.6vw,46px)] font-semibold leading-[1.04] tracking-[-0.04em]">Föyü yükleyin, hangi boydan ne kesileceğini görün.</h2>
+          <p className="rf-marker">Kesim planı</p>
+          <h2 className="mt-3 text-[clamp(28px,3.6vw,46px)] font-bold leading-[1.04]">Föyü yükleyin, hangi boydan ne kesileceğini görün.</h2>
           <p className="mt-4 text-[16px] leading-7 text-muted-foreground">Sipariş föyü okunur, parçalar önce depodaki artıklara, kalanı tam çubuklara yerleşir. Aşağıdaki plan gerçek hesaplama motoruyla çalışır; boyları değiştirip deneyin.</p>
         </Reveal>
         <div className="mt-12"><CutDemo /></div>
@@ -301,7 +327,7 @@ function FeatureRows() {
         <div key={feature.title} className="border-b border-border">
           <div className={`mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 sm:px-8 md:py-28 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20 ${index % 2 ? 'lg:[&>*:first-child]:order-2' : ''}`}>
             <Reveal>
-              <p className="text-[13px] font-medium text-primary">{feature.eyebrow}</p>
+              <p className="rf-marker">{feature.eyebrow}</p>
               <h2 className="mt-3 text-[clamp(26px,3vw,38px)] font-semibold leading-[1.1] tracking-[-0.035em]">{feature.title}</h2>
               <p className="mt-5 text-[15.5px] leading-7 text-muted-foreground">{feature.body}</p>
               <ul className="mt-7 space-y-3">
@@ -326,8 +352,8 @@ function Workflow() {
   return (
     <section className="mx-auto max-w-6xl px-5 py-24 sm:px-8 md:py-32">
       <Reveal className="max-w-2xl">
-        <p className="text-[13px] font-medium text-primary">İş akışı</p>
-        <h2 className="mt-3 text-[clamp(28px,3.6vw,44px)] font-semibold leading-[1.08] tracking-[-0.04em]">Bir siparişin yolculuğu, beş adımda.</h2>
+        <p className="rf-marker">İş akışı</p>
+        <h2 className="mt-3 text-[clamp(28px,3.6vw,44px)] font-bold leading-[1.08]">Bir siparişin yolculuğu, beş adımda.</h2>
       </Reveal>
       <div ref={ref} className="relative mt-16">
         <div aria-hidden className="absolute left-0 right-0 top-[15px] hidden h-px bg-border md:block" />
@@ -351,7 +377,7 @@ function Trust() {
     <section className="border-y border-border bg-muted/30">
       <div className="mx-auto grid max-w-6xl gap-14 px-5 py-24 sm:px-8 md:py-28 lg:grid-cols-[0.8fr_1.2fr]">
         <Reveal>
-          <p className="text-[13px] font-medium text-primary">Güvenlik</p>
+          <p className="rf-marker">Güvenlik</p>
           <h2 className="mt-3 text-[clamp(26px,3vw,38px)] font-semibold leading-[1.1] tracking-[-0.035em]">Verileriniz yalnızca yetkili kişilere açık.</h2>
           <p className="mt-5 text-[15.5px] leading-7 text-muted-foreground">Teklif fiyatlarınız, müşteri listeniz ve teknik çizimleriniz firmanızın en değerli bilgileri. RenkFlow her erişimi rol ve firma kimliğiyle sınırlar.</p>
           <Link href="/security" className="mt-7 inline-flex items-center gap-1.5 text-[14px] font-medium hover:underline">Güvenlik yaklaşımımız <ArrowUpRight size={15} /></Link>
@@ -374,7 +400,7 @@ function Faq() {
   return (
     <section className="mx-auto grid max-w-6xl gap-12 px-5 py-24 sm:px-8 md:py-32 lg:grid-cols-[0.8fr_1.2fr]">
       <Reveal>
-        <p className="text-[13px] font-medium text-primary">Sık sorulanlar</p>
+        <p className="rf-marker">Sık sorulanlar</p>
         <h2 className="mt-3 text-[clamp(26px,3vw,38px)] font-semibold leading-[1.1] tracking-[-0.035em]">Aklınıza takılanlar.</h2>
         <p className="mt-5 text-[15.5px] leading-7 text-muted-foreground">Başka bir sorunuz mu var? <Link href="/contact" className="text-foreground underline underline-offset-4">Bize yazın</Link>.</p>
       </Reveal>
@@ -397,17 +423,15 @@ function Faq() {
 
 function Closing() {
   return (
-    <section className="mx-auto max-w-6xl px-5 pb-24 sm:px-8">
-      <Reveal>
-        <div className="relative overflow-hidden rounded-2xl border border-border bg-muted/50 px-8 py-14 md:px-16 md:py-20">
-          <div className="relative max-w-2xl">
-            <FileText size={20} strokeWidth={1.75} className="text-muted-foreground" />
-            <h2 className="mt-6 text-[clamp(28px,3.6vw,44px)] font-semibold leading-[1.08] tracking-[-0.04em]">Kendi projelerinizle görmek ister misiniz?</h2>
-            <p className="mt-4 text-[16px] leading-7 text-muted-foreground">30 dakikalık bir görüşmede örnek bir projenizi keşiften montaja RenkFlow’da birlikte takip edelim.</p>
-            <div className="mt-9 flex flex-wrap gap-3">
-              <Link href="/contact" className="rf-ink-button group h-11 px-5 text-[14px]">Demo talep edin <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" /></Link>
-              <Link href="/auth/login" className="rf-secondary-button h-11 px-5 text-[14px]">Panele giriş yap</Link>
-            </div>
+    <section className="rf-chrome relative overflow-hidden">
+      <div aria-hidden className="rf-blueprint absolute inset-0" />
+      <Reveal className="relative mx-auto max-w-6xl px-5 py-20 sm:px-8 md:py-28">
+        <div className="max-w-2xl">
+          <h2 className="text-[clamp(28px,3.6vw,46px)] font-bold leading-[1.06]">Kendi projelerinizle görmek ister misiniz?</h2>
+          <p className="mt-4 text-[16px] leading-7 text-[var(--chrome-muted)]">30 dakikalık bir görüşmede örnek bir projenizi keşiften montaja RenkFlow’da birlikte takip edelim.</p>
+          <div className="mt-9 flex flex-wrap gap-3">
+            <Link href="/contact" className="rf-accent-button h-11 px-5 text-[14px]">Demo talep edin</Link>
+            <Link href="/auth/login" className="rf-chrome-button h-11 px-5 text-[14px]">Panele giriş yap</Link>
           </div>
         </div>
       </Reveal>
@@ -419,6 +443,7 @@ export function HomeLanding() {
   return (
     <>
       <Hero />
+      <Tour />
       <ModuleStrip />
       <Bento />
       <CutSection />

@@ -63,7 +63,7 @@ export function ProfileDrawing({ className, delay = 0.2, inView = false, instant
       </motion.g>
 
       {/* Screw ports */}
-      <motion.g variants={fade(1.3)} className="text-[hsl(var(--primary))]" stroke="currentColor" strokeWidth="1.4">
+      <motion.g variants={fade(1.3)} className="text-[color:var(--rf-drawing-accent,hsl(var(--primary)))]" stroke="currentColor" strokeWidth="1.4">
         <circle cx="132" cy="90" r="5" />
         <circle cx="187" cy="90" r="5" />
         <circle cx="132" cy="164" r="5" />
