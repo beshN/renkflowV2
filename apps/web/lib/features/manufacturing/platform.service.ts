@@ -254,13 +254,15 @@ export async function productionCommand(a: WorkOrderActor, raw: unknown) {
     })
     .parse(raw);
   if(a.role==='worker' && !command.action.startsWith('warehouse.') && !['operation','cut.complete','shipment.create','shipment.delivered'].includes(command.action)) fail('Bu işlem Usta ekranında kullanılamaz',403);
-  if(['operation','cut.complete','shipment.create','shipment.delivered'].includes(command.action))await requireCap(a,'production','edit','Günlük üretim kaydı');
+  const dailyRecord=['operation','cut.complete','shipment.create','shipment.delivered'].includes(command.action);
   const hash = createHash("sha256").update(js(command)).digest("hex");
   // A dropped database connection (restart, network) fails the command before or after its commit.
   // The command id makes a second run safe: either it was not stored and runs now, or it was and its
   // stored result is returned. So connection-level failures are retried here, not shown to the user.
   for (let attempt = 1; ; attempt++) {
     try {
+      // The permission read is retried with the command: it can meet the same dropped connection.
+      if(dailyRecord)await requireCap(a,'production','edit','Günlük üretim kaydı');
       return await runProductionCommand(a, command, hash);
     } catch (error) {
       if (attempt >= 3 || !isConnectionLoss(error)) throw error;

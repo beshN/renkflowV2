@@ -340,7 +340,9 @@ export class PostgresQuotationService implements IQuotationService {
    * (a manager sending it approves it by doing so, on the record).
    */
   private async checkSend(tx: any, tenantId: string, q: any, actorId?: string, actorRole?: string) {
-    const settings = await getQuoteSettings(tenantId);
+    // Read on the transaction's own connection: a second pool connection while this one is held
+    // starves the pool when many quotes are sent at once.
+    const settings = await getQuoteSettings(tenantId, tx);
     const items = await tx`SELECT quantity,unit_price,discount_percent FROM quotation_items WHERE tenant_id=${tenantId} AND quotation_id=${q.id}`;
     const today = istanbulToday();
     const validUntil = q.valid_until ? new Date(q.valid_until).toISOString().slice(0, 10) : null;

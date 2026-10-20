@@ -34,10 +34,9 @@ round trips were verified on the isolated local database. Component tests
 cover empty-column drops, order indexes, rollback, block reasons, filters,
 read-only access and preserving unsaved text during checklist changes.
 
-Local PostgreSQL for these scripts uses port 55439 and renkflow_kanban_test.
-With that isolated cluster running, run scripts/setup-kanban-test-db.ts then
-tsx --require ./scripts/register-server-only.cjs scripts/test-kanban.ts.
-They never read a supplied production DATABASE_URL.
+scripts/test-kanban.ts runs with the other integration scripts on the runner's
+disposable local database: npm run test:integration -- kanban. It never reads a
+supplied production DATABASE_URL.
 
 Fresh visual browser verification was unavailable: Browser Use refused access
 because its admin-enforced policy could not be verified. No browser controls

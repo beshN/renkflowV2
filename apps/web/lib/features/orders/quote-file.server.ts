@@ -72,9 +72,11 @@ export async function acceptQuoteFile(
 export async function requireCommercialApproval(
   tx: any,
   tenantId: string,
-  orderId: string,
+  orderId: string | null | undefined,
   allowHeld = false,
 ) {
+  // A work order without an order (internal or older jobs) has no commercial approval to wait for.
+  if (!orderId) return;
   if (!(await columnExists("orders", "quotation_id"))) return;
   const [o] =
     await tx`SELECT provisional,quotation_id,accepted_quotation_revision,status FROM orders WHERE tenant_id=${tenantId} AND id=${orderId}`;

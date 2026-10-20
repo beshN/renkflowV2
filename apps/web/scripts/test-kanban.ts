@@ -1,15 +1,16 @@
-/** Full persistence checks against an explicitly isolated local database. */
+/** Full persistence checks against the integration runner's disposable local database. */
 import assert from 'node:assert/strict';
 import postgres from 'postgres';
 import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import bcrypt from 'bcryptjs';
+import { localTestDatabaseURL } from './local-test-database';
 async function main() {
  process.env.AUTH_SECRET='kanban-local-test-secret-never-production-20261013';
- process.env.DATABASE_URL='postgres://postgres@127.0.0.1:55439/renkflow_kanban_test';
+ process.env.DATABASE_URL=localTestDatabaseURL(); process.env.ALLOW_LOCAL_DATABASE='1';
  process.env.STORAGE_BACKEND='local';
  const db=postgres(process.env.DATABASE_URL,{onnotice:()=>{}});
- assert.equal((await db`SELECT current_database() AS name`)[0].name,'renkflow_kanban_test');
+ assert.equal((await db`SELECT current_database() AS name`)[0].name,'renkflow_test');
  const service=await import('../lib/features/work-orders/service');
  const { requireWorkOrderPermission }=await import('../lib/features/work-orders/security');
  const { effectiveAccess }=await import('../lib/security/access-matrix');
