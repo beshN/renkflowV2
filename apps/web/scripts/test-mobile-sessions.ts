@@ -22,6 +22,10 @@ async function main() {
  auth=await login();token=auth.accessToken;let listed=await call('auth/devices');assert(listed.devices.some((x:any)=>x.id===auth.sessionId&&!x.revoked));assert(!JSON.stringify(listed).includes(auth.refreshToken));
  await db`UPDATE user_sessions SET revoked_at=now() WHERE id=${auth.sessionId}`;await call('auth/me',undefined,401);await call('auth/refresh',{refreshToken:auth.refreshToken,deviceId,requestId:randomUUID()},401);
  console.log('PASS · existing web user_sessions revocation immediately blocks mobile access/refresh');
+ auth=await login();token=auth.accessToken;await db`INSERT INTO mobile_push_devices(tenant_id,user_id,device_id,platform,provider_token,enabled) VALUES(${auth.user.tenantId},${auth.user.id},${auth.deviceId},'android','push-token',true) ON CONFLICT(tenant_id,user_id,device_id) DO UPDATE SET provider_token='push-token',enabled=true`;
+ const team=await import('../lib/security/team.server');await team.revokeSession({tenantId:auth.user.tenantId,userId:auth.user.id,role:'owner'} as any,auth.sessionId);await call('auth/me',undefined,401);
+ const [push]=await db`SELECT enabled,provider_token FROM mobile_push_devices WHERE tenant_id=${auth.user.tenantId} AND user_id=${auth.user.id} AND device_id=${auth.deviceId}`;assert.deepEqual([push.enabled,push.provider_token],[false,null]);
+ console.log('PASS · closing a phone session from the web also stops its notifications');
  auth=await login();token=auth.accessToken;await call('auth/devices/revoke',{id:auth.sessionId});await call('auth/me',undefined,401);
  auth=await login();token=auth.accessToken;await db`DELETE FROM tenant_members WHERE user_id=${auth.user.id} AND tenant_id=${auth.user.tenantId}`;await call('auth/me',undefined,401);await call('auth/refresh',{refreshToken:auth.refreshToken,deviceId,requestId:randomUUID()},401);
  console.log('PASS · device revoke and membership removal; tokens/identity not exposed in device list');

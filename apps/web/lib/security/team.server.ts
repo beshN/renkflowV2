@@ -244,6 +244,7 @@ export async function revokeSession(actor: TeamActor, sessionId: string) {
     await assertManagesMember(actor, String(s.user_id));
   }
   await sql`UPDATE user_sessions SET revoked_at = now(), revoked_by = ${actor.userId} WHERE id = ${sessionId}`;
+  await silenceMobileDevice(sessionId);
   forgetSessions(String(s.user_id));
   await recordAudit(sql, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'member', entityId: String(s.user_id), action: 'session_revoked', metadata: { sessionId } });
 }
@@ -270,6 +271,17 @@ export async function revokeAllSessions(actor: TeamActor, userId: string, reason
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'member', entityId: userId, action: 'sessions_revoked_all', metadata: { reason } });
   });
   forgetSessions(userId);
+}
+
+/**
+ * A closed phone sign-in also stops that phone's notifications, as closing it from the app does;
+ * otherwise a device signed out from the web would keep receiving the firm's push messages.
+ */
+async function silenceMobileDevice(sessionId: string) {
+  const [mobile] = await sql`SELECT to_regclass('public.mobile_sessions') IS NOT NULL AND to_regclass('public.mobile_push_devices') IS NOT NULL AS present`;
+  if (!mobile?.present) return;
+  await sql`UPDATE mobile_push_devices p SET enabled = false, provider_token = NULL FROM mobile_sessions m
+    WHERE m.id = ${sessionId} AND p.tenant_id = m.tenant_id AND p.user_id = m.user_id AND p.device_id = m.device_id`;
 }
 
 async function assertManagesMember(actor: TeamActor, userId: string) {
