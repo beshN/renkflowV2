@@ -277,6 +277,7 @@ export const ROUTE_PERMISSIONS: Record<string, Permission[]> = {
 export const ROUTE_ROLES: Record<string, UserRole[]> = {
   '/quotations': ['owner', 'admin', 'office', 'accountant'],
   '/production': ['owner', 'admin', 'office'],
+  '/production/worker': ['owner','admin','office','worker'],
   '/products': ['owner', 'admin', 'office'],
   '/factory': ['owner', 'admin', 'office', 'worker'],
   // The wall screen shows no prices or customers, but it is set up by the office, not a worker.
@@ -321,6 +322,7 @@ export function getRoutePermissions(pathname: string): Permission[] {
  * Check if user can access a specific route
  */
 export function canAccessRoute(role: UserRole, pathname: string): boolean {
+  if(role==='worker' && !['/production/worker','/account'].some(p=>pathname===p||pathname.startsWith(p+'/')))return false;
   const allowedRoles = longestRouteMatch(ROUTE_ROLES, pathname);
   if (allowedRoles && !allowedRoles.includes(role)) return false;
   const requiredPermissions = getRoutePermissions(pathname);

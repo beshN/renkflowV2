@@ -85,7 +85,7 @@ export async function getOrderMetrics(
       COUNT(*) as total_orders,
       COALESCE(SUM(total_amount), 0) as total_revenue,
       COALESCE(AVG(total_amount), 0) as avg_order_value
-    FROM orders
+    FROM (SELECT * FROM orders WHERE COALESCE((to_jsonb(orders)->>'provisional')::boolean,false)=false) orders
     WHERE tenant_id = ${tenantId}
       AND created_at >= ${startDate.toISOString()}
       AND created_at <= ${endDate.toISOString()}
@@ -98,7 +98,7 @@ export async function getOrderMetrics(
     SELECT 
       status,
       COUNT(*) as count
-    FROM orders
+    FROM (SELECT * FROM orders WHERE COALESCE((to_jsonb(orders)->>'provisional')::boolean,false)=false) orders
     WHERE tenant_id = ${tenantId}
       AND created_at >= ${startDate.toISOString()}
       AND created_at <= ${endDate.toISOString()}
@@ -117,7 +117,7 @@ export async function getOrderMetrics(
       DATE(created_at) as date,
       COUNT(*) as count,
       COALESCE(SUM(total_amount), 0) as revenue
-    FROM orders
+    FROM (SELECT * FROM orders WHERE COALESCE((to_jsonb(orders)->>'provisional')::boolean,false)=false) orders
     WHERE tenant_id = ${tenantId}
       AND created_at >= ${startDate.toISOString()}
       AND created_at <= ${endDate.toISOString()}
@@ -157,7 +157,7 @@ export async function getCustomerMetrics(
       SELECT 
         email,
         MIN(created_at) as first_order_date
-      FROM orders
+      FROM (SELECT * FROM orders WHERE COALESCE((to_jsonb(orders)->>'provisional')::boolean,false)=false) orders
       WHERE tenant_id = ${tenantId}
       GROUP BY email
     ) customer_first_orders
@@ -173,7 +173,7 @@ export async function getCustomerMetrics(
       email,
       COUNT(*) as total_orders,
       SUM(total_amount) as total_spent
-    FROM orders
+    FROM (SELECT * FROM orders WHERE COALESCE((to_jsonb(orders)->>'provisional')::boolean,false)=false) orders
     WHERE tenant_id = ${tenantId}
       AND created_at >= ${startDate.toISOString()}
       AND created_at <= ${endDate.toISOString()}
@@ -187,7 +187,7 @@ export async function getCustomerMetrics(
     SELECT AVG(customer_total) as avg_ltv
     FROM (
       SELECT SUM(total_amount) as customer_total
-      FROM orders
+      FROM (SELECT * FROM orders WHERE COALESCE((to_jsonb(orders)->>'provisional')::boolean,false)=false) orders
       WHERE tenant_id = ${tenantId}
       GROUP BY email
     ) customer_totals
@@ -232,7 +232,7 @@ export async function getProductionMetrics(
       AVG(
         EXTRACT(EPOCH FROM (updated_at - created_at)) / 3600
       ) as avg_duration_hours
-    FROM orders
+    FROM (SELECT * FROM orders WHERE COALESCE((to_jsonb(orders)->>'provisional')::boolean,false)=false) orders
     WHERE tenant_id = ${tenantId}
       AND created_at >= ${startDate.toISOString()}
       AND created_at <= ${endDate.toISOString()}
@@ -244,7 +244,7 @@ export async function getProductionMetrics(
   // Delayed orders (in production > 14 days or pending > 7 days)
   const delayedResultQuery = await sql`
     SELECT COUNT(*) as delayed_count
-    FROM orders
+    FROM (SELECT * FROM orders WHERE COALESCE((to_jsonb(orders)->>'provisional')::boolean,false)=false) orders
     WHERE tenant_id = ${tenantId}
       AND (
         (status = 'in_production' AND created_at < NOW() - INTERVAL '14 days')
@@ -263,7 +263,7 @@ export async function getProductionMetrics(
       COUNT(CASE 
         WHEN delivered_at <= estimated_delivery_date THEN 1 
       END) as on_time_delivered
-    FROM orders
+    FROM (SELECT * FROM orders WHERE COALESCE((to_jsonb(orders)->>'provisional')::boolean,false)=false) orders
     WHERE tenant_id = ${tenantId}
       AND status = 'delivered'
       AND created_at >= ${startDate.toISOString()}
@@ -311,7 +311,7 @@ export async function getDashboardSummary(tenantId: string): Promise<DashboardSu
     SELECT 
       COUNT(*) as orders,
       COALESCE(SUM(total_amount), 0) as revenue
-    FROM orders
+    FROM (SELECT * FROM orders WHERE COALESCE((to_jsonb(orders)->>'provisional')::boolean,false)=false) orders
     WHERE tenant_id = ${tenantId}
       AND created_at >= ${today.toISOString()}
   `;
@@ -323,7 +323,7 @@ export async function getDashboardSummary(tenantId: string): Promise<DashboardSu
     SELECT 
       COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
       COUNT(CASE WHEN status = 'in_production' THEN 1 END) as in_production
-    FROM orders
+    FROM (SELECT * FROM orders WHERE COALESCE((to_jsonb(orders)->>'provisional')::boolean,false)=false) orders
     WHERE tenant_id = ${tenantId}
   `;
   const statusRows = statusQuery as any[];
@@ -335,7 +335,7 @@ export async function getDashboardSummary(tenantId: string): Promise<DashboardSu
       COUNT(CASE WHEN created_at >= ${lastWeek.toISOString()} THEN 1 END) as this_week,
       COUNT(CASE WHEN created_at >= ${lastWeek.toISOString()}::timestamptz - INTERVAL '7 days' 
                   AND created_at < ${lastWeek.toISOString()} THEN 1 END) as last_week
-    FROM orders
+    FROM (SELECT * FROM orders WHERE COALESCE((to_jsonb(orders)->>'provisional')::boolean,false)=false) orders
     WHERE tenant_id = ${tenantId}
   `;
   const weeklyRows = weeklyQuery as any[];
@@ -347,7 +347,7 @@ export async function getDashboardSummary(tenantId: string): Promise<DashboardSu
       COUNT(CASE WHEN created_at >= ${lastMonth.toISOString()} THEN 1 END) as this_month,
       COUNT(CASE WHEN created_at >= ${lastMonth.toISOString()}::timestamptz - INTERVAL '30 days' 
                   AND created_at < ${lastMonth.toISOString()} THEN 1 END) as last_month
-    FROM orders
+    FROM (SELECT * FROM orders WHERE COALESCE((to_jsonb(orders)->>'provisional')::boolean,false)=false) orders
     WHERE tenant_id = ${tenantId}
   `;
   const monthlyRows = monthlyQuery as any[];
@@ -369,7 +369,7 @@ export async function getDashboardSummary(tenantId: string): Promise<DashboardSu
           FILTER (WHERE status IN ('pending', 'in_production')),
         0
       )::numeric(12,2) as avg_wip_age_days
-    FROM orders
+    FROM (SELECT * FROM orders WHERE COALESCE((to_jsonb(orders)->>'provisional')::boolean,false)=false) orders
     WHERE tenant_id = ${tenantId}
   `;
   const deliveryKpiRows = deliveryKpiQuery as any[];

@@ -72,18 +72,17 @@ async function main() {
   const device = await fleet.createDevice(owner, v.id, { label: 'Test cihazı' });
   const [stored] = await db`SELECT token_hash FROM vehicle_devices WHERE id = ${device.id}`;
   assert.notEqual(stored.token_hash, device.token);
-  // The route is read per Istanbul day: just after midnight, points from the last hour would
-  // straddle two days, so start them before midnight then.
-  const [hh, mm] = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date()).split(':').map(Number);
-  const minutesIntoDay = hh * 60 + mm;
-  const now = Date.now() - (minutesIntoDay < 65 ? (minutesIntoDay + 5) * 60_000 : 0);
-  const t = (min: number) => new Date(now - min * 60_000).toISOString();
+  const now = Date.now();
+  // Keep route points on one Istanbul calendar day, including runs just after midnight.
+  const routeAnchor = new Date(now - 86_400_000);
+  routeAnchor.setUTCHours(12, 0, 0, 0);
+  const t = (min: number) => new Date(routeAnchor.getTime() - min * 60_000).toISOString();
   const positions = [
     { t: t(60), lat: 41.0, lng: 29.0, speed: 0, ignition: true, odometer: 82010 },
     { t: t(50), lat: 41.03, lng: 29.0, speed: 40, ignition: true },
     { t: t(40), lat: 41.06, lng: 29.0, speed: 40, ignition: true, odometer: 82017 },
     { t: t(30), lat: 0, lng: 0 },
-    { t: new Date(Date.now() + 3_600_000).toISOString(), lat: 41, lng: 29 },
+    { t: new Date(now + 3_600_000).toISOString(), lat: 41, lng: 29 },
   ];
   const r1 = await fleet.ingestTelemetry(device.token, { positions });
   assert.deepEqual([r1.stored, r1.rejected], [3, { koordinat: 1, 'gelecek zaman': 1 }]);
@@ -94,7 +93,7 @@ async function main() {
   const live = await fleet.fleetLive(owner);
   assert.equal(live.vehicles[0].plate, '34RF2026');
   assert.equal(live.vehicles[0].lat, 41.06);
-  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(new Date(now - 40 * 60_000));
+  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(new Date(routeAnchor.getTime() - 40 * 60_000));
   const route = await fleet.vehicleRoute(owner, v.id, today);
   assert.equal(route.points.length, 3);
   assert.ok(Math.abs(route.distanceKm - 6.7) < 0.2, `route ${route.distanceKm} km`);

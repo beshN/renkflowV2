@@ -44,32 +44,6 @@ const ITEM_TYPE_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 // ============================================
-// Stock Level Bar
-// ============================================
-
-/**
- * Level against the minimum: the bar fills with what can be used, the reserved part follows, and a
- * line marks the minimum. Below it the bar turns red and a "Kritik" chip with an icon appears.
- */
-function StockBar({ onHand, reserved, min }: { onHand: number; reserved: number; min: number }) {
-  const available = onHand - reserved;
-  const max = Math.max(onHand, min * 2, 1);
-  const isCritical = min > 0 && available <= min;
-  return (
-    <div className="flex items-center gap-2">
-      <div className="relative h-2.5 w-28 overflow-hidden rounded-full bg-muted" role="img" aria-label={`Kullanılabilir ${available}, en az ${min}`}>
-        <div className="flex h-full">
-          <div className={cn('h-full', isCritical ? 'bg-rose-600' : 'bg-primary')} style={{ width: `${Math.min(100, Math.max(0, available / max) * 100)}%` }} />
-          {reserved > 0 && <div className="h-full bg-primary/35" style={{ width: `${Math.min(100, (reserved / max) * 100)}%` }} />}
-        </div>
-        {min > 0 && <span aria-hidden className="absolute inset-y-0 w-0.5 bg-foreground" style={{ left: `${Math.min(100, (min / max) * 100)}%` }} />}
-      </div>
-      {isCritical && <StatusChip tone="danger" label="Kritik" icon={AlertTriangle} />}
-    </div>
-  );
-}
-
-// ============================================
 // Page
 // ============================================
 
@@ -134,14 +108,12 @@ export default function InventoryPage() {
   const columns: RFColumn<InventoryItem>[] = useMemo(() => [
     {
       key: 'sku',
-      label: 'SKU / Malzeme',
+      label: 'Malzeme',
       render: (sku, row) => (
         <div>
           <p className="text-xs font-mono text-muted-foreground">{sku}</p>
-          <Link href={"/inventory/"+row.item_id} onClick={(e) => e.stopPropagation()} className="text-sm font-semibold text-sky-700 hover:underline">{row.item_name}</Link>
-          <span className={cn('inline-block mt-0.5 rounded-full px-2 py-0.5 text-xs font-medium', ITEM_TYPE_LABELS[row.item_type]?.color || 'bg-neutral-100 text-neutral-600')}>
-            {ITEM_TYPE_LABELS[row.item_type]?.label || row.item_type}
-          </span>
+          <Link href={"/inventory/"+row.item_id} onClick={(e) => e.stopPropagation()} className="text-sm font-semibold text-primary hover:underline">{row.item_name}</Link>
+
         </div>
       ),
     },
@@ -164,7 +136,7 @@ export default function InventoryPage() {
     },
     {
       key: 'reserved_qty',
-      label: 'Rezerve',
+      label: 'Ayrılan',
       align: 'right',
       render: (val, row) => (
         <span className={cn('text-sm tabular-nums', parseFloat(val) > 0 ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-muted-foreground')}>
@@ -185,7 +157,7 @@ export default function InventoryPage() {
             <span className={cn('text-sm font-bold tabular-nums', isCritical && 'text-rose-700 dark:text-rose-300')}>
               {available.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} {unitLabel(row.stock_uom)}
             </span>
-            <StockBar onHand={parseFloat(row.on_hand_qty) || 0} reserved={parseFloat(row.reserved_qty) || 0} min={min} />
+            {isCritical&&<StatusChip tone="danger" label="Kritik" icon={AlertTriangle}/>}<span className="text-xs text-muted-foreground">{min>0?`Alt sınır ${min.toLocaleString('tr-TR')} ${unitLabel(row.stock_uom)}`:''}</span>
           </div>
         );
       },
@@ -195,7 +167,7 @@ export default function InventoryPage() {
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950/80">
       <main className="flex-1 space-y-5 p-4 md:p-8">
-        <PageHeader eyebrow="Profil & malzeme" title="Stok" hint="Profil metreyle, hurda kg ile takip edilir. Rezervasyon fiziksel stoğu değiştirmez. Çubuktaki çizgi en az stok seviyesidir. Satıra tıklayınca malzemenin hareketleri açılır."
+        <PageHeader eyebrow="Profil & malzeme" title="Stok" hint="Profil metreyle, hurda kg ile takip edilir. Rezervasyon fiziksel stoğu değiştirmez. Satıra tıklayınca malzemenin hareketleri açılır."
           kpis={[
             { label: 'malzeme', value: error || isLoading ? '·' : new Set(items.map((i) => i.item_id)).size, icon: Boxes },
             { label: 'kritik', value: error ? '—' : criticalCount, icon: AlertTriangle, tone: criticalCount ? 'danger' : 'neutral' },
@@ -211,7 +183,7 @@ export default function InventoryPage() {
           </>} />
         {error && <div role="alert" className="rf-alert text-sm">{error} <button type="button" onClick={loadInventory} className="ml-3 underline">Tekrar dene</button></div>}
         {user && ['owner', 'admin', 'office', 'accountant'].includes(user.role) && <StockThresholdPanel />}
-        <StockHeatmap />
+        <details className="rf-panel"><summary className="cursor-pointer text-sm font-medium">Stok dağılımı</summary><div className="mt-3"><StockHeatmap /></div></details>
         {/* Critical Stock Alert */}
         {criticalCount > 0 && (
           <div
@@ -226,7 +198,7 @@ export default function InventoryPage() {
           </div>
         )}
 
-        <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm">
+        <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-3 sm:p-6 shadow-sm">
           <RFListView<InventoryItem>
             title="Depo bakiyeleri"
             data={items}

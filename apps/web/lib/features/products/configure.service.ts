@@ -102,12 +102,15 @@ export async function configurationOptions(actor: WorkOrderActor, familyKey: str
 export async function configureProduct(db: any, tenantId: string, currency: string, raw: unknown, memo = new Map<string, Promise<any>>()): Promise<ProductConfiguration> {
   const choice: ConfigurationChoice = ConfigurationChoiceSchema.parse(raw);
   const family = productFamily(choice.family) ?? fail('Bilinmeyen ürün ailesi');
+  if(family.geometry==='vertical'){choice.parameters.projectionMm=0;choice.parameters.motor=family.key==='giyotin';}
   if (!(await familyRecipesAvailable())) fail('Ürün reçeteleri bu kurulumda henüz etkin değil (veritabanı güncellemesi bekleniyor)', 409);
   const [row] = await db`
     SELECT r.* FROM production_recipes r JOIN product_family_recipes m ON m.tenant_id = r.tenant_id AND m.recipe_code = r.code AND m.family = ${family.key}
     WHERE r.tenant_id = ${tenantId} AND r.id = ${choice.recipeId}`;
   if (!row) fail('Reçete bu ürün ailesine ait değil', 409);
   if (row.status !== 'published') fail(`"${row.code}" reçetesi yayında değil; örneklerle doğrulanıp yayınlanmalı`, 409);
+  if((row.geometry||'roof')!==(family.geometry||'roof'))fail('Reçetenin ölçü modeli bu ürün grubuyla uyuşmuyor',409);
+  if(family.geometry==='vertical'&&!row.verification_source)fail('Mekanizma ve profil standardının doğrulanmış teknik kaynağı gerekli',409);
   // Stock does not limit the choice; one quote with several lines reads the firm's colours once.
   const color = await quotableColor(db, tenantId, family, choice.color, memo);
   let result: ReturnType<typeof calculateRecipe>;
@@ -118,6 +121,10 @@ export async function configureProduct(db: any, tenantId: string, currency: stri
     throw new WorkOrderApiError(error instanceof Error ? error.message : 'Reçete hesaplanamadı', 400);
   }
   const ids = [...new Set([...result.materials.map((m) => m.itemId), ...result.cuts.map((c) => c.itemId)])];
+  if(family.key==='makasli'){
+    const cards=await db`SELECT id,name,profile_code FROM inventory_items WHERE tenant_id=${tenantId} AND id=ANY(${ids}::uuid[])`;
+    if(!result.cuts.some(c=>cards.some((i:any)=>i.id===c.itemId&&i.profile_code==='170'))||result.cuts.some(c=>cards.some((i:any)=>i.id===c.itemId&&/dere/i.test(i.name)&&i.profile_code!=='170')))fail('Makaslı tente standardında yalnız 170 Makaslı Dere kullanılmalı; ürün reçetesini kontrol edin',409);
+  }
   const names = new Map<string, { sku: string; name: string }>(
     (await db`SELECT id, sku, name FROM inventory_items WHERE tenant_id = ${tenantId} AND id = ANY(${ids}::uuid[])`).map((i: any) => [i.id, { sku: i.sku, name: i.name }]),
   );

@@ -111,10 +111,13 @@ export async function planInstallation(actor: WorkOrderActor, orderId: string, r
   if (fieldOnly(actor)) throw new WorkOrderApiError('Montajı ofis planlar', 403);
   const d = PlanInput.parse(raw ?? {});
   return withTransaction(async (tx: any) => {
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${actor.tenantId},0))`;
     const [o] = await tx`SELECT o.id, o.order_number, o.delivery_date, o.status, c.address AS customer_address, c.shipping_address
       FROM orders o LEFT JOIN customers c ON c.id = o.customer_id AND c.tenant_id = o.tenant_id WHERE o.tenant_id = ${actor.tenantId} AND o.id = ${orderId} FOR UPDATE OF o`;
     if (!o) throw new WorkOrderApiError('Sipariş bulunamadı', 404);
     if (o.status === 'cancelled') throw new WorkOrderApiError('İptal edilmiş siparişe montaj planlanamaz', 409);
+    const [generated]=await tx`SELECT id,installation_number FROM installations WHERE tenant_id=${actor.tenantId} AND order_id=${orderId} AND (to_jsonb(installations)->>'generated_from_revision_id') IS NOT NULL AND status<>'cancelled' ORDER BY created_at LIMIT 1`;
+    if(generated)return {id:String(generated.id),number:generated.installation_number,conflicts:[],existing:true};
     const crew = [...new Set(d.crew ?? [])];
     await checkCrew(tx, actor.tenantId, crew);
     const number = await nextNumber(tx, actor.tenantId, 'installations', 'installation_number', 'MNT');

@@ -193,7 +193,7 @@ async function main() {
   await team.updateMember(owner as any, ids.office, { accessRole: null });
   access.forgetMemberAccess(ids.office, tenantId);
 
-  for (const t of ['purchase_orders', 'suppliers', 'stock_balances', 'stock_lots', 'warehouse_locations', 'warehouses', 'inventory_items', 'quotation_items', 'quotations', 'work_orders', 'orders', 'ai_suggestions'])
+  for (const t of ['purchase_orders', 'suppliers', 'stock_balances', 'stock_lots', 'warehouse_locations', 'warehouses', 'inventory_items', 'work_orders', 'orders', 'quotation_items', 'quotations', 'ai_suggestions'])
     await db`DELETE FROM ${db(t)} WHERE tenant_id = ${tenantId}`;
   await db`DELETE FROM tenants WHERE id = ${tenantId}`;
   await db`DELETE FROM users WHERE id = ANY(${Object.values(ids)}::uuid[])`;

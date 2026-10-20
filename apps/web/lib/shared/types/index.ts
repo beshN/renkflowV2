@@ -76,6 +76,8 @@ export type Document = z.infer<typeof DocumentSchema>;
 export const OrderSchema = z.object({
   financialHidden: z.boolean().optional(),
   productionManaged: z.boolean().optional(),
+  provisional: z.boolean().optional(),
+  quotationId: z.string().nullable().optional(),
   version: z.number().int().positive().optional(),
   items: z.array(z.object({ id: z.string(), productName:z.string(), customParameters:z.record(z.string(),z.union([z.string(),z.number(),z.boolean()])).optional(), quantityUnit:z.string().optional(), quantity:z.number(), unitPrice:z.number(), totalPrice:z.number(), color:z.string().nullable().optional(), widthMm:z.number().nullable().optional(), heightMm:z.number().nullable().optional(), projectionMm:z.number().nullable().optional(), mountingHeightMm:z.number().nullable().optional(), productVisualization:ProductVisualizationSchema.nullable().optional(), awningConfiguration:AwningConfigurationSchema.nullable().optional(), awningPreview:z.string().nullable().optional(), motorType:z.string().nullable().optional(), ledType:z.string().nullable().optional(), fabricType:z.string().nullable().optional(), notes:z.string().nullable().optional() })).optional(),
   id: z.string().transform(createOrderId),

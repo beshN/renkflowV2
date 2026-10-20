@@ -69,18 +69,10 @@ it('takes the user\'s % and _ literally', async () => {
   expect(queries[0].values).toContain('%50\\%\\_a%');
 });
 
-it('limits a worker to assigned orders by number and product, without customer data or commercial screens', async () => {
-  const result = await searchWorkspace({ tenantId, userId: 'worker-1', role: 'worker' }, 'RF');
-  expect(result.customers).toBeNull();
-  expect(result.quotations).toBeNull();
-  expect(result.stock).not.toBeNull();
-  expect(result.ordersLimitedToAssigned).toBe(true);
-  const orderQuery = queries.find((q) => /FROM orders/.test(q.text))!;
-  expect(orderQuery.text).toMatch(/work_orders/);
-  expect(orderQuery.values).toContain('worker-1');
-  expect(orderQuery.text).not.toMatch(/o\.customer_name\b(?! AS)/);
-  expect(orderQuery.text).not.toMatch(/o\.notes/);
-  expect(queries.some((q) => /FROM (customers|quotations)/.test(q.text))).toBe(false);
+it('keeps global search closed to workers; their technical search belongs to the worker screen', async () => {
+  const result=await searchWorkspace({tenantId,userId:'worker-1',role:'worker'},'RF');
+  expect(result.orders).toBeNull();expect(result.stock).toBeNull();expect(result.customers).toBeNull();expect(result.quotations).toBeNull();
+  expect(queries).toHaveLength(0);
 });
 
 it('keeps quotations closed to the member role, like the quotations screen', async () => {

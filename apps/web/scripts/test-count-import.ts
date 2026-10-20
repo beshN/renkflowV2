@@ -70,6 +70,25 @@ async function main() {
   assert.match(card.uncertaintyNote, /2 satır emin değilim/);
   console.log('PASS · count list read with fixed rules: weight and bar-length doubts marked, worker refused, not a PDF refused, nothing written before approval, filed once');
 
+  // A historical reference is technical data only, even for counted accessories.
+  const referenceTenant=randomUUID(),referenceWarehouse=randomUUID();
+  await db`INSERT INTO tenants(id,name,slug) VALUES(${referenceTenant},'Technical reference',${'reference-'+referenceTenant})`;
+  await db`INSERT INTO tenant_members(tenant_id,user_id,role) VALUES(${referenceTenant},${ownerId},'owner')`;
+  await db`INSERT INTO warehouses(id,tenant_id,code,name,warehouse_type) VALUES(${referenceWarehouse},${referenceTenant},'RAW','Reference warehouse','RAW')`;
+  const [conflict]=await db`INSERT INTO inventory_items(tenant_id,sku,name,unit,stock_uom,item_type,profile_code,size_label,processed_states,weight_per_meter_kg) VALUES(${referenceTenant},'CONFLICT','40x60 painted','m','m','raw_material','900','40x60',ARRAY['boyali'],2) RETURNING id`;
+  const referenceActor={...owner,tenantId:referenceTenant};
+  const reference=await fileCountImport(referenceActor,{...upload,warehouseId:referenceWarehouse,mode:'technical'});
+  const referenceCard=(await listPendingSuggestions(referenceActor,{refresh:false})).find((s:any)=>s.id===reference.suggestionId)!;
+  await decideSuggestion(referenceActor,reference.suggestionId,{action:'approve',expectedVersion:referenceCard.version});
+  assert.equal((await db`SELECT COUNT(*)::int AS n FROM stock_entries WHERE tenant_id=${referenceTenant}`)[0].n,0);
+  assert.equal((await db`SELECT COUNT(*)::int AS n FROM stock_lots WHERE tenant_id=${referenceTenant}`)[0].n,0);
+  assert.equal(Number((await db`SELECT weight_per_meter_kg FROM inventory_items WHERE id=${conflict.id}`)[0].weight_per_meter_kg),2,'conflicting weight is preserved');
+  assert((await db`SELECT note FROM stock_count_lines WHERE tenant_id=${referenceTenant} AND item_id=${conflict.id}`)[0].note.includes('çelişkisi'));
+  const [referenceRaw]=await db`SELECT weight_per_meter_kg,metadata FROM inventory_items WHERE tenant_id=${referenceTenant} AND profile_code='900' AND processed_states=ARRAY['boyasiz']`;
+  assert.equal(Number(referenceRaw.weight_per_meter_kg),1);assert.equal(referenceRaw.metadata.technicalSources[0].sha256,reference.document.sha256);
+  assert.equal((await db`SELECT COUNT(*)::int AS n FROM stock_count_lines WHERE tenant_id=${referenceTenant} AND status='needs_bars'`)[0].n,0);
+  await assert.rejects(fileCountImport(referenceActor,{...upload,warehouseId:referenceWarehouse,mode:'technical'}),/daha önce/);
+
   const decided: any = await decideSuggestion(owner, filed.suggestionId, { action: 'approve', expectedVersion: card.version });
   assert.equal(decided.status, 'approved');
   assert.deepEqual({ applied: decided.result.applied, needsBars: decided.result.needsBars, uncertain: decided.result.uncertain, skipped: decided.result.skipped }, { applied: 5, needsBars: 2, uncertain: 2, skipped: 0 });

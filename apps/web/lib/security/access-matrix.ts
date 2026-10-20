@@ -147,6 +147,10 @@ const longest = <T>(list: Array<[string, T]>, path: string) =>
 export function routeRequirement(path: string, method: string): { module: Module; action: Action; orCreate?: boolean } | null {
   const api = path.startsWith('/api/');
   const m = method.toUpperCase();
+  // Mixed command endpoints enforce their action's exact permission in the service.
+  // A daily entry is an edit; printing an existing label only needs stock visibility.
+  if(path==='/api/v1/production'&&m==='POST')return {module:'production',action:'edit',orCreate:true};
+  if(path==='/api/v1/warehouse'&&m==='POST')return {module:'inventory',action:'view'};
   // Quote screens read the firm's sales defaults (VAT, validity); changing them stays a settings edit.
   if (path === '/api/v1/sales/settings' && (m === 'GET' || m === 'HEAD')) return { module: 'quotations', action: 'view' };
   const hit = api ? longest(API_MODULES, path) : longest(PAGE_MODULES, path);

@@ -121,9 +121,9 @@ async function main() {
   await assert.rejects(q.listTemplates(worker as any), (e: any) => e.status === 403);
   await q.deleteTemplate(office as any, tpl.id);
 
-  // Converting a draft over the threshold without approval is refused for the office.
+  // Draft conversion requires customer approval even when a manager can approve its discount.
   const draft = await quotationService.createQuotation(tenantId, { customerName: 'Bayi Müşteri', currency: 'TRY', discountPercent: 20, items: [lines[1]] } as any, officeId);
-  await assert.rejects(quotationService.convertToOrder(tenantId, draft.id, officeId, draft.version, 'office'), /yönetici onayı/);
+  await assert.rejects(quotationService.convertToOrder(tenantId, draft.id, officeId, draft.version, 'office'), /müşteri onayı/);
 
   // Order state machine: one gate for every path; a reason for stopping, cancelling or going back; promise frozen at approval.
   const [order] = await db`INSERT INTO orders (tenant_id, order_number, customer_name, product_name, quantity, status, total_amount, currency, delivery_date)

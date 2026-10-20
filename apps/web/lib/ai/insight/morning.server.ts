@@ -29,7 +29,7 @@ export async function morningFor(actor: WorkOrderActor) {
     if (can(access, 'orders', 'view')) {
       const due = (await columnExists('orders', 'promised_date')) ? sql`coalesce(promised_date, delivery_date::date)` : sql`delivery_date::date`;
       const [o] = await sql`SELECT count(*) FILTER (WHERE ${due} < ${today}::date)::int AS late, count(*) FILTER (WHERE ${due} = ${today}::date)::int AS today
-        FROM orders WHERE tenant_id = ${actor.tenantId} AND status <> ALL(${CLOSED})`;
+        FROM orders o WHERE tenant_id = ${actor.tenantId} AND COALESCE((to_jsonb(o)->>'provisional')::boolean,false)=false AND status <> ALL(${CLOSED})`;
       [facts.lateOrders, facts.dueToday] = [o.late, o.today];
     }
     if (can(access, 'quotations', 'view'))

@@ -116,6 +116,7 @@ export async function accessDecision(userId: string, tenantId: string, path: str
   const access = await resolveMemberAccess(userId, tenantId, { cached: true });
   if (!access) return null; // not a member: the route's own guard answers 401
   if (access.deactivated) return { status: 401 as const, reason: 'deactivated', need };
+  if(access.base==='worker' && path.startsWith('/api/') && !workerApiAllowed(path,method)) return {status:403 as const,reason:'worker_scope',need};
   if (await sessionRevoked(userId, session.sid, session.iat, { cached: true })) return { status: 401 as const, reason: 'session_revoked', need };
   // A member on their base role's own preset keeps exactly today's access: the route checks decide.
   // The matrix narrows only for a job preset or a custom role.
@@ -132,4 +133,12 @@ export async function narrowedHiddenFields(userId: string, tenantId: string): Pr
   const access = await resolveMemberAccess(userId, tenantId, { cached: true });
   if (!access || access.roleKey === DEFAULT_PRESET[access.base]) return [];
   return access.hidden;
+}
+
+/** Dedicated shop-floor APIs; this is enforced even for the worker's default preset. */
+export function workerApiAllowed(path:string,method:string) {
+  if(path==='/api/v1/production')return method==='POST';
+  if(['/api/auth/','/api/v1/auth/','/api/v1/me/','/api/v1/production/files/'].some(p=>path.startsWith(p)))return true;
+  if(['/api/v1/production','/api/v1/production/worker','/api/v1/production/workshop','/api/v1/production/loading','/api/v1/production/parts','/api/v1/production/files','/api/v1/warehouse','/api/v1/auth/me','/api/v1/me','/api/v1/notifications'].includes(path))return true;
+  return method==='GET' && /^\/api\/v1\/orders\/[^/]+\/technical$/.test(path);
 }

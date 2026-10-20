@@ -128,7 +128,7 @@ export function useOrders(): UseOrdersResult {
     cacheKey,
     fetchOrders,
     {
-      enabled: Boolean(tenantId),
+      enabled: Boolean(tenantId)&&user?.role!=='worker',
       refetchOnMount: true,
       refetchOnWindowFocus: true,
       onError: handleFetchError,

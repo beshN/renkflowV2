@@ -51,6 +51,7 @@ async function main() {
     for (let i = 0; i < 2; i++) await a.lot(boru, 'RAW', 6, '7016 MAT'); // another spelling of the same colour
     for (let i = 0; i < 8; i++) await a.lot(led, 'RAW', 6, color);
     for (let i = 0; i < 3; i++) await a.lot(demir, 'RAW', 6, '');
+    await a.lot(demir, 'REUSABLE_REMNANTS', 2.85, '', {remnant:true});
     await a.lot(demir, 'SCRAP', 2.85, '');
     // These must never be cut: reserved, consumed, and a wrong colour.
     await a.lot(dere, 'RAW', 6, color, { status: 'reserved' });
@@ -63,14 +64,14 @@ async function main() {
     assert.equal(r.plan.unmatched.length, 0);
     assert.equal(r.plan.summary.pieces, 17);
     assert.equal(r.plan.summary.toBuy, 0, 'stock is enough');
-    assert.equal(r.plan.summary.remnantsUsed, 1, 'the leftover is used');
-    assert.equal(r.plan.summary.scrapUsed, 1, 'the scrap bar is used');
+    assert.equal(r.plan.summary.remnantsUsed, 2, 'the leftover is used');
+    assert.equal(r.plan.summary.scrapUsed, 0, 'scrapped stock cannot be used');
     const used = r.plan.groups.flatMap((g) => g.bars);
     assert.ok(used.every((b) => b.sourceLengthMm > 0));
     const boruGroup = r.plan.groups.find((g) => g.itemId === boru)!;
     assert.equal(boruGroup.bars.length, 2, 'both 7016 boru bars (written "7016 MAT") are used');
     assert.equal(r.plan.groups.find((g) => g.itemId === dere)!.bars.some((b) => b.sourceLengthMm === 6000 && b.cuts.length === 0), false);
-    assert.equal((await db`SELECT count(*)::int AS n FROM stock_lots WHERE tenant_id = ${a.tenantId} AND status = 'available'`)[0].n, 2 + 1 + 2 + 8 + 3 + 1 + 1, 'nothing was reserved or changed');
+    assert.equal((await db`SELECT count(*)::int AS n FROM stock_lots WHERE tenant_id = ${a.tenantId} AND status = 'available'`)[0].n, 2 + 1 + 2 + 8 + 3 + 2 + 1, 'nothing was reserved or changed');
 
     // Fewer bars than pieces → the shortfall is bought, nothing is lost.
     await db`DELETE FROM stock_lots WHERE tenant_id = ${a.tenantId} AND item_id = ${led} AND id IN (SELECT id FROM stock_lots WHERE tenant_id = ${a.tenantId} AND item_id = ${led} LIMIT 3)`;
@@ -96,7 +97,7 @@ async function main() {
     assert.equal(picked.plan.unmatched.length, 0);
     assert.ok(picked.plan.groups.find((g) => g.itemId === demir2)!.bars.length >= 1);
 
-    console.log('PASS · cut list: leftover and scrap bars used first, colours matched across spellings, reserved/consumed lots untouched, shortfall bought, firms isolated, worker refused, ambiguous profile chosen by the person');
+    console.log('PASS · cut list: reusable remnants used, scrapped bars excluded, colours matched across spellings, reserved/consumed lots untouched, shortfall bought, firms isolated, worker refused, ambiguous profile chosen by the person');
   } finally {
     await db.end({ timeout: 5 });
   }

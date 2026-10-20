@@ -169,6 +169,18 @@ export const BACKEND_MIGRATIONS = [
   '061_company_knowledge.sql',
   '062_station_devices.sql',
   '063_hot_path_indexes.sql',
+  '064_order_technical_files.sql',
+  '065_workshop_receiving.sql',
+  '066_order_loading.sql',
+  '067_technical_revision_control.sql',
+  '068_count_reference_mode.sql',
+  '069_part_assembly.sql',
+  '070_technical_transition.sql',
+  '071_standard_snapshots.sql',
+  '072_lead_sales_context.sql',
+  '073_vertical_recipe_geometry.sql',
+  '074_revision_material_decisions.sql',
+  '075_company_research.sql',
 ];
 
 /** Mobile API tables (sessions, offline receipts, uploads, push devices); applied after 045 (installations). */

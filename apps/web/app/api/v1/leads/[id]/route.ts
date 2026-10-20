@@ -5,8 +5,11 @@ import { requireWorkOrderActor } from '@/lib/features/work-orders/security';
 import { NO_STORE, recordError } from '@/lib/features/records/http';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { convertLead, createSurvey, getLead, moveLead, updateLead } from '@/lib/features/field/leads.server';
+import {saveLeadSalesContext,saveResearchSource,linkLeadQuotation} from '@/lib/features/field/sales-context.server';
+import {researchLeadCompany} from '@/lib/features/field/company-research.server';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 120;
 type Params = { params: Promise<{ id: string }> };
 const id = async (params: Params['params']) => z.string().uuid().parse((await params).id);
 
@@ -37,6 +40,10 @@ export async function POST(req: NextRequest, { params }: Params) {
     const actor = await requireWorkOrderActor();
     const leadId = await id(params);
     const { action, ...body } = (await req.json()) as { action?: string } & Record<string, unknown>;
+    if(action==='researchCompany')return redactedJson(await researchLeadCompany(actor,leadId,body),{headers:NO_STORE});
+    if(action==='context')return redactedJson(await saveLeadSalesContext(actor,leadId,body),{headers:NO_STORE});
+    if(action==='research')return redactedJson(await saveResearchSource(actor,leadId,body),{headers:NO_STORE});
+    if(action==='linkQuote')return redactedJson(await linkLeadQuotation(actor,leadId,z.uuid().parse(body.quotationId)),{headers:NO_STORE});
     if (action === 'move') return redactedJson(await moveLead(actor, leadId, body), { headers: NO_STORE });
     if (action === 'convert') return redactedJson(await convertLead(actor, leadId), { headers: NO_STORE });
     if (action === 'survey') return redactedJson(await createSurvey(actor, leadId, body), { status: 201, headers: NO_STORE });

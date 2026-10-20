@@ -43,6 +43,7 @@ export const CountRowSchema = z.object({
 });
 
 export const CountImportPayloadSchema = z.object({
+  mode:z.enum(['opening','technical']).optional(),
   document: z.object({
     title: z.string().max(200).nullable(),
     date: z.string().regex(/^\d{2}\.\d{2}\.\d{4}$/).nullable(),
@@ -56,6 +57,7 @@ export const CountImportPayloadSchema = z.object({
 export type CountImportPayload = z.infer<typeof CountImportPayloadSchema>;
 
 const UploadSchema = z.object({
+  mode:z.enum(['opening','technical']).default('opening'),
   fileName: z.string().trim().min(1).max(200),
   base64: z.string().min(8).max(Math.ceil((MAX_BYTES * 4) / 3) + 8),
   warehouseId: z.string().uuid(),
@@ -93,6 +95,7 @@ export async function fileCountImport(actor: WorkOrderActor, raw: unknown) {
   const metres = rows.filter((r) => !r.issues.length && (r.unit === 'm' || r.unit === 'boy'));
   const counted = rows.filter((r) => !r.issues.length && (r.unit === 'adet' || r.unit === 'takim'));
   const payload: CountImportPayload = {
+    mode:input.mode,
     document: { title: document.title, date: document.date, pages: document.pages, sha256, fileName: input.fileName },
     warehouseId: warehouse.id,
     rows,
@@ -108,8 +111,7 @@ export async function fileCountImport(actor: WorkOrderActor, raw: unknown) {
     title: `Sayım listesi${document.date ? ' ' + document.date : ''}: ${rows.length} satır${uncertain.length ? `, ${uncertain.length} emin değilim` : ''}`,
     rationale: [
       `"${input.fileName}" (${document.pages} sayfa) kesin kurallarla okundu; model kullanılmadı.`,
-      `${counted.length} adet/takım satırı ${warehouse.name} deposuna açılış stoğu olarak yazılır (yalnız mevcut stoktan fazlası).`,
-      `${metres.length} metre/boy satırı stok kartı olarak açılır; çubukların boy ve adedi açılış sayımı ekranında girilir, PDF'teki toplam karşılaştırma için tutulur.`,
+      ...(input.mode==='technical'?['Yalnız teknik başvuru: kg/m ve kaynak bilgisi malzeme kartına aktarılır. Toplam kg, toplam metre ve adet belgede tarihî bilgi olarak kalır; hiçbir stok hareketi veya çubuk sayımı oluşturulmaz.','Mevcut gramajla çelişen değer değiştirilmez; satır kontrol için işaretlenir.']:[`${counted.length} adet/takım satırı ${warehouse.name} deposuna açılış stoğu olarak yazılır (yalnız mevcut stoktan fazlası).`,`${metres.length} metre/boy satırı stok kartı olarak açılır; çubukların boy ve adedi açılış sayımı ekranında girilir, PDF'teki toplam karşılaştırma için tutulur.`]),
       'Malzeme kartı: profil kodu + ölçü + işlenmiş hâl; renk çubukta tutulur. Onaylanmadan hiçbir stok yazılmaz.',
     ].join('\n'),
     payload,
@@ -117,12 +119,13 @@ export async function fileCountImport(actor: WorkOrderActor, raw: unknown) {
     uncertain: uncertain.length > 0,
     uncertaintyNote: note ? note.slice(0, 1000) : null,
     source: 'system',
-    dedupeKey: `${sha256}:${warehouse.id}`,
+    dedupeKey: `${sha256}:${warehouse.id}:${input.mode}`,
   });
   return {
     suggestionId: filed.suggestion.id as string,
     created: filed.created,
     document: payload.document,
+    mode:input.mode,
     summary: { rows: rows.length, counted: counted.length, metres: metres.length, uncertain: uncertain.length },
     rows,
   };
@@ -168,6 +171,30 @@ export async function applyCountImport(tx: any, actor: WorkOrderActor, payload: 
     INSERT INTO stock_count_documents (tenant_id, title, count_date, file_name, file_sha256, warehouse_id, suggestion_id, created_by)
     VALUES (${t}, ${payload.document.title}, ${payload.document.date ? `${y}-${m}-${d}` : null}, ${payload.document.fileName}, ${payload.document.sha256}, ${warehouse.id}, ${suggestionId}, ${actor.userId})
     RETURNING id`;
+  if(payload.mode==='technical') {
+    await tx`UPDATE stock_count_documents SET import_mode='technical' WHERE tenant_id=${t} AND id=${doc.id}`;
+    const tally={applied:0,needsBars:0,uncertain:0,skipped:0};
+    for(const row of payload.rows){
+      let item:any=null,note='Teknik başvuru; tarihî miktar stoğa eklenmedi',status:Status='skipped';
+      if(row.issues.length){status='uncertain';note='Belgedeki çelişki giderilmeden teknik bilgi aktarılmadı';}
+      else {
+        const found=await resolveItem(tx,t,row);item=found.item;
+        if(!item)note=found.note||'Stok kartı eşleştirilemedi';
+        else if(row.weightPerMeterKg!=null&&row.weightPerMeterKg>0&&row.unit==='m'){
+          const existing=item.weight_per_meter_kg==null?null:Number(item.weight_per_meter_kg);
+          if(existing!=null&&Math.abs(existing-row.weightPerMeterKg)>.000001){status='uncertain';note=`Gramaj çelişkisi: kart ${existing} kg/m, belge ${row.weightPerMeterKg} kg/m. Kart değiştirilmedi.`;}
+          else {
+            const source={documentId:doc.id,fileName:payload.document.fileName,sha256:payload.document.sha256,date:payload.document.date,page:row.page,ref:row.ref,weightPerMeterKg:row.weightPerMeterKg};
+            await tx`UPDATE inventory_items SET weight_per_meter_kg=${row.weightPerMeterKg},metadata=COALESCE(metadata,'{}'::jsonb)||jsonb_build_object('technicalSources',COALESCE(metadata->'technicalSources','[]'::jsonb)||${JSON.stringify([source])}::text::jsonb) WHERE tenant_id=${t} AND id=${item.id}`;
+            note='kg/m kaynak bilgisiyle kaydedildi; tarihî miktar stoğa eklenmedi';
+          }
+        }
+      }
+      tally[status==='uncertain'?'uncertain':'skipped']++;
+      await tx`INSERT INTO stock_count_lines(tenant_id,document_id,ref,section,code,name,size_label,color,processed_states,quantity,unit,piece_length_mm,weight_per_meter_kg,weight_kg,issues,item_id,status,note) VALUES(${t},${doc.id},${row.ref},${row.section},${row.code},${row.name},${row.size},${row.color},${rowStates(row)}::text[],${row.quantity},${row.unit},${row.pieceLengthMm},${row.weightPerMeterKg},${row.weightKg},${JSON.stringify(row.issues)}::text::jsonb,${item?.id||null},${status},${note})`;
+    }
+    return {documentId:doc.id as string,entryId:null,...tally,href:`/inventory/count-import?document=${doc.id}`};
+  }
   const tally = { applied: 0, needsBars: 0, uncertain: 0, skipped: 0 };
   // 1. Each row gets its card (or the reason it has none).
   const rows = [];
@@ -232,9 +259,9 @@ export async function applyCountImport(tx: any, actor: WorkOrderActor, payload: 
 export async function countImports(actor: WorkOrderActor) {
   if (!['owner', 'admin', 'office'].includes(actor.role)) fail('Sayım kayıtlarına erişim yok', 403);
   const documents = await sql`
-    SELECT d.id, d.title, d.count_date, d.file_name, d.created_at, d.stock_entry_id, w.name AS warehouse_name,
+    SELECT d.id, d.title, d.count_date, d.file_name, d.created_at, d.stock_entry_id, d.import_mode, w.name AS warehouse_name,
       (SELECT json_agg(json_build_object('id', l.id, 'ref', l.ref, 'section', l.section, 'code', l.code, 'name', l.name, 'color', l.color,
-        'quantity', l.quantity, 'unit', l.unit, 'pieceLengthMm', l.piece_length_mm, 'issues', l.issues, 'status', l.status, 'note', l.note, 'itemId', l.item_id)
+        'quantity', l.quantity, 'unit', l.unit, 'pieceLengthMm', l.piece_length_mm, 'weightPerMeterKg',l.weight_per_meter_kg,'weightKg',l.weight_kg,'issues', l.issues, 'status', l.status, 'note', l.note, 'itemId', l.item_id)
         ORDER BY l.created_at, l.ref) FROM stock_count_lines l WHERE l.document_id = d.id) AS lines
     FROM stock_count_documents d JOIN warehouses w ON w.id = d.warehouse_id AND w.tenant_id = d.tenant_id
     WHERE d.tenant_id = ${actor.tenantId}

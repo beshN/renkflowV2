@@ -12,6 +12,9 @@ import { AIChatbot } from '@/components/ai/AIChatbot';
 import { cn } from '@/lib/utils';
 import { WorkspaceHeader } from '@/components/layout/WorkspaceHeader';
 import { WorkspaceCommands } from '@/components/layout/WorkspaceCommands';
+import {useAuth} from '@/lib/context/AuthContext';
+
+function WorkspaceAssistant(){const {user}=useAuth();return user?.role==='worker'?null:<AIChatbot/>;}
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -52,7 +55,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
 
         <MobileBottomNav />
-        <AIChatbot />
+        <WorkspaceAssistant />
         </WorkspaceCommands>
       </AuthProviders>
     </div>

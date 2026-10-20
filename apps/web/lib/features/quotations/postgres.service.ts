@@ -1,3 +1,4 @@
+import { ensureQuoteFile, acceptQuoteFile } from '../orders/quote-file.server';
 import { requireVisualizationStorage, storeVisualization } from '@/lib/features/product-3d/storage';
 import { WorkOrderApiError } from "@/lib/features/work-orders/security";
 import { applyAwning } from "../awning/configuration";
@@ -81,7 +82,8 @@ export class PostgresQuotationService implements IQuotationService {
     if (!rows[0]) return null;
     const items =
       await sql`SELECT * FROM quotation_items WHERE tenant_id=${tenantId} AND quotation_id=${id} ORDER BY position,id`;
-    return this.map(rows[0], items);
+    const file=await columnExists('orders','quotation_id') ? (await sql`SELECT id FROM orders WHERE tenant_id=${tenantId} AND quotation_id=${id}`)[0] : null;
+    return this.map({...rows[0],order_file_id:file?.id}, items);
   }
   private async insertItems(
     tx: any,
@@ -148,6 +150,7 @@ export class PostgresQuotationService implements IQuotationService {
      VALUES (${tenantId},${"TEK-" + Date.now().toString(36).toUpperCase() + "-" + crypto.randomUUID().slice(0, 6)},${data.customerId || null},${data.customerName},${data.validUntil || null},${data.currency},${data.discountPercent},${totals.subtotal},${totals.discountAmount},${totals.taxAmount},${totals.totalAmount},${data.notes || null},${data.internalNotes || null},${data.termsAndConditions || null},${createdBy || null},${idempotencyKey || null},${idempotencyKey ? hash : null}) RETURNING id`;
       if (depth) await tx`UPDATE quotations SET vat_percent=${vatPercent}, fx_rate=${data.currency === "TRY" ? null : data.fxRate ?? null} WHERE id=${rows[0].id}`;
       await this.insertItems(tx, tenantId, rows[0].id, data.items);
+      await ensureQuoteFile(tx, tenantId, rows[0].id);
       // After the replay check: a repeated idempotency key returns above without a second record.
       await recordAudit(tx, { tenantId, actorId: createdBy, entityType: "quotation", entityId: rows[0].id, action: "created", metadata: { customerName: data.customerName, items: data.items.length } });
       return rows[0].id;
@@ -194,6 +197,7 @@ export class PostgresQuotationService implements IQuotationService {
         await tx`DELETE FROM quotation_items WHERE tenant_id=${tenantId} AND quotation_id=${id}`;
         await this.insertItems(tx, tenantId, id, data.items);
       }
+      await ensureQuoteFile(tx, tenantId, id);
     });
     return (await this.getQuotationById(tenantId, id))!;
   }
@@ -228,6 +232,7 @@ export class PostgresQuotationService implements IQuotationService {
         throw new WorkOrderApiError(rows[0].status === "expired" ? "Teklifin süresi doldu; revize edip yeniden gönderin" : "Bu durum geçişi yapılamaz", 409);
       if (depth && status === "sent") await this.checkSend(tx, tenantId, rows[0], actorId, actorRole);
       await tx`UPDATE quotations SET status=${status},version=version+1,updated_at=now() WHERE tenant_id=${tenantId} AND id=${id}`;
+      if (status === "accepted") await acceptQuoteFile(tx, tenantId, id);
       await recordAudit(tx, { tenantId, actorId, entityType: "quotation", entityId: id, action: "status_changed", changes: { status: { from: rows[0].status, to: status } } });
     });
     return (await this.getQuotationById(tenantId, id))!;
@@ -251,8 +256,8 @@ export class PostgresQuotationService implements IQuotationService {
         return { orderId: q.converted_to_order_id as string };
       if (expectedVersion !== undefined && q.version !== expectedVersion)
         throw new WorkOrderApiError("Teklif başka cihazda değişti. Güncel kaydı açın.", 409);
-      if (!["draft", "sent", "accepted"].includes(q.status))
-        throw new WorkOrderApiError("Bu teklif siparişe dönüştürülemez", 409);
+      if (q.status !== "accepted")
+        throw new WorkOrderApiError(q.valid_until && new Date(q.valid_until).toISOString().slice(0,10)<istanbulToday()?"Teklifin süresi doldu; yeniden onay gerekli":"Önce müşteri onayı gerekli",409);
       const items =
         await tx`SELECT * FROM quotation_items WHERE tenant_id=${tenantId} AND quotation_id=${id} ORDER BY position`;
       if (!items.length) throw new WorkOrderApiError("Teklif kalemi gerekli", 409);
@@ -264,6 +269,12 @@ export class PostgresQuotationService implements IQuotationService {
         const effective = effectiveDiscountPercent(items.map((i: any) => ({ quantity: Number(i.quantity), unitPrice: Number(i.unit_price), discountPercent: Number(i.discount_percent) })), Number(q.discount_percent));
         if (!["owner", "admin"].includes(actorRole ?? "") && needsDiscountApproval(effective, settings.discountApprovalPercent, q.discount_approved_percent == null ? null : Number(q.discount_approved_percent)))
           throw new WorkOrderApiError(`İndirim %${effective} firma eşiği %${settings.discountApprovalPercent} üzerinde; önce yönetici onayı gerekli`, 409);
+      }
+      const existingFile = await acceptQuoteFile(tx, tenantId, id);
+      if (existingFile) {
+        await tx`UPDATE quotations SET status='converted',converted_to_order_id=${existingFile.id},version=version+1,updated_at=now() WHERE tenant_id=${tenantId} AND id=${id}`;
+        await recordAudit(tx,{tenantId,actorId:createdBy,entityType:'quotation',entityId:id,action:'converted',metadata:{orderId:existingFile.id}});
+        return {orderId:existingFile.id as string};
       }
       // K6: a quotation typed without a customer card still yields a linked order; when several cards
       // share its name there is no one to ask here, so the order stays unlinked rather than guessed.
@@ -309,9 +320,19 @@ export class PostgresQuotationService implements IQuotationService {
     return result;
   }
   async deleteQuotation(tenantId: string, id: string) {
-    const rows =
-      await sql`DELETE FROM quotations WHERE tenant_id=${tenantId} AND id=${id} AND status='draft' RETURNING id`;
-    if (!rows[0]) throw new WorkOrderApiError("Yalnız taslak teklifler silinebilir", 409);
+    try {await withTransaction(async({sql:tx})=>{
+      await tx`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId},0))`;
+      const [quote]=await tx`SELECT status FROM quotations WHERE tenant_id=${tenantId} AND id=${id} FOR UPDATE`;
+      if(quote?.status!=='draft')throw new WorkOrderApiError('Yalnız taslak teklifler silinebilir',409);
+      if(await columnExists('orders','quotation_id')){
+        const [file]=await tx`SELECT id,provisional FROM orders WHERE tenant_id=${tenantId} AND quotation_id=${id} FOR UPDATE`;
+        if(file){
+          if(!file.provisional||(await tx`SELECT id FROM record_comments WHERE tenant_id=${tenantId} AND entity_type='order' AND entity_id=${file.id} UNION ALL SELECT id FROM record_attachments WHERE tenant_id=${tenantId} AND entity_type='order' AND entity_id=${file.id} LIMIT 1`).length)throw new WorkOrderApiError('Bağlı sipariş dosyasında kayıtlar var; geçmişi korumak için teklif silinemez',409);
+          await tx`DELETE FROM orders WHERE tenant_id=${tenantId} AND id=${file.id}`;
+        }
+      }
+      await tx`DELETE FROM quotations WHERE tenant_id=${tenantId} AND id=${id}`;
+    });}catch(e){if((e as {code?:string})?.code==='23503')throw new WorkOrderApiError('Teklif veya sipariş dosyası başka kayıtlara bağlı; silinemez',409);throw e;}
   }
   /**
    * Sending a quote: it needs lines and a validity date that has not passed (the firm's default
@@ -356,6 +377,7 @@ export class PostgresQuotationService implements IQuotationService {
       internalNotes: row.internal_notes,
       termsAndConditions: row.terms_and_conditions,
       convertedToOrderId: row.converted_to_order_id,
+      orderFileId: row.order_file_id,
       revision: row.revision ?? 1,
       vatPercent: row.vat_percent == null ? 20 : Number(row.vat_percent),
       fxRate: row.fx_rate == null ? null : Number(row.fx_rate),

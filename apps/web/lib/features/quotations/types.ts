@@ -43,6 +43,7 @@ export type ConversionResult = {
 };
 
 export const QuotationSchema = z.object({
+  orderFileId:z.string().optional(),
   id: z.string().uuid(),
   tenantId: z.string().uuid(),
   quotationNumber: z.string(),

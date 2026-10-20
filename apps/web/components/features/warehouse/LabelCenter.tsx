@@ -26,7 +26,7 @@ export function FactoryLabel({
     let active = true;
     void QRCode.toDataURL(
       window.location.origin +
-        "/warehouse/scan?code=" +
+        "/production/worker?code=" +
         encodeURIComponent(label.code),
       { width: 400, margin: 4, errorCorrectionLevel: "M" },
     )
@@ -80,6 +80,8 @@ export function FactoryLabel({
               {r.uom} {r.color ? "· " + canonicalColor(r.color) : ""}
             </strong>
           )}
+          {r.lengthMm!=null&&<p>Fiziksel boy: {r.lengthMm} mm</p>}
+          {(r.warehouseName||r.locationCode)&&<p>{[r.warehouseName,r.locationCode].filter(Boolean).join(' / ')}</p>}
           {r.status && <p>{r.status}</p>}
           <small>Etiket, kayıt kimliğidir. Güncel bilgiyi okutun.</small>
         </div>

@@ -29,7 +29,7 @@ const SOURCE: Record<PlannedBar['sourceKind'], { label: string; cls: string }> =
  * piece fits, the rest comes from whole bars, and what stock cannot cover is listed as bars to buy.
  * Nothing is reserved; it is a plan to read, with the numbers the workshop needs at the saw.
  */
-export function FoyCutPlan({ doc }: { doc: FoyDoc }) {
+export function FoyCutPlan({ doc,family,onReview }: { doc: FoyDoc;family?:string;onReview?:(doc:FoyDoc,choices:Record<string,string>)=>void }) {
   const [typed, setTyped] = useState<Record<number, string>>({});
   const [choices, setChoices] = useState<Record<string, string>>({});
   const [result, setResult] = useState<Result | null>(null);
@@ -46,13 +46,13 @@ export function FoyCutPlan({ doc }: { doc: FoyDoc }) {
     let live = true;
     setBusy(true);
     const timer = setTimeout(async () => {
-      const r = await requestJson<Result>('/api/v1/production/cut-list', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ doc: planned, choices }) }, { timeoutMs: 60_000 });
+      const r = await requestJson<Result>('/api/v1/production/cut-list', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ doc: planned, choices, family }) }, { timeoutMs: 60_000 });
       if (!live) return;
       setBusy(false);
       if (r.ok && r.data) { setResult(r.data); setError(''); } else setError(r.error || 'Kesim planı hazırlanamadı');
     }, 250);
     return () => { live = false; clearTimeout(timer); };
-  }, [planned, choices]);
+  }, [planned, choices, family]);
 
   if (!doc.cutList.length && !doc.ironCuts.length) return null;
   const s = result?.plan.summary;
@@ -68,8 +68,8 @@ export function FoyCutPlan({ doc }: { doc: FoyDoc }) {
           {s.remnantsUsed > 0 && <StatusChip tone="success" icon={Recycle} label={`${s.remnantsUsed} artık kullanılıyor`} />}
           {s.scrapUsed > 0 && <StatusChip tone="warning" icon={Recycle} label={`${s.scrapUsed} hurda boy kullanılıyor`} />}
           {s.toPaint > 0 && <StatusChip tone="warning" icon={Paintbrush} label={`${s.toPaint} boyasız çubuktan kesilip boyanacak`} />}
-          {s.toBuy > 0 ? <StatusChip tone={result?.stockProblems?.length ? 'warning' : 'danger'} icon={ShoppingCart} label={`${s.toBuy} çubuk${result?.stockProblems?.length ? ' eksik görünüyor' : ' satın alma önerisi'}`} /> : s.pieces > 0 && !result?.plan.unmatched.length && !result?.plan.groups.some((g) => g.tooLong.length) && <StatusChip tone="success" label="Stok yetiyor" />}
-          {s.pieces > 0 && <StatusChip tone="neutral" label={`Fire %${s.wastePercent.toLocaleString('tr-TR')}`} />}
+          {s.toBuy > 0 ? <StatusChip tone={result?.stockProblems?.length ? 'warning' : 'danger'} icon={ShoppingCart} label={`${s.toBuy} çubuk${result?.stockProblems?.length ? ' eksik görünüyor' : ' satın alma önerisi'}`} /> : s.pieces > 0 && !result?.stockProblems?.length && !result?.plan.unmatched.length && !result?.plan.groups.some((g) => g.tooLong.length || g.missing.length) && <StatusChip tone="success" label="Stok yetiyor" />}
+          {s.wastePercent !== null && <StatusChip tone="neutral" label={`Fire %${s.wastePercent.toLocaleString('tr-TR')}`} />}
         </>}
       </div>
 
@@ -77,7 +77,7 @@ export function FoyCutPlan({ doc }: { doc: FoyDoc }) {
       {result?.estimateNotice && <p className="text-xs text-muted-foreground">{result.estimateNotice}</p>}
       <p className="text-xs text-muted-foreground">Önce uygun renkli stok, eksik parçalar için boyasız stok değerlendirilir. Boyasız parçalar kesildikten sonra istenen renge boyaya gönderilir. Plan stok ayırmaz.</p>
       {!!result?.stockProblems?.length && <div className="rounded-md border border-amber-600/30 bg-amber-500/5 p-2.5 text-xs" role="status">
-        <p className="font-medium">Bazı stokların fiziksel boyları eksik. Satın alma önerisi bu kayıtlar tamamlanana kadar kesin değildir.</p>
+        <p className="font-medium">Bazı stokların fiziksel boyları eksik. Bu malzemelerin kesin satın alma hesabı, boy bilgisi tamamlanana kadar gösterilmez.</p>
         <details className="mt-1"><summary className="cursor-pointer">Kontrol edilecek {result.stockProblems.length} stok kaydı</summary>
           <ul className="mt-1 space-y-1">{result.stockProblems.slice(0, 20).map((p) => <li key={p.lotNumber}>{p.itemName} · {p.lotNumber}: {p.reason}.</li>)}</ul>
           {result.stockProblems.length > 20 && <p className="mt-1">Diğer kayıtların fiziksel boylarını da Stok → Depo'dan kontrol edin.</p>}
@@ -90,7 +90,7 @@ export function FoyCutPlan({ doc }: { doc: FoyDoc }) {
           {unreadIron.map((c) => (
             <label key={c.page} className="flex flex-wrap items-center gap-2">
               <span>Demir {c.profile}{c.orientation ? ` (${c.orientation})` : ''} · {c.quantity ?? '?'} adet · sayfa {c.page}</span>
-              <input inputMode="decimal" aria-label={`Sayfa ${c.page} demir boyu (cm)`} placeholder="boy, cm" value={typed[c.page] ?? ''} onChange={(e) => setTyped({ ...typed, [c.page]: e.target.value })} className="h-8 w-24 rounded-md border border-border bg-background px-2 text-[13px]" />
+              <input inputMode="decimal" aria-label={`Sayfa ${c.page} demir boyu (cm)`} placeholder="boy, cm" value={typed[c.page] ?? ''} onChange={(e) => { const next={...typed,[c.page]:e.target.value};setTyped(next);onReview?.({...doc,ironCuts:doc.ironCuts.map(v=>v.lengthCm===null&&Number(next[v.page]?.replace(',','.'))>0?{...v,lengthCm:Number(next[v.page].replace(',','.'))}:v)},choices); }} className="h-8 w-24 rounded-md border border-border bg-background px-2 text-[13px]" />
             </label>
           ))}
         </div>
@@ -99,10 +99,10 @@ export function FoyCutPlan({ doc }: { doc: FoyDoc }) {
       {result?.plan.unmatched.map((u) => (
         <div key={u.rowId} className="flex flex-wrap items-center gap-2 rounded-md border border-amber-600/30 bg-amber-500/5 p-2.5 text-xs">
           <AlertTriangle size={14} className="shrink-0 text-amber-700" aria-hidden />
-          {u.candidates.length ? (
+          {family==='makasli'&&result.rows.find(row=>row.id===u.rowId)?.requiredProfileCode==='170'?<span><b>170 Makaslı Dere</b>: {u.candidates.length?'Stok kartlarının kesit ve işlem özellikleri çelişiyor; teknik kartlar kontrol edilmeli.':'Stok kartı bulunamadı. 170 Makaslı Dere kartı gerekli.'}</span>:u.candidates.length ? (
             <label className="flex flex-wrap items-center gap-2">
               <span><b>{u.label}</b>: stokta birden fazla uygun profil var, hangisi?</span>
-              <select className="h-8 rounded-md border border-border bg-background px-2 text-[13px]" value={choices[u.rowId] ?? ''} onChange={(e) => setChoices({ ...choices, [u.rowId]: e.target.value })}>
+              <select className="h-8 rounded-md border border-border bg-background px-2 text-[13px]" value={choices[u.rowId] ?? ''} onChange={(e) => {const next={...choices,[u.rowId]:e.target.value};setChoices(next);onReview?.(planned,next);}}>
                 <option value="">Seçin</option>
                 {u.candidates.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>

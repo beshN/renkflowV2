@@ -17,7 +17,7 @@ const LIMITS = { en: 'Width', acilim: 'Projection', yukseklik: 'MountingHeight' 
 /** Lower case without Turkish dotted/dotless and accent differences: "PROFIL", "Profil", "profıl" read the same. */
 const fold = (s: string) =>
   s.trim().toLocaleLowerCase('tr-TR').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
-const BUILT_IN = ['widthMm', 'projectionMm', 'mountingHeightMm', 'areaM2', 'motor', 'led', 'quantity'];
+const BUILT_IN = ['widthMm','heightMm', 'projectionMm', 'mountingHeightMm', 'areaM2', 'motor', 'led', 'quantity'];
 
 export function recipeTemplate(familyKey: string, items: TemplateItem[], workCenters: string[]) {
   const family = productFamily(familyKey);
@@ -26,7 +26,7 @@ export function recipeTemplate(familyKey: string, items: TemplateItem[], workCen
     const i = family.profileCodes.indexOf(code ?? '');
     return i < 0 ? family.profileCodes.length : i;
   };
-  const cards = items.filter((i) => i.profileCode && family.profileCodes.includes(i.profileCode)).sort((a, b) => order(a.profileCode) - order(b.profileCode) || a.sku.localeCompare(b.sku));
+  const cards = items.filter((i) => family.geometry==='vertical'?true:i.profileCode && family.profileCodes.includes(i.profileCode)).sort((a, b) => order(a.profileCode) - order(b.profileCode) || a.sku.localeCompare(b.sku));
   const missing = family.profileCodes.filter((code) => !cards.some((c) => c.profileCode === code));
   const comment = (text: string) => ['# ' + text];
   return toCsv([
@@ -38,7 +38,7 @@ export function recipeTemplate(familyKey: string, items: TemplateItem[], workCen
     comment('sinir: kod = en | acilim | yukseklik; en_az ve en_cok mm. kontrol: miktar_formulu = sağlanması gereken koşul, ad = sağlanmazsa gösterilecek mesaj.'),
     ...(missing.length ? [comment(`Stok kartı olmayan profil kodları: ${missing.join(', ')} (sayım listesi içe aktarılınca ya da elle kart açılınca şablona gelir).`)] : []),
     [...RECIPE_COLUMNS],
-    ...(['en', 'acilim', 'yukseklik'] as const).map((k) => ['sinir', k, '', '', '', '', '', '', '', '', '']),
+    ...(['en', 'acilim', 'yukseklik'] as const).filter(k=>family.geometry!=='vertical'||k!=='acilim').map((k) => ['sinir', k, '', '', '', '', '', '', '', '', '']),
     ...cards.map((c) => ['malzeme', c.sku, c.name, c.uom === 'm' ? 'profil' : 'malzeme', c.uom, '', '', '', '', '', '']),
     ['operasyon', '', '', '', '', '', '', '', '', '', ''],
   ]);
@@ -58,7 +58,7 @@ function formulaProblem(formula: string, variables: Record<string, number>) {
 export type RecipeParts = Pick<RecipeDefinition, 'rules' | 'operations' | 'limits' | 'parameterDefinitions' | 'constraints'>;
 export type RecipeImport = { ok: true; parts: RecipeParts; skipped: number } | { ok: false; errors: string[] };
 
-export function readRecipeCsv(text: string, ctx: { items: TemplateItem[]; workCenters: string[] }): RecipeImport {
+export function readRecipeCsv(text: string, ctx: { items: TemplateItem[]; workCenters: string[];geometry?:'roof'|'vertical' }): RecipeImport {
   const records = parseCsvRecords(text).filter((r) => r.cells.some((c) => c) && !r.cells[0].startsWith('#'));
   if (!records.length) return { ok: false, errors: ['Dosyada başlık satırı yok'] };
   const header = records[0].cells.map(fold);
@@ -70,6 +70,7 @@ export function readRecipeCsv(text: string, ctx: { items: TemplateItem[]; workCe
   const operations: RecipeParts['operations'] = [];
   const constraints: NonNullable<RecipeParts['constraints']> = [];
   const limits: Record<string, number> = {};
+  if(ctx.geometry==='vertical'){limits.minProjectionMm=0;limits.maxProjectionMm=0;}
   const formulaRows: Array<{ line: number; label: string; formula: string }> = [];
   let skipped = 0;
   const bySku = new Map(ctx.items.map((i) => [fold(i.sku), i]));
@@ -154,7 +155,7 @@ export function readRecipeCsv(text: string, ctx: { items: TemplateItem[]; workCe
         continue;
       }
       const min = readNumber(get('en_az')), max = readNumber(get('en_cok'));
-      if (min === null || max === null || min <= 0 || max <= 0) say(`${key} için en_az ve en_cok mm olarak gerekli`);
+      if (min === null || max === null || (key==='acilim'&&ctx.geometry==='vertical'?(min!==0||max!==0):min <= 0 || max <= 0)) say(`${key} için en_az ve en_cok mm olarak gerekli`);
       else if (min > max) say(`${key} için en_az en_cok'tan büyük`);
       else {
         limits[`min${LIMITS[key]}Mm`] = min;
