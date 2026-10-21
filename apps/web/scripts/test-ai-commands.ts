@@ -128,7 +128,8 @@ async function main() {
   const cancel: any = await runCommand(owner, { text: `${late.order_number} iptal etsek ne olur` });
   assert.equal(cancel.type, 'preview');
   assert.match(cancel.title, /iptal edilirse/);
-  assert.equal(((await runCommand(owner, { text: "ORD-YOK-999'u öne al" })) as any).type, 'need');
+  // Seven digits: no order number in this firm (random three-character quote-file suffixes included) can end in it.
+  assert.equal(((await runCommand(owner, { text: "ORD-YOK-9999999'u öne al" })) as any).type, 'need');
 
   // Review fixes: "ORD-12" never picks "ORD-112"; another person cannot approve a command preview;
   // an order changed after the preview, or one with open work orders, is not cancelled.
