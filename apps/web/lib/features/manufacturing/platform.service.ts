@@ -866,6 +866,12 @@ export async function createJobsForConfiguredOrder(tx: any, a: WorkOrderActor, o
     return { created, pending };
   };
   if (!a.userId || !["owner", "admin", "office"].includes(a.role)) return waitAll("Üretim emrini yönetici ya da ofis açar");
+  // Releasing a technical plan is the person's explicit "produce this": a kind of warehouse the firm
+  // has none of is created then. Several of a kind still need a person's choice.
+  if (technicalRevisionId)
+    for (const type of ["RAW", "WIP", "FINISHED"])
+      if (!(await tx`SELECT 1 FROM warehouses WHERE tenant_id = ${t} AND active = true AND warehouse_type = ${type} LIMIT 1`).length)
+        await ensureWarehouse(tx, t, type, ...DEFAULT_WAREHOUSES[type]);
   const warehouses = await tx`SELECT id, warehouse_type FROM warehouses WHERE tenant_id = ${t} AND active = true AND warehouse_type IN ('RAW', 'WIP', 'FINISHED')`;
   const only = (type: string) => {
     const of = warehouses.filter((w: any) => w.warehouse_type === type);
@@ -896,6 +902,98 @@ export async function createJobsForConfiguredOrder(tx: any, a: WorkOrderActor, o
       }
     }
   }
+  return { created, pending };
+}
+/** The firm's warehouse of a kind; a firm that has none of that kind gets one with a plain name. */
+async function ensureWarehouse(tx: any, t: string, type: string, code: string, name: string) {
+  const [found] = await tx`SELECT id FROM warehouses WHERE tenant_id=${t} AND active=true AND warehouse_type=${type} ORDER BY code,id LIMIT 1`;
+  if (found) return found.id as string;
+  const [made] = await tx`INSERT INTO warehouses(tenant_id,code,name,warehouse_type) VALUES(${t},${code},${name},${type}) ON CONFLICT DO NOTHING RETURNING id`;
+  if (made) return made.id as string;
+  // The code is taken by an inactive or differently typed warehouse: use a fresh one.
+  return (await tx`INSERT INTO warehouses(tenant_id,code,name,warehouse_type) VALUES(${t},${code + "-" + randomUUID().slice(0, 4).toUpperCase()},${name},${type}) RETURNING id`)[0].id as string;
+}
+const DEFAULT_WAREHOUSES: Record<string, [string, string]> = {
+  RAW: ["HAMMADDE", "Hammadde deposu"],
+  WIP: ["URETIM", "Üretim (yarı mamul)"],
+  FINISHED: ["MAMUL", "Mamul deposu"],
+  REUSABLE_REMNANTS: ["ARTIK", "Kullanılabilir artıklar"],
+};
+const SHEET_FAMILY_NAMES: Record<string, string> = {
+  makasli: "Makaslı tente",
+  pergola: "Pergola",
+  "wind-manual": "Manuel rüzgâr kırıcı",
+  "wind-piston": "Pistonlu rüzgâr kırıcı",
+  giyotin: "Motorlu giyotin",
+  other: "Ortak işler",
+};
+/**
+ * A firm that has not written product recipes still produces from the order sheet (föy): one work
+ * order for the order, cutting exactly the sheet's matched profiles, with the standard cut, paint
+ * and final preparation steps. What the job needs and the firm lacks (a warehouse of each kind, a
+ * work centre, a finished-goods card, the archived "from sheet" recipe the job points to) is created
+ * once, with plain names the firm can rename. Same return shape as createJobsForConfiguredOrder.
+ */
+export async function createSheetJobs(
+  tx: any,
+  a: WorkOrderActor,
+  orderId: string,
+  technicalRevisionId: string,
+  input: { family: string; color: string; cuts: Array<{ itemId: string; lengthMm: number; quantity: number }>; quantity: number },
+) {
+  const created: Array<{ id: string; orderItemId: string; title: string; assignedTo: string; assigneeRole: string; color: string | null }> = [];
+  const pending: Array<{ orderItemId: string; productName: string; reason: string }> = [];
+  const t = a.tenantId;
+  if (!a.userId || !["owner", "admin", "office"].includes(a.role)) {
+    pending.push({ orderItemId: "", productName: "", reason: "Üretim emrini yönetici ya da ofis açar" });
+    return { created, pending };
+  }
+  await tx`SELECT pg_advisory_xact_lock(hashtextextended(${t},0))`;
+  const [line] =
+    await tx`SELECT oi.id,oi.product_name,o.order_number,o.delivery_date FROM order_items oi JOIN orders o ON o.id=oi.order_id WHERE o.tenant_id=${t} AND o.id=${orderId} ORDER BY oi.created_at,oi.id LIMIT 1`;
+  if (!line) fail("Siparişte ürün kalemi yok");
+  if ((await tx`SELECT id FROM work_orders WHERE tenant_id=${t} AND order_id=${orderId} AND status<>'cancelled'`).length)
+    return { created, pending };
+  const source = await ensureWarehouse(tx, t, "RAW", ...DEFAULT_WAREHOUSES.RAW),
+    wip = await ensureWarehouse(tx, t, "WIP", ...DEFAULT_WAREHOUSES.WIP),
+    target = await ensureWarehouse(tx, t, "FINISHED", ...DEFAULT_WAREHOUSES.FINISHED);
+  await ensureWarehouse(tx, t, "REUSABLE_REMNANTS", ...DEFAULT_WAREHOUSES.REUSABLE_REMNANTS);
+  let [center] = await tx`SELECT code FROM work_centers WHERE tenant_id=${t} AND active=true ORDER BY code LIMIT 1`;
+  if (!center)
+    [center] = await tx`INSERT INTO work_centers(tenant_id,code,name,parallel_capacity,shift_start,shift_end,work_days) VALUES(${t},'ATOLYE','Atölye',5,'08:00','18:00',${[1, 2, 3, 4, 5, 6]}) RETURNING code`;
+  const familyName = SHEET_FAMILY_NAMES[input.family] || "Ürün",
+    code = "FOY-" + input.family.toUpperCase();
+  let [finished] = await tx`SELECT id FROM inventory_items WHERE tenant_id=${t} AND sku=${code} AND item_type='finished_good' LIMIT 1`;
+  if (!finished)
+    [finished] = await tx`INSERT INTO inventory_items(tenant_id,sku,name,unit,item_type,stock_uom,min_stock) VALUES(${t},${code},${familyName},'adet','finished_good','adet',0) RETURNING id`;
+  const operations = ["Kesim", "Boya", "Son hazırlık"].map((name, position) => ({ position, name, workCenterCode: center.code, plannedMinutes: 30, setupMinutes: 0, qualityChecks: [] }));
+  // Archived: it never appears among the recipes offered for quotes or for opening work orders by hand.
+  let [sheetRecipe] = await tx`SELECT id FROM production_recipes WHERE tenant_id=${t} AND code=${code} AND version=1`;
+  if (!sheetRecipe)
+    [sheetRecipe] = await tx`INSERT INTO production_recipes(tenant_id,code,name,version,status,finished_item_id,rules,operations,limits,examples,created_by) VALUES(${t},${code},${familyName + " · föyden üretim"},1,'archived',${finished.id},'[]'::jsonb,${js(operations.map(({ name, workCenterCode }) => ({ name, workCenterCode, minutesFormula: "30", qualityChecks: [] })))}::text::jsonb,${js({ minWidthMm: 1, maxWidthMm: 1000000, minProjectionMm: 0, maxProjectionMm: 1000000, minMountingHeightMm: 1, maxMountingHeightMm: 1000000 })}::text::jsonb,'[]'::jsonb,${a.userId}) RETURNING id`;
+  const lead = await productionLead(tx, t);
+  const assignee = lead ?? a.userId;
+  const [member] = await tx`SELECT role FROM tenant_members WHERE tenant_id=${t} AND user_id=${assignee} AND role = ANY(${PRODUCTION_LEAD_ROLES}::text[])`;
+  if (!member) {
+    pending.push({ orderItemId: line.id, productName: line.product_name, reason: lead ? "Varsayılan üretim sorumlusu artık üretim ekibinde değil; Ayarlar'dan değiştirin" : "Onaylayan kişi üretim ekibinde değil" });
+    return { created, pending };
+  }
+  const quantity = Math.max(1, Math.round(input.quantity));
+  const metres = new Map<string, number>();
+  for (const c of input.cuts) metres.set(c.itemId, (metres.get(c.itemId) || 0) + (c.lengthMm * c.quantity) / 1000);
+  const materials = [...metres].map(([itemId, quantity]) => ({ itemId, quantity: Number(quantity.toFixed(6)), uom: "m" }));
+  const configuration = { bodyName: input.color || "", family: input.family, source: "sheet" };
+  const snapshot = { cuts: input.cuts, materials, operations, recipeCode: code, recipeVersion: 1, source: "sheet" };
+  const [job] =
+    await tx`INSERT INTO work_orders(tenant_id,title,category,order_id,order_item_id,recipe_id,production_item_id,planned_qty,production_uom,source_warehouse_id,wip_warehouse_id,target_warehouse_id,configuration,bom_snapshot,created_by,assigned_to,priority,due_at,manufacturing_idempotency_key)VALUES(${t},${line.order_number + " · " + familyName},'production',${orderId},${line.id},${sheetRecipe.id},${finished.id},${quantity},'adet',${source},${wip},${target},${js(configuration)}::text::jsonb,${js(snapshot)}::text::jsonb,${a.userId},${assignee},'medium',${line.delivery_date || null},${"technical-sheet:" + technicalRevisionId})RETURNING *`;
+  for (const m of materials)
+    await tx`INSERT INTO work_order_materials(tenant_id,work_order_id,item_id,source_warehouse_id,required_qty,uom,snapshot)VALUES(${t},${job.id},${m.itemId},${source},${m.quantity},${m.uom},${js(m)}::text::jsonb)`;
+  for (const op of operations)
+    await tx`INSERT INTO production_operations(tenant_id,work_order_id,position,name,work_center_code,planned_minutes,status,assigned_to,planned_qty,ready_at,quality_checks,setup_minutes)VALUES(${t},${job.id},${op.position},${op.name},${op.workCenterCode},${op.plannedMinutes},${op.position === 0 ? "ready" : "waiting"},${assignee},${quantity},${op.position === 0 ? new Date() : null},'[]'::jsonb,${op.setupMinutes})`;
+  await tx`UPDATE orders SET status='preparing_materials',version=version+1 WHERE id=${orderId} AND tenant_id=${t}`;
+  await noteOrderDates(tx, t, orderId, "preparing_materials");
+  await event(tx, a, "job.created", snapshot, job.id);
+  created.push({ id: job.id, orderItemId: line.id, title: job.title, assignedTo: assignee, assigneeRole: member.role, color: input.color ? canonicalColor(input.color) : null });
   return { created, pending };
 }
 /** Plans a pool of jobs (or rework) with the engine without saving anything. */
@@ -1108,8 +1206,10 @@ async function cutAction(
     )[0];
   }
   if (action === "cut.approve") {
-    if (plan.status !== "draft" || plan.result.unfulfilled.length || plan.result.stockProblems?.length)
-      fail("Eksik profil olan plan onaylanamaz");
+    if (plan.status !== "draft") fail("Bu kesim planı artık onaylanamaz");
+    // A lot without physical bar lengths is left out of the plan; only pieces nothing can cover stop it.
+    if (plan.result.unfulfilled.length)
+      fail(`Stok yetersiz: ${plan.result.unfulfilled.length} parça için uygun çubuk yok; eksik profiller gelince planı yeniden hesaplayın`);
     if (cuttingEstimateNotice(plan.result.parameterSource) && !d.acceptEstimate)
       fail("Bu plan doğrulanmamış kesim değerleriyle hesaplandı; tahmini olduğunu kabul ederek onaylayın", 400);
     const jobs =
@@ -1151,17 +1251,29 @@ async function cutAction(
     }
     if (reworkPlan)
       await tx`UPDATE production_rework SET cut_plan_id=${plan.id},profile_status='approved' WHERE tenant_id=${t} AND id=ANY(${plan.rework_ids}::uuid[])`;
-    else
+    else {
       await tx`UPDATE work_orders SET cut_plan_id=${plan.id},revision=revision+1 WHERE tenant_id=${t} AND id=ANY(${plan.work_order_ids}::uuid[])`;
+      // Jobs released from an order's technical plan track every piece, whenever their cut is approved.
+      let sequence = 0;
+      for (const bar of plan.result.bars)
+        for (const piece of bar.pieces) {
+          const job = jobs.find((j: any) => j.id === piece.workOrderId);
+          if (!job?.technical_revision_id) continue;
+          const sourceItemId = bar.source.stockItemId || bar.source.itemId;
+          await tx`INSERT INTO production_parts(tenant_id,work_order_id,technical_revision_id,cut_plan_id,source_lot_id,item_id,length_mm,target_color,sequence,weight_per_meter_kg) VALUES(${t},${job.id},${job.technical_revision_id},${plan.id},${bar.source.id},${sourceItemId},${piece.lengthMm},${bar.source.paintTo || null},${++sequence},(SELECT CASE WHEN weight_per_meter_kg>0 THEN weight_per_meter_kg ELSE NULL END FROM inventory_items WHERE tenant_id=${t} AND id=${sourceItemId}))`;
+        }
+    }
     return (
       await tx`UPDATE cutting_plans SET status='approved',version=version+1,approved_by=${a.userId},approved_at=now()WHERE tenant_id=${t} AND id=${plan.id} RETURNING *`
     )[0];
   }
   if (plan.status !== "approved" || !d.confirmed)
     fail("Gerçek kesimi planla karşılaştırıp onaylayın");
-  const [remnantWarehouse] =
+  let [remnantWarehouse] =
     await tx`SELECT id FROM warehouses WHERE tenant_id=${t} AND warehouse_type='REUSABLE_REMNANTS' AND active=true ORDER BY code LIMIT 1`;
-  if (!remnantWarehouse) fail("Kullanılabilir artık deposu gerekli");
+  // The leftover bars need a home; a firm that never made one gets it on its first cut.
+  if (!remnantWarehouse)
+    remnantWarehouse = { id: await ensureWarehouse(tx, t, "REUSABLE_REMNANTS", ...DEFAULT_WAREHOUSES.REUSABLE_REMNANTS) };
   const jobs =
     await tx`SELECT * FROM work_orders WHERE tenant_id=${t} AND id=ANY(${plan.work_order_ids}::uuid[]) FOR UPDATE`;
   const lines: any[] = [];
@@ -1387,7 +1499,7 @@ async function operation(
     const [technical]=await tx`SELECT status,technical FROM order_technical_revisions WHERE tenant_id=${t} AND id=${job.technical_revision_id}`;
     if(technical?.status!=='approved')fail('Teknik plan güncel değil; yeni planı açın');
     if(d.action==='complete' && !/kesim|cut|boya|paint|delik|delme|drill/i.test(op.name)) {
-      if(technical.technical.drilling?.some((r:any)=>r.problem))fail('Delik kuralları doğrulanmadan son hazırlık tamamlanamaz');
+      if(technical.technical.drilling?.some((r:any)=>r.problem)&&!technical.technical.acknowledged)fail('Delik kuralları doğrulanmadan son hazırlık tamamlanamaz');
       const groups=await partGroups(tx,t,job.id);
       const available=groups.length?Math.min(...groups.map(g=>Math.floor(g.ready.length*num(job.planned_qty)/g.parts.length))):0;
       if((d.quantity||0)>available)fail('Boyadan gelmeyen veya kesilmemiş parçalar var; yalnız hazır miktar tamamlanabilir');
@@ -1395,7 +1507,7 @@ async function operation(
 
     if(['start','complete'].includes(d.action)&&/kesim|cut|boya|paint/i.test(op.name)&&!op.quality_checks?.length)fail('Bu aşama kesim ve boya miktarı kayıtlarından otomatik güncellenir');
     if(d.action==='complete'&&(await tx`SELECT id FROM production_operations WHERE tenant_id=${t} AND work_order_id=${job.id} AND position<${op.position} AND completed_qty<${Number(op.completed_qty)+(d.quantity||0)}`).length)fail('Önceki aşamada bu miktar henüz tamamlanmadı');
-    if(d.action==='start' && /delik|delme|drill/i.test(op.name) && technical.technical.drilling?.some((r:any)=>r.problem))fail('Doğrulanmış delik kuralları tamamlanmadan bu işlem başlatılamaz');
+    if(d.action==='start' && /delik|delme|drill/i.test(op.name) && technical.technical.drilling?.some((r:any)=>r.problem) && !technical.technical.acknowledged)fail('Doğrulanmış delik kuralları tamamlanmadan bu işlem başlatılamaz');
   }
   for (const path of d.photos) {
     const fileId = path.split("/").pop();
@@ -1506,7 +1618,9 @@ async function operation(
     const [running] =
       await tx`SELECT COUNT(*) AS n FROM production_operations WHERE tenant_id=${t} AND work_center_code=${op.work_center_code} AND status='running'`;
     if(center && ((center.machine_required && !op.machine_id) || (center.team_required && !op.team_id)))fail("Gerekli makine veya ekip ataması yapılmalı");
-    if (!center || num(running.n) >= num(center.parallel_capacity))
+    if (!center)
+      fail(`"${op.work_center_code}" iş merkezi tanımlı değil veya kapalı; Üretim > Kapasite ekranından ekleyin`);
+    if (num(running.n) >= num(center.parallel_capacity))
       fail("İş merkezi kapasitesi dolu; çalışan işin bitmesini bekleyin");
     if (
       (
@@ -1588,7 +1702,7 @@ async function finishQuantity(
   const profileConsumption=new Map<string,number>(),assembledIds:string[]=[],profileItemIds=new Set<string>(job.bom_snapshot.cuts.map((c:any)=>c.itemId));
   if(job.technical_revision_id){
     const [technical]=await tx`SELECT technical FROM order_technical_revisions WHERE tenant_id=${a.tenantId} AND id=${job.technical_revision_id}`;
-    if(technical?.technical?.drilling?.some((r:any)=>r.problem))fail('Delik kuralları doğrulanmadan ürün tamamlanamaz');
+    if(technical?.technical?.drilling?.some((r:any)=>r.problem)&&!technical.technical.acknowledged)fail('Delik kuralları doğrulanmadan ürün tamamlanamaz');
     for(const group of await partGroups(tx,a.tenantId,job.id)){
       const required=group.parts.length*quantity/num(job.planned_qty);
       if(!Number.isInteger(required)||group.ready.length<required)fail('Bu miktar için hazır parça takımı tamamlanmalı');

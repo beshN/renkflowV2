@@ -10,6 +10,7 @@ import {
   refreshTechnicalDraft,
   saveDrillingRule,
   recheckTechnicalRules,
+  planTechnicalCut,
 } from "@/lib/features/orders/technical.server";
 import { recordError, NO_STORE } from "@/lib/features/records/http";
 import { redactedJson } from "@/lib/security/field-access.server";
@@ -45,7 +46,12 @@ export async function POST(req: NextRequest, { params }: Context) {
           revisionId: z.uuid(),
           commandId: z.uuid(),
         }),
-        z.object({ action: z.literal("approve"), revisionId: z.uuid() }),
+        z.object({
+          action: z.literal("approve"),
+          revisionId: z.uuid(),
+          acknowledgeWarnings: z.boolean().optional(),
+        }),
+        z.object({ action: z.literal("plan-cut"), commandId: z.uuid() }),
         z.object({ action: z.literal("reject"), revisionId: z.uuid() }),
         z.object({
           action: z.literal("refresh"),
@@ -77,7 +83,11 @@ export async function POST(req: NextRequest, { params }: Context) {
                   )
                 : input.action === "reject"
                   ? await rejectTechnicalRevision(a, id, input.revisionId)
-                  : await approveTechnicalPlan(a, id, input.revisionId),
+                  : input.action === "plan-cut"
+                    ? await planTechnicalCut(a, id, input.commandId)
+                    : await approveTechnicalPlan(a, id, input.revisionId, {
+                        acknowledgeWarnings: input.acknowledgeWarnings,
+                      }),
       { headers: NO_STORE },
     );
   } catch (e) {

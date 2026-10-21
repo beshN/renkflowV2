@@ -286,7 +286,7 @@ async function main() {
       1000,
       "cuts are generated from the verified recipe",
     );
-    const approved = await approveTechnicalPlan(a, orderId, attached.id);
+    const approved = await approveTechnicalPlan(a, orderId, attached.id, { acknowledgeWarnings: true });
     let [job] =
       await db`SELECT * FROM work_orders WHERE tenant_id=${t.id} AND order_id=${orderId}`;
     await db`UPDATE work_orders SET assigned_to=${worker.id} WHERE id=${job.id}`;
@@ -502,7 +502,7 @@ async function main() {
       );
       const nextWorkspace = await technicalWorkspace(a, orderId);
       assert.deepEqual(nextWorkspace.revisions[0].technical.blockers, []);
-      const second = await approveTechnicalPlan(a, orderId, fresh.id);
+      const second = await approveTechnicalPlan(a, orderId, fresh.id, { acknowledgeWarnings: true });
       [job] =
         await db`SELECT * FROM work_orders WHERE order_id=${orderId} AND status<>'cancelled'`;
       await db`UPDATE work_orders SET assigned_to=${worker.id} WHERE id=${job.id}`;
@@ -573,19 +573,11 @@ async function main() {
       /kontrol|Delik/i,
     );
     if (index === 2) {
-      await assert.rejects(
-        command(
-          "operation",
-          {
-            operationId: op.id,
-            version: op.version,
-            action: "complete",
-            quantity: 1,
-            qualityResults: [{ checkId: "mechanism", passed: true }],
-          },
-          w,
-        ),
-        /Delik/,
+      // The missing drilling rule was a warning the approver acknowledged; it is kept on the plan.
+      const [acknowledged] =
+        await db`SELECT technical->'acknowledged'->'warnings' AS warnings FROM order_technical_revisions WHERE id=${attached.id}`;
+      assert(
+        acknowledged.warnings.some((w: string) => /delik kuralı/.test(w)),
       );
       const rule = {
         revisionId: attached.id,
@@ -605,7 +597,7 @@ async function main() {
         attached.id,
         randomUUID(),
       );
-      await approveTechnicalPlan(a, orderId, checked.id);
+      await approveTechnicalPlan(a, orderId, checked.id, { acknowledgeWarnings: true });
       assert.equal(
         (
           await db`SELECT count(*)::int n FROM stock_entries WHERE tenant_id=${t.id}`
@@ -672,7 +664,7 @@ async function main() {
         assert.equal(Number((await db`SELECT on_hand_qty FROM stock_balances WHERE tenant_id=${t.id} AND item_id=${profile.id} AND warehouse_id=${wh.WIP}`)[0].on_hand_qty),0);
       }
       const fresh=await refreshTechnicalDraft(a,orderId,revised.id,randomUUID());
-      await approveTechnicalPlan(a,orderId,fresh.id);
+      await approveTechnicalPlan(a,orderId,fresh.id,{ acknowledgeWarnings: true });
       assert.equal((await db`SELECT count(*)::int AS n FROM work_orders WHERE order_id=${orderId} AND status<>'cancelled'`)[0].n,1);
     }
   }

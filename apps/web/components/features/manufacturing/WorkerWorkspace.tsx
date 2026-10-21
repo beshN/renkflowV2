@@ -33,7 +33,14 @@ export function WorkerWorkspace() {
       "/api/v1/production/worker",
       { signal: controller.signal },
     ).then((r) => {
-      if (r.ok && r.data) setData(r.data);
+      if (r.ok && r.data) {
+        setData(r.data);
+        // Open on the first category that has work, not on an empty default.
+        const busy = categories.find((c) =>
+          r.data!.orders.some((o) => c.families.includes(o.family)),
+        );
+        if (busy) setCategory(busy.id);
+      }
       else if (!controller.signal.aborted)
         setError(r.error || "Üretim listesi alınamadı");
     });
@@ -112,6 +119,11 @@ export function WorkerWorkspace() {
                 onClick={() => setCategory(c.id)}
               >
                 {c.name}
+                {data && (
+                  <span className="ml-1.5 tabular-nums opacity-70">
+                    {data.orders.filter((o) => c.families.includes(o.family)).length}
+                  </span>
+                )}
               </button>
             ))}
           </nav>
@@ -131,7 +143,8 @@ export function WorkerWorkspace() {
               {data.orders
                 .filter(
                   (o) =>
-                    current.families.includes(o.family) &&
+                    // A search looks through every category.
+                    (query.trim() !== "" || current.families.includes(o.family)) &&
                     `${o.order_number} ${o.product_name}`
                       .toLocaleLowerCase("tr-TR")
                       .includes(query.toLocaleLowerCase("tr-TR")),

@@ -15,6 +15,7 @@ import { checkFoy } from "../foy/rules";
 import { planCutListFromDoc } from "../manufacturing/cut-list.server";
 import {
   createJobsForConfiguredOrder,
+  createSheetJobs,
   planAndReserveCut,
   recipe as recipeDefinition,
 } from "../manufacturing/platform.service";
@@ -37,6 +38,8 @@ import {
   mainProcessIndex,
   drillPositions,
   DrillRuleSchema,
+  TECHNICAL_WARNINGS,
+  technicalIssues,
 } from "./technical";
 
 const fail = (message: string, status = 409): never => {
@@ -427,7 +430,8 @@ export async function attachTechnicalSheet(
         estimateNotice: base.plan.estimateNotice,
       };
     const measures = sheetMeasures(d.doc),
-      blockers: string[] = [];
+      blockers: string[] = [],
+      warnings: string[] = [];
     if (controlled && !keepsCuts)
       blockers.push(
         "Kesilmiş veya ayrılmış parça boyları değişiyor; yeniden kesim ve malzeme kararı tamamlanmadan bu revizyon üretime açılamaz",
@@ -454,21 +458,26 @@ export async function attachTechnicalSheet(
         "Dikey ürünün doğrulanmış profil ve mekanizma reçetesi bağlanmalı",
       );
     if (d.doc.unreadPages.length)
-      blockers.push(
-        `Föyün ${d.doc.unreadPages.join(", ")}. sayfaları okunamadı; tüm sayfalar kontrol edilmeli`,
+      warnings.push(
+        TECHNICAL_WARNINGS.unreadPages(d.doc.unreadPages.join(", ")),
       );
-    if (!d.doc.ral || !d.doc.finish)
-      blockers.push("Renk ve yüzey bilgisi doğrulanmalı");
+    if (!d.doc.ral || !d.doc.finish) warnings.push(TECHNICAL_WARNINGS.color);
     if (result.problems.some((p) => /okunamadı/.test(p.reason)))
-      blockers.push("Okunamayan kesim ölçüleri tamamlanmalı");
+      blockers.push(
+        "Föyde okunamayan kesim ölçüleri var; föyü düzeltip yeniden yükleyin",
+      );
     if (result.plan.unmatched.length)
-      blockers.push("Profil eşleştirmeleri tamamlanmalı");
+      blockers.push(
+        `Stok kartıyla eşleşmeyen profiller var (${result.plan.unmatched
+          .map((u) => u.label)
+          .slice(0, 5)
+          .join(", ")}); Stok ekranında bu profillerin kartını açın veya listeden seçin`,
+      );
     if (result.stockProblems.length)
-      blockers.push("Fiziksel stok boyları doğrulanmalı");
+      warnings.push(TECHNICAL_WARNINGS.stockLengths);
     if (result.plan.groups.some((g) => g.missing.length || g.tooLong.length))
-      blockers.push("Kesim için uygun stok tamamlanmalı");
-    if (result.estimateNotice)
-      blockers.push("Atölyenin testere ve uç düzeltme değerleri doğrulanmalı");
+      warnings.push(TECHNICAL_WARNINGS.stock);
+    if (result.estimateNotice) warnings.push(TECHNICAL_WARNINGS.estimate);
     const lineProof = technicalLineProof(lines),
       standardConfigurations = [];
     for (const l of lines) {
@@ -520,9 +529,19 @@ export async function attachTechnicalSheet(
         );
       }
     }
-    if (!lines.length || lines.some((l: any) => !l.product_configuration))
+    // With no recipe on any line the work order is built from the sheet's own cut list. A mix
+    // cannot be split between the two sources, so it waits for a person.
+    const configuredLines = lines.filter((l: any) => l.product_configuration);
+    if (!lines.length) blockers.push("Siparişte ürün kalemi yok");
+    else if (!configuredLines.length) {
+      if (vertical)
+        blockers.push(
+          "Dikey ürünün kesim listesi reçeteden gelir; Üretim > Reçeteler'den ürün reçetesini tanımlayın",
+        );
+      else warnings.push(TECHNICAL_WARNINGS.recipe);
+    } else if (configuredLines.length !== lines.length)
       blockers.push(
-        "Standart parça ve işlemler için ürünün doğrulanmış reçetesi bağlanmalı",
+        "Kalemlerin bir kısmında reçete var, bir kısmında yok; tüm kalemleri aynı şekilde yapılandırın",
       );
     for (const l of lines) {
       const pc = l.product_configuration;
@@ -569,9 +588,8 @@ export async function attachTechnicalSheet(
               Number(l.projection_mm) !== measures[i]?.projectionMm),
       )
     )
-      blockers.push(
-        "Föyün ürün, adet ve ölçüleri onaylı teklif kalemleriyle eşleştirilmeli",
-      );
+      warnings.push(TECHNICAL_WARNINGS.quoteMeasures);
+    // A recipe line is built from its quoted colour and family, so a different sheet is a real conflict.
     if (
       lines.some(
         (l: any) =>
@@ -581,7 +599,7 @@ export async function attachTechnicalSheet(
       )
     )
       blockers.push(
-        "Föyün ürün grubu ve rengi onaylı teklif kalemleriyle eşleştirilmeli",
+        "Föyün ürün grubu ve rengi teklifteki reçeteli kalemle aynı değil; föyü veya teklifi düzeltin",
       );
     const mechanisms = [
       ...new Set(
@@ -633,6 +651,8 @@ export async function attachTechnicalSheet(
         source: rule?.source || null,
       });
     }
+    if (drilling.some((r) => r.problem))
+      warnings.push(TECHNICAL_WARNINGS.drilling);
     const loadingChecklist = [
       { id: "product", title: "Ürünler ve adetler tam" },
       ...lines.flatMap((l: any) => {
@@ -708,6 +728,7 @@ export async function attachTechnicalSheet(
           : null,
       drilling,
       blockers,
+      warnings,
       checks: checkFoy(d.doc),
     };
     const plan = { ...result, items: undefined, lots: undefined };
@@ -786,6 +807,7 @@ export async function approveTechnicalPlan(
   a: WorkOrderActor,
   id: string,
   revisionId: string,
+  options: { acknowledgeWarnings?: boolean } = {},
 ) {
   await needTechnical(a, true, true);
   z.uuid().parse(id);
@@ -801,7 +823,13 @@ export async function approveTechnicalPlan(
       await tx`SELECT id FROM order_technical_revisions WHERE tenant_id=${a.tenantId} AND order_id=${id} ORDER BY revision DESC LIMIT 1`;
     if (latest.id !== r.id || r.status !== "draft")
       fail("Yalnız güncel taslak plan onaylanabilir");
-    if (r.technical.blockers?.length) fail(r.technical.blockers.join("; "));
+    const issues = technicalIssues(r.technical);
+    if (issues.blockers.length) fail(issues.blockers.join("; "));
+    if (issues.warnings.length && !options.acknowledgeWarnings)
+      fail(
+        "Uyarıları gördüğünüzü işaretleyip yeniden onaylayın: " +
+          issues.warnings.join("; "),
+      );
     const lines =
       await tx`SELECT id,quantity,color,width_mm,projection_mm,mounting_height_mm,product_configuration,awning_configuration,product_visualization FROM order_items WHERE order_id=${id} ORDER BY created_at,id`;
     if (
@@ -857,13 +885,59 @@ export async function approveTechnicalPlan(
     await tx`UPDATE order_technical_revisions SET status='approved',approved_by=${a.userId},approved_at=now() WHERE id=${r.id} AND tenant_id=${a.tenantId}`;
     for (const standard of r.standard_configurations || [])
       await tx`UPDATE order_items SET product_configuration=${JSON.stringify(standard.configuration)}::text::jsonb WHERE order_id=${id} AND id=${standard.orderItemId} AND (product_configuration IS NULL OR product_configuration='null'::jsonb)`;
-    const created = await createJobsForConfiguredOrder(tx, a, id, r.id);
+    const [lineCount] =
+      await tx`SELECT COUNT(*)::int AS total,COUNT(*) FILTER(WHERE jsonb_typeof(product_configuration)='object')::int AS configured FROM order_items WHERE order_id=${id}`;
+    // No recipe on any line: the sheet's own cut list is the work order. A mix waits for a person.
+    const fromSheet = lineCount.configured === 0;
+    if (!fromSheet && lineCount.configured !== lineCount.total)
+      fail(
+        "Kalemlerin bir kısmında reçete var, bir kısmında yok; tüm kalemleri aynı şekilde yapılandırın",
+      );
+    if (fromSheet && !fresh.demand.length)
+      fail("Föyde kesilecek profil bulunamadı");
+    const created = fromSheet
+      ? await createSheetJobs(tx, a, id, r.id, {
+          family: r.family,
+          color: fresh.color,
+          cuts: fresh.demand,
+          quantity: Math.max(1, r.technical.measures?.length || 1),
+        })
+      : await createJobsForConfiguredOrder(tx, a, id, r.id);
     if (created.pending.length)
       fail(created.pending.map((p) => p.reason).join("; "));
     const jobs =
       await tx`SELECT id,bom_snapshot FROM work_orders WHERE tenant_id=${a.tenantId} AND order_id=${id} AND status<>'cancelled'`;
     if (!jobs.length) fail("Üretim planı oluşturulamadı");
     await tx`UPDATE work_orders SET technical_revision_id=${r.id} WHERE tenant_id=${a.tenantId} AND order_id=${id} AND status<>'cancelled'`;
+    if (issues.warnings.length)
+      await tx`UPDATE order_technical_revisions SET technical=technical||${JSON.stringify({ acknowledged: { warnings: issues.warnings, by: a.userId, at: new Date().toISOString() } })}::text::jsonb WHERE tenant_id=${a.tenantId} AND id=${r.id}`;
+    // Short stock does not hold production: the jobs wait in the cutting pool until bars arrive.
+    const short = fresh.plan.groups.some(
+      (g: any) => g.missing.length || g.tooLong.length,
+    );
+    if (short) {
+      for (const job of jobs)
+        await syncDailyStages(tx, a.tenantId, job.id, a.userId);
+      await recordAudit(tx, {
+        tenantId: a.tenantId,
+        actorId: a.userId,
+        entityType: "order",
+        entityId: id,
+        action: "technical_plan_approved",
+        metadata: {
+          technicalRevisionId: r.id,
+          cutPlanId: null,
+          waitingForStock: true,
+          acknowledgedWarnings: issues.warnings,
+        },
+      });
+      return {
+        id: r.id,
+        cutPlanId: null,
+        waitingForStock: true,
+        workOrders: created.created,
+      };
+    }
     const signature = (bars: any[]) =>
       stableJson(
         bars
@@ -889,7 +963,8 @@ export async function approveTechnicalPlan(
       jobs.map((j: any) => j.id),
       {
         key: "technical:" + r.id,
-        acceptEstimate: false,
+        // The estimate notice is one of the warnings the person acknowledged above.
+        acceptEstimate: !!options.acknowledgeWarnings,
         suggestionId: r.id,
         verify: (draft) => {
           const actual = signature(
@@ -906,12 +981,7 @@ export async function approveTechnicalPlan(
         },
       },
     );
-    let sequence = 0;
-    for (const bar of cut.result.bars)
-      for (const piece of bar.pieces) {
-        const sourceItemId = bar.source.stockItemId || bar.source.itemId;
-        await tx`INSERT INTO production_parts(tenant_id,work_order_id,technical_revision_id,cut_plan_id,source_lot_id,item_id,length_mm,target_color,sequence,weight_per_meter_kg) VALUES(${a.tenantId},${piece.workOrderId},${r.id},${cut.id},${bar.source.id},${sourceItemId},${piece.lengthMm},${bar.source.paintTo || null},${++sequence},(SELECT CASE WHEN weight_per_meter_kg>0 THEN weight_per_meter_kg ELSE NULL END FROM inventory_items WHERE tenant_id=${a.tenantId} AND id=${sourceItemId}))`;
-      }
+    // Approving the cut created the production parts of these jobs.
     for (const job of jobs)
       await syncDailyStages(tx, a.tenantId, job.id, a.userId);
     await recordAudit(tx, {
@@ -920,13 +990,64 @@ export async function approveTechnicalPlan(
       entityType: "order",
       entityId: id,
       action: "technical_plan_approved",
-      metadata: { technicalRevisionId: r.id, cutPlanId: cut.id },
+      metadata: {
+        technicalRevisionId: r.id,
+        cutPlanId: cut.id,
+        acknowledgedWarnings: issues.warnings,
+      },
     });
-    return { id: r.id, cutPlanId: cut.id, workOrders: created.created };
+    return {
+      id: r.id,
+      cutPlanId: cut.id,
+      waitingForStock: false,
+      workOrders: created.created,
+    };
   });
   if (outcome.workOrders?.length)
     await notifyWorkOrdersAssigned(a.tenantId, outcome.workOrders, a.userId);
   return outcome;
+}
+
+/**
+ * A plan released while stock was short leaves its jobs waiting for cutting. Once bars arrive this
+ * plans and reserves those jobs' cuts from current stock; when stock is still short it says what.
+ */
+export async function planTechnicalCut(
+  a: WorkOrderActor,
+  id: string,
+  commandId: string,
+) {
+  await needTechnical(a, true, true);
+  z.uuid().parse(id);
+  z.uuid().parse(commandId);
+  return withTransaction(async (tx) => {
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${a.tenantId},0))`;
+    await requireCommercialApproval(tx, a.tenantId, id);
+    const [revision] =
+      await tx`SELECT id FROM order_technical_revisions WHERE tenant_id=${a.tenantId} AND order_id=${id} AND status='approved' ORDER BY revision DESC LIMIT 1`;
+    if (!revision) fail("Önce teknik planı onaylayın");
+    const jobs =
+      await tx`SELECT id FROM work_orders WHERE tenant_id=${a.tenantId} AND order_id=${id} AND technical_revision_id=${revision.id} AND status IN('open','in_progress') AND cut_plan_id IS NULL`;
+    if (!jobs.length) fail("Kesim bekleyen iş yok");
+    const cut = await planAndReserveCut(
+      tx,
+      a,
+      jobs.map((j: any) => j.id),
+      // Whoever releases the order already acknowledged the plan's estimate notes.
+      { key: "technical-cut:" + commandId, acceptEstimate: true, suggestionId: revision.id },
+    );
+    for (const job of jobs)
+      await syncDailyStages(tx, a.tenantId, job.id, a.userId);
+    await recordAudit(tx, {
+      tenantId: a.tenantId,
+      actorId: a.userId,
+      entityType: "order",
+      entityId: id,
+      action: "technical_cut_planned",
+      metadata: { technicalRevisionId: revision.id, cutPlanId: cut.id },
+    });
+    return { id: revision.id, cutPlanId: cut.id };
+  });
 }
 
 export async function rejectTechnicalRevision(

@@ -7,7 +7,7 @@ import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orde
 import { FoyDocSchema } from '@/lib/features/foy/types';
 import { firmCuttingParameters, cuttingEstimateNotice } from './cutting-defaults';
 import { CuttingParametersSchema } from './cutting-engine';
-import { foyCutRows, matchItems, planCutList, stockProfileIdentity, type CutRow,type StockItem, type StockLot } from './cut-list';
+import { foyCutRows, matchCutDemand, matchItems, planCutList, stockProfileIdentity, type CutRow,type StockItem, type StockLot } from './cut-list';
 import { physicalBars } from './cut-stock';
 
 type Row = Record<string, any>;
@@ -98,5 +98,7 @@ export async function planCutListFromDoc(actor: WorkOrderActor, raw: unknown, db
   });
   const alternatives=new Map<string,{itemName:string;color:string;lengthMm:number;kind:string;count:number}>();
   for(const lot of lots){const key=[lot.itemId,lot.color,lot.lengthMm,lot.kind].join('|');const value=alternatives.get(key)||{itemName:profileById.get(lot.itemId)?.name||'',color:lot.color,lengthMm:lot.lengthMm,kind:lot.kind,count:0};value.count++;alternatives.set(key,value);}
-  return { color, rows, items, lots, problems, stockProblems, plan,availableLengths:[...alternatives.values()], parameters: firm.parameters, estimateNotice: cuttingEstimateNotice(firm.source), stock: { items: items.length, bars: lots.length } };
+  // What a work order built from this sheet cuts: one entry per matched row, on the row's own profile.
+  const demand = matchCutDemand(rows, items, input.choices).demand.map((d) => ({ itemId: d.itemId, lengthMm: d.lengthMm, quantity: d.quantity }));
+  return { color, rows, items, lots, problems, stockProblems, plan, demand, availableLengths:[...alternatives.values()], parameters: firm.parameters, estimateNotice: cuttingEstimateNotice(firm.source), stock: { items: items.length, bars: lots.length } };
 }

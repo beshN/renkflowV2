@@ -212,7 +212,8 @@ export class PostgresQuotationService implements IQuotationService {
     if (status === "converted")
       throw new WorkOrderApiError("Siparişe dönüşüm komutunu kullanın", 409);
     const allowed: Record<string, string[]> = {
-      draft: ["sent"],
+      // A customer may accept on the spot: accepting a draft sends it in the same step.
+      draft: ["sent", "accepted"],
       sent: ["accepted", "rejected", "expired"],
       accepted: [],
       rejected: [],
@@ -230,7 +231,7 @@ export class PostgresQuotationService implements IQuotationService {
       if (rows[0].status === status) return;
       if (!allowed[rows[0].status]?.includes(status))
         throw new WorkOrderApiError(rows[0].status === "expired" ? "Teklifin süresi doldu; revize edip yeniden gönderin" : "Bu durum geçişi yapılamaz", 409);
-      if (depth && status === "sent") await this.checkSend(tx, tenantId, rows[0], actorId, actorRole);
+      if (depth && (status === "sent" || rows[0].status === "draft")) await this.checkSend(tx, tenantId, rows[0], actorId, actorRole);
       await tx`UPDATE quotations SET status=${status},version=version+1,updated_at=now() WHERE tenant_id=${tenantId} AND id=${id}`;
       if (status === "accepted") await acceptQuoteFile(tx, tenantId, id);
       await recordAudit(tx, { tenantId, actorId, entityType: "quotation", entityId: id, action: "status_changed", changes: { status: { from: rows[0].status, to: status } } });

@@ -631,13 +631,22 @@ export default function QuotationPage({
             }
           </span>
           {quotation?.status === "draft" && (
-            <button
-              disabled={busy}
-              className="rf-primary-button"
-              onClick={() => action("status", "sent")}
-            >
-              Gönderildi olarak işaretle
-            </button>
+            <>
+              <button
+                disabled={busy}
+                className="rf-primary-button"
+                onClick={() => action("status", "sent")}
+              >
+                Gönderildi olarak işaretle
+              </button>
+              <button
+                disabled={busy}
+                className="rf-input"
+                onClick={() => action("status", "accepted")}
+              >
+                Müşteri onayladı
+              </button>
+            </>
           )}
           {quotation?.status === "sent" && (
             <>
