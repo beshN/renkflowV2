@@ -6,7 +6,7 @@ import type { DeliveryFile } from './inspect.server';
 import { randomUUID } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { sql } from '@/lib/db';
-import { uploadFile } from '@/lib/storage';
+import { deleteFile, uploadFile } from '@/lib/storage';
 import { providerConfig } from '@/lib/ai/providers';
 import { costUsd, withUsage } from '@/lib/ai/usage';
 import { ModelBlockedError } from '@/lib/ai/policy';
@@ -96,8 +96,15 @@ export async function runOfficeTask(tenantId: string, taskId: string, signal: Ab
       if (!bytes.length || bytes.length > 8 * 1024 * 1024 || saved.length >= 8) throw new Error('Teslim dosyası sınırın dışında.');
       const key = `office/${tenantId}/${taskId}/r${revision}-${randomUUID()}-${name}`;
       await uploadFile(key, bytes, contentType);
-      await sql`INSERT INTO office_files (tenant_id, task_id, revision, file_name, content_type, size_bytes, storage_key)
-        VALUES (${tenantId}, ${taskId}, ${revision}, ${name}, ${contentType}, ${bytes.length}, ${key})`;
+      // Only the run that holds the task may add files: a run that outlived a retry leaves none behind.
+      const [kept] = await sql`INSERT INTO office_files (tenant_id, task_id, revision, file_name, content_type, size_bytes, storage_key)
+        SELECT ${tenantId}, ${taskId}, ${revision}, ${name}, ${contentType}, ${bytes.length}, ${key}
+        WHERE EXISTS (SELECT 1 FROM office_tasks WHERE tenant_id=${tenantId} AND id=${taskId} AND status='working' AND started_at=${lease})
+        RETURNING id`;
+      if (!kept) {
+        await deleteFile(key).catch(() => undefined);
+        throw new Error('Görev başka bir çalıştırmaya geçti.');
+      }
       saved.push(name);
       deliveredFiles.push({ name, contentType, bytes });
     };

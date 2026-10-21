@@ -365,6 +365,7 @@ function Deliveries({ sim, office }: { sim: OfficeSimulation; office: Office }) 
                 <p className="font-semibold">{task.remote.decision.review.status === 'approved' ? 'Yönetici kontrolünden geçti' : 'İncelemeniz gerekiyor'}{task.remote.decision.review.score !== null ? ` · ${task.remote.decision.review.score}/10` : ''}</p>
                 <p className="mt-1 text-zinc-300">{task.remote.decision.review.note}</p>
                 {task.remote.decision.review.issues.length > 0 && <ul className="mt-1 list-disc space-y-1 pl-4 text-amber-200">{task.remote.decision.review.issues.map((issue, i) => <li key={i}>{issue}</li>)}</ul>}
+                {(task.remote.decision.review.suggestions?.length ?? 0) > 0 && <ul className="mt-1 list-disc space-y-1 pl-4 text-zinc-400" aria-label="Öneriler">{task.remote.decision.review.suggestions!.map((tip, i) => <li key={i}>Öneri: {tip}</li>)}</ul>}
                 <p className="mt-1 text-zinc-400">Son onay size ait.</p>
               </div>
             )}

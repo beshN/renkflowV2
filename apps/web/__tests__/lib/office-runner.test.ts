@@ -1,5 +1,6 @@
 /** @jest-environment node */
-const stream = jest.fn(), retrieveMetadata = jest.fn(), download = jest.fn(), remove = jest.fn(), uploadFile = jest.fn();
+const stream = jest.fn(), retrieveMetadata = jest.fn(), download = jest.fn(), remove = jest.fn(), uploadFile = jest.fn(), deleteFile = jest.fn(async () => {});
+let leaseHeld = true;
 const statements: Array<{ text: string; values: unknown[] }> = [];
 let taskRow: Record<string, unknown> | null;
 
@@ -20,12 +21,13 @@ jest.mock('@/lib/db', () => ({
     const text = strings.join('?');
     statements.push({ text, values });
     if (text.includes("SET status='working'")) return Promise.resolve(taskRow ? [taskRow] : []);
+    if (text.startsWith('INSERT INTO office_files')) return Promise.resolve(leaseHeld ? [{ id: 'file-1' }] : []);
     if (text.includes('RETURNING id')) return Promise.resolve([{ id: 'task-1' }]);
     if (text.includes('FROM tenants')) return Promise.resolve([{ name: 'Renk Alüminyum' }]);
     return Promise.resolve([]);
   }),
 }));
-jest.mock('@/lib/storage', () => ({ uploadFile: (...a: unknown[]) => uploadFile(...a) }));
+jest.mock('@/lib/storage', () => ({ uploadFile: (...a: unknown[]) => uploadFile(...a), deleteFile: (...a: unknown[]) => deleteFile(...(a as [])) }));
 jest.mock('@/lib/ai/gate.server', () => ({ assertModelAllowed: jest.fn(async () => {}) }));
 
 import { sql } from '@/lib/db';
@@ -38,6 +40,7 @@ const usage = { input_tokens: 1000, output_tokens: 500 };
 const lastUpdate = () => [...statements].reverse().find(s => s.text.startsWith('UPDATE office_tasks'))!;
 
 beforeEach(() => {
+  leaseHeld = true;
   jest.clearAllMocks();
   statements.length = 0;
   reviewDelivery.mockResolvedValue({ cost: 0, review: { status: 'approved', score: 9, note: 'Kontrol edildi.', issues: [], revision: 0, checkedAt: '2026-10-21T12:00:00Z' } });
@@ -133,6 +136,17 @@ describe('running an AI office task', () => {
     const log = jest.spyOn(console, 'error').mockImplementation(() => {});
     await runOfficeTask('t1', 'task-1');
     expect(lastUpdate().text).toContain("status='failed'");
+    log.mockRestore();
+  });
+
+  it('keeps no file from a run that lost the task to a retry', async () => {
+    leaseHeld = false;
+    taskRow = { ...taskRow!, category: 'correspondence', title: 'Bayram duyurusu', agent_id: 'selin' };
+    stream.mockResolvedValue({ stop_reason: 'end_turn', usage, content: [{ type: 'text', text: 'Konu: Bayram' }] });
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+    await runOfficeTask('t1', 'task-1');
+    expect(deleteFile).toHaveBeenCalledWith(uploadFile.mock.calls[0][0]);
+    expect(reviewDelivery).not.toHaveBeenCalled();
     log.mockRestore();
   });
 });

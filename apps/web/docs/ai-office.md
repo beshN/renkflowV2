@@ -4,7 +4,7 @@ Görevler firma bazında `office_tasks` ve `office_files` tablolarında saklanı
 
 Çalışan teslim ettikten sonra yönetici gerçek dosya içeriklerini görevle karşılaştırır. Word, Excel ve PowerPoint XML içeriği, PDF metni, düz metin ve desteklenen görseller incelenir. Büyük veya okunamayan içerik, kontrol edilebilmiş gibi onaylanmaz. Puan, gerekçe ve sorunlar teslim kartında gösterilir. Kontrol sonucunun ve en fazla son 10 incelemenin kaydı `decision` alanındadır.
 
-Hata bulunan teslim bir kez otomatik düzeltmeye gider. Aynı çalıştırmadaki bütün model çağrıları ortak 260 saniye sınırını paylaşır. Sorun sürerse, kontrol servisi kullanılamazsa veya dosya tam incelenemezse son karar kullanıcıya bırakılır. Yönetici onayı, kullanıcının son onayının yerine geçmez. Altı dakika boyunca çalıştırılamayan işler yeniden denenebilir; eski çalıştırıcı yeni denemenin sonucunu değiştiremez.
+Yönetici yalnız düzeltilmeden teslim edilemeyecek sorunları (yanlış hesap, eksik kalem, uydurma bilgi, bozuk biçim) `issues` olarak yazar; üslup ve küçük biçim önerileri `suggestions` olarak teslim kartında görünür ve işi geri göndermez. Geçme puanı 7'dir. Hata bulunan teslim bir kez otomatik düzeltmeye gider. Aynı çalıştırmadaki bütün model çağrıları ortak 260 saniye sınırını paylaşır. Sorun sürerse, kontrol servisi kullanılamazsa veya dosya tam incelenemezse son karar kullanıcıya bırakılır. Yönetici onayı, kullanıcının son onayının yerine geçmez. Altı dakika boyunca çalıştırılamayan işler yeniden denenebilir; eski çalıştırıcı yeni denemenin sonucunu değiştiremez. Yeniden deneme revizyon sayılmaz: başarısız denemenin bıraktığı dosyalar silinir ve iş aynı revizyonda tekrar yapılır; dosya kaydı yalnız görevi o an tutan çalıştırmaya açıktır.
 
 ## Model seçimi
 

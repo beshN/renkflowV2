@@ -3,7 +3,7 @@ import 'server-only';
 import { z } from 'zod';
 import { sql, withTransaction } from '@/lib/db';
 import { tableExists } from '@/lib/db/schema-guard';
-import { readFile } from '@/lib/storage';
+import { deleteFile, readFile } from '@/lib/storage';
 import { aiAvailable } from '@/lib/ai/service';
 import { getAiSettings } from '@/lib/ai/gate.server';
 import { modelConfigurationBlock, modelUnavailableMessage } from '@/lib/ai/policy';
@@ -140,9 +140,12 @@ export async function actOnOfficeTask(actor: WorkOrderActor, taskId: string, raw
     if (!row) fail('Bu görev bir cevap beklemiyor.');
     return { run: true };
   }
-  const [row] = await sql`UPDATE office_tasks SET status='queued', revisions=revisions+1, error=NULL, started_at=NULL, updated_at=now()
-    WHERE tenant_id=${actor.tenantId} AND id=${taskId} AND status='failed' RETURNING id`;
+  // A retry is the same delivery tried again, not a revision: what the failed attempt left goes first.
+  const [row] = await sql`UPDATE office_tasks SET status='queued', error=NULL, started_at=NULL, updated_at=now()
+    WHERE tenant_id=${actor.tenantId} AND id=${taskId} AND status='failed' RETURNING revisions`;
   if (!row) fail('Yalnızca başarısız bir görev yeniden denenebilir.');
+  const leftovers = await sql`DELETE FROM office_files WHERE tenant_id=${actor.tenantId} AND task_id=${taskId} AND revision=${row.revisions} RETURNING storage_key`;
+  for (const f of leftovers as any[]) await deleteFile(f.storage_key).catch(() => undefined);
   return { run: true };
 }
 

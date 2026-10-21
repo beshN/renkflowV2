@@ -3,6 +3,8 @@ export type ManagerReview = {
   score: number | null;
   note: string;
   issues: string[];
+  /** Small improvements the manager noted without sending the work back. */
+  suggestions?: string[];
   revision: number;
   checkedAt: string;
 };
