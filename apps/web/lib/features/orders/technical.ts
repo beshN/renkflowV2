@@ -56,6 +56,53 @@ export function mainProcessIndex(input: {
   if (input.released) return 4;
   return input.hasDocument ? 3 : 2;
 }
+/**
+ * Things a person may knowingly accept when releasing a plan: production opens and the note stays
+ * on the plan. Everything else in `blockers` means correct records cannot be made yet.
+ */
+export const TECHNICAL_WARNINGS = {
+  stock: "Stok yetersiz: eksik profiller gelene kadar kesim bekler",
+  stockLengths:
+    "Bazı stok kayıtlarında fiziksel çubuk boyu eksik; bu kayıtlar kesim planına alınmadı",
+  estimate:
+    "Testere ve uç payı atölyenize göre doğrulanmadı; varsayılan değerlerle hesaplandı",
+  recipe:
+    "Bu ürün için kayıtlı üretim reçetesi yok; iş emri föydeki kesim listesiyle açılır",
+  quoteMeasures:
+    "Föydeki ürün, adet veya ölçüler teklif kalemleriyle aynı değil; üretimde föy esas alınır",
+  quoteColor:
+    "Föydeki ürün grubu veya renk teklif kalemleriyle aynı değil; üretimde föy esas alınır",
+  color: "Föyde renk veya yüzey bilgisi eksik",
+  drilling:
+    "Bazı parçalar için delik kuralı tanımlı değil; delikler atölye ölçüsüyle açılır",
+  unreadPages: (pages: string) =>
+    `Föyün ${pages}. sayfaları okunamadı; bu sayfaları kaynak föyden kontrol edin`,
+} as const;
+// Plans saved before the split kept every note in `blockers`; these were always acceptable.
+const LEGACY_WARNINGS = [
+  /^Kesim için uygun stok tamamlanmalı$/,
+  /^Fiziksel stok boyları doğrulanmalı$/,
+  /^Atölyenin testere ve uç düzeltme değerleri doğrulanmalı$/,
+  /^Standart parça ve işlemler için ürünün doğrulanmış reçetesi bağlanmalı$/,
+  /^Föyün ürün, adet ve ölçüleri onaylı teklif kalemleriyle eşleştirilmeli$/,
+  /^Föyün ürün grubu ve rengi onaylı teklif kalemleriyle eşleştirilmeli$/,
+  /^Renk ve yüzey bilgisi doğrulanmalı$/,
+  /^Föyün .* sayfaları okunamadı; tüm sayfalar kontrol edilmeli$/,
+];
+export function technicalIssues(
+  technical:
+    | { blockers?: string[] | null; warnings?: string[] | null }
+    | null
+    | undefined,
+) {
+  const blockers: string[] = [],
+    warnings: string[] = [...(technical?.warnings || [])];
+  for (const message of technical?.blockers || [])
+    (LEGACY_WARNINGS.some((p) => p.test(message)) ? warnings : blockers).push(
+      message,
+    );
+  return { blockers, warnings };
+}
 const DrillCoordinates = z
   .object({
     reference: z.enum(["start", "end"]),

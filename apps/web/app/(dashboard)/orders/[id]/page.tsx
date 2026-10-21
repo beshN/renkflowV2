@@ -19,7 +19,7 @@ import {
 
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
 import { StatusStepper, StatusBadge, ORDER_STATUS_STEPS, LEGACY_STATUS_MAP } from '@/components/shared/ui/StatusStepper';
-import { HealthBadge, HintTip, LifecycleStrip } from '@/components/kit';
+import { HealthBadge, HintTip } from '@/components/kit';
 import { orderHealth } from '@/lib/features/orders/lifecycle';
 import { Lock } from 'lucide-react';
 import { businessDate } from '@/lib/features/orders/workspace';
@@ -281,7 +281,8 @@ export default function OrderDetailPage() {
               </div>
             </div>
 
-            {order.quotationId ? <OrderTechnicalPanel orderId={order.id}/> : <LifecycleStrip status={order.status} className="mb-5" />}
+            {/* Every order, quoted or entered directly, reaches production through its sheet (föy). */}
+            <OrderTechnicalPanel orderId={order.id}/>
             {order.productionManaged && <p className="flex items-center gap-2 rounded-md border border-border bg-accent px-4 py-2 text-xs text-muted-foreground"><Lock size={14} aria-hidden /> Üretimden güncellenir <HintTip text="Bu siparişin durumu üretim ve sevkiyat işlemlerinden hesaplanır; elle değiştirilemez." /><Link href={user?.role === 'worker' ? '/factory' : '/production'} className="ml-auto font-medium text-primary hover:underline">Operasyon</Link></p>}
             {/* Status Stepper */}
             <div className="hidden">

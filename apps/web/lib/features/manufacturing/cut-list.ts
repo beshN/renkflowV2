@@ -170,19 +170,24 @@ const sameLength = (a: number, b: number) => Math.abs(a - b) < 0.0005;
  * Plans the cuts. `choices` maps a row id to the profile the person picked when the match was not
  * unique. Everything the engine could not place is reported as missing (and as bars to buy), never dropped.
  */
-export function planCutList(input: { rows: CutRow[]; items: StockItem[]; lots: StockLot[]; parameters: CuttingParameters; choices?: Record<string, string>; purchaseLengthsMm?: number[]; uncertainItemIds?: string[] }): CutListPlan {
-  const { rows, items, lots, parameters } = input;
-  const byId = new Map(items.map((i) => [i.id, i]));
+/** The stock profile each sheet row is cut from: the person's pick, or the only matching card. */
+export function matchCutDemand(rows: CutRow[], items: StockItem[], choices?: Record<string, string>) {
   const unmatched: CutListPlan['unmatched'] = [];
   const demand: CutDemand[] = [];
-
   for (const row of rows) {
-    const chosen = input.choices?.[row.id];
+    const chosen = choices?.[row.id];
     const candidates=matchItems(row,items);
     const match = chosen && candidates.candidates.some(i=>i.id===chosen) ? { itemId: chosen, candidates: candidates.candidates } : candidates;
     if (!match.itemId) { unmatched.push({ rowId: row.id, label: row.label, candidates: match.candidates }); continue; }
     demand.push({ itemId: match.itemId, color: row.color, lengthMm: row.lengthMm, quantity: row.quantity, workOrderId: 'liste', orderItemId: row.id });
   }
+  return { demand, unmatched };
+}
+
+export function planCutList(input: { rows: CutRow[]; items: StockItem[]; lots: StockLot[]; parameters: CuttingParameters; choices?: Record<string, string>; purchaseLengthsMm?: number[]; uncertainItemIds?: string[] }): CutListPlan {
+  const { rows, items, lots, parameters } = input;
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const { demand, unmatched } = matchCutDemand(rows, items, input.choices);
 
   const {family,result,allBars,unfulfilled,paintTargets,lotById} = allocatePhysicalCuts(demand,items,lots,parameters);
   const kindOf = new Map(lots.map(l=>[l.id,l.kind]));

@@ -630,7 +630,11 @@ export default function ProductionWorkspace() {
                   </h2>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {p.work_order_ids.length} iş emri · {p.result.bars.length}{" "}
-                    çubuk · %{p.result.wastePercent.toFixed(2)} fire ·{" "}
+                    çubuk ·{" "}
+                    {p.result.wastePercent == null
+                      ? "fire hesaplanmadı (stok eksik)"
+                      : `%${Number(p.result.wastePercent).toFixed(2)} fire`}{" "}
+                    ·{" "}
                     {p.result.reusableMm} mm kullanılabilir artık
                   </p>
                 </div>

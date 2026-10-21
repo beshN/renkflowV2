@@ -3,7 +3,11 @@ import Link from "next/link";
 import { useCommandRetry } from "@/lib/hooks/useCommandRetry";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { MAIN_PROCESS, FAMILY_LABELS } from "@/lib/features/orders/technical";
+import {
+  MAIN_PROCESS,
+  FAMILY_LABELS,
+  technicalIssues,
+} from "@/lib/features/orders/technical";
 import type { TechnicalFamily } from "@/lib/features/orders/technical";
 import type { technicalWorkspace } from "@/lib/features/orders/technical.server";
 import { requestJson } from "@/lib/shared/network";
@@ -28,7 +32,8 @@ export function OrderTechnicalPanel({
   const [data, setData] = useState<Workspace | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
-    [upload, setUpload] = useState(false);
+    [upload, setUpload] = useState(false),
+    [acknowledged, setAcknowledged] = useState(false);
   const load = useCallback(async () => {
     const r = await requestJson<Workspace>(
       `/api/v1/orders/${orderId}/technical`,
@@ -42,17 +47,39 @@ export function OrderTechnicalPanel({
   useEffect(() => {
     void load();
   }, [load]);
+  const send = (body: Record<string, unknown>) =>
+    requestJson<{ waitingForStock?: boolean }>(
+      `/api/v1/orders/${orderId}/technical`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
   const approve = async (revisionId: string, action = "approve") => {
     setBusy(true);
-    const r = await requestJson(`/api/v1/orders/${orderId}/technical`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        action,
-        revisionId,
-        commandId: action === "refresh" ? crypto.randomUUID() : undefined,
-      }),
+    const r = await send({
+      action,
+      revisionId,
+      commandId: action === "refresh" ? crypto.randomUUID() : undefined,
+      acknowledgeWarnings: action === "approve" ? acknowledged : undefined,
     });
+    // Stock moved since the sheet was read: recalculate at once rather than asking for a second click.
+    if (!r.ok && action === "approve" && /Stok veya kesim hesabı değişti/.test(r.error || "")) {
+      const refreshed = await send({
+        action: "refresh",
+        revisionId,
+        commandId: crypto.randomUUID(),
+      });
+      setBusy(false);
+      if (refreshed.ok)
+        toast.info(
+          "Stok bu arada değişmiş; plan güncel stokla yeniden hesaplandı. Kontrol edip yeniden onaylayın.",
+        );
+      else toast.error(refreshed.error || "Plan yenilenemedi");
+      void load();
+      return;
+    }
     setBusy(false);
     if (r.ok) {
       toast.success(
@@ -60,10 +87,21 @@ export function OrderTechnicalPanel({
           ? "Revizyon reddedildi; önceki sürüm kullanılabilir"
           : action === "refresh"
             ? "Taslak güncel stokla yeniden hesaplandı"
-            : "Teknik plan onaylandı",
+            : r.data?.waitingForStock
+              ? "Üretime açıldı. Stok eksik olduğu için kesim, profiller gelince planlanır."
+              : "Plan onaylandı, üretime açıldı",
       );
       void load();
     } else toast.error(r.error || "Plan onaylanamadı");
+  };
+  const planCut = async () => {
+    setBusy(true);
+    const r = await send({ action: "plan-cut", commandId: crypto.randomUUID() });
+    setBusy(false);
+    if (r.ok) {
+      toast.success("Kesim planlandı ve çubuklar ayrıldı");
+      void load();
+    } else toast.error(r.error || "Kesim planlanamadı");
   };
   if (error)
     return (
@@ -83,7 +121,8 @@ export function OrderTechnicalPanel({
   const r = data.revisions.find((x: any) =>
       ["draft", "approved", "blocked"].includes(x.status),
     ),
-    family = data.family as TechnicalFamily;
+    family = data.family as TechnicalFamily,
+    issues = technicalIssues(r?.technical);
   return (
     <section className="min-w-0 space-y-4" aria-label="Sipariş teknik dosyası">
       {!worker && (
@@ -211,16 +250,40 @@ export function OrderTechnicalPanel({
               Standart dere: <strong>170 Makaslı Dere</strong>
             </p>
           )}
-          {r.technical?.blockers?.length > 0 && (
-            <div className="rounded-lg border border-amber-500/40 p-3">
-              <p className="font-medium">
-                Üretime açılmadan tamamlanacak bilgiler
-              </p>
+          {issues.blockers.length > 0 && (
+            <div
+              role="alert"
+              className="rounded-lg border border-rose-500/50 p-3"
+            >
+              <p className="font-medium">Üretime açmadan önce düzeltilmeli</p>
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-                {r.technical.blockers.map((s: string) => (
+                {issues.blockers.map((s: string) => (
                   <li key={s}>{s}</li>
                 ))}
               </ul>
+            </div>
+          )}
+          {issues.warnings.length > 0 && (
+            <div className="rounded-lg border border-amber-500/40 p-3">
+              <p className="font-medium">
+                {r.status === "draft" ? "Uyarılar" : "Onaylanırken kabul edilen uyarılar"}
+              </p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                {issues.warnings.map((s: string) => (
+                  <li key={s}>{s}</li>
+                ))}
+              </ul>
+              {data.canApprove && r.status === "draft" && !issues.blockers.length && (
+                <label className="mt-3 flex items-start gap-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-4"
+                    checked={acknowledged}
+                    onChange={(e) => setAcknowledged(e.target.checked)}
+                  />
+                  Uyarıları gördüm, üretim yine de açılsın
+                </label>
+              )}
             </div>
           )}
           <div className="grid gap-3 xl:grid-cols-2">
@@ -429,12 +492,41 @@ export function OrderTechnicalPanel({
           {data.canApprove && r.status === "draft" && (
             <button
               className="rf-primary-button"
-              disabled={busy || !!r.technical?.blockers?.length}
+              disabled={
+                busy ||
+                issues.blockers.length > 0 ||
+                (issues.warnings.length > 0 && !acknowledged)
+              }
               onClick={() => void approve(r.id)}
             >
               {busy ? "Kontrol ediliyor…" : "Planı onayla ve üretime aç"}
             </button>
           )}
+          {!data.canApprove && r.status === "draft" && (
+            <p className="text-sm text-muted-foreground">
+              Planı firma sahibi veya yöneticisi onaylayıp üretime açar.
+            </p>
+          )}
+          {r.status === "approved" &&
+            !data.cutPlan &&
+            data.jobs.some((j: any) => !j.cut_plan_id) && (
+              <div className="rounded-lg border border-amber-500/40 p-3 text-sm">
+                <p className="font-medium">Kesim stok bekliyor</p>
+                <p className="mt-1 text-muted-foreground">
+                  Üretim açık. Eksik profiller depoya girince kesimi buradan
+                  planlayın; çubuklar bu siparişe ayrılır.
+                </p>
+                {data.canApprove && (
+                  <button
+                    className="rf-secondary-button mt-2"
+                    disabled={busy}
+                    onClick={() => void planCut()}
+                  >
+                    {busy ? "Kontrol ediliyor…" : "Stoğu kontrol et ve kesimi planla"}
+                  </button>
+                )}
+              </div>
+            )}
           {data.canApprove &&
             r.status === "draft" &&
             r.replaces_id &&

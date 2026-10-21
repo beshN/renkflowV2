@@ -8,7 +8,7 @@ import { EmptyState, PageHeader, StatusChip } from '@/components/kit';
 import { ColorSwatch } from '@/components/colors/ColorSwatch';
 import { FoySchema } from './FoySchema';
 import { FoyCutPlan } from './FoyCutPlan';
-import type { TechnicalFamily } from '@/lib/features/orders/technical';
+import { FAMILY_LABELS, TECHNICAL_FAMILIES, type TechnicalFamily } from '@/lib/features/orders/technical';
 import { cn } from '@/lib/utils';
 import type { FoyCheck, FoyFeatures } from '@/lib/features/foy/rules';
 import type { FoyDoc, FoyPartKind } from '@/lib/features/foy/types';
@@ -222,6 +222,8 @@ export function FoyWorkbench({orderId,family,expectedRevision=0,onAttached,contr
   const [selected, setSelected] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [revisionReason,setRevisionReason]=useState('');
+  // Guessed from the product name; the person corrects it when the guess is wrong.
+  const [productFamily,setProductFamily]=useState<TechnicalFamily>(family||'other');
   const [drag, setDrag] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const patch = useCallback((key: string, p: Partial<Entry>) => setEntries((list) => list.map((e) => (e.key === key ? { ...e, ...p } : e))), []);
@@ -259,7 +261,7 @@ export function FoyWorkbench({orderId,family,expectedRevision=0,onAttached,contr
     setCreating(true);
     try {
       if(orderId) {
-        await post(`/api/v1/orders/${orderId}/technical`,{action:'attach',data:{name:current.file.name,doc:current.reviewedDoc||current.result.doc,family:family||'other',choices:current.choices||{},expectedRevision,revisionReason:controlled?revisionReason:undefined,file:current.base64?{name:current.file.name,mime:current.mime,base64:current.base64}:undefined}});
+        await post(`/api/v1/orders/${orderId}/technical`,{action:'attach',data:{name:current.file.name,doc:current.reviewedDoc||current.result.doc,family:productFamily,choices:current.choices||{},expectedRevision,revisionReason:controlled?revisionReason:undefined,file:current.base64?{name:current.file.name,mime:current.mime,base64:current.base64}:undefined}});
         toast.success('Liste mevcut siparişe eklendi');onAttached?.();return;
       }
       const r = await post<{ href: string; orderNumber: string; attached: boolean }>('/api/v1/orders/foy/order', {
@@ -278,6 +280,7 @@ export function FoyWorkbench({orderId,family,expectedRevision=0,onAttached,contr
 
   return (
     <div className={orderId?"space-y-5":"rf-page space-y-5"}>
+      {orderId&&<label className="block max-w-xs text-sm">Ürün grubu<select className="rf-input mt-1 w-full" value={productFamily} onChange={e=>setProductFamily(e.target.value as TechnicalFamily)}>{TECHNICAL_FAMILIES.map(f=><option key={f} value={f}>{FAMILY_LABELS[f]}</option>)}</select></label>}
       {controlled&&<label className="block text-sm">Revizyon gerekçesi<textarea className="rf-input mt-1 w-full" rows={2} maxLength={1000} value={revisionReason} onChange={e=>setRevisionReason(e.target.value)} placeholder="Değişen ölçü veya teknik bilgiyi açıklayın"/><span className="mt-1 block text-xs text-muted-foreground">Liste eklenince mevcut sürümde üretim durur. Yetkili onayından sonra güncel sürümle devam edilir.</span></label>}
       <PageHeader eyebrow="Üretim" title="Kesim listesi"
         hint="Föy PDF'ini ya da fotoğrafını yükleyin. Hangi profil hangi çubuktan kesilecek, hangi artık ya da hurda boy kullanılacak, ne kadar fire çıkacak ve neyin alınması gerektiği hesaplanır. Siz onaylamadan hiçbir şey kaydedilmez."
@@ -319,7 +322,7 @@ export function FoyWorkbench({orderId,family,expectedRevision=0,onAttached,contr
             </ul>
             <div className="min-w-0">
               {current?.result ? (
-                <Preview entry={current} orderMode={!!orderId} family={family} onReview={(doc,choices)=>patch(current.key,{reviewedDoc:doc,choices})} creating={creating} onCreate={create} onCustomer={(id, name) => patch(current.key, { customerId: id, customerName: name })} />
+                <Preview entry={current} orderMode={!!orderId} family={orderId?productFamily:family} onReview={(doc,choices)=>patch(current.key,{reviewedDoc:doc,choices})} creating={creating} onCreate={create} onCustomer={(id, name) => patch(current.key, { customerId: id, customerName: name })} />
               ) : current?.state === 'error' ? (
                 <EmptyState icon={X} title={current.error ?? 'Okunamadı'} action={{ label: 'Tekrar oku', onClick: () => void readEntry(current) }} />
               ) : (
