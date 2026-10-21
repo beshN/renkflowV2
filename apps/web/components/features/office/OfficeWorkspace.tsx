@@ -122,12 +122,9 @@ const decisionText = (task: Task) => task.decision ? `${DIFFICULTY_LABELS[task.d
 
 /** Phases with no task in hand: no bubble over the head, at most a small icon. */
 const IDLE_PHASES = new Set<Agent['phase']>(['lounge', 'called', 'to_break', 'break', 'from_break']);
-const LOUNGE_ICON = { relax: '', phone: '📱', read: '📖', chat: '💬', coffee: '☕' };
-
+/** Only someone at a break spot shows its icon; the lounge and the walkers stay unlabelled. */
 function breakIcon(agent: Agent) {
-  if (agent.phase === 'break' || agent.phase === 'to_break') return BREAKS[agent.activity!].icon;
-  if (agent.phase === 'lounge') return LOUNGE_ICON[agent.lounging];
-  return '';
+  return agent.phase === 'break' ? BREAKS[agent.activity!].icon : '';
 }
 
 const TONE_DOT = { idle: 'bg-zinc-500', busy: 'bg-amber-400', move: 'bg-sky-400', done: 'bg-emerald-400' };
@@ -150,7 +147,14 @@ function keptOffice(key: string) {
 export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
   const [here] = useState(() => keptOffice(officeKey));
   const sim = here.sim;
-  useSyncExternalStore(sim.subscribe, sim.getVersion, sim.getVersion);
+  // The office changes many times a second; the panel follows at most four times a second (the 3D
+  // scene draws itself every frame without React).
+  const subscribe = useCallback((notify: () => void) => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const stop = sim.subscribe(() => { timer ??= setTimeout(() => { timer = null; notify(); }, 250); });
+    return () => { stop(); if (timer) clearTimeout(timer); };
+  }, [sim]);
+  useSyncExternalStore(subscribe, sim.getVersion, sim.getVersion);
   const office = useOffice(sim);
   const canvas = useRef<HTMLCanvasElement>(null);
   const stage = useRef<OfficeStage | null>(null);

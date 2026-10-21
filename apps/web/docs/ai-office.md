@@ -16,7 +16,7 @@ KVKK: firmanın bilinen müşteri, tedarikçi ve üye adları, e-posta, telefon,
 
 Ofis sayfadan ayrılınca durmaz: menü değişip geri gelindiğinde aynı ofis, uzakta geçen süre kadar (en çok 30 dakika) ilerlemiş olarak açılır; hız, gece/gündüz ve sekme seçimi de korunur. Sayfa yeniden yüklendiğinde sunucuda çalışmakta olan görevin çalışanı yeniden görev verilmeden masasında görünür. Masa ekranları işin türünü (tablo, belge, slayt, tasarım, e-posta; yöneticide görev panosu) ve ilerlemesini gösterir.
 
-Görevi olmayan çalışan oturup beklemez: lounge'da telefonuna bakar, kitap okur, sohbet eder ya da kahvesini içer; ara sıra molaya çıkar. Molalar: mutfakta kahve (sonra kafe masasında içmek), buzdolabı, su sebilinde sohbet, TV köşesinde yayın, oyun köşesinde konsol (boşta biri varsa iki kişi bölünmüş ekranda), görev panosu, pencere, çiçek sulama, yazıcı, kitaplık. Yönetici yalnız dağıtılacak veya kontrol edilecek iş yokken kahve almaya gider. İş her zaman önce gelir: görevi bekleyen kişi (yönetici dahil) molasını yarıda bırakır, koltuğuna döner ve görev her zamanki gibi verilir. Molalar yalnız sahnededir; gerçek işi geciktirmez, yalnız teslim animasyonunu birkaç saniye geciktirebilir.
+Görevi olmayan çalışan oturup beklemez: lounge'da telefonuna bakar, kitap okur, sohbet eder ya da kahvesini içer; ara sıra (25–70 saniyede bir) molaya çıkar. Ofis sakin kalsın diye aynı anda en çok 3 kişi moladadır. Molalar: mutfakta kahve (sonra kafe masasında içmek), buzdolabı, su sebilinde sohbet, TV köşesinde yayın, oyun köşesinde konsol (boşta biri varsa iki kişi bölünmüş ekranda), görev panosu, pencere, çiçek sulama, yazıcı, kitaplık. Yönetici yalnız dağıtılacak veya kontrol edilecek iş yokken kahve almaya gider. İş her zaman önce gelir: görevi bekleyen kişi (yönetici dahil) molasını yarıda bırakır, koltuğuna döner ve görev her zamanki gibi verilir. Molalar yalnız sahnededir; gerçek işi geciktirmez, yalnız teslim animasyonunu birkaç saniye geciktirebilir.
 
 ## Model seçimi
 
@@ -40,3 +40,7 @@ API anahtarı henüz hazır olmadığından OpenCode canlı çağrısı doğrula
 ## Yayın
 
 077 migration mevcut veriyi değiştirmez; yeni görev ve dosya tablolarını ekler. Veritabanı yedeği alınarak migration ve ledger kaydı tamamlanmalı; ardından production readiness ve anonim API erişim reddi kontrol edilmelidir.
+
+## Sahne performansı
+
+Hareket etmeyen mobilya, açılışta görünüşüne göre birkaç parçada birleştirilir. Her kişi, renkleri köşe noktalarına işlenmiş 8 parçadan oluşur. Böylece bir karede 1200 kadar olan çizim çağrısı 220 civarına iner. Gölgeler üç karede bir güncellenir. Cihaz yetişemezse çözünürlük kendiliğinden düşer, toparlanınca geri çıkar (en çok 1,5 piksel oranı). Sahne ekranda görünmüyorsa çizilmez, ofis yine işler. Yan panel saniyede en çok 4 kez güncellenir.

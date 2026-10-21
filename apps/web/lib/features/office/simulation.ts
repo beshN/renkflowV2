@@ -80,22 +80,24 @@ export type OfficeEvent = { id: number; at: number; kind: EventKind; agentId: st
 
 /** How long each kind of break lasts, how often it is picked, and what follows it. */
 export const BREAKS: Record<BreakKind, { seconds: [number, number]; weight: number; then?: BreakKind; going: string; doing: string; icon: string }> = {
-  coffee: { seconds: [5, 8], weight: 5, then: 'cafe', going: 'Kahve almaya gidiyor', doing: 'Kahve yapıyor', icon: '☕' },
-  snack: { seconds: [4, 7], weight: 2, going: 'Mutfağa gidiyor', doing: 'Buzdolabından atıştırmalık alıyor', icon: '🥪' },
-  cafe: { seconds: [12, 20], weight: 0, going: 'Kafe masasına geçiyor', doing: 'Kahvesini içiyor', icon: '☕' },
-  water: { seconds: [10, 16], weight: 3, going: 'Su sebiline gidiyor', doing: 'Su içip sohbet ediyor', icon: '💧' },
-  tv: { seconds: [20, 35], weight: 3, going: 'Televizyon köşesine gidiyor', doing: 'Televizyon izliyor', icon: '📺' },
-  game: { seconds: [20, 35], weight: 4, going: 'Oyun köşesine gidiyor', doing: 'Konsolda oyun oynuyor', icon: '🎮' },
-  board: { seconds: [5, 9], weight: 1, going: 'Görev panosuna gidiyor', doing: 'Görev panosuna bakıyor', icon: '📋' },
-  window: { seconds: [8, 14], weight: 2, going: 'Pencereye gidiyor', doing: 'Pencereden dışarı bakıyor', icon: '🌆' },
-  plant: { seconds: [6, 9], weight: 1, going: 'Çiçeği sulamaya gidiyor', doing: 'Çiçeği suluyor', icon: '🪴' },
-  printer: { seconds: [4, 7], weight: 1, going: 'Yazıcıya gidiyor', doing: 'Yazıcıdan çıktı alıyor', icon: '🖨️' },
-  books: { seconds: [3, 5], weight: 1, going: 'Kitaplığa gidiyor', doing: 'Kitap seçiyor', icon: '📚' },
+  coffee: { seconds: [6, 9], weight: 5, then: 'cafe', going: 'Kahve almaya gidiyor', doing: 'Kahve yapıyor', icon: '☕' },
+  snack: { seconds: [5, 8], weight: 2, going: 'Mutfağa gidiyor', doing: 'Buzdolabından atıştırmalık alıyor', icon: '🥪' },
+  cafe: { seconds: [20, 35], weight: 0, going: 'Kafe masasına geçiyor', doing: 'Kahvesini içiyor', icon: '☕' },
+  water: { seconds: [15, 25], weight: 3, going: 'Su sebiline gidiyor', doing: 'Su içip sohbet ediyor', icon: '💧' },
+  tv: { seconds: [40, 70], weight: 3, going: 'Televizyon köşesine gidiyor', doing: 'Televizyon izliyor', icon: '📺' },
+  game: { seconds: [40, 70], weight: 4, going: 'Oyun köşesine gidiyor', doing: 'Konsolda oyun oynuyor', icon: '🎮' },
+  board: { seconds: [8, 12], weight: 1, going: 'Görev panosuna gidiyor', doing: 'Görev panosuna bakıyor', icon: '📋' },
+  window: { seconds: [12, 20], weight: 2, going: 'Pencereye gidiyor', doing: 'Pencereden dışarı bakıyor', icon: '🌆' },
+  plant: { seconds: [8, 12], weight: 1, going: 'Çiçeği sulamaya gidiyor', doing: 'Çiçeği suluyor', icon: '🪴' },
+  printer: { seconds: [6, 9], weight: 1, going: 'Yazıcıya gidiyor', doing: 'Yazıcıdan çıktı alıyor', icon: '🖨️' },
+  books: { seconds: [4, 6], weight: 1, going: 'Kitaplığa gidiyor', doing: 'Kitap seçiyor', icon: '📚' },
 };
 export const LOUNGE_TEXT: Record<LoungeStyle, string> = {
   relax: 'Dinleniyor', phone: 'Telefonuna bakıyor', read: 'Kitap okuyor', chat: 'Sohbet ediyor', coffee: 'Kahvesini içiyor',
 };
 const LOUNGE_STYLES: LoungeStyle[] = ['relax', 'phone', 'chat', 'phone', 'relax', 'read'];
+/** At most this many people are away from the lounge on a break at once, so the floor stays calm. */
+export const MAX_AWAY = 3;
 
 export const WALK_SPEED = 2;
 export const DELIVER_SECONDS = 1.5;
@@ -131,7 +133,7 @@ export class OfficeSimulation {
       return {
         ...member, phase: manager ? 'managing' : 'lounge', position: { x: home.x, z: home.z }, facing: home.facing, seated: true,
         path: [], deskId: manager ? MANAGER_DESK.id : null, taskId: null, seatIndex: manager ? -1 : seat++, phaseTime: 0,
-        activity: null, spotId: null, breakFor: 0, rest: manager ? this.between(30, 60) : this.between(1, 12), recalled: false, partnerId: null, carrying: null,
+        activity: null, spotId: null, breakFor: 0, rest: manager ? this.between(60, 120) : this.between(5, 45), recalled: false, partnerId: null, carrying: null,
         lounging: this.pick(LOUNGE_STYLES),
       };
     });
@@ -372,7 +374,7 @@ export class OfficeSimulation {
   private backToManagerDesk(manager: Agent) {
     manager.facing = MANAGER_DESK.chair.facing;
     manager.seated = true;
-    manager.rest = this.between(40, 90);
+    manager.rest = this.between(90, 180);
     this.setPhase(manager, 'managing');
     this.dispatch();
   }
@@ -454,7 +456,7 @@ export class OfficeSimulation {
   private sitInLounge(agent: Agent) {
     agent.facing = LOUNGE_SEATS[agent.seatIndex].facing;
     agent.seated = true;
-    agent.rest = this.between(6, 20);
+    agent.rest = this.between(25, 70);
     agent.lounging = agent.carrying === 'coffee' ? 'coffee' : agent.carrying === 'book' ? 'read' : this.pick(LOUNGE_STYLES);
     this.setPhase(agent, 'lounge');
     this.dispatch();
@@ -536,6 +538,8 @@ export class OfficeSimulation {
   /** A person who has rested long enough picks something to do, weighted, among what is free. */
   private takeBreak(agent: Agent) {
     if (this.hasWaitingTask(agent)) { agent.phaseTime = 0; return; }
+    const away = this.agents.filter(a => a.role !== 'manager' && (a.phase === 'to_break' || a.phase === 'break' || a.phase === 'from_break')).length;
+    if (away >= MAX_AWAY) { agent.rest = agent.phaseTime + this.between(10, 25); return; }
     const kinds = (Object.keys(BREAKS) as BreakKind[]).filter(kind => BREAKS[kind].weight > 0 && this.freeSpots(kind).length);
     if (!kinds.length) { agent.rest = agent.phaseTime + this.between(4, 10); return; }
     let roll = this.random() * kinds.reduce((sum, kind) => sum + BREAKS[kind].weight, 0);
@@ -543,7 +547,7 @@ export class OfficeSimulation {
     const spot = this.pick(this.freeSpots(kind));
     this.goToBreak(agent, kind, spot, pathToSpot(LOUNGE_SEATS[agent.seatIndex], spot));
     // Usually someone comes along to play; otherwise a game against the console.
-    const friend = spot.partner && this.random() < 0.75 ? this.partnerFor(agent) : null;
+    const friend = spot.partner && away + 2 <= MAX_AWAY && this.random() < 0.75 ? this.partnerFor(agent) : null;
     if (friend) {
       const other = breakSpot(spot.partner!)!;
       this.goToBreak(friend, kind, other, pathToSpot(LOUNGE_SEATS[friend.seatIndex], other));
@@ -590,7 +594,8 @@ export class OfficeSimulation {
     this.spotOwner.delete(spot.id);
     if (kind === 'coffee' || kind === 'books') agent.carrying = kind === 'coffee' ? 'coffee' : 'book';
     const then = BREAKS[kind].then;
-    const next = then && !agent.recalled && agent.role !== 'manager' && !this.hasWaitingTask(agent) ? this.freeSpots(then)[0] : undefined;
+    // Half the time the coffee is drunk at the café table, otherwise back on the sofa.
+    const next = then && !agent.recalled && agent.role !== 'manager' && !this.hasWaitingTask(agent) && this.random() < 0.5 ? this.freeSpots(then)[0] : undefined;
     const onward = next && pathBetweenSpots(spot, next);
     if (next && onward) return this.goToBreak(agent, then!, next, onward);
     agent.seated = false;
