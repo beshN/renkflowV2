@@ -17,6 +17,7 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
   { id: 'general', label: 'Genel', subtitle: '', items: [
     { id: 'dashboard', label: 'Genel bakış', href: '/dashboard' },
     { id: 'assistant', allowedRoles: ['owner', 'admin', 'office', 'accountant'], label: 'Asistan', href: '/assistant' },
+    { id: 'office', allowedRoles: ROUTE_ROLES['/office'], label: 'AI ofis', href: '/office' },
     { id: 'knowledge', label: 'Bilgi bankası', href: '/knowledge' },
     { id: 'calendar', allowedRoles: ROUTE_ROLES['/calendar'], label: 'Takvim', href: '/calendar', requiresPermission: 'orders.view' },
   ] },

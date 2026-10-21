@@ -300,6 +300,8 @@ export const ROUTE_ROLES: Record<string, UserRole[]> = {
   '/service': ['owner', 'admin', 'office', 'accountant', 'worker'],
   // The fleet (vehicles, costs, positions) is the owner's and admins' only.
   '/vehicles': ['owner', 'admin'],
+  // The AI office hands work to models (a cost and a data transfer): office staff, not the field crew.
+  '/office': ['owner', 'admin', 'office', 'accountant'],
 };
 
 function longestRouteMatch<T>(map: Record<string, T>, pathname: string): T | undefined {
