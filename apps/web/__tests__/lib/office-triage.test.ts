@@ -52,7 +52,7 @@ describe('office manager reading a plain-words task', () => {
   });
 
   it('lets the simulation take a plain-words task too', () => {
-    const sim = new OfficeSimulation();
+    const sim = new OfficeSimulation({ breaks: false });
     const task = sim.assignText('Kartvizit tasarımı yap');
     expect(task).toMatchObject({ category: 'design', agentId: 'deniz' });
     expect(task.decision?.triage?.by).toBe('rules');

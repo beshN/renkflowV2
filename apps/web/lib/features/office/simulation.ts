@@ -1,5 +1,5 @@
 import { CATEGORY, STAFF, isTaskCategory, type Look, type TaskCategoryId } from './catalog';
-import { DESKS, LOUNGE_SEATS, MANAGER_DESK, pathFromBrief, pathToBrief, pathToDesk, pathToLounge, type Desk, type Point } from './layout';
+import { BREAK_SPOTS, DESKS, LOUNGE_SEATS, MANAGER_DESK, breakSpot, managerCoffeePath, pathBetweenSpots, pathFromBrief, pathFromSpot, pathToBrief, pathToDesk, pathToLounge, pathToSpot, type BreakKind, type BreakSpot, type Desk, type Point } from './layout';
 import { DIFFICULTY_LABELS, DIFFICULTY_PACE, MISSING_NOTE, decide, type ManagerDecision } from './routing';
 import { triageByRules } from './triage';
 
@@ -10,6 +10,13 @@ import { triageByRules } from './triage';
  * the lounge; the manager returns to their desk for the next task, one task at a time.
  * Time only moves through tick(), so the scene, the panel and the tests drive the same clock.
  *
+ * Nobody just sits and waits: between tasks people rest in the lounge (on the phone, reading,
+ * chatting) and now and then take a break: coffee and a seat at the café table, the fridge, a chat
+ * at the water cooler, TV, a game on the console (with a friend when one is free), a look at the task board
+ * or out of the window, watering the plant, the printer, a book from the shelf. The manager fetches
+ * a coffee when the office is quiet. Work always wins: a person with a task waiting cuts the break
+ * short and goes back to their seat, where the manager hands it over as usual.
+ *
  * A task either lives only here (simulation: progress follows the category's workSeconds and the
  * delivery is a placeholder name) or mirrors a real task on the server through sync(): the server's
  * status then decides when the person raises a hand, delivers or gives up, and the scene only
@@ -19,7 +26,11 @@ import { triageByRules } from './triage';
 export type AgentPhase =
   | 'lounge' | 'called' | 'to_desk' | 'working' | 'asking' | 'delivering' | 'to_lounge'
   // The manager's own phases: at the desk, on the way to someone, handing over, back to the desk.
-  | 'managing' | 'to_brief' | 'briefing' | 'to_office' | 'to_review' | 'checking';
+  | 'managing' | 'to_brief' | 'briefing' | 'to_office' | 'to_review' | 'checking'
+  // Breaks: on the way, there, and back to the seat (the manager: back to the desk).
+  | 'to_break' | 'break' | 'from_break';
+/** What a person does while resting in the lounge. */
+export type LoungeStyle = 'relax' | 'phone' | 'read' | 'chat' | 'coffee';
 export type TaskStatus = 'queued' | 'assigned' | 'working' | 'asking' | 'review' | 'approved' | 'failed';
 
 /** A task as the server reports it (lib/features/office/service.server.ts). */
@@ -40,6 +51,17 @@ export type Agent = {
   path: Point[]; deskId: string | null; taskId: string | null; seatIndex: number;
   /** Seconds spent in the current phase. */
   phaseTime: number;
+  /** The break under way and where; null when not on a break. */
+  activity: BreakKind | null; spotId: string | null;
+  /** How long this break lasts, and how long to rest in the lounge (or at the desk, for the manager) before the next. */
+  breakFor: number; rest: number;
+  /** Called back for work while on a break. */
+  recalled: boolean;
+  /** Who they are playing with; the game ends when that person leaves. */
+  partnerId: string | null;
+  /** What the person brings back from a break. */
+  carrying: 'coffee' | 'book' | null;
+  lounging: LoungeStyle;
 };
 
 export type Task = {
@@ -55,6 +77,25 @@ export type Task = {
 };
 
 export type OfficeEvent = { id: number; at: number; kind: EventKind; agentId: string | null; taskId: string | null; text: string };
+
+/** How long each kind of break lasts, how often it is picked, and what follows it. */
+export const BREAKS: Record<BreakKind, { seconds: [number, number]; weight: number; then?: BreakKind; going: string; doing: string; icon: string }> = {
+  coffee: { seconds: [5, 8], weight: 5, then: 'cafe', going: 'Kahve almaya gidiyor', doing: 'Kahve yapıyor', icon: '☕' },
+  snack: { seconds: [4, 7], weight: 2, going: 'Mutfağa gidiyor', doing: 'Buzdolabından atıştırmalık alıyor', icon: '🥪' },
+  cafe: { seconds: [12, 20], weight: 0, going: 'Kafe masasına geçiyor', doing: 'Kahvesini içiyor', icon: '☕' },
+  water: { seconds: [10, 16], weight: 3, going: 'Su sebiline gidiyor', doing: 'Su içip sohbet ediyor', icon: '💧' },
+  tv: { seconds: [20, 35], weight: 3, going: 'Televizyon köşesine gidiyor', doing: 'Televizyon izliyor', icon: '📺' },
+  game: { seconds: [20, 35], weight: 4, going: 'Oyun köşesine gidiyor', doing: 'Konsolda oyun oynuyor', icon: '🎮' },
+  board: { seconds: [5, 9], weight: 1, going: 'Görev panosuna gidiyor', doing: 'Görev panosuna bakıyor', icon: '📋' },
+  window: { seconds: [8, 14], weight: 2, going: 'Pencereye gidiyor', doing: 'Pencereden dışarı bakıyor', icon: '🌆' },
+  plant: { seconds: [6, 9], weight: 1, going: 'Çiçeği sulamaya gidiyor', doing: 'Çiçeği suluyor', icon: '🪴' },
+  printer: { seconds: [4, 7], weight: 1, going: 'Yazıcıya gidiyor', doing: 'Yazıcıdan çıktı alıyor', icon: '🖨️' },
+  books: { seconds: [3, 5], weight: 1, going: 'Kitaplığa gidiyor', doing: 'Kitap seçiyor', icon: '📚' },
+};
+export const LOUNGE_TEXT: Record<LoungeStyle, string> = {
+  relax: 'Dinleniyor', phone: 'Telefonuna bakıyor', read: 'Kitap okuyor', chat: 'Sohbet ediyor', coffee: 'Kahvesini içiyor',
+};
+const LOUNGE_STYLES: LoungeStyle[] = ['relax', 'phone', 'chat', 'phone', 'relax', 'read'];
 
 export const WALK_SPEED = 2;
 export const DELIVER_SECONDS = 1.5;
@@ -73,10 +114,16 @@ export class OfficeSimulation {
   readonly events: OfficeEvent[] = [];
   private readonly deskOwner = new Map<string, string>();
   private listeners = new Set<() => void>();
+  private readonly spotOwner = new Map<string, string>();
   private eventSeq = 0;
   private taskSeq = 0;
+  /** Breaks on (the page) or off (tests that follow one task through the office). */
+  private readonly breaks: boolean;
+  private seed: number;
 
-  constructor() {
+  constructor(options: { breaks?: boolean; seed?: number } = {}) {
+    this.breaks = options.breaks ?? true;
+    this.seed = options.seed ?? Math.floor(Math.random() * 2 ** 31);
     let seat = 0;
     this.agents = STAFF.map(member => {
       const manager = member.role === 'manager';
@@ -84,9 +131,21 @@ export class OfficeSimulation {
       return {
         ...member, phase: manager ? 'managing' : 'lounge', position: { x: home.x, z: home.z }, facing: home.facing, seated: true,
         path: [], deskId: manager ? MANAGER_DESK.id : null, taskId: null, seatIndex: manager ? -1 : seat++, phaseTime: 0,
+        activity: null, spotId: null, breakFor: 0, rest: manager ? this.between(30, 60) : this.between(1, 12), recalled: false, partnerId: null, carrying: null,
+        lounging: this.pick(LOUNGE_STYLES),
       };
     });
   }
+
+  /** Seeded, so a test sees the same breaks every run. */
+  private random() {
+    let t = (this.seed = (this.seed + 0x6d2b79f5) | 0);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  private between(min: number, max: number) { return min + (max - min) * this.random(); }
+  private pick<T>(items: T[]): T { return items[Math.floor(this.random() * items.length)]; }
 
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -243,6 +302,7 @@ export class OfficeSimulation {
   tick(seconds: number) {
     if (seconds <= 0) return;
     this.time += seconds;
+    if (this.breaks) this.callBackForWork();
     for (const agent of this.agents) {
       agent.phaseTime += seconds;
       // Walking is redrawn by the scene every frame; only arrivals change what the panel shows.
@@ -252,6 +312,10 @@ export class OfficeSimulation {
       else if (agent.phase === 'delivering' && agent.phaseTime >= DELIVER_SECONDS) this.leaveDesk(agent);
       else if (agent.phase === 'checking' && agent.phaseTime >= 2 && (this.task(agent.taskId)?.remote?.status !== 'working' || this.task(agent.taskId)?.remote?.decision.review?.status !== 'checking')) this.finishInspection(agent);
       else if (agent.phase === 'briefing' && agent.phaseTime >= BRIEF_SECONDS) this.handOver(agent);
+      else if (agent.phase === 'break' && (agent.recalled || agent.phaseTime >= agent.breakFor || this.partnerLeft(agent))) this.endBreak(agent);
+      else if (!this.breaks) continue;
+      else if (agent.phase === 'lounge' && agent.phaseTime >= agent.rest) this.takeBreak(agent);
+      else if (agent.phase === 'managing' && agent.phaseTime >= agent.rest && this.quiet()) this.managerCoffee(agent);
     }
   }
 
@@ -277,6 +341,8 @@ export class OfficeSimulation {
     else if (agent.phase === 'to_brief') this.startBriefing(agent);
     else if (agent.phase === 'to_review') { agent.facing = Math.PI; this.setPhase(agent, 'checking'); }
     else if (agent.phase === 'to_office') this.backToManagerDesk(agent);
+    else if (agent.phase === 'to_break') this.arriveAtBreak(agent);
+    else if (agent.phase === 'from_break') { if (agent.role === 'manager') this.backToManagerDesk(agent); else this.sitInLounge(agent); }
   }
 
   /** The manager has reached the person and turns to them. */
@@ -294,6 +360,7 @@ export class OfficeSimulation {
     const agent = this.agent(task.agentId)!;
     const seat = LOUNGE_SEATS[agent.seatIndex];
     agent.seated = false;
+    agent.carrying = null;
     agent.path = pathToDesk(seat, this.desk(agent.deskId)!);
     this.setPhase(agent, 'to_desk');
     this.log('activity', agent.id, task.id, `${agent.name}, #${task.number} görevini üstlendi · ${task.decision!.model.label}`);
@@ -305,6 +372,7 @@ export class OfficeSimulation {
   private backToManagerDesk(manager: Agent) {
     manager.facing = MANAGER_DESK.chair.facing;
     manager.seated = true;
+    manager.rest = this.between(40, 90);
     this.setPhase(manager, 'managing');
     this.dispatch();
   }
@@ -386,6 +454,8 @@ export class OfficeSimulation {
   private sitInLounge(agent: Agent) {
     agent.facing = LOUNGE_SEATS[agent.seatIndex].facing;
     agent.seated = true;
+    agent.rest = this.between(6, 20);
+    agent.lounging = agent.carrying === 'coffee' ? 'coffee' : agent.carrying === 'book' ? 'read' : this.pick(LOUNGE_STYLES);
     this.setPhase(agent, 'lounge');
     this.dispatch();
   }
@@ -442,6 +512,103 @@ export class OfficeSimulation {
     manager.path = [{ x: manager.position.x, z: desk?.aisleZ ?? manager.position.z }, { x: -4.5, z: desk?.aisleZ ?? manager.position.z }, { x: -4.5, z: MANAGER_DESK.aisleZ }, { x: MANAGER_DESK.x, z: MANAGER_DESK.aisleZ }, { x: MANAGER_DESK.chair.x, z: MANAGER_DESK.chair.z }];
     manager.taskId = null;
     this.setPhase(manager, 'to_office');
+  }
+
+  /** No task waiting to be handed out or checked: the manager can step away. */
+  private quiet() {
+    return !this.tasks.some(t => t.status === 'queued' || t.status === 'assigned' || t.remote?.decision.review?.status === 'checking');
+  }
+
+  private hasWaitingTask(agent: Agent) {
+    return this.tasks.some(t => t.status === 'queued' && t.category === agent.role);
+  }
+
+  /** Spots free for a break of this kind; the console needs both seats free, so a friend can join. */
+  private freeSpots(kind: BreakKind) {
+    return BREAK_SPOTS.filter(s => s.kinds.includes(kind) && !this.spotOwner.has(s.id) && (!s.partner || !this.spotOwner.has(s.partner)));
+  }
+
+  private partnerFor(agent: Agent) {
+    const free = this.agents.filter(a => a !== agent && a.role !== 'manager' && a.phase === 'lounge' && a.phaseTime >= 3 && !this.hasWaitingTask(a));
+    return free.length ? this.pick(free) : null;
+  }
+
+  /** A person who has rested long enough picks something to do, weighted, among what is free. */
+  private takeBreak(agent: Agent) {
+    if (this.hasWaitingTask(agent)) { agent.phaseTime = 0; return; }
+    const kinds = (Object.keys(BREAKS) as BreakKind[]).filter(kind => BREAKS[kind].weight > 0 && this.freeSpots(kind).length);
+    if (!kinds.length) { agent.rest = agent.phaseTime + this.between(4, 10); return; }
+    let roll = this.random() * kinds.reduce((sum, kind) => sum + BREAKS[kind].weight, 0);
+    const kind = kinds.find(k => (roll -= BREAKS[k].weight) < 0) ?? kinds[0];
+    const spot = this.pick(this.freeSpots(kind));
+    this.goToBreak(agent, kind, spot, pathToSpot(LOUNGE_SEATS[agent.seatIndex], spot));
+    // Usually someone comes along to play; otherwise a game against the console.
+    const friend = spot.partner && this.random() < 0.75 ? this.partnerFor(agent) : null;
+    if (friend) {
+      const other = breakSpot(spot.partner!)!;
+      this.goToBreak(friend, kind, other, pathToSpot(LOUNGE_SEATS[friend.seatIndex], other));
+      agent.partnerId = friend.id;
+      friend.partnerId = agent.id;
+    }
+  }
+
+  private goToBreak(agent: Agent, kind: BreakKind, spot: BreakSpot, path: Point[]) {
+    this.spotOwner.set(spot.id, agent.id);
+    Object.assign(agent, { spotId: spot.id, activity: kind, recalled: false, partnerId: null, seated: false, path });
+    if (kind !== 'cafe') agent.carrying = null;
+    this.setPhase(agent, 'to_break');
+  }
+
+  /** The manager's coffee, when nothing waits on them. */
+  private managerCoffee(manager: Agent) {
+    const coffee = breakSpot('coffee')!;
+    if (this.spotOwner.has(coffee.id)) { manager.rest = manager.phaseTime + this.between(10, 20); return; }
+    this.goToBreak(manager, 'coffee', coffee, managerCoffeePath());
+  }
+
+  private arriveAtBreak(agent: Agent) {
+    const spot = breakSpot(agent.spotId)!;
+    agent.facing = spot.facing;
+    agent.seated = Boolean(spot.seated);
+    if (agent.recalled) return this.endBreak(agent);
+    const [min, max] = BREAKS[agent.activity!].seconds;
+    agent.breakFor = this.between(min, max);
+    this.setPhase(agent, 'break');
+  }
+
+  /** A two-player game stops when the other player leaves. */
+  private partnerLeft(agent: Agent) {
+    if (!agent.partnerId) return false;
+    const partner = this.agent(agent.partnerId);
+    return !partner || partner.spotId === null || (partner.phase !== 'break' && partner.phase !== 'to_break');
+  }
+
+  /** Off to the next part of the break (coffee → café table) or back to the seat. */
+  private endBreak(agent: Agent) {
+    const spot = breakSpot(agent.spotId)!;
+    const kind = agent.activity!;
+    this.spotOwner.delete(spot.id);
+    if (kind === 'coffee' || kind === 'books') agent.carrying = kind === 'coffee' ? 'coffee' : 'book';
+    const then = BREAKS[kind].then;
+    const next = then && !agent.recalled && agent.role !== 'manager' && !this.hasWaitingTask(agent) ? this.freeSpots(then)[0] : undefined;
+    const onward = next && pathBetweenSpots(spot, next);
+    if (next && onward) return this.goToBreak(agent, then!, next, onward);
+    agent.seated = false;
+    agent.path = agent.role === 'manager'
+      ? [...managerCoffeePath()].reverse().slice(1).concat({ x: MANAGER_DESK.chair.x, z: MANAGER_DESK.chair.z })
+      : pathFromSpot(spot, LOUNGE_SEATS[agent.seatIndex]);
+    Object.assign(agent, { spotId: null, activity: null, recalled: false, partnerId: null });
+    this.setPhase(agent, 'from_break');
+  }
+
+  /** Work first: whoever has a task waiting, the manager included, leaves the break. */
+  private callBackForWork() {
+    for (const agent of this.agents) {
+      if (agent.phase !== 'break' && agent.phase !== 'to_break') continue;
+      const wanted = agent.role === 'manager' ? !this.quiet() : this.hasWaitingTask(agent);
+      if (!wanted || agent.recalled) continue;
+      agent.recalled = true;
+    }
   }
 
   /** The free desk closest to the lounge exit, so the front rows fill first. */

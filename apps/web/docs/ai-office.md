@@ -16,6 +16,8 @@ KVKK: firmanın bilinen müşteri, tedarikçi ve üye adları, e-posta, telefon,
 
 Ofis sayfadan ayrılınca durmaz: menü değişip geri gelindiğinde aynı ofis, uzakta geçen süre kadar (en çok 30 dakika) ilerlemiş olarak açılır; hız, gece/gündüz ve sekme seçimi de korunur. Sayfa yeniden yüklendiğinde sunucuda çalışmakta olan görevin çalışanı yeniden görev verilmeden masasında görünür. Masa ekranları işin türünü (tablo, belge, slayt, tasarım, e-posta; yöneticide görev panosu) ve ilerlemesini gösterir.
 
+Görevi olmayan çalışan oturup beklemez: lounge'da telefonuna bakar, kitap okur, sohbet eder ya da kahvesini içer; ara sıra molaya çıkar. Molalar: mutfakta kahve (sonra kafe masasında içmek), buzdolabı, su sebilinde sohbet, TV köşesinde yayın, oyun köşesinde konsol (boşta biri varsa iki kişi bölünmüş ekranda), görev panosu, pencere, çiçek sulama, yazıcı, kitaplık. Yönetici yalnız dağıtılacak veya kontrol edilecek iş yokken kahve almaya gider. İş her zaman önce gelir: görevi bekleyen kişi (yönetici dahil) molasını yarıda bırakır, koltuğuna döner ve görev her zamanki gibi verilir. Molalar yalnız sahnededir; gerçek işi geciktirmez, yalnız teslim animasyonunu birkaç saniye geciktirebilir.
+
 ## Model seçimi
 
 Varsayılan `OFFICE_PROVIDER=anthropic`: mevcut Claude Sonnet 5.5 yolu korunur; Word, Excel, PowerPoint ve araştırma araçları bu yoldadır.

@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CATEGORY, TASK_CATEGORIES, type TaskCategoryId } from '@/lib/features/office/catalog';
 import { DIFFICULTY_LABELS } from '@/lib/features/office/routing';
-import { OfficeSimulation, type Agent, type EventKind, type OfficeEvent, type RemoteTask, type Task } from '@/lib/features/office/simulation';
+import { BREAKS, LOUNGE_TEXT, OfficeSimulation, type Agent, type EventKind, type OfficeEvent, type RemoteTask, type Task } from '@/lib/features/office/simulation';
 import { createOfficeStage, type OfficeStage } from '@/lib/features/office/scene';
 
 const SPEEDS = [1, 2, 4];
@@ -110,12 +110,25 @@ function status(sim: OfficeSimulation, agent: Agent): { text: string; tone: 'idl
     case 'working': if (task?.remote?.decision.review?.status === 'checking') return { text: 'Yönetici kontrol ediyor', tone: 'busy' }; return { text: `${CATEGORY[task!.category].steps[Math.max(0, task!.step)]} · %${Math.floor(task!.progress * 100)}`, tone: 'busy' };
     case 'delivering': return { text: 'Teslim ediyor', tone: 'done' };
     case 'to_lounge': return { text: 'Molaya dönüyor', tone: 'move' };
-    default: return { text: 'Dinleniyor', tone: 'idle' };
+    case 'to_break': return { text: BREAKS[agent.activity!].going, tone: 'idle' };
+    case 'break': return { text: BREAKS[agent.activity!].doing, tone: 'idle' };
+    case 'from_break': return { text: agent.role === 'manager' ? 'Masasına dönüyor' : 'Koltuğuna dönüyor', tone: 'idle' };
+    default: return { text: LOUNGE_TEXT[agent.lounging], tone: 'idle' };
   }
 }
 
 /** The manager's call in a few words, e.g. "Orta · Claude Sonnet 5.5". */
 const decisionText = (task: Task) => task.decision ? `${DIFFICULTY_LABELS[task.decision.difficulty]} · ${task.decision.model.label}` : '';
+
+/** Phases with no task in hand: no bubble over the head, at most a small icon. */
+const IDLE_PHASES = new Set<Agent['phase']>(['lounge', 'called', 'to_break', 'break', 'from_break']);
+const LOUNGE_ICON = { relax: '', phone: '📱', read: '📖', chat: '💬', coffee: '☕' };
+
+function breakIcon(agent: Agent) {
+  if (agent.phase === 'break' || agent.phase === 'to_break') return BREAKS[agent.activity!].icon;
+  if (agent.phase === 'lounge') return LOUNGE_ICON[agent.lounging];
+  return '';
+}
 
 const TONE_DOT = { idle: 'bg-zinc-500', busy: 'bg-amber-400', move: 'bg-sky-400', done: 'bg-emerald-400' };
 const TONE_TEXT = { idle: 'text-zinc-400', busy: 'text-amber-300', move: 'text-sky-300', done: 'text-emerald-300' };
@@ -185,8 +198,9 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
             return (
               <div key={agent.id} ref={el => { if (el) labels.current.set(agent.id, el); else labels.current.delete(agent.id); }}
                 className="absolute left-0 top-0 flex flex-col items-center gap-1 whitespace-nowrap transition-opacity" style={{ opacity: 0 }}>
-                {/* A called person's bubble would sit under the manager's; the panel still shows it. */}
-                {agent.phase !== 'lounge' && agent.phase !== 'called' && (
+                {/* A called person's bubble would sit under the manager's; the panel still shows it. A break shows only its icon. */}
+                {breakIcon(agent) && <span className="rounded-full bg-zinc-950/70 px-1.5 py-0.5 text-[13px] leading-none" title={s.text}>{breakIcon(agent)}</span>}
+                {!breakIcon(agent) && !IDLE_PHASES.has(agent.phase) && (
                   <span className="max-w-[220px] truncate rounded-full border border-amber-400/60 bg-zinc-950/85 px-2.5 py-1 text-[11px] font-medium text-amber-100 shadow">{s.text}</span>
                 )}
                 <span className="rounded-md bg-zinc-950/75 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-200">{agent.name}</span>

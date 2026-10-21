@@ -1,12 +1,13 @@
 import * as T from 'three';
 import type { Look, TaskCategoryId } from './catalog';
-import { DESKS, FLOOR, LOUNGE, LOUNGE_SEATS, MANAGER_DESK, type Desk } from './layout';
+import { BOARD_X, BOOKSHELF, CAFE_TABLE, DESKS, FLOOR, GAMING, KITCHEN, LOUNGE, LOUNGE_SEATS, MANAGER_DESK, TV, type Desk } from './layout';
 import { DELIVER_SECONDS, type Agent, type OfficeSimulation, type TaskStatus } from './simulation';
 
 /**
  * The 3D office drawn from the simulation: an open-plan floor seen from above at an angle, desks
- * whose screens show the work in progress, a lounge and simple low-poly people who sit down and
- * stand up instead of snapping between poses. The scene owns the clock: each frame it advances
+ * whose screens show the work in progress, a lounge, a kitchen with a café table, a TV corner, a
+ * games console corner, a bookshelf and simple low-poly people who sit down and stand up instead
+ * of snapping between poses, and hold what they are busy with (a mug, a phone, a controller…). The scene owns the clock: each frame it advances
  * the simulation, moves the people and places the name labels the page renders over the canvas.
  */
 
@@ -324,7 +325,7 @@ function buildDecor(scene: T.Scene) {
     scene.add(at(top, x + 0.08, 1.18 * scale, z - 0.05));
     return [leaves, top];
   };
-  const leaves = [plant(-11.3, -7.3), plant(11.3, -7.3), plant(-11.3, 7.3), plant(-4.1, -7.3), plant(11.3, 7.3, 0.8), plant(0.3, -7.3, 0.7)].flat();
+  const leaves = [plant(-11.3, -7.3), plant(11.3, -7.3), plant(-6.3, 7.4, 0.8), plant(-4.1, -7.3), plant(11.3, 7.6, 0.7), plant(0.3, -7.3, 0.7), plant(-11.3, 3.3, 0.8)].flat();
   // Water cooler by the lounge exit.
   scene.add(at(box(0.36, 1, 0.36, '#e5e7eb'), -4.3, 0.5, -7.4));
   const bottle = new T.Mesh(new T.CylinderGeometry(0.15, 0.15, 0.42, 16), new T.MeshStandardMaterial({ color: '#60a5fa', transparent: true, opacity: 0.7 }));
@@ -334,9 +335,195 @@ function buildDecor(scene: T.Scene) {
   return leaves;
 }
 
+/** Kitchen along the side wall: counter, cabinets, coffee machine with steam, fridge, microwave. */
+function buildKitchen(scene: T.Scene) {
+  const depth = 0.6, x = KITCHEN.x + 0.05;
+  const counterLength = KITCHEN.fridgeZ - 0.45 - KITCHEN.minZ;
+  const counterZ = KITCHEN.minZ + counterLength / 2;
+  scene.add(at(box(depth, 0.86, counterLength, '#f1f5f9'), x, 0.43, counterZ));
+  scene.add(at(box(depth + 0.04, 0.05, counterLength + 0.02, '#334155'), x, 0.885, counterZ));
+  for (let z = KITCHEN.minZ + 0.35; z < KITCHEN.fridgeZ - 0.5; z += 0.55) scene.add(at(box(0.02, 0.7, 0.5, '#e2e8f0'), x + depth / 2 + 0.005, 0.45, z));
+  scene.add(at(box(0.36, 0.55, counterLength, '#e2e8f0'), KITCHEN.x - 0.05, 1.85, counterZ));
+  // Coffee machine: body, spout, a light that turns green while it brews.
+  scene.add(at(box(0.36, 0.48, 0.34, '#18181b'), x, 1.15, KITCHEN.coffeeZ));
+  scene.add(at(box(0.1, 0.06, 0.12, '#52525b'), x + 0.18, 1.05, KITCHEN.coffeeZ));
+  const light = new T.MeshBasicMaterial({ color: '#ef4444' });
+  scene.add(at(new T.Mesh(new T.SphereGeometry(0.025, 8, 6), light), x + 0.185, 1.3, KITCHEN.coffeeZ + 0.1));
+  const steam = Array.from({ length: 6 }, () => {
+    const puff = new T.Mesh(new T.SphereGeometry(0.05, 8, 6), new T.MeshBasicMaterial({ color: '#f8fafc', transparent: true, opacity: 0, depthWrite: false }));
+    scene.add(puff);
+    return puff;
+  });
+  // Mugs, a kettle, a microwave and the fridge.
+  for (const [i, color] of ['#f97316', '#3b82f6', '#22c55e'].entries()) {
+    const mug = new T.Mesh(new T.CylinderGeometry(0.045, 0.04, 0.1, 12), new T.MeshStandardMaterial({ color }));
+    scene.add(at(mug, x + 0.05, 0.96, KITCHEN.coffeeZ + 0.45 + i * 0.13));
+  }
+  scene.add(at(box(0.36, 0.26, 0.48, '#d4d4d8'), x - 0.02, 1.04, KITCHEN.minZ + 0.45), at(box(0.02, 0.18, 0.3, '#0f172a'), x + 0.165, 1.04, KITCHEN.minZ + 0.42));
+  const kettle = new T.Mesh(new T.CylinderGeometry(0.08, 0.1, 0.2, 14), new T.MeshStandardMaterial({ color: '#cbd5e1', metalness: 0.6, roughness: 0.3 }));
+  scene.add(at(kettle, x, 1.01, counterZ + 0.3));
+  scene.add(at(box(0.7, 1.9, 0.8, '#e5e7eb', { metalness: 0.3, roughness: 0.4 }), KITCHEN.x + 0.1, 0.95, KITCHEN.fridgeZ));
+  scene.add(at(box(0.03, 0.5, 0.04, '#94a3b8'), KITCHEN.x + 0.47, 1.25, KITCHEN.fridgeZ - 0.3));
+  // Café table with two stools.
+  const top = new T.Mesh(new T.CylinderGeometry(0.42, 0.42, 0.05, 24), new T.MeshStandardMaterial({ color: '#f5f5f4', roughness: 0.4 }));
+  top.castShadow = true;
+  scene.add(at(top, CAFE_TABLE.x, 0.74, CAFE_TABLE.z), at(box(0.06, 0.72, 0.06, COLORS.metal), CAFE_TABLE.x, 0.36, CAFE_TABLE.z));
+  for (const side of [-1, 1]) {
+    const seat = new T.Mesh(new T.CylinderGeometry(0.2, 0.2, 0.06, 16), new T.MeshStandardMaterial({ color: '#b45309' }));
+    seat.castShadow = true;
+    scene.add(at(seat, CAFE_TABLE.x + side * 0.6, 0.44, CAFE_TABLE.z), at(box(0.04, 0.42, 0.04, COLORS.metal), CAFE_TABLE.x + side * 0.6, 0.21, CAFE_TABLE.z));
+  }
+  return { steam, light };
+}
+
+/** A racing game: split screen for two players, one road against the console otherwise. */
+function drawGame(g: CanvasRenderingContext2D, w: number, h: number, time: number, players: number) {
+  const road = (x0: number, width: number, color: string, wobble: number) => {
+    g.save();
+    g.beginPath(); g.rect(x0, 0, width, h); g.clip();
+    g.fillStyle = '#14532d'; g.fillRect(x0, 0, width, h);
+    const mid = x0 + width / 2, sway = Math.sin(time * 0.8 + wobble) * width * 0.12;
+    g.fillStyle = '#334155'; g.beginPath(); g.moveTo(mid - width * 0.08 + sway, 0); g.lineTo(mid + width * 0.08 + sway, 0); g.lineTo(x0 + width * 0.92, h); g.lineTo(x0 + width * 0.08, h); g.fill();
+    g.fillStyle = '#f8fafc';
+    for (let i = 0; i < 6; i++) { const y = ((i * h) / 5 + time * 70) % (h + 12) - 12; g.fillRect(mid - 2 + (sway * (1 - y / h)), y, 4, 6 + (y / h) * 10); }
+    const cx = mid + Math.sin(time * 2.1 + wobble) * width * 0.12;
+    g.fillStyle = color; g.fillRect(cx - width * 0.07, h * 0.72, width * 0.14, h * 0.2);
+    g.fillStyle = '#0f172a'; g.fillRect(cx - width * 0.05, h * 0.75, width * 0.1, h * 0.05);
+    g.restore();
+  };
+  if (players >= 2) {
+    road(0, w / 2 - 1, '#ef4444', 0);
+    road(w / 2 + 1, w / 2 - 1, '#3b82f6', 1.7);
+    g.fillStyle = '#0f172a'; g.fillRect(w / 2 - 1, 0, 2, h);
+  } else road(0, w, '#ef4444', 0);
+  g.fillStyle = '#fde047'; g.font = 'bold 13px sans-serif'; g.fillText(`TUR ${1 + (Math.floor(time / 20) % 3)}/3`, 8, 16);
+}
+
+/** The games corner: a big screen on a low stand facing the room, a console, two bean bags. */
+function buildGamingCorner(scene: T.Scene) {
+  const { x, screenZ, seatZ, standWidth } = GAMING;
+  scene.add(at(box(standWidth, 0.45, 0.45, '#27272a'), x, 0.225, screenZ));
+  const consoleBox = at(box(0.32, 0.07, 0.24, '#f8fafc'), x - 0.5, 0.485, screenZ + 0.02);
+  const consoleLight = new T.MeshBasicMaterial({ color: '#3b82f6' });
+  scene.add(consoleBox, at(new T.Mesh(new T.BoxGeometry(0.2, 0.008, 0.01), consoleLight), x - 0.5, 0.485, screenZ + 0.145));
+  scene.add(at(box(1.75, 1.0, 0.07, '#09090b'), x, 1.05, screenZ - 0.05));
+  const canvas = document.createElement('canvas');
+  canvas.width = 288;
+  canvas.height = 162;
+  const g = canvas.getContext('2d')!;
+  const texture = new T.CanvasTexture(canvas);
+  texture.colorSpace = T.SRGBColorSpace;
+  scene.add(at(new T.Mesh(new T.PlaneGeometry(1.64, 0.92), new T.MeshBasicMaterial({ map: texture, toneMapped: false })), x, 1.05, screenZ - 0.01));
+  const rug = new T.Mesh(new T.CircleGeometry(1.3, 32), new T.MeshStandardMaterial({ color: '#1e3a8a', roughness: 1 }));
+  rug.rotation.x = -Math.PI / 2;
+  rug.receiveShadow = true;
+  scene.add(at(rug, x, 0.006, seatZ - 0.1));
+  for (const [side, color] of [[-1, '#f97316'], [1, '#14b8a6']] as const) {
+    const bag = new T.Mesh(new T.SphereGeometry(0.42, 18, 12), new T.MeshStandardMaterial({ color, roughness: 0.9 }));
+    bag.scale.set(1, 0.55, 1);
+    bag.castShadow = true;
+    scene.add(at(bag, x + side * 0.6, 0.22, seatZ + 0.12));
+  }
+  let shown = '';
+  const draw = (players: number, time: number) => {
+    const key = players ? `${players}|${Math.floor(time * 12)}` : 'idle';
+    if (key === shown) return;
+    shown = key;
+    if (players) drawGame(g, 288, 162, time, players);
+    else {
+      const idle = g.createLinearGradient(0, 0, 288, 162);
+      idle.addColorStop(0, '#1e1b4b'); idle.addColorStop(1, '#0c4a6e');
+      g.fillStyle = idle; g.fillRect(0, 0, 288, 162);
+      g.fillStyle = 'rgba(255,255,255,0.75)'; g.font = 'bold 15px sans-serif'; g.textAlign = 'center'; g.fillText('BAŞLAMAK İÇİN BİR TUŞA BASIN', 144, 86); g.textAlign = 'start';
+    }
+    texture.needsUpdate = true;
+    consoleLight.color.set(players ? '#22c55e' : '#3b82f6');
+  };
+  draw(0, 0);
+  return draw;
+}
+
+/** The TV corner: a screen showing a programme, a sofa facing it. */
+function buildTvCorner(scene: T.Scene) {
+  scene.add(at(box(0.45, 0.5, 1.8, '#3f3f46'), TV.x, 0.25, TV.z));
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 144;
+  const g = canvas.getContext('2d')!;
+  const texture = new T.CanvasTexture(canvas);
+  texture.colorSpace = T.SRGBColorSpace;
+  const screen = new T.MeshBasicMaterial({ map: texture, toneMapped: false });
+  scene.add(at(box(0.08, 0.95, 1.65, '#09090b'), TV.x + 0.05, 1.12, TV.z));
+  const panel = new T.Mesh(new T.PlaneGeometry(1.55, 0.86), screen);
+  panel.rotation.y = -Math.PI / 2;
+  scene.add(at(panel, TV.x, 1.12, TV.z));
+  const rug = new T.Mesh(new T.PlaneGeometry(2.4, 2.6), new T.MeshStandardMaterial({ color: '#334155', roughness: 1 }));
+  rug.rotation.x = -Math.PI / 2;
+  rug.receiveShadow = true;
+  scene.add(at(rug, (TV.x + TV.sofaX) / 2, 0.006, TV.z));
+  const group = at(new T.Group(), TV.sofaX, 0, TV.z);
+  group.rotation.y = Math.PI / 2;
+  group.add(at(box(2.0, 0.38, 0.8, '#7c3aed'), 0, 0.19, 0), at(box(2.0, 0.55, 0.22, '#7c3aed'), 0, 0.55, -0.4));
+  for (const side of [-1, 1]) group.add(at(box(0.22, 0.55, 0.8, '#6d28d9'), side * 1.05, 0.3, 0));
+  scene.add(group);
+  let frame = 0;
+  /** Redrawn a few times a second while someone watches. */
+  const draw = (mode: 'off' | 'tv', time: number) => {
+    frame++;
+    if (mode === 'off') {
+      const off = g.createLinearGradient(0, 0, 256, 144);
+      off.addColorStop(0, '#0b0f19'); off.addColorStop(1, '#151b2b');
+      g.fillStyle = off; g.fillRect(0, 0, 256, 144);
+    } else if (mode === 'tv') {
+      // A nature programme: sky, hills, a moving sun and the channel logo.
+      const sky = g.createLinearGradient(0, 0, 0, 144);
+      sky.addColorStop(0, '#38bdf8'); sky.addColorStop(1, '#bae6fd');
+      g.fillStyle = sky; g.fillRect(0, 0, 256, 144);
+      g.fillStyle = '#fde047'; g.beginPath(); g.arc(40 + ((time * 8) % 180), 34, 14, 0, Math.PI * 2); g.fill();
+      for (const [color, base, amp, speed] of [['#4ade80', 98, 12, 10], ['#16a34a', 112, 9, 18]] as const) {
+        g.fillStyle = color; g.beginPath(); g.moveTo(0, 144);
+        for (let px = 0; px <= 256; px += 8) g.lineTo(px, base + Math.sin((px + time * speed) / 30) * amp);
+        g.lineTo(256, 144); g.fill();
+      }
+      g.fillStyle = 'rgba(255,255,255,0.8)'; g.fillRect(222, 8, 26, 10);
+    }
+    texture.needsUpdate = true;
+  };
+  draw('off', 0);
+  return { draw, frame: () => frame };
+}
+
+/** Bookshelf against the side wall, and a clock showing the real time. */
+function buildShelfAndClock(scene: T.Scene) {
+  const x = BOOKSHELF.x, z = BOOKSHELF.z;
+  scene.add(at(box(0.36, 2, 1.6, '#92400e'), x, 1, z));
+  const colors = ['#dc2626', '#2563eb', '#16a34a', '#f59e0b', '#7c3aed', '#0891b2', '#e11d48', '#65a30d'];
+  for (let shelf = 0; shelf < 4; shelf++) {
+    scene.add(at(box(0.32, 0.03, 1.5, '#78350f'), x + 0.03, 0.25 + shelf * 0.48, z));
+    for (let i = 0, offset = -0.68; offset < 0.66; i++) {
+      const w = 0.06 + ((i * 7 + shelf * 3) % 4) * 0.015, h = 0.26 + ((i * 5 + shelf) % 3) * 0.05;
+      scene.add(at(box(0.22, h, w, colors[(i + shelf * 3) % colors.length]), x + 0.06, 0.27 + shelf * 0.48 + h / 2, z + offset + w / 2));
+      offset += w + 0.012;
+    }
+  }
+  const face = new T.Mesh(new T.CircleGeometry(0.32, 32), new T.MeshStandardMaterial({ color: '#f8fafc' }));
+  face.rotation.y = Math.PI / 2;
+  scene.add(at(face, FLOOR.minX + 0.02, 2.55, LOUNGE.table.z));
+  const ring = new T.Mesh(new T.TorusGeometry(0.32, 0.03, 8, 32), new T.MeshStandardMaterial({ color: '#1f2937' }));
+  ring.rotation.y = Math.PI / 2;
+  scene.add(at(ring, FLOOR.minX + 0.02, 2.55, LOUNGE.table.z));
+  const hand = (length: number, width: number) => {
+    const pivot = at(new T.Group(), FLOOR.minX + 0.04, 2.55, LOUNGE.table.z);
+    pivot.add(at(new T.Mesh(new T.BoxGeometry(0.01, length, width), new T.MeshBasicMaterial({ color: '#111827' })), 0, length / 2, 0));
+    scene.add(pivot);
+    return pivot;
+  };
+  return { hour: hand(0.18, 0.03), minute: hand(0.27, 0.02) };
+}
+
 /** The task board on the back wall: one tile per task, coloured by its status. */
 function buildBoard(scene: T.Scene) {
-  const group = at(new T.Group(), 3.7, 1.95, FLOOR.minZ + 0.06);
+  const group = at(new T.Group(), BOARD_X - 0.05, 1.95, FLOOR.minZ + 0.06);
   group.add(at(box(4.4, 1.7, 0.06, '#f8fafc'), 0, 0, 0));
   const tiles: T.MeshStandardMaterial[] = [];
   for (let row = 0; row < 3; row++) for (let col = 0; col < 8; col++) {
@@ -357,7 +544,11 @@ type Person = {
   sit: number;
   /** The sheet that floats up when the person hands work in. */
   paper: T.Group; paperMaterials: T.MeshBasicMaterial[];
+  /** What the person holds; at most one shows at a time. */
+  props: Record<Prop, T.Object3D>;
 };
+
+type Prop = 'mug' | 'phone' | 'book' | 'controller' | 'can' | 'sheet';
 
 function buildPerson(look: Look, scene: T.Scene): Person {
   const root = new T.Group();
@@ -417,7 +608,43 @@ function buildPerson(look: Look, scene: T.Scene): Person {
   paper.add(at(new T.Mesh(new T.PlaneGeometry(0.18, 0.05), paperMaterials[1]), 0, 0.1, 0.002));
   paper.visible = false;
   scene.add(paper);
-  return { root, body, head, legs, knees: knees as [T.Group, T.Group], arms, facing: 0, sit: 1, paper, paperMaterials };
+
+  // Held in the right hand (upright ones are turned level each frame), or in front of the body.
+  const hand = (object: T.Object3D) => { object.visible = false; arms[1].add(at(object, 0, -0.42, 0.04)); return object; };
+  const front = (object: T.Object3D) => { object.visible = false; body.add(object); return object; };
+  const group = (...parts: T.Object3D[]) => { const g = new T.Group(); parts.forEach(p => g.add(p)); return g; };
+  const material = (color: string, extra: T.MeshStandardMaterialParameters = {}) => new T.MeshStandardMaterial({ color, roughness: 0.6, ...extra });
+  const props: Record<Prop, T.Object3D> = {
+    mug: hand(group(new T.Mesh(new T.CylinderGeometry(0.045, 0.04, 0.1, 12), material('#f8fafc')), at(new T.Mesh(new T.TorusGeometry(0.025, 0.008, 6, 10), material('#f8fafc')), 0.05, 0, 0))),
+    phone: hand(group(new T.Mesh(new T.BoxGeometry(0.07, 0.13, 0.012), material('#0f172a')), at(new T.Mesh(new T.PlaneGeometry(0.06, 0.115), new T.MeshBasicMaterial({ color: '#60a5fa' })), 0, 0, 0.007))),
+    book: front(at(group(new T.Mesh(new T.BoxGeometry(0.26, 0.03, 0.2), material(look.shirt)), at(new T.Mesh(new T.BoxGeometry(0.24, 0.032, 0.18), material('#fefce8')), 0, 0, 0.005)), 0, 0.92, 0.3)),
+    controller: front(at(group(new T.Mesh(new T.BoxGeometry(0.16, 0.04, 0.08), material('#111827')), at(new T.Mesh(new T.SphereGeometry(0.012, 6, 4), new T.MeshBasicMaterial({ color: '#22c55e' })), 0.04, 0.025, 0)), 0, 0.88, 0.32)),
+    can: hand(group(new T.Mesh(new T.CylinderGeometry(0.07, 0.08, 0.14, 12), material('#16a34a')), at(new T.Mesh(new T.CylinderGeometry(0.012, 0.012, 0.16, 6), material('#16a34a')), 0, 0.05, 0.1))),
+    sheet: hand(new T.Mesh(new T.BoxGeometry(0.2, 0.005, 0.28), new T.MeshBasicMaterial({ color: '#f8fafc' }))),
+  };
+  (props.can.children[1] as T.Object3D).rotation.x = 1.1;
+  return { root, body, head, legs, knees: knees as [T.Group, T.Group], arms, facing: 0, sit: 1, paper, paperMaterials, props };
+}
+
+/** What a person has in hand right now. */
+function propFor(agent: Agent): Prop | null {
+  if (agent.phase === 'break' || (agent.phase === 'to_break' && agent.activity === 'cafe')) {
+    switch (agent.activity) {
+      case 'coffee': case 'cafe': case 'water': return 'mug';
+      case 'game': return 'controller';
+      case 'plant': return 'can';
+      case 'printer': return agent.phaseTime > 1.5 ? 'sheet' : null;
+      case 'books': return agent.phaseTime > 1.5 ? 'book' : null;
+      default: return null;
+    }
+  }
+  if (agent.phase === 'from_break' || agent.phase === 'lounge' || agent.phase === 'called') {
+    if (agent.carrying === 'coffee') return 'mug';
+    if (agent.carrying === 'book') return 'book';
+    if (agent.phase === 'lounge' && agent.lounging === 'phone') return 'phone';
+    if (agent.phase === 'lounge' && agent.lounging === 'read') return 'book';
+  }
+  return null;
 }
 
 /** Shortest turn from one yaw to another, so people never spin the long way round. */
@@ -446,13 +673,18 @@ function pose(person: Person, agent: Agent, time: number, dt: number) {
   rightKnee.rotation.x = Math.max(0, stride) * 0.5 * (1 - sit) + (Math.PI / 2 - 0.1) * sit;
   person.body.position.y = (walking ? Math.abs(Math.cos(phase)) * 0.04 : 0) * (1 - sit) + (inLounge ? -0.08 : -0.02) * sit;
   person.body.rotation.x = walking ? 0.06 : 0;
+  person.body.rotation.z = 0;
 
+  const holding = propFor(agent);
   if (walking) {
-    leftArm.rotation.x = -stride * 0.8;
-    rightArm.rotation.x = stride * 0.8;
+    leftArm.rotation.x = holding === 'book' ? -0.9 : -stride * 0.8;
+    // A cup is carried level, not swung.
+    rightArm.rotation.x = holding === 'mug' || holding === 'book' ? -0.9 : stride * 0.8;
     person.head.rotation.x = Math.sin(phase * 2) * 0.02;
     return;
   }
+  if (agent.phase === 'break') return breakPose(person, agent, time);
+  if (agent.phase === 'lounge' && agent.lounging !== 'relax') return loungePose(person, agent, time);
   if (agent.phase === 'briefing' || agent.phase === 'checking') {
     // Standing beside the person: a tap on the shoulder, or pointing at the screen while checking.
     leftArm.rotation.x = -0.2;
@@ -491,6 +723,114 @@ function pose(person: Person, agent: Agent, time: number, dt: number) {
   }
   // Breathing.
   person.body.position.y += Math.sin(time * 2 + agent.seatIndex) * 0.004;
+}
+
+/** A sip now and then: the cup comes up to the mouth and the head tips back a little. */
+function sip(person: Person, time: number, offset: number) {
+  const up = Math.max(0, Math.sin(time * 0.9 + offset)) ** 6;
+  person.arms[1].rotation.x = -0.75 - up * 1.35;
+  person.head.rotation.x = -up * 0.25;
+  return up;
+}
+
+function loungePose(person: Person, agent: Agent, time: number) {
+  const [leftArm, rightArm] = person.arms;
+  const o = agent.seatIndex * 1.7;
+  if (agent.lounging === 'phone') {
+    leftArm.rotation.x = -0.9;
+    rightArm.rotation.x = -1.25 + Math.sin(time * 6 + o) * 0.03;
+    person.head.rotation.x = 0.4;
+  } else if (agent.lounging === 'read') {
+    leftArm.rotation.x = rightArm.rotation.x = -1.05;
+    person.head.rotation.x = 0.35;
+    person.head.rotation.y = Math.sin(time * 0.8 + o) * 0.12;
+  } else if (agent.lounging === 'chat') {
+    leftArm.rotation.x = -0.35;
+    rightArm.rotation.x = -0.6 - Math.max(0, Math.sin(time * 2.2 + o)) * 0.6;
+    person.head.rotation.y = Math.sin(time * 0.5 + o) > 0 ? 0.6 : -0.6;
+    person.head.rotation.x = Math.sin(time * 4 + o) * 0.05;
+  } else {
+    leftArm.rotation.x = -0.35;
+    sip(person, time, o);
+  }
+}
+
+/** What each break looks like. */
+function breakPose(person: Person, agent: Agent, time: number) {
+  const [leftArm, rightArm] = person.arms;
+  const o = agent.seatIndex * 1.3;
+  leftArm.rotation.x = -0.25;
+  rightArm.rotation.x = -0.25;
+  switch (agent.activity) {
+    case 'coffee':
+      rightArm.rotation.x = -1.25;
+      leftArm.rotation.x = -0.6;
+      person.head.rotation.x = 0.3;
+      break;
+    case 'snack':
+      rightArm.rotation.x = -1.45 + Math.sin(time * 3) * 0.1;
+      person.head.rotation.x = 0.15;
+      person.body.rotation.x = 0.12;
+      break;
+    case 'cafe':
+      leftArm.rotation.x = -0.9;
+      sip(person, time, o);
+      person.head.rotation.y = Math.sin(time * 0.6 + o) * 0.3;
+      break;
+    case 'water':
+      if (sip(person, time, o) < 0.1) person.head.rotation.y = Math.sin(time * 0.7 + o) * 0.5;
+      leftArm.rotation.x = -0.4 - Math.max(0, Math.sin(time * 2.5 + o)) * 0.5;
+      break;
+    case 'tv':
+      leftArm.rotation.x = rightArm.rotation.x = -0.4;
+      // A laugh now and then.
+      person.body.position.y += Math.max(0, Math.sin(time * 0.7 + o)) ** 8 * Math.abs(Math.sin(time * 16)) * 0.03;
+      person.head.rotation.x = -0.05;
+      break;
+    case 'game':
+      leftArm.rotation.x = -1.05 + Math.sin(time * 17 + o) * 0.04;
+      rightArm.rotation.x = -1.05 + Math.sin(time * 19 + o + 1) * 0.04;
+      person.body.rotation.x = 0.14 + Math.sin(time * 1.3 + o) * 0.05;
+      person.body.rotation.z = Math.sin(time * 1.9 + o) * 0.08;
+      person.head.rotation.x = 0.1;
+      break;
+    case 'board':
+      leftArm.rotation.x = rightArm.rotation.x = 0.35;
+      person.head.rotation.x = -0.2;
+      person.head.rotation.y = Math.sin(time * 0.6 + o) * 0.35;
+      break;
+    case 'window':
+      leftArm.rotation.x = -0.3;
+      rightArm.rotation.x = -0.3 - Math.max(0, Math.sin(time * 0.4 + o)) ** 10 * 1.4;
+      person.head.rotation.x = -0.1;
+      person.head.rotation.y = Math.sin(time * 0.35 + o) * 0.5;
+      break;
+    case 'plant':
+      rightArm.rotation.x = -1.0;
+      person.head.rotation.x = 0.35;
+      break;
+    case 'printer':
+      rightArm.rotation.x = leftArm.rotation.x = -1.1;
+      person.head.rotation.x = 0.4;
+      break;
+    case 'books':
+      rightArm.rotation.x = agent.phaseTime < 1.5 ? -2.3 : -1.1;
+      person.head.rotation.x = agent.phaseTime < 1.5 ? -0.3 : 0.3;
+      break;
+  }
+  person.body.position.y += Math.sin(time * 2 + agent.seatIndex) * 0.004;
+}
+
+/** Shows what is in hand, held level. */
+function holdProps(person: Person, agent: Agent) {
+  const holding = propFor(agent);
+  for (const [name, prop] of Object.entries(person.props) as Array<[Prop, T.Object3D]>) {
+    prop.visible = name === holding;
+    if (!prop.visible || prop.parent !== person.arms[1]) continue;
+    // Level against the arm's swing; the can tips while watering, the phone faces the eyes.
+    prop.rotation.x = -person.arms[1].rotation.x + (name === 'can' ? 0.6 : name === 'phone' ? -0.9 : 0);
+    prop.rotation.z = -person.arms[1].rotation.z;
+  }
 }
 
 /** The delivered sheet: out of the raised hand, up and fading over the hand-in. */
@@ -536,6 +876,11 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
   desks.set(MANAGER_DESK.id, buildDesk(scene, MANAGER_DESK, true));
   const loungeLamp = buildLounge(scene);
   const leaves = buildDecor(scene);
+  const kitchen = buildKitchen(scene);
+  const games = buildGamingCorner(scene);
+  const tv = buildTvCorner(scene);
+  const clock = buildShelfAndClock(scene);
+  let tvDrawn = -1;
   const tiles = buildBoard(scene);
   const people = new Map(sim.agents.map(agent => {
     const person = buildPerson(agent.look, scene);
@@ -545,8 +890,8 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
     return [agent.id, person];
   }));
 
-  const target = new T.Vector3(-1, 0, 0.8);
-  const initialView = { theta: 0.5, phi: 0.92, distance: 26 };
+  const target = new T.Vector3(-0.3, 0, 1.4);
+  const initialView = { theta: 0.42, phi: 0.9, distance: 28.5 };
   // The camera eases towards where the person dragged or zoomed it.
   const view = { ...initialView }, goal = { ...initialView };
   const place = () => {
@@ -644,8 +989,26 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
     for (const agent of sim.agents) {
       const person = people.get(agent.id)!;
       pose(person, agent, time, dt);
+      holdProps(person, agent);
       floatPaper(person, agent);
     }
+
+    // Break corners come alive while someone uses them.
+    const brewing = sim.agents.find(a => a.spotId === 'coffee' && a.phase === 'break');
+    kitchen.light.color.set(brewing ? '#22c55e' : '#ef4444');
+    kitchen.steam.forEach((puff, i) => {
+      const t = (time * 0.6 + i / kitchen.steam.length) % 1;
+      puff.position.set(KITCHEN.x + 0.18, 1.45 + t * 0.6, KITCHEN.coffeeZ + Math.sin(t * 6 + i) * 0.05);
+      puff.scale.setScalar(0.6 + t * 1.4);
+      (puff.material as T.MeshBasicMaterial).opacity = brewing ? (1 - t) * 0.45 : 0;
+    });
+    games(sim.agents.filter(a => a.phase === 'break' && a.activity === 'game').length, time);
+    const mode = sim.agents.some(a => a.phase === 'break' && a.activity === 'tv') ? 'tv' : 'off';
+    const tick = mode === 'off' ? -2 : Math.floor(now / 90);
+    if (tick !== tvDrawn) { tvDrawn = tick; tv.draw(mode, time); }
+    const clockNow = new Date();
+    clock.minute.rotation.x = -((clockNow.getMinutes() + clockNow.getSeconds() / 60) / 60) * Math.PI * 2;
+    clock.hour.rotation.x = -(((clockNow.getHours() % 12) + clockNow.getMinutes() / 60) / 12) * Math.PI * 2;
     for (const [id, desk] of desks) {
       const state = screenState(id);
       const owner = sim.agents.find(a => a.deskId === id && !a.path.length);
