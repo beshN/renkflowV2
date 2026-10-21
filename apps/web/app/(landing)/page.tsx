@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { HomeLanding } from '@/components/site/HomeLanding';
 import { COMPANY, socialLinks } from '@/lib/core/company';
@@ -9,16 +8,16 @@ export const metadata: Metadata = {
 };
 
 /**
- * Signed-in users go straight to their workspace; everyone else sees the public
- * product site.
+ * The public product site is shown to everyone, signed in or not: opening renkflow.com must never
+ * throw a person into a work screen they did not ask for. A signed-in visitor gets a "Panele git"
+ * link where others see "Giriş yap".
  */
 export default async function HomePage() {
   const session = await auth().catch(() => null);
-  if (session?.user) redirect('/dashboard');
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()).replace(/</g, '\\u003c') }} />
-      <HomeLanding />
+      <HomeLanding signedIn={Boolean(session?.user)} />
     </>
   );
 }

@@ -112,7 +112,7 @@ const SPEC = [
   ['Tahsilat', 'Sipariş bazında bakiye; ofis ve atölye aynı kayıtta'],
 ] as const;
 
-function Hero() {
+function Hero({ signedIn }: { signedIn: boolean }) {
   const reduce = useReducedMotion();
   // Headline and copy are visible in the server-rendered first paint; they only drift into place.
   const settle = (delay: number) => ({ initial: reduce ? false : { y: 10 }, animate: { y: 0 }, transition: { duration: 0.7, delay, ease: EASE } });
@@ -126,7 +126,7 @@ function Hero() {
           <motion.p {...settle(0.08)} className="mt-6 max-w-xl text-[16.5px] leading-7 text-[var(--chrome-muted)]">Teklif, kesim planı, depo ve tahsilat aynı veride. Ofis ve atölye her an aynı tabloya bakar; föy yüklenir, kesim listesi hazır gelir.</motion.p>
           <motion.div {...settle(0.12)} className="mt-9 flex flex-wrap gap-3">
             <Link href="/contact" className="rf-accent-button h-11 px-5 text-[14px]">Demo talep edin</Link>
-            <Link href="/auth/login" className="rf-chrome-button h-11 px-5 text-[14px]">Giriş yap</Link>
+            <Link href={signedIn ? '/dashboard' : '/auth/login'} className="rf-chrome-button h-11 px-5 text-[14px]">{signedIn ? 'Panele git' : 'Giriş yap'}</Link>
           </motion.div>
           <motion.dl {...settle(0.16)} className="mt-14 grid max-w-2xl border-t border-[var(--chrome-line)] sm:grid-cols-2">
             {SPEC.map(([term, detail]) => (
@@ -421,7 +421,7 @@ function Faq() {
   );
 }
 
-function Closing() {
+function Closing({ signedIn }: { signedIn: boolean }) {
   return (
     <section className="rf-chrome relative overflow-hidden">
       <div aria-hidden className="rf-blueprint absolute inset-0" />
@@ -431,7 +431,7 @@ function Closing() {
           <p className="mt-4 text-[16px] leading-7 text-[var(--chrome-muted)]">30 dakikalık bir görüşmede örnek bir projenizi keşiften montaja RenkFlow’da birlikte takip edelim.</p>
           <div className="mt-9 flex flex-wrap gap-3">
             <Link href="/contact" className="rf-accent-button h-11 px-5 text-[14px]">Demo talep edin</Link>
-            <Link href="/auth/login" className="rf-chrome-button h-11 px-5 text-[14px]">Panele giriş yap</Link>
+            <Link href={signedIn ? '/dashboard' : '/auth/login'} className="rf-chrome-button h-11 px-5 text-[14px]">{signedIn ? 'Panele git' : 'Panele giriş yap'}</Link>
           </div>
         </div>
       </Reveal>
@@ -439,10 +439,10 @@ function Closing() {
   );
 }
 
-export function HomeLanding() {
+export function HomeLanding({ signedIn = false }: { signedIn?: boolean }) {
   return (
     <>
-      <Hero />
+      <Hero signedIn={signedIn} />
       <Tour />
       <ModuleStrip />
       <Bento />
@@ -451,7 +451,7 @@ export function HomeLanding() {
       <Workflow />
       <Trust />
       <Faq />
-      <Closing />
+      <Closing signedIn={signedIn} />
     </>
   );
 }
