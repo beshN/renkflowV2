@@ -228,6 +228,18 @@ describe('office simulation following real tasks', () => {
     expect(sim.events.some(e => e.text.includes('Doğru.'))).toBe(true);
   });
 
+  it('releases the manager if a task fails during inspection', () => {
+    const sim = new OfficeSimulation();
+    const initial = remote();
+    sim.sync([initial]);
+    runUntil(sim, () => sim.agent('zeynep')!.phase === 'working' && sim.manager.phase === 'managing');
+    const decision = { ...initial.decision, review: { status: 'checking' as const, score: null, note: 'Kontrol', issues: [], revision: 0, checkedAt: 'now' } };
+    sim.sync([remote({ decision })]);
+    runUntil(sim, () => sim.manager.phase === 'checking');
+    sim.sync([remote({ status: 'failed', decision })]);
+    runUntil(sim, () => sim.manager.phase === 'managing' && sim.task('srv-1')!.status === 'failed');
+  });
+
   it('refreshes review notes even when the server status stays working', () => {
     const sim = new OfficeSimulation();
     const initial = remote();

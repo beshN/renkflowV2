@@ -56,7 +56,7 @@ export async function produceOpenCode(task: TaskInput, model: string, meta: AIRe
       const content = masked.restore(file.content);
       if (file.format === 'svg' && (!/<svg\b/i.test(content) || /<\s*(script|foreignObject|iframe|object|embed)\b|\bon\w+\s*=|(?:href|url)\s*[=(]|<!ENTITY/i.test(content))) throw new Error('Tasarım güvenli bir statik SVG değil.');
       // Spreadsheet programs must never execute model-generated CSV formulas on download.
-      if (file.format === 'csv' && /(?:^|[;,\n])\s*"?\s*[=+@\t\r]/m.test(content)) throw new Error('CSV çalıştırılabilir formül içeriyor.');
+      if (file.format === 'csv' && /(?:^|[;,\n])\s*"?\s*(?:[=+@\t\r]|-(?!\d+(?:[.,]\d+)?(?:[";,\r\n]|$)))/m.test(content)) throw new Error('CSV çalıştırılabilir formül içeriyor.');
       const base = safeFileName(file.name, 'teslim').replace(/\.[^.]+$/, '');
       return { name: `${base}.${file.format}`, contentType: { txt: 'text/plain', md: 'text/markdown', csv: 'text/csv', svg: 'image/svg+xml' }[file.format], bytes: Buffer.from(content, 'utf8') };
     }),

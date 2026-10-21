@@ -214,7 +214,7 @@ export class OfficeSimulation {
       if (agent.phase === 'working') this.work(agent, seconds);
       else if (agent.phase === 'asking' && this.task(agent.taskId)?.remote?.status !== 'needs_input') this.resumeWork(agent);
       else if (agent.phase === 'delivering' && agent.phaseTime >= DELIVER_SECONDS) this.leaveDesk(agent);
-      else if (agent.phase === 'checking' && agent.phaseTime >= 2 && this.task(agent.taskId)?.remote?.decision.review?.status !== 'checking') this.finishInspection(agent);
+      else if (agent.phase === 'checking' && agent.phaseTime >= 2 && (this.task(agent.taskId)?.remote?.status !== 'working' || this.task(agent.taskId)?.remote?.decision.review?.status !== 'checking')) this.finishInspection(agent);
       else if (agent.phase === 'briefing' && agent.phaseTime >= BRIEF_SECONDS) this.handOver(agent);
     }
   }
@@ -362,7 +362,7 @@ export class OfficeSimulation {
   private dispatch() {
     const manager = this.manager;
     if (manager.phase !== 'managing') return;
-    const checking = this.tasks.find(t => t.remote?.decision.review?.status === 'checking' && this.agent(t.agentId)?.phase === 'working');
+    const checking = this.tasks.find(t => t.remote?.status === 'working' && t.remote?.decision.review?.status === 'checking' && this.agent(t.agentId)?.phase === 'working');
     if (checking) {
       const desk = this.desk(this.agent(checking.agentId)!.deskId)!;
       manager.taskId = checking.id;
