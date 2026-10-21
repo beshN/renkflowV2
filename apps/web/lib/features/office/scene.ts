@@ -24,7 +24,7 @@ const COLORS = {
 };
 
 const BOARD_COLORS: Record<TaskStatus | 'empty', string> = {
-  empty: '#273042', queued: '#64748b', assigned: '#f59e0b', working: '#facc15', review: '#f97316', approved: '#22c55e',
+  empty: '#273042', queued: '#64748b', assigned: '#f59e0b', working: '#facc15', asking: '#38bdf8', review: '#f97316', approved: '#22c55e', failed: '#ef4444',
 };
 
 const box = (w: number, h: number, d: number, color: string, extra: T.MeshStandardMaterialParameters = {}) => {
@@ -229,6 +229,7 @@ function pose(person: Person, agent: Agent, time: number, dt: number) {
   const walking = agent.path.length > 0;
   const phase = time * 9 + agent.seatIndex;
   person.head.rotation.y = 0;
+  rightArm.rotation.z = 0;
   if (walking) {
     const swing = Math.sin(phase) * 0.6;
     leftLeg.rotation.x = swing; rightLeg.rotation.x = -swing;
@@ -250,7 +251,13 @@ function pose(person: Person, agent: Agent, time: number, dt: number) {
   const inLounge = agent.phase === 'lounge' || agent.phase === 'called';
   person.body.position.y = inLounge ? -0.08 : -0.02;
   leftLeg.rotation.x = rightLeg.rotation.x = -Math.PI / 2 + (inLounge ? 0.15 : 0);
-  if (agent.phase === 'working' || agent.phase === 'managing') {
+  if (agent.phase === 'asking') {
+    // Hand up at the desk, waving now and then, until the question is answered.
+    leftArm.rotation.x = -1.15;
+    rightArm.rotation.x = -2.95 + Math.sin(time * 5) * 0.12;
+    rightArm.rotation.z = 0.15;
+    person.head.rotation.x = -0.15;
+  } else if (agent.phase === 'working' || agent.phase === 'managing') {
     const tap = agent.phase === 'managing' ? Math.max(0, Math.sin(time * 0.7)) : 1;
     leftArm.rotation.x = -1.15 + Math.sin(time * 14) * 0.08 * tap;
     rightArm.rotation.x = -1.15 + Math.sin(time * 14 + 1.7) * 0.08 * tap;
@@ -356,7 +363,7 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
     for (const agent of sim.agents) pose(people.get(agent.id)!, agent, time, dt);
     for (const [id, desk] of desks) {
       const owner = sim.agents.find(a => a.deskId === id && !a.path.length);
-      const busy = owner?.phase === 'working' || owner?.phase === 'delivering' || owner?.phase === 'managing';
+      const busy = owner?.phase === 'working' || owner?.phase === 'asking' || owner?.phase === 'delivering' || owner?.phase === 'managing';
       const glow = busy ? 0.32 + Math.sin(now / 400) * 0.04 : 0;
       desk.glow.opacity += (glow - desk.glow.opacity) * Math.min(1, dt * 4);
       desk.screen.emissiveIntensity += ((busy ? 0.9 : 0) - desk.screen.emissiveIntensity) * Math.min(1, dt * 4);

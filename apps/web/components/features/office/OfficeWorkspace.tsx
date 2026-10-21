@@ -1,14 +1,71 @@
 'use client';
 
-import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
-import { Check, Moon, Pause, Play, Plus, RotateCcw, Sun, Undo2, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
+import { Check, Download, Hand, Moon, Pause, Play, Plus, RefreshCw, RotateCcw, Sun, Undo2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CATEGORY, TASK_CATEGORIES, type TaskCategoryId } from '@/lib/features/office/catalog';
 import { DIFFICULTY_LABELS } from '@/lib/features/office/routing';
-import { OfficeSimulation, type Agent, type EventKind, type OfficeEvent, type Task } from '@/lib/features/office/simulation';
+import { OfficeSimulation, type Agent, type EventKind, type OfficeEvent, type RemoteTask, type Task } from '@/lib/features/office/simulation';
 import { createOfficeStage, type OfficeStage } from '@/lib/features/office/scene';
 
 const SPEEDS = [1, 2, 4];
+const API = '/api/v1/office';
+
+type Office = {
+  /** Real work on the model; false while the office runs as a simulation. */
+  live: boolean; reason: string | null; error: string;
+  create(input: { category: TaskCategoryId; title: string; brief: string }): Promise<void>;
+  act(taskId: string, body: Record<string, string>): Promise<void>;
+};
+
+async function call<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, { ...init, headers: { 'Content-Type': 'application/json', ...init?.headers }, cache: 'no-store' });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || 'İstek tamamlanamadı.');
+  return body.data as T;
+}
+
+/**
+ * Keeps the office in step with the firm's real tasks: polls often while someone is working, rarely
+ * otherwise. Without the tables or the model the page stays a simulation and says why.
+ */
+function useOffice(sim: OfficeSimulation): Office {
+  const [state, setState] = useState<{ live: boolean; reason: string | null; error: string }>({ live: false, reason: null, error: '' });
+  const refresh = useCallback(async () => {
+    try {
+      const data = await call<{ live: boolean; reason: string | null; tasks: RemoteTask[] }>(API);
+      sim.sync(data.tasks);
+      setState({ live: data.live, reason: data.reason, error: '' });
+      return data.tasks.some(t => t.status === 'queued' || t.status === 'working');
+    } catch (error) {
+      setState(s => ({ ...s, error: error instanceof Error ? error.message : 'Görevler alınamadı.' }));
+      return false;
+    }
+  }, [sim]);
+  useEffect(() => {
+    let stopped = false, timer: ReturnType<typeof setTimeout>;
+    const loop = async () => {
+      const busy = await refresh();
+      if (!stopped) timer = setTimeout(loop, busy ? 3000 : 15000);
+    };
+    loop();
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [refresh]);
+  return {
+    ...state,
+    async create(input) {
+      const task = await call<RemoteTask>(API, { method: 'POST', body: JSON.stringify(input) });
+      sim.sync([task]);
+      setTimeout(refresh, 1500);
+    },
+    async act(taskId, body) {
+      await call(`${API}/${taskId}`, { method: 'POST', body: JSON.stringify(body) });
+      await refresh();
+    },
+  };
+}
+
+const usd = (value: number) => `$${value.toFixed(value < 1 ? 3 : 2)}`;
 const TABS: Array<{ id: EventKind; label: string }> = [
   { id: 'activity', label: 'Etkinlik' }, { id: 'technical', label: 'Teknik' }, { id: 'delivery', label: 'Teslimatlar' },
 ];
@@ -32,6 +89,7 @@ function status(sim: OfficeSimulation, agent: Agent): { text: string; tone: 'idl
     case 'to_office': return { text: 'Masasına dönüyor', tone: 'move' };
     case 'called': return { text: 'Yönetici geliyor', tone: 'move' };
     case 'to_desk': return { text: 'Masaya gidiyor', tone: 'move' };
+    case 'asking': return { text: 'Elini kaldırdı · sorusu var', tone: 'done' };
     case 'working': return { text: `${CATEGORY[task!.category].steps[Math.max(0, task!.step)]} · %${Math.floor(task!.progress * 100)}`, tone: 'busy' };
     case 'delivering': return { text: 'Teslim ediyor', tone: 'done' };
     case 'to_lounge': return { text: 'Molaya dönüyor', tone: 'move' };
@@ -48,6 +106,7 @@ const TONE_TEXT = { idle: 'text-zinc-400', busy: 'text-amber-300', move: 'text-s
 export function OfficeWorkspace() {
   const [sim] = useState(() => new OfficeSimulation());
   useSyncExternalStore(sim.subscribe, sim.getVersion, sim.getVersion);
+  const office = useOffice(sim);
   const canvas = useRef<HTMLCanvasElement>(null);
   const stage = useRef<OfficeStage | null>(null);
   const labels = useRef(new Map<string, HTMLElement>());
@@ -74,6 +133,8 @@ export function OfficeWorkspace() {
   useEffect(() => stage.current?.setNight(night), [night]);
 
   const reviewing = sim.tasks.filter(t => t.status === 'review');
+  const asking = sim.tasks.filter(t => t.status === 'asking');
+  const spent = sim.tasks.reduce((sum, t) => sum + (t.remote?.costUsd ?? 0), 0);
   const working = sim.agents.filter(a => a.phase === 'working').length;
   const events = sim.events.filter(e => e.kind === tab && (filter === 'all' || e.agentId === filter)).slice(0, 80);
 
@@ -98,7 +159,10 @@ export function OfficeWorkspace() {
           })}
         </div>
         <div className="absolute left-3 top-3 flex flex-wrap gap-2 text-xs">
-          <span className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-1.5">Simülasyon · modeller henüz bağlı değil</span>
+          {office.live
+            ? <span className="rounded-lg border border-emerald-500/50 bg-zinc-950/80 px-3 py-1.5 text-emerald-200">Canlı · işler Claude Sonnet 5.5 ile yapılıyor</span>
+            : <span className="max-w-[min(520px,80vw)] rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-1.5">{office.reason ?? 'Simülasyon · modeller bağlı değil'}</span>}
+          {office.error && <span role="alert" className="rounded-lg border border-red-500/50 bg-zinc-950/80 px-3 py-1.5 text-red-200">{office.error}</span>}
         </div>
         <div className="absolute bottom-3 left-3 flex items-center gap-1 rounded-xl border border-zinc-700 bg-zinc-950/85 p-1 text-xs">
           <button type="button" onClick={() => setPaused(p => !p)} className="rounded-lg p-2 hover:bg-zinc-800" aria-label={paused ? 'Devam et' : 'Duraklat'}>
@@ -121,8 +185,9 @@ export function OfficeWorkspace() {
         <section className="border-b border-zinc-800 p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-400">Ekip · {sim.agents.length}</h2>
-            <span className="rounded-full border border-zinc-700 px-2.5 py-0.5 text-[11px] text-zinc-300">{working} çalışıyor · {reviewing.length} onay bekliyor</span>
+            <span className="rounded-full border border-zinc-700 px-2.5 py-0.5 text-[11px] text-zinc-300">{working} çalışıyor · {reviewing.length} onay bekliyor{spent > 0 ? ` · ${usd(spent)}` : ''}</span>
           </div>
+          {asking.map(task => <RaisedHand key={task.id} sim={sim} task={task} office={office} />)}
           <ul className="max-h-[260px] space-y-1.5 overflow-y-auto pr-1">
             {sim.agents.map(agent => {
               const s = status(sim, agent);
@@ -173,13 +238,13 @@ export function OfficeWorkspace() {
             {sim.agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
           <div className="mt-1 max-h-[480px] min-h-0 flex-1 overflow-y-auto pr-1 lg:max-h-none">
-            {tab === 'delivery' && <Deliveries sim={sim} />}
-            <EventList sim={sim} events={events} empty={tab === 'delivery' ? (reviewing.length ? '' : 'Teslim edilen iş yok.') : tab === 'technical' ? 'Çalışan biri olmadığında teknik kayıt oluşmaz.' : 'Henüz olay yok. Bir görev verin.'} />
+            {tab === 'delivery' && <Deliveries sim={sim} office={office} />}
+            <EventList sim={sim} events={events} empty={tab === 'delivery' ? (reviewing.length || sim.tasks.some(t => t.status === 'failed') ? '' : 'Teslim edilen iş yok.') : tab === 'technical' ? 'Çalışan biri olmadığında teknik kayıt oluşmaz.' : 'Henüz olay yok. Bir görev verin.'} />
           </div>
         </section>
       </aside>
 
-      {composing && <TaskComposer sim={sim} onClose={() => setComposing(false)} />}
+      {composing && <TaskComposer sim={sim} office={office} onClose={() => setComposing(false)} />}
     </div>
   );
 }
@@ -202,57 +267,136 @@ function EventList({ sim, events, empty }: { sim: OfficeSimulation; events: Offi
   );
 }
 
-function Deliveries({ sim }: { sim: OfficeSimulation }) {
-  const [revising, setRevising] = useState<string | null>(null);
-  const [note, setNote] = useState('');
-  const waiting = sim.tasks.filter(t => t.status === 'review');
-  if (!waiting.length) return null;
+/** A member of staff waiting at the desk with a hand up; the answer sends the work on. */
+function RaisedHand({ sim, task, office }: { sim: OfficeSimulation; task: Task; office: Office }) {
+  const [answer, setAnswer] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const agent = sim.agent(task.agentId);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try { await office.act(task.id, { action: 'answer', answer }); setAnswer(''); }
+    catch (err) { setError(err instanceof Error ? err.message : 'Cevap gönderilemedi.'); }
+    finally { setBusy(false); }
+  };
   return (
-    <ul className="mt-3 space-y-2">
-      {waiting.map(task => (
-        <li key={task.id} className="rounded-xl border border-orange-500/40 bg-orange-500/5 p-3 text-xs">
-          <p className="font-semibold text-zinc-100">#{task.number} {task.title}</p>
-          <p className="mt-0.5 text-zinc-400">{sim.agent(task.agentId)?.name} · {task.deliverable?.kind}: <span className="font-mono text-zinc-300">{task.deliverable?.name}</span></p>
-          <p className="mt-0.5 text-[11px] text-zinc-500">Yöneticinin kararı: {decisionText(task)}</p>
-          <p className="mt-1 text-[11px] text-zinc-500">Örnek teslimat: dosya, model bağlandığında üretilecek.</p>
-          {revising === task.id ? (
-            <form className="mt-2 flex gap-1.5" onSubmit={e => { e.preventDefault(); sim.requestRevision(task.id, note); setRevising(null); setNote(''); }}>
-              <input autoFocus value={note} onChange={e => setNote(e.target.value)} placeholder="Ne değişsin?" aria-label="Revizyon notu"
-                className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-zinc-100" />
-              <button type="submit" className="rounded-lg bg-zinc-700 px-2.5 font-semibold">Gönder</button>
-              <button type="button" onClick={() => setRevising(null)} className="rounded-lg px-1.5 text-zinc-400" aria-label="Vazgeç"><X className="h-4 w-4" /></button>
-            </form>
-          ) : (
-            <div className="mt-2 flex gap-1.5">
-              <button type="button" onClick={() => sim.approve(task.id)} className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 font-semibold text-white hover:bg-emerald-500">
-                <Check className="h-3.5 w-3.5" /> Onayla
-              </button>
-              <button type="button" onClick={() => setRevising(task.id)} className="flex items-center gap-1 rounded-lg border border-zinc-700 px-2.5 py-1.5 font-semibold text-zinc-200 hover:bg-zinc-800">
-                <Undo2 className="h-3.5 w-3.5" /> Revize iste
-              </button>
-            </div>
-          )}
-        </li>
-      ))}
-    </ul>
+    <form onSubmit={submit} className="mb-3 rounded-xl border border-sky-500/50 bg-sky-500/10 p-3 text-xs">
+      <p className="flex items-center gap-1.5 font-semibold text-sky-200"><Hand className="h-3.5 w-3.5" /> {agent?.name} soruyor · #{task.number} {task.title}</p>
+      <p className="mt-1 text-zinc-100">{task.remote?.question}</p>
+      <div className="mt-2 flex gap-1.5">
+        <input value={answer} onChange={e => { setAnswer(e.target.value); setError(''); }} placeholder="Cevabınız" aria-label={`${agent?.name ?? 'Çalışan'} için cevap`}
+          className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-zinc-100" />
+        <button type="submit" disabled={busy || !answer.trim()} className="rounded-lg bg-sky-600 px-2.5 font-semibold text-white disabled:opacity-50">Gönder</button>
+      </div>
+      {error && <p role="alert" className="mt-1 text-red-300">{error}</p>}
+    </form>
   );
 }
 
-function TaskComposer({ sim, onClose }: { sim: OfficeSimulation; onClose: () => void }) {
+function Deliveries({ sim, office }: { sim: OfficeSimulation; office: Office }) {
+  const [revising, setRevising] = useState<string | null>(null);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const waiting = sim.tasks.filter(t => t.status === 'review');
+  const failed = sim.tasks.filter(t => t.status === 'failed');
+  if (!waiting.length && !failed.length) return null;
+
+  /** A real task goes to the server; a simulated one changes here. */
+  const act = async (task: Task, body: Record<string, string>) => {
+    setError('');
+    if (!task.remote) {
+      if (body.action === 'approve') sim.approve(task.id);
+      if (body.action === 'revise') sim.requestRevision(task.id, body.note);
+      return;
+    }
+    setBusy(task.id);
+    try { await office.act(task.id, body); }
+    catch (err) { setError(err instanceof Error ? err.message : 'İşlem tamamlanamadı.'); }
+    finally { setBusy(null); }
+  };
+
+  return (
+    <div className="mt-3 space-y-2">
+      {error && <p role="alert" className="rounded-lg border border-red-500/40 p-2 text-xs text-red-300">{error}</p>}
+      {waiting.map(task => {
+        const files = task.remote?.files.filter(f => f.revision === task.remote!.revisions) ?? [];
+        const preview = files.find(f => f.contentType.startsWith('image/') && f.contentType !== 'image/svg+xml');
+        return (
+          <article key={task.id} className="rounded-xl border border-orange-500/40 bg-orange-500/5 p-3 text-xs">
+            <p className="font-semibold text-zinc-100">#{task.number} {task.title}{task.revisions ? ` · revizyon ${task.revisions}` : ''}</p>
+            <p className="mt-0.5 text-zinc-400">{sim.agent(task.agentId)?.name ?? CATEGORY[task.category].label} · {decisionText(task)}{task.remote ? ` · ${usd(task.remote.costUsd)}` : ''}</p>
+            {preview && (
+              <img src={preview.url} alt={`${task.title} önizleme`} className="mt-2 max-h-48 w-full rounded-lg border border-zinc-800 object-contain" />
+            )}
+            {files.length > 0 ? (
+              <ul className="mt-2 space-y-1">
+                {files.map(f => (
+                  <li key={f.id}>
+                    <a href={`${f.url}?download=1`} className="inline-flex items-center gap-1.5 font-mono text-amber-200 underline-offset-2 hover:underline">
+                      <Download className="h-3.5 w-3.5" /> {f.name} <span className="font-sans text-zinc-500">({Math.max(1, Math.round(f.size / 1024))} KB)</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="mt-1 text-zinc-300"><span className="font-mono">{task.deliverable?.name}</span> <span className="text-zinc-500">· örnek teslimat (simülasyon)</span></p>}
+            {task.remote?.summary && <p className="mt-2 whitespace-pre-line text-zinc-300">{task.remote.summary}</p>}
+            {revising === task.id ? (
+              <form className="mt-2 flex gap-1.5" onSubmit={e => { e.preventDefault(); act(task, { action: 'revise', note }); setRevising(null); setNote(''); }}>
+                <input autoFocus value={note} onChange={e => setNote(e.target.value)} placeholder="Ne değişsin?" aria-label="Revizyon notu"
+                  className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-zinc-100" />
+                <button type="submit" disabled={!note.trim()} className="rounded-lg bg-zinc-700 px-2.5 font-semibold disabled:opacity-50">Gönder</button>
+                <button type="button" onClick={() => setRevising(null)} className="rounded-lg px-1.5 text-zinc-400" aria-label="Vazgeç"><X className="h-4 w-4" /></button>
+              </form>
+            ) : (
+              <div className="mt-2 flex gap-1.5">
+                <button type="button" disabled={busy === task.id} onClick={() => act(task, { action: 'approve' })} className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">
+                  <Check className="h-3.5 w-3.5" /> Onayla
+                </button>
+                <button type="button" disabled={busy === task.id} onClick={() => setRevising(task.id)} className="flex items-center gap-1 rounded-lg border border-zinc-700 px-2.5 py-1.5 font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-50">
+                  <Undo2 className="h-3.5 w-3.5" /> Revize iste
+                </button>
+              </div>
+            )}
+          </article>
+        );
+      })}
+      {failed.map(task => (
+        <article key={task.id} className="rounded-xl border border-red-500/40 bg-red-500/5 p-3 text-xs">
+          <p className="font-semibold text-zinc-100">#{task.number} {task.title}</p>
+          <p className="mt-1 text-red-200">{task.remote?.error ?? 'İş tamamlanamadı.'}</p>
+          {task.remote && (
+            <button type="button" disabled={busy === task.id} onClick={() => act(task, { action: 'retry' })} className="mt-2 flex items-center gap-1 rounded-lg border border-zinc-700 px-2.5 py-1.5 font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-50">
+              <RefreshCw className="h-3.5 w-3.5" /> Yeniden dene
+            </button>
+          )}
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function TaskComposer({ sim, office, onClose }: { sim: OfficeSimulation; office: Office; onClose: () => void }) {
   const [category, setCategory] = useState<TaskCategoryId>('design');
   const [title, setTitle] = useState('');
   const [brief, setBrief] = useState('');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   const chosen = CATEGORY[category];
   const owner = sim.agents.find(a => a.role === category);
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
+    setBusy(true);
     try {
-      sim.assign({ category, title, brief });
+      if (office.live) await office.create({ category, title, brief });
+      else sim.assign({ category, title, brief });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Görev verilemedi.');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -262,7 +406,7 @@ function TaskComposer({ sim, onClose }: { sim: OfficeSimulation; onClose: () => 
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 id="office-task-title" className="text-lg font-semibold">Görev ver</h2>
-            <p className="text-xs text-zinc-400">Türünü seçin; o işin uzmanı masaya oturup çalışmaya başlar.</p>
+            <p className="text-xs text-zinc-400">Türünü seçin; o işin uzmanı masaya oturup çalışmaya başlar.{office.live ? ' İş gerçekten yapılır ve dosya olarak teslim edilir.' : ' Şu an simülasyon: gerçek dosya üretilmez.'}</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800" aria-label="Kapat"><X className="h-5 w-5" /></button>
         </div>
@@ -289,11 +433,11 @@ function TaskComposer({ sim, onClose }: { sim: OfficeSimulation; onClose: () => 
         </div>
         <label className="mt-4 block text-xs font-semibold text-zinc-300" htmlFor="office-task-brief">Ayrıntılar</label>
         <textarea id="office-task-brief" value={brief} onChange={e => setBrief(e.target.value)} rows={3} placeholder="Ölçü, ton, hedef kitle, kaynak dosya…"
-          className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm" />
+          maxLength={8000} className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm" />
         {error && <p role="alert" className="mt-2 text-xs text-red-400">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800">Vazgeç</button>
-          <button type="submit" className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-amber-400">Görevi ver</button>
+          <button type="submit" disabled={busy} className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-amber-400 disabled:opacity-60">{busy ? 'Veriliyor…' : 'Görevi ver'}</button>
         </div>
       </form>
     </div>
