@@ -28,6 +28,8 @@ export type RemoteTask = {
   status: 'queued' | 'working' | 'needs_input' | 'review' | 'approved' | 'failed';
   decision: ManagerDecision; question: string | null; revisions: number; notes: string[];
   summary: string | null; error: string | null; costUsd: number;
+  /** When the current run began on the server (ISO); null until a run picks the task up. */
+  startedAt?: string | null;
   files: Array<{ id: string; name: string; contentType: string; size: number; revision: number; url: string }>;
 };
 export type EventKind = 'activity' | 'technical' | 'delivery';
@@ -149,10 +151,24 @@ export class OfficeSimulation {
   }
 
   /**
-   * Brings real tasks in from the server. A task that is still to be done enters the office the
-   * usual way (the manager hands it over); one already finished when the page opens is shown as is.
+   * Moves the office on by the time spent away from the page, in short steps so walks and
+   * hand-overs still play out in order. Capped, so a day away does not stall the page.
    */
-  sync(remote: RemoteTask[]) {
+  catchUp(seconds: number) {
+    let left = Math.min(seconds, 30 * 60);
+    while (left > 0) {
+      const step = Math.min(0.25, left);
+      this.tick(step);
+      left -= step;
+    }
+  }
+
+  /**
+   * Brings real tasks in from the server. A task that is still to be done enters the office the
+   * usual way (the manager hands it over); one already running when the page opens has its person
+   * at a desk at once; one already finished is shown as is.
+   */
+  sync(remote: RemoteTask[], now = Date.now()) {
     for (const r of remote) {
       let task = this.task(r.id);
       if (!task) {
@@ -165,6 +181,7 @@ export class OfficeSimulation {
         };
         this.taskSeq = Math.max(this.taskSeq, r.number);
         this.tasks.push(task);
+        if ((r.status === 'working' || r.status === 'needs_input') && this.seatRunning(task, now)) continue;
         if (active) this.log('activity', this.manager.id, task.id, `Yeni görev #${r.number}: ${r.title} (${CATEGORY[r.category].label})`);
         continue;
       }
@@ -197,6 +214,25 @@ export class OfficeSimulation {
       this.changed();
     }
     this.dispatch();
+  }
+
+  /**
+   * A task the server is already running: its person is at a desk working, not handed the task
+   * again. False when that person is busy with another task, so it waits its turn as usual.
+   */
+  private seatRunning(task: Task, now: number) {
+    const agent = this.agents.find(a => a.role === task.category && a.phase === 'lounge');
+    const desk = agent && this.freeDesk(agent.position);
+    if (!agent || !desk) return false;
+    this.deskOwner.set(desk.id, agent.id);
+    Object.assign(agent, { deskId: desk.id, taskId: task.id, position: { x: desk.chair.x, z: desk.chair.z }, facing: desk.chair.facing, seated: true, path: [] });
+    const started = task.remote?.startedAt ? Date.parse(task.remote.startedAt) : NaN;
+    const elapsed = Number.isFinite(started) ? Math.max(0, (now - started) / 1000) : 0;
+    const pace = CATEGORY[task.category].workSeconds * DIFFICULTY_PACE[task.decision?.difficulty ?? 'medium'];
+    Object.assign(task, { agentId: agent.id, status: 'working', startedAt: this.time, progress: Math.min(0.95, elapsed / pace) });
+    this.setPhase(agent, 'working');
+    this.log('activity', agent.id, task.id, `${agent.name} masasında, #${task.number} üzerinde çalışıyor`);
+    return true;
   }
 
   private remoteDeliverable(r: RemoteTask) {

@@ -120,31 +120,50 @@ const decisionText = (task: Task) => task.decision ? `${DIFFICULTY_LABELS[task.d
 const TONE_DOT = { idle: 'bg-zinc-500', busy: 'bg-amber-400', move: 'bg-sky-400', done: 'bg-emerald-400' };
 const TONE_TEXT = { idle: 'text-zinc-400', busy: 'text-amber-300', move: 'text-sky-300', done: 'text-emerald-300' };
 
-export function OfficeWorkspace() {
-  const [sim] = useState(() => new OfficeSimulation());
+type View = { speed: number; paused: boolean; night: boolean; tab: EventKind; filter: string };
+
+/**
+ * The office outlives the page: going to another menu and back finds the same people mid-walk or
+ * at their desks, moved on by the time spent away, instead of the office starting over. One per
+ * firm and person, in this browser tab.
+ */
+let kept: { key: string; sim: OfficeSimulation; leftAt: number | null; view: View } | null = null;
+
+function keptOffice(key: string) {
+  if (kept?.key !== key) kept = { key, sim: new OfficeSimulation(), leftAt: null, view: { speed: 1, paused: false, night: true, tab: 'activity', filter: 'all' } };
+  return kept;
+}
+
+export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
+  const [here] = useState(() => keptOffice(officeKey));
+  const sim = here.sim;
   useSyncExternalStore(sim.subscribe, sim.getVersion, sim.getVersion);
   const office = useOffice(sim);
   const canvas = useRef<HTMLCanvasElement>(null);
   const stage = useRef<OfficeStage | null>(null);
   const labels = useRef(new Map<string, HTMLElement>());
-  const [speed, setSpeed] = useState(1);
-  const [paused, setPaused] = useState(false);
-  const [night, setNight] = useState(true);
+  const [speed, setSpeed] = useState(here.view.speed);
+  const [paused, setPaused] = useState(here.view.paused);
+  const [night, setNight] = useState(here.view.night);
   const [failed, setFailed] = useState(false);
   const [composing, setComposing] = useState(false);
-  const [tab, setTab] = useState<EventKind>('activity');
-  const [filter, setFilter] = useState('all');
+  const [tab, setTab] = useState<EventKind>(here.view.tab);
+  const [filter, setFilter] = useState(here.view.filter);
+  useEffect(() => { here.view = { speed, paused, night, tab, filter }; }, [here, speed, paused, night, tab, filter]);
 
   useEffect(() => {
     if (!canvas.current) return;
+    // Time away from the page passes in the office too, at the speed it was left running.
+    if (here.leftAt !== null && !here.view.paused) sim.catchUp(((Date.now() - here.leftAt) / 1000) * here.view.speed);
+    here.leftAt = null;
     try {
       stage.current = createOfficeStage(canvas.current, sim, labels.current);
     } catch {
       setFailed(true);
       return;
     }
-    return () => { stage.current?.dispose(); stage.current = null; };
-  }, [sim]);
+    return () => { stage.current?.dispose(); stage.current = null; here.leftAt = Date.now(); };
+  }, [here, sim]);
   useEffect(() => stage.current?.setSpeed(speed), [speed]);
   useEffect(() => stage.current?.setPaused(paused), [paused]);
   useEffect(() => stage.current?.setNight(night), [night]);

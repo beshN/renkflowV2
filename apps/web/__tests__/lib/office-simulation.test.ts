@@ -174,7 +174,7 @@ describe('office simulation following real tasks', () => {
 
   it('walks a real task to a desk and waits at 95 % until the server delivers', () => {
     const sim = new OfficeSimulation();
-    sim.sync([remote()]);
+    sim.sync([remote({ status: 'queued' })]);
     const task = sim.task('srv-1')!;
     const zeynep = sim.agent('zeynep')!;
     runUntil(sim, () => zeynep.phase === 'working');
@@ -190,7 +190,7 @@ describe('office simulation following real tasks', () => {
 
   it('raises a hand while the server waits for an answer and goes on after it', () => {
     const sim = new OfficeSimulation();
-    sim.sync([remote()]);
+    sim.sync([remote({ status: 'queued' })]);
     const zeynep = sim.agent('zeynep')!;
     runUntil(sim, () => zeynep.phase === 'working');
     sim.sync([remote({ status: 'needs_input', question: 'Kaç slayt?' })]);
@@ -204,7 +204,7 @@ describe('office simulation following real tasks', () => {
 
   it('shows a failure, and a retry sends the task through the office again', () => {
     const sim = new OfficeSimulation();
-    sim.sync([remote()]);
+    sim.sync([remote({ status: 'queued' })]);
     const task = sim.task('srv-1')!;
     runUntil(sim, () => task.status === 'working');
     sim.sync([remote({ status: 'failed', error: 'zaman aşımı' })]);
@@ -217,7 +217,7 @@ describe('office simulation following real tasks', () => {
 
   it('visits a worker during review, then returns without blocking delivery', () => {
     const sim = new OfficeSimulation();
-    const initial = remote();
+    const initial = remote({ status: 'queued' });
     sim.sync([initial]);
     runUntil(sim, () => sim.agent('zeynep')!.phase === 'working' && sim.manager.phase === 'managing');
     const review = { status: 'checking' as const, score: null, note: 'Kontrol ediliyor.', issues: [], revision: 0, checkedAt: '2026-10-21T12:00:00Z' };
@@ -230,7 +230,7 @@ describe('office simulation following real tasks', () => {
 
   it('releases the manager if a task fails during inspection', () => {
     const sim = new OfficeSimulation();
-    const initial = remote();
+    const initial = remote({ status: 'queued' });
     sim.sync([initial]);
     runUntil(sim, () => sim.agent('zeynep')!.phase === 'working' && sim.manager.phase === 'managing');
     const decision = { ...initial.decision, review: { status: 'checking' as const, score: null, note: 'Kontrol', issues: [], revision: 0, checkedAt: 'now' } };
@@ -255,5 +255,52 @@ describe('office simulation following real tasks', () => {
     sim.sync([remote({ status: 'approved', files: [{ id: 'f1', name: 'a.pptx', contentType: 'x', size: 1, revision: 0, url: '/f1' }] })]);
     expect(sim.task('srv-1')).toMatchObject({ status: 'approved', deliverable: { name: 'a.pptx' } });
     expect(sim.manager.phase).toBe('managing');
+  });
+
+  it('finds a task the server is already running at its desk, without handing it over again', () => {
+    const sim = new OfficeSimulation();
+    const now = Date.parse('2026-10-21T12:00:12Z');
+    sim.sync([remote({ startedAt: '2026-10-21T12:00:00Z' })], now);
+    const zeynep = sim.agent('zeynep')!;
+    expect(zeynep).toMatchObject({ phase: 'working', seated: true, path: [] });
+    expect(sim.manager.phase).toBe('managing');
+    const task = sim.task('srv-1')!;
+    expect(task.status).toBe('working');
+    // Twelve seconds into a medium presentation (24 s in the simulation): half way.
+    expect(task.progress).toBeCloseTo(0.5, 1);
+    expect(sim.events.some(e => e.text.includes('görevini vermek için'))).toBe(false);
+  });
+
+  it('finds a person waiting for an answer with the hand up', () => {
+    const sim = new OfficeSimulation();
+    sim.sync([remote({ status: 'needs_input', question: 'Kaç slayt?' })]);
+    sim.tick(0.1);
+    expect(sim.agent('zeynep')!.phase).toBe('asking');
+  });
+
+  it('lets a running task of a busy person wait its turn', () => {
+    const sim = new OfficeSimulation();
+    sim.sync([remote(), remote({ id: 'srv-2', number: 8 })]);
+    expect(sim.task('srv-1')!.status).toBe('working');
+    expect(sim.task('srv-2')!.status).toBe('queued');
+  });
+});
+
+describe('office kept across pages', () => {
+  it('moves on by the time spent away, walks and hand-overs included', () => {
+    const sim = new OfficeSimulation();
+    const task = sim.assign({ category: 'correspondence', title: 'Duyuru' });
+    sim.tick(0.1);
+    expect(sim.manager.phase).toBe('to_brief');
+    sim.catchUp(120);
+    expect(task.status).toBe('review');
+    expect(sim.agent('selin')!.phase).toBe('lounge');
+    expect(sim.manager.phase).toBe('managing');
+  });
+
+  it('caps a very long absence', () => {
+    const sim = new OfficeSimulation();
+    sim.catchUp(24 * 3600);
+    expect(sim.time).toBeCloseTo(1800);
   });
 });

@@ -29,6 +29,13 @@ jest.mock('@/lib/db', () => ({
 }));
 jest.mock('@/lib/storage', () => ({ uploadFile: (...a: unknown[]) => uploadFile(...a), deleteFile: (...a: unknown[]) => deleteFile(...(a as [])) }));
 jest.mock('@/lib/ai/gate.server', () => ({ assertModelAllowed: jest.fn(async () => {}) }));
+jest.mock('@/lib/ai/known-names', () => ({ tenantPersonalNames: jest.fn(async () => ['Yılmaz Yapı']) }));
+const lookUpRecords = jest.fn();
+jest.mock('@/lib/features/office/data.server', () => ({
+  companyProfile: jest.fn(async () => ({ name: 'Renk Alüminyum', city: 'Ankara', phone: '0312 555 00 00' })),
+  taskActor: jest.fn(async () => ({ tenantId: 't1', userId: 'u1', role: 'office' })),
+  lookUpRecords: (...a: unknown[]) => lookUpRecords(...a),
+}));
 
 import { sql } from '@/lib/db';
 Object.assign(sql, { json: (value: unknown) => value });
@@ -137,6 +144,37 @@ describe('running an AI office task', () => {
     await runOfficeTask('t1', 'task-1');
     expect(lastUpdate().text).toContain("status='failed'");
     log.mockRestore();
+  });
+
+  it('looks up the firm\'s records as the task giver and keeps names out of the model', async () => {
+    taskRow = { ...taskRow!, category: 'correspondence', title: 'Teslim bilgisi', brief: 'RF-1024 siparişinin müşterisine teslim tarihini yaz', agent_id: 'selin' };
+    lookUpRecords.mockResolvedValue([{ order_number: 'RF-1024', customer_name: 'Ayşe Demir', delivery_date: '2026-10-30' }]);
+    stream
+      .mockResolvedValueOnce({ stop_reason: 'tool_use', usage, container: { id: 'cnt_1' }, content: [{ type: 'tool_use', id: 'tu_1', name: 'firma_verisi', input: { category: 'orders', query: 'RF-1024' } }] })
+      .mockResolvedValueOnce({ stop_reason: 'end_turn', usage, content: [{ type: 'text', text: 'Sayın [KİŞİ_1], RF-1024 30 Ekim\'de teslim edilecek.' }] });
+    await runOfficeTask('t1', 'task-1');
+
+    expect(lookUpRecords).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1' }), 'orders', 'RF-1024');
+    const second = stream.mock.calls[1][0];
+    const result = JSON.stringify(second.messages.at(-1));
+    expect(result).toContain('tool_result');
+    expect(result).toContain('RF-1024');
+    expect(result).not.toContain('Ayşe Demir');
+    // The firm's own details reach the work, with its phone masked like any other.
+    expect(second.system).toContain('Ankara');
+    expect(second.system).not.toContain('0312 555 00 00');
+    // The stored letter carries the real name; the manager checked the placeholder copy.
+    expect(uploadFile.mock.calls[0][1].toString()).toBe('Sayın Ayşe Demir, RF-1024 30 Ekim\'de teslim edilecek.');
+    expect(reviewDelivery.mock.calls[0][1][0].bytes.toString()).toContain('[KİŞİ_1]');
+    expect(lastUpdate().text).toContain("status='review'");
+  });
+
+  it('masks the firm\'s known names in the task itself', async () => {
+    taskRow = { ...taskRow!, category: 'correspondence', brief: 'Yılmaz Yapı için teşekkür yazısı', agent_id: 'selin' };
+    stream.mockResolvedValue({ stop_reason: 'end_turn', usage, content: [{ type: 'text', text: 'Değerli [KİŞİ_1],' }] });
+    await runOfficeTask('t1', 'task-1');
+    expect(stream.mock.calls[0][0].messages[0].content).not.toContain('Yılmaz Yapı');
+    expect(uploadFile.mock.calls[0][1].toString()).toBe('Değerli Yılmaz Yapı,');
   });
 
   it('keeps no file from a run that lost the task to a retry', async () => {
