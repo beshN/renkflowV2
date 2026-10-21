@@ -1,7 +1,7 @@
 import { CATEGORY } from '@/lib/features/office/catalog';
 import { DESKS, LOUNGE_SEATS, MANAGER_DESK, briefingSpot, pathFromBrief, pathToBrief, pathToDesk, pathToLounge } from '@/lib/features/office/layout';
 import { OFFICE_MODELS, TIER_MODEL, decide } from '@/lib/features/office/routing';
-import { OfficeSimulation } from '@/lib/features/office/simulation';
+import { OfficeSimulation, type RemoteTask } from '@/lib/features/office/simulation';
 
 /** Ticks in small steps, as the scene does, until the condition holds or the time runs out. */
 function runUntil(sim: OfficeSimulation, done: () => boolean, maxSeconds = 120) {
@@ -162,5 +162,98 @@ describe('office manager model choice', () => {
   it('says what the model cannot do for the category', () => {
     expect(decide(task('design', 'Afiş')).missing).toEqual(['image']);
     expect(decide(task('document', 'Belge')).missing).toEqual([]);
+  });
+});
+
+describe('office simulation following real tasks', () => {
+  const remote = (over: Partial<RemoteTask> = {}): RemoteTask => ({
+    id: 'srv-1', number: 7, category: 'presentation', title: 'Bayi sunumu', brief: '', status: 'working',
+    decision: decide({ category: 'presentation', title: 'Bayi sunumu', brief: '', revisions: 0 }),
+    question: null, revisions: 0, notes: [], summary: null, error: null, costUsd: 0, files: [], ...over,
+  });
+
+  it('walks a real task to a desk and waits at 95 % until the server delivers', () => {
+    const sim = new OfficeSimulation();
+    sim.sync([remote()]);
+    const task = sim.task('srv-1')!;
+    const zeynep = sim.agent('zeynep')!;
+    runUntil(sim, () => zeynep.phase === 'working');
+    for (let i = 0; i < 600; i++) sim.tick(0.1);
+    expect(task.progress).toBeCloseTo(0.95);
+    expect(task.status).toBe('working');
+
+    sim.sync([remote({ status: 'review', files: [{ id: 'f1', name: 'bayi-sunumu.pptx', contentType: 'x', size: 10, revision: 0, url: '/f1' }] })]);
+    runUntil(sim, () => task.status === 'review');
+    expect(task.deliverable?.name).toBe('bayi-sunumu.pptx');
+    runUntil(sim, () => zeynep.phase === 'lounge');
+  });
+
+  it('raises a hand while the server waits for an answer and goes on after it', () => {
+    const sim = new OfficeSimulation();
+    sim.sync([remote()]);
+    const zeynep = sim.agent('zeynep')!;
+    runUntil(sim, () => zeynep.phase === 'working');
+    sim.sync([remote({ status: 'needs_input', question: 'Kaç slayt?' })]);
+    sim.tick(0.1);
+    expect(zeynep.phase).toBe('asking');
+    expect(sim.task('srv-1')!.status).toBe('asking');
+    sim.sync([remote({ status: 'working' })]);
+    sim.tick(0.1);
+    expect(zeynep.phase).toBe('working');
+  });
+
+  it('shows a failure, and a retry sends the task through the office again', () => {
+    const sim = new OfficeSimulation();
+    sim.sync([remote()]);
+    const task = sim.task('srv-1')!;
+    runUntil(sim, () => task.status === 'working');
+    sim.sync([remote({ status: 'failed', error: 'zaman aşımı' })]);
+    runUntil(sim, () => task.status === 'failed');
+    expect(sim.events.some(e => e.text.includes('tamamlayamadı: zaman aşımı'))).toBe(true);
+    runUntil(sim, () => sim.agent('zeynep')!.phase === 'lounge');
+    sim.sync([remote({ status: 'queued' })]);
+    expect(['queued', 'assigned']).toContain(task.status);
+  });
+
+  it('visits a worker during review, then returns without blocking delivery', () => {
+    const sim = new OfficeSimulation();
+    const initial = remote();
+    sim.sync([initial]);
+    runUntil(sim, () => sim.agent('zeynep')!.phase === 'working' && sim.manager.phase === 'managing');
+    const review = { status: 'checking' as const, score: null, note: 'Kontrol ediliyor.', issues: [], revision: 0, checkedAt: '2026-10-21T12:00:00Z' };
+    sim.sync([remote({ decision: { ...initial.decision, review } })]);
+    runUntil(sim, () => sim.manager.phase === 'checking');
+    sim.sync([remote({ status: 'review', decision: { ...initial.decision, review: { ...review, status: 'approved', score: 9, note: 'Doğru.', checkedAt: '2026-10-21T12:01:00Z' } } })]);
+    runUntil(sim, () => sim.manager.phase === 'managing' && sim.task('srv-1')!.status === 'review');
+    expect(sim.events.some(e => e.text.includes('Doğru.'))).toBe(true);
+  });
+
+  it('releases the manager if a task fails during inspection', () => {
+    const sim = new OfficeSimulation();
+    const initial = remote();
+    sim.sync([initial]);
+    runUntil(sim, () => sim.agent('zeynep')!.phase === 'working' && sim.manager.phase === 'managing');
+    const decision = { ...initial.decision, review: { status: 'checking' as const, score: null, note: 'Kontrol', issues: [], revision: 0, checkedAt: 'now' } };
+    sim.sync([remote({ decision })]);
+    runUntil(sim, () => sim.manager.phase === 'checking');
+    sim.sync([remote({ status: 'failed', decision })]);
+    runUntil(sim, () => sim.manager.phase === 'managing' && sim.task('srv-1')!.status === 'failed');
+  });
+
+  it('refreshes review notes even when the server status stays working', () => {
+    const sim = new OfficeSimulation();
+    const initial = remote();
+    sim.sync([initial]);
+    const before = sim.version;
+    sim.sync([remote({ revisions: 1, notes: ['Toplamı düzelt'] })]);
+    expect(sim.version).toBeGreaterThan(before);
+    expect(sim.task('srv-1')!.revisions).toBe(1);
+  });
+
+  it('shows tasks already finished when the page opens without walking anyone', () => {
+    const sim = new OfficeSimulation();
+    sim.sync([remote({ status: 'approved', files: [{ id: 'f1', name: 'a.pptx', contentType: 'x', size: 1, revision: 0, url: '/f1' }] })]);
+    expect(sim.task('srv-1')).toMatchObject({ status: 'approved', deliverable: { name: 'a.pptx' } });
+    expect(sim.manager.phase).toBe('managing');
   });
 });

@@ -1,3 +1,4 @@
+import type { ManagerReview } from './review';
 import { CATEGORY, type Capability, type TaskCategoryId } from './catalog';
 
 /**
@@ -17,6 +18,21 @@ export const OFFICE_MODELS: Record<string, OfficeModel> = {
   'claude-sonnet-5-5': { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', capabilities: ['text', 'files', 'web'] },
 };
 
+/** OpenCode catalog IDs verified against /zen/v1/models; no paid fallback. */
+export const OPENCODE_MODELS: Record<'manager' | 'finance' | 'documents' | 'reviewer', OfficeModel> = {
+  manager: { id: 'minimax-m3.1-flash-free', label: 'MiniMax M3.1 Flash', capabilities: ['text', 'files'] },
+  finance: { id: 'deepseek-v4.1-flash-free', label: 'DeepSeek V4.1 Flash', capabilities: ['text', 'files'] },
+  documents: { id: 'mimo-v2.6-flash-free', label: 'MiMo-V2.6 Flash', capabilities: ['text', 'files'] },
+  reviewer: { id: 'glm-5.3-flash-free', label: 'GLM-5.3 Flash', capabilities: ['text', 'files'] },
+};
+
+export function openCodeDecision(decision: ManagerDecision, category: TaskCategoryId): ManagerDecision {
+  const model = category === 'spreadsheet' || category === 'data' ? OPENCODE_MODELS.finance
+    : category === 'document' || category === 'translation' || category === 'presentation' || category === 'research' ? OPENCODE_MODELS.documents
+    : OPENCODE_MODELS.reviewer;
+  return { ...decision, model, missing: CATEGORY[category].needs.filter(need => !model.capabilities.includes(need)) };
+}
+
 /** Which model each tier uses: a fast one for easy work, a strong one for hard work. */
 export const TIER_MODEL: Record<Difficulty, string> = {
   easy: 'claude-sonnet-5-5',
@@ -35,10 +51,14 @@ const CATEGORY_WEIGHT: Record<TaskCategoryId, number> = {
 const DEMANDING = /analiz|karşılaştır|detaylı|kapsamlı|strateji|finansal|sözleşme|hukuk|çok sayfalı|yıllık|pazar|rakip|formül/i;
 
 export type ManagerDecision = {
+  review?: ManagerReview;
+  reviewHistory?: ManagerReview[];
   difficulty: Difficulty; score: number; reasons: string[];
   model: OfficeModel;
   /** What the category needs that the chosen model cannot do; the work falls back accordingly. */
   missing: Capability[];
+  /** How the manager read the kind of work from the plain-words task, when it was written that way. */
+  triage?: { by: 'model' | 'rules'; reason: string };
 };
 
 export function decide(task: { category: TaskCategoryId; title: string; brief: string; revisions: number }): ManagerDecision {
