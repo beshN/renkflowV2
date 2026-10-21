@@ -1,6 +1,7 @@
 import { CATEGORY, STAFF, isTaskCategory, type Look, type TaskCategoryId } from './catalog';
 import { DESKS, LOUNGE_SEATS, MANAGER_DESK, pathFromBrief, pathToBrief, pathToDesk, pathToLounge, type Desk, type Point } from './layout';
 import { DIFFICULTY_LABELS, DIFFICULTY_PACE, MISSING_NOTE, decide, type ManagerDecision } from './routing';
+import { triageByRules } from './triage';
 
 /**
  * The AI office in motion: the manager weighs a handed-over task (how hard, which model), gets up,
@@ -9,15 +10,26 @@ import { DIFFICULTY_LABELS, DIFFICULTY_PACE, MISSING_NOTE, decide, type ManagerD
  * the lounge; the manager returns to their desk for the next task, one task at a time.
  * Time only moves through tick(), so the scene, the panel and the tests drive the same clock.
  *
- * Until a model is connected the work itself is simulated: progress follows the category's
- * workSeconds and the delivery is a placeholder file name.
+ * A task either lives only here (simulation: progress follows the category's workSeconds and the
+ * delivery is a placeholder name) or mirrors a real task on the server through sync(): the server's
+ * status then decides when the person raises a hand, delivers or gives up, and the scene only
+ * animates the way there.
  */
 
 export type AgentPhase =
-  | 'lounge' | 'called' | 'to_desk' | 'working' | 'delivering' | 'to_lounge'
+  | 'lounge' | 'called' | 'to_desk' | 'working' | 'asking' | 'delivering' | 'to_lounge'
   // The manager's own phases: at the desk, on the way to someone, handing over, back to the desk.
   | 'managing' | 'to_brief' | 'briefing' | 'to_office';
-export type TaskStatus = 'queued' | 'assigned' | 'working' | 'review' | 'approved';
+export type TaskStatus = 'queued' | 'assigned' | 'working' | 'asking' | 'review' | 'approved' | 'failed';
+
+/** A task as the server reports it (lib/features/office/service.server.ts). */
+export type RemoteTask = {
+  id: string; number: number; category: TaskCategoryId; title: string; brief: string;
+  status: 'queued' | 'working' | 'needs_input' | 'review' | 'approved' | 'failed';
+  decision: ManagerDecision; question: string | null; revisions: number; notes: string[];
+  summary: string | null; error: string | null; costUsd: number;
+  files: Array<{ id: string; name: string; contentType: string; size: number; revision: number; url: string }>;
+};
 export type EventKind = 'activity' | 'technical' | 'delivery';
 
 export type Agent = {
@@ -36,6 +48,8 @@ export type Task = {
   /** The manager's call, made when the task is picked up; null while it waits. */
   decision: ManagerDecision | null;
   deliverable: { name: string; kind: string } | null;
+  /** The server's copy when the task is real; null in the simulation. */
+  remote: RemoteTask | null;
 };
 
 export type OfficeEvent = { id: number; at: number; kind: EventKind; agentId: string | null; taskId: string | null; text: string };
@@ -85,7 +99,7 @@ export class OfficeSimulation {
   get manager() { return this.agents.find(a => a.role === 'manager')!; }
 
   /** Hands a task to the office; the manager gives it to the category's person when they are free. */
-  assign(input: { category: string; title: string; brief?: string }): Task {
+  assign(input: { category: string; title: string; brief?: string; triage?: ManagerDecision['triage'] }): Task {
     if (!isTaskCategory(input.category)) throw new Error(`Bilinmeyen görev türü: ${input.category}`);
     const title = input.title.trim();
     if (!title) throw new Error('Görevin bir başlığı olmalı.');
@@ -93,14 +107,23 @@ export class OfficeSimulation {
     const task: Task = {
       id: `task-${number}`, number, category: input.category, title, brief: input.brief?.trim() ?? '',
       status: 'queued', agentId: null, progress: 0, step: -1, createdAt: this.time, startedAt: null, deliveredAt: null,
-      revisions: 0, notes: [], decision: null, deliverable: null,
+      revisions: 0, notes: [], decision: null, deliverable: null, remote: null,
     };
     this.tasks.push(task);
+    if (input.triage) this.pendingTriage.set(task.id, input.triage);
     this.log('activity', this.manager.id, task.id, `Yeni görev #${number}: ${title} (${CATEGORY[task.category].label})`);
     this.dispatch();
     this.changed();
     return task;
   }
+
+  /** A task written in plain words: the manager reads which kind of work it is (keyword rules here). */
+  assignText(text: string): Task {
+    const read = triageByRules(text);
+    return this.assign({ category: read.category, title: read.title, brief: text, triage: { by: read.by, reason: read.reason } });
+  }
+
+  private readonly pendingTriage = new Map<string, NonNullable<ManagerDecision['triage']>>();
 
   approve(taskId: string) {
     const task = this.task(taskId);
@@ -125,6 +148,54 @@ export class OfficeSimulation {
     this.changed();
   }
 
+  /**
+   * Brings real tasks in from the server. A task that is still to be done enters the office the
+   * usual way (the manager hands it over); one already finished when the page opens is shown as is.
+   */
+  sync(remote: RemoteTask[]) {
+    for (const r of remote) {
+      let task = this.task(r.id);
+      if (!task) {
+        const active = r.status === 'queued' || r.status === 'working' || r.status === 'needs_input';
+        task = {
+          id: r.id, number: r.number, category: r.category, title: r.title, brief: r.brief,
+          status: active ? 'queued' : (r.status as 'review' | 'approved' | 'failed'), agentId: null, progress: active ? 0 : 1, step: -1,
+          createdAt: this.time, startedAt: null, deliveredAt: null, revisions: r.revisions, notes: [...r.notes],
+          decision: r.decision, deliverable: active ? null : this.remoteDeliverable(r), remote: r,
+        };
+        this.taskSeq = Math.max(this.taskSeq, r.number);
+        this.tasks.push(task);
+        if (active) this.log('activity', this.manager.id, task.id, `Yeni görev #${r.number}: ${r.title} (${CATEGORY[r.category].label})`);
+        continue;
+      }
+      const before = task.remote?.status;
+      task.remote = r;
+      task.decision = r.decision;
+      if (r.status === before) continue;
+      if (r.status === 'approved' && task.status === 'review') {
+        task.status = 'approved';
+        this.log('delivery', task.agentId, task.id, `#${task.number} onaylandı: ${task.deliverable?.name ?? task.title}`);
+      } else if (r.status === 'queued' && (task.status === 'review' || task.status === 'failed')) {
+        // Sent back for a revision or retried: it goes through the office again.
+        const revised = r.revisions > task.revisions;
+        task.status = 'queued';
+        task.progress = 0;
+        task.step = -1;
+        task.revisions = r.revisions;
+        task.notes = [...r.notes];
+        task.deliverable = null;
+        this.log('activity', task.agentId, task.id, `#${task.number} yeniden sıraya girdi${revised ? ' (revizyon)' : ''}`);
+      }
+      this.changed();
+    }
+    this.dispatch();
+  }
+
+  private remoteDeliverable(r: RemoteTask) {
+    const latest = r.files.filter(f => f.revision === r.revisions);
+    return latest.length ? { name: latest.map(f => f.name).join(', '), kind: CATEGORY[r.category].output.kind } : null;
+  }
+
   tick(seconds: number) {
     if (seconds <= 0) return;
     this.time += seconds;
@@ -133,6 +204,7 @@ export class OfficeSimulation {
       // Walking is redrawn by the scene every frame; only arrivals change what the panel shows.
       if (agent.path.length) { this.walk(agent, seconds); continue; }
       if (agent.phase === 'working') this.work(agent, seconds);
+      else if (agent.phase === 'asking' && this.task(agent.taskId)?.remote?.status !== 'needs_input') this.resumeWork(agent);
       else if (agent.phase === 'delivering' && agent.phaseTime >= DELIVER_SECONDS) this.leaveDesk(agent);
       else if (agent.phase === 'briefing' && agent.phaseTime >= BRIEF_SECONDS) this.handOver(agent);
     }
@@ -204,8 +276,14 @@ export class OfficeSimulation {
   private work(agent: Agent, seconds: number) {
     const task = this.task(agent.taskId)!;
     const category = CATEGORY[task.category];
+    const remote = task.remote?.status;
+    if (remote === 'needs_input') return this.raiseHand(agent, task);
     const before = Math.floor(task.progress * 100);
-    task.progress = Math.min(1, task.progress + seconds / (category.workSeconds * DIFFICULTY_PACE[task.decision!.difficulty]));
+    const pace = seconds / (category.workSeconds * DIFFICULTY_PACE[task.decision!.difficulty]);
+    // A real task waits at 95 % until the server reports the delivery; the simulation finishes on time.
+    if (!task.remote) task.progress = Math.min(1, task.progress + pace);
+    else if (remote === 'review' || remote === 'approved' || remote === 'failed') task.progress = 1;
+    else task.progress = Math.min(0.95, task.progress + pace);
     const step = Math.min(category.steps.length - 1, Math.floor(task.progress * category.steps.length));
     if (step !== task.step) {
       task.step = step;
@@ -215,12 +293,33 @@ export class OfficeSimulation {
     if (task.progress >= 1) this.deliver(agent, task);
   }
 
+  /** The person needs an answer: hand up at the desk until the server says the work goes on. */
+  private raiseHand(agent: Agent, task: Task) {
+    task.status = 'asking';
+    this.setPhase(agent, 'asking');
+    this.log('activity', agent.id, task.id, `${agent.name} elini kaldırdı: ${task.remote?.question ?? 'bir sorusu var'}`);
+  }
+
+  private resumeWork(agent: Agent) {
+    const task = this.task(agent.taskId)!;
+    task.status = 'working';
+    this.setPhase(agent, 'working');
+    this.log('activity', agent.id, task.id, `${agent.name} cevabı aldı, #${task.number} üzerinde çalışmaya devam ediyor`);
+  }
+
   private deliver(agent: Agent, task: Task) {
     const category = CATEGORY[task.category];
-    task.status = 'review';
     task.deliveredAt = this.time;
-    task.deliverable = { name: `${slug(task.title)}${task.revisions ? `-r${task.revisions}` : ''}.${category.output.extension}`, kind: category.output.kind };
     this.setPhase(agent, 'delivering');
+    if (task.remote?.status === 'failed') {
+      task.status = 'failed';
+      this.log('delivery', agent.id, task.id, `${agent.name}, #${task.number} işini tamamlayamadı: ${task.remote.error ?? 'bilinmeyen hata'}`);
+      return;
+    }
+    task.status = task.remote?.status === 'approved' ? 'approved' : 'review';
+    task.deliverable = task.remote
+      ? this.remoteDeliverable(task.remote) ?? { name: task.title, kind: category.output.kind }
+      : { name: `${slug(task.title)}${task.revisions ? `-r${task.revisions}` : ''}.${category.output.extension}`, kind: category.output.kind };
     this.log('delivery', agent.id, task.id, `${agent.name} teslim etti: ${task.deliverable.name} — onayınızı bekliyor`);
   }
 
@@ -262,7 +361,10 @@ export class OfficeSimulation {
       this.setPhase(agent, 'called');
       task.agentId = agent.id;
       task.status = 'assigned';
-      const decision = task.decision = decide(task);
+      // A real task carries the server's call; the simulation decides here.
+      const decision = task.decision = task.remote?.decision ?? { ...decide(task), triage: this.pendingTriage.get(task.id) };
+      this.pendingTriage.delete(task.id);
+      if (decision.triage) this.log('technical', manager.id, task.id, `${manager.name} #${task.number} görevini okudu: ${CATEGORY[task.category].label} — ${decision.triage.reason}${decision.triage.by === 'model' ? '' : ' (kurallar)'}`);
       const why = decision.reasons.length ? ` (${decision.reasons.join(', ')})` : '';
       this.log('technical', manager.id, task.id, `${manager.name} #${task.number} için karar verdi: zorluk ${DIFFICULTY_LABELS[decision.difficulty]}${why} → ${decision.model.label}`);
       for (const need of decision.missing) if (MISSING_NOTE[need]) this.log('technical', manager.id, task.id, `#${task.number} · Not: ${MISSING_NOTE[need]}`);
