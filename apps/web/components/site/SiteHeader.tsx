@@ -34,7 +34,7 @@ function ThemeToggle() {
 }
 
 /** Public site header: hairline appears once the page scrolls. */
-export function SiteHeader() {
+export function SiteHeader({ signedIn = false }: { signedIn?: boolean }) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
@@ -63,7 +63,7 @@ export function SiteHeader() {
         </nav>
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
-          <Link href="/auth/login" className="hidden rounded-[4px] px-3 py-1.5 text-[13.5px] text-[var(--chrome-muted)] transition-colors hover:text-[var(--chrome-fg)] sm:block">Giriş yap</Link>
+          <Link href={signedIn ? '/dashboard' : '/auth/login'} className="hidden rounded-[4px] px-3 py-1.5 text-[13.5px] text-[var(--chrome-muted)] transition-colors hover:text-[var(--chrome-fg)] sm:block">{signedIn ? 'Panele git' : 'Giriş yap'}</Link>
           <Link href="/contact" className="rf-accent-button h-8 whitespace-nowrap px-3.5 text-[13px] max-sm:!hidden">Demo talep edin</Link>
           <Dialog.Root open={open} onOpenChange={setOpen}>
             <Dialog.Trigger asChild>
@@ -85,7 +85,7 @@ export function SiteHeader() {
                   ))}
                 </nav>
                 <div className="mt-5 grid grid-cols-2 gap-2">
-                  <Link href="/auth/login" className="rf-secondary-button h-10">Giriş yap</Link>
+                  <Link href={signedIn ? '/dashboard' : '/auth/login'} className="rf-secondary-button h-10">{signedIn ? 'Panele git' : 'Giriş yap'}</Link>
                   <Link href="/contact" className="rf-ink-button h-10 text-[13px]">Demo talep edin</Link>
                 </div>
               </Dialog.Content>
