@@ -120,7 +120,7 @@ export async function invoiceDocument(tx: Db, invoice: Row): Promise<string> {
   const xml = buildUblInvoice(await ublInput(tx, invoice));
   const [customer] = invoice.customer_id ? await tx`SELECT e_invoice_alias FROM customers WHERE id = ${invoice.customer_id} AND tenant_id = ${invoice.tenant_id}` : [null];
   const alias = customer?.e_invoice_alias ?? null;
-  await tx`UPDATE invoices SET e_invoice_xml = ${xml}, e_invoice_recipient_alias = ${alias} WHERE id = ${invoice.id}`;
+  await tx`UPDATE invoices SET e_invoice_xml = ${xml}, e_invoice_recipient_alias = ${alias} WHERE id = ${invoice.id} AND tenant_id = ${invoice.tenant_id}`;
   invoice.e_invoice_xml = xml;
   invoice.e_invoice_recipient_alias = alias;
   return xml;

@@ -108,7 +108,7 @@ export async function researchLeadCompany(
             "Önceki araştırmanın sonucu alınamadı. Yeniden araştırabilirsiniz.",
           sourceCount: 0,
         };
-        await tx`UPDATE lead_research_runs SET status='failed',result=${JSON.stringify(result)}::text::jsonb,finished_at=now() WHERE id=${old.id}`;
+        await tx`UPDATE lead_research_runs SET status='failed',result=${JSON.stringify(result)}::text::jsonb,finished_at=now() WHERE id=${old.id} AND tenant_id=${a.tenantId}`;
         return { result };
       }
       return { result: old.result as Result };

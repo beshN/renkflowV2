@@ -295,9 +295,9 @@ export async function issueInvoice(actor: WorkOrderActor, id: string, raw: unkno
     if (eBelge && provider) {
       await tx`UPDATE invoices SET document_type = ${eBelge.documentType}, profile = ${eBelge.profile}, ettn = ${eBelge.ettn}, e_invoice_status = 'queued',
         e_invoice_provider = ${provider.name}, e_invoice_attempts = 0, e_invoice_next_attempt_at = now() WHERE id = ${id}`;
-      const [issued] = await tx`SELECT * FROM invoices WHERE id = ${id}`;
+      const [issued] = await tx`SELECT * FROM invoices WHERE id = ${id} AND tenant_id = ${actor.tenantId}`;
       const xml = buildUblInvoice(await ublInput(tx, issued));
-      await tx`UPDATE invoices SET e_invoice_xml = ${xml}, e_invoice_recipient_alias = ${eBelge.alias} WHERE id = ${id}`;
+      await tx`UPDATE invoices SET e_invoice_xml = ${xml}, e_invoice_recipient_alias = ${eBelge.alias} WHERE id = ${id} AND tenant_id = ${actor.tenantId}`;
     }
     await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'order', entityId: i.order_id, action: 'invoice_issued', metadata: { invoiceId: id, number, total: Number(i.total), dueOn, ...(eBelge ? { documentType: eBelge.documentType, ettn: eBelge.ettn } : {}) } });
     await syncLedger(tx, actor.tenantId, { invoiceId: id });
