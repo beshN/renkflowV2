@@ -1,16 +1,22 @@
 import { CATEGORY, STAFF, isTaskCategory, type Look, type TaskCategoryId } from './catalog';
-import { DESKS, LOUNGE_SEATS, MANAGER_DESK, pathToDesk, pathToLounge, type Desk, type Point } from './layout';
+import { DESKS, LOUNGE_SEATS, MANAGER_DESK, pathFromBrief, pathToBrief, pathToDesk, pathToLounge, type Desk, type Point } from './layout';
+import { DIFFICULTY_LABELS, DIFFICULTY_PACE, MISSING_NOTE, decide, type ManagerDecision } from './routing';
 
 /**
- * The AI office in motion: a handed-over task goes to the member of staff for its category, who
- * walks to a free desk, works through the category's steps, delivers and goes back to the lounge.
+ * The AI office in motion: the manager weighs a handed-over task (how hard, which model), gets up,
+ * walks over to the category's person in the lounge and hands it over with a tap on the shoulder.
+ * That person walks to a free desk, works through the category's steps, delivers and goes back to
+ * the lounge; the manager returns to their desk for the next task, one task at a time.
  * Time only moves through tick(), so the scene, the panel and the tests drive the same clock.
  *
  * Until a model is connected the work itself is simulated: progress follows the category's
  * workSeconds and the delivery is a placeholder file name.
  */
 
-export type AgentPhase = 'lounge' | 'to_desk' | 'working' | 'delivering' | 'to_lounge' | 'managing';
+export type AgentPhase =
+  | 'lounge' | 'called' | 'to_desk' | 'working' | 'delivering' | 'to_lounge'
+  // The manager's own phases: at the desk, on the way to someone, handing over, back to the desk.
+  | 'managing' | 'to_brief' | 'briefing' | 'to_office';
 export type TaskStatus = 'queued' | 'assigned' | 'working' | 'review' | 'approved';
 export type EventKind = 'activity' | 'technical' | 'delivery';
 
@@ -27,13 +33,16 @@ export type Task = {
   status: TaskStatus; agentId: string | null; progress: number; step: number;
   createdAt: number; startedAt: number | null; deliveredAt: number | null;
   revisions: number; notes: string[];
+  /** The manager's call, made when the task is picked up; null while it waits. */
+  decision: ManagerDecision | null;
   deliverable: { name: string; kind: string } | null;
 };
 
 export type OfficeEvent = { id: number; at: number; kind: EventKind; agentId: string | null; taskId: string | null; text: string };
 
-export const WALK_SPEED = 1.7;
+export const WALK_SPEED = 2;
 export const DELIVER_SECONDS = 1.5;
+export const BRIEF_SECONDS = 1.6;
 const EVENT_LIMIT = 300;
 
 const slug = (text: string) => text.toLocaleLowerCase('tr').replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c')
@@ -84,7 +93,7 @@ export class OfficeSimulation {
     const task: Task = {
       id: `task-${number}`, number, category: input.category, title, brief: input.brief?.trim() ?? '',
       status: 'queued', agentId: null, progress: 0, step: -1, createdAt: this.time, startedAt: null, deliveredAt: null,
-      revisions: 0, notes: [], deliverable: null,
+      revisions: 0, notes: [], decision: null, deliverable: null,
     };
     this.tasks.push(task);
     this.log('activity', this.manager.id, task.id, `Yeni görev #${number}: ${title} (${CATEGORY[task.category].label})`);
@@ -106,6 +115,7 @@ export class OfficeSimulation {
     const task = this.task(taskId);
     if (!task || task.status !== 'review') return;
     task.status = 'queued';
+    task.decision = null;
     task.progress = 0;
     task.step = -1;
     task.revisions += 1;
@@ -124,6 +134,7 @@ export class OfficeSimulation {
       if (agent.path.length) { this.walk(agent, seconds); continue; }
       if (agent.phase === 'working') this.work(agent, seconds);
       else if (agent.phase === 'delivering' && agent.phaseTime >= DELIVER_SECONDS) this.leaveDesk(agent);
+      else if (agent.phase === 'briefing' && agent.phaseTime >= BRIEF_SECONDS) this.handOver(agent);
     }
   }
 
@@ -146,6 +157,38 @@ export class OfficeSimulation {
     if (agent.path.length) return;
     if (agent.phase === 'to_desk') this.sitAtDesk(agent);
     else if (agent.phase === 'to_lounge') this.sitInLounge(agent);
+    else if (agent.phase === 'to_brief') this.startBriefing(agent);
+    else if (agent.phase === 'to_office') this.backToManagerDesk(agent);
+  }
+
+  /** The manager has reached the person and turns to them. */
+  private startBriefing(manager: Agent) {
+    const agent = this.agent(this.task(manager.taskId)!.agentId)!;
+    const seat = LOUNGE_SEATS[agent.seatIndex];
+    manager.facing = Math.atan2(seat.x - manager.position.x, seat.z - manager.position.z);
+    this.setPhase(manager, 'briefing');
+    this.log('activity', manager.id, manager.taskId, `${manager.name}, görevi ${agent.name} ile konuşuyor`);
+  }
+
+  /** The tap on the shoulder: the person gets up for the desk, the manager heads back. */
+  private handOver(manager: Agent) {
+    const task = this.task(manager.taskId)!;
+    const agent = this.agent(task.agentId)!;
+    const seat = LOUNGE_SEATS[agent.seatIndex];
+    agent.seated = false;
+    agent.path = pathToDesk(seat, this.desk(agent.deskId)!);
+    this.setPhase(agent, 'to_desk');
+    this.log('activity', agent.id, task.id, `${agent.name}, #${task.number} görevini üstlendi · ${task.decision!.model.label}`);
+    manager.taskId = null;
+    manager.path = pathFromBrief(seat);
+    this.setPhase(manager, 'to_office');
+  }
+
+  private backToManagerDesk(manager: Agent) {
+    manager.facing = MANAGER_DESK.chair.facing;
+    manager.seated = true;
+    this.setPhase(manager, 'managing');
+    this.dispatch();
   }
 
   private sitAtDesk(agent: Agent) {
@@ -162,7 +205,7 @@ export class OfficeSimulation {
     const task = this.task(agent.taskId)!;
     const category = CATEGORY[task.category];
     const before = Math.floor(task.progress * 100);
-    task.progress = Math.min(1, task.progress + seconds / category.workSeconds);
+    task.progress = Math.min(1, task.progress + seconds / (category.workSeconds * DIFFICULTY_PACE[task.decision!.difficulty]));
     const step = Math.min(category.steps.length - 1, Math.floor(task.progress * category.steps.length));
     if (step !== task.step) {
       task.step = step;
@@ -200,8 +243,14 @@ export class OfficeSimulation {
     this.dispatch();
   }
 
-  /** Gives waiting tasks, oldest first, to their category's person once that person is in the lounge. */
+  /**
+   * The manager takes the oldest waiting task whose person is in the lounge, decides how hard it is
+   * and which model runs it, keeps a desk for it and walks over. One task at a time: the rest wait
+   * until the manager is back at the desk.
+   */
   private dispatch() {
+    const manager = this.manager;
+    if (manager.phase !== 'managing') return;
     for (const task of this.tasks) {
       if (task.status !== 'queued') continue;
       const agent = this.agents.find(a => a.role === task.category && a.phase === 'lounge');
@@ -210,12 +259,19 @@ export class OfficeSimulation {
       this.deskOwner.set(desk.id, agent.id);
       agent.deskId = desk.id;
       agent.taskId = task.id;
-      agent.seated = false;
-      agent.path = pathToDesk(LOUNGE_SEATS[agent.seatIndex], desk);
+      this.setPhase(agent, 'called');
       task.agentId = agent.id;
       task.status = 'assigned';
-      this.setPhase(agent, 'to_desk');
-      this.log('activity', this.manager.id, task.id, `${agent.name}, #${task.number} görevini üstlendi (atayan: ${this.manager.name})`);
+      const decision = task.decision = decide(task);
+      const why = decision.reasons.length ? ` (${decision.reasons.join(', ')})` : '';
+      this.log('technical', manager.id, task.id, `${manager.name} #${task.number} için karar verdi: zorluk ${DIFFICULTY_LABELS[decision.difficulty]}${why} → ${decision.model.label}`);
+      for (const need of decision.missing) if (MISSING_NOTE[need]) this.log('technical', manager.id, task.id, `#${task.number} · Not: ${MISSING_NOTE[need]}`);
+      manager.taskId = task.id;
+      manager.seated = false;
+      manager.path = pathToBrief(LOUNGE_SEATS[agent.seatIndex]);
+      this.setPhase(manager, 'to_brief');
+      this.log('activity', manager.id, task.id, `${manager.name}, #${task.number} görevini vermek için ${agent.name} ile konuşmaya gidiyor`);
+      return;
     }
   }
 

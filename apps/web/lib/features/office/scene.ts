@@ -237,8 +237,17 @@ function pose(person: Person, agent: Agent, time: number, dt: number) {
     person.head.rotation.x = 0;
     return;
   }
+  if (agent.phase === 'briefing') {
+    // Standing beside the person, tapping their shoulder.
+    leftLeg.rotation.x = rightLeg.rotation.x = 0;
+    leftArm.rotation.x = -0.2;
+    rightArm.rotation.x = -1.35 + Math.max(0, Math.sin(time * 9)) * 0.25;
+    person.body.position.y = 0;
+    person.head.rotation.x = 0.2;
+    return;
+  }
   // Seated: hips on the seat, legs straight forward.
-  const inLounge = agent.phase === 'lounge';
+  const inLounge = agent.phase === 'lounge' || agent.phase === 'called';
   person.body.position.y = inLounge ? -0.08 : -0.02;
   leftLeg.rotation.x = rightLeg.rotation.x = -Math.PI / 2 + (inLounge ? 0.15 : 0);
   if (agent.phase === 'working' || agent.phase === 'managing') {
@@ -250,6 +259,10 @@ function pose(person: Person, agent: Agent, time: number, dt: number) {
     leftArm.rotation.x = -0.4;
     rightArm.rotation.x = -2.6;
     person.head.rotation.x = -0.1;
+  } else if (agent.phase === 'called') {
+    // Looks up at the manager who is coming over.
+    leftArm.rotation.x = rightArm.rotation.x = -0.35;
+    person.head.rotation.x = -0.25;
   } else {
     leftArm.rotation.x = rightArm.rotation.x = -0.35;
     person.head.rotation.x = Math.sin(time * 0.6 + agent.seatIndex) * 0.06;

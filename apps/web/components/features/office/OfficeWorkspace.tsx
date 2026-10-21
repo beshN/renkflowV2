@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } fro
 import { Check, Moon, Pause, Play, Plus, RotateCcw, Sun, Undo2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CATEGORY, TASK_CATEGORIES, type TaskCategoryId } from '@/lib/features/office/catalog';
-import { OfficeSimulation, type Agent, type EventKind, type OfficeEvent } from '@/lib/features/office/simulation';
+import { DIFFICULTY_LABELS } from '@/lib/features/office/routing';
+import { OfficeSimulation, type Agent, type EventKind, type OfficeEvent, type Task } from '@/lib/features/office/simulation';
 import { createOfficeStage, type OfficeStage } from '@/lib/features/office/scene';
 
 const SPEEDS = [1, 2, 4];
@@ -26,6 +27,10 @@ function status(sim: OfficeSimulation, agent: Agent): { text: string; tone: 'idl
       const waiting = sim.tasks.filter(t => t.status === 'queued').length;
       return { text: waiting ? `${waiting} görev sırada` : 'Ofisi yönetiyor', tone: waiting ? 'busy' : 'idle' };
     }
+    case 'to_brief': return { text: `#${task!.number} için ${sim.agent(task!.agentId)!.name} ile konuşmaya gidiyor`, tone: 'move' };
+    case 'briefing': return { text: 'Görevi anlatıyor', tone: 'busy' };
+    case 'to_office': return { text: 'Masasına dönüyor', tone: 'move' };
+    case 'called': return { text: 'Yönetici geliyor', tone: 'move' };
     case 'to_desk': return { text: 'Masaya gidiyor', tone: 'move' };
     case 'working': return { text: `${CATEGORY[task!.category].steps[Math.max(0, task!.step)]} · %${Math.floor(task!.progress * 100)}`, tone: 'busy' };
     case 'delivering': return { text: 'Teslim ediyor', tone: 'done' };
@@ -33,6 +38,9 @@ function status(sim: OfficeSimulation, agent: Agent): { text: string; tone: 'idl
     default: return { text: 'Dinleniyor', tone: 'idle' };
   }
 }
+
+/** The manager's call in a few words, e.g. "Orta · Claude Sonnet 5.5". */
+const decisionText = (task: Task) => task.decision ? `${DIFFICULTY_LABELS[task.decision.difficulty]} · ${task.decision.model.label}` : '';
 
 const TONE_DOT = { idle: 'bg-zinc-500', busy: 'bg-amber-400', move: 'bg-sky-400', done: 'bg-emerald-400' };
 const TONE_TEXT = { idle: 'text-zinc-400', busy: 'text-amber-300', move: 'text-sky-300', done: 'text-emerald-300' };
@@ -80,7 +88,8 @@ export function OfficeWorkspace() {
             return (
               <div key={agent.id} ref={el => { if (el) labels.current.set(agent.id, el); else labels.current.delete(agent.id); }}
                 className="absolute left-0 top-0 flex flex-col items-center gap-1 whitespace-nowrap transition-opacity" style={{ opacity: 0 }}>
-                {agent.phase !== 'lounge' && (
+                {/* A called person's bubble would sit under the manager's; the panel still shows it. */}
+                {agent.phase !== 'lounge' && agent.phase !== 'called' && (
                   <span className="max-w-[220px] truncate rounded-full border border-amber-400/60 bg-zinc-950/85 px-2.5 py-1 text-[11px] font-medium text-amber-100 shadow">{s.text}</span>
                 )}
                 <span className="rounded-md bg-zinc-950/75 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-200">{agent.name}</span>
@@ -133,7 +142,7 @@ export function OfficeWorkspace() {
                   </div>
                   {task && agent.phase === 'working' && (
                     <div className="mt-2">
-                      <p className="truncate text-[11px] text-zinc-400">#{task.number} {task.title}</p>
+                      <p className="truncate text-[11px] text-zinc-400">#{task.number} {task.title} · <span className="text-zinc-500">{decisionText(task)}</span></p>
                       <div className="mt-1 h-1 overflow-hidden rounded-full bg-zinc-800"><div className="h-full bg-amber-400" style={{ width: `${task.progress * 100}%` }} /></div>
                     </div>
                   )}
@@ -204,6 +213,7 @@ function Deliveries({ sim }: { sim: OfficeSimulation }) {
         <li key={task.id} className="rounded-xl border border-orange-500/40 bg-orange-500/5 p-3 text-xs">
           <p className="font-semibold text-zinc-100">#{task.number} {task.title}</p>
           <p className="mt-0.5 text-zinc-400">{sim.agent(task.agentId)?.name} · {task.deliverable?.kind}: <span className="font-mono text-zinc-300">{task.deliverable?.name}</span></p>
+          <p className="mt-0.5 text-[11px] text-zinc-500">Yöneticinin kararı: {decisionText(task)}</p>
           <p className="mt-1 text-[11px] text-zinc-500">Örnek teslimat: dosya, model bağlandığında üretilecek.</p>
           {revising === task.id ? (
             <form className="mt-2 flex gap-1.5" onSubmit={e => { e.preventDefault(); sim.requestRevision(task.id, note); setRevising(null); setNote(''); }}>
@@ -268,7 +278,7 @@ function TaskComposer({ sim, onClose }: { sim: OfficeSimulation; onClose: () => 
             ))}
           </div>
         </fieldset>
-        <p className="mt-3 text-xs text-zinc-400">Üstlenecek: <span className="font-semibold text-zinc-200">{owner?.name}</span> ({owner?.title}) · Çıktı: {chosen.output.kind} (.{chosen.output.extension})</p>
+        <p className="mt-3 text-xs text-zinc-400">Üstlenecek: <span className="font-semibold text-zinc-200">{owner?.name}</span> ({owner?.title}) · Çıktı: {chosen.output.kind} (.{chosen.output.extension}) · Zorluğa göre modeli ofis müdürü seçer</p>
         <label className="mt-4 block text-xs font-semibold text-zinc-300" htmlFor="office-task-name">Başlık</label>
         <input id="office-task-name" value={title} onChange={e => { setTitle(e.target.value); setError(''); }} placeholder={chosen.examples[0]}
           className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm" />
