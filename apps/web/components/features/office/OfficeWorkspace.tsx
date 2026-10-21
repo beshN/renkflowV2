@@ -5,7 +5,7 @@ import { Check, Download, Hand, Moon, Pause, Play, Plus, RefreshCw, RotateCcw, S
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CATEGORY, TASK_CATEGORIES, type TaskCategoryId } from '@/lib/features/office/catalog';
-import { DIFFICULTY_LABELS } from '@/lib/features/office/routing';
+import { DIFFICULTY_LABELS, FAMILY_LABELS, type ModelFamily } from '@/lib/features/office/routing';
 import { OfficeSimulation, type Agent, type EventKind, type OfficeEvent, type RemoteTask, type Task } from '@/lib/features/office/simulation';
 import { createOfficeStage, type OfficeStage } from '@/lib/features/office/scene';
 
@@ -15,7 +15,9 @@ const API = '/api/v1/office';
 type Office = {
   /** Real work on the model; false while the office runs as a simulation. */
   live: boolean; reason: string | null; error: string;
-  create(input: { text: string; category?: TaskCategoryId }): Promise<void>;
+  /** The free OpenRouter models can be chosen (their key is set on the server). */
+  freeModels: boolean;
+  create(input: { text: string; category?: TaskCategoryId; family?: ModelFamily }): Promise<void>;
   act(taskId: string, body: Record<string, string>): Promise<void>;
 };
 
@@ -31,14 +33,14 @@ async function call<T>(url: string, init?: RequestInit): Promise<T> {
  * otherwise. Without the tables or the model the page stays a simulation and says why.
  */
 function useOffice(sim: OfficeSimulation): Office {
-  const [state, setState] = useState<{ live: boolean; reason: string | null; error: string }>({ live: false, reason: null, error: '' });
+  const [state, setState] = useState<{ live: boolean; reason: string | null; error: string; freeModels: boolean }>({ live: false, reason: null, error: '', freeModels: false });
   const refresh = useCallback(async () => {
     try {
-      const data = await call<{ live: boolean; reason: string | null; tasks: RemoteTask[] }>(API);
+      const data = await call<{ live: boolean; reason: string | null; freeModels?: boolean; tasks: RemoteTask[] }>(API);
       const before = new Map(sim.tasks.map(t => [t.id, t.remote?.status]));
       sim.sync(data.tasks);
       announce(sim, data.tasks, before);
-      setState({ live: data.live, reason: data.reason, error: '' });
+      setState({ live: data.live, reason: data.reason, error: '', freeModels: Boolean(data.freeModels) });
       return data.tasks.some(t => t.status === 'queued' || t.status === 'working');
     } catch (error) {
       setState(s => ({ ...s, error: error instanceof Error ? error.message : 'Görevler alınamadı.' }));
@@ -175,7 +177,7 @@ export function OfficeWorkspace() {
         </div>
         <div className="absolute left-3 top-3 flex flex-wrap gap-2 text-xs">
           {office.live
-            ? <span className="rounded-lg border border-emerald-500/50 bg-zinc-950/80 px-3 py-1.5 text-emerald-200">Canlı · işler Claude Sonnet 5.5 ile yapılıyor</span>
+            ? <span className="rounded-lg border border-emerald-500/50 bg-zinc-950/80 px-3 py-1.5 text-emerald-200">Canlı · işler Claude Sonnet 5.5{office.freeModels ? ' ya da ücretsiz modellerle' : ''} yapılıyor</span>
             : <span className="max-w-[min(520px,80vw)] rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-1.5">{office.reason ?? 'Simülasyon · modeller bağlı değil'}</span>}
           {office.error && <span role="alert" className="rounded-lg border border-red-500/50 bg-zinc-950/80 px-3 py-1.5 text-red-200">{office.error}</span>}
         </div>
@@ -421,6 +423,7 @@ const EXAMPLES = [
 function TaskComposer({ sim, office, onClose }: { sim: OfficeSimulation; office: Office; onClose: () => void }) {
   const [text, setText] = useState('');
   const [category, setCategory] = useState<TaskCategoryId | null>(null);
+  const [family, setFamily] = useState<ModelFamily>('claude');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const manager = sim.manager;
@@ -431,7 +434,7 @@ function TaskComposer({ sim, office, onClose }: { sim: OfficeSimulation; office:
     if (text.trim().length < 3) return setError('Ne yapılması gerektiğini yazın.');
     setBusy(true);
     try {
-      if (office.live) await office.create({ text, ...(category ? { category } : {}) });
+      if (office.live) await office.create({ text, family, ...(category ? { category } : {}) });
       else if (category) sim.assign({ category, title: text.split(/\n/)[0].slice(0, 80), brief: text, triage: { by: 'rules', reason: 'türü görevi veren seçti' } });
       else sim.assignText(text);
       onClose();
@@ -477,6 +480,25 @@ function TaskComposer({ sim, office, onClose }: { sim: OfficeSimulation; office:
             ))}
           </div>
         </details>
+        {office.live && office.freeModels && (
+          <fieldset className="mt-3 rounded-xl border border-zinc-800 p-3 text-xs">
+            <legend className="px-1 font-semibold text-zinc-300">Model</legend>
+            <div className="flex flex-wrap gap-1.5">
+              {(['claude', 'free'] as const).map(id => (
+                <button key={id} type="button" role="radio" aria-checked={family === id} onClick={() => setFamily(id)}
+                  className={cn('rounded-full border px-2.5 py-1', family === id ? 'border-amber-400 bg-amber-500/10 text-amber-100' : 'border-zinc-700 text-zinc-300 hover:bg-zinc-800')}>
+                  {id === 'claude' ? `Müdür seçsin · ${FAMILY_LABELS.claude}` : FAMILY_LABELS.free}
+                </button>
+              ))}
+            </div>
+            {family === 'free' && (
+              <p className="mt-2 leading-relaxed text-amber-200/90">
+                Ücretsiz modeller OpenRouter üzerinden çalışır; sağlayıcılar istekleri kaydedebilir veya eğitimde kullanabilir. Müşteri ve kişisel bilgi yazmayın.
+                Çıktı Office dosyası yerine HTML (belge, rapor, sunum), CSV (tablo) ya da SVG (tasarım) olur.
+              </p>
+            )}
+          </fieldset>
+        )}
         {error && <p role="alert" className="mt-2 text-xs text-red-400">{error}</p>}
         <div className="mt-5 flex items-center justify-end gap-2">
           <span className="mr-auto hidden text-[11px] text-zinc-500 sm:block">Ctrl + Enter ile gönderin</span>

@@ -1,4 +1,4 @@
-import { ASK_TOOL, outputFileIds, readOutcome, requestTools, safeFileName, systemPrompt, textFileName, userMessage } from '@/lib/features/office/work';
+import { ASK_TOOL, readFreeOutcome, outputFileIds, readOutcome, requestTools, safeFileName, systemPrompt, textFileName, userMessage } from '@/lib/features/office/work';
 
 const base = { category: 'document' as const, title: 'Garanti belgesi', brief: 'Logo üstte', agentId: 'elif', answers: [], notes: [], revision: 0, companyName: 'Renk Alüminyum' };
 
@@ -59,5 +59,22 @@ describe('reading the model answer', () => {
     expect(safeFileName('/mnt/outputs/teklif sunumu.pptx', 'x')).toBe('teklif_sunumu.pptx');
     expect(safeFileName('..', 'dosya-1')).toBe('dosya-1');
     expect(textFileName('Geciken teslimat için özür')).toBe('geciken-teslimat-icin-ozur.txt');
+  });
+});
+
+describe('reading a free model answer', () => {
+  const call = (name: string, args: unknown) => ({ tool_calls: [{ type: 'function', function: { name, arguments: JSON.stringify(args) } }] });
+
+  it('takes the file from teslim_et and the question from soru_sor', () => {
+    expect(readFreeOutcome(call('teslim_et', { dosya_adi: 'gider', icerik: 'a;b', not: 'Hazır.' }), 'tool_calls'))
+      .toEqual({ kind: 'delivered', name: 'gider', content: 'a;b', summary: 'Hazır.' });
+    expect(readFreeOutcome(call('soru_sor', { soru: 'Hangi ay?' }), 'tool_calls')).toEqual({ kind: 'question', question: 'Hangi ay?' });
+  });
+
+  it('falls back to the text, taking a fenced block as the file', () => {
+    expect(readFreeOutcome({ content: 'İşte tablo:\n```csv\na;b\n```\nKontrol edin.' }, 'stop'))
+      .toEqual({ kind: 'delivered', name: null, content: 'a;b\n', summary: 'İşte tablo:\n\nKontrol edin.' });
+    expect(readFreeOutcome({ content: '' }, 'length')).toEqual({ kind: 'incomplete' });
+    expect(readFreeOutcome({ content: 'Merhaba' }, 'stop')).toMatchObject({ kind: 'delivered', content: 'Merhaba' });
   });
 });

@@ -13,6 +13,13 @@ jest.mock('@anthropic-ai/sdk', () => {
   Object.assign(Anthropic, { APIError });
   return { __esModule: true, default: Anthropic };
 });
+const chat = jest.fn();
+jest.mock('openai', () => {
+  class APIError extends Error { status?: number }
+  const OpenAI = jest.fn().mockImplementation(() => ({ chat: { completions: { create: (...a: unknown[]) => chat(...a) } } }));
+  Object.assign(OpenAI, { APIError });
+  return { __esModule: true, default: OpenAI };
+});
 jest.mock('@/lib/db', () => ({
   sql: jest.fn((strings: TemplateStringsArray, ...values: unknown[]) => {
     const text = strings.join('?');
@@ -95,6 +102,22 @@ describe('running an AI office task', () => {
     expect(stream.mock.calls[0][0].container).toBeUndefined();
     expect(uploadFile).toHaveBeenCalledWith(expect.stringMatching(/bayram-duyurusu\.txt$/), Buffer.from('Konu: Bayram tatili\n\nDeğerli müşterimiz…'), 'text/plain; charset=utf-8');
     expect(lastUpdate().text).toContain("status='review'");
+  });
+
+  it('runs a free-family task on OpenRouter and stores the CSV it writes', async () => {
+    process.env.OPENROUTER_API_KEY = 'or-test';
+    taskRow = { ...taskRow!, decision: decide({ category: 'spreadsheet', title: 'Gider tablosu', brief: '', revisions: 0 }, 'free') };
+    chat.mockResolvedValue({ usage: { prompt_tokens: 50, completion_tokens: 80 }, choices: [{ finish_reason: 'tool_calls', message: { tool_calls: [{ type: 'function', function: { name: 'teslim_et', arguments: JSON.stringify({ dosya_adi: 'gider-tablosu', icerik: 'Kalem;Tutar\nKira;1000', not: 'Ekim giderleri.' }) } }] } }] });
+    await runOfficeTask('t1', 'task-1');
+    expect(stream).not.toHaveBeenCalled();
+    expect(chat.mock.calls[0][0].model).toBe('nvidia/nemotron-3.5-super-vl:free');
+    expect(chat.mock.calls[0][0].messages[1].content).not.toContain('ali@renk.com.tr');
+    const [key, bytes, type] = uploadFile.mock.calls[0];
+    expect(key).toMatch(/gider-tablosu\.csv$/);
+    expect((bytes as Buffer).toString('utf8')).toBe('\uFEFFKalem;Tutar\nKira;1000');
+    expect(type).toBe('text/csv; charset=utf-8');
+    expect(lastUpdate().text).toContain("status='review'");
+    delete process.env.OPENROUTER_API_KEY;
   });
 
   it('does nothing when another run already took the task', async () => {

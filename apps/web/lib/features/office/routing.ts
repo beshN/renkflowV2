@@ -2,26 +2,40 @@ import { CATEGORY, type Capability, type TaskCategoryId } from './catalog';
 
 /**
  * The office manager's call on a task: how hard it is and which model takes it. Difficulty picks
- * a tier (fast, balanced, strong); each tier names a model from the ones the office may use. For
- * now the product runs only on Claude Sonnet 5.5, so every tier points at it; other models are
- * added to OFFICE_MODELS and TIER_MODEL later without touching the manager's reasoning.
+ * a tier (fast, balanced, strong); each tier names a model from the ones the office may use. The
+ * office runs on Claude Sonnet 5.5 (every Claude tier points at it); a person can instead try the
+ * free models on OpenRouter, a separate family with its own tiers and no Office-file sandbox.
  */
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export const DIFFICULTY_LABELS: Record<Difficulty, string> = { easy: 'Kolay', medium: 'Orta', hard: 'Zor' };
 
-export type OfficeModel = { id: string; label: string; capabilities: Capability[] };
+export type ModelFamily = 'claude' | 'free';
+export type OfficeModel = { id: string; label: string; provider: 'anthropic' | 'openrouter'; family: ModelFamily; capabilities: Capability[] };
 
 /** Models the office may hand work to. Image generation is not among them yet. */
 export const OFFICE_MODELS: Record<string, OfficeModel> = {
-  'claude-sonnet-5-5': { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', capabilities: ['text', 'files', 'web'] },
+  'claude-sonnet-5-5': { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', provider: 'anthropic', family: 'claude', capabilities: ['text', 'files', 'web'] },
+  // Free models on OpenRouter, for trying the office out; picked for their Turkish and reasoning.
+  'nvidia/nemotron-3-ultra-550b-a55b:free': { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', label: 'NVIDIA Nemotron 3 Ultra (ücretsiz)', provider: 'openrouter', family: 'free', capabilities: ['text'] },
+  'minimax/minimax-m3.1-flash:free': { id: 'minimax/minimax-m3.1-flash:free', label: 'MiniMax M3.1 Flash (ücretsiz)', provider: 'openrouter', family: 'free', capabilities: ['text'] },
+  'nvidia/nemotron-3.5-super-vl:free': { id: 'nvidia/nemotron-3.5-super-vl:free', label: 'NVIDIA Nemotron 3.5 Super VL (ücretsiz)', provider: 'openrouter', family: 'free', capabilities: ['text'] },
 };
+
+export const FAMILY_LABELS: Record<ModelFamily, string> = { claude: 'Claude Sonnet 5.5', free: 'Ücretsiz modeller (deneme)' };
 
 /** Which model each tier uses: a fast one for easy work, a strong one for hard work. */
 export const TIER_MODEL: Record<Difficulty, string> = {
   easy: 'claude-sonnet-5-5',
   medium: 'claude-sonnet-5-5',
   hard: 'claude-sonnet-5-5',
+};
+
+/** The free family's tiers: the strongest free model only where the work is hard. */
+export const FREE_TIER_MODEL: Record<Difficulty, string> = {
+  easy: 'nvidia/nemotron-3.5-super-vl:free',
+  medium: 'minimax/minimax-m3.1-flash:free',
+  hard: 'nvidia/nemotron-3-ultra-550b-a55b:free',
 };
 
 /** How long the work takes relative to the category's usual time. */
@@ -43,7 +57,7 @@ export type ManagerDecision = {
   triage?: { by: 'model' | 'rules'; reason: string };
 };
 
-export function decide(task: { category: TaskCategoryId; title: string; brief: string; revisions: number }): ManagerDecision {
+export function decide(task: { category: TaskCategoryId; title: string; brief: string; revisions: number }, family: ModelFamily = 'claude'): ManagerDecision {
   const reasons: string[] = [];
   let score = CATEGORY_WEIGHT[task.category];
   if (score) reasons.push(`${CATEGORY[task.category].label} işi`);
@@ -53,7 +67,7 @@ export function decide(task: { category: TaskCategoryId; title: string; brief: s
   if (DEMANDING.test(text)) { score += 1; reasons.push('kapsamlı istek'); }
   if (task.revisions > 0) { score += 1; reasons.push('revizyon'); }
   const difficulty: Difficulty = score >= 4 ? 'hard' : score >= 2 ? 'medium' : 'easy';
-  const model = OFFICE_MODELS[TIER_MODEL[difficulty]];
+  const model = OFFICE_MODELS[(family === 'free' ? FREE_TIER_MODEL : TIER_MODEL)[difficulty]];
   const missing = CATEGORY[task.category].needs.filter(need => !model.capabilities.includes(need));
   return { difficulty, score, reasons, model, missing };
 }
@@ -61,4 +75,6 @@ export function decide(task: { category: TaskCategoryId; title: string; brief: s
 /** Plain words for what a missing capability means for the work. */
 export const MISSING_NOTE: Partial<Record<Capability, string>> = {
   image: 'görsel üretim modeli henüz yok; tasarım SVG/HTML ile hazırlanacak',
+  files: 'bu model Office dosyası üretemez; belge HTML, tablo CSV olarak teslim edilir',
+  web: 'bu modelde web araması yok; bilgi modelin kendi bilgisiyle sınırlı',
 };

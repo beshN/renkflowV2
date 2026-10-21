@@ -1,6 +1,6 @@
 import { CATEGORY } from '@/lib/features/office/catalog';
 import { DESKS, LOUNGE_SEATS, MANAGER_DESK, briefingSpot, pathFromBrief, pathToBrief, pathToDesk, pathToLounge } from '@/lib/features/office/layout';
-import { OFFICE_MODELS, TIER_MODEL, decide } from '@/lib/features/office/routing';
+import { FREE_TIER_MODEL, OFFICE_MODELS, TIER_MODEL, decide } from '@/lib/features/office/routing';
 import { OfficeSimulation, type RemoteTask } from '@/lib/features/office/simulation';
 
 /** Ticks in small steps, as the scene does, until the condition holds or the time runs out. */
@@ -152,11 +152,17 @@ describe('office manager model choice', () => {
   });
 
   it('uses only Claude Sonnet 5.5 for now, whatever the difficulty', () => {
-    expect(Object.keys(OFFICE_MODELS)).toEqual(['claude-sonnet-5-5']);
+    expect(Object.values(OFFICE_MODELS).filter(m => m.family === 'claude').map(m => m.id)).toEqual(['claude-sonnet-5-5']);
     expect(new Set(Object.values(TIER_MODEL))).toEqual(new Set(['claude-sonnet-5-5']));
     for (const category of Object.keys(CATEGORY) as Array<keyof typeof CATEGORY>) {
       expect(decide(task(category, 'x')).model.id).toBe('claude-sonnet-5-5');
     }
+  });
+
+  it('picks the free family by difficulty only when asked to', () => {
+    expect(decide(task('correspondence', 'Teşekkür e-postası'), 'free').model.id).toBe(FREE_TIER_MODEL.easy);
+    expect(decide(task('research', 'Kapsamlı rakip analizi', 'x'.repeat(400)), 'free').model).toMatchObject({ id: 'nvidia/nemotron-3-ultra-550b-a55b:free', provider: 'openrouter' });
+    expect(decide(task('spreadsheet', 'Excel', '', 0), 'free').missing).toEqual(['files']);
   });
 
   it('says what the model cannot do for the category', () => {

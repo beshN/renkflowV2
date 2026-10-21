@@ -38,11 +38,14 @@ export function assertOfficeRole(actor: WorkOrderActor) {
   if (actor.station || !ROUTE_ROLES['/office'].includes(actor.role)) fail('AI ofise erişim yetkiniz yok.', 403);
 }
 
+/** The free OpenRouter models are offered only when their key is set on the server. */
+const freeModelsConfigured = () => Boolean(process.env.OPENROUTER_API_KEY?.trim());
+
 /** Can this firm's office do real work now? Without it the page runs as a simulation. */
 export async function officeAvailability(tenantId: string) {
-  if (!(await tableExists('office_tasks'))) return { live: false, reason: 'AI ofis için veritabanı güncellemesi bekleniyor; şimdilik simülasyon çalışıyor.' };
+  if (!(await tableExists('office_tasks'))) return { live: false, reason: 'AI ofis için veritabanı güncellemesi bekleniyor; şimdilik simülasyon çalışıyor.', freeModels: false };
   const block = modelConfigurationBlock(await getAiSettings(tenantId), aiAvailable());
-  return block ? { live: false, reason: `${modelUnavailableMessage(block)} Şimdilik simülasyon çalışıyor.` } : { live: true, reason: null };
+  return block ? { live: false, reason: `${modelUnavailableMessage(block)} Şimdilik simülasyon çalışıyor.`, freeModels: false } : { live: true, reason: null, freeModels: freeModelsConfigured() };
 }
 
 const iso = (v: unknown) => (v ? new Date(v as string).toISOString() : null);
@@ -79,6 +82,8 @@ const CreateTask = z.object({
   text: z.string().trim().min(3, 'Ne yapılması gerektiğini yazın.').max(8000, 'Görev en fazla 8000 karakter olabilir.'),
   /** Only when the person picked the kind of work themselves; otherwise the manager decides. */
   category: z.enum(TASK_CATEGORIES, { message: 'Bilinmeyen görev türü.' }).optional(),
+  /** Claude (the office default) or the free OpenRouter models, for trying the office out. */
+  family: z.enum(['claude', 'free']).default('claude'),
 });
 
 /** Queues a task written in plain words; the manager reads it first. The caller starts the run once the response is on its way. */
@@ -87,12 +92,13 @@ export async function createOfficeTask(actor: WorkOrderActor, raw: unknown) {
   const availability = await officeAvailability(actor.tenantId);
   if (!availability.live) fail(availability.reason ?? 'AI ofis şu anda kullanılamıyor.');
   const input = CreateTask.parse(raw);
+  if (input.family === 'free' && !freeModelsConfigured()) fail('Ücretsiz modeller için sunucuda OPENROUTER_API_KEY tanımlı değil.');
   const read = await triage(input.text, { tenantId: actor.tenantId, userId: actor.userId });
   const category = input.category ?? read.category;
   const title = read.title.slice(0, 200);
   const agent = STAFF.find(s => s.role === category)!;
   const decision: ManagerDecision = {
-    ...decide({ category, title, brief: input.text, revisions: 0 }),
+    ...decide({ category, title, brief: input.text, revisions: 0 }, input.family),
     triage: input.category ? { by: 'rules', reason: 'türü görevi veren seçti' } : { by: read.by, reason: read.reason },
   };
   return withTransaction(async (tx: any) => {
@@ -124,7 +130,9 @@ export async function actOnOfficeTask(actor: WorkOrderActor, taskId: string, raw
     return { run: false };
   }
   if (input.action === 'revise') {
-    const decision = { ...decide({ category: task.category, title: task.title, brief: task.brief, revisions: Number(task.revisions) + 1 }), triage: task.decision?.triage };
+    // A revision stays with the family the task was given to.
+    const family = task.decision?.model?.family === 'free' ? 'free' : 'claude';
+    const decision = { ...decide({ category: task.category, title: task.title, brief: task.brief, revisions: Number(task.revisions) + 1 }, family), triage: task.decision?.triage };
     const [row] = await sql`UPDATE office_tasks SET status='queued', revisions=revisions+1, notes=notes || ${sql.json([input.note])}::jsonb,
       decision=${sql.json(decision)}, summary=NULL, error=NULL, updated_at=now()
       WHERE tenant_id=${actor.tenantId} AND id=${taskId} AND status='review' RETURNING id`;
