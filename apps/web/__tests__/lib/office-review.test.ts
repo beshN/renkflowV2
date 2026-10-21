@@ -36,3 +36,9 @@ it('passes good work with small suggestions instead of sending it back', async (
   const { review } = await reviewDelivery(task, files, { feature: 'office_review' }, AbortSignal.timeout(1000));
   expect(review).toMatchObject({ status: 'approved', issues: [], suggestions: ['Başlık kalın olabilir.'] });
 });
+
+it('reads a verdict that leaves out suggestions as having none', async () => {
+  parse.mockResolvedValue({ parsed_output: { approve: false, score: 5, note: 'Toplam yanlış.', issues: ['Toplam 29600 olmalı.'] } });
+  const { review } = await reviewDelivery(task, files, { feature: 'office_review' }, AbortSignal.timeout(1000));
+  expect(review).toMatchObject({ status: 'changes_requested', suggestions: [] });
+});

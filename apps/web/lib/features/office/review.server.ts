@@ -16,7 +16,7 @@ const Verdict = z.object({
   /** Problems that must be fixed before the work can go out. */
   issues: z.array(z.string().min(1).max(400)).max(8),
   /** Small improvements; shown to the person, never a reason to send the work back. */
-  suggestions: z.array(z.string().min(1).max(400)).max(8),
+  suggestions: z.array(z.string().min(1).max(400)).max(8).optional(),
 });
 
 /** The lowest score a delivery with no blocking problem may pass with. */
@@ -65,7 +65,7 @@ export async function reviewDelivery(task: TaskInput, files: DeliveryFile[], met
       if (parts.some(p => p.type === 'image')) throw new Error('OpenCode görsel kontrolü etkin değil.');
       const raw = await openCodeCall(SYSTEM, masked.text, { name: 'kontrol_et', description: 'Teslimin doğruluğunu değerlendir.', parameters: z.toJSONSchema(Verdict) }, OPENCODE_MODELS.reviewer.id, { ...meta, feature: 'office_review' }, signal);
       const result = Verdict.parse(raw);
-      return { cost: 0, review: { ...base, status: reviewStatus(result), score: result.score, note: masked.restore(result.note), issues: result.issues.map(masked.restore), suggestions: result.suggestions.map(masked.restore) } };
+      return { cost: 0, review: { ...base, status: reviewStatus(result), score: result.score, note: masked.restore(result.note), issues: result.issues.map(masked.restore), suggestions: (result.suggestions ?? []).map(masked.restore) } };
     }
     const config = providerConfig('anthropic');
     const client = new Anthropic({ apiKey: config.apiKey, timeout: 45000, maxRetries: 0 });
@@ -75,7 +75,7 @@ export async function reviewDelivery(task: TaskInput, files: DeliveryFile[], met
     }, { signal }));
     cost = costUsd(config.model, response.usage) ?? 0;
     const result = Verdict.parse(response.parsed_output);
-    return { cost, review: { ...base, status: reviewStatus(result), score: result.score, note: masked.restore(result.note), issues: result.issues.map(masked.restore), suggestions: result.suggestions.map(masked.restore) } };
+    return { cost, review: { ...base, status: reviewStatus(result), score: result.score, note: masked.restore(result.note), issues: result.issues.map(masked.restore), suggestions: (result.suggestions ?? []).map(masked.restore) } };
   } catch {
     return { cost, review: { ...base, status: 'needs_human', score: null, note: 'Yönetici teslimin tamamını doğrulayamadı. Dosyaları inceleyip onaylayın veya revizyon isteyin.', issues: [] } };
   }
