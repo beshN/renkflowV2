@@ -100,12 +100,14 @@ function status(sim: OfficeSimulation, agent: Agent): { text: string; tone: 'idl
       return { text: waiting ? `${waiting} görev sırada` : 'Ofisi yönetiyor', tone: waiting ? 'busy' : 'idle' };
     }
     case 'to_brief': return { text: `#${task!.number} için ${sim.agent(task!.agentId)!.name} ile konuşmaya gidiyor`, tone: 'move' };
+    case 'to_review': return { text: 'Teslimi kontrol etmeye gidiyor', tone: 'move' };
+    case 'checking': return { text: 'Dosyaları ve doğruluğu kontrol ediyor', tone: 'busy' };
     case 'briefing': return { text: 'Görevi anlatıyor', tone: 'busy' };
     case 'to_office': return { text: 'Masasına dönüyor', tone: 'move' };
     case 'called': return { text: 'Yönetici geliyor', tone: 'move' };
     case 'to_desk': return { text: 'Masaya gidiyor', tone: 'move' };
     case 'asking': return { text: 'Elini kaldırdı · sorusu var', tone: 'done' };
-    case 'working': return { text: `${CATEGORY[task!.category].steps[Math.max(0, task!.step)]} · %${Math.floor(task!.progress * 100)}`, tone: 'busy' };
+    case 'working': if (task?.remote?.decision.review?.status === 'checking') return { text: 'Yönetici kontrol ediyor', tone: 'busy' }; return { text: `${CATEGORY[task!.category].steps[Math.max(0, task!.step)]} · %${Math.floor(task!.progress * 100)}`, tone: 'busy' };
     case 'delivering': return { text: 'Teslim ediyor', tone: 'done' };
     case 'to_lounge': return { text: 'Molaya dönüyor', tone: 'move' };
     default: return { text: 'Dinleniyor', tone: 'idle' };
@@ -358,6 +360,14 @@ function Deliveries({ sim, office }: { sim: OfficeSimulation; office: Office }) 
                 ))}
               </ul>
             ) : <p className="mt-1 text-zinc-300"><span className="font-mono">{task.deliverable?.name}</span> <span className="text-zinc-500">· örnek teslimat (simülasyon)</span></p>}
+            {task.remote?.decision.review && (
+              <div className="mt-2 rounded-lg border border-zinc-700 bg-zinc-900/60 p-2" role="status">
+                <p className="font-semibold">{task.remote.decision.review.status === 'approved' ? 'Yönetici kontrolünden geçti' : 'İncelemeniz gerekiyor'}{task.remote.decision.review.score !== null ? ` · ${task.remote.decision.review.score}/10` : ''}</p>
+                <p className="mt-1 text-zinc-300">{task.remote.decision.review.note}</p>
+                {task.remote.decision.review.issues.length > 0 && <ul className="mt-1 list-disc space-y-1 pl-4 text-amber-200">{task.remote.decision.review.issues.map((issue, i) => <li key={i}>{issue}</li>)}</ul>}
+                <p className="mt-1 text-zinc-400">Son onay size ait.</p>
+              </div>
+            )}
             {task.remote?.summary && <p className="mt-2 whitespace-pre-line text-zinc-300">{task.remote.summary}</p>}
             {revising === task.id ? (
               <form className="mt-2 flex gap-1.5" onSubmit={e => { e.preventDefault(); act(task, { action: 'revise', note }); setRevising(null); setNote(''); }}>

@@ -18,6 +18,10 @@ export function toolCostUsd(usage:Tokens){return Number((searchRequests(usage)*C
 
 /** Anthropic list prices, USD per million tokens. */
 const DEFAULT_PRICES: Record<string, { input: number; output: number }> = {
+  'minimax-m3.1-flash-free': { input: 0, output: 0 },
+  'deepseek-v4.1-flash-free': { input: 0, output: 0 },
+  'mimo-v2.6-flash-free': { input: 0, output: 0 },
+  'glm-5.3-flash-free': { input: 0, output: 0 },
   'claude-sonnet-5-5': { input: 2, output: 10 },
 };
 

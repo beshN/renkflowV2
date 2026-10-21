@@ -109,6 +109,7 @@
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.3",
     "express": "^5.2.1",
+    "fflate": "^0.8.3",
     "framer-motion": "^12.23.25",
     "i18next": "^25.8.0",
     "i18next-browser-languagedetector": "^8.2.0",

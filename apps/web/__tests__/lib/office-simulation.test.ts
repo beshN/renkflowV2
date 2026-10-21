@@ -215,6 +215,29 @@ describe('office simulation following real tasks', () => {
     expect(['queued', 'assigned']).toContain(task.status);
   });
 
+  it('visits a worker during review, then returns without blocking delivery', () => {
+    const sim = new OfficeSimulation();
+    const initial = remote();
+    sim.sync([initial]);
+    runUntil(sim, () => sim.agent('zeynep')!.phase === 'working' && sim.manager.phase === 'managing');
+    const review = { status: 'checking' as const, score: null, note: 'Kontrol ediliyor.', issues: [], revision: 0, checkedAt: '2026-10-21T12:00:00Z' };
+    sim.sync([remote({ decision: { ...initial.decision, review } })]);
+    runUntil(sim, () => sim.manager.phase === 'checking');
+    sim.sync([remote({ status: 'review', decision: { ...initial.decision, review: { ...review, status: 'approved', score: 9, note: 'Doğru.', checkedAt: '2026-10-21T12:01:00Z' } } })]);
+    runUntil(sim, () => sim.manager.phase === 'managing' && sim.task('srv-1')!.status === 'review');
+    expect(sim.events.some(e => e.text.includes('Doğru.'))).toBe(true);
+  });
+
+  it('refreshes review notes even when the server status stays working', () => {
+    const sim = new OfficeSimulation();
+    const initial = remote();
+    sim.sync([initial]);
+    const before = sim.version;
+    sim.sync([remote({ revisions: 1, notes: ['Toplamı düzelt'] })]);
+    expect(sim.version).toBeGreaterThan(before);
+    expect(sim.task('srv-1')!.revisions).toBe(1);
+  });
+
   it('shows tasks already finished when the page opens without walking anyone', () => {
     const sim = new OfficeSimulation();
     sim.sync([remote({ status: 'approved', files: [{ id: 'f1', name: 'a.pptx', contentType: 'x', size: 1, revision: 0, url: '/f1' }] })]);

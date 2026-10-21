@@ -13,17 +13,23 @@ jest.mock('@anthropic-ai/sdk', () => {
   Object.assign(Anthropic, { APIError });
   return { __esModule: true, default: Anthropic };
 });
+const reviewDelivery = jest.fn();
+jest.mock('@/lib/features/office/review.server', () => ({ reviewDelivery: (...a: unknown[]) => reviewDelivery(...a) }));
 jest.mock('@/lib/db', () => ({
   sql: jest.fn((strings: TemplateStringsArray, ...values: unknown[]) => {
     const text = strings.join('?');
     statements.push({ text, values });
     if (text.includes("SET status='working'")) return Promise.resolve(taskRow ? [taskRow] : []);
+    if (text.includes('RETURNING id')) return Promise.resolve([{ id: 'task-1' }]);
     if (text.includes('FROM tenants')) return Promise.resolve([{ name: 'Renk Alüminyum' }]);
     return Promise.resolve([]);
   }),
 }));
 jest.mock('@/lib/storage', () => ({ uploadFile: (...a: unknown[]) => uploadFile(...a) }));
 jest.mock('@/lib/ai/gate.server', () => ({ assertModelAllowed: jest.fn(async () => {}) }));
+
+import { sql } from '@/lib/db';
+Object.assign(sql, { json: (value: unknown) => value });
 
 import { runOfficeTask } from '@/lib/features/office/runner.server';
 import { decide } from '@/lib/features/office/routing';
@@ -34,9 +40,10 @@ const lastUpdate = () => [...statements].reverse().find(s => s.text.startsWith('
 beforeEach(() => {
   jest.clearAllMocks();
   statements.length = 0;
+  reviewDelivery.mockResolvedValue({ cost: 0, review: { status: 'approved', score: 9, note: 'Kontrol edildi.', issues: [], revision: 0, checkedAt: '2026-10-21T12:00:00Z' } });
   process.env.ANTHROPIC_API_KEY = 'test-office-key';
   taskRow = {
-    id: 'task-1', tenant_id: 't1', category: 'spreadsheet', title: 'Gider tablosu', brief: 'Muhasebe: ali@renk.com.tr',
+    started_at: new Date('2026-10-21T12:00:00Z'), id: 'task-1', tenant_id: 't1', category: 'spreadsheet', title: 'Gider tablosu', brief: 'Muhasebe: ali@renk.com.tr',
     agent_id: 'murat', answers: [], notes: [], revisions: 0, created_by: 'u1',
     decision: decide({ category: 'spreadsheet', title: 'Gider tablosu', brief: '', revisions: 0 }),
   };
@@ -66,7 +73,7 @@ describe('running an AI office task', () => {
 
     expect(uploadFile).toHaveBeenCalledWith(expect.stringMatching(/^office\/t1\/task-1\/r0-.+-gider-tablosu\.xlsx$/), expect.any(Buffer), expect.stringContaining('spreadsheetml'));
     expect(statements.some(s => s.text.startsWith('INSERT INTO office_files') && s.values.includes('gider-tablosu.xlsx'))).toBe(true);
-    expect(remove).toHaveBeenCalledWith('file_x');
+    expect(remove).toHaveBeenCalledWith('file_x', {}, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     const done = lastUpdate();
     expect(done.text).toContain("status='review'");
     expect(done.values).toContain('Tablo hazır, toplamlar formülle.');
@@ -94,6 +101,24 @@ describe('running an AI office task', () => {
     await runOfficeTask('t1', 'task-1');
     expect(stream.mock.calls[0][0].container).toBeUndefined();
     expect(uploadFile).toHaveBeenCalledWith(expect.stringMatching(/bayram-duyurusu\.txt$/), Buffer.from('Konu: Bayram tatili\n\nDeğerli müşterimiz…'), 'text/plain; charset=utf-8');
+    expect(lastUpdate().text).toContain("status='review'");
+  });
+
+  it('checks actual delivered bytes before exposing a delivery for user approval', async () => {
+    taskRow = { ...taskRow!, category: 'correspondence' };
+    stream.mockResolvedValue({ stop_reason: 'end_turn', usage, content: [{ type: 'text', text: 'İncelenecek içerik' }] });
+    await runOfficeTask('t1', 'task-1');
+    expect(reviewDelivery.mock.calls[0][1][0].bytes.toString()).toBe('İncelenecek içerik');
+    expect(lastUpdate().text).toContain('started_at=');
+  });
+
+  it('bounds automatic corrections and escalates persistent errors to the user', async () => {
+    taskRow = { ...taskRow!, category: 'correspondence' };
+    stream.mockResolvedValue({ stop_reason: 'end_turn', usage, content: [{ type: 'text', text: 'Toplam yanlış' }] });
+    reviewDelivery.mockResolvedValue({ cost: 0, review: { status: 'changes_requested', score: 4, note: 'Toplamı düzelt.', issues: ['Eksik kalem'], revision: 0, checkedAt: '2026-10-21T12:00:00Z' } });
+    await runOfficeTask('t1', 'task-1');
+    expect(stream).toHaveBeenCalledTimes(2);
+    expect(lastUpdate().values).toContainEqual(expect.objectContaining({ review: expect.objectContaining({ status: 'needs_human' }) }));
     expect(lastUpdate().text).toContain("status='review'");
   });
 

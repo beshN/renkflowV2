@@ -10,7 +10,8 @@ import { modelConfigurationBlock, modelUnavailableMessage } from '@/lib/ai/polic
 import { ROUTE_ROLES } from '@/lib/features/auth/permissions';
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
 import { STAFF, TASK_CATEGORIES } from './catalog';
-import { decide, type ManagerDecision } from './routing';
+import { openCodeAvailable, openCodeEnabled } from './opencode.server';
+import { openCodeDecision, decide, type ManagerDecision } from './routing';
 import { triage } from './triage.server';
 
 /**
@@ -41,7 +42,7 @@ export function assertOfficeRole(actor: WorkOrderActor) {
 /** Can this firm's office do real work now? Without it the page runs as a simulation. */
 export async function officeAvailability(tenantId: string) {
   if (!(await tableExists('office_tasks'))) return { live: false, reason: 'AI ofis için veritabanı güncellemesi bekleniyor; şimdilik simülasyon çalışıyor.' };
-  const block = modelConfigurationBlock(await getAiSettings(tenantId), aiAvailable());
+  const block = modelConfigurationBlock(await getAiSettings(tenantId), openCodeEnabled() ? openCodeAvailable() : aiAvailable());
   return block ? { live: false, reason: `${modelUnavailableMessage(block)} Şimdilik simülasyon çalışıyor.` } : { live: true, reason: null };
 }
 
@@ -61,7 +62,7 @@ export async function listOfficeTasks(actor: WorkOrderActor) {
   const availability = await officeAvailability(actor.tenantId);
   if (!(await tableExists('office_tasks'))) return { ...availability, tasks: [] as OfficeTaskView[] };
   await sql`UPDATE office_tasks SET status='failed', error='İş zaman aşımına uğradı; yeniden deneyebilirsiniz.', updated_at=now()
-    WHERE tenant_id=${actor.tenantId} AND status='working' AND started_at < now() - make_interval(mins => ${STALE_MINUTES})`;
+    WHERE tenant_id=${actor.tenantId} AND status IN ('working','queued') AND (CASE WHEN status='queued' THEN updated_at ELSE started_at END) < now() - make_interval(mins => ${STALE_MINUTES})`;
   const rows = await sql`SELECT * FROM office_tasks WHERE tenant_id=${actor.tenantId} ORDER BY created_at DESC LIMIT 60`;
   const ids = rows.map((r: any) => r.id);
   const files = ids.length ? await sql`SELECT id, task_id, file_name, content_type, size_bytes, revision FROM office_files
@@ -95,6 +96,7 @@ export async function createOfficeTask(actor: WorkOrderActor, raw: unknown) {
     ...decide({ category, title, brief: input.text, revisions: 0 }),
     triage: input.category ? { by: 'rules', reason: 'türü görevi veren seçti' } : { by: read.by, reason: read.reason },
   };
+  if (openCodeEnabled()) Object.assign(decision, openCodeDecision(decision, category));
   return withTransaction(async (tx: any) => {
     await tx`SELECT pg_advisory_xact_lock(hashtextextended(${actor.tenantId + ':office_tasks'}, 0))`;
     const [{ n }] = await tx`SELECT coalesce(max(number), 0)::int + 1 AS n FROM office_tasks WHERE tenant_id=${actor.tenantId}`;
@@ -124,8 +126,9 @@ export async function actOnOfficeTask(actor: WorkOrderActor, taskId: string, raw
     return { run: false };
   }
   if (input.action === 'revise') {
-    const decision = { ...decide({ category: task.category, title: task.title, brief: task.brief, revisions: Number(task.revisions) + 1 }), triage: task.decision?.triage };
-    const [row] = await sql`UPDATE office_tasks SET status='queued', revisions=revisions+1, notes=notes || ${sql.json([input.note])}::jsonb,
+    const decision = { ...decide({ category: task.category, title: task.title, brief: task.brief, revisions: Number(task.revisions) + 1 }), triage: task.decision?.triage, reviewHistory: task.decision?.reviewHistory };
+    if (openCodeEnabled()) Object.assign(decision, openCodeDecision(decision, task.category));
+    const [row] = await sql`UPDATE office_tasks SET status='queued', revisions=revisions+1, notes=notes || ${sql.json([input.note])}::jsonb, started_at=NULL,
       decision=${sql.json(decision)}, summary=NULL, error=NULL, updated_at=now()
       WHERE tenant_id=${actor.tenantId} AND id=${taskId} AND status='review' RETURNING id`;
     if (!row) fail('Bu görev revizyona gönderilemez.');
@@ -133,11 +136,11 @@ export async function actOnOfficeTask(actor: WorkOrderActor, taskId: string, raw
   }
   if (input.action === 'answer') {
     const [row] = await sql`UPDATE office_tasks SET status='queued', answers=answers || ${sql.json([{ question: task.question, answer: input.answer }])}::jsonb,
-      question=NULL, updated_at=now() WHERE tenant_id=${actor.tenantId} AND id=${taskId} AND status='needs_input' RETURNING id`;
+      question=NULL, started_at=NULL, updated_at=now() WHERE tenant_id=${actor.tenantId} AND id=${taskId} AND status='needs_input' RETURNING id`;
     if (!row) fail('Bu görev bir cevap beklemiyor.');
     return { run: true };
   }
-  const [row] = await sql`UPDATE office_tasks SET status='queued', error=NULL, updated_at=now()
+  const [row] = await sql`UPDATE office_tasks SET status='queued', revisions=revisions+1, error=NULL, started_at=NULL, updated_at=now()
     WHERE tenant_id=${actor.tenantId} AND id=${taskId} AND status='failed' RETURNING id`;
   if (!row) fail('Yalnızca başarısız bir görev yeniden denenebilir.');
   return { run: true };

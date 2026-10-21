@@ -87,7 +87,7 @@ export function systemPrompt(task: TaskInput) {
     spec.code ? 'Dosyayı kod çalıştırma ortamında oluştur ve kaydet; teslim edilecek her dosyanın adı kısa, Türkçe karakter içermeyen ve anlamlı olsun. Ara dosyaları teslim etme.' : '',
     'Bilgi eksikse ve makul bir varsayım yapamıyorsan soru_sor aracını kullan. Yaptığın varsayımları teslim notunda belirt.',
     'Bitirdiğinde cevabının sonunda 1-3 cümlelik Türkçe bir teslim notu yaz: ne hazırladın, neye dikkat edilmeli.',
-    'Metinde [KİŞİ_1], [E-POSTA_1] gibi yer tutucular görürsen olduğu gibi kullan; gerçek değerleri tahmin etmeye çalışma.',
+    'Yalnızca görev metninde gerçekten bulunan maskelenmiş değerleri koru. Kendin yer tutucu veya hayali kişi ve iletişim bilgisi oluşturma.',
   ].filter(Boolean).join('\n\n');
 }
 

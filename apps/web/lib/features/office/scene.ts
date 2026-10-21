@@ -238,7 +238,7 @@ function pose(person: Person, agent: Agent, time: number, dt: number) {
     person.head.rotation.x = 0;
     return;
   }
-  if (agent.phase === 'briefing') {
+  if ((agent.phase === 'briefing' || agent.phase === 'checking')) {
     // Standing beside the person, tapping their shoulder.
     leftLeg.rotation.x = rightLeg.rotation.x = 0;
     leftArm.rotation.x = -0.2;

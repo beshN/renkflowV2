@@ -19,7 +19,7 @@ import { triageByRules } from './triage';
 export type AgentPhase =
   | 'lounge' | 'called' | 'to_desk' | 'working' | 'asking' | 'delivering' | 'to_lounge'
   // The manager's own phases: at the desk, on the way to someone, handing over, back to the desk.
-  | 'managing' | 'to_brief' | 'briefing' | 'to_office';
+  | 'managing' | 'to_brief' | 'briefing' | 'to_office' | 'to_review' | 'checking';
 export type TaskStatus = 'queued' | 'assigned' | 'working' | 'asking' | 'review' | 'approved' | 'failed';
 
 /** A task as the server reports it (lib/features/office/service.server.ts). */
@@ -169,15 +169,23 @@ export class OfficeSimulation {
         continue;
       }
       const before = task.remote?.status;
+      const previousReview = task.remote?.decision.review?.checkedAt;
+      const previousRevision = task.revisions;
       task.remote = r;
       task.decision = r.decision;
+      task.revisions = r.revisions;
+      task.notes = [...r.notes];
+      if (r.decision.review && r.decision.review.checkedAt !== previousReview) {
+        this.log('technical', this.manager.id, task.id, `#${task.number} · ${r.decision.review.note}`);
+      }
+      this.changed();
       if (r.status === before) continue;
       if (r.status === 'approved' && task.status === 'review') {
         task.status = 'approved';
         this.log('delivery', task.agentId, task.id, `#${task.number} onaylandı: ${task.deliverable?.name ?? task.title}`);
       } else if (r.status === 'queued' && (task.status === 'review' || task.status === 'failed')) {
         // Sent back for a revision or retried: it goes through the office again.
-        const revised = r.revisions > task.revisions;
+        const revised = r.revisions > previousRevision;
         task.status = 'queued';
         task.progress = 0;
         task.step = -1;
@@ -206,6 +214,7 @@ export class OfficeSimulation {
       if (agent.phase === 'working') this.work(agent, seconds);
       else if (agent.phase === 'asking' && this.task(agent.taskId)?.remote?.status !== 'needs_input') this.resumeWork(agent);
       else if (agent.phase === 'delivering' && agent.phaseTime >= DELIVER_SECONDS) this.leaveDesk(agent);
+      else if (agent.phase === 'checking' && agent.phaseTime >= 2 && this.task(agent.taskId)?.remote?.decision.review?.status !== 'checking') this.finishInspection(agent);
       else if (agent.phase === 'briefing' && agent.phaseTime >= BRIEF_SECONDS) this.handOver(agent);
     }
   }
@@ -230,6 +239,7 @@ export class OfficeSimulation {
     if (agent.phase === 'to_desk') this.sitAtDesk(agent);
     else if (agent.phase === 'to_lounge') this.sitInLounge(agent);
     else if (agent.phase === 'to_brief') this.startBriefing(agent);
+    else if (agent.phase === 'to_review') { agent.facing = Math.PI; this.setPhase(agent, 'checking'); }
     else if (agent.phase === 'to_office') this.backToManagerDesk(agent);
   }
 
@@ -277,6 +287,7 @@ export class OfficeSimulation {
     const task = this.task(agent.taskId)!;
     const category = CATEGORY[task.category];
     const remote = task.remote?.status;
+    if (task.remote?.decision.review?.status === 'checking') this.dispatch();
     if (remote === 'needs_input') return this.raiseHand(agent, task);
     const before = Math.floor(task.progress * 100);
     const pace = seconds / (category.workSeconds * DIFFICULTY_PACE[task.decision!.difficulty]);
@@ -309,6 +320,7 @@ export class OfficeSimulation {
 
   private deliver(agent: Agent, task: Task) {
     const category = CATEGORY[task.category];
+    if (this.manager.taskId === task.id && (this.manager.phase === 'to_review' || this.manager.phase === 'checking')) return;
     task.deliveredAt = this.time;
     this.setPhase(agent, 'delivering');
     if (task.remote?.status === 'failed') {
@@ -350,6 +362,16 @@ export class OfficeSimulation {
   private dispatch() {
     const manager = this.manager;
     if (manager.phase !== 'managing') return;
+    const checking = this.tasks.find(t => t.remote?.decision.review?.status === 'checking' && this.agent(t.agentId)?.phase === 'working');
+    if (checking) {
+      const desk = this.desk(this.agent(checking.agentId)!.deskId)!;
+      manager.taskId = checking.id;
+      manager.seated = false;
+      manager.path = [{ x: MANAGER_DESK.x, z: MANAGER_DESK.aisleZ }, { x: -4.5, z: MANAGER_DESK.aisleZ }, { x: -4.5, z: desk.aisleZ }, { x: desk.x + 0.8, z: desk.aisleZ }, { x: desk.x + 0.8, z: desk.chair.z }];
+      this.setPhase(manager, 'to_review');
+      this.log('activity', manager.id, checking.id, `${manager.name}, #${checking.number} teslimini çalışanın ekranında kontrol etmeye gidiyor`);
+      return;
+    }
     for (const task of this.tasks) {
       if (task.status !== 'queued') continue;
       const agent = this.agents.find(a => a.role === task.category && a.phase === 'lounge');
@@ -375,6 +397,15 @@ export class OfficeSimulation {
       this.log('activity', manager.id, task.id, `${manager.name}, #${task.number} görevini vermek için ${agent.name} ile konuşmaya gidiyor`);
       return;
     }
+  }
+
+  private finishInspection(manager: Agent) {
+    const task = this.task(manager.taskId);
+    const desk = this.desk(this.agent(task?.agentId ?? null)?.deskId ?? null);
+    this.log('technical', manager.id, manager.taskId, task?.remote?.decision.review?.note ?? 'Yönetici kontrolü tamamlandı.');
+    manager.path = [{ x: manager.position.x, z: desk?.aisleZ ?? manager.position.z }, { x: -4.5, z: desk?.aisleZ ?? manager.position.z }, { x: -4.5, z: MANAGER_DESK.aisleZ }, { x: MANAGER_DESK.x, z: MANAGER_DESK.aisleZ }, { x: MANAGER_DESK.chair.x, z: MANAGER_DESK.chair.z }];
+    manager.taskId = null;
+    this.setPhase(manager, 'to_office');
   }
 
   /** The free desk closest to the lounge exit, so the front rows fill first. */

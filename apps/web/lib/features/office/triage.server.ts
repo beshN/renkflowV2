@@ -8,7 +8,8 @@ import { costUsd, withUsage } from '@/lib/ai/usage';
 import { maskPersonalData } from '@/lib/ai/privacy';
 import { ModelBlockedError } from '@/lib/ai/policy';
 import { CATEGORY, TASK_CATEGORIES } from './catalog';
-import { TIER_MODEL } from './routing';
+import { openCodeCall, openCodeEnabled } from './opencode.server';
+import { OPENCODE_MODELS, TIER_MODEL } from './routing';
 import { triageByRules, type Triage } from './triage';
 
 /**
@@ -33,6 +34,14 @@ const SYSTEM = [
 ].join('\n');
 
 export async function triage(text: string, meta: { tenantId: string; userId: string }): Promise<Triage & { costUsd: number }> {
+  if (openCodeEnabled()) {
+    try {
+      const masked = maskPersonalData(text);
+      const raw = await openCodeCall(SYSTEM, masked.text, { name: 'siniflandir', description: 'Görevi uzmana dağıt.', parameters: z.toJSONSchema(Answer) }, OPENCODE_MODELS.manager.id, { ...meta, feature: 'office_triage' }, AbortSignal.timeout(20000));
+      const answer = Answer.parse(raw);
+      return { ...answer, title: masked.restore(answer.title), reason: masked.restore(answer.reason), by: 'model', costUsd: 0 };
+    } catch { return { ...triageByRules(text), costUsd: 0 }; }
+  }
   const config = providerConfig('anthropic');
   if (!config.apiKey) return { ...triageByRules(text), costUsd: 0 };
   const model = TIER_MODEL.easy;
