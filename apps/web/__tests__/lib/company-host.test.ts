@@ -33,6 +33,9 @@ test("company host is one exact DNS label, never a suffix match or forwarded hea
     address: "fab",
   });
   expect(parseCompanyHost("fab.localhost:3025")).toEqual({ kind: "invalid" });
+  // The Android emulator reaches a local server at 10.0.2.2; only in development.
+  expect(parseCompanyHost("10.0.2.2:3043", true)).toEqual({ kind: "shared" });
+  expect(parseCompanyHost("10.0.2.2:3043")).toEqual({ kind: "invalid" });
 });
 test("reserved system addresses cannot be claimed", () => {
   for (const a of [

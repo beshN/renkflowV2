@@ -43,9 +43,10 @@ export function parseCompanyHost(
 ): CompanyHost {
   if (!host || /[\s,/@\\?#]/.test(host)) return { kind: "invalid" };
   const normalized = host.toLowerCase();
+  // 10.0.2.2 is the Android emulator's address for the developer's own machine.
   if (
     development &&
-    /^(localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?$/.test(normalized)
+    /^(localhost|127\.0\.0\.1|10\.0\.2\.2|\[::1\])(?::\d{1,5})?$/.test(normalized)
   )
     return { kind: "shared" };
   if (development && /^[a-z0-9-]+\.localhost(?::\d{1,5})?$/.test(normalized)) {
