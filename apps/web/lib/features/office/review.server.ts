@@ -4,7 +4,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { providerConfig } from '@/lib/ai/providers';
 import { costUsd, withUsage, type AIRequestMeta } from '@/lib/ai/usage';
-import { maskPersonalData } from '@/lib/ai/privacy';
+import { maskPersonalData, type Masker } from '@/lib/ai/privacy';
 import { inspectDelivery, type DeliveryFile } from './inspect.server';
 import { userMessage, type TaskInput } from './work';
 import { openCodeCall, openCodeEnabled } from './opencode.server';
@@ -40,7 +40,8 @@ const SYSTEM = [
   'Kesin doğrulayamadığın noktaları note ve issues alanında açıkla. Son karar her zaman kullanıcıya aittir.',
 ].join('\n');
 
-export async function reviewDelivery(task: TaskInput, files: DeliveryFile[], meta: AIRequestMeta, signal: AbortSignal): Promise<{ review: ManagerReview; cost: number }> {
+/** `masker` is the run's own, so the manager sees the same placeholders the delivered files hold. */
+export async function reviewDelivery(task: TaskInput, files: DeliveryFile[], meta: AIRequestMeta, signal: AbortSignal, masker?: Masker): Promise<{ review: ManagerReview; cost: number }> {
   const base = { revision: task.revision, checkedAt: new Date().toISOString() };
   let cost = 0;
   try {
@@ -59,7 +60,8 @@ export async function reviewDelivery(task: TaskInput, files: DeliveryFile[], met
         texts.push(`DOSYA ${file.name}\n${text}`);
       }
     }
-    const masked = maskPersonalData(JSON.stringify({ task: userMessage(task), files: texts }));
+    const raw = JSON.stringify({ task: userMessage(task), files: texts });
+    const masked: { text: string; restore: Masker['restore'] } = masker ? { text: masker.mask(raw), restore: masker.restore } : maskPersonalData(raw);
     parts.unshift({ type: 'text', text: masked.text });
     if (openCodeEnabled()) {
       if (parts.some(p => p.type === 'image')) throw new Error('OpenCode görsel kontrolü etkin değil.');

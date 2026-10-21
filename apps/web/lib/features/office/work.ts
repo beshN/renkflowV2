@@ -1,3 +1,4 @@
+import { ASSISTANT_SEARCH_CATEGORIES } from '@/lib/ai/assistant-context';
 import { CATEGORY, STAFF, type TaskCategoryId } from './catalog';
 import type { Difficulty } from './routing';
 
@@ -70,24 +71,45 @@ export const ASK_TOOL = {
   strict: true,
 };
 
+/** Reads the firm's records (orders, customers, quotes, stock…) with the task giver's access. */
+export const DATA_TOOL = {
+  name: 'firma_verisi',
+  description: 'Firmanın kayıtlarında arar: siparişler, müşteriler, teklifler, malzeme ve stok, tedarikçiler, satın almalar, sevkiyatlar, üretim işleri, reçeteler, depolar, personel. order-detail ve quote-detail tek kaydın kalemlerini getirir (query olarak kayıt kimliği). query boşsa en son kayıtlar gelir. Görevi veren kişinin göremediği kayıt türleri için kapsam bilgisi döner.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      category: { type: 'string', enum: [...ASSISTANT_SEARCH_CATEGORIES], description: 'Kayıt türü' },
+      query: { type: 'string', description: 'Ad, kod, numara veya kayıt kimliği; tüm son kayıtlar için boş' },
+    },
+    required: ['category', 'query'],
+    additionalProperties: false,
+  },
+  strict: true,
+};
+
 export type TaskInput = {
   category: TaskCategoryId; title: string; brief: string; agentId: string;
   answers: Array<{ question: string; answer: string }>;
   notes: string[];
   revision: number;
   companyName?: string | null;
+  /** The firm's own details (legal name, address, phone…), for letterheads and signatures. */
+  company?: Record<string, string> | null;
 };
 
 export function systemPrompt(task: TaskInput) {
   const member = STAFF.find(s => s.id === task.agentId);
   const spec = WORK[task.category];
+  const company = task.company && Object.keys(task.company).length ? task.company : null;
   return [
     `Sen ${task.companyName ? `${task.companyName} firmasının` : 'bir firmanın'} yapay zekâ ofisinde çalışan ${member?.name ?? 'bir çalışan'}sın (${member?.title ?? CATEGORY[task.category].label}).`,
     spec.instructions,
     spec.code ? 'Dosyayı kod çalıştırma ortamında oluştur ve kaydet; teslim edilecek her dosyanın adı kısa, Türkçe karakter içermeyen ve anlamlı olsun. Ara dosyaları teslim etme.' : '',
-    'Bilgi eksikse ve makul bir varsayım yapamıyorsan soru_sor aracını kullan. Yaptığın varsayımları teslim notunda belirt.',
+    company ? `Firmanın kendi bilgileri (antet, imza, belge altlığı için; boş alanları uydurma):\n${JSON.stringify(company)}` : '',
+    `Firma kayıtlarına ${DATA_TOOL.name} aracıyla bakabilirsin. Görev bir müşteriye, siparişe, teklife, stoğa veya başka bir kayda dayanıyorsa önce orada ara; kayıtlarda bulunabilecek bir bilgiyi kişiye sorma. Kayıtlardaki rakamları değiştirmeden kullan ve teslim notunda hangi kayıtlara dayandığını yaz.`,
+    'Bilgi kayıtlarda yoksa ve makul bir varsayım yapamıyorsan soru_sor aracını kullan. Yaptığın varsayımları teslim notunda belirt.',
     'Bitirdiğinde cevabının sonunda 1-3 cümlelik Türkçe bir teslim notu yaz: ne hazırladın, neye dikkat edilmeli.',
-    'Yalnızca görev metninde gerçekten bulunan maskelenmiş değerleri koru. Kendin yer tutucu veya hayali kişi ve iletişim bilgisi oluşturma.',
+    'Kişi ve firma adları, e-posta ve telefonlar [KİŞİ_1], [E-POSTA_1] gibi yer tutucularla gelir. Bunları metne ve Word, Excel, PowerPoint, metin dosyalarına aynen yaz; teslimde gerçek değerler geri konur. Yer tutucu içeren bilgiyi görsele (PNG) veya PDF\'e yazma. Kendin yer tutucu veya hayali kişi ve iletişim bilgisi oluşturma.',
   ].filter(Boolean).join('\n\n');
 }
 
@@ -102,7 +124,7 @@ export function userMessage(task: TaskInput) {
 /** Builds the tools and container for one task's request. */
 export function requestTools(category: TaskCategoryId) {
   const spec = WORK[category];
-  const tools: Array<Record<string, unknown>> = [ASK_TOOL];
+  const tools: Array<Record<string, unknown>> = [ASK_TOOL, DATA_TOOL];
   if (spec.code) tools.push({ type: 'code_execution_20260521', name: 'code_execution' });
   if (spec.webSearches) tools.push({ type: 'web_search_20250305', name: 'web_search', max_uses: spec.webSearches });
   const container = spec.skill ? { skills: [{ type: 'anthropic', skill_id: spec.skill, version: 'latest' }] } : undefined;
@@ -137,9 +159,22 @@ export function readOutcome(message: { stop_reason: string | null; content: unkn
   if (message.stop_reason === 'refusal') return { kind: 'refused' };
   const ask = message.content.find(b => (b as { type?: string; name?: string }).type === 'tool_use' && (b as { name?: string }).name === ASK_TOOL.name) as { input?: { soru?: unknown } } | undefined;
   if (ask && typeof ask.input?.soru === 'string' && ask.input.soru.trim()) return { kind: 'question', question: ask.input.soru.trim().slice(0, 500) };
-  if (message.stop_reason === 'max_tokens' || message.stop_reason === 'pause_turn') return { kind: 'incomplete' };
+  // Still looking things up when the turns ran out.
+  if (message.stop_reason === 'max_tokens' || message.stop_reason === 'pause_turn' || message.stop_reason === 'tool_use') return { kind: 'incomplete' };
   const texts = message.content.filter(b => (b as { type?: string }).type === 'text').map(b => String((b as { text?: unknown }).text ?? '').trim()).filter(Boolean);
   return { kind: 'delivered', summary: texts.join('\n\n'), fileIds: outputFileIds(message.content) };
+}
+
+export type DataCall = { id: string; category: string; query: string };
+
+/** The record lookups the model asked for in this turn. */
+export function dataCalls(content: unknown[]): DataCall[] {
+  return content.flatMap(b => {
+    const block = b as { type?: string; name?: string; id?: string; input?: { category?: unknown; query?: unknown } };
+    return block.type === 'tool_use' && block.name === DATA_TOOL.name && block.id
+      ? [{ id: block.id, category: String(block.input?.category ?? ''), query: String(block.input?.query ?? '') }]
+      : [];
+  });
 }
 
 /** A plain-text delivery (correspondence) becomes a .txt file with this name. */

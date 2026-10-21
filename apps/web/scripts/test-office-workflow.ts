@@ -54,7 +54,18 @@ async function main() {
     await assert.rejects(readOfficeFile({ ...actor, tenantId: randomUUID() }, file.id));
     await actOnOfficeTask(actor, task.id, { action: 'approve' });
     assert.equal((await db`SELECT status FROM office_tasks WHERE tenant_id=${tenant.id} AND id=${task.id}`)[0].status, 'approved');
-    console.log('PASS: claim concurrency, review, automatic correction, real files, tenant isolation, human approval');
+    // The records the office reads: the task giver's own firm, as that member, and nothing for a stranger.
+    const { companyProfile, lookUpRecords, taskActor } = await import('../lib/features/office/data.server');
+    await db`INSERT INTO customers(tenant_id,full_name,company_name) VALUES(${tenant.id},'Ayşe Demir','Demir Yapı')`;
+    const reader = await taskActor(tenant.id, user.id);
+    assert.equal(reader?.role, 'owner');
+    const customers = await lookUpRecords(reader, 'customers', 'Demir') as Array<{ company_name: string }>;
+    assert.deepEqual(customers.map(c => c.company_name), ['Demir Yapı']);
+    for (const kind of ['orders', 'materials', 'jobs', 'quotations', 'suppliers', 'shipments', 'recipes', 'warehouses', 'purchases']) await lookUpRecords(reader, kind, '');
+    assert.equal(await taskActor(tenant.id, randomUUID()), null);
+    assert.match(JSON.stringify(await lookUpRecords(null, 'customers', '')), /erişimi yok/);
+    assert.equal((await companyProfile(tenant.id))?.name, 'Office test');
+    console.log('PASS: claim concurrency, review, automatic correction, real files, tenant isolation, human approval, record lookups');
   } finally {
     global.fetch = originalFetch;
     const files = await db`SELECT storage_key FROM office_files WHERE tenant_id=${tenant.id}`;
