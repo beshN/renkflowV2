@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
 import { Check, Download, Hand, Moon, Pause, Play, Plus, RefreshCw, RotateCcw, Sun, Undo2, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CATEGORY, TASK_CATEGORIES, type TaskCategoryId } from '@/lib/features/office/catalog';
 import { DIFFICULTY_LABELS } from '@/lib/features/office/routing';
@@ -14,7 +15,7 @@ const API = '/api/v1/office';
 type Office = {
   /** Real work on the model; false while the office runs as a simulation. */
   live: boolean; reason: string | null; error: string;
-  create(input: { category: TaskCategoryId; title: string; brief: string }): Promise<void>;
+  create(input: { text: string; category?: TaskCategoryId }): Promise<void>;
   act(taskId: string, body: Record<string, string>): Promise<void>;
 };
 
@@ -34,7 +35,9 @@ function useOffice(sim: OfficeSimulation): Office {
   const refresh = useCallback(async () => {
     try {
       const data = await call<{ live: boolean; reason: string | null; tasks: RemoteTask[] }>(API);
+      const before = new Map(sim.tasks.map(t => [t.id, t.remote?.status]));
       sim.sync(data.tasks);
+      announce(sim, data.tasks, before);
       setState({ live: data.live, reason: data.reason, error: '' });
       return data.tasks.some(t => t.status === 'queued' || t.status === 'working');
     } catch (error) {
@@ -63,6 +66,18 @@ function useOffice(sim: OfficeSimulation): Office {
       await refresh();
     },
   };
+}
+
+/** A short notice when a real task needs the person: delivered, a raised hand, or a failure. */
+function announce(sim: OfficeSimulation, tasks: RemoteTask[], before: Map<string, RemoteTask['status'] | undefined>) {
+  for (const t of tasks) {
+    const was = before.get(t.id);
+    if (!was || was === t.status) continue;
+    const who = sim.agents.find(a => a.role === t.category)?.name ?? 'Ofis';
+    if (t.status === 'review') toast.success(`${who} teslim etti: #${t.number} ${t.title}`);
+    else if (t.status === 'needs_input') toast.info(`${who} soruyor: ${t.question ?? '#' + t.number}`);
+    else if (t.status === 'failed') toast.error(`#${t.number} tamamlanamadı: ${t.error ?? t.title}`);
+  }
 }
 
 const usd = (value: number) => `$${value.toFixed(value < 1 ? 3 : 2)}`;
@@ -193,7 +208,8 @@ export function OfficeWorkspace() {
               const s = status(sim, agent);
               const task = sim.task(agent.taskId);
               return (
-                <li key={agent.id} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2">
+                <li key={agent.id} className={cn('cursor-pointer rounded-xl border bg-zinc-900/60 px-3 py-2 hover:border-zinc-600', filter === agent.id ? 'border-amber-500/60' : 'border-zinc-800')}
+                  onClick={() => setFilter(f => (f === agent.id ? 'all' : agent.id))} title={`${agent.name} olaylarını göster`}>
                   <div className="flex items-center gap-2.5">
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: agent.look.shirt }} />
                     <div className="min-w-0 flex-1">
@@ -239,7 +255,7 @@ export function OfficeWorkspace() {
           </select>
           <div className="mt-1 max-h-[480px] min-h-0 flex-1 overflow-y-auto pr-1 lg:max-h-none">
             {tab === 'delivery' && <Deliveries sim={sim} office={office} />}
-            <EventList sim={sim} events={events} empty={tab === 'delivery' ? (reviewing.length || sim.tasks.some(t => t.status === 'failed') ? '' : 'Teslim edilen iş yok.') : tab === 'technical' ? 'Çalışan biri olmadığında teknik kayıt oluşmaz.' : 'Henüz olay yok. Bir görev verin.'} />
+            <EventList sim={sim} events={events} empty={tab === 'delivery' ? (reviewing.length || sim.tasks.some(t => t.status === 'failed' || (t.status === 'approved' && t.remote)) ? '' : 'Teslim edilen iş yok.') : tab === 'technical' ? 'Çalışan biri olmadığında teknik kayıt oluşmaz.' : 'Henüz olay yok. Bir görev verin.'} />
           </div>
         </section>
       </aside>
@@ -301,7 +317,8 @@ function Deliveries({ sim, office }: { sim: OfficeSimulation; office: Office }) 
   const [error, setError] = useState('');
   const waiting = sim.tasks.filter(t => t.status === 'review');
   const failed = sim.tasks.filter(t => t.status === 'failed');
-  if (!waiting.length && !failed.length) return null;
+  const approved = sim.tasks.filter(t => t.status === 'approved' && t.remote).slice(-10).reverse();
+  if (!waiting.length && !failed.length && !approved.length) return null;
 
   /** A real task goes to the server; a simulated one changes here. */
   const act = async (task: Task, body: Record<string, string>) => {
@@ -373,25 +390,50 @@ function Deliveries({ sim, office }: { sim: OfficeSimulation; office: Office }) 
           )}
         </article>
       ))}
+      {approved.length > 0 && (
+        <details className="rounded-xl border border-zinc-800 p-3 text-xs">
+          <summary className="cursor-pointer font-semibold text-zinc-300">Onaylananlar ({approved.length})</summary>
+          <ul className="mt-2 space-y-2">
+            {approved.map(task => (
+              <li key={task.id}>
+                <p className="text-zinc-200">#{task.number} {task.title}</p>
+                {task.remote!.files.filter(f => f.revision === task.remote!.revisions).map(f => (
+                  <a key={f.id} href={`${f.url}?download=1`} className="mr-3 inline-flex items-center gap-1 font-mono text-amber-200 hover:underline"><Download className="h-3 w-3" />{f.name}</a>
+                ))}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }
 
+/** A few tasks of different kinds, to show that plain words are enough. */
+const EXAMPLES = [
+  'Yeni pergola serisi için Instagram gönderisi tasarla',
+  'Tedarikçi fiyatlarını karşılaştıran bir Excel tablosu hazırla',
+  'Geciken teslimat için müşteriye özür e-postası yaz',
+  'Bayi toplantısı için 8 slaytlık ürün sunumu hazırla',
+  'Ürün kataloğu metnini İngilizceye çevir',
+];
+
 function TaskComposer({ sim, office, onClose }: { sim: OfficeSimulation; office: Office; onClose: () => void }) {
-  const [category, setCategory] = useState<TaskCategoryId>('design');
-  const [title, setTitle] = useState('');
-  const [brief, setBrief] = useState('');
+  const [text, setText] = useState('');
+  const [category, setCategory] = useState<TaskCategoryId | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const chosen = CATEGORY[category];
-  const owner = sim.agents.find(a => a.role === category);
+  const manager = sim.manager;
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
+  const submit = async (e?: FormEvent) => {
+    e?.preventDefault();
+    if (busy) return;
+    if (text.trim().length < 3) return setError('Ne yapılması gerektiğini yazın.');
     setBusy(true);
     try {
-      if (office.live) await office.create({ category, title, brief });
-      else sim.assign({ category, title, brief });
+      if (office.live) await office.create({ text, ...(category ? { category } : {}) });
+      else if (category) sim.assign({ category, title: text.split(/\n/)[0].slice(0, 80), brief: text, triage: { by: 'rules', reason: 'türü görevi veren seçti' } });
+      else sim.assignText(text);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Görev verilemedi.');
@@ -403,41 +445,43 @@ function TaskComposer({ sim, office, onClose }: { sim: OfficeSimulation; office:
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="office-task-title" onClick={onClose}>
       <form onSubmit={submit} onClick={e => e.stopPropagation()} className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-zinc-700 bg-[#11151f] p-5 text-zinc-100 shadow-2xl">
-        <div className="mb-4 flex items-start justify-between">
+        <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h2 id="office-task-title" className="text-lg font-semibold">Görev ver</h2>
-            <p className="text-xs text-zinc-400">Türünü seçin; o işin uzmanı masaya oturup çalışmaya başlar.{office.live ? ' İş gerçekten yapılır ve dosya olarak teslim edilir.' : ' Şu an simülasyon: gerçek dosya üretilmez.'}</p>
+            <p className="text-xs text-zinc-400">
+              Ne yapılmasını istediğinizi yazın; {manager.name} okuyup işin türüne ve zorluğuna karar verir, uygun çalışana verir.
+              {office.live ? ' İş gerçekten yapılır ve dosya olarak teslim edilir.' : ' Şu an simülasyon: gerçek dosya üretilmez.'}
+            </p>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800" aria-label="Kapat"><X className="h-5 w-5" /></button>
         </div>
-        <fieldset>
-          <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">Görev türü</legend>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {TASK_CATEGORIES.map(id => (
-              <label key={id} className={cn('cursor-pointer rounded-xl border p-2.5 text-xs', category === id ? 'border-amber-400 bg-amber-500/10' : 'border-zinc-800 hover:border-zinc-600')}>
-                <input type="radio" name="category" value={id} checked={category === id} onChange={() => setCategory(id)} className="sr-only" />
-                <span className="block font-semibold text-zinc-100">{CATEGORY[id].label}</span>
-                <span className="mt-0.5 block text-[11px] leading-snug text-zinc-400">{CATEGORY[id].hint}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-        <p className="mt-3 text-xs text-zinc-400">Üstlenecek: <span className="font-semibold text-zinc-200">{owner?.name}</span> ({owner?.title}) · Çıktı: {chosen.output.kind} (.{chosen.output.extension}) · Zorluğa göre modeli ofis müdürü seçer</p>
-        <label className="mt-4 block text-xs font-semibold text-zinc-300" htmlFor="office-task-name">Başlık</label>
-        <input id="office-task-name" value={title} onChange={e => { setTitle(e.target.value); setError(''); }} placeholder={chosen.examples[0]}
-          className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm" />
+        <label className="block text-xs font-semibold text-zinc-300" htmlFor="office-task-text">Ne yapılsın?</label>
+        <textarea id="office-task-text" autoFocus value={text} rows={5} maxLength={8000}
+          onChange={e => { setText(e.target.value); setError(''); }}
+          onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit(); }}
+          placeholder={'Örnek: Fuar standı için A1 afiş tasarla. Kurumsal renklerimiz lacivert ve turuncu, "Yeni Sezon Pergola" yazsın.'}
+          className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm leading-relaxed" />
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {chosen.examples.map(example => (
-            <button key={example} type="button" onClick={() => { setTitle(example); setError(''); }} className="rounded-full border border-zinc-700 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-zinc-800">{example}</button>
+          {EXAMPLES.map(example => (
+            <button key={example} type="button" onClick={() => { setText(example); setError(''); }} className="rounded-full border border-zinc-700 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-zinc-800">{example}</button>
           ))}
         </div>
-        <label className="mt-4 block text-xs font-semibold text-zinc-300" htmlFor="office-task-brief">Ayrıntılar</label>
-        <textarea id="office-task-brief" value={brief} onChange={e => setBrief(e.target.value)} rows={3} placeholder="Ölçü, ton, hedef kitle, kaynak dosya…"
-          maxLength={8000} className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm" />
+        <details className="mt-4 rounded-xl border border-zinc-800 p-3 text-xs" open={category !== null}>
+          <summary className="cursor-pointer font-semibold text-zinc-300">Türünü kendim seçeyim <span className="font-normal text-zinc-500">(isteğe bağlı)</span></summary>
+          <div className="mt-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Görev türü">
+            <button type="button" role="radio" aria-checked={category === null} onClick={() => setCategory(null)}
+              className={cn('rounded-full border px-2.5 py-1', category === null ? 'border-amber-400 bg-amber-500/10 text-amber-100' : 'border-zinc-700 text-zinc-300 hover:bg-zinc-800')}>Müdür karar versin</button>
+            {TASK_CATEGORIES.map(id => (
+              <button key={id} type="button" role="radio" aria-checked={category === id} onClick={() => setCategory(id)} title={CATEGORY[id].hint}
+                className={cn('rounded-full border px-2.5 py-1', category === id ? 'border-amber-400 bg-amber-500/10 text-amber-100' : 'border-zinc-700 text-zinc-300 hover:bg-zinc-800')}>{CATEGORY[id].label}</button>
+            ))}
+          </div>
+        </details>
         {error && <p role="alert" className="mt-2 text-xs text-red-400">{error}</p>}
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <span className="mr-auto hidden text-[11px] text-zinc-500 sm:block">Ctrl + Enter ile gönderin</span>
           <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800">Vazgeç</button>
-          <button type="submit" disabled={busy} className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-amber-400 disabled:opacity-60">{busy ? 'Veriliyor…' : 'Görevi ver'}</button>
+          <button type="submit" disabled={busy} className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-amber-400 disabled:opacity-60">{busy ? `${manager.name} okuyor…` : 'Görevi ver'}</button>
         </div>
       </form>
     </div>

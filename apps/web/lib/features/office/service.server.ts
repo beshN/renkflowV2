@@ -11,6 +11,7 @@ import { ROUTE_ROLES } from '@/lib/features/auth/permissions';
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
 import { STAFF, TASK_CATEGORIES } from './catalog';
 import { decide, type ManagerDecision } from './routing';
+import { triage } from './triage.server';
 
 /**
  * The AI office's tasks as the firm's records: who asked for what, the manager's call, the
@@ -75,24 +76,30 @@ export async function listOfficeTasks(actor: WorkOrderActor) {
 }
 
 const CreateTask = z.object({
-  category: z.enum(TASK_CATEGORIES, { message: 'Bilinmeyen görev türü.' }),
-  title: z.string().trim().min(1, 'Görevin bir başlığı olmalı.').max(200, 'Başlık en fazla 200 karakter olabilir.'),
-  brief: z.string().trim().max(8000, 'Ayrıntılar en fazla 8000 karakter olabilir.').default(''),
+  text: z.string().trim().min(3, 'Ne yapılması gerektiğini yazın.').max(8000, 'Görev en fazla 8000 karakter olabilir.'),
+  /** Only when the person picked the kind of work themselves; otherwise the manager decides. */
+  category: z.enum(TASK_CATEGORIES, { message: 'Bilinmeyen görev türü.' }).optional(),
 });
 
-/** Queues a task; the caller starts the run once the response is on its way. */
+/** Queues a task written in plain words; the manager reads it first. The caller starts the run once the response is on its way. */
 export async function createOfficeTask(actor: WorkOrderActor, raw: unknown) {
   assertOfficeRole(actor);
   const availability = await officeAvailability(actor.tenantId);
   if (!availability.live) fail(availability.reason ?? 'AI ofis şu anda kullanılamıyor.');
   const input = CreateTask.parse(raw);
-  const agent = STAFF.find(s => s.role === input.category)!;
-  const decision = decide({ ...input, revisions: 0 });
+  const read = await triage(input.text, { tenantId: actor.tenantId, userId: actor.userId });
+  const category = input.category ?? read.category;
+  const title = read.title.slice(0, 200);
+  const agent = STAFF.find(s => s.role === category)!;
+  const decision: ManagerDecision = {
+    ...decide({ category, title, brief: input.text, revisions: 0 }),
+    triage: input.category ? { by: 'rules', reason: 'türü görevi veren seçti' } : { by: read.by, reason: read.reason },
+  };
   return withTransaction(async (tx: any) => {
     await tx`SELECT pg_advisory_xact_lock(hashtextextended(${actor.tenantId + ':office_tasks'}, 0))`;
     const [{ n }] = await tx`SELECT coalesce(max(number), 0)::int + 1 AS n FROM office_tasks WHERE tenant_id=${actor.tenantId}`;
-    const [row] = await tx`INSERT INTO office_tasks (tenant_id, number, category, title, brief, agent_id, decision, created_by)
-      VALUES (${actor.tenantId}, ${n}, ${input.category}, ${input.title}, ${input.brief}, ${agent.id}, ${tx.json(decision)}, ${actor.userId}) RETURNING *`;
+    const [row] = await tx`INSERT INTO office_tasks (tenant_id, number, category, title, brief, agent_id, decision, cost_usd, created_by)
+      VALUES (${actor.tenantId}, ${n}, ${category}, ${title}, ${input.text}, ${agent.id}, ${tx.json(decision)}, ${read.costUsd}, ${actor.userId}) RETURNING *`;
     return view(row, []);
   });
 }
@@ -117,7 +124,7 @@ export async function actOnOfficeTask(actor: WorkOrderActor, taskId: string, raw
     return { run: false };
   }
   if (input.action === 'revise') {
-    const decision = decide({ category: task.category, title: task.title, brief: task.brief, revisions: Number(task.revisions) + 1 });
+    const decision = { ...decide({ category: task.category, title: task.title, brief: task.brief, revisions: Number(task.revisions) + 1 }), triage: task.decision?.triage };
     const [row] = await sql`UPDATE office_tasks SET status='queued', revisions=revisions+1, notes=notes || ${sql.json([input.note])}::jsonb,
       decision=${sql.json(decision)}, summary=NULL, error=NULL, updated_at=now()
       WHERE tenant_id=${actor.tenantId} AND id=${taskId} AND status='review' RETURNING id`;

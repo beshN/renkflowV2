@@ -1,6 +1,7 @@
 import { CATEGORY, STAFF, isTaskCategory, type Look, type TaskCategoryId } from './catalog';
 import { DESKS, LOUNGE_SEATS, MANAGER_DESK, pathFromBrief, pathToBrief, pathToDesk, pathToLounge, type Desk, type Point } from './layout';
 import { DIFFICULTY_LABELS, DIFFICULTY_PACE, MISSING_NOTE, decide, type ManagerDecision } from './routing';
+import { triageByRules } from './triage';
 
 /**
  * The AI office in motion: the manager weighs a handed-over task (how hard, which model), gets up,
@@ -98,7 +99,7 @@ export class OfficeSimulation {
   get manager() { return this.agents.find(a => a.role === 'manager')!; }
 
   /** Hands a task to the office; the manager gives it to the category's person when they are free. */
-  assign(input: { category: string; title: string; brief?: string }): Task {
+  assign(input: { category: string; title: string; brief?: string; triage?: ManagerDecision['triage'] }): Task {
     if (!isTaskCategory(input.category)) throw new Error(`Bilinmeyen görev türü: ${input.category}`);
     const title = input.title.trim();
     if (!title) throw new Error('Görevin bir başlığı olmalı.');
@@ -109,11 +110,20 @@ export class OfficeSimulation {
       revisions: 0, notes: [], decision: null, deliverable: null, remote: null,
     };
     this.tasks.push(task);
+    if (input.triage) this.pendingTriage.set(task.id, input.triage);
     this.log('activity', this.manager.id, task.id, `Yeni görev #${number}: ${title} (${CATEGORY[task.category].label})`);
     this.dispatch();
     this.changed();
     return task;
   }
+
+  /** A task written in plain words: the manager reads which kind of work it is (keyword rules here). */
+  assignText(text: string): Task {
+    const read = triageByRules(text);
+    return this.assign({ category: read.category, title: read.title, brief: text, triage: { by: read.by, reason: read.reason } });
+  }
+
+  private readonly pendingTriage = new Map<string, NonNullable<ManagerDecision['triage']>>();
 
   approve(taskId: string) {
     const task = this.task(taskId);
@@ -352,7 +362,9 @@ export class OfficeSimulation {
       task.agentId = agent.id;
       task.status = 'assigned';
       // A real task carries the server's call; the simulation decides here.
-      const decision = task.decision = task.remote?.decision ?? decide(task);
+      const decision = task.decision = task.remote?.decision ?? { ...decide(task), triage: this.pendingTriage.get(task.id) };
+      this.pendingTriage.delete(task.id);
+      if (decision.triage) this.log('technical', manager.id, task.id, `${manager.name} #${task.number} görevini okudu: ${CATEGORY[task.category].label} — ${decision.triage.reason}${decision.triage.by === 'model' ? '' : ' (kurallar)'}`);
       const why = decision.reasons.length ? ` (${decision.reasons.join(', ')})` : '';
       this.log('technical', manager.id, task.id, `${manager.name} #${task.number} için karar verdi: zorluk ${DIFFICULTY_LABELS[decision.difficulty]}${why} → ${decision.model.label}`);
       for (const need of decision.missing) if (MISSING_NOTE[need]) this.log('technical', manager.id, task.id, `#${task.number} · Not: ${MISSING_NOTE[need]}`);

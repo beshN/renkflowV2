@@ -39,6 +39,8 @@ export type ManagerDecision = {
   model: OfficeModel;
   /** What the category needs that the chosen model cannot do; the work falls back accordingly. */
   missing: Capability[];
+  /** How the manager read the kind of work from the plain-words task, when it was written that way. */
+  triage?: { by: 'model' | 'rules'; reason: string };
 };
 
 export function decide(task: { category: TaskCategoryId; title: string; brief: string; revisions: number }): ManagerDecision {
