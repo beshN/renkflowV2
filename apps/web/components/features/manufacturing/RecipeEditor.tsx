@@ -27,11 +27,16 @@ export function RecipeEditor({
       initial
         ? {
             ...initial,
-            editRevision:initial.editRevision || initial.edit_revision,
+            editRevision: initial.editRevision || initial.edit_revision,
             finishedItemId: initial.finishedItemId || initial.finished_item_id,
+            geometry: initial.geometry || "roof",
+            verificationSource:
+              initial.verificationSource || initial.verification_source || "",
           }
         : {
             code: "",
+            geometry: "roof",
+            verificationSource: "",
             name: "",
             version: 1,
             finishedItemId: "",
@@ -88,8 +93,15 @@ export function RecipeEditor({
   function patch(key: string, value: any) {
     setForm((p: any) => ({ ...p, [key]: value }));
   }
-  function parameter(index:number,updates:Record<string,unknown>){
-    setForm((current:any)=>({...current,parameterDefinitions:(current.parameterDefinitions || current.parameter_definitions || []).map((p:any,n:number)=>n===index?{...p,...updates}:p)}));
+  function parameter(index: number, updates: Record<string, unknown>) {
+    setForm((current: any) => ({
+      ...current,
+      parameterDefinitions: (
+        current.parameterDefinitions ||
+        current.parameter_definitions ||
+        []
+      ).map((p: any, n: number) => (n === index ? { ...p, ...updates } : p)),
+    }));
   }
   function rule(index: number, key: string, value: any) {
     patch(
@@ -108,7 +120,10 @@ export function RecipeEditor({
       onSubmit={async (e) => {
         e.preventDefault();
         try {
-          await onSave(form);
+          await onSave({
+            ...form,
+            verificationSource: form.verificationSource?.trim() || undefined,
+          });
         } catch (err) {
           setError(err instanceof Error ? err.message : "Kaydedilemedi");
         }
@@ -162,16 +177,205 @@ export function RecipeEditor({
           </select>
         </label>
       </div>
-      <fieldset className="space-y-3"><legend className="mb-3 text-sm font-medium">Ürün parametreleri ve opsiyon koşulları</legend>
-        {(form.parameterDefinitions || form.parameter_definitions || []).map((p: any,index: number) => <div key={index} className="grid gap-2 sm:grid-cols-4">
-          {[["key","Formül parametresi"],["label","Parametre adı"],["unit","Birim"],["minimum","Alt sınır"],["maximum","Üst sınır"]].map(([key,label]) => <label className="text-xs" key={key}>{label}<input className="rf-input mt-2 w-full" type={["minimum","maximum"].includes(key)?"number":"text"} step="any" value={p[key] ?? ""} onChange={e => parameter(index,{[key]:["minimum","maximum"].includes(key)?(e.target.value?Number(e.target.value):undefined):e.target.value})} /></label>)}
-          <label className="text-xs">Tür<select className="rf-input mt-2 w-full" value={p.type} onChange={e => parameter(index,{type:e.target.value,defaultValue:undefined})}><option value="number">Sayı</option><option value="boolean">Evet / hayır</option></select></label>
-          <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={p.integer || false} onChange={e => parameter(index,{integer:e.target.checked})} />Tam sayı</label>
-          <button type="button" className="text-xs text-destructive" onClick={()=>patch("parameterDefinitions",(form.parameterDefinitions || form.parameter_definitions || []).filter((_: any,n: number)=>n!==index))}>Parametreyi kaldır</button>
-        </div>)}
-        <button type="button" className="rf-input text-xs" onClick={()=>patch("parameterDefinitions",[...(form.parameterDefinitions || form.parameter_definitions || []),{key:"",label:"",type:"number",unit:"",required:true,integer:false}])}>Parametre ekle</button>
-        {(form.constraints || []).map((c: any,index: number)=><div className="flex gap-2" key={index}><input aria-label={`Opsiyon koşulu ${index+1}`} placeholder="if(led,motor,1)" className="rf-input w-full" value={c.formula} onChange={e=>patch("constraints",form.constraints.map((v: any,n: number)=>n===index?{...v,formula:e.target.value}:v))} /><input aria-label={`Koşul açıklaması ${index+1}`} placeholder="LED için motor seçilmelidir" className="rf-input w-full" value={c.message} onChange={e=>patch("constraints",form.constraints.map((v: any,n: number)=>n===index?{...v,message:e.target.value}:v))} /><button type="button" className="text-xs text-destructive" onClick={()=>patch("constraints",form.constraints.filter((_: any,n: number)=>n!==index))}>Sil</button></div>)}
-        <button type="button" className="rf-input text-xs" onClick={()=>patch("constraints",[...(form.constraints || []),{formula:"",message:""}])}>Opsiyon koşulu ekle</button>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-xs">
+          Ölçü modeli
+          <select
+            className="rf-input mt-2 w-full"
+            value={form.geometry}
+            onChange={(e) => {
+              const vertical = e.target.value === "vertical";
+              setForm((p: any) => ({
+                ...p,
+                geometry: e.target.value,
+                limits: {
+                  ...p.limits,
+                  ...(vertical
+                    ? { minProjectionMm: 0, maxProjectionMm: 0 }
+                    : {}),
+                },
+                examples: p.examples.map((x: any) => ({
+                  ...x,
+                  parameters: {
+                    ...x.parameters,
+                    ...(vertical ? { projectionMm: 0 } : {}),
+                  },
+                })),
+              }));
+            }}
+          >
+            <option value="roof">Tente / pergola · en ve açılım</option>
+            <option value="vertical">Rüzgâr kırıcı · en ve yükseklik</option>
+          </select>
+        </label>
+        <label className="text-xs">
+          Doğrulanmış teknik kaynak
+          <input
+            required={form.geometry === "vertical"}
+            className="rf-input mt-2 w-full"
+            value={form.verificationSource}
+            onChange={(e) => patch("verificationSource", e.target.value)}
+            placeholder="Teknik çizim, katalog sürümü ve sayfa"
+          />
+        </label>
+      </div>
+      <fieldset className="space-y-3">
+        <legend className="mb-3 text-sm font-medium">
+          Ürün parametreleri ve opsiyon koşulları
+        </legend>
+        {(form.parameterDefinitions || form.parameter_definitions || []).map(
+          (p: any, index: number) => (
+            <div key={index} className="grid gap-2 sm:grid-cols-4">
+              {[
+                ["key", "Formül parametresi"],
+                ["label", "Parametre adı"],
+                ["unit", "Birim"],
+                ["minimum", "Alt sınır"],
+                ["maximum", "Üst sınır"],
+              ].map(([key, label]) => (
+                <label className="text-xs" key={key}>
+                  {label}
+                  <input
+                    className="rf-input mt-2 w-full"
+                    type={
+                      ["minimum", "maximum"].includes(key) ? "number" : "text"
+                    }
+                    step="any"
+                    value={p[key] ?? ""}
+                    onChange={(e) =>
+                      parameter(index, {
+                        [key]: ["minimum", "maximum"].includes(key)
+                          ? e.target.value
+                            ? Number(e.target.value)
+                            : undefined
+                          : e.target.value,
+                      })
+                    }
+                  />
+                </label>
+              ))}
+              <label className="text-xs">
+                Tür
+                <select
+                  className="rf-input mt-2 w-full"
+                  value={p.type}
+                  onChange={(e) =>
+                    parameter(index, {
+                      type: e.target.value,
+                      defaultValue: undefined,
+                    })
+                  }
+                >
+                  <option value="number">Sayı</option>
+                  <option value="boolean">Evet / hayır</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={p.integer || false}
+                  onChange={(e) =>
+                    parameter(index, { integer: e.target.checked })
+                  }
+                />
+                Tam sayı
+              </label>
+              <button
+                type="button"
+                className="text-xs text-destructive"
+                onClick={() =>
+                  patch(
+                    "parameterDefinitions",
+                    (
+                      form.parameterDefinitions ||
+                      form.parameter_definitions ||
+                      []
+                    ).filter((_: any, n: number) => n !== index),
+                  )
+                }
+              >
+                Parametreyi kaldır
+              </button>
+            </div>
+          ),
+        )}
+        <button
+          type="button"
+          className="rf-input text-xs"
+          onClick={() =>
+            patch("parameterDefinitions", [
+              ...(form.parameterDefinitions ||
+                form.parameter_definitions ||
+                []),
+              {
+                key: "",
+                label: "",
+                type: "number",
+                unit: "",
+                required: true,
+                integer: false,
+              },
+            ])
+          }
+        >
+          Parametre ekle
+        </button>
+        {(form.constraints || []).map((c: any, index: number) => (
+          <div className="flex gap-2" key={index}>
+            <input
+              aria-label={`Opsiyon koşulu ${index + 1}`}
+              placeholder="if(led,motor,1)"
+              className="rf-input w-full"
+              value={c.formula}
+              onChange={(e) =>
+                patch(
+                  "constraints",
+                  form.constraints.map((v: any, n: number) =>
+                    n === index ? { ...v, formula: e.target.value } : v,
+                  ),
+                )
+              }
+            />
+            <input
+              aria-label={`Koşul açıklaması ${index + 1}`}
+              placeholder="LED için motor seçilmelidir"
+              className="rf-input w-full"
+              value={c.message}
+              onChange={(e) =>
+                patch(
+                  "constraints",
+                  form.constraints.map((v: any, n: number) =>
+                    n === index ? { ...v, message: e.target.value } : v,
+                  ),
+                )
+              }
+            />
+            <button
+              type="button"
+              className="text-xs text-destructive"
+              onClick={() =>
+                patch(
+                  "constraints",
+                  form.constraints.filter((_: any, n: number) => n !== index),
+                )
+              }
+            >
+              Sil
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="rf-input text-xs"
+          onClick={() =>
+            patch("constraints", [
+              ...(form.constraints || []),
+              { formula: "", message: "" },
+            ])
+          }
+        >
+          Opsiyon koşulu ekle
+        </button>
       </fieldset>
       <fieldset>
         <legend className="mb-3 text-sm font-medium">
@@ -182,31 +386,35 @@ export function RecipeEditor({
             ["WidthMm", "En"],
             ["ProjectionMm", "Açılım"],
             ["MountingHeightMm", "Montaj yüksekliği"],
-          ].map(([key, label]) => (
-            <div key={key}>
-              <p className="mb-2 text-xs">{label}</p>
-              <div className="flex gap-2">
-                {["min", "max"].map((prefix) => (
-                  <input
-                    key={prefix}
-                    aria-label={`${label} ${prefix === "min" ? "en az" : "en çok"}`}
-                    type="number"
-                    min={1}
-                    required
-                    className="rf-input w-full"
-                    value={form.limits[prefix + key] || ""}
-                    placeholder={prefix === "min" ? "En az" : "En çok"}
-                    onChange={(e) =>
-                      patch("limits", {
-                        ...form.limits,
-                        [prefix + key]: +e.target.value,
-                      })
-                    }
-                  />
-                ))}
+          ]
+            .filter(
+              ([key]) => form.geometry !== "vertical" || key !== "ProjectionMm",
+            )
+            .map(([key, label]) => (
+              <div key={key}>
+                <p className="mb-2 text-xs">{label}</p>
+                <div className="flex gap-2">
+                  {["min", "max"].map((prefix) => (
+                    <input
+                      key={prefix}
+                      aria-label={`${label} ${prefix === "min" ? "en az" : "en çok"}`}
+                      type="number"
+                      min={1}
+                      required
+                      className="rf-input w-full"
+                      value={form.limits[prefix + key] || ""}
+                      placeholder={prefix === "min" ? "En az" : "En çok"}
+                      onChange={(e) =>
+                        patch("limits", {
+                          ...form.limits,
+                          [prefix + key]: +e.target.value,
+                        })
+                      }
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
         </div>
       </fieldset>
       <fieldset className="space-y-3">
@@ -273,7 +481,15 @@ export function RecipeEditor({
             ) : (
               <span />
             )}
-            <input aria-label={`Malzeme koşulu ${i+1}`} className="rf-input" placeholder="Koşul · isteğe bağlı" value={r.conditionFormula || ""} onChange={e=>rule(i,"conditionFormula",e.target.value || undefined)} />
+            <input
+              aria-label={`Malzeme koşulu ${i + 1}`}
+              className="rf-input"
+              placeholder="Koşul · isteğe bağlı"
+              value={r.conditionFormula || ""}
+              onChange={(e) =>
+                rule(i, "conditionFormula", e.target.value || undefined)
+              }
+            />
             <button
               type="button"
               className="text-xs text-destructive"
@@ -367,8 +583,41 @@ export function RecipeEditor({
             >
               Operasyonu sil
             </button>
-            {[["setupMinutesFormula","Hazırlık dakika formülü"],["conditionFormula","Operasyon koşulu"]].map(([key,label])=><input key={key} aria-label={`${label} ${i+1}`} className="rf-input" placeholder={label+" · isteğe bağlı"} value={o[key] || ""} onChange={e=>patch("operations",form.operations.map((v: any,n: number)=>n===i?{...v,[key]:e.target.value || undefined}:v))} />)}
-            <RecipeQualityEditor checks={o.qualityChecks || []} onChange={checks => patch("operations", form.operations.map((operation: any, index: number) => index === i ? { ...operation, qualityChecks: checks } : operation))} />
+            {[
+              ["setupMinutesFormula", "Hazırlık dakika formülü"],
+              ["conditionFormula", "Operasyon koşulu"],
+            ].map(([key, label]) => (
+              <input
+                key={key}
+                aria-label={`${label} ${i + 1}`}
+                className="rf-input"
+                placeholder={label + " · isteğe bağlı"}
+                value={o[key] || ""}
+                onChange={(e) =>
+                  patch(
+                    "operations",
+                    form.operations.map((v: any, n: number) =>
+                      n === i
+                        ? { ...v, [key]: e.target.value || undefined }
+                        : v,
+                    ),
+                  )
+                }
+              />
+            ))}
+            <RecipeQualityEditor
+              checks={o.qualityChecks || []}
+              onChange={(checks) =>
+                patch(
+                  "operations",
+                  form.operations.map((operation: any, index: number) =>
+                    index === i
+                      ? { ...operation, qualityChecks: checks }
+                      : operation,
+                  ),
+                )
+              }
+            />
           </div>
         ))}
         <button
@@ -401,15 +650,60 @@ export function RecipeEditor({
                 ["projectionMm", "Açılım"],
                 ["mountingHeightMm", "Montaj yüksekliği"],
                 ["quantity", "Adet"],
-              ].map(([key, label]) => (
-                <label className="text-xs" key={key}>
-                  {label}
+              ]
+                .filter(
+                  ([key]) =>
+                    form.geometry !== "vertical" || key !== "projectionMm",
+                )
+                .map(([key, label]) => (
+                  <label className="text-xs" key={key}>
+                    {label}
+                    <input
+                      required
+                      min={1}
+                      type="number"
+                      className="rf-input mt-2 w-full"
+                      value={ex.parameters[key] || ""}
+                      onChange={(e) =>
+                        patch(
+                          "examples",
+                          form.examples.map((v: any, n: number) =>
+                            n === i
+                              ? {
+                                  ...v,
+                                  parameters: {
+                                    ...v.parameters,
+                                    [key]: +e.target.value,
+                                  },
+                                }
+                              : v,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                ))}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {(
+                form.parameterDefinitions ||
+                form.parameter_definitions ||
+                []
+              ).map((p: any) => (
+                <label key={p.key} className="text-xs">
+                  {p.label || p.key} · {p.unit}
                   <input
-                    required
-                    min={1}
-                    type="number"
                     className="rf-input mt-2 w-full"
-                    value={ex.parameters[key] || ""}
+                    type={p.type === "boolean" ? "checkbox" : "number"}
+                    step={p.integer ? "1" : "any"}
+                    {...(p.type === "boolean"
+                      ? {
+                          checked:
+                            ex.parameters.customParameters?.[p.key] || false,
+                        }
+                      : {
+                          value: ex.parameters.customParameters?.[p.key] ?? "",
+                        })}
                     onChange={(e) =>
                       patch(
                         "examples",
@@ -419,7 +713,13 @@ export function RecipeEditor({
                                 ...v,
                                 parameters: {
                                   ...v.parameters,
-                                  [key]: +e.target.value,
+                                  customParameters: {
+                                    ...v.parameters.customParameters,
+                                    [p.key]:
+                                      p.type === "boolean"
+                                        ? e.target.checked
+                                        : Number(e.target.value),
+                                  },
                                 },
                               }
                             : v,
@@ -430,7 +730,6 @@ export function RecipeEditor({
                 </label>
               ))}
             </div>
-            <div className="grid gap-2 sm:grid-cols-3">{(form.parameterDefinitions || form.parameter_definitions || []).map((p: any)=><label key={p.key} className="text-xs">{p.label || p.key} · {p.unit}<input className="rf-input mt-2 w-full" type={p.type==="boolean"?"checkbox":"number"} step={p.integer?"1":"any"} {...(p.type==="boolean"?{checked:ex.parameters.customParameters?.[p.key] || false}:{value:ex.parameters.customParameters?.[p.key] ?? ""})} onChange={e=>patch("examples",form.examples.map((v: any,n: number)=>n===i?{...v,parameters:{...v.parameters,customParameters:{...v.parameters.customParameters,[p.key]:p.type==="boolean"?e.target.checked:Number(e.target.value)}}}:v))} /></label>)}</div>
             <label className="my-3 flex gap-2 text-xs">
               <input
                 type="checkbox"

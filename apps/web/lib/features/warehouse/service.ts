@@ -6,6 +6,7 @@ import {
   type WorkOrderActor,
 } from "@/lib/features/work-orders/security";
 import { postStockEntryInTransaction } from "@/lib/features/manufacturing/inventory.service";
+import {requireCap} from '../field/common.server';
 import {
   FactoryCommandSchema,
   parseScanCode,
@@ -110,7 +111,7 @@ export async function labelRecord(
   }
   if (kind === "lot") {
     const [r] =
-      await db`SELECT l.id,l.item_id,l.lot_number,l.status,l.remaining_qty,COALESCE(l.location_id,x.id) AS location_id,l.metadata->>'color' AS color,i.name,i.stock_uom FROM stock_lots l JOIN inventory_items i ON i.id=l.item_id AND i.tenant_id=l.tenant_id LEFT JOIN warehouse_locations x ON x.tenant_id=l.tenant_id AND x.warehouse_id=l.warehouse_id AND x.location_type='unassigned' WHERE l.tenant_id=${t} AND l.id=${id}`;
+      await db`SELECT l.id,l.item_id,l.lot_number,l.status,l.remaining_qty,l.length_m,w.name AS warehouse_name,loc.code AS location_code,COALESCE(l.location_id,x.id) AS location_id,l.metadata->>'color' AS color,i.name,i.stock_uom FROM stock_lots l JOIN inventory_items i ON i.id=l.item_id AND i.tenant_id=l.tenant_id LEFT JOIN warehouse_locations x ON x.tenant_id=l.tenant_id AND x.warehouse_id=l.warehouse_id AND x.location_type='unassigned' LEFT JOIN warehouses w ON w.id=l.warehouse_id AND w.tenant_id=l.tenant_id LEFT JOIN warehouse_locations loc ON loc.id=l.location_id AND loc.tenant_id=l.tenant_id WHERE l.tenant_id=${t} AND l.id=${id}`;
     if (!r) fail("Lot bulunamadı", 404);
     return {
       kind,
@@ -118,6 +119,7 @@ export async function labelRecord(
       title: r.lot_number,
       subtitle: r.name,
       quantity: Number(r.remaining_qty),
+      lengthMm:r.length_m==null?null:Number(r.length_m)*1000,warehouseName:r.warehouse_name,locationCode:r.location_code,
       uom: r.stock_uom,
       color: r.color,
       status: r.status,
@@ -235,6 +237,7 @@ export async function executeWarehouse(
   });
   const t = a.tenantId;
   if (c.action === "label.issue") {
+    await requireCap(a,'inventory','view','Etiket hazırlama');
     await labelRecord(a, c.data.kind, c.data.id, tx);
     const prefix = {
       item: "I",
@@ -254,6 +257,7 @@ export async function executeWarehouse(
     };
   }
   if (c.action === "label.print") {
+    await requireCap(a,'inventory','view','Etiket yazdırma');
     requireWarehouseRole(a);
     for (const id of c.data.ids) {
       const [r] =
@@ -264,6 +268,7 @@ export async function executeWarehouse(
     await tx`UPDATE factory_labels SET print_count=print_count+1,last_printed_at=now() WHERE tenant_id=${t} AND id=ANY(${c.data.ids}::uuid[])`;
     return { ok: true };
   }
+  await requireCap(a,'inventory',c.action==='count.review'?'approve':'edit','Depo işlemi');
   requireWarehouseRole(a, true);
   if (c.action === "location.create") {
     const d = c.data;

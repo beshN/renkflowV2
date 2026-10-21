@@ -2,6 +2,7 @@ import 'server-only';
 
 import { sql } from '@/lib/db';
 import { assertModelAllowed } from './gate.server';
+import {COMPANY_RESEARCH_SEARCH_USD} from './company-research';
 
 /** Who a model request was made for; written next to its tokens, latency and cost. */
 export type AIRequestMeta = {
@@ -11,7 +12,9 @@ export type AIRequestMeta = {
 };
 
 /** Anthropic reports prompt-cache reads and writes apart from input_tokens; OpenAI-style usage has neither. */
-type Tokens = { input_tokens?: number | null; output_tokens?: number | null; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null } | null | undefined;
+type Tokens = { input_tokens?: number | null; output_tokens?: number | null; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null;server_tool_use?:{web_search_requests?:number}|null } | null | undefined;
+export function searchRequests(usage:Tokens){const n=usage?.server_tool_use?.web_search_requests;return typeof n==='number'&&Number.isSafeInteger(n)&&n>=0?n:0;}
+export function toolCostUsd(usage:Tokens){return Number((searchRequests(usage)*COMPANY_RESEARCH_SEARCH_USD).toFixed(6));}
 
 /** Anthropic list prices, USD per million tokens. */
 const DEFAULT_PRICES: Record<string, { input: number; output: number }> = {
@@ -46,7 +49,7 @@ export function costUsd(model: string, usage: Tokens): number | null {
   // Cache reads cost 0.1x and 5-minute cache writes 1.25x the input price.
   const input = (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) * 0.1 + (usage.cache_creation_input_tokens ?? 0) * 1.25;
   const output = usage.output_tokens ?? 0;
-  return Number(((input * price.input + output * price.output) / 1_000_000).toFixed(6));
+  return Number(((input * price.input + output * price.output) / 1_000_000+toolCostUsd(usage)).toFixed(6));
 }
 
 let tableMissingLogged = false;
@@ -55,13 +58,20 @@ let tableMissingLogged = false;
 export async function recordAIUsage(entry: AIRequestMeta & { provider: string; model: string; usage?: Tokens; latencyMs: number; status: 'ok' | 'error'; errorCode?: string | null }) {
   try {
     await sql`
-      INSERT INTO ai_usage (tenant_id, user_id, feature, provider, model, input_tokens, output_tokens, cost_usd, latency_ms, status, error_code)
+      INSERT INTO ai_usage (tenant_id, user_id, feature, provider, model, input_tokens, output_tokens, cost_usd, latency_ms, status, error_code,web_search_requests,tool_cost_usd)
       VALUES (${entry.tenantId ?? null}, ${entry.userId ?? null}, ${entry.feature}, ${entry.provider}, ${entry.model},
         ${inputTokens(entry.usage)}, ${entry.usage?.output_tokens ?? null}, ${costUsd(entry.model, entry.usage)},
-        ${Math.round(entry.latencyMs)}, ${entry.status}, ${entry.errorCode ?? null})
+        ${Math.round(entry.latencyMs)}, ${entry.status}, ${entry.errorCode ?? null},${searchRequests(entry.usage)},${toolCostUsd(entry.usage)})
     `;
   } catch (error) {
     const code = (error as { code?: string })?.code;
+    // Existing installations may not have 072 yet. Keep their original usage log working.
+    if(code==='42703'){
+      try{
+        await sql`INSERT INTO ai_usage(tenant_id,user_id,feature,provider,model,input_tokens,output_tokens,cost_usd,latency_ms,status,error_code) VALUES(${entry.tenantId??null},${entry.userId??null},${entry.feature},${entry.provider},${entry.model},${inputTokens(entry.usage)},${entry.usage?.output_tokens??null},${costUsd(entry.model,entry.usage)},${Math.round(entry.latencyMs)},${entry.status},${entry.errorCode??null})`;
+        return;
+      }catch{/* Report the original schema error below if the legacy insert also fails. */}
+    }
     if (code === '42P01') {
       if (!tableMissingLogged) console.warn('[AI usage] ai_usage tablosu yok; 029 migration uygulanana kadar kullanım kaydı tutulmuyor.');
       tableMissingLogged = true;

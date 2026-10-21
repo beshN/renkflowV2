@@ -39,7 +39,7 @@ export default function ProductsPage() {
       const r = await requestJson<Result>('/api/v1/products/recipes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ family, code: f.get('code'), name: f.get('name'), finishedItemId: f.get('finishedItemId'), fileName: file.name, text: file.text, dryRun }),
+        body: JSON.stringify({ family, code: f.get('code'), name: f.get('name'), finishedItemId: f.get('finishedItemId'), fileName: file.name, text: file.text,verificationSource:f.get('verificationSource')||undefined, dryRun }),
       }, { timeoutMs: 60000, fallbackError: 'Reçete okunamadı' });
       if (!r.ok || !r.data) return setError(r.error || 'Reçete okunamadı');
       setResult(r.data);
@@ -108,6 +108,7 @@ export default function ProductsPage() {
             </label>
             <label className="block text-xs">Reçete kodu (fiyat matrisinde varyant)<input name="code" required className="rf-input mt-2 w-full" placeholder="ör. PERGOLA-CIFT-RAY" /></label>
             <label className="block text-xs">Reçete adı<input name="name" required className="rf-input mt-2 w-full" /></label>
+            <label className="block text-xs sm:col-span-2">Doğrulanan teknik kaynak<input name="verificationSource" required={['wind-manual','wind-piston','giyotin'].includes(family)} minLength={5} maxLength={1000} className="rf-input mt-2 w-full" placeholder="Üretici çizimi, teknik belge ve sürümü"/></label>
             <label className="block text-xs sm:col-span-2">CSV dosyası (en fazla 1 MB)
               <input type="file" accept=".csv,text/csv" className="rf-input mt-2 w-full" onChange={async (e) => {
                 const f = e.target.files?.[0];

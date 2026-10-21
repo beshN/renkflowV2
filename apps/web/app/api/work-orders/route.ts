@@ -21,6 +21,7 @@ function parseListQuery(request: NextRequest) {
     assignedToUserId: request.nextUrl.searchParams.get('assignedToUserId') || undefined,
     search: request.nextUrl.searchParams.get('search') || undefined,
     includeClosed: request.nextUrl.searchParams.get('includeClosed') || 'true',
+    sort: request.nextUrl.searchParams.get('sort') || 'priority',
   });
 }
 
@@ -34,8 +35,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid query parameters' }, { status: 400 });
     }
 
+    if (actor.role === 'worker') parsed.data.assignedToUserId = actor.userId;
     const result = await listWorkOrders(actor.tenantId, parsed.data);
-    return NextResponse.json({ success: true, ...result });
+    const capabilities = Object.fromEntries(['create','edit','assign','transition','close','comment','checklist'].map(permission => {
+      try { requireWorkOrderPermission(actor, permission as Parameters<typeof requireWorkOrderPermission>[1]); return [permission,true]; }
+      catch { return [permission,false]; }
+    }));
+    return NextResponse.json({ success: true, ...result, capabilities }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     if (error instanceof WorkOrderApiError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

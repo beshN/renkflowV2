@@ -49,7 +49,7 @@ export async function refreshCuttingSuggestion(actor: SuggestionActor) {
   const { fileSuggestion, expireOtherPending } = await import('../service');
   const proposal = await proposeCutForPool(sql, actor);
   // Nothing waiting, or stock covers none of it (the purchase need is shown on the plan itself).
-  if (!proposal || !proposal.jobs.length || proposal.result.unfulfilled.length) {
+  if (!proposal || !proposal.jobs.length || proposal.result.unfulfilled.length || proposal.result.stockProblems?.length) {
     await expireOtherPending(sql, actor.tenantId, CUTTING_PLAN_KIND, null);
     return;
   }
@@ -66,10 +66,10 @@ export async function refreshCuttingSuggestion(actor: SuggestionActor) {
     null,
     {
       kind: CUTTING_PLAN_KIND,
-      title: `${jobs.length === 1 ? '1 iş emrini kes' : `${jobs.length} iş emrini birlikte kes`}: ${result.bars.length} çubuk, ${percent(result.wastePercent)} fire`,
+      title: `${jobs.length === 1 ? '1 iş emrini kes' : `${jobs.length} iş emrini birlikte kes`}: ${result.bars.length} çubuk, ${(result.wastePercent == null ? 'hesaplanamadı' : percent(result.wastePercent))} fire`,
       rationale: [
         `Kesim bekleyen ${jobs.length} iş emri kesim motoruyla ${jobs.length === 1 ? '' : 'birlikte '}hesaplandı (${result.alternatives.length} yerleşim karşılaştırıldı).`,
-        `${result.bars.length} çubuk kullanılır: ${result.newBars} yeni çubuk${remnants ? `, ${remnants} artık` : ''}. Fire ${mmText(result.wasteMm)} mm (${percent(result.wastePercent)}), ${mmText(result.reusableMm)} mm kullanılabilir artık kalır.`,
+        `${result.bars.length} çubuk kullanılır: ${result.newBars} yeni çubuk${remnants ? `, ${remnants} artık` : ''}. Fire ${mmText(result.wasteMm)} mm (${(result.wastePercent == null ? 'hesaplanamadı' : percent(result.wastePercent))}), ${mmText(result.reusableMm)} mm kullanılabilir artık kalır.`,
         `Değerler: testere payı ${p.kerfMm} mm, tıraş ${p.trimStartMm}/${p.trimEndMm} mm, en kısa artık ${p.minimumRemnantMm} mm.`,
         ...(leftOut.length ? [`${leftOut.length} iş emri için stokta yeterli profil yok; bu öneriye alınmadı (Toplu kesim'de satın alma ihtiyacı görünür).`] : []),
         ...(morePending ? ['Kesim bekleyen 100\'den fazla iş var; en eski 100 iş hesaba katıldı.'] : []),

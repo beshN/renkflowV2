@@ -13,6 +13,9 @@ import {
 import { istanbulToday } from './order-status.server';
 import { salesAvailable } from './quotes.server';
 import { rebuildConfiguredJob } from '@/lib/features/manufacturing/platform.service';
+import { resolveMemberAccess } from '@/lib/security/member-access.server';
+import { can } from '@/lib/security/access-matrix';
+import { tableExists } from '@/lib/db/schema-guard';
 
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Tarih YYYY-AA-GG olmalı');
 const iso = (d: unknown) => (d ? new Date(d as string).toISOString().slice(0, 10) : null);
@@ -63,7 +66,7 @@ export async function orderSales(actor: WorkOrderActor, id: string) {
   requireView(actor);
   if (!(await salesAvailable())) return { available: false as const };
   z.string().uuid().parse(id);
-  const [o] = await sql`SELECT id, status, total_amount, currency, delivery_date, promised_date, delivered_on FROM orders WHERE tenant_id = ${actor.tenantId} AND id = ${id}`;
+  const [o] = await sql`SELECT id, status, total_amount, currency, delivery_date, promised_date, delivered_on,to_jsonb(orders)->>'technical_file_required' AS technical_file_required FROM orders WHERE tenant_id = ${actor.tenantId} AND id = ${id}`;
   if (!o) throw new WorkOrderApiError('Sipariş bulunamadı', 404);
   const today = istanbulToday();
   const [lines, deliveries, plan, [paid], changes] = await Promise.all([
@@ -79,6 +82,7 @@ export async function orderSales(actor: WorkOrderActor, id: string) {
   const total = Number(o.total_amount);
   return {
     available: true as const,
+    manualDeliveryAllowed:o.technical_file_required!=='true',
     today,
     status: o.status as string,
     currency: o.currency as string,
@@ -130,6 +134,7 @@ export async function recordDelivery(actor: WorkOrderActor, id: string, raw: unk
   await withTransaction(async (tx: any) => {
     const o = await lockOrder(tx, actor.tenantId, id);
     if (['cancelled', 'pending', 'new', 'pending_approval'].includes(o.status)) throw new WorkOrderApiError('Onaylanmamış ya da iptal edilmiş siparişe teslim girilemez', 409);
+    if(o.technical_file_required)throw new WorkOrderApiError('Bu siparişin yükleme ve teslim kaydını sipariş dosyasındaki Yükleme ve teslim bölümünden yapın',409);
     const lines = await lineStates(tx, actor.tenantId, id);
     const summary: string[] = [];
     for (const l of d.lines) {
@@ -253,6 +258,20 @@ export async function decideChange(actor: WorkOrderActor, orderId: string, chang
     const impact = changeImpact(o.status, lines, changes);
     if (impact.level === 'block') throw new WorkOrderApiError(impact.reasons.join('; '), 409);
     if (impact.level === 'warn' && !d.acknowledgeImpact) throw new WorkOrderApiError(`Üretim etkisini onaylayın: ${impact.reasons.join('; ')}`, 409);
+    const changesProduction=changes.some(ch=>PRODUCTION_FIELDS.some(f=>ch[f]!==undefined));
+    let controlledTechnical=false;
+    if(changesProduction && await tableExists('order_technical_revisions')){
+      const revisions=await tx`SELECT id FROM order_technical_revisions WHERE tenant_id=${actor.tenantId} AND order_id=${orderId} AND status IN('approved','blocked') FOR UPDATE`;
+      controlledTechnical=revisions.length>0;
+      if(controlledTechnical){
+        const access=await resolveMemberAccess(actor.userId,actor.tenantId);
+        if(!access||access.deactivated||!can(access,'production','approve'))throw new WorkOrderApiError('Kritik ölçü revizyonu için üretim onay yetkisi gerekli',403);
+        if((await tx`SELECT 1 FROM production_shipments WHERE tenant_id=${actor.tenantId} AND order_id=${orderId} LIMIT 1`).length)throw new WorkOrderApiError('Araca yüklenmiş veya teslim edilmiş ürün için önce iade ve fiziksel stok kontrolü gerekli',409);
+        await tx`UPDATE order_technical_revisions SET status='blocked',impact=coalesce(impact,'{}'::jsonb)||${JSON.stringify({orderChangeId:changeId})}::text::jsonb WHERE tenant_id=${actor.tenantId} AND id=ANY(${revisions.map((r:any)=>r.id)}::uuid[])`;
+        await tx`UPDATE order_technical_revisions SET status='superseded' WHERE tenant_id=${actor.tenantId} AND order_id=${orderId} AND status='draft'`;
+        await tx`UPDATE production_operations p SET status='paused',active_seconds=p.active_seconds+CASE WHEN p.active_since IS NOT NULL THEN GREATEST(0,EXTRACT(EPOCH FROM (now()-p.active_since))) ELSE 0 END,active_since=NULL,version=p.version+1,updated_at=now() FROM work_orders w WHERE p.tenant_id=${actor.tenantId} AND w.tenant_id=p.tenant_id AND w.id=p.work_order_id AND w.order_id=${orderId} AND p.status='running'`;
+      }
+    }
     const trace: Record<string, { from: unknown; to: unknown }> = {};
     const bomPending: string[] = [];
     let linesBefore = 0;
@@ -284,7 +303,18 @@ export async function decideChange(actor: WorkOrderActor, orderId: string, chang
       }
       if (PRODUCTION_FIELDS.some((f) => ch[f] !== undefined)) {
         // A configured line gets its bill of materials again; an unstarted work order is rebuilt with it.
-        const rebuild = await rebuildConfiguredJob(tx, actor, line.orderItemId, o.currency);
+        let rebuild:Awaited<ReturnType<typeof rebuildConfiguredJob>>;
+        if(controlledTechnical){
+          const [item]=await tx`SELECT * FROM order_items WHERE order_id=${orderId} AND id=${line.orderItemId}`;
+          const pc=item.product_configuration;
+          if(pc){
+            const {configureProduct}=await import('../products/configure.service');
+            const configured=await configureProduct(tx,actor.tenantId,o.currency,{family:pc.family,recipeId:pc.recipeId,color:item.color||pc.color,parameters:{...pc.parameters,widthMm:Number(item.width_mm)||pc.parameters.widthMm,projectionMm:pc.parameters.projectionMm===0?0:Number(item.projection_mm)||pc.parameters.projectionMm,mountingHeightMm:Number(item.mounting_height_mm)||pc.parameters.mountingHeightMm}});
+            configured.price={...configured.price,source:'manual',message:'Onaylı sipariş değişikliği; mevcut fiyat korunur'};
+            await tx`UPDATE order_items SET product_configuration=${JSON.stringify(configured)}::text::jsonb WHERE order_id=${orderId} AND id=${line.orderItemId}`;
+          }
+          rebuild={rebuilt:false,reason:'Teknik sürüm durduruldu; yeni föy ve parça kararı bekleniyor'};
+        }else rebuild = await rebuildConfiguredJob(tx, actor, line.orderItemId, o.currency);
         if (rebuild.rebuilt && rebuild.workOrderId) trace[`${line.productName} iş emri`] = { from: rebuild.replaced ?? null, to: rebuild.workOrderId };
         if (!rebuild.rebuilt && rebuild.reason) bomPending.push(`${line.productName}: ${rebuild.reason}`);
         // Everyone on the line's work order hears of it: its owner and the people on its steps.

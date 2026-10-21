@@ -51,7 +51,7 @@ export const FoyIronCutSchema = z.object({
 export const FoyWindbreakerSchema = z.object({
   orderDate: z.string().nullable(),
   deliveryDate: z.string().nullable(),
-  systemCount: z.number().int().positive().nullable(),
+  systemCount: z.number().int().positive().max(1000).nullable(),
   planter: z.string().nullable(),
   crate: z.string().nullable(),
   widthCm: cm,

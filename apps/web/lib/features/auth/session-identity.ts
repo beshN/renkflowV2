@@ -1,3 +1,4 @@
+import { currentCompany } from '@/lib/features/company/host.server';
 import { isPrivateAccessAllowed } from './private-access';
 import type { JWT } from "next-auth/jwt";
 import { getSql } from "@/lib/db";
@@ -14,6 +15,8 @@ export async function refreshSessionIdentity(token: JWT): Promise<JWT | null> {
     !uuid.test(token.tenantId)
   )
     return null;
+  const company = await currentCompany();
+  if (company && company.id !== token.tenantId) return null;
   const sql = getSql();
   const [identity] = await sql`
     SELECT u.id,u.name,u.email,u.image,m.role,t.id AS tenant_id,t.name AS tenant_name,

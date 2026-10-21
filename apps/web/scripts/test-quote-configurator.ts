@@ -24,6 +24,21 @@ async function main() {
   const { calculateRecipe } = await import('../lib/features/manufacturing/recipe-engine');
   const { quotationService } = await import('../lib/features/quotations/service');
   const { sql } = await import('../lib/db');
+  // Preserve the existing recipe/warehouse/rebuild coverage with a legacy production fixture.
+  // New quote files never release production at conversion (covered in test-order-technical).
+  const convertLegacyFixture:typeof quotationService.convertToOrder=async(t,id,userId,_version,role)=>{
+    let q:any=await quotationService.getQuotationById(t,id);
+    if(q.status==='draft')q=await quotationService.updateStatus(t,id,'sent',q.version,ownerId,'owner');
+    if(q.status==='sent')q=await quotationService.updateStatus(t,id,'accepted',q.version,ownerId,'owner');
+    const result=await quotationService.convertToOrder(t,id,userId,q.version,role);
+    assert.equal(result.workOrders,undefined,'commercial conversion does not start production');
+    const {withTransaction}=await import('../lib/db');
+    const {createJobsForConfiguredOrder}=await import('../lib/features/manufacturing/platform.service');
+    const production=await withTransaction(async tx=>{await tx`UPDATE orders SET technical_file_required=false WHERE tenant_id=${t} AND id=${result.orderId}`;return createJobsForConfiguredOrder(tx,{tenantId:t,userId:userId||'',role:role as any},result.orderId);});
+    if(production.created.length){const {notifyWorkOrdersAssigned}=await import('../lib/notifications/service');await notifyWorkOrdersAssigned(t,production.created,userId);}
+    return {...result,workOrders:production.created,pendingWorkOrders:production.pending};
+  };
+
 
   const tenantId = randomUUID(), ownerId = randomUUID(), officeId = randomUUID(), workerId = randomUUID(), rawId = randomUUID();
   await db`INSERT INTO tenants (id, name, slug) VALUES (${tenantId}, 'Configurator test', ${'conf-' + tenantId.slice(0, 8)})`;
@@ -114,7 +129,7 @@ async function main() {
   const usd: any = await quotationService.updateQuotation(tenantId, quote.id, { expectedVersion: noted.version, currency: 'USD', items: [item(700, { productConfiguration: noted.items[0].productConfiguration })] } as any);
   assert.deepEqual([usd.items[0].unitPrice, usd.items[0].productConfiguration.price.state], [700, 'currency_mismatch']);
   // The order made from the quote keeps the configuration: recipe, cut list and price source.
-  const converted = await quotationService.convertToOrder(tenantId, quote.id, officeId, usd.version, 'office');
+  const converted = await convertLegacyFixture(tenantId, quote.id, officeId, usd.version, 'office');
   const [orderLine] = await db`SELECT product_configuration FROM order_items WHERE order_id = ${converted.orderId}`;
   assert.deepEqual([orderLine.product_configuration.recipe.code, orderLine.product_configuration.bom.cuts[0].lengthMm, orderLine.product_configuration.price.source], ['PRG', 2980, 'manual']);
   // Only a raw-material warehouse: no warehouse is guessed; the line waits for its work order, with the reason.
@@ -128,7 +143,7 @@ async function main() {
   await db`INSERT INTO stock_balances (tenant_id, item_id, warehouse_id, on_hand_qty) VALUES (${tenantId}, ${p108}, ${rawId}, 12) ON CONFLICT (tenant_id, item_id, warehouse_id) DO UPDATE SET on_hand_qty = 12`;
   const second: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) })] } as any, officeId);
   assert.equal(second.items[0].unitPrice, 20000);
-  const done = await quotationService.convertToOrder(tenantId, second.id, officeId, second.version, 'office');
+  const done = await convertLegacyFixture(tenantId, second.id, officeId, second.version, 'office');
   assert.deepEqual([done.workOrders!.length, done.pendingWorkOrders], [1, []]);
   const [job] = await db`SELECT recipe_id, assigned_to, configuration, bom_snapshot, source_warehouse_id, wip_warehouse_id, target_warehouse_id FROM work_orders WHERE id = ${done.workOrders![0].id}`;
   assert.deepEqual([job.recipe_id, job.assigned_to, job.configuration.bodyName, job.source_warehouse_id, job.wip_warehouse_id, job.target_warehouse_id], [row.id, officeId, 'Test Gri', rawId, wipId, finishedId]);
@@ -139,7 +154,7 @@ async function main() {
   assert.deepEqual(proposal.result.unfulfilled, []);
   // The work order of a configured line is built only with the recipe it was quoted with.
   const other: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) })] } as any, officeId);
-  const orderOnly: any = await quotationService.convertToOrder(tenantId, other.id, officeId, other.version, 'accountant');
+  const orderOnly: any = await convertLegacyFixture(tenantId, other.id, officeId, other.version, 'accountant');
   assert.match(orderOnly.pendingWorkOrders[0].reason, /yönetici ya da ofis/);
   const [otherLine] = await db`SELECT id FROM order_items WHERE order_id = ${orderOnly.orderId}`;
   const otherRecipe = (await db`INSERT INTO production_recipes (tenant_id, code, name, version, status, finished_item_id, rules, operations, limits) VALUES (${tenantId}, 'BASKA', 'Başka', 1, 'published', ${pergola}, ${row.rules}, ${row.operations}, ${row.limits}) RETURNING id`)[0].id;
@@ -149,7 +164,7 @@ async function main() {
   await assert.rejects(productionCommand(owner as any, { commandId: randomUUID(), action: 'job.create', data: { orderItemId: otherLine.id, recipeId: row.id, sourceWarehouseId: rawId, wipWarehouseId: wipId, targetWarehouseId: finishedId, assignedTo: ownerId } }), /kesim listesi teklifteki ile aynı değil/);
   // Converting without a known person still makes the order and says the work order waits.
   const third: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) })] } as any, officeId);
-  const anonymous: any = await quotationService.convertToOrder(tenantId, third.id);
+  const anonymous: any = await convertLegacyFixture(tenantId, third.id);
   assert.equal(anonymous.pendingWorkOrders.length, 1);
   // A default production lead gets the work orders and is told; a lead who left the team is not replaced by a guess.
   const { saveProductionLead, productionSettings } = await import('../lib/features/settings/production-settings.service');
@@ -159,12 +174,12 @@ async function main() {
   assert.equal((await productionSettings(owner as any)).leadUserId, workerId);
   const ralChoice = { ...draftChoice, color: 'RAL 7016 Mat' };
   const led: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: ralChoice }) })] } as any, officeId);
-  const ledDone: any = await quotationService.convertToOrder(tenantId, led.id, officeId, led.version, 'office');
+  const ledDone: any = await convertLegacyFixture(tenantId, led.id, officeId, led.version, 'office');
   const ledJob = ledDone.workOrders[0].id;
   assert.equal(ledDone.workOrders[0].assignedTo, workerId);
   assert.equal((await db`SELECT assigned_to FROM work_orders WHERE id = ${ledJob}`)[0].assigned_to, workerId);
   const [notice] = await db`SELECT type, title, message, data FROM notifications WHERE tenant_id = ${tenantId} AND user_id = ${workerId}`;
-  assert.deepEqual([notice.type, notice.title, notice.data.workOrderIds, notice.data.href, notice.data.colors], ['work_order:assigned', 'Yeni üretim emri', [ledJob], '/factory', ['RAL 7016 Mat']]);
+  assert.deepEqual([notice.type, notice.title, notice.data.workOrderIds, notice.data.href, notice.data.colors], ['work_order:assigned', 'Yeni üretim listesi', [ledJob], '/production/worker', ['RAL 7016 Mat']]);
   assert.match(notice.message, /\(RAL 7016 Mat\) size atandı/);
   // Bars written before the RAL list ("7016 MAT") are cut for the RAL 7016 Mat job.
   for (const lot of ['L-7016-A', 'L-7016-B'])
@@ -205,7 +220,7 @@ async function main() {
   await db`DELETE FROM tenant_members WHERE tenant_id = ${tenantId} AND user_id = ${workerId}`;
   assert.equal((await productionSettings(owner as any)).leadLeft, true, 'the settings screen says the lead left');
   const gone: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) })] } as any, officeId);
-  const goneDone: any = await quotationService.convertToOrder(tenantId, gone.id, officeId, gone.version, 'office');
+  const goneDone: any = await convertLegacyFixture(tenantId, gone.id, officeId, gone.version, 'office');
   assert.match(goneDone.pendingWorkOrders[0].reason, /üretim sorumlusu artık üretim ekibinde değil/);
   // An applied change request on a configured line: the bill of materials is worked out again with the
   // new width and the unstarted work order is opened again with it (the old one cancelled); once a cut

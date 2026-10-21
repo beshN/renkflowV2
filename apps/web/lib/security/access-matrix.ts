@@ -8,7 +8,7 @@ import type { UserRole } from '@/lib/auth/permissions';
 
 export const MODULES = [
   'orders', 'quotations', 'customers', 'crm', 'installations', 'service', 'production', 'inventory',
-  'purchasing', 'finance', 'reports', 'fleet', 'team', 'settings', 'audit',
+  'knowledge', 'purchasing', 'finance', 'reports', 'fleet', 'team', 'settings', 'audit',
 ] as const;
 export type Module = (typeof MODULES)[number];
 export const ACTIONS = ['view', 'create', 'edit', 'delete', 'approve', 'export'] as const;
@@ -20,7 +20,7 @@ export type Matrix = Partial<Record<Module, Action[]>>;
 export const MODULE_LABELS: Record<Module, string> = {
   orders: 'Siparişler', quotations: 'Teklifler', customers: 'Müşteriler', crm: 'Potansiyel müşteriler', installations: 'Montaj',
   service: 'Servis', production: 'Üretim', inventory: 'Stok', purchasing: 'Satın alma', finance: 'Finans', reports: 'Raporlar',
-  fleet: 'Araç filosu', team: 'Ekip', settings: 'Ayarlar', audit: 'Denetim izi',
+  knowledge: 'Bilgi bankası', fleet: 'Araç filosu', team: 'Ekip', settings: 'Ayarlar', audit: 'Denetim izi',
 };
 export const ACTION_LABELS: Record<Action, string> = { view: 'Görüntüle', create: 'Oluştur', edit: 'Düzenle', delete: 'Sil', approve: 'Onayla', export: 'Dışa aktar' };
 export const FIELD_LABELS: Record<FieldGroup, string> = { price: 'Fiyat', cost: 'Maliyet', profit: 'Kâr', customer_contact: 'Müşteri iletişim bilgisi' };
@@ -36,16 +36,16 @@ export const BASE_CAPS: Record<UserRole, Matrix> = {
   owner: everything(ALL),
   admin: everything(ALL),
   office: {
-    orders: RW, quotations: RW, customers: RW, crm: RW, installations: RW, service: RW, production: RW,
+    knowledge: RW, orders: RW, quotations: RW, customers: RW, crm: RW, installations: RW, service: RW, production: RW,
     inventory: RW, purchasing: RW, reports: ['view', 'export'], settings: VIEW, team: VIEW,
   },
   accountant: {
-    orders: VIEW, quotations: VIEW, customers: ['view', 'export'], crm: VIEW, installations: VIEW, service: VIEW,
+    knowledge: VIEW, orders: VIEW, quotations: VIEW, customers: ['view', 'export'], crm: VIEW, installations: VIEW, service: VIEW,
     inventory: VIEW, purchasing: ['view', 'export'], finance: ALL, reports: ['view', 'export'], settings: VIEW, team: VIEW,
   },
   // Rows are further limited by the existing checks (a worker sees only jobs assigned to them, as a technical view).
-  worker: { orders: VIEW, production: ['view', 'edit'], inventory: VIEW, installations: ['view', 'edit'], service: ['view', 'edit'] },
-  member: { orders: ['view', 'edit'], customers: VIEW },
+  worker: { knowledge: VIEW, orders: VIEW, production: ['view', 'edit'], inventory: VIEW, installations: ['view', 'edit'], service: ['view', 'edit'] },
+  member: { knowledge: VIEW, orders: ['view', 'edit'], customers: VIEW },
 };
 /** Fields a base role never sees, whatever its role says. */
 export const BASE_HIDDEN: Record<UserRole, FieldGroup[]> = {
@@ -125,7 +125,7 @@ const API_MODULES: Array<[string, Module | null]> = [
   ['/api/v1/warehouse', 'inventory'], ['/api/v1/procurement', 'purchasing'], ['/api/v1/purchases', 'purchasing'], ['/api/v1/suppliers', 'purchasing'],
   ['/api/v1/finance', 'finance'], ['/api/v1/payments', 'finance'], ['/api/v1/accounting', 'finance'], ['/api/v1/invoices', 'finance'],
   ['/api/v1/reports', 'reports'], ['/api/v1/analytics', 'reports'], ['/api/v1/exports', 'reports'], ['/api/v1/vehicles', 'fleet'],
-  ['/api/tenant/invite', 'team'], ['/api/tenant/invites', 'team'], ['/api/v1/team', 'team'], ['/api/tenant/update', 'settings'],
+  ['/api/v1/knowledge', 'knowledge'], ['/api/v1/company', 'settings'], ['/api/v1/stations', 'settings'], ['/api/tenant/invite', 'team'], ['/api/tenant/invites', 'team'], ['/api/v1/team', 'team'], ['/api/tenant/update', 'settings'],
   ['/api/audit', 'audit'], ['/api/v1/audit', 'audit'],
   ['/api/v1/records', null], ['/api/tenant/members', null], ['/api/v1/search', null], ['/api/v1/notifications', null], ['/api/v1/me', null], ['/api/v1/activity-logs', null],
 ];
@@ -134,7 +134,7 @@ const PAGE_MODULES: Array<[string, Module]> = [
   ['/leads', 'crm'], ['/installations', 'installations'], ['/service', 'service'], ['/production', 'production'],
   ['/work-orders', 'production'], ['/inventory', 'inventory'], ['/warehouse', 'inventory'], ['/purchases', 'purchasing'], ['/receipts', 'purchasing'],
   ['/suppliers', 'purchasing'], ['/finance', 'finance'], ['/accounting', 'finance'], ['/reports', 'reports'], ['/analytics', 'reports'],
-  ['/vehicles', 'fleet'], ['/team', 'team'], ['/settings', 'settings'], ['/audit', 'audit'],
+  ['/knowledge', 'knowledge'], ['/vehicles', 'fleet'], ['/team', 'team'], ['/settings', 'settings'], ['/audit', 'audit'],
 ];
 const longest = <T>(list: Array<[string, T]>, path: string) =>
   list.filter(([p]) => path === p || path.startsWith(p + '/')).sort((a, b) => b[0].length - a[0].length)[0];
@@ -147,6 +147,10 @@ const longest = <T>(list: Array<[string, T]>, path: string) =>
 export function routeRequirement(path: string, method: string): { module: Module; action: Action; orCreate?: boolean } | null {
   const api = path.startsWith('/api/');
   const m = method.toUpperCase();
+  // Mixed command endpoints enforce their action's exact permission in the service.
+  // A daily entry is an edit; printing an existing label only needs stock visibility.
+  if(path==='/api/v1/production'&&m==='POST')return {module:'production',action:'edit',orCreate:true};
+  if(path==='/api/v1/warehouse'&&m==='POST')return {module:'inventory',action:'view'};
   // Quote screens read the firm's sales defaults (VAT, validity); changing them stays a settings edit.
   if (path === '/api/v1/sales/settings' && (m === 'GET' || m === 'HEAD')) return { module: 'quotations', action: 'view' };
   const hit = api ? longest(API_MODULES, path) : longest(PAGE_MODULES, path);

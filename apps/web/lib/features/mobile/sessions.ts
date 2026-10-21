@@ -1,3 +1,4 @@
+import { assertCompanyHostTenant, companyForHost } from '@/lib/features/company/host.server';
 import 'server-only';
 import {createHash,randomBytes,randomUUID,createCipheriv,createDecipheriv} from 'node:crypto';
 import jwt from 'jsonwebtoken';
@@ -27,15 +28,17 @@ export async function requireMobileSession(request:NextRequest) {
  const token=request.headers.get('authorization')?.replace(/^Bearer /,'');if(!token) throw new WorkOrderApiError('Oturum açın.',401);
  let p:jwt.JwtPayload;try {p=jwt.verify(token,secret(),{algorithms:['HS256'],audience:'renkflow-mobile'}) as jwt.JwtPayload;} catch {throw new WorkOrderApiError('Oturumunuz sona erdi.',401);}
  if(p.type!=='mobile'||typeof p.sid!=='string'||!p.sub||!p.tenantId) throw new WorkOrderApiError('Mobil oturum geçersiz.',401);
+ await assertCompanyHostTenant(String(p.tenantId),(request.headers.get('host') || new URL(request.url).host));
  await schema();const [r]=await sql`SELECT s.id FROM mobile_sessions s JOIN user_sessions u ON u.id=s.id WHERE s.id=${p.sid} AND s.user_id=${p.sub} AND s.tenant_id=${p.tenantId} AND u.revoked_at IS NULL AND s.expires_at>now()`;
  if(!r) throw new WorkOrderApiError('Bu cihazın oturumu iptal edildi.',401);
  return p;
 }
 export async function mobileLogin(request:NextRequest,raw:unknown,platform:string) {
+ const company=await companyForHost((request.headers.get('host') || new URL(request.url).host));
  const input=validateMobileDTO('LoginInput',raw) as {email:string;password:string;deviceId?:string};
  const email=input.email.trim().toLowerCase(),attempt=await consumeLoginAttempt(getClientIp(request.headers),email);
  if(!attempt.allowed) throw new WorkOrderApiError('Çok fazla giriş denemesi. Biraz bekleyin.',429);
- const [r]=await sql`SELECT u.id,u.email,u.name,u.password,u.email_verified,m.tenant_id,m.role FROM users u LEFT JOIN LATERAL(SELECT * FROM tenant_members WHERE user_id=u.id ORDER BY CASE role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END,created_at LIMIT 1) m ON true WHERE u.email=${email}`;
+ const [r]=await sql`SELECT u.id,u.email,u.name,u.password,u.email_verified,m.tenant_id,m.role FROM users u LEFT JOIN LATERAL(SELECT * FROM tenant_members WHERE user_id=u.id AND (${company?.id ?? null}::uuid IS NULL OR tenant_id=${company?.id ?? null}::uuid) AND (to_jsonb(tenant_members)->>'deactivated_at') IS NULL ORDER BY CASE role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END,created_at LIMIT 1) m ON true WHERE u.email=${email}`;
  const valid=await verifyPassword(input.password,r?.password);
  // Failed attempts on a member account are recorded without awaiting (same timing as unknown accounts).
  if(!r||!valid||!isPrivateAccessAllowed(email)) {if(r?.tenant_id) void recordAuditAfterCommit({tenantId:r.tenant_id,actorId:r.id,entityType:'user',entityId:r.id,action:'login_failed',metadata:{method:'mobile',platform}});throw new WorkOrderApiError('E-posta veya şifre hatalı.',401);}

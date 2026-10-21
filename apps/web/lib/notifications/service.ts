@@ -508,13 +508,12 @@ export async function notifyWorkOrdersAssigned(
       try {
         const prefs = await getNotificationPreferences(userId);
         if ((prefs?.inApp as Record<string, unknown> | undefined)?.['work_order:assigned'] === false) return;
-        // A worker follows work in the factory screen; the others in production.
-        const href = list[0].assigneeRole === 'worker' ? '/factory' : '/production';
+        const href = '/production/worker';
         // The colour goes as text ("RAL 7016 Mat"); the notice screen draws the swatch from it.
         const named = (j: (typeof list)[number]) => (j.color ? `${j.title} (${j.color})` : j.title);
-        const message = list.length === 1 ? `${named(list[0])} size atandı.` : `${list.length} üretim emri size atandı: ${list.slice(0, 3).map(named).join('; ')}${list.length > 3 ? '; …' : ''}`;
+        const message = list.length === 1 ? `${named(list[0])} size atandı.` : `${list.length} üretim listesi size atandı: ${list.slice(0, 3).map(named).join('; ')}${list.length > 3 ? '; …' : ''}`;
         const colors = [...new Set(list.map((j) => j.color).filter((c): c is string => Boolean(c)))];
-        await createNotification(userId, tenantId, 'work_order:assigned', list.length === 1 ? 'Yeni üretim emri' : `${list.length} yeni üretim emri`, message, { workOrderIds: list.map((j) => j.id), href, colors });
+        await createNotification(userId, tenantId, 'work_order:assigned', list.length === 1 ? 'Yeni üretim listesi' : `${list.length} yeni üretim listesi`, message, { workOrderIds: list.map((j) => j.id), href, colors });
       } catch (error) {
         console.error('[notifications] work order assignment notice failed', error instanceof Error ? error.message : error);
       }

@@ -9,10 +9,11 @@ import { join, relative } from 'node:path';
 const ROOT = join(__dirname, '..', '..');
 const API = join(ROOT, 'app', 'api');
 
-const GUARD = /getAPIUser|requireWorkOrderActor|getServerUserContext|requireTenantContext|\bauth\(\)|apiContextWithPermission|requireCustomerActor|runCron|internalAuthorized|resolveTenantMembership|fieldActor|requireMobileSession/;
+const GUARD = /getAPIUser|requireWorkOrderActor|getServerUserContext|requireTenantContext|\bauth\(\)|apiContextWithPermission|requireCustomerActor|runCron|internalAuthorized|resolveTenantMembership|fieldActor|requireMobileSession|stationDevice/;
 
 /** Public on purpose: path → why, and what must stay in the file to keep it safe. */
 const PUBLIC: Record<string, { why: string; keeps: RegExp | null }> = {
+  'station/pair': { why: 'tek kullanımlık hashlenmiş yönetici eşleştirme kodu ve IP hız sınırı', keeps: /consumeRateLimit[\s\S]*pairStation/ },
   'auth/[...nextauth]': { why: 'NextAuth giriş uç noktası', keeps: /handlers/ },
   'auth/forgot-password': { why: 'şifre sıfırlama talebi', keeps: /consumeRateLimit/ },
   'auth/register': { why: 'kayıt', keeps: /consumeRateLimit/ },

@@ -30,7 +30,7 @@ async function main() {
     server.stdout?.on('data', b => { serverOutput += String(b); });
     server.stderr?.on('data', b => { serverOutput += String(b); });
     for (let i = 0; i < 90; i++) { try { if ((await fetch(origin + '/api/health')).ok) break; } catch { /* Starting. */ } await new Promise(resolve => setTimeout(resolve, 500)); }
-    const executablePath = existsSync(chromium.executablePath()) ? chromium.executablePath() : process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : undefined;
+    const executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH || (existsSync(chromium.executablePath()) ? chromium.executablePath() : process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : undefined);
     browser = await chromium.launch({ headless: true, executablePath });
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, colorScheme: 'dark' });
     const page = await context.newPage();

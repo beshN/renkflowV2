@@ -87,6 +87,12 @@ async function main() {
       idempotencyKey: randomUUID(), customerName: `Müşteri ${i + 1}`, currency: 'TRY', discountPercent: 0,
       items: [{ productName: 'Tente', quantity: 1, unitPrice: 20000, discountPercent: 0, totalPrice: 0, awningConfiguration: config, widthMm: 3000, projectionMm: 1500, mountingHeightMm: 3100, heightMm: 2100 }],
     } as any, (i % 2 ? office : owner).userId))));
+    // Orders open only from quotes the customer accepted; both desks send and record the yes at once.
+    await timed('24 quotes sent and accepted', () => Promise.all(quoteList.map(async (q, i) => {
+      const by = i % 2 ? office : owner;
+      const sent = await quotes.updateStatus(tenant.id, q.id, 'sent', q.version, by.userId, by.role);
+      return quotes.updateStatus(tenant.id, q.id, 'accepted', sent.version, by.userId, by.role);
+    })));
     const conversions = await timed('24 conversions (+8 double clicks)', () => Promise.all(quoteList.flatMap((q, i) => {
       const convert = () => quotes.convertToOrder(tenant.id, q.id, (i % 2 ? office : owner).userId);
       return i < 8 ? [convert(), convert()] : [convert()];
@@ -98,6 +104,10 @@ async function main() {
     assert.equal(new Set(orders.map((o) => o.order_number)).size, 24, 'order numbers are unique under load');
     const items = await db`SELECT i.id, i.order_id FROM order_items i JOIN orders o ON o.id = i.order_id WHERE o.tenant_id = ${tenant.id}`;
     assert.equal(items.length, 24);
+
+    // Orders opened from quotes wait for a technical plan; this load test works on the lines directly,
+    // as the other production scripts do.
+    await db`UPDATE orders SET technical_file_required = false WHERE tenant_id = ${tenant.id}`;
 
     // ── 2. Work orders for every line at once; a refresh resubmits four of them ──────────────────
     const jobFor = (orderItemId: string, commandId?: string, assignee = masters[0]) => cmd('job.create', { orderItemId, recipeId: recipe.id, sourceWarehouseId: wh.RAW.id, wipWarehouseId: wh.WIP.id, targetWarehouseId: wh.FINISHED.id, assignedTo: assignee.userId }, commandId);

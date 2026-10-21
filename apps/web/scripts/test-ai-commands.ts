@@ -128,7 +128,8 @@ async function main() {
   const cancel: any = await runCommand(owner, { text: `${late.order_number} iptal etsek ne olur` });
   assert.equal(cancel.type, 'preview');
   assert.match(cancel.title, /iptal edilirse/);
-  assert.equal(((await runCommand(owner, { text: "ORD-YOK-999'u öne al" })) as any).type, 'need');
+  // Seven digits: no order number in this firm (random three-character quote-file suffixes included) can end in it.
+  assert.equal(((await runCommand(owner, { text: "ORD-YOK-9999999'u öne al" })) as any).type, 'need');
 
   // Review fixes: "ORD-12" never picks "ORD-112"; another person cannot approve a command preview;
   // an order changed after the preview, or one with open work orders, is not cancelled.
@@ -193,7 +194,7 @@ async function main() {
   await team.updateMember(owner as any, ids.office, { accessRole: null });
   access.forgetMemberAccess(ids.office, tenantId);
 
-  for (const t of ['purchase_orders', 'suppliers', 'stock_balances', 'stock_lots', 'warehouse_locations', 'warehouses', 'inventory_items', 'quotation_items', 'quotations', 'work_orders', 'orders', 'ai_suggestions'])
+  for (const t of ['purchase_orders', 'suppliers', 'stock_balances', 'stock_lots', 'warehouse_locations', 'warehouses', 'inventory_items', 'work_orders', 'orders', 'quotation_items', 'quotations', 'ai_suggestions'])
     await db`DELETE FROM ${db(t)} WHERE tenant_id = ${tenantId}`;
   await db`DELETE FROM tenants WHERE id = ${tenantId}`;
   await db`DELETE FROM users WHERE id = ANY(${Object.values(ids)}::uuid[])`;

@@ -1,9 +1,11 @@
 import 'server-only';
+import type { StationCapability } from '@/lib/features/stations/contract';
 
 import { resolveMemberAccess } from '@/lib/security/member-access.server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
 import { UserRole } from '@/lib/features/auth/permissions';
+import { can, type Access } from '@/lib/security/access-matrix';
 
 export type WorkOrderPermission =
   | 'view'
@@ -17,9 +19,12 @@ export type WorkOrderPermission =
   | 'delete';
 
 export type WorkOrderActor = {
+  /** Constructed only from a verified station cookie, never from member API input. */
+  station?: StationCapability;
   userId: string;
   tenantId: string;
   role: UserRole;
+  access?: Access;
 };
 
 const ROLE_PERMISSION_MAP: Record<UserRole, WorkOrderPermission[]> = {
@@ -49,6 +54,11 @@ export function requireWorkOrderPermission(actor: WorkOrderActor, permission: Wo
   if (!hasWorkOrderPermission(actor.role, permission)) {
     throw new WorkOrderApiError('Bu işlem için yetkiniz yok', 403);
   }
+  if (actor.access) {
+    const action = permission === 'view' ? 'view' : permission === 'create' ? 'create' : permission === 'delete' ? 'delete' : 'edit';
+    const allowed = can(actor.access, 'production', action) || (['view','comment','checklist'].includes(permission) && can(actor.access, 'orders', action));
+    if (!allowed) throw new WorkOrderApiError('Bu işlem için yetkiniz yok', 403);
+  }
 }
 
 export async function requireWorkOrderActor(): Promise<WorkOrderActor> {
@@ -66,5 +76,6 @@ export async function requireWorkOrderActor(): Promise<WorkOrderActor> {
     userId: session.user.id,
     tenantId: session.user.tenantId,
     role: access.base,
+    access,
   };
 }

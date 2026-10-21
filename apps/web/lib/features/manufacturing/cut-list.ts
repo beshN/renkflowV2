@@ -21,8 +21,10 @@ export type CutRow = {
   quantity: number;
   /** Painted parts follow the order's colour; steel is cut from unpainted stock. */
   color: string;
-  origin: 'liste' | 'demir sayfası';
+  origin: 'liste' | 'demir sayfası'|'ürün standardı';
   orientation: 'dikey' | 'yatay' | null;
+  requiredProfileCode?: string;
+  fixedItemId?:string;
 };
 
 export type RowProblem = { label: string; reason: string; ironPage?: number };
@@ -31,7 +33,7 @@ const mm = (cm: number) => Math.round(cm * 10 * 1000) / 1000;
 const PAINTED: FoyPartKind[] = ['dere', 'led', 'boru'];
 
 /** The pieces to cut from a sheet; what cannot be cut (fabric, sheet metal) or was not readable is listed apart, never guessed. */
-export function foyCutRows(doc: FoyDoc): { rows: CutRow[]; problems: RowProblem[]; color: string } {
+export function foyCutRows(doc: FoyDoc, family?: string): { rows: CutRow[]; problems: RowProblem[]; color: string } {
   const color = doc.ral ? canonicalColor(`RAL ${doc.ral}${doc.finish ? ` ${doc.finish}` : ''}`) : '';
   const rows = new Map<string, CutRow>();
   const problems: RowProblem[] = [];
@@ -56,10 +58,15 @@ export function foyCutRows(doc: FoyDoc): { rows: CutRow[]; problems: RowProblem[
     if (!c.quantity) { problems.push({ label, reason: 'Adedi okunamadı' }); continue; }
     add({ kind: 'demir', profile: c.profile, label, lengthMm: mm(c.lengthCm), quantity: c.quantity, color: '', origin: 'demir sayfası', orientation: c.orientation });
   }
-  return { rows: [...rows.values()], problems, color };
+  return { rows: [...rows.values()].map(r => {
+    if(r.kind!=='dere')return r;
+    const name=r.profile.toLocaleLowerCase('tr-TR');
+    const code=family==='makasli'?'170':family==='pergola'?(/\b6015\b|klasik/.test(name)?'6015':/\b6056\b|oval/.test(name)?'6056':null):null;
+    return code?{...r,requiredProfileCode:code}:r;
+  }), problems, color };
 }
 
-export type StockItem = { id: string; name: string; sku: string; profileCode: string | null; standardLengthMm: number | null; sizeLabel?: string | null; processedStates?: string[] };
+export type StockItem = { id: string; name: string; sku: string; profileCode: string | null; standardLengthMm: number | null; sizeLabel?: string | null; processedStates?: string[];weightPerMeterKg?:number|null };
 
 /** "50*100", "50 x 100", "50×100" → "50x100". */
 const dims = (text: string) => {
@@ -78,7 +85,13 @@ export const stockProfileIdentity = (item: StockItem) => item.profileCode && ite
  * dere, boru). Several equally good profiles are returned as candidates and none is chosen: the
  * person picks, the program does not guess between two real profiles.
  */
-export function matchItems(row: Pick<CutRow, 'kind' | 'profile'>, items: StockItem[]): { itemId: string | null; candidates: StockItem[] } {
+export function matchItems(row: Pick<CutRow, 'kind' | 'profile' | 'requiredProfileCode'|'fixedItemId'>, items: StockItem[]): { itemId: string | null; candidates: StockItem[] } {
+  if(row.fixedItemId){const candidates=items.filter(i=>i.id===row.fixedItemId);return {itemId:candidates[0]?.id||null,candidates};}
+  if (row.requiredProfileCode) {
+    const candidates = items.filter(i=>i.profileCode === row.requiredProfileCode);
+    const identities = new Set(candidates.map(stockProfileIdentity));
+    return {itemId:identities.size === 1 ? candidates[0].id : null,candidates};
+  }
   const wanted = dims(row.profile);
   const scored = items.map((item) => {
     const text = plain([item.name, item.sku, item.profileCode ?? ''].join(' '));
@@ -100,15 +113,19 @@ export function matchItems(row: Pick<CutRow, 'kind' | 'profile'>, items: StockIt
   return { itemId: sameProfile ? top[0].item.id : null, candidates: top.map((s) => s.item) };
 }
 
-export type StockLot = { id: string; itemId: string; lotNumber: string; lengthMm: number; color: string; kind: 'new' | 'remnant' | 'scrap'; unitCost?: number };
+export type StockLot = { id: string; itemId: string; lotNumber: string; lengthMm: number; color: string; kind: 'new' | 'remnant' | 'scrap'; unitCost?: number; warehouseName?: string; locationCode?: string };
 
 export type PlannedBar = {
   lotNumber: string;
+  warehouseName?: string;
+  locationCode?: string;
   lotId: string;
   sourceKind: StockLot['kind'];
   sourceLengthMm: number;
   sourceItemName: string;
   paintTo: string | null;
+  cutWeightKg:number|null;
+  lossWeightKg:number|null;
   /** Cut pieces on this bar in cutting order, with how many of each. */
   cuts: Array<{ lengthMm: number; count: number; label: string }>;
   usedMm: number;
@@ -121,6 +138,7 @@ export type PlannedGroup = {
   itemId: string;
   itemName: string;
   color: string;
+  uncertain?: boolean;
   pieces: number;
   bars: PlannedBar[];
   /** Bars to buy for what stock cannot cover. */
@@ -140,7 +158,7 @@ export type CutListPlan = {
     toBuy: number;
     toPaint: number;
     wasteMm: number;
-    wastePercent: number;
+    wastePercent: number | null;
     keptMm: number;
   };
   algorithm: string;
@@ -152,7 +170,7 @@ const sameLength = (a: number, b: number) => Math.abs(a - b) < 0.0005;
  * Plans the cuts. `choices` maps a row id to the profile the person picked when the match was not
  * unique. Everything the engine could not place is reported as missing (and as bars to buy), never dropped.
  */
-export function planCutList(input: { rows: CutRow[]; items: StockItem[]; lots: StockLot[]; parameters: CuttingParameters; choices?: Record<string, string>; purchaseLengthsMm?: number[] }): CutListPlan {
+export function planCutList(input: { rows: CutRow[]; items: StockItem[]; lots: StockLot[]; parameters: CuttingParameters; choices?: Record<string, string>; purchaseLengthsMm?: number[]; uncertainItemIds?: string[] }): CutListPlan {
   const { rows, items, lots, parameters } = input;
   const byId = new Map(items.map((i) => [i.id, i]));
   const unmatched: CutListPlan['unmatched'] = [];
@@ -160,38 +178,14 @@ export function planCutList(input: { rows: CutRow[]; items: StockItem[]; lots: S
 
   for (const row of rows) {
     const chosen = input.choices?.[row.id];
-    const match = chosen && byId.has(chosen) ? { itemId: chosen, candidates: [] as StockItem[] } : matchItems(row, items);
+    const candidates=matchItems(row,items);
+    const match = chosen && candidates.candidates.some(i=>i.id===chosen) ? { itemId: chosen, candidates: candidates.candidates } : candidates;
     if (!match.itemId) { unmatched.push({ rowId: row.id, label: row.label, candidates: match.candidates }); continue; }
     demand.push({ itemId: match.itemId, color: row.color, lengthMm: row.lengthMm, quantity: row.quantity, workOrderId: 'liste', orderItemId: row.id });
   }
 
-  // Different physical lengths and painted/raw cards may share a profile, but section and
-  // machining states must agree. Never substitute merely because two names sound alike.
-  const family = new Map(items.map((item) => [item.id, stockProfileIdentity(item)]));
-  const canonical = new Map<string, string>();
-  for (const d of demand) if (!canonical.has(family.get(d.itemId)!)) canonical.set(family.get(d.itemId)!, d.itemId);
-  const planningItem = (id: string) => canonical.get(family.get(id) ?? id) ?? id;
-  for (const d of demand) d.itemId = planningItem(d.itemId);
-  const kindOf = new Map(lots.map((l) => [l.id, l.kind]));
-  const lotById = new Map(lots.map((l) => [l.id, l]));
-  const sources: CutSource[] = lots.map((l) => ({ id: l.id, itemId: planningItem(l.itemId), color: parseColor(l.color).kind === 'raw' && demand.some((d) => d.itemId === planningItem(l.itemId) && !d.color) ? '' : l.color, lengthMm: l.lengthMm, unitCost: l.unitCost ?? 0, isRemnant: l.kind !== 'new' }));
-  // First use stock in the required finish. Only remaining demand may consume explicitly raw
-  // bars, and each physical bar is removed from the shared pool immediately after allocation.
-  const result = demand.length ? optimizeCuts(demand, sources, parameters, { objective: 'material' }) : null;
-  const used = new Set(result?.bars.map((b) => b.source.id));
-  const paintTargets = new Map<string, string>();
-  const paintPlans = [];
-  let unfulfilled = result?.unfulfilled ?? [];
-  const colors = [...new Set(unfulfilled.map((p) => p.color))].filter((c) => ['ral', 'custom'].includes(parseColor(c).kind)).sort();
-  for (const color of colors) {
-    const waiting = unfulfilled.filter((p) => p.color === color);
-    const raw = sources.filter((s) => !used.has(s.id) && parseColor(lotById.get(s.id)?.color).kind === 'raw').map((s) => ({ ...s, color }));
-    const paint = optimizeCuts(waiting, raw, parameters, { objective: 'material' });
-    for (const b of paint.bars) { used.add(b.source.id); paintTargets.set(b.source.id, color); }
-    paintPlans.push(paint);
-    unfulfilled = [...unfulfilled.filter((p) => p.color !== color), ...paint.unfulfilled];
-  }
-  const allBars = [...(result?.bars ?? []), ...paintPlans.flatMap((p) => p.bars)];
+  const {family,result,allBars,unfulfilled,paintTargets,lotById} = allocatePhysicalCuts(demand,items,lots,parameters);
+  const kindOf = new Map(lots.map(l=>[l.id,l.kind]));
   const rowOf = new Map(rows.map((r) => [r.id, r]));
 
   const groups = new Map<string, PlannedGroup>();
@@ -224,8 +218,10 @@ export function planCutList(input: { rows: CutRow[]; items: StockItem[]; lots: S
     else barsFromStock++;
     if (bar.reusable) keptMm += bar.remainingMm;
     g.bars.push({
-      lotNumber: lot.lotNumber, lotId: lot.id, sourceKind: kind, sourceLengthMm: lot.lengthMm, sourceItemName: byId.get(lot.itemId)?.name ?? '—', paintTo: paintTargets.get(lot.id) ?? null, cuts,
+      lotNumber: lot.lotNumber, warehouseName:lot.warehouseName, locationCode:lot.locationCode, lotId: lot.id, sourceKind: kind, sourceLengthMm: lot.lengthMm, sourceItemName: byId.get(lot.itemId)?.name ?? '—', paintTo: paintTargets.get(lot.id) ?? null, cuts,
       usedMm: Math.round((lot.lengthMm - bar.remainingMm) * 10) / 10,
+      cutWeightKg:byId.get(lot.itemId)?.weightPerMeterKg?bar.pieces.reduce((n,p)=>n+p.lengthMm,0)/1000*byId.get(lot.itemId)!.weightPerMeterKg!:null,
+      lossWeightKg:byId.get(lot.itemId)?.weightPerMeterKg?bar.lossMm/1000*byId.get(lot.itemId)!.weightPerMeterKg!:null,
       leftoverMm: Math.round(bar.remainingMm * 10) / 10,
       leftover: bar.remainingMm <= 0 ? 'none' : bar.reusable ? 'keep' : 'scrap',
     });
@@ -264,6 +260,9 @@ export function planCutList(input: { rows: CutRow[]; items: StockItem[]; lots: S
     }
   }
 
+  const uncertainFamilies = new Set((input.uncertainItemIds ?? []).map(id=>family.get(id)));
+  for (const g of groups.values()) if (uncertainFamilies.has(family.get(g.itemId))) { g.uncertain = true; g.buy = null; }
+  toBuy = [...groups.values()].reduce((n,g)=>n+(g.buy?.bars ?? 0),0);
   const list = [...groups.values()].sort((a, b) => a.itemName.localeCompare(b.itemName, 'tr') || a.color.localeCompare(b.color));
   return {
     groups: list,
@@ -272,9 +271,41 @@ export function planCutList(input: { rows: CutRow[]; items: StockItem[]; lots: S
       pieces: demand.reduce((s, d) => s + d.quantity, 0),
       barsFromStock, remnantsUsed, scrapUsed, toBuy, toPaint: paintTargets.size,
       wasteMm: Math.round(allBars.reduce((sum, b) => sum + b.lossMm, 0) * 10) / 10,
-      wastePercent: Math.round((allBars.length ? allBars.reduce((sum, b) => sum + b.lossMm, 0) / allBars.reduce((sum, b) => sum + b.source.lengthMm, 0) * 100 : 0) * 10) / 10,
+      wastePercent: !allBars.length || list.some(g=>g.uncertain) || unfulfilled.length || unmatched.length ? null : Math.round((allBars.length ? allBars.reduce((sum, b) => sum + b.lossMm, 0) / allBars.reduce((sum, b) => sum + b.source.lengthMm, 0) * 100 : 0) * 10) / 10,
       keptMm: Math.round(keptMm * 10) / 10,
     },
     algorithm: result?.algorithm ?? '—',
   };
+}
+
+/** Shared by sheet previews and committed production plans. One physical bar is used at most once. */
+export function allocatePhysicalCuts(demand: CutDemand[], items: StockItem[], lots: StockLot[], parameters: CuttingParameters) {
+  // Different physical lengths and painted/raw cards may share a profile, but section and
+  // machining states must agree. Never substitute merely because two names sound alike.
+  const family = new Map(items.map((item) => [item.id, stockProfileIdentity(item)]));
+  const canonical = new Map<string, string>();
+  for (const d of demand) if (!canonical.has(family.get(d.itemId)!)) canonical.set(family.get(d.itemId)!, d.itemId);
+  const planningItem = (id: string) => canonical.get(family.get(id) ?? id) ?? id;
+  for (const d of demand) d.itemId = planningItem(d.itemId);
+  const lotById = new Map(lots.map((l) => [l.id, l]));
+  const sources: CutSource[] = lots.map((l) => ({ id: l.id, stockItemId: l.itemId, stockColor: l.color, itemId: planningItem(l.itemId), color: parseColor(l.color).kind === 'raw' && demand.some((d) => d.itemId === planningItem(l.itemId) && !d.color) ? '' : l.color, lengthMm: l.lengthMm, unitCost: l.unitCost ?? 0, isRemnant: l.kind !== 'new' }));
+  // First use stock in the required finish. Only remaining demand may consume explicitly raw
+  // bars, and each physical bar is removed from the shared pool immediately after allocation.
+  const result = demand.length ? optimizeCuts(demand, sources, parameters, { objective: 'material' }) : null;
+  const used = new Set(result?.bars.map((b) => b.source.id));
+  const paintTargets = new Map<string, string>();
+  const paintPlans = [];
+  let unfulfilled = result?.unfulfilled ?? [];
+  const colors = [...new Set(unfulfilled.map((p) => p.color))].filter((c) => ['ral', 'custom'].includes(parseColor(c).kind)).sort();
+  for (const color of colors) {
+    const waiting = unfulfilled.filter((p) => p.color === color);
+    const raw = sources.filter((s) => !used.has(s.id) && parseColor(lotById.get(s.id)?.color).kind === 'raw').map((s) => ({ ...s, color }));
+    const paint = optimizeCuts(waiting, raw, parameters, { objective: 'material' });
+    for (const b of paint.bars) { used.add(b.source.id); paintTargets.set(b.source.id, color); }
+    paintPlans.push(paint);
+    unfulfilled = [...unfulfilled.filter((p) => p.color !== color), ...paint.unfulfilled];
+  }
+  const allBars = [...(result?.bars ?? []), ...paintPlans.flatMap((p) => p.bars)];
+  for (const b of allBars) b.source.paintTo = paintTargets.get(b.source.id) ?? null;
+  return {demand,family,result,allBars,unfulfilled,paintTargets,lotById};
 }

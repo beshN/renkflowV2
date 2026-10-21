@@ -142,7 +142,7 @@ export function ProductConfigurator({ family, currency, initial, onApply, onClos
             <input className="rf-input mt-2 w-full" inputMode="numeric" value={dims[d.key] ?? ''} onChange={(e) => { setDims({ ...dims, [d.key]: e.target.value }); setPreview(null); }} />
           </label>
         ))}
-        <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={motor} onChange={(e) => { setMotor(e.target.checked); setPreview(null); }} /> Motor</label>
+        {['wind-manual','wind-piston','giyotin'].includes(family)?<p className="text-xs">{family==='giyotin'?'Motorlu mekanizma':family==='wind-piston'?'Pistonlu mekanizma':'Manuel mekanizma'}</p>:<label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={motor} onChange={(e) => { setMotor(e.target.checked); setPreview(null); }} /> Motor</label>}
         <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={led} onChange={(e) => { setLed(e.target.checked); setPreview(null); }} /> LED</label>
         {recipe?.parameters.map((p) =>
           p.type === 'boolean' ? (

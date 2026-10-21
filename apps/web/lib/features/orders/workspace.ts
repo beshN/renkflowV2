@@ -8,7 +8,7 @@ export const ORDER_STAGE_STATUSES: Record<string, string[]> = {
   intake: ['new', 'pending_approval'], preparation: ['approved', 'preparing_materials', 'ready_for_production'],
   production: ['in_production'], quality: ['quality_check'], shipping: ['ready_for_shipment', 'shipped'], completed: ['completed'],
 };
-export const isOpenOrder = (order: Pick<Order, 'status'>) => !['completed', 'cancelled'].includes(normalizeOrderStatus(order.status));
+export const isOpenOrder = (order: Pick<Order, 'status'> & {provisional?:boolean}) => !order.provisional && !['completed', 'cancelled'].includes(normalizeOrderStatus(order.status));
 export function businessDate(date = new Date()): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 }

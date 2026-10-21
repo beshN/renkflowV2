@@ -25,8 +25,8 @@ jest.mock('@/lib/security/rate-limit', () => ({ consumeRateLimit: jest.fn(async 
 const ROLES: UserRole[] = ['owner', 'admin', 'accountant', 'office', 'worker', 'member'];
 
 describe('worker screens', () => {
-  const denied = ['/quotations', '/quotations/new', '/quotations/q1/print', '/crm', '/crm/c1', '/shipments', '/accounting', '/purchases', '/receipts', '/suppliers', '/scrap', '/production', '/production/intake/i1', '/new-order', '/work-orders/new', '/finance', '/finance/documents', '/reports', '/settings', '/team'];
-  const allowed = ['/dashboard', '/factory', '/work-orders', '/work-orders/w1', '/orders', '/orders/o1', '/kanban', '/inventory', '/warehouse/scan', '/notifications', '/search'];
+  const denied = ['/quotations', '/quotations/new', '/quotations/q1/print', '/crm', '/crm/c1', '/shipments', '/accounting', '/purchases', '/receipts', '/suppliers', '/scrap', '/production', '/production/intake/i1', '/new-order', '/work-orders/new', '/finance', '/finance/documents', '/reports', '/settings', '/team','/dashboard','/factory','/work-orders','/orders','/kanban','/inventory','/warehouse/scan','/notifications','/search'];
+  const allowed = ['/production/worker','/account'];
   it.each(denied)('denies %s', (path) => expect(canAccessRoute('worker', path)).toBe(false));
   it.each(allowed)('keeps %s', (path) => expect(canAccessRoute('worker', path)).toBe(true));
 
@@ -49,10 +49,10 @@ describe('worker screens', () => {
 
 describe('server-side route boundary (proxy)', () => {
   it('sends a navigation back to the dashboard and refuses server actions with 403', () => {
-    expect(evaluateRouteAccess('worker', '/accounting', 'GET')).toEqual({ type: 'redirect', destination: '/dashboard' });
+    expect(evaluateRouteAccess('worker', '/accounting', 'GET')).toEqual({ type: 'redirect', destination: '/production/worker' });
     expect(evaluateRouteAccess('worker', '/accounting', 'POST')).toEqual({ type: 'forbidden' });
     expect(evaluateRouteAccess('worker', '/finance/documents', 'POST')).toEqual({ type: 'forbidden' });
-    expect(evaluateRouteAccess('worker', '/factory', 'POST')).toEqual({ type: 'next' });
+    expect(evaluateRouteAccess('worker', '/production/worker', 'POST')).toEqual({ type: 'next' });
     expect(evaluateRouteAccess('owner', '/accounting', 'POST')).toEqual({ type: 'next' });
   });
   it('uses the most specific route permission', () => {

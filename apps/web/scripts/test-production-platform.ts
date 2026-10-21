@@ -291,7 +291,11 @@ async function main() {
   assert.equal(revision.version, quote.version + 1);
   assert.equal(quote.items[0].unitPrice, 12345);
   assert.equal(quote.items[0].heightMm, 2100);
+  let approvedCommercialQuote=await quotes.updateStatus(tenant.id,quote.id,'sent',revision.version,user.id,'owner');
+  approvedCommercialQuote=await quotes.updateStatus(tenant.id,quote.id,'accepted',approvedCommercialQuote.version,user.id,'owner');
   const conversion = await quotes.convertToOrder(tenant.id, quote.id, user.id);
+  // Legacy engine fixture: old orders keep their established job/operation workflow.
+  await db`UPDATE orders SET technical_file_required=false WHERE id=${conversion.orderId}`;
   assert.deepEqual(
     await quotes.convertToOrder(tenant.id, quote.id, user.id),
     conversion,
@@ -850,7 +854,8 @@ async function main() {
   assert.equal((await command('procurement.receipt.create',receiptData,receiptKey)).id,goodsReceipt.id);
   const physical=await db`SELECT * FROM stock_lots WHERE metadata->>'goodsReceiptId'=${goodsReceipt.id}`;
   assert.equal(physical.length,3);
-  assert.equal(Number(physical.find(l=>l.warehouse_id===warehouses.RAW.id)!.weight_kg),7.2);
+  // The profile's lot, not the screws' (both land in RAW; the query has no order).
+  assert.equal(Number(physical.find(l=>l.warehouse_id===warehouses.RAW.id && l.item_id===profile.id)!.weight_kg),7.2);
   assert.equal(Number((await db`SELECT received_qty FROM purchase_order_lines WHERE id=${poLines[0].id}`)[0].received_qty),6);
   await assert.rejects(()=>command('procurement.receipt.create',receiptData));
   await assert.rejects(()=>command('stock.reverse',{id:goodsReceipt.stock_entry_id,reason:'Must use receipt workflow'}));

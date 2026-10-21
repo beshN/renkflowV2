@@ -4,6 +4,7 @@ import {
   addWorkOrderComment,
   listWorkOrderComments,
   WorkOrderCommentInputSchema,
+  getWorkOrderDetails,
 } from '@/lib/features/work-orders/service';
 import {
   requireWorkOrderActor,
@@ -29,6 +30,10 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid work order id' }, { status: 400 });
     }
 
+    if (actor.role === 'worker') {
+      const workOrder = await getWorkOrderDetails(actor.tenantId, parsedParams.data.workOrderId);
+      if (workOrder.assignedTo !== actor.userId) throw new WorkOrderApiError('İş emri bulunamadı', 404);
+    }
     const comments = await listWorkOrderComments(actor.tenantId, parsedParams.data.workOrderId);
     return NextResponse.json({ success: true, data: comments });
   } catch (error) {

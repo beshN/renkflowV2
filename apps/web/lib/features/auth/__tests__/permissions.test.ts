@@ -145,14 +145,14 @@ describe('Permission System', () => {
       expect(canAccessRoute('owner', '/finance')).toBe(true);
       expect(canAccessRoute('accountant', '/finance')).toBe(true);
       expect(canAccessRoute('worker', '/finance')).toBe(false);
-      expect(canAccessRoute('worker', '/orders')).toBe(true);
-      expect(canAccessRoute('worker', '/work-orders')).toBe(true);
+      expect(canAccessRoute('worker', '/orders')).toBe(false);
+      expect(canAccessRoute('worker', '/work-orders')).toBe(false);
       expect(canAccessRoute('office', '/orders')).toBe(true);
     });
 
     it('should allow access to unprotected routes', () => {
-      expect(canAccessRoute('worker', '/dashboard')).toBe(true);
-      expect(canAccessRoute('worker', '/some-unprotected-route')).toBe(true);
+      expect(canAccessRoute('worker', '/production/worker')).toBe(true);
+      expect(canAccessRoute('worker', '/some-unprotected-route')).toBe(false);
     });
   });
 });

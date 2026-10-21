@@ -12,7 +12,7 @@ type Line = { orderItemId: string; productName: string; quantity: number; delive
 type Row = { seq: number; label: string; dueOn: string; amount: number; paid: number; remaining: number; state: 'paid' | 'partial' | 'overdue' | 'today' | 'planned' };
 type Change = { id: string; status: 'pending' | 'applied' | 'rejected'; reason: string; changes: Array<Record<string, unknown>>; impact: { level: 'none' | 'warn' | 'block'; reasons: string[] }; by: string | null; at: string; decidedBy: string | null };
 type Sales = {
-  available: true; today: string; status: string; currency: string; totalAmount: number;
+  available: true; manualDeliveryAllowed?:boolean;today: string; status: string; currency: string; totalAmount: number;
   dates: { planned: string | null; promised: string | null; delivered: string | null; slipDays: number | null };
   lines: Line[]; deliveries: Array<{ id: string; orderItemId: string; quantity: number; deliveredOn: string; note: string | null; by: string | null }>;
   plan: { rows: Row[]; planned: number; paid: number; overdue: number; mismatch: string | null; surplus: number };
@@ -90,7 +90,7 @@ export function OrderSalesPanel({ orderId, canEdit, canPlan, onOrderChanged }: {
         <div className="flex items-center gap-2">
           <PackageCheck size={16} aria-hidden />
           <h3 className="text-sm font-semibold">Teslimat</h3>
-          {canEdit && d.lines.some((l) => l.remaining > 0) && mode !== 'delivery' && <button type="button" className="ml-auto text-xs font-medium text-primary" onClick={() => setMode('delivery')}>Teslim gir</button>}
+          {canEdit && d.manualDeliveryAllowed!==false&&d.lines.some((l) => l.remaining > 0) && mode !== 'delivery' && <button type="button" className="ml-auto text-xs font-medium text-primary" onClick={() => setMode('delivery')}>Teslim gir</button>}
         </div>
         <ul className="space-y-2">
           {d.lines.map((l) => {

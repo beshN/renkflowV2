@@ -6,6 +6,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { BarChart3, CalendarClock, FileText, KanbanSquare, MapPin, Phone, Plus, Ruler, Target, Trophy } from 'lucide-react';
 import { EmptyState, HintTip, PageHeader, Skeleton, StatusChip } from '@/components/kit';
 import { RecordButton } from '@/components/records/RecordDrawer';
+import {LeadSalesContextPanel} from './LeadSalesContextPanel';
+import type {leadSalesContext} from '@/lib/features/field/sales-context.server';
+import type {salesPriority,SalesProfile} from '@/lib/features/field/sales-context';
 import { requestJson } from '@/lib/shared/network';
 import { cn } from '@/lib/utils';
 import { PRODUCT_FAMILIES } from '@/lib/features/products/families';
@@ -18,6 +21,7 @@ type Lead = {
   id: string; number: string; title: string; contactName: string; companyName: string | null; phone: string | null; email: string | null; address: string | null; mapUrl: string | null;
   source: string; stage: LeadStage; lostReason: string | null; productFamily: string | null; estimatedValue?: number | null; ownerName: string | null; nextFollowUp: string | null;
   quotationId: string | null; quotationNumber: string | null; customerId: string | null; surveys?: number; version: number;
+  quotationStatus?:string|null;quotationRevision?:number|null;salesProfile?:SalesProfile;priority?:ReturnType<typeof salesPriority>;
 };
 type Survey = {
   id: string; scheduledAt: string | null; address: string | null; mapUrl: string | null; assigneeName: string | null; status: 'planned' | 'done' | 'cancelled'; productFamily: string | null;
@@ -107,8 +111,11 @@ export function LeadsWorkspace() {
                         <span className="block text-xs text-muted-foreground">{l.number} · {LEAD_SOURCE_LABELS[l.source as LeadSource] ?? l.source}</span>
                         <span className="block font-medium">{l.title}</span>
                         <span className="block truncate text-xs">{l.contactName}{l.companyName ? ` · ${l.companyName}` : ''}</span>
+                        {l.salesProfile&&<span className="block text-xs text-muted-foreground">{[l.salesProfile.country,l.salesProfile.city,l.ownerName].filter(Boolean).join(' · ')}</span>}
+                        {l.quotationStatus&&<span className="block text-xs text-muted-foreground">Teklif: {{draft:'Hazırlanıyor',sent:'Gönderildi',accepted:'Onaylandı',converted:'Siparişe bağlandı',rejected:'Reddedildi',expired:'Süresi doldu'}[l.quotationStatus]||l.quotationStatus} · Sürüm {l.quotationRevision}</span>}
                       </button>
                       <div className="flex flex-wrap items-center gap-1">
+                        {l.priority&&<span className="text-xs font-medium" title={l.priority.reason}>Öncelik: {l.priority.label}</span>}
                         {money(l.estimatedValue) && <span className="text-xs tabular-nums">{money(l.estimatedValue)}</span>}
                         {l.nextFollowUp && <StatusChip tone={l.nextFollowUp < today() && OPEN_STAGES.includes(l.stage) ? 'warning' : 'neutral'} label={`Takip ${l.nextFollowUp}`} />}
                         {l.stage === 'lost' && l.lostReason && <StatusChip tone="muted" label={LOST_REASON_LABELS[l.lostReason as keyof typeof LOST_REASON_LABELS] ?? l.lostReason} />}
@@ -134,10 +141,10 @@ export function LeadsWorkspace() {
 }
 
 function NewLead({ onClose, onCreated, onError }: { onClose: () => void; onCreated: (id: string) => Promise<void>; onError: (e: string) => void }) {
-  const [f, setF] = useState({ title: '', contactName: '', companyName: '', phone: '', email: '', address: '', source: 'phone', productFamily: 'pergola', estimatedValue: '', nextFollowUp: '' });
+  const [f, setF] = useState({ title: '', contactName: '', companyName: '', phone: '', email: '', address: '', source: 'phone', productFamily: 'pergola', estimatedValue: '', nextFollowUp: '',duplicateReason:'' });
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    const r = await send('/api/v1/leads', 'POST', { ...f, estimatedValue: f.estimatedValue ? Number(f.estimatedValue) : null, nextFollowUp: f.nextFollowUp || null, email: f.email || null });
+    const r = await send('/api/v1/leads', 'POST', { ...f,duplicateReason:f.duplicateReason||undefined, estimatedValue: f.estimatedValue ? Number(f.estimatedValue) : null, nextFollowUp: f.nextFollowUp || null, email: f.email || null });
     if (r.ok && r.data) await onCreated(r.data.id); else onError(r.error || 'Kaydedilemedi');
   }
   const input = (k: keyof typeof f, label: string, props: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
@@ -160,6 +167,7 @@ function NewLead({ onClose, onCreated, onError }: { onClose: () => void; onCreat
           <label className="text-xs">Ürün ailesi<select className="rf-input mt-1 w-full" value={f.productFamily} onChange={(e) => setF({ ...f, productFamily: e.target.value })}><option value="">Diğer</option>{PRODUCT_FAMILIES.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}</select></label>
           {input('estimatedValue', 'Tahmini tutar (₺)', { type: 'number', min: 0 })}
           {input('nextFollowUp', 'Sonraki takip', { type: 'date' })}
+          {input('duplicateReason','Aynı kişinin ayrı talebiyse gerekçe · isteğe bağlı',{minLength:5,maxLength:500})}
         </div>
       </details>
       <div className="flex items-end gap-2">
@@ -171,10 +179,10 @@ function NewLead({ onClose, onCreated, onError }: { onClose: () => void; onCreat
 }
 
 function LeadDetail({ id, onClose, onChanged, onError }: { id: string; onClose: () => void; onChanged: () => Promise<void>; onError: (e: string) => void }) {
-  const [lead, setLead] = useState<(Lead & { surveys: Survey[] }) | null>(null);
+  const [lead, setLead] = useState<(Lead & { surveys: Survey[];salesContext?:Awaited<ReturnType<typeof leadSalesContext>> }) | null>(null);
   const [planning, setPlanning] = useState<{ at: string; address: string } | null>(null);
   const load = useCallback(async () => {
-    const r = await requestJson<Lead & { surveys: Survey[] }>(`/api/v1/leads/${id}`, { cache: 'no-store' });
+    const r = await requestJson<Lead & { surveys: Survey[];salesContext?:Awaited<ReturnType<typeof leadSalesContext>> }>(`/api/v1/leads/${id}`, { cache: 'no-store' });
     if (r.ok && r.data) setLead(r.data); else onError(r.error || 'Kayıt alınamadı');
   }, [id, onError]);
   useEffect(() => { void load(); }, [load]);
@@ -218,6 +226,7 @@ function LeadDetail({ id, onClose, onChanged, onError }: { id: string; onClose: 
           <button type="button" className="rf-secondary-button text-sm" onClick={onClose}>Kapat</button>
         </div>
       </div>
+      {lead.salesContext?.available&&<LeadSalesContextPanel key={lead.id+':'+lead.salesContext.version} leadId={id} data={lead.salesContext} reload={async()=>{await load();await onChanged();}}/>}
       {!closed && (
         <label className="inline-flex items-center gap-2 text-xs">Sonraki takip
           <input type="date" className="rf-input" defaultValue={lead.nextFollowUp ?? ''} onBlur={(e) => e.target.value !== (lead.nextFollowUp ?? '') && void followUp(e.target.value)} />

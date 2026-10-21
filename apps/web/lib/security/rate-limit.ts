@@ -17,6 +17,7 @@ export type RateLimitPolicy = {
 };
 
 export const RATE_LIMIT_POLICIES = {
+  stationPair: { limit: 10, windowMs: 10 * 60_000 },
   loginIp: { limit: 30, windowMs: 10 * 60_000 },
   loginAccount: { limit: 10, windowMs: 15 * 60_000 },
   register: { limit: 5, windowMs: 60 * 60_000 },

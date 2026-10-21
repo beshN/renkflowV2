@@ -62,7 +62,7 @@ export async function assertModelAllowed(meta: { tenantId?: string | null; userI
   let spentTodayUsd = 0;
   let userCallsToday = 0;
   if (s.mode === 'assist' && (await tableExists('ai_usage'))) {
-    const [r] = await sql`SELECT coalesce(sum(cost_usd), 0) AS spent, count(*) FILTER (WHERE user_id = ${meta.userId ?? null})::int AS mine
+    const [r] = await sql`SELECT coalesce(sum(coalesce(cost_usd,(to_jsonb(ai_usage)->>'tool_cost_usd')::numeric)), 0) AS spent, count(*) FILTER (WHERE user_id = ${meta.userId ?? null})::int AS mine
       FROM ai_usage WHERE tenant_id = ${meta.tenantId} AND created_at >= date_trunc('day', now() AT TIME ZONE 'Europe/Istanbul') AT TIME ZONE 'Europe/Istanbul'`;
     spentTodayUsd = Number(r?.spent ?? 0);
     userCallsToday = meta.userId ? Number(r?.mine ?? 0) : 0;

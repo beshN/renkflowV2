@@ -46,7 +46,7 @@ export async function assistantSnapshot(a:WorkOrderActor,path:string,query='') {
  if(!worker) {
   const search=query.trim().slice(0,160), pattern='%'+search+'%';
   tasks.orders=sql`SELECT id,order_number,customer_name,product_name,status,priority,delivery_date,shipment_status FROM orders WHERE tenant_id=${t} AND (${!search} OR order_number ILIKE ${pattern} OR customer_name ILIKE ${pattern} OR product_name ILIKE ${pattern}) ORDER BY created_at DESC LIMIT 40`;
-  tasks.metrics=sql`SELECT COUNT(*) AS total, COUNT(*)FILTER(WHERE delivery_date < (now() AT TIME ZONE 'Europe/Istanbul')::date AND status NOT IN('completed','cancelled','delivered','shipped'))AS overdue, COUNT(*)FILTER(WHERE status IN('ready','ready_for_shipment'))AS ready FROM orders WHERE tenant_id=${t}`;
+  tasks.metrics=sql`SELECT COUNT(*) AS total, COUNT(*)FILTER(WHERE delivery_date < (now() AT TIME ZONE 'Europe/Istanbul')::date AND status NOT IN('completed','cancelled','delivered','shipped'))AS overdue, COUNT(*)FILTER(WHERE status IN('ready','ready_for_shipment'))AS ready FROM orders o WHERE tenant_id=${t} AND COALESCE((to_jsonb(o)->>'provisional')::boolean,false)=false`;
  }
  if(!worker && !member) {
   tasks.stock=sql`SELECT i.id,i.sku,i.name,i.stock_uom,i.min_stock,COALESCE(b.qty,0) AS on_hand_qty,COALESCE(r.qty,0) AS reserved_qty,COALESCE(b.qty,0)-COALESCE(r.qty,0) AS available_qty FROM inventory_items i LEFT JOIN LATERAL(SELECT SUM(on_hand_qty)AS qty FROM stock_balances WHERE tenant_id=${t} AND item_id=i.id)b ON true LEFT JOIN LATERAL(SELECT SUM(l.reserved_qty-l.consumed_qty-l.released_qty)AS qty FROM stock_reservation_lines l JOIN stock_reservations h ON h.id=l.reservation_id AND h.tenant_id=l.tenant_id WHERE l.tenant_id=${t} AND l.item_id=i.id AND h.status='active')r ON true WHERE i.tenant_id=${t} AND i.active ORDER BY (COALESCE(b.qty,0)-COALESCE(r.qty,0)<i.min_stock)DESC,i.name LIMIT 40`;
@@ -62,7 +62,7 @@ export async function assistantSnapshot(a:WorkOrderActor,path:string,query='') {
  }
  if(['owner','admin'].includes(a.role)) tasks.counts=sql`SELECT COUNT(*)FILTER(WHERE status='pending') AS pending FROM warehouse_counts WHERE tenant_id=${t}`;
  if(hasPermission(a.role,'finance.view')) {
-  tasks.financialOrders=sql`SELECT currency,COUNT(*) AS order_count,SUM(total_amount) AS ordered_value FROM orders WHERE tenant_id=${t} AND created_at >= (date_trunc('month',now() AT TIME ZONE 'Europe/Istanbul') AT TIME ZONE 'Europe/Istanbul') AND status<>'cancelled' GROUP BY currency`;
+  tasks.financialOrders=sql`SELECT currency,COUNT(*) AS order_count,SUM(total_amount) AS ordered_value FROM orders o WHERE tenant_id=${t} AND COALESCE((to_jsonb(o)->>'provisional')::boolean,false)=false AND created_at >= (date_trunc('month',now() AT TIME ZONE 'Europe/Istanbul') AT TIME ZONE 'Europe/Istanbul') AND status<>'cancelled' GROUP BY currency`;
   tasks.payments=sql`SELECT currency,COUNT(*) AS payment_count,SUM(amount)AS collected FROM payments WHERE tenant_id=${t} AND paid_at >= (date_trunc('month',now() AT TIME ZONE 'Europe/Istanbul') AT TIME ZONE 'Europe/Istanbul') GROUP BY currency`;
  }
  const keys=Object.keys(tasks), results=await Promise.allSettled(Object.values(tasks));

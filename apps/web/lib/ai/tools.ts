@@ -324,8 +324,8 @@ export async function getDashboardSummary(ctx: ToolContext) {
         COUNT(*) FILTER (WHERE status IN ('new', 'pending', 'pending_approval')) AS pending_count,
         COUNT(*) FILTER (WHERE status IN ('ready_for_shipment', 'ready')) AS ready_for_shipment,
         COUNT(*) FILTER (WHERE delivery_date = CURRENT_DATE) AS today_deliveries
-      FROM orders
-      WHERE tenant_id = ${ctx.tenantId}
+      FROM orders o
+      WHERE tenant_id = ${ctx.tenantId} AND COALESCE((to_jsonb(o)->>'provisional')::boolean,false)=false
         AND created_at >= now() - interval '90 days'
     `,
     sql`
@@ -346,8 +346,8 @@ export async function getDashboardSummary(ctx: ToolContext) {
     `,
     sql`
       SELECT COUNT(*) AS overdue_count
-      FROM orders
-      WHERE tenant_id = ${ctx.tenantId}
+      FROM orders o
+      WHERE tenant_id = ${ctx.tenantId} AND COALESCE((to_jsonb(o)->>'provisional')::boolean,false)=false
         AND delivery_date < CURRENT_DATE
         AND status NOT IN ('completed', 'cancelled', 'delivered', 'shipped')
     `,

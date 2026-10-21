@@ -14,7 +14,7 @@ export async function deleteUnlinkedOrder(
   await withTransaction(async (tx) => {
     await tx`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId},0))`;
     const [order] =
-      await tx`SELECT id,status,order_number,customer_name FROM orders WHERE tenant_id=${tenantId} AND id=${orderId} FOR UPDATE`;
+      await tx`SELECT *,to_jsonb(orders)->>'quotation_id' AS linked_quotation FROM orders WHERE tenant_id=${tenantId} AND id=${orderId} FOR UPDATE`;
     if (!order) throw new WorkOrderApiError("Sipariş bulunamadı", 404);
     if (!["new", "pending", "pending_approval"].includes(order.status))
       throw new WorkOrderApiError(
@@ -39,7 +39,7 @@ export async function deleteUnlinkedOrder(
       EXISTS(SELECT 1 FROM intake_drafts WHERE tenant_id=${tenantId} AND order_id=${orderId}) OR
       EXISTS(SELECT 1 FROM production_shipments WHERE tenant_id=${tenantId} AND order_id=${orderId}) OR
       EXISTS(SELECT 1 FROM stock_movements WHERE tenant_id=${tenantId} AND order_id=${orderId}) AS present`;
-    if (linked.present)
+    if (linked.present || order.linked_quotation)
       throw new WorkOrderApiError(
         "Bu sipariş üretim, teklif, stok veya finans kayıtlarına bağlı. Geçmişi korumak için silinemez.",
         409,
