@@ -98,7 +98,7 @@ export function userMessage(task: TaskInput) {
   const parts = [`Görev: ${task.title}`];
   if (task.brief.trim() && task.brief.trim() !== task.title) parts.push(`Görevi verenin yazdığı:\n${task.brief.trim()}`);
   for (const qa of task.answers) parts.push(`Daha önce sorduğun: ${qa.question}\nCevap: ${qa.answer}`);
-  if (task.notes.length) parts.push(`Bu ${task.revision}. revizyon. Önceki teslim için istenen düzeltmeler:\n${task.notes.map(n => `- ${n}`).join('\n')}`);
+  if (task.notes.length) parts.push(`Bu işin önceki teslimi geri döndü. İstenen düzeltmeler:\n${task.notes.map(n => `- ${n}`).join('\n')}`);
   return parts.join('\n\n');
 }
 

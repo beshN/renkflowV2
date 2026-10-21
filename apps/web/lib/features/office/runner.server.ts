@@ -11,6 +11,7 @@ import { ModelBlockedError } from '@/lib/ai/policy';
 import { maskPersonalData } from '@/lib/ai/privacy';
 import { CATEGORY, type TaskCategoryId } from './catalog';
 import { OFFICE_MODELS, TIER_MODEL, type ManagerDecision } from './routing';
+import { reviewOfficeTask } from './review.server';
 import { EFFORT, FREE_OUTPUT, FREE_TOOLS, WORK, freeSystemPrompt, readFreeOutcome, readOutcome, requestTools, safeFileName, systemPrompt, textFileName, userMessage, type TaskInput } from './work';
 
 /**
@@ -95,7 +96,7 @@ export async function runOfficeTask(tenantId: string, taskId: string) {
       // A BOM makes Excel read Turkish characters in a CSV correctly.
       const body = (output.extension === 'csv' ? '\uFEFF' : '') + masked.restore(outcome.content);
       await save(`${base}.${output.extension}`, output.contentType, Buffer.from(body, 'utf8'));
-      await sql`UPDATE office_tasks SET status='review', summary=${masked.restore(outcome.summary || `${saved[0]} hazır.`).slice(0, 4000)},
+      await sql`UPDATE office_tasks SET status='checking', review=NULL, summary=${masked.restore(outcome.summary || `${saved[0]} hazır.`).slice(0, 4000)},
         delivered_at=now(), updated_at=now() WHERE tenant_id=${tenantId} AND id=${taskId} AND status='working'`;
       return;
     }
@@ -148,7 +149,7 @@ export async function runOfficeTask(tenantId: string, taskId: string) {
       }
       if (!saved.length) return void (await failRun(tenantId, taskId, `${CATEGORY[category].output.kind} dosyası üretilemedi. Yeniden deneyin.`, spent));
     }
-    await sql`UPDATE office_tasks SET status='review', summary=${WORK[category].code ? summary.slice(0, 4000) : `${saved[0]} hazır.`},
+    await sql`UPDATE office_tasks SET status='checking', review=NULL, summary=${WORK[category].code ? summary.slice(0, 4000) : `${saved[0]} hazır.`},
       delivered_at=now(), cost_usd=cost_usd+${spent}, updated_at=now() WHERE tenant_id=${tenantId} AND id=${taskId} AND status='working'`;
   } catch (error) {
     const reason = error instanceof ModelBlockedError ? error.message
@@ -156,5 +157,21 @@ export async function runOfficeTask(tenantId: string, taskId: string) {
       : 'İş beklenmedik bir hatayla durdu. Yeniden deneyin.';
     if (!(error instanceof ModelBlockedError)) console.error('[office] Görev çalıştırılamadı:', taskId, error instanceof Error ? error.message : error);
     await failRun(tenantId, taskId, reason, spent);
+  }
+}
+
+/**
+ * Takes a task as far as the time left allows: the work, the manager's check and, when the
+ * manager sends it back, the work again. What does not fit is picked up by the next look at the
+ * office (listOfficeTasks reports it as due).
+ */
+export async function driveOfficeTask(tenantId: string, taskId: string, budgetMs = 280_000) {
+  const deadline = Date.now() + budgetMs;
+  for (let round = 0; round < 4; round++) {
+    const [row] = await sql`SELECT status FROM office_tasks WHERE tenant_id=${tenantId} AND id=${taskId}`;
+    const left = deadline - Date.now();
+    if (row?.status === 'queued' && (round === 0 || left > 200_000)) await runOfficeTask(tenantId, taskId);
+    else if (row?.status === 'checking' && left > 60_000) await reviewOfficeTask(tenantId, taskId);
+    else return;
   }
 }

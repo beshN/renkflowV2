@@ -238,6 +238,15 @@ function pose(person: Person, agent: Agent, time: number, dt: number) {
     person.head.rotation.x = 0;
     return;
   }
+  if (agent.phase === 'checking') {
+    // Standing beside the desk, hands behind the back, reading the screen.
+    leftLeg.rotation.x = rightLeg.rotation.x = 0;
+    leftArm.rotation.x = rightArm.rotation.x = 0.45;
+    person.body.position.y = 0;
+    person.head.rotation.x = 0.35;
+    person.head.rotation.y = Math.sin(time * 0.8) * 0.15;
+    return;
+  }
   if (agent.phase === 'briefing') {
     // Standing beside the person, tapping their shoulder.
     leftLeg.rotation.x = rightLeg.rotation.x = 0;

@@ -26,7 +26,7 @@ describe('AI office work requests', () => {
     const message = userMessage({ ...base, answers: [{ question: 'Hangi ölçü?', answer: 'A4' }], notes: ['Daha kısa olsun'], revision: 1 });
     expect(message).toContain('Görev: Garanti belgesi');
     expect(message).toContain('Cevap: A4');
-    expect(message).toContain('1. revizyon');
+    expect(message).toContain('önceki teslimi geri döndü');
     expect(message).toContain('- Daha kısa olsun');
   });
 });

@@ -12,6 +12,7 @@ import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orde
 import { STAFF, TASK_CATEGORIES } from './catalog';
 import { decide, type ManagerDecision } from './routing';
 import { triage } from './triage.server';
+import type { ManagerReview } from './review.server';
 
 /**
  * The AI office's tasks as the firm's records: who asked for what, the manager's call, the
@@ -19,13 +20,15 @@ import { triage } from './triage.server';
  * runner.server.ts after the request that queued it has answered.
  */
 
-export type OfficeTaskStatus = 'queued' | 'working' | 'needs_input' | 'review' | 'approved' | 'failed';
+export type OfficeTaskStatus = 'queued' | 'working' | 'checking' | 'needs_input' | 'review' | 'approved' | 'failed';
 
 export type OfficeFileView = { id: string; name: string; contentType: string; size: number; revision: number; url: string };
 export type OfficeTaskView = {
   id: string; number: number; category: string; title: string; brief: string; status: OfficeTaskStatus;
   agentId: string; decision: ManagerDecision; question: string | null; revisions: number; notes: string[];
   summary: string | null; error: string | null; costUsd: number;
+  /** The manager's check of the latest delivery; null until it is done. */
+  review: ManagerReview | null; autoRevisions: number;
   createdAt: string; startedAt: string | null; deliveredAt: string | null; files: OfficeFileView[];
 };
 
@@ -55,6 +58,7 @@ function view(row: Record<string, any>, files: OfficeFileView[]): OfficeTaskView
     id: row.id, number: Number(row.number), category: row.category, title: row.title, brief: row.brief, status: row.status,
     agentId: row.agent_id, decision: row.decision, question: row.question, revisions: Number(row.revisions), notes: row.notes ?? [],
     summary: row.summary, error: row.error, costUsd: Number(row.cost_usd ?? 0),
+    review: row.review?.verdict ? row.review : null, autoRevisions: Number(row.auto_revisions ?? 0),
     createdAt: iso(row.created_at)!, startedAt: iso(row.started_at), deliveredAt: iso(row.delivered_at), files,
   };
 }
@@ -62,10 +66,14 @@ function view(row: Record<string, any>, files: OfficeFileView[]): OfficeTaskView
 export async function listOfficeTasks(actor: WorkOrderActor) {
   assertOfficeRole(actor);
   const availability = await officeAvailability(actor.tenantId);
-  if (!(await tableExists('office_tasks'))) return { ...availability, tasks: [] as OfficeTaskView[] };
+  if (!(await tableExists('office_tasks'))) return { ...availability, due: [] as string[], tasks: [] as OfficeTaskView[] };
   await sql`UPDATE office_tasks SET status='failed', error='İş zaman aşımına uğradı; yeniden deneyebilirsiniz.', updated_at=now()
     WHERE tenant_id=${actor.tenantId} AND status='working' AND started_at < now() - make_interval(mins => ${STALE_MINUTES})`;
   const rows = await sql`SELECT * FROM office_tasks WHERE tenant_id=${actor.tenantId} ORDER BY created_at DESC LIMIT 60`;
+  // A task whose run was lost (the function stopped between steps) is due to be driven on.
+  const due = (rows as any[]).filter(r => Date.now() - new Date(r.updated_at).getTime() > 30_000
+    && (r.status === 'queued' || (r.status === 'checking' && (r.review?.state !== 'running' || Date.now() - new Date(r.updated_at).getTime() > 180_000))))
+    .slice(0, 2).map(r => r.id as string);
   const ids = rows.map((r: any) => r.id);
   const files = ids.length ? await sql`SELECT id, task_id, file_name, content_type, size_bytes, revision FROM office_files
     WHERE tenant_id=${actor.tenantId} AND task_id = ANY(${ids}::uuid[]) ORDER BY revision DESC, created_at` : [];
@@ -75,7 +83,7 @@ export async function listOfficeTasks(actor: WorkOrderActor) {
     list.push({ id: f.id, name: f.file_name, contentType: f.content_type, size: Number(f.size_bytes), revision: Number(f.revision), url: `/api/v1/office/files/${f.id}` });
     byTask.set(f.task_id, list);
   }
-  return { ...availability, tasks: rows.reverse().map((r: any) => view(r, byTask.get(r.id) ?? [])) };
+  return { ...availability, due, tasks: rows.reverse().map((r: any) => view(r, byTask.get(r.id) ?? [])) };
 }
 
 const CreateTask = z.object({
@@ -133,7 +141,7 @@ export async function actOnOfficeTask(actor: WorkOrderActor, taskId: string, raw
     // A revision stays with the family the task was given to.
     const family = task.decision?.model?.family === 'free' ? 'free' : 'claude';
     const decision = { ...decide({ category: task.category, title: task.title, brief: task.brief, revisions: Number(task.revisions) + 1 }, family), triage: task.decision?.triage };
-    const [row] = await sql`UPDATE office_tasks SET status='queued', revisions=revisions+1, notes=notes || ${sql.json([input.note])}::jsonb,
+    const [row] = await sql`UPDATE office_tasks SET status='queued', revisions=revisions+1, auto_revisions=0, review=NULL, notes=notes || ${sql.json([input.note])}::jsonb,
       decision=${sql.json(decision)}, summary=NULL, error=NULL, updated_at=now()
       WHERE tenant_id=${actor.tenantId} AND id=${taskId} AND status='review' RETURNING id`;
     if (!row) fail('Bu görev revizyona gönderilemez.');

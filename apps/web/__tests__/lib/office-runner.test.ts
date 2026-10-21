@@ -75,7 +75,7 @@ describe('running an AI office task', () => {
     expect(statements.some(s => s.text.startsWith('INSERT INTO office_files') && s.values.includes('gider-tablosu.xlsx'))).toBe(true);
     expect(remove).toHaveBeenCalledWith('file_x');
     const done = lastUpdate();
-    expect(done.text).toContain("status='review'");
+    expect(done.text).toContain("status='checking'");
     expect(done.values).toContain('Tablo hazır, toplamlar formülle.');
     expect(Number(done.values.find(v => typeof v === 'number'))).toBeGreaterThan(0);
   });
@@ -101,7 +101,7 @@ describe('running an AI office task', () => {
     await runOfficeTask('t1', 'task-1');
     expect(stream.mock.calls[0][0].container).toBeUndefined();
     expect(uploadFile).toHaveBeenCalledWith(expect.stringMatching(/bayram-duyurusu\.txt$/), Buffer.from('Konu: Bayram tatili\n\nDeğerli müşterimiz…'), 'text/plain; charset=utf-8');
-    expect(lastUpdate().text).toContain("status='review'");
+    expect(lastUpdate().text).toContain("status='checking'");
   });
 
   it('runs a free-family task on OpenRouter and stores the CSV it writes', async () => {
@@ -116,7 +116,7 @@ describe('running an AI office task', () => {
     expect(key).toMatch(/gider-tablosu\.csv$/);
     expect((bytes as Buffer).toString('utf8')).toBe('\uFEFFKalem;Tutar\nKira;1000');
     expect(type).toBe('text/csv; charset=utf-8');
-    expect(lastUpdate().text).toContain("status='review'");
+    expect(lastUpdate().text).toContain("status='checking'");
     delete process.env.OPENROUTER_API_KEY;
   });
 

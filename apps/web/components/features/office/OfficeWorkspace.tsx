@@ -41,7 +41,7 @@ function useOffice(sim: OfficeSimulation): Office {
       sim.sync(data.tasks);
       announce(sim, data.tasks, before);
       setState({ live: data.live, reason: data.reason, error: '', freeModels: Boolean(data.freeModels) });
-      return data.tasks.some(t => t.status === 'queued' || t.status === 'working');
+      return data.tasks.some(t => t.status === 'queued' || t.status === 'working' || t.status === 'checking');
     } catch (error) {
       setState(s => ({ ...s, error: error instanceof Error ? error.message : 'Görevler alınamadı.' }));
       return false;
@@ -79,6 +79,7 @@ function announce(sim: OfficeSimulation, tasks: RemoteTask[], before: Map<string
     if (t.status === 'review') toast.success(`${who} teslim etti: #${t.number} ${t.title}`);
     else if (t.status === 'needs_input') toast.info(`${who} soruyor: ${t.question ?? '#' + t.number}`);
     else if (t.status === 'failed') toast.error(`#${t.number} tamamlanamadı: ${t.error ?? t.title}`);
+    else if (t.status === 'queued' && was === 'checking') toast.info(`Müdür #${t.number} işini düzeltmeye geri verdi`);
   }
 }
 
@@ -104,10 +105,13 @@ function status(sim: OfficeSimulation, agent: Agent): { text: string; tone: 'idl
     case 'to_brief': return { text: `#${task!.number} için ${sim.agent(task!.agentId)!.name} ile konuşmaya gidiyor`, tone: 'move' };
     case 'briefing': return { text: 'Görevi anlatıyor', tone: 'busy' };
     case 'to_office': return { text: 'Masasına dönüyor', tone: 'move' };
+    case 'to_check': return { text: `#${task!.number} kontrolüne gidiyor`, tone: 'move' };
+    case 'checking': return { text: 'İşi kontrol ediyor', tone: 'busy' };
     case 'called': return { text: 'Yönetici geliyor', tone: 'move' };
     case 'to_desk': return { text: 'Masaya gidiyor', tone: 'move' };
     case 'asking': return { text: 'Elini kaldırdı · sorusu var', tone: 'done' };
-    case 'working': return { text: `${CATEGORY[task!.category].steps[Math.max(0, task!.step)]} · %${Math.floor(task!.progress * 100)}`, tone: 'busy' };
+    case 'working': if (task?.remote?.status === 'checking') return { text: 'Müdür kontrol ediyor', tone: 'done' };
+      return { text: `${CATEGORY[task!.category].steps[Math.max(0, task!.step)]} · %${Math.floor(task!.progress * 100)}`, tone: 'busy' };
     case 'delivering': return { text: 'Teslim ediyor', tone: 'done' };
     case 'to_lounge': return { text: 'Molaya dönüyor', tone: 'move' };
     default: return { text: 'Dinleniyor', tone: 'idle' };
@@ -312,6 +316,20 @@ function RaisedHand({ sim, task, office }: { sim: OfficeSimulation; task: Task; 
   );
 }
 
+/** The manager's check of a delivery: verdict, score, what was found. */
+function ReviewNote({ review, autoRevisions, manager }: { review: NonNullable<RemoteTask['review']>; autoRevisions: number; manager: string }) {
+  const tone = review.verdict === 'approve' ? 'border-emerald-500/40 text-emerald-100' : review.verdict === 'revise' ? 'border-amber-500/50 text-amber-100' : 'border-zinc-700 text-zinc-300';
+  const head = review.verdict === 'approve' ? `${manager} kontrol etti ve onayladı` : review.verdict === 'revise' ? `${manager} eksik buldu; son karar sizde` : `${manager} kontrol edemedi`;
+  return (
+    <div className={cn('mt-2 rounded-lg border p-2', tone)}>
+      <p className="font-semibold">{head}{review.score ? ` · ${review.score}/10` : ''}</p>
+      {review.note && <p className="mt-0.5 text-zinc-300">{review.note}</p>}
+      {review.issues.length > 0 && <ul className="mt-1 list-disc pl-4 text-zinc-400">{review.issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}
+      <p className="mt-1 text-[10px] text-zinc-500">{review.reviewer}{autoRevisions ? ` · ${autoRevisions} kez düzeltmeye geri verildi` : ''}</p>
+    </div>
+  );
+}
+
 function Deliveries({ sim, office }: { sim: OfficeSimulation; office: Office }) {
   const [revising, setRevising] = useState<string | null>(null);
   const [note, setNote] = useState('');
@@ -361,6 +379,7 @@ function Deliveries({ sim, office }: { sim: OfficeSimulation; office: Office }) 
               </ul>
             ) : <p className="mt-1 text-zinc-300"><span className="font-mono">{task.deliverable?.name}</span> <span className="text-zinc-500">· örnek teslimat (simülasyon)</span></p>}
             {task.remote?.summary && <p className="mt-2 whitespace-pre-line text-zinc-300">{task.remote.summary}</p>}
+            {task.remote?.review && <ReviewNote review={task.remote.review} autoRevisions={task.remote.autoRevisions} manager={sim.manager.name} />}
             {revising === task.id ? (
               <form className="mt-2 flex gap-1.5" onSubmit={e => { e.preventDefault(); act(task, { action: 'revise', note }); setRevising(null); setNote(''); }}>
                 <input autoFocus value={note} onChange={e => setNote(e.target.value)} placeholder="Ne değişsin?" aria-label="Revizyon notu"

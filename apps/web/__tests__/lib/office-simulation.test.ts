@@ -1,5 +1,5 @@
 import { CATEGORY } from '@/lib/features/office/catalog';
-import { DESKS, LOUNGE_SEATS, MANAGER_DESK, briefingSpot, pathFromBrief, pathToBrief, pathToDesk, pathToLounge } from '@/lib/features/office/layout';
+import { DESKS, LOUNGE_SEATS, MANAGER_DESK, briefingSpot, checkingSpot, pathFromBrief, pathFromCheck, pathToBrief, pathToCheck, pathToDesk, pathToLounge } from '@/lib/features/office/layout';
 import { FREE_TIER_MODEL, OFFICE_MODELS, TIER_MODEL, decide } from '@/lib/features/office/routing';
 import { OfficeSimulation, type RemoteTask } from '@/lib/features/office/simulation';
 
@@ -138,6 +138,11 @@ describe('AI office simulation', () => {
         for (let i = 1; i < path.length; i++) expect(crossesDesk(path[i - 1], path[i])).toBe(false);
       }
     }
+    for (const desk of DESKS) {
+      for (const path of [[MANAGER_DESK.chair, ...pathToCheck(desk)], [checkingSpot(desk), ...pathFromCheck(desk)]]) {
+        for (let i = 1; i < path.length; i++) expect(crossesDesk(path[i - 1], path[i])).toBe(false);
+      }
+    }
   });
 });
 
@@ -175,7 +180,7 @@ describe('office simulation following real tasks', () => {
   const remote = (over: Partial<RemoteTask> = {}): RemoteTask => ({
     id: 'srv-1', number: 7, category: 'presentation', title: 'Bayi sunumu', brief: '', status: 'working',
     decision: decide({ category: 'presentation', title: 'Bayi sunumu', brief: '', revisions: 0 }),
-    question: null, revisions: 0, notes: [], summary: null, error: null, costUsd: 0, files: [], ...over,
+    question: null, revisions: 0, notes: [], review: null, autoRevisions: 0, summary: null, error: null, costUsd: 0, files: [], ...over,
   });
 
   it('walks a real task to a desk and waits at 95 % until the server delivers', () => {
@@ -219,6 +224,28 @@ describe('office simulation following real tasks', () => {
     runUntil(sim, () => sim.agent('zeynep')!.phase === 'lounge');
     sim.sync([remote({ status: 'queued' })]);
     expect(['queued', 'assigned']).toContain(task.status);
+  });
+
+  it('sends the manager to the desk to check a delivery, and back once it is decided', () => {
+    const sim = new OfficeSimulation();
+    sim.sync([remote()]);
+    const zeynep = sim.agent('zeynep')!, kaan = sim.manager;
+    runUntil(sim, () => zeynep.phase === 'working' && kaan.phase === 'managing');
+    sim.sync([remote({ status: 'checking' })]);
+    runUntil(sim, () => kaan.phase === 'checking');
+    const desk = sim.desk(zeynep.deskId)!;
+    expect(kaan.position.x).toBeCloseTo(checkingSpot(desk).x);
+    // The manager sends it back: the person keeps working, the manager returns.
+    sim.sync([remote({ status: 'queued', autoRevisions: 1, review: { verdict: 'revise', score: 4, issues: [], note: '', feedback: 'Kapak eksik', reviewer: 'x' } })]);
+    runUntil(sim, () => kaan.phase === 'managing');
+    expect(zeynep.phase).toBe('working');
+    expect(sim.events.some(e => e.text.includes('düzeltmeye geri verdi: Kapak eksik'))).toBe(true);
+    // Second check, then approval: one more visit, then the delivery.
+    sim.sync([remote({ status: 'checking', autoRevisions: 1 })]);
+    runUntil(sim, () => kaan.phase === 'checking');
+    sim.sync([remote({ status: 'review', autoRevisions: 1, review: { verdict: 'approve', score: 9, issues: [], note: 'İyi', reviewer: 'Claude Sonnet 5.5' } })]);
+    runUntil(sim, () => sim.task('srv-1')!.status === 'review' && kaan.phase === 'managing');
+    expect(sim.events.some(e => e.text.includes('kontrolü: onayladı · 9/10'))).toBe(true);
   });
 
   it('shows tasks already finished when the page opens without walking anyone', () => {

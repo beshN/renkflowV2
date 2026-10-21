@@ -2,7 +2,7 @@ import { after, NextRequest } from 'next/server';
 import { requireWorkOrderActor } from '@/lib/features/work-orders/security';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { actOnOfficeTask } from '@/lib/features/office/service.server';
-import { runOfficeTask } from '@/lib/features/office/runner.server';
+import { driveOfficeTask } from '@/lib/features/office/runner.server';
 import { workspaceError, workspaceJson } from '@/lib/security/workspace-response';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const actor = await requireWorkOrderActor();
     const { id } = await ctx.params;
     const { run } = await actOnOfficeTask(actor, id, await req.json());
-    if (run) after(() => runOfficeTask(actor.tenantId, id));
+    if (run) after(() => driveOfficeTask(actor.tenantId, id));
     return workspaceJson({ ok: true });
   } catch (e) {
     return workspaceError(e);

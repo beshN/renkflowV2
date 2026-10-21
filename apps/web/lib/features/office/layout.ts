@@ -64,3 +64,18 @@ export function pathToBrief(seat: Seat): Point[] {
 export function pathFromBrief(seat: Seat): Point[] {
   return pathToDesk(seat, MANAGER_DESK).slice(1);
 }
+
+/** Where the manager stands to look over someone's screen: beside their chair, on the aisle side. */
+export const checkingSpot = (desk: Desk): Point => ({ x: desk.x + 0.6, z: desk.z + 1.3 });
+
+/** Manager's chair → beside a work desk, down the lounge exit lane and along the desk's aisle. */
+export function pathToCheck(desk: Desk): Point[] {
+  return [
+    { x: MANAGER_DESK.chair.x, z: MANAGER_DESK.aisleZ }, { x: LOUNGE_EXIT_X, z: MANAGER_DESK.aisleZ },
+    { x: LOUNGE_EXIT_X, z: desk.aisleZ }, { x: checkingSpot(desk).x, z: desk.aisleZ }, checkingSpot(desk),
+  ];
+}
+
+export function pathFromCheck(desk: Desk): Point[] {
+  return [...pathToCheck(desk)].reverse().slice(1).concat({ x: MANAGER_DESK.chair.x, z: MANAGER_DESK.chair.z });
+}
