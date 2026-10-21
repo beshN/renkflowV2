@@ -12,11 +12,19 @@ import { DELIVER_SECONDS, type Agent, type OfficeSimulation, type TaskStatus } f
  * the simulation, moves the people and places the name labels the page renders over the canvas.
  */
 
+/** Quality: shadows, smoothing, sharper picture. Performance: none of those, 30 frames a second. */
+export type StageQuality = 'quality' | 'performance';
+export type CameraView = { theta: number; phi: number; distance: number };
+/** How the device copes: struggling in quality mode, or with room to spare in performance mode. */
+export type StageHint = 'slow' | 'smooth';
+
 export type OfficeStage = {
   setSpeed(speed: number): void;
   setPaused(paused: boolean): void;
   setNight(night: boolean): void;
   resetView(): void;
+  /** Where the camera is aimed, to keep it when the stage is rebuilt (another quality mode). */
+  cameraView(): CameraView;
   dispose(): void;
 };
 
@@ -912,17 +920,18 @@ function floatPaper(person: Person, agent: Agent) {
   for (const m of person.paperMaterials) m.opacity = opacity;
 }
 
-export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulation, labels: Map<string, HTMLElement>): OfficeStage {
+export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulation, labels: Map<string, HTMLElement>, options: { quality?: StageQuality; camera?: CameraView; onHint?: (hint: StageHint) => void } = {}): OfficeStage {
+  const fast = options.quality === 'performance';
   const scene = new T.Scene();
   scene.background = SKY.night.clone();
   scene.fog = new T.Fog(SKY.night.clone(), 38, 70);
-  const renderer = new T.WebGLRenderer({ canvas, antialias: true });
+  const renderer = new T.WebGLRenderer({ canvas, antialias: !fast, powerPreference: fast ? 'low-power' : 'high-performance' });
   // Sharp enough on high-density screens at a fraction of the pixels a ratio of 2 or 3 would cost.
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, fast ? 1 : 1.5));
   renderer.outputColorSpace = T.SRGBColorSpace;
   renderer.toneMapping = T.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = !fast;
   renderer.shadowMap.type = T.PCFSoftShadowMap;
   // People move slowly: shadows are redrawn every few frames rather than every frame (see the loop).
   renderer.shadowMap.autoUpdate = false;
@@ -932,7 +941,7 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
   const hemi = new T.HemisphereLight('#c7d2fe', '#3b2a1e', 1.1);
   const sun = new T.DirectionalLight('#ffe8c7', 1.6);
   sun.position.set(-8, 16, 10);
-  sun.castShadow = true;
+  sun.castShadow = !fast;
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 12, bottom: -12, near: 1, far: 50 });
   sun.shadow.bias = -0.0004;
@@ -965,7 +974,7 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
   const target = new T.Vector3(-0.3, 0, 1.4);
   const initialView = { theta: 0.42, phi: 0.9, distance: 28.5 };
   // The camera eases towards where the person dragged or zoomed it.
-  const view = { ...initialView }, goal = { ...initialView };
+  const view = { ...(options.camera ?? initialView) }, goal = { ...view };
   const place = () => {
     camera.position.set(
       target.x + view.distance * Math.sin(view.phi) * Math.sin(view.theta),
@@ -991,8 +1000,21 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
   const visibility = new IntersectionObserver(([entry]) => { onScreen = entry.isIntersecting; });
   visibility.observe(canvas);
   // Resolution follows the device: a machine that cannot keep up gets fewer pixels, then more again.
-  const maxRatio = Math.min(devicePixelRatio, 1.5);
-  let ratio = maxRatio, frameMs = 16, frames = 0;
+  const maxRatio = Math.min(devicePixelRatio, fast ? 1 : 1.5), minRatio = fast ? 0.6 : 0.75;
+  // Performance mode draws at most 30 frames a second; the office itself still moves every frame.
+  const frameBudget = fast ? 1000 / 30 : 0, slowFrame = fast ? 40 : 26, quickFrame = fast ? 34 : 18;
+  let ratio = maxRatio, frameMs = 16, frames = 0, drawnAt = performance.now();
+  // The browser's own frame rate, measured on every frame, decides whether to suggest the other mode.
+  let refreshMs = 16, slowFor = 0, smoothFor = 0, hinted = false;
+  const watch = (interval: number) => {
+    if (hinted || !options.onHint) return;
+    refreshMs = refreshMs * 0.95 + interval * 0.05;
+    // Quality mode: still under ~35 fps with the resolution already down, or under ~22 fps at all.
+    slowFor = !fast && ((ratio <= minRatio && refreshMs > 28) || refreshMs > 45) ? slowFor + interval : 0;
+    // Performance mode: the full refresh rate holds easily at full resolution.
+    smoothFor = fast && ratio >= maxRatio && refreshMs < 18 ? smoothFor + interval : 0;
+    if (slowFor > 8000 || smoothFor > 20000) { hinted = true; options.onHint(slowFor > 8000 ? 'slow' : 'smooth'); }
+  };
 
   // Drag to turn round the office; wheel, or pinch with two fingers, to zoom.
   const pointers = new Map<number, { x: number; y: number }>();
@@ -1044,15 +1066,18 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
   const loop = (now: number) => {
     frame = requestAnimationFrame(loop);
     // A slow frame still moves the office on, up to a quarter second at a time.
-    const dt = Math.min(0.25, (now - last) / 1000);
-    frameMs = frameMs * 0.95 + Math.min(100, now - last) * 0.05;
+    if (!paused) sim.tick(Math.min(0.25, (now - last) / 1000) * speed);
+    if (onScreen) watch(Math.min(100, now - last));
     last = now;
-    if (!paused) sim.tick(dt * speed);
-    if (!onScreen) return;
+    if (!onScreen || now - drawnAt < frameBudget - 2) return;
+    // Everything below eases by the time since the last drawn frame.
+    const dt = Math.min(0.25, (now - drawnAt) / 1000);
+    frameMs = frameMs * 0.95 + Math.min(100, now - drawnAt) * 0.05;
+    drawnAt = now;
     const time = sim.time;
-    if (++frames % 3 === 0) renderer.shadowMap.needsUpdate = true;
+    if (++frames % 3 === 0 && !fast) renderer.shadowMap.needsUpdate = true;
     if (frames % 90 === 0) {
-      const next = frameMs > 26 ? Math.max(0.75, ratio - 0.25) : frameMs < 18 ? Math.min(maxRatio, ratio + 0.25) : ratio;
+      const next = frameMs > slowFrame ? Math.max(minRatio, ratio - 0.2) : frameMs < quickFrame ? Math.min(maxRatio, ratio + 0.2) : ratio;
       if (next !== ratio) { ratio = next; renderer.setPixelRatio(ratio); }
     }
 
@@ -1143,6 +1168,7 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
       if (!nightSet) { night = nightGoal; nightSet = true; }
     },
     resetView() { Object.assign(goal, initialView); },
+    cameraView() { return { ...goal }; },
     dispose() {
       cancelAnimationFrame(frame);
       observer.disconnect();
