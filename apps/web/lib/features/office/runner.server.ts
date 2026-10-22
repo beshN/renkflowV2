@@ -14,6 +14,7 @@ import { createMasker, personalValues } from '@/lib/ai/privacy';
 import { tenantPersonalNames } from '@/lib/ai/known-names';
 import { CATEGORY, type TaskCategoryId } from './catalog';
 import { companyProfile, lookUpRecords, taskActor } from './data.server';
+import { mayReadOfficeTask } from './access';
 import { OFFICE_MODELS, TIER_MODEL, openCodeDecision, type ManagerDecision } from './routing';
 import { unmaskFile } from './unmask';
 import { EFFORT, WORK, dataCalls, readOutcome, requestTools, safeFileName, systemPrompt, textFileName, userMessage, type DataCall } from './work';
@@ -51,13 +52,20 @@ export async function runOfficeTask(tenantId: string, taskId: string, signal: Ab
   if (!task) return;
   const lease = task.started_at;
   delete task.decision.review;
-  const [company, knownNames] = await Promise.all([companyProfile(tenantId), tenantPersonalNames(tenantId).catch(() => [] as string[])]);
   const category = task.category as TaskCategoryId;
   const decision = openCodeEnabled() ? openCodeDecision(task.decision as ManagerDecision, category) : task.decision as ManagerDecision;
   // Only models the office may use; an unknown stored id falls back to the tier's model.
   const model = openCodeEnabled() ? decision.model.id : OFFICE_MODELS[decision.model?.id]?.id ?? TIER_MODEL[decision.difficulty] ?? TIER_MODEL.medium;
   let spent = 0;
   try {
+    const assertCurrentScope = async () => {
+      const actor = await taskActor(tenantId, task.created_by);
+      if (!actor?.access || !mayReadOfficeTask(actor.access, task.created_by, task as any))
+        throw new Error('Görevi veren kişinin erişimi değişti; görev yeniden yetkilendirilmelidir.');
+      return actor;
+    };
+    await assertCurrentScope();
+    const [company, knownNames] = await Promise.all([companyProfile(tenantId), tenantPersonalNames(tenantId).catch(() => [] as string[])]);
     const input = {
       category, title: task.title, brief: task.brief, agentId: task.agent_id,
       answers: task.answers ?? [], notes: task.notes ?? [], revision: Number(task.revisions), companyName: company?.name ?? null, company,
@@ -67,14 +75,14 @@ export async function runOfficeTask(tenantId: string, taskId: string, signal: Ab
     const masker = createMasker(knownNames);
     const prompt = masker.mask(userMessage(input));
     const system = masker.mask(systemPrompt(input));
+    if (openCodeEnabled()) await assertCurrentScope();
     const free = openCodeEnabled() ? await produceOpenCode(input, model, { tenantId, userId: task.created_by, feature: 'office' }, signal) : null;
     const { tools, container, betas } = requestTools(category);
     const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: prompt }];
     const anthropic = free ? null : client();
-    let actor: Awaited<ReturnType<typeof taskActor>> | undefined;
     const lookUp = async (call: DataCall) => {
       try {
-        actor ??= await taskActor(tenantId, task.created_by);
+        const actor = await assertCurrentScope();
         const found = await lookUpRecords(actor, call.category, masker.restore(call.query));
         masker.know(personalValues(found));
         return masker.mask(JSON.stringify(found ?? null)).slice(0, LOOKUP_CHARS);
@@ -87,6 +95,7 @@ export async function runOfficeTask(tenantId: string, taskId: string, signal: Ab
     let lookups = 0;
     let sandboxId: string | null = null;
     for (let turn = 0; !free && turn <= MAX_CONTINUATIONS + MAX_LOOKUP_ROUNDS; turn++) {
+      await assertCurrentScope();
       // A resumed turn keeps the same sandbox, so files built so far are still there.
       const sandbox: Anthropic.Beta.BetaContainerParams | undefined = sandboxId ? { ...(container as Anthropic.Beta.BetaContainerParams | undefined), id: sandboxId } : container as Anthropic.Beta.BetaContainerParams | undefined;
       message = await withUsage({ tenantId, userId: task.created_by, feature: 'office' }, 'anthropic', model, (): Promise<Anthropic.Beta.BetaMessage> =>
@@ -132,6 +141,7 @@ export async function runOfficeTask(tenantId: string, taskId: string, signal: Ab
     const deliveredFiles: DeliveryFile[] = [];
     const save = async (name: string, contentType: string, bytes: Buffer) => {
       signal.throwIfAborted();
+      await assertCurrentScope();
       if (!bytes.length || bytes.length > 8 * 1024 * 1024 || saved.length >= 8) throw new Error('Teslim dosyası sınırın dışında.');
       // The firm's copy gets the real names back; the manager checks the placeholder copy the model made.
       const stored = unmaskFile({ name, contentType, bytes }, value => masker.restore(value));
@@ -173,6 +183,7 @@ export async function runOfficeTask(tenantId: string, taskId: string, signal: Ab
     const [owned] = await sql`UPDATE office_tasks SET decision=${sql.json(decision)}, updated_at=now()
       WHERE tenant_id=${tenantId} AND id=${taskId} AND status='working' AND started_at=${lease} RETURNING id`;
     if (!owned) return;
+    await assertCurrentScope();
     const checked = await reviewDelivery(input, deliveredFiles, { tenantId, userId: task.created_by, feature: 'office_review' }, signal, masker);
     spent += checked.cost;
     decision.review = checked.review;

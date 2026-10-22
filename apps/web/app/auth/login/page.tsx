@@ -29,6 +29,10 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [ready, setReady] = useState(false);
+  const entryError = searchParams.get('error');
+  useEffect(() => {
+    if (entryError === 'sso_expired') setError('Kurumsal giriş bağlantısının süresi doldu veya daha önce kullanıldı. Lütfen yeniden giriş yapın.');
+  }, [entryError]);
 
   useEffect(() => {
     let active = true;

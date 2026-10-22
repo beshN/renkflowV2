@@ -183,6 +183,8 @@ export const BACKEND_MIGRATIONS = [
   '075_company_research.sql',
   '076_e_invoice_document_snapshot.sql',
   '077_ai_office.sql',
+  '078_sso_login_tickets.sql',
+  '079_office_read_scope.sql',
 ];
 
 /** Mobile API tables (sessions, offline receipts, uploads, push devices); applied after 045 (installations). */

@@ -33,7 +33,7 @@ jest.mock('@/lib/ai/known-names', () => ({ tenantPersonalNames: jest.fn(async ()
 const lookUpRecords = jest.fn();
 jest.mock('@/lib/features/office/data.server', () => ({
   companyProfile: jest.fn(async () => ({ name: 'Renk Alüminyum', city: 'Ankara', phone: '0312 555 00 00' })),
-  taskActor: jest.fn(async () => ({ tenantId: 't1', userId: 'u1', role: 'office' })),
+  taskActor: jest.fn(async () => ({ tenantId: 't1', userId: 'u1', role: 'office', access: { base: 'office', permissions: { orders: ['view'] }, hidden: [] } })),
   lookUpRecords: (...a: unknown[]) => lookUpRecords(...a),
 }));
 
@@ -42,6 +42,7 @@ Object.assign(sql, { json: (value: unknown) => value });
 
 import { runOfficeTask } from '@/lib/features/office/runner.server';
 import { decide } from '@/lib/features/office/routing';
+import { taskActor } from '@/lib/features/office/data.server';
 
 const usage = { input_tokens: 1000, output_tokens: 500 };
 const lastUpdate = () => [...statements].reverse().find(s => s.text.startsWith('UPDATE office_tasks'))!;
@@ -55,6 +56,7 @@ beforeEach(() => {
   taskRow = {
     started_at: new Date('2026-10-21T12:00:00Z'), id: 'task-1', tenant_id: 't1', category: 'spreadsheet', title: 'Gider tablosu', brief: 'Muhasebe: ali@renk.com.tr',
     agent_id: 'murat', answers: [], notes: [], revisions: 0, created_by: 'u1',
+    access_scope: { modules: ['orders'], hidden: [] },
     decision: decide({ category: 'spreadsheet', title: 'Gider tablosu', brief: '', revisions: 0 }),
   };
   retrieveMetadata.mockResolvedValue({ filename: 'gider-tablosu.xlsx', mime_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -63,6 +65,27 @@ beforeEach(() => {
 });
 
 describe('running an AI office task', () => {
+  it('does not send company information to a model after the task giver loses access', async () => {
+    (taskActor as jest.Mock).mockResolvedValueOnce(null);
+    await runOfficeTask('t1', 'task-1');
+    expect(stream).not.toHaveBeenCalled();
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(lastUpdate().text).toContain("status='failed'");
+  });
+
+  it('does not save or review a delivery if the creator loses access during generation', async () => {
+    (taskActor as jest.Mock)
+      .mockResolvedValueOnce({ tenantId: 't1', userId: 'u1', role: 'office', access: { base: 'office', permissions: { orders: ['view'] }, hidden: [] } })
+      .mockResolvedValueOnce({ tenantId: 't1', userId: 'u1', role: 'office', access: { base: 'office', permissions: { orders: ['view'] }, hidden: [] } })
+      .mockResolvedValueOnce(null);
+    taskRow = { ...taskRow!, category: 'correspondence', agent_id: 'selin' };
+    stream.mockResolvedValue({ stop_reason: 'end_turn', usage, content: [{ type: 'text', text: 'Private delivery' }] });
+    await runOfficeTask('t1', 'task-1');
+    expect(stream).toHaveBeenCalledTimes(1);
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(reviewDelivery).not.toHaveBeenCalled();
+  });
+
   it('builds the file on Sonnet 5.5 with the xlsx skill, stores it for the firm and asks for review', async () => {
     stream.mockResolvedValue({
       stop_reason: 'end_turn', usage,

@@ -17,6 +17,7 @@ jest.mock('@/lib/storage', () => ({ readFile: jest.fn(), deleteFile: (...a: unkn
 jest.mock('@/lib/ai/service', () => ({ aiAvailable: () => true }));
 jest.mock('@/lib/ai/gate.server', () => ({ getAiSettings: jest.fn() }));
 jest.mock('@/lib/features/office/triage.server', () => ({ triage: jest.fn() }));
+jest.mock('@/lib/security/member-access.server', () => ({ resolveMemberAccess: jest.fn(async () => ({ base: 'owner', deactivated: false, permissions: Object.fromEntries(['orders','quotations','customers','crm','installations','service','production','inventory','knowledge','purchasing','finance','reports','fleet','team','settings','audit'].map(m => [m, ['view']])), hidden: [] })) }));
 jest.mock('@/lib/features/work-orders/security', () => ({
   WorkOrderApiError: class extends Error { constructor(message: string, readonly status: number) { super(message); } },
 }));

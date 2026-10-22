@@ -1,5 +1,7 @@
 /** Only Host selects the company. Forwarded or client tenant headers never select an identity. */
 export const COMPANY_ROOT_DOMAIN = "renkflow.com";
+// Auth.js appends /callback/<provider>. Keep the existing registered Google callback.
+export const COMPANY_AUTH_PROXY_URL = `https://${COMPANY_ROOT_DOMAIN}/api/auth`;
 export const RESERVED_SUBDOMAINS = new Set([
   "www",
   "app",

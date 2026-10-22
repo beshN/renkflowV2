@@ -52,6 +52,17 @@ async function main() {
     const downloaded = await readOfficeFile(actor, file.id);
     assert.match(await new Response(downloaded.body).text(), /29600/);
     await assert.rejects(readOfficeFile({ ...actor, tenantId: randomUUID() }, file.id));
+    const [colleague] = await db`INSERT INTO users(name,email) VALUES('Restricted colleague',${randomUUID() + '@test.invalid'}) RETURNING id`;
+    await db`INSERT INTO tenant_members(tenant_id,user_id,role,access_role) VALUES(${tenant.id},${colleague.id},'office','planning')`;
+    const colleagueActor = { ...actor, userId: colleague.id, role: 'office' as const };
+    assert.equal((await listOfficeTasks(colleagueActor)).tasks.length, 0, 'a colleague cannot read another creator’s generated content');
+    await assert.rejects(readOfficeFile(colleagueActor, file.id), (e: any) => e.status === 404);
+    await assert.rejects(actOnOfficeTask(colleagueActor, task.id, { action: 'approve' }), (e: any) => e.status === 404);
+    await db`UPDATE tenant_members SET role='office',access_role='planning' WHERE tenant_id=${tenant.id} AND user_id=${user.id}`;
+    await assert.rejects(readOfficeFile({ ...actor, role: 'office' }, file.id), (e: any) => e.status === 404, 'demotion also blocks the creator’s old unrestricted output');
+    await db`UPDATE tenant_members SET role='owner',access_role=NULL WHERE tenant_id=${tenant.id} AND user_id=${user.id}`;
+    await db`DELETE FROM tenant_members WHERE tenant_id=${tenant.id} AND user_id=${colleague.id}`;
+    await db`DELETE FROM users WHERE id=${colleague.id}`;
     await actOnOfficeTask(actor, task.id, { action: 'approve' });
     assert.equal((await db`SELECT status FROM office_tasks WHERE tenant_id=${tenant.id} AND id=${task.id}`)[0].status, 'approved');
     // The records the office reads: the task giver's own firm, as that member, and nothing for a stranger.

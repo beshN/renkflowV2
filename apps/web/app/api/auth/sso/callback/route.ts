@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleOIDCCallback, handleSAMLCallback } from '@/lib/auth/sso';
 import { sql } from '@/lib/db';
-import crypto from 'node:crypto';
+import { issueLoginTicket, loginTicketCookieName, ssoFlowCookieName, matchesSsoFlow } from '@/lib/features/auth/login-ticket.server';
+import { assertCompanyHostTenant } from '@/lib/features/company/host.server';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,25 +18,20 @@ async function handleCallback(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const code = url.searchParams.get('code');
-    const state = url.searchParams.get('state') || (await request.formData().catch(() => null))?.get('RelayState') as string;
-    
-    // Parse SAMLResponse from FormData if POST
-    let samlResponse = null;
-    if (request.method === 'POST') {
-        const formData = await request.formData();
-        samlResponse = formData.get('SAMLResponse') as string;
-    }
-
-    if (!state) {
-        return NextResponse.json({ error: 'Missing state parameter' }, { status: 400 });
+    const form = request.method === 'POST' ? await request.formData().catch(() => null) : null;
+    const state = url.searchParams.get('state') || form?.get('RelayState');
+    const samlResponse = form?.get('SAMLResponse');
+    const secure = request.nextUrl.protocol === 'https:';
+    if (typeof state !== 'string' || !matchesSsoFlow(state, request.cookies.get(ssoFlowCookieName(secure))?.value)) {
+        return NextResponse.json({ error: 'Invalid or expired login flow' }, { status: 400 });
     }
 
     // 1. Retrieve state to find provider type
     const stateResult = await sql`
-        SELECT s.*, p.type, p.id as provider_id
+        SELECT s.*, p.type, p.id as provider_id, p.tenant_id
         FROM sso_states s
         JOIN sso_providers p ON s.provider_id = p.id
-        WHERE s.state = ${state}
+        WHERE s.state = ${state} AND s.expires_at>now() AND p.enabled=true
     `;
     const stateRows = stateResult as any[];
     const stateRecord = stateRows[0];
@@ -43,11 +39,12 @@ async function handleCallback(request: NextRequest) {
     if (!stateRecord) {
         return NextResponse.json({ error: 'Invalid or expired state' }, { status: 400 });
     }
+    await assertCompanyHostTenant(stateRecord.tenant_id, request.headers.get('host') || request.nextUrl.host);
 
     let result;
 
     if (stateRecord.type === 'saml') {
-        if (!samlResponse) {
+        if (typeof samlResponse !== 'string' || !samlResponse) {
              return NextResponse.json({ error: 'Missing SAMLResponse' }, { status: 400 });
         }
         result = await handleSAMLCallback(samlResponse, state);
@@ -62,22 +59,23 @@ async function handleCallback(request: NextRequest) {
         throw new Error('Authentication failed');
     }
 
-    // 2. Create a temporary login ticket (magic code)
-    const ticket = crypto.randomBytes(32).toString('hex');
-    
-    // Update user with verification token
-    await sql`
-        UPDATE users 
-        SET verification_token = ${ticket} 
-        WHERE id = ${result.user.id}
-    `;
+    const { ticket, browser } = await issueLoginTicket(sql, {
+      userId: result.user.id,
+      tenantId: stateRecord.tenant_id,
+      host: request.headers.get('host') || request.nextUrl.host,
+    });
 
     // 3. Redirect to a client-side page that performs the actual sign-in
     const redirectUrl = new URL('/auth/sso-verify', request.url);
-    redirectUrl.searchParams.set('email', result.user.email);
-    redirectUrl.searchParams.set('ticket', ticket);
+    // Fragments stay in the browser: tickets must not enter server access logs or Referer URLs.
+    redirectUrl.hash = new URLSearchParams({ email: result.user.email, ticket }).toString();
     
-    return NextResponse.redirect(redirectUrl);
+    const response = NextResponse.redirect(redirectUrl, 303);
+    response.cookies.set(loginTicketCookieName(secure), browser, { httpOnly: true, secure, sameSite: 'lax', path: '/', maxAge: 300 });
+    response.cookies.set(ssoFlowCookieName(secure), '', { httpOnly: true, secure, sameSite: secure ? 'none' : 'lax', path: '/', maxAge: 0 });
+    response.headers.set('Cache-Control', 'no-store');
+    response.headers.set('Referrer-Policy', 'no-referrer');
+    return response;
 
   } catch (error: unknown) {
     console.error('SSO Callback Error:', error);
