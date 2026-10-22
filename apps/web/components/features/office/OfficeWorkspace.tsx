@@ -1,13 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
-import { Check, Download, Hand, Moon, Pause, Play, Plus, RefreshCw, RotateCcw, Sun, Undo2, X } from 'lucide-react';
+import { Check, Download, Hand, Moon, Pause, Play, Plus, RefreshCw, RotateCcw, Sparkles, Sun, Undo2, X, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CATEGORY, TASK_CATEGORIES, type TaskCategoryId } from '@/lib/features/office/catalog';
 import { DIFFICULTY_LABELS } from '@/lib/features/office/routing';
 import { BREAKS, LOUNGE_TEXT, OfficeSimulation, type Agent, type EventKind, type OfficeEvent, type RemoteTask, type Task } from '@/lib/features/office/simulation';
-import { createOfficeStage, type OfficeStage } from '@/lib/features/office/scene';
+import { createOfficeStage, type CameraView, type OfficeStage, type StageHint, type StageQuality } from '@/lib/features/office/scene';
 
 const SPEEDS = [1, 2, 4];
 const API = '/api/v1/office';
@@ -122,35 +122,49 @@ const decisionText = (task: Task) => task.decision ? `${DIFFICULTY_LABELS[task.d
 
 /** Phases with no task in hand: no bubble over the head, at most a small icon. */
 const IDLE_PHASES = new Set<Agent['phase']>(['lounge', 'called', 'to_break', 'break', 'from_break']);
-const LOUNGE_ICON = { relax: '', phone: '📱', read: '📖', chat: '💬', coffee: '☕' };
-
+/** Only someone at a break spot shows its icon; the lounge and the walkers stay unlabelled. */
 function breakIcon(agent: Agent) {
-  if (agent.phase === 'break' || agent.phase === 'to_break') return BREAKS[agent.activity!].icon;
-  if (agent.phase === 'lounge') return LOUNGE_ICON[agent.lounging];
-  return '';
+  return agent.phase === 'break' ? BREAKS[agent.activity!].icon : '';
 }
 
 const TONE_DOT = { idle: 'bg-zinc-500', busy: 'bg-amber-400', move: 'bg-sky-400', done: 'bg-emerald-400' };
 const TONE_TEXT = { idle: 'text-zinc-400', busy: 'text-amber-300', move: 'text-sky-300', done: 'text-emerald-300' };
 
-type View = { speed: number; paused: boolean; night: boolean; tab: EventKind; filter: string };
+type View = { speed: number; paused: boolean; night: boolean; tab: EventKind; filter: string; quality: StageQuality };
+
+/** The quality mode is a choice of this device, so it is remembered in this browser. */
+const QUALITY_KEY = 'renkflow.office.quality';
+function savedQuality(): StageQuality {
+  try { return localStorage.getItem(QUALITY_KEY) === 'performance' ? 'performance' : 'quality'; } catch { return 'quality'; }
+}
+const QUALITIES: Array<{ id: StageQuality; label: string; hint: string }> = [
+  { id: 'performance', label: 'Performans', hint: 'Gölgesiz, daha düşük çözünürlük, saniyede 30 kare: zayıf bilgisayarlarda akıcı' },
+  { id: 'quality', label: 'Kalite', hint: 'Gölgeler, yumuşatılmış kenarlar, daha keskin görüntü' },
+];
 
 /**
  * The office outlives the page: going to another menu and back finds the same people mid-walk or
  * at their desks, moved on by the time spent away, instead of the office starting over. One per
  * firm and person, in this browser tab.
  */
-let kept: { key: string; sim: OfficeSimulation; leftAt: number | null; view: View } | null = null;
+let kept: { key: string; sim: OfficeSimulation; leftAt: number | null; view: View; camera?: CameraView; declined: Set<StageHint> } | null = null;
 
 function keptOffice(key: string) {
-  if (kept?.key !== key) kept = { key, sim: new OfficeSimulation(), leftAt: null, view: { speed: 1, paused: false, night: true, tab: 'activity', filter: 'all' } };
+  if (kept?.key !== key) kept = { key, sim: new OfficeSimulation(), leftAt: null, view: { speed: 1, paused: false, night: true, tab: 'activity', filter: 'all', quality: savedQuality() }, declined: new Set() };
   return kept;
 }
 
 export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
   const [here] = useState(() => keptOffice(officeKey));
   const sim = here.sim;
-  useSyncExternalStore(sim.subscribe, sim.getVersion, sim.getVersion);
+  // The office changes many times a second; the panel follows at most four times a second (the 3D
+  // scene draws itself every frame without React).
+  const subscribe = useCallback((notify: () => void) => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const stop = sim.subscribe(() => { timer ??= setTimeout(() => { timer = null; notify(); }, 250); });
+    return () => { stop(); if (timer) clearTimeout(timer); };
+  }, [sim]);
+  useSyncExternalStore(subscribe, sim.getVersion, sim.getVersion);
   const office = useOffice(sim);
   const canvas = useRef<HTMLCanvasElement>(null);
   const stage = useRef<OfficeStage | null>(null);
@@ -162,7 +176,11 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
   const [composing, setComposing] = useState(false);
   const [tab, setTab] = useState<EventKind>(here.view.tab);
   const [filter, setFilter] = useState(here.view.filter);
-  useEffect(() => { here.view = { speed, paused, night, tab, filter }; }, [here, speed, paused, night, tab, filter]);
+  const [quality, setQuality] = useState<StageQuality>(here.view.quality);
+  /** The other mode, suggested when the device struggles or has room to spare; a declined one is not offered again. */
+  const [hint, setHint] = useState<StageHint | null>(null);
+  useEffect(() => { here.view = { speed, paused, night, tab, filter, quality }; }, [here, speed, paused, night, tab, filter, quality]);
+  useEffect(() => { try { localStorage.setItem(QUALITY_KEY, quality); } catch { /* the choice just is not remembered */ } }, [quality]);
 
   useEffect(() => {
     if (!canvas.current) return;
@@ -170,13 +188,26 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
     if (here.leftAt !== null && !here.view.paused) sim.catchUp(((Date.now() - here.leftAt) / 1000) * here.view.speed);
     here.leftAt = null;
     try {
-      stage.current = createOfficeStage(canvas.current, sim, labels.current);
+      // A new quality mode builds the stage again on a fresh canvas, with the camera where it was.
+      setHint(null);
+      stage.current = createOfficeStage(canvas.current, sim, labels.current, {
+        quality, camera: here.camera,
+        onHint: next => { if (!here.declined.has(next)) setHint(next); },
+      });
+      stage.current.setSpeed(here.view.speed);
+      stage.current.setPaused(here.view.paused);
+      stage.current.setNight(here.view.night);
     } catch {
       setFailed(true);
       return;
     }
-    return () => { stage.current?.dispose(); stage.current = null; here.leftAt = Date.now(); };
-  }, [here, sim]);
+    return () => {
+      here.camera = stage.current?.cameraView();
+      stage.current?.dispose();
+      stage.current = null;
+      here.leftAt = Date.now();
+    };
+  }, [here, sim, quality]);
   useEffect(() => stage.current?.setSpeed(speed), [speed]);
   useEffect(() => stage.current?.setPaused(paused), [paused]);
   useEffect(() => stage.current?.setNight(night), [night]);
@@ -190,7 +221,7 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-[#0b1020] text-zinc-100 lg:h-[calc(100dvh-10rem)] lg:min-h-[640px] lg:flex-row">
       <div className="relative min-h-[420px] flex-1">
-        <canvas ref={canvas} className="absolute inset-0 h-full w-full cursor-grab touch-none active:cursor-grabbing" aria-label="AI ofisi: çalışanlar ve masaları" />
+        <canvas key={quality} ref={canvas} className="absolute inset-0 h-full w-full cursor-grab touch-none active:cursor-grabbing" aria-label="AI ofisi: çalışanlar ve masaları" />
         {failed && <p className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-zinc-400">Bu tarayıcı 3D ofisi gösteremiyor. Ekip ve görevler sağdaki panelde.</p>}
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
           {sim.agents.map(agent => {
@@ -214,6 +245,19 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
             : <span className="max-w-[min(520px,80vw)] rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-1.5">{office.reason ?? 'Simülasyon · modeller bağlı değil'}</span>}
           {office.error && <span role="alert" className="rounded-lg border border-red-500/50 bg-zinc-950/80 px-3 py-1.5 text-red-200">{office.error}</span>}
         </div>
+        {hint && (
+          <div role="status" className="absolute right-3 top-3 flex max-w-[min(360px,80vw)] flex-col gap-2 rounded-xl border border-amber-500/50 bg-zinc-950/90 p-3 text-xs shadow-lg">
+            <p className="text-zinc-200">
+              {hint === 'slow' ? 'Ofis bu cihazda zorlanıyor. Performans moduna geçilsin mi? Gölgeler kapanır, akıcılık artar.' : 'Bu cihaz ofisi rahat çalıştırıyor. Kalite moduna geçilsin mi? Gölgeler ve daha keskin görüntü gelir.'}
+            </p>
+            <div className="flex justify-end gap-1.5">
+              <button type="button" onClick={() => { here.declined.add(hint); setHint(null); }} className="rounded-lg px-2.5 py-1.5 text-zinc-300 hover:bg-zinc-800">Böyle kalsın</button>
+              <button type="button" onClick={() => setQuality(hint === 'slow' ? 'performance' : 'quality')} className="rounded-lg bg-amber-500 px-2.5 py-1.5 font-semibold text-zinc-950 hover:bg-amber-400">
+                {hint === 'slow' ? 'Performans moduna geç' : 'Kalite moduna geç'}
+              </button>
+            </div>
+          </div>
+        )}
         <div className="absolute bottom-3 left-3 flex items-center gap-1 rounded-xl border border-zinc-700 bg-zinc-950/85 p-1 text-xs">
           <button type="button" onClick={() => setPaused(p => !p)} className="rounded-lg p-2 hover:bg-zinc-800" aria-label={paused ? 'Devam et' : 'Duraklat'}>
             {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
@@ -228,6 +272,16 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
           <button type="button" onClick={() => stage.current?.resetView()} className="rounded-lg p-2 hover:bg-zinc-800" aria-label="Görünümü sıfırla">
             <RotateCcw className="h-4 w-4" />
           </button>
+          <span className="mx-0.5 h-5 w-px bg-zinc-700" aria-hidden />
+          <div role="radiogroup" aria-label="Görüntü modu" className="flex gap-0.5">
+            {QUALITIES.map(mode => (
+              <button key={mode.id} type="button" role="radio" aria-checked={quality === mode.id} aria-label={mode.label} title={mode.hint} onClick={() => setQuality(mode.id)}
+                className={cn('flex items-center gap-1 rounded-lg px-2 py-1.5 font-semibold hover:bg-zinc-800', quality === mode.id && 'bg-zinc-800 text-amber-300')}>
+                {mode.id === 'performance' ? <Zap className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
+                <span className="hidden sm:inline">{mode.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

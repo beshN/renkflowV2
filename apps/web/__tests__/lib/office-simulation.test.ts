@@ -1,7 +1,7 @@
 import { CATEGORY } from '@/lib/features/office/catalog';
 import { BREAK_SPOTS, CAFE_TABLE, DESKS, GAMING, LOUNGE_SEATS, MANAGER_DESK, breakSpot, briefingSpot, managerCoffeePath, pathBetweenSpots, pathFromBrief, pathFromSpot, pathToBrief, pathToDesk, pathToLounge, pathToSpot } from '@/lib/features/office/layout';
 import { OFFICE_MODELS, TIER_MODEL, decide } from '@/lib/features/office/routing';
-import { OfficeSimulation, type RemoteTask } from '@/lib/features/office/simulation';
+import { MAX_AWAY, OfficeSimulation, type RemoteTask } from '@/lib/features/office/simulation';
 
 /** Ticks in small steps, as the scene does, until the condition holds or the time runs out. */
 function runUntil(sim: OfficeSimulation, done: () => boolean, maxSeconds = 120) {
@@ -332,7 +332,7 @@ describe('breaks between tasks', () => {
     }
   });
 
-  it('keeps idle people busy with all sorts of breaks, one person per spot, and brings them back', () => {
+  it('keeps idle people busy with all sorts of breaks, a few at a time, one person per spot, and brings them back', () => {
     const sim = new OfficeSimulation({ seed: 7 });
     const seen = new Set<string>();
     let returned = 0;
@@ -341,6 +341,8 @@ describe('breaks between tasks', () => {
       sim.tick(0.1);
       const spots = sim.agents.filter(a => a.spotId).map(a => a.spotId);
       expect(new Set(spots).size).toBe(spots.length);
+      // A calm floor: only a few people away at once.
+      expect(sim.agents.filter(a => a.role !== 'manager' && ['to_break', 'break', 'from_break'].includes(a.phase)).length).toBeLessThanOrEqual(MAX_AWAY);
       for (const a of sim.agents) {
         if (a.phase === 'break') seen.add(a.activity!);
         if (before.get(a.id) === 'from_break' && (a.phase === 'lounge' || a.phase === 'managing')) returned++;

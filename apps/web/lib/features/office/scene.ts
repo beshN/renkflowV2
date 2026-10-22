@@ -1,4 +1,5 @@
 import * as T from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Look, TaskCategoryId } from './catalog';
 import { BOARD_X, BOOKSHELF, CAFE_TABLE, DESKS, FLOOR, GAMING, KITCHEN, LOUNGE, LOUNGE_SEATS, MANAGER_DESK, TV, type Desk } from './layout';
 import { DELIVER_SECONDS, type Agent, type OfficeSimulation, type TaskStatus } from './simulation';
@@ -11,11 +12,19 @@ import { DELIVER_SECONDS, type Agent, type OfficeSimulation, type TaskStatus } f
  * the simulation, moves the people and places the name labels the page renders over the canvas.
  */
 
+/** Quality: shadows, smoothing, sharper picture. Performance: none of those, 30 frames a second. */
+export type StageQuality = 'quality' | 'performance';
+export type CameraView = { theta: number; phi: number; distance: number };
+/** How the device copes: struggling in quality mode, or with room to spare in performance mode. */
+export type StageHint = 'slow' | 'smooth';
+
 export type OfficeStage = {
   setSpeed(speed: number): void;
   setPaused(paused: boolean): void;
   setNight(night: boolean): void;
   resetView(): void;
+  /** Where the camera is aimed, to keep it when the stage is rebuilt (another quality mode). */
+  cameraView(): CameraView;
   dispose(): void;
 };
 
@@ -38,6 +47,8 @@ const box = (w: number, h: number, d: number, color: string, extra: T.MeshStanda
 };
 const at = <O extends T.Object3D>(object: O, x: number, y: number, z: number) => { object.position.set(x, y, z); return object; };
 const ease = (current: number, target: number, rate: number, dt: number) => current + (target - current) * Math.min(1, dt * rate);
+/** Marks a material or object the scene changes while running, so baking leaves it alone. */
+const live = <O extends T.Material | T.Object3D>(thing: O) => { thing.userData.live = true; return thing; };
 
 function canvasTexture(width: number, height: number, draw: (g: CanvasRenderingContext2D) => void) {
   const canvas = document.createElement('canvas');
@@ -109,7 +120,7 @@ function buildRoom(scene: T.Scene) {
   const wallZ = FLOOR.minZ;
   scene.add(at(box(width, 3.4, 0.2, COLORS.wall), 0, 1.7, wallZ - 0.1));
   const day = new T.MeshBasicMaterial({ map: skylineTexture(false), toneMapped: false });
-  const night = new T.MeshBasicMaterial({ map: skylineTexture(true), toneMapped: false, transparent: true, opacity: 1 });
+  const night = live(new T.MeshBasicMaterial({ map: skylineTexture(true), toneMapped: false, transparent: true, opacity: 1 }));
   const panes: number[] = [];
   for (let x = FLOOR.minX + 1.6; x < FLOOR.maxX - 1; x += 2.6) panes.push(x);
   panes.forEach((x, i) => {
@@ -249,7 +260,7 @@ function buildDesk(scene: T.Scene, desk: Desk, wide = false): DeskParts {
   const g = canvas.getContext('2d')!;
   const texture = new T.CanvasTexture(canvas);
   texture.colorSpace = T.SRGBColorSpace;
-  const screen = new T.MeshBasicMaterial({ map: texture, toneMapped: false });
+  const screen = live(new T.MeshBasicMaterial({ map: texture, toneMapped: false }));
   screen.color.setScalar(0.35);
   group.add(at(box(0.66, 0.4, 0.04, COLORS.metal), 0, 1.12, -0.22));
   group.add(at(new T.Mesh(new T.PlaneGeometry(0.6, 0.35), screen), 0, 1.12, -0.199));
@@ -258,7 +269,7 @@ function buildDesk(scene: T.Scene, desk: Desk, wide = false): DeskParts {
   const mug = new T.Mesh(new T.CylinderGeometry(0.04, 0.035, 0.09, 12), new T.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.5 }));
   mug.castShadow = true;
   group.add(at(mug, -w / 2 + 0.2, 0.825, 0.12));
-  const lamp = new T.MeshStandardMaterial({ color: '#f8fafc', emissive: COLORS.lamp, emissiveIntensity: 0, roughness: 0.4 });
+  const lamp = live(new T.MeshStandardMaterial({ color: '#f8fafc', emissive: COLORS.lamp, emissiveIntensity: 0, roughness: 0.4 }));
   group.add(at(box(0.03, 0.34, 0.03, COLORS.metal), w / 2 - 0.15, 0.95, -0.25));
   group.add(at(new T.Mesh(new T.ConeGeometry(0.09, 0.1, 14, 1, true), lamp), w / 2 - 0.15, 1.1, -0.2));
 
@@ -270,7 +281,7 @@ function buildDesk(scene: T.Scene, desk: Desk, wide = false): DeskParts {
   chair.add(at(box(0.5, 0.03, 0.06, COLORS.metal), 0, 0.03, 0), at(box(0.06, 0.03, 0.5, COLORS.metal), 0, 0.03, 0));
   group.add(chair);
 
-  const glow = new T.Mesh(new T.CircleGeometry(1.15, 40), new T.MeshBasicMaterial({ color: COLORS.glow, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
+  const glow = new T.Mesh(new T.CircleGeometry(1.15, 40), live(new T.MeshBasicMaterial({ color: COLORS.glow, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false })));
   glow.rotation.x = -Math.PI / 2;
   group.add(at(glow, 0, 0.01, 0.35));
   scene.add(group);
@@ -308,7 +319,7 @@ function buildLounge(scene: T.Scene) {
   const cup = new T.Mesh(new T.CylinderGeometry(0.05, 0.04, 0.08, 12), new T.MeshStandardMaterial({ color: '#f97316' }));
   scene.add(at(cup, LOUNGE.table.x + 0.35, 0.46, LOUNGE.table.z + 0.1));
   // A floor lamp in the lounge corner, lit at night.
-  const shade = new T.MeshStandardMaterial({ color: '#fef3c7', emissive: COLORS.lamp, emissiveIntensity: 0, roughness: 0.6 });
+  const shade = live(new T.MeshStandardMaterial({ color: '#fef3c7', emissive: COLORS.lamp, emissiveIntensity: 0, roughness: 0.6 }));
   scene.add(at(box(0.04, 1.6, 0.04, COLORS.metal), -10.6, 0.8, -6.4));
   scene.add(at(new T.Mesh(new T.CylinderGeometry(0.18, 0.26, 0.3, 18, 1, true), shade), -10.6, 1.65, -6.4));
   return shade;
@@ -323,16 +334,14 @@ function buildDecor(scene: T.Scene) {
     const top = new T.Mesh(new T.IcosahedronGeometry(0.28 * scale, 0), new T.MeshStandardMaterial({ color: '#38a169', flatShading: true }));
     top.castShadow = true;
     scene.add(at(top, x + 0.08, 1.18 * scale, z - 0.05));
-    return [leaves, top];
   };
-  const leaves = [plant(-11.3, -7.3), plant(11.3, -7.3), plant(-6.3, 7.4, 0.8), plant(-4.1, -7.3), plant(11.3, 7.6, 0.7), plant(0.3, -7.3, 0.7), plant(-11.3, 3.3, 0.8)].flat();
+  [plant(-11.3, -7.3), plant(11.3, -7.3), plant(-6.3, 7.4, 0.8), plant(-4.1, -7.3), plant(11.3, 7.6, 0.7), plant(0.3, -7.3, 0.7), plant(-11.3, 3.3, 0.8)];
   // Water cooler by the lounge exit.
   scene.add(at(box(0.36, 1, 0.36, '#e5e7eb'), -4.3, 0.5, -7.4));
   const bottle = new T.Mesh(new T.CylinderGeometry(0.15, 0.15, 0.42, 16), new T.MeshStandardMaterial({ color: '#60a5fa', transparent: true, opacity: 0.7 }));
   scene.add(at(bottle, -4.3, 1.21, -7.4));
   // A printer by the desks, where deliveries come out.
   scene.add(at(box(0.7, 0.7, 0.5, '#d4d4d8'), -2.6, 0.35, 6.9), at(box(0.5, 0.06, 0.3, '#f8fafc'), -2.6, 0.73, 6.85));
-  return leaves;
 }
 
 /** Kitchen along the side wall: counter, cabinets, coffee machine with steam, fridge, microwave. */
@@ -347,10 +356,10 @@ function buildKitchen(scene: T.Scene) {
   // Coffee machine: body, spout, a light that turns green while it brews.
   scene.add(at(box(0.36, 0.48, 0.34, '#18181b'), x, 1.15, KITCHEN.coffeeZ));
   scene.add(at(box(0.1, 0.06, 0.12, '#52525b'), x + 0.18, 1.05, KITCHEN.coffeeZ));
-  const light = new T.MeshBasicMaterial({ color: '#ef4444' });
+  const light = live(new T.MeshBasicMaterial({ color: '#ef4444' }));
   scene.add(at(new T.Mesh(new T.SphereGeometry(0.025, 8, 6), light), x + 0.185, 1.3, KITCHEN.coffeeZ + 0.1));
   const steam = Array.from({ length: 6 }, () => {
-    const puff = new T.Mesh(new T.SphereGeometry(0.05, 8, 6), new T.MeshBasicMaterial({ color: '#f8fafc', transparent: true, opacity: 0, depthWrite: false }));
+    const puff = live(new T.Mesh(new T.SphereGeometry(0.05, 8, 6), new T.MeshBasicMaterial({ color: '#f8fafc', transparent: true, opacity: 0, depthWrite: false })));
     scene.add(puff);
     return puff;
   });
@@ -404,7 +413,7 @@ function buildGamingCorner(scene: T.Scene) {
   const { x, screenZ, seatZ, standWidth } = GAMING;
   scene.add(at(box(standWidth, 0.45, 0.45, '#27272a'), x, 0.225, screenZ));
   const consoleBox = at(box(0.32, 0.07, 0.24, '#f8fafc'), x - 0.5, 0.485, screenZ + 0.02);
-  const consoleLight = new T.MeshBasicMaterial({ color: '#3b82f6' });
+  const consoleLight = live(new T.MeshBasicMaterial({ color: '#3b82f6' }));
   scene.add(consoleBox, at(new T.Mesh(new T.BoxGeometry(0.2, 0.008, 0.01), consoleLight), x - 0.5, 0.485, screenZ + 0.145));
   scene.add(at(box(1.75, 1.0, 0.07, '#09090b'), x, 1.05, screenZ - 0.05));
   const canvas = document.createElement('canvas');
@@ -413,7 +422,7 @@ function buildGamingCorner(scene: T.Scene) {
   const g = canvas.getContext('2d')!;
   const texture = new T.CanvasTexture(canvas);
   texture.colorSpace = T.SRGBColorSpace;
-  scene.add(at(new T.Mesh(new T.PlaneGeometry(1.64, 0.92), new T.MeshBasicMaterial({ map: texture, toneMapped: false })), x, 1.05, screenZ - 0.01));
+  scene.add(at(new T.Mesh(new T.PlaneGeometry(1.64, 0.92), live(new T.MeshBasicMaterial({ map: texture, toneMapped: false }))), x, 1.05, screenZ - 0.01));
   const rug = new T.Mesh(new T.CircleGeometry(1.3, 32), new T.MeshStandardMaterial({ color: '#1e3a8a', roughness: 1 }));
   rug.rotation.x = -Math.PI / 2;
   rug.receiveShadow = true;
@@ -452,7 +461,7 @@ function buildTvCorner(scene: T.Scene) {
   const g = canvas.getContext('2d')!;
   const texture = new T.CanvasTexture(canvas);
   texture.colorSpace = T.SRGBColorSpace;
-  const screen = new T.MeshBasicMaterial({ map: texture, toneMapped: false });
+  const screen = live(new T.MeshBasicMaterial({ map: texture, toneMapped: false }));
   scene.add(at(box(0.08, 0.95, 1.65, '#09090b'), TV.x + 0.05, 1.12, TV.z));
   const panel = new T.Mesh(new T.PlaneGeometry(1.55, 0.86), screen);
   panel.rotation.y = -Math.PI / 2;
@@ -513,7 +522,7 @@ function buildShelfAndClock(scene: T.Scene) {
   ring.rotation.y = Math.PI / 2;
   scene.add(at(ring, FLOOR.minX + 0.02, 2.55, LOUNGE.table.z));
   const hand = (length: number, width: number) => {
-    const pivot = at(new T.Group(), FLOOR.minX + 0.04, 2.55, LOUNGE.table.z);
+    const pivot = live(at(new T.Group(), FLOOR.minX + 0.04, 2.55, LOUNGE.table.z));
     pivot.add(at(new T.Mesh(new T.BoxGeometry(0.01, length, width), new T.MeshBasicMaterial({ color: '#111827' })), 0, length / 2, 0));
     scene.add(pivot);
     return pivot;
@@ -521,19 +530,78 @@ function buildShelfAndClock(scene: T.Scene) {
   return { hour: hand(0.18, 0.03), minute: hand(0.27, 0.02) };
 }
 
-/** The task board on the back wall: one tile per task, coloured by its status. */
+/** The task board on the back wall: one tile per task, coloured by its status, drawn on one texture. */
 function buildBoard(scene: T.Scene) {
   const group = at(new T.Group(), BOARD_X - 0.05, 1.95, FLOOR.minZ + 0.06);
   group.add(at(box(4.4, 1.7, 0.06, '#f8fafc'), 0, 0, 0));
-  const tiles: T.MeshStandardMaterial[] = [];
-  for (let row = 0; row < 3; row++) for (let col = 0; col < 8; col++) {
-    const material = new T.MeshStandardMaterial({ color: BOARD_COLORS.empty, emissive: BOARD_COLORS.empty, emissiveIntensity: 0.25 });
-    const tile = new T.Mesh(new T.PlaneGeometry(0.46, 0.42), material);
-    group.add(at(tile, -1.85 + col * 0.53, 0.5 - row * 0.5, 0.04));
-    tiles.push(material);
-  }
+  const canvas = document.createElement('canvas');
+  canvas.width = 424;
+  canvas.height = 150;
+  const g = canvas.getContext('2d')!;
+  const texture = new T.CanvasTexture(canvas);
+  texture.colorSpace = T.SRGBColorSpace;
+  const material = live(new T.MeshBasicMaterial({ map: texture, toneMapped: false }));
+  group.add(at(new T.Mesh(new T.PlaneGeometry(4.24, 1.5), material), 0, 0, 0.04));
   scene.add(group);
-  return tiles;
+  /** Tiles of work in progress pulse with `glow` (0..1). */
+  return (statuses: Array<TaskStatus | undefined>, glow: number) => {
+    g.fillStyle = '#f8fafc';
+    g.fillRect(0, 0, 424, 150);
+    for (let i = 0; i < 24; i++) {
+      const status = statuses[i];
+      const active = status === 'working' || status === 'asking';
+      g.globalAlpha = active ? 0.7 + glow * 0.3 : status ? 0.9 : 1;
+      g.fillStyle = BOARD_COLORS[status ?? 'empty'];
+      g.fillRect(4 + (i % 8) * 53, 4 + Math.floor(i / 8) * 50, 46, 42);
+    }
+    g.globalAlpha = 1;
+    texture.needsUpdate = true;
+  };
+}
+
+/** What decides whether two meshes can share one draw call. */
+function lookKey(material: T.Material) {
+  const m = material as T.MeshStandardMaterial;
+  return [m.type, m.color?.getHexString(), m.emissive?.getHexString(), m.emissiveIntensity, m.roughness, m.metalness, m.map?.uuid,
+    m.transparent, m.opacity, m.side, m.flatShading, m.blending, m.depthWrite, m.toneMapped].join('|');
+}
+
+/**
+ * The furniture never moves, so its hundreds of small meshes are merged into one mesh per look
+ * (material, texture, shadow flags): a few dozen draw calls instead of over a thousand a frame.
+ * Whatever the scene changes while running (screens, lamps, glow, the board, steam, clock hands,
+ * the TV) is marked live and stays as it is.
+ */
+function bakeStatic(scene: T.Scene) {
+  scene.updateMatrixWorld(true);
+  const looks = new Map<string, { material: T.Material; cast: boolean; receive: boolean; parts: T.BufferGeometry[] }>();
+  const baked: T.Mesh[] = [];
+  scene.traverse(object => {
+    if (!(object instanceof T.Mesh) || Array.isArray(object.material) || object.material.userData.live) return;
+    for (let node: T.Object3D | null = object; node; node = node.parent) if (node.userData.live) return;
+    const key = `${lookKey(object.material)}|${object.castShadow}|${object.receiveShadow}`;
+    const look = looks.get(key) ?? { material: object.material as T.Material, cast: object.castShadow, receive: object.receiveShadow, parts: [] as T.BufferGeometry[] };
+    looks.set(key, look);
+    const geometry = object.geometry as T.BufferGeometry;
+    const part = geometry.index ? geometry.toNonIndexed() : geometry.clone();
+    for (const name of Object.keys(part.attributes)) if (!['position', 'normal', 'uv'].includes(name)) part.deleteAttribute(name);
+    part.applyMatrix4(object.matrixWorld);
+    look.parts.push(part);
+    baked.push(object);
+  });
+  for (const object of baked) {
+    object.removeFromParent();
+    object.geometry.dispose();
+  }
+  for (const look of looks.values()) {
+    const merged = mergeGeometries(look.parts);
+    look.parts.forEach(part => part.dispose());
+    if (!merged) continue;
+    const mesh = new T.Mesh(merged, look.material);
+    mesh.castShadow = look.cast;
+    mesh.receiveShadow = look.receive;
+    scene.add(mesh);
+  }
 }
 
 type Person = {
@@ -550,56 +618,63 @@ type Person = {
 
 type Prop = 'mug' | 'phone' | 'book' | 'controller' | 'can' | 'sheet';
 
+/** One material for everyone: colours come from the vertices. */
+const PERSON_MATERIAL = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
+
 function buildPerson(look: Look, scene: T.Scene): Person {
   const root = new T.Group();
   const body = new T.Group();
   root.add(body);
-  const skin = new T.MeshStandardMaterial({ color: look.skin, roughness: 0.8 });
-  const hair = new T.MeshStandardMaterial({ color: look.hair, roughness: 0.9 });
-  const shirt = new T.MeshStandardMaterial({ color: look.shirt, roughness: 0.85 });
-  const pants = new T.MeshStandardMaterial({ color: look.pants, roughness: 0.85 });
-  const shoe = new T.MeshStandardMaterial({ color: '#18181b', roughness: 0.9 });
-  const mesh = (geometry: T.BufferGeometry, material: T.Material) => { const m = new T.Mesh(geometry, material); m.castShadow = true; return m; };
+  // Each moving part is one mesh with its colours painted on the vertices: eight draw calls a person.
+  type Piece = [geometry: T.BufferGeometry, color: string, x: number, y: number, z: number, extra?: { rx?: number; sz?: number }];
+  const part = (...pieces: Piece[]) => {
+    const painted = pieces.map(([geometry, color, x, y, z, extra]) => {
+      const flat = geometry.index ? geometry.toNonIndexed() : geometry;
+      if (flat !== geometry) geometry.dispose();
+      for (const name of Object.keys(flat.attributes)) if (!['position', 'normal'].includes(name)) flat.deleteAttribute(name);
+      flat.applyMatrix4(new T.Matrix4().compose(new T.Vector3(x, y, z), new T.Quaternion().setFromEuler(new T.Euler(extra?.rx ?? 0, 0, 0)), new T.Vector3(1, 1, extra?.sz ?? 1)));
+      const tint = new T.Color(color);
+      flat.setAttribute('color', new T.Float32BufferAttribute(Array.from({ length: flat.attributes.position.count }, () => [tint.r, tint.g, tint.b]).flat(), 3));
+      return flat;
+    });
+    const mesh = new T.Mesh(mergeGeometries(painted)!, PERSON_MATERIAL);
+    painted.forEach(g => g.dispose());
+    mesh.castShadow = true;
+    return mesh;
+  };
+  const shoe = '#18181b', eye = '#111827', cheek = '#efb0a1';
 
   // Thigh from the hip, shin from the knee: seated legs bend at the knee instead of sticking out.
   const knees: T.Group[] = [];
   const legs = [-1, 1].map(side => {
     const hip = at(new T.Group(), side * 0.09, 0.48, 0);
-    hip.add(at(mesh(new T.BoxGeometry(0.15, 0.24, 0.17), pants), 0, -0.12, 0));
+    hip.add(part([new T.BoxGeometry(0.15, 0.24, 0.17), look.pants, 0, -0.12, 0]));
     const knee = at(new T.Group(), 0, -0.23, 0);
-    knee.add(at(mesh(new T.BoxGeometry(0.14, 0.22, 0.15), pants), 0, -0.1, 0));
-    knee.add(at(mesh(new T.BoxGeometry(0.16, 0.07, 0.24), shoe), 0, -0.215, 0.04));
+    knee.add(part([new T.BoxGeometry(0.14, 0.22, 0.15), look.pants, 0, -0.1, 0], [new T.BoxGeometry(0.16, 0.07, 0.24), shoe, 0, -0.215, 0.04]));
     hip.add(knee);
     knees.push(knee);
     body.add(hip);
     return hip;
   }) as [T.Group, T.Group];
 
-  const torso = mesh(new T.CapsuleGeometry(0.2, 0.3, 4, 12), shirt);
-  torso.scale.z = 0.78;
-  body.add(at(torso, 0, 0.82, 0));
-  const collar = mesh(new T.CylinderGeometry(0.08, 0.1, 0.06, 12), skin);
-  body.add(at(collar, 0, 1.15, 0));
+  body.add(part([new T.CapsuleGeometry(0.2, 0.3, 4, 12), look.shirt, 0, 0.82, 0, { sz: 0.78 }], [new T.CylinderGeometry(0.08, 0.1, 0.06, 12), look.skin, 0, 1.15, 0]));
 
   const arms = [-1, 1].map(side => {
     const shoulder = at(new T.Group(), side * 0.26, 1.06, 0);
-    shoulder.add(at(mesh(new T.CapsuleGeometry(0.065, 0.26, 4, 8), shirt), 0, -0.18, 0));
-    shoulder.add(at(mesh(new T.SphereGeometry(0.065, 10, 8), skin), 0, -0.38, 0));
+    shoulder.add(part([new T.CapsuleGeometry(0.065, 0.26, 4, 8), look.shirt, 0, -0.18, 0], [new T.SphereGeometry(0.065, 10, 8), look.skin, 0, -0.38, 0]));
     body.add(shoulder);
     return shoulder;
   }) as [T.Group, T.Group];
 
   const head = at(new T.Group(), 0, 1.36, 0);
-  head.add(mesh(new T.SphereGeometry(0.21, 20, 16), skin));
-  const eye = new T.MeshBasicMaterial({ color: '#111827' });
-  for (const side of [-1, 1]) head.add(at(new T.Mesh(new T.SphereGeometry(0.026, 8, 6), eye), side * 0.075, 0.02, 0.19));
-  const cheek = new T.MeshBasicMaterial({ color: '#f9a8a8', transparent: true, opacity: 0.35 });
-  for (const side of [-1, 1]) head.add(at(new T.Mesh(new T.CircleGeometry(0.03, 10), cheek), side * 0.11, -0.04, 0.185));
-  const cap = mesh(new T.SphereGeometry(look.hairStyle === 'buzz' ? 0.215 : 0.225, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), hair);
-  cap.rotation.x = -0.25;
-  head.add(at(cap, 0, 0.02, -0.015));
-  if (look.hairStyle === 'long') head.add(at(mesh(new T.BoxGeometry(0.4, 0.42, 0.14), hair), 0, -0.14, -0.13));
-  if (look.hairStyle === 'bun') head.add(at(mesh(new T.SphereGeometry(0.1, 12, 10), hair), 0, 0.17, -0.16));
+  head.add(part(
+    [new T.SphereGeometry(0.21, 20, 16), look.skin, 0, 0, 0],
+    ...[-1, 1].map((side): Piece => [new T.SphereGeometry(0.026, 8, 6), eye, side * 0.075, 0.02, 0.19]),
+    ...[-1, 1].map((side): Piece => [new T.SphereGeometry(0.03, 8, 6), cheek, side * 0.11, -0.04, 0.17, { sz: 0.4 }]),
+    [new T.SphereGeometry(look.hairStyle === 'buzz' ? 0.215 : 0.225, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), look.hair, 0, 0.02, -0.015, { rx: -0.25 }],
+    ...(look.hairStyle === 'long' ? [[new T.BoxGeometry(0.4, 0.42, 0.14), look.hair, 0, -0.14, -0.13] as Piece] : []),
+    ...(look.hairStyle === 'bun' ? [[new T.SphereGeometry(0.1, 12, 10), look.hair, 0, 0.17, -0.16] as Piece] : []),
+  ));
   body.add(head);
 
   const paperMaterials = [new T.MeshBasicMaterial({ color: '#f8fafc', transparent: true, opacity: 0, side: T.DoubleSide }), new T.MeshBasicMaterial({ color: look.shirt, transparent: true, opacity: 0, side: T.DoubleSide })];
@@ -845,23 +920,28 @@ function floatPaper(person: Person, agent: Agent) {
   for (const m of person.paperMaterials) m.opacity = opacity;
 }
 
-export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulation, labels: Map<string, HTMLElement>): OfficeStage {
+export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulation, labels: Map<string, HTMLElement>, options: { quality?: StageQuality; camera?: CameraView; onHint?: (hint: StageHint) => void } = {}): OfficeStage {
+  const fast = options.quality === 'performance';
   const scene = new T.Scene();
   scene.background = SKY.night.clone();
   scene.fog = new T.Fog(SKY.night.clone(), 38, 70);
-  const renderer = new T.WebGLRenderer({ canvas, antialias: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  const renderer = new T.WebGLRenderer({ canvas, antialias: !fast, powerPreference: fast ? 'low-power' : 'high-performance' });
+  // Sharp enough on high-density screens at a fraction of the pixels a ratio of 2 or 3 would cost.
+  renderer.setPixelRatio(Math.min(devicePixelRatio, fast ? 1 : 1.5));
   renderer.outputColorSpace = T.SRGBColorSpace;
   renderer.toneMapping = T.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = !fast;
   renderer.shadowMap.type = T.PCFSoftShadowMap;
+  // People move slowly: shadows are redrawn every few frames rather than every frame (see the loop).
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
   const camera = new T.PerspectiveCamera(34, 1, 0.5, 200);
 
   const hemi = new T.HemisphereLight('#c7d2fe', '#3b2a1e', 1.1);
   const sun = new T.DirectionalLight('#ffe8c7', 1.6);
   sun.position.set(-8, 16, 10);
-  sun.castShadow = true;
+  sun.castShadow = !fast;
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 12, bottom: -12, near: 1, far: 50 });
   sun.shadow.bias = -0.0004;
@@ -875,13 +955,14 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
   const desks = new Map(DESKS.map(desk => [desk.id, buildDesk(scene, desk)]));
   desks.set(MANAGER_DESK.id, buildDesk(scene, MANAGER_DESK, true));
   const loungeLamp = buildLounge(scene);
-  const leaves = buildDecor(scene);
+  buildDecor(scene);
   const kitchen = buildKitchen(scene);
   const games = buildGamingCorner(scene);
   const tv = buildTvCorner(scene);
   const clock = buildShelfAndClock(scene);
   let tvDrawn = -1;
-  const tiles = buildBoard(scene);
+  const drawBoard = buildBoard(scene);
+  bakeStatic(scene);
   const people = new Map(sim.agents.map(agent => {
     const person = buildPerson(agent.look, scene);
     person.facing = agent.facing;
@@ -893,7 +974,7 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
   const target = new T.Vector3(-0.3, 0, 1.4);
   const initialView = { theta: 0.42, phi: 0.9, distance: 28.5 };
   // The camera eases towards where the person dragged or zoomed it.
-  const view = { ...initialView }, goal = { ...initialView };
+  const view = { ...(options.camera ?? initialView) }, goal = { ...view };
   const place = () => {
     camera.position.set(
       target.x + view.distance * Math.sin(view.phi) * Math.sin(view.theta),
@@ -914,6 +995,26 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
   const observer = new ResizeObserver(resize);
   observer.observe(canvas);
   resize();
+  // Scrolled out of view: the office goes on, nothing is drawn.
+  let onScreen = true;
+  const visibility = new IntersectionObserver(([entry]) => { onScreen = entry.isIntersecting; });
+  visibility.observe(canvas);
+  // Resolution follows the device: a machine that cannot keep up gets fewer pixels, then more again.
+  const maxRatio = Math.min(devicePixelRatio, fast ? 1 : 1.5), minRatio = fast ? 0.6 : 0.75;
+  // Performance mode draws at most 30 frames a second; the office itself still moves every frame.
+  const frameBudget = fast ? 1000 / 30 : 0, slowFrame = fast ? 40 : 26, quickFrame = fast ? 34 : 18;
+  let ratio = maxRatio, frameMs = 16, frames = 0, drawnAt = performance.now();
+  // The browser's own frame rate, measured on every frame, decides whether to suggest the other mode.
+  let refreshMs = 16, slowFor = 0, smoothFor = 0, hinted = false;
+  const watch = (interval: number) => {
+    if (hinted || !options.onHint) return;
+    refreshMs = refreshMs * 0.95 + interval * 0.05;
+    // Quality mode: still under ~35 fps with the resolution already down, or under ~22 fps at all.
+    slowFor = !fast && ((ratio <= minRatio && refreshMs > 28) || refreshMs > 45) ? slowFor + interval : 0;
+    // Performance mode: the full refresh rate holds easily at full resolution.
+    smoothFor = fast && ratio >= maxRatio && refreshMs < 18 ? smoothFor + interval : 0;
+    if (slowFor > 8000 || smoothFor > 20000) { hinted = true; options.onHint(slowFor > 8000 ? 'slow' : 'smooth'); }
+  };
 
   // Drag to turn round the office; wheel, or pinch with two fingers, to zoom.
   const pointers = new Map<number, { x: number; y: number }>();
@@ -946,7 +1047,7 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
   canvas.addEventListener('pointercancel', onUp);
   canvas.addEventListener('wheel', onWheel, { passive: false });
 
-  let speed = 1, paused = false, frame = 0, last = performance.now(), boardVersion = -1;
+  let speed = 1, paused = false, frame = 0, last = performance.now(), boardVersion = -1, boardBeat = -2;
   let night = 1, nightGoal = 1, nightSet = false;
   const glowColor = new T.Color();
   const projected = new T.Vector3();
@@ -965,10 +1066,20 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
   const loop = (now: number) => {
     frame = requestAnimationFrame(loop);
     // A slow frame still moves the office on, up to a quarter second at a time.
-    const dt = Math.min(0.25, (now - last) / 1000);
+    if (!paused) sim.tick(Math.min(0.25, (now - last) / 1000) * speed);
+    if (onScreen) watch(Math.min(100, now - last));
     last = now;
-    if (!paused) sim.tick(dt * speed);
+    if (!onScreen || now - drawnAt < frameBudget - 2) return;
+    // Everything below eases by the time since the last drawn frame.
+    const dt = Math.min(0.25, (now - drawnAt) / 1000);
+    frameMs = frameMs * 0.95 + Math.min(100, now - drawnAt) * 0.05;
+    drawnAt = now;
     const time = sim.time;
+    if (++frames % 3 === 0 && !fast) renderer.shadowMap.needsUpdate = true;
+    if (frames % 90 === 0) {
+      const next = frameMs > slowFrame ? Math.max(minRatio, ratio - 0.2) : frameMs < quickFrame ? Math.min(maxRatio, ratio + 0.2) : ratio;
+      if (next !== ratio) { ratio = next; renderer.setPixelRatio(ratio); }
+    }
 
     view.theta = ease(view.theta, goal.theta, 8, dt);
     view.phi = ease(view.phi, goal.phi, 8, dt);
@@ -980,11 +1091,11 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
     (scene.background as T.Color).copy(SKY.day).lerp(SKY.night, night);
     scene.fog!.color.copy(scene.background as T.Color);
     nightWindows.opacity = night;
+    nightWindows.visible = night > 0.01;
     hemi.intensity = 2 - night * 0.9;
     sun.intensity = 2.6 - night * 1;
     fill.intensity = 0.2 + night * 0.25;
     loungeLamp.emissiveIntensity = night * 1.4;
-    for (const leaf of leaves) leaf.rotation.y = Math.sin(time * 0.4 + leaf.position.x) * 0.05;
 
     for (const agent of sim.agents) {
       const person = people.get(agent.id)!;
@@ -1001,6 +1112,7 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
       puff.position.set(KITCHEN.x + 0.18, 1.45 + t * 0.6, KITCHEN.coffeeZ + Math.sin(t * 6 + i) * 0.05);
       puff.scale.setScalar(0.6 + t * 1.4);
       (puff.material as T.MeshBasicMaterial).opacity = brewing ? (1 - t) * 0.45 : 0;
+      puff.visible = Boolean(brewing);
     });
     games(sim.agents.filter(a => a.phase === 'break' && a.activity === 'game').length, time);
     const mode = sim.agents.some(a => a.phase === 'break' && a.activity === 'tv') ? 'tv' : 'off';
@@ -1021,20 +1133,18 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
       desk.glow.color.lerp(glowColor, Math.min(1, dt * 6));
       const glow = busy && owner?.role !== 'manager' ? 0.3 + Math.sin(now / 400) * 0.05 : busy ? 0.14 : 0;
       desk.glow.opacity = ease(desk.glow.opacity, glow, 4, dt);
+      desk.glow.visible = desk.glow.opacity > 0.01;
       desk.lamp.emissiveIntensity = ease(desk.lamp.emissiveIntensity, night * (owner ? 1.6 : 0.5), 3, dt);
     }
-    if (boardVersion !== sim.version) {
+    // The board is redrawn when a task changes, and a few times a second while one is in progress.
+    const recent = sim.tasks.slice(-24);
+    const pulsing = recent.some(t => t.status === 'working' || t.status === 'asking');
+    const beat = pulsing ? Math.floor(now / 120) : -1;
+    if (boardVersion !== sim.version || beat !== boardBeat) {
       boardVersion = sim.version;
-      const recent = sim.tasks.slice(-tiles.length);
-      tiles.forEach((tile, i) => {
-        const color = BOARD_COLORS[recent[i]?.status ?? 'empty'];
-        tile.color.set(color);
-        tile.emissive.set(color);
-        tile.userData.active = recent[i]?.status === 'working' || recent[i]?.status === 'asking';
-      });
+      boardBeat = beat;
+      drawBoard(recent.map(t => t.status), (Math.sin(now / 300) + 1) / 2);
     }
-    // Tiles of work in progress pulse.
-    for (const tile of tiles) tile.emissiveIntensity = tile.userData.active ? 0.35 + Math.sin(now / 300) * 0.2 : 0.25;
     renderer.render(scene, camera);
     const { clientWidth: w, clientHeight: h } = canvas;
     for (const agent of sim.agents) {
@@ -1058,9 +1168,11 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
       if (!nightSet) { night = nightGoal; nightSet = true; }
     },
     resetView() { Object.assign(goal, initialView); },
+    cameraView() { return { ...goal }; },
     dispose() {
       cancelAnimationFrame(frame);
       observer.disconnect();
+      visibility.disconnect();
       canvas.removeEventListener('pointerdown', onDown);
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);
