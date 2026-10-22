@@ -14,6 +14,9 @@ on:
       - main
       - codex/**
 
+permissions:
+  contents: read
+
 # Aynı dalda yeni bir push gelince eski çalışma iptal olur; ayrıca aynı dal için hem `push` hem
 # `pull_request` çalışması tetiklenirse biri öbürünü iptal eder (Actions dakikası boşa gitmez).
 concurrency:
@@ -22,12 +25,17 @@ concurrency:
 
 jobs:
   validate:
+    # Defense in depth; the repository also requires approval for EVERY external contributor.
+    # YAML alone is not a trust boundary because a fork can propose workflow edits.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macOS]
     timeout-minutes: 35
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
