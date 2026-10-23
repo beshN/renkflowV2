@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/security/request-body.server';
 import { after, NextRequest } from 'next/server';
 import { requireWorkOrderActor } from '@/lib/features/work-orders/security';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     requireSameOriginJson(req, 10_000);
     const actor = await requireWorkOrderActor();
     const { id } = await ctx.params;
-    const { run } = await actOnOfficeTask(actor, id, await req.json());
+    const { run } = await actOnOfficeTask(actor, id, await readJsonBody(req, 10_000));
     if (run) after(() => runOfficeTask(actor.tenantId, id));
     return workspaceJson({ ok: true });
   } catch (e) {

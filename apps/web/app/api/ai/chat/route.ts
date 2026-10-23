@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/security/request-body.server';
 import { isQuoteDraftRequest } from '@/lib/ai/commands/parse';
 import { runCommand } from '@/lib/ai/commands/run.server';
 import { assistantFormHref } from '@/lib/ai/assistant-form-drafts';
@@ -21,8 +22,8 @@ export async function POST(req:NextRequest) {
   const actor=await requireWorkOrderActor();
   const limit=await consumeRateLimit('assistant',actor.tenantId+':'+actor.userId);
   if(!limit.allowed) return NextResponse.json({error:'Kısa bir ara verip yeniden deneyin.'},{status:429,headers:rateLimitHeaders(limit)});
-  const text=await req.text();if(Buffer.byteLength(text)>100000)throw new WorkOrderApiError('İstek çok büyük',413);
-  const body=input.parse(JSON.parse(text)),path=body.context?.currentPath || '/dashboard';
+  const raw=await readJsonBody(req,100000);
+  const body=input.parse(raw),path=body.context?.currentPath || '/dashboard';
   // Quotes use the same approval-gated workflow in both assistant surfaces. A model reply
   // alone cannot create a quote, and supplied price/discount/VAT must not disappear into prose.
   if (body.mode === 'chat' && isQuoteDraftRequest(body.message)) {

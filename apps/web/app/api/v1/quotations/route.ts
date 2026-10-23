@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/security/request-body.server';
 import { redactedSuccess } from '@/lib/security/field-access.server';
 import { WorkOrderApiError } from "@/lib/features/work-orders/security";
 import { requireSameOriginJson } from "@/lib/features/manufacturing/http-security";
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
       return errorResponse('Sipariş oluşturma yetkiniz bulunmuyor', 403);
     }
 
-    const body = await request.json();
+    const body = await readJsonBody(request, 2_000_000);
     const parsedData = CreateQuotationSchema.parse(body);
 
     const quotation = await quotationService.createQuotation(user.tenantId, parsedData, user.id);

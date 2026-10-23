@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/security/request-body.server';
 import { redactedSuccess } from '@/lib/security/field-access.server';
 import { recordAuditAfterCommit } from "@/lib/audit/audit-log";
 import { WorkOrderApiError } from "@/lib/features/work-orders/security";
@@ -51,7 +52,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (!hasPermission(role, "quotations", "update"))
       return errorResponse("Yetkiniz yok", 403);
 
-    const body = await request.json();
+    const body = z.record(z.string(), z.unknown()).parse(await readJsonBody(request, 2_000_000));
 
     const { id } = await params;
 

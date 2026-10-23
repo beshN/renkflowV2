@@ -2,7 +2,7 @@ import React from 'react';
 import {render,screen,fireEvent} from '@testing-library/react';
 import {PDFViewerV2} from '@/components/features/pdf-viewer/PDFViewerV2';
 import {usePDFStore} from '@/stores/usePDFStore';
-jest.mock('@/components/features/pdf-viewer/components/PDFRenderer',()=>({PDFRenderer:()=> <div data-testid="pdf-renderer"/>}));
+jest.mock('@/components/features/pdf-viewer/components/PDFRenderer',()=>({PDFRenderer:({onDocumentLoadSuccess}: {onDocumentLoadSuccess: (pages: number) => void})=> <button data-testid="pdf-renderer" onClick={() => { usePDFStore.getState().setNumPages(5); onDocumentLoadSuccess(5); }}>Document loaded</button>}));
 jest.mock('@/components/features/pdf-viewer/components/PDFToolbar',()=>({PDFToolbar:()=>null}));
 jest.mock('@/components/features/pdf-viewer/components/PDFSidebar',()=>({PDFSidebar:()=>null}));
 jest.mock('@/components/features/pdf-viewer/components/PDFSearch',()=>({PDFSearch:()=>null}));
@@ -19,4 +19,10 @@ it('allows cancelling a pending load and clears document state on close',()=>{
  const close=jest.fn();const {unmount}=render(<PDFViewerV2 fileUrl="/file.pdf" fileName="file.pdf" onClose={close}/>);
  fireEvent.click(screen.getByText('Yüklemeyi iptal et'));expect(close).toHaveBeenCalledTimes(1);
  unmount();expect(usePDFStore.getState().fileUrl).toBeNull();
+});
+
+it.each([[3,3],[999,5],[0,1],[NaN,1]])('opens evidence at requested page %s, clamped to the loaded document', (requested, expected) => {
+ render(<PDFViewerV2 fileUrl="/evidence.pdf" fileName="evidence.pdf" initialPage={requested}/>);
+ fireEvent.click(screen.getByTestId('pdf-renderer'));
+ expect(usePDFStore.getState().pageNumber).toBe(expected);
 });

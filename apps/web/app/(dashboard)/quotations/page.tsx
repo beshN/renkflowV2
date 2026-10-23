@@ -42,7 +42,7 @@ export default function QuotationsPage() {
         {label:'yanıt bekliyor',value:quotations.filter(q=>q.status==='sent').length,tone:'warning'},
         {label:'kabul edildi',value:quotations.filter(q=>q.status==='accepted').length,tone:'success'},
       ]}/>
-      <main className="w-full space-y-4">
+      <div className="w-full space-y-4">
         {PRICE_MATRIX_READ_ROLES.includes(user.role) && (
           <div className="mb-4 flex justify-end gap-2">
             <Link href="/quotations/price-matrix" className="rf-secondary-button">Fiyat matrisi</Link>
@@ -93,7 +93,7 @@ export default function QuotationsPage() {
           searchKeys={['quotationNumber', 'customerName']}
           onRowClick={(q) => router.push(`/quotations/${q.id}`)}
         />
-      </main>
+      </div>
     </div>
   );
 }

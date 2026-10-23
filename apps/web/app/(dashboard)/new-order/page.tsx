@@ -1,7 +1,7 @@
 'use client';
 import { prepareFileUpload } from '@/lib/storage/client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Link from 'next/link';
@@ -9,8 +9,7 @@ import { NewOrderForm } from '@/components/forms/NewOrderForm';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import { requestJson } from '@/lib/shared/network';
-import { NewOrderFormData } from '@/lib/types';
-import { ArrowLeft, FileUp, Loader2, Info } from 'lucide-react';
+import { ArrowLeft, FileUp, Loader2, Info, RotateCcw } from 'lucide-react';
 import { ORDER_MAX_UPLOAD_SIZE_BYTES } from '@/lib/features/orders/constants';
 import { celebrate } from '@/components/spells/celebrate';
 
@@ -48,22 +47,26 @@ export default function NewOrderPage() {
   const { user, isLoading } = useAuth();
   const { showToast } = useToast();
 
-  const [aiFormData, setAiFormData] = useState<NewOrderFormData | undefined>();
   const [isExtracting, setIsExtracting] = useState(false);
   const [aiAvailable, setAiAvailable] = useState<boolean | null>(null);
-  const [, setCapabilityError] = useState(false);
+  const [capabilityError, setCapabilityError] = useState(false);
+  const [capabilityAttempt, setCapabilityAttempt] = useState(0);
+  const extraction = useRef<AbortController | null>(null);
+  useEffect(() => () => extraction.current?.abort(), []);
   const [submitError, setSubmitError] = useState('');
+  const capabilityScope = user ? `${user.id}:${user.tenantId}` : '';
 
   useEffect(() => {
-    if (!user) return;
+    if (!capabilityScope) return;
     const controller = new AbortController();
+    setCapabilityError(false);
     requestJson<{ available: boolean }>('/api/ai/document-extract', { signal: controller.signal, cache: 'no-store' }, { timeoutMs: 10000 }).then(result => {
       if (controller.signal.aborted) return;
       if (result.ok && result.data) setAiAvailable(result.data.available);
       else setCapabilityError(true);
     });
     return () => controller.abort();
-  }, [user]);
+  }, [capabilityScope, capabilityAttempt]);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -94,65 +97,62 @@ export default function NewOrderPage() {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || aiAvailable !== true) return;
+    if (!file || aiAvailable !== true || extraction.current) return;
     if (file.size > ORDER_MAX_UPLOAD_SIZE_BYTES || !['application/pdf', 'image/png', 'image/jpeg'].includes(file.type)) {
       showToast('PDF, JPG veya PNG seçin. Dosya en fazla 10 MB olabilir.', 'error');
       e.target.value = '';
       return;
     }
     
+    const input = e.currentTarget;
+    const controller = new AbortController();
+    extraction.current = controller;
     try {
       setIsExtracting(true);
       showToast('Belge analiz ediliyor...', 'info');
       
       const reader = new FileReader();
       reader.onload = async () => {
+        if (controller.signal.aborted) return;
         try {
           const result = reader.result as string;
           const [meta, base64] = result.split(',');
           const mimeType = meta.split(':')[1].split(';')[0];
           
-          const res = await requestJson<{ success: boolean; error?: string; data: Record<string, string> }>('/api/ai/document-extract', {
+          const res = await requestJson<{ success: boolean; error?: string; draftId: string }>('/api/ai/document-extract', {
             method: 'POST',
+            signal: controller.signal,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...(await prepareFileUpload({name:file.name,mime:mimeType,base64})), mimeType })
-          }, { timeoutMs: 65000, fallbackError: 'Belge analizi tamamlanamadı.' });
+          }, { timeoutMs: 270000, fallbackError: 'Belge analizi tamamlanamadı.' });
           
           const resData = res.data;
           if (!res.ok || !resData?.success) {
             throw new Error(res.error || resData?.error || 'Analiz başarısız');
           }
           
-          const extracted = resData.data;
-          
-          const parsedData: NewOrderFormData = {
-            customerName: extracted.müşteri || extracted.customer || extracted.Müşteri || extracted.Customer || '',
-            productName: extracted.ürün || extracted.product || extracted.Ürün || extracted.Product || 'Belirtilmemiş Ürün',
-            quantity: parseInt(extracted.adet || extracted.quantity || extracted.Adet) || 1,
-            totalAmount: parseFloat(String(extracted.tutar || extracted.fiyat || extracted.total || extracted.Tutar || 0).replace(',', '.')) || 0,
-            currency: 'TRY',
-            notes: `--- Belge taslağı · kullanıcı doğrulaması gerekli ---\nÖlçüler (mm): ${extracted.ölçüler || extracted.ölçü || '-'}\nRAL / yüzey: ${extracted.renk || '-'}\nProfil / seri: ${extracted.profil || extracted.seri || '-'}\nDiğer: ${extracted.notlar || '-'}`,
-          };
-          
-          setAiFormData(parsedData);
-          showToast('Belge taslağı hazır. Kaydetmeden önce ölçü ve ürün bilgilerini doğrulayın.', 'success');
+          if (controller.signal.aborted) return;
+          if (!resData.draftId) throw new Error('İnceleme taslağı alınamadı. Tekrar deneyin.');
+          showToast('Belge taslağı hazır. Tüm kalemleri ve ölçüleri inceleyip onaylayın.', 'success');
+          router.push(`/production/intake/${encodeURIComponent(resData.draftId)}`);
         } catch (err: any) {
-          showToast(err.message || 'Analiz tamamlanamadı.', 'error');
+          if (!controller.signal.aborted) showToast(err.message || 'Analiz tamamlanamadı.', 'error');
         } finally {
-          setIsExtracting(false);
-          e.target.value = ''; // Reset input
+          extraction.current = null;
+          if (!controller.signal.aborted) setIsExtracting(false);
+          input.value = '';
         }
       };
       reader.onerror = () => {
-        showToast('Dosya okunamadı', 'error');
-        setIsExtracting(false);
-        e.target.value = '';
+        extraction.current = null;
+        if (!controller.signal.aborted) { showToast('Dosya okunamadı', 'error'); setIsExtracting(false); }
+        input.value = '';
       };
       reader.readAsDataURL(file);
     } catch (err: any) {
-      showToast(err.message || 'Belge analizi başarısız', 'error');
-      setIsExtracting(false);
-      e.target.value = '';
+      extraction.current = null;
+      if (!controller.signal.aborted) { showToast(err.message || 'Belge analizi başarısız', 'error'); setIsExtracting(false); }
+      input.value = '';
     }
   };
 
@@ -164,7 +164,7 @@ export default function NewOrderPage() {
         <h1 className="rf-page-title">Yeni sipariş</h1>
       </div>
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_290px]">
-        <NewOrderForm onSubmit={handleSubmit} initialData={aiFormData} submitError={submitError} />
+        <NewOrderForm onSubmit={handleSubmit} submitError={submitError} />
         <aside className="space-y-5 xl:sticky xl:top-20">
           <section className="rf-panel border border-border p-5" aria-busy={isExtracting}>
             <div className="mb-4 flex items-center gap-2.5"><FileUp size={18} className="text-primary" /><h2 className="rf-section-title">Belgeden doldur</h2></div>
@@ -174,6 +174,7 @@ export default function NewOrderPage() {
               <p className="text-xs font-medium">{isExtracting ? 'Belge analiz ediliyor…' : 'Belge seçin'}</p>
               <p className="mt-2 text-[10px] text-muted-foreground">PDF, JPG, PNG · En fazla 10 MB</p>
             </div>
+            {capabilityError && <div role="alert" className="mt-3 space-y-2 text-xs text-muted-foreground"><p>Belge okuma durumu alınamadı.</p><button type="button" className="inline-flex items-center gap-1.5 text-primary" onClick={() => setCapabilityAttempt(n => n + 1)}><RotateCcw size={13} />Tekrar dene</button></div>}
             {aiAvailable === false && <p className="mt-3 flex items-start gap-2 text-[11px] text-muted-foreground"><Info size={14} className="mt-0.5 shrink-0" />Belge okuma kapalı.</p>}
             <Link href="/orders/foy" className="mt-3 inline-flex text-xs font-medium text-primary hover:underline">İmalat föyü mü? Föy okuyucuyu açın →</Link>
           </section>

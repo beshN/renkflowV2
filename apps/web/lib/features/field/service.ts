@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/security/request-body.server';
 import 'server-only';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
@@ -141,22 +142,7 @@ export async function fieldDetails(actor: WorkOrderActor, id: string) {
   };
 }
 
+/** Mobile bearer requests use the same bounded parser without imposing browser Origin semantics. */
 export async function readFieldJson(request: NextRequest, limit = 64_000): Promise<unknown> {
-  if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json'))
-    throw new WorkOrderApiError('JSON isteği gerekli.', 415);
-  if (Number(request.headers.get('content-length')) > limit)
-    throw new WorkOrderApiError('İstek çok büyük.', 413);
-  const reader = request.body?.getReader();
-  if (!reader) throw new WorkOrderApiError('İstek gövdesi gerekli.', 400);
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.length;
-    if (size > limit) { await reader.cancel(); throw new WorkOrderApiError('İstek çok büyük.', 413); }
-    chunks.push(value);
-  }
-  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
-  catch { throw new WorkOrderApiError('Geçersiz JSON.', 400); }
+  return readJsonBody(request, limit);
 }

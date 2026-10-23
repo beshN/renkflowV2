@@ -1,3 +1,4 @@
+import { spreadsheetCsvCell } from '@/lib/security/csv';
 /** CSV of audit rows (Excel-friendly: BOM, semicolons, formula-safe cells). */
 export type AuditCsvRow = {
   created_at: string | Date; actor_name: string | null; action: string; entity_type: string; entity_id: string;
@@ -6,9 +7,7 @@ export type AuditCsvRow = {
 
 /** A cell that a spreadsheet cannot run as a formula. */
 export function csvCell(value: unknown) {
-  let text = value === null || value === undefined ? '' : typeof value === 'string' ? value : JSON.stringify(value);
-  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
-  return /[";\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  return spreadsheetCsvCell(value, ';');
 }
 
 export function auditCsv(rows: AuditCsvRow[], labels: { action: (a: string) => string; entity: (e: string) => string }) {

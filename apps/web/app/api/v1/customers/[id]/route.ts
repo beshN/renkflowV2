@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/security/request-body.server';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
@@ -52,7 +53,7 @@ export async function PUT(req: NextRequest, { params }: CustomerRouteContext) {
     const actor = await requireCustomerActor('customers.edit');
     const id = await customerId(params);
     if (!id) return notFound();
-    const updates = parseCustomerUpdate(await req.json());
+    const updates = parseCustomerUpdate(await readJsonBody(req, 200_000));
     if (updates.some(([column]) => column === 'city' || column === 'district') && !(await columnExists('customers', 'city'))) {
       return redactedJson({ error: 'İl ve ilçe alanları bu kurulumda henüz etkin değil.' }, { status: 503 });
     }

@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/security/request-body.server';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
     const actor = await requireWorkOrderActor();
     const limit = await consumeRateLimit('assistant', actor.tenantId + ':' + actor.userId);
     if (!limit.allowed) return redactedJson({ error: 'Kısa bir ara verip yeniden deneyin.' }, { status: 429, headers: { ...NO_STORE, ...rateLimitHeaders(limit) } });
-    const body = Body.parse(await req.json());
+    const body = Body.parse(await readJsonBody(req, 6_500_000));
     if (body.type === 'quote_request') return redactedJson(await quoteRequestPreview(actor, body), { headers: NO_STORE });
     return redactedJson(await supplierOfferPreview(actor, body), { headers: NO_STORE });
   } catch (e) {

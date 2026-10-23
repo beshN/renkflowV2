@@ -56,11 +56,11 @@ export default function PriceMatrixPage() {
     } else setPreview(r.data);
   };
 
-  if (!data) return <main className="rf-page">{error ? <p role="alert">{error}</p> : <SkeletonRows rows={6} />}</main>;
+  if (!data) return <div className="rf-page">{error ? <p role="alert">{error}</p> : <SkeletonRows rows={6} />}</div>;
   const current = data.families.find((f) => f.key === family);
 
   return (
-    <main className="rf-page space-y-5">
+    <div className="rf-page space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="rf-eyebrow">TEKLİF · FİYAT</p>
@@ -174,6 +174,6 @@ export default function PriceMatrixPage() {
           <p className="text-sm font-medium text-amber-700 dark:text-amber-300">{check.message}</p>
         ))}
       </section>
-    </main>
+    </div>
   );
 }

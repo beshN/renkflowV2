@@ -158,7 +158,7 @@ export default function CRMPage() {
     <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950/80">
       <AppleNavbar title="Müşteri Yönetimi" showSearch={false} action={canCreate ? <Link href="/crm/import" className="rf-secondary-button inline-flex items-center gap-1 text-sm"><Upload size={14} aria-hidden /> Listeden içe aktar</Link> : undefined} />
 
-      <main className="flex-1 p-4 md:p-8">
+      <div className="flex-1 p-4 md:p-8">
         <p className="mb-3 flex items-center gap-2 text-xs text-muted-foreground"><Building2 size={14} aria-hidden /><span className="font-semibold tabular-nums text-foreground">{total}</span> müşteri</p>
 
         <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm">
@@ -205,7 +205,7 @@ export default function CRMPage() {
             }}
           />
         )}
-      </main>
+      </div>
     </div>
   );
 }

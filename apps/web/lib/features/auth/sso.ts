@@ -193,8 +193,9 @@ export async function handleSAMLCallback(
 ): Promise<{ user: any; redirectTo: string }> {
   // Validate state
   const stateResult = await sql`
-    SELECT * FROM sso_states 
-    WHERE state = ${state} AND expires_at > NOW()
+    DELETE FROM sso_states s USING sso_providers p
+    WHERE s.provider_id=p.id AND p.enabled=true AND s.state=${state} AND s.expires_at>now()
+    RETURNING s.*,p.tenant_id
   `;
   const stateRows = stateResult as any[];
   const stateRecord = stateRows[0];
@@ -203,7 +204,7 @@ export async function handleSAMLCallback(
     throw new Error('Invalid or expired state');
   }
 
-  const providerResult = await sql`SELECT * FROM sso_providers WHERE id = ${stateRecord.provider_id}`;
+  const providerResult = await sql`SELECT * FROM sso_providers WHERE id = ${stateRecord.provider_id} AND tenant_id=${stateRecord.tenant_id} AND enabled=true`;
   const providerRows = providerResult as any[];
 
   if (!providerRows[0]) {
@@ -240,11 +241,20 @@ export async function handleSAMLCallback(
 // User Provisioning
 // ============================================
 
-async function findOrCreateSSOUser(
+export async function findOrCreateSSOUser(
   profile: { email: string; name?: string; surname?: string; groups?: string[]; attributes?: Record<string, unknown> },
   provider: SSOProvider
 ): Promise<any> {
+  const email = profile.email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+$/.test(email) || profile.attributes?.email_verified === false)
+    throw new Error('SSO email could not be verified');
+  const domains = provider.domainRestrictions ?? [];
+  if (!provider.enabled) throw new Error('SSO provider is disabled');
+  if (domains.length && !domains.some(domain => domain.toLowerCase() === email.split('@')[1]))
+    throw new Error('Domain not allowed for this SSO provider');
+  profile = { ...profile, email };
   return withTransaction(async (tx) => {
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${'sso-user:' + email},0))`;
     const existingUserResult = await tx`
       SELECT u.*
       FROM users u
@@ -256,6 +266,12 @@ async function findOrCreateSSOUser(
     let user = existingUserRows[0];
 
     if (user) {
+      const memberships = await tx`SELECT tenant_id,deactivated_at FROM tenant_members WHERE user_id=${user.id} FOR SHARE`;
+      // A tenant-controlled IdP cannot claim a global account by supplying somebody else's email.
+      // Cross-company accounts must use the global password/Google identity until explicit linking exists.
+      if (memberships.some((membership: any) => membership.tenant_id !== provider.tenantId) ||
+          !memberships.some((membership: any) => membership.tenant_id === provider.tenantId && !membership.deactivated_at))
+        throw new Error('Existing accounts must use their verified global sign-in');
       await tx`
         UPDATE users
         SET
@@ -274,14 +290,11 @@ async function findOrCreateSSOUser(
           ${createUuid()},
           ${profile.email},
           ${profile.name || profile.email.split('@')[0]},
-          true,
+          NOW(),
           NOW(),
           NOW()
         )
-        ON CONFLICT (email)
-        DO UPDATE SET
-          name = COALESCE(EXCLUDED.name, users.name),
-          updated_at = NOW()
+        ON CONFLICT (email) DO NOTHING
         RETURNING *
       `;
       const createdRows = createdUsers as any[];
@@ -293,10 +306,9 @@ async function findOrCreateSSOUser(
     }
 
     if (provider.allowSignup) {
-      const role = determineRoleFromGroups(profile.groups);
       await tx`
         INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
-        VALUES (${provider.tenantId}, ${user.id}, ${role}, NOW())
+        VALUES (${provider.tenantId}, ${user.id}, 'member', NOW())
         ON CONFLICT (tenant_id, user_id) DO NOTHING
       `;
     }
@@ -306,6 +318,7 @@ async function findOrCreateSSOUser(
       FROM tenant_members
       WHERE user_id = ${user.id}
         AND tenant_id = ${provider.tenantId}
+        AND (to_jsonb(tenant_members)->>'deactivated_at') IS NULL
       LIMIT 1
     `;
     const membershipRows = membershipResult as any[];
@@ -322,14 +335,6 @@ async function findOrCreateSSOUser(
       role: membership.role,
     };
   });
-}
-
-function determineRoleFromGroups(groups?: string[]): 'owner' | 'admin' | 'member' {
-  if (!groups) return 'member';
-  
-  if (groups.includes('admin') || groups.includes('Owner')) return 'owner';
-  if (groups.includes('manager') || groups.includes('Admin')) return 'admin';
-  return 'member';
 }
 
 // ============================================
@@ -439,8 +444,9 @@ export async function handleOIDCCallback(
   params: { code: string; state: string }
 ): Promise<{ user: any; redirectTo: string }> {
   const stateResult = await sql`
-    SELECT * FROM sso_states
-    WHERE state = ${params.state} AND expires_at > NOW()
+    DELETE FROM sso_states s USING sso_providers p
+    WHERE s.provider_id=p.id AND p.enabled=true AND s.state=${params.state} AND s.provider_id=${providerId} AND s.callback_url=${redirectUri} AND s.expires_at>now()
+    RETURNING s.*,p.tenant_id
   `;
   const stateRows = stateResult as any[];
   const stateRecord = stateRows[0];
@@ -449,7 +455,7 @@ export async function handleOIDCCallback(
     throw new Error('Invalid or expired state');
   }
 
-  const providerResult = await sql`SELECT * FROM sso_providers WHERE id = ${providerId}`;
+  const providerResult = await sql`SELECT * FROM sso_providers WHERE id = ${providerId} AND tenant_id=${stateRecord.tenant_id} AND enabled=true`;
   const providerRows = providerResult as any[];
 
   if (!providerRows[0]) {

@@ -1,9 +1,12 @@
+import { requireSameOrigin } from '@/lib/features/manufacturing/http-security';
+import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { releaseWorkOrderReservation } from '@/lib/features/manufacturing/reservation.service';
 import { requireWorkOrderActor, requireWorkOrderPermission, WorkOrderApiError } from '@/lib/features/work-orders/security';
 
-export async function POST(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    requireSameOrigin(request);
     const actor = await requireWorkOrderActor();
     requireWorkOrderPermission(actor, 'transition');
     const { id } = await params;

@@ -33,7 +33,7 @@ export default function ReportsPage() {
   }
   return <div className="min-h-screen">
     <AppleNavbar title="Operasyon raporu" showSearch={false} />
-    <main className="mx-auto max-w-[1440px] space-y-5 p-4 md:p-6">
+    <div className="mx-auto max-w-[1440px] space-y-5 p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="text-xl font-semibold">Renk Alüminyum sipariş özeti</h2><p className="mt-1 text-sm text-slate-500">Aşağıdaki değerler kayıtlı siparişlerden hesaplanır.</p></div>
         <button type="button" disabled={isLoading || !!error || !orders.length || !user || !hasPermission(user.role,'reports.export')} onClick={downloadCsv} className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm disabled:opacity-40 dark:bg-slate-900"><Download size={16} /> CSV indir</button>
@@ -50,6 +50,6 @@ export default function ReportsPage() {
         })}</div>
       </AppleCard>
       <ProductionReport/>
-    </main>
+    </div>
   </div>;
 }

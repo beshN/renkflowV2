@@ -1,4 +1,4 @@
-import { companyAuthRedirect } from '@/lib/features/company/host';
+import { companyAuthRedirect, COMPANY_AUTH_PROXY_URL, parseCompanyHost } from '@/lib/features/company/host';
 import {
   companyForHost,
   currentCompany,
@@ -21,6 +21,7 @@ import {
 import { getClientIp } from '@/lib/security/rate-limit';
 import { recordAuditAfterCommit } from '@/lib/audit/audit-log';
 import { isMfaEnabled, verifyMfaCode } from '@/lib/features/auth/mfa.server';
+import { findLoginTicket, consumeLoginTicket, issueLoginTicket, loginTicketCookieName } from '@/lib/features/auth/login-ticket.server';
 
 import { getSql } from '@/lib/db';
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_BY_KEY } from '@/lib/config/templates';
@@ -132,6 +133,7 @@ export const authConfig: NextAuthConfig = {
           Google({
             clientId: process.env.GOOGLE_CLIENT_ID,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            redirectProxyUrl: COMPANY_AUTH_PROXY_URL,
           }),
         ]
       : []),
@@ -189,54 +191,21 @@ export const authConfig: NextAuthConfig = {
                 normalizedEmail,
               );
 
-            const users = await sql`
-              SELECT u.*, tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url, t.industry, t.template_key
-              FROM users u
-              LEFT JOIN LATERAL (
-                SELECT tenant_id, role
-                FROM tenant_members
-                WHERE user_id = u.id
-                AND (${company?.id ?? null}::uuid IS NULL OR tenant_id=${company?.id ?? null}::uuid)
-                AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL
-                ORDER BY
-                  -- A firm where the member was deactivated comes last (the column exists from migration 044 on).
-                  (to_jsonb(tenant_members) ->> 'deactivated_at') IS NOT NULL,
-                  CASE role
-                    WHEN 'owner' THEN 0
-                    WHEN 'admin' THEN 1
-                    WHEN 'accountant' THEN 2
-                    WHEN 'office' THEN 3
-                    WHEN 'worker' THEN 4
-                    ELSE 5
-                  END,
-                  created_at ASC
-                LIMIT 1
-              ) tm ON true
-              LEFT JOIN tenants t ON tm.tenant_id = t.id
-              WHERE u.email = ${normalizedEmail}
-              AND u.verification_token = ${credentials.ticket as string}
-              LIMIT 1
-            `;
-
-            const usersRows = users as any[];
-            if (usersRows.length === 0) {
-              if (DEBUG) console.log('[AUTH] Invalid ticket or email');
-              throw createCredentialsError('invalid_credentials');
-            }
-
-            const user = usersRows[0];
-
-            // Clear the used ticket
-            if (!user.tenant_id) {
-              throw createCredentialsError('tenant_not_found');
-            }
+            const loginTicket = await findLoginTicket(sql, {
+              ticket: credentials.ticket,
+              email: normalizedEmail,
+              request,
+              companyId: company?.id,
+            });
+            if (!loginTicket) throw createCredentialsError('invalid_credentials');
+            const user = loginTicket.user;
 
             // Before the ticket is spent, so it still works when the page comes back with the code.
             await requireSecondFactor(sql, user, credentials.otp);
 
-            await sql`
-              UPDATE users SET verification_token = NULL WHERE id = ${user.id}
-            `;
+            if (!(await consumeLoginTicket(sql, loginTicket)))
+              throw createCredentialsError('invalid_credentials');
+            await clearLoginAttempts(normalizedEmail);
 
             if (DEBUG)
               console.log(
@@ -454,6 +423,7 @@ export const authConfig: NextAuthConfig = {
     },
     async signIn({ user, account, profile }) {
       if (!isPrivateAccessAllowed(user.email)) return false;
+      if (account?.provider === 'google' && profile?.email_verified !== true) return false;
       // For OAuth providers, create user and tenant if first time
       if (account?.provider !== 'credentials' && user.email) {
         try {
@@ -576,6 +546,21 @@ export const authConfig: NextAuthConfig = {
             user.logoUrl = tenantUser.logo_url;
             user.tenantIndustry = tenantUser.industry;
             user.templateKey = tenantUser.template_key;
+            if (await isMfaEnabled(sql, user.id)) {
+              // OAuth proves the external identity, not this account's second factor. Auth.js
+              // has already validated its PKCE/state before this callback. Finish through the
+              // same browser/host/company-bound ticket path as enterprise SSO, without issuing
+              // a member session until the OTP/recovery code succeeds.
+              const { headers, cookies } = await import('next/headers');
+              const requestHeaders = await headers();
+              const host = requestHeaders.get('host');
+              const development = process.env.NODE_ENV !== 'production' || process.env.ALLOW_INSECURE_HTTP === '1';
+              if (parseCompanyHost(host, development).kind === 'invalid') return false;
+              const secure = !development || requestHeaders.get('x-forwarded-proto') === 'https';
+              const proof = await issueLoginTicket(sql, { userId: user.id, tenantId: user.tenantId!, host: host! });
+              (await cookies()).set(loginTicketCookieName(secure), proof.browser, { httpOnly: true, secure, sameSite: 'lax', path: '/', maxAge: 300 });
+              return `${secure ? 'https' : 'http'}://${host}/auth/sso-verify#${new URLSearchParams({ email: normalizedEmail, ticket: proof.ticket })}`;
+            }
           }
         } catch (error) {
           if (DEBUG) console.error('OAuth signIn error:', error);

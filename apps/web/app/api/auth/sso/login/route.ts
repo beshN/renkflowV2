@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSSOProviders, initiateSAMLLogin, initiateOIDCLogin, SSOProvider } from '@/lib/auth/sso';
 import { sql } from '@/lib/db';
 import { resolveServerBaseUrl } from '@/lib/shared/config/runtime-env';
+import { companyForHost } from '@/lib/features/company/host.server';
+import { ssoFlowCookieName } from '@/lib/features/auth/login-ticket.server';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,12 +12,13 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const email = searchParams.get('email');
     const tenantSlug = searchParams.get('slug'); // Option to login by tenant slug directly
+    const company = await companyForHost(request.headers.get('host') || request.nextUrl.host);
     const baseUrl =
       resolveServerBaseUrl({
         context: 'api.auth.sso.login',
         fallbackOrigin: request.nextUrl.origin,
       }) || request.nextUrl.origin;
-    const callbackUrl = `${baseUrl}/api/auth/sso/callback`;
+    const callbackUrl = `${company ? request.nextUrl.origin : baseUrl}/api/auth/sso/callback`;
 
     if (!email && !tenantSlug) {
       return NextResponse.json(
@@ -119,7 +122,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (!provider) {
+    if (!provider || !provider.enabled || (company && provider.tenantId !== company.id)) {
         return NextResponse.json(
             { error: 'SSO not configured for this account' },
             { status: 404 }
@@ -128,11 +131,11 @@ export async function GET(request: NextRequest) {
 
     // Initiate Login
     if (provider.type === 'saml') {
-        const { redirectUrl } = await initiateSAMLLogin(provider.id, callbackUrl);
-        return NextResponse.redirect(redirectUrl);
+        const { redirectUrl, state } = await initiateSAMLLogin(provider.id, callbackUrl);
+        return ssoRedirect(request, redirectUrl, state);
     } else if (provider.type === 'oidc' || provider.type === 'google' || provider.type === 'azure') {
-        const { url } = await initiateOIDCLogin(provider.id, callbackUrl);
-        return NextResponse.redirect(url);
+        const { url, state } = await initiateOIDCLogin(provider.id, callbackUrl);
+        return ssoRedirect(request, url, state);
     }
 
     return NextResponse.json({ error: 'Unsupported provider type' }, { status: 400 });
@@ -144,4 +147,14 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function ssoRedirect(request: NextRequest, url: string, state: string) {
+  const response = NextResponse.redirect(url);
+  const secure = request.nextUrl.protocol === 'https:';
+  // SAML IdPs POST cross-site; None is needed for the browser-bound state cookie on HTTPS.
+  response.cookies.set(ssoFlowCookieName(secure), state, { httpOnly: true, secure, sameSite: secure ? 'none' : 'lax', path: '/', maxAge: 600 });
+  response.headers.set('Cache-Control', 'no-store');
+  response.headers.set('Referrer-Policy', 'no-referrer');
+  return response;
 }

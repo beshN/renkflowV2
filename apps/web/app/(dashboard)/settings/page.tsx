@@ -42,7 +42,7 @@ export default function SettingsPage() {
   const panel = (children: React.ReactNode) => <div className="rf-panel p-5 md:p-6">{children}</div>;
 
   return <div className="min-h-screen"><AppleNavbar title="Firma ayarları" showSearch={false} />
-    <main className="mx-auto max-w-4xl space-y-5 p-4 md:p-6">
+    <div className="mx-auto max-w-4xl space-y-5 p-4 md:p-6">
       {!canManage ? panel(<><h2 className="font-semibold">Firma ayarları</h2><p className="mt-2 text-sm text-muted-foreground">Ayarları yönetici değiştirebilir.</p></>) : <>
         <div role="tablist" aria-label="Ayar bölümleri" className="flex gap-1 overflow-x-auto border-b border-border">
           {TABS.map((t) => (
@@ -66,6 +66,6 @@ export default function SettingsPage() {
           </>}
         </div>
       </>}
-    </main>
+    </div>
   </div>;
 }

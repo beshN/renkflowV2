@@ -1,5 +1,7 @@
 # RenkFlow yol haritası: Odoo seviyesi eksiklerin kapatılması
 
+> Güncel doğrulama ve düzeltmeler: [23 Ekim güvenlik denetimi](security/2026-10-23-web-audit.md), [platform kalite denetimi](security/2026-10-23-platform-quality-audit.md). Aşağıdaki faz tablosu tarihsel program kaydıdır; güncel dalın birleşme/yayın durumu bu raporlardan kontrol edilmelidir.
+
 Başlangıç: 14 Ekim 2026 · Taban: `main` @ `84cf0b36` (PR #76 sonrası)
 
 Bu belge programın durum tablosudur. Her iş kendi dalında ve PR'ında yapılır; bir oturum kesilirse iş buradan devam eder. Ayrıntılı iş geçmişi `docs/PROGRESS.md`'dedir.

@@ -13,6 +13,8 @@ import { STAFF, TASK_CATEGORIES } from './catalog';
 import { openCodeAvailable, openCodeEnabled } from './opencode.server';
 import { openCodeDecision, decide, type ManagerDecision } from './routing';
 import { triage } from './triage.server';
+import { resolveMemberAccess } from '@/lib/security/member-access.server';
+import { officeReadScope, mayReadOfficeTask, mayManageAllOfficeTasks } from './access';
 
 /**
  * The AI office's tasks as the firm's records: who asked for what, the manager's call, the
@@ -35,8 +37,11 @@ const STALE_MINUTES = 6;
 
 const fail = (message: string, status = 409): never => { throw new WorkOrderApiError(message, status); };
 
-export function assertOfficeRole(actor: WorkOrderActor) {
+export async function assertOfficeRole(actor: WorkOrderActor) {
   if (actor.station || !ROUTE_ROLES['/office'].includes(actor.role)) fail('AI ofise erişim yetkiniz yok.', 403);
+  const access = await resolveMemberAccess(actor.userId, actor.tenantId);
+  if (!access || access.deactivated || access.base !== actor.role) fail('AI ofise erişim yetkiniz yok.', 403);
+  return access!;
 }
 
 /** Can this firm's office do real work now? Without it the page runs as a simulation. */
@@ -58,12 +63,13 @@ function view(row: Record<string, any>, files: OfficeFileView[]): OfficeTaskView
 }
 
 export async function listOfficeTasks(actor: WorkOrderActor) {
-  assertOfficeRole(actor);
+  const access = await assertOfficeRole(actor);
   const availability = await officeAvailability(actor.tenantId);
   if (!(await tableExists('office_tasks'))) return { ...availability, tasks: [] as OfficeTaskView[] };
   await sql`UPDATE office_tasks SET status='failed', error='İş zaman aşımına uğradı; yeniden deneyebilirsiniz.', updated_at=now()
     WHERE tenant_id=${actor.tenantId} AND status IN ('working','queued') AND (CASE WHEN status='queued' THEN updated_at ELSE started_at END) < now() - make_interval(mins => ${STALE_MINUTES})`;
-  const rows = await sql`SELECT * FROM office_tasks WHERE tenant_id=${actor.tenantId} ORDER BY created_at DESC LIMIT 60`;
+  const found = await sql`SELECT * FROM office_tasks WHERE tenant_id=${actor.tenantId} AND (created_by=${actor.userId} OR ${mayManageAllOfficeTasks(access)}) ORDER BY created_at DESC LIMIT 60`;
+  const rows = found.filter((row: any) => mayReadOfficeTask(access, actor.userId, row));
   const ids = rows.map((r: any) => r.id);
   const files = ids.length ? await sql`SELECT id, task_id, file_name, content_type, size_bytes, revision FROM office_files
     WHERE tenant_id=${actor.tenantId} AND task_id = ANY(${ids}::uuid[]) ORDER BY revision DESC, created_at` : [];
@@ -84,7 +90,7 @@ const CreateTask = z.object({
 
 /** Queues a task written in plain words; the manager reads it first. The caller starts the run once the response is on its way. */
 export async function createOfficeTask(actor: WorkOrderActor, raw: unknown) {
-  assertOfficeRole(actor);
+  const access = await assertOfficeRole(actor);
   const availability = await officeAvailability(actor.tenantId);
   if (!availability.live) fail(availability.reason ?? 'AI ofis şu anda kullanılamıyor.');
   const input = CreateTask.parse(raw);
@@ -100,8 +106,8 @@ export async function createOfficeTask(actor: WorkOrderActor, raw: unknown) {
   return withTransaction(async (tx: any) => {
     await tx`SELECT pg_advisory_xact_lock(hashtextextended(${actor.tenantId + ':office_tasks'}, 0))`;
     const [{ n }] = await tx`SELECT coalesce(max(number), 0)::int + 1 AS n FROM office_tasks WHERE tenant_id=${actor.tenantId}`;
-    const [row] = await tx`INSERT INTO office_tasks (tenant_id, number, category, title, brief, agent_id, decision, cost_usd, created_by)
-      VALUES (${actor.tenantId}, ${n}, ${category}, ${title}, ${input.text}, ${agent.id}, ${tx.json(decision)}, ${read.costUsd}, ${actor.userId}) RETURNING *`;
+    const [row] = await tx`INSERT INTO office_tasks (tenant_id, number, category, title, brief, agent_id, decision, cost_usd, created_by, access_scope)
+      VALUES (${actor.tenantId}, ${n}, ${category}, ${title}, ${input.text}, ${agent.id}, ${tx.json(decision)}, ${read.costUsd}, ${actor.userId}, ${tx.json(officeReadScope(access))}) RETURNING *`;
     return view(row, []);
   });
 }
@@ -115,10 +121,10 @@ const Action = z.discriminatedUnion('action', [
 
 /** Approve a delivery, send it back with a note, answer a raised hand or retry a failed run. Returns whether a run is due. */
 export async function actOnOfficeTask(actor: WorkOrderActor, taskId: string, raw: unknown): Promise<{ run: boolean }> {
-  assertOfficeRole(actor);
+  const access = await assertOfficeRole(actor);
   const input = Action.parse(raw);
   const [task] = await sql`SELECT * FROM office_tasks WHERE tenant_id=${actor.tenantId} AND id=${taskId}`;
-  if (!task) fail('Görev bulunamadı.', 404);
+  if (!task || !mayReadOfficeTask(access, actor.userId, task as any)) fail('Görev bulunamadı.', 404);
   if (input.action === 'approve') {
     const [row] = await sql`UPDATE office_tasks SET status='approved', decided_at=now(), updated_at=now()
       WHERE tenant_id=${actor.tenantId} AND id=${taskId} AND status='review' RETURNING id`;
@@ -151,9 +157,11 @@ export async function actOnOfficeTask(actor: WorkOrderActor, taskId: string, raw
 
 /** One delivered file, read only by the firm that owns it. */
 export async function readOfficeFile(actor: WorkOrderActor, fileId: string) {
-  assertOfficeRole(actor);
+  const access = await assertOfficeRole(actor);
   if (!z.string().uuid().safeParse(fileId).success) fail('Dosya bulunamadı.', 404);
-  const [file] = await sql`SELECT file_name, content_type, storage_key FROM office_files WHERE tenant_id=${actor.tenantId} AND id=${fileId}`;
-  if (!file) fail('Dosya bulunamadı.', 404);
+  const [file] = await sql`SELECT f.file_name,f.content_type,f.storage_key,t.created_by,t.access_scope
+    FROM office_files f JOIN office_tasks t ON t.id=f.task_id AND t.tenant_id=f.tenant_id
+    WHERE f.tenant_id=${actor.tenantId} AND f.id=${fileId}`;
+  if (!file || !mayReadOfficeTask(access, actor.userId, file as any)) fail('Dosya bulunamadı.', 404);
   return { ...(await readFile(file.storage_key)), name: file.file_name as string, contentType: file.content_type as string };
 }

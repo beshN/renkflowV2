@@ -88,7 +88,7 @@ export default function FinanceOverviewPage() {
     <div className="flex min-h-screen flex-1 flex-col bg-slate-50/50 dark:bg-slate-950/50">
       <Navbar title="Finans Kontrolü" showSearch={false} />
 
-      <main className="w-full flex-1 p-4 md:p-8">
+      <div className="w-full flex-1 p-4 md:p-8">
         {loadError && <p role="alert" className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{loadError}</p>}
         <section className="rf-panel rounded-2xl p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -165,7 +165,7 @@ export default function FinanceOverviewPage() {
             </div>
           </div>
         </section>
-      </main>
+      </div>
     </div>
   );
 }

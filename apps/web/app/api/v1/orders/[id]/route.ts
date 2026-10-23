@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/security/request-body.server';
 import { redactedSuccess } from '@/lib/security/field-access.server';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { requireSameOrigin, requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
@@ -101,7 +102,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return errorResponse('Geçersiz sipariş ID formatı', 400);
     }
 
-    const rawUpdates = await request.json();
+    const rawUpdates = await readJsonBody(request, 2_000_000);
 
     // Validate updates with Zod (includes sanitization)
     const validationResult = updateOrderSchema.safeParse(rawUpdates);

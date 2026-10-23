@@ -1,3 +1,4 @@
+import { isForeignSessionWrite } from '@/lib/security/request-origin';
 import { companyForHost, CompanyHostError } from '@/lib/features/company/host.server';
 import { isPrivateAccessAllowed, privateAccessEmail } from '@/lib/features/auth/private-access';
 import { NextRequest, NextResponse } from 'next/server';
@@ -285,6 +286,10 @@ export async function proxy(request: NextRequest) {
     let next = await forwardHiddenFields(request, null);
     if (!pathname.startsWith('/api/auth/') && !gateExempt(pathname)) {
       const token = await sessionToken(request);
+      // Cover older cookie-authenticated handlers too. Auth.js/SAML and public token callbacks
+      // remain in their existing exempt branches; bearer clients without a cookie are unchanged.
+      if (isForeignSessionWrite(request, Boolean(token)))
+        return withProxySecurityHeaders(NextResponse.json({ error: 'Bu kaynaktan yazma isteği kabul edilmez' }, { status: 403 }), { isSecureRequest });
       const refused = await accessGate(request, token, pathname, method, isSecureRequest);
       if (refused) return refused;
       try {
