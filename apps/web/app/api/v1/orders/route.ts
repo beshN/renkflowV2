@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/security/request-body.server';
 import { redactedSuccess } from '@/lib/security/field-access.server';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { requireSameOrigin } from '@/lib/features/manufacturing/http-security';
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     const contentType = request.headers.get('content-type') || '';
-    let rawData: Record<string, unknown>;
+    let rawData: unknown;
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await request.formData();
@@ -106,14 +107,14 @@ export async function POST(request: NextRequest) {
       const itemsRaw = formData.get('items');
       if (itemsRaw && typeof itemsRaw === 'string') {
         try {
-          rawData.items = JSON.parse(itemsRaw);
+          (rawData as Record<string, unknown>).items = JSON.parse(itemsRaw);
         } catch (e) {
           return errorResponse('Geçersiz sipariş kalemleri', 400);
         }
       }
     } else {
       // Handle JSON body
-      rawData = await request.json();
+      rawData = await readJsonBody(request);
     }
 
     // Validate input with Zod (includes sanitization)

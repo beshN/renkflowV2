@@ -4,6 +4,7 @@ import Link from "next/link";
 import { intakeReviewFields, ExtractionEvidence } from "@/lib/ai/extraction";
 import { missingInfoMessage } from "@/lib/ai/extract/missing-info";
 import useSWR from "swr";
+import LazyPDFViewer from "@/components/features/pdf-viewer/LazyPDFViewer";
 import { ProductDialog } from "@/components/features/product-3d/ProductDialog";
 import { attachVisualization } from "@/lib/features/product-3d/catalog";
 import { applyAwning } from "@/lib/features/awning/configuration";
@@ -260,7 +261,7 @@ function Review({ draft, onSource }: { draft: any; onSource: (page: number) => v
                 ),
               }))
             }
-            label="Makaslı tente · 3D yapılandır"
+            label={`${item.productName || "Ürün"} · 3D yapılandır`}
           />
           <p className="text-xs text-muted-foreground">
             Fiyat satış çalışanının onayladığı değerdir.
@@ -314,7 +315,7 @@ export default function IntakeReview({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const [sourcePage, setSourcePage] = useState(1);
+  const [source, setSource] = useState<{ url: string; name: string; page: number } | null>(null);
   const { id } = use(params),
     { data, error } = useSWR(`/api/v1/production/intake/${id}`, async (url: string) => {const r=await fetch(url,{cache:"no-store"});const body=await r.json();if(!r.ok)throw new Error(body.error);return body;}),
     draft = data?.data;
@@ -340,11 +341,9 @@ export default function IntakeReview({
             {draft.documents.map((f: any) => (
               <div key={f.id}>
                 {f.mime === "application/pdf" ? (
-                  <iframe
-                    title={f.name}
-                    src={`${f.url}#page=${sourcePage}`}
-                    className="h-[70vh] w-full rounded border border-border"
-                  />
+                  <button type="button" className="rf-secondary-button my-3 min-h-12 w-full" onClick={() => setSource({ url: f.url, name: f.name, page: 1 })}>
+                    {f.name} · PDF incele
+                  </button>
                 ) : (
                   <a href={f.url} target="_blank" rel="noreferrer">
                     <img src={f.url} alt={f.name} className="w-full" />
@@ -361,9 +360,13 @@ export default function IntakeReview({
               </div>
             ))}
           </section>
-          <Review draft={draft} onSource={setSourcePage} />
+          <Review key={draft.id} draft={draft} onSource={page => {
+            const pdf = draft.documents.find((file: { mime: string }) => file.mime === "application/pdf");
+            if (pdf) setSource({ url: pdf.url, name: pdf.name, page });
+          }} />
         </div>
       )}
+      {source && <LazyPDFViewer key={`${source.url}:${source.page}`} fileUrl={source.url} fileName={source.name} initialPage={source.page} onClose={() => setSource(null)} />}
     </div>
   );
 }

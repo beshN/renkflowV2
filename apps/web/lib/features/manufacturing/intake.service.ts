@@ -1,3 +1,4 @@
+import { can } from '@/lib/security/access-matrix';
 import { requireVisualizationStorage, storeVisualization } from '@/lib/features/product-3d/storage';
 import { applyAwning } from "../awning/configuration";
 import "server-only";
@@ -9,12 +10,12 @@ import { getAIService } from "@/lib/ai/service";
 import { NewOrderItemSchema } from "@/lib/shared/types";
 import { WorkOrderActor, WorkOrderApiError } from "../work-orders/security";
 import { ProductionFileSchema, storeProductionFile, readProductionInput } from "./files.service";
-const office = (a: WorkOrderActor) => {
-  if (!["owner", "admin", "office"].includes(a.role))
+export const requireIntakeAccess = (a: WorkOrderActor) => {
+  if (!["owner", "admin", "office"].includes(a.role) || (a.access && !can(a.access, "orders", "create")))
     throw new WorkOrderApiError("Sipariş taslağı yetkisi gerekli", 403);
 };
 export async function extractIntake(actor: WorkOrderActor, raw: unknown) {
-  office(actor);
+  requireIntakeAccess(actor);
   const input = ProductionFileSchema.parse(raw),
     bytes = await readProductionInput(actor, input),
     sourceId = createHash("sha256")
@@ -54,7 +55,7 @@ export async function approveIntake(
   id: string,
   raw: unknown,
 ) {
-  office(a);
+  requireIntakeAccess(a);
   z.string().uuid().parse(id);
   const data = IntakeApprovalSchema.parse(raw);
   await requireVisualizationStorage("order_items",data.items);
@@ -114,7 +115,7 @@ export async function approveIntake(
 }
 
 export async function getIntake(actor: WorkOrderActor, id: string) {
-  office(actor);
+  requireIntakeAccess(actor);
   z.string().uuid().parse(id);
   const [draft] = await sql`SELECT * FROM intake_drafts WHERE tenant_id=${actor.tenantId} AND id=${id}`;
   if (!draft) throw new WorkOrderApiError("Taslak bulunamadı", 404);

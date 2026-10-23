@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/security/request-body.server';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
   try {
     requireSameOriginJson(req, 200_000);
     const actor = await requireCustomerActor('customers.create');
-    const input = CreateCustomerSchema.parse(await req.json());
+    const input = CreateCustomerSchema.parse(await readJsonBody(req, 200_000));
 
     const rows = await sql`
       INSERT INTO customers (

@@ -1,3 +1,4 @@
+import { spreadsheetCsvCell } from '@/lib/security/csv';
 /**
  * Data Export Service (CSV/PDF)
  *
@@ -69,18 +70,8 @@ export async function exportOrdersToCSV(
   const ordersRows = orders as any[];
 
   // Build CSV
-  const headers = columns.join(',');
-  const rows = ordersRows.map(order =>
-    columns.map(col => {
-      const val = order[col];
-      if (val === null || val === undefined) return '';
-      const str = String(val);
-      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-        return `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
-    }).join(',')
-  );
+  const headers = columns.map(col => spreadsheetCsvCell(col)).join(',');
+  const rows = ordersRows.map(order => columns.map(col => spreadsheetCsvCell(order[col])).join(','));
 
   return [headers, ...rows].join('\n');
 }
@@ -106,18 +97,8 @@ export async function exportCustomersToCSV(
   `;
 
   const customersRows = customers as any[];
-  const headers = columns.join(',');
-  const rows = customersRows.map(c =>
-    columns.map(col => {
-      const val = c[col];
-      if (val === null || val === undefined) return '';
-      const str = String(val);
-      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-        return `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
-    }).join(',')
-  );
+  const headers = columns.map(col => spreadsheetCsvCell(col)).join(',');
+  const rows = customersRows.map(customer => columns.map(col => spreadsheetCsvCell(customer[col])).join(','));
 
   return [headers, ...rows].join('\n');
 }

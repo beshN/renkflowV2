@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 interface PDFViewerV2Props {
   fileUrl: string;
   fileName: string;
+  initialPage?: number;
   onClose?: () => void;
   className?: string;
 }
@@ -21,6 +22,7 @@ interface PDFViewerV2Props {
 export const PDFViewerV2: React.FC<PDFViewerV2Props> = ({
   fileUrl,
   fileName,
+  initialPage = 1,
   onClose,
   className,
 }) => {
@@ -311,7 +313,7 @@ export const PDFViewerV2: React.FC<PDFViewerV2Props> = ({
             <PDFRenderer
               key={`${fileUrl}:${attempt}`}
               onDocumentLoadSuccess={(numPages) => {
-                console.log(`PDF loaded: ${numPages} pages`);
+                usePDFStore.getState().setPageNumber(Math.min(numPages, Math.max(1, Number.isFinite(initialPage) ? Math.floor(initialPage) : 1)));
               }}
               onDocumentLoadError={(error) => {
                 console.error('PDF load error:', error);

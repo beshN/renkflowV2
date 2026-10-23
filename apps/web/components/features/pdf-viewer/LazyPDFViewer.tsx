@@ -17,6 +17,7 @@ const PDFViewer = dynamic(() => import("./PDFViewerV2"), {
 export default function LazyPDFViewer(props: {
   fileUrl: string;
   fileName: string;
+  initialPage?: number;
   onClose: () => void;
 }) {
   if (typeof document === "undefined") return null;

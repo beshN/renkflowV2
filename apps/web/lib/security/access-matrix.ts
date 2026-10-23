@@ -147,6 +147,9 @@ const longest = <T>(list: Array<[string, T]>, path: string) =>
 export function routeRequirement(path: string, method: string): { module: Module; action: Action; orCreate?: boolean } | null {
   const api = path.startsWith('/api/');
   const m = method.toUpperCase();
+  // Intake reviews create orders, even though their original URL lives under production.
+  if (path === '/api/ai/document-extract' || path === '/api/v1/production/intake' || path.startsWith('/api/v1/production/intake/') || path.startsWith('/production/intake/'))
+    return { module: 'orders', action: 'create' };
   // Mixed command endpoints enforce their action's exact permission in the service.
   // A daily entry is an edit; printing an existing label only needs stock visibility.
   if(path==='/api/v1/production'&&m==='POST')return {module:'production',action:'edit',orCreate:true};

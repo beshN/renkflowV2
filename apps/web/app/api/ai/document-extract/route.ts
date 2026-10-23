@@ -1,65 +1,44 @@
-import { resolveUploadedFile } from "@/lib/storage/upload-reference";
 import { NextRequest, NextResponse } from 'next/server';
-import { aiAvailable, getAIService } from '@/lib/ai/service';
-import { auth } from '@/auth';
-import { hasPermission } from '@/lib/features/auth/permissions';
+import { z } from 'zod';
+import { aiAvailable } from '@/lib/ai/service';
+import { requireWorkOrderActor, WorkOrderApiError } from '@/lib/features/work-orders/security';
+import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
+import { extractIntake, requireIntakeAccess } from '@/lib/features/manufacturing/intake.service';
+import { readJsonBody } from '@/lib/security/request-body.server';
+import { consumeRateLimit, rateLimitHeaders } from '@/lib/security/rate-limit';
+import { recordError, NO_STORE } from '@/lib/features/records/http';
+
+const Body = z.object({
+  name: z.string().min(1).max(180).default('siparis.pdf'),
+  mimeType: z.enum(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']),
+  base64: z.string().max(14_000_000).optional(),
+  documentBase64: z.string().max(14_000_000).optional(),
+  blobPath: z.string().max(700).optional(),
+});
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: 'Oturum açmanız gerekiyor.' }, { status: 401 });
-  return NextResponse.json({ available: aiAvailable() }, { headers: { 'Cache-Control': 'no-store' } });
+  try {
+    requireIntakeAccess(await requireWorkOrderActor());
+    return NextResponse.json({ available: aiAvailable() }, { headers: NO_STORE });
+  } catch (error) {
+    return recordError(error, 'document-capability');
+  }
 }
 
+/** Both document entry points share the multi-line, evidence-preserving review workflow. */
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Oturum açmanız gerekiyor.' }, { status: 401 });
-    }
-    if (!aiAvailable()) {
-      return NextResponse.json({ error: 'Belge analizi henüz etkinleştirilmedi. Sipariş bilgilerini elle girebilirsiniz.' }, { status: 503 });
-    }
-
-    if (!hasPermission(session.user.role as any, 'orders.create')) return NextResponse.json({ error: 'Yetkiniz yok.' }, { status: 403 });
-    const body = await req.json();
-    const { mimeType, prompt } = body;
-    let documentBase64 = body.documentBase64 || body.base64;
-    if (body.blobPath) {
-      if (!session.user.id || !session.user.tenantId) return NextResponse.json({error:"Oturum gerekli"},{status:401});
-      const file = await resolveUploadedFile({userId:session.user.id,tenantId:session.user.tenantId},{name:body.name,mime:mimeType,blobPath:body.blobPath});
-      documentBase64 = Buffer.from(await file.arrayBuffer()).toString("base64");
-    }
-
-    if (!documentBase64 || !mimeType) {
-      return NextResponse.json({ error: 'documentBase64 ve mimeType gereklidir.' }, { status: 400 });
-    }
-
-    if (!['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(mimeType) || typeof documentBase64 !== 'string' || documentBase64.length > 14_000_000 || !/^[A-Za-z0-9+/=\r\n]+$/.test(documentBase64)) return NextResponse.json({ error: 'Geçersiz belge veya dosya boyutu.' }, { status: 400 });
-
-    const defaultPrompt = `Bu belgeyi analiz et. Sipariş ise: müşteri, ürün, ölçüler (genişlik, yükseklik), adet, renk, motor, LED, kumaş, notlar, teslimat bilgilerini çıkar.
-Fatura veya irsaliye ise: tedarikçi, ürünler, adetler, fiyatlar bilgilerini çıkar.
-Eğer belge sipariş veya irsaliye değilse, genel içeriğini özetle ve bulabildiğin yapısal verileri çıkar.`;
-
-    const aiService = getAIService();
-    
-    const result = await aiService.analyzeDocument(
-      documentBase64,
-      mimeType,
-      prompt || defaultPrompt,
-      { tenantId: session.user.tenantId ?? null, userId: session.user.id ?? null, feature: 'document.extract' }
-    );
-
-    return NextResponse.json({
-      success: true,
-      data: result.extractedData,
-      rawText: result.rawText,
-    });
-  } catch (error: any) {
-    console.error('[AI Document Extract API] Error:', error?.message || error);
-    return NextResponse.json(
-      { error: 'Belge analizi tamamlanamadı. Dosyayı kontrol edip tekrar deneyin.' },
-      { status: 500 }
-    );
+    requireSameOriginJson(req, 15_000_000);
+    const actor = await requireWorkOrderActor();
+    requireIntakeAccess(actor);
+    const limit = await consumeRateLimit('assistant', `${actor.tenantId}:${actor.userId}`);
+    if (!limit.allowed) return NextResponse.json({ error: 'Kısa bir ara verip yeniden deneyin.' }, { status: 429, headers: { ...NO_STORE, ...rateLimitHeaders(limit) } });
+    if (!aiAvailable()) throw new WorkOrderApiError('Belge analizi şu anda kapalı. Sipariş bilgilerini elle girebilirsiniz.', 503);
+    const body = Body.parse(await readJsonBody(req, 15_000_000));
+    const draft = await extractIntake(actor, { name: body.name, mime: body.mimeType, base64: body.base64 || body.documentBase64, blobPath: body.blobPath });
+    return NextResponse.json({ success: true, draftId: draft.id, reviewUrl: `/production/intake/${draft.id}` }, { headers: NO_STORE });
+  } catch (error) {
+    return recordError(error, 'document-extract');
   }
 }
 

@@ -1,3 +1,5 @@
+import { isBrowserPushEndpoint, PushSubscriptionSchema } from './push-validation';
+import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 /**
  * Notification Service
  * 
@@ -279,20 +281,24 @@ export async function savePushSubscription(
   userId: string,
   subscription: PushSubscription
 ): Promise<void> {
-  await sql`
+  PushSubscriptionSchema.parse({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } });
+  const saved = await sql`
     INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, created_at)
     VALUES (${userId}, ${subscription.endpoint}, ${subscription.p256dh}, ${subscription.auth}, NOW())
     ON CONFLICT (endpoint) DO UPDATE SET
       p256dh = ${subscription.p256dh},
       auth = ${subscription.auth},
       updated_at = NOW()
+    WHERE push_subscriptions.user_id = ${userId}
+    RETURNING endpoint
   `;
+  if (!saved.length) throw new WorkOrderApiError('Bu tarayıcı başka bir hesaba bağlı. Bildirim iznini sıfırlayıp tekrar deneyin.', 409);
 }
 
-export async function removePushSubscription(endpoint: string): Promise<void> {
+export async function removePushSubscription(endpoint: string, userId: string): Promise<void> {
   await sql`
     DELETE FROM push_subscriptions
-    WHERE endpoint = ${endpoint}
+    WHERE endpoint = ${endpoint} AND user_id = ${userId}
   `;
 }
 
@@ -342,6 +348,7 @@ export async function sendPushNotification(
   });
 
   for (const sub of subscriptionsRows) {
+    if (!isBrowserPushEndpoint(sub.endpoint)) continue;
     try {
       await webpush.sendNotification(
         {
@@ -356,7 +363,7 @@ export async function sendPushNotification(
     } catch (error) {
       // Subscription expired or invalid
       if ((error as any).statusCode === 410) {
-        await removePushSubscription(sub.endpoint);
+        await removePushSubscription(sub.endpoint, userId);
       }
       console.error('Push notification failed:', error);
     }

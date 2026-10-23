@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/security/request-body.server';
 import { assistantFormHref } from '@/lib/ai/assistant-form-drafts';
 import { NextRequest,NextResponse } from 'next/server';
 import { z,ZodError } from 'zod';
@@ -13,9 +14,9 @@ import { can } from '@/lib/security/access-matrix';
 const schema=z.object({commandId:z.uuid(),action:AssistantActionSchema});
 export async function POST(req:NextRequest) {
  try {
-  requireSameOriginJson(req,100000);const a=await requireWorkOrderActor(),text=await req.text();if(Buffer.byteLength(text)>100000)throw new WorkOrderApiError('İstek çok büyük',413);
+  requireSameOriginJson(req,100000);const a=await requireWorkOrderActor(),raw=await readJsonBody(req,100000);
   const access=await resolveMemberAccess(a.userId,a.tenantId);if(!access||access.deactivated)throw new WorkOrderApiError('Etkin firma üyeliği gerekli.',403);
-  const {commandId,action}=schema.parse(JSON.parse(text));
+  const {commandId,action}=schema.parse(raw);
   if(action.kind==='navigate') {const href=safeAssistantHref(action.href);if(!href || !canAccessRoute(a.role,new URL(href,'https://internal.invalid').pathname))throw new WorkOrderApiError('Bu ekran mevcut rolünüz için kullanılamıyor.',403);return NextResponse.json({href});}
   if (action.kind === 'warehouseDraft' || action.kind === 'attendanceDraft') {
     const href = assistantFormHref(action.kind, action.note);

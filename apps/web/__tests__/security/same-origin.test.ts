@@ -21,3 +21,12 @@ it('does not trust a forwarded host or an alleged same-origin fetch instead of t
 it.each(['application/jsonp', 'application/json-evil', 'text/plain'])('rejects non-JSON content type %s', contentType => {
   expect(() => requireSameOriginJson(request({ 'content-type': contentType }))).toThrow();
 });
+
+it('covers legacy cookie API writes centrally without imposing browser Origin on token-only clients', () => {
+  const { isForeignSessionWrite } = require('@/lib/security/request-origin');
+  const foreign = request({ origin: 'https://attacker.invalid' });
+  expect(isForeignSessionWrite(foreign, true)).toBe(true);
+  expect(isForeignSessionWrite(foreign, false)).toBe(false);
+  expect(isForeignSessionWrite(request({ origin: 'https://firm.renkflow.com' }), true)).toBe(false);
+  for (const method of ['GET','HEAD','OPTIONS']) expect(isForeignSessionWrite(new Request('https://firm.renkflow.com', { method, headers: { origin: 'https://attacker.invalid' } }), true)).toBe(false);
+});

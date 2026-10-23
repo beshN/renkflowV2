@@ -1,3 +1,4 @@
+import { readJsonBody } from '@/lib/security/request-body.server';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { requireSameOriginJson } from "@/lib/features/manufacturing/http-security";
 import { NextRequest } from "next/server";
@@ -16,7 +17,7 @@ export async function POST(
       data: await approveIntake(
         await requireWorkOrderActor(),
         (await params).id,
-        await req.json(),
+        await readJsonBody(req, 4_000_000),
       ),
     });
   } catch (e) {
