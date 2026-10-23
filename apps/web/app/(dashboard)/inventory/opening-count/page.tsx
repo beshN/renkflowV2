@@ -44,13 +44,13 @@ export default function OpeningCountPage() {
   const unpainted = ((line ? line.processed_states : item?.processed_states) ?? []).includes('boyasiz');
   const needsColor = !unpainted && !line?.color && Boolean(line || item);
 
-  if (!data) return <main className="rf-page">{error ? <p role="alert">{error}</p> : <SkeletonRows rows={6} />}</main>;
-  if (!data.available) return <main className="rf-page"><h1 className="rf-page-title">Açılış sayımı</h1><p className="mt-3 text-sm text-muted-foreground">Bu kurulumda çubuk sayımı henüz etkin değil (veritabanı güncellemesi bekleniyor).</p></main>;
+  if (!data) return <div className="rf-page">{error ? <p role="alert">{error}</p> : <SkeletonRows rows={6} />}</div>;
+  if (!data.available) return <div className="rf-page"><h1 className="rf-page-title">Açılış sayımı</h1><p className="mt-3 text-sm text-muted-foreground">Bu kurulumda çubuk sayımı henüz etkin değil (veritabanı güncellemesi bekleniyor).</p></div>;
 
   const reset = () => { setBars([{ lengthMm: '6000', count: '' }]); setCommandId(crypto.randomUUID()); setTarget(''); setItemId(''); setColor(''); };
 
   return (
-    <main className="rf-page space-y-5">
+    <div className="rf-page space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="rf-eyebrow">STOK · SAYIM</p>
@@ -170,6 +170,6 @@ export default function OpeningCountPage() {
           </div>
         )}
       </section>
-    </main>
+    </div>
   );
 }

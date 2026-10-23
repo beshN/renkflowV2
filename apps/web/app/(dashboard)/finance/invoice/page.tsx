@@ -91,7 +91,7 @@ export default function FinanceInvoicePage() {
     <div className="flex min-h-screen flex-1 flex-col bg-slate-50/50 dark:bg-slate-950/50">
       <Navbar title="Fatura Listesi" showSearch={false} />
 
-      <main className="w-full flex-1 p-4 md:p-8">
+      <div className="w-full flex-1 p-4 md:p-8">
         <section className="rf-panel rounded-2xl p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -187,7 +187,7 @@ export default function FinanceInvoicePage() {
             </div>
           </div>
         </section>
-      </main>
+      </div>
     </div>
   );
 }

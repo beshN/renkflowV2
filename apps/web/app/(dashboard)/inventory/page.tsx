@@ -166,7 +166,7 @@ export default function InventoryPage() {
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950/80">
-      <main className="flex-1 space-y-5 p-4 md:p-8">
+      <div className="flex-1 space-y-5 p-4 md:p-8">
         <PageHeader eyebrow="Profil & malzeme" title="Stok" hint="Profil metreyle, hurda kg ile takip edilir. Rezervasyon fiziksel stoğu değiştirmez. Satıra tıklayınca malzemenin hareketleri açılır."
           kpis={[
             { label: 'malzeme', value: error || isLoading ? '·' : new Set(items.map((i) => i.item_id)).size, icon: Boxes },
@@ -214,7 +214,7 @@ export default function InventoryPage() {
           />
         </div>
         <MovementDrawer item={timelineFor} onClose={() => setTimelineFor(null)} />
-      </main>
+      </div>
     </div>
   );
 }

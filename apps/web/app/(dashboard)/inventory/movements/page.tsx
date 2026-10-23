@@ -47,7 +47,7 @@ export default function InventoryMovementsPage() {
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950/80">
       <AppleNavbar title="Stok Hareketleri" showSearch={false} />
-      <main className="flex-1 p-4 md:p-8">
+      <div className="flex-1 p-4 md:p-8">
         <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-6 shadow-sm">
           <RFListView
             data={movements}
@@ -105,7 +105,7 @@ export default function InventoryMovementsPage() {
             ]}
           />
         </div>
-      </main>
+      </div>
     </div>
   );
 }

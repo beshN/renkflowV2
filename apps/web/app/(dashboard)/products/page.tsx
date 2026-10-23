@@ -49,9 +49,9 @@ export default function ProductsPage() {
     }
   };
 
-  if (!data) return <main className="rf-page">{error ? <p role="alert">{error}</p> : <SkeletonRows rows={6} />}</main>;
+  if (!data) return <div className="rf-page">{error ? <p role="alert">{error}</p> : <SkeletonRows rows={6} />}</div>;
   return (
-    <main className="rf-page space-y-5">
+    <div className="rf-page space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="rf-eyebrow">ÜRÜN · REÇETE</p>
@@ -143,6 +143,6 @@ export default function ProductsPage() {
         </section>
       )}
       {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}
-    </main>
+    </div>
   );
 }

@@ -202,13 +202,13 @@ export default function OrderDetailPage() {
     return (
       <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950">
         <AppleNavbar title="Sipariş Detayı" />
-        <main className="flex-1 p-6 md:p-8">
+        <div className="flex-1 p-6 md:p-8">
           <div className="max-w-6xl mx-auto space-y-6">
             {[1,2,3].map((i) => (
               <div key={i} className="h-32 rounded-lg bg-neutral-200 dark:bg-neutral-800 animate-pulse" />
             ))}
           </div>
-        </main>
+        </div>
       </div>
     );
   }
@@ -217,7 +217,7 @@ export default function OrderDetailPage() {
     return (
       <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950">
         <AppleNavbar title={notFound ? "Sipariş bulunamadı" : "Sipariş yüklenemedi"} />
-        <main className="flex-1 p-8 flex items-center justify-center">
+        <div className="flex-1 p-8 flex items-center justify-center">
           <div className="text-center space-y-4">
             <AlertTriangle size={28} className="mx-auto text-muted-foreground" />
             <h2 className="text-xl font-semibold text-foreground">{notFound ? "Sipariş bulunamadı" : "Sipariş yüklenemedi"}</h2>
@@ -227,7 +227,7 @@ export default function OrderDetailPage() {
               Siparişlere Dön
             </Link>
           </div>
-        </main>
+        </div>
       </div>
     );
   }
@@ -238,7 +238,7 @@ export default function OrderDetailPage() {
     <div className="flex min-h-screen flex-1 flex-col bg-neutral-50/50 dark:bg-neutral-950/80">
 
 
-      <main className="flex-1 p-4 md:p-8">
+      <div className="flex-1 p-4 md:p-8">
         <div className="max-w-6xl mx-auto space-y-6">
 
           {/* Breadcrumb + Actions */}
@@ -546,7 +546,7 @@ export default function OrderDetailPage() {
             </div>
           </div>
         </div>
-      </main>
+      </div>
 
       {/* PDF Viewer Modal */}
       {selectedDocument && (

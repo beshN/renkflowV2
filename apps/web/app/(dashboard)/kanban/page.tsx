@@ -131,7 +131,7 @@ export default function KanbanPage() {
   if (isLoading || !user) return null;
   return <div className="flex min-h-screen min-w-0 flex-1 flex-col bg-background">
     <Navbar title="Akış Kanbanı" />
-    <main className="mx-auto w-full min-w-0 max-w-[1800px] space-y-5 p-4 md:p-6">
+    <div className="mx-auto w-full min-w-0 max-w-[1800px] space-y-5 p-4 md:p-6">
       <header className="flex flex-wrap items-center gap-4">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><LayoutGrid size={24} /></div>
         <div className="min-w-0 flex-1"><h1 className="text-xl font-semibold tracking-tight md:text-2xl">Üretim akışı</h1><p className="mt-1 text-sm text-muted-foreground">İşleri planlayın, ekiple paylaşın ve ilerlemeyi takip edin.</p></div>
@@ -164,6 +164,6 @@ export default function KanbanPage() {
       <p className="text-xs text-muted-foreground">Taşıma tutamacını sürükleyin; klavyede boşluk ve ok tuşlarını kullanın. Kartı açarak sütunu da değiştirebilirsiniz.</p>
       {cardId && <KanbanCardDialog key={cardId} cardId={cardId} capabilities={capabilities} members={members} onClose={() => setCardId(null)} onChanged={changed} />}
       <Dialog open={!!blockMove} onOpenChange={open => { if (!open && !saving.current) setBlockMove(null); }}><DialogContent showCloseButton={pending === null}><DialogHeader><DialogTitle>Bloke nedenini belirtin</DialogTitle><DialogDescription>Kartın neden beklediğini ekibin görebilmesi için bir açıklama ekleyin.</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={event => { event.preventDefault(); if (blockMove) void persistMove(blockMove, { blockedReasonCategory: blockCategory, blockedReasonDetail: blockDetail.trim() }).then(ok => { if (ok) setBlockMove(null); }); }}><label className="block text-sm">Neden<select disabled={pending !== null} className="rf-input mt-1 min-h-11 w-full" value={blockCategory} onChange={event => setBlockCategory(event.target.value as WorkOrderBlockReasonCategory)}>{Object.entries(BLOCK_LABELS).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="block text-sm">Açıklama<textarea autoFocus required minLength={5} maxLength={1000} disabled={pending !== null} value={blockDetail} onChange={event => setBlockDetail(event.target.value)} className="rf-input mt-1 min-h-24 w-full" placeholder="Örn. Motor tedariki bekleniyor." /></label><button className="rf-primary-button min-h-11 w-full" disabled={pending !== null || blockDetail.trim().length < 5}>{pending ? 'Kaydediliyor…' : 'Nedeni kaydet ve taşı'}</button></form></DialogContent></Dialog>
-    </main>
+    </div>
   </div>;
 }

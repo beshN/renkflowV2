@@ -30,7 +30,7 @@ export default function ShipmentsPage() {
 
       />
       
-      <main className="flex-1 p-4 md:p-8 space-y-6">
+      <div className="flex-1 p-4 md:p-8 space-y-6">
         <div className="rf-panel border border-border p-6 shadow-sm">
           <RFListView
             data={shipments}
@@ -83,7 +83,7 @@ export default function ShipmentsPage() {
             ]}
           />
         </div>
-      </main>
+      </div>
     </div>
   );
 }

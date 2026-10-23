@@ -30,12 +30,12 @@ function TeamList() {
     return () => { active = false; };
   }, []);
   return <div className="min-h-screen"><AppleNavbar title="Renk Alüminyum ekibi" showSearch={false} />
-    <main className="mx-auto max-w-5xl space-y-4 p-4 md:p-6">
+    <div className="mx-auto max-w-5xl space-y-4 p-4 md:p-6">
       {(user?.role === 'owner' || user?.role === 'admin') && <Link href="/settings" className="inline-block text-sm text-blue-600">Firma ayarlarından ekip arkadaşı davet et →</Link>}
       {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
       <RFListView title="Ekip ve yetkiler" data={members} isLoading={loading} columns={[
         { key: 'name', label: 'Ad soyad' }, { key: 'email', label: 'E-posta' }, { key: 'role', label: 'Rol', render: value => roles[value] || value },
       ]} />
-    </main>
+    </div>
   </div>;
 }

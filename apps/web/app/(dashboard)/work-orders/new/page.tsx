@@ -111,7 +111,7 @@ export default function NewWorkOrderPage() {
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-slate-50/50 dark:bg-slate-950/50">
       <Navbar title="Yeni Üretim Emri" />
-      <main className="w-full flex-1 p-4 md:p-8">
+      <div className="w-full flex-1 p-4 md:p-8">
         <RFFormView
           title="Yeni Üretim Emri"
           subtitle="Üretim atölyesine yeni bir emir gönderin."
@@ -125,7 +125,7 @@ export default function NewWorkOrderPage() {
             { id: 'details', label: 'Emir Detayı', content }
           ]}
         />
-      </main>
+      </div>
     </div>
   );
 }

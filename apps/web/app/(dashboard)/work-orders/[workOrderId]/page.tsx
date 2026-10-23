@@ -36,7 +36,7 @@ export default function WorkOrderDetail({ params }: { params: Promise<{ workOrde
   return (
     <div className="min-h-screen">
       <AppleNavbar title="İş emri detayı" showSearch={false} />
-      <main className="mx-auto max-w-5xl space-y-5 p-4 md:p-6">
+      <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-6">
         <Link href="/work-orders" className="text-sm text-blue-600">← İş emirlerine dön</Link>
         {error && <p role="alert" className="rounded-lg bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
         {!data && !error && <SkeletonRows rows={5} />}
@@ -68,7 +68,7 @@ export default function WorkOrderDetail({ params }: { params: Promise<{ workOrde
             {data.comments.length ? data.comments.map(comment => <div key={comment.id} className="mt-3 border-t pt-3"><p className="whitespace-pre-wrap text-sm">{comment.body}</p><p className="mt-1 text-xs text-slate-500">{comment.authorName} · {formatDate(comment.createdAt)}</p></div>) : <p className="mt-2 text-sm text-slate-500">Henüz not eklenmedi.</p>}
           </section>
         </>}
-      </main>
+      </div>
     </div>
   );
 }
