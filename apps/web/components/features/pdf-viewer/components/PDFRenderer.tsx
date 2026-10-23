@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { usePDFStore } from '@/stores/usePDFStore';
@@ -44,6 +44,8 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
+  const observedPage = useRef<number | null>(null);
+  const requestedPage = useRef<number | null>(null);
   
   // Store selectors
   const fileUrl = usePDFStore((state) => state.fileUrl);
@@ -103,34 +105,40 @@ export const PDFRenderer: React.FC<PDFRendererProps> = ({
     enabled: viewMode === 'continuous',
   });
   
-  // Track visible page for page number updates
+  const renderedPageRange = rowVirtualizer.getVirtualItems().map(row => row.index).join(',');
+  // Toolbar, search, bookmarks and evidence links all change the same page state. Scroll only
+  // for those requests, not when the observer reports the page the user already scrolled to.
+  useLayoutEffect(() => {
+    if (viewMode !== 'continuous' || !numPages) { requestedPage.current = null; return; }
+    if (observedPage.current === pageNumber) { observedPage.current = null; return; }
+    requestedPage.current = pageNumber;
+    rowVirtualizer.scrollToIndex(pageNumber - 1, { align: 'start', behavior: 'auto' });
+  }, [pageNumber, viewMode, numPages, effectiveScale, rowVirtualizer]);
+
   useEffect(() => {
     if (viewMode !== 'continuous' || !containerRef.current) return;
-    
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const page = parseInt(entry.target.getAttribute('data-page') || '1', 10);
-            if (page !== pageNumber) {
-              setPageNumber(page);
-              onPageChange?.(page);
-            }
-          }
-        });
-      },
-      {
-        root: containerRef.current,
-        threshold: 0.5,
+    const observer = new IntersectionObserver(entries => {
+      const visible = entries.filter(entry => entry.isIntersecting).sort((a, b) =>
+        Math.abs(a.boundingClientRect.top - (a.rootBounds?.top ?? 0)) - Math.abs(b.boundingClientRect.top - (b.rootBounds?.top ?? 0)));
+      if (requestedPage.current !== null) {
+        // Ignore a late callback for the old page while the requested virtual row is mounting.
+        if (!visible.some(entry => Number(entry.target.getAttribute('data-page')) === requestedPage.current)) return;
+        requestedPage.current = null;
+        return;
       }
-    );
-    
-    const pages = containerRef.current.querySelectorAll('[data-page]');
-    pages.forEach((page) => observer.observe(page));
-    
+      const page = Number(visible[0]?.target.getAttribute('data-page'));
+      if (Number.isInteger(page) && page > 0 && page !== pageNumber) {
+        observedPage.current = page;
+        setPageNumber(page);
+        onPageChange?.(page);
+      }
+    }, { root: containerRef.current, threshold: 0.5 });
+    containerRef.current.querySelectorAll('[data-page]').forEach(page => observer.observe(page));
     return () => observer.disconnect();
-  }, [viewMode, pageNumber, setPageNumber, onPageChange]);
-  
+    // Virtual rows are replaced while scrolling; observing only the first mounted rows misses
+    // navigation to later pages. The range key reconnects the observer only when rows change.
+  }, [viewMode, pageNumber, renderedPageRange, setPageNumber, onPageChange]);
+
   // Document load handlers
   const handleDocumentLoadSuccess: OnDocumentLoadSuccess = useCallback(
     async (pdf) => {
