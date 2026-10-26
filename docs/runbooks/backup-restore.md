@@ -49,7 +49,7 @@ Yedek dallarına compute bağlı değildir; doğrudan sorgulanamazlar. Geri yük
 
 PITR penceresi dışındaysa ve uygun bir yedek dal yoksa. Döküm production'a doğrudan değil, **yeni bir Neon dalına** yüklenir; doğrulandıktan sonra A/B'deki gibi karar verilir.
 
-1. Dökümü indirin (GitHub CLI ile; tarayıcıdan da Actions → ilgili çalışma → *Artifacts*):
+1. Dökümü indirin. Aşağıdaki komutlar "Açık işler"deki (a) seçeneği içindir: depo özel yapılıp `backup.yml` iş akışı eklendiğinde artifact'tan indirilir. Özel kova seçilirse dökümü kovadan indirin ve 2. adımdan devam edin.
    ```sh
    gh run list --workflow backup.yml --limit 5          # uygun çalışmayı seçin
    gh run download <run-id> --dir ./restore              # renkflow-<zaman>.dump.gpg ve .sha256
