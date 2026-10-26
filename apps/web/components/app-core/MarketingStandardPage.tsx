@@ -10,6 +10,8 @@ type MarketingStandardPageProps = {
   /** Extra page-specific content shown under the highlights. */
   children?: ReactNode;
   hideClosing?: boolean;
+  /** Skip the highlight cards when the page body carries the full content (legal texts, docs). */
+  hideHighlights?: boolean;
 };
 
 const SUMMARIES: Record<MarketingPageKey, { title: string; detail: string }> = {
@@ -17,7 +19,7 @@ const SUMMARIES: Record<MarketingPageKey, { title: string; detail: string }> = {
   features: { title: 'Özellikler', detail: 'Keşiften montaja tüm modüller.' },
   pricing: { title: 'Fiyatlandırma', detail: 'Ölçeğinize göre hazırlanan teklif.' },
   integrations: { title: 'Entegrasyonlar', detail: 'API, e-posta, WhatsApp ve barkod.' },
-  docs: { title: 'Dokümantasyon', detail: 'Kullanım rehberleri ve API referansı.' },
+  docs: { title: 'Dokümantasyon', detail: 'Hesap kurulumundan sevkiyata başlangıç rehberi.' },
   security: { title: 'Güvenlik', detail: 'Yetkilendirme, firma ayrımı ve işlem geçmişi.' },
   roadmap: { title: 'Yol haritası', detail: 'Üzerinde çalıştığımız geliştirmeler.' },
   changelog: { title: 'Sürüm notları', detail: 'Yayınlanan güncellemeler.' },
@@ -27,7 +29,7 @@ const SUMMARIES: Record<MarketingPageKey, { title: string; detail: string }> = {
   terms: { title: 'Kullanım koşulları', detail: 'Tarafların hak ve sorumlulukları.' },
   privacy: { title: 'Gizlilik', detail: 'Kişisel verilerin işlenmesi ve korunması.' },
   cookies: { title: 'Çerezler', detail: 'Çerez kullanımı ve tercihleriniz.' },
-  status: { title: 'Sistem durumu', detail: 'Bakım ve olay duyuruları.' },
+  status: { title: 'Sistem durumu', detail: 'Uygulama ve veritabanının anlık durumu.' },
 };
 
 const RELATED: Record<MarketingPageKey, MarketingPageKey[]> = {
@@ -60,7 +62,7 @@ export function marketingMetadata(pageKey: MarketingPageKey): Metadata {
   };
 }
 
-export function MarketingStandardPage({ pageKey, children, hideClosing }: MarketingStandardPageProps) {
+export function MarketingStandardPage({ pageKey, children, hideClosing, hideHighlights }: MarketingStandardPageProps) {
   const page = marketingPages[pageKey];
 
   if (!page) {
@@ -78,7 +80,7 @@ export function MarketingStandardPage({ pageKey, children, hideClosing }: Market
       ]}
       hideClosing={hideClosing}
     >
-      <HighlightGrid items={page.highlights} />
+      {!hideHighlights && <HighlightGrid items={page.highlights} />}
       {children}
       <RelatedLinks links={RELATED[pageKey].map((key) => ({ href: `/${key}`, ...SUMMARIES[key] }))} />
     </MarketingShell>

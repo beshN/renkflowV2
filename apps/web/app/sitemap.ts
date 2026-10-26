@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import { isComingSoonMode } from '@/lib/launch/comingSoonGate';
 import { blogPosts } from '@/lib/core/marketing-content';
+import { PUBLIC_PAGES } from '@/lib/core/site-routes';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,27 +24,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     }));
   }
   
-  const staticPages = [
-    '',
-    '/features',
-    '/pricing',
-    '/integrations',
-    '/about',
-    '/contact',
-    '/faq',
-    '/blog',
-    '/careers',
-    '/privacy',
-    '/terms',
-    '/cookies',
-    '/roadmap',
-    '/changelog',
-    '/press',
-    '/docs',
-    '/security',
-    '/status',
-    '/signup',
-  ];
+  const staticPages = PUBLIC_PAGES;
 
   const pages: MetadataRoute.Sitemap = staticPages.map((route) => ({
     url: `${baseUrl}${route}`,

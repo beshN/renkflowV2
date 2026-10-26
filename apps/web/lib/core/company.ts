@@ -19,10 +19,19 @@ export const COMPANY = {
   email: 'info@renkflow.com',
   /** Where KVKK data-subject requests go; falls back to `email`. */
   privacyEmail: '',
-  /** Optional registry details shown in the privacy notice. */
+  /** Optional registry details shown in the privacy notice and the terms. */
   mersisNo: '',
+  /** Ticaret sicil müdürlüğü and number, e.g. "İstanbul Ticaret Sicili 123456". */
+  tradeRegistry: '',
+  /** KEP address for formal notices and KVKK applications, e.g. renk@hs01.kep.tr. */
+  kepAddress: '',
   taxOffice: 'Esenler',
   taxNumber: '7340074530',
+  /**
+   * Courts named in the terms ("... mahkemeleri ve icra daireleri"), e.g. "İstanbul (Çağlayan)".
+   * Empty: the terms name the courts of the company's registered seat without naming a city.
+   */
+  jurisdiction: '',
   /** Weekday support hours, e.g. "Hafta içi 09:00–18:00". */
   hours: 'Hafta içi 09:00–18:30',
   social: {

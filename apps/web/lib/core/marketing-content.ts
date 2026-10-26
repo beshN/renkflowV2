@@ -72,9 +72,9 @@ export const marketingPages = {
   },
   docs: {
     badge: 'Dokümantasyon',
-    title: 'Kurulumdan günlük kullanıma kadar rehberler.',
+    title: 'RenkFlow’a başlangıç rehberi.',
     description:
-      'Ofis, üretim ve yönetim kullanıcıları için ayrı rehberler; entegrasyon geliştiricileri için API referansı.',
+      'Hesap kurulumundan ilk teklife, siparişten üretime ve sevkiyata; ekip, roller, asistan, e-Fatura ayarları ve KVKK talepleri adım adım.',
     primaryCta: { href: '/contact', label: 'Destek alın' },
     secondaryCta: { href: '/changelog', label: 'Sürüm notları' },
     highlights: [
@@ -114,7 +114,7 @@ export const marketingPages = {
   changelog: {
     badge: 'Sürüm notları',
     title: 'Neler değişti?',
-    description: 'Yayınlanan her güncelleme, etkilediği modüller ve yapmanız gereken bir şey varsa açıklamasıyla birlikte burada.',
+    description: 'Yayınlanan güncellemeler, en yenisi en üstte. Her sürümde neyin eklendiği, neyin iyileştiği ve hangi hataların giderildiği.',
     primaryCta: { href: '/blog', label: 'Ürün günlüğü' },
     secondaryCta: { href: '/roadmap', label: 'Yol haritası' },
     highlights: [
@@ -161,8 +161,8 @@ export const marketingPages = {
   },
   terms: {
     badge: 'Kullanım koşulları',
-    title: 'Hizmet kullanım koşulları.',
-    description: 'RenkFlow’u kullanırken tarafların hak ve sorumlulukları.',
+    title: 'Kullanım koşulları ve hizmet sözleşmesi.',
+    description: 'RenkFlow hizmetinin kapsamı, hesap güvenliği, verilerinizin mülkiyeti, teklif usulü, hizmet seviyesi ve fesih hâlinde verilerin iadesi.',
     primaryCta: { href: '/privacy', label: 'Gizlilik politikası' },
     secondaryCta: { href: '/contact', label: 'Sorularınız için' },
     highlights: [
@@ -173,8 +173,8 @@ export const marketingPages = {
   },
   privacy: {
     badge: 'Gizlilik',
-    title: 'Kişisel verilerin korunması.',
-    description: 'Hangi verileri neden işlediğimizi, ne kadar sakladığımızı ve haklarınızı açıkça anlatıyoruz.',
+    title: 'Gizlilik ve KVKK aydınlatma metni.',
+    description: 'Hangi kişisel verileri hangi amaç ve hukuki sebeple işlediğimizi, kimlere aktardığımızı, ne kadar sakladığımızı ve KVKK kapsamındaki haklarınızı açıklıyoruz.',
     primaryCta: { href: '/contact', label: 'Veri talebi oluşturun' },
     secondaryCta: { href: '/cookies', label: 'Çerez politikası' },
     highlights: [
@@ -186,7 +186,7 @@ export const marketingPages = {
   cookies: {
     badge: 'Çerezler',
     title: 'Çerez politikası.',
-    description: 'Oturumunuzu güvenle sürdürmek ve tercihlerinizi hatırlamak için çerez kullanıyoruz.',
+    description: 'Kullandığımız her çerezin ve tarayıcıda tutulan her ayarın adı, amacı, türü ve süresi. Analitik çerezler yalnızca onayınızla kurulur.',
     primaryCta: { href: '/privacy', label: 'Gizlilik politikası' },
     secondaryCta: { href: '/contact', label: 'Sorularınız için' },
     highlights: [
@@ -197,8 +197,8 @@ export const marketingPages = {
   },
   status: {
     badge: 'Sistem durumu',
-    title: 'Servis durumu ve bakım duyuruları.',
-    description: 'Planlı bakımlar önceden duyurulur; olası kesintiler ve çözüm süreçleri burada paylaşılır.',
+    title: 'Sistem durumu.',
+    description: 'Uygulamanın, sunucu yapılandırmasının ve veritabanının bu sayfayı açtığınız andaki durumu. Planlı bakımlar önceden duyurulur.',
     primaryCta: { href: '/contact', label: 'Destek ekibine ulaşın' },
     secondaryCta: { href: '/changelog', label: 'Sürüm notları' },
     highlights: [
