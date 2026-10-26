@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
 import { z } from 'zod';
+import { crossOriginRejection } from '@/lib/features/manufacturing/http-security';
 
 const ParamsSchema = z.object({
   ticketId: z.string().uuid(),
@@ -93,6 +94,8 @@ export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ ticketId: string }> }
 ) {
+  const crossOrigin = crossOriginRejection(request);
+  if (crossOrigin) return crossOrigin;
   try {
     const actor = await resolveSupportActor();
     const params = await context.params;

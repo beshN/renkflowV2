@@ -11,6 +11,7 @@ import {
   requireWorkOrderPermission,
   WorkOrderApiError,
 } from '@/lib/features/work-orders/security';
+import { requireSameOrigin } from '@/lib/features/manufacturing/http-security';
 
 function parseListQuery(request: NextRequest) {
   return ListWorkOrdersQuerySchema.safeParse({
@@ -53,6 +54,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    requireSameOrigin(request);
     const actor = await requireWorkOrderActor();
     requireWorkOrderPermission(actor, 'create');
 

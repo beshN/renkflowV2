@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { aiAvailable, getAIService } from '@/lib/ai/service';
 import { auth } from '@/auth';
 import { hasPermission } from '@/lib/features/auth/permissions';
+import { crossOriginRejection } from '@/lib/features/manufacturing/http-security';
 
 export async function GET() {
   const session = await auth();
@@ -11,6 +12,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const crossOrigin = crossOriginRejection(req);
+  if (crossOrigin) return crossOrigin;
   try {
     const session = await auth();
     if (!session?.user) {

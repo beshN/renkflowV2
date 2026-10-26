@@ -21,6 +21,7 @@ import {
 import { getClientIp } from '@/lib/security/rate-limit';
 import { recordAuditAfterCommit } from '@/lib/audit/audit-log';
 import { isMfaEnabled, verifyMfaCode } from '@/lib/features/auth/mfa.server';
+import { verifySsoTicket } from '@/lib/features/auth/sso-ticket';
 
 import { getSql } from '@/lib/db';
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_BY_KEY } from '@/lib/config/templates';
@@ -54,7 +55,9 @@ if (AUTH_SECRET && AUTH_SECRET.length < 32) {
 
 const DEBUG = process.env.AUTH_DEBUG === 'true' || !IS_PRODUCTION;
 
+// AUTH_DEBUG may be switched on in production to chase a login issue; addresses still stay out of logs there.
 function maskEmail(email: string): string {
+  if (IS_PRODUCTION) return '[gizli]';
   const [local, domain] = email.split('@');
   if (!domain) return '***';
   return `${local?.charAt(0) || '*'}***@${domain}`;
@@ -186,7 +189,7 @@ export const authConfig: NextAuthConfig = {
             if (DEBUG)
               console.log(
                 '[AUTH] Attempting ticket login for:',
-                normalizedEmail,
+                maskEmail(normalizedEmail),
               );
 
             const users = await sql`
@@ -214,19 +217,18 @@ export const authConfig: NextAuthConfig = {
               ) tm ON true
               LEFT JOIN tenants t ON tm.tenant_id = t.id
               WHERE u.email = ${normalizedEmail}
-              AND u.verification_token = ${credentials.ticket as string}
               LIMIT 1
             `;
 
+            // Checked here rather than in SQL: the ticket is hashed, expires and is compared in constant time.
             const usersRows = users as any[];
-            if (usersRows.length === 0) {
+            if (!verifySsoTicket(usersRows[0]?.verification_token, credentials.ticket)) {
               if (DEBUG) console.log('[AUTH] Invalid ticket or email');
               throw createCredentialsError('invalid_credentials');
             }
 
             const user = usersRows[0];
-
-            // Clear the used ticket
+            if (!user.email_verified) throw createCredentialsError('email_not_verified');
             if (!user.tenant_id) {
               throw createCredentialsError('tenant_not_found');
             }
@@ -234,9 +236,13 @@ export const authConfig: NextAuthConfig = {
             // Before the ticket is spent, so it still works when the page comes back with the code.
             await requireSecondFactor(sql, user, credentials.otp);
 
-            await sql`
-              UPDATE users SET verification_token = NULL WHERE id = ${user.id}
+            // Spend the ticket only if it is still the one we checked, so two racing sign-ins can't both use it.
+            const spent = await sql`
+              UPDATE users SET verification_token = NULL
+              WHERE id = ${user.id} AND verification_token = ${user.verification_token}
+              RETURNING id
             `;
+            if ((spent as any[]).length === 0) throw createCredentialsError('invalid_credentials');
 
             if (DEBUG)
               console.log(
