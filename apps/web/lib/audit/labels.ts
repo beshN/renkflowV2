@@ -6,6 +6,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   status_changed: 'Durum değişti', settings_updated: 'Ayar değişti', comment_added: 'Yorum eklendi',
   login_succeeded: 'Giriş yapıldı', login_failed: 'Başarısız giriş', period_status_changed: 'Dönem durumu değişti',
   mfa_enabled: 'İki adımlı doğrulama açıldı', mfa_disabled: 'İki adımlı doğrulama kapatıldı', mfa_recovery_code_used: 'Kurtarma kodu kullanıldı',
+  tenant_export_started: 'Firma veri dökümü başlatıldı', tenant_exported: 'Firma veri dökümü indirildi', account_closure_requested: 'Hesap kapatma talep edildi',
 };
 export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   security: 'Güvenlik', member: 'Üye', access_role: 'Rol', tenant: 'Firma', order: 'Sipariş', quotation: 'Teklif', customer: 'Müşteri',

@@ -27,6 +27,9 @@ export const RATE_LIMIT_POLICIES = {
   subscribe: { limit: 5, windowMs: 60 * 60_000 },
   exportCreate: { limit: 20, windowMs: 60 * 60_000 },
   exportRead: { limit: 600, windowMs: 60 * 60_000 },
+  // The full firm ZIP reads every table: a few per hour is plenty for a KVKK/portability download.
+  tenantExport: { limit: 3, windowMs: 60 * 60_000 },
+  accountClosure: { limit: 5, windowMs: 60 * 60_000 },
   assistant: { limit: 20, windowMs: 60_000 },
   quoteDecision: { limit: 20, windowMs: 15 * 60_000 },
   inviteToken: { limit: 20, windowMs: 15 * 60_000 },

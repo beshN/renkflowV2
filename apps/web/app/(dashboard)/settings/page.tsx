@@ -15,6 +15,7 @@ import { RecordSettings } from '@/components/settings/RecordSettings';
 import { QuoteRulesSettings } from '@/components/settings/QuoteRulesSettings';
 import { ProductionReasonSettings } from '@/components/settings/ProductionReasonSettings';
 import { AssistantPerformance, AssistantSettings } from '@/components/settings/AssistantSettings';
+import { PlanUsageSettings } from '@/components/settings/PlanUsageSettings';
 import { useAuth } from '@/lib/context/AuthContext';
 import { cn } from '@/lib/utils';
 
@@ -28,6 +29,7 @@ const TABS = [
   { id: 'asistan', label: 'Asistan' },
   { id: 'personel', label: 'Çalışanlar' },
   { id: 'tabletler', label: 'İstasyon tabletleri' },
+  { id: 'plan', label: 'Plan ve kullanım' },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
@@ -63,6 +65,7 @@ export default function SettingsPage() {
           {tab === 'teklif' && <>{panel(<QuoteRulesSettings />)}{panel(<RecordSettings />)}</>}
           {tab === 'tabletler' && panel(<StationSettings />)}
           {tab === 'personel' && panel(<AttendancePolicySettings />)}
+          {tab === 'plan' && panel(<PlanUsageSettings />)}
       {tab === 'asistan' && <>
             <div id="asistan" className="rf-panel p-5 md:p-6"><AssistantSettings /></div>
             <details className="rf-panel p-5 md:p-6"><summary className="cursor-pointer text-sm font-semibold">Asistan performansı</summary><div className="mt-4"><AssistantPerformance /></div></details>
