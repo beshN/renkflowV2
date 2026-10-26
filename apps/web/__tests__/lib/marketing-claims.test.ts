@@ -15,6 +15,9 @@ const FILES = [
   'components/site/HomeLanding.tsx',
   'components/site/ProductMocks.tsx',
   'components/app-core/MarketingStandardPage.tsx',
+  'lib/core/changelog.ts',
+  'lib/core/legal-content.ts',
+  'app/(landing)/docs/page.tsx',
 ];
 const OVERCLAIMS: Array<[string, string]> = [
   ['en az artık', 'the cutting engine is a heuristic; it does not minimise remnants across bar lengths (K8)'],
