@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { executeOrderQrAction, type ResolvedOrderQrToken } from '@/app/actions/order.qr.actions';
 import { ORDER_QR_ACTION_LIST, type OrderQrActionKey } from '@/lib/orders/qrActions';
 import { Button } from '@/components/shared/ui/Button';
+import { useConfirm } from '@/components/kit';
 import { Upload, StickyNote, CheckCircle2 } from 'lucide-react';
 
 interface OrderQrActionScreenProps {
@@ -51,6 +52,7 @@ export function OrderQrActionScreen({ token, resolved }: OrderQrActionScreenProp
   const [file, setFile] = useState<File | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [currentOrder, setCurrentOrder] = useState(resolved.order);
+  const [confirm, confirmDialog] = useConfirm();
 
   const actionMap = useMemo(() => {
     return new Map(ORDER_QR_ACTION_LIST.map((item) => [item.key, item]));
@@ -59,7 +61,7 @@ export function OrderQrActionScreen({ token, resolved }: OrderQrActionScreenProp
   async function runAction(actionKey: OrderQrActionKey) {
     try {
       if (actionKey === 'status.set_delivered') {
-        const ok = window.confirm('Siparişi Teslim Edildi olarak işaretlemek istiyor musunuz?');
+        const ok = await confirm({ title: 'Sipariş teslim edildi olarak işaretlensin mi?', confirmLabel: 'Teslim edildi', tone: 'default' });
         if (!ok) return;
       }
       setSubmitting(true);
@@ -145,6 +147,7 @@ export function OrderQrActionScreen({ token, resolved }: OrderQrActionScreenProp
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 pb-8">
+      {confirmDialog}
       <div className="mx-auto max-w-xl space-y-4">
         <header className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
           <h1 className="text-lg font-bold text-slate-900 dark:text-white">

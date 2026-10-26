@@ -10,6 +10,8 @@ export type DashboardNavItem = {
   allowedRoles?: UserRole[];
   action?: 'logout';
   badge?: string;
+  /** Extra words the command palette matches ("kanban" finds "Üretim akışı"). */
+  keywords?: string;
 };
 export type DashboardNavGroup = { id: string; label: string; subtitle: string; items: DashboardNavItem[] };
 
@@ -32,9 +34,12 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
     { id: 'cut-list', allowedRoles: ['owner', 'admin', 'office'], label: 'Kesim listesi', href: '/orders/foy', requiresPermission: 'orders.create' },
     { id: 'production', allowedRoles: ROUTE_ROLES['/production'], label: 'Üretim', href: '/production', requiresPermission: 'orders.view' },
     { id: 'work-orders', label: 'İş emirleri', href: '/work-orders', requiresPermission: 'orders.view' },
+    { id: 'kanban', label: 'Üretim akışı', keywords: 'kanban pano iş emri sürükle', href: '/kanban', requiresPermission: 'kanban.view' },
+    { id: 'products', allowedRoles: ROUTE_ROLES['/products'], label: 'Ürün reçeteleri', keywords: 'ürün reçete malzeme listesi bom şablon', href: '/products' },
     { id: 'factory', allowedRoles: ROUTE_ROLES['/factory'], label: 'Atölye', href: '/factory', requiresPermission: 'orders.view' },
     { id: 'shipments', allowedRoles: ROUTE_ROLES['/shipments'], label: 'Sevkiyat', href: '/shipments', requiresPermission: 'orders.view' },
     { id: 'installations', allowedRoles: ROUTE_ROLES['/installations'], label: 'Montaj', href: '/installations' },
+    { id: 'service', allowedRoles: ROUTE_ROLES['/service'], label: 'Servis ve garanti', keywords: 'servis garanti arıza satış sonrası', href: '/service' },
   ] },
   { id: 'supply-chain', label: 'Stok ve tedarik', subtitle: '', items: [
     { id: 'inventory', label: 'Stok', href: '/inventory', requiresPermission: 'inventory.view' },

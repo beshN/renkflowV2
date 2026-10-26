@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, CalendarRange, Car, Droplets, FileText, KeyRound, MapPin, Radio, Trash2, Wrench } from 'lucide-react';
-import { EmptyState, HintTip, Skeleton, StatusChip } from '@/components/kit';
+import { EmptyState, HintTip, Skeleton, StatusChip, useConfirm } from '@/components/kit';
 import { RecordButton } from '@/components/records/RecordDrawer';
 import { requestJson } from '@/lib/shared/network';
 import { cn } from '@/lib/utils';
@@ -38,6 +38,7 @@ export function VehicleDetail({ id }: { id: string }) {
   const [v, setV] = useState<Vehicle | null>(null);
   const [tab, setTab] = useState<Tab>('general');
   const [error, setError] = useState('');
+  const [confirm, confirmDialog] = useConfirm();
   const load = useCallback(async () => {
     const r = await requestJson<Vehicle>(`/api/v1/vehicles/${id}`, { cache: 'no-store' });
     if (r.ok && r.data) { setV(r.data); setError(''); } else setError(r.error || 'Araç alınamadı');
@@ -53,13 +54,14 @@ export function VehicleDetail({ id }: { id: string }) {
     return true;
   }
   async function remove(type: string, entryId: string) {
-    if (!window.confirm('Bu kayıt silinsin mi?')) return;
+    if (!(await confirm({ title: 'Bu kayıt silinsin mi?', description: 'Bu işlem geri alınamaz.', confirmLabel: 'Kaydı sil' }))) return;
     const r = await requestJson(`/api/v1/vehicles/${id}/entries/${type}/${entryId}`, { method: 'DELETE' });
     if (!r.ok) setError(r.error || 'Silinemedi'); else await load();
   }
   const tabs: Array<[Tab, string, typeof Car]> = [['general', 'Genel', Car], ['documents', 'Belgeler', FileText], ['maintenance', 'Bakım', Wrench], ['fuel', 'Yakıt', Droplets], ['assignments', 'Görevler', CalendarRange], ['location', 'Konum', MapPin]];
   return (
     <div className="space-y-4">
+      {confirmDialog}
       <Link href="/vehicles" className="inline-flex items-center gap-1 text-xs text-muted-foreground"><ArrowLeft size={14} aria-hidden /> Araçlar</Link>
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
         <div>

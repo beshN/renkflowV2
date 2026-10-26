@@ -61,7 +61,7 @@ export default async function QOrderPage({ searchParams }: QOrderPageProps) {
             {error instanceof Error ? error.message : 'İşlem sırasında beklenmeyen bir hata oluştu.'}
           </p>
           <Link href="/dashboard" className="mt-4 inline-flex text-sm font-semibold text-slate-900 hover:underline dark:text-slate-100">
-            Dashboard'a dön
+            Panele dön
           </Link>
         </div>
       </main>

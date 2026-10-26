@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { FilePlus2, Printer, Receipt, TrendingUp, Wallet } from 'lucide-react';
-import { HintTip, Skeleton, StatusChip, type Tone } from '@/components/kit';
+import { HintTip, Skeleton, StatusChip, useConfirm, type Tone } from '@/components/kit';
 import { requestJson } from '@/lib/shared/network';
 import { formatCurrency } from '@/lib/shared/utils';
 import { COLLECTION_METHODS, COLLECTION_METHOD_LABELS, INVOICE_STATUS_LABELS, type InvoiceStatus } from '@/lib/features/finance/engine';
@@ -30,6 +30,7 @@ export function OrderBillingPanel({ orderId }: { orderId: string }) {
   const [qty, setQty] = useState<Record<string, string>>({});
   const [extra, setExtra] = useState({ description: '', amount: '' });
   const [pay, setPay] = useState({ amount: '', method: 'bank_transfer', paidOn: today(), reference: '', chequeDueOn: '', invoiceId: '' });
+  const [confirm, confirmDialog] = useConfirm();
   const load = useCallback(async () => {
     const r = await requestJson<Billing>(`/api/v1/finance/orders/${orderId}`, { cache: 'no-store' });
     if (r.ok && r.data) { setB(r.data); setQty(Object.fromEntries(r.data.lines.map((l) => [l.id, l.remaining ? String(l.remaining) : '']))); }
@@ -66,6 +67,7 @@ export function OrderBillingPanel({ orderId }: { orderId: string }) {
 
   return (
     <div className="space-y-4">
+      {confirmDialog}
       <div className="grid grid-cols-3 gap-2 text-center">
         {[['Faturalanan', b.summary.invoiceTotal], ['Tahsil edilen', b.summary.collected], ['Siparişte kalan', b.summary.balance]].map(([label, v]) => (
           <div key={label as string} className="rf-panel p-2"><p className="text-[11px] text-muted-foreground">{label}</p><p className="font-semibold tabular-nums">{cur(v as number)}</p></div>
@@ -116,7 +118,7 @@ export function OrderBillingPanel({ orderId }: { orderId: string }) {
                 {i.cancelReason && <span className="text-xs text-muted-foreground">({i.cancelReason})</span>}
                 <span className="ml-auto flex flex-wrap gap-1">
                   {i.status === 'draft' && <button type="button" className="rf-primary-button text-xs" onClick={() => void act(send(`/api/v1/invoices/${i.id}`, { action: 'issue' }), 'Fatura kesildi')}>Kes</button>}
-                  {i.status === 'draft' && <button type="button" className="rf-secondary-button text-xs" onClick={() => window.confirm('Taslak silinsin mi?') && void act(requestJson(`/api/v1/invoices/${i.id}`, { method: 'DELETE' }), 'Taslak silindi')}>Sil</button>}
+                  {i.status === 'draft' && <button type="button" className="rf-secondary-button text-xs" onClick={async () => { if (await confirm({ title: 'Taslak fatura silinsin mi?', description: 'Bu işlem geri alınamaz.', confirmLabel: 'Taslağı sil' })) void act(requestJson(`/api/v1/invoices/${i.id}`, { method: 'DELETE' }), 'Taslak silindi'); }}>Sil</button>}
                   {i.status === 'issued' && <button type="button" className="rf-secondary-button text-xs" onClick={() => cancel(i.id)}>İptal</button>}
                   <Link href={`/finance/invoices/${i.id}`} className="rf-secondary-button inline-flex items-center gap-1 text-xs"><Printer size={12} aria-hidden /> Görüntüle</Link>
                 </span>
