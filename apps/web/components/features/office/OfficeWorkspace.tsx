@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils';
 import { CATEGORY, TASK_CATEGORIES, type TaskCategoryId } from '@/lib/features/office/catalog';
 import { DIFFICULTY_LABELS } from '@/lib/features/office/routing';
 import { BREAKS, LOUNGE_TEXT, OfficeSimulation, type Agent, type EventKind, type OfficeEvent, type RemoteTask, type Task } from '@/lib/features/office/simulation';
-import { createOfficeStage, type CameraView, type OfficeStage, type StageHint, type StageQuality } from '@/lib/features/office/scene';
+import type { CameraView, OfficeStage, StageHint, StagePick, StageQuality } from '@/lib/features/office/scene';
+import { RallyGame } from './RallyGame';
 
 const SPEEDS = [1, 2, 4];
 const API = '/api/v1/office';
@@ -149,6 +150,20 @@ const QUALITIES: Array<{ id: StageQuality; label: string; hint: string }> = [
  */
 let kept: { key: string; sim: OfficeSimulation; leftAt: number | null; view: View; camera?: CameraView; declined: Set<StageHint> } | null = null;
 
+/** What staff say when clicked: a line in their own trade, picked at random. */
+const QUIPS: Record<string, string[]> = {
+  manager: ['Toplantı mı? Bu bir e-posta olabilirdi.', 'Herkes iş başına! …kahvemi bitirince.', 'Panoda kırmızı yok, gün güzel geçiyor.'],
+  deniz: ['Logoyu biraz daha büyütelim mi? Şaka şaka.', 'Kurumsal mavi bu değil, bu gece mavisi.', 'Afiş dediğin nefes almalı.'],
+  elif: ['Kenar boşlukları 2,5 cm, tartışmaya kapalı.', 'Madde imlerini severim, ama bu kadar değil.', 'Dilekçe mi? Saygılarımla hazır.'],
+  murat: ['Bu hücreyi kim sildi?!', 'DÜŞEYARA değil, ÇAPRAZARA kullanın.', 'Toplam tutuyor. Kuruşu kuruşuna.'],
+  zeynep: ['Slayt başına bir fikir. Altın kural.', 'Animasyon mu? Sadece bir tane, söz.', 'Kapak slaytı her şeydir.'],
+  kerem: ['Kaynak göster, yoksa söyleme.', 'Rakipler fiyat kırmış, not aldım.', 'Üç sekme açıktı, şimdi otuz.'],
+  selin: ['Saygılarımızla… ya da Sevgilerle mi?', 'Yanıtla değil, Tümünü Yanıtla. Dikkat!', 'Konu satırı her şeydir.'],
+  can: ['Pergola İngilizcede de pergola, şanslıyız.', 'Çeviri değil, yerelleştirme.', 'Almanca bileşik kelime: Sonnenschutzsystem.'],
+  aylin: ['Tekrar eden kayıtları sevmem.', 'Veri temizse gün güzel.', 'CSV mi? Noktalı virgülle mi?'],
+};
+const COFFEE_KEY = 'renkflow.office.coffees';
+
 function keptOffice(key: string) {
   if (kept?.key !== key) kept = { key, sim: new OfficeSimulation(), leftAt: null, view: { speed: 1, paused: false, night: true, tab: 'activity', filter: 'all', quality: savedQuality() }, declined: new Set() };
   return kept;
@@ -179,6 +194,10 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
   const [quality, setQuality] = useState<StageQuality>(here.view.quality);
   /** The other mode, suggested when the device struggles or has room to spare; a declined one is not offered again. */
   const [hint, setHint] = useState<StageHint | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [quip, setQuip] = useState<{ id: string; text: string } | null>(null);
+  const onRallyPlaying = useCallback((on: boolean) => stage.current?.setVisitorPlaying(on), []);
+  const closeRally = useCallback(() => setPlaying(false), []);
   useEffect(() => { here.view = { speed, paused, night, tab, filter, quality }; }, [here, speed, paused, night, tab, filter, quality]);
   useEffect(() => { try { localStorage.setItem(QUALITY_KEY, quality); } catch { /* the choice just is not remembered */ } }, [quality]);
 
@@ -187,22 +206,43 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
     // Time away from the page passes in the office too, at the speed it was left running.
     if (here.leftAt !== null && !here.view.paused) sim.catchUp(((Date.now() - here.leftAt) / 1000) * here.view.speed);
     here.leftAt = null;
-    try {
-      // A new quality mode builds the stage again on a fresh canvas, with the camera where it was.
-      setHint(null);
-      stage.current = createOfficeStage(canvas.current, sim, labels.current, {
-        quality, camera: here.camera,
-        onHint: next => { if (!here.declined.has(next)) setHint(next); },
-      });
-      stage.current.setSpeed(here.view.speed);
-      stage.current.setPaused(here.view.paused);
-      stage.current.setNight(here.view.night);
-    } catch {
-      setFailed(true);
-      return;
-    }
+    setHint(null);
+    let gone = false, quipTimer: ReturnType<typeof setTimeout> | undefined;
+    const pick = (picked: StagePick) => {
+      if (picked.kind === 'tv') setPlaying(true);
+      else if (picked.kind === 'coffee') {
+        stage.current?.brew();
+        let cups = 1;
+        try { cups = Number(localStorage.getItem(COFFEE_KEY) || 0) + 1; localStorage.setItem(COFFEE_KEY, String(cups)); } catch { /* not counted */ }
+        toast(`☕ Kahve hazır. Bu ofiste yapılan ${cups}. kahve.`);
+      } else {
+        stage.current?.wave(picked.id);
+        const lines = QUIPS[picked.id] ?? ['Merhaba!'];
+        setQuip({ id: picked.id, text: lines[Math.floor(Math.random() * lines.length)] });
+        clearTimeout(quipTimer);
+        quipTimer = setTimeout(() => setQuip(null), 3500);
+      }
+    };
+    // three.js loads only with the office, not with every page that links here.
+    import('@/lib/features/office/scene').then(({ createOfficeStage }) => {
+      if (gone || !canvas.current) return;
+      try {
+        // A new quality mode builds the stage again on a fresh canvas, with the camera where it was.
+        stage.current = createOfficeStage(canvas.current, sim, labels.current, {
+          quality, camera: here.camera, onPick: pick,
+          onHint: next => { if (!here.declined.has(next)) setHint(next); },
+        });
+        stage.current.setSpeed(here.view.speed);
+        stage.current.setPaused(here.view.paused);
+        stage.current.setNight(here.view.night);
+      } catch {
+        setFailed(true);
+      }
+    }).catch(() => setFailed(true));
     return () => {
-      here.camera = stage.current?.cameraView();
+      gone = true;
+      clearTimeout(quipTimer);
+      if (stage.current) here.camera = stage.current.cameraView();
       stage.current?.dispose();
       stage.current = null;
       here.leftAt = Date.now();
@@ -230,8 +270,9 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
               <div key={agent.id} ref={el => { if (el) labels.current.set(agent.id, el); else labels.current.delete(agent.id); }}
                 className="absolute left-0 top-0 flex flex-col items-center gap-1 whitespace-nowrap transition-opacity" style={{ opacity: 0 }}>
                 {/* A called person's bubble would sit under the manager's; the panel still shows it. A break shows only its icon. */}
-                {breakIcon(agent) && <span className="rounded-full bg-zinc-950/70 px-1.5 py-0.5 text-[13px] leading-none" title={s.text}>{breakIcon(agent)}</span>}
-                {!breakIcon(agent) && !IDLE_PHASES.has(agent.phase) && (
+                {quip?.id === agent.id && <span className="max-w-[240px] whitespace-normal rounded-2xl rounded-bl-sm bg-white px-2.5 py-1.5 text-center text-[11px] font-medium text-zinc-900 shadow-lg">{quip.text}</span>}
+                {quip?.id !== agent.id && breakIcon(agent) && <span className="rounded-full bg-zinc-950/70 px-1.5 py-0.5 text-[13px] leading-none" title={s.text}>{breakIcon(agent)}</span>}
+                {quip?.id !== agent.id && !breakIcon(agent) && !IDLE_PHASES.has(agent.phase) && (
                   <span className="max-w-[220px] truncate rounded-full border border-amber-400/60 bg-zinc-950/85 px-2.5 py-1 text-[11px] font-medium text-amber-100 shadow">{s.text}</span>
                 )}
                 <span className="rounded-md bg-zinc-950/75 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-200">{agent.name}</span>
@@ -349,6 +390,7 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
         </section>
       </aside>
 
+      {playing && <RallyGame onClose={closeRally} onPlaying={onRallyPlaying} />}
       {composing && <TaskComposer sim={sim} office={office} onClose={() => setComposing(false)} />}
     </div>
   );
