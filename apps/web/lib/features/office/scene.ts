@@ -15,11 +15,20 @@ import { DELIVER_SECONDS, type Agent, type OfficeSimulation, type TaskStatus } f
 /** Quality: shadows, smoothing, sharper picture. Performance: none of those, 30 frames a second. */
 export type StageQuality = 'quality' | 'performance';
 export type CameraView = { theta: number; phi: number; distance: number };
+/** Something in the office the person clicked: the games screen, the coffee machine, a member of staff. */
+export type StagePick = { kind: 'tv' } | { kind: 'coffee' } | { kind: 'agent'; id: string };
+
 /** How the device copes: struggling in quality mode, or with room to spare in performance mode. */
 export type StageHint = 'slow' | 'smooth';
 
 export type OfficeStage = {
   setSpeed(speed: number): void;
+  /** Someone at the keyboard is playing the racing game: the games screen shows it too. */
+  setVisitorPlaying(playing: boolean): void;
+  /** A member of staff waves back for a moment. */
+  wave(agentId: string): void;
+  /** The coffee machine brews a cup. */
+  brew(): void;
   setPaused(paused: boolean): void;
   setNight(night: boolean): void;
   resetView(): void;
@@ -354,7 +363,9 @@ function buildKitchen(scene: T.Scene) {
   for (let z = KITCHEN.minZ + 0.35; z < KITCHEN.fridgeZ - 0.5; z += 0.55) scene.add(at(box(0.02, 0.7, 0.5, '#e2e8f0'), x + depth / 2 + 0.005, 0.45, z));
   scene.add(at(box(0.36, 0.55, counterLength, '#e2e8f0'), KITCHEN.x - 0.05, 1.85, counterZ));
   // Coffee machine: body, spout, a light that turns green while it brews.
-  scene.add(at(box(0.36, 0.48, 0.34, '#18181b'), x, 1.15, KITCHEN.coffeeZ));
+  const machine = live(at(box(0.36, 0.48, 0.34, '#18181b'), x, 1.15, KITCHEN.coffeeZ));
+  machine.userData.pick = { kind: 'coffee' } satisfies StagePick;
+  scene.add(machine);
   scene.add(at(box(0.1, 0.06, 0.12, '#52525b'), x + 0.18, 1.05, KITCHEN.coffeeZ));
   const light = live(new T.MeshBasicMaterial({ color: '#ef4444' }));
   scene.add(at(new T.Mesh(new T.SphereGeometry(0.025, 8, 6), light), x + 0.185, 1.3, KITCHEN.coffeeZ + 0.1));
@@ -422,7 +433,9 @@ function buildGamingCorner(scene: T.Scene) {
   const g = canvas.getContext('2d')!;
   const texture = new T.CanvasTexture(canvas);
   texture.colorSpace = T.SRGBColorSpace;
-  scene.add(at(new T.Mesh(new T.PlaneGeometry(1.64, 0.92), live(new T.MeshBasicMaterial({ map: texture, toneMapped: false }))), x, 1.05, screenZ - 0.01));
+  const screen = at(new T.Mesh(new T.PlaneGeometry(1.64, 0.92), live(new T.MeshBasicMaterial({ map: texture, toneMapped: false }))), x, 1.05, screenZ - 0.01);
+  screen.userData.pick = { kind: 'tv' } satisfies StagePick;
+  scene.add(screen);
   const rug = new T.Mesh(new T.CircleGeometry(1.3, 32), new T.MeshStandardMaterial({ color: '#1e3a8a', roughness: 1 }));
   rug.rotation.x = -Math.PI / 2;
   rug.receiveShadow = true;
@@ -449,7 +462,7 @@ function buildGamingCorner(scene: T.Scene) {
     consoleLight.color.set(players ? '#22c55e' : '#3b82f6');
   };
   draw(0, 0);
-  return draw;
+  return { draw, screen };
 }
 
 /** The TV corner: a screen showing a programme, a sofa facing it. */
@@ -920,7 +933,7 @@ function floatPaper(person: Person, agent: Agent) {
   for (const m of person.paperMaterials) m.opacity = opacity;
 }
 
-export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulation, labels: Map<string, HTMLElement>, options: { quality?: StageQuality; camera?: CameraView; onHint?: (hint: StageHint) => void } = {}): OfficeStage {
+export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulation, labels: Map<string, HTMLElement>, options: { quality?: StageQuality; camera?: CameraView; onHint?: (hint: StageHint) => void; onPick?: (pick: StagePick) => void } = {}): OfficeStage {
   const fast = options.quality === 'performance';
   const scene = new T.Scene();
   scene.background = SKY.night.clone();
@@ -960,17 +973,20 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
   const games = buildGamingCorner(scene);
   const tv = buildTvCorner(scene);
   const clock = buildShelfAndClock(scene);
-  let tvDrawn = -1;
+  let tvDrawn = -1, visitor = false, brewUntil = 0;
+  const waves = new Map<string, number>();
   const drawBoard = buildBoard(scene);
   bakeStatic(scene);
   const people = new Map(sim.agents.map(agent => {
     const person = buildPerson(agent.look, scene);
     person.facing = agent.facing;
     person.sit = agent.seated && !agent.path.length ? 1 : 0;
+    person.root.userData.pick = { kind: 'agent', id: agent.id } satisfies StagePick;
     scene.add(person.root);
     return [agent.id, person];
   }));
 
+  const clickable: T.Object3D[] = [games.screen, ...scene.children.filter(o => o.userData.pick && o !== games.screen), ...[...people.values()].map(p => p.root)];
   const target = new T.Vector3(-0.3, 0, 1.4);
   const initialView = { theta: 0.42, phi: 0.9, distance: 28.5 };
   // The camera eases towards where the person dragged or zoomed it.
@@ -1021,14 +1037,29 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
   let pinch = 0;
   const zoom = (distance: number) => { goal.distance = Math.min(40, Math.max(10, distance)); };
   const spread = () => { const [a, b] = [...pointers.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  // A click (a press that barely moved) picks what is under it; a mouse over something clickable shows a hand.
+  const raycaster = new T.Raycaster(), pointer = new T.Vector2();
+  const pickAt = (e: PointerEvent): StagePick | null => {
+    const box = canvas.getBoundingClientRect();
+    pointer.set(((e.clientX - box.left) / box.width) * 2 - 1, -((e.clientY - box.top) / box.height) * 2 + 1);
+    raycaster.setFromCamera(pointer, camera);
+    const hit = raycaster.intersectObjects(clickable, true)[0];
+    for (let node: T.Object3D | null = hit?.object ?? null; node; node = node.parent) if (node.userData.pick) return node.userData.pick as StagePick;
+    return null;
+  };
+  let pressedAt: { x: number; y: number } | null = null;
   const onDown = (e: PointerEvent) => {
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     canvas.setPointerCapture(e.pointerId);
+    pressedAt = pointers.size === 1 ? { x: e.clientX, y: e.clientY } : null;
     if (pointers.size === 2) pinch = spread();
   };
   const onMove = (e: PointerEvent) => {
     const last = pointers.get(e.pointerId);
-    if (!last) return;
+    if (!last) {
+      if (e.pointerType === 'mouse' && options.onPick) canvas.style.cursor = pickAt(e) ? 'pointer' : '';
+      return;
+    }
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.size === 2) {
       const now = spread();
@@ -1039,7 +1070,15 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
     goal.theta -= (e.clientX - last.x) * 0.006;
     goal.phi = Math.min(1.25, Math.max(0.45, goal.phi - (e.clientY - last.y) * 0.004));
   };
-  const onUp = (e: PointerEvent) => { pointers.delete(e.pointerId); pinch = 0; };
+  const onUp = (e: PointerEvent) => {
+    if (pressedAt && pointers.size === 1 && Math.hypot(e.clientX - pressedAt.x, e.clientY - pressedAt.y) < 6) {
+      const picked = pickAt(e);
+      if (picked) options.onPick?.(picked);
+    }
+    pressedAt = null;
+    pointers.delete(e.pointerId);
+    pinch = 0;
+  };
   const onWheel = (e: WheelEvent) => { e.preventDefault(); zoom(goal.distance + e.deltaY * 0.02); };
   canvas.addEventListener('pointerdown', onDown);
   canvas.addEventListener('pointermove', onMove);
@@ -1100,12 +1139,18 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
     for (const agent of sim.agents) {
       const person = people.get(agent.id)!;
       pose(person, agent, time, dt);
+      // A wave back when clicked: the right hand up and swaying.
+      if ((waves.get(agent.id) ?? 0) > now && !agent.path.length) {
+        person.arms[1].rotation.x = -2.9;
+        person.arms[1].rotation.z = 0.25 + Math.sin(now / 90) * 0.35;
+        person.head.rotation.x = -0.1;
+      }
       holdProps(person, agent);
       floatPaper(person, agent);
     }
 
     // Break corners come alive while someone uses them.
-    const brewing = sim.agents.find(a => a.spotId === 'coffee' && a.phase === 'break');
+    const brewing = brewUntil > now || sim.agents.some(a => a.spotId === 'coffee' && a.phase === 'break');
     kitchen.light.color.set(brewing ? '#22c55e' : '#ef4444');
     kitchen.steam.forEach((puff, i) => {
       const t = (time * 0.6 + i / kitchen.steam.length) % 1;
@@ -1114,7 +1159,7 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
       (puff.material as T.MeshBasicMaterial).opacity = brewing ? (1 - t) * 0.45 : 0;
       puff.visible = Boolean(brewing);
     });
-    games(sim.agents.filter(a => a.phase === 'break' && a.activity === 'game').length, time);
+    games.draw(sim.agents.filter(a => a.phase === 'break' && a.activity === 'game').length + (visitor ? 1 : 0), time);
     const mode = sim.agents.some(a => a.phase === 'break' && a.activity === 'tv') ? 'tv' : 'off';
     const tick = mode === 'off' ? -2 : Math.floor(now / 90);
     if (tick !== tvDrawn) { tvDrawn = tick; tv.draw(mode, time); }
@@ -1162,6 +1207,9 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
   return {
     setSpeed(value) { speed = value; },
     setPaused(value) { paused = value; },
+    setVisitorPlaying(value) { visitor = value; },
+    wave(agentId) { waves.set(agentId, performance.now() + 2500); },
+    brew() { brewUntil = performance.now() + 4000; },
     setNight(value) {
       nightGoal = value ? 1 : 0;
       // The first call sets the look the page opens with; later ones fade.

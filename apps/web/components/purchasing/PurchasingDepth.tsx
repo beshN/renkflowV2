@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Award, FileQuestion, Gauge, Plus, RefreshCw, Trash2, TrendingDown, TrendingUp } from 'lucide-react';
-import { EmptyState, HintTip, Skeleton, Sparkline, StatusChip } from '@/components/kit';
+import { EmptyState, HintTip, Skeleton, Sparkline, StatusChip, useConfirm } from '@/components/kit';
 import { requestJson } from '@/lib/shared/network';
 import { cn, formatCurrency } from '@/lib/utils';
 import { COUNT_UNITS } from '@/lib/features/inventory/vocabulary';
@@ -202,9 +202,11 @@ function RfqCard({ rfq: q, writable, onAct }: { rfq: Rfq; writable: boolean; onA
   const [prices, setPrices] = useState<Record<string, string>>({});
   const [lead, setLead] = useState('');
   const [valid, setValid] = useState('');
+  const [confirm, confirmDialog] = useConfirm();
   const open = q.status === 'open';
   return (
     <article className="rf-panel space-y-3 text-sm">
+      {confirmDialog}
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-semibold">{q.number}</span>
         <StatusChip tone={q.status === 'awarded' ? 'success' : q.status === 'cancelled' ? 'muted' : 'info'} label={q.status === 'awarded' ? 'Verildi' : q.status === 'cancelled' ? 'İptal' : 'Açık'} />
@@ -250,7 +252,7 @@ function RfqCard({ rfq: q, writable, onAct }: { rfq: Rfq; writable: boolean; onA
           <button className="rf-primary-button justify-self-start">Cevabı kaydet</button>
         </form>
       )}
-      {open && writable && <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => onAct({ action: 'cancel' })}>İsteği iptal et</button>}
+      {open && writable && <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={async () => { if (await confirm({ title: `${q.number} teklif isteği iptal edilsin mi?`, description: 'Tedarikçilerden cevap girilemez; istek yeniden açılamaz.', confirmLabel: 'İsteği iptal et', cancelLabel: 'Açık kalsın' })) onAct({ action: 'cancel' }); }}>İsteği iptal et</button>}
     </article>
   );
 }

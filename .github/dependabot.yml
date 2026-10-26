@@ -1,0 +1,48 @@
+version: 2
+# Weekly, grouped: one PR for all minor/patch updates per ecosystem, majors stay separate.
+# Security updates are not limited by open-pull-requests-limit.
+updates:
+  - package-ecosystem: npm
+    directory: /apps/web
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Istanbul
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels: [dependencies]
+    groups:
+      web-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Istanbul
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
+    labels: [dependencies]
+    groups:
+      root-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Istanbul
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(ci)"
+    labels: [dependencies]
+    groups:
+      actions-minor-patch:
+        update-types: [minor, patch]

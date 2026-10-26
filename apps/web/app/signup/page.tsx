@@ -5,19 +5,16 @@ export const dynamic = 'force-dynamic';
 import { PASSWORD_POLICY, passwordProblem } from '@/lib/security/access-matrix';
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
-import { User, Building2, LayoutTemplate, Mail, Lock, UserPlus } from 'lucide-react';
+import { User, Building2, LayoutTemplate, Mail, Lock, UserPlus, MailCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_DEFINITIONS, type TemplateKey } from '@/lib/config/templates';
 import { requestJson } from '@/lib/shared/network';
 
 export default function SignupPage() {
-  const router = useRouter();
-
   const [name, setName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
@@ -25,7 +22,7 @@ export default function SignupPage() {
   const [templateKey, setTemplateKey] = useState<TemplateKey>(DEFAULT_TEMPLATE_KEY);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState('');
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,7 +33,6 @@ export default function SignupPage() {
     }
     setLoading(true);
     setError('');
-    setSuccess('');
 
     const result = await requestJson('/api/auth/register', {
       method: 'POST',
@@ -59,11 +55,13 @@ export default function SignupPage() {
       return;
     }
 
-    setSuccess('Hesabın oluşturuldu. Giriş sayfasına yönlendiriliyorsun.');
-    setTimeout(() => {
-      router.push('/auth/login');
-    }, 1200);
+    // Sign-in needs a verified e-mail, so the next step is the inbox, not the login form.
+    setRegisteredEmail(email.trim().toLowerCase());
   };
+
+  if (registeredEmail) {
+    return <VerifyEmailNotice email={registeredEmail} onChangeEmail={() => { setRegisteredEmail(''); setPassword(''); }} />;
+  }
 
   return (
     <AuthShell
@@ -145,7 +143,7 @@ export default function SignupPage() {
           <Input
               type="password"
               label="Şifre"
-              placeholder="En az 6 karakter"
+              placeholder={`En az ${PASSWORD_POLICY.minLength} karakter`}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -157,11 +155,6 @@ export default function SignupPage() {
            {error && (
               <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
                   {error}
-              </div>
-          )}
-          {success && (
-              <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs leading-5 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
-                  {success}
               </div>
           )}
 
@@ -176,6 +169,63 @@ export default function SignupPage() {
           </Button>
       </form>
       
+    </AuthShell>
+  );
+}
+
+/** Shown after a successful signup: sign-in opens once the address is verified. */
+function VerifyEmailNotice({ email, onChangeEmail }: { email: string; onChangeEmail: () => void }) {
+  const [sending, setSending] = useState(false);
+  const [notice, setNotice] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
+
+  const resend = async () => {
+    setSending(true);
+    setNotice(null);
+    const result = await requestJson<{ message?: string }>('/api/auth/resend-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    }, { timeoutMs: 20000, fallbackError: 'Doğrulama e-postası şu anda gönderilemedi.' });
+    setSending(false);
+    setNotice(result.ok
+      ? { tone: 'ok', text: 'Doğrulama e-postası yeniden gönderildi. Gelen kutunuzu ve istenmeyen klasörünü kontrol edin.' }
+      : { tone: 'error', text: result.error || 'Doğrulama e-postası şu anda gönderilemedi.' });
+  };
+
+  return (
+    <AuthShell
+      icon={<MailCheck size={18} />}
+      eyebrow="Hesabınız oluşturuldu"
+      title="E-postanızı doğrulayın"
+      description="Giriş yapabilmek için e-posta adresinizi doğrulamanız gerekiyor."
+      footer={<>Doğruladınız mı? <Link href="/auth/login" className="font-medium text-primary hover:underline">Giriş yapın</Link></>}
+    >
+      <div className="space-y-4" role="status">
+        <p className="text-sm leading-6 text-foreground">
+          <span className="font-semibold break-all">{email}</span> adresine bir doğrulama bağlantısı gönderdik.
+        </p>
+        <ol className="list-decimal space-y-1.5 pl-5 text-sm leading-6 text-muted-foreground">
+          <li>Gelen kutunuzda &quot;Renkflow Hesabınızı Doğrulayın&quot; konulu e-postayı açın.</li>
+          <li>E-postadaki doğrulama bağlantısına tıklayın.</li>
+          <li>E-posta adresiniz ve şifrenizle giriş yapın; kurulum adımları panelde sizi bekliyor olacak.</li>
+        </ol>
+        {notice && (
+          <div role={notice.tone === 'error' ? 'alert' : 'status'} className={cn('rounded-xl border p-3 text-xs leading-5',
+            notice.tone === 'ok'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300'
+              : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300')}>
+            {notice.text}
+          </div>
+        )}
+        <p className="text-xs leading-5 text-muted-foreground">
+          E-posta gelmedi mi?{' '}
+          <button type="button" onClick={() => void resend()} disabled={sending} className="font-medium text-primary hover:underline disabled:opacity-60">
+            {sending ? 'Gönderiliyor...' : 'Yeniden gönderin'}
+          </button>
+          {' '}veya{' '}
+          <button type="button" onClick={onChangeEmail} className="font-medium text-primary hover:underline">farklı bir adresle kaydolun</button>.
+        </p>
+      </div>
     </AuthShell>
   );
 }

@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useId, useState } from 'react';
 import { Download, Trash2 } from 'lucide-react';
-import { EmptyState, Skeleton } from '@/components/kit';
+import { EmptyState, Skeleton, useConfirm } from '@/components/kit';
 import { addExpenseRecord, deleteExpenseRecord, getVatReturnView } from '@/app/actions/accounting.actions';
 import { formatCurrency } from '@/lib/shared/utils';
 
@@ -31,6 +31,7 @@ export function VatReturnPanel({ period }: { period: string }) {
   const [error, setError] = useState('');
   const [formError, setFormError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [confirm, confirmDialog] = useConfirm();
   const [form, setForm] = useState({ date: `${period}-01`, vendor: '', documentNumber: '', description: '', category: 'materials', net: '', vatPercent: '20', deductible: true });
 
   const load = useCallback(async () => {
@@ -61,7 +62,7 @@ export function VatReturnPanel({ period }: { period: string }) {
   }
 
   async function remove(id: string) {
-    if (!window.confirm('Bu gider kaydı silinsin mi?')) return;
+    if (!(await confirm({ title: 'Bu gider kaydı silinsin mi?', description: 'KDV özeti yeniden hesaplanır.', confirmLabel: 'Kaydı sil' }))) return;
     const r = await deleteExpenseRecord(id);
     if (!r.ok) { setError(r.error); return; }
     await load();
@@ -74,6 +75,7 @@ export function VatReturnPanel({ period }: { period: string }) {
 
   return (
     <div className="space-y-5">
+      {confirmDialog}
       <div className="flex flex-wrap items-center gap-2">
         <p className="flex-1 text-xs text-muted-foreground">Kesilen faturalar (iptaller iptal edildiği ayda düşülür) ve girilen alış faturaları/giderlerden hesaplanır. Beyannameyi muhasebeciniz verir; bu özet ona hazır veri sağlar.</p>
         <a href={csvHref} download={`kdv-ozeti-${v.period}.csv`} className="rf-secondary-button inline-flex items-center gap-1 text-xs"><Download size={12} aria-hidden /> Muhasebeci için CSV</a>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleOIDCCallback, handleSAMLCallback } from '@/lib/auth/sso';
 import { sql } from '@/lib/db';
-import crypto from 'node:crypto';
+import { issueSsoTicket } from '@/lib/features/auth/sso-ticket';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,15 +62,18 @@ async function handleCallback(request: NextRequest) {
         throw new Error('Authentication failed');
     }
 
-    // 2. Create a temporary login ticket (magic code)
-    const ticket = crypto.randomBytes(32).toString('hex');
-    
-    // Update user with verification token
-    await sql`
-        UPDATE users 
-        SET verification_token = ${ticket} 
-        WHERE id = ${result.user.id}
+    // 2. Short-lived, single-use login ticket; the row keeps only its hash and expiry (see sso-ticket.ts).
+    // Unverified accounts get none, so their pending e-mail verification token is not overwritten.
+    const { ticket, stored } = issueSsoTicket();
+    const issued = await sql`
+        UPDATE users
+        SET verification_token = ${stored}
+        WHERE id = ${result.user.id} AND email_verified IS NOT NULL
+        RETURNING id
     `;
+    if ((issued as any[]).length === 0) {
+        return NextResponse.redirect(new URL('/auth/login?error=email_not_verified', request.url));
+    }
 
     // 3. Redirect to a client-side page that performs the actual sign-in
     const redirectUrl = new URL('/auth/sso-verify', request.url);

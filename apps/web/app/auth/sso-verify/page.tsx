@@ -43,7 +43,7 @@ export default function SSOVerifyPage() {
   }, [router, searchParams]);
 
   return (
-    <AuthFrame title="Kurumsal Giriş Doğrulaması" description="SSO doğrulama adımı tamamlanıyor, birkaç saniye içinde yönlendirileceksin.">
+    <AuthFrame title="Kurumsal Giriş Doğrulaması" description="SSO doğrulama adımı tamamlanıyor, birkaç saniye içinde yönlendirileceksiniz.">
       <p className="text-sm text-slate-600 dark:text-slate-400">Kimlik bilgileri güvenli şekilde doğrulanıyor...</p>
     </AuthFrame>
   );

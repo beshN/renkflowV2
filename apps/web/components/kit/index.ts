@@ -10,3 +10,4 @@ export { Skeleton, SkeletonRows } from './Skeleton';
 export { LifecycleStrip } from './LifecycleStrip';
 export { HealthBadge } from './HealthBadge';
 export { withUndo } from './undo';
+export { ConfirmDialog, useConfirm, type ConfirmOptions } from './ConfirmDialog';

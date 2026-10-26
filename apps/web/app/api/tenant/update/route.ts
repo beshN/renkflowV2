@@ -5,6 +5,7 @@ import { sql } from '@/lib/db';
 import { z } from 'zod';
 import { TEMPLATE_BY_KEY, TemplateKey } from '@/lib/config/templates';
 import { AuthenticationError, AuthorizationError, assertTenantAccess, requireTenantContext } from '@/lib/auth/serverAuth';
+import { crossOriginRejection } from '@/lib/features/manufacturing/http-security';
 
 const UpdateTenantSchema = z.object({
   tenantId: z.string().uuid().optional(),
@@ -16,6 +17,8 @@ const UpdateTenantSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const crossOrigin = crossOriginRejection(request);
+  if (crossOrigin) return crossOrigin;
   try {
     const context = await requireTenantContext();
 

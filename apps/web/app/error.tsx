@@ -27,7 +27,7 @@ export default function Error({
           <div className="min-w-0">
             <h1 className="text-lg font-semibold text-slate-900 dark:text-white">Bir hata oluştu</h1>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              Üzgünüz, bu sayfada beklenmeyen bir sorun oluştu. Tekrar deneyebilir veya ana sayfaya dönebilirsin.
+              Üzgünüz, bu sayfada beklenmeyen bir sorun oluştu. Tekrar deneyebilir veya ana sayfaya dönebilirsiniz.
             </p>
           </div>
         </div>

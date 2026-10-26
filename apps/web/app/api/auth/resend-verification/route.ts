@@ -3,6 +3,7 @@ import { sql } from '@/lib/db';
 import { sendVerificationEmail } from '@/lib/email';
 import { consumeRateLimit, getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
 import { resolveServerBaseUrl } from '@/lib/shared/config/runtime-env';
+import { isSsoTicketValue } from '@/lib/features/auth/sso-ticket';
 
 /**
  * Resend Verification Email
@@ -53,7 +54,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate new token if needed
-    let token = user.verification_token;
+    // An `sso:` value is a login ticket parked in the same column, never something to mail out.
+    let token = isSsoTicketValue(user.verification_token) ? null : user.verification_token;
     if (!token) {
       const array = new Uint8Array(32);
       globalThis.crypto.getRandomValues(array);

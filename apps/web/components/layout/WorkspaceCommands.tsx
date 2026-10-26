@@ -45,7 +45,7 @@ function CommandResults({ close }: { close: () => void }) {
   const entries = useMemo((): Array<{ id: string; title: string; subtitle?: string | null; href: string; type: string; icon?: LucideIcon }> => {
     const keyword = query.trim().toLocaleLowerCase('tr-TR');
     const pages = getVisibleNavGroups(user?.role, memberAccess).flatMap(group => group.items
-      .filter(item => !item.action && (!keyword || item.label.toLocaleLowerCase('tr-TR').includes(keyword)))
+      .filter(item => !item.action && (!keyword || foldText(item.label + ' ' + (item.keywords ?? '')).includes(foldText(keyword))))
       .map(item => ({ id: item.id, title: item.label, subtitle: group.label, href: item.href, type: 'module' })));
     const matches = user?.role!=='worker' && keyword && user && hasPermission(user.role, 'orders.view') ? orders
       .filter(order => [order.orderNumber, order.customerName, order.productName].some(value => value?.toLocaleLowerCase('tr-TR').includes(keyword)))

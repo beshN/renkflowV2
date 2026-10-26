@@ -163,7 +163,7 @@ export default function AcceptInvitePage() {
   return (
     <AuthFrame
       title="Davetini Tamamla"
-      description={`${invitation.tenantName} ekibine ${invitation.role} rolüyle katılmak üzeresin.`}
+      description={`${invitation.tenantName} ekibine ${invitation.role} rolüyle katılmak üzeresiniz.`}
       footer={
         <p className="text-sm text-slate-600 dark:text-slate-400">
           Davet edilen e-posta: <span className="font-semibold text-slate-900 dark:text-slate-100">{invitation.email}</span>
@@ -198,7 +198,7 @@ export default function AcceptInvitePage() {
           </>
         ) : (
           <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-            Mevcut hesabın bulundu. Daveti onayladıktan sonra normal giriş adımıyla devam edebilirsin.
+            Mevcut hesabınız bulundu. Daveti onayladıktan sonra normal giriş adımıyla devam edebilirsiniz.
           </p>
         )}
 

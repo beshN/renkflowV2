@@ -81,7 +81,7 @@ export default function UpdatePasswordPage() {
       return;
     }
 
-    setSuccess('Şifre güncellendi. Giriş ekranına yönlendiriliyorsun.');
+    setSuccess('Şifre güncellendi. Giriş ekranına yönlendiriliyorsunuz.');
     setTimeout(() => {
       router.push('/auth/login');
     }, 1200);
@@ -99,7 +99,7 @@ export default function UpdatePasswordPage() {
     return (
       <AuthFrame
         title="Bağlantı Geçersiz"
-        description="Bu şifre sıfırlama bağlantısı kullanılamıyor. Yeni bir talep başlatmalısın."
+        description="Bu şifre sıfırlama bağlantısı kullanılamıyor. Yeni bir talep başlatmalısınız."
         footer={
           <Link href="/auth/forgot-password" className="font-medium text-primary hover:underline">
             Yeni bağlantı talep et

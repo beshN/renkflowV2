@@ -31,6 +31,12 @@ export const RATE_LIMIT_POLICIES = {
   quoteDecision: { limit: 20, windowMs: 15 * 60_000 },
   inviteToken: { limit: 20, windowMs: 15 * 60_000 },
   telemetryIngest: { limit: 120, windowMs: 60_000 },
+  // Per IP and deliberately loose: they only slow token guessing, an office behind one NAT must never notice.
+  passwordResetConfirm: { limit: 30, windowMs: 15 * 60_000 },
+  resetTokenCheck: { limit: 120, windowMs: 15 * 60_000 },
+  // The tracking page polls every 20 s, so a handful of open tabs on one IP stays far below this.
+  publicTrackingRead: { limit: 600, windowMs: 10 * 60_000 },
+  publicQuoteRead: { limit: 300, windowMs: 10 * 60_000 },
 } satisfies Record<string, RateLimitPolicy>;
 
 export type RateLimitPolicyName = keyof typeof RATE_LIMIT_POLICIES;

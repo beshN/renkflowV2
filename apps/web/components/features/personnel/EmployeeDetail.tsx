@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, CalendarCheck, Pencil, Phone, Plus, Trash2, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
-import { StatusChip } from '@/components/kit';
+import { StatusChip, useConfirm } from '@/components/kit';
 import { CopyChip } from '@/components/spells/CopyChip';
 import { formatIban } from '@/lib/features/personnel/iban';
 import { LEDGER, monthDays, isSunday, periodLabel, tenureText, type AttendanceKind, type LedgerKind, type MonthPay } from '@/lib/features/personnel/payroll';
@@ -73,6 +73,7 @@ export function EmployeeDetail({ id }: { id: string }) {
   const { data, error, loading, busy, act } = usePersonnel<Detail>(`employeeId=${id}${period ? `&period=${period}` : ''}`);
   const [editing, setEditing] = useState(false);
   const [ledgerKind, setLedgerKind] = useState<LedgerKind | null>(null);
+  const [confirm, confirmDialog] = useConfirm();
   const setPeriod = (v: string) => { setPeriodState(v); router.replace(`${pathname}?period=${v}`, { scroll: false }); };
 
   if (error && !data) return <main className="rf-page"><p role="alert" className="rounded-md border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800">{error}</p><Link href="/finance/employees" className="mt-3 inline-block text-sm underline">Personele dön</Link></main>;
@@ -89,6 +90,7 @@ export function EmployeeDetail({ id }: { id: string }) {
 
   return (
     <main className="rf-page space-y-5">
+      {confirmDialog}
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
         <div className="flex min-w-0 items-center gap-3">
           <Link href={`/finance/employees?period=${data.period}`} className="rf-icon-button grid h-9 w-9 place-items-center border border-border" aria-label="Personele dön"><ArrowLeft size={16} /></Link>
@@ -185,7 +187,7 @@ export function EmployeeDetail({ id }: { id: string }) {
                     <td className="whitespace-nowrap px-2 py-2 text-right font-medium tabular-nums">{money(l.amount, l.currency)}</td>
                     <td className="px-2 py-2">{data.canDeleteLedger && (
                       <button type="button" aria-label="Hareketi sil" disabled={busy} className="rf-icon-button grid h-7 w-7 place-items-center text-muted-foreground hover:text-rose-600"
-                        onClick={async () => { if (!window.confirm(`${LEDGER[l.kind].label} ${money(l.amount, l.currency)} silinsin mi?`)) return; try { await act('ledger.delete', { id: l.id }); toast.success('Silindi'); } catch (err) { toast.error(err instanceof Error ? err.message : 'Silinemedi'); } }}>
+                        onClick={async () => { if (!(await confirm({ title: `${LEDGER[l.kind].label} ${money(l.amount, l.currency)} silinsin mi?`, description: 'Hareket personel hesabından kaldırılır.', confirmLabel: 'Hareketi sil' }))) return; try { await act('ledger.delete', { id: l.id }); toast.success('Silindi'); } catch (err) { toast.error(err instanceof Error ? err.message : 'Silinemedi'); } }}>
                         <Trash2 size={14} />
                       </button>
                     )}</td>
