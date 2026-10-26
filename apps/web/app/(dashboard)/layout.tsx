@@ -5,6 +5,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import { AppleSidebar } from '@/components/layout/AppleSidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { RouteGuard } from '@/components/auth/RouteGuard';
+import { WorkspaceGate } from '@/components/auth/WorkspaceGate';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { RouteTransition } from '@/components/layout/RouteTransition';
 import { AuthProviders } from '@/lib/context/Providers';
@@ -52,7 +53,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <main id="workspace-content" tabIndex={-1} className="min-w-0 flex-1 outline-none">
           <ErrorBoundary>
             <RouteGuard>
-              <RouteTransition className="w-full h-full">{children}</RouteTransition>
+              <WorkspaceGate>
+                <RouteTransition className="w-full h-full">{children}</RouteTransition>
+              </WorkspaceGate>
             </RouteGuard>
           </ErrorBoundary>
           </main>
