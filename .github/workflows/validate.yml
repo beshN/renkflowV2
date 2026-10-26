@@ -55,7 +55,6 @@ jobs:
   audit:
     runs-on: [self-hosted, macOS]
     timeout-minutes: 5
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,4 +66,8 @@ jobs:
 
       # Same lockfile the deploy installs from (apps/web/package-lock.json, workspaces off); no install needed.
       - name: Audit production dependencies
-        run: npm --prefix apps/web audit --omit=dev --audit-level=high --workspaces=false
+        # Findings become a warning on the run, not a red check: the PR stays readable at a glance.
+        run: |
+          if ! npm --prefix apps/web audit --omit=dev --audit-level=high --workspaces=false; then
+            echo "::warning title=npm audit::Production dependencies have high or critical advisories; see this job's log and fix them in a dependency PR."
+          fi
