@@ -47,6 +47,7 @@
     "postinstall": "node scripts/patch-dependencies.cjs",
     "db:deploy": "tsx scripts/deploy-database.ts",
     "db:status": "tsx scripts/db-status.ts",
+    "db:restore-backup": "tsx scripts/restore-backup.ts",
     "vercel:env:sync": "tsx scripts/sync-vercel-env.ts",
     "test:warehouse": "tsx --require ./scripts/register-server-only.cjs scripts/test-warehouse.ts",
     "test:count-import": "tsx --require ./scripts/register-server-only.cjs scripts/test-count-import.ts",

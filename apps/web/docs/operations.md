@@ -13,7 +13,7 @@ Optional settings in GitHub → repository `beshN/renkflowV2` → **Settings →
 | `APP_URL` | **Variable** (not a secret) | `cron.yml` | Base URL to call. Defaults to `https://renkflow.com`; set it only if Production moves. Must be the Production deployment: the cron routes answer 403 on Preview. |
 | `CRON_SECRET` | Secret | `cron.yml` | Legacy fallback. If present, it is sent instead of the OIDC token and must equal the Vercel **Production** `CRON_SECRET` (at least 32 characters). Leave it unset to use OIDC. |
 
-The repository is public: workflow logs and artifacts are visible to any signed-in GitHub user. The workflows therefore print only HTTP status codes. For the same reason there is no backup workflow here: a database dump, even encrypted, must not be stored where any GitHub user can download it (see the runbook's open items).
+The repository is public: workflow logs and artifacts are visible to any signed-in GitHub user. The workflows therefore print only HTTP status codes. For the same reason there is no backup workflow here: a database dump, even encrypted, must not be stored where any GitHub user can download it. The daily dump runs as a Vercel cron and goes to the app's private Blob store instead (below).
 
 ## Workflows
 
@@ -45,7 +45,17 @@ Throughput: about 5 notifications and 1 inbound message per 10 minutes. GitHub m
 
 ### Vercel daily crons (fallback)
 
-`apps/web/vercel.json` now schedules five once-a-day crons, which Hobby allows (once per day per job; Vercel may fire anywhere within the stated hour): `fx` (13:45 UTC weekdays), `storage-cleanup` (00:00), and as a fallback for the queues above `notifications` (05:00), `inbound` (05:20), `e-invoices` (05:40 UTC). They run only on the Production deployment.
+`apps/web/vercel.json` now schedules six once-a-day crons, which Hobby allows (once per day per job; Vercel may fire anywhere within the stated hour): `fx` (13:45 UTC weekdays), `storage-cleanup` (00:00), `backup` (01:30), and as a fallback for the queues above `notifications` (05:00), `inbound` (05:20), `e-invoices` (05:40 UTC). They run only on the Production deployment.
+
+### `/api/cron/backup` — daily logical database backup
+
+Same auth (`Authorization: Bearer $CRON_SECRET`) and preview guard as the other cron routes; `maxDuration` 300 s. Logic in `lib/db/backup.server.ts`, manifest format in `lib/db/backup-manifest.ts`.
+
+- Exports every table in `public` (views excluded, `schema_migrations` included) from one `REPEATABLE READ READ ONLY` snapshot with `COPY … TO STDOUT (FORMAT csv, HEADER true)`, gzips each table and uploads it to the private Blob store as `backups/<YYYY-MM-DD>/<table>.csv.gz`, then `manifest.json` (tables, columns, row counts, byte sizes, migration list, free-standing sequence values, start/finish time, `VERCEL_GIT_COMMIT_SHA`, `complete`). Generated columns are left out (PostgreSQL recomputes them). Empty tables get no file.
+- Time budget: no new table after 240 s, the table in flight is aborted at 270 s; the manifest is then written with `complete: false` and the route answers 500. A same-day re-run is a no-op when the day's backup is complete and replaces a partial one; an advisory lock stops overlapping runs.
+- Retention: after a complete backup, folders older than 14 days are deleted (`listFiles`/`deleteFile` in `lib/storage`).
+- Limits: each table is gzipped in memory before upload (fine for the current 16 MB database; watch `bytes` in the manifest and `seconds` in the response). Blob put/list count as advanced operations on Hobby: one put per non-empty table plus the manifest and one or two lists per day.
+- Restore: `npm run db:restore-backup -- --date <YYYY-MM-DD> --target <url>` into a Neon branch prepared with `db:deploy` (runbook section C). Tested end to end by `npm run test:integration -- backup-restore`.
 
 ### `.github/dependabot.yml` and the audit job
 
