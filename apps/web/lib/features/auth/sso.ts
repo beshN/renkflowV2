@@ -274,7 +274,8 @@ async function findOrCreateSSOUser(
           ${createUuid()},
           ${profile.email},
           ${profile.name || profile.email.split('@')[0]},
-          true,
+          -- email_verified is the time it was verified: the identity provider vouched for it now.
+          NOW(),
           NOW(),
           NOW()
         )
