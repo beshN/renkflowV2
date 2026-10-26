@@ -19,7 +19,7 @@ Son doğrulama: 14 Ekim 2026. Production sayılarını ve politikayı değiştir
 0. **`db:deploy` yalnızca güncel `main` checkout'undan çalıştırılır.** 14 Ekim'de bir kez özellik dalından çalıştırıldı ve henüz birleşmemiş 054 production'a gitti. Zararsızdı (yalnız boş sütun ekliyordu), ama sıra bozuldu. Önce `git switch main && git pull` ve `npm run db:status`.
 1. **Migration öncesi dal (zorunlu).** `npm run db:deploy` çalıştırmadan önce production'dan bir dal açılır. Ad biçimi: `backup-before-<iş>-<YYYY-MM-DD>`. 13 Ekim itibarıyla bu dallar var: `backup-before-kanban-050-20261013`, `backup-before-049-2026-10-13`, `backup-before-mobile-2026-10-13`, `yedek-production-2026-10-11-goc-040-048-oncesi`, `backup-before-029-036-2026-10-08`.
 2. **PITR.** Son 6 saat içindeki herhangi bir ana dönülebilir.
-3. **Günlük şifreli döküm.** `.github/workflows/backup.yml` her gün 02:17 UTC'de (ve Actions → *Database backup* → *Run workflow* ile elle) `pg_dump --format=custom` alır, `BACKUP_PASSPHRASE` ile `gpg --symmetric` (AES256) şifreler ve `renkflow-<UTC zaman>.dump.gpg` adıyla **14 gün** saklanan bir workflow artifact'ı olarak yükler. Gerekli sırlar `DATABASE_URL_UNPOOLED` ve `BACKUP_PASSPHRASE` (`apps/web/docs/operations.md`); sırlar yoksa iş uyarı verip atlanır. Depo herkese açık olduğundan artifact'ları her GitHub kullanıcısı indirebilir: koruma yalnızca şifredir, parola GitHub dışında da (parola yöneticisi) saklanmalı.
+3. **Günlük mantıksal döküm: henüz yok.** Depo herkese açık; GitHub Actions artifact'larını oturum açmış her GitHub kullanıcısı indirebildiği için müşteri verisi içeren döküm (şifreli de olsa) orada tutulmaz. Seçenekler "Açık işler"de; C bölümü döküm alındığında izlenecek geri yükleme adımlarıdır.
 
 Yedek dallarına compute bağlı değildir; doğrudan sorgulanamazlar. Geri yüklemenin ilk adımı bu yüzden compute bağlamaktır.
 
@@ -92,7 +92,6 @@ Prova her çeyrekte ve her büyük migration'dan önce tekrarlanmalı.
 
 ## Açık işler
 
-- **Mantıksal döküm sırları.** `backup.yml` hazır; çalışması için `DATABASE_URL_UNPOOLED` (tercihen salt okunur bir rol) ve `BACKUP_PASSPHRASE` GitHub sırları eklenmeli. İlk çalışmadan sonra C adımlarıyla bir prova yapılıp aşağıdaki tabloya yazılmalı.
-- **Saklama süresi.** Artifact'lar 14 gün tutulur. Daha uzun saklama gerekiyorsa dökümler ayrıca Neon ve GitHub dışında bir kovaya kopyalanmalı.
+- **Günlük mantıksal döküm.** Depo herkese açık olduğu sürece GitHub Actions'ta tutulmamalı. Seçenekler: (a) depoyu özel yapıp şifreli dökümü iş akışı artifact'ı olarak saklamak, (b) dökümü özel bir kovaya (ör. S3/R2, yalnız yazma yetkili anahtarla) yüklemek, (c) Neon ücretli planındaki uzun PITR'a güvenmek. Karar verildiğinde `pg_dump --format=custom` + `gpg --symmetric` ile alınır ve C adımlarıyla prova edilip aşağıdaki tabloya yazılır.
 - **PITR penceresi.** Neon'un ücretli planlarında 7 gün ve üzeri. Gerçek müşteri verisi girilmeden önce plan yükseltmesi değerlendirilmeli.
 - **Yedek dalı sınırı.** Ücretsiz plan, proje başına dal sayısını sınırlıyor (şu an 9 dal). Eski yedek dalları, yeni yedek doğrulandıktan sonra elle silinmeli.

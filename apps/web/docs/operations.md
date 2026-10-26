@@ -10,10 +10,8 @@ Set them in GitHub → repository `beshN/renkflowV2` → **Settings → Secrets 
 |---|---|---|
 | `CRON_SECRET` | `cron.yml` | Exactly the `CRON_SECRET` of the Vercel **Production** environment (at least 32 characters). If it is rotated in Vercel, update it here too, otherwise every run fails with 401. |
 | `APP_URL` | `cron.yml` | Production base URL, `https://renkflow.com` (no trailing slash needed). Must be the Production deployment: the cron routes answer 403 on Preview. |
-| `DATABASE_URL_UNPOOLED` | `backup.yml` | The direct (non-pooler) Neon connection string of the production branch, same as Vercel's `DATABASE_URL_UNPOOLED`. A read-only role is enough and preferable. |
-| `BACKUP_PASSPHRASE` | `backup.yml` | A long random passphrase (e.g. `openssl rand -base64 48`). **Store a copy outside GitHub** (password manager): GitHub secrets cannot be read back, and without it no backup can be decrypted. |
 
-The repository is public: workflow logs and artifacts are visible to any signed-in GitHub user. The workflows therefore print only HTTP status codes and file sizes, and backups are uploaded only after encryption.
+The repository is public: workflow logs and artifacts are visible to any signed-in GitHub user. The workflows therefore print only HTTP status codes. For the same reason there is no backup workflow here: a database dump, even encrypted, must not be stored where any GitHub user can download it (see the runbook's open items).
 
 ## Workflows
 
@@ -32,12 +30,6 @@ Throughput: about 5 notifications and 1 inbound message per 10 minutes. GitHub m
 ### Vercel daily crons (fallback)
 
 `apps/web/vercel.json` now schedules five once-a-day crons, which Hobby allows (once per day per job; Vercel may fire anywhere within the stated hour): `fx` (13:45 UTC weekdays), `storage-cleanup` (00:00), and as a fallback for the queues above `notifications` (05:00), `inbound` (05:20), `e-invoices` (05:40 UTC). They run only on the Production deployment.
-
-### `.github/workflows/backup.yml` — daily encrypted database dump
-
-Daily at 02:17 UTC (and on demand): installs the PostgreSQL 17 client from apt.postgresql.org (Neon production is PostgreSQL 17), runs `pg_dump --format=custom --no-owner --no-acl` against `DATABASE_URL_UNPOOLED`, checks the archive with `pg_restore --list`, encrypts it with `gpg --symmetric --cipher-algo AES256` using `BACKUP_PASSPHRASE`, deletes the plain dump, and uploads `renkflow-<UTC timestamp>.dump.gpg` plus its `.sha256` as a workflow artifact kept for **14 days**. Restore steps: [backup-restore.md](../../../docs/runbooks/backup-restore.md#c-günlük-şifreli-dökümden-geri-yükleme).
-
-There is no separate backup storage bucket configured in the repository (Vercel Blob holds application files only), so artifacts are the storage target. For longer retention, copy dumps to an off-site bucket.
 
 ### `.github/dependabot.yml` and the audit job
 
