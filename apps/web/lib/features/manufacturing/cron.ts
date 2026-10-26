@@ -6,16 +6,28 @@ import { drainInbound } from "./inbound.service";
 import { drainStorageCleanup } from "../orders/deletion.service";
 import { pruneRateLimitBuckets } from "@/lib/security/rate-limit";
 import { pruneVehiclePositions } from "@/lib/features/fleet/retention.server";
-export function cronAuthorized(request: Request) {
+import { verifyGitHubCronToken } from "@/lib/security/github-oidc";
+type CronQueue = "inbound" | "notifications" | "storage-cleanup" | "e-invoices" | "fx";
+/** Queues `.github/workflows/cron.yml` drains; only these also accept its GitHub OIDC token. */
+const GITHUB_OIDC_QUEUES: ReadonlySet<CronQueue> = new Set(["notifications","inbound","e-invoices"]);
+function secretAuthorized(header: string) {
  const secret = process.env.CRON_SECRET?.trim();
  if (!secret || secret.length < 32) return false;
- const actual = Buffer.from(request.headers.get("authorization") || "");
+ const actual = Buffer.from(header);
  const expected = Buffer.from(`Bearer ${secret}`);
  return actual.length === expected.length && timingSafeEqual(actual,expected);
 }
-export async function runCron(request: Request, queue: "inbound" | "notifications" | "storage-cleanup" | "e-invoices" | "fx") {
+/** `Bearer <CRON_SECRET>` (Vercel Cron), or with `allowGitHubOidc` a GitHub Actions OIDC JWT from cron.yml on main. */
+export async function cronAuthorized(request: Request, { allowGitHubOidc = false }: { allowGitHubOidc?: boolean } = {}) {
+ const header = request.headers.get("authorization") || "";
+ if (secretAuthorized(header)) return true;
+ if (!allowGitHubOidc) return false;
+ const match = /^Bearer ([A-Za-z0-9_.-]+)$/.exec(header);
+ return match ? verifyGitHubCronToken(match[1]) : false;
+}
+export async function runCron(request: Request, queue: CronQueue) {
  const headers = {"Cache-Control":"no-store"};
- if (!cronAuthorized(request)) return Response.json({error:"Unauthorized"},{status:401,headers});
+ if (!(await cronAuthorized(request,{allowGitHubOidc:GITHUB_OIDC_QUEUES.has(queue)}))) return Response.json({error:"Unauthorized"},{status:401,headers});
  // Preview DBs and providers stay isolated; Vercel only schedules production crons.
  if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "production") return Response.json({error:"Cron is disabled in previews"},{status:403,headers});
  try {
