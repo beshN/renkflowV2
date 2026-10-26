@@ -49,3 +49,22 @@ jobs:
       - name: Integration tests on an isolated local database
         timeout-minutes: 15
         run: npm --prefix apps/web run test:integration
+
+  # Report-only: known advisories must not turn the gate red. Read the job log (or Dependabot alerts)
+  # and fix them in a dedicated dependency PR.
+  audit:
+    runs-on: [self-hosted, macOS]
+    timeout-minutes: 5
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Same lockfile the deploy installs from (apps/web/package-lock.json, workspaces off); no install needed.
+      - name: Audit production dependencies
+        run: npm --prefix apps/web audit --omit=dev --audit-level=high --workspaces=false

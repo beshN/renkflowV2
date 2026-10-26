@@ -19,7 +19,7 @@ Son doğrulama: 14 Ekim 2026. Production sayılarını ve politikayı değiştir
 0. **`db:deploy` yalnızca güncel `main` checkout'undan çalıştırılır.** 14 Ekim'de bir kez özellik dalından çalıştırıldı ve henüz birleşmemiş 054 production'a gitti. Zararsızdı (yalnız boş sütun ekliyordu), ama sıra bozuldu. Önce `git switch main && git pull` ve `npm run db:status`.
 1. **Migration öncesi dal (zorunlu).** `npm run db:deploy` çalıştırmadan önce production'dan bir dal açılır. Ad biçimi: `backup-before-<iş>-<YYYY-MM-DD>`. 13 Ekim itibarıyla bu dallar var: `backup-before-kanban-050-20261013`, `backup-before-049-2026-10-13`, `backup-before-mobile-2026-10-13`, `yedek-production-2026-10-11-goc-040-048-oncesi`, `backup-before-029-036-2026-10-08`.
 2. **PITR.** Son 6 saat içindeki herhangi bir ana dönülebilir.
-3. **Mantıksal döküm.** Henüz yok; aşağıdaki "Açık işler" bölümünde.
+3. **Günlük şifreli döküm.** `.github/workflows/backup.yml` her gün 02:17 UTC'de (ve Actions → *Database backup* → *Run workflow* ile elle) `pg_dump --format=custom` alır, `BACKUP_PASSPHRASE` ile `gpg --symmetric` (AES256) şifreler ve `renkflow-<UTC zaman>.dump.gpg` adıyla **14 gün** saklanan bir workflow artifact'ı olarak yükler. Gerekli sırlar `DATABASE_URL_UNPOOLED` ve `BACKUP_PASSPHRASE` (`apps/web/docs/operations.md`); sırlar yoksa iş uyarı verip atlanır. Depo herkese açık olduğundan artifact'ları her GitHub kullanıcısı indirebilir: koruma yalnızca şifredir, parola GitHub dışında da (parola yöneticisi) saklanmalı.
 
 Yedek dallarına compute bağlı değildir; doğrudan sorgulanamazlar. Geri yüklemenin ilk adımı bu yüzden compute bağlamaktır.
 
@@ -45,6 +45,31 @@ Yedek dallarına compute bağlı değildir; doğrudan sorgulanamazlar. Geri yük
    - **Yalnız kayıp tabloları almak:** yedek daldan `pg_dump --table=...` ile alıp production'a yükleyin. Ayrıntılı ve dikkat isteyen bir iştir.
 5. A'daki 3. ve 4. adımlar.
 
+### C. Günlük şifreli dökümden geri yükleme
+
+PITR penceresi dışındaysa ve uygun bir yedek dal yoksa. Döküm production'a doğrudan değil, **yeni bir Neon dalına** yüklenir; doğrulandıktan sonra A/B'deki gibi karar verilir.
+
+1. Dökümü indirin (GitHub CLI ile; tarayıcıdan da Actions → ilgili çalışma → *Artifacts*):
+   ```sh
+   gh run list --workflow backup.yml --limit 5          # uygun çalışmayı seçin
+   gh run download <run-id> --dir ./restore              # renkflow-<zaman>.dump.gpg ve .sha256
+   cd restore/renkflow-*/ && sha256sum -c *.sha256          # her artifact kendi klasörüne iner
+   ```
+2. Şifreyi çözün (parola sorulur; komut satırına yazmayın):
+   ```sh
+   gpg --decrypt --output renkflow.dump renkflow-<zaman>.dump.gpg
+   pg_restore --list renkflow.dump | head                # arşiv okunuyor mu
+   ```
+3. Hedef dal açın: Neon konsolu → `renkflow-production` → **Branches → Create branch**, ad `restore-<YYYY-MM-DD>`, kaynak `production`. Dala compute bağlayın ve **direct (pooler olmayan)** bağlantı dizesini alın; aşağıda `RESTORE_URL`. Ücretsiz plandaki dal sınırına dikkat (yukarıda).
+4. Yükleyin (PostgreSQL 17 istemcisi; `--no-owner --no-acl` ile alındığı için rol farkı sorun olmaz):
+   ```sh
+   psql "$RESTORE_URL" -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;'   # yalnız yeni dalda!
+   pg_restore --dbname="$RESTORE_URL" --no-owner --no-acl --exit-on-error --jobs=4 renkflow.dump
+   ```
+5. Doğrulayın: sayım sorgusu, `npm run db:status -- --env-file=<restore dalı env dosyası>`.
+6. Karar: production'ı bu dala döndürmek için Neon'da `production` → **Restore** → kaynak `restore-<tarih>`; yalnız tablo almak için B.4'teki yol. Ardından A'daki 3. ve 4. adımlar.
+7. Yerel `renkflow.dump` ve şifresi çözülmüş dosyaları silin (`shred -u renkflow.dump`).
+
 ### Sayım sorgusu
 
 ```sql
@@ -67,6 +92,7 @@ Prova her çeyrekte ve her büyük migration'dan önce tekrarlanmalı.
 
 ## Açık işler
 
-- **Mantıksal döküm.** Günlük `pg_dump --format=custom` alınıp Neon dışında saklanmalı (örneğin şifreli bir Vercel Blob ya da S3 kovası). Bunun için `DATABASE_URL_UNPOOLED`'ın bir CI sırrı olması gerekiyor; karar kullanıcıda.
+- **Mantıksal döküm sırları.** `backup.yml` hazır; çalışması için `DATABASE_URL_UNPOOLED` (tercihen salt okunur bir rol) ve `BACKUP_PASSPHRASE` GitHub sırları eklenmeli. İlk çalışmadan sonra C adımlarıyla bir prova yapılıp aşağıdaki tabloya yazılmalı.
+- **Saklama süresi.** Artifact'lar 14 gün tutulur. Daha uzun saklama gerekiyorsa dökümler ayrıca Neon ve GitHub dışında bir kovaya kopyalanmalı.
 - **PITR penceresi.** Neon'un ücretli planlarında 7 gün ve üzeri. Gerçek müşteri verisi girilmeden önce plan yükseltmesi değerlendirilmeli.
 - **Yedek dalı sınırı.** Ücretsiz plan, proje başına dal sayısını sınırlıyor (şu an 9 dal). Eski yedek dalları, yeni yedek doğrulandıktan sonra elle silinmeli.

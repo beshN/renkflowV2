@@ -75,18 +75,39 @@ export async function warehouseOverview(a: WorkOrderActor) {
     limits: { items: 2000, balances: 3000, lots: 2000 },
   };
 }
-export async function labelRecord(
+type SimpleLabelKind = "item" | "location" | "lot";
+const SIMPLE_LABEL_MISSING: Record<SimpleLabelKind, string> = {
+  item: "Malzeme bulunamadı",
+  location: "Raf bulunamadı",
+  lot: "Lot bulunamadı",
+};
+// uuid comparison in SQL ignores case; keep Map lookups consistent with it.
+const uuidKey = (v: unknown) => String(v).toLowerCase();
+const isSimpleLabelKind = (kind: LabelKind): kind is SimpleLabelKind =>
+  kind === "item" || kind === "location" || kind === "lot";
+/** One query per kind for item/location/lot label targets; rows keyed by record id. */
+async function simpleLabelRows(
+  db: any,
+  t: string,
+  kind: SimpleLabelKind,
+  ids: string[],
+): Promise<Map<string, any>> {
+  const rows =
+    kind === "item"
+      ? await db`SELECT id,sku,name,stock_uom,item_type FROM inventory_items WHERE tenant_id=${t} AND id=ANY(${ids}::uuid[]) AND active`
+      : kind === "location"
+        ? await db`SELECT l.*,w.name AS warehouse_name,w.code AS warehouse_code,w.warehouse_type FROM warehouse_locations l JOIN warehouses w ON w.id=l.warehouse_id AND w.tenant_id=l.tenant_id WHERE l.tenant_id=${t} AND l.id=ANY(${ids}::uuid[]) AND l.active AND w.active`
+        : await db`SELECT l.id,l.item_id,l.lot_number,l.status,l.remaining_qty,l.length_m,w.name AS warehouse_name,loc.code AS location_code,COALESCE(l.location_id,x.id) AS location_id,l.metadata->>'color' AS color,i.name,i.stock_uom FROM stock_lots l JOIN inventory_items i ON i.id=l.item_id AND i.tenant_id=l.tenant_id LEFT JOIN warehouse_locations x ON x.tenant_id=l.tenant_id AND x.warehouse_id=l.warehouse_id AND x.location_type='unassigned' LEFT JOIN warehouses w ON w.id=l.warehouse_id AND w.tenant_id=l.tenant_id LEFT JOIN warehouse_locations loc ON loc.id=l.location_id AND loc.tenant_id=l.tenant_id WHERE l.tenant_id=${t} AND l.id=ANY(${ids}::uuid[])`;
+  return new Map(rows.map((r: any) => [uuidKey(r.id), r]));
+}
+function simpleLabelRecord(
   a: WorkOrderActor,
-  kind: LabelKind,
+  kind: SimpleLabelKind,
   id: string,
-  db: any = sql,
-): Promise<any> {
-  requireWarehouseRole(a);
-  const t = a.tenantId;
-  if (kind === "item") {
-    const [r] =
-      await db`SELECT id,sku,name,stock_uom,item_type FROM inventory_items WHERE tenant_id=${t} AND id=${id} AND active`;
-    if (!r) fail("Malzeme bulunamadı", 404);
+  r: any,
+) {
+  if (!r) fail(SIMPLE_LABEL_MISSING[kind], 404);
+  if (kind === "item")
     return {
       kind,
       id,
@@ -96,11 +117,7 @@ export async function labelRecord(
       itemId: id,
       href: a.role === "worker" ? undefined : "/inventory/" + id,
     };
-  }
-  if (kind === "location") {
-    const [r] =
-      await db`SELECT l.*,w.name AS warehouse_name,w.code AS warehouse_code,w.warehouse_type FROM warehouse_locations l JOIN warehouses w ON w.id=l.warehouse_id AND w.tenant_id=l.tenant_id WHERE l.tenant_id=${t} AND l.id=${id} AND l.active AND w.active`;
-    if (!r) fail("Raf bulunamadı", 404);
+  if (kind === "location")
     return {
       kind,
       id,
@@ -108,25 +125,35 @@ export async function labelRecord(
       subtitle: r.warehouse_name + " · " + r.name,
       warehouseId: r.warehouse_id,
     };
-  }
-  if (kind === "lot") {
-    const [r] =
-      await db`SELECT l.id,l.item_id,l.lot_number,l.status,l.remaining_qty,l.length_m,w.name AS warehouse_name,loc.code AS location_code,COALESCE(l.location_id,x.id) AS location_id,l.metadata->>'color' AS color,i.name,i.stock_uom FROM stock_lots l JOIN inventory_items i ON i.id=l.item_id AND i.tenant_id=l.tenant_id LEFT JOIN warehouse_locations x ON x.tenant_id=l.tenant_id AND x.warehouse_id=l.warehouse_id AND x.location_type='unassigned' LEFT JOIN warehouses w ON w.id=l.warehouse_id AND w.tenant_id=l.tenant_id LEFT JOIN warehouse_locations loc ON loc.id=l.location_id AND loc.tenant_id=l.tenant_id WHERE l.tenant_id=${t} AND l.id=${id}`;
-    if (!r) fail("Lot bulunamadı", 404);
-    return {
+  return {
+    kind,
+    id,
+    title: r.lot_number,
+    subtitle: r.name,
+    quantity: Number(r.remaining_qty),
+    lengthMm:r.length_m==null?null:Number(r.length_m)*1000,warehouseName:r.warehouse_name,locationCode:r.location_code,
+    uom: r.stock_uom,
+    color: r.color,
+    status: r.status,
+    itemId: r.item_id,
+    locationId: r.location_id,
+  };
+}
+export async function labelRecord(
+  a: WorkOrderActor,
+  kind: LabelKind,
+  id: string,
+  db: any = sql,
+): Promise<any> {
+  requireWarehouseRole(a);
+  const t = a.tenantId;
+  if (isSimpleLabelKind(kind))
+    return simpleLabelRecord(
+      a,
       kind,
       id,
-      title: r.lot_number,
-      subtitle: r.name,
-      quantity: Number(r.remaining_qty),
-      lengthMm:r.length_m==null?null:Number(r.length_m)*1000,warehouseName:r.warehouse_name,locationCode:r.location_code,
-      uom: r.stock_uom,
-      color: r.color,
-      status: r.status,
-      itemId: r.item_id,
-      locationId: r.location_id,
-    };
-  }
+      (await simpleLabelRows(db, t, kind, [id])).get(uuidKey(id)),
+    );
   let unit: any = null;
   if (kind === "product") {
     [unit] =
@@ -259,11 +286,27 @@ export async function executeWarehouse(
   if (c.action === "label.print") {
     await requireCap(a,'inventory','view','Etiket yazdırma');
     requireWarehouseRole(a);
+    // Batched: one label query plus one query per simple record kind, instead of 2 queries per id.
+    // Ids are still checked in request order, so the first failing id decides the error as before.
+    const labels = new Map<string, { kind: LabelKind; record_id: string }>(
+      (
+        await tx`SELECT id,kind,record_id FROM factory_labels WHERE tenant_id=${t} AND id=ANY(${c.data.ids}::uuid[])`
+      ).map((r: any) => [uuidKey(r.id), r]),
+    );
+    const simple = new Map<SimpleLabelKind, Map<string, any>>();
+    for (const kind of ["item", "location", "lot"] as const) {
+      const ids = [...labels.values()]
+        .filter((l) => l.kind === kind)
+        .map((l) => l.record_id);
+      if (ids.length) simple.set(kind, await simpleLabelRows(tx, t, kind, ids));
+    }
     for (const id of c.data.ids) {
-      const [r] =
-        await tx`SELECT kind,record_id FROM factory_labels WHERE tenant_id=${t} AND id=${id}`;
+      const r = labels.get(uuidKey(id));
       if (!r) fail("Etiket bulunamadı", 404);
-      await labelRecord(a, r.kind, r.record_id, tx);
+      if (isSimpleLabelKind(r!.kind))
+        simpleLabelRecord(a, r!.kind, r!.record_id, simple.get(r!.kind)?.get(uuidKey(r!.record_id)));
+      // Job/cut/product labels go through lookupProductionLabel (per-record access rules), one by one.
+      else await labelRecord(a, r!.kind, r!.record_id, tx);
     }
     await tx`UPDATE factory_labels SET print_count=print_count+1,last_printed_at=now() WHERE tenant_id=${t} AND id=ANY(${c.data.ids}::uuid[])`;
     return { ok: true };
