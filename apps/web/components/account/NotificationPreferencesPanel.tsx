@@ -22,7 +22,7 @@ export function NotificationPreferencesPanel() {
   }, []);
 
   async function toggle(channel: PreferenceChannel, type: string) {
-    if (!data) return;
+    if (!data || !data.status[channel].connected) return;
     const next = { ...data.preferences, [channel]: { ...data.preferences[channel], [type]: !data.preferences[channel][type] } };
     setData({ ...data, preferences: next });
     setSaved(false);
@@ -32,7 +32,7 @@ export function NotificationPreferencesPanel() {
 
   return (
     <section className="rf-panel space-y-3 p-4" aria-labelledby="prefs-title">
-      <h2 id="prefs-title" className="rf-section-title flex items-center gap-2">Bildirim tercihleri <HintTip text="Kapattığınız olay için uygulama içi bildirim oluşturulmaz. E-posta ve anlık bildirim seçimleri saklanır; bu kanallar bağlandığında uygulanır." /></h2>
+      <h2 id="prefs-title" className="rf-section-title flex items-center gap-2">Bildirim tercihleri <HintTip text="Kapattığınız olay için uygulama içi bildirim oluşturulmaz. Henüz bağlı olmayan kanallar (e-posta, anlık bildirim) bağlandığında burada açılır." /></h2>
       {error && <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">{error}</p>}
       {saved && <p role="status" className="text-xs text-muted-foreground">Kaydedildi</p>}
       {!data ? <Skeleton className="h-40" /> : (
@@ -44,7 +44,7 @@ export function NotificationPreferencesPanel() {
                 {data.channels.map((c) => (
                   <th key={c.key} className="px-2 py-2 text-center font-medium">
                     {c.label}
-                    {!data.status[c.key].connected && <span className="block text-[11px] font-normal text-muted-foreground">bağlanmadı</span>}
+                    {!data.status[c.key].connected && <span className="block text-[11px] font-normal text-muted-foreground">yakında</span>}
                   </th>
                 ))}
               </tr>
@@ -55,14 +55,16 @@ export function NotificationPreferencesPanel() {
                   <td className="py-2 pr-2"><span className="font-medium">{e.label}</span><span className="block text-xs text-muted-foreground">{e.hint}</span></td>
                   {data.channels.map((c) => (
                     <td key={c.key} className="px-2 py-2 text-center">
-                      <input type="checkbox" className="h-4 w-4" aria-label={`${e.label} – ${c.label}`} checked={data.preferences[c.key][e.type]} onChange={() => void toggle(c.key, e.type)} />
+                      {data.status[c.key].connected
+                        ? <input type="checkbox" className="h-4 w-4" aria-label={`${e.label} – ${c.label}`} checked={data.preferences[c.key][e.type]} onChange={() => void toggle(c.key, e.type)} />
+                        : <input type="checkbox" className="h-4 w-4 cursor-not-allowed opacity-40" aria-label={`${e.label} – ${c.label} (bu kanal henüz bağlı değil)`} checked={false} disabled readOnly />}
                     </td>
                   ))}
                 </tr>
               ))}
             </tbody>
           </table>
-          {data.channels.filter((c) => data.status[c.key].note).map((c) => <p key={c.key} className="mt-2 text-xs text-muted-foreground">{c.label}: {data.status[c.key].note}</p>)}
+          {data.channels.filter((c) => !data.status[c.key].connected).map((c) => <p key={c.key} className="mt-2 text-xs text-muted-foreground">{c.label}: Bu kanal henüz bağlı değil.</p>)}
         </div>
       )}
     </section>

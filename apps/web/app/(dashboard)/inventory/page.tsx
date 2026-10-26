@@ -186,16 +186,18 @@ export default function InventoryPage() {
         <details className="rf-panel"><summary className="cursor-pointer text-sm font-medium">Stok dağılımı</summary><div className="mt-3"><StockHeatmap /></div></details>
         {/* Critical Stock Alert */}
         {criticalCount > 0 && (
-          <div
-            className="mb-4 flex items-center gap-3 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-900/10 px-4 py-3 cursor-pointer hover:bg-rose-100 dark:hover:bg-rose-900/20 transition-colors"
+          <button
+            type="button"
+            aria-pressed={showCriticalOnly}
+            className="mb-4 flex w-full items-center gap-3 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-900/10 px-4 py-3 text-left cursor-pointer hover:bg-rose-100 dark:hover:bg-rose-900/20 transition-colors"
             onClick={() => setShowCriticalOnly(!showCriticalOnly)}
           >
-            <AlertTriangle size={16} className="text-rose-600 dark:text-rose-400 flex-shrink-0" />
-            <p className="text-sm font-semibold tabular-nums text-rose-700 dark:text-rose-400">{criticalCount} kritik</p>
-            <button className="ml-auto text-xs text-rose-600 dark:text-rose-400 underline underline-offset-2">
-              {showCriticalOnly ? 'Tümü' : 'Yalnız kritikler'}
-            </button>
-          </div>
+            <AlertTriangle size={16} aria-hidden className="text-rose-600 dark:text-rose-400 flex-shrink-0" />
+            <span className="text-sm font-semibold tabular-nums text-rose-700 dark:text-rose-400">{criticalCount} kritik</span>
+            <span className="ml-auto text-xs text-rose-600 dark:text-rose-400 underline underline-offset-2">
+              {showCriticalOnly ? 'Tümünü göster' : 'Yalnız kritikleri göster'}
+            </span>
+          </button>
         )}
 
         <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-3 sm:p-6 shadow-sm">

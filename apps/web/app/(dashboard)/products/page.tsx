@@ -74,7 +74,8 @@ export default function ProductsPage() {
           </div>
           <p className="text-xs text-muted-foreground">Profil kodları (sayım listesi): {f.profileCodes.join(', ')}</p>
           {f.recipes.length ? (
-            <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left text-sm">
               <thead><tr>{['Kod', 'Ad', 'Sürüm', 'Malzeme satırı', 'Örnek', 'Durum'].map((h) => <th key={h} className="p-2 text-xs text-muted-foreground">{h}</th>)}</tr></thead>
               <tbody>
                 {f.recipes.map((r) => (
@@ -85,6 +86,7 @@ export default function ProductsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           ) : (
             <p className="text-sm text-amber-700 dark:text-amber-300">Bu ailenin reçetesi yok; teklifte malzeme listesi çıkarılamaz.</p>
           )}

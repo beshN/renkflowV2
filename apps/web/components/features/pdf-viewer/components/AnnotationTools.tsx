@@ -4,6 +4,7 @@ import React from 'react';
 import { usePDFStore } from '@/stores/usePDFStore';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import { useConfirm } from '@/components/kit';
 import {
   Highlighter,
   Underline,
@@ -85,6 +86,7 @@ export const AnnotationTools: React.FC<AnnotationToolsProps> = ({
   const undo = usePDFStore((state) => state.undo);
   const redo = usePDFStore((state) => state.redo);
   const clearAnnotations = usePDFStore((state) => state.clearAnnotations);
+  const [confirm, confirmDialog] = useConfirm();
   
   const handleSave = () => {
     onSave?.();
@@ -99,8 +101,8 @@ export const AnnotationTools: React.FC<AnnotationToolsProps> = ({
     window.URL.revokeObjectURL(url);
   };
   
-  const handleClear = () => {
-    if (window.confirm('Tüm açıklamaları silmek istediğinizden emin misiniz?')) {
+  const handleClear = async () => {
+    if (await confirm({ title: 'Tüm açıklamalar silinsin mi?', description: 'Bu belgedeki bütün işaretler kaldırılır.', confirmLabel: 'Tümünü sil' })) {
       clearAnnotations();
       onClear?.();
     }
@@ -108,6 +110,7 @@ export const AnnotationTools: React.FC<AnnotationToolsProps> = ({
   
   return (
     <div className={cn('relative', className)}>
+      {confirmDialog}
       {/* Toolbar Button */}
       <Button
         variant="ghost"

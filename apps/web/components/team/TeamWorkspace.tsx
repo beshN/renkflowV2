@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { KeyRound, Mail, Plus, ShieldCheck, Trash2, UserCheck, UserX, Users } from 'lucide-react';
-import { EmptyState, HintTip, PageHeader, Skeleton, StatusChip } from '@/components/kit';
+import { EmptyState, HintTip, PageHeader, Skeleton, StatusChip, useConfirm, type ConfirmOptions } from '@/components/kit';
 import { requestJson } from '@/lib/shared/network';
 import { cn } from '@/lib/utils';
 import {
@@ -77,15 +77,16 @@ function lockReason(data: TeamData, m: Member) {
 
 function Members({ data, reload, onError }: { data: TeamData; reload: () => Promise<void>; onError: (e: string) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
-  async function patch(m: Member, body: Record<string, unknown>, confirmText?: string) {
-    if (confirmText && !window.confirm(confirmText)) return;
+  const [confirm, confirmDialog] = useConfirm();
+  async function patch(m: Member, body: Record<string, unknown>, ask?: ConfirmOptions) {
+    if (ask && !(await confirm(ask))) return;
     setBusy(m.userId);
     const r = await send(`/api/v1/team/members/${m.userId}`, 'PATCH', body);
     setBusy(null);
     if (!r.ok) onError(r.error || 'Kaydedilemedi'); else await reload();
   }
   async function closeSessions(m: Member) {
-    if (!window.confirm(`${m.name || m.email} için tüm oturumlar kapatılsın mı? Yeniden giriş yapması gerekir.`)) return;
+    if (!(await confirm({ title: `${m.name || m.email} için tüm oturumlar kapatılsın mı?`, description: 'Yeniden giriş yapması gerekir.', confirmLabel: 'Oturumları kapat' }))) return;
     setBusy(m.userId);
     const r = await send(`/api/v1/team/members/${m.userId}/sessions`, 'DELETE');
     setBusy(null);
@@ -93,6 +94,8 @@ function Members({ data, reload, onError }: { data: TeamData; reload: () => Prom
   }
   const assignable = data.roles.assignable.filter((r) => data.myRole === 'owner' || r !== 'admin');
   return (
+    <>
+    {confirmDialog}
     <ul className="space-y-2" aria-label="Üyeler">
       {data.members.map((m) => {
         const lock = lockReason(data, m);
@@ -126,7 +129,7 @@ function Members({ data, reload, onError }: { data: TeamData; reload: () => Prom
                 </label>
                 {m.active ? (
                   <button type="button" className="rf-secondary-button inline-flex items-center gap-1 text-xs" disabled={busy === m.userId}
-                    onClick={() => void patch(m, { active: false }, `${m.name || m.email} pasifleştirilsin mi? Kayıtları kalır, oturumları kapanır.`)}>
+                    onClick={() => void patch(m, { active: false }, { title: `${m.name || m.email} pasifleştirilsin mi?`, description: 'Kayıtları kalır, oturumları kapanır.', confirmLabel: 'Pasifleştir' })}>
                     <UserX size={14} aria-hidden /> Pasifleştir
                   </button>
                 ) : (
@@ -143,6 +146,7 @@ function Members({ data, reload, onError }: { data: TeamData; reload: () => Prom
         );
       })}
     </ul>
+    </>
   );
 }
 
@@ -151,6 +155,7 @@ function Invites({ data, reload, onError }: { data: TeamData; reload: () => Prom
   const [form, setForm] = useState({ email: '', role: 'office' as UserRole, accessRole: '', ttlDays: String(INVITE_TTL.default) });
   const [link, setLink] = useState<{ url: string; emailSent: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirm, confirmDialog] = useConfirm();
   async function invite(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -162,12 +167,13 @@ function Invites({ data, reload, onError }: { data: TeamData; reload: () => Prom
     await reload();
   }
   async function revoke(i: Invite) {
-    if (!window.confirm(`${i.email} daveti iptal edilsin mi?`)) return;
+    if (!(await confirm({ title: `${i.email} daveti iptal edilsin mi?`, description: 'Davet bağlantısı artık çalışmaz.', confirmLabel: 'Daveti iptal et' }))) return;
     const r = await send(`/api/tenant/invites/${i.id}`, 'DELETE');
     if (!r.ok) onError(r.error || 'İptal edilemedi'); else await reload();
   }
   return (
     <div className="space-y-3">
+      {confirmDialog}
       <form onSubmit={invite} className="rf-panel grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-5" aria-label="Davet gönder">
         <label className="text-xs sm:col-span-2 lg:col-span-2">E-posta
           <input className="rf-input mt-1 w-full" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
@@ -215,8 +221,9 @@ function Invites({ data, reload, onError }: { data: TeamData; reload: () => Prom
 function Roles({ data, reload, onError }: { data: TeamData; reload: () => Promise<void>; onError: (e: string) => void }) {
   const [editing, setEditing] = useState<RoleRow | 'new' | null>(null);
   const [viewing, setViewing] = useState<RoleRow | null>(null);
+  const [confirm, confirmDialog] = useConfirm();
   async function remove(r: RoleRow) {
-    if (!window.confirm(`"${r.roleName}" silinsin mi? Bu roldeki ${r.members} kişi temel rolünün varsayılanına döner.`)) return;
+    if (!(await confirm({ title: `"${r.roleName}" silinsin mi?`, description: `Bu roldeki ${r.members} kişi temel rolünün varsayılanına döner.`, confirmLabel: 'Rolü sil' }))) return;
     const res = await send(`/api/v1/team/roles/${r.id}`, 'DELETE');
     if (!res.ok) onError(res.error || 'Silinemedi'); else await reload();
   }
@@ -226,6 +233,7 @@ function Roles({ data, reload, onError }: { data: TeamData; reload: () => Promis
         <h2 className="rf-section-title flex items-center gap-2">Roller <HintTip text="Hazır roller değişmez. Özel rol bir temel rol üzerine kurulur ve onu yalnız daraltır; temel rolün vermediği bir izin seçilemez." /></h2>
         <button type="button" className="rf-primary-button inline-flex items-center gap-1 text-sm" onClick={() => setEditing('new')}><Plus size={14} aria-hidden /> Yeni rol</button>
       </div>
+      {confirmDialog}
       {editing && <RoleEditor data={data} role={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await reload(); }} onError={onError} />}
       <ul className="grid gap-2 md:grid-cols-2" aria-label="Rol listesi">
         {[...data.roles.custom, ...data.roles.presets].map((r) => (

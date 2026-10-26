@@ -6,21 +6,40 @@ import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { switchThemeWithReveal } from '@/lib/shared/utils/theme-reveal';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Bell, ChevronRight, Menu, Moon, Plus, Search, Sun, X, ArrowUpRight } from 'lucide-react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { signOut } from 'next-auth/react';
+import { Bell, Building2, ChevronRight, LogOut, Menu, Moon, Plus, Search, Sun, UserRound, X, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useMemberAccess } from '@/lib/hooks/useMemberAccess';
 import { DASHBOARD_QUICK_LINKS, activeNavHref, getVisibleNavGroups } from '@/lib/core/dashboard-nav';
-import { hasPermission } from '@/lib/auth/permissions';
+import { canAccessRoute, hasPermission } from '@/lib/auth/permissions';
+import { BASE_ROLE_LABELS } from '@/lib/security/team-rules';
+import { requestJson } from '@/lib/shared/network';
 import { useWorkspaceCommands } from './WorkspaceCommands';
 import { cn } from '@/lib/utils';
 import { NavigationGroup } from './NavigationGroup';
 import { BrandMark } from '@/components/brand/BrandMark';
 
 /** Screens reached without a menu item still need their own breadcrumb. */
-const OFF_MENU_SECTIONS: Record<string, string> = { '/search': 'Arama', '/new-order': 'Yeni sipariş', '/kanban': 'Sipariş panosu' };
+const OFF_MENU_SECTIONS: Record<string, string> = { '/search': 'Arama', '/new-order': 'Yeni sipariş', '/notifications': 'Bildirimler' };
 
 /** Sub-pages with their own name in the breadcrumb (others read "Detay"). */
 const SUBPAGE_LABELS: Record<string, string> = { '/crm/import': 'İçe aktar' };
+
+/** Unread in-app notifications, refreshed on every screen change (so reading them clears the badge). */
+function useUnreadNotifications(enabled: boolean, pathname: string) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!enabled) { setCount(0); return; }
+    const ac = new AbortController();
+    void requestJson<{ unreadCount?: number }>('/api/notifications?limit=1&unread=true', { signal: ac.signal, cache: 'no-store' })
+      .then((r) => { if (!ac.signal.aborted && r.ok) setCount(Math.max(0, Number(r.data?.unreadCount) || 0)); });
+    return () => ac.abort();
+  }, [enabled, pathname]);
+  return count;
+}
+
+const MENU_ITEM = 'flex cursor-pointer select-none items-center gap-2 rounded px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-foreground';
 
 export function WorkspaceHeader() {
   const pathname = usePathname();
@@ -30,6 +49,9 @@ export function WorkspaceHeader() {
   const activeHref = activeNavHref(pathname, navGroups);
   const { resolvedTheme, setTheme } = useTheme();
   const { openCommands } = useWorkspaceCommands();
+  const canSeeNotifications = !user || canAccessRoute(user.role, '/notifications');
+  const unread = useUnreadNotifications(!!user && canSeeNotifications, pathname);
+  const canOpenSettings = !!user && canAccessRoute(user.role, '/settings');
   const [mobileOpen, setMobileOpen] = useState(false);
   useEffect(() => {
     const open = () => setMobileOpen(true);
@@ -78,8 +100,28 @@ export function WorkspaceHeader() {
       <button type="button" aria-label="Temayı değiştir" className="rf-icon-button" onClick={(event) => switchThemeWithReveal(isDark ? 'light' : 'dark', setTheme, event.currentTarget)}>
         {isDark ? <Sun size={17} /> : <Moon size={17} />}
       </button>
-      <Link href="/notifications" aria-label="Bildirimler" className="rf-icon-button"><Bell size={17} /></Link>
-      <Link href="/settings" title={user?.name} aria-label="Hesap ayarları" className="hidden h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--rf-ink))] text-xs font-semibold text-[hsl(var(--rf-ink-foreground))] transition-opacity hover:opacity-85 sm:flex">{user?.name?.slice(0, 1).toLocaleUpperCase('tr-TR') || 'R'}</Link>
+      {canSeeNotifications && <Link href="/notifications" aria-label={unread ? `Bildirimler, ${unread} okunmamış` : 'Bildirimler'} className="rf-icon-button relative">
+        <Bell size={17} />
+        {unread > 0 && <span aria-hidden className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold leading-none text-white tabular-nums">{unread > 99 ? '99+' : unread}</span>}
+      </Link>}
+      <DropdownMenu.Root modal={false}>
+        <DropdownMenu.Trigger asChild>
+          <button type="button" title={user?.name} aria-label="Kullanıcı menüsü" className="hidden h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--rf-ink))] text-xs font-semibold text-[hsl(var(--rf-ink-foreground))] transition-opacity hover:opacity-85 sm:flex">{user?.name?.slice(0, 1).toLocaleUpperCase('tr-TR') || 'R'}</button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content align="end" sideOffset={8} className="rf-command-dialog z-[75] w-56 rounded-md border border-border bg-card p-1 text-card-foreground shadow-xl">
+            {user && <DropdownMenu.Label className="px-2.5 py-2">
+              <span className="block truncate text-sm font-medium">{user.name || user.email}</span>
+              <span className="block truncate text-xs text-muted-foreground">{BASE_ROLE_LABELS[user.role]}</span>
+            </DropdownMenu.Label>}
+            {user && <DropdownMenu.Separator className="my-1 h-px bg-border" />}
+            <DropdownMenu.Item asChild className={MENU_ITEM}><Link href="/account"><UserRound size={15} aria-hidden /> Hesabım</Link></DropdownMenu.Item>
+            {canOpenSettings && <DropdownMenu.Item asChild className={MENU_ITEM}><Link href="/settings"><Building2 size={15} aria-hidden /> Firma ayarları</Link></DropdownMenu.Item>}
+            <DropdownMenu.Separator className="my-1 h-px bg-border" />
+            <DropdownMenu.Item className={MENU_ITEM} onSelect={() => void signOut({ callbackUrl: '/auth/login' })}><LogOut size={15} aria-hidden /> Çıkış yap</DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
     </div>
   </header>;
 }

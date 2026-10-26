@@ -14,12 +14,15 @@ import { WorkspaceHeader } from '@/components/layout/WorkspaceHeader';
 import { WorkspaceCommands } from '@/components/layout/WorkspaceCommands';
 import {useAuth} from '@/lib/context/AuthContext';
 import { KonamiCode } from '@/components/spells/KonamiCode';
+import { useMarkWorkspaceShell } from '@/lib/shared/hooks/useWorkspacePresence';
 
 function WorkspaceAssistant(){const {user}=useAuth();return user?.role==='worker'?null:<AIChatbot/>;}
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSidebarEffectivelyExpanded, setIsSidebarEffectivelyExpanded] = useState(true);
+  // Site-wide pieces (the cookie banner) stay out of the logged-in workspace.
+  useMarkWorkspaceShell();
   useEffect(() => {
     try { setIsSidebarCollapsed(localStorage.getItem('rf.sidebar.pinned') === 'false'); } catch { /* Use the expanded menu. */ }
   }, []);
