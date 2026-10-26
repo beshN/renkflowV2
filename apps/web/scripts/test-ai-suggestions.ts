@@ -83,6 +83,7 @@ async function main() {
   assert.equal((await db`SELECT status FROM ai_suggestions WHERE id = ${failing.suggestion.id}`)[0].status, 'rejected');
   console.log('PASS · approval runs the command once inside the transaction; reject and approve are audited');
 
+  await db.unsafe('DROP TABLE IF EXISTS ai_test_effects');
   await db`DELETE FROM tenants WHERE id = ${tenantId}`;
   await db`DELETE FROM users WHERE id IN (${ownerId}, ${workerId})`;
   await db.end();

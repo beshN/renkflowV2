@@ -50,6 +50,23 @@ async function main() {
   try {
     assert.equal((await source`SELECT current_database() AS name`)[0].name, 'renkflow_test');
 
+    // Restore target: an empty database prepared exactly as the runbook says (db:deploy).
+    await admin.unsafe(`DROP DATABASE IF EXISTS ${RESTORE_DB} WITH (FORCE)`);
+    await admin.unsafe(`CREATE DATABASE ${RESTORE_DB} ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0`);
+    const deploy = runScript(['scripts/deploy-database.ts'], { ...process.env, DATABASE_URL_UNPOOLED: targetUrl, ALLOW_LOCAL_DATABASE: '1' }, ROOT);
+    assert.equal(deploy.code, 0, deploy.output);
+
+    // The shared test database can hold scratch tables other integration scripts created (and left
+    // behind when they failed). They are not part of the app schema, so they would never restore.
+    const listTables = (db: ReturnType<typeof postgres>) =>
+      db<{ name: string }[]>`SELECT c.relname AS name FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN ('r','p') AND NOT c.relispartition`;
+    const schemaDb = postgres(targetUrl, { onnotice: () => {} });
+    const schemaTables = new Set((await listTables(schemaDb)).map((r) => r.name));
+    await schemaDb.end();
+    for (const { name } of await listTables(source)) {
+      if (!schemaTables.has(name)) await source`DROP TABLE IF EXISTS ${source(name)} CASCADE`;
+    }
+
     // Two tenants; values CSV must round-trip: quotes, commas, newlines, Turkish letters, NULL vs ''.
     const tenantA = randomUUID();
     const tenantB = randomUUID();
@@ -112,11 +129,6 @@ async function main() {
     assert.equal(partial.complete, false);
     assert.equal(partial.missingTables.length, tables.length);
 
-    // Restore target: an empty database prepared exactly as the runbook says (db:deploy).
-    await admin.unsafe(`DROP DATABASE IF EXISTS ${RESTORE_DB} WITH (FORCE)`);
-    await admin.unsafe(`CREATE DATABASE ${RESTORE_DB} ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0`);
-    const deploy = runScript(['scripts/deploy-database.ts'], { ...process.env, DATABASE_URL_UNPOOLED: targetUrl, ALLOW_LOCAL_DATABASE: '1' }, ROOT);
-    assert.equal(deploy.code, 0, deploy.output);
 
     const restoreEnv = { ...process.env, DATABASE_URL: sourceUrl };
     const restoreScript = path.join(ROOT, 'scripts/restore-backup.ts');
