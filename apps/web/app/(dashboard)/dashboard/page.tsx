@@ -17,6 +17,7 @@ import { SuggestionsPanel } from '@/components/features/ai/SuggestionsPanel';
 import { MorningSummary } from '@/components/features/ai/MorningSummary';
 import { DueActivities } from '@/components/records/DueActivities';
 import { FleetHealthCard } from '@/components/fleet/FleetHealthCard';
+import { SetupChecklist } from '@/components/features/onboarding/SetupChecklist';
 import { Donut, EmptyState, HealthBadge, HintTip, LifecycleStrip, PageHeader, ProgressRing, Skeleton, StatCard } from '@/components/kit';
 import { ColorSwatch } from '@/components/colors/ColorSwatch';
 import { colorInfo } from '@/lib/features/colors/color-spec';
@@ -219,6 +220,8 @@ export default function DashboardPage() {
         </>}
       />
       {error && !orders.length && <p role="alert" className="rf-alert text-sm"><AlertOctagon size={16} aria-hidden /> Siparişler alınamadı</p>}
+
+      <SetupChecklist />
 
       <div className="rf-metric-strip grid grid-cols-2 xl:grid-cols-4">
         <StatCard label="Açık sipariş" icon={Factory} href="/orders?view=active" loading={isLoading} value={open.length} trend={trend.map((t) => t.created)} />
