@@ -18,6 +18,40 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '2026.10.26',
+    date: '2026-10-26',
+    title: 'Kurulum listesi, yasal metinler ve daha güvenli hesaplar',
+    changes: [
+      {
+        kind: 'Yeni',
+        items: [
+          'Genel bakışta kurulum listesi: firma bilgileri, iş istasyonu, ilk sipariş, ekip daveti ve ilk iş emri. Adımlar firmanızın verisinden kendiliğinden işaretlenir.',
+          'Kayıttan sonra e-posta doğrulama ekranı: bağlantının gittiği adres, sonraki adımlar ve tek tıkla yeniden gönderme.',
+          'Profil menüsü (Hesabım, Firma ayarları, Çıkış) ve zil üzerinde okunmamış bildirim sayısı.',
+          'Üretim akışı, ürün reçeteleri ve servis ekranları menüde ve komut paletinde.',
+          'Durum sayfası artık canlı: uygulama, yapılandırma ve veritabanı anlık kontrol edilir.',
+          'Kullanım koşulları, gizlilik ve KVKK aydınlatma metni, çerez politikası ve başlangıç rehberi yenilendi.',
+        ],
+      },
+      {
+        kind: 'İyileştirme',
+        items: [
+          'Silme ve iptal gibi geri alınamaz işlemler artık uygulamanın kendi onay penceresiyle sorulur.',
+          'Bir ekran hata verdiğinde menü ve üst çubuk yerinde kalır, “Tekrar dene” ile aynı ekrana dönülür.',
+          'Bildirim, gelen e-posta/WhatsApp ve e-fatura kuyrukları düzenli olarak işlenir.',
+          'Çerez bildirimi çalışma alanının içinde gösterilmez.',
+        ],
+      },
+      {
+        kind: 'Düzeltme',
+        items: [
+          'Tek oturum açma (SSO) ile ilk kez gelen kullanıcıların hesabı oluşturulamıyordu.',
+          'SSO giriş bağlantıları birkaç dakika içinde ve tek kullanımda geçerli; şifre sıfırlama ve herkese açık bağlantılara istek sınırı eklendi.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2026.10.22',
     date: '2026-10-22',
     title: 'AI ofis',
