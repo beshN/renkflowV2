@@ -8,6 +8,7 @@ import { StationSettings } from '@/components/features/stations/StationSettings'
 import { TenantSettings } from '@/components/settings/TenantSettings';
 import { LegalIdentitySettings } from '@/components/settings/LegalIdentitySettings';
 import { PrivacyRequests } from '@/components/settings/PrivacyRequests';
+import { MfaPolicySettings } from '@/components/settings/MfaPolicySettings';
 import { ProductionSettings } from '@/components/settings/ProductionSettings';
 import { ColorCatalogSettings } from '@/components/settings/ColorCatalogSettings';
 import { RecordSettings } from '@/components/settings/RecordSettings';
@@ -21,6 +22,7 @@ const TABS = [
   { id: 'firma', label: 'Firma' },
   { id: 'fatura', label: 'Fatura' },
   { id: 'kvkk', label: 'KVKK' },
+  { id: 'guvenlik', label: 'Güvenlik' },
   { id: 'uretim', label: 'Üretim ve renkler' },
   { id: 'teklif', label: 'Teklif' },
   { id: 'asistan', label: 'Asistan' },
@@ -56,6 +58,7 @@ export default function SettingsPage() {
           {tab === 'firma' && <>{panel(<TenantSettings />)}{panel(<CompanyAddressSettings />)}</>}
           {tab === 'fatura' && panel(<LegalIdentitySettings />)}
           {tab === 'kvkk' && panel(<PrivacyRequests />)}
+          {tab === 'guvenlik' && panel(<MfaPolicySettings />)}
           {tab === 'uretim' && <>{panel(<ProductionSettings />)}{panel(<ColorCatalogSettings />)}{panel(<ProductionReasonSettings />)}</>}
           {tab === 'teklif' && <>{panel(<QuoteRulesSettings />)}{panel(<RecordSettings />)}</>}
           {tab === 'tabletler' && panel(<StationSettings />)}

@@ -13,6 +13,8 @@ import { cn } from '@/lib/utils';
 
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_DEFINITIONS, type TemplateKey } from '@/lib/config/templates';
 import { requestJson } from '@/lib/shared/network';
+import { LegalConsentCheckbox } from '@/components/auth/LegalConsentCheckbox';
+import { LEGAL_CONSENT_REQUIRED_MESSAGE } from '@/lib/features/auth/legal-consent';
 
 export default function SignupPage() {
   const [name, setName] = useState('');
@@ -23,12 +25,17 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [registeredEmail, setRegisteredEmail] = useState('');
+  const [acceptLegal, setAcceptLegal] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const problem = passwordProblem(password, email);
     if (problem) {
       setError(problem);
+      return;
+    }
+    if (!acceptLegal) {
+      setError(LEGAL_CONSENT_REQUIRED_MESSAGE);
       return;
     }
     setLoading(true);
@@ -43,6 +50,7 @@ export default function SignupPage() {
         password,
         companyName: companyName.trim(),
         templateKey,
+        acceptLegal,
       }),
     }, {
       timeoutMs: 25000,
@@ -151,6 +159,8 @@ export default function SignupPage() {
               leftIcon={<Lock size={18} />}
               variant="default"
           />
+
+          <LegalConsentCheckbox checked={acceptLegal} onChange={setAcceptLegal} />
 
            {error && (
               <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">

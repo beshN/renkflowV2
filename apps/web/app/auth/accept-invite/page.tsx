@@ -10,6 +10,8 @@ import { signIn } from 'next-auth/react';
 
 import { AuthFrame } from '@/components/app-core/AuthFrame';
 import { requestJson } from '@/lib/shared/network';
+import { LegalConsentCheckbox } from '@/components/auth/LegalConsentCheckbox';
+import { LEGAL_CONSENT_REQUIRED_MESSAGE } from '@/lib/features/auth/legal-consent';
 
 type InvitationData = {
   email: string;
@@ -31,6 +33,7 @@ export default function AcceptInvitePage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [acceptLegal, setAcceptLegal] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -96,13 +99,18 @@ export default function AcceptInvitePage() {
       return;
     }
 
+    if (!acceptLegal) {
+      setError(LEGAL_CONSENT_REQUIRED_MESSAGE);
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     const result = await requestJson('/api/tenant/invite/accept', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, name: name.trim(), password }),
+      body: JSON.stringify({ token, name: name.trim(), password, acceptLegal }),
     }, {
       timeoutMs: 20000,
       fallbackError: 'Davet kabul islemi tamamlanamadi.',
@@ -201,6 +209,8 @@ export default function AcceptInvitePage() {
             Mevcut hesabınız bulundu. Daveti onayladıktan sonra normal giriş adımıyla devam edebilirsiniz.
           </p>
         )}
+
+        <LegalConsentCheckbox checked={acceptLegal} onChange={setAcceptLegal} />
 
         {error ? <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p> : null}
 
