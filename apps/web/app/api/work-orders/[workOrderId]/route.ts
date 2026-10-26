@@ -10,6 +10,7 @@ import {
   requireWorkOrderPermission,
   WorkOrderApiError,
 } from '@/lib/features/work-orders/security';
+import { requireSameOrigin } from '@/lib/features/manufacturing/http-security';
 import { isWorkOrderTerminalStatus, WORK_ORDER_STATUSES } from '@/lib/features/work-orders/status';
 
 const ParamsSchema = z.object({
@@ -61,6 +62,7 @@ export async function PATCH(
   context: { params: Promise<{ workOrderId: string }> }
 ) {
   try {
+    requireSameOrigin(request);
     const actor = await requireWorkOrderActor();
 
     const params = await context.params;

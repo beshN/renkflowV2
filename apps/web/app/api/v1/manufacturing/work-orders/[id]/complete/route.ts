@@ -3,9 +3,11 @@ import { z } from 'zod';
 import { completeProductionRun } from '@/lib/features/manufacturing/manufacturing.service';
 import { CompleteProductionRunInputSchema } from '@/lib/features/manufacturing/types';
 import { requireWorkOrderActor, requireWorkOrderPermission, WorkOrderApiError } from '@/lib/features/work-orders/security';
+import { requireSameOrigin } from '@/lib/features/manufacturing/http-security';
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    requireSameOrigin(request);
     const actor = await requireWorkOrderActor();
     requireWorkOrderPermission(actor, 'transition');
     const { id } = await params;

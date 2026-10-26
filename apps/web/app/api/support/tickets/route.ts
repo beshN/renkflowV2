@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
 import { z } from 'zod';
+import { crossOriginRejection } from '@/lib/features/manufacturing/http-security';
 
 const QuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -161,6 +162,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const crossOrigin = crossOriginRejection(request);
+  if (crossOrigin) return crossOrigin;
   try {
     const actor = await resolveSupportActor();
     const body = await request.json();

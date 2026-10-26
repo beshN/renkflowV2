@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { sql } from '@/lib/db';
 import { columnExists } from '@/lib/db/schema-guard';
 import { hashResetToken } from '@/lib/features/auth/reset-token';
+import { consumeRateLimit, getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
 
 // Password strength validation
 function validatePassword(password: unknown, email?: string | null): { valid: boolean; error?: string } {
@@ -21,6 +22,8 @@ function validatePassword(password: unknown, email?: string | null): { valid: bo
 }
 
 export async function POST(request: Request) {
+  const limit = await consumeRateLimit('passwordResetConfirm', getClientIp(request.headers));
+  if (!limit.allowed) return rateLimitResponse(limit);
   try {
     const body = await request.json();
     const token = body?.token?.trim();

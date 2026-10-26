@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { hashResetToken } from '@/lib/features/auth/reset-token';
+import { consumeRateLimit, getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -9,6 +10,8 @@ export async function GET(request: NextRequest) {
   if (!token) {
     return NextResponse.json({ valid: false });
   }
+  const limit = await consumeRateLimit('resetTokenCheck', getClientIp(request.headers));
+  if (!limit.allowed) return rateLimitResponse(limit);
 
   try {
     const tokenHash = await hashResetToken(token);

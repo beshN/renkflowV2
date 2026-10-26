@@ -11,6 +11,7 @@ import {
   requireWorkOrderPermission,
   WorkOrderApiError,
 } from '@/lib/features/work-orders/security';
+import { requireSameOrigin } from '@/lib/features/manufacturing/http-security';
 
 const ParamsSchema = z.object({
   workOrderId: z.string().uuid(),
@@ -50,6 +51,7 @@ export async function POST(
   context: { params: Promise<{ workOrderId: string }> }
 ) {
   try {
+    requireSameOrigin(request);
     const actor = await requireWorkOrderActor();
     requireWorkOrderPermission(actor, 'comment');
 

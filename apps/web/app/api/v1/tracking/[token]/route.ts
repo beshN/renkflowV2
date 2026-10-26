@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { publicTracking } from "@/lib/features/manufacturing/platform.service";
+import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/security/rate-limit";
 export const dynamic = "force-dynamic";
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ token: string }> },
 ) {
+  const limit = await consumeRateLimit("publicTrackingRead", getClientIp(req.headers));
+  if (!limit.allowed) return rateLimitResponse(limit);
   const data = await publicTracking((await params).token);
   return NextResponse.json(
     data

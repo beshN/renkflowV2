@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { reserveWorkOrderMaterials } from '@/lib/features/manufacturing/reservation.service';
 import { requireWorkOrderActor, requireWorkOrderPermission, WorkOrderApiError } from '@/lib/features/work-orders/security';
+import { requireSameOrigin } from '@/lib/features/manufacturing/http-security';
 
 const BodySchema = z.object({ idempotencyKey: z.string().trim().min(8).max(160) });
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    requireSameOrigin(request);
     const actor = await requireWorkOrderActor();
     requireWorkOrderPermission(actor, 'transition');
     const parsed = BodySchema.safeParse(await request.json());

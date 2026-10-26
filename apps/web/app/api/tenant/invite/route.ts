@@ -8,6 +8,7 @@ import { columnExists } from '@/lib/db/schema-guard';
 import type { UserRole } from '@/lib/auth/permissions';
 import { inviteAccessRoleFits } from '@/lib/security/team.server';
 import { inviteTtlDays } from '@/lib/security/team-rules';
+import { crossOriginRejection } from '@/lib/features/manufacturing/http-security';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -33,6 +34,8 @@ class InviteError extends Error {
 }
 
 export async function POST(request: NextRequest) {
+  const crossOrigin = crossOriginRejection(request);
+  if (crossOrigin) return crossOrigin;
   try {
     const context = await requireTenantContext();
 

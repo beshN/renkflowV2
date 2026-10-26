@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getClientIp } from '@/lib/security/rate-limit';
+import { consumeRateLimit, getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { recordError } from '@/lib/features/records/http';
 import { publicDecision, publicQuote } from '@/lib/features/sales/quotes.server';
@@ -9,7 +9,9 @@ type Params = { params: Promise<{ token: string }> };
 const HEADERS = { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex' };
 
 /** The quote behind a customer approval link (its own lines and prices; never internal notes). */
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(req: NextRequest, { params }: Params) {
+  const limit = await consumeRateLimit('publicQuoteRead', getClientIp(req.headers));
+  if (!limit.allowed) return rateLimitResponse(limit);
   const data = await publicQuote((await params).token).catch(() => null);
   return NextResponse.json(data ? { data } : { error: 'Bağlantı geçersiz veya süresi dolmuş.' }, { status: data ? 200 : 404, headers: HEADERS });
 }

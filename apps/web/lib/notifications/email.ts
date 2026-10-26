@@ -97,8 +97,8 @@ export async function sendPasswordResetEmail(
   resetUrl: string
 ) {
   if (!resend) {
+    // Never log the link: it carries a live reset token and logs outlive it.
     console.warn('Resend is not configured. Password reset email not sent.');
-    console.log('[EMAIL] Password reset URL for', email, ':', resetUrl);
     return { success: false, error: 'Email service not configured' };
   }
 

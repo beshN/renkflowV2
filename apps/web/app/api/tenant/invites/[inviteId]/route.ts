@@ -3,15 +3,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
 import { z } from 'zod';
+import { crossOriginRejection } from '@/lib/features/manufacturing/http-security';
 
 const ParamsSchema = z.object({
   inviteId: z.string().uuid(),
 });
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ inviteId: string }> }
 ) {
+  const crossOrigin = crossOriginRejection(request);
+  if (crossOrigin) return crossOrigin;
   try {
     const session = await auth();
     if (!session?.user?.tenantId || !session.user.id) {

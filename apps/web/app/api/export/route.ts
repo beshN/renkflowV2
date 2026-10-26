@@ -4,6 +4,7 @@ import { createExportJob, getExportJob, listExportJobs } from '@/lib/export/serv
 import { consumeRateLimit, rateLimitResponse } from '@/lib/security/rate-limit';
 import { z } from 'zod';
 import { isMissingRelationError } from '@/lib/db/schema-guard';
+import { crossOriginRejection } from '@/lib/features/manufacturing/http-security';
 
 const ExportOptionsSchema = z.object({
   format: z.enum(['csv', 'pdf']),
@@ -19,6 +20,8 @@ const ExportOptionsSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const crossOrigin = crossOriginRejection(request);
+  if (crossOrigin) return crossOrigin;
   try {
     const { context, denied } = await apiContextWithPermission('reports.view');
     if (denied) return denied;

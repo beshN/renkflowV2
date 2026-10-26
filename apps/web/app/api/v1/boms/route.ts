@@ -8,9 +8,11 @@ import {
   requireWorkOrderPermission,
   WorkOrderApiError,
 } from '@/lib/features/work-orders/security';
+import { requireSameOrigin } from '@/lib/features/manufacturing/http-security';
 
 export async function POST(request: NextRequest) {
   try {
+    requireSameOrigin(request);
     const actor = await requireWorkOrderActor();
     requireWorkOrderPermission(actor, 'create');
     const parsed = CreateBomInputSchema.safeParse(await request.json());

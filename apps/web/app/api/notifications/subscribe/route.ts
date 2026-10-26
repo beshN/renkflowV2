@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { savePushSubscription, removePushSubscription } from '@/lib/notifications/service';
+import { crossOriginRejection } from '@/lib/features/manufacturing/http-security';
 
 export async function POST(request: Request) {
+  const crossOrigin = crossOriginRejection(request);
+  if (crossOrigin) return crossOrigin;
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -24,6 +27,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const crossOrigin = crossOriginRejection(request);
+  if (crossOrigin) return crossOrigin;
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
