@@ -8,6 +8,7 @@ import { chromium, type Browser } from '@playwright/test';
 import postgres from 'postgres';
 import bcrypt from 'bcryptjs';
 import { localTestDatabaseURL } from './local-test-database';
+import { privacyDocument, termsDocument } from '../lib/core/legal-content';
 
 async function main() {
   const databaseUrl = localTestDatabaseURL();
@@ -16,6 +17,8 @@ async function main() {
   const [tenant] = await db`INSERT INTO tenants(name,slug) VALUES('Asistan arayüz testi',${'assistant-ui-' + randomUUID()}) RETURNING id`;
   const email = randomUUID() + '@example.invalid', password = 'Local-Assistant-UI-2026!';
   const [owner] = await db`INSERT INTO users(name,email,password,email_verified) VALUES('Arayüz Testi',${email},${await bcrypt.hash(password, 10)},now()) RETURNING id`;
+  // Consent on record, so the workspace opens without the one-time consent dialog.
+  await db`UPDATE users SET terms_accepted_at=now(), terms_version=${termsDocument.version}, privacy_notice_ack_at=now(), privacy_notice_version=${privacyDocument.version} WHERE id=${owner.id}`;
   await db`INSERT INTO tenant_members(tenant_id,user_id,role) VALUES(${tenant.id},${owner.id},'owner')`;
   await db`INSERT INTO ai_settings(tenant_id,mode,kvkk_ack_at) VALUES(${tenant.id},'assist',now())`;
   await db`INSERT INTO customers(tenant_id,full_name) VALUES(${tenant.id},'Romanya')`;
