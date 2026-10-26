@@ -12,14 +12,20 @@ Son doğrulama: 14 Ekim 2026. Production sayılarını ve politikayı değiştir
 | Boyut | 16 MB, 155 tablo (1 firma, 3 kullanıcı, 1 sipariş; 14 Ekim) |
 | Uygulama | Vercel `renkflowv2`, `DATABASE_URL` ve `DATABASE_URL_UNPOOLED` |
 
-**Risk:** PITR penceresi yalnızca 6 saat. Fark edilmesi 6 saatten uzun süren bir veri hatası, PITR ile geri alınamaz. O durumda yalnızca elle açılmış yedek dallar işe yarar. Gerçek veri girişi başlamadan önce aşağıdaki "Açık işler" bölümüne bakın.
+**Risk:** PITR penceresi yalnızca 6 saat. Fark edilmesi 6 saatten uzun süren bir veri hatası, PITR ile geri alınamaz. O durumda elle açılmış yedek dallar ve son 14 günün günlük mantıksal dökümü (Yedekler 3, Geri yükleme C) işe yarar. Gerçek veri girişi başlamadan önce aşağıdaki "Açık işler" bölümüne bakın.
 
 ## Yedekler
 
 0. **`db:deploy` yalnızca güncel `main` checkout'undan çalıştırılır.** 14 Ekim'de bir kez özellik dalından çalıştırıldı ve henüz birleşmemiş 054 production'a gitti. Zararsızdı (yalnız boş sütun ekliyordu), ama sıra bozuldu. Önce `git switch main && git pull` ve `npm run db:status`.
 1. **Migration öncesi dal (zorunlu).** `npm run db:deploy` çalıştırmadan önce production'dan bir dal açılır. Ad biçimi: `backup-before-<iş>-<YYYY-MM-DD>`. 13 Ekim itibarıyla bu dallar var: `backup-before-kanban-050-20261013`, `backup-before-049-2026-10-13`, `backup-before-mobile-2026-10-13`, `yedek-production-2026-10-11-goc-040-048-oncesi`, `backup-before-029-036-2026-10-08`.
 2. **PITR.** Son 6 saat içindeki herhangi bir ana dönülebilir.
-3. **Günlük mantıksal döküm: henüz yok.** Depo herkese açık; GitHub Actions artifact'larını oturum açmış her GitHub kullanıcısı indirebildiği için müşteri verisi içeren döküm (şifreli de olsa) orada tutulmaz. Seçenekler "Açık işler"de; C bölümü döküm alındığında izlenecek geri yükleme adımlarıdır.
+3. **Günlük mantıksal döküm (`/api/cron/backup`).** Vercel Cron her gün 01:30 UTC'de (04:30 İstanbul; Hobby'de o saat içinde herhangi bir an) yalnız Production deploy'unda çalışır. `public` şemasındaki her tablo (görünümler hariç, `schema_migrations` dahil) tek bir `REPEATABLE READ READ ONLY` işlemde, yani aynı anlık görüntüden, `COPY (SELECT … ) TO STDOUT WITH (FORMAT csv, HEADER true)` ile akıtılır, gzip'lenir ve uygulamanın **özel Vercel Blob** deposuna `backups/<YYYY-MM-DD>/<tablo>.csv.gz` olarak yazılır. En son `backups/<YYYY-MM-DD>/manifest.json` yazılır: tablolar, sütunlar, satır sayıları, bayt boyutları, `schema_migrations` listesi, bağımsız sekansların değerleri, başlangıç/bitiş zamanı, `commitSha` (`VERCEL_GIT_COMMIT_SHA`) ve `complete`.
+   - Boş tablolar için dosya yüklenmez (manifest'te `rows: 0`, `key: null`); Blob işlem kotası Hobby'de sınırlı.
+   - Zaman bütçesi: fonksiyon sınırı 300 sn. 240. saniyeden sonra yeni tabloya başlanmaz, 270. saniyede süren tablo kesilir; manifest `complete: false`, `stoppedReason`, `missingTables` ile yazılır ve uç 500 döner (zamanlayıcının hata bildirimi için).
+   - Aynı gün ikinci çalıştırma, tam bir yedek varsa hiçbir şey yapmaz; yarım kalmış bir yedeği silip yeniden alır. Eş zamanlı çalıştırmalar advisory lock ile engellenir.
+   - Saklama: tam bir yedekten sonra 14 günden eski `backups/<tarih>/` klasörleri silinir. Eksik yedekler eski yedekleri silmez.
+   - Depo herkese açık olduğu için döküm GitHub'a (Actions artifact dahil) **hiç** gitmez; yalnız Blob'da, `access: "private"` ile durur ve `/api/storage/content` üzerinden de okunamaz (o uç kiracı belgelerine göre yetki denetler).
+   - Döküm şifrelenmez; güvenlik Blob deposunun özel olmasına ve `BLOB_READ_WRITE_TOKEN`'ın gizliliğine dayanır. Token'ı yalnız geri yükleme yapan kişi, yerel env dosyasında tutar.
 
 Yedek dallarına compute bağlı değildir; doğrudan sorgulanamazlar. Geri yüklemenin ilk adımı bu yüzden compute bağlamaktır.
 
@@ -45,30 +51,32 @@ Yedek dallarına compute bağlı değildir; doğrudan sorgulanamazlar. Geri yük
    - **Yalnız kayıp tabloları almak:** yedek daldan `pg_dump --table=...` ile alıp production'a yükleyin. Ayrıntılı ve dikkat isteyen bir iştir.
 5. A'daki 3. ve 4. adımlar.
 
-### C. Günlük şifreli dökümden geri yükleme
+### C. Günlük mantıksal dökümden geri yükleme
 
-PITR penceresi dışındaysa ve uygun bir yedek dal yoksa. Döküm production'a doğrudan değil, **yeni bir Neon dalına** yüklenir; doğrulandıktan sonra A/B'deki gibi karar verilir.
+PITR penceresi dışındaysa ve uygun bir yedek dal yoksa. Döküm production'a doğrudan değil, **yeni bir Neon dalına** yüklenir; doğrulandıktan sonra A/B'deki gibi karar verilir. Betik: `apps/web/scripts/restore-backup.ts` (`npm run db:restore-backup`).
 
-1. Dökümü indirin. Aşağıdaki komutlar "Açık işler"deki (a) seçeneği içindir: depo özel yapılıp `backup.yml` iş akışı eklendiğinde artifact'tan indirilir. Özel kova seçilirse dökümü kovadan indirin ve 2. adımdan devam edin.
+1. Uygun günü seçin. Production env'ini yerel bir dosyaya çekin (`BLOB_READ_WRITE_TOKEN` için; `apps/web/docs/vercel-deployment.md`), ör. `.env.vercel.production.local`. Manifest'e bakın: `complete: true` olmalı, `commitSha` hangi koddan alındığını söyler.
+2. Hedef dal açın: Neon konsolu → `renkflow-production` → **Branches → Create branch**, ad `restore-<YYYY-MM-DD>`, kaynak `production` (şema hazır gelir; içindeki veri 4. adımda yedekle değiştirilir). Alternatif: aynı projede yeni, boş bir veritabanı; `db:deploy` onu sıfırdan kurar. Dala compute bağlayın ve **direct (pooler olmayan)** bağlantı dizesini alın; aşağıda `RESTORE_URL`. Ücretsiz plandaki dal sınırına dikkat (aşağıda).
+3. Şemayı kurun (betik şema oluşturmaz, yalnız veri yükler). Güncel `main` checkout'undan, en az yedeğin `commitSha`'sı kadar yeni:
    ```sh
-   gh run list --workflow backup.yml --limit 5          # uygun çalışmayı seçin
-   gh run download <run-id> --dir ./restore              # renkflow-<zaman>.dump.gpg ve .sha256
-   cd restore/renkflow-*/ && sha256sum -c *.sha256          # her artifact kendi klasörüne iner
+   cd apps/web
+   DATABASE_URL_UNPOOLED="$RESTORE_URL" npm run db:deploy
    ```
-2. Şifreyi çözün (parola sorulur; komut satırına yazmayın):
+4. Yükleyin:
    ```sh
-   gpg --decrypt --output renkflow.dump renkflow-<zaman>.dump.gpg
-   pg_restore --list renkflow.dump | head                # arşiv okunuyor mu
+   npm run db:restore-backup -- --date <YYYY-MM-DD> --target "$RESTORE_URL" --env-file=.env.vercel.production.local
    ```
-3. Hedef dal açın: Neon konsolu → `renkflow-production` → **Branches → Create branch**, ad `restore-<YYYY-MM-DD>`, kaynak `production`. Dala compute bağlayın ve **direct (pooler olmayan)** bağlantı dizesini alın; aşağıda `RESTORE_URL`. Ücretsiz plandaki dal sınırına dikkat (yukarıda).
-4. Yükleyin (PostgreSQL 17 istemcisi; `--no-owner --no-acl` ile alındığı için rol farkı sorun olmaz):
-   ```sh
-   psql "$RESTORE_URL" -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;'   # yalnız yeni dalda!
-   pg_restore --dbname="$RESTORE_URL" --no-owner --no-acl --exit-on-error --jobs=4 renkflow.dump
-   ```
-5. Doğrulayın: sayım sorgusu, `npm run db:status -- --env-file=<restore dalı env dosyası>`.
+   - Betik önce hedef şemayı denetler: yedekteki her tablo ve sütun hedefte olmalı, yedeğin `schema_migrations` listesindeki her dosya hedefte uygulanmış olmalı. Değilse hiçbir şeye dokunmadan durur.
+   - Hedef, `--env-file`'daki veya kabuktaki `DATABASE_URL`, `DATABASE_URL_UNPOOLED` ya da `PRODUCTION_DATABASE_URL` ile aynı veritabanıysa (pooler/direct farkı yok sayılır) reddedilir; bilinçli olarak production'a yazmak için `--force-production` gerekir. Bunu A/B yolu yerine kullanmayın.
+   - Eksik (`complete: false`) bir yedek yalnız `--allow-incomplete` ile yüklenir.
+   - Plan yazdırıldıktan sonra `evet` yazmanız istenir; `--yes` bu soruyu atlar.
+   - Tek işlemde: `SET LOCAL session_replication_role = replica` (tetikleyiciler ve FK denetimi kapalı), yedekteki tabloları tek `TRUNCATE … CASCADE` ile boşaltma, her tabloyu gunzip edilmiş akıştan `COPY … FROM STDIN WITH (FORMAT csv, HEADER true)` ile açık sütun listesiyle yükleme, sütuna bağlı sekansları (serial/identity) `max(sütun)`'a, bağımsız sekansları manifest değerine ayarlama, son olarak her tablonun satır sayısını manifest ile karşılaştırma. Bir sayı tutmazsa işlem geri alınır. Hedefin kendi `schema_migrations` kaydı korunur (o dalın şemasını `db:deploy` kurdu).
+   - `session_replication_role` ayarlanamazsa betik durur: hedef rolün `neon_superuser` (Neon'da dalı açan varsayılan `neondb_owner`) üyesi olması gerekir.
+5. Doğrulayın: betiğin tablo/satır çıktısı, sayım sorgusu, `npm run db:status -- --env-file=<restore dalı env dosyası>`.
 6. Karar: production'ı bu dala döndürmek için Neon'da `production` → **Restore** → kaynak `restore-<tarih>`; yalnız tablo almak için B.4'teki yol. Ardından A'daki 3. ve 4. adımlar.
-7. Yerel `renkflow.dump` ve şifresi çözülmüş dosyaları silin (`shred -u renkflow.dump`).
+7. Yerel env dosyasını silin; Blob'daki döküm 14 gün sonra kendiliğinden silinir.
+
+Geri yükleme `npm run test:integration -- backup-restore` ile her CI çalışmasında prova edilir: iki firmalı tohum veri, cron ucu ile yedek (yerel depolama), `db:deploy` ile hazırlanmış ikinci veritabanına geri yükleme, tüm tabloların satır sayıları ve CSV'de zor değerler (tırnak, virgül, satır sonu, Türkçe harf, NULL / boş metin), firma ayrımı ve sekanslar.
 
 ### Sayım sorgusu
 
@@ -92,6 +100,6 @@ Prova her çeyrekte ve her büyük migration'dan önce tekrarlanmalı.
 
 ## Açık işler
 
-- **Günlük mantıksal döküm.** Depo herkese açık olduğu sürece GitHub Actions'ta tutulmamalı. Seçenekler: (a) depoyu özel yapıp şifreli dökümü iş akışı artifact'ı olarak saklamak, (b) dökümü özel bir kovaya (ör. S3/R2, yalnız yazma yetkili anahtarla) yüklemek, (c) Neon ücretli planındaki uzun PITR'a güvenmek. Karar verildiğinde `pg_dump --format=custom` + `gpg --symmetric` ile alınır ve C adımlarıyla prova edilip aşağıdaki tabloya yazılır.
+- **Mantıksal dökümün production provası.** Mekanizma kuruldu (Yedekler 3, C). İlk production yedeği alındıktan sonra C adımlarıyla bir Neon dalına geri yüklenip "Prova kaydı"na yazılmalı; özellikle Neon'da `session_replication_role` yetkisi ve sürenin 300 sn bütçeye sığdığı doğrulanmalı. Veri büyüdükçe (manifest'teki `bytes`, cron yanıtındaki `seconds`) izlenmeli: tek tablo bellekte gzip'lenir, toplam süre 240 sn'ye yaklaşırsa Pro planı veya tablo başına bölünmüş çalıştırma gerekir.
 - **PITR penceresi.** Neon'un ücretli planlarında 7 gün ve üzeri. Gerçek müşteri verisi girilmeden önce plan yükseltmesi değerlendirilmeli.
 - **Yedek dalı sınırı.** Ücretsiz plan, proje başına dal sayısını sınırlıyor (şu an 9 dal). Eski yedek dalları, yeni yedek doğrulandıktan sonra elle silinmeli.
