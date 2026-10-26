@@ -1,0 +1,87 @@
+name: Database backup
+
+# Daily logical dump of the production Neon database, kept off Neon as an encrypted workflow artifact.
+# Restore steps: docs/runbooks/backup-restore.md. Secrets: DATABASE_URL_UNPOOLED, BACKUP_PASSPHRASE
+# (see apps/web/docs/operations.md). Without both the job is skipped.
+#
+# This repository is public, so anyone signed in to GitHub can download its artifacts: the dump is
+# only ever uploaded after symmetric encryption, and nothing about the database is printed.
+
+on:
+  schedule:
+    - cron: "17 2 * * *" # 02:17 UTC = 05:17 Istanbul, quiet hours
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Check secrets
+        id: check
+        run: |
+          if [ -z "${DATABASE_URL_UNPOOLED:-}" ] || [ -z "${BACKUP_PASSPHRASE:-}" ]; then
+            echo "::notice title=Database backup skipped::Set the DATABASE_URL_UNPOOLED and BACKUP_PASSPHRASE repository secrets to enable this workflow."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Neon production runs PostgreSQL 17; pg_dump must be at least the server's major version.
+      - name: Install PostgreSQL 17 client
+        if: steps.check.outputs.enabled == 'true'
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error --retry 3 -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          /usr/lib/postgresql/17/bin/pg_dump --version
+
+      - name: Dump and encrypt
+        id: dump
+        if: steps.check.outputs.enabled == 'true'
+        run: |
+          set -euo pipefail
+          umask 077
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          name="renkflow-${stamp}.dump.gpg"
+          mkdir -p backup
+          # Custom format, no owner/ACL statements, so it restores into any Neon branch/role.
+          # The plain dump only exists on this runner's disk and is removed right after encryption.
+          /usr/lib/postgresql/17/bin/pg_dump --dbname="$DATABASE_URL_UNPOOLED" \
+            --format=custom --compress=6 --no-owner --no-acl --file=backup/plain.dump
+          /usr/lib/postgresql/17/bin/pg_restore --list backup/plain.dump > /dev/null
+          gpg --batch --yes --pinentry-mode loopback --passphrase-fd 3 \
+            --symmetric --cipher-algo AES256 --s2k-digest-algo SHA512 --s2k-count 65011712 \
+            --output "backup/${name}" backup/plain.dump 3<<<"$BACKUP_PASSPHRASE"
+          shred -u backup/plain.dump 2>/dev/null || rm -f backup/plain.dump
+          sha256sum "backup/${name}" | sed 's#backup/##' > "backup/${name}.sha256"
+          echo "name=${name}" >> "$GITHUB_OUTPUT"
+          echo "Encrypted dump: ${name} ($(du -h "backup/${name}" | cut -f1))"
+
+      - name: Upload encrypted dump
+        if: steps.check.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.dump.outputs.name }}
+          path: |
+            backup/*.gpg
+            backup/*.sha256
+          retention-days: 14
+          if-no-files-found: error
+          # Already compressed by pg_dump and encrypted; zipping again gains nothing.
+          compression-level: 0

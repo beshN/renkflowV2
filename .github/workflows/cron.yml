@@ -1,0 +1,71 @@
+name: Background queues
+
+# Vercel Hobby runs cron jobs at most once a day, so the notification, inbound and e-invoice queues
+# (minute-level in apps/web/vercel.pro.json) are drained from here instead. Each call hits the same
+# authenticated route Vercel Cron would, with the same `Authorization: Bearer <CRON_SECRET>` header
+# (apps/web/lib/features/manufacturing/cron.ts). The routes only work on the Production deployment.
+# Secrets: CRON_SECRET, APP_URL (see apps/web/docs/operations.md). Without them the job is skipped.
+
+on:
+  schedule:
+    # GitHub may delay scheduled runs by several minutes under load; queues are leased, so a late
+    # or overlapping run is harmless.
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+    inputs:
+      queue:
+        description: "Queue to drain (all = notifications, inbound, e-invoices)"
+        type: choice
+        default: all
+        options: [all, notifications, inbound, e-invoices]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: background-queues
+  cancel-in-progress: false
+
+jobs:
+  drain:
+    runs-on: ubuntu-latest
+    # Worst case: 3 queues x 3 attempts x 290 s. Normally a run takes seconds; a long one only
+    # delays the next scheduled run (concurrency below keeps one waiting, never two in parallel).
+    timeout-minutes: 45
+    steps:
+      - name: Call the cron routes
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.APP_URL }}
+          QUEUE: ${{ inputs.queue || 'all' }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CRON_SECRET:-}" ] || [ -z "${APP_URL:-}" ]; then
+            echo "::notice title=Background queues skipped::Set the CRON_SECRET and APP_URL repository secrets to enable this workflow."
+            exit 0
+          fi
+          base="${APP_URL%/}"
+          if [ "$QUEUE" = "all" ]; then queues="notifications inbound e-invoices"; else queues="$QUEUE"; fi
+          # The header goes through a file so the secret never appears in the process list.
+          umask 077
+          headers="$(mktemp)"
+          printf 'Authorization: Bearer %s\n' "$CRON_SECRET" > "$headers"
+          failed=0
+          for q in $queues; do
+            body="$(mktemp)"
+            # The repository is public, so its logs are too: print only the status, never the body of
+            # a successful run. Error bodies are generic ({"error":"..."}) and safe to show.
+            if code="$(curl --silent --show-error --fail-with-body \
+                  --connect-timeout 10 --max-time 290 \
+                  --retry 2 --retry-delay 15 --retry-connrefused \
+                  -H @"$headers" -o "$body" -w '%{http_code}' \
+                  "$base/api/cron/$q")"; then
+              echo "$q: HTTP $code"
+            else
+              echo "::error title=Cron $q failed::HTTP ${code:-none} $(head -c 300 "$body" | tr -d '\r\n')"
+              failed=1
+            fi
+            rm -f "$body"
+          done
+          rm -f "$headers"
+          exit "$failed"
