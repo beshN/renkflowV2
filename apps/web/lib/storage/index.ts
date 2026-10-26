@@ -1,5 +1,5 @@
 import "server-only";
-import { mkdir, readFile as readLocal, writeFile, unlink } from "node:fs/promises";
+import { mkdir, readFile as readLocal, readdir, stat, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -66,6 +66,40 @@ export async function deleteFile(key: string): Promise<void> {
   assertStorageConfigured();
   const { del } = await import("@vercel/blob");
   await del(key);
+}
+export type StoredFile = {key: string; size: number; uploadedAt: Date};
+/** Lists stored files under a folder prefix (e.g. "backups/"). Used by maintenance jobs, never by tenant requests. */
+export async function listFiles(prefix: string): Promise<StoredFile[]> {
+  if (!prefix.endsWith("/")) throw new Error("Önek '/' ile bitmelidir");
+  validateStorageKey(prefix.slice(0, -1));
+  if (isLocalStorage()) {
+    const root = path.join(process.cwd(), ".data", "files");
+    const out: StoredFile[] = [];
+    const walk = async (dir: string): Promise<void> => {
+      let entries;
+      try {entries = await readdir(dir, {withFileTypes: true});} catch(error) {if ((error as NodeJS.ErrnoException).code === "ENOENT") return; throw error;}
+      for (const entry of entries) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) await walk(full);
+        else if (entry.isFile() && !entry.name.endsWith(".metadata")) {
+          const info = await stat(full);
+          out.push({key: path.relative(root, full).split(path.sep).join("/"), size: info.size, uploadedAt: info.mtime});
+        }
+      }
+    };
+    await walk(localPath(prefix.slice(0, -1)));
+    return out.sort((a, b) => a.key.localeCompare(b.key));
+  }
+  assertStorageConfigured();
+  const { list } = await import("@vercel/blob");
+  const out: StoredFile[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await list({prefix, cursor, limit: 1000});
+    for (const blob of page.blobs) out.push({key: blob.pathname, size: blob.size, uploadedAt: blob.uploadedAt});
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+  return out.sort((a, b) => a.key.localeCompare(b.key));
 }
 export function generateFilePath(orderId: string, fileName: string): string {
   const name = fileName.replace(/[^a-zA-Z0-9.-]/g, "_").slice(-150) || "document";

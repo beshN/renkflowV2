@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { sql } from '@/lib/db';
 import { z } from 'zod';
 import { crossOriginRejection } from '@/lib/features/manufacturing/http-security';
+import { insertSupportTicket } from '@/lib/features/support/tickets.server';
 
 const QuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -175,45 +176,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const row = await sql`
-      INSERT INTO support_tickets (
-        tenant_id,
-        user_id,
-        source,
-        status,
-        priority,
-        name,
-        email,
-        subject,
-        message,
-        page_path,
-        locale,
-        metadata,
-        created_at,
-        updated_at
-      )
-      VALUES (
-        ${actor.tenantId},
-        ${actor.userId},
-        'in_app',
-        'open',
-        ${parsed.data.priority},
-        ${actor.name || 'Tenant Member'},
-        ${actor.email || 'unknown@renkflow.local'},
-        ${parsed.data.subject},
-        ${parsed.data.message},
-        ${parsed.data.pagePath || null},
-        ${parsed.data.locale || null},
-        ${{
-          createdByRole: actor.role,
-        }},
-        NOW(),
-        NOW()
-      )
-      RETURNING *
-    `;
+    const row = await insertSupportTicket(sql, actor, parsed.data);
 
-    return NextResponse.json({ success: true, data: row[0] }, { status: 201 });
+    return NextResponse.json({ success: true, data: row }, { status: 201 });
   } catch (error) {
     const mapped = actorErrorToResponse(error);
     if (mapped) return mapped;

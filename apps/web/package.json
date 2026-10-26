@@ -47,6 +47,7 @@
     "postinstall": "node scripts/patch-dependencies.cjs",
     "db:deploy": "tsx scripts/deploy-database.ts",
     "db:status": "tsx scripts/db-status.ts",
+    "db:restore-backup": "tsx scripts/restore-backup.ts",
     "vercel:env:sync": "tsx scripts/sync-vercel-env.ts",
     "test:warehouse": "tsx --require ./scripts/register-server-only.cjs scripts/test-warehouse.ts",
     "test:count-import": "tsx --require ./scripts/register-server-only.cjs scripts/test-count-import.ts",
@@ -118,7 +119,7 @@
     "jsbarcode": "^3.12.3",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.563.0",
-    "next": "^16.3.8",
+    "next": "^16.4.3",
     "next-auth": "^5.0.0-beta.32",
     "next-themes": "^0.4.6",
     "openai": "^7.27.0",
@@ -151,12 +152,12 @@
     "vaul": "^1.1.2",
     "web-push": "^3.6.7",
     "xml2js": "^0.6.2",
-    "zod": "^4.3.6",
+    "zod": "^4.6.6",
     "zustand": "^5.0.10"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
-    "@next/bundle-analyzer": "^15.5.11",
+    "@next/bundle-analyzer": "^16.4.3",
     "@playwright/test": "^1.58.1",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
@@ -177,7 +178,7 @@
     "drizzle-kit": "^0.31.8",
     "embedded-postgres": "^18.4.0-beta.17",
     "eslint": "^9.39.2",
-    "eslint-config-next": "^16.3.8",
+    "eslint-config-next": "^16.4.3",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
     "postcss": "^8.5.28",
@@ -188,7 +189,8 @@
   "overrides": {
     "@isaacs/brace-expansion": "^5.0.1",
     "esbuild": "^0.27.2",
-    "fast-xml-parser": "^5.3.4"
+    "fast-xml-parser": "^5.3.4",
+    "zod": "$zod"
   },
   "engines": {
     "node": "22.x"

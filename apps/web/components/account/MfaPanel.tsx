@@ -4,9 +4,13 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { KeyRound, ShieldCheck } from 'lucide-react';
 import { HintTip, Skeleton, StatusChip } from '@/components/kit';
 import { requestJson } from '@/lib/shared/network';
+import { MFA_CHANGED_EVENT } from '@/lib/features/auth/mfa-policy';
 
 type MfaState = { available: boolean; enabled: boolean; recoveryCodesLeft: number };
 type Setup = { secret: string; qrDataUrl: string };
+
+/** Lets the workspace gate re-check the firm's two-step sign-in rule right after a change. */
+const notifyMfaChanged = () => window.dispatchEvent(new Event(MFA_CHANGED_EVENT));
 
 const post = <T,>(body: Record<string, string>) =>
   requestJson<T>('/api/v1/me/mfa', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -37,8 +41,8 @@ export function MfaPanel() {
   }
 
   const start = () => run({ action: 'start' }, (data: Setup) => setSetup(data));
-  const confirm = (e: FormEvent) => { e.preventDefault(); void run({ action: 'confirm', code }, (data: { recoveryCodes: string[] }) => { setSetup(null); setRecoveryCodes(data.recoveryCodes); void load(); }); };
-  const disable = (e: FormEvent) => { e.preventDefault(); void run({ action: 'disable', code }, () => { setRecoveryCodes(null); void load(); }); };
+  const confirm = (e: FormEvent) => { e.preventDefault(); void run({ action: 'confirm', code }, (data: { recoveryCodes: string[] }) => { setSetup(null); setRecoveryCodes(data.recoveryCodes); void load(); notifyMfaChanged(); }); };
+  const disable = (e: FormEvent) => { e.preventDefault(); void run({ action: 'disable', code }, () => { setRecoveryCodes(null); void load(); notifyMfaChanged(); }); };
 
   return (
     <section className="rf-panel space-y-3 p-4" aria-labelledby="mfa-title">

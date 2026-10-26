@@ -5,6 +5,8 @@ import { withTransaction } from '@/lib/db';
 import { columnExists } from '@/lib/db/schema-guard';
 import { consumeRateLimit, getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
 import { passwordProblem } from '@/lib/security/access-matrix';
+import { hasLegalConsent, LEGAL_CONSENT_REQUIRED_MESSAGE } from '@/lib/features/auth/legal-consent';
+import { recordLegalConsent } from '@/lib/features/auth/legal-consent.server';
 
 // Sanitize name input
 function sanitizeName(name: string): string {
@@ -46,6 +48,9 @@ export async function POST(request: Request) {
         { error: 'Geçersiz istek' },
         { status: 400 }
       );
+    }
+    if (!hasLegalConsent(body)) {
+      return NextResponse.json({ error: LEGAL_CONSENT_REQUIRED_MESSAGE, field: 'acceptLegal', code: 'consent_required' }, { status: 400 });
     }
 
     const result = await withTransaction(async (tx) => {
@@ -109,6 +114,7 @@ export async function POST(request: Request) {
       if (!userId) {
         throw new Error('Could not resolve invited user');
       }
+      await recordLegalConsent(tx, { userId, ip: getClientIp(request.headers) });
 
       if (tracked) {
         await tx`

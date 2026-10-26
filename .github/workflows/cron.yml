@@ -1,10 +1,15 @@
 name: Background queues
 
 # Vercel Hobby runs cron jobs at most once a day, so the notification, inbound and e-invoice queues
-# (minute-level in apps/web/vercel.pro.json) are drained from here instead. Each call hits the same
-# authenticated route Vercel Cron would, with the same `Authorization: Bearer <CRON_SECRET>` header
-# (apps/web/lib/features/manufacturing/cron.ts). The routes only work on the Production deployment.
-# Secrets: CRON_SECRET, APP_URL (see apps/web/docs/operations.md). Without them the job is skipped.
+# (minute-level in apps/web/vercel.pro.json) are drained from here instead. The routes only work on
+# the Production deployment.
+#
+# No repository secret is needed: each call carries a GitHub Actions OIDC token (audience
+# `renkflow-cron`) that apps/web/lib/security/github-oidc.ts accepts only for this workflow file on
+# main of beshN/renkflowV2, triggered by schedule or workflow_dispatch. If a CRON_SECRET repository
+# secret exists it is sent instead (the same `Bearer <CRON_SECRET>` header Vercel Cron uses).
+# Optional repository variable (not secret) APP_URL overrides the default https://renkflow.com.
+# See apps/web/docs/operations.md.
 
 on:
   schedule:
@@ -29,6 +34,9 @@ concurrency:
 jobs:
   drain:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # lets the job request the OIDC token the cron routes verify
     # Worst case: 3 queues x 3 attempts x 290 s. Normally a run takes seconds; a long one only
     # delays the next scheduled run (concurrency below keeps one waiting, never two in parallel).
     timeout-minutes: 45
@@ -36,22 +44,43 @@ jobs:
       - name: Call the cron routes
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          APP_URL: ${{ secrets.APP_URL }}
+          APP_URL: ${{ vars.APP_URL || 'https://renkflow.com' }}
           QUEUE: ${{ inputs.queue || 'all' }}
+          OIDC_AUDIENCE: renkflow-cron
         run: |
           set -euo pipefail
-          if [ -z "${CRON_SECRET:-}" ] || [ -z "${APP_URL:-}" ]; then
-            echo "::notice title=Background queues skipped::Set the CRON_SECRET and APP_URL repository secrets to enable this workflow."
-            exit 0
-          fi
           base="${APP_URL%/}"
           if [ "$QUEUE" = "all" ]; then queues="notifications inbound e-invoices"; else queues="$QUEUE"; fi
-          # The header goes through a file so the secret never appears in the process list.
+          # Credentials go through files so they never appear in the process list or the log.
           umask 077
           headers="$(mktemp)"
-          printf 'Authorization: Bearer %s\n' "$CRON_SECRET" > "$headers"
+          request_headers="$(mktemp)"
+          trap 'rm -f "$headers" "$request_headers"' EXIT
+          write_auth_header() {
+            if [ -n "${CRON_SECRET:-}" ]; then
+              printf 'Authorization: Bearer %s\n' "$CRON_SECRET" > "$headers"
+              return
+            fi
+            if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then
+              echo "::error title=No OIDC token::The job needs 'permissions: id-token: write'."
+              return 1
+            fi
+            printf 'Authorization: Bearer %s\n' "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" > "$request_headers"
+            # GitHub OIDC tokens are short-lived, so a fresh one is requested for every queue.
+            local token
+            token="$(curl --silent --show-error --fail --connect-timeout 10 --max-time 30 \
+                  --retry 2 --retry-delay 5 -H @"$request_headers" \
+                  "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}" | jq -r '.value // empty')"
+            if [ -z "$token" ]; then
+              echo "::error title=No OIDC token::Requesting the GitHub OIDC token failed."
+              return 1
+            fi
+            echo "::add-mask::$token"
+            printf 'Authorization: Bearer %s\n' "$token" > "$headers"
+          }
           failed=0
           for q in $queues; do
+            if ! write_auth_header; then failed=1; continue; fi
             body="$(mktemp)"
             # The repository is public, so its logs are too: print only the status, never the body of
             # a successful run. Error bodies are generic ({"error":"..."}) and safe to show.
@@ -66,6 +95,6 @@ jobs:
               failed=1
             fi
             rm -f "$body"
+            : > "$headers"
           done
-          rm -f "$headers"
           exit "$failed"

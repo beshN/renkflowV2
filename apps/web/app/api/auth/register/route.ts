@@ -7,6 +7,8 @@ import { consumeRateLimit, getClientIp, rateLimitResponse } from '@/lib/security
 import { sql, withTransaction } from '@/lib/db';
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_BY_KEY, TemplateKey } from '@/lib/config/templates';
 import { resolveServerBaseUrl } from '@/lib/shared/config/runtime-env';
+import { hasLegalConsent, LEGAL_CONSENT_REQUIRED_MESSAGE } from '@/lib/features/auth/legal-consent';
+import { recordLegalConsent } from '@/lib/features/auth/legal-consent.server';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -143,6 +145,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!hasLegalConsent(body)) {
+      return NextResponse.json(
+        { error: LEGAL_CONSENT_REQUIRED_MESSAGE, field: 'acceptLegal', code: 'consent_required' },
+        { status: 400 }
+      );
+    }
+
     // Check if user already exists
     const existingUsers = await sql`
       SELECT id FROM users WHERE email = ${email} LIMIT 1
@@ -182,6 +191,7 @@ export async function POST(request: NextRequest) {
         throw new Error('User creation failed');
       }
       const createdUserId = usersRows[0].id as string;
+      await recordLegalConsent(tx, { userId: createdUserId, ip: getClientIp(request.headers) });
 
       const tenants = await tx`
         INSERT INTO tenants (name, slug, industry, template_key, created_at, updated_at)

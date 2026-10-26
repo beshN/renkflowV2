@@ -8,12 +8,14 @@ import { StationSettings } from '@/components/features/stations/StationSettings'
 import { TenantSettings } from '@/components/settings/TenantSettings';
 import { LegalIdentitySettings } from '@/components/settings/LegalIdentitySettings';
 import { PrivacyRequests } from '@/components/settings/PrivacyRequests';
+import { MfaPolicySettings } from '@/components/settings/MfaPolicySettings';
 import { ProductionSettings } from '@/components/settings/ProductionSettings';
 import { ColorCatalogSettings } from '@/components/settings/ColorCatalogSettings';
 import { RecordSettings } from '@/components/settings/RecordSettings';
 import { QuoteRulesSettings } from '@/components/settings/QuoteRulesSettings';
 import { ProductionReasonSettings } from '@/components/settings/ProductionReasonSettings';
 import { AssistantPerformance, AssistantSettings } from '@/components/settings/AssistantSettings';
+import { PlanUsageSettings } from '@/components/settings/PlanUsageSettings';
 import { useAuth } from '@/lib/context/AuthContext';
 import { cn } from '@/lib/utils';
 
@@ -21,11 +23,13 @@ const TABS = [
   { id: 'firma', label: 'Firma' },
   { id: 'fatura', label: 'Fatura' },
   { id: 'kvkk', label: 'KVKK' },
+  { id: 'guvenlik', label: 'Güvenlik' },
   { id: 'uretim', label: 'Üretim ve renkler' },
   { id: 'teklif', label: 'Teklif' },
   { id: 'asistan', label: 'Asistan' },
   { id: 'personel', label: 'Çalışanlar' },
   { id: 'tabletler', label: 'İstasyon tabletleri' },
+  { id: 'plan', label: 'Plan ve kullanım' },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
@@ -56,10 +60,12 @@ export default function SettingsPage() {
           {tab === 'firma' && <>{panel(<TenantSettings />)}{panel(<CompanyAddressSettings />)}</>}
           {tab === 'fatura' && panel(<LegalIdentitySettings />)}
           {tab === 'kvkk' && panel(<PrivacyRequests />)}
+          {tab === 'guvenlik' && panel(<MfaPolicySettings />)}
           {tab === 'uretim' && <>{panel(<ProductionSettings />)}{panel(<ColorCatalogSettings />)}{panel(<ProductionReasonSettings />)}</>}
           {tab === 'teklif' && <>{panel(<QuoteRulesSettings />)}{panel(<RecordSettings />)}</>}
           {tab === 'tabletler' && panel(<StationSettings />)}
           {tab === 'personel' && panel(<AttendancePolicySettings />)}
+          {tab === 'plan' && panel(<PlanUsageSettings />)}
       {tab === 'asistan' && <>
             <div id="asistan" className="rf-panel p-5 md:p-6"><AssistantSettings /></div>
             <details className="rf-panel p-5 md:p-6"><summary className="cursor-pointer text-sm font-semibold">Asistan performansı</summary><div className="mt-4"><AssistantPerformance /></div></details>

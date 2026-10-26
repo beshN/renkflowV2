@@ -188,7 +188,7 @@ async function main() {
   const audit = (await db`SELECT DISTINCT action FROM activity_logs WHERE tenant_id = ${tenantId} AND entity_type = 'ai_suggestion'`).map((x) => x.action);
   for (const want of ['created', 'edited', 'snoozed', 'rejected', 'approved', 'expired']) assert.ok(audit.includes(want), `audit has ${want}`);
 
-  await db`DELETE FROM ai_detector_probe WHERE tenant_id = ${tenantId}`;
+  await db.unsafe('DROP TABLE IF EXISTS ai_detector_probe');
   for (const t of ['production_scrap_events', 'work_order_materials', 'work_orders', 'invoices', 'warehouse_locations', 'warehouses', 'inventory_items'])
     await db`DELETE FROM ${db(t)} WHERE tenant_id = ${tenantId}`;
   await db`DELETE FROM tenants WHERE id = ${tenantId}`;

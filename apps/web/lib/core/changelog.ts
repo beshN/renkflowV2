@@ -18,6 +18,31 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '2026.10.26.2',
+    date: '2026-10-26',
+    title: 'Plan ve kullanım, veri dışa aktarma ve iki adımlı doğrulama zorunluluğu',
+    changes: [
+      {
+        kind: 'Yeni',
+        items: [
+          'Ayarlarda “Plan ve kullanım”: aktif üye, bu ayki sipariş, yapay zekâ harcaması ve dosya kullanımı tek ekranda.',
+          'Firma sahibi tüm firma verisini tek ZIP olarak indirebilir (KVKK veri taşınabilirliği).',
+          'Hesap kapatma talebi: hiçbir şey kendiliğinden silinmez, talep destek ekibine iletilir ve süreç adım adım anlatılır.',
+          'Firma sahibi, sahip ve yöneticiler için iki adımlı doğrulamayı zorunlu yapabilir.',
+          'Kayıt ve davet kabulünde kullanım koşulları ile aydınlatma metninin onayı kayda geçer.',
+        ],
+      },
+      {
+        kind: 'İyileştirme',
+        items: [
+          'Veritabanının günlük yedeği artık özel depolama alanına alınıyor; 14 gün saklanıyor.',
+          'Bildirim, gelen mesaj ve e-fatura kuyrukları 10 dakikada bir, gizli anahtar gerektirmeden çalışıyor.',
+          'Güvenlik güncellemeleri uygulandı.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2026.10.26',
     date: '2026-10-26',
     title: 'Kurulum listesi, yasal metinler ve daha güvenli hesaplar',
