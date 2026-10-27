@@ -18,6 +18,23 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '2026.10.27',
+    date: '2026-10-27',
+    title: 'Atölyede küçük sürprizler',
+    summary: 'İşinize dokunmayan, bulana keyif veren birkaç yenilik. Hangisini nerede bulacağınızı söylemiyoruz.',
+    changes: [
+      {
+        kind: 'Yeni',
+        items: [
+          'Ofisteki yarış oyunu baştan yapıldı: virajlar, yokuşlar, gece ve gün batımı, trafik, kahve ve nitro.',
+          'Rekor kırdığınızda ofisteki ekip fark ediyor.',
+          'Siparişlerinizde dönüm noktalarına ulaştığınızda küçük bir kutlama.',
+          'Atölyenin boş köşelerinde, hata ekranlarında ve kesim planlarında oynanacak birkaç şey.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2026.10.26.2',
     date: '2026-10-26',
     title: 'Plan ve kullanım, veri dışa aktarma ve iki adımlı doğrulama zorunluluğu',
