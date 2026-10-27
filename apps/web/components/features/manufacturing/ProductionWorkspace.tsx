@@ -1,6 +1,7 @@
 "use client";
 import { ProductionInsights } from '@/components/production/ProductionInsights';
 import { CutPlanVersions } from '@/components/production/CutPlanVersions';
+import { ScrapHuntButton } from '@/components/spells/ScrapHuntButton';
 import { prepareFileUpload } from "@/lib/storage/client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -527,7 +528,10 @@ export default function ProductionWorkspace() {
       {tab === "cutting" && (
         <>
           <section className="rf-panel">
-            <h2 className="rf-section-title mb-4">Ortak kesim havuzu</h2>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <h2 className="rf-section-title">Ortak kesim havuzu</h2>
+              {!data.plans.length && <ScrapHuntButton parameters={data.cutting?.parameters} />}
+            </div>
             <p className="mb-4 text-xs text-muted-foreground">
               Aynı profil ve renkteki parçalar, eldeki çubuk ve artıklar da kullanılarak en az fireyle birlikte kesilir.
             </p>
@@ -646,6 +650,7 @@ export default function ProductionWorkspace() {
                 tıraş {p.parameters.trimStartMm}/{p.parameters.trimEndMm} mm ·
                 en kısa artık {p.parameters.minimumRemnantMm} mm
                 {p.result.alternatives && <> · {p.result.alternatives.length} yerleşim karşılaştırıldı</>}
+                {" "}<ScrapHuntButton className="align-baseline" parameters={p.parameters} lengths={p.result.bars.flatMap((b: any) => b.pieces.map((x: any) => Number(x.lengthMm)))} />
               </p>
               {p.result.unfulfilled.length > 0 && (
                 <div className="text-xs text-destructive">
