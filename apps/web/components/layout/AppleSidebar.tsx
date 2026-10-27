@@ -49,6 +49,7 @@ import { useMemberAccess } from '@/lib/hooks/useMemberAccess';
 import { activeNavHref, getVisibleNavGroups } from '@/lib/core/dashboard-nav';
 import { NavigationGroup } from './NavigationGroup';
 import { BrandMark } from '@/components/brand/BrandMark';
+import { BrushLogo } from '@/components/spells/BrushLogo';
 
 const NAV_ICONS: Record<string, LucideIcon> = {
   knowledge: BookOpen,
@@ -180,7 +181,7 @@ export function AppleSidebar({
         ))}
       </div>
       <div className="sb-line flex h-[60px] shrink-0 items-center justify-between gap-3 border-b px-5">
-        <BrandMark href="/dashboard" compact={!expanded} />
+        <BrushLogo><BrandMark href="/dashboard" compact={!expanded} /></BrushLogo>
         {expanded && (
           <button
             type="button"

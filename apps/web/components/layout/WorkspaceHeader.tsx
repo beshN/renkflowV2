@@ -19,6 +19,8 @@ import { useWorkspaceCommands } from './WorkspaceCommands';
 import { cn } from '@/lib/utils';
 import { NavigationGroup } from './NavigationGroup';
 import { BrandMark } from '@/components/brand/BrandMark';
+import { BrushLogo } from '@/components/spells/BrushLogo';
+import { TeaBreak } from '@/components/spells/TeaBreak';
 
 /** Screens reached without a menu item still need their own breadcrumb. */
 const OFF_MENU_SECTIONS: Record<string, string> = { '/search': 'Arama', '/new-order': 'Yeni sipariş', '/notifications': 'Bildirimler' };
@@ -72,7 +74,7 @@ export function WorkspaceHeader() {
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[70] bg-slate-950/50 md:hidden" />
         <Dialog.Content className="fixed bottom-0 left-0 top-0 z-[71] flex w-[min(320px,85vw)] flex-col rf-sidebar p-5 outline-none md:hidden">
-          <div className="mb-6 flex items-center justify-between"><Dialog.Title asChild><span><BrandMark href="/dashboard" /></span></Dialog.Title><Dialog.Close aria-label="Ana menüyü kapat" className="rf-icon-button"><X size={20} /></Dialog.Close></div>
+          <div className="mb-6 flex items-center justify-between"><Dialog.Title asChild><span><BrushLogo><BrandMark href="/dashboard" /></BrushLogo></span></Dialog.Title><Dialog.Close aria-label="Ana menüyü kapat" className="rf-icon-button"><X size={20} /></Dialog.Close></div>
           <Dialog.Description className="sr-only">Çalışma alanı modülleri</Dialog.Description>
           <nav className="flex-1 space-y-5 overflow-y-auto" aria-label="Mobil modüller">
             {navGroups.map(group => <NavigationGroup key={group.id} label={group.label}
@@ -97,6 +99,7 @@ export function WorkspaceHeader() {
       </button>
       {user && hasPermission(user.role, 'orders.create') && <Link href="/new-order" className="rf-primary-button !hidden h-8 items-center gap-1.5 px-3 text-xs sm:!inline-flex"><Plus size={15} /> Yeni sipariş</Link>}
       <div className="hidden h-6 w-px bg-border sm:block" />
+      <TeaBreak />
       <button type="button" aria-label="Temayı değiştir" className="rf-icon-button" onClick={(event) => switchThemeWithReveal(isDark ? 'light' : 'dark', setTheme, event.currentTarget)}>
         {isDark ? <Sun size={17} /> : <Moon size={17} />}
       </button>
