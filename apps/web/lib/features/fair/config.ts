@@ -4,7 +4,8 @@
  * FAIR_TENANT_ID   the firm whose designs and quote requests these are; unset = the module is off (404).
  * FAIR_HOSTS       comma-separated domains that serve only the configurator (configurator.renkaluminyum.com).
  * FAIR_PUBLIC_URL  the configurator's public address, used in e-mailed design links
- *                  (https://configurator.renkaluminyum.com); unset = NEXT_PUBLIC_APP_URL + /configurator.
+ *                  (https://configurator.renkaluminyum.com); unset = NEXT_PUBLIC_APP_URL (on a Vercel
+ *                  preview its branch alias) + /configurator.
  * FAIR_EMAIL_FROM  sender of the customer confirmation (a domain verified in Resend).
  */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -50,5 +51,8 @@ export function configuratorRewrite(pathname: string): string | null {
 export function configuratorBaseUrl(): string {
   const configured = process.env.FAIR_PUBLIC_URL?.trim().replace(/\/$/, '');
   if (configured) return configured;
-  return `${(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')}${CONFIGURATOR_PATH}`;
+  // A preview has no app URL of its own; its branch alias stays the same across deployments.
+  const branch = process.env.VERCEL_ENV === 'preview' ? process.env.VERCEL_BRANCH_URL?.trim() : '';
+  const origin = branch ? `https://${branch}` : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  return `${origin.replace(/\/$/, '')}${CONFIGURATOR_PATH}`;
 }

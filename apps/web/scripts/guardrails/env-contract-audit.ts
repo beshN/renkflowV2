@@ -93,7 +93,7 @@ function main() {
   printList('Defined in .env.example but not referenced in code', exampleButUnusedInCode);
 
   // Framework/CI keys are injected by the platform rather than copied into env files.
-  const automatic = new Set(['VERCEL', 'VERCEL_ENV', 'VERCEL_URL', 'VERCEL_OIDC_TOKEN', 'VERCEL_GIT_COMMIT_SHA', 'GITHUB_SHA', 'COMMIT_SHA', 'NEXT_BUILD_ID', 'NEXT_PHASE', 'NODE_ENV', 'PORT', 'HOSTNAME', 'NEXT_RUNTIME']);
+  const automatic = new Set(['VERCEL', 'VERCEL_ENV', 'VERCEL_URL', 'VERCEL_BRANCH_URL','VERCEL_OIDC_TOKEN', 'VERCEL_GIT_COMMIT_SHA', 'GITHUB_SHA', 'COMMIT_SHA', 'NEXT_BUILD_ID', 'NEXT_PHASE', 'NODE_ENV', 'PORT', 'HOSTNAME', 'NEXT_RUNTIME']);
   const missing = usedButMissingFromExample.filter(key => !automatic.has(key));
   printList('Application keys missing from .env.example', missing);
   if (missing.length) process.exitCode = 1;

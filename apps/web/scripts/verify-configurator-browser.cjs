@@ -5,18 +5,18 @@
 // Needs: a fair with code rt2027 (default locale en, campaign "Visit us in Hall 6, Stand A21."), a member
 // with crm rights, FAIR_HOSTS containing the kiosk host. Service workers need a secure origin: use https
 // or a *.localhost host.
-//   CONFIGURATOR_URL=http://configurator.localhost:4318 APP_URL=http://localhost:4318 \
-//   DATABASE_URL=postgres://… ADMIN_EMAIL=… ADMIN_PASSWORD=… node scripts/verify-configurator-browser.cjs
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+//   CONFIGURATOR_VERIFY_URL=http://configurator.localhost:4318 APP_URL=http://localhost:4318 \
+//   DATABASE_URL=postgres://… CONFIGURATOR_VERIFY_EMAIL=… CONFIGURATOR_VERIFY_PASSWORD=… node scripts/verify-configurator-browser.cjs
+const { chromium } = require(process.env.CONFIGURATOR_VERIFY_PLAYWRIGHT || 'playwright');
 const sharp = require('sharp');
 const postgres = require('postgres');
 const { QRCodeReader, BinaryBitmap, HybridBinarizer, RGBLuminanceSource } = require('@zxing/library');
 const assert = require('node:assert/strict');
 
-const BASE = (process.env.CONFIGURATOR_URL || 'http://configurator.localhost:4318').replace(/\/$/, '');
+const BASE = (process.env.CONFIGURATOR_VERIFY_URL || 'http://configurator.localhost:4318').replace(/\/$/, '');
 const KIOSK = `${BASE}/fair/rt2027`;
 const ADMIN = (process.env.APP_URL || 'http://localhost:4318').replace(/\/$/, '');
-const SHOTS = (process.env.SHOTS_DIR || require('node:os').tmpdir()) + '/configurator-';
+const SHOTS = (process.env.CONFIGURATOR_VERIFY_SHOTS_DIR || require('node:os').tmpdir()) + '/configurator-';
 const sql = postgres(process.env.DATABASE_URL || 'postgres://postgres:renkflow-local-only@127.0.0.1:55432/renkflow_dev', { onnotice: () => {} });
 const step = (m) => console.log('✓', m);
 
@@ -155,8 +155,8 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   const admin = await adminCtx.newPage();
   watch(admin, 'admin');
   await admin.goto(ADMIN + '/auth/login', { waitUntil: 'networkidle' });
-  await admin.locator('input[name=email]').fill(process.env.ADMIN_EMAIL || 'satis@example.com');
-  await admin.locator('input[name=password]').fill(process.env.ADMIN_PASSWORD || '');
+  await admin.locator('input[name=email]').fill(process.env.CONFIGURATOR_VERIFY_EMAIL || 'satis@example.com');
+  await admin.locator('input[name=password]').fill(process.env.CONFIGURATOR_VERIFY_PASSWORD || '');
   await admin.locator('button[type=submit]').click();
   await admin.waitForURL(/dashboard|leads|onboarding/, { timeout: 60000 });
   await admin.goto(ADMIN + '/leads/fuar', { waitUntil: 'networkidle' });
