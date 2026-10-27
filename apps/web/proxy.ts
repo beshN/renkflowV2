@@ -8,7 +8,7 @@ import { evaluateRouteAccess } from '@/lib/features/auth/route-access';
 import { accessDecision, logAccessDenied, narrowedHiddenFields } from '@/lib/security/member-access.server';
 import { HIDDEN_FIELDS_HEADER } from '@/lib/security/field-header';
 import { SECURITY_HEADERS } from '@/lib/security/security-headers';
-import { FAIR_PAGE, fairTenantId, isFairHost, isFairPath } from '@/lib/features/fair/config';
+import { configuratorRewrite, fairTenantId, isFairHost, isFairPath } from '@/lib/features/fair/config';
 
 const AUTH_SECRET =
   resolveAuthSecret({
@@ -162,15 +162,17 @@ function withProxySecurityHeaders(
   return response;
 }
 
+/** A configurator domain: /, /fair/<code> and /c/<token> map to the configurator; nothing else is served. */
 function fairSite(request: NextRequest, pathname: string, isSecureRequest: boolean) {
+  const target = configuratorRewrite(pathname);
+  const url = request.nextUrl.clone();
+  if (target) {
+    url.pathname = target;
+    return withProxySecurityHeaders(NextResponse.rewrite(url), { isSecureRequest });
+  }
   if (isFairPath(pathname)) return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
   if (pathname.startsWith('/api/')) return withProxySecurityHeaders(NextResponse.json({ error: 'Not Found' }, { status: 404 }), { isSecureRequest });
   if (isStaticAsset(pathname)) return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
-  const url = request.nextUrl.clone();
-  if (pathname === '/') {
-    url.pathname = FAIR_PAGE;
-    return withProxySecurityHeaders(NextResponse.rewrite(url), { isSecureRequest });
-  }
   url.pathname = '/';
   url.search = '';
   return withProxySecurityHeaders(NextResponse.redirect(url, 302), { isSecureRequest });
@@ -201,8 +203,8 @@ export async function proxy(request: NextRequest) {
     return withProxySecurityHeaders(NextResponse.redirect(httpsUrl, 301), { isSecureRequest: false });
   }
 
-  // The fair site (QR → 3D configurator → contact) is public and needs no session. A fair domain
-  // serves nothing else: no sign-in, no workspace, no other API.
+  // The product configurator (kiosk, phone, web) is public and needs no session. A configurator
+  // domain serves nothing else: no sign-in, no workspace, no other API.
   const requestHost = request.headers.get('host') || request.nextUrl.host;
   if (isFairHost(requestHost)) return fairSite(request, pathname, isSecureRequest);
   if (fairTenantId() && isFairPath(pathname)) return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });

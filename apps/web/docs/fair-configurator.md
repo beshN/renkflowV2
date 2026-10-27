@@ -1,30 +1,68 @@
-# Fuar konfigüratörü
+# Ürün konfigüratörü (fuar kiosku · telefon · web)
 
-Fuar ziyaretçisi QR kodu okutur → ürünü seçer → ölçü ve rengi 3D olarak ayarlar (Renkflow'daki `ProductConfigurator`) → iletişim bilgisini ve KVKK onayını bırakır. Her gönderim:
+Hedef adres: `https://configurator.renkaluminyum.com` · Fuar kiosku: `https://configurator.renkaluminyum.com/fair/<kod>` (ör. `/fair/rt2027`).
 
-- kaynağı **Fuar** olan bir potansiyel müşteri (`leads`, `POT-…`) açar; sorumlusu boştur,
-- seçilen ürünleri, önizleme görsellerini ve onay kaydını `fair_requests` tablosuna yazar (migration `079_fair_requests.sql`).
+Konfigüratör RenkFlow'un içinde çalışır ve aynı veritabanını kullanır. Ayrı alan adında yalnızca konfigüratör sunulur; giriş, panel ve diğer API'ler bu alan adından erişilemez.
 
-Satış ekibi talepleri **Potansiyel müşteriler → Fuar talepleri** (`/leads/fuar`) ekranında görür, 3D görünümü inceler ve fiyatı ilgili kayıttan teklife geçerek verir. Aynı ekranda stand için QR kodu PNG olarak indirilebilir.
+## Modlar ve akış
+
+| Mod | Adres | Ne yapar |
+| --- | --- | --- |
+| Kiosk | `/fair/<kod>` | Dokunmatik büyük ekran. Karşılama → ürün → 3D yapılandırma → liste → "Telefonumda devam et" → QR. Kişisel bilgi istenmez. Hareketsizlikte sıfırlanır. |
+| Telefon | `/c/<token>` | QR veya e-postadaki bağlantı. Tasarım yüklenir; "Fiyat teklifi al" ve "Düzenlemeye devam et" seçenekleri. |
+| Web | `/` | Fuar dışı ziyaretçi. İlk ürün eklenince tasarım kalıcı bir `/c/<token>` bağlantısına kaydedilir. |
+
+Üç mod aynı ürün listesini (`lib/features/fair/products.ts`), aynı tasarım modelini (`lib/features/fair/design.ts`) ve RenkFlow'daki aynı 3D bileşenleri (`ProductConfigurator`, `AwningConfigurator`) kullanır. Diller: İngilizce, Almanca, Türkçe (`lib/features/fair/i18n.ts`).
+
+## Veri
+
+Migration `079_product_configurator.sql`:
+
+- `fairs`: fuar adı, kodu, tarihleri, varsayılan dili, aktif/pasif durumu, kampanya metni, kaynak bilgisi. Fuarlar koddan değil panelden yönetilir.
+- `fair_designs`: kalıcı tasarım bağlantıları. 128 bit rastgele token, kişisel veri yok. Fuar kiosktan geldiyse fuar bilgisi otomatik eklenir.
+- `fair_quotes`: teklif talepleri (`TT-YYYY-000001`). Müşteri bilgisi, tasarımın gönderildiği andaki kopyası, durum (Yeni → İnceleniyor → Teklif hazırlandı → Gönderildi → Kabul edildi / Reddedildi), KVKK onay sürümü, pazarlama izni (varsayılan kapalı), e-posta gönderim sonucu.
+
+Her teklif talebi RenkFlow'da kaynağı **Fuar** ya da **Web** olan bir potansiyel müşteri kaydı da açar (`renkflow-lead.server.ts`). Konfigüratör RenkFlow'un içinde olduğu için bu bir API çağrısı değil, aynı veritabanında aynı işlemde yapılan bir kayıttır. Başka bir sisteme aktarım gerekirse aynı imzayla yeni bir fonksiyon eklenir.
+
+## Satış ekibi
+
+RenkFlow → Potansiyel müşteriler → **Konfigüratör talepleri** (`/leads/fuar`), `crm` yetkisiyle:
+
+- Teklif talepleri: numara, müşteri, firma, iletişim, fuar kaynağı, ürünler, ölçüler, renkler, motor/LED ve diğer özellikler, tarih, durum, e-posta sonucu, 3D inceleme, tasarım bağlantısı, potansiyel müşteri kaydı. Duruma ve fuara göre filtre.
+- Fuarlar: oluşturma/düzenleme, aktif/pasif, her fuarın getirdiği tasarım ve teklif sayısı, kiosk adresi ve QR'ı.
+
+## Çevrimdışı çalışma
+
+Kiosk sayfası bir service worker (`public/configurator-sw.js`) kaydeder. İlk açılışta uygulama kodu, sayfa ve tüm 3D modülleri cihazda önbelleğe alınır. İnternet yokken ürün seçimi, 3D modeller, animasyonlar, ölçü/renk değişikliği, tasarım oluşturma, QR üretimi ve ekran sıfırlama çalışır. Kiosk ekranı **en az bir kez internetle açılmış olmalıdır.**
+
+Kioskta oluşturulan tasarımlar önce IndexedDB'deki kuyruğa yazılır. Ekranı sıfırlamak, sayfayı yenilemek veya elektrik kesintisi kuyruğu silmez; bağlantı gelince kuyruk sunucuya gönderilir. Gönderim tekrarlansa da kayıt çoğalmaz (token bazlı, ilk gelen kaydeder).
+
+**QR kod internetsiz senaryoda:** Tasarımın kendisi QR'daki bağlantının `#d=` kısmına sıkıştırılmış olarak gömülür. Bu kısım tarayıcıdan sunucuya hiç gönderilmez. Böylece kiosk henüz eşitlememiş olsa bile telefon tasarımı QR'dan okuyup açar ve sunucuya kendisi kaydeder. Fuar bilgisi de bu kayda eklenir. Bunun için **telefonun kendi internet bağlantısı (mobil veri) gerekir.** Telefon da internetsizse sayfa açılmaz; bu durum desteklenmez. Önizleme görselleri QR'a sığmadığı için telefon 3D görünümü kendisi oluşturur.
+
+Service worker yalnızca HTTPS'te (veya `localhost`'ta) çalışır.
 
 ## Kurulum
 
-1. Veritabanı: `npm run db:deploy` (079 migration'ı uygulanır).
-2. Ortam değişkenleri (Vercel → Project → Environment Variables):
-   - `FAIR_TENANT_ID`: taleplerin düşeceği firmanın `tenants.id` değeri. Boşsa fuar sitesi kapalıdır (404).
-   - `FAIR_HOSTS`: yalnızca fuar sitesini sunan alan adları, virgülle (ör. `fuar.renkaluminyum.com`).
-   - `FAIR_EVENT_NAME` (isteğe bağlı): her talebe yazılan etkinlik adı (ör. `Yapı Fuarı 2026`).
-3. Alan adı: Vercel projesine `FAIR_HOSTS` içindeki alan adını ekleyin, DNS'te CNAME kaydını Vercel'e yönlendirin.
+1. Veritabanı: `npm run db:deploy` (079 uygulanır).
+2. Vercel ortam değişkenleri:
+   - `FAIR_TENANT_ID`: Renk Alüminyum'un `tenants.id` değeri. Boşsa konfigüratör kapalıdır.
+   - `FAIR_HOSTS=configurator.renkaluminyum.com`
+   - `FAIR_PUBLIC_URL=https://configurator.renkaluminyum.com` (e-postadaki bağlantılar)
+   - `RESEND_API_KEY` ve `FAIR_EMAIL_FROM` (ör. `Renk Alüminyum <teklif@renkaluminyum.com>`). Gönderen alan adı Resend'de doğrulanmış olmalı. Anahtar yoksa talep yine kaydedilir; müşteriye e-postanın gönderilemediği açıkça gösterilir, panelde "E-posta servisi yapılandırılmamış" yazar.
+3. Alan adı: `configurator.renkaluminyum.com` Vercel projesine eklenir, DNS'te CNAME kaydı Vercel'e yönlendirilir.
+4. Panelden fuarı oluşturun (ör. kod `rt2027`, varsayılan dil `en`).
+5. Kiosk cihazı: Chrome'u kiosk modunda açın (`chrome --kiosk https://configurator.renkaluminyum.com/fair/rt2027`). İlk açılışı internetle yapın ve 1–2 dakika bekleyin. Ekrandaki tam ekran düğmesi de kullanılabilir.
 
-Fuar alan adında yalnızca `/` (fuar sayfası), `/api/v1/public/fair` ve statik dosyalar sunulur; giriş, panel ve diğer API'ler 404/yönlendirme verir. `FAIR_TENANT_ID` tanımlıyken sayfa ana alan adında `/fuar` adresinden de açılır (deneme için).
+## Yapılandırılabilir kurallar
 
-## QR bağlantı parametreleri
+`lib/features/fair/products.ts`:
 
-- `?urun=pergola`: doğrudan o ürünün tasarım ekranını açar (ürün kodları: `lib/features/product-3d/catalog.ts`).
-- `?e=salon-3`: stand/salon gibi bir kaynak etiketi; `FAIR_EVENT_NAME` yoksa talebe yazılır.
+- **Ölçü sınırları:** WINMAX kendi modelindeki sınırları kullanır (2500–15000 × 1500–5000 × 2200–4500 mm). Diğer ürünlerde 3D modelin görsel aralığı geçerlidir. Renk'in onayladığı üretim sınırları `limits` alanına yazılınca hem cihazda hem sunucuda uygulanır.
+- **Tahrik/kontrol:** WINMAX'ta UBESER kumandalı / kumanda + duvar butonu seçenekleri vardır. Diğer ürünlerin ticari kontrol seçenekleri kaynaklarda belgelenmediği için uydurulmamıştır. `controls` listesine eklenince ilgili ekranda sorulur.
 
-## Sınırlar
+Kiosk süreleri `KIOSK_TIMING` içindedir: 90 sn hareketsizlik → "Hâlâ orada mısınız?", 20 sn sonra sıfırlama; QR ekranı 180 sn.
 
-- Talep başına en fazla 8 ürün; önizleme görselleri 480 px JPEG'e küçültülür.
-- IP başına 10 dakikada 60 gönderim (fuar salonunda ortak Wi-Fi düşünülerek gevşek tutuldu) ve gizli bir bot tuzağı alanı.
-- Aynı telefonla gelen tekrarlar engellenmez; satış ekibi kayıtları panelde birleştirir.
+## Testler
+
+- `__tests__/lib/fair-site.test.ts`: alan adı yönlendirmesi, tasarım modeli, QR aktarımı (çok ürünlü bağlantı < 900 karakter), teklif girdisi, e-posta şablonu.
+- Uçtan uca kabul senaryosu (üretim derlemesi + yerel PostgreSQL + Playwright): kiosk → WINMAX ölçü/renk/motor/LED/animasyon → ikinci ürün → QR (görüntüden çözülerek) → telefon → düzenleme → teklif → veritabanı → panel → durum değişikliği; hareketsizlikte sıfırlama; çevrimdışı kiosk (yenileme, 3D, QR, sıfırlama, kuyruk), internetsiz kiosk tasarımının telefondan açılması ve geri gelen bağlantıda eşitleme.

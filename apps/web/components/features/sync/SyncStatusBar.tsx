@@ -2,9 +2,14 @@
 
 import React from 'react';
 import { useSyncStatus } from '@/lib/offline/hooks';
+import { useStandaloneScreenMounted } from '@/lib/shared/hooks/useWorkspacePresence';
 
 export function SyncStatusBar() {
   const { status, isOnline, hasConflicts, retryFailed, pendingCount } = useSyncStatus();
+  // The product configurator reports its own connection and queue.
+  const standalone = useStandaloneScreenMounted();
+
+  if (standalone) return null;
 
   if (!isOnline) {
     return (

@@ -27,3 +27,22 @@ export function useMarkWorkspaceShell() {
 export function useWorkspaceShellMounted() {
   return useSyncExternalStore(subscribe, snapshot, () => false);
 }
+
+/**
+ * Public screens with their own chrome and offline handling (the product configurator): the site
+ * cookie banner and the workspace's sync bar stay away from them.
+ */
+let standalone = 0;
+const standaloneSnapshot = () => standalone > 0;
+
+export function useMarkStandaloneScreen() {
+  useEffect(() => {
+    standalone += 1;
+    emit();
+    return () => { standalone -= 1; emit(); };
+  }, []);
+}
+
+export function useStandaloneScreenMounted() {
+  return useSyncExternalStore(subscribe, standaloneSnapshot, () => false);
+}

@@ -41,7 +41,10 @@ export const RATE_LIMIT_POLICIES = {
   publicTrackingRead: { limit: 600, windowMs: 10 * 60_000 },
   publicQuoteRead: { limit: 300, windowMs: 10 * 60_000 },
   // A fair hall shares one Wi-Fi address, so this is per IP and generous; it only stops floods.
-  fairRequest: { limit: 60, windowMs: 10 * 60_000 },
+  fairQuote: { limit: 60, windowMs: 10 * 60_000 },
+  // Kiosks sync their queue in bursts and phones save every edit; reads are cheap.
+  fairDesignWrite: { limit: 600, windowMs: 10 * 60_000 },
+  fairDesignRead: { limit: 1200, windowMs: 10 * 60_000 },
 } satisfies Record<string, RateLimitPolicy>;
 
 export type RateLimitPolicyName = keyof typeof RATE_LIMIT_POLICIES;

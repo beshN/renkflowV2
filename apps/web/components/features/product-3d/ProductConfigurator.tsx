@@ -20,11 +20,8 @@ import type {
   ProductStage,
   ProductView,
 } from "@/lib/features/product-3d/stage";
-const views: Array<[ProductView, string]> = [
-  ["perspective", "Perspektif"],
-  ["front", "Ön"],
-  ["top", "Üst"],
-];
+import { CONFIGURATOR_TEXT_TR, type ConfiguratorText } from "@/lib/features/product-3d/text";
+import { DimensionStepper } from "./DimensionStepper";
 export function ProductConfigurator({
   value,
   kind = "pergola",
@@ -33,6 +30,9 @@ export function ProductConfigurator({
   onChange,
   onValidationChange,
   showProductPicker = false,
+  text,
+  stageClassName = "h-[360px] sm:h-[470px]",
+  touchControls = false,
 }: {
   value?: ProductVisualization;
   kind?: ProductKind;
@@ -41,7 +41,19 @@ export function ProductConfigurator({
   onChange?: (value: ProductVisualization, image?: string) => void;
   onValidationChange?: (message: string) => void;
   showProductPicker?: boolean;
+  /** Visible text; Turkish by default. */
+  text?: Partial<ConfiguratorText>;
+  /** Height classes of the 3D canvas (the kiosk uses a taller stage). */
+  stageClassName?: string;
+  /** Steppers and sliders instead of number fields, for touch screens without a keyboard. */
+  touchControls?: boolean;
 }) {
+  const t = { ...CONFIGURATOR_TEXT_TR, ...text };
+  const views: Array<[ProductView, string]> = [
+    ["perspective", t.views.perspective],
+    ["front", t.views.front],
+    ["top", t.views.top],
+  ];
   const [draft, setDraft] = useConfigurationDraft<VisualizationConfiguration>(
     value?.configuration ?? defaultVisualization(kind),
   );
@@ -73,9 +85,7 @@ export function ProductConfigurator({
           setOpening,
           () => {
             setReady(false);
-            setError(
-              "3D bağlantısı kesildi. Kaydedilmiş görünümü ve seçimleri kullanabilirsiniz.",
-            );
+            setError(t.sceneLost);
           },
         );
         if (cancelled) {
@@ -88,9 +98,7 @@ export function ProductConfigurator({
       })
       .catch(() => {
         if (!cancelled)
-          setError(
-            "Bu cihazda 3D görünüm başlatılamadı. Kaydedilmiş görünüm kullanılabilir.",
-          );
+          setError(t.sceneFailed);
       });
     return () => {
       cancelled = true;
@@ -123,7 +131,7 @@ export function ProductConfigurator({
       .catch(() => {
         if (!cancelled) {
           setRendering(false);
-          setError("Ürün görünümü yüklenemedi.");
+          setError(t.loadFailed);
         }
       });
     });
@@ -186,15 +194,15 @@ export function ProductConfigurator({
             className={`pointer-events-none absolute left-5 top-5 z-10 ${time > 70 ? "text-slate-100" : "text-[#203641]"}`}
           >
             <p className="text-[10px] font-semibold uppercase tracking-[.18em]">
-              {meta.name}
+              {t.productName ?? meta.name}
             </p>
             <p className="mt-1 text-sm tabular-nums">
-              En {draft.widthMm} mm · {roof ? `Açılım ${draft.projectionMm} mm · Montaj ${draft.heightMm} mm` : `Yükseklik ${draft.heightMm} mm`}
+              {t.width} {draft.widthMm} mm · {roof ? `${t.projection} ${draft.projectionMm} mm · ${t.mountingHeight} ${draft.heightMm} mm` : `${t.height} ${draft.heightMm} mm`}
             </p>
           </div>
           <canvas
             ref={canvas}
-            className="h-[360px] w-full touch-none sm:h-[470px]"
+            className={`${stageClassName} w-full touch-none`}
             aria-label={`${meta.name} 3D görünümü, %${Math.round(opening)} açık. Ok tuşları: döndür; artı/eksi: yakınlaştır; Home: sıfırla; PageUp/PageDown: açıklık; boşluk: oynat.`}
             tabIndex={0}
           />
@@ -203,7 +211,7 @@ export function ProductConfigurator({
               role="status"
               className="absolute bottom-5 left-5 rounded bg-white/90 px-3 py-2 text-xs text-slate-700"
             >
-              3D görünüm yükleniyor…
+              {t.loading}
             </p>
           )}
           {ready && rendering && (
@@ -211,7 +219,7 @@ export function ProductConfigurator({
               role="status"
               className="absolute bottom-5 left-5 rounded bg-white/90 px-3 py-2 text-xs text-slate-700"
             >
-              Ürün görünümü hazırlanıyor…
+              {t.preparing}
             </p>
           )}
           {!ready && error && (
@@ -233,7 +241,7 @@ export function ProductConfigurator({
           )}
           <button
             type="button"
-            aria-label="3D görünümü tam ekran aç"
+            aria-label={t.fullscreen}
             className="absolute bottom-4 right-4 flex h-11 w-11 items-center justify-center rounded-md bg-white/90 text-slate-700"
             onClick={() => {
               const element = stage.current;
@@ -263,7 +271,7 @@ export function ProductConfigurator({
           ))}
           <button
             type="button"
-            aria-label="Kamerayı sıfırla"
+            aria-label={t.resetCamera}
             className="flex h-11 w-11 items-center justify-center rounded-md border border-border"
             onClick={() => {
               setView("perspective");
@@ -278,16 +286,16 @@ export function ProductConfigurator({
             <button
               type="button"
               disabled={!ready}
-              aria-label="Açılma kapanma animasyonunu başlat veya durdur"
+              aria-label={t.playToggle}
               className="flex h-11 w-11 items-center justify-center rounded-md border border-border"
               onClick={() => controller.current?.toggleAnimation()}
             >
               <Play size={16} />
             </button>
             <label className="flex min-w-36 flex-1 items-center gap-3 text-xs">
-              {draft.kind === "wind-piston" ? "Cam yüksekliği" : meta.motion === "tilt" ? "Lamel açısı" : "Açıklık"}
+              {draft.kind === "wind-piston" ? t.glassHeight : meta.motion === "tilt" ? t.tilt : t.opening}
               <input
-                aria-label={draft.kind === "wind-piston" ? "Cam yüksekliği" : "Ürün açıklığı"}
+                aria-label={draft.kind === "wind-piston" ? t.glassHeight : t.openingAria}
                 disabled={!ready || rendering}
                 aria-valuetext={draft.kind === "wind-piston" ? `%${Math.round(opening)} yükseklikte` : `%${Math.round(opening)} açık`}
                 className="min-w-0 flex-1"
@@ -316,27 +324,27 @@ export function ProductConfigurator({
                     controller.current?.setOpening(n);
                   }}
                 >
-                  {draft.kind === 'wind-piston' ? (n ? 'Yüksek' : 'Alçak') : (n ? 'Açık' : 'Kapalı')}
+                  {draft.kind === 'wind-piston' ? (n ? t.high : t.low) : (n ? t.open : t.closed)}
                 </button>
               ))}
             </div>
           </div>
         )}
         <details className="text-xs">
-          <summary className="cursor-pointer py-2 text-muted-foreground">Görünüm seçenekleri</summary>
+          <summary className="cursor-pointer py-2 text-muted-foreground">{t.viewOptions}</summary>
           <div className="mt-2 flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2">Açı
-              <select className="rf-input" aria-label="Diğer kamera açıları" value={view} onChange={e => { const next = e.target.value as ProductView; setView(next); controller.current?.selectView(next); }}>
-                {[['perspective', 'Perspektif'], ['front', 'Ön'], ['side', 'Yan'], ['top', 'Üst'], ['under', 'Alt'], ['detail', 'Yakın plan']].map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            <label className="flex items-center gap-2">{t.angle}
+              <select className="rf-input" aria-label={t.anglesAria} value={view} onChange={e => { const next = e.target.value as ProductView; setView(next); controller.current?.selectView(next); }}>
+                {[['perspective', t.views.perspective], ['front', t.views.front], ['side', t.views.side], ['top', t.views.top], ['under', t.views.under], ['detail', t.views.detail]].map(([key, label]) => <option key={key} value={key}>{label}</option>)}
               </select>
             </label>
-            <label className="flex items-center gap-2">Işık
-              <input aria-label="Gündüz gece ışığı" type="range" min={0} max={100} value={time} onChange={e => { setTime(+e.target.value); controller.current?.setTime(+e.target.value); }} />
-              <span>{time < 30 ? 'Gündüz' : time < 75 ? 'Gün batımı' : 'Gece'}</span>
+            <label className="flex items-center gap-2">{t.light}
+              <input aria-label={t.dayNightAria} type="range" min={0} max={100} value={time} onChange={e => { setTime(+e.target.value); controller.current?.setTime(+e.target.value); }} />
+              <span>{time < 30 ? t.day : time < 75 ? t.sunset : t.night}</span>
             </label>
           </div>
         </details>
-        <p className="text-[11px] text-muted-foreground">Ürün görseli temsili olup uygulama çizimi yerine geçmez.</p>
+        <p className="text-[11px] text-muted-foreground">{t.disclaimer}</p>
       </div>
       <div className="space-y-4">
         {error && ready && (
@@ -348,7 +356,7 @@ export function ProductConfigurator({
           </p>
         )}
         <h3 className="rf-section-title">
-          {readOnly ? "Ürün özellikleri" : "Ölçü ve renk"}
+          {readOnly ? t.features : t.sizeAndColor}
         </h3>
         <fieldset disabled={readOnly} className="space-y-4 disabled:opacity-80">
           {showProductPicker && (
@@ -374,11 +382,11 @@ export function ProductConfigurator({
           )}
           {(
             [
-              ["widthMm", "En", meta.viewMax[0]],
-              ...(roof ? [["projectionMm", "Açılım", meta.viewMax[1]]] : []),
+              ["widthMm", t.width, meta.viewMax[0]],
+              ...(roof ? [["projectionMm", t.projection, meta.viewMax[1]]] : []),
               [
                 "heightMm",
-                roof ? "Montaj yüksekliği" : "Yükseklik",
+                roof ? t.mountingHeight : t.height,
                 meta.viewMax[2],
               ],
             ] as Array<
@@ -391,7 +399,9 @@ export function ProductConfigurator({
                 number,
               ]
             >
-          ).map(([key, label, max]) => (
+          ).map(([key, label, max]) => touchControls ? (
+            <DimensionStepper key={key} label={label} value={draft[key]} min={key === "heightMm" ? 1000 : 900} max={max} onChange={(v) => update(key, v)} />
+          ) : (
             <label key={key} className="block text-xs">
               {label} (mm)
               <input
@@ -406,13 +416,13 @@ export function ProductConfigurator({
             </label>
           ))}
           <div>
-            <p className="mb-2 text-xs">Gövde rengi</p>
+            <p className="mb-2 text-xs">{t.bodyColor}</p>
             <div className="flex flex-wrap gap-2">
               {BODY_COLORS.map(([name, color]) => (
                 <button
                   key={name}
                   type="button"
-                  aria-label={`Gövde: ${name}`}
+                  aria-label={`${t.bodyAria}: ${t.colorName(name)}`}
                   aria-pressed={draft.bodyColor === color}
                   className="h-11 w-11 rounded-full border-2 border-border aria-pressed:ring-2 aria-pressed:ring-primary"
                   style={{ backgroundColor: color }}
@@ -422,9 +432,9 @@ export function ProductConfigurator({
             </div>
           </div>
           <label className="flex items-center justify-between text-xs">
-            Özel gövde rengi
+            {t.customBodyColor}
             <input
-              aria-label="Özel gövde rengi"
+              aria-label={t.customBodyColor}
               type="color"
               value={draft.bodyColor}
               onChange={(e) => update("bodyColor", e.target.value)}
@@ -432,13 +442,13 @@ export function ProductConfigurator({
           </label>
           {(draft.kind === "pergola" || draft.kind === "zip") && (
             <div>
-              <p className="mb-2 text-xs">Kumaş rengi</p>
+              <p className="mb-2 text-xs">{t.fabricColor}</p>
               <div className="flex flex-wrap gap-2">
                 {FABRIC_COLORS.map(([name, color]) => (
                   <button
                     key={name}
                     type="button"
-                    aria-label={`Kumaş: ${name}`}
+                    aria-label={`${t.fabricAria}: ${t.colorName(name)}`}
                     aria-pressed={draft.fabricColor === color}
                     className="h-11 w-11 rounded-full border-2 border-border aria-pressed:ring-2 aria-pressed:ring-primary"
                     style={{ backgroundColor: color }}
@@ -450,7 +460,7 @@ export function ProductConfigurator({
           )}
           {draft.kind === "zip" && (
             <label className="block text-xs">
-              Kumaş tipi
+              {t.fabricType}
               <select
                 className="rf-input mt-1 w-full"
                 value={draft.screen}
@@ -461,8 +471,8 @@ export function ProductConfigurator({
                   )
                 }
               >
-                <option value="screen">Screen</option>
-                <option value="opaque">Opak</option>
+                <option value="screen">{t.screen}</option>
+                <option value="opaque">{t.opaque}</option>
               </select>
             </label>
           )}
@@ -471,7 +481,7 @@ export function ProductConfigurator({
             draft.kind === "glass-roof" ||
             draft.kind === "winter-garden") && (
             <label className="block text-xs">
-              Cam görünümü
+              {t.glass}
               <select
                 className="rf-input mt-1 w-full"
                 value={draft.glass}
@@ -482,14 +492,14 @@ export function ProductConfigurator({
                   )
                 }
               >
-                <option value="single">Tek cam</option>
-                <option value="insulated">Çift cam</option>
+                <option value="single">{t.singleGlass}</option>
+                <option value="insulated">{t.insulatedGlass}</option>
               </select>
             </label>
           )}
           {(roof || draft.kind.startsWith("wind-")) && (
             <label className="block text-xs">
-              Montaj
+              {t.mounting}
               <select
                 className="rf-input mt-1 w-full"
                 value={draft.mounting}
@@ -502,13 +512,13 @@ export function ProductConfigurator({
               >
                 {roof ? (
                   <>
-                    <option value="free">Bağımsız</option>
-                    <option value="wall">Duvara monte</option>
+                    <option value="free">{t.freeStanding}</option>
+                    <option value="wall">{t.wallMounted}</option>
                   </>
                 ) : (
                   <>
-                    <option value="wall">Zemine sabit</option>
-                    <option value="planter">Tekerlekli saksı</option>
+                    <option value="wall">{t.floorFixed}</option>
+                    <option value="planter">{t.planter}</option>
                   </>
                 )}
               </select>
@@ -519,7 +529,7 @@ export function ProductConfigurator({
             draft.kind !== "winter-garden" && (
               <>
                 <label className="block text-xs">
-                  LED
+                  {t.led}
                   <select
                     className="rf-input mt-1 w-full"
                     value={draft.led}
@@ -530,15 +540,15 @@ export function ProductConfigurator({
                       )
                     }
                   >
-                    <option value="off">LED yok</option>
-                    <option value="warm">Gün ışığı</option>
-                    <option value="white">Beyaz</option>
+                    <option value="off">{t.ledOff}</option>
+                    <option value="warm">{t.ledWarm}</option>
+                    <option value="white">{t.ledWhite}</option>
                   </select>
                 </label>
                 <label className="flex items-center gap-2 text-xs">
-                  Parlaklık
+                  {t.brightness}
                   <input
-                    aria-label="LED parlaklığı"
+                    aria-label={t.brightnessAria}
                     type="range"
                     min={0}
                     max={100}

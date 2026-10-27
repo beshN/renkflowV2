@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Cookie } from "lucide-react";
 import { COOKIE_CONSENT_EVENT } from "@/components/features/analytics/GoogleAnalytics";
-import { useWorkspaceShellMounted } from "@/lib/shared/hooks/useWorkspacePresence";
+import { useStandaloneScreenMounted, useWorkspaceShellMounted } from "@/lib/shared/hooks/useWorkspacePresence";
 
 /** App screens with their own layout (sign-in, customer links, kiosk): not the public site. */
 const STANDALONE_APP_PREFIXES = ["/auth", "/track", "/teklif", "/teslim", "/q", "/station", "/coming-soon"];
@@ -14,9 +14,10 @@ const STANDALONE_APP_PREFIXES = ["/auth", "/track", "/teklif", "/teslim", "/q", 
 export default function CookieConsent() {
   const pathname = usePathname();
   const workspaceShell = useWorkspaceShellMounted();
+  const standaloneScreen = useStandaloneScreenMounted();
   // In-app screens never show the banner: everything under the workspace layout says so itself,
   // and the few signed-in or token screens outside that layout are listed here.
-  const operationalPage = workspaceShell || STANDALONE_APP_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
+  const operationalPage = workspaceShell || standaloneScreen || STANDALONE_APP_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
   const [showBanner, setShowBanner] = useState(false);
   // The banner only appears on the public site, which is Turkish-only, so it
   // must not follow the browser language like the in-app i18n does.

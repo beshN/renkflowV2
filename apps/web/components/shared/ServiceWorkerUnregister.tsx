@@ -12,7 +12,10 @@ export function ServiceWorkerUnregister() {
 
     const unregisterServiceWorkers = async () => {
       try {
-        const registrations = await navigator.serviceWorker.getRegistrations();
+        // The product configurator's kiosk worker (offline mode) is the one worker that stays.
+        const isConfigurator = (r: ServiceWorkerRegistration) =>
+          [r.active, r.waiting, r.installing].some((w) => w?.scriptURL.endsWith('/configurator-sw.js'));
+        const registrations = (await navigator.serviceWorker.getRegistrations()).filter((r) => !isConfigurator(r));
         if (registrations.length === 0) return;
 
         await Promise.all(
@@ -23,7 +26,7 @@ export function ServiceWorkerUnregister() {
 
         if ('caches' in window) {
           const cacheKeys = await caches.keys();
-          await Promise.all(cacheKeys.map((cacheKey) => caches.delete(cacheKey)));
+          await Promise.all(cacheKeys.filter((cacheKey) => !cacheKey.startsWith('rf-configurator-')).map((cacheKey) => caches.delete(cacheKey)));
         }
 
         if (!sessionStorage.getItem(RELOAD_MARKER)) {

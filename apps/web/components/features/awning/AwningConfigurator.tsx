@@ -16,15 +16,21 @@ import type {
   AwningSceneController,
   AwningView,
 } from "@/lib/features/awning/scene";
+import { CONFIGURATOR_TEXT_TR, type ConfiguratorText } from "@/lib/features/product-3d/text";
+import { DimensionStepper } from "@/components/features/product-3d/DimensionStepper";
 
-const views: [AwningView, string][] = [
-  ["perspective", "Perspektif"],
-  ["front", "Ön"],
-  ["top", "Üst"],
-  ["side", "Yan"],
-  ["under", "Alt"],
-  ["detail", "Mekanizma"],
-];
+const AWNING_TEXT_TR: ConfiguratorText = {
+  ...CONFIGURATOR_TEXT_TR,
+  productName: "WINMAX / MAKASLI TENTE",
+  fabricColor: "Kumaş",
+  sceneLost: "3D bağlantısı kesildi. Teknik seçimler ve kaydedilmiş görünüm kullanılabilir.",
+  sceneFailed: "Bu cihazda 3D görüntü başlatılamadı. Teknik seçimlerle devam edebilirsiniz.",
+  loadFailed: "3D görüntü yüklenemedi.",
+  loading: "3D görünüm hazırlanıyor",
+  disclaimer: "Temsili 3D görünüm. Üretim uygunluğu onaylı reçeteyle doğrulanır.",
+  fabricAria: "Kumaş",
+  bodyAria: "Gövde rengi",
+};
 export function AwningConfigurator({
   value = DEFAULT_AWNING,
   readOnly = false,
@@ -32,6 +38,10 @@ export function AwningConfigurator({
   onApply,
   onChange,
   onValidationChange,
+  text,
+  stageClassName = "h-[360px] sm:h-[470px]",
+  locale = "tr-TR",
+  touchControls = false,
 }: {
   value?: AwningConfiguration;
   readOnly?: boolean;
@@ -39,7 +49,23 @@ export function AwningConfigurator({
   onApply?: (value: AwningConfiguration, image?: string) => void;
   onChange?: (value: AwningConfiguration, image?: string) => void;
   onValidationChange?: (message: string) => void;
+  /** Visible text; Turkish by default. */
+  text?: Partial<ConfiguratorText>;
+  /** Height classes of the 3D canvas (the kiosk uses a taller stage). */
+  stageClassName?: string;
+  locale?: string;
+  /** Steppers and sliders instead of number fields, for touch screens without a keyboard. */
+  touchControls?: boolean;
 }) {
+  const t = { ...AWNING_TEXT_TR, ...text };
+  const views: [AwningView, string][] = [
+    ["perspective", t.views.perspective],
+    ["front", t.views.front],
+    ["top", t.views.top],
+    ["side", t.views.side],
+    ["under", t.views.under],
+    ["detail", t.views.mechanism],
+  ];
   const [draft, setDraft] = useConfigurationDraft(value);
   const
     [opening, setOpening] = useState(85),
@@ -65,21 +91,17 @@ export function AwningConfigurator({
             setOpening,
             () => {
               setReady(false);
-              setSceneError(
-                "3D bağlantısı kesildi. Teknik seçimler ve kaydedilmiş görünüm kullanılabilir.",
-              );
+              setSceneError(t.sceneLost);
             },
           );
           controller.current = instance;
           setReady(true);
         } catch {
-          setSceneError(
-            "Bu cihazda 3D görüntü başlatılamadı. Teknik seçimlerle devam edebilirsiniz.",
-          );
+          setSceneError(t.sceneFailed);
         }
       })
       .catch(() => {
-        if (!cancelled) setSceneError("3D görüntü yüklenemedi.");
+        if (!cancelled) setSceneError(t.loadFailed);
       });
     return () => {
       cancelled = true;
@@ -146,20 +168,20 @@ export function AwningConfigurator({
             className={`pointer-events-none absolute left-5 top-5 z-10 ${time > 70 ? "text-slate-100" : "text-[#203641]"}`}
           >
             <p className="text-[10px] font-semibold tracking-[.2em]">
-              WINMAX / MAKASLI TENTE
+              {t.productName}
             </p>
             <p className="mt-1 text-sm tabular-nums">
               {draft.widthMm / 10} × {draft.projectionMm / 10} cm ·{" "}
               {(
                 (draft.widthMm * draft.projectionMm) /
                 1_000_000
-              ).toLocaleString("tr-TR")}{" "}
+              ).toLocaleString(locale)}{" "}
               m²
             </p>
           </div>
           <canvas
             ref={canvas}
-            className="h-[360px] w-full touch-none sm:h-[470px]"
+            className={`${stageClassName} w-full touch-none`}
             aria-label="3D tente. Ok tuşlarıyla döndürün, artı ve eksiyle yakınlaştırın."
             tabIndex={0}
           />
@@ -168,7 +190,7 @@ export function AwningConfigurator({
               role="status"
               className="absolute bottom-5 left-5 rounded bg-white/90 px-3 py-2 text-xs text-slate-700"
             >
-              <span aria-hidden className="inline-block h-2 w-16 animate-pulse rounded bg-slate-300 motion-reduce:animate-none" /><span className="sr-only">3D görünüm hazırlanıyor</span>
+              <span aria-hidden className="inline-block h-2 w-16 animate-pulse rounded bg-slate-300 motion-reduce:animate-none" /><span className="sr-only">{t.loading}</span>
             </p>
           )}
           {sceneError && (
@@ -189,7 +211,7 @@ export function AwningConfigurator({
           )}
           <button
             type="button"
-            aria-label="3D görünümü tam ekran aç"
+            aria-label={t.fullscreen}
             className="absolute bottom-4 right-4 rounded-md bg-white/90 p-2 text-slate-700"
             onClick={() =>
               stage.current
@@ -220,7 +242,7 @@ export function AwningConfigurator({
           <button
             type="button"
             className="rf-icon-button"
-            aria-label="Kamerayı sıfırla"
+            aria-label={t.resetCamera}
             onClick={() => {
               setView("perspective");
               controller.current?.selectView("perspective");
@@ -232,14 +254,14 @@ export function AwningConfigurator({
         <div className="flex items-center gap-3 rounded-md border border-border p-3">
           <button
             type="button"
-            aria-label="Açılma kapanma animasyonunu başlat veya durdur"
+            aria-label={t.playToggle}
             className="rf-icon-button"
             onClick={() => controller.current?.toggleAnimation()}
           >
             <Play size={16} />
           </button>
           <label className="flex flex-1 items-center gap-3 text-xs">
-            Açıklık
+            {t.opening}
             <input
               type="range"
               min={0}
@@ -257,7 +279,7 @@ export function AwningConfigurator({
           </output>
         </div>
         <label className="flex items-center gap-3 text-xs">
-          Gündüz / gece
+          {t.dayNight}
           <input
             type="range"
             min={0}
@@ -269,11 +291,11 @@ export function AwningConfigurator({
             }}
           />
           <span>
-            {time < 30 ? "Gündüz" : time < 75 ? "Gün batımı" : "Gece"}
+            {time < 30 ? t.day : time < 75 ? t.sunset : t.night}
           </span>
         </label>
         <p className="text-[11px] leading-5 text-muted-foreground">
-          Temsili 3D görünüm. Üretim uygunluğu onaylı reçeteyle doğrulanır.
+          {t.disclaimer}
         </p>
       </div>
       <div className="space-y-4">
@@ -286,19 +308,21 @@ export function AwningConfigurator({
           </p>
         )}
         <div>
-          <h3 className="rf-section-title">Ölçü ve renk</h3>
+          <h3 className="rf-section-title">{t.sizeAndColor}</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Ölçüler milimetre cinsindedir.
+            {t.millimetres}
           </p>
         </div>
         <fieldset disabled={readOnly} className="space-y-4 disabled:opacity-80">
           {(
             [
-              ["widthMm", "En", 2500, 15000],
-              ["projectionMm", "Açılım", 1500, 5000],
-              ["mountingHeightMm", "Montaj yüksekliği", 2200, 4500],
+              ["widthMm", t.width, 2500, 15000],
+              ["projectionMm", t.projection, 1500, 5000],
+              ["mountingHeightMm", t.mountingHeight, 2200, 4500],
             ] as const
-          ).map(([key, label, min, max]) => (
+          ).map(([key, label, min, max]) => touchControls ? (
+            <DimensionStepper key={key} label={label} value={draft[key]} min={min} max={max} onChange={(v) => update(key, v)} />
+          ) : (
             <label key={key} className="block text-xs">
               {label} (mm)
               <input
@@ -314,20 +338,20 @@ export function AwningConfigurator({
           ))}
           {(
             [
-              ["body", "Gövde rengi", BODY_COLORS],
-              ["fabric", "Kumaş", FABRIC_COLORS],
+              ["body", t.bodyColor, BODY_COLORS],
+              ["fabric", t.fabricColor, FABRIC_COLORS],
             ] as const
           ).map(([kind, label, colors]) => (
             <div key={kind}>
               <p className="mb-2 text-xs">
-                {label}: {kind === "body" ? draft.bodyName : draft.fabricName}
+                {label}: {t.colorName(kind === "body" ? draft.bodyName : draft.fabricName)}
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {colors.map(([name, color]) => (
                   <button
                     type="button"
                     key={name}
-                    aria-label={`${label}: ${name}`}
+                    aria-label={`${kind === "body" ? t.bodyAria : t.fabricAria}: ${t.colorName(name)}`}
                     aria-pressed={
                       (kind === "body"
                         ? draft.bodyColor
@@ -349,10 +373,10 @@ export function AwningConfigurator({
             </div>
           ))}
           <label className="flex items-center justify-between text-xs">
-            Özel gövde rengi
+            {t.customBodyColor}
             <input
               type="color"
-              aria-label="Özel gövde rengi"
+              aria-label={t.customBodyColor}
               value={draft.bodyColor}
               onChange={(e) =>
                 setDraft((prev) => ({
@@ -364,7 +388,7 @@ export function AwningConfigurator({
             />
           </label>
           <label className="block text-xs">
-            Motor ve kontrol
+            {t.motor}
             <select
               value={draft.motor}
               className="rf-input mt-1 w-full"
@@ -372,14 +396,12 @@ export function AwningConfigurator({
                 update("motor", e.target.value as AwningConfiguration["motor"])
               }
             >
-              <option value="remote">UBESER · Kumandalı</option>
-              <option value="remote_wall">
-                UBESER · Kumanda + duvar butonu
-              </option>
+              <option value="remote">{t.motorRemote}</option>
+              <option value="remote_wall">{t.motorRemoteWall}</option>
             </select>
           </label>
           <label className="block text-xs">
-            LED
+            {t.led}
             <select
               value={draft.led}
               className="rf-input mt-1 w-full"
@@ -387,13 +409,13 @@ export function AwningConfigurator({
                 update("led", e.target.value as AwningConfiguration["led"])
               }
             >
-              <option value="off">LED yok</option>
-              <option value="warm">Gün ışığı</option>
-              <option value="white">Beyaz</option>
+              <option value="off">{t.ledOff}</option>
+              <option value="warm">{t.ledWarm}</option>
+              <option value="white">{t.ledWhite}</option>
             </select>
           </label>
           <label className="flex items-center gap-2 text-xs">
-            Parlaklık
+            {t.brightness}
             <input
               type="range"
               min={0}
