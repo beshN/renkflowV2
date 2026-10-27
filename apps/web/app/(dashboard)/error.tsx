@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import * as Sentry from '@sentry/nextjs';
 import { AlertTriangle, LayoutDashboard, RefreshCw } from 'lucide-react';
+import { WhileYouWait } from '@/components/spells/WhileYouWait';
 
 /** A failing workspace screen: the sidebar and header stay, only the page area shows this. */
 export default function WorkspaceError({
@@ -44,6 +45,7 @@ export default function WorkspaceError({
         {process.env.NODE_ENV === 'development' && (
           <pre className="mt-5 whitespace-pre-wrap break-words rounded-md border border-border bg-muted/40 p-3 text-xs text-red-700 dark:text-red-300">{error.message}</pre>
         )}
+        <WhileYouWait className="mt-6 border-t border-border pt-4" />
       </div>
     </div>
   );

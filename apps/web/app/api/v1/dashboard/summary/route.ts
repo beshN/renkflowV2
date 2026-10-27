@@ -13,7 +13,8 @@ export async function GET() {
           COUNT(*) FILTER (WHERE status NOT IN ('completed', 'cancelled', 'delivered')) AS active_count,
           COUNT(*) FILTER (WHERE status IN ('new', 'pending', 'pending_approval')) AS pending_count,
           COUNT(*) FILTER (WHERE status IN ('ready_for_shipment', 'ready')) AS ready_for_shipment,
-          COUNT(*) FILTER (WHERE delivery_date::date = CURRENT_DATE) AS today_deliveries
+          COUNT(*) FILTER (WHERE delivery_date::date = CURRENT_DATE) AS today_deliveries,
+          COUNT(*)::int AS total_count
         FROM orders o
         WHERE tenant_id = ${tenantId} AND COALESCE((to_jsonb(o)->>'provisional')::boolean,false)=false
       `,

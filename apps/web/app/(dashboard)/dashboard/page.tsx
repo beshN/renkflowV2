@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertOctagon, ArrowDown, ArrowUp, CalendarDays, ClipboardList, Eye, EyeOff, Factory, FilePlus2, LayoutGrid, PackageCheck,
@@ -23,9 +24,13 @@ import { ColorSwatch } from '@/components/colors/ColorSwatch';
 import { colorInfo } from '@/lib/features/colors/color-spec';
 import { TearCalendar } from '@/components/spells/TearCalendar';
 import { OccasionBadge } from '@/components/spells/OccasionBadge';
+import { ORDER_MILESTONES } from '@/lib/spells/milestones';
+
+// Loaded only once a firm has reached its first milestone.
+const OrderMilestone = dynamic(() => import('@/components/spells/OrderMilestone'), { ssr: false });
 
 type Summary = {
-  orders: { active_count: string; today_deliveries: string };
+  orders: { active_count: string; today_deliveries: string; total_count?: number };
   production: { in_progress: string; open: string; blocked: string };
   criticalStock: { critical_count: string } | null;
   overdue: { overdue_count: string };
@@ -122,6 +127,7 @@ export default function DashboardPage() {
   const n = (v: unknown) => (v === undefined || v === null ? '—' : Number(v));
   const canCreate = user && hasPermission(user.role, 'orders.create');
   const manager = user && ['owner', 'admin', 'office'].includes(user.role);
+  const totalOrders = Number(summary?.orders?.total_count);
 
   const shortcuts = [
     { href: '/quotations/new', label: 'Yeni teklif', icon: FilePlus2, show: canCreate },
@@ -220,6 +226,8 @@ export default function DashboardPage() {
         </>}
       />
       {error && !orders.length && <p role="alert" className="rf-alert text-sm"><AlertOctagon size={16} aria-hidden /> Siparişler alınamadı</p>}
+
+      {user?.tenantId && totalOrders >= ORDER_MILESTONES[0] && <OrderMilestone tenantId={user.tenantId} count={totalOrders} />}
 
       <SetupChecklist />
 

@@ -3,6 +3,7 @@
 import { ReactNode, useState, useMemo, useId } from 'react';
 import { Search, SlidersHorizontal, Plus, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, X, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ForkliftEmpty } from '@/components/spells/ForkliftEmpty';
 
 // ============================================
 // Types
@@ -60,6 +61,8 @@ export interface RFListViewProps<T extends { id: string }> {
     title: string;
     description: string;
     action?: { label: string; onClick: () => void };
+    /** Opt-in drawing instead of the search icon: 'forklift' is a workshop corner whose forklift opens a small game. */
+    illustration?: 'forklift';
   };
   selectedRows?: T[];
   onFilterChange?: (key: string, value: string) => void;
@@ -338,9 +341,11 @@ export function RFListView<T extends { id: string }>({
                 <tr>
                   <td colSpan={columns.length + (onRowSelect ? 1 : 0)} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-                        <Search size={20} className="text-muted-foreground/50" />
-                      </div>
+                      {!error && emptyState?.illustration === 'forklift' ? <ForkliftEmpty /> : (
+                        <div className="w-12 h-12 rounded-2xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+                          <Search size={20} className="text-muted-foreground/50" />
+                        </div>
+                      )}
                       <p className="font-semibold text-foreground">
                         {error ? 'Kayıtlar yüklenemedi' : emptyState?.title || 'Kayıt bulunamadı'}
                       </p>
