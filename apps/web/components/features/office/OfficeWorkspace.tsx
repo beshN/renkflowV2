@@ -8,7 +8,9 @@ import { CATEGORY, TASK_CATEGORIES, type TaskCategoryId } from '@/lib/features/o
 import { DIFFICULTY_LABELS } from '@/lib/features/office/routing';
 import { BREAKS, LOUNGE_TEXT, OfficeSimulation, type Agent, type EventKind, type OfficeEvent, type RemoteTask, type Task } from '@/lib/features/office/simulation';
 import type { CameraView, OfficeStage, StageHint, StagePick, StageQuality } from '@/lib/features/office/scene';
-import { RallyGame } from './RallyGame';
+import { cheerLine, pickCheerer, type RallyRun } from '@/lib/features/office/cheer';
+import { GAMING } from '@/lib/features/office/layout';
+import { RallyGame, readRallyBest } from './RallyGame';
 
 const SPEEDS = [1, 2, 4];
 const API = '/api/v1/office';
@@ -162,6 +164,8 @@ const QUIPS: Record<string, string[]> = {
   can: ['Pergola İngilizcede de pergola, şanslıyız.', 'Çeviri değil, yerelleştirme.', 'Almanca bileşik kelime: Sonnenschutzsystem.'],
   aylin: ['Tekrar eden kayıtları sevmem.', 'Veri temizse gün güzel.', 'CSV mi? Noktalı virgülle mi?'],
 };
+/** Where the person at the keyboard plays: the staff nearest it notice a new record (lines: CHEERS in cheer.ts). */
+const VISITOR = { x: GAMING.x, z: GAMING.seatZ };
 const COFFEE_KEY = 'renkflow.office.coffees';
 
 function keptOffice(key: string) {
@@ -196,8 +200,37 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
   const [hint, setHint] = useState<StageHint | null>(null);
   const [playing, setPlaying] = useState(false);
   const [quip, setQuip] = useState<{ id: string; text: string } | null>(null);
+  /** Who looks over while the game is open. */
+  const [watcher, setWatcher] = useState<string | null>(null);
+  const quipTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const cheerTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /** The best record set since the game opened, congratulated once it closes. */
+  const record = useRef<RallyRun | null>(null);
+  const say = useCallback((id: string, text: string, ms: number) => {
+    stage.current?.wave(id);
+    setQuip({ id, text });
+    clearTimeout(quipTimer.current);
+    quipTimer.current = setTimeout(() => setQuip(null), ms);
+  }, []);
   const onRallyPlaying = useCallback((on: boolean) => stage.current?.setVisitorPlaying(on), []);
-  const closeRally = useCallback(() => setPlaying(false), []);
+  const onRunEnd = useCallback((run: RallyRun) => {
+    stage.current?.setRecord(run.best);
+    if (run.isRecord) record.current = run;
+  }, []);
+  const closeRally = useCallback(() => {
+    setPlaying(false);
+    const run = record.current;
+    record.current = null;
+    if (!run) return;
+    // A moment after the game closes, the nearest free member of staff waves and says something.
+    clearTimeout(cheerTimer.current);
+    cheerTimer.current = setTimeout(() => {
+      const who = pickCheerer(sim.agents, VISITOR);
+      const text = who && cheerLine(who.id, run);
+      if (who && text) say(who.id, text, 5000);
+    }, 600);
+  }, [sim, say]);
+  useEffect(() => () => { clearTimeout(cheerTimer.current); clearTimeout(quipTimer.current); }, []);
   useEffect(() => { here.view = { speed, paused, night, tab, filter, quality }; }, [here, speed, paused, night, tab, filter, quality]);
   useEffect(() => { try { localStorage.setItem(QUALITY_KEY, quality); } catch { /* the choice just is not remembered */ } }, [quality]);
 
@@ -207,20 +240,19 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
     if (here.leftAt !== null && !here.view.paused) sim.catchUp(((Date.now() - here.leftAt) / 1000) * here.view.speed);
     here.leftAt = null;
     setHint(null);
-    let gone = false, quipTimer: ReturnType<typeof setTimeout> | undefined;
+    let gone = false;
     const pick = (picked: StagePick) => {
-      if (picked.kind === 'tv') setPlaying(true);
-      else if (picked.kind === 'coffee') {
+      if (picked.kind === 'tv') {
+        setWatcher(pickCheerer(sim.agents, VISITOR)?.name ?? null);
+        setPlaying(true);
+      } else if (picked.kind === 'coffee') {
         stage.current?.brew();
         let cups = 1;
         try { cups = Number(localStorage.getItem(COFFEE_KEY) || 0) + 1; localStorage.setItem(COFFEE_KEY, String(cups)); } catch { /* not counted */ }
         toast(`☕ Kahve hazır. Bu ofiste yapılan ${cups}. kahve.`);
       } else {
-        stage.current?.wave(picked.id);
         const lines = QUIPS[picked.id] ?? ['Merhaba!'];
-        setQuip({ id: picked.id, text: lines[Math.floor(Math.random() * lines.length)] });
-        clearTimeout(quipTimer);
-        quipTimer = setTimeout(() => setQuip(null), 3500);
+        say(picked.id, lines[Math.floor(Math.random() * lines.length)], 3500);
       }
     };
     // three.js loads only with the office, not with every page that links here.
@@ -235,19 +267,19 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
         stage.current.setSpeed(here.view.speed);
         stage.current.setPaused(here.view.paused);
         stage.current.setNight(here.view.night);
+        stage.current.setRecord(readRallyBest());
       } catch {
         setFailed(true);
       }
     }).catch(() => setFailed(true));
     return () => {
       gone = true;
-      clearTimeout(quipTimer);
       if (stage.current) here.camera = stage.current.cameraView();
       stage.current?.dispose();
       stage.current = null;
       here.leftAt = Date.now();
     };
-  }, [here, sim, quality]);
+  }, [here, sim, quality, say]);
   useEffect(() => stage.current?.setSpeed(speed), [speed]);
   useEffect(() => stage.current?.setPaused(paused), [paused]);
   useEffect(() => stage.current?.setNight(night), [night]);
@@ -390,7 +422,7 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
         </section>
       </aside>
 
-      {playing && <RallyGame onClose={closeRally} onPlaying={onRallyPlaying} />}
+      {playing && <RallyGame onClose={closeRally} onPlaying={onRallyPlaying} onRunEnd={onRunEnd} watcher={watcher} />}
       {composing && <TaskComposer sim={sim} office={office} onClose={() => setComposing(false)} />}
     </div>
   );

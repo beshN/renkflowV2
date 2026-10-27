@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { newRally, score, start, step, type RallyState, type RallyThing } from '@/lib/features/office/rally';
+import { runResult, type RallyRun } from '@/lib/features/office/cheer';
 
 /**
  * The office's racing game, opened by clicking the games screen in the 3D office: the same road
@@ -125,7 +126,16 @@ function draw(g: CanvasRenderingContext2D, state: RallyState, best: number, time
   }
 }
 
-export function RallyGame({ onClose, onPlaying }: { onClose: () => void; onPlaying?: (playing: boolean) => void }) {
+/** The record kept on this device, also shown on the office's games screen. */
+export const readRallyBest = readBest;
+
+export function RallyGame({ onClose, onPlaying, onRunEnd, watcher }: {
+  onClose: () => void; onPlaying?: (playing: boolean) => void;
+  /** Every finished run, with whether it beat the record kept before it. */
+  onRunEnd?: (run: RallyRun) => void;
+  /** Who in the office is watching, shown in the header. */
+  watcher?: string | null;
+}) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const game = useRef<RallyState>(newRally(Math.floor(Math.random() * 1e9) + 1));
   const keys = useRef({ left: false, right: false, touch: 0 as -1 | 0 | 1 });
@@ -133,6 +143,9 @@ export function RallyGame({ onClose, onPlaying }: { onClose: () => void; onPlayi
   const bestRef = useRef(best);
   /** A crash is shown for a moment before a key may start the next run. */
   const crashedAt = useRef(0);
+  // Read through a ref so a new callback never restarts the game loop.
+  const runEnd = useRef(onRunEnd);
+  useEffect(() => { runEnd.current = onRunEnd; }, [onRunEnd]);
 
   useEffect(() => {
     const g = canvas.current?.getContext('2d');
@@ -145,11 +158,15 @@ export function RallyGame({ onClose, onPlaying }: { onClose: () => void; onPlayi
       const before = game.current.phase;
       game.current = step(game.current, (now - last) / 1000, steer);
       last = now;
-      if (before === 'playing' && game.current.phase === 'crashed') crashedAt.current = now;
-      if (before === 'playing' && game.current.phase === 'crashed' && score(game.current) > bestRef.current) {
-        bestRef.current = score(game.current);
-        setBest(bestRef.current);
-        try { localStorage.setItem(BEST_KEY, String(bestRef.current)); } catch { /* the record just is not kept */ }
+      if (before === 'playing' && game.current.phase === 'crashed') {
+        crashedAt.current = now;
+        const run = runResult(score(game.current), bestRef.current);
+        if (run.isRecord) {
+          bestRef.current = run.best;
+          setBest(bestRef.current);
+          try { localStorage.setItem(BEST_KEY, String(bestRef.current)); } catch { /* the record just is not kept */ }
+        }
+        runEnd.current?.(run);
       }
       const playing = game.current.phase === 'playing';
       if (playing !== wasPlaying) { wasPlaying = playing; onPlaying?.(playing); }
@@ -192,7 +209,8 @@ export function RallyGame({ onClose, onPlaying }: { onClose: () => void; onPlayi
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-3" role="dialog" aria-modal="true" aria-labelledby="rally-title" onClick={onClose}>
       <div className="w-full max-w-3xl overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950 shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-2.5 text-zinc-100">
-          <h2 id="rally-title" className="text-sm font-semibold">RenkFlow Ralli <span className="font-normal text-zinc-500">· ofisin oyun köşesi</span></h2>
+          <h2 id="rally-title" className="text-sm font-semibold">RenkFlow Ralli <span className="font-normal text-zinc-500">· ofisin oyun köşesi</span>
+            {watcher && <span className="font-normal text-zinc-400"> · {watcher} izliyor 👀</span>}</h2>
           <button type="button" onClick={onClose} autoFocus className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800" aria-label="Oyunu kapat"><X className="h-5 w-5" /></button>
         </div>
         <canvas ref={canvas} width={W} height={H} onPointerDown={press} onPointerUp={release} onPointerCancel={release}

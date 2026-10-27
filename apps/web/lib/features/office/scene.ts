@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { Look, TaskCategoryId } from './catalog';
 import { BOARD_X, BOOKSHELF, CAFE_TABLE, DESKS, FLOOR, GAMING, KITCHEN, LOUNGE, LOUNGE_SEATS, MANAGER_DESK, TV, type Desk } from './layout';
 import { DELIVER_SECONDS, type Agent, type OfficeSimulation, type TaskStatus } from './simulation';
+import { formatScore } from './cheer';
 
 /**
  * The 3D office drawn from the simulation: an open-plan floor seen from above at an angle, desks
@@ -25,6 +26,8 @@ export type OfficeStage = {
   setSpeed(speed: number): void;
   /** Someone at the keyboard is playing the racing game: the games screen shows it too. */
   setVisitorPlaying(playing: boolean): void;
+  /** The racing record on this device, shown small on the games screen (0: none yet). */
+  setRecord(best: number): void;
   /** A member of staff waves back for a moment. */
   wave(agentId: string): void;
   /** The coffee machine brews a cup. */
@@ -419,6 +422,16 @@ function drawGame(g: CanvasRenderingContext2D, w: number, h: number, time: numbe
   g.fillStyle = '#fde047'; g.font = 'bold 13px sans-serif'; g.fillText(`TUR ${1 + (Math.floor(time / 20) % 3)}/3`, 8, 16);
 }
 
+/** The record in the screen's top right corner, small enough not to steal the picture. */
+function drawRecord(g: CanvasRenderingContext2D, w: number, best: number) {
+  if (best <= 0) return;
+  const text = `REKOR ${formatScore(best)}`;
+  g.font = 'bold 12px sans-serif';
+  const width = g.measureText(text).width + 12;
+  g.fillStyle = 'rgba(2,6,23,0.6)'; g.fillRect(w - width - 6, 5, width, 18);
+  g.fillStyle = '#fde047'; g.textAlign = 'right'; g.fillText(text, w - 12, 18); g.textAlign = 'start';
+}
+
 /** The games corner: a big screen on a low stand facing the room, a console, two bean bags. */
 function buildGamingCorner(scene: T.Scene) {
   const { x, screenZ, seatZ, standWidth } = GAMING;
@@ -446,9 +459,9 @@ function buildGamingCorner(scene: T.Scene) {
     bag.castShadow = true;
     scene.add(at(bag, x + side * 0.6, 0.22, seatZ + 0.12));
   }
-  let shown = '';
+  let shown = '', record = 0;
   const draw = (players: number, time: number) => {
-    const key = players ? `${players}|${Math.floor(time * 12)}` : 'idle';
+    const key = players ? `${players}|${Math.floor(time * 12)}` : `idle|${record}`;
     if (key === shown) return;
     shown = key;
     if (players) drawGame(g, 288, 162, time, players);
@@ -456,13 +469,18 @@ function buildGamingCorner(scene: T.Scene) {
       const idle = g.createLinearGradient(0, 0, 288, 162);
       idle.addColorStop(0, '#1e1b4b'); idle.addColorStop(1, '#0c4a6e');
       g.fillStyle = idle; g.fillRect(0, 0, 288, 162);
-      g.fillStyle = 'rgba(255,255,255,0.75)'; g.font = 'bold 15px sans-serif'; g.textAlign = 'center'; g.fillText('BAŞLAMAK İÇİN BİR TUŞA BASIN', 144, 86); g.textAlign = 'start';
+      g.fillStyle = 'rgba(255,255,255,0.75)'; g.font = 'bold 15px sans-serif'; g.textAlign = 'center'; g.fillText('BAŞLAMAK İÇİN BİR TUŞA BASIN', 144, 86);
+      if (record > 0) { g.fillStyle = '#fde047'; g.font = 'bold 13px sans-serif'; g.fillText(`REKOR ${formatScore(record)}`, 144, 110); }
+      g.textAlign = 'start';
     }
+    if (players) drawRecord(g, 288, record);
     texture.needsUpdate = true;
     consoleLight.color.set(players ? '#22c55e' : '#3b82f6');
   };
   draw(0, 0);
-  return { draw, screen };
+  /** A new record shows on the next frame; nothing is redrawn until then. */
+  const setRecord = (best: number) => { record = Math.max(0, Math.floor(best)); };
+  return { draw, screen, setRecord };
 }
 
 /** The TV corner: a screen showing a programme, a sofa facing it. */
@@ -1208,6 +1226,7 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
     setSpeed(value) { speed = value; },
     setPaused(value) { paused = value; },
     setVisitorPlaying(value) { visitor = value; },
+    setRecord(value) { games.setRecord(value); },
     wave(agentId) { waves.set(agentId, performance.now() + 2500); },
     brew() { brewUntil = performance.now() + 4000; },
     setNight(value) {
