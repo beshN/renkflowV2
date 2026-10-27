@@ -399,26 +399,62 @@ function buildKitchen(scene: T.Scene) {
   return { steam, light };
 }
 
+/** Skyline blocks for the games screen: [x, width, height] as fractions, fixed once. */
+const MINI_SKYLINE = Array.from({ length: 14 }, (_, i) => [i / 14, 0.05 + ((i * 37) % 5) * 0.012, 0.18 + ((i * 53) % 7) * 0.05] as const);
+
+/**
+ * One view of the racing game on the games screen: a night sky over the town, a road that bends
+ * and rolls in pseudo-3D (bands from the horizon down) and the car on it. `time` drives it; the
+ * same picture as the game the visitor plays.
+ */
+function drawMiniRoad(g: CanvasRenderingContext2D, x0: number, width: number, h: number, time: number, color: string, wobble: number) {
+  g.save();
+  g.beginPath(); g.rect(x0, 0, width, h); g.clip();
+  const horizon = h * 0.42;
+  const sky = g.createLinearGradient(0, 0, 0, horizon);
+  sky.addColorStop(0, '#060818'); sky.addColorStop(1, '#3a1d5e');
+  g.fillStyle = sky; g.fillRect(x0, 0, width, horizon);
+  g.fillStyle = '#e2e8f0'; g.beginPath(); g.arc(x0 + width * 0.8, h * 0.13, h * 0.045, 0, Math.PI * 2); g.fill();
+  const drift = (time * 0.02 + wobble) % 1;
+  for (const [fx, fw, fh] of MINI_SKYLINE) {
+    const bx = x0 + (((fx - drift) % 1) + 1) % 1 * width;
+    g.fillStyle = '#141a3a'; g.fillRect(bx, horizon - fh * h * 0.6, fw * width, fh * h * 0.6);
+    g.fillStyle = '#fde68a'; g.fillRect(bx + fw * width * 0.3, horizon - fh * h * 0.45, 1.5, 1.5);
+  }
+  // The road, band by band: the bend grows with distance, the stripes run towards the car.
+  const bend = Math.sin(time * 0.35 + wobble) * width * 0.5, roll = Math.sin(time * 0.5 + wobble * 2) * h * 0.04;
+  const bands = 34;
+  for (let i = 0; i < bands; i++) {
+    const p0 = i / bands, p1 = (i + 1) / bands;
+    const y0 = horizon + roll * (1 - p0) + (h - horizon) * p0, y1 = horizon + roll * (1 - p1) + (h - horizon) * p1;
+    const c0 = x0 + width / 2 + bend * (1 - p0) ** 3, c1 = x0 + width / 2 + bend * (1 - p1) ** 3;
+    const r0 = width * (0.02 + p0 * 0.66), r1 = width * (0.02 + p1 * 0.66);
+    const light = Math.floor((1 / (p0 + 0.08)) * 3 + time * 14) % 2 === 0;
+    g.fillStyle = light ? '#1f2a24' : '#1a241f'; g.fillRect(x0, y0, width, y1 - y0 + 1);
+    g.fillStyle = light ? '#e2e8f0' : '#be123c';
+    g.beginPath(); g.moveTo(c0 - r0 * 1.15, y0); g.lineTo(c0 + r0 * 1.15, y0); g.lineTo(c1 + r1 * 1.15, y1 + 1); g.lineTo(c1 - r1 * 1.15, y1 + 1); g.fill();
+    g.fillStyle = light ? '#34374a' : '#2f3243';
+    g.beginPath(); g.moveTo(c0 - r0, y0); g.lineTo(c0 + r0, y0); g.lineTo(c1 + r1, y1 + 1); g.lineTo(c1 - r1, y1 + 1); g.fill();
+    if (light) { g.fillStyle = '#e2e8f0'; g.fillRect(c0 - r0 / 3 - 0.5, y0, 1 + p0, y1 - y0); g.fillRect(c0 + r0 / 3 - 0.5, y0, 1 + p0, y1 - y0); }
+  }
+  // The car, leaning into the bend.
+  const cx = x0 + width / 2 - Math.sin(time * 0.35 + wobble - 0.4) * width * 0.06, cw = width * 0.2, cy = h * 0.93;
+  g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(cx - cw * 0.55, cy - 2, cw * 1.1, 4);
+  g.fillStyle = '#0a0a0a'; g.fillRect(cx - cw * 0.5, cy - cw * 0.28, cw * 0.18, cw * 0.28); g.fillRect(cx + cw * 0.32, cy - cw * 0.28, cw * 0.18, cw * 0.28);
+  g.fillStyle = color; g.fillRect(cx - cw * 0.48, cy - cw * 0.42, cw * 0.96, cw * 0.32);
+  g.fillRect(cx - cw * 0.3, cy - cw * 0.6, cw * 0.6, cw * 0.2);
+  g.fillStyle = '#0f172a'; g.fillRect(cx - cw * 0.24, cy - cw * 0.56, cw * 0.48, cw * 0.13);
+  g.fillStyle = '#ff4d4d'; g.fillRect(cx - cw * 0.44, cy - cw * 0.34, cw * 0.26, cw * 0.07); g.fillRect(cx + cw * 0.18, cy - cw * 0.34, cw * 0.26, cw * 0.07);
+  g.restore();
+}
+
 /** A racing game: split screen for two players, one road against the console otherwise. */
 function drawGame(g: CanvasRenderingContext2D, w: number, h: number, time: number, players: number) {
-  const road = (x0: number, width: number, color: string, wobble: number) => {
-    g.save();
-    g.beginPath(); g.rect(x0, 0, width, h); g.clip();
-    g.fillStyle = '#14532d'; g.fillRect(x0, 0, width, h);
-    const mid = x0 + width / 2, sway = Math.sin(time * 0.8 + wobble) * width * 0.12;
-    g.fillStyle = '#334155'; g.beginPath(); g.moveTo(mid - width * 0.08 + sway, 0); g.lineTo(mid + width * 0.08 + sway, 0); g.lineTo(x0 + width * 0.92, h); g.lineTo(x0 + width * 0.08, h); g.fill();
-    g.fillStyle = '#f8fafc';
-    for (let i = 0; i < 6; i++) { const y = ((i * h) / 5 + time * 70) % (h + 12) - 12; g.fillRect(mid - 2 + (sway * (1 - y / h)), y, 4, 6 + (y / h) * 10); }
-    const cx = mid + Math.sin(time * 2.1 + wobble) * width * 0.12;
-    g.fillStyle = color; g.fillRect(cx - width * 0.07, h * 0.72, width * 0.14, h * 0.2);
-    g.fillStyle = '#0f172a'; g.fillRect(cx - width * 0.05, h * 0.75, width * 0.1, h * 0.05);
-    g.restore();
-  };
   if (players >= 2) {
-    road(0, w / 2 - 1, '#ef4444', 0);
-    road(w / 2 + 1, w / 2 - 1, '#3b82f6', 1.7);
+    drawMiniRoad(g, 0, w / 2 - 1, h, time, '#ef4444', 0);
+    drawMiniRoad(g, w / 2 + 1, w / 2 - 1, h, time, '#3b82f6', 1.7);
     g.fillStyle = '#0f172a'; g.fillRect(w / 2 - 1, 0, 2, h);
-  } else road(0, w, '#ef4444', 0);
+  } else drawMiniRoad(g, 0, w, h, time, '#ef4444', 0);
   g.fillStyle = '#fde047'; g.font = 'bold 13px sans-serif'; g.fillText(`TUR ${1 + (Math.floor(time / 20) % 3)}/3`, 8, 16);
 }
 
@@ -466,9 +502,10 @@ function buildGamingCorner(scene: T.Scene) {
     shown = key;
     if (players) drawGame(g, 288, 162, time, players);
     else {
-      const idle = g.createLinearGradient(0, 0, 288, 162);
-      idle.addColorStop(0, '#1e1b4b'); idle.addColorStop(1, '#0c4a6e');
-      g.fillStyle = idle; g.fillRect(0, 0, 288, 162);
+      // The attract screen: the road standing still under the title, drawn once per record.
+      drawMiniRoad(g, 0, 288, 162, 2.2, '#ef4444', 0);
+      g.fillStyle = 'rgba(2,6,23,0.55)'; g.fillRect(0, 0, 288, 162);
+      g.fillStyle = '#f472b6'; g.font = 'italic 900 22px sans-serif'; g.textAlign = 'center'; g.fillText('RENKFLOW RALLİ', 144, 58);
       g.fillStyle = 'rgba(255,255,255,0.75)'; g.font = 'bold 15px sans-serif'; g.textAlign = 'center'; g.fillText('BAŞLAMAK İÇİN BİR TUŞA BASIN', 144, 86);
       if (record > 0) { g.fillStyle = '#fde047'; g.font = 'bold 13px sans-serif'; g.fillText(`REKOR ${formatScore(record)}`, 144, 110); }
       g.textAlign = 'start';
