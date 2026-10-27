@@ -25,6 +25,28 @@ const PRODUCT_NAMES: Record<Locale, Record<FairKind, string>> = {
   },
 };
 
+/** One line on what each product is for, under its photo. Descriptive only: no technical claims. */
+const PRODUCT_PITCH: Record<Locale, Record<FairKind, string>> = {
+  tr: {
+    makasli: 'Restoran ve kafe terasları için kumandalı makaslı tente', pergola: 'Katlanır kumaş tavanıyla dört mevsim teras', 'rolling-roof': 'Açılıp kapanan lamelli tavan',
+    zip: 'Yan zip kanallı dikey perde', giyotin: 'Dikey açılan motorlu cam sistemi', 'wind-manual': 'Teraslar için yükseltilebilir cam rüzgâr kırıcı',
+    'wind-piston': 'Teleskopik dikmeli, iki seviyeli cam rüzgâr kırıcı', 'glass-roof': 'Gün ışığını içeri alan cam tavan', 'sliding-glass': 'Ayrı kanallarda kayan cam paneller',
+    bioclimatic: 'Döner lamellerle ışık ve hava kontrolü', 'winter-garden': 'Cam tavan ve sürme cepheyle kapalı yaşam alanı', cassette: 'Kapalı kasetli, şık duvar tentesi',
+  },
+  en: {
+    makasli: 'Remote-controlled folding-arm awning for restaurant and café terraces', pergola: 'A four-season terrace under a retractable fabric roof', 'rolling-roof': 'Louvred roof that opens and closes',
+    zip: 'Vertical screen running in side zip guides', giyotin: 'Motorised glass that opens vertically', 'wind-manual': 'Height-adjustable glass wind breaker for terraces',
+    'wind-piston': 'Two-level glass wind breaker on telescopic posts', 'glass-roof': 'A glass roof that lets the daylight in', 'sliding-glass': 'Glass panels sliding on separate tracks',
+    bioclimatic: 'Rotating louvres to control light and air', 'winter-garden': 'An enclosed living space with glass roof and sliding front', cassette: 'Elegant wall awning in a closed cassette',
+  },
+  de: {
+    makasli: 'Fernbedienbare Gelenkarmmarkise für Restaurant- und Caféterrassen', pergola: 'Ganzjahresterrasse unter einem faltbaren Stoffdach', 'rolling-roof': 'Lamellendach, das sich öffnet und schließt',
+    zip: 'Senkrechtscreen in seitlichen Zip-Führungen', giyotin: 'Motorisch senkrecht öffnende Verglasung', 'wind-manual': 'Höhenverstellbarer Glas-Windschutz für Terrassen',
+    'wind-piston': 'Zweistufiger Glas-Windschutz mit Teleskopstützen', 'glass-roof': 'Ein Glasdach, das Tageslicht hereinlässt', 'sliding-glass': 'Glasschiebeelemente auf getrennten Schienen',
+    bioclimatic: 'Drehbare Lamellen für Licht und Luft', 'winter-garden': 'Geschlossener Wohnraum mit Glasdach und Schiebefront', cassette: 'Elegante Wandmarkise in geschlossener Kassette',
+  },
+};
+
 /** Colour names are stored in Turkish (the workspace's language); they are shown translated. */
 const COLOR_NAMES: Record<Exclude<Locale, 'tr'>, Record<string, string>> = {
   en: { Antrasit: 'Anthracite', Beyaz: 'White', Gri: 'Grey', Siyah: 'Black', Kahverengi: 'Brown', 'Kırık beyaz': 'Off-white', 'Kum beji': 'Sand beige', Bordo: 'Burgundy', 'Orman yeşili': 'Forest green' },
@@ -74,6 +96,7 @@ const UI = {
     tagline: 'Discover, customize and experience our products in 3D.',
     start: 'Start designing', chooseProduct: 'Choose a product', chooseProductHint: 'Select a product, then adjust its size, colours and features in 3D.',
     categories: { roof: 'Roofs and pergolas', glass: 'Glass systems', screen: 'Screens and awnings' },
+    allProducts: 'All products', featured: 'Featured', designThis: 'Design this', touchToStart: 'Touch the screen to start', designIn3d: 'Design it in 3D',
     back: 'Back', quantity: 'Quantity', pieces: (n: number) => `${n} pc${n === 1 ? '' : 's'}`, addToList: 'Add to my list', saveChanges: 'Save changes',
     preparingPreview: 'Preparing the view…', otherRequests: 'Other requests for this product (optional)', control: 'Drive and control',
     myList: 'My list', listTitle: 'Your designs', listEmpty: 'Your list is empty. Choose a product to start.', addAnother: 'Add another product',
@@ -103,6 +126,7 @@ const UI = {
     tagline: 'Entdecken, gestalten und erleben Sie unsere Produkte in 3D.',
     start: 'Jetzt gestalten', chooseProduct: 'Produkt wählen', chooseProductHint: 'Wählen Sie ein Produkt und passen Sie Maße, Farben und Ausstattung in 3D an.',
     categories: { roof: 'Dächer und Pergolen', glass: 'Glassysteme', screen: 'Screens und Markisen' },
+    allProducts: 'Alle Produkte', featured: 'Empfohlen', designThis: 'Dieses gestalten', touchToStart: 'Bildschirm berühren und starten', designIn3d: 'In 3D gestalten',
     back: 'Zurück', quantity: 'Anzahl', pieces: (n: number) => `${n} Stk.`, addToList: 'Zu meiner Liste', saveChanges: 'Änderungen speichern',
     preparingPreview: 'Ansicht wird vorbereitet…', otherRequests: 'Weitere Wünsche zu diesem Produkt (optional)', control: 'Antrieb und Steuerung',
     myList: 'Meine Liste', listTitle: 'Ihre Entwürfe', listEmpty: 'Ihre Liste ist leer. Wählen Sie ein Produkt.', addAnother: 'Weiteres Produkt hinzufügen',
@@ -132,6 +156,7 @@ const UI = {
     tagline: 'Ürünlerimizi 3D olarak keşfedin, tasarlayın ve deneyimleyin.',
     start: 'Tasarlamaya başla', chooseProduct: 'Ürün seçin', chooseProductHint: 'Ürünü seçin; ölçü, renk ve özelliklerini 3D olarak ayarlayın.',
     categories: { roof: 'Tavan ve pergola', glass: 'Cam sistemleri', screen: 'Perde ve tente' },
+    allProducts: 'Tüm ürünler', featured: 'Öne çıkan', designThis: 'Bunu tasarla', touchToStart: 'Başlamak için ekrana dokunun', designIn3d: '3D olarak tasarlayın',
     back: 'Geri', quantity: 'Adet', pieces: (n: number) => `${n} adet`, addToList: 'Listeme ekle', saveChanges: 'Değişiklikleri kaydet',
     preparingPreview: 'Görünüm hazırlanıyor…', otherRequests: 'Bu ürünle ilgili diğer istekleriniz (isteğe bağlı)', control: 'Tahrik ve kontrol',
     myList: 'Listem', listTitle: 'Tasarımlarınız', listEmpty: 'Listeniz boş. Bir ürün seçerek başlayın.', addAnother: 'Başka ürün ekle',
@@ -168,6 +193,7 @@ export function configuratorText(locale: Locale, kind: FairKind): Partial<Config
   return { ...base, productName: kind === 'makasli' && locale === 'tr' ? 'WINMAX / MAKASLI TENTE' : PRODUCT_NAMES[locale][kind] };
 }
 export const productName = (locale: Locale, kind: FairKind) => PRODUCT_NAMES[locale][kind];
+export const productPitch = (locale: Locale, kind: FairKind) => PRODUCT_PITCH[locale][kind];
 export const colorName = (locale: Locale, name: string) => CONFIGURATOR[locale].colorName(name);
 
 /** The firm is the data controller; raise the version when the text changes. */

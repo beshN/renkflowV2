@@ -1,5 +1,6 @@
 'use client';
 import { configuratorBase } from '@/lib/features/fair/client';
+import { CONFIGURATOR_MEDIA } from '@/lib/features/fair/media';
 
 /** Loads every 3D module now, so the worker caches them before the connection drops. */
 async function warm3d() {
@@ -28,7 +29,7 @@ export async function registerConfiguratorWorker(): Promise<boolean> {
         window.setTimeout(resolve, 3000);
       });
     await warm3d();
-    const urls = new Set<string>([window.location.href.split('#')[0]]);
+    const urls = new Set<string>([window.location.href.split('#')[0], ...CONFIGURATOR_MEDIA.map((src) => new URL(src, window.location.origin).href)]);
     for (const entry of performance.getEntriesByType('resource')) if (entry.name.startsWith(`${window.location.origin}/_next/`)) urls.add(entry.name);
     (navigator.serviceWorker.controller ?? registration.active)?.postMessage({ type: 'warm', urls: [...urls] });
     return true;

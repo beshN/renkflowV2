@@ -10,6 +10,7 @@ import { pendingCount, queueDesign, syncOutbox } from "@/lib/features/fair/outbo
 import type { FairKind } from "@/lib/features/fair/products";
 import { encodeDesign } from "@/lib/features/fair/transfer";
 import { useMarkStandaloneScreen } from "@/lib/shared/hooks/useWorkspacePresence";
+import { AttractScreen } from "./AttractScreen";
 import { ItemEditor } from "./ItemEditor";
 import { ItemList } from "./ItemList";
 import { LanguageSwitch } from "./LanguageSwitch";
@@ -146,12 +147,7 @@ export function KioskApp({ fair, firm }: { fair: Fair; firm: string }) {
 
       <main className="flex-1 px-6 py-5">
         {view === "welcome" && (
-          <section className="mx-auto flex min-h-[70vh] max-w-4xl flex-col items-center justify-center gap-6 text-center">
-            <p className="text-sm font-semibold uppercase tracking-[.3em] text-muted-foreground">{firm || "Renk Alüminyum"}</p>
-            <h1 className="font-display text-4xl font-semibold leading-tight xl:text-5xl">{f.tagline}</h1>
-            {fair.campaign && <p className="max-w-2xl text-lg text-muted-foreground">{fair.campaign}</p>}
-            <button type="button" className="rf-primary-button min-h-16 justify-center px-10 text-xl" onClick={() => setView("pick")}>{f.start}</button>
-          </section>
+          <AttractScreen locale={locale} onLocale={setLocale} firm={firm} campaign={fair.campaign} onStart={() => setView("pick")} onPick={startItem} />
         )}
 
         {view === "pick" && <ProductPicker locale={locale} onPick={startItem} disabled={items.length >= MAX_ITEMS} kiosk />}

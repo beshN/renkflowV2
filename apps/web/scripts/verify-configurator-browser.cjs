@@ -22,15 +22,19 @@ const step = (m) => console.log('✓', m);
 
 async function decodeQr(page) {
   const src = await page.locator('img[alt="Scan to continue on your phone."]').getAttribute('src');
+  const png = Buffer.from(src.split(',')[1], 'base64');
   let lastError;
-  for (const pad of [0, 60, 120]) {
-    const { data, info } = await sharp(Buffer.from(src.split(',')[1], 'base64')).extend({ top: pad, bottom: pad, left: pad, right: pad, background: '#ffffff' }).greyscale().raw().toBuffer({ resolveWithObject: true });
+  // zxing's finder-pattern search misses some module sizes, so try the code at a few scales.
+  for (const size of [0, 300, 360, 480, 600]) {
+    const image = size ? sharp(png).resize(size, size, { kernel: 'nearest' }) : sharp(png);
+    const { data, info } = await image.extend({ top: 40, bottom: 40, left: 40, right: 40, background: '#ffffff' }).greyscale().raw().toBuffer({ resolveWithObject: true });
     const lum = new Uint8ClampedArray(info.width * info.height);
     for (let i = 0; i < lum.length; i++) lum[i] = data[i * info.channels];
     try {
       return new QRCodeReader().decode(new BinaryBitmap(new HybridBinarizer(new RGBLuminanceSource(lum, info.width, info.height)))).getText();
     } catch (e) { lastError = e; }
   }
+  require('node:fs').writeFileSync(SHOTS + 'qr-unreadable.png', png);
   throw lastError;
 }
 const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing the product view|wird geladen/.test(document.body.innerText), null, { timeout: 120000 });
@@ -70,7 +74,7 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   await kiosk.getByRole('button', { name: 'Add to my list' }).tap();
   await kiosk.getByText('WINMAX Folding-Arm Awning · 6500 × 4000 mm').waitFor({ timeout: 30000 });
   await kiosk.getByRole('button', { name: 'Add another product' }).tap();
-  await kiosk.getByRole('button', { name: /^Screens and awnings ?Zip Screen/ }).tap();
+  await kiosk.getByRole('button', { name: /Zip Screen/ }).tap();
   await ready3d(kiosk);
   await kiosk.getByRole('button', { name: 'Add to my list' }).tap();
   await kiosk.getByText(/Zip Screen · 3500 × 2800 mm/).waitFor({ timeout: 30000 });
