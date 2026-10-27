@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
+import dynamic from 'next/dynamic';
 import { Check, Download, Hand, Moon, Pause, Play, Plus, RefreshCw, RotateCcw, Sparkles, Sun, Undo2, X, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -10,7 +11,10 @@ import { BREAKS, LOUNGE_TEXT, OfficeSimulation, type Agent, type EventKind, type
 import type { CameraView, OfficeStage, StageHint, StagePick, StageQuality } from '@/lib/features/office/scene';
 import { cheerLine, pickCheerer, type RallyRun } from '@/lib/features/office/cheer';
 import { GAMING } from '@/lib/features/office/layout';
-import { RallyGame, readRallyBest } from './RallyGame';
+import { readRallyBest } from '@/lib/features/office/rally';
+
+/** The racing game only loads when the games screen is clicked. */
+const RallyGame = dynamic(() => import('./RallyGame').then(m => m.RallyGame), { ssr: false });
 
 const SPEEDS = [1, 2, 4];
 const API = '/api/v1/office';
