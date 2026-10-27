@@ -7,13 +7,17 @@ import { fairText, isLocale, type Locale } from "@/lib/features/fair/i18n";
 import type { FairKind } from "@/lib/features/fair/products";
 import { decodeDesign, fragmentPayload } from "@/lib/features/fair/transfer";
 import { useMarkStandaloneScreen } from "@/lib/shared/hooks/useWorkspacePresence";
+import { BrandLogo } from "./BrandLogo";
 import { ItemEditor } from "./ItemEditor";
 import { ItemList } from "./ItemList";
+import { Landing } from "./Landing";
 import { LanguageSwitch } from "./LanguageSwitch";
 import { ProductPicker } from "./ProductPicker";
 import { QuoteForm, type QuoteResult } from "./QuoteForm";
+import { StepBar } from "./StepBar";
+import { useFairLightTheme } from "./theme";
 
-type View = "loading" | "notfound" | "overview" | "list" | "pick" | "edit" | "quote" | "done";
+type View = "welcome" | "loading" | "notfound" | "overview" | "list" | "pick" | "edit" | "quote" | "done";
 export type InitialDesign = { items: DesignItem[]; locale: Locale; fair: { code: string; name: string } | null } | null;
 
 /**
@@ -23,11 +27,12 @@ export type InitialDesign = { items: DesignItem[]; locale: Locale; fair: { code:
  */
 export function DesignApp({ mode, firm, token: initialToken, initial, defaultLocale }: { mode: "web" | "mobile"; firm: string; token: string | null; initial: InitialDesign; defaultLocale: Locale }) {
   useMarkStandaloneScreen();
+  useFairLightTheme();
   const [locale, setLocale] = useState<Locale>(initial?.locale ?? defaultLocale);
   const [token, setToken] = useState<string | null>(initialToken);
   const [items, setItems] = useState<DesignItem[]>(initial?.items ?? []);
   const [fair, setFair] = useState<{ code: string; name: string | null } | null>(initial?.fair ?? null);
-  const [view, setView] = useState<View>(initial ? "overview" : mode === "web" ? "pick" : "loading");
+  const [view, setView] = useState<View>(initial ? "overview" : mode === "web" ? "welcome" : "loading");
   const [editing, setEditing] = useState<{ item: DesignItem; isNew: boolean } | null>(null);
   const [save, setSave] = useState<"idle" | "saving" | "saved" | "error">(initial ? "saved" : "idle");
   const [copied, setCopied] = useState(false);
@@ -98,12 +103,16 @@ export function DesignApp({ mode, firm, token: initialToken, initial, defaultLoc
   const full = items.length >= MAX_ITEMS;
 
   return (
-    <div ref={top} className="min-h-dvh bg-background text-foreground">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
+    <div ref={top} className="rf-fair min-h-dvh">
+      {view === "welcome" ? (
+        <Landing locale={locale} onLocale={setLocale} campaign={null} onStart={() => setView("pick")} />
+      ) : (
+      <>
+      <header className="sticky top-0 z-20 border-b border-border bg-card/95 shadow-sm backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
-          <div className="min-w-0">
-            <p className="truncate font-display text-base font-semibold tracking-wide">{firm || "Renk Alüminyum"}</p>
-            <p className="truncate text-xs text-muted-foreground">{fair?.name ?? f.web}</p>
+          <div className="flex min-w-0 items-center gap-3">
+            <BrandLogo height={34} />
+            <p className="hidden truncate border-l border-border pl-3 text-xs text-muted-foreground sm:block">{fair?.name ?? firm ?? f.web}</p>
           </div>
           <div className="flex items-center gap-2">
             <LanguageSwitch locale={locale} onChange={setLocale} />
@@ -114,6 +123,9 @@ export function DesignApp({ mode, firm, token: initialToken, initial, defaultLoc
             )}
           </div>
         </div>
+        {view !== "loading" && view !== "notfound" && (
+          <StepBar locale={locale} step={view === "pick" ? 0 : view === "quote" || view === "done" ? 2 : 1} />
+        )}
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-5">
@@ -224,6 +236,8 @@ export function DesignApp({ mode, firm, token: initialToken, initial, defaultLoc
           </section>
         )}
       </main>
+      </>
+      )}
     </div>
   );
 }

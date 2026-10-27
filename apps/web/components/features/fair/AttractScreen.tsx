@@ -5,6 +5,7 @@ import { ArrowRight, Hand } from "lucide-react";
 import { fairText, productName, productPitch, type Locale } from "@/lib/features/fair/i18n";
 import { ATTRACT_SLIDES } from "@/lib/features/fair/media";
 import type { FairKind } from "@/lib/features/fair/products";
+import { BrandLogo } from "./BrandLogo";
 import { LanguageSwitch } from "./LanguageSwitch";
 
 const SLIDE_SECONDS = 7;
@@ -14,10 +15,9 @@ const SLIDE_SECONDS = 7;
  * so the stand draws people in from across the aisle. A touch anywhere starts; the caption's button
  * opens the product on the current photo straight away.
  */
-export function AttractScreen({ locale, onLocale, firm, campaign, onStart, onPick }: {
+export function AttractScreen({ locale, onLocale, campaign, onStart, onPick }: {
   locale: Locale;
   onLocale: (locale: Locale) => void;
-  firm: string;
   campaign: string | null;
   onStart: () => void;
   onPick: (kind: FairKind) => void;
@@ -42,7 +42,7 @@ export function AttractScreen({ locale, onLocale, firm, campaign, onStart, onPic
 
       <div className="relative flex h-full flex-col justify-between p-8 xl:p-12">
         <div className="flex items-start justify-between gap-6">
-          <p className="font-display text-xl font-semibold uppercase tracking-[.3em] text-white/90">{firm || "Renk Alüminyum"}</p>
+          <BrandLogo white height={64} />
           <div className="rounded-lg bg-white/95 p-1 text-neutral-900" onClick={(e) => e.stopPropagation()}>
             <LanguageSwitch locale={locale} onChange={onLocale} large />
           </div>
@@ -50,11 +50,12 @@ export function AttractScreen({ locale, onLocale, firm, campaign, onStart, onPic
 
         <div className="grid items-end gap-10 lg:grid-cols-[1fr_auto]">
           <div className="max-w-4xl space-y-5">
-            <h1 className="font-display text-5xl font-semibold leading-[1.05] drop-shadow-lg xl:text-7xl">{f.tagline}</h1>
-            {campaign && <p className="max-w-2xl text-xl text-white/85 xl:text-2xl">{campaign}</p>}
+            <h1 className="font-display text-5xl font-semibold leading-[1.05] drop-shadow-lg xl:text-7xl">{f.heroTitle}</h1>
+            <p className="max-w-3xl text-2xl leading-snug text-white/90 xl:text-3xl">{f.heroText}</p>
+            {campaign && <p className="inline-block rounded-full bg-white/15 px-5 py-2 text-lg font-medium backdrop-blur">{campaign}</p>}
             <div className="flex flex-wrap items-center gap-4 pt-2">
               <button type="button" className="inline-flex min-h-20 items-center gap-3 rounded-full bg-white px-10 text-2xl font-semibold text-neutral-900 shadow-2xl transition active:scale-95 motion-reduce:transition-none" onClick={(e) => { e.stopPropagation(); onStart(); }}>
-                {f.start} <ArrowRight size={28} aria-hidden />
+                {f.heroCta} <ArrowRight size={28} aria-hidden />
               </button>
               <span className="inline-flex items-center gap-2 text-lg text-white/80">
                 <Hand size={22} aria-hidden className="animate-pulse motion-reduce:animate-none" /> {f.touchToStart}

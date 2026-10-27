@@ -11,11 +11,13 @@ import type { FairKind } from "@/lib/features/fair/products";
 import { encodeDesign } from "@/lib/features/fair/transfer";
 import { useMarkStandaloneScreen } from "@/lib/shared/hooks/useWorkspacePresence";
 import { AttractScreen } from "./AttractScreen";
+import { BrandLogo } from "./BrandLogo";
 import { ItemEditor } from "./ItemEditor";
 import { ItemList } from "./ItemList";
 import { LanguageSwitch } from "./LanguageSwitch";
 import { ProductPicker } from "./ProductPicker";
 import { registerConfiguratorWorker } from "./offline";
+import { useFairLightTheme } from "./theme";
 
 /** Inactivity (seconds) before "Are you still there?", the countdown after it, and the QR screen's own limit. */
 export const KIOSK_TIMING = { idlePrompt: 90, promptCountdown: 20, qrScreen: 180 };
@@ -30,6 +32,7 @@ type Fair = { code: string; name: string; defaultLocale: Locale; campaign: strin
  */
 export function KioskApp({ fair, firm }: { fair: Fair; firm: string }) {
   useMarkStandaloneScreen();
+  useFairLightTheme();
   const [locale, setLocale] = useState<Locale>(fair.defaultLocale);
   const [view, setView] = useState<View>("welcome");
   const [items, setItems] = useState<DesignItem[]>([]);
@@ -124,12 +127,12 @@ export function KioskApp({ fair, firm }: { fair: Fair; firm: string }) {
   }
 
   return (
-    <div className="flex min-h-dvh select-none flex-col bg-background text-foreground [touch-action:manipulation]">
+    <div className="rf-fair flex min-h-dvh select-none flex-col [touch-action:manipulation]">
       <style>{`html.rf-kiosk{font-size:clamp(16px,0.95vw,24px)}`}</style>
-      <header className="flex items-center justify-between gap-4 border-b border-border px-6 py-3">
-        <div className="min-w-0">
-          <p className="truncate font-display text-lg font-semibold tracking-wide">{firm || "Renk Alüminyum"}</p>
-          <p className="truncate text-xs text-muted-foreground">{fair.name}</p>
+      <header className="flex items-center justify-between gap-4 border-b border-border bg-card px-6 py-3 shadow-sm">
+        <div className="flex min-w-0 items-center gap-4">
+          <BrandLogo height={44} />
+          <p className="truncate border-l border-border pl-4 text-sm text-muted-foreground">{fair.name}</p>
         </div>
         <div className="flex items-center gap-2">
           {(!online || pending > 0) && (
@@ -147,7 +150,7 @@ export function KioskApp({ fair, firm }: { fair: Fair; firm: string }) {
 
       <main className="flex-1 px-6 py-5">
         {view === "welcome" && (
-          <AttractScreen locale={locale} onLocale={setLocale} firm={firm} campaign={fair.campaign} onStart={() => setView("pick")} onPick={startItem} />
+          <AttractScreen locale={locale} onLocale={setLocale} campaign={fair.campaign} onStart={() => setView("pick")} onPick={startItem} />
         )}
 
         {view === "pick" && <ProductPicker locale={locale} onPick={startItem} disabled={items.length >= MAX_ITEMS} kiosk />}

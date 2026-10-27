@@ -49,13 +49,13 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   const kiosk = await kioskCtx.newPage();
   watch(kiosk, 'kiosk');
   await kiosk.goto(KIOSK, { waitUntil: 'networkidle' });
-  await kiosk.getByText('Discover, customize and experience our products in 3D.').waitFor();
+  await kiosk.getByText('No need to collect business cards.').waitFor();
   await kiosk.getByText('Visit us in Hall 6, Stand A21.').waitFor();
   assert.equal(await kiosk.locator('input[type=email], input[type=tel]').count(), 0, 'kiosk asks for no personal data');
   await kiosk.screenshot({ path: SHOTS + 'k1-welcome.png' });
   step('kiosk welcome with fair campaign, no personal fields');
 
-  await kiosk.getByRole('button', { name: 'Start designing' }).tap();
+  await kiosk.getByRole('button', { name: 'Start configuring' }).tap();
   await kiosk.getByRole('button', { name: /WINMAX Folding-Arm Awning/ }).tap();
   await kiosk.locator('canvas').first().waitFor();
   await ready3d(kiosk);
@@ -94,7 +94,7 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   step('QR decoded; design stored with fair rt2027 and both products');
 
   await kiosk.getByRole('button', { name: 'Done — new visitor' }).tap();
-  await kiosk.getByText('Discover, customize and experience our products in 3D.').waitFor();
+  await kiosk.getByText('No need to collect business cards.').waitFor();
   step('kiosk reset to start');
 
   // ---- Phone -------------------------------------------------------------------------------------
@@ -184,12 +184,12 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   const idle = await idleCtx.newPage();
   await idle.clock.install();
   await idle.goto(KIOSK, { waitUntil: 'networkidle' });
-  await idle.getByRole('button', { name: 'Start designing' }).tap();
+  await idle.getByRole('button', { name: 'Start configuring' }).tap();
   await idle.getByRole('heading', { name: 'Choose a product' }).waitFor();
   await idle.clock.fastForward(95_000);
   await idle.getByRole('heading', { name: 'Are you still there?' }).waitFor();
   await idle.clock.fastForward(20_000);
-  await idle.getByText('Discover, customize and experience our products in 3D.').waitFor();
+  await idle.getByText('No need to collect business cards.').waitFor();
   await idleCtx.close();
   step('idle kiosk asks "Are you still there?" after 90 s and resets after 20 s more');
 
@@ -206,9 +206,9 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   assert.ok(cached.controlled && cached.entries > 10);
   await kioskCtx.setOffline(true);
   await kiosk.reload({ waitUntil: 'load' });
-  await kiosk.getByText('Discover, customize and experience our products in 3D.').waitFor();
+  await kiosk.getByText('No need to collect business cards.').waitFor();
   await kiosk.getByText('Offline', { exact: false }).first().waitFor();
-  await kiosk.getByRole('button', { name: 'Start designing' }).tap();
+  await kiosk.getByRole('button', { name: 'Start configuring' }).tap();
   await kiosk.getByRole('button', { name: /Bioclimatic Pergola/ }).tap();
   await kiosk.locator('canvas').first().waitFor();
   await ready3d(kiosk);
@@ -227,7 +227,7 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   const offlineToken = /\/c\/([A-Za-z0-9_-]{22})#d=/.exec(offlineLink)[1];
   assert.equal((await sql`SELECT 1 FROM fair_designs WHERE token = ${offlineToken}`).length, 0, 'not on the server yet');
   await kiosk.getByRole('button', { name: 'Done — new visitor' }).tap();
-  await kiosk.getByText('Discover, customize and experience our products in 3D.').waitFor();
+  await kiosk.getByText('No need to collect business cards.').waitFor();
   await kiosk.getByText(/1 design\(s\) waiting to sync/).waitFor();
   step('offline: product chosen, 3D configured, QR made, kiosk reset — queued design kept');
 
