@@ -212,7 +212,7 @@ export default function InventoryPage() {
             onSearch={(q) => setSearchQuery(q)}
             onFilterChange={(key, value) => setFilterValues((prev) => ({ ...prev, [key]: value }))}
             filterValues={filterValues}
-            emptyState={{ title: error ? 'Stok verisi alınamadı' : 'Stok kaydı yok', description: '' }}
+            emptyState={{ title: error ? 'Stok verisi alınamadı' : 'Stok kaydı yok', description: '', illustration: error ? undefined : 'forklift' }}
           />
         </div>
         <MovementDrawer item={timelineFor} onClose={() => setTimelineFor(null)} />
