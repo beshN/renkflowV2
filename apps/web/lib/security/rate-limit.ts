@@ -40,6 +40,8 @@ export const RATE_LIMIT_POLICIES = {
   // The tracking page polls every 20 s, so a handful of open tabs on one IP stays far below this.
   publicTrackingRead: { limit: 600, windowMs: 10 * 60_000 },
   publicQuoteRead: { limit: 300, windowMs: 10 * 60_000 },
+  // A fair hall shares one Wi-Fi address, so this is per IP and generous; it only stops floods.
+  fairRequest: { limit: 60, windowMs: 10 * 60_000 },
 } satisfies Record<string, RateLimitPolicy>;
 
 export type RateLimitPolicyName = keyof typeof RATE_LIMIT_POLICIES;

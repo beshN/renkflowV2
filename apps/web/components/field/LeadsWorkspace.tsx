@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { BarChart3, CalendarClock, FileText, KanbanSquare, MapPin, Phone, Plus, Ruler, Target, Trophy } from 'lucide-react';
+import { BarChart3, CalendarClock, FileText, KanbanSquare, MapPin, Phone, Plus, Ruler, Store, Target, Trophy } from 'lucide-react';
 import { EmptyState, HintTip, PageHeader, Skeleton, StatusChip } from '@/components/kit';
 import { RecordButton } from '@/components/records/RecordDrawer';
 import {LeadSalesContextPanel} from './LeadSalesContextPanel';
@@ -71,7 +71,7 @@ export function LeadsWorkspace() {
     <div className="space-y-4">
       <PageHeader eyebrow="Satış" title="Potansiyel müşteriler" hint="Yeni → Keşif → Teklif → Pazarlık → Kazanıldı/Kaybedildi. Kartı sürükleyerek ya da kartın aşama seçicisinden ilerletin. Teklif aşamasına gelen kayıt için müşteri kartı ve keşif ölçülerinden taslak teklif kendiliğinden açılır."
         kpis={[{ label: 'açık', value: openCount, icon: Target }, { label: 'kazanılan', value: won, icon: Trophy, tone: 'success' }, { label: 'dönüşüm', value: closed ? `%${Math.round((won / closed) * 100)}` : '—' }, { label: 'takibi geçmiş', value: overdue, icon: CalendarClock, tone: overdue ? 'warning' : 'neutral' }]}
-        action={<button type="button" className="rf-primary-button inline-flex items-center gap-1 text-sm" onClick={() => setCreating(true)}><Plus size={14} aria-hidden /> Yeni</button>} />
+        action={<div className="flex flex-wrap gap-2"><Link href="/leads/fuar" className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border px-3 text-sm"><Store size={14} aria-hidden /> Fuar talepleri</Link><button type="button" className="rf-primary-button inline-flex items-center gap-1 text-sm" onClick={() => setCreating(true)}><Plus size={14} aria-hidden /> Yeni</button></div>} />
       {error && <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">{error}</p>}
       {creating && <NewLead onClose={() => setCreating(false)} onCreated={async (id) => { setCreating(false); await load(); open(id); }} onError={setError} />}
       {losing && (

@@ -8,6 +8,7 @@ import { evaluateRouteAccess } from '@/lib/features/auth/route-access';
 import { accessDecision, logAccessDenied, narrowedHiddenFields } from '@/lib/security/member-access.server';
 import { HIDDEN_FIELDS_HEADER } from '@/lib/security/field-header';
 import { SECURITY_HEADERS } from '@/lib/security/security-headers';
+import { FAIR_PAGE, fairTenantId, isFairHost, isFairPath } from '@/lib/features/fair/config';
 
 const AUTH_SECRET =
   resolveAuthSecret({
@@ -161,6 +162,20 @@ function withProxySecurityHeaders(
   return response;
 }
 
+function fairSite(request: NextRequest, pathname: string, isSecureRequest: boolean) {
+  if (isFairPath(pathname)) return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
+  if (pathname.startsWith('/api/')) return withProxySecurityHeaders(NextResponse.json({ error: 'Not Found' }, { status: 404 }), { isSecureRequest });
+  if (isStaticAsset(pathname)) return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
+  const url = request.nextUrl.clone();
+  if (pathname === '/') {
+    url.pathname = FAIR_PAGE;
+    return withProxySecurityHeaders(NextResponse.rewrite(url), { isSecureRequest });
+  }
+  url.pathname = '/';
+  url.search = '';
+  return withProxySecurityHeaders(NextResponse.redirect(url, 302), { isSecureRequest });
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const method = request.method.toUpperCase();
@@ -185,6 +200,12 @@ export async function proxy(request: NextRequest) {
     httpsUrl.port = '';
     return withProxySecurityHeaders(NextResponse.redirect(httpsUrl, 301), { isSecureRequest: false });
   }
+
+  // The fair site (QR → 3D configurator → contact) is public and needs no session. A fair domain
+  // serves nothing else: no sign-in, no workspace, no other API.
+  const requestHost = request.headers.get('host') || request.nextUrl.host;
+  if (isFairHost(requestHost)) return fairSite(request, pathname, isSecureRequest);
+  if (fairTenantId() && isFairPath(pathname)) return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
 
   // Reject unknown company hosts before routes, authentication and server actions execute.
   // Host-only Auth.js cookies remain independent for every company address.

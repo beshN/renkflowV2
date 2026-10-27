@@ -50,7 +50,9 @@ export function ProductConfigurator({
     [view, setView] = useState<ProductView>("perspective"),
     [error, setError] = useState(""),
     [ready, setReady] = useState(false),
-    [rendering, setRendering] = useState(false);
+    [rendering, setRendering] = useState(false),
+    // Bumped when a render finishes: rendering can go true → false within one batch, which alone would not re-run the capture.
+    [renderCount, setRenderCount] = useState(0);
   const canvas = useRef<HTMLCanvasElement>(null),
     stage = useRef<HTMLDivElement>(null),
     controller = useRef<ProductStage | null>(null),
@@ -115,6 +117,7 @@ export function ProductConfigurator({
         if (!cancelled) {
           rendered.current = signature;
           setRendering(false);
+          setRenderCount((n) => n + 1);
         }
       })
       .catch(() => {
@@ -150,7 +153,7 @@ export function ProductConfigurator({
       if (image) changeHandler.current?.({ configuration: valid.data, image });
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [draft, ready, rendering, opening, view, time, readOnly]);
+  }, [draft, ready, rendering, renderCount, opening, view, time, readOnly]);
   const update = <K extends keyof VisualizationConfiguration>(
     key: K,
     v: VisualizationConfiguration[K],

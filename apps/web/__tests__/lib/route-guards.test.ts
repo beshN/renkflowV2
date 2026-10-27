@@ -26,6 +26,7 @@ const PUBLIC: Record<string, { why: string; keeps: RegExp | null }> = {
   'tenant/invite/accept': { why: 'davet jetonuyla katılım', keeps: /consumeRateLimit/ },
   'tenant/invite/validate': { why: 'davet jetonu kontrolü', keeps: /consumeRateLimit/ },
   'v1/public/quotes/[token]': { why: 'müşteri teklif bağlantısı (jeton)', keeps: /getClientIp/ },
+  'v1/public/fair': { why: 'fuar ziyaretçisinin 3D ürün ve iletişim talebi (FAIR_TENANT_ID yoksa 404)', keeps: /consumeRateLimit\('fairRequest'/ },
   'v1/tracking/[token]': { why: 'müşteri takip bağlantısı (jeton)', keeps: /token/ },
   'telemetry/ingest': { why: 'takip cihazı (cihaz jetonu, cihaz başına hız sınırı servis katmanında)', keeps: /ingestTelemetry/ },
   'v1/public/signoff/[token]': { why: 'müşteri teslim imzası (jeton, hız sınırı servis katmanında)', keeps: /signDelivery/ },
