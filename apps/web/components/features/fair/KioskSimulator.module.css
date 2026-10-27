@@ -1,0 +1,66 @@
+.root { min-height: 100dvh; background: #171b1e; color: #f3f1eb; font-family: var(--font-sans), sans-serif; color-scheme: dark; }
+.root button, .root a { -webkit-tap-highlight-color: transparent; }
+.root button:focus-visible, .root a:focus-visible { outline: 2px solid #ed8e68; outline-offset: 4px; }
+.header { height: 88px; padding: 0 4%; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid #ffffff12; }
+.brand { display: flex; align-items: center; gap: 11px; color: #f3f1eb; text-decoration: none; font-size: 20px; font-weight: 650; letter-spacing: .13em; line-height: 1; }
+.brandIcon { display: grid; place-items: center; width: 35px; height: 39px; background: #cf7858; color: #171b1e; font-size: 26px; font-weight: 800; letter-spacing: -.08em; border-radius: 3px 10px 3px 3px; }
+.brandSub { display: block; font-size: 8px; letter-spacing: .23em; margin-top: 7px; font-weight: 400; }
+.headerLabel { color: #a2aaa9; font-size: 10px; letter-spacing: .16em; }
+.headerLabel span { color: #cf7858; padding: 0 14px; }
+.directLink { display: inline-flex; align-items: center; gap: 8px; color: #d9dedb; font-size: 12px; text-decoration: none; }
+.main { max-width: 1880px; margin: 0 auto; padding: 44px 4% 30px; display: grid; grid-template-columns: minmax(240px, 310px) minmax(0, 1fr); gap: clamp(28px, 4vw, 72px); }
+.sidebar { padding-top: 25px; }
+.eyebrow { display: flex; align-items: center; gap: 10px; font-size: 10px; letter-spacing: .2em; color: #c3c9c4; }
+.eyebrow > span { display: block; width: 22px; height: 1px; background: #d98b68; }
+.sidebar h1 { margin: 24px 0; font-family: var(--font-display), sans-serif; font-size: clamp(36px, 3.7vw, 62px); line-height: 1.08; font-weight: 500; letter-spacing: -.045em; }
+.sidebar h1 em { font-style: normal; color: #d79273; }
+.intro { color: #a5afad; font-size: 14px; line-height: 1.85; max-width: 280px; }
+.instructions { margin-top: 35px; display: grid; gap: 23px; }
+.instructions > div { display: flex; gap: 15px; align-items: baseline; }
+.instructions > div > span { color: #cd8b6d; font-family: var(--font-mono), monospace; font-size: 10px; }
+.instructions p { color: #95a09e; font-size: 12px; line-height: 1.6; margin: 0; }
+.instructions strong { display: block; margin-bottom: 4px; color: #e5e8e2; font-size: 13px; font-weight: 500; }
+.note { display: flex; align-items: flex-start; gap: 10px; color: #8c9996; font-size: 11px; line-height: 1.7; padding-top: 23px; margin-top: 30px; border-top: 1px solid #ffffff12; max-width: 275px; }
+.note svg { flex-shrink: 0; margin-top: 3px; color: #b3bdb7; }
+.workspace { min-width: 0; }
+.toolbar { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.toolbar button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 12px; cursor: pointer; background: transparent; border: 0; color: #aeb8b3; font: inherit; font-size: 12px; border-radius: 5px; transition: background .15s, color .15s; }
+.toolbar button:hover { background: #ffffff0e; color: #fff; }
+.viewSwitch { display: flex; padding: 3px; background: #111619; border: 1px solid #ffffff0b; border-radius: 7px; }
+.viewSwitch button { min-height: 33px; }
+.viewSwitch button[aria-pressed="true"] { color: #f7f3ec; background: #313a3d; box-shadow: 0 1px 3px #0004; }
+.actions { display: flex; gap: 5px; }
+.scene { position: relative; overflow: hidden; isolation: isolate; border-radius: 12px; border: 1px solid #ffffff0e; background: radial-gradient(ellipse at 50% 27%, #555d58 0%, #343e3b 40%, #26312f 80%); }
+.scene::before { content: ''; position: absolute; inset: 0; z-index: -1; opacity: .18; background: repeating-linear-gradient(90deg, transparent 0 119px, #d8e0cc20 120px 121px); mask-image: linear-gradient(#000, transparent 90%); }
+.sceneTop, .sceneBottom { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; color: #b4c0b5; font-family: var(--font-mono), monospace; font-size: 9px; letter-spacing: .1em; gap: 15px; }
+.sceneTop > span:first-child, .sceneBottom > span:last-child { display: inline-flex; align-items: center; gap: 7px; }
+.statusDot { width: 5px; height: 5px; border-radius: 50%; background: #bdd0ae; box-shadow: 0 0 9px #b7dc9650; }
+.stage { height: clamp(340px, 53vh, 670px); width: 100%; display: flex; align-items: flex-end; justify-content: center; position: relative; z-index: 2; }
+.device { width: calc(var(--screen-width) + 30px); padding: 15px 15px 0; border-radius: 14px; background: linear-gradient(120deg, #4b5050, #1c2225 18%, #171c1e 78%, #454b4a); border: 1px solid #737a7666; box-shadow: 0 22px 48px #0005, inset 0 1px 0 #ffffff21, 0 0 0 2px #0d1215; position: relative; }
+.camera { position: absolute; width: 4px; height: 4px; top: 5px; left: calc(50% - 2px); border-radius: 50%; background: #060c0e; box-shadow: inset 0 0 0 1px #5d6465; }
+.screen { position: relative; width: var(--screen-width); height: var(--screen-height); overflow: hidden; background: #f2f3f2; border-radius: 3px; box-shadow: 0 0 0 1px #000; color-scheme: light; }
+.screen iframe { display: block; border: 0; max-width: none; transform-origin: 0 0; background: #f2f3f2; }
+.deviceBottom { height: 25px; display: flex; align-items: center; justify-content: center; color: #949e98; font-size: 7px; letter-spacing: .26em; position: relative; }
+.deviceBottom i { position: absolute; right: 2px; width: 3px; height: 3px; background: #a2c990; border-radius: 50%; box-shadow: 0 0 5px #a2c99077; }
+.loading { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 12px; justify-content: center; align-items: center; color: #53625b; background: #f2f3f2; font-size: 12px; pointer-events: none; }
+.stand { position: relative; z-index: 1; height: 90px; display: flex; align-items: center; flex-direction: column; }
+.stand > div { width: 82px; height: 61px; background: linear-gradient(90deg, #242d2d, #56605a 47%, #313b37); box-shadow: inset 1px 0 #86908030; }
+.stand::after { content: ''; position: absolute; width: 185px; height: 12px; top: 59px; border-radius: 50%; background: #1c2724; box-shadow: inset 0 2px 1px #8e9b8a33, 0 9px 15px #0006; }
+.stand > span { position: absolute; top: 14px; color: #8e9d91; font-size: 5px; letter-spacing: .04em; }
+.floor { position: absolute; inset: 65% 0 0; z-index: -1; background: linear-gradient(transparent, #10232060); }
+.sceneBottom { position: relative; padding-top: 0; font-family: var(--font-sans), sans-serif; letter-spacing: .02em; font-size: 10px; color: #a5b2a6; }
+.caption { margin-top: 15px; color: #86948f; font-size: 11px; line-height: 1.6; text-align: center; }
+.error { color: #e6b59e; font-size: 12px; }
+.footer { max-width: 1880px; margin: 0 auto; padding: 22px 4%; display: flex; justify-content: space-between; font-size: 9px; letter-spacing: .15em; color: #73827c; }
+.footer > span:first-child { color: #a4afa7; }
+.footer > span > span { color: #73827c; margin-left: 12px; }
+.immersive { position: fixed; inset: 0; z-index: 100; overflow: auto; }
+.immersive .header, .immersive .sidebar, .immersive .footer, .immersive .caption { display: none; }
+.immersive .main { display: block; padding: 14px 24px; max-width: none; }
+.immersive .toolbar { margin-bottom: 8px; }
+.immersive .stage { height: calc(100dvh - 166px); }
+.immersive .stand { display: none; }
+@media (min-width: 1700px) { .stage { height: 61vh; } }
+@media (max-width: 1050px) { .main { grid-template-columns: 220px minmax(0, 1fr); gap: 26px; } .sidebar h1 { font-size: 39px; } .toolbar button { padding: 0 8px; } .actions button span { display: none; } .sceneBottom > span:last-child { display: none; } }
+@media (max-width: 760px) { .header { height: 70px; padding: 0 20px; } .headerLabel { display: none; } .main { display: flex; flex-direction: column; padding: 24px 16px 12px; gap: 22px; } .sidebar { padding: 0 4px; } .sidebar h1 { margin: 14px 0; font-size: 33px; } .sidebar h1 br { display: none; } .sidebar h1 br::after { content: ' '; } .sidebar h1 em { display: block; } .intro { max-width: 480px; margin-bottom: 0; font-size: 13px; } .instructions, .note { display: none; } .stage { height: 49vh; min-height: 280px; } .toolbar { margin-bottom: 12px; } .sceneTop, .sceneBottom { padding: 16px; } .stand { height: 74px; } .footer { padding: 16px 20px; font-size: 8px; } .immersive .main { padding: 10px; } .immersive .stage { height: calc(100dvh - 156px); min-height: 0; } }
+@media (prefers-reduced-motion: reduce) { .toolbar button { transition: none; } }

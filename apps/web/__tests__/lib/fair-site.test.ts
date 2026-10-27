@@ -28,6 +28,7 @@ describe('configurator domain', () => {
     withEnv(env, async () => {
       expect(rewrittenTo(await hit(HOST + '/'))).toBe('/configurator');
       expect(rewrittenTo(await hit(HOST + '/fair/rt2027'))).toBe('/configurator/fair/rt2027');
+      expect(rewrittenTo(await hit(HOST + '/simulator'))).toBe('/configurator/simulator');
       expect(rewrittenTo(await hit(HOST + '/c/AbCdEfGhIjKlMnOpQrStUv'))).toBe('/configurator/c/AbCdEfGhIjKlMnOpQrStUv');
       for (const path of ['/api/v1/public/fair/designs', '/api/v1/public/fair/quotes', '/configurator-sw.js', '/_next/static/chunks/main.js'])
         expect((await hit(HOST + path, { method: path.includes('api') ? 'POST' : 'GET' })).headers.get('x-middleware-next')).toBe('1');
@@ -49,7 +50,9 @@ describe('configurator domain', () => {
       expect((await hit('https://renkflow.com/api/v1/public/fair/quotes', { method: 'POST' })).status).toBe(401);
     });
   });
-  it('rewrites only the three public shapes', () => {
+  it('rewrites only the supported public shapes', () => {
+    expect(configuratorRewrite('/simulator/')).toBe('/configurator/simulator');
+    expect(configuratorRewrite('/simulator/anything')).toBeNull();
     expect(configuratorRewrite('/fair/rt2027/')).toBe('/configurator/fair/rt2027');
     expect(configuratorRewrite('/fair/a/b')).toBeNull();
     expect(configuratorRewrite('/dashboard')).toBeNull();

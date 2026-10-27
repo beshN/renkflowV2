@@ -41,6 +41,7 @@ export function isFairPath(pathname: string): boolean {
 /** Public routes of a configurator domain → app paths: / , /fair/<code>, /c/<token>. */
 export function configuratorRewrite(pathname: string): string | null {
   if (pathname === '/') return CONFIGURATOR_PATH;
+  if (pathname === '/simulator' || pathname === '/simulator/') return CONFIGURATOR_PATH + '/simulator';
   if (/^\/(fair|c)\/[^/]+\/?$/.test(pathname)) return CONFIGURATOR_PATH + pathname.replace(/\/$/, '');
   return null;
 }

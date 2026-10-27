@@ -64,5 +64,11 @@ Kiosk süreleri `KIOSK_TIMING` içindedir: 90 sn hareketsizlik → "Hâlâ orada
 
 ## Testler
 
+### Tarayıcıda kiosk simülatörü
+
+Konfigüratör alan adında `/simulator?fair=rt2027`, RenkFlow içinde `/configurator/simulator?fair=rt2027` adresi aktif fuarı bir kiosk kasasının ekranında açar. `fair` verilmezse `rt2027` kullanılır. Yatay (1920 × 1080) ve dikey (1080 × 1920) görünüm, tam ekran ve yeni ziyaretçi için başa dönme kontrolleri vardır. Yön değiştirmek mevcut tasarımı korur; başa dönmek ekranı yeniden açar.
+
+Ekran aynı kaynaktan açılan gerçek fuar sayfasıdır: ürünler, 3D, QR bağlantıları ve teklif kayıtları aynı ortamda çalışır. Ayrı bir örnek veri veya sahte işlem katmanı yoktur. Fareyle ya da dokunarak kullanılabilir; fiziksel cihazın performansını veya dokunma donanımını taklit etmez.
+
 - `__tests__/lib/fair-site.test.ts`: alan adı yönlendirmesi, tasarım modeli, QR aktarımı (çok ürünlü bağlantı < 900 karakter), teklif girdisi, e-posta şablonu.
 - Uçtan uca kabul senaryosu (üretim derlemesi + yerel PostgreSQL + Playwright): kiosk → WINMAX ölçü/renk/motor/LED/animasyon → ikinci ürün → QR (görüntüden çözülerek) → telefon → düzenleme → teklif → veritabanı → panel → durum değişikliği; hareketsizlikte sıfırlama; çevrimdışı kiosk (yenileme, 3D, QR, sıfırlama, kuyruk), internetsiz kiosk tasarımının telefondan açılması ve geri gelen bağlantıda eşitleme.
