@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import * as Sentry from '@sentry/nextjs';
 import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
+import { WhileYouWait } from '@/components/spells/WhileYouWait';
 
 export default function Error({
   error,
@@ -68,6 +69,8 @@ export default function Error({
             </pre>
           </div>
         )}
+
+        <WhileYouWait className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-800" />
       </div>
     </div>
   );
