@@ -162,15 +162,22 @@ function withProxySecurityHeaders(
   return response;
 }
 
-/** A configurator domain: /, /fair/<code> and /c/<token> map to the configurator; nothing else is served. */
+/** Only kiosk pages can be embedded by the simulator on the same origin. */
+function withConfiguratorSecurityHeaders(response: NextResponse, pathname: string, isSecureRequest: boolean) {
+  const secured = withProxySecurityHeaders(response, { isSecureRequest });
+  if (/^(?:\/configurator)?\/fair\/[^/]+\/?$/.test(pathname)) secured.headers.set('X-Frame-Options', 'SAMEORIGIN');
+  return secured;
+}
+
+/** A configurator domain serves the public configurator and its kiosk simulator. */
 function fairSite(request: NextRequest, pathname: string, isSecureRequest: boolean) {
   const target = configuratorRewrite(pathname);
   const url = request.nextUrl.clone();
   if (target) {
     url.pathname = target;
-    return withProxySecurityHeaders(NextResponse.rewrite(url), { isSecureRequest });
+    return withConfiguratorSecurityHeaders(NextResponse.rewrite(url), pathname, isSecureRequest);
   }
-  if (isFairPath(pathname)) return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
+  if (isFairPath(pathname)) return withConfiguratorSecurityHeaders(NextResponse.next(), pathname, isSecureRequest);
   if (pathname.startsWith('/api/')) return withProxySecurityHeaders(NextResponse.json({ error: 'Not Found' }, { status: 404 }), { isSecureRequest });
   if (isStaticAsset(pathname)) return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
   url.pathname = '/';
@@ -207,7 +214,7 @@ export async function proxy(request: NextRequest) {
   // domain serves nothing else: no sign-in, no workspace, no other API.
   const requestHost = request.headers.get('host') || request.nextUrl.host;
   if (isFairHost(requestHost)) return fairSite(request, pathname, isSecureRequest);
-  if (fairTenantId() && isFairPath(pathname)) return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
+  if (fairTenantId() && isFairPath(pathname)) return withConfiguratorSecurityHeaders(NextResponse.next(), pathname, isSecureRequest);
 
   // Reject unknown company hosts before routes, authentication and server actions execute.
   // Host-only Auth.js cookies remain independent for every company address.

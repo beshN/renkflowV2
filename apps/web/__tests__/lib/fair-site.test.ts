@@ -29,6 +29,9 @@ describe('configurator domain', () => {
       expect(rewrittenTo(await hit(HOST + '/'))).toBe('/configurator');
       expect(rewrittenTo(await hit(HOST + '/fair/rt2027'))).toBe('/configurator/fair/rt2027');
       expect(rewrittenTo(await hit(HOST + '/simulator'))).toBe('/configurator/simulator');
+      expect((await hit(HOST + '/fair/rt2027')).headers.get('X-Frame-Options')).toBe('SAMEORIGIN');
+      expect((await hit(HOST + '/simulator')).headers.get('X-Frame-Options')).toBe('DENY');
+      expect((await hit(HOST + '/c/AbCdEfGhIjKlMnOpQrStUv')).headers.get('X-Frame-Options')).toBe('DENY');
       expect(rewrittenTo(await hit(HOST + '/c/AbCdEfGhIjKlMnOpQrStUv'))).toBe('/configurator/c/AbCdEfGhIjKlMnOpQrStUv');
       for (const path of ['/api/v1/public/fair/designs', '/api/v1/public/fair/quotes', '/configurator-sw.js', '/_next/static/chunks/main.js'])
         expect((await hit(HOST + path, { method: path.includes('api') ? 'POST' : 'GET' })).headers.get('x-middleware-next')).toBe('1');
@@ -44,6 +47,7 @@ describe('configurator domain', () => {
   it('opens the configurator inside RenkFlow only when it is configured', async () => {
     await withEnv({ ...env, FAIR_HOSTS: undefined }, async () => {
       expect((await hit('https://renkflow.com/configurator/fair/rt2027')).headers.get('x-middleware-next')).toBe('1');
+      expect((await hit('https://renkflow.com/configurator/fair/rt2027')).headers.get('X-Frame-Options')).toBe('SAMEORIGIN');
       expect((await hit('https://renkflow.com/api/v1/public/fair/quotes', { method: 'POST' })).headers.get('x-middleware-next')).toBe('1');
     });
     await withEnv({ ...env, FAIR_TENANT_ID: undefined, FAIR_HOSTS: undefined }, async () => {
