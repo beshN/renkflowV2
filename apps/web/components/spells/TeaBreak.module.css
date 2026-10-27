@@ -1,0 +1,8 @@
+.steam {fill:none;stroke:currentColor;stroke-width:1.2;stroke-linecap:round;opacity:0;animation:rise 2.6s ease-in-out infinite}
+.steam:nth-of-type(2) {animation-delay:1.3s}
+@keyframes rise {
+  0% {opacity:0;transform:translateY(2px)}
+  35% {opacity:.55}
+  100% {opacity:0;transform:translateY(-3px)}
+}
+@media (prefers-reduced-motion:reduce) {.steam {animation:none;opacity:.45}}
