@@ -13,7 +13,7 @@ const status = () => channelStatus({ pushConfigured: Boolean(process.env.VAPID_P
 /** Your notification preferences: event × channel, and which channels deliver today. */
 export async function GET() {
   try {
-    const actor = await requireWorkOrderActor();
+    const actor = await requireWorkOrderActor({ allowDuringMfaSetup: true });
     const prefs = await getNotificationPreferences(actor.userId);
     return NextResponse.json({ events: PREFERENCE_EVENTS, channels: PREFERENCE_CHANNELS, status: status(), preferences: normalizePreferences(prefs) }, { headers: NO_STORE });
   } catch (e) {
@@ -28,7 +28,7 @@ const Body = z.object({ inApp: Row, email: Row, push: Row }).strict();
 export async function PUT(req: NextRequest) {
   try {
     requireSameOriginJson(req, 10_000);
-    const actor = await requireWorkOrderActor();
+    const actor = await requireWorkOrderActor({ allowDuringMfaSetup: true });
     const p = normalizePreferences(Body.parse(await req.json()));
     type Prefs = Record<NotificationType, boolean>;
     await updateNotificationPreferences(actor.userId, { inApp: p.inApp as Prefs, email: p.email as Prefs, push: p.push as Prefs });

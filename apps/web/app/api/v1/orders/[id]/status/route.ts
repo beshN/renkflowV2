@@ -67,7 +67,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     
     return redactedSuccess(order, `Sipariş durumu "${status}" olarak güncellendi`);
   } catch (error: unknown) {
-    if (error instanceof WorkOrderApiError) return errorResponse(error.message,error.status);
+    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status, error.code);
     console.error('Update order status error:', error);
     
     if (error instanceof TenantMismatchError) {

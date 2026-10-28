@@ -24,6 +24,15 @@ describe('recipe template', () => {
     expect(csv.find((r) => r[0].includes('operasyon:'))![0]).toMatch(/tanımlı: KESIM/);
   });
 
+  it('neutralises formula-looking card codes and names, and reads the code back', () => {
+    const evil: TemplateItem[] = [{ id: id(9), sku: '=1+1', name: '@cmd', profileCode: '108', uom: 'm' }];
+    const row = parseCsv(recipeTemplate('pergola', evil, [])).find((r) => r[0] === 'malzeme')!;
+    expect(row.slice(1, 3)).toEqual(["'=1+1", "'@cmd"]);
+    const read = readRecipeCsv(rows("malzeme;'=1+1;;profil;m;2;widthMm;;;;", 'operasyon;KESIM;Kesim;;;10;;;;;'), { items: evil, workCenters: ['KESIM'] });
+    expect(read.ok ? [] : read.errors).not.toContainEqual(expect.stringContaining('etkin stok kartı yok'));
+    if (read.ok) expect(read.parts.rules[0].itemId).toBe(id(9));
+  });
+
   it('turns a filled file into recipe rules the engine calculates (made-up formulas)', () => {
     const read = readRecipeCsv(
       rows(

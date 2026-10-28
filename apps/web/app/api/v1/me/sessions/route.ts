@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 /** Your open sessions; the one you are using is marked. */
 export async function GET() {
   try {
-    const actor = await requireWorkOrderActor();
+    const actor = await requireWorkOrderActor({ allowDuringMfaSetup: true });
     const session = await auth();
     return NextResponse.json({ sessions: await listSessions(actor.tenantId, actor.userId, session?.sessionId ?? null) }, { headers: NO_STORE });
   } catch (e) {
@@ -22,7 +22,7 @@ export async function GET() {
 export async function DELETE(req: NextRequest) {
   try {
     requireSameOrigin(req);
-    const actor = await requireWorkOrderActor();
+    const actor = await requireWorkOrderActor({ allowDuringMfaSetup: true });
     await revokeAllSessions(actor, actor.userId, 'self');
     return NextResponse.json({ ok: true }, { headers: NO_STORE });
   } catch (e) {

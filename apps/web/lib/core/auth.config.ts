@@ -21,7 +21,7 @@ import {
 import { getClientIp } from '@/lib/security/rate-limit';
 import { recordAuditAfterCommit } from '@/lib/audit/audit-log';
 import { isMfaEnabled, verifyMfaCode } from '@/lib/features/auth/mfa.server';
-import { verifySsoTicket } from '@/lib/features/auth/sso-ticket';
+import { readSsoTicket } from '@/lib/features/auth/sso-ticket';
 
 import { getSql } from '@/lib/db';
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_BY_KEY } from '@/lib/config/templates';
@@ -192,46 +192,32 @@ export const authConfig: NextAuthConfig = {
                 maskEmail(normalizedEmail),
               );
 
-            const users = await sql`
-              SELECT u.*, tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url, t.industry, t.template_key
-              FROM users u
-              LEFT JOIN LATERAL (
-                SELECT tenant_id, role
-                FROM tenant_members
-                WHERE user_id = u.id
-                AND (${company?.id ?? null}::uuid IS NULL OR tenant_id=${company?.id ?? null}::uuid)
-                AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL
-                ORDER BY
-                  -- A firm where the member was deactivated comes last (the column exists from migration 044 on).
-                  (to_jsonb(tenant_members) ->> 'deactivated_at') IS NOT NULL,
-                  CASE role
-                    WHEN 'owner' THEN 0
-                    WHEN 'admin' THEN 1
-                    WHEN 'accountant' THEN 2
-                    WHEN 'office' THEN 3
-                    WHEN 'worker' THEN 4
-                    ELSE 5
-                  END,
-                  created_at ASC
-                LIMIT 1
-              ) tm ON true
-              LEFT JOIN tenants t ON tm.tenant_id = t.id
-              WHERE u.email = ${normalizedEmail}
-              LIMIT 1
+            const [ticketUser] = await sql`
+              SELECT u.* FROM users u WHERE u.email = ${normalizedEmail} LIMIT 1
             `;
 
             // Checked here rather than in SQL: the ticket is hashed, expires and is compared in constant time.
-            const usersRows = users as any[];
-            if (!verifySsoTicket(usersRows[0]?.verification_token, credentials.ticket)) {
+            // The ticket names the SSO provider's firm; the session opens there and nowhere else.
+            const binding = readSsoTicket(ticketUser?.verification_token, credentials.ticket);
+            if (!binding) {
               if (DEBUG) console.log('[AUTH] Invalid ticket or email');
               throw createCredentialsError('invalid_credentials');
             }
+            if (!ticketUser.email_verified) throw createCredentialsError('email_not_verified');
+            // On a firm's own address only that firm's tickets count.
+            if (company && company.id !== binding.tenantId) throw createCredentialsError('invalid_credentials');
 
-            const user = usersRows[0];
-            if (!user.email_verified) throw createCredentialsError('email_not_verified');
-            if (!user.tenant_id) {
-              throw createCredentialsError('tenant_not_found');
-            }
+            const [membership] = await sql`
+              SELECT tm.tenant_id, tm.role, t.name as tenant_name, t.brand_color, t.logo_url, t.industry, t.template_key
+              FROM tenant_members tm
+              JOIN tenants t ON t.id = tm.tenant_id
+              WHERE tm.user_id = ${ticketUser.id}
+                AND tm.tenant_id = ${binding.tenantId}
+                AND (to_jsonb(tm) ->> 'deactivated_at') IS NULL
+              LIMIT 1
+            `;
+            if (!membership) throw createCredentialsError('tenant_not_found');
+            const user = { ...ticketUser, ...membership };
 
             // Before the ticket is spent, so it still works when the page comes back with the code.
             await requireSecondFactor(sql, user, credentials.otp);

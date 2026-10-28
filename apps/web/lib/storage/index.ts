@@ -2,6 +2,9 @@ import "server-only";
 import { mkdir, readFile as readLocal, readdir, stat, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { createWriteStream } from "node:fs";
+import type { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 
 export function validateStorageKey(key: string): string {
   if (!key || key.length > 700 || key.startsWith("/") || /[\\?#\x00-\x1f]/.test(key) || key.includes(":") || key.split("/").some(p => !p || p === "." || p === ".."))
@@ -35,6 +38,25 @@ export async function uploadFile(key: string, file: Buffer | Blob, contentType: 
   assertStorageConfigured();
   const { put } = await import("@vercel/blob");
   await put(key, file, {access: "private", contentType, addRandomSuffix: false, allowOverwrite: false});
+  return getFileUrl(key);
+}
+/**
+ * Streams a large body into storage without holding it in memory (Vercel Blob multipart upload:
+ * parts are sent as they are read). For maintenance jobs such as the database backup; small files
+ * use uploadFile (one Blob operation instead of several).
+ */
+export async function uploadStream(key: string, body: Readable, contentType: string): Promise<string> {
+  validateStorageKey(key);
+  if (isLocalStorage()) {
+    const target = localPath(key);
+    await mkdir(path.dirname(target), {recursive:true,mode:0o700});
+    await pipeline(body, createWriteStream(target, {flags:"wx",mode:0o600}));
+    await writeFile(target+".metadata", JSON.stringify({contentType}), {flag:"wx",mode:0o600});
+    return getFileUrl(key);
+  }
+  assertStorageConfigured();
+  const { put } = await import("@vercel/blob");
+  await put(key, body, {access: "private", contentType, addRandomSuffix: false, allowOverwrite: false, multipart: true});
   return getFileUrl(key);
 }
 /** Each read rechecks the current user's tenant and document access. */

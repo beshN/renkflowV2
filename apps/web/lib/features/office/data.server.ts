@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { sql } from '@/lib/db';
+import { columnExists } from '@/lib/db/schema-guard';
 import { ASSISTANT_SEARCH_CATEGORIES } from '@/lib/ai/assistant-context';
 import { hideAssistantFields, searchAssistantRecords } from '@/lib/ai/assistant-records.server';
 import { searchAssistant } from '@/lib/ai/workspace';
@@ -30,6 +31,17 @@ export async function lookUpRecords(actor: WorkOrderActor | null, category: stri
   if (!(ASSISTANT_SEARCH_CATEGORIES as readonly string[]).includes(category)) return { scope: 'Bilinmeyen kayıt türü.' };
   const found = CHAT_SEARCHES.has(category) ? await searchAssistant(actor, category, query) : await searchAssistantRecords(actor, category, query);
   return hideAssistantFields(found, actor.access?.hidden ?? []);
+}
+
+/**
+ * Adds markers to a task (sensitivity.ts) before anything it produced from them is stored. A task
+ * whose markers are not known (null) stays that way: unknown counts as the most sensitive. Before
+ * migration 079 there is nothing to write and every task reads as unknown.
+ */
+export async function markTaskSensitivity(tenantId: string, taskId: string, markers: readonly string[]) {
+  if (!markers.length || !(await columnExists('office_tasks', 'sensitivity'))) return;
+  await sql`UPDATE office_tasks SET sensitivity = ARRAY(SELECT DISTINCT m FROM unnest(sensitivity || ${[...markers]}::text[]) AS m ORDER BY m)
+    WHERE tenant_id=${tenantId} AND id=${taskId} AND sensitivity IS NOT NULL`;
 }
 
 /** The firm's own name, legal details and contact, only the fields it has filled in. */

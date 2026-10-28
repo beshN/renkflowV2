@@ -9,6 +9,17 @@
  */
 
 import { sql, withTransaction } from '@/lib/db';
+import { tableExists } from '@/lib/db/schema-guard';
+import { IS_PRODUCTION } from '@/lib/shared/config/runtime-env';
+import {
+  SSO_ERRORS,
+  SsoAccessError,
+  decideSsoLink,
+  mapOidcProfile,
+  mapSamlProfile,
+  type SsoEmailPolicy,
+  type SsoProfile,
+} from '@/lib/features/auth/sso-policy';
 import { SAML } from '@node-saml/node-saml';
 import { parseStringPromise } from 'xml2js';
 import crypto from 'node:crypto';
@@ -16,6 +27,7 @@ import { openSecret, sealSecret } from '@/lib/security/secret-box';
 import {
   Configuration,
   ClientSecretPost,
+  allowInsecureRequests,
   authorizationCodeGrant,
   buildAuthorizationUrl,
   calculatePKCECodeChallenge,
@@ -47,6 +59,8 @@ export interface SSOProvider {
   enabled: boolean;
   allowSignup: boolean;
   domainRestrictions?: string[];
+  /** The IdP verifies every e-mail it sends (column trust_idp_email, migration 080; false when absent). */
+  trustIdpEmail?: boolean;
 }
 
 export interface SAMLProfile {
@@ -85,7 +99,8 @@ export async function getSSOProviders(tenantId: string): Promise<SSOProvider[]> 
       user_info_url as "userInfoUrl",
       enabled,
       allow_signup as "allowSignup",
-      domain_restrictions as "domainRestrictions"
+      domain_restrictions as "domainRestrictions",
+      COALESCE((to_jsonb(sso_providers) ->> 'trust_idp_email')::boolean, false) as "trustIdpEmail"
     FROM sso_providers
     WHERE tenant_id = ${tenantId} AND enabled = true
   `;
@@ -138,6 +153,9 @@ export async function createSSOProvider(
   `;
   const providerRows = providerResult as any[];
   const provider = providerRows[0];
+  if (data.trustIdpEmail) {
+    await sql`/* tenant-checked: the provider row inserted just above */ UPDATE sso_providers SET trust_idp_email = true WHERE id = ${id}`;
+  }
 
   return {
     ...provider,
@@ -150,6 +168,7 @@ export async function createSSOProvider(
     issuerUrl: provider.issuer_url,
     allowSignup: provider.allow_signup,
     domainRestrictions: provider.domain_restrictions || [],
+    trustIdpEmail: Boolean(data.trustIdpEmail),
   } as SSOProvider;
 }
 
@@ -216,19 +235,11 @@ export async function handleSAMLCallback(
 
   const saml = await createSamlInstance(providerRows[0], stateRecord.callback_url);
   const response = await saml.validatePostResponseAsync({ SAMLResponse: samlResponse });
-  const profile = mapSamlProfile(response.profile);
-  
-  // Check domain restrictions
-  const domain = profile.email.split('@')[1];
-  
-  if (providerRows[0]?.domain_restrictions?.length > 0) {
-    if (!providerRows[0].domain_restrictions.includes(domain)) {
-      throw new Error('Domain not allowed for this SSO provider');
-    }
-  }
+  const provider = mapDbProvider(providerRows[0]);
+  // E-mail trust (provider policy, allowed domains) and the NameID subject are checked here.
+  const profile = mapSamlProfile(response.profile as Record<string, any> | null, emailPolicy(provider));
 
-  // Find or create user
-  const user = await findOrCreateSSOUser(profile, mapDbProvider(providerRows[0]));
+  const user = await findOrCreateSSOUser(profile, provider);
   
   // Clean up state
   await sql`DELETE FROM sso_states WHERE state = ${state}`;
@@ -240,35 +251,61 @@ export async function handleSAMLCallback(
 // User Provisioning
 // ============================================
 
-async function findOrCreateSSOUser(
-  profile: { email: string; name?: string; surname?: string; groups?: string[]; attributes?: Record<string, unknown> },
-  provider: SSOProvider
-): Promise<any> {
+/**
+ * The account a provider login belongs to, bound by (provider, subject); the rules are in
+ * decideSsoLink. Always returns a member of the provider's firm, with that firm as `tenantId`.
+ */
+export async function findOrCreateSSOUser(profile: SsoProfile, provider: SSOProvider): Promise<any> {
+  // Checked outside the transaction (own client). Without migration 080 nothing is linked and an
+  // e-mail only finds an account that is already a member of the provider's firm.
+  const identitiesAvailable = await tableExists('sso_identities');
   return withTransaction(async (tx) => {
-    const existingUserResult = await tx`
-      SELECT u.*
-      FROM users u
-      WHERE u.email = ${profile.email}
-      LIMIT 1
-      FOR UPDATE
-    `;
-    const existingUserRows = existingUserResult as any[];
-    let user = existingUserRows[0];
-
-    if (user) {
-      await tx`
-        UPDATE users
-        SET
-          name = COALESCE(${profile.name || null}, name),
-          updated_at = NOW()
-        WHERE id = ${user.id}
+    const membershipOf = async (userId: string | null) => {
+      if (!userId) return 'none' as const;
+      const [m] = await tx`
+        SELECT (to_jsonb(tenant_members) ->> 'deactivated_at') IS NOT NULL AS deactivated
+        FROM tenant_members
+        WHERE user_id = ${userId} AND tenant_id = ${provider.tenantId}
+        FOR UPDATE
       `;
-    } else {
-      if (!provider.allowSignup) {
-        throw new Error('User not found and automatic signup is disabled');
-      }
+      return !m ? ('none' as const) : m.deactivated ? ('deactivated' as const) : ('active' as const);
+    };
 
-      const createdUsers = await tx`
+    let identityUserId: string | null = null;
+    if (identitiesAvailable) {
+      const [identity] = await tx`
+        SELECT user_id FROM sso_identities
+        WHERE provider_id = ${provider.id} AND subject = ${profile.subject}
+        FOR UPDATE
+      `;
+      identityUserId = identity?.user_id ?? null;
+    }
+
+    let emailUserId: string | null = null;
+    let emailUserSubject: string | null = null;
+    if (!identityUserId) {
+      const [byEmail] = await tx`SELECT id FROM users WHERE email = ${profile.email} LIMIT 1 FOR UPDATE`;
+      emailUserId = byEmail?.id ?? null;
+      if (emailUserId && identitiesAvailable) {
+        const [linked] = await tx`SELECT subject FROM sso_identities WHERE provider_id = ${provider.id} AND user_id = ${emailUserId}`;
+        emailUserSubject = linked?.subject ?? null;
+      }
+    }
+
+    const decision = decideSsoLink({
+      identitiesAvailable,
+      identityUserId,
+      emailUserId,
+      emailUserSubject,
+      subject: profile.subject,
+      allowSignup: provider.allowSignup,
+      membership: await membershipOf(identityUserId ?? emailUserId),
+    });
+
+    let userId: string;
+    let addMembership: boolean;
+    if (decision.kind === 'create') {
+      const [created] = await tx`
         INSERT INTO users (id, email, name, email_verified, created_at, updated_at)
         VALUES (
           ${createUuid()},
@@ -279,47 +316,62 @@ async function findOrCreateSSOUser(
           NOW(),
           NOW()
         )
-        ON CONFLICT (email)
-        DO UPDATE SET
-          name = COALESCE(EXCLUDED.name, users.name),
-          updated_at = NOW()
-        RETURNING *
+        ON CONFLICT (email) DO NOTHING
+        RETURNING id
       `;
-      const createdRows = createdUsers as any[];
-      user = createdRows[0];
+      // Created by another request since the lookup: refuse rather than adopt it without the link rules.
+      if (!created?.id) throw new Error('SSO user was created concurrently; retry');
+      userId = created.id;
+      addMembership = true;
+    } else {
+      userId = decision.userId;
+      addMembership = decision.addMembership;
+      await tx`
+        UPDATE users
+        SET name = COALESCE(${profile.name || null}, name), updated_at = NOW()
+        WHERE id = ${userId}
+      `;
     }
 
-    if (!user?.id) {
-      throw new Error('Failed to resolve SSO user');
-    }
-
-    if (provider.allowSignup) {
-      const role = determineRoleFromGroups(profile.groups);
+    if (addMembership) {
       await tx`
         INSERT INTO tenant_members (tenant_id, user_id, role, created_at)
-        VALUES (${provider.tenantId}, ${user.id}, ${role}, NOW())
+        VALUES (${provider.tenantId}, ${userId}, ${determineRoleFromGroups(profile.groups)}, NOW())
         ON CONFLICT (tenant_id, user_id) DO NOTHING
       `;
     }
 
-    const membershipResult = await tx`
+    if (decision.kind === 'identity') {
+      await tx`
+        UPDATE sso_identities SET last_login_at = NOW()
+        WHERE provider_id = ${provider.id} AND subject = ${profile.subject}
+      `;
+    } else if (decision.recordIdentity) {
+      // Unique on (provider, subject) and on (provider, user): a racing login for another subject loses here.
+      const [linked] = await tx`
+        INSERT INTO sso_identities (provider_id, subject, user_id, created_at, last_login_at)
+        VALUES (${provider.id}, ${profile.subject}, ${userId}, NOW(), NOW())
+        ON CONFLICT DO NOTHING
+        RETURNING user_id
+      `;
+      if (!linked) throw new SsoAccessError(SSO_ERRORS.subjectTaken);
+    }
+
+    const [membership] = await tx`
       SELECT tenant_id, role
       FROM tenant_members
-      WHERE user_id = ${user.id}
+      WHERE user_id = ${userId}
         AND tenant_id = ${provider.tenantId}
-      LIMIT 1
+        AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL
     `;
-    const membershipRows = membershipResult as any[];
-    const membership = membershipRows[0];
-
-    if (!membership) {
-      throw new Error('User is not a member of this tenant and automatic signup is disabled');
-    }
+    if (!membership) throw new SsoAccessError(SSO_ERRORS.notMember);
+    const [user] = await tx`SELECT * FROM users WHERE id = ${userId}`;
 
     return {
       ...user,
       tenant_id: membership.tenant_id,
       tenantId: membership.tenant_id,
+      providerId: provider.id,
       role: membership.role,
     };
   });
@@ -377,24 +429,6 @@ async function createSamlInstance(provider: any, callbackUrl: string): Promise<S
     disableRequestedAuthnContext: false,
     acceptedClockSkewMs: 300000,
   });
-}
-
-function mapSamlProfile(profile: any): SAMLProfile {
-  const email =
-    profile?.email ||
-    profile?.mail ||
-    profile?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'];
-  if (!email) {
-    throw new Error('SAML response missing email');
-  }
-
-  return {
-    email,
-    name: profile?.givenName || profile?.firstName || profile?.name,
-    surname: profile?.sn || profile?.lastName || profile?.surname,
-    groups: profile?.groups || profile?.memberOf,
-    attributes: profile,
-  };
 }
 
 // ============================================
@@ -465,27 +499,17 @@ export async function handleOIDCCallback(
     pkceCodeVerifier: stateRecord.code_verifier,
     expectedState: params.state,
   });
-  const expectedSubject = tokenSet.claims()?.sub ?? skipSubjectCheck;
+  const claims = tokenSet.claims() as Record<string, unknown> | undefined;
+  const expectedSubject = typeof claims?.sub === 'string' ? claims.sub : skipSubjectCheck;
   const userInfo = (await fetchUserInfo(config, tokenSet.access_token, expectedSubject)) as OIDCProfile;
-  const profile = mapOidcProfile(userInfo);
+  const provider = mapDbProvider(providerRows[0]);
+  // Refuses `email_verified: false`, and an absent claim unless the provider policy vouches for it.
+  const profile = mapOidcProfile(userInfo, emailPolicy(provider), claims);
 
-  const user = await findOrCreateSSOUser(profile, mapDbProvider(providerRows[0]));
+  const user = await findOrCreateSSOUser(profile, provider);
   await sql`DELETE FROM sso_states WHERE state = ${params.state}`;
 
   return { user, redirectTo: stateRecord.callback_url };
-}
-
-function mapOidcProfile(profile: OIDCProfile) {
-  if (!profile.email) {
-    throw new Error('OIDC profile missing email');
-  }
-  return {
-    email: profile.email,
-    name: profile.name || profile.given_name,
-    surname: profile.family_name,
-    groups: Array.isArray(profile.groups) ? profile.groups : undefined,
-    attributes: profile as Record<string, unknown>,
-  };
 }
 
 async function createOidcConfig(provider: any, redirectUri: string): Promise<Configuration> {
@@ -495,11 +519,13 @@ async function createOidcConfig(provider: any, redirectUri: string): Promise<Con
   };
 
   if (provider.issuer_url) {
+    const issuer = new URL(provider.issuer_url);
     return discovery(
-      new URL(provider.issuer_url),
+      issuer,
       provider.client_id,
       clientMetadata,
       ClientSecretPost(openSecret(provider.client_secret, SSO_SECRET_PURPOSE) ?? ''),
+      localPlainHttp(issuer) ? { execute: [allowInsecureRequests] } : undefined,
     );
   }
 
@@ -510,12 +536,23 @@ async function createOidcConfig(provider: any, redirectUri: string): Promise<Con
     userinfo_endpoint: provider.user_info_url,
   };
 
-  return new Configuration(
+  const config = new Configuration(
     serverMetadata,
     provider.client_id,
     clientMetadata,
     ClientSecretPost(openSecret(provider.client_secret, SSO_SECRET_PURPOSE) ?? ''),
   );
+  if (provider.token_url && localPlainHttp(new URL(provider.token_url))) allowInsecureRequests(config);
+  return config;
+}
+
+/** Plain HTTP only to a loopback IdP outside production (local development and the integration test). */
+function localPlainHttp(url: URL): boolean {
+  return !IS_PRODUCTION && url.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname);
+}
+
+function emailPolicy(provider: SSOProvider): SsoEmailPolicy {
+  return { trustIdpEmail: provider.trustIdpEmail, domainRestrictions: provider.domainRestrictions };
 }
 
 function createId(prefix: string): string {
@@ -542,5 +579,6 @@ function mapDbProvider(row: any): SSOProvider {
     enabled: row.enabled,
     allowSignup: row.allow_signup,
     domainRestrictions: row.domain_restrictions || [],
+    trustIdpEmail: row.trust_idp_email === true,
   };
 }

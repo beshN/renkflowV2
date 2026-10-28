@@ -1,7 +1,11 @@
 import { assertCompanyHostTenant } from '@/lib/features/company/host.server';
 import 'server-only';
 
-import { resolveMemberAccess } from '@/lib/security/member-access.server';
+import { accessDecision, hiddenFieldsOf, resolveMemberAccess } from '@/lib/security/member-access.server';
+import { bearerToken, verifyBearerToken, type BearerIdentity } from '@/lib/security/bearer-identity';
+import { DEFAULT_PRESET, can, type Action, type FieldGroup, type Matrix, type Module } from '@/lib/security/access-matrix';
+import { MFA_SETUP_REQUIRED_MESSAGE } from '@/lib/features/auth/mfa-policy';
+import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import jwt from 'jsonwebtoken';
@@ -46,8 +50,23 @@ export interface APIUser {
   id: string;
   email: string;
   name: string;
+  /** The member's current base role in this firm (never the role written into a token). */
   role: string;
   tenantId: string;
+  /** Which credential the request carried. */
+  via?: 'session' | 'api_token' | 'mobile';
+  /** Set when a job preset or custom role narrows the base role: the same matrix the browser session gets. */
+  narrowed?: { permissions: Matrix; hidden: FieldGroup[] };
+  /** Field groups this person's role hides from responses (empty on the base role's own preset). */
+  hidden?: FieldGroup[];
+}
+
+/** A signed-in request the shared gate refused (403; code mfa_setup_required for the two-step rule). */
+export class APIAccessError extends WorkOrderApiError {
+  constructor(message: string, status = 403, code?: string) {
+    super(message, status, code);
+    this.name = 'APIAccessError';
+  }
 }
 
 export interface APIResponse<T = unknown> {
@@ -55,14 +74,6 @@ export interface APIResponse<T = unknown> {
   data?: T;
   error?: string;
   message?: string;
-}
-
-async function resolveTenantMembership(userId: string, tenantId: string): Promise<{ role: string } | null> {
-  if (!userId || !tenantId) return null;
-  // The same answer as the proxy and the session: a deactivated member is not a member.
-  const access = await resolveMemberAccess(userId, tenantId);
-  if (!access || access.deactivated) return null;
-  return { role: access.base };
 }
 
 /**
@@ -89,89 +100,96 @@ export function successResponse<T>(data: T, message?: string): NextResponse<APIR
   });
 }
 
-export function errorResponse(error: string, status: number = 400): NextResponse<APIResponse> {
+export function errorResponse(error: string, status: number = 400, code?: string): NextResponse<APIResponse> {
   return NextResponse.json({
     success: false,
     error,
+    ...(code ? { code } : {}),
   }, { 
     status,
     headers: corsHeaders(),
   });
 }
 
-// Verify JWT token from Authorization header
-export async function verifyAPIToken(request: NextRequest): Promise<APIUser | null> {
-  const authHeader = request.headers.get('authorization');
-  
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    
-    try {
-      const decoded = jwt.verify(token, EFFECTIVE_JWT_SECRET, { algorithms: ['HS256'] }) as unknown as {
-        id?: string;
-        sub: string;
-        email: string;
-        name: string;
-        role: string;
-        tenantId: string;
-        iat?: number;
-      };
-
-      const userId = decoded.sub || decoded.id || '';
-      if (!userId || !decoded.tenantId) {
-        return null;
-      }
-      if (!(await apiTokenStillValid(userId, decoded.iat))) return null;
-
-      await assertCompanyHostTenant(decoded.tenantId, (request.headers.get('host') || new URL(request.url).host));
-      return {
-        id: userId,
-        email: decoded.email,
-        name: decoded.name,
-        role: decoded.role,
-        tenantId: decoded.tenantId,
-      };
-    } catch (error) {
-      console.error('JWT verification failed:', error);
-      return null;
-    }
+/** The bearer identity of a request after the token checks (closed sign-ins, two-step accounts, company host). */
+async function verifiedBearer(request: NextRequest): Promise<BearerIdentity | null> {
+  const identity = verifyBearerToken(bearerToken(request.headers));
+  if (!identity) return null;
+  try {
+    if (!(await apiTokenStillValid(identity.userId, identity.iat ?? undefined))) return null;
+    await assertCompanyHostTenant(identity.tenantId, (request.headers.get('host') || new URL(request.url).host));
+    return identity;
+  } catch (error) {
+    console.error('JWT verification failed:', error instanceof Error ? error.message : error);
+    return null;
   }
-  
-  return null;
+}
+
+// Verify JWT token from Authorization header (API token or phone session token)
+export async function verifyAPIToken(request: NextRequest): Promise<APIUser | null> {
+  const identity = await verifiedBearer(request);
+  if (!identity) return null;
+  return { id: identity.userId, email: identity.email || '', name: identity.name || '', role: identity.role || '', tenantId: identity.tenantId, via: identity.via };
+}
+
+function requestPath(request: NextRequest) {
+  try {
+    return request.nextUrl?.pathname ?? new URL(request.url).pathname;
+  } catch {
+    return '/';
+  }
+}
+
+/**
+ * The person a request acts for, resolved the same way for every credential: fresh membership,
+ * job preset or custom role (matrix and hidden fields), closed sign-ins, the worker's scope and the
+ * firm's two-step rule, checked against this request's path and method exactly as the proxy checks
+ * a browser session. Null when nobody is signed in (or no longer may be: 401); a refusal throws
+ * APIAccessError (403).
+ */
+async function resolveAPIActor(
+  request: NextRequest,
+  identity: { userId: string; tenantId: string; email: string; name: string; via: NonNullable<APIUser['via']>; sid: string | null; iat: number | null },
+): Promise<APIUser | null> {
+  const access = await resolveMemberAccess(identity.userId, identity.tenantId);
+  if (!access || access.deactivated) return null;
+  const decision = await accessDecision(identity.userId, identity.tenantId, requestPath(request), request.method || 'GET', { sid: identity.sid, iat: identity.iat }, { cached: false });
+  if (decision?.status === 401) return null;
+  if (decision) throw new APIAccessError(decision.code ? MFA_SETUP_REQUIRED_MESSAGE : 'Bu işlem için yetkiniz bulunmuyor', 403, decision.code);
+  const narrowed = access.roleKey !== DEFAULT_PRESET[access.base];
+  return {
+    id: identity.userId,
+    email: identity.email,
+    name: identity.name,
+    role: access.base,
+    tenantId: identity.tenantId,
+    via: identity.via,
+    hidden: hiddenFieldsOf(access),
+    ...(narrowed ? { narrowed: { permissions: access.permissions, hidden: access.hidden } } : {}),
+  };
 }
 
 // Get user from session or JWT token
 export async function getAPIUser(request: NextRequest): Promise<APIUser | null> {
-  // First try JWT from header (for mobile apps)
-  const jwtUser = await verifyAPIToken(request);
-  if (jwtUser) {
-    const membership = await resolveTenantMembership(jwtUser.id, jwtUser.tenantId);
-    if (!membership) {
-      return null;
-    }
-    return {
-      ...jwtUser,
-      role: membership.role || jwtUser.role,
-    };
+  // First the bearer token (API clients, the phone app)
+  const bearer = await verifiedBearer(request);
+  if (bearer) {
+    return resolveAPIActor(request, { userId: bearer.userId, tenantId: bearer.tenantId, email: bearer.email || '', name: bearer.name || '', via: bearer.via, sid: bearer.sid, iat: bearer.iat });
   }
-  
-  // Fallback to session (for web app)
+
+  // Fallback to session (for web app); the session callback already rejected closed sign-ins.
   const session = await auth();
   if (session?.user?.id && session.user.tenantId) {
-    const membership = await resolveTenantMembership(session.user.id, session.user.tenantId);
-    if (!membership) {
-      return null;
-    }
-    return {
-      id: session.user.id,
-      email: session.user.email || '',
-      name: session.user.name || '',
-      role: membership.role || session.user.role || 'member',
-      tenantId: session.user.tenantId,
-    };
+    return resolveAPIActor(request, { userId: session.user.id, tenantId: session.user.tenantId, email: session.user.email || '', name: session.user.name || '', via: 'session', sid: null, iat: null });
   }
-  
+
   return null;
+}
+
+/** Whether the person's role allows this module action (a narrowing role must hold the matrix cell). */
+export function apiAllows(user: APIUser, module: Module, action: Action): boolean {
+  if (!user.narrowed) return true;
+  return can(user.narrowed, module, action);
 }
 
 // Role-based access control

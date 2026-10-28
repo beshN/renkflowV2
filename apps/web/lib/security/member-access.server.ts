@@ -8,6 +8,7 @@ import {
   effectiveAccess, meets, presetFor, routeRequirement, sanitizeMatrix, DEFAULT_PRESET, FIELD_GROUPS,
   type Access, type FieldGroup, type Module, type Action,
 } from './access-matrix';
+import { mfaSetupAllowsPath, policyCoversRole } from '@/lib/features/auth/mfa-policy';
 
 export type MemberAccess = Access & { userId: string; tenantId: string; deactivated: boolean };
 
@@ -107,17 +108,64 @@ export async function logAccessDenied(a: { tenantId: string; userId: string; pat
   }
 }
 
+const mfaCache = new Map<string, number>();
+
+/** Drops the cached "no set-up needed" answers (after a policy or two-step change in this instance). */
+export function forgetMfaGate(tenantId?: string) {
+  if (!tenantId) return mfaCache.clear();
+  for (const k of mfaCache.keys()) if (k.startsWith(tenantId + ':')) mfaCache.delete(k);
+}
+
 /**
- * The single gate every signed-in request passes in the proxy: the module and action the path
- * needs against the member's access. Null when allowed (or not module-gated).
+ * Whether the firm requires two-step sign-in of this member (owner/admin) and they have not set
+ * it up yet. A firm without the policy column (migration 078 not applied) or without the two-step
+ * table has the policy off. Any other failure to read it counts as "set-up required" for owners and
+ * admins (fail closed), and never affects other roles. Only "not required" is cached (≤30 s), so a
+ * member who has just set it up is let through at once.
  */
-export async function accessDecision(userId: string, tenantId: string, path: string, method: string, session: { sid: string | null; iat: number | null } = { sid: null, iat: null }) {
+export async function mfaSetupPending(userId: string, tenantId: string, role: string | null | undefined, options: { cached?: boolean; db?: any } = {}): Promise<boolean> {
+  if (!policyCoversRole(role)) return false;
+  const key = `${tenantId}:${userId}`;
+  const hit = mfaCache.get(key);
+  if (options.cached && hit && Date.now() - hit < TTL_MS) return false;
+  const q = options.db ?? db();
+  try {
+    // to_jsonb reads the column when it exists and yields null before migration 078.
+    const [t] = await q`SELECT to_jsonb(t) ->> 'require_mfa_for_admins' AS policy, to_regclass('public.user_mfa') IS NOT NULL AS mfa_table FROM tenants t WHERE t.id = ${tenantId}`;
+    let pending = false;
+    if (t && t.policy === 'true' && t.mfa_table) {
+      const [m] = await q`SELECT 1 AS ok FROM user_mfa WHERE user_id = ${userId} AND enabled_at IS NOT NULL`;
+      pending = !m;
+    }
+    if (!pending) {
+      mfaCache.set(key, Date.now());
+      if (mfaCache.size > 10_000) mfaCache.clear();
+    }
+    return pending;
+  } catch (e) {
+    console.error('[access] two-step policy check failed', e instanceof Error ? e.message : e);
+    return true;
+  }
+}
+
+export type AccessDecision = { status: 401 | 403; reason: string; code?: 'mfa_setup_required'; need: ReturnType<typeof routeRequirement> };
+
+/**
+ * The single gate every signed-in request passes, whatever the credential (browser session,
+ * API token, phone session): the module and action the path needs against the member's access,
+ * a closed sign-in, the worker's shop-floor scope and the firm's two-step policy. Null when
+ * allowed (or not module-gated). The proxy reads through the short cache; route helpers pass
+ * cached: false so a demotion counts at once.
+ */
+export async function accessDecision(userId: string, tenantId: string, path: string, method: string, session: { sid: string | null; iat: number | null } = { sid: null, iat: null }, options: { cached?: boolean } = { cached: true }): Promise<AccessDecision | null> {
+  const cached = options.cached !== false;
   const need = routeRequirement(path, method);
-  const access = await resolveMemberAccess(userId, tenantId, { cached: true });
+  const access = await resolveMemberAccess(userId, tenantId, { cached });
   if (!access) return null; // not a member: the route's own guard answers 401
   if (access.deactivated) return { status: 401 as const, reason: 'deactivated', need };
   if(access.base==='worker' && path.startsWith('/api/') && !workerApiAllowed(path,method)) return {status:403 as const,reason:'worker_scope',need};
-  if (await sessionRevoked(userId, session.sid, session.iat, { cached: true })) return { status: 401 as const, reason: 'session_revoked', need };
+  if (await sessionRevoked(userId, session.sid, session.iat, { cached })) return { status: 401 as const, reason: 'session_revoked', need };
+  if (!mfaSetupAllowsPath(path) && (await mfaSetupPending(userId, tenantId, access.base, { cached }))) return { status: 403 as const, reason: 'mfa_setup_required', code: 'mfa_setup_required', need };
   // A member on their base role's own preset keeps exactly today's access: the route checks decide.
   // The matrix narrows only for a job preset or a custom role.
   if (!need || access.roleKey === DEFAULT_PRESET[access.base]) return null;
@@ -125,20 +173,27 @@ export async function accessDecision(userId: string, tenantId: string, path: str
   return { status: 403 as const, reason: 'role', need };
 }
 
-/**
- * Field groups to strip from this member's responses: only for a job preset or custom role (the
- * base role's own preset keeps today's DTOs, e.g. the worker's technical view). Cached like the gate.
- */
-export async function narrowedHiddenFields(userId: string, tenantId: string): Promise<FieldGroup[]> {
-  const access = await resolveMemberAccess(userId, tenantId, { cached: true });
+/** The field groups a member's access hides from responses (empty on the base role's own preset). */
+export function hiddenFieldsOf(access: Pick<MemberAccess, 'roleKey' | 'base' | 'hidden'> | null | undefined): FieldGroup[] {
   if (!access || access.roleKey === DEFAULT_PRESET[access.base]) return [];
   return access.hidden;
+}
+
+/**
+ * Field groups to strip from this member's responses: only for a job preset or custom role (the
+ * base role's own preset keeps today's DTOs, e.g. the worker's technical view). Cached like the gate
+ * unless cached: false.
+ */
+export async function narrowedHiddenFields(userId: string, tenantId: string, options: { cached?: boolean } = { cached: true }): Promise<FieldGroup[]> {
+  const access = await resolveMemberAccess(userId, tenantId, { cached: options.cached !== false });
+  return hiddenFieldsOf(access);
 }
 
 /** Dedicated shop-floor APIs; this is enforced even for the worker's default preset. */
 export function workerApiAllowed(path:string,method:string) {
   if(path==='/api/v1/production')return method==='POST';
-  if(['/api/auth/','/api/v1/auth/','/api/v1/me/','/api/v1/production/files/'].some(p=>path.startsWith(p)))return true;
+  // The phone and field apps: bearer-only surfaces whose own guards apply the mobile matrix and job assignment.
+  if(['/api/auth/','/api/v1/auth/','/api/v1/me/','/api/v1/production/files/','/api/mobile/v1/','/api/v1/field/'].some(p=>path.startsWith(p)))return true;
   if(['/api/v1/production','/api/v1/production/worker','/api/v1/production/workshop','/api/v1/production/loading','/api/v1/production/parts','/api/v1/production/files','/api/v1/warehouse','/api/v1/auth/me','/api/v1/me','/api/v1/notifications'].includes(path))return true;
   return method==='GET' && /^\/api\/v1\/orders\/[^/]+\/technical$/.test(path);
 }

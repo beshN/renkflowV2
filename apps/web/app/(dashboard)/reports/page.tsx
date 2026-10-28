@@ -4,6 +4,7 @@ import { ProductionReport } from '@/components/features/manufacturing/Production
 import { useAuth } from '@/lib/context/AuthContext';
 import { hasPermission } from '@/lib/auth/permissions';
 import { normalizeOrderStatus } from '@/lib/features/orders/workspace';
+import { spreadsheetText } from '@/lib/security/spreadsheet-safe';
 import { useMemo } from 'react';
 import { Download } from 'lucide-react';
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
@@ -12,9 +13,8 @@ import { useOrders } from '@/lib/hooks/useOrders';
 import { StatusBadge } from '@/components/shared/ui/StatusStepper';
 
 function csvCell(value: unknown) {
-  const text = String(value ?? '');
-  const safe = /^[=+@-]/.test(text) ? "'" + text : text;
-  return '"' + safe.replaceAll('"', '""') + '"';
+  // Formula-looking text gets an apostrophe (also tab/CR); real numbers such as -12.5 stay numbers.
+  return '"' + spreadsheetText(value).replaceAll('"', '""') + '"';
 }
 export default function ReportsPage() {
   const { orders, isLoading,error,refresh } = useOrders();

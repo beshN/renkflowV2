@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const quotations = await quotationService.getQuotations(user.tenantId);
     return redactedSuccess(quotations, 'Teklifler başarıyla getirildi');
   } catch (error: any) {
-    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);
+    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status, error.code);
     if (error instanceof AuthorizationError) return errorResponse(error.message, 403);
     return errorResponse("Teklif işlemi tamamlanamadı. Lütfen tekrar deneyin.", 500);
   }
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     const quotation = await quotationService.createQuotation(user.tenantId, parsedData, user.id);
     return redactedSuccess(quotation, 'Teklif başarıyla oluşturuldu');
   } catch (error: any) {
-    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);
+    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status, error.code);
     if (error instanceof ZodError) return errorResponse('Geçersiz veri: ' + error.issues.map((issue) => issue.message).join(', '), 400);
     if (error instanceof AuthorizationError) return errorResponse(error.message, 403);
     return errorResponse("Teklif işlemi tamamlanamadı. Lütfen tekrar deneyin.", 500);

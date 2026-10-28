@@ -1,4 +1,5 @@
 import type { Order } from '@/lib/types';
+import { looksLikeFormula } from '@/lib/security/spreadsheet-safe';
 
 export type OrderView = 'all' | 'active' | 'overdue' | 'today' | 'completed';
 export type OrderSort = 'newest' | 'oldest' | 'delivery' | 'customer';
@@ -37,8 +38,9 @@ export function filterWorkspaceOrders(orders: Order[], options: { query?: string
 
 function csvCell(value: unknown) {
   let text = String(value ?? '');
-  // Spreadsheet software must treat user-entered values as text, never formulas.
-  if (/^[\s]*[=+\-@]/.test(text) || /^[\t\r\n]/.test(text)) text = "'" + text;
+  // Spreadsheet software must treat user-entered values as text, never formulas; real numbers
+  // (a negative amount) stay numbers.
+  if (typeof value !== 'number' && (looksLikeFormula(text.trimStart()) || /^[\t\r\n]/.test(text))) text = "'" + text;
   return '"' + text.replace(/"/g, '""') + '"';
 }
 export function ordersCsv(orders: Order[], includeFinancial = true) {

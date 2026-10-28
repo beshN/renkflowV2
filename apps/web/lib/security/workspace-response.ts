@@ -10,7 +10,7 @@ export function workspaceError(error: unknown) {
     );
   if (error instanceof WorkOrderApiError || error instanceof CompanyHostError)
     return NextResponse.json(
-      { error: error.message },
+      { error: error.message, ...(error instanceof WorkOrderApiError && error.code ? { code: error.code } : {}) },
       { status: error.status },
     );
   if (error instanceof SyntaxError)

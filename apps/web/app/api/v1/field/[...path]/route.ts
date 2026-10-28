@@ -20,7 +20,7 @@ const TransitionSchema = z.object({
 const CommandSchema = z.object({ commandId: z.string().uuid(), action: z.literal('operation'), data: OperationCommandSchema }).strict();
 function ok(data: unknown) { return NextResponse.json({ success: true, data }, { headers: { 'Cache-Control': 'private, no-store' } }); }
 function failure(error: unknown) {
-  if (error instanceof WorkOrderApiError) return NextResponse.json({ success: false, error: error.message }, { status: error.status });
+  if (error instanceof WorkOrderApiError) return NextResponse.json({ success: false, error: error.message, ...(error.code ? { code: error.code } : {}) }, { status: error.status });
   if (error instanceof ZodError) return NextResponse.json({ success: false, error: error.issues.map(issue => issue.message).join(', ') }, { status: 400 });
   console.error('[field-api] Request failed', error instanceof Error ? error.name : 'unknown');
   return NextResponse.json({ success: false, error: 'İşlem tamamlanamadı. Güncel kaydı yenileyip tekrar deneyin.' }, { status: 409 });

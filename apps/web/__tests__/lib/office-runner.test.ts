@@ -28,13 +28,14 @@ jest.mock('@/lib/db', () => ({
   }),
 }));
 jest.mock('@/lib/storage', () => ({ uploadFile: (...a: unknown[]) => uploadFile(...a), deleteFile: (...a: unknown[]) => deleteFile(...(a as [])) }));
-jest.mock('@/lib/ai/gate.server', () => ({ assertModelAllowed: jest.fn(async () => {}) }));
+jest.mock('@/lib/ai/gate.server', () => ({ assertModelAllowed: jest.fn(async () => {}), reserveModelCall: jest.fn(async () => null), releaseModelReservation: jest.fn(async () => {}) }));
 jest.mock('@/lib/ai/known-names', () => ({ tenantPersonalNames: jest.fn(async () => ['Yılmaz Yapı']) }));
 const lookUpRecords = jest.fn();
 jest.mock('@/lib/features/office/data.server', () => ({
   companyProfile: jest.fn(async () => ({ name: 'Renk Alüminyum', city: 'Ankara', phone: '0312 555 00 00' })),
   taskActor: jest.fn(async () => ({ tenantId: 't1', userId: 'u1', role: 'office' })),
   lookUpRecords: (...a: unknown[]) => lookUpRecords(...a),
+  markTaskSensitivity: jest.fn(async () => undefined),
 }));
 
 import { sql } from '@/lib/db';

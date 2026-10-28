@@ -24,7 +24,7 @@ for(const [key,value] of Object.entries(values)) {
  if(!(key in template) && !(key in optional)) continue;
  if(!value.trim()) continue;
  if(["NODE_ENV","NEXT_PHASE","ALLOW_LEGACY_DATABASE_HOSTS","NEXT_PUBLIC_SOCKET_URL","NEXT_PUBLIC_WS_URL"].includes(key)) continue;
- const sensitive=/SECRET|TOKEN|PASSWORD|PRIVATE_KEY|API_KEY|DATABASE_URL/.test(key);
+ const sensitive=/SECRET|TOKEN|PASSWORD|PRIVATE_KEY|API_KEY|ENCRYPTION_KEY|DATABASE_URL/.test(key);
  const cmd=["env",existing.includes(key)?"update":"add",key,target,"--yes",...(sensitive?["--sensitive"]:[])];
  const outcome=run(cmd,value.trim());
  if(outcome.status!==0){console.error(`[env] ${key} failed; provider output withheld to protect values`);process.exit(1);}

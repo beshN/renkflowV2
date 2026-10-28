@@ -5,6 +5,7 @@
 
 import { Payment, OrderWithPayments, EmployeeLedgerEntry, LedgerEntryKind } from '@/lib/types/finance';
 import { normalizeCurrencyInput } from '@/lib/utils/currency';
+import { spreadsheetText } from '@/lib/security/spreadsheet-safe';
 
 // ============================================
 // Currency Formatting
@@ -276,10 +277,9 @@ export function generateCSVContent(
   const header = columns.map(c => c.label).join(',');
   const rows = data.map(row => 
     columns.map(c => {
-      const value = row[c.key];
-      if (value === null || value === undefined) return '';
-      if (typeof value === 'string' && value.includes(',')) return `"${value}"`;
-      return String(value);
+      // Formula-looking text is neutralised for spreadsheets; numbers stay numbers; RFC 4180 quoting.
+      const text = spreadsheetText(row[c.key]);
+      return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
     }).join(',')
   );
   

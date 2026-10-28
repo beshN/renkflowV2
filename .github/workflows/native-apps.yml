@@ -8,6 +8,7 @@ on:
     paths: ['apps/native-*/**', 'apps/web/lib/features/mobile/**', 'apps/web/app/api/mobile/**', 'contracts/mobile/**', 'scripts/mobile/**', '.github/workflows/native-apps.yml']
 env:
   RENKFLOW_TEST_DB_PORT: 55434
+# Fork pull requests never run on the self-hosted Mac (each job's `if`); actions are pinned to SHAs.
 permissions:
   contents: read
 concurrency:
@@ -19,13 +20,14 @@ concurrency:
 # the self-hosted Mac. Jobs there share one machine, so each stops only its own tracked fixture processes.
 jobs:
   mobile-contract:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macOS]
     defaults:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - run: npm ci --workspaces=false --legacy-peer-deps
@@ -37,15 +39,15 @@ jobs:
           npm run type-check
   android:
     needs: ios
-    if: always()
+    if: (always()) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, macOS]
     timeout-minutes: 60
     defaults:
       run:
         working-directory: apps/native-android
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - name: Stop owned fixture processes
@@ -56,21 +58,21 @@ jobs:
         run: |
           npm ci --workspaces=false --legacy-peer-deps
           bash ../../scripts/mobile/prepare-http-fixture.sh
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
           java-version: '21'
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
         with:
           cmdline-tools-version: '13114758'
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
           log-accepted-android-sdk-licenses: false
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
         with:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
       - run: ./gradlew --no-watch-fs :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
       - name: Test native Android UI and encrypted persistence
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
           working-directory: apps/native-android
           api-level: 35
@@ -84,7 +86,7 @@ jobs:
             ./gradlew --no-watch-fs :app:connectedDebugAndroidTest
             mkdir -p app/build/screenshots
             adb pull /sdcard/renkflow-field-login.png app/build/screenshots/android-login.png
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: Renkflow-Saha-Android
@@ -96,14 +98,15 @@ jobs:
         if: always()
         run: python3 ../../scripts/mobile/fixture-processes.py stop
   ios:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macOS]
     timeout-minutes: 45
     defaults:
       run:
         working-directory: apps/native-ios
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - name: Stop owned fixture processes
@@ -139,7 +142,7 @@ jobs:
           if [ -d build/FieldTests.xcresult ]; then
             xcrun xcresulttool export attachments --path build/FieldTests.xcresult --output-path build/screenshots
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: Renkflow-Saha-iOS-Tests
