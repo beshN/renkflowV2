@@ -184,6 +184,7 @@ export const BACKEND_MIGRATIONS = [
   '076_e_invoice_document_snapshot.sql',
   '077_ai_office.sql',
   '078_consent_and_mfa_policy.sql',
+  '080_sso_identities.sql',
 ];
 
 /** Mobile API tables (sessions, offline receipts, uploads, push devices); applied after 045 (installations). */

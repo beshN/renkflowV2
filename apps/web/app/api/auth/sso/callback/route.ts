@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { handleOIDCCallback, handleSAMLCallback } from '@/lib/auth/sso';
 import { sql } from '@/lib/db';
 import { issueSsoTicket } from '@/lib/features/auth/sso-ticket';
+import { SsoAccessError } from '@/lib/features/auth/sso-policy';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,9 +63,10 @@ async function handleCallback(request: NextRequest) {
         throw new Error('Authentication failed');
     }
 
-    // 2. Short-lived, single-use login ticket; the row keeps only its hash and expiry (see sso-ticket.ts).
-    // Unverified accounts get none, so their pending e-mail verification token is not overwritten.
-    const { ticket, stored } = issueSsoTicket();
+    // 2. Short-lived, single-use login ticket bound to the provider's firm; the row keeps only its hash,
+    // expiry and that binding (see sso-ticket.ts). Unverified accounts get none, so their pending
+    // e-mail verification token is not overwritten.
+    const { ticket, stored } = issueSsoTicket({ tenantId: result.user.tenantId, providerId: result.user.providerId });
     const issued = await sql`
         UPDATE users
         SET verification_token = ${stored}
@@ -83,6 +85,10 @@ async function handleCallback(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
 
   } catch (error: unknown) {
+    if (error instanceof SsoAccessError) {
+      console.warn('SSO Callback refused:', error.message);
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('SSO Callback Error:', error);
     return NextResponse.json(
       { error: 'Authentication failed. Please try again.' },
