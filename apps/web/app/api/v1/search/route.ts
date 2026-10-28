@@ -6,7 +6,8 @@ import { visibleOrdersForActor } from '@/lib/features/orders/access';
  */
 
 import { NextRequest } from 'next/server';
-import { getAPIUser, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
+import { getAPIUser, errorResponse, handleCORS, apiAllows } from '@/lib/api/auth-helpers';
+import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { hasPermission, UserRole } from '@/lib/auth/rbac';
 import { 
   searchOrders, 
@@ -37,7 +38,8 @@ export async function GET(request: NextRequest) {
 
     // RBAC Check
     const userRole = (user.role as UserRole) || 'member';
-    if (!hasPermission(userRole, 'orders', 'list')) {
+    // A narrowing role must also see orders (the search is not module-gated by path).
+    if (!hasPermission(userRole, 'orders', 'list') || !apiAllows(user, 'orders', 'view')) {
       return errorResponse('Bu işlem için yetkiniz bulunmuyor', 403);
     }
 
@@ -145,6 +147,7 @@ export async function GET(request: NextRequest) {
       }, 'Arama tamamlandı');
     }
   } catch (error) {
+    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status, error.code);
     console.error('Search error:', error);
     return errorResponse('Arama sırasında bir hata oluştu', 500);
   }

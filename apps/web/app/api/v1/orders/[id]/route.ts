@@ -61,6 +61,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (!visible.length) return errorResponse('Sipariş bulunamadı', 404);
     return redactedSuccess(visible[0], 'Sipariş başarıyla getirildi');
   } catch (error: unknown) {
+    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status, error.code);
     console.error('Get order error:', error);
     if (error instanceof TenantMismatchError) {
       // A cross-tenant id is answered exactly like an unknown id, so order existence is not disclosed.
@@ -125,7 +126,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     console.error('Update order error:', error);
     
     if (error instanceof WorkOrderApiError) {
-      return errorResponse(error.message, error.status);
+      return errorResponse(error.message, error.status, error.code);
     }
     
     if (error instanceof ZodError) {
@@ -185,7 +186,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     
     return redactedSuccess({ id }, 'Sipariş başarıyla silindi');
   } catch (error: unknown) {
-    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);
+    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status, error.code);
     console.error('Delete order error:', error);
     if (error instanceof TenantMismatchError) {
       // A cross-tenant id is answered exactly like an unknown id, so order existence is not disclosed.

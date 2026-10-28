@@ -2,7 +2,9 @@ import 'server-only';
 
 import { z } from 'zod';
 import { sql, withTransaction } from '@/lib/db';
-import { tableExists } from '@/lib/db/schema-guard';
+import { columnExists, tableExists } from '@/lib/db/schema-guard';
+import { FIELD_GROUPS, type FieldGroup } from '@/lib/security/access-matrix';
+import { resolveMemberAccess } from '@/lib/security/member-access.server';
 import { deleteFile, readFile } from '@/lib/storage';
 import { aiAvailable } from '@/lib/ai/service';
 import { getAiSettings } from '@/lib/ai/gate.server';
@@ -13,6 +15,7 @@ import { STAFF, TASK_CATEGORIES } from './catalog';
 import { openCodeAvailable, openCodeEnabled } from './opencode.server';
 import { openCodeDecision, decide, type ManagerDecision } from './routing';
 import { triage } from './triage.server';
+import { briefSensitivity, officeTaskVisible } from './sensitivity';
 
 /**
  * The AI office's tasks as the firm's records: who asked for what, the manager's call, the
@@ -39,6 +42,22 @@ export function assertOfficeRole(actor: WorkOrderActor) {
   if (actor.station || !ROUTE_ROLES['/office'].includes(actor.role)) fail('AI ofise erişim yetkiniz yok.', 403);
 }
 
+/**
+ * Who is looking, for the task visibility rule (sensitivity.ts): owners and admins see every task;
+ * anyone else with the fields their current role hides (all of them when it cannot be told).
+ */
+async function viewerOf(actor: WorkOrderActor): Promise<{ userId: string; role: string; hidden: FieldGroup[] }> {
+  if (actor.role === 'owner' || actor.role === 'admin') return { userId: actor.userId, role: actor.role, hidden: [] };
+  const access = actor.access ?? (await resolveMemberAccess(actor.userId, actor.tenantId));
+  return { userId: actor.userId, role: actor.role, hidden: access ? access.hidden : [...FIELD_GROUPS] };
+}
+
+/** A task's markers as stored: an array, or null when not known (column missing or older task). */
+const storedSensitivity = (row: Record<string, any>): string[] | null => (Array.isArray(row.sensitivity) ? row.sensitivity : null);
+
+const visibleTo = (viewer: Awaited<ReturnType<typeof viewerOf>>, row: Record<string, any>) =>
+  officeTaskVisible(viewer, { createdBy: String(row.created_by ?? ''), sensitivity: storedSensitivity(row) });
+
 /** Can this firm's office do real work now? Without it the page runs as a simulation. */
 export async function officeAvailability(tenantId: string) {
   if (!(await tableExists('office_tasks'))) return { live: false, reason: 'AI ofis için veritabanı güncellemesi bekleniyor; şimdilik simülasyon çalışıyor.' };
@@ -63,7 +82,9 @@ export async function listOfficeTasks(actor: WorkOrderActor) {
   if (!(await tableExists('office_tasks'))) return { ...availability, tasks: [] as OfficeTaskView[] };
   await sql`UPDATE office_tasks SET status='failed', error='İş zaman aşımına uğradı; yeniden deneyebilirsiniz.', updated_at=now()
     WHERE tenant_id=${actor.tenantId} AND status IN ('working','queued') AND (CASE WHEN status='queued' THEN updated_at ELSE started_at END) < now() - make_interval(mins => ${STALE_MINUTES})`;
-  const rows = await sql`SELECT * FROM office_tasks WHERE tenant_id=${actor.tenantId} ORDER BY created_at DESC LIMIT 60`;
+  const viewer = await viewerOf(actor);
+  // A task (title, brief, summary, files) is listed only to those cleared for what it may contain.
+  const rows: Array<Record<string, any>> = (await sql`SELECT * FROM office_tasks WHERE tenant_id=${actor.tenantId} ORDER BY created_at DESC LIMIT 60`).filter((r: any) => visibleTo(viewer, r));
   const ids = rows.map((r: any) => r.id);
   const files = ids.length ? await sql`SELECT id, task_id, file_name, content_type, size_bytes, revision FROM office_files
     WHERE tenant_id=${actor.tenantId} AND task_id = ANY(${ids}::uuid[]) ORDER BY revision DESC, created_at` : [];
@@ -97,10 +118,16 @@ export async function createOfficeTask(actor: WorkOrderActor, raw: unknown) {
     triage: input.category ? { by: 'rules', reason: 'türü görevi veren seçti' } : { by: read.by, reason: read.reason },
   };
   if (openCodeEnabled()) Object.assign(decision, openCodeDecision(decision, category));
+  // What the task may contain, from its kind of work and its words; the run adds what its lookups return.
+  const sensitivity = briefSensitivity(category, `${title}\n${input.text}`);
+  const marked = await columnExists('office_tasks', 'sensitivity');
   return withTransaction(async (tx: any) => {
     await tx`SELECT pg_advisory_xact_lock(hashtextextended(${actor.tenantId + ':office_tasks'}, 0))`;
     const [{ n }] = await tx`SELECT coalesce(max(number), 0)::int + 1 AS n FROM office_tasks WHERE tenant_id=${actor.tenantId}`;
-    const [row] = await tx`INSERT INTO office_tasks (tenant_id, number, category, title, brief, agent_id, decision, cost_usd, created_by)
+    const [row] = marked
+      ? await tx`INSERT INTO office_tasks (tenant_id, number, category, title, brief, agent_id, decision, cost_usd, created_by, sensitivity)
+      VALUES (${actor.tenantId}, ${n}, ${category}, ${title}, ${input.text}, ${agent.id}, ${tx.json(decision)}, ${read.costUsd}, ${actor.userId}, ${sensitivity}::text[]) RETURNING *`
+      : await tx`INSERT INTO office_tasks (tenant_id, number, category, title, brief, agent_id, decision, cost_usd, created_by)
       VALUES (${actor.tenantId}, ${n}, ${category}, ${title}, ${input.text}, ${agent.id}, ${tx.json(decision)}, ${read.costUsd}, ${actor.userId}) RETURNING *`;
     return view(row, []);
   });
@@ -118,7 +145,8 @@ export async function actOnOfficeTask(actor: WorkOrderActor, taskId: string, raw
   assertOfficeRole(actor);
   const input = Action.parse(raw);
   const [task] = await sql`SELECT * FROM office_tasks WHERE tenant_id=${actor.tenantId} AND id=${taskId}`;
-  if (!task) fail('Görev bulunamadı.', 404);
+  // A task the person may not see is answered like an unknown one.
+  if (!task || !visibleTo(await viewerOf(actor), task)) fail('Görev bulunamadı.', 404);
   if (input.action === 'approve') {
     const [row] = await sql`UPDATE office_tasks SET status='approved', decided_at=now(), updated_at=now()
       WHERE tenant_id=${actor.tenantId} AND id=${taskId} AND status='review' RETURNING id`;
@@ -149,11 +177,14 @@ export async function actOnOfficeTask(actor: WorkOrderActor, taskId: string, raw
   return { run: true };
 }
 
-/** One delivered file, read only by the firm that owns it. */
+/** One delivered file, read only by the firm that owns it and only by those who may see its task. */
 export async function readOfficeFile(actor: WorkOrderActor, fileId: string) {
   assertOfficeRole(actor);
   if (!z.string().uuid().safeParse(fileId).success) fail('Dosya bulunamadı.', 404);
-  const [file] = await sql`SELECT file_name, content_type, storage_key FROM office_files WHERE tenant_id=${actor.tenantId} AND id=${fileId}`;
-  if (!file) fail('Dosya bulunamadı.', 404);
+  // to_jsonb: the markers when migration 079 is applied, null (most sensitive) before it.
+  const [file] = await sql`SELECT f.file_name, f.content_type, f.storage_key, t.created_by, to_jsonb(t) -> 'sensitivity' AS sensitivity
+    FROM office_files f JOIN office_tasks t ON t.id = f.task_id AND t.tenant_id = f.tenant_id
+    WHERE f.tenant_id=${actor.tenantId} AND f.id=${fileId}`;
+  if (!file || !visibleTo(await viewerOf(actor), file)) fail('Dosya bulunamadı.', 404);
   return { ...(await readFile(file.storage_key)), name: file.file_name as string, contentType: file.content_type as string };
 }

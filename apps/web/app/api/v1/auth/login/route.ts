@@ -4,6 +4,8 @@ import { successResponse, errorResponse, handleCORS, generateAPIToken } from '@/
 import { getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
 import { clearLoginAttempts, consumeLoginAttempt, verifyPassword } from '@/lib/features/auth/login-guard';
 import { isMfaEnabled } from '@/lib/features/auth/mfa.server';
+import { MFA_SETUP_REQUIRED_CODE, MFA_SETUP_REQUIRED_LOGIN_MESSAGE } from '@/lib/features/auth/mfa-policy';
+import { mfaSetupPending } from '@/lib/security/member-access.server';
 import { isPrivateAccessAllowed } from '@/lib/features/auth/private-access';
 import { sessionManager } from '@/lib/redis';
 
@@ -100,6 +102,12 @@ export async function POST(request: NextRequest) {
     // answer reveals nothing to someone who does not know it.
     if (await isMfaEnabled(sql, user.id)) {
       return errorResponse('İki adımlı doğrulama açık hesaplar bu API ile giriş yapamaz. Web üzerinden giriş yapın.', 403);
+    }
+
+    // The firm requires two-step sign-in of owners and admins: one who has not set it up gets no
+    // password-only token (set it up on the web first; two-step accounts then use the web).
+    if (await mfaSetupPending(user.id, user.tenant_id, user.role)) {
+      return errorResponse(MFA_SETUP_REQUIRED_LOGIN_MESSAGE, 403, MFA_SETUP_REQUIRED_CODE);
     }
 
     await clearLoginAttempts(email);

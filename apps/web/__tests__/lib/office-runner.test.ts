@@ -35,6 +35,7 @@ jest.mock('@/lib/features/office/data.server', () => ({
   companyProfile: jest.fn(async () => ({ name: 'Renk Alüminyum', city: 'Ankara', phone: '0312 555 00 00' })),
   taskActor: jest.fn(async () => ({ tenantId: 't1', userId: 'u1', role: 'office' })),
   lookUpRecords: (...a: unknown[]) => lookUpRecords(...a),
+  markTaskSensitivity: jest.fn(async () => undefined),
 }));
 
 import { sql } from '@/lib/db';

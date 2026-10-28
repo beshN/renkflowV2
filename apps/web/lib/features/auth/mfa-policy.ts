@@ -38,3 +38,26 @@ export function pathAllowedDuringMfaSetup(pathname: string | null | undefined): 
   const path = String(pathname || '');
   return path === MFA_SETUP_PATH || path.startsWith(`${MFA_SETUP_PATH}/`);
 }
+
+/** Error code an API answers with while set-up is outstanding (HTTP 403). */
+export const MFA_SETUP_REQUIRED_CODE = 'mfa_setup_required';
+export const MFA_SETUP_REQUIRED_MESSAGE =
+  'Firmanız, sahip ve yönetici hesapları için iki adımlı doğrulamayı zorunlu tutuyor. Hesabım → Güvenlik bölümünden kurulumu tamamlayın.';
+/** Why no API or phone token is issued to such an account. */
+export const MFA_SETUP_REQUIRED_LOGIN_MESSAGE =
+  'Firmanız, sahip ve yönetici hesapları için iki adımlı doğrulamayı zorunlu tutuyor. Önce web üzerinden giriş yapıp Hesabım → Güvenlik bölümünden iki adımlı doğrulamayı kurun.';
+
+/**
+ * Endpoints a member who still has to set it up may call: signing in and out (Auth.js), their own
+ * account (gate, two-step set-up, legal consent, sessions, notification choices, access), who they
+ * are, and closing a phone session. Every other API answers 403 mfa_setup_required.
+ */
+const MFA_SETUP_API_PREFIXES = ['/api/auth/', '/api/v1/me/'];
+const MFA_SETUP_API_EXACT = new Set(['/api/v1/auth/me', '/api/mobile/v1/auth/me', '/api/mobile/v1/auth/logout']);
+
+/** Whether a path stays open while set-up is outstanding (pages: the account page; APIs: the list above). */
+export function mfaSetupAllowsPath(pathname: string | null | undefined): boolean {
+  const path = String(pathname || '');
+  if (!path.startsWith('/api/')) return pathAllowedDuringMfaSetup(path);
+  return MFA_SETUP_API_EXACT.has(path) || MFA_SETUP_API_PREFIXES.some((p) => path.startsWith(p));
+}

@@ -74,7 +74,7 @@ async function handle(request: NextRequest, context: Context, writing: boolean) 
     return json({ success: true, data: validateMobileDTO(schema, schema === 'Photo' ? { url: body.data.url } : body.data) });
   } catch (error) {
     if (error instanceof MobileConflict) return json({success:false,error:error.message,code:'SYNC_CONFLICT',canRetry:error.canRetry},409);
-    if (error instanceof WorkOrderApiError) return json({ success: false, error: error.message }, error.status);
+    if (error instanceof WorkOrderApiError) return json({ success: false, error: error.message, ...(error.code ? { code: error.code } : {}) }, error.status);
     // A contract mismatch must fail closed; don't expose validation payloads or private fields.
     console.error('[mobile-contract] response rejected', error instanceof Error ? error.name : 'unknown');
     return json({ success: false, error: 'Mobil işlem doğrulanamadı. Yeniden deneyin.' }, 500);

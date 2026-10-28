@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return redactedSuccess(quotation);
   } catch (error: any) {
-    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);
+    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status, error.code);
     return errorResponse("Teklif işlemi tamamlanamadı. Lütfen tekrar deneyin.", 500);
   }
 }
@@ -98,7 +98,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     await recordAuditAfterCommit({ tenantId: user.tenantId, actorId: user.id, entityType: "quotation", entityId: id, action: "updated", metadata: { fields: Object.keys(body).filter((key) => key !== "expectedVersion") } });
     return redactedSuccess(quotation, "Teklif güncellendi");
   } catch (error: any) {
-    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);
+    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status, error.code);
     if (error instanceof ZodError)
       return errorResponse(
         "Geçersiz veri: " +
@@ -124,7 +124,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     await recordAuditAfterCommit({ tenantId: user.tenantId, actorId: user.id, entityType: "quotation", entityId: id, action: "deleted" });
     return redactedSuccess({ success: true }, "Teklif silindi");
   } catch (error: any) {
-    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status);
+    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status, error.code);
     return errorResponse("Teklif işlemi tamamlanamadı. Lütfen tekrar deneyin.", 500);
   }
 }

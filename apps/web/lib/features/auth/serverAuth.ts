@@ -7,7 +7,8 @@
  * 3. Handle authorization errors
  */
 
-import { resolveMemberAccess } from '@/lib/security/member-access.server';
+import { mfaSetupPending, resolveMemberAccess } from '@/lib/security/member-access.server';
+import { MFA_SETUP_REQUIRED_MESSAGE } from './mfa-policy';
 import { DEFAULT_PRESET, can, permissionRequirement, type FieldGroup, type Matrix } from '@/lib/security/access-matrix';
 import 'server-only';
 import { auth } from '@/auth';
@@ -64,7 +65,7 @@ export class AuthenticationError extends Error {
  * Get current server user context from session
  * Throws AuthenticationError if not authenticated
  */
-export async function getServerUserContext(): Promise<ServerUserContext> {
+export async function getServerUserContext(options: { allowDuringMfaSetup?: boolean } = {}): Promise<ServerUserContext> {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -76,6 +77,9 @@ export async function getServerUserContext(): Promise<ServerUserContext> {
   }
   const access = await resolveMemberAccess(session.user.id, session.user.tenantId);
   if (!access || access.deactivated) throw new AuthenticationError('Firma üyeliğiniz artık aktif değil');
+  // The firm's two-step rule holds for server actions too (the proxy also sends pages to set-up).
+  if (!options.allowDuringMfaSetup && (await mfaSetupPending(session.user.id, session.user.tenantId, access.base, { cached: true })))
+    throw new AuthorizationError(MFA_SETUP_REQUIRED_MESSAGE);
   const membership = { role: access.base };
 
   return {

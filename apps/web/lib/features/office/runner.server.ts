@@ -13,7 +13,8 @@ import { ModelBlockedError } from '@/lib/ai/policy';
 import { createMasker, personalValues } from '@/lib/ai/privacy';
 import { tenantPersonalNames } from '@/lib/ai/known-names';
 import { CATEGORY, type TaskCategoryId } from './catalog';
-import { companyProfile, lookUpRecords, taskActor } from './data.server';
+import { companyProfile, lookUpRecords, markTaskSensitivity, taskActor } from './data.server';
+import { briefSensitivity, foundSensitivity } from './sensitivity';
 import { OFFICE_MODELS, TIER_MODEL, openCodeDecision, type ManagerDecision } from './routing';
 import { unmaskFile } from './unmask';
 import { EFFORT, WORK, dataCalls, readOutcome, requestTools, safeFileName, systemPrompt, textFileName, userMessage, type DataCall } from './work';
@@ -72,10 +73,15 @@ export async function runOfficeTask(tenantId: string, taskId: string, signal: Ab
     const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: prompt }];
     const anthropic = free ? null : client();
     let actor: Awaited<ReturnType<typeof taskActor>> | undefined;
+    // What the delivery may contain: the brief, notes and answers now, then every lookup's records.
+    // Written before any file is stored, so a file is never listed with fewer markers than it needs.
+    await markTaskSensitivity(tenantId, taskId, briefSensitivity(category, [task.title, task.brief, ...(task.notes ?? []), ...((task.answers ?? []) as Array<{ answer?: string }>).map(a => String(a?.answer ?? ''))].join('\n')));
+    const seen = new Set<string>();
     const lookUp = async (call: DataCall) => {
       try {
         actor ??= await taskActor(tenantId, task.created_by);
         const found = await lookUpRecords(actor, call.category, masker.restore(call.query));
+        for (const marker of foundSensitivity(call.category, found)) seen.add(marker);
         masker.know(personalValues(found));
         return masker.mask(JSON.stringify(found ?? null)).slice(0, LOOKUP_CHARS);
       } catch (error) {
@@ -115,6 +121,7 @@ export async function runOfficeTask(tenantId: string, taskId: string, signal: Ab
         type: 'tool_result' as const, tool_use_id: call.id,
         content: i < LOOKUPS_PER_TURN ? await lookUp(call) : 'Bu turdaki arama sınırı doldu; bulduklarınla devam et.',
       }))) });
+      await markTaskSensitivity(tenantId, taskId, [...seen]);
     }
     const outcome = free ? (free.question ? { kind: 'question' as const, question: free.question } : { kind: 'delivered' as const, summary: free.summary, fileIds: [] as string[] }) : readOutcome({ stop_reason: message!.stop_reason, content: message!.content as unknown[] });
 

@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
     
     return redactedSuccess(await visibleOrdersForActor(orders, { tenantId: user.tenantId, userId: user.id, role: userRole }), 'Siparişler başarıyla getirildi');
   } catch (error: unknown) {
+    if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status, error.code);
     console.error('Get orders error:', error);
     if (error instanceof AuthorizationError) {
       return errorResponse(error.message, 403);
@@ -163,7 +164,7 @@ export async function POST(request: NextRequest) {
       return errorResponse(error.message, 403);
     }
     if (error instanceof WorkOrderApiError) {
-      return errorResponse(error.message, error.status);
+      return errorResponse(error.message, error.status, error.code);
     }
     
     return errorResponse('Sipariş oluşturulurken bir hata oluştu', 500);
