@@ -16,21 +16,28 @@ on:
 
 # Aynı dalda yeni bir push gelince eski çalışma iptal olur; ayrıca aynı dal için hem `push` hem
 # `pull_request` çalışması tetiklenirse biri öbürünü iptal eder (Actions dakikası boşa gitmez).
+# The repository is public and these jobs run on the owner's own Mac (self-hosted runner). Pull
+# requests from forks never run there (see each job's `if`): their code would execute on that machine.
+# Actions are pinned to commit SHAs; Dependabot keeps the pins current.
+permissions:
+  contents: read
+
 concurrency:
   group: validate-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   validate:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macOS]
     timeout-minutes: 35
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         # No actions cache: the self-hosted runner keeps ~/.npm between runs, and uploading the
         # cache to GitHub after every run took several minutes.
         with:
@@ -50,24 +57,25 @@ jobs:
         timeout-minutes: 15
         run: npm --prefix apps/web run test:integration
 
-  # Report-only: known advisories must not turn the gate red. Read the job log (or Dependabot alerts)
-  # and fix them in a dedicated dependency PR.
+  # Critical production advisories block; high ones are reported as warnings.
   audit:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macOS]
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
 
       # Same lockfile the deploy installs from (apps/web/package-lock.json, workspaces off); no install needed.
       - name: Audit production dependencies
-        # Findings become a warning on the run, not a red check: the PR stays readable at a glance.
+        # Critical production advisories fail the check; high ones only warn (fix them in a dependency PR).
         run: |
-          if ! npm --prefix apps/web audit --omit=dev --audit-level=high --workspaces=false; then
-            echo "::warning title=npm audit::Production dependencies have high or critical advisories; see this job's log and fix them in a dependency PR."
+          npm --prefix apps/web audit --omit=dev --audit-level=critical --workspaces=false
+          if ! npm --prefix apps/web audit --omit=dev --audit-level=high --workspaces=false > /dev/null; then
+            echo "::warning title=npm audit::Production dependencies have high advisories; see this job's log and fix them in a dependency PR."
           fi
