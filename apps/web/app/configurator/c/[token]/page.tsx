@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { fairTenantId } from '@/lib/features/fair/config';
 import { TOKEN_PATTERN } from '@/lib/features/fair/design';
 import { getDesign } from '@/lib/features/fair/designs.server';
-import { firmName } from '@/lib/features/fair/fairs.server';
+import { firmName, privacyController } from '@/lib/features/fair/fairs.server';
 import { DesignApp } from '@/components/features/fair/DesignApp';
 import { browserLocale } from '../../locale.server';
 
@@ -26,9 +26,9 @@ export default async function DesignPage({ params }: Params) {
   return (
     <DesignApp
       mode="mobile"
-      firm={await firmName()}
+      controller={await privacyController()}
       token={token}
-      initial={design ? { items: design.items, locale: design.locale, fair: design.fair } : null}
+      initial={design ? { items: design.items, locale: design.locale, version: design.version, fair: design.fair } : null}
       defaultLocale={design?.locale ?? (await browserLocale())}
     />
   );

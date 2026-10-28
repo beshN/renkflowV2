@@ -1,4 +1,4 @@
-import { deflateSync, inflateSync, strFromU8, strToU8 } from 'fflate';
+import { deflateSync, Inflate, strFromU8, strToU8 } from 'fflate';
 import { z } from 'zod';
 import { DesignItemsSchema, fromBase64Url, LocaleSchema, toBase64Url, type DesignItem } from './design';
 import type { Locale } from './i18n';
@@ -16,10 +16,32 @@ export function encodeDesign({ fairCode, locale, items }: TransferPayload): stri
   return toBase64Url(deflateSync(strToU8(JSON.stringify({ v: 1, f: fairCode, l: locale, i: compact })), { level: 9 }));
 }
 
+/** Eight products without images are a few kB; anything inflating past this is not a design. */
+const MAX_INFLATED_BYTES = 64 * 1024;
+
+/** Inflates at most MAX_INFLATED_BYTES and stops there, so a small fragment cannot expand into megabytes. */
+function inflateLimited(data: Uint8Array): Uint8Array {
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  const inflater = new Inflate((chunk) => {
+    size += chunk.length;
+    if (size > MAX_INFLATED_BYTES) throw new Error('design too large');
+    chunks.push(chunk);
+  });
+  inflater.push(data, true);
+  const out = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return out;
+}
+
 export function decodeDesign(fragment: string): TransferPayload | null {
   try {
     if (!fragment || fragment.length > 4000) return null;
-    const parsed = PayloadSchema.safeParse(JSON.parse(strFromU8(inflateSync(fromBase64Url(fragment)))));
+    const parsed = PayloadSchema.safeParse(JSON.parse(strFromU8(inflateLimited(fromBase64Url(fragment)))));
     return parsed.success ? { fairCode: parsed.data.f, locale: parsed.data.l, items: parsed.data.i } : null;
   } catch {
     return null;

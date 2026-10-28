@@ -9,10 +9,24 @@ import { createDesign, type DesignPayload } from './client';
  */
 type Entry = DesignPayload & { queuedAt: number; attempts: number; lastError?: string };
 let db: Promise<IDBPDatabase> | null = null;
-const open = () => (db ??= openDB('rf-configurator', 1, { upgrade: (d) => d.createObjectStore('outbox', { keyPath: 'token' }) }));
+// A failed open is not cached: storage may come back (quota freed, private mode left).
+const open = () =>
+  (db ??= openDB('rf-configurator', 1, { upgrade: (d) => d.createObjectStore('outbox', { keyPath: 'token' }) }).catch((e) => {
+    db = null;
+    throw e;
+  }));
 
 export async function queueDesign(payload: DesignPayload) {
   await (await open()).put('outbox', { ...payload, queuedAt: Date.now(), attempts: 0 } satisfies Entry);
+}
+
+/** Whether this design still waits for the server (true when storage cannot tell). */
+export async function isQueued(token: string): Promise<boolean> {
+  try {
+    return (await (await open()).getKey('outbox', token)) !== undefined;
+  } catch {
+    return true;
+  }
 }
 
 export async function pendingCount(): Promise<number> {

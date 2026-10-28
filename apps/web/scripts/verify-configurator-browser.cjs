@@ -255,7 +255,35 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   step('kiosk back online: queue emptied (already stored design confirmed, nothing duplicated)');
   assert.equal((await sql`SELECT count(*)::int n FROM fair_designs WHERE token = ${offlineToken}`)[0].n, 1);
 
+  // ---- Robustness: a retried quote, an edit on a stale copy, removing the last product -------
+  // From the kiosk page, so the requests come from the configurator's own origin like the app's.
+  const api = (path, method, body) =>
+    kiosk.evaluate(
+      async ([url, m, b]) => {
+        const r = await fetch(url, { method: m, headers: { 'Content-Type': 'application/json' }, body: b === undefined ? undefined : JSON.stringify(b) });
+        return { status: r.status, body: await r.json().catch(() => ({})) };
+      },
+      [`/api/v1/public/fair${path}`, method, body],
+    );
+  const freshToken = () => require('node:crypto').randomBytes(16).toString('base64url').slice(0, 22);
+  const [{ items: sample }] = await sql`SELECT items FROM fair_designs WHERE token = ${offlineToken}`;
+  const draft = freshToken();
+  assert.equal((await api('/designs', 'POST', { token: draft, fairCode: 'rt2027', origin: 'web', locale: 'en', items: sample })).status, 201);
+  assert.equal((await api(`/designs/${draft}`, 'PUT', { items: sample, locale: 'en', expectedVersion: 1 })).status, 200);
+  assert.equal((await api(`/designs/${draft}`, 'PUT', { items: sample, locale: 'en', expectedVersion: 1 })).status, 409, 'an edit on a stale copy is refused');
+  assert.equal((await api(`/designs/${draft}`, 'PUT', { items: [], locale: 'en', expectedVersion: 2 })).status, 200);
+  assert.equal((await api(`/designs/${draft}`, 'GET')).body.design.items.length, 0, 'removing the last product sticks');
+  const submission = { token: freshToken(), submissionId: freshToken(), designVersion: null, fairCode: 'rt2027', locale: 'en', items: sample,
+    contactName: 'Retry Test', email: 'retry@example.com', phone: '', companyName: '', location: '', note: '', privacyAccepted: true, marketingConsent: false, website: '' };
+  const first = await api('/quotes', 'POST', submission);
+  const again = await api('/quotes', 'POST', submission);
+  assert.equal(first.status, 201);
+  assert.equal(again.body.number, first.body.number, 'a retried submission returns the first request');
+  assert.equal((await sql`SELECT count(*)::int n FROM fair_quotes WHERE submission_id = ${submission.submissionId}`)[0].n, 1);
+  step(`retried quote kept as ${first.body.number} (no second request or lead); stale edit 409; empty list saved`);
+
   console.log('page errors:', errors.length ? errors : 'none');
+  assert.equal(errors.length, 0, 'no JavaScript errors in any page');
   await browser.close();
   await sql.end();
 })().catch(async (e) => {

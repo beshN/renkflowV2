@@ -14,7 +14,7 @@ export function ServiceWorkerUnregister() {
       try {
         // The product configurator's kiosk worker (offline mode) is the one worker that stays.
         const isConfigurator = (r: ServiceWorkerRegistration) =>
-          [r.active, r.waiting, r.installing].some((w) => w?.scriptURL.endsWith('/configurator-sw.js'));
+          [r.active, r.waiting, r.installing].some((w) => w && new URL(w.scriptURL).pathname.endsWith('/configurator-sw.js'));
         const registrations = (await navigator.serviceWorker.getRegistrations()).filter((r) => !isConfigurator(r));
         if (registrations.length === 0) return;
 

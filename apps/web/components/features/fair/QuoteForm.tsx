@@ -3,26 +3,31 @@ import { useState } from "react";
 import Image from "next/image";
 import { ArrowLeft, Box } from "lucide-react";
 import { submitQuote } from "@/lib/features/fair/client";
-import { itemSize, type DesignItem } from "@/lib/features/fair/design";
-import { fairText, privacyNotice, productName, type Locale } from "@/lib/features/fair/i18n";
+import { itemSize, newToken, type DesignItem } from "@/lib/features/fair/design";
+import { fairText, privacyNotice, productName, type Locale, type PrivacyController } from "@/lib/features/fair/i18n";
 
-export type QuoteResult = { number: string | null; emailStatus: string; email: string };
+export type QuoteResult = { number: string | null; emailStatus: string; email: string; designVersion: number | null };
 
 /** Contact details for a quote; only name and e-mail are required. Marketing consent is separate and off. */
 export function QuoteForm({
   locale,
-  firm,
+  controller,
   token,
   fairCode,
   items,
+  prepare,
+  onConflict,
   onBack,
   onDone,
 }: {
   locale: Locale;
-  firm: string;
+  controller: PrivacyController;
   token: string;
   fairCode: string | null;
   items: DesignItem[];
+  /** Waits for pending saves and returns the design version the request is for. */
+  prepare: () => Promise<number | null>;
+  onConflict: () => void;
   onBack: () => void;
   onDone: (r: QuoteResult) => void;
 }) {
@@ -32,6 +37,9 @@ export function QuoteForm({
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [conflict, setConflict] = useState(false);
+  // One id per filled-in form: pressing send again after a dropped connection returns the same request.
+  const [submissionId] = useState(newToken);
   const field = (key: keyof typeof form) => ({ value: form[key], onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm((s) => ({ ...s, [key]: e.target.value })) });
 
   async function send(e: React.FormEvent) {
@@ -42,13 +50,16 @@ export function QuoteForm({
     }
     setBusy(true);
     setError("");
-    const result = await submitQuote({ token, fairCode, locale, items, ...form, privacyAccepted, marketingConsent });
+    setConflict(false);
+    const designVersion = await prepare();
+    const result = await submitQuote({ token, submissionId, designVersion, fairCode, locale, items, ...form, privacyAccepted, marketingConsent });
     setBusy(false);
     if (!result.ok) {
-      setError(result.status === 400 ? f.invalid : result.status === 0 ? f.offlineSend : f.sendFailed);
+      if (result.status === 409) setConflict(true);
+      setError(result.status === 409 ? f.designChanged : result.status === 400 ? f.invalid : result.status === 0 ? f.offlineSend : f.sendFailed);
       return;
     }
-    onDone({ number: result.data.number, emailStatus: result.data.emailStatus, email: form.email });
+    onDone({ number: result.data.number, emailStatus: result.data.emailStatus, email: form.email, designVersion: result.data.designVersion ?? null });
   }
 
   const label = (text: string, required = false) => (
@@ -96,7 +107,7 @@ export function QuoteForm({
         <input type="text" tabIndex={-1} autoComplete="off" aria-hidden className="absolute left-[-9999px] h-0 w-0 opacity-0" {...field("website")} />
         <details className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
           <summary className="cursor-pointer font-medium text-foreground">{f.privacyTitle}</summary>
-          <div className="mt-2 space-y-2">{privacyNotice(locale, firm).map((p) => <p key={p.slice(0, 32)}>{p}</p>)}</div>
+          <div className="mt-2 space-y-2">{privacyNotice(locale, controller).map((p) => <p key={p.slice(0, 32)}>{p}</p>)}</div>
         </details>
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" required className="mt-0.5 h-5 w-5 shrink-0 accent-[hsl(var(--primary))]" checked={privacyAccepted} onChange={(e) => setPrivacyAccepted(e.target.checked)} />
@@ -106,7 +117,12 @@ export function QuoteForm({
           <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-[hsl(var(--primary))]" checked={marketingConsent} onChange={(e) => setMarketingConsent(e.target.checked)} />
           <span>{f.marketing}</span>
         </label>
-        {error && <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+        {error && (
+          <div role="alert" className="flex flex-wrap items-center gap-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <span className="flex-1">{error}</span>
+            {conflict && <button type="button" className="min-h-10 rounded-lg border border-rose-300 bg-white px-3 font-medium" onClick={onConflict}>{f.reloadDesign}</button>}
+          </div>
+        )}
         <button type="submit" disabled={busy} className="rf-fair-btn min-h-12 w-full justify-center text-base">{busy ? f.sending : f.send}</button>
       </form>
     </section>

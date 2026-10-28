@@ -69,6 +69,10 @@ const CONFIGURATOR_EN: ConfiguratorText = {
   motorRemote: 'UBESER · remote control', motorRemoteWall: 'UBESER · remote + wall switch',
   colorName: (n) => COLOR_NAMES.en[n] ?? n,
   bodyAria: 'Frame colour', fabricAria: 'Fabric colour', openingAria: 'Opening', anglesAria: 'Camera angles', dayNightAria: 'Day / night', brightnessAria: 'LED brightness',
+  canvasAria: (name, percent) => `${name} in 3D, ${percent}% open. Arrow keys: rotate; plus/minus: zoom; Home: reset; Page Up/Page Down: opening; space: play.`,
+  awningCanvasAria: 'Awning in 3D. Rotate with the arrow keys, zoom with plus and minus.',
+  savedViewAlt: (name) => `Saved 3D view of ${name}`, awningSavedViewAlt: 'Saved view of the awning',
+  openingValue: (percent, raised) => (raised ? `raised ${percent}%` : `${percent}% open`), fullscreenUnsupported: 'Full screen is not supported in this browser.',
 };
 const CONFIGURATOR_DE: ConfiguratorText = {
   ...CONFIGURATOR_TEXT_TR,
@@ -86,6 +90,10 @@ const CONFIGURATOR_DE: ConfiguratorText = {
   motorRemote: 'UBESER · Fernbedienung', motorRemoteWall: 'UBESER · Fernbedienung + Wandtaster',
   colorName: (n) => COLOR_NAMES.de[n] ?? n,
   bodyAria: 'Rahmenfarbe', fabricAria: 'Stofffarbe', openingAria: 'Öffnung', anglesAria: 'Kamerawinkel', dayNightAria: 'Tag / Nacht', brightnessAria: 'LED-Helligkeit',
+  canvasAria: (name, percent) => `${name} in 3D, ${percent} % geöffnet. Pfeiltasten: drehen; Plus/Minus: zoomen; Pos1: zurücksetzen; Bild auf/ab: Öffnung; Leertaste: abspielen.`,
+  awningCanvasAria: 'Markise in 3D. Mit den Pfeiltasten drehen, mit Plus und Minus zoomen.',
+  savedViewAlt: (name) => `Gespeicherte 3D-Ansicht: ${name}`, awningSavedViewAlt: 'Gespeicherte Ansicht der Markise',
+  openingValue: (percent, raised) => (raised ? `${percent} % angehoben` : `${percent} % geöffnet`), fullscreenUnsupported: 'Vollbild wird in diesem Browser nicht unterstützt.',
 };
 const CONFIGURATOR: Record<Locale, ConfiguratorText> = { tr: CONFIGURATOR_TEXT_TR, en: CONFIGURATOR_EN, de: CONFIGURATOR_DE };
 
@@ -98,6 +106,7 @@ const UI = {
     categories: { roof: 'Roofs and pergolas', glass: 'Glass systems', screen: 'Screens and awnings' },
     heroTitle: 'No need to collect business cards.', heroText: "Configure the product you want, in the size you want, right now. We'll send you a quote with special fair prices.", heroCta: 'Start configuring', heroSteps: ['Choose a product', 'Set size and colour in 3D', 'Get your fair-price quote'], stepLabels: ['Product', 'Design', 'Quote'],
     viewDesign: 'View my design', emailPending: 'Your design stays available under this page link. Keep it to come back any time.', notFoundHint: 'The link may be incomplete. Start a new design instead; it only takes a minute.', quoteFor: (n: number) => `${n} product${n === 1 ? '' : 's'} in your request`, scanSteps: ['Open your phone camera', 'Point it at the code', 'Request your fair-price quote'], kioskPrivacy: 'No personal details are asked for on this screen.', requiredHint: 'Fields marked * are required.',
+    designChanged: 'This design was changed on another device. Load the latest version, then continue.', reloadDesign: 'Load latest version', savedInQrOnly: 'This screen could not store the design, but it is inside the QR code. The phone needs internet to open it.',
     allProducts: 'All products', featured: 'Featured', designThis: 'Design this', touchToStart: 'Touch the screen to start', designIn3d: 'Design it in 3D',
     back: 'Back', quantity: 'Quantity', pieces: (n: number) => `${n} pc${n === 1 ? '' : 's'}`, addToList: 'Add to my list', saveChanges: 'Save changes',
     preparingPreview: 'Preparing the view…', otherRequests: 'Other requests for this product (optional)', control: 'Drive and control',
@@ -130,6 +139,7 @@ const UI = {
     categories: { roof: 'Dächer und Pergolen', glass: 'Glassysteme', screen: 'Screens und Markisen' },
     heroTitle: 'Visitenkarten sammeln? Nicht nötig.', heroText: 'Konfigurieren Sie jetzt das gewünschte Produkt in Ihrem Wunschmaß. Wir erstellen Ihnen ein Angebot zu Messepreisen.', heroCta: 'Jetzt konfigurieren', heroSteps: ['Produkt wählen', 'Maße und Farbe in 3D einstellen', 'Angebot zu Messepreisen erhalten'], stepLabels: ['Produkt', 'Gestaltung', 'Angebot'],
     viewDesign: 'Entwurf ansehen', emailPending: 'Ihr Entwurf bleibt unter dem Link dieser Seite verfügbar. Bewahren Sie ihn auf.', notFoundHint: 'Der Link ist möglicherweise unvollständig. Starten Sie einfach einen neuen Entwurf.', quoteFor: (n: number) => `${n} Produkt${n === 1 ? '' : 'e'} in Ihrer Anfrage`, scanSteps: ['Handykamera öffnen', 'Auf den Code richten', 'Angebot zu Messepreisen anfordern'], kioskPrivacy: 'Auf diesem Bildschirm werden keine persönlichen Daten abgefragt.', requiredHint: 'Mit * markierte Felder sind Pflichtfelder.',
+    designChanged: 'Dieser Entwurf wurde auf einem anderen Gerät geändert. Laden Sie die aktuelle Version und machen Sie dann weiter.', reloadDesign: 'Aktuelle Version laden', savedInQrOnly: 'Dieser Bildschirm konnte den Entwurf nicht speichern, er steckt aber im QR-Code. Das Handy braucht zum Öffnen Internet.',
     allProducts: 'Alle Produkte', featured: 'Empfohlen', designThis: 'Dieses gestalten', touchToStart: 'Bildschirm berühren und starten', designIn3d: 'In 3D gestalten',
     back: 'Zurück', quantity: 'Anzahl', pieces: (n: number) => `${n} Stk.`, addToList: 'Zu meiner Liste', saveChanges: 'Änderungen speichern',
     preparingPreview: 'Ansicht wird vorbereitet…', otherRequests: 'Weitere Wünsche zu diesem Produkt (optional)', control: 'Antrieb und Steuerung',
@@ -162,6 +172,7 @@ const UI = {
     categories: { roof: 'Tavan ve pergola', glass: 'Cam sistemleri', screen: 'Perde ve tente' },
     heroTitle: 'Kartvizit biriktirmenize gerek yok.', heroText: 'Hemen istediğiniz ürünü, istediğiniz ölçülerde konfigüre edin. Fuara özel fiyatlarla size teklif yapalım.', heroCta: 'Konfigüre etmeye başla', heroSteps: ['Ürünü seçin', '3D olarak ölçü ve rengi ayarlayın', 'Fuara özel teklifinizi alın'], stepLabels: ['Ürün', 'Tasarım', 'Teklif'],
     viewDesign: 'Tasarımı görüntüle', emailPending: 'Tasarımınız bu sayfanın bağlantısında saklı. Dilediğiniz zaman dönmek için saklayın.', notFoundHint: 'Bağlantı eksik ya da hatalı olabilir. Yeni bir tasarıma başlayabilirsiniz; bir dakikanızı alır.', quoteFor: (n: number) => `Talebinizde ${n} ürün var`, scanSteps: ['Telefonunuzun kamerasını açın', 'Kodu okutun', 'Fuara özel teklifinizi isteyin'], kioskPrivacy: 'Bu ekranda kişisel bilgi istenmez.', requiredHint: '* ile işaretli alanlar zorunludur.',
+    designChanged: 'Bu tasarım başka bir cihazda değiştirildi. Güncel hâlini yükleyip öyle devam edin.', reloadDesign: 'Güncel hâlini yükle', savedInQrOnly: 'Bu ekran tasarımı saklayamadı ama tasarım QR kodun içinde. Telefonun açabilmesi için internet gerekir.',
     allProducts: 'Tüm ürünler', featured: 'Öne çıkan', designThis: 'Bunu tasarla', touchToStart: 'Başlamak için ekrana dokunun', designIn3d: '3D olarak tasarlayın',
     back: 'Geri', quantity: 'Adet', pieces: (n: number) => `${n} adet`, addToList: 'Listeme ekle', saveChanges: 'Değişiklikleri kaydet',
     preparingPreview: 'Görünüm hazırlanıyor…', otherRequests: 'Bu ürünle ilgili diğer istekleriniz (isteğe bağlı)', control: 'Tahrik ve kontrol',
@@ -202,25 +213,38 @@ export const productName = (locale: Locale, kind: FairKind) => PRODUCT_NAMES[loc
 export const productPitch = (locale: Locale, kind: FairKind) => PRODUCT_PITCH[locale][kind];
 export const colorName = (locale: Locale, name: string) => CONFIGURATOR[locale].colorName(name);
 
+/** Who processes a visitor's data and where rights requests go (from the firm's record in RenkFlow). */
+export type PrivacyController = { name: string; details: string; email: string | null };
+
 /** The firm is the data controller; raise the version when the text changes. */
-export const PRIVACY_VERSION = 'configurator-1.0';
-export function privacyNotice(locale: Locale, firm: string): string[] {
-  const who = firm || 'Renk Alüminyum';
+export const PRIVACY_VERSION = 'configurator-1.1';
+export function privacyNotice(locale: Locale, controller: PrivacyController): string[] {
+  const who = controller.name || 'Renk Alüminyum';
+  const identity = controller.details ? `${who} (${controller.details})` : who;
   if (locale === 'de')
     return [
-      `${who} verarbeitet als Verantwortlicher Ihren Namen, Ihre Kontaktdaten, Firma, Ort und Ihre Produktauswahl ausschließlich, um Ihr Preisangebot zu erstellen und Sie dazu zu kontaktieren (Art. 6 Abs. 1 lit. b DSGVO; KVKK Art. 5/2-c).`,
+      `Verantwortlicher: ${identity}. Wir verarbeiten Ihren Namen, Ihre Kontaktdaten, Firma, Ort und Ihre Produktauswahl ausschließlich, um Ihr Preisangebot zu erstellen und Sie dazu zu kontaktieren (Art. 6 Abs. 1 lit. b DSGVO; KVKK Art. 5/2-c).`,
       'Ihre Daten werden nicht verkauft und nur an Dienstleister für Hosting und E-Mail-Versand im notwendigen Umfang weitergegeben. Nach Abschluss werden sie für die gesetzlichen Fristen aufbewahrt und danach gelöscht oder anonymisiert.',
       'Sie haben das Recht auf Auskunft, Berichtigung, Löschung und Widerspruch. Die Einwilligung in Werbung ist freiwillig und jederzeit widerrufbar.',
+      controller.email
+        ? `Für Anfragen zu Ihren Rechten oder den Widerruf Ihrer Einwilligung schreiben Sie an ${controller.email}.`
+        : `Für Anfragen zu Ihren Rechten oder den Widerruf Ihrer Einwilligung wenden Sie sich schriftlich an ${who}.`,
     ];
   if (locale === 'tr')
     return [
-      `${who}, veri sorumlusu olarak adınızı, iletişim bilgilerinizi, firma ve konum bilginizi ve ürün seçimlerinizi yalnızca fiyat teklifinizi hazırlamak ve bu konuda sizinle iletişim kurmak amacıyla işler (KVKK m. 5/2-c; GDPR m. 6/1-b).`,
+      `Veri sorumlusu: ${identity}. Adınızı, iletişim bilgilerinizi, firma ve konum bilginizi ve ürün seçimlerinizi yalnızca fiyat teklifinizi hazırlamak ve bu konuda sizinle iletişim kurmak amacıyla işleriz (KVKK m. 5/2-c; GDPR m. 6/1-b).`,
       'Verileriniz satılmaz; yalnızca barındırma ve e-posta hizmeti aldığımız tedarikçilerle gerektiği ölçüde paylaşılır. Talep sonuçlandıktan sonra mevzuattaki süreler boyunca saklanır, ardından silinir veya anonimleştirilir.',
       'Bilgi talep etme, düzeltme, silme ve itiraz haklarınızı kullanabilirsiniz. Pazarlama izni isteğe bağlıdır ve istediğiniz zaman geri alınabilir.',
+      controller.email
+        ? `Haklarınızı kullanmak veya pazarlama iznini geri almak için ${controller.email} adresine yazabilirsiniz.`
+        : `Haklarınızı kullanmak veya pazarlama iznini geri almak için ${who} adresine yazılı olarak başvurabilirsiniz.`,
     ];
   return [
-    `${who}, as data controller, processes your name, contact details, company, location and product selection only to prepare your price quote and to contact you about it (GDPR Art. 6(1)(b); KVKK Art. 5/2-c).`,
+    `Data controller: ${identity}. We process your name, contact details, company, location and product selection only to prepare your price quote and to contact you about it (GDPR Art. 6(1)(b); KVKK Art. 5/2-c).`,
     'Your data is never sold and is shared only with our hosting and e-mail providers as far as needed. After your request is closed it is kept for the statutory periods, then deleted or anonymised.',
     'You have the right to access, rectify, erase and object. Marketing consent is optional and can be withdrawn at any time.',
+    controller.email
+      ? `To exercise your rights or withdraw consent, write to ${controller.email}.`
+      : `To exercise your rights or withdraw consent, contact ${who} in writing.`,
   ];
 }

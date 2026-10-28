@@ -5,10 +5,16 @@ import { DesignItemsSchema, itemChoices, itemSize, itemSpecs, itemSummary, newIt
 import { decodeDesign, encodeDesign, fragmentPayload } from '@/lib/features/fair/transfer';
 import { configuratorRewrite } from '@/lib/features/fair/config';
 import { QuoteInput } from '@/lib/features/fair/quote-input';
+import { PICKER_PRODUCTS } from '@/lib/features/fair/products';
+import { CONFIGURATOR_MEDIA, productImage } from '@/lib/features/fair/media';
 import { quoteEmailHtml, sendQuoteConfirmation } from '@/lib/features/fair/email.server';
+import { readJsonLimited } from '@/lib/features/manufacturing/http-security';
+import { deflateSync, strToU8 } from 'fflate';
+import { toBase64Url } from '@/lib/features/fair/design';
 
 jest.mock('next-auth/jwt', () => ({ getToken: jest.fn(async () => null) }));
 jest.mock('server-only', () => ({}));
+jest.mock('@/auth', () => ({ auth: jest.fn() }));
 
 const TENANT = '11111111-2222-4333-8444-555555555555';
 function withEnv(env: Record<string, string | undefined>, run: () => Promise<void>) {
@@ -97,6 +103,11 @@ describe('design model', () => {
     expect(JSON.stringify(choices)).not.toContain('#');
     expect(itemSpecs('en', awning)).toEqual(expect.arrayContaining([['Fabric colour', 'Sand beige (#c2ae8b)']]));
   });
+  it('offers visitors only products whose 3D model shows the product, each with a photo', () => {
+    expect(PICKER_PRODUCTS.map((p) => p.kind)).not.toContain('cassette');
+    expect(PICKER_PRODUCTS).toHaveLength(11);
+    for (const p of PICKER_PRODUCTS) expect(CONFIGURATOR_MEDIA).toContain(productImage(p.kind));
+  });
   it('starts fabric products in a colour that stands out from the light 3D floor', () => {
     expect(newItem('makasli').awning?.fabricColor).toBe('#c2ae8b');
     expect(newItem('zip').configuration?.fabricColor).toBe('#c2ae8b');
@@ -119,10 +130,35 @@ describe('QR transfer', () => {
     expect(decodeDesign('not-a-design')).toBeNull();
     expect(fragmentPayload('#x=1')).toBeNull();
   });
+  it('stops inflating a small fragment that expands far beyond any design', () => {
+    const bomb = toBase64Url(deflateSync(strToU8(`{"v":1,"f":null,"l":"en","i":[${'0,'.repeat(1_000_000)}0]}`), { level: 9 }));
+    expect(bomb.length).toBeLessThan(4000);
+    expect(decodeDesign(bomb)).toBeNull();
+  });
+});
+
+describe('request body limit', () => {
+  const chunked = (bytes: number) =>
+    new Request('http://x/api', {
+      method: 'POST',
+      body: new ReadableStream({
+        start(controller) {
+          for (let sent = 0; sent < bytes; sent += 64 * 1024) controller.enqueue(new Uint8Array(Math.min(64 * 1024, bytes - sent)).fill(32));
+          controller.close();
+        },
+      }),
+      duplex: 'half',
+    } as RequestInit);
+  it('refuses a body over the limit even without Content-Length', async () => {
+    await expect(readJsonLimited(chunked(300_000), 200_000)).rejects.toMatchObject({ status: 413 });
+  });
+  it('reads a body within the limit', async () => {
+    await expect(readJsonLimited(new Request('http://x/api', { method: 'POST', body: '{"ok":true}' }), 200_000)).resolves.toEqual({ ok: true });
+  });
 });
 
 describe('quote input', () => {
-  const base = { token: newToken(), locale: 'en', items: [newItem('makasli')], contactName: 'Ada Lovelace', email: 'ada@example.com', privacyAccepted: true };
+  const base = { token: newToken(), submissionId: newToken(), locale: 'en', items: [newItem('makasli')], contactName: 'Ada Lovelace', email: 'ada@example.com', privacyAccepted: true };
   it('needs only name and e-mail; marketing consent defaults to off', () => {
     const d = QuoteInput.parse(base);
     expect(d.marketingConsent).toBe(false);
@@ -130,6 +166,10 @@ describe('quote input', () => {
   it('requires the e-mail and the privacy acknowledgement', () => {
     expect(QuoteInput.safeParse({ ...base, email: '' }).success).toBe(false);
     expect(QuoteInput.safeParse({ ...base, privacyAccepted: false }).success).toBe(false);
+  });
+  it('carries a submission id, so a retry cannot open a second request', () => {
+    const { submissionId: _s, ...withoutId } = base;
+    expect(QuoteInput.safeParse(withoutId).success).toBe(false);
   });
 });
 

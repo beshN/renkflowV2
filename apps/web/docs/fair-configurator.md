@@ -43,15 +43,17 @@ Service worker yalnızca HTTPS'te (veya `localhost`'ta) çalışır.
 
 ## Kurulum
 
-1. Veritabanı: `npm run db:deploy` (079 uygulanır).
+1. Veritabanı: `npm run db:deploy` (079 ve 080 uygulanır; Vercel derlemesi migration çalıştırmaz).
 2. Vercel ortam değişkenleri:
    - `FAIR_TENANT_ID`: Renk Alüminyum'un `tenants.id` değeri. Boşsa konfigüratör kapalıdır.
    - `FAIR_HOSTS=configurator.renkaluminyum.com`
    - `FAIR_PUBLIC_URL=https://configurator.renkaluminyum.com` (e-postadaki bağlantılar)
-   - `RESEND_API_KEY` ve `FAIR_EMAIL_FROM` (ör. `Renk Alüminyum <teklif@renkaluminyum.com>`). Gönderen alan adı Resend'de doğrulanmış olmalı. Anahtar yoksa talep yine kaydedilir; müşteriye e-postanın gönderilemediği açıkça gösterilir, panelde "E-posta servisi yapılandırılmamış" yazar.
+   - `RESEND_API_KEY` ve `FAIR_EMAIL_FROM` (ör. `Renk Alüminyum <teklif@renkaluminyum.com>`). Gönderen alan adı Resend'de doğrulanmış olmalı. Anahtar yoksa talep yine kaydedilir; müşteriye e-posta gönderildiği söylenmez, tasarım bağlantısını saklaması söylenir; panelde "E-posta servisi yapılandırılmamış" yazar.
+   - `FAIR_PRIVACY_EMAIL` (ör. `kvkk@renkaluminyum.com`): ziyaretçinin KVKK/GDPR haklarını kullanacağı adres. Boşsa firmanın RenkFlow'daki e-postası kullanılır. Aydınlatma metnindeki veri sorumlusu bilgisi (unvan, adres, telefon) firmanın RenkFlow kaydından gelir; Ayarlar'da eksiksiz olmalı. Saklama süresi ve yurt dışı aktarım ifadeleri hukuk danışmanınca onaylanmalıdır.
 3. Alan adı: `configurator.renkaluminyum.com` Vercel projesine eklenir, DNS'te CNAME kaydı Vercel'e yönlendirilir.
 4. Panelden fuarı oluşturun (ör. kod `rt2027`, varsayılan dil `en`).
-5. Kiosk cihazı: Chrome'u kiosk modunda açın (`chrome --kiosk https://configurator.renkaluminyum.com/fair/rt2027`). İlk açılışı internetle yapın ve 1–2 dakika bekleyin. Ekrandaki tam ekran düğmesi de kullanılabilir.
+5. İzleme: `GET /api/v1/public/fair/health?fair=rt2027` firma ve fuar hazırsa 200, değilse 503 döner (ad veya kimlik içermez). ERP'nin `/api/health/ready` kontrolü yanlış `FAIR_TENANT_ID` ile de yeşil kalır; fuar öncesi ve süresince bunu izleyin.
+6. Kiosk cihazı: Chrome'u kiosk modunda açın (`chrome --kiosk https://configurator.renkaluminyum.com/fair/rt2027`). İlk açılışı internetle yapın ve 1–2 dakika bekleyin. Ekrandaki tam ekran düğmesi de kullanılabilir.
 
 ## Yapılandırılabilir kurallar
 

@@ -39,6 +39,8 @@ export const DesignItemSchema = z
   });
 export type DesignItem = z.infer<typeof DesignItemSchema>;
 export const DesignItemsSchema = z.array(DesignItemSchema).min(1).max(MAX_ITEMS);
+/** A saved draft may be empty: removing the last product must stick. A quote still needs one. */
+export const DraftItemsSchema = z.array(DesignItemSchema).max(MAX_ITEMS);
 export const LocaleSchema = z.enum(LOCALES);
 
 export function sizes(item: Pick<DesignItem, 'kind' | 'configuration' | 'awning'>): Record<SizeKey, number> {

@@ -7,6 +7,7 @@
  *                  (https://configurator.renkaluminyum.com); unset = NEXT_PUBLIC_APP_URL (on a Vercel
  *                  preview its branch alias) + /configurator.
  * FAIR_EMAIL_FROM  sender of the customer confirmation (a domain verified in Resend).
+ * FAIR_PRIVACY_EMAIL  where visitors exercise their KVKK/GDPR rights; unset = the firm's e-mail in RenkFlow.
  */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

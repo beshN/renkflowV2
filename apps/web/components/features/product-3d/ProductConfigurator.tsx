@@ -203,7 +203,7 @@ export function ProductConfigurator({
           <canvas
             ref={canvas}
             className={`${stageClassName} w-full touch-none`}
-            aria-label={`${meta.name} 3D görünümü, %${Math.round(opening)} açık. Ok tuşları: döndür; artı/eksi: yakınlaştır; Home: sıfırla; PageUp/PageDown: açıklık; boşluk: oynat.`}
+            aria-label={t.canvasAria(t.productName ?? meta.name, Math.round(opening))}
             tabIndex={0}
           />
           {!ready && !error && (
@@ -229,7 +229,7 @@ export function ProductConfigurator({
                   src={value.image}
                   width={900}
                   height={600}
-                  alt={`${meta.name} kaydedilmiş 3D görünümü`}
+                  alt={t.savedViewAlt(t.productName ?? meta.name)}
                   unoptimized
                   className="max-h-64 w-auto rounded-md"
                 />
@@ -297,7 +297,7 @@ export function ProductConfigurator({
               <input
                 aria-label={draft.kind === "wind-piston" ? t.glassHeight : t.openingAria}
                 disabled={!ready || rendering}
-                aria-valuetext={draft.kind === "wind-piston" ? `%${Math.round(opening)} yükseklikte` : `%${Math.round(opening)} açık`}
+                aria-valuetext={t.openingValue(Math.round(opening), draft.kind === "wind-piston")}
                 className="min-w-0 flex-1"
                 type="range"
                 min={0}

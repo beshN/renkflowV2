@@ -18,10 +18,11 @@ async function warm3d() {
  * Registers the configurator's service worker (production builds only) and hands it everything
  * this page has loaded, so the kiosk keeps working without a connection.
  */
-export async function registerConfiguratorWorker(): Promise<boolean> {
+export async function registerConfiguratorWorker(release: string): Promise<boolean> {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator) || process.env.NODE_ENV !== 'production') return false;
   try {
-    const registration = await navigator.serviceWorker.register('/configurator-sw.js', { scope: configuratorBase() ? '/configurator/' : '/' });
+    // A new release is a new script URL: the browser installs the new worker, which drops the old cache.
+    const registration = await navigator.serviceWorker.register(`/configurator-sw.js?v=${encodeURIComponent(release)}`, { scope: configuratorBase() ? '/configurator/' : '/' });
     await navigator.serviceWorker.ready;
     if (!navigator.serviceWorker.controller)
       await new Promise<void>((resolve) => {

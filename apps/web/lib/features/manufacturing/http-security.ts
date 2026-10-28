@@ -40,3 +40,35 @@ export function crossOriginRejection(request: Request) {
     return NextResponse.json({ error: error.message }, { status: error.status });
   }
 }
+
+/**
+ * The body as JSON, read at most `maximumBytes` bytes. Content-Length alone is not enough: a chunked
+ * request has none, so the bytes are counted while reading and the read stops at the limit.
+ */
+export async function readJsonLimited(request: Request, maximumBytes = 2_000_000): Promise<unknown> {
+  const reader = request.body?.getReader();
+  if (!reader) throw new WorkOrderApiError("Geçersiz istek", 400);
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maximumBytes) {
+      await reader.cancel().catch(() => {});
+      throw new WorkOrderApiError("İstek çok büyük", 413);
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    throw new WorkOrderApiError("Geçersiz JSON", 400);
+  }
+}

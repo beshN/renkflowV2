@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { activeFair, firmName } from '@/lib/features/fair/fairs.server';
+import { activeFair } from '@/lib/features/fair/fairs.server';
 import { KioskApp } from '@/components/features/fair/KioskApp';
 
 export const dynamic = 'force-dynamic';
@@ -15,5 +15,5 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 export default async function FairKioskPage({ params }: Params) {
   const fair = await activeFair((await params).code);
   if (!fair) notFound();
-  return <KioskApp fair={{ code: fair.code, name: fair.name, defaultLocale: fair.defaultLocale, campaign: fair.campaign }} firm={await firmName()} />;
+  return <KioskApp fair={{ code: fair.code, name: fair.name, defaultLocale: fair.defaultLocale, campaign: fair.campaign }} release={(process.env.VERCEL_GIT_COMMIT_SHA || 'local').slice(0, 12)} />;
 }

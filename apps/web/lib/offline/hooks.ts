@@ -60,12 +60,12 @@ export function useSyncStatus(): UseSyncStatusResult {
   });
 
   React.useEffect(() => {
-    // Initial status
-    syncQueue.getStatus().then(setStatus);
+    // Initial status. Without browser storage (private mode, quota) the default status stays.
+    syncQueue.getStatus().then(setStatus).catch(() => {});
 
     // Subscribe to events
     const unsubscribe = syncQueue.onEvent((event) => {
-      syncQueue.getStatus().then(setStatus);
+      syncQueue.getStatus().then(setStatus).catch(() => {});
     });
 
     return unsubscribe;

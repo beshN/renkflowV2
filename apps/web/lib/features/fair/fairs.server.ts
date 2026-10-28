@@ -7,6 +7,7 @@ import { requireCap } from '@/lib/features/field/common.server';
 import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orders/security';
 import { LocaleSchema } from './design';
 import { fairTenantId } from './config';
+import type { PrivacyController } from './i18n';
 
 export type PublicFair = { id: string; code: string; name: string; defaultLocale: 'tr' | 'en' | 'de'; campaign: string | null; startsOn: string | null; endsOn: string | null };
 
@@ -26,6 +27,23 @@ export async function fairIdByCode(db: any, tenantId: string, code: string | nul
   if (!code) return null;
   const [row] = await db`SELECT id FROM fairs WHERE tenant_id = ${tenantId} AND code = ${code}`;
   return row ? String(row.id) : null;
+}
+
+/**
+ * The data controller as the privacy notice names it, from the firm's own record in RenkFlow
+ * (legal name, address, phone, e-mail); FAIR_PRIVACY_EMAIL overrides the e-mail for rights requests.
+ */
+export async function privacyController(): Promise<PrivacyController> {
+  const tenantId = fairTenantId();
+  const [firm] = tenantId
+    ? await sql`SELECT name, legal_name, address_line, district, city, postal_code, phone, invoice_email FROM tenants WHERE id = ${tenantId}`.catch(() => [])
+    : [];
+  const place = [firm?.postal_code, firm?.district, firm?.city].filter(Boolean).join(' ');
+  return {
+    name: String(firm?.legal_name || firm?.name || 'Renk Alüminyum'),
+    details: [firm?.address_line, place, firm?.phone].filter(Boolean).join(', '),
+    email: process.env.FAIR_PRIVACY_EMAIL?.trim() || (firm?.invoice_email ? String(firm.invoice_email) : null),
+  };
 }
 
 export async function firmName(): Promise<string> {

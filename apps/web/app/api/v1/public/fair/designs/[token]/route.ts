@@ -1,10 +1,12 @@
 import { NextRequest } from 'next/server';
 import { consumeRateLimit, getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
-import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
+import { readJsonLimited, requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
 import { getDesign, updateDesign } from '@/lib/features/fair/designs.server';
 import { publicError, publicJson } from '../../http';
 
 export const dynamic = 'force-dynamic';
+/** Eight products with their preview images (≤ 300 kB each) fit well within this. */
+const MAX_BODY = 3_000_000;
 type Params = { params: Promise<{ token: string }> };
 
 /** A design behind its link (no personal data is ever stored on a design). */
@@ -18,10 +20,10 @@ export async function GET(req: NextRequest, { params }: Params) {
 /** The link holder's edits. */
 export async function PUT(req: NextRequest, { params }: Params) {
   try {
-    requireSameOriginJson(req, 3_000_000);
+    requireSameOriginJson(req, MAX_BODY);
     const limit = await consumeRateLimit('fairDesignWrite', getClientIp(req.headers));
     if (!limit.allowed) return rateLimitResponse(limit);
-    return publicJson(await updateDesign((await params).token, await req.json()));
+    return publicJson(await updateDesign((await params).token, await readJsonLimited(req, MAX_BODY)));
   } catch (e) {
     return publicError(e, 'fair-design');
   }

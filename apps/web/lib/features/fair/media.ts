@@ -1,4 +1,4 @@
-import type { FairKind } from './products';
+import { PICKER_PRODUCTS, type FairKind } from './products';
 
 /**
  * Photos from Renk Alüminyum's own application archive (renkaluminyum.com, see
@@ -19,7 +19,7 @@ export const ATTRACT_SLIDES: ReadonlyArray<{ src: string; kind: FairKind }> = [
   { src: `${BASE}/attract/6.webp`, kind: 'wind-piston' },
 ];
 
-const KINDS: FairKind[] = ['makasli', 'pergola', 'rolling-roof', 'zip', 'giyotin', 'wind-manual', 'wind-piston', 'glass-roof', 'sliding-glass', 'bioclimatic', 'winter-garden', 'cassette'];
+const KINDS: FairKind[] = PICKER_PRODUCTS.map((p) => p.kind);
 
 const LOGOS = ['renk-logo', 'renk-logo-white', 'renk-wordmark', 'renk-wordmark-white'].map((name) => `${BASE}/brand/${name}.svg`);
 

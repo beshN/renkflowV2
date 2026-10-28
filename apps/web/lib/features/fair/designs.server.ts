@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { sql, withTransaction } from '@/lib/db';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { fairTenantId } from './config';
-import { DesignItemsSchema, LocaleSchema, TOKEN_PATTERN, type DesignItem } from './design';
+import { DesignItemsSchema, DraftItemsSchema, LocaleSchema, TOKEN_PATTERN, type DesignItem } from './design';
 import { fairIdByCode } from './fairs.server';
 
 export function requireFairTenant() {
@@ -17,7 +17,7 @@ export const Token = z.string().regex(TOKEN_PATTERN);
 const CreateInput = z
   .object({ token: Token, fairCode: z.string().max(40).nullish(), origin: z.enum(['kiosk', 'mobile', 'web']), locale: LocaleSchema, items: DesignItemsSchema })
   .strict();
-const UpdateInput = z.object({ items: DesignItemsSchema, locale: LocaleSchema.optional() }).strict();
+const UpdateInput = z.object({ items: DraftItemsSchema, locale: LocaleSchema.optional(), expectedVersion: z.number().int().positive() }).strict();
 
 export type PublicDesign = { token: string; items: DesignItem[]; locale: 'tr' | 'en' | 'de'; origin: string; version: number; updatedAt: string; fair: { code: string; name: string } | null };
 const designDto = (r: any): PublicDesign => ({
@@ -55,14 +55,25 @@ export async function getDesign(token: string): Promise<PublicDesign | null> {
   return row ? designDto(row) : null;
 }
 
-/** The link is the key: whoever holds it may keep editing the design. */
+/** Another phone or tab saved the design after this copy was loaded. */
+export class DesignConflictError extends WorkOrderApiError {
+  constructor() {
+    super('Bu tasarım başka bir yerde değiştirildi', 409);
+  }
+}
+
+/**
+ * The link is the key: whoever holds it may keep editing the design. Edits name the version they
+ * were made on; an edit on an older copy is refused (409) instead of silently overwriting newer work.
+ */
 export async function updateDesign(token: string, raw: unknown) {
   const tenantId = requireFairTenant();
   if (!TOKEN_PATTERN.test(token)) throw new WorkOrderApiError('Bulunamadı', 404);
   const d = UpdateInput.parse(raw);
   const [row] = await sql`
     UPDATE fair_designs SET items = ${JSON.stringify(d.items)}::text::jsonb, locale = COALESCE(${d.locale ?? null}, locale), version = version + 1, updated_at = now()
-    WHERE tenant_id = ${tenantId} AND token = ${token} RETURNING version, updated_at`;
-  if (!row) throw new WorkOrderApiError('Bulunamadı', 404);
-  return { version: Number(row.version), updatedAt: row.updated_at };
+    WHERE tenant_id = ${tenantId} AND token = ${token} AND version = ${d.expectedVersion} RETURNING version, updated_at`;
+  if (row) return { version: Number(row.version), updatedAt: row.updated_at };
+  const [exists] = await sql`SELECT 1 FROM fair_designs WHERE tenant_id = ${tenantId} AND token = ${token}`;
+  throw exists ? new DesignConflictError() : new WorkOrderApiError('Bulunamadı', 404);
 }

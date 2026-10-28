@@ -9,7 +9,7 @@ import { WorkOrderApiError, type WorkOrderActor } from '@/lib/features/work-orde
 import { configuratorBaseUrl } from './config';
 import { itemSpecs, itemSummary, type DesignItem } from './design';
 import { QuoteInput } from './quote-input';
-import { requireFairTenant } from './designs.server';
+import { DesignConflictError, requireFairTenant } from './designs.server';
 import { sendQuoteConfirmation } from './email.server';
 import { fairIdByCode, firmName, requireConfiguratorFirm } from './fairs.server';
 import { PRIVACY_VERSION, type Locale } from './i18n';
@@ -20,9 +20,11 @@ export type QuoteStatus = (typeof QUOTE_STATUSES)[number];
 
 export const designUrl = (token: string) => `${configuratorBaseUrl()}/c/${token}`;
 
-/** TT-2026-000001: per firm and year. */
+/** One quote request at a time per firm: numbering and the retry check below rely on it. */
+const lockQuotes = (tx: any, tenantId: string) => tx`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId + ':fair_quotes'}, 0))`;
+
+/** TT-2026-000001: per firm and year. Call under lockQuotes. */
 async function nextQuoteNumber(tx: any, tenantId: string) {
-  await tx`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId + ':fair_quotes'}, 0))`;
   const year = new Date().getFullYear();
   const prefix = `TT-${year}-`;
   const [row] = await tx`SELECT count(*)::int AS n FROM fair_quotes WHERE tenant_id = ${tenantId} AND number LIKE ${prefix + '%'}`;
@@ -36,7 +38,8 @@ async function nextQuoteNumber(tx: any, tenantId: string) {
 /**
  * A quote request: stores the design as it is now (the link keeps showing the latest version),
  * snapshots it on the request, opens the RenkFlow lead, then e-mails the customer. The e-mail
- * result is recorded and returned as it is; a failed e-mail never undoes the request.
+ * result is recorded and returned as it is; a failed e-mail never undoes the request. A retry of the
+ * same submission (same submissionId) returns the first request and sends nothing again.
  */
 export async function submitQuote(raw: unknown, meta: { ip: string; agent: string }) {
   const tenantId = requireFairTenant();
@@ -44,22 +47,33 @@ export async function submitQuote(raw: unknown, meta: { ip: string; agent: strin
   const ipHash = meta.ip && meta.ip !== 'unknown' ? createHash('sha256').update(`${tenantId}:${meta.ip}`).digest('hex').slice(0, 32) : null;
   const items = JSON.stringify(d.items);
   const saved = await withTransaction(async (tx: any) => {
+    await lockQuotes(tx, tenantId);
+    const [earlier] = await tx`
+      SELECT q.id, q.number, q.email_status, d.version FROM fair_quotes q LEFT JOIN fair_designs d ON d.id = q.design_id AND d.tenant_id = q.tenant_id
+      WHERE q.tenant_id = ${tenantId} AND q.submission_id = ${d.submissionId}`;
+    if (earlier) return { id: String(earlier.id), number: earlier.number as string, replay: earlier.email_status as string, designVersion: Number(earlier.version ?? 0) || null };
     const codeFairId = await fairIdByCode(tx, tenantId, d.fairCode);
-    await tx`
+    const [inserted] = await tx`
       INSERT INTO fair_designs (tenant_id, token, fair_id, origin, locale, items)
       VALUES (${tenantId}, ${d.token}, ${codeFairId}, 'mobile', ${d.locale}, ${items}::text::jsonb)
-      ON CONFLICT (token) DO NOTHING`;
-    const [design] = await tx`
-      UPDATE fair_designs SET items = ${items}::text::jsonb, locale = ${d.locale}, version = version + 1, updated_at = now()
-      WHERE tenant_id = ${tenantId} AND token = ${d.token} RETURNING id, fair_id`;
-    if (!design) throw new WorkOrderApiError('Bu bağlantı kullanılamıyor', 409);
+      ON CONFLICT (token) DO NOTHING RETURNING id, fair_id, version`;
+    let design = inserted;
+    if (!design) {
+      // The design was already stored: the request must be for the version the phone shows.
+      const [current] = await tx`SELECT id, fair_id, version FROM fair_designs WHERE tenant_id = ${tenantId} AND token = ${d.token} FOR UPDATE`;
+      if (!current) throw new WorkOrderApiError('Bu bağlantı kullanılamıyor', 409);
+      if (d.designVersion != null && Number(current.version) !== d.designVersion) throw new DesignConflictError();
+      [design] = await tx`
+        UPDATE fair_designs SET items = ${items}::text::jsonb, locale = ${d.locale}, version = version + 1, updated_at = now()
+        WHERE tenant_id = ${tenantId} AND id = ${current.id} RETURNING id, fair_id, version`;
+    }
     const fairId = design.fair_id ? String(design.fair_id) : codeFairId;
     const number = await nextQuoteNumber(tx, tenantId);
     const [quote] = await tx`
       INSERT INTO fair_quotes (tenant_id, number, design_id, fair_id, items, contact_name, email, phone, company_name, location, note, locale,
-        privacy_notice_version, privacy_notice_ack_at, marketing_consent, ip_hash, user_agent)
+        privacy_notice_version, privacy_notice_ack_at, marketing_consent, ip_hash, user_agent, submission_id)
       VALUES (${tenantId}, ${number}, ${design.id}, ${fairId}, ${items}::text::jsonb, ${d.contactName}, ${d.email}, ${d.phone || null}, ${d.companyName || null},
-        ${d.location || null}, ${d.note || null}, ${d.locale}, ${PRIVACY_VERSION}, now(), ${d.marketingConsent}, ${ipHash}, ${meta.agent.slice(0, 300) || null})
+        ${d.location || null}, ${d.note || null}, ${d.locale}, ${PRIVACY_VERSION}, now(), ${d.marketingConsent}, ${ipHash}, ${meta.agent.slice(0, 300) || null}, ${d.submissionId})
       RETURNING id`;
     const leadId = await openLeadForQuote(tx, {
       tenantId, quoteId: quote.id, number, fair: Boolean(fairId), items: d.items, contactName: d.contactName,
@@ -67,13 +81,14 @@ export async function submitQuote(raw: unknown, meta: { ip: string; agent: strin
     });
     await tx`UPDATE fair_quotes SET lead_id = ${leadId} WHERE tenant_id = ${tenantId} AND id = ${quote.id}`;
     await recordAudit(tx, { tenantId, actorId: null, entityType: 'fair_quote', entityId: quote.id, action: 'created', metadata: { number, items: d.items.length, fair: Boolean(fairId) } });
-    return { id: String(quote.id), number: number as string };
+    return { id: String(quote.id), number: number as string, replay: null as string | null, designVersion: Number(design.version) as number | null };
   });
+  if (saved.replay !== null) return { number: saved.number, emailStatus: saved.replay, designVersion: saved.designVersion };
   const email = await sendQuoteConfirmation({
     to: d.email, locale: d.locale, firm: await firmName(), number: saved.number, contactName: d.contactName, items: d.items, designUrl: designUrl(d.token),
   }).catch((e) => ({ status: 'failed' as const, error: e instanceof Error ? e.message.slice(0, 300) : 'send failed' }));
   await sql`UPDATE fair_quotes SET email_status = ${email.status}, email_error = ${email.error ?? null}, updated_at = now() WHERE tenant_id = ${tenantId} AND id = ${saved.id}`;
-  return { number: saved.number, emailStatus: email.status };
+  return { number: saved.number, emailStatus: email.status, designVersion: saved.designVersion };
 }
 
 // Sales screens -----------------------------------------------------------------------------------

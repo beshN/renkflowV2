@@ -23,14 +23,16 @@ async function call<T>(url: string, init: RequestInit): Promise<Result<T>> {
 
 export type DesignPayload = { token: string; fairCode: string | null; origin: 'kiosk' | 'mobile' | 'web'; locale: Locale; items: DesignItem[] };
 export const createDesign = (p: DesignPayload) => call<{ token: string; created: boolean; version: number }>('/api/v1/public/fair/designs', { method: 'POST', body: JSON.stringify(p) });
-export const updateDesign = (token: string, items: DesignItem[], locale: Locale) =>
-  call<{ version: number }>(`/api/v1/public/fair/designs/${token}`, { method: 'PUT', body: JSON.stringify({ items, locale }) });
-export const fetchDesign = (token: string) => call<{ design: { items: DesignItem[]; locale: Locale; fair: { code: string; name: string } | null } }>(`/api/v1/public/fair/designs/${token}`, { method: 'GET' });
+/** An edit made on version `expectedVersion`; 409 when the design changed elsewhere since. */
+export const updateDesign = (token: string, items: DesignItem[], locale: Locale, expectedVersion: number) =>
+  call<{ version: number }>(`/api/v1/public/fair/designs/${token}`, { method: 'PUT', body: JSON.stringify({ items, locale, expectedVersion }) });
+export const fetchDesign = (token: string) =>
+  call<{ design: { items: DesignItem[]; locale: Locale; version: number; fair: { code: string; name: string } | null } }>(`/api/v1/public/fair/designs/${token}`, { method: 'GET' });
 export type QuotePayload = {
-  token: string; fairCode: string | null; locale: Locale; items: DesignItem[]; contactName: string; email: string; phone: string; companyName: string;
+  token: string; submissionId: string; designVersion: number | null; fairCode: string | null; locale: Locale; items: DesignItem[]; contactName: string; email: string; phone: string; companyName: string;
   location: string; note: string; privacyAccepted: boolean; marketingConsent: boolean; website: string;
 };
-export const submitQuote = (p: QuotePayload) => call<{ number: string | null; emailStatus: 'sent' | 'failed' | 'not_configured' | 'pending' }>('/api/v1/public/fair/quotes', { method: 'POST', body: JSON.stringify(p) });
+export const submitQuote = (p: QuotePayload) => call<{ number: string | null; emailStatus: 'sent' | 'failed' | 'not_configured' | 'pending'; designVersion?: number | null }>('/api/v1/public/fair/quotes', { method: 'POST', body: JSON.stringify(p) });
 
 /** The 3D capture is 900 px wide; a 480 px JPEG preview is plenty and keeps requests small. */
 export function shrinkPreview(dataUrl: string, width = 480): Promise<string | undefined> {

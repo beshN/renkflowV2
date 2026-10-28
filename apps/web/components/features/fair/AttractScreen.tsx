@@ -54,7 +54,7 @@ export function AttractScreen({ locale, onLocale, campaign, onStart, onPick }: {
             <p className="max-w-3xl text-2xl leading-snug text-white/90 portrait:text-3xl xl:text-3xl">{f.heroText}</p>
             {campaign && <p className="inline-block rounded-full bg-white/15 px-5 py-2 text-lg font-medium backdrop-blur">{campaign}</p>}
             <div className="flex flex-wrap items-center gap-4 pt-2">
-              <button type="button" className="inline-flex min-h-20 items-center gap-3 rounded-full bg-white px-10 text-2xl font-semibold text-neutral-900 shadow-2xl transition active:scale-95 motion-reduce:transition-none" onClick={(e) => { e.stopPropagation(); onStart(); }}>
+              <button type="button" autoFocus className="inline-flex min-h-20 items-center gap-3 rounded-full bg-white px-10 text-2xl font-semibold text-neutral-900 shadow-2xl outline-none transition focus-visible:ring-4 focus-visible:ring-white/70 active:scale-95 motion-reduce:transition-none" onClick={(e) => { e.stopPropagation(); onStart(); }}>
                 {f.heroCta} <ArrowRight size={28} aria-hidden />
               </button>
               <span className="inline-flex items-center gap-2 text-lg text-white/80">

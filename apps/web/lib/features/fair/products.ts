@@ -33,3 +33,10 @@ export const FAIR_PRODUCTS: readonly FairProductRule[] = [
   ...PRODUCT_CATALOG.map((p) => ({ kind: p.kind, category: p.category, controls: [] as ControlKey[] })),
 ];
 export const fairProduct = (kind: FairKind) => FAIR_PRODUCTS.find((p) => p.kind === kind)!;
+
+/**
+ * Products visitors can pick. The cassette awning's 3D model draws only the closed cassette (no fabric,
+ * no arms, no opening), which reads as broken on a fair screen; it stays valid for existing designs.
+ */
+const NOT_SHOWN: ReadonlySet<FairKind> = new Set(['cassette']);
+export const PICKER_PRODUCTS: readonly FairProductRule[] = FAIR_PRODUCTS.filter((p) => !NOT_SHOWN.has(p.kind));

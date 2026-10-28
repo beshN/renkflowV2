@@ -182,7 +182,7 @@ export function AwningConfigurator({
           <canvas
             ref={canvas}
             className={`${stageClassName} w-full touch-none`}
-            aria-label="3D tente. Ok tuşlarıyla döndürün, artı ve eksiyle yakınlaştırın."
+            aria-label={t.awningCanvasAria}
             tabIndex={0}
           />
           {!ready && !sceneError && (
@@ -200,7 +200,7 @@ export function AwningConfigurator({
                   src={previewImage}
                   width={640}
                   height={360}
-                  alt="Kaydedilmiş tente görünümü"
+                  alt={t.awningSavedViewAlt}
                   unoptimized
                 />
               )}
@@ -217,7 +217,7 @@ export function AwningConfigurator({
               stage.current
                 ?.requestFullscreen?.()
                 .catch(() =>
-                  setError("Tam ekran bu tarayıcıda desteklenmiyor."),
+                  setError(t.fullscreenUnsupported),
                 )
             }
           >

@@ -65,5 +65,11 @@ export const CONFIGURATOR_TEXT_TR = {
   anglesAria: 'Diğer kamera açıları',
   dayNightAria: 'Gündüz gece ışığı',
   brightnessAria: 'LED parlaklığı',
+  canvasAria: (name: string, percent: number) => `${name} 3D görünümü, %${percent} açık. Ok tuşları: döndür; artı/eksi: yakınlaştır; Home: sıfırla; PageUp/PageDown: açıklık; boşluk: oynat.`,
+  awningCanvasAria: '3D tente. Ok tuşlarıyla döndürün, artı ve eksiyle yakınlaştırın.',
+  savedViewAlt: (name: string) => `${name} kaydedilmiş 3D görünümü`,
+  awningSavedViewAlt: 'Kaydedilmiş tente görünümü',
+  openingValue: (percent: number, raised: boolean) => (raised ? `%${percent} yükseklikte` : `%${percent} açık`),
+  fullscreenUnsupported: 'Tam ekran bu tarayıcıda desteklenmiyor.',
 };
 export type ConfiguratorText = typeof CONFIGURATOR_TEXT_TR;

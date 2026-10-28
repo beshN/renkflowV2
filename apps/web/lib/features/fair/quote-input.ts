@@ -5,6 +5,10 @@ import { DesignItemsSchema, LocaleSchema, TOKEN_PATTERN } from './design';
 export const QuoteInput = z
   .object({
     token: z.string().regex(TOKEN_PATTERN),
+    /** One per form submission: a retry of the same submission returns the first request. */
+    submissionId: z.string().regex(TOKEN_PATTERN),
+    /** The design version the phone shows; null when the design is not on the server yet. */
+    designVersion: z.number().int().positive().nullish(),
     fairCode: z.string().max(40).nullish(),
     locale: LocaleSchema,
     items: DesignItemsSchema,

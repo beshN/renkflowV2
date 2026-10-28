@@ -4,7 +4,7 @@ import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import { fairText, productName, productPitch, type Locale } from "@/lib/features/fair/i18n";
 import { productImage } from "@/lib/features/fair/media";
-import { FAIR_PRODUCTS, type FairKind } from "@/lib/features/fair/products";
+import { PICKER_PRODUCTS, type FairKind } from "@/lib/features/fair/products";
 
 type Category = "all" | "roof" | "glass" | "screen";
 
@@ -15,7 +15,7 @@ type Category = "all" | "roof" | "glass" | "screen";
 export function ProductPicker({ locale, onPick, disabled = false, kiosk = false }: { locale: Locale; onPick: (kind: FairKind) => void; disabled?: boolean; kiosk?: boolean }) {
   const f = fairText(locale);
   const [category, setCategory] = useState<Category>("all");
-  const products = FAIR_PRODUCTS.filter((p) => category === "all" || p.category === category);
+  const products = PICKER_PRODUCTS.filter((p) => category === "all" || p.category === category);
   const chips: Array<[Category, string]> = [["all", f.allProducts], ["roof", f.categories.roof], ["glass", f.categories.glass], ["screen", f.categories.screen]];
 
   return (

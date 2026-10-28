@@ -3,8 +3,11 @@
  * - App code (/_next/static, hashed and immutable): cache first.
  * - Pages and other same-origin GETs: network first (4 s), the cached copy when offline.
  * - API calls are never cached; designs made offline wait in the page's IndexedDB outbox.
+ * The page registers it as configurator-sw.js?v=<release>: each release gets its own cache and
+ * activating it deletes the previous releases' caches, so old hashed files never pile up.
  */
-const CACHE = 'rf-configurator-v1';
+const RELEASE = (new URL(self.location.href).searchParams.get('v') || 'v1').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40) || 'v1';
+const CACHE = `rf-configurator-${RELEASE}`;
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {

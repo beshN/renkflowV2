@@ -29,6 +29,7 @@ const PUBLIC: Record<string, { why: string; keeps: RegExp | null }> = {
   'v1/public/fair/designs': { why: 'konfigüratör tasarımı (kişisel veri yok, tahmin edilemez jeton; FAIR_TENANT_ID yoksa 404)', keeps: /consumeRateLimit\('fairDesignWrite'/ },
   'v1/public/fair/designs/[token]': { why: 'tasarım bağlantısı (jeton anahtardır)', keeps: /consumeRateLimit\('fairDesignRead'[\s\S]*consumeRateLimit\('fairDesignWrite'/ },
   'v1/public/fair/quotes': { why: 'konfigüratör teklif talebi (iletişim formu)', keeps: /consumeRateLimit\('fairQuote'/ },
+  'v1/public/fair/health': { why: 'konfigüratör sağlık kontrolü (yalnızca evet/hayır, ad veya kimlik yok)', keeps: /consumeRateLimit\('fairDesignRead'/ },
   'v1/tracking/[token]': { why: 'müşteri takip bağlantısı (jeton)', keeps: /token/ },
   'telemetry/ingest': { why: 'takip cihazı (cihaz jetonu, cihaz başına hız sınırı servis katmanında)', keeps: /ingestTelemetry/ },
   'v1/public/signoff/[token]': { why: 'müşteri teslim imzası (jeton, hız sınırı servis katmanında)', keeps: /signDelivery/ },
