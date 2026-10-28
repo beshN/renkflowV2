@@ -21,5 +21,7 @@ export const ATTRACT_SLIDES: ReadonlyArray<{ src: string; kind: FairKind }> = [
 
 const KINDS: FairKind[] = ['makasli', 'pergola', 'rolling-roof', 'zip', 'giyotin', 'wind-manual', 'wind-piston', 'glass-roof', 'sliding-glass', 'bioclimatic', 'winter-garden', 'cassette'];
 
+const LOGOS = ['renk-logo', 'renk-logo-white', 'renk-wordmark', 'renk-wordmark-white'].map((name) => `${BASE}/brand/${name}.svg`);
+
 /** Every image the configurator shows, for the kiosk's offline cache. */
-export const CONFIGURATOR_MEDIA: string[] = [...ATTRACT_SLIDES.map((s) => s.src), ...KINDS.map(productImage)];
+export const CONFIGURATOR_MEDIA: string[] = [...LOGOS, ...ATTRACT_SLIDES.map((s) => s.src), ...KINDS.map(productImage)];

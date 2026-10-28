@@ -618,7 +618,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   --card-foreground: 215 30% 11%;
   --popover: 0 0% 100%;
   --popover-foreground: 215 30% 11%;
-  --primary: 206 80% 35%;
+  --primary: 241 68% 33%; /* the logo's navy, #1c1b8c */
   --primary-foreground: 0 0% 100%;
   --secondary: 210 25% 95%;
   --secondary-foreground: 215 30% 11%;
@@ -628,7 +628,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   --accent-foreground: 215 30% 11%;
   --border: 214 22% 88%;
   --input: 214 22% 84%;
-  --ring: 206 80% 35%;
+  --ring: 241 68% 33%;
   --radius: 0.75rem;
   background: hsl(var(--background));
   color: hsl(var(--foreground));
@@ -647,7 +647,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   box-shadow: 0 10px 24px -12px hsl(var(--primary) / 70%);
   transition: background-color 150ms, transform 100ms;
 }
-.rf-fair-btn:hover { background: hsl(206 80% 30%); }
+.rf-fair-btn:hover { background: hsl(241 68% 27%); }
 .rf-fair-btn:active { transform: scale(0.99); }
 .rf-fair-btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 .rf-fair input[type="range"],

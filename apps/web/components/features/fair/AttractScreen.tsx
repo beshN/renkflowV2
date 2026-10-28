@@ -42,7 +42,7 @@ export function AttractScreen({ locale, onLocale, campaign, onStart, onPick }: {
 
       <div className="relative flex h-full flex-col justify-between p-8 xl:p-12">
         <div className="flex items-start justify-between gap-6">
-          <BrandLogo white height={64} />
+          <BrandLogo variant="full" white height="7.5rem" />
           <div className="rounded-lg bg-white/95 p-1 text-neutral-900" onClick={(e) => e.stopPropagation()}>
             <LanguageSwitch locale={locale} onChange={onLocale} large />
           </div>
