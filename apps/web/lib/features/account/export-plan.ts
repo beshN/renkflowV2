@@ -22,6 +22,7 @@ export const EXCLUDED_TABLES: Record<string, string> = {
   mobile_push_devices: 'cihaz bildirim anahtarları',
   mobile_upload_chunks: 'yarım kalmış yükleme parçaları',
   sso_providers: 'tek oturum açma (SSO) kimlik bilgileri',
+  sso_identities: 'SSO hesap bağlantıları',
   user_mfa: 'iki adımlı doğrulama sırları',
   order_qr_tokens: 'QR erişim anahtarları',
   rate_limit_buckets: 'istek sınırı sayaçları',

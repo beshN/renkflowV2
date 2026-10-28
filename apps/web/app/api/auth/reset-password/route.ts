@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { passwordProblem } from '@/lib/security/access-matrix';
 import bcrypt from 'bcryptjs';
 
-import { sql } from '@/lib/db';
-import { columnExists } from '@/lib/db/schema-guard';
+import { sql, withTransaction } from '@/lib/db';
+import { columnExists, tableExists } from '@/lib/db/schema-guard';
+import { forgetSessions } from '@/lib/security/member-access.server';
 import { hashResetToken } from '@/lib/features/auth/reset-token';
 import { consumeRateLimit, getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
 
@@ -73,27 +74,45 @@ export async function POST(request: Request) {
     // Hash new password with strong salt rounds
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Update password and clear reset token in a single transaction
-    await sql`
-      UPDATE users
-      SET 
-        password = ${hashedPassword},
-        password_reset_token = NULL,
-        password_reset_expires = NULL,
-        updated_at = NOW()
-      WHERE id = ${user.id}
-      AND password_reset_token = ${tokenHash}
-    `;
+    // Schema checks run before the transaction (they use their own connection).
+    const [cutoff, sessions, mobileTokens] = await Promise.all([
+      columnExists('users', 'sessions_valid_after'),
+      tableExists('user_sessions'),
+      tableExists('mobile_refresh_tokens'),
+    ]);
 
-    // A new password closes every earlier sign-in (from migration 044 on).
-    if (await columnExists('users', 'sessions_valid_after')) {
-      try {
-        await sql`UPDATE users SET sessions_valid_after = now() WHERE id = ${user.id}`;
-        await sql`UPDATE user_sessions SET revoked_at = now() WHERE user_id = ${user.id} AND revoked_at IS NULL`;
-      } catch (error) {
-        console.error('[reset-password] sessions not closed', error instanceof Error ? error.message : error);
+    // One transaction: the token is spent by a conditional UPDATE, so of two requests racing with the
+    // same link only the first gets a row back; the second waits for its row lock, then matches
+    // nothing. Every earlier sign-in is closed in the same transaction, so a failure there rolls
+    // back the new password too and the link still works for a retry.
+    const changed = await withTransaction(async (tx) => {
+      const [row] = await tx`
+        UPDATE users
+        SET
+          password = ${hashedPassword},
+          password_reset_token = NULL,
+          password_reset_expires = NULL,
+          updated_at = NOW()
+        WHERE id = ${user.id}
+          AND password_reset_token = ${tokenHash}
+          AND password_reset_expires > NOW()
+        RETURNING id
+      `;
+      if (!row) return false;
+      // A new password closes every earlier sign-in (from migration 044 on): web sessions, the
+      // phone sessions that are rows of user_sessions, and their refresh tokens.
+      if (cutoff) await tx`UPDATE users SET sessions_valid_after = now() WHERE id = ${user.id}`;
+      if (sessions) await tx`UPDATE user_sessions SET revoked_at = now() WHERE user_id = ${user.id} AND revoked_at IS NULL`;
+      if (mobileTokens) {
+        await tx`/* tenant-checked: a password reset closes the person's sessions in every firm */ DELETE FROM mobile_refresh_tokens WHERE session_id IN (SELECT id FROM user_sessions WHERE user_id = ${user.id})`;
       }
+      return true;
+    });
+
+    if (!changed) {
+      return NextResponse.json({ error: 'token_expired' }, { status: 400 });
     }
+    forgetSessions(user.id);
 
     return NextResponse.json({ 
       success: true,
