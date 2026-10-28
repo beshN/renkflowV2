@@ -17,7 +17,7 @@ export function quoteEmailHtml(p: { locale: Locale; firm: string; number: string
   const f = fairText(p.locale);
   const items = p.items
     .map((item) => {
-      const rows = itemSpecs(p.locale, item).map(([k, v]) => `<tr><td style="padding:2px 12px 2px 0;color:#667">${esc(k)}</td><td style="padding:2px 0">${esc(v)}</td></tr>`).join('');
+      const rows = itemSpecs(p.locale, item, { withHex: false }).map(([k, v]) => `<tr><td style="padding:2px 12px 2px 0;color:#667">${esc(k)}</td><td style="padding:2px 0">${esc(v)}</td></tr>`).join('');
       return `<div style="border:1px solid #e3e5e4;border-radius:8px;padding:12px 14px;margin:0 0 10px"><strong>${esc(item.quantity > 1 ? `${item.quantity} × ` : '')}${esc(productName(p.locale, item.kind))}</strong><table style="font-size:14px;margin-top:6px;border-collapse:collapse">${rows}</table></div>`;
     })
     .join('');

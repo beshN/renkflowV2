@@ -1,8 +1,8 @@
 import { Check } from "lucide-react";
 import { fairText, type Locale } from "@/lib/features/fair/i18n";
 
-/** Where the visitor is on the way to a quote: product, design, quote. */
-export function StepBar({ locale, step }: { locale: Locale; step: 0 | 1 | 2 }) {
+/** Where the visitor is on the way to a quote: product, design, quote (3: all done). */
+export function StepBar({ locale, step }: { locale: Locale; step: 0 | 1 | 2 | 3 }) {
   const labels = fairText(locale).stepLabels;
   return (
     <ol className="mx-auto flex max-w-6xl items-center gap-2 px-4 pb-3 text-xs font-medium sm:text-sm" aria-label={labels.join(" / ")}>

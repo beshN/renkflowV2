@@ -75,28 +75,38 @@ export function fromBase64Url(text: string): Uint8Array {
   return Uint8Array.from(binary, (c) => c.charCodeAt(0));
 }
 
+/** Sand beige: the off-white default fabric disappears against the light 3D floor on a fair screen. */
+const FAIR_FABRIC = FABRIC_COLORS[1];
+
 export function newItem(kind: FairKind): DesignItem {
   const base = { id: newItemId(), kind, quantity: 1, options: {} };
-  return kind === 'makasli'
-    ? { ...base, awning: { ...DEFAULT_AWNING } as AwningConfiguration }
-    : { ...base, configuration: defaultVisualization(kind as ProductKind) as VisualizationConfiguration };
+  if (kind === 'makasli') return { ...base, awning: { ...DEFAULT_AWNING, fabricName: FAIR_FABRIC[0], fabricColor: FAIR_FABRIC[1] } as AwningConfiguration };
+  const configuration = defaultVisualization(kind as ProductKind) as VisualizationConfiguration;
+  return { ...base, configuration: kind === 'pergola' || kind === 'zip' ? { ...configuration, fabricColor: FAIR_FABRIC[1] } : configuration };
 }
 
-/** "White (#e9e9e4)" for a palette colour, the hex code for a custom one. */
-function colorLabel(locale: Locale, hex: string) {
+/** "White (#e9e9e4)" for a palette colour (just "White" for visitors), the hex code for a custom one. */
+function colorLabel(locale: Locale, hex: string, withHex: boolean) {
   const named = [...BODY_COLORS, ...FABRIC_COLORS].find(([, value]) => value.toLowerCase() === hex.toLowerCase());
-  return named ? `${colorName(locale, named[0])} (${hex})` : hex;
+  if (!named) return hex;
+  return withHex ? `${colorName(locale, named[0])} (${hex})` : colorName(locale, named[0]);
 }
 
 const isRoof =(item: Pick<DesignItem, 'kind'>) => item.kind === 'makasli' || productMeta(item.kind as ProductKind).category === 'roof';
+
+/** "6000 × 4000 mm": width × projection for roofs and awnings, width × height otherwise. */
+export function itemSize(item: Pick<DesignItem, 'kind' | 'configuration' | 'awning'>) {
+  const s = sizes(item);
+  return `${s.widthMm} × ${isRoof(item) ? s.projectionMm : s.heightMm} mm`;
+}
 
 export function itemSummary(locale: Locale, item: Pick<DesignItem, 'kind' | 'quantity' | 'configuration' | 'awning'>) {
   const s = sizes(item);
   return `${item.quantity > 1 ? `${item.quantity} × ` : ''}${productName(locale, item.kind)} · ${s.widthMm} × ${isRoof(item) ? s.projectionMm : s.heightMm} mm`;
 }
 
-/** Label/value rows of an item for the sales screen and the confirmation e-mail. */
-export function itemSpecs(locale: Locale, item: DesignItem): Array<[string, string]> {
+/** Label/value rows of an item. Sales sees colour codes; visitors (screens, e-mail) see colour names only. */
+export function itemSpecs(locale: Locale, item: DesignItem, { withHex = true }: { withHex?: boolean } = {}): Array<[string, string]> {
   const t = configuratorText(locale, item.kind) as ReturnType<typeof configuratorText> & Record<string, any>;
   const f = fairText(locale);
   const n = (v: number) => `${v.toLocaleString(INTL_LOCALE[locale])} mm`;
@@ -106,14 +116,15 @@ export function itemSpecs(locale: Locale, item: DesignItem): Array<[string, stri
   else rows.push([t.height!, n(s.heightMm)]);
   if (item.kind === 'makasli') {
     const a = item.awning!;
-    rows.push([t.bodyColor!, `${colorName(locale, a.bodyName)} (${a.bodyColor})`], [t.fabricColor!, `${colorName(locale, a.fabricName)} (${a.fabricColor})`]);
+    const named = (name: string, hex: string) => (withHex ? `${colorName(locale, name)} (${hex})` : colorName(locale, name));
+    rows.push([t.bodyColor!, named(a.bodyName, a.bodyColor)], [t.fabricColor!, named(a.fabricName, a.fabricColor)]);
     rows.push([t.motor!, a.motor === 'remote_wall' ? t.motorRemoteWall! : t.motorRemote!]);
     rows.push([t.led!, a.led === 'off' ? t.ledOff! : `${a.led === 'warm' ? t.ledWarm : t.ledWhite} · ${a.brightness}%`]);
   } else {
     const c = item.configuration!;
     const meta = productMeta(c.kind);
-    rows.push([t.bodyColor!, colorLabel(locale, c.bodyColor)]);
-    if (c.kind === 'pergola' || c.kind === 'zip') rows.push([t.fabricColor!, colorLabel(locale, c.fabricColor)]);
+    rows.push([t.bodyColor!, colorLabel(locale, c.bodyColor, withHex)]);
+    if (c.kind === 'pergola' || c.kind === 'zip') rows.push([t.fabricColor!, colorLabel(locale, c.fabricColor, withHex)]);
     if (c.kind === 'zip') rows.push([t.fabricType!, c.screen === 'opaque' ? t.opaque! : t.screen!]);
     if (['giyotin', 'wind-manual', 'glass-roof', 'winter-garden'].includes(c.kind)) rows.push([t.glass!, c.glass === 'insulated' ? t.insulatedGlass! : t.singleGlass!]);
     if (meta.category === 'roof' || c.kind.startsWith('wind-'))
@@ -125,4 +136,9 @@ export function itemSpecs(locale: Locale, item: DesignItem): Array<[string, stri
   if (item.quantity > 1) rows.push([f.quantity, String(item.quantity)]);
   if (item.note) rows.push([f.otherRequests.replace(/ \(.*\)$/, ''), item.note]);
   return rows;
+}
+
+/** A visitor's view of an item's choices: the specs without the size rows (shown as the heading) and colour codes. */
+export function itemChoices(locale: Locale, item: DesignItem): Array<[string, string]> {
+  return itemSpecs(locale, item, { withHex: false }).slice(isRoof(item) ? 3 : 2);
 }

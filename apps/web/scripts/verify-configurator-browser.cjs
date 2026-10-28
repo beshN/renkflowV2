@@ -21,11 +21,11 @@ const sql = postgres(process.env.DATABASE_URL || 'postgres://postgres:renkflow-l
 const step = (m) => console.log('✓', m);
 
 async function decodeQr(page) {
-  const src = await page.locator('img[alt="Scan to continue on your phone."]').getAttribute('src');
+  const src = await page.locator('img[alt="Continue on your phone"]').getAttribute('src');
   const png = Buffer.from(src.split(',')[1], 'base64');
   let lastError;
-  // zxing's finder-pattern search misses some module sizes, so try the code at a few scales.
-  for (const size of [0, 300, 360, 480, 600]) {
+  // zxing's finder-pattern search misses some module sizes, so the code is tried at a few scales.
+  for (const size of [0, 300, 360, 480, 600, 1000]) {
     const image = size ? sharp(png).resize(size, size, { kernel: 'nearest' }) : sharp(png);
     const { data, info } = await image.extend({ top: 40, bottom: 40, left: 40, right: 40, background: '#ffffff' }).greyscale().raw().toBuffer({ resolveWithObject: true });
     const lum = new Uint8ClampedArray(info.width * info.height);
@@ -37,6 +37,8 @@ async function decodeQr(page) {
   require('node:fs').writeFileSync(SHOTS + 'qr-unreadable.png', png);
   throw lastError;
 }
+/** A design card: the product name and its size are separate lines of the same list item. */
+const card = (page, name, size) => page.locator('li').filter({ hasText: name }).filter({ hasText: size }).first();
 const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing the product view|wird geladen/.test(document.body.innerText), null, { timeout: 120000 });
 
 (async () => {
@@ -72,17 +74,17 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   step('WINMAX: width 6500, white frame, burgundy fabric, remote + wall switch, cool white LED, animation played');
 
   await kiosk.getByRole('button', { name: 'Add to my list' }).tap();
-  await kiosk.getByText('WINMAX Folding-Arm Awning · 6500 × 4000 mm').waitFor({ timeout: 30000 });
+  await card(kiosk, 'WINMAX Folding-Arm Awning', '6500 × 4000 mm').waitFor({ timeout: 30000 });
   await kiosk.getByRole('button', { name: 'Add another product' }).tap();
   await kiosk.getByRole('button', { name: /Zip Screen/ }).tap();
   await ready3d(kiosk);
   await kiosk.getByRole('button', { name: 'Add to my list' }).tap();
-  await kiosk.getByText(/Zip Screen · 3500 × 2800 mm/).waitFor({ timeout: 30000 });
+  await card(kiosk, 'Zip Screen', '3500 × 2800 mm').waitFor({ timeout: 30000 });
   await kiosk.screenshot({ path: SHOTS + 'k3-list.png' });
   step('second product added: the visitor has two designs');
 
   await kiosk.getByRole('button', { name: 'Continue on my phone' }).tap();
-  await kiosk.getByRole('heading', { name: 'Scan to continue on your phone.' }).waitFor();
+  await kiosk.getByRole('heading', { name: 'Continue on your phone' }).waitFor();
   await kiosk.getByText('Design saved.').waitFor({ timeout: 15000 });
   assert.equal(await kiosk.locator('form, input[type=email]').count(), 0, 'no form next to the QR code');
   await kiosk.screenshot({ path: SHOTS + 'k4-qr.png' });
@@ -93,7 +95,7 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   assert.deepEqual({ ...design }, { origin: 'kiosk', code: 'rt2027', n: 2 });
   step('QR decoded; design stored with fair rt2027 and both products');
 
-  await kiosk.getByRole('button', { name: 'Done — new visitor' }).tap();
+  await kiosk.getByRole('button', { name: 'Finish', exact: true }).tap();
   await kiosk.getByText('No need to collect business cards.').waitFor();
   step('kiosk reset to start');
 
@@ -103,8 +105,11 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   watch(phone, 'phone');
   await phone.goto(link, { waitUntil: 'networkidle' });
   await phone.getByRole('heading', { name: 'Your design' }).waitFor();
-  for (const text of ['WINMAX Folding-Arm Awning · 6500 × 4000 mm', 'UBESER · remote + wall switch', 'Cool white · 75%', 'Burgundy (#7b2438)', 'White (#e9e9e4)', 'Zip Screen · 3500 × 2800 mm'])
+  await card(phone, 'WINMAX Folding-Arm Awning', '6500 × 4000 mm').waitFor();
+  await card(phone, 'Zip Screen', '3500 × 2800 mm').waitFor();
+  for (const text of ['UBESER · remote + wall switch', 'Cool white · 75%', 'Burgundy', 'White'])
     await phone.getByText(text).first().waitFor();
+  assert.equal(await phone.getByText('#7b2438').count(), 0, 'visitors see colour names, not codes');
   assert.equal(await phone.locator('input[type=email]').count(), 0, 'no contact form before the visitor asks for a quote');
   await phone.screenshot({ path: SHOTS + 'p1-overview.png', fullPage: true });
   step('phone shows the same products with every setting; two choices, no form yet');
@@ -115,7 +120,7 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   await phone.getByLabel('Projection (mm)').fill('3500');
   await phone.waitForTimeout(800);
   await phone.getByRole('button', { name: 'Save changes' }).tap();
-  await phone.getByText('WINMAX Folding-Arm Awning · 6500 × 3500 mm').waitFor({ timeout: 30000 });
+  await card(phone, 'WINMAX Folding-Arm Awning', '6500 × 3500 mm').waitFor({ timeout: 30000 });
   await phone.getByRole('button', { name: 'Remove: Zip Screen' }).tap();
   await phone.getByText('Saved', { exact: true }).waitFor();
   const [edited] = await sql`SELECT version, items->0->'awning'->>'projectionMm' p, jsonb_array_length(items) n FROM fair_designs WHERE token = ${token}`;
@@ -125,7 +130,7 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   step('phone edit saved under the same link (projection 3500, zip removed)');
 
   await phone.reload({ waitUntil: 'networkidle' });
-  await phone.getByText('WINMAX Folding-Arm Awning · 6500 × 3500 mm').waitFor();
+  await card(phone, 'WINMAX Folding-Arm Awning', '6500 × 3500 mm').waitFor();
   step('reopening the link shows the edited design');
 
   await phone.getByRole('button', { name: 'Get a price quote' }).tap();
@@ -139,9 +144,10 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   await phone.screenshot({ path: SHOTS + 'p2-quote.png', fullPage: true });
   await phone.getByRole('button', { name: 'Send quote request' }).tap();
   await phone.getByRole('heading', { name: /Thank you/ }).waitFor({ timeout: 30000 });
-  const number = (await phone.locator('strong.font-mono').innerText()).trim();
+  const number = (await phone.getByText(/^TT-\d{4}-\d{6}$/).innerText()).trim();
   await phone.screenshot({ path: SHOTS + 'p3-done.png', fullPage: true });
-  const emailLine = await phone.getByText(/confirmation/).first().innerText();
+  // Sent, failed, or (no e-mail service) the page link: never a claim of an e-mail that was not sent.
+  const emailLine = await phone.getByText(/confirmation|could not send|page link/).first().innerText();
   console.log('  confirmation screen:', number, '|', emailLine);
   const [quote] = await sql`
     SELECT q.status, q.email, q.company_name, q.marketing_consent, q.email_status, f.code, q.items->0->'awning'->>'projectionMm' p, l.source, l.lead_number
@@ -152,6 +158,7 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   assert.equal(quote.marketing_consent, false);
   assert.equal(quote.source, 'fair');
   console.log('  stored:', JSON.stringify(quote));
+  if (quote.email_status !== 'sent') assert.ok(!/We have sent/.test(emailLine), 'no e-mail claimed when none was sent');
   step(`quote ${number} stored with fair, current design, RenkFlow lead ${quote.lead_number}; e-mail status "${quote.email_status}"`);
 
   // ---- Admin -------------------------------------------------------------------------------------
@@ -218,7 +225,7 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   await kiosk.waitForTimeout(1500);
   await kiosk.screenshot({ path: SHOTS + 'o1-offline-configure.png' });
   await kiosk.getByRole('button', { name: 'Add to my list' }).tap();
-  await kiosk.getByText(/Bioclimatic Pergola · 5200 × 4000 mm/).waitFor({ timeout: 30000 });
+  await card(kiosk, 'Bioclimatic Pergola', '5200 × 4000 mm').waitFor({ timeout: 30000 });
   await kiosk.getByRole('button', { name: 'Continue on my phone' }).tap();
   await kiosk.getByText(/Offline: the design is inside the QR code/).waitFor();
   await kiosk.getByText(/1 design\(s\) waiting to sync/).waitFor();
@@ -226,7 +233,7 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   const offlineLink = await decodeQr(kiosk);
   const offlineToken = /\/c\/([A-Za-z0-9_-]{22})#d=/.exec(offlineLink)[1];
   assert.equal((await sql`SELECT 1 FROM fair_designs WHERE token = ${offlineToken}`).length, 0, 'not on the server yet');
-  await kiosk.getByRole('button', { name: 'Done — new visitor' }).tap();
+  await kiosk.getByRole('button', { name: 'Finish', exact: true }).tap();
   await kiosk.getByText('No need to collect business cards.').waitFor();
   await kiosk.getByText(/1 design\(s\) waiting to sync/).waitFor();
   step('offline: product chosen, 3D configured, QR made, kiosk reset — queued design kept');
@@ -235,7 +242,7 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   const phone2 = await phoneCtx.newPage();
   watch(phone2, 'phone2');
   await phone2.goto(offlineLink, { waitUntil: 'networkidle' });
-  await phone2.getByText(/Bioclimatic Pergola · 5200 × 4000 mm/).first().waitFor();
+  await card(phone2, 'Bioclimatic Pergola', '5200 × 4000 mm').waitFor();
   await phone2.getByText('Saved', { exact: true }).waitFor({ timeout: 15000 });
   assert.ok(!phone2.url().includes('#d='), 'short link once stored');
   const [claimed] = await sql`SELECT origin, f.code FROM fair_designs d LEFT JOIN fairs f ON f.id = d.fair_id WHERE token = ${offlineToken}`;

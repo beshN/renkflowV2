@@ -34,7 +34,7 @@ export function AttractScreen({ locale, onLocale, campaign, onStart, onPick }: {
     <div role="presentation" className="fixed inset-0 z-40 cursor-pointer overflow-hidden bg-black text-white" onClick={onStart}>
       <style>{`@keyframes rf-kenburns{from{transform:scale(1)}to{transform:scale(1.12)}}.rf-kenburns{animation:rf-kenburns ${SLIDE_SECONDS + 2}s ease-out forwards}@media (prefers-reduced-motion:reduce){.rf-kenburns{animation:none}}`}</style>
       {ATTRACT_SLIDES.map((s, i) => (
-        <div key={s.src} aria-hidden className={`absolute inset-0 transition-opacity duration-[1500ms] motion-reduce:transition-none ${i === index ? "opacity-100" : "opacity-0"}`}>
+        <div key={s.src} aria-hidden className={`absolute inset-0 transition-opacity [transition-duration:1500ms] motion-reduce:transition-none ${i === index ? "opacity-100" : "opacity-0"}`}>
           <Image key={i === index ? `${s.src}-on` : s.src} src={s.src} alt="" fill unoptimized priority={i < 2} sizes="100vw" className={`object-cover ${i === index ? "rf-kenburns" : ""}`} />
         </div>
       ))}
@@ -48,10 +48,10 @@ export function AttractScreen({ locale, onLocale, campaign, onStart, onPick }: {
           </div>
         </div>
 
-        <div className="grid items-end gap-10 lg:grid-cols-[1fr_auto]">
+        <div className="grid items-end gap-10 landscape:lg:grid-cols-[1fr_auto]">
           <div className="max-w-4xl space-y-5">
-            <h1 className="font-display text-5xl font-semibold leading-[1.05] drop-shadow-lg xl:text-7xl">{f.heroTitle}</h1>
-            <p className="max-w-3xl text-2xl leading-snug text-white/90 xl:text-3xl">{f.heroText}</p>
+            <h1 className="font-display text-5xl font-semibold leading-[1.05] drop-shadow-lg portrait:text-7xl xl:text-7xl">{f.heroTitle}</h1>
+            <p className="max-w-3xl text-2xl leading-snug text-white/90 portrait:text-3xl xl:text-3xl">{f.heroText}</p>
             {campaign && <p className="inline-block rounded-full bg-white/15 px-5 py-2 text-lg font-medium backdrop-blur">{campaign}</p>}
             <div className="flex flex-wrap items-center gap-4 pt-2">
               <button type="button" className="inline-flex min-h-20 items-center gap-3 rounded-full bg-white px-10 text-2xl font-semibold text-neutral-900 shadow-2xl transition active:scale-95 motion-reduce:transition-none" onClick={(e) => { e.stopPropagation(); onStart(); }}>

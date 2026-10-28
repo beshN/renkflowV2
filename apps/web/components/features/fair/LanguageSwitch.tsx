@@ -11,7 +11,7 @@ export function LanguageSwitch({ locale, onChange, large = false }: { locale: Lo
           lang={l}
           aria-pressed={locale === l}
           title={LOCALE_NAMES[l]}
-          className={`rounded-md border px-3 text-xs font-semibold uppercase ${large ? "min-h-12 min-w-14 text-sm" : "min-h-10 min-w-11"} ${locale === l ? "border-foreground bg-foreground text-background" : "border-border bg-card"}`}
+          className={`rounded-lg border text-xs font-semibold uppercase transition-colors ${large ? "min-h-12 min-w-14 px-3 text-sm" : "min-h-9 min-w-9 px-2 sm:min-h-10 sm:min-w-11 sm:px-3"} ${locale === l ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground hover:border-primary/40"}`}
           onClick={() => onChange(l)}
         >
           {l}

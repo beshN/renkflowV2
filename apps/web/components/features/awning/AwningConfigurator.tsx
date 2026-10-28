@@ -157,7 +157,7 @@ export function AwningConfigurator({
     onApply?.(result.data, image);
   }
   return (
-    <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+    <div className="rf-config-grid grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
       <style>{`.rf-awning-stage:fullscreen {width:100vw;height:100dvh;border:0;border-radius:0}.rf-awning-stage:fullscreen canvas {width:100vw;height:100dvh}`}</style>
       <div className="min-w-0 space-y-3">
         <div
@@ -298,7 +298,7 @@ export function AwningConfigurator({
           {t.disclaimer}
         </p>
       </div>
-      <div className="space-y-4">
+      <div className="rf-config-panel space-y-4">
         {error && (
           <p
             role="alert"
@@ -372,7 +372,7 @@ export function AwningConfigurator({
               </div>
             </div>
           ))}
-          <label className="flex items-center justify-between text-xs">
+          <label className="rf-custom-color flex items-center justify-between text-xs">
             {t.customBodyColor}
             <input
               type="color"

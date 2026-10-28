@@ -183,7 +183,7 @@ export function ProductConfigurator({
     onApply?.({ configuration: valid.data, ...(image ? { image } : {}) });
   }
   return (
-    <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+    <div className="rf-config-grid grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
       <div className="min-w-0 space-y-3">
         <style>{`.rf-product-stage:fullscreen {width:100vw;height:100dvh;border:0;border-radius:0}.rf-product-stage:fullscreen canvas {width:100vw;height:100dvh}`}</style>
         <div
@@ -346,7 +346,7 @@ export function ProductConfigurator({
         </details>
         <p className="text-[11px] text-muted-foreground">{t.disclaimer}</p>
       </div>
-      <div className="space-y-4">
+      <div className="rf-config-panel space-y-4">
         {error && ready && (
           <p
             role="alert"
@@ -416,7 +416,7 @@ export function ProductConfigurator({
             </label>
           ))}
           <div>
-            <p className="mb-2 text-xs">{t.bodyColor}</p>
+            <p className="mb-2 text-xs">{t.bodyColor}{paletteName(BODY_COLORS, draft.bodyColor, t)}</p>
             <div className="flex flex-wrap gap-2">
               {BODY_COLORS.map(([name, color]) => (
                 <button
@@ -431,7 +431,7 @@ export function ProductConfigurator({
               ))}
             </div>
           </div>
-          <label className="flex items-center justify-between text-xs">
+          <label className="rf-custom-color flex items-center justify-between text-xs">
             {t.customBodyColor}
             <input
               aria-label={t.customBodyColor}
@@ -442,7 +442,7 @@ export function ProductConfigurator({
           </label>
           {(draft.kind === "pergola" || draft.kind === "zip") && (
             <div>
-              <p className="mb-2 text-xs">{t.fabricColor}</p>
+              <p className="mb-2 text-xs">{t.fabricColor}{paletteName(FABRIC_COLORS, draft.fabricColor, t)}</p>
               <div className="flex flex-wrap gap-2">
                 {FABRIC_COLORS.map(([name, color]) => (
                   <button
@@ -575,4 +575,10 @@ export function ProductConfigurator({
       </div>
     </div>
   );
+}
+
+/** ": Anthracite" after a colour label when the colour is one of the palette's, nothing for a custom colour. */
+function paletteName(colors: ReadonlyArray<readonly [string, string]>, value: string, t: { colorName: (name: string) => string }) {
+  const named = colors.find(([, color]) => color.toLowerCase() === value.toLowerCase());
+  return named ? `: ${t.colorName(named[0])}` : "";
 }

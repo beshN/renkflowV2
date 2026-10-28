@@ -1,7 +1,7 @@
 /** @jest-environment node */
 import { NextRequest } from 'next/server';
 import { proxy } from '@/proxy';
-import { DesignItemsSchema, itemSpecs, itemSummary, newItem, newToken, TOKEN_PATTERN } from '@/lib/features/fair/design';
+import { DesignItemsSchema, itemChoices, itemSize, itemSpecs, itemSummary, newItem, newToken, TOKEN_PATTERN } from '@/lib/features/fair/design';
 import { decodeDesign, encodeDesign, fragmentPayload } from '@/lib/features/fair/transfer';
 import { configuratorRewrite } from '@/lib/features/fair/config';
 import { QuoteInput } from '@/lib/features/fair/quote-input';
@@ -87,6 +87,20 @@ describe('design model', () => {
     expect(itemSummary('de', awning)).toContain('Gelenkarmmarkise');
     expect(itemSpecs('en', awning)).toEqual(expect.arrayContaining([['Motor and control', 'UBESER · remote control'], ['Frame colour', 'Anthracite (#343a40)']]));
     expect(itemSpecs('tr', awning).map(([k]) => k)).toContain('Motor ve kontrol');
+  });
+  it('shows visitors colour names and the size once, sales the colour codes', () => {
+    const awning = newItem('makasli');
+    expect(itemSize(awning)).toBe('6000 × 4000 mm');
+    const choices = itemChoices('en', awning);
+    expect(choices).toEqual(expect.arrayContaining([['Frame colour', 'Anthracite'], ['Fabric colour', 'Sand beige']]));
+    expect(choices.map(([k]) => k)).not.toContain('Width');
+    expect(JSON.stringify(choices)).not.toContain('#');
+    expect(itemSpecs('en', awning)).toEqual(expect.arrayContaining([['Fabric colour', 'Sand beige (#c2ae8b)']]));
+  });
+  it('starts fabric products in a colour that stands out from the light 3D floor', () => {
+    expect(newItem('makasli').awning?.fabricColor).toBe('#c2ae8b');
+    expect(newItem('zip').configuration?.fabricColor).toBe('#c2ae8b');
+    expect(newItem('rolling-roof').configuration?.fabricColor).not.toBe(undefined);
   });
 });
 

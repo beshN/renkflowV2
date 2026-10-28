@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import QRCode from "qrcode";
-import { Expand, Plus, Smartphone, WifiOff } from "lucide-react";
+import { Check, Expand, Plus, Smartphone, WifiOff } from "lucide-react";
 import { configuratorBase } from "@/lib/features/fair/client";
 import { MAX_ITEMS, newItem, newToken, type DesignItem } from "@/lib/features/fair/design";
 import { fairText, type Locale } from "@/lib/features/fair/i18n";
@@ -128,7 +128,8 @@ export function KioskApp({ fair, firm }: { fair: Fair; firm: string }) {
 
   return (
     <div className="rf-fair flex min-h-dvh select-none flex-col [touch-action:manipulation]">
-      <style>{`html.rf-kiosk{font-size:clamp(16px,0.95vw,24px)}`}</style>
+      {/* Scales with the screen in either orientation: 18px on a 1920 × 1080 screen, landscape or portrait. */}
+      <style>{`html.rf-kiosk{font-size:clamp(16px,calc(0.6vw + 0.6vh),26px)}`}</style>
       <header className="flex items-center justify-between gap-4 border-b border-border bg-card px-6 py-3 shadow-sm">
         <div className="flex min-w-0 items-center gap-4">
           <BrandLogo height={44} />
@@ -150,7 +151,7 @@ export function KioskApp({ fair, firm }: { fair: Fair; firm: string }) {
 
       <main className="flex-1 px-6 py-5">
         {view === "welcome" && (
-          <AttractScreen locale={locale} onLocale={setLocale} campaign={fair.campaign} onStart={() => setView("pick")} onPick={startItem} />
+          <AttractScreen locale={locale} onLocale={setLocale} campaign={locale === fair.defaultLocale ? fair.campaign : null} onStart={() => setView("pick")} onPick={startItem} />
         )}
 
         {view === "pick" && <ProductPicker locale={locale} onPick={startItem} disabled={items.length >= MAX_ITEMS} kiosk />}
@@ -172,12 +173,12 @@ export function KioskApp({ fair, firm }: { fair: Fair; firm: string }) {
         )}
 
         {view === "list" && (
-          <section aria-labelledby="kiosk-list" className="mx-auto max-w-4xl space-y-5">
-            <h1 id="kiosk-list" className="font-display text-3xl font-semibold">{f.listTitle}</h1>
+          <section aria-labelledby="kiosk-list" className="mx-auto max-w-5xl space-y-6 py-2">
+            <h1 id="kiosk-list" className="font-display text-4xl font-semibold">{f.listTitle}</h1>
             <ItemList
               locale={locale}
               items={items}
-              showSpecs
+              large
               onEdit={(item) => {
                 setEditing({ item, isNew: false });
                 setView("edit");
@@ -186,38 +187,61 @@ export function KioskApp({ fair, firm }: { fair: Fair; firm: string }) {
             />
             {!items.length && <p className="text-muted-foreground">{f.listEmpty}</p>}
             <div className="grid gap-3 sm:grid-cols-2">
-              <button type="button" disabled={items.length >= MAX_ITEMS} className="inline-flex min-h-16 items-center justify-center gap-2 rounded-md border border-dashed border-border bg-card text-lg" onClick={() => setView("pick")}>
+              <button type="button" disabled={items.length >= MAX_ITEMS} className="inline-flex min-h-20 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-card text-xl font-medium text-muted-foreground disabled:opacity-50" onClick={() => setView("pick")}>
                 <Plus size={20} aria-hidden /> {f.addAnother}
               </button>
-              <button type="button" disabled={!items.length} className="rf-primary-button inline-flex min-h-16 justify-center gap-2 text-lg" onClick={() => void continueOnPhone()}>
-                <Smartphone size={20} aria-hidden /> {f.continueOnPhone}
+              <button type="button" disabled={!items.length} className="rf-fair-btn inline-flex min-h-20 justify-center gap-3 text-xl" onClick={() => void continueOnPhone()}>
+                <Smartphone size={24} aria-hidden /> {f.continueOnPhone}
               </button>
             </div>
           </section>
         )}
 
         {view === "qr" && qr && (
-          <section className="mx-auto grid max-w-5xl items-center gap-10 py-6 lg:grid-cols-[auto_1fr]" aria-labelledby="qr-title">
-            <Image src={qr.image} alt={f.scanTitle} width={720} height={720} unoptimized className="mx-auto h-[min(60vh,560px)] w-auto rounded-xl bg-white p-3" />
-            <div className="space-y-5">
-              <h1 id="qr-title" className="font-display text-4xl font-semibold">{f.scanTitle}</h1>
-              <p className="text-lg text-muted-foreground">{f.scanHint}</p>
-              <p role="status" className="text-sm">{qr.synced ? f.savedOnline : f.savedOffline}</p>
-              <button type="button" className="rf-primary-button min-h-16 justify-center px-8 text-lg" onClick={reset}>{f.done}</button>
-              <p className="text-sm text-muted-foreground">{f.resetIn(Math.max(0, KIOSK_TIMING.qrScreen - idle))}</p>
+          <section className="mx-auto grid max-w-6xl items-center gap-12 py-4 portrait:max-w-3xl portrait:py-10 landscape:lg:grid-cols-[auto_1fr]" aria-labelledby="qr-title">
+            <div className="mx-auto rounded-3xl border border-border bg-white p-6 shadow-xl">
+              <Image src={qr.image} alt={f.scanTitle} width={720} height={720} unoptimized style={{ width: "min(56vh, 80vw, 640px)", height: "auto" }} />
+            </div>
+            <div className="space-y-7">
+              <div className="space-y-3">
+                <h1 id="qr-title" className="font-display text-5xl font-semibold leading-tight">{f.scanTitle}</h1>
+                <p className="text-xl text-muted-foreground">{f.scanHint}</p>
+              </div>
+              <ol className="space-y-3">
+                {f.scanSteps.map((step, i) => (
+                  <li key={step} className="flex items-center gap-4 text-xl">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary font-display text-lg font-semibold text-primary-foreground">{i + 1}</span>
+                    {step}
+                  </li>
+                ))}
+              </ol>
+              <div className="flex flex-wrap gap-3">
+                {items.map((item) => (
+                  <span key={item.id} className="relative h-20 w-28 overflow-hidden rounded-lg border border-border bg-muted">
+                    {item.image && <Image src={item.image} alt="" fill unoptimized sizes="112px" className="object-cover" />}
+                  </span>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-5 border-t border-border pt-6">
+                <button type="button" className="rf-fair-btn min-h-16 justify-center px-12 text-xl" onClick={reset}>{f.done}</button>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p role="status" className="inline-flex items-center gap-1.5 font-medium text-foreground">{qr.synced && <Check size={16} className="text-emerald-600" aria-hidden />}{qr.synced ? f.savedOnline : f.savedOffline}</p>
+                  <p>{f.resetIn(Math.max(0, KIOSK_TIMING.qrScreen - idle))} {f.kioskPrivacy}</p>
+                </div>
+              </div>
             </div>
           </section>
         )}
       </main>
 
       {prompting && (
-        <div role="alertdialog" aria-modal="true" aria-labelledby="idle-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
-          <div className="w-full max-w-lg space-y-5 rounded-xl bg-card p-8 text-center shadow-xl">
+        <div role="alertdialog" aria-modal="true" aria-labelledby="idle-title" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-xl space-y-6 rounded-2xl bg-card p-10 text-center shadow-2xl">
             <h2 id="idle-title" className="font-display text-3xl font-semibold">{f.stillThere}</h2>
             <p className="text-lg text-muted-foreground">{f.stillThereHint(Math.max(0, limit - idle))}</p>
             <div className="grid gap-3 sm:grid-cols-2">
-              <button type="button" className="min-h-14 rounded-md border border-border text-lg" onClick={reset}>{f.startOver}</button>
-              <button type="button" className="rf-primary-button min-h-14 justify-center text-lg" onClick={() => { lastActivity.current = Date.now(); setIdle(0); }}>{f.keepGoing}</button>
+              <button type="button" className="min-h-16 rounded-lg border border-border bg-card text-lg font-medium" onClick={reset}>{f.startOver}</button>
+              <button type="button" className="rf-fair-btn min-h-16 justify-center text-lg" onClick={() => { lastActivity.current = Date.now(); setIdle(0); }}>{f.keepGoing}</button>
             </div>
           </div>
         </div>

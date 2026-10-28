@@ -42,7 +42,7 @@ export function ItemEditor({
   const [note, setNote] = useState(item.note ?? "");
   const [invalid, setInvalid] = useState("");
   const [busy, setBusy] = useState(false);
-  const stage = kiosk ? "h-[56vh]" : "h-[340px] sm:h-[460px]";
+  const stage = kiosk ? "h-[56vh] portrait:h-[40vh]" : "h-[340px] sm:h-[460px]";
 
   async function save() {
     if (invalid || busy) return;
@@ -69,10 +69,13 @@ export function ItemEditor({
   return (
     <section aria-labelledby="editor-title" className="space-y-4">
       <div className="flex items-center gap-3">
-        <button type="button" aria-label={f.back} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-border bg-card" onClick={onBack}>
+        <button type="button" aria-label={f.back} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-card transition hover:border-primary/40" onClick={onBack}>
           <ArrowLeft size={18} />
         </button>
-        <h1 id="editor-title" className="font-display text-xl font-semibold sm:text-2xl">{productName(locale, item.kind)}</h1>
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[.16em] text-muted-foreground">{f.categories[rule.category]}</p>
+          <h1 id="editor-title" className={`font-display font-semibold leading-tight ${kiosk ? "text-3xl" : "text-2xl"}`}>{productName(locale, item.kind)}</h1>
+        </div>
       </div>
       {item.kind === "makasli" ? (
         <AwningConfigurator
@@ -111,22 +114,22 @@ export function ItemEditor({
           )}
           {/* Free text needs a keyboard: on the kiosk it is left for the phone. */}
           {!kiosk && (
-            <label className="block text-sm sm:col-span-2">
+            <label className="block text-sm font-medium sm:col-span-2">
               {f.otherRequests}
-              <input className="rf-input mt-1 w-full" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+              <input className="rf-input mt-1.5 min-h-12 w-full text-base font-normal" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
             </label>
           )}
       </div>
-      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur">
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-3 border-t border-border bg-card/95 px-4 py-3 shadow-[0_-6px_20px_-12px_rgb(15_23_42/0.25)] backdrop-blur sm:-mx-6 sm:px-6">
         <div className="flex items-center gap-1" role="group" aria-label={f.quantity}>
-          <button type="button" aria-label={`${f.quantity} −`} className="flex h-12 w-12 items-center justify-center rounded-md border border-border bg-card" onClick={() => setQuantity((q) => Math.max(1, q - 1))}><Minus size={18} /></button>
-          <output className="w-16 text-center text-sm tabular-nums" aria-live="polite">{f.pieces(quantity)}</output>
-          <button type="button" aria-label={`${f.quantity} +`} className="flex h-12 w-12 items-center justify-center rounded-md border border-border bg-card" onClick={() => setQuantity((q) => Math.min(99, q + 1))}><Plus size={18} /></button>
+          <button type="button" aria-label={`${f.quantity} −`} className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-card" onClick={() => setQuantity((q) => Math.max(1, q - 1))}><Minus size={18} /></button>
+          <output className="w-20 text-center text-base font-medium tabular-nums" aria-live="polite">{f.pieces(quantity)}</output>
+          <button type="button" aria-label={`${f.quantity} +`} className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-card" onClick={() => setQuantity((q) => Math.min(99, q + 1))}><Plus size={18} /></button>
         </div>
-        <button type="button" disabled={!!invalid || busy} className="rf-primary-button min-h-12 flex-1 justify-center text-base" onClick={() => void save()}>
+        <button type="button" disabled={!!invalid || busy} className={`rf-fair-btn flex-1 justify-center ${kiosk ? "min-h-16 text-xl" : "min-h-12 text-base"}`} onClick={() => void save()}>
           {busy ? f.preparingPreview : isNew ? f.addToList : f.saveChanges}
         </button>
-        {invalid && <p role="alert" className="w-full text-sm text-rose-700 dark:text-rose-300">{invalid}</p>}
+        {invalid && <p role="alert" className="w-full text-sm text-rose-700">{invalid}</p>}
       </div>
     </section>
   );

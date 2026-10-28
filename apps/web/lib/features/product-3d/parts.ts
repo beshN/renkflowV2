@@ -38,6 +38,11 @@ export class Parts {
       const t = new T.DataTexture(data, 64, 64);
       t.wrapS = t.wrapT = T.RepeatWrapping;
       t.repeat.set((config.widthMm / 1000) * 26, (config.heightMm / 1000) * 26);
+      // Mipmapped, so the fine weave averages out at a distance instead of shimmering (moiré).
+      t.generateMipmaps = true;
+      t.minFilter = T.LinearMipmapLinearFilter;
+      t.magFilter = T.LinearFilter;
+      t.anisotropy = 8;
       t.needsUpdate = true;
       this.textures.push(t);
       return t;
@@ -48,7 +53,7 @@ export class Parts {
       bumpMap: texture(weave),
       bumpScale: 0.0007,
       ...(config.kind === "zip" && config.screen === "screen"
-        ? { alphaMap: texture(alpha), alphaTest: 0.4 }
+        ? { alphaMap: texture(alpha), transparent: true, depthWrite: false }
         : {}),
     });
     this.glass = new T.MeshPhysicalMaterial({

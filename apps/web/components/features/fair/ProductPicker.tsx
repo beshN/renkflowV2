@@ -31,7 +31,7 @@ export function ProductPicker({ locale, onPick, disabled = false, kiosk = false 
               key={key}
               type="button"
               aria-pressed={category === key}
-              className={`shrink-0 rounded-full border px-4 font-medium transition-colors ${kiosk ? "min-h-12 text-base" : "min-h-10 text-sm"} ${category === key ? "border-foreground bg-foreground text-background" : "border-border bg-card hover:border-foreground/40"}`}
+              className={`shrink-0 rounded-full border px-4 font-medium transition-colors ${kiosk ? "min-h-12 text-base" : "min-h-10 text-sm"} ${category === key ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:border-primary/40"}`}
               onClick={() => setCategory(key)}
             >
               {label}
@@ -48,7 +48,7 @@ export function ProductPicker({ locale, onPick, disabled = false, kiosk = false 
               key={p.kind}
               type="button"
               disabled={disabled}
-              className={`group relative isolate overflow-hidden rounded-xl bg-neutral-900 text-left shadow-sm outline-none transition duration-200 focus-visible:ring-4 focus-visible:ring-primary/50 active:scale-[0.98] disabled:opacity-50 motion-reduce:transition-none ${featured ? "col-span-2 row-span-2" : ""} ${featured ? (kiosk ? "min-h-[26rem]" : "min-h-72 sm:min-h-96") : kiosk ? "min-h-52" : "min-h-44 sm:min-h-52"}`}
+              className={`group relative isolate overflow-hidden rounded-xl bg-neutral-900 text-left shadow-sm outline-none transition duration-200 focus-visible:ring-4 focus-visible:ring-primary/50 active:scale-[0.98] disabled:opacity-50 motion-reduce:transition-none ${featured ? "col-span-2 row-span-2" : ""} ${featured ? (kiosk ? "min-h-[26rem] portrait:min-h-[34rem]" : "min-h-72 sm:min-h-96") : kiosk ? "min-h-52 portrait:min-h-[17rem]" : "min-h-44 sm:min-h-52"}`}
               onClick={() => onPick(p.kind)}
             >
               <Image

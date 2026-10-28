@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, Copy, Plus } from "lucide-react";
+import { Check, CheckCircle2, Copy, LayoutList, LinkIcon, Plus } from "lucide-react";
 import { createDesign, designLink, designPath, configuratorBase, updateDesign } from "@/lib/features/fair/client";
 import { MAX_ITEMS, newItem, newToken, type DesignItem } from "@/lib/features/fair/design";
 import { fairText, isLocale, type Locale } from "@/lib/features/fair/i18n";
@@ -112,28 +112,33 @@ export function DesignApp({ mode, firm, token: initialToken, initial, defaultLoc
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
             <BrandLogo height={34} />
-            <p className="hidden truncate border-l border-border pl-3 text-xs text-muted-foreground sm:block">{fair?.name ?? firm ?? f.web}</p>
+            <p className="hidden truncate border-l border-border pl-3 text-xs text-muted-foreground sm:block">{fair?.name ?? f.web}</p>
           </div>
           <div className="flex items-center gap-2">
             <LanguageSwitch locale={locale} onChange={setLocale} />
-            {items.length > 0 && view !== "overview" && view !== "done" && (
-              <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-border px-3 text-sm" onClick={() => setView("overview")}>
-                {f.myList} <span className="rounded-full bg-foreground px-2 text-xs font-semibold tabular-nums text-background">{items.length}</span>
+            {items.length > 0 && view !== "list" && view !== "done" && view !== "quote" && (
+              <button type="button" aria-label={`${f.myList} (${items.length})`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium" onClick={() => setView("list")}>
+                <LayoutList size={16} aria-hidden /> <span className="hidden sm:inline">{f.myList}</span>
+                <span className="rounded-full bg-primary px-2 text-xs font-semibold tabular-nums text-primary-foreground">{items.length}</span>
               </button>
             )}
           </div>
         </div>
         {view !== "loading" && view !== "notfound" && (
-          <StepBar locale={locale} step={view === "pick" ? 0 : view === "quote" || view === "done" ? 2 : 1} />
+          <StepBar locale={locale} step={view === "pick" ? 0 : view === "done" ? 3 : view === "quote" ? 2 : 1} />
         )}
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-5">
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
         {view === "loading" && <p role="status" className="py-10 text-center text-sm text-muted-foreground">{f.loadingDesign}</p>}
         {view === "notfound" && (
-          <div className="mx-auto max-w-md space-y-4 py-10 text-center">
-            <p role="alert">{f.designNotFound}</p>
-            <a className="rf-primary-button inline-flex min-h-12 justify-center" href={configuratorBase() || "/"}>{f.start}</a>
+          <div className="mx-auto max-w-md space-y-5 py-16 text-center">
+            <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary" aria-hidden><LinkIcon size={28} /></span>
+            <div className="space-y-2">
+              <h1 role="alert" className="font-display text-2xl font-semibold">{f.designNotFound}</h1>
+              <p className="text-muted-foreground">{f.notFoundHint}</p>
+            </div>
+            <a className="rf-fair-btn inline-flex min-h-12 justify-center px-8" href={configuratorBase() || "/"}>{f.heroCta}</a>
           </div>
         )}
 
@@ -143,10 +148,10 @@ export function DesignApp({ mode, firm, token: initialToken, initial, defaultLoc
               <h1 id="overview-title" className="font-display text-2xl font-semibold">{f.designIntro}</h1>
               <p className="mt-1 text-sm text-muted-foreground">{f.designIntroHint}</p>
             </div>
-            <ItemList locale={locale} items={items} showSpecs />
+            <ItemList locale={locale} items={items} />
             <div className="grid gap-3 sm:grid-cols-2">
-              <button type="button" disabled={!token || !items.length} className="rf-primary-button min-h-14 justify-center text-base" onClick={() => setView("quote")}>{f.getQuote}</button>
-              <button type="button" className="min-h-14 rounded-md border border-border bg-card text-base font-medium" onClick={() => setView(items.length ? "list" : "pick")}>{f.keepEditing}</button>
+              <button type="button" disabled={!token || !items.length} className="rf-fair-btn min-h-14 justify-center text-base" onClick={() => setView("quote")}>{f.getQuote}</button>
+              <button type="button" className="min-h-14 rounded-lg border border-border bg-card text-base font-medium" onClick={() => setView(items.length ? "list" : "pick")}>{f.keepEditing}</button>
             </div>
             <SaveState f={f} save={save} />
             {token && (
@@ -177,14 +182,11 @@ export function DesignApp({ mode, firm, token: initialToken, initial, defaultLoc
               onRemove={(item) => void persist(items.filter((i) => i.id !== item.id))}
             />
             {full ? <p className="text-sm text-muted-foreground">{f.maxItems(MAX_ITEMS)}</p> : (
-              <button type="button" className="inline-flex min-h-12 items-center gap-2 rounded-md border border-dashed border-border px-4 text-sm" onClick={() => setView("pick")}>
+              <button type="button" className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-card text-sm font-medium text-muted-foreground transition hover:border-primary/50 hover:text-primary" onClick={() => setView("pick")}>
                 <Plus size={16} aria-hidden /> {f.addAnother}
               </button>
             )}
-            <div className="grid gap-3 sm:grid-cols-2">
-              <button type="button" disabled={!token || !items.length || save === "saving"} className="rf-primary-button min-h-14 justify-center text-base" onClick={() => setView("quote")}>{f.getQuote}</button>
-              <button type="button" className="min-h-14 rounded-md border border-border bg-card text-base font-medium" onClick={() => setView("overview")}>{f.backToList}</button>
-            </div>
+            <button type="button" disabled={!token || !items.length || save === "saving"} className="rf-fair-btn min-h-14 w-full justify-center text-base" onClick={() => setView("quote")}>{f.getQuote}</button>
             <SaveState f={f} save={save} />
           </section>
         )}
@@ -223,16 +225,30 @@ export function DesignApp({ mode, firm, token: initialToken, initial, defaultLoc
         )}
 
         {view === "done" && result && (
-          <section className="mx-auto max-w-md space-y-4 py-10 text-center" aria-live="polite">
-            <CheckCircle2 size={48} className="mx-auto text-emerald-600" aria-hidden />
-            <h1 className="font-display text-2xl font-semibold">{f.thanksTitle}</h1>
-            {result.number && <p className="text-sm">{f.requestNumber}: <strong className="font-mono">{result.number}</strong></p>}
-            <p className="text-sm">{result.emailStatus === "sent" ? f.emailSent(result.email) : f.emailNotSent}</p>
-            <p className="text-sm text-muted-foreground">{f.thanksHint}</p>
-            <div className="flex flex-col gap-2">
-              <button type="button" className="min-h-12 rounded-md border border-border bg-card text-sm font-medium" onClick={() => setView("overview")}>{f.designIntro}</button>
-              <a className="rf-primary-button inline-flex min-h-12 justify-center" href={configuratorBase() || "/"}>{f.newDesign}</a>
+          <section className="mx-auto max-w-lg space-y-6 py-10 text-center" aria-live="polite">
+            <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 text-emerald-600" aria-hidden><CheckCircle2 size={44} /></span>
+            <div className="space-y-3">
+              <h1 className="font-display text-3xl font-semibold leading-tight">{f.thanksTitle}</h1>
+              <p className="text-muted-foreground">{f.thanksHint}</p>
             </div>
+            {result.number && (
+              <div className="rounded-xl border border-border bg-card p-5">
+                <p className="text-xs font-semibold uppercase tracking-[.16em] text-muted-foreground">{f.requestNumber}</p>
+                <p className="mt-1 font-mono text-2xl font-semibold tracking-wide">{result.number}</p>
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground">
+              {result.emailStatus === "sent" ? f.emailSent(result.email) : result.emailStatus === "failed" ? f.emailNotSent : f.emailPending}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button type="button" className="min-h-12 rounded-lg border border-border bg-card text-sm font-medium" onClick={() => setView("overview")}>{f.viewDesign}</button>
+              {token && (
+                <button type="button" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-border bg-card text-sm font-medium" onClick={() => { void navigator.clipboard?.writeText(designLink(token)).then(() => setCopied(true)).catch(() => {}); }}>
+                  {copied ? <Check size={16} aria-hidden /> : <Copy size={16} aria-hidden />} {copied ? f.copied : f.copyLink}
+                </button>
+              )}
+            </div>
+            <a className="inline-flex min-h-11 items-center justify-center text-sm font-medium text-primary underline-offset-4 hover:underline" href={configuratorBase() || "/"}>{f.newDesign}</a>
           </section>
         )}
       </main>
@@ -245,7 +261,8 @@ export function DesignApp({ mode, firm, token: initialToken, initial, defaultLoc
 function SaveState({ f, save }: { f: ReturnType<typeof fairText>; save: "idle" | "saving" | "saved" | "error" }) {
   if (save === "idle") return null;
   return (
-    <p role={save === "error" ? "alert" : "status"} className={`text-xs ${save === "error" ? "text-rose-700 dark:text-rose-300" : "text-muted-foreground"}`}>
+    <p role={save === "error" ? "alert" : "status"} className={`inline-flex items-center gap-1.5 text-xs ${save === "error" ? "text-rose-700" : "text-muted-foreground"}`}>
+      {save === "saved" && <Check size={14} className="text-emerald-600" aria-hidden />}
       {save === "saving" ? f.saving : save === "saved" ? f.savedAt : f.saveFailed}
     </p>
   );
