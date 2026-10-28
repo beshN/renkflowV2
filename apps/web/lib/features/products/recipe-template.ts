@@ -1,5 +1,6 @@
 import { evaluateFormula, RecipeSchema, type RecipeDefinition } from '@/lib/features/manufacturing/recipe-engine';
 import { parseCsvRecords, readNumber, toCsv } from './csv';
+import { neutralizeFormula, restoreNeutralized } from '@/lib/security/spreadsheet-safe';
 import { productFamily } from './families';
 
 /**
@@ -39,7 +40,8 @@ export function recipeTemplate(familyKey: string, items: TemplateItem[], workCen
     ...(missing.length ? [comment(`Stok kartı olmayan profil kodları: ${missing.join(', ')} (sayım listesi içe aktarılınca ya da elle kart açılınca şablona gelir).`)] : []),
     [...RECIPE_COLUMNS],
     ...(['en', 'acilim', 'yukseklik'] as const).filter(k=>family.geometry!=='vertical'||k!=='acilim').map((k) => ['sinir', k, '', '', '', '', '', '', '', '', '']),
-    ...cards.map((c) => ['malzeme', c.sku, c.name, c.uom === 'm' ? 'profil' : 'malzeme', c.uom, '', '', '', '', '', '']),
+    // Stock card codes and names are firm text: formula-looking ones are neutralised for the spreadsheet (read back below).
+    ...cards.map((c) => ['malzeme', neutralizeFormula(c.sku), neutralizeFormula(c.name), c.uom === 'm' ? 'profil' : 'malzeme', c.uom, '', '', '', '', '', '']),
     ['operasyon', '', '', '', '', '', '', '', '', '', ''],
   ]);
 }
@@ -123,7 +125,7 @@ export function readRecipeCsv(text: string, ctx: { items: TemplateItem[]; workCe
         skipped++;
         continue;
       }
-      const item = bySku.get(fold(get('kod')));
+      const item = bySku.get(fold(restoreNeutralized(get('kod'))));
       if (!item) {
         say(`"${get('kod')}" kodlu etkin stok kartı yok`);
         continue;

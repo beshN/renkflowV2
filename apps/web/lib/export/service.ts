@@ -10,6 +10,13 @@
 
 import { sql } from '@/lib/db';
 import { Order } from '@/lib/types';
+import { spreadsheetText } from '@/lib/security/spreadsheet-safe';
+
+/** Formula-looking text is neutralised for spreadsheets (numbers stay numbers); RFC 4180 quoting. */
+function csvCell(value: unknown): string {
+  const str = value instanceof Date ? value.toISOString() : spreadsheetText(value);
+  return /[",\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+}
 
 // ============================================
 // Types
@@ -73,12 +80,7 @@ export async function exportOrdersToCSV(
   const rows = ordersRows.map(order =>
     columns.map(col => {
       const val = order[col];
-      if (val === null || val === undefined) return '';
-      const str = String(val);
-      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-        return `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
+      return csvCell(val);
     }).join(',')
   );
 
@@ -110,12 +112,7 @@ export async function exportCustomersToCSV(
   const rows = customersRows.map(c =>
     columns.map(col => {
       const val = c[col];
-      if (val === null || val === undefined) return '';
-      const str = String(val);
-      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-        return `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
+      return csvCell(val);
     }).join(',')
   );
 

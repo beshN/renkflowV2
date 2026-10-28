@@ -3,7 +3,8 @@
  * /api/cron/backup) into an EXISTING, already migrated database. Never creates or drops schema.
  *
  *   npm run db:restore-backup -- --date 2026-10-26 --target "$RESTORE_URL" [--yes] \
- *     [--env-file=.env.vercel.production.local] [--allow-incomplete] [--force-production]
+ *     [--env-file=.env.vercel.production.local] [--allow-incomplete] [--force-production] \
+ *     [--key-file=<dosya>]
  *
  * Prepare the target first: a new Neon branch or empty database, then
  *   DATABASE_URL_UNPOOLED="$RESTORE_URL" npm run db:deploy
@@ -13,6 +14,10 @@
  * PRODUCTION_DATABASE_URL it (or the shell) defines counts as production and is refused as the
  * target unless --force-production is given. Everything runs in one transaction: on any error,
  * or when a row count differs from the manifest, nothing in the target changes.
+ *
+ * Encrypted backups (manifest.encryption set, files .csv.gz.enc) need the key: BACKUP_ENCRYPTION_KEY
+ * from the shell / --env-file, or --key-file=<file> holding the same base64 text (the offline copy).
+ * A key whose id differs from manifest.encryption.keyId is refused before anything is touched.
  */
 import "./register-server-only.cjs";
 import dotenv from "dotenv";
@@ -21,10 +26,12 @@ import { createInterface } from "node:readline/promises";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createGunzip } from "node:zlib";
+import { readFileSync } from "node:fs";
 import { readFile } from "../lib/storage";
+import { backupKeyFromEnv, backupKeyId, createBackupDecryptStream, parseBackupKey } from "../lib/db/backup-crypto";
 import { backupManifestKey, quoteIdent, type BackupManifest } from "../lib/db/backup-manifest";
 
-type Args = { date: string; target: string; yes: boolean; forceProduction: boolean; allowIncomplete: boolean; envFile?: string };
+type Args = { date: string; target: string; yes: boolean; forceProduction: boolean; allowIncomplete: boolean; envFile?: string; keyFile?: string };
 
 function parseArgs(argv: string[]): Args {
   const value = (name: string) => {
@@ -36,9 +43,9 @@ function parseArgs(argv: string[]): Args {
   const date = value("date") || "";
   const target = value("target") || "";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !target) {
-    throw new Error("Kullanım: restore-backup.ts --date YYYY-MM-DD --target <postgres-url> [--yes] [--env-file=<dosya>] [--allow-incomplete] [--force-production]");
+    throw new Error("Kullanım: restore-backup.ts --date YYYY-MM-DD --target <postgres-url> [--yes] [--env-file=<dosya>] [--allow-incomplete] [--force-production] [--key-file=<dosya>]");
   }
-  return { date, target, yes: argv.includes("--yes"), forceProduction: argv.includes("--force-production"), allowIncomplete: argv.includes("--allow-incomplete"), envFile: value("env-file") };
+  return { date, target, yes: argv.includes("--yes"), forceProduction: argv.includes("--force-production"), allowIncomplete: argv.includes("--allow-incomplete"), envFile: value("env-file"), keyFile: value("key-file") };
 }
 
 /** Same database whether reached through the Neon pooler or directly. */
@@ -82,6 +89,17 @@ export async function restoreBackup(args: Args): Promise<{ table: string; expect
     throw new Error(`Bu yedek eksik (${manifest.stoppedReason || "bilinmiyor"}; eksik tablolar: ${manifest.missingTables.join(", ")}). Yine de yüklemek için --allow-incomplete.`);
   }
 
+  // Encrypted backup: the right key must be at hand before the target is touched.
+  const encryption = manifest.encryption ?? null;
+  let key: Buffer | null = null;
+  if (encryption) {
+    if (encryption.alg !== "aes-256-gcm") throw new Error(`Bilinmeyen yedek şifrelemesi: ${encryption.alg}`);
+    key = args.keyFile ? parseBackupKey(readFileSync(args.keyFile, "utf8")) : backupKeyFromEnv();
+    if (!key) throw new Error(`Bu yedek şifreli (anahtar kimliği ${encryption.keyId}). BACKUP_ENCRYPTION_KEY ortam değişkenini verin ya da --key-file=<dosya> ile çevrimdışı kopyayı gösterin.`);
+    const keyId = backupKeyId(key);
+    if (keyId !== encryption.keyId) throw new Error(`Anahtar uyuşmuyor: yedek ${encryption.keyId} kimlikli anahtarla şifrelenmiş, verilen anahtarın kimliği ${keyId}. Yanlış anahtarla geri yükleme yapılmaz; o günün anahtarını bulun (eski anahtar döndürüldüyse saklanan kopyası).`);
+  }
+
   const parsed = new URL(args.target);
   parsed.searchParams.delete("channel_binding");
   const notices: string[] = [];
@@ -116,7 +134,7 @@ export async function restoreBackup(args: Args): Promise<{ table: string; expect
     // The target keeps its own migration ledger: it describes the schema db:deploy built there.
     const tables = manifest.tables.filter((t) => t.name !== "schema_migrations");
     const extra = [...targetColumns.keys()].filter((name) => name !== "schema_migrations" && !manifest.tables.some((t) => t.name === name));
-    console.log(`Yedek ${manifest.date} (commit ${manifest.commitSha || "?"}, ${manifest.complete ? "tam" : "EKSİK"}): ${tables.length} tablo, ${tables.reduce((s, t) => s + t.rows, 0)} satır`);
+    console.log(`Yedek ${manifest.date} (commit ${manifest.commitSha || "?"}, ${manifest.complete ? "tam" : "EKSİK"}, ${encryption ? `şifreli, anahtar ${encryption.keyId}` : "şifresiz"}): ${tables.length} tablo, ${tables.reduce((s, t) => s + t.rows, 0)} satır`);
     console.log(`Hedef: ${describe(args.target)}. Bu tablolardaki mevcut veriler SİLİNECEK.`);
     if (extra.length) console.log(`Yedekte olmayan hedef tablolar (dokunulmaz, FK ile bağlıysa boşalır): ${extra.join(", ")}`);
     if (!args.yes && !(await confirm("Devam etmek için 'evet' yazın: "))) throw new Error("İptal edildi");
@@ -134,7 +152,10 @@ export async function restoreBackup(args: Args): Promise<{ table: string; expect
         if (!table.key || table.rows === 0) continue;
         const file = await readFile(table.key);
         const writable = await tx.unsafe(`COPY public.${quoteIdent(table.name)} (${table.columns.map(quoteIdent).join(", ")}) FROM STDIN WITH (FORMAT csv, HEADER true)`).writable();
-        await pipeline(Readable.fromWeb(file.body as any), createGunzip(), writable);
+        const body = Readable.fromWeb(file.body as any);
+        // Decryption checks the GCM tag at the end of the file; a failure aborts the transaction.
+        if (key) await pipeline(body, createBackupDecryptStream(key, table.key), createGunzip(), writable);
+        else await pipeline(body, createGunzip(), writable);
       }
       // Column-owned sequences (serial / identity) follow the restored data.
       const owned = !tables.length ? [] : await tx`

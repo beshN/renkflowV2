@@ -49,7 +49,10 @@ it('streams a ZIP of the firm tables, binding every read to the firm', async () 
   const done = jest.fn();
   const zip = new Uint8Array(await new Response(tenantExportStream(db, 't1', { now: new Date('2026-10-26T00:00:00Z'), onDone: done })).arrayBuffer());
   const files = unzipSync(zip);
-  expect(Object.keys(files).sort()).toEqual(['README.txt', 'files.csv', 'members.csv', 'tables/customers.csv', 'tables/invitations.csv', 'tables/office_files.csv', 'tenant.csv']);
+  const csvs = ['files.csv', 'members.csv', 'tables/customers.csv', 'tables/invitations.csv', 'tables/office_files.csv', 'tenant.csv'];
+  // Spreadsheet-safe copies at the root / tables/, byte-exact copies under raw/ (S-07).
+  expect(Object.keys(files).sort()).toEqual(['README.txt', ...csvs, ...csvs.map((n) => `raw/${n}`)].sort());
+  for (const n of csvs) expect(strFromU8(files[`raw/${n}`])).toBe(strFromU8(files[n]));
 
   const customers = strFromU8(files['tables/customers.csv']).split('\r\n');
   expect(customers[0]).toBe('id,tenant_id,full_name');

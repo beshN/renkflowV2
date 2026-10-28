@@ -3,6 +3,7 @@
  * Pure: it works on the column list read from information_schema, so the rules are unit-tested
  * without a database and a table added by a later migration is exported without touching this file.
  */
+import { neutralizeFormula } from '@/lib/security/spreadsheet-safe';
 
 export type CatalogColumn = { table: string; column: string; dataType: string };
 
@@ -28,6 +29,7 @@ export const EXCLUDED_TABLES: Record<string, string> = {
   storage_cleanup_queue: 'iç temizlik kuyruğu',
   notification_outbox: 'iç bildirim kuyruğu',
   export_jobs: 'iç dışa aktarma işleri',
+  ai_call_reservations: 'süren asistan çağrılarının geçici bütçe kayıtları',
   tenants: 'firma kaydı ayrıca tenant.csv olarak verilir',
   tenant_members: 'üyeler ayrıca members.csv olarak verilir',
 };
@@ -118,19 +120,37 @@ export function fileReferenceSpecs(plan: ExportPlan): FileReferenceSpec[] {
 
 export const quoteIdent = (name: string) => `"${name.replace(/"/g, '""')}"`;
 
-/** RFC 4180 cell: the value as stored, so another system reads it back exactly. */
-export function csvValue(value: unknown): string {
+const quoteCsv = (text: string) => (/[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text);
+
+function cellText(value: unknown): string {
   if (value === null || value === undefined) return '';
-  let text: string;
-  if (value instanceof Date) text = Number.isNaN(value.getTime()) ? '' : value.toISOString();
-  else if (typeof value === 'string') text = value;
-  else if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') text = String(value);
-  else if (typeof Buffer !== 'undefined' && Buffer.isBuffer(value)) text = '';
-  else text = JSON.stringify(value);
-  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? '' : value.toISOString();
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') return String(value);
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(value)) return '';
+  return JSON.stringify(value);
+}
+
+/** RFC 4180 cell: the value as stored, so another system reads it back exactly (raw/ copies). */
+export function csvValue(value: unknown): string {
+  return quoteCsv(cellText(value));
+}
+
+/**
+ * RFC 4180 cell for people (the default tables): text a spreadsheet would run as a formula gets a
+ * leading apostrophe (S-07). Numbers stay numbers, also when the driver hands them over as text
+ * (numeric/bigint columns arrive as "-12.5").
+ */
+export function csvSafeValue(value: unknown): string {
+  const text = cellText(value);
+  return quoteCsv(typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean' ? text : neutralizeFormula(text));
 }
 
 export const csvLine = (values: unknown[]) => values.map(csvValue).join(',') + '\r\n';
+export const csvSafeLine = (values: unknown[]) => values.map(csvSafeValue).join(',') + '\r\n';
+
+/** Where the two copies of every CSV live in the ZIP. */
+export const RAW_EXPORT_FOLDER = 'raw/';
 
 export function exportReadme(input: { tenantName: string; generatedAt: Date; plan: ExportPlan; rowCounts: Record<string, number>; fileCount: number }): string {
   const lines = [
@@ -145,11 +165,21 @@ export function exportReadme(input: { tenantName: string; generatedAt: Date; pla
     'Dosyalar UTF-8, virgülle ayrılmış, ilk satırı sütun adlarıdır (RFC 4180). JSON alanlar',
     'JSON metni olarak, tarihler ISO 8601 (UTC) olarak yazılmıştır.',
     '',
+    'Her CSV iki kopya halindedir:',
+    '- Kök klasördeki dosyalar ve tables/ (insanlar ve tablolama programları için): "=", "+", "-",',
+    '  "@", sekme veya satır başı ile başlayan METİN hücrelerinin başına tek tırnak (\') eklenmiştir;',
+    '  böylece Excel / LibreOffice bu hücreleri formül olarak çalıştırmaz. Gerçek sayılar (ör. -12.5)',
+    '  değiştirilmez.',
+    '- raw/ (makineler ve başka sistemlere aktarım için): aynı dosyaların bayt bayt özgün hali; hiçbir',
+    '  hücre değiştirilmemiştir. Bu dosyaları tablolama programında doğrudan AÇMAYIN; içe aktarma',
+    '  sihirbazında sütunları "Metin" olarak seçin.',
+    '',
     'İçerik',
     '------',
     'tenant.csv      Firma kaydı',
     'members.csv     Firma üyeleri: ad, e-posta, rol, katılım tarihi (şifre ve doğrulama bilgileri hariç)',
     'files.csv       Yüklenen dosyaların listesi (ad, depolama anahtarı, boyut)',
+    'raw/            Yukarıdaki ve aşağıdaki tüm CSV dosyalarının değiştirilmemiş kopyaları (raw/tables/*.csv dahil)',
     'tables/*.csv    Firmanıza ait her tablo:',
     ...input.plan.tables.map((t) => `  - ${t.table}.csv (${input.rowCounts[t.table] ?? 0} satır)${t.droppedColumns.length ? `; çıkarılan sütunlar: ${t.droppedColumns.join(', ')}` : ''}`),
     '',
@@ -162,8 +192,8 @@ export function exportReadme(input: { tenantName: string; generatedAt: Date; pla
     '- Veritabanında ikili (binary) olarak saklanan dosya içerikleri.',
     ...input.plan.excluded.map((e) => `- ${e.table}: ${e.reason}`),
     '',
-    'Not: Hücreler olduğu gibi yazılmıştır; bir tablolama programında açarken "=" ile başlayan',
-    'hücrelerin formül olarak çalıştırılmaması için içe aktarma sihirbazını kullanın.',
+    'Not: Başka bir sisteme yüklenecek veriler için raw/ klasörünü kullanın; tables/ altındaki',
+    'kopyalarda formül gibi görünen metinlerin başındaki tek tırnak verinin parçası değildir.',
     '',
   ];
   return lines.join('\r\n');

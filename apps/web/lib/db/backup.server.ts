@@ -1,8 +1,9 @@
 import "server-only";
-import { Transform } from "node:stream";
+import { PassThrough, Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
-import { deleteFile, listFiles, readFile, uploadFile } from "@/lib/storage";
+import { deleteFile, listFiles, readFile, uploadFile, uploadStream } from "@/lib/storage";
+import { BACKUP_ENCRYPTION_ALG, BACKUP_ENCRYPTION_FORMAT, backupKeyFromEnv, backupKeyId, createBackupEncryptStream } from "./backup-crypto";
 import {
   BACKUP_MANIFEST_VERSION, BACKUP_PREFIX, BACKUP_RETENTION_DAYS, type BackupManifest, type BackupTable,
   backupDate, backupFolder, backupManifestKey, backupTableKey, quoteIdent,
@@ -12,8 +13,11 @@ import {
  * Daily logical backup into the app's private Blob store (never GitHub: the repository is public).
  *
  * One REPEATABLE READ, READ ONLY transaction gives every table the same snapshot. Each non-empty
- * table in `public` is streamed out with COPY … TO STDOUT (CSV with header), gzipped and uploaded
- * as backups/<date>/<table>.csv.gz; manifest.json is written last. Empty tables get a manifest
+ * table in `public` is streamed out with COPY … TO STDOUT (CSV with header), gzipped, encrypted
+ * with AES-256-GCM when BACKUP_ENCRYPTION_KEY is set (lib/db/backup-crypto.ts) and uploaded as
+ * backups/<date>/<table>.csv.gz.enc (unencrypted: .csv.gz); manifest.json is written last and
+ * names the key id, never the key. Files up to SINGLE_PUT_MAX_BYTES go up in one Blob put, larger
+ * ones stream as a multipart upload, so no table is held in memory. Empty tables get a manifest
  * entry but no file (Blob operations are metered on Hobby).
  *
  * This deliberately reads every table without a tenant filter: it is a whole-database export run
@@ -27,6 +31,10 @@ export type BackupOptions = {
   /** Abort the table in flight after this many ms (default 270 s). */
   hardBudgetMs?: number;
   retentionDays?: number;
+  /** Overrides BACKUP_ENCRYPTION_KEY (tests); null forces an unencrypted run. */
+  encryptionKey?: Buffer | null;
+  /** Files above this size stream as a multipart upload (default SINGLE_PUT_MAX_BYTES). */
+  singlePutMaxBytes?: number;
 };
 export type BackupResult =
   | { skipped: true; reason: "already-complete" | "running"; date: string }
@@ -44,27 +52,52 @@ async function existingManifest(date: string): Promise<BackupManifest | null> {
   }
 }
 
-async function exportTable(tx: any, date: string, table: { name: string; columns: string[] }, hardDeadline: number): Promise<BackupTable> {
+/** A table file up to this size is uploaded in one Blob operation; larger ones stream as multipart. */
+export const SINGLE_PUT_MAX_BYTES = 8 * 1024 * 1024;
+
+async function exportTable(tx: any, date: string, table: { name: string; columns: string[] }, hardDeadline: number, encryptionKey: Buffer | null, singlePutMaxBytes: number): Promise<BackupTable> {
   const [{ rows }] = await tx.unsafe(`/* tenant-checked: whole-database backup */ SELECT count(*)::text AS rows FROM public.${quoteIdent(table.name)}`);
   const count = Number(rows);
   if (count === 0) return { name: table.name, columns: table.columns, rows: 0, bytes: 0, csvBytes: 0, key: null };
   const columns = table.columns.map(quoteIdent).join(", ");
+  const key = backupTableKey(date, table.name, Boolean(encryptionKey));
+  const contentType = encryptionKey ? "application/octet-stream" : "application/gzip";
   const source = await tx.unsafe(`COPY (SELECT ${columns} FROM public.${quoteIdent(table.name)}) TO STDOUT WITH (FORMAT csv, HEADER true)`).readable();
   let csvBytes = 0;
+  let bytes = 0;
   const counter = new Transform({ transform(chunk, _encoding, callback) { csvBytes += chunk.length; callback(null, chunk); } });
-  const chunks: Buffer[] = [];
+  // gzip first (ciphertext does not compress), then AES-256-GCM when a key is configured.
+  const encrypt = encryptionKey ? createBackupEncryptStream(encryptionKey, key) : new PassThrough();
   const timer = setTimeout(() => source.destroy(new Error("time budget exceeded")), Math.max(0, hardDeadline - Date.now()));
   try {
-    await pipeline(source, counter, createGzip({ level: 6 }), async function (gzipped: AsyncIterable<Buffer>) {
-      for await (const chunk of gzipped) chunks.push(chunk);
+    await pipeline(source, counter, createGzip({ level: 6 }), encrypt, async function (stored: AsyncIterable<Buffer>) {
+      // Small files (most tables) go up in one put; once a file outgrows that, the part already read
+      // and the rest of the stream go up as a multipart upload, so memory stays bounded.
+      const iterator = stored[Symbol.asyncIterator]();
+      const head: Buffer[] = [];
+      for (;;) {
+        const next = await iterator.next();
+        if (next.done) { await uploadFile(key, Buffer.concat(head), contentType); return; }
+        head.push(next.value);
+        bytes += next.value.length;
+        if (bytes > singlePutMaxBytes) break;
+      }
+      const rest = Readable.from((async function* () {
+        yield* head;
+        head.length = 0;
+        for (;;) {
+          const next = await iterator.next();
+          if (next.done) return;
+          bytes += next.value.length;
+          yield next.value;
+        }
+      })());
+      await uploadStream(key, rest, contentType);
     });
   } finally {
     clearTimeout(timer);
   }
-  const body = Buffer.concat(chunks);
-  const key = backupTableKey(date, table.name);
-  await uploadFile(key, body, "application/gzip");
-  return { name: table.name, columns: table.columns, rows: count, bytes: body.length, csvBytes, key };
+  return { name: table.name, columns: table.columns, rows: count, bytes, csvBytes, key };
 }
 
 /** Deletes backups/<date>/ folders older than the retention window; never touches anything else. */
@@ -91,6 +124,13 @@ export async function runDatabaseBackup(options: BackupOptions = {}): Promise<Ba
 
   const previous = await existingManifest(date);
   if (previous?.complete) return { skipped: true, reason: "already-complete", date };
+
+  // A malformed key fails the run (never a silent unencrypted fallback); a missing key is allowed
+  // but logged, and the manifest records encryption: null.
+  const encryptionKey = options.encryptionKey !== undefined ? options.encryptionKey : backupKeyFromEnv();
+  if (!encryptionKey) console.warn("[backup] BACKUP_ENCRYPTION_KEY tanımlı değil: yedek dosyaları yalnız gzip'li, şifresiz yazılıyor (parola özetleri ve anahtarlar dahil).");
+  const encryption = encryptionKey ? { alg: BACKUP_ENCRYPTION_ALG, keyId: backupKeyId(encryptionKey), format: BACKUP_ENCRYPTION_FORMAT } : null;
+  const singlePutMaxBytes = options.singlePutMaxBytes ?? SINGLE_PUT_MAX_BYTES;
 
   let manifest: BackupManifest | null = null;
   let locked = true;
@@ -127,6 +167,7 @@ export async function runDatabaseBackup(options: BackupOptions = {}): Promise<Ba
         tables: [], missingTables: [],
         schemaMigrations: schemaMigrations.map((m: any) => ({ filename: String(m.filename), checksum: String(m.checksum) })),
         sequences: sequences.map((s: any) => ({ name: String(s.name), lastValue: s.lastValue == null ? null : String(s.lastValue) })),
+        encryption,
       };
       const m: BackupManifest = manifest;
       for (const [index, table] of tableRows.entries()) {
@@ -136,7 +177,7 @@ export async function runDatabaseBackup(options: BackupOptions = {}): Promise<Ba
           return;
         }
         try {
-          m.tables.push(await exportTable(tx, date, { name: table.name, columns: [...table.columns] }, hardDeadline));
+          m.tables.push(await exportTable(tx, date, { name: table.name, columns: [...table.columns] }, hardDeadline, encryptionKey, singlePutMaxBytes));
         } catch (error) {
           // The transaction is unusable after a failed COPY; record what is missing and stop.
           m.stoppedReason = Date.now() >= hardDeadline ? "time budget" : `table ${table.name} failed`;

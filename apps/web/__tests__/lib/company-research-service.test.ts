@@ -25,6 +25,8 @@ jest.mock("@/lib/db", () => ({
 }));
 jest.mock("@/lib/ai/gate.server", () => ({
   assertModelAllowed: jest.fn(async () => {}),
+  reserveModelCall: jest.fn(async () => null),
+  releaseModelReservation: jest.fn(async () => {}),
 }));
 import { AIService } from "@/lib/ai/service";
 import { costUsd, toolCostUsd } from "@/lib/ai/usage";

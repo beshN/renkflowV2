@@ -4,7 +4,7 @@ jest.mock('server-only', () => ({}));
 jest.mock('@anthropic-ai/sdk', () => ({ __esModule: true, default: jest.fn().mockImplementation(() => ({ messages: { parse: (...a: unknown[]) => parse(...a) } })) }));
 jest.mock('@anthropic-ai/sdk/helpers/zod', () => ({ zodOutputFormat: () => ({ type: 'json_schema' }) }));
 jest.mock('@/lib/db', () => ({ sql: jest.fn(() => Promise.resolve([])) }));
-jest.mock('@/lib/ai/gate.server', () => ({ assertModelAllowed: jest.fn(async () => {}) }));
+jest.mock('@/lib/ai/gate.server', () => ({ assertModelAllowed: jest.fn(async () => {}), reserveModelCall: jest.fn(async () => null), releaseModelReservation: jest.fn(async () => {}) }));
 
 import { shortTitle, triageByRules } from '@/lib/features/office/triage';
 import { triage } from '@/lib/features/office/triage.server';
