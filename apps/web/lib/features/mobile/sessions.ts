@@ -13,6 +13,8 @@ import {currentMobileAccess} from './access';
 import {validateMobileDTO} from './contract';
 import {recordAudit,recordAuditAfterCommit} from '@/lib/audit/audit-log';
 import {isMfaEnabled} from '@/lib/features/auth/mfa.server';
+import {MFA_SETUP_REQUIRED_CODE,MFA_SETUP_REQUIRED_LOGIN_MESSAGE} from '@/lib/features/auth/mfa-policy';
+import {mfaSetupPending} from '@/lib/security/member-access.server';
 const ACCESS_SECONDS=900;
 const secret=()=>resolveAuthSecret({context:'mobile.sessions',allowMissing:false,allowDevelopmentFallback:process.env.NODE_ENV!=='production',developmentFallback:'development-only-fallback-secret'})!;
 const hash=(value:string)=>createHash('sha256').update(value).digest('hex');
@@ -46,6 +48,8 @@ export async function mobileLogin(request:NextRequest,raw:unknown,platform:strin
  if(!r.tenant_id||!['owner','admin','office','worker'].includes(r.role)) throw new WorkOrderApiError('Bu hesap saha uygulamasına erişemiyor.',403);
  // The field app cannot ask for a second-step code yet; letting such accounts in would bypass it.
  if(await isMfaEnabled(sql,r.id)) throw new WorkOrderApiError('İki adımlı doğrulama açık hesaplar saha uygulamasına henüz giriş yapamaz. Web üzerinden giriş yapın.',403);
+ // The firm requires two-step sign-in of owners and admins: no phone session until it is set up.
+ if(await mfaSetupPending(r.id,r.tenant_id,r.role)) throw new WorkOrderApiError(MFA_SETUP_REQUIRED_LOGIN_MESSAGE,403,MFA_SETUP_REQUIRED_CODE);
  const user={id:r.id,email:r.email,name:r.name||'Kullanıcı',role:r.role,tenantId:r.tenant_id},sid=randomUUID(),token=access(user,sid);
  const permissions=await currentMobileAccess({userId:r.id,tenantId:r.tenant_id,role:r.role},jwt.sign({sub:r.id,iat:Math.floor(Date.now()/1000)},secret()));
  if(!permissions.production.view&&!permissions.inventory.view&&!permissions.installations.view) throw new WorkOrderApiError('Saha yetkiniz yok.',403);
@@ -69,6 +73,8 @@ export async function mobileRefresh(raw:unknown) {
   if(!r||r.device_id!==input.deviceId||r.revoked_at||new Date(r.expires_at)<=new Date()) return null;
   const [identity]=await tx`SELECT u.id,u.email,u.name,m.role,to_jsonb(m)->>'deactivated_at' AS deactivated,to_jsonb(u)->>'sessions_valid_after' AS cutoff FROM users u JOIN tenant_members m ON m.user_id=u.id WHERE u.id=${r.user_id} AND m.tenant_id=${r.tenant_id}`;
   if(!identity||identity.deactivated||identity.cutoff&&new Date(identity.cutoff)>new Date(r.signed_at)||!isPrivateAccessAllowed(identity.email)) {await tx`UPDATE user_sessions SET revoked_at=now() WHERE id=${r.session_id}`;return null;}
+  // A firm that now requires two-step sign-in of owners/admins: no new tokens until it is set up (the token is not consumed).
+  if(await mfaSetupPending(identity.id,r.tenant_id,identity.role)) return {mfaSetupRequired:true} as const;
   if(r.consumed_at) {
    if(r.request_id===input.requestId&&r.replay_cipher&&new Date(r.replay_until)>new Date()) return decrypt(r.replay_cipher);
    await tx`UPDATE user_sessions SET revoked_at=now() WHERE id=${r.session_id}`;return null;
@@ -79,6 +85,7 @@ export async function mobileRefresh(raw:unknown) {
   await tx`UPDATE mobile_refresh_tokens SET consumed_at=now(),request_id=${input.requestId},replay_cipher=${encrypt(value)},replay_until=now()+interval '5 minutes' WHERE token_hash=${hash(input.refreshToken)}`;
   await tx`UPDATE user_sessions SET last_seen_at=now() WHERE id=${r.session_id}`;return value;
  });if(!result) throw new WorkOrderApiError('Cihaz oturumu sona erdi. Yeniden giriş yapın.',401);
+ if('mfaSetupRequired' in result) throw new WorkOrderApiError(MFA_SETUP_REQUIRED_LOGIN_MESSAGE,403,MFA_SETUP_REQUIRED_CODE);
  return result;
 }
 export async function mobileDevices(userId:string,tenantId:string) {await schema();const rows=await sql`SELECT s.id,s.device_id,s.platform,s.created_at,u.last_seen_at,u.revoked_at FROM mobile_sessions s JOIN user_sessions u ON u.id=s.id WHERE s.user_id=${userId} AND s.tenant_id=${tenantId} ORDER BY s.created_at DESC LIMIT 100`;return {devices:rows.map((r:any)=>({id:r.id,deviceId:r.device_id,platform:r.platform,createdAt:new Date(r.created_at).toISOString(),lastSeenAt:new Date(r.last_seen_at).toISOString(),revoked:!!r.revoked_at}))};}

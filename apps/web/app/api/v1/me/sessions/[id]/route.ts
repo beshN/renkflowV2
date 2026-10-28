@@ -12,7 +12,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function DELETE(req: NextRequest, { params }: Params) {
   try {
     requireSameOrigin(req);
-    const actor = await requireWorkOrderActor();
+    const actor = await requireWorkOrderActor({ allowDuringMfaSetup: true });
     const { id } = await params;
     z.string().uuid().parse(id);
     await revokeSession(actor, id);

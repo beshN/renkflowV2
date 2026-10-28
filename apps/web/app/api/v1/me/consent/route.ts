@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     requireSameOrigin(req);
-    const actor = await requireWorkOrderActor();
+    const actor = await requireWorkOrderActor({ allowDuringMfaSetup: true });
     if (!hasLegalConsent(await req.json())) {
       return NextResponse.json({ error: LEGAL_CONSENT_REQUIRED_MESSAGE, code: 'consent_required' }, { status: 400, headers: NO_STORE });
     }

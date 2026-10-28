@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
   try {
-    const actor = await requireWorkOrderActor();
+    const actor = await requireWorkOrderActor({ allowDuringMfaSetup: true });
     const [consentRequired, mfaSetupRequired] = await Promise.all([
       legalConsentRequired(sql, actor.userId),
       mfaSetupRequiredFor(sql, { userId: actor.userId, tenantId: actor.tenantId, role: actor.role }),

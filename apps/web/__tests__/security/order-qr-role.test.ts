@@ -7,6 +7,7 @@ jest.mock('@/lib/db', () => ({ sql: jest.fn(async () => []), getSql: () => jest.
 jest.mock('@/lib/security/member-access.server', () => ({
   resolveMemberAccess: jest.fn(),
   sessionRevoked: jest.fn(async () => false),
+  mfaSetupPending: jest.fn(async () => false),
 }));
 jest.mock('@/lib/security/field-access.server', () => ({
   redactedJson: (data: unknown, init?: ResponseInit) => Response.json(data, init),

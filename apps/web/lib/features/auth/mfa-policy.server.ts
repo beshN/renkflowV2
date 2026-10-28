@@ -2,8 +2,9 @@ import 'server-only';
 
 import { recordAudit } from '@/lib/audit/audit-log';
 import { columnExists } from '@/lib/db/schema-guard';
-import { getMfaState, isMfaEnabled } from './mfa.server';
-import { mfaSetupRequired, policyChangeProblem } from './mfa-policy';
+import { forgetMfaGate, mfaSetupPending } from '@/lib/security/member-access.server';
+import { isMfaEnabled } from './mfa.server';
+import { policyChangeProblem } from './mfa-policy';
 
 type Db = any;
 
@@ -28,16 +29,14 @@ export async function readMfaPolicy(db: Db, tenantId: string): Promise<{ availab
   return { available: true, requireForAdmins: Boolean(row?.require_mfa_for_admins) };
 }
 
-/** Whether this member must set up two-step sign-in first. False whenever it cannot be told. */
+/**
+ * Whether this member must set up two-step sign-in first: the same answer the server-side gate
+ * (proxy, API helpers, phone sessions) acts on. Off while the policy column is missing (migration
+ * 078 not applied); when the policy cannot be read for another reason, owners and admins are sent
+ * to set-up (fail closed) and everyone else is not affected.
+ */
 export async function mfaSetupRequiredFor(db: Db, input: { userId: string; tenantId: string; role: string | null | undefined }): Promise<boolean> {
-  try {
-    const policy = await readMfaPolicy(db, input.tenantId);
-    if (!policy.requireForAdmins) return false;
-    const state = await getMfaState(db, input.userId);
-    return mfaSetupRequired({ policyOn: true, role: input.role, mfaAvailable: state.available, mfaEnabled: state.enabled });
-  } catch {
-    return false;
-  }
+  return mfaSetupPending(input.userId, input.tenantId, input.role, { db });
 }
 
 /** Owner only; turning it on needs the owner's own two-step sign-in, so the firm cannot be locked out. */
@@ -50,7 +49,7 @@ export async function setMfaPolicy(db: Db, input: { tenantId: string; actorId: s
     actorMfaEnabled: input.enabled && available ? await isMfaEnabled(db, input.actorId) : false,
   });
   if (problem) throw new MfaPolicyError(problem, input.actorRole !== 'owner' && available ? 403 : 400);
-  return db.begin(async (tx: Db) => {
+  const result = await db.begin(async (tx: Db) => {
     const [before] = await tx`SELECT require_mfa_for_admins FROM tenants WHERE id = ${input.tenantId} FOR UPDATE`;
     if (!before) throw new MfaPolicyError('Firma bulunamadı.', 404);
     if (Boolean(before.require_mfa_for_admins) !== input.enabled) {
@@ -66,4 +65,7 @@ export async function setMfaPolicy(db: Db, input: { tenantId: string; actorId: s
     }
     return { available: true, requireForAdmins: input.enabled };
   });
+  // Turned on: this instance asks again at once (others within the gate's 30 s cache).
+  forgetMfaGate(input.tenantId);
+  return result;
 }

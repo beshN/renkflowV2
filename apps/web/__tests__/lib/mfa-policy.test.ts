@@ -14,18 +14,25 @@ import {
   MFA_POLICY_ENABLE_NEEDS_OWN_MFA,
   MFA_POLICY_OWNER_ONLY,
   mfaSetupRequired,
+  mfaSetupAllowsPath,
   pathAllowedDuringMfaSetup,
   policyChangeProblem,
 } from '@/lib/features/auth/mfa-policy';
 import { mfaSetupRequiredFor, readMfaPolicy, setMfaPolicy } from '@/lib/features/auth/mfa-policy.server';
 
-/** A tagged-template stand-in that answers the tenant row and records each statement. */
-function fakeDb(policyOn: boolean) {
+/**
+ * A tagged-template stand-in that answers the tenant row and records each statement. policyOn null
+ * is a firm before migration 078 (the to_jsonb read yields no value); mfaOn whether the member has it.
+ */
+function fakeDb(policyOn: boolean | null, options: { mfaOn?: boolean; fail?: boolean } = {}) {
   const calls: Array<{ text: string; values: unknown[] }> = [];
   const db: any = jest.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
     const text = strings.join('$X').replace(/\s+/g, ' ').trim();
     calls.push({ text, values });
+    if (options.fail) throw new Error('connection timeout');
     if (/SELECT require_mfa_for_admins FROM tenants/i.test(text)) return [{ require_mfa_for_admins: policyOn }];
+    if (/require_mfa_for_admins' AS policy/i.test(text)) return [{ policy: policyOn === null ? null : String(policyOn), mfa_table: true }];
+    if (/FROM user_mfa/i.test(text)) return options.mfaOn ? [{ ok: 1 }] : [];
     return [];
   });
   db.begin = (fn: (tx: any) => unknown) => fn(db);
@@ -100,21 +107,44 @@ describe('changing the rule', () => {
 describe('reading the rule', () => {
   it('is off and sends nobody anywhere before migration 078', async () => {
     (columnExists as jest.Mock).mockResolvedValue(false);
-    const { db, calls } = fakeDb(true);
+    const { db } = fakeDb(null);
     expect(await readMfaPolicy(db, 't1')).toEqual({ available: false, requireForAdmins: false });
     expect(await mfaSetupRequiredFor(db, { userId: 'u1', tenantId: 't1', role: 'owner' })).toBe(false);
-    expect(calls).toEqual([]);
   });
 
   it('sends an owner without two-step sign-in to set-up when the rule is on', async () => {
     const { db } = fakeDb(true);
     expect(await mfaSetupRequiredFor(db, { userId: 'u1', tenantId: 't1', role: 'owner' })).toBe(true);
+    expect(await mfaSetupRequiredFor(db, { userId: 'u1', tenantId: 't1', role: 'admin' })).toBe(true);
     expect(await mfaSetupRequiredFor(db, { userId: 'u1', tenantId: 't1', role: 'office' })).toBe(false);
   });
 
-  it('never blocks when the check fails', async () => {
-    (columnExists as jest.Mock).mockRejectedValue(new Error('timeout'));
-    const { db } = fakeDb(true);
-    expect(await mfaSetupRequiredFor(db, { userId: 'u1', tenantId: 't1', role: 'owner' })).toBe(false);
+  it('lets an owner who has set it up through, and nobody is sent while the rule is off', async () => {
+    expect(await mfaSetupRequiredFor(fakeDb(true, { mfaOn: true }).db, { userId: 'u2', tenantId: 't1', role: 'owner' })).toBe(false);
+    expect(await mfaSetupRequiredFor(fakeDb(false).db, { userId: 'u3', tenantId: 't1', role: 'owner' })).toBe(false);
+  });
+
+  it('fails closed for owners and admins only when the rule cannot be read', async () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const { db, calls } = fakeDb(true, { fail: true });
+      expect(await mfaSetupRequiredFor(db, { userId: 'u4', tenantId: 't1', role: 'owner' })).toBe(true);
+      expect(await mfaSetupRequiredFor(db, { userId: 'u4', tenantId: 't1', role: 'admin' })).toBe(true);
+      const before = calls.length;
+      expect(await mfaSetupRequiredFor(db, { userId: 'u5', tenantId: 't1', role: 'office' })).toBe(false);
+      expect(await mfaSetupRequiredFor(db, { userId: 'u5', tenantId: 't1', role: 'worker' })).toBe(false);
+      expect(calls.length).toBe(before); // other roles never even ask
+    } finally {
+      error.mockRestore();
+    }
+  });
+});
+
+describe('what stays open while set-up is outstanding', () => {
+  it('only the account page, its own APIs, who-am-I, consent and signing out', () => {
+    for (const path of ['/account', '/account/security', '/api/auth/signout', '/api/auth/session', '/api/v1/me/gate', '/api/v1/me/mfa', '/api/v1/me/consent', '/api/v1/me/sessions/abc', '/api/v1/auth/me', '/api/mobile/v1/auth/me', '/api/mobile/v1/auth/logout'])
+      expect([path, mfaSetupAllowsPath(path)]).toEqual([path, true]);
+    for (const path of ['/dashboard', '/orders', '/api/v1/orders', '/api/v1/finance/summary', '/api/tenant/mfa-policy', '/api/storage/content', '/api/v1/office', '/api/mobile/v1/snapshot', '/api/v1/field/snapshot', '/api/v1/meeting'])
+      expect([path, mfaSetupAllowsPath(path)]).toEqual([path, false]);
   });
 });

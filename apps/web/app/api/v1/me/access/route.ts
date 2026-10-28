@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 /** Your effective access: role, module × action matrix and hidden fields (drives the menu). */
 export async function GET() {
   try {
-    const actor = await requireWorkOrderActor();
+    const actor = await requireWorkOrderActor({ allowDuringMfaSetup: true });
     const access = await resolveMemberAccess(actor.userId, actor.tenantId);
     if (!access) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE });
     return NextResponse.json({

@@ -19,7 +19,7 @@ const Body = z.discriminatedUnion('action', [
 /** Your two-step sign-in status. */
 export async function GET() {
   try {
-    const actor = await requireWorkOrderActor();
+    const actor = await requireWorkOrderActor({ allowDuringMfaSetup: true });
     return NextResponse.json(await getMfaState(sql, actor.userId), { headers: NO_STORE });
   } catch (e) {
     return recordError(e, 'me-mfa');
@@ -30,7 +30,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     requireSameOrigin(req);
-    const actor = await requireWorkOrderActor();
+    const actor = await requireWorkOrderActor({ allowDuringMfaSetup: true });
     // Code guesses count against the same budget as password guesses.
     const limit = await consumeRateLimit('loginAccount', `mfa:${actor.userId}`);
     if (!limit.allowed) return rateLimitResponse(limit);
