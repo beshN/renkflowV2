@@ -66,7 +66,7 @@ jobs:
           export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/field-release.keystore"
           export MOBILE_BUILD_NUMBER=$((100000 + GITHUB_RUN_NUMBER))
           ./gradlew --no-watch-fs --no-daemon :app:bundleRelease
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: RenkFlow-Saha-Play-Internal-AAB
           path: apps/native-android/app/build/outputs/bundle/release/app-release.aab
@@ -124,7 +124,7 @@ jobs:
               plistlib.dump({'method':'app-store-connect','teamID':os.environ['IOS_TEAM_ID'],'signingStyle':'manual','signingCertificate':'Apple Distribution','provisioningProfiles':{'com.renkflow.field':os.environ['IOS_PROFILE_UUID']},'manageAppVersionAndBuildNumber':False},file)
           PY
           xcodebuild -exportArchive -archivePath build/RenkFlow.xcarchive -exportPath build/ipa -exportOptionsPlist /tmp/field-export.plist > "$RUNNER_TEMP/field-export.log" 2>&1 || { echo 'iOS export failed. No IPA was produced.'; exit 1; }
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: RenkFlow-Saha-TestFlight-IPA
           path: apps/native-ios/build/ipa/*.ipa
