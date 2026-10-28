@@ -21,12 +21,24 @@ export const MODEL_BLOCK_MESSAGES: Record<ModelBlock, string> = {
   AI_USER_LIMIT: 'Bugünkü asistan kullanım sınırınıza ulaştınız; yarın yeniden açılır.',
 };
 
-export function modelDecision(s: { mode: AiMode; kvkkAck: boolean; dailyBudgetUsd: number | null; userDailyCalls: number; spentTodayUsd: number; userCallsToday: number }): { ok: true } | { ok: false; block: ModelBlock } {
+/**
+ * `reservedUsd` / `reservedUserCalls` are calls still running (live reservations, see
+ * gate.server.ts); `estimateUsd` is the maximum cost of the call being decided. With an estimate
+ * the budget is a hard cap: the call runs only if everything spent, everything in flight and this
+ * call's worst case still fit.
+ */
+export function modelDecision(s: { mode: AiMode; kvkkAck: boolean; dailyBudgetUsd: number | null; userDailyCalls: number; spentTodayUsd: number; userCallsToday: number; reservedUsd?: number; reservedUserCalls?: number; estimateUsd?: number }): { ok: true } | { ok: false; block: ModelBlock } {
   if (s.mode === 'off') return { ok: false, block: 'AI_OFF' };
   if (s.mode === 'rules') return { ok: false, block: 'AI_RULES_ONLY' };
   if (!s.kvkkAck) return { ok: false, block: 'AI_KVKK' };
-  if (s.dailyBudgetUsd !== null && s.spentTodayUsd >= s.dailyBudgetUsd) return { ok: false, block: 'AI_BUDGET' };
-  if (s.userCallsToday >= s.userDailyCalls) return { ok: false, block: 'AI_USER_LIMIT' };
+  if (s.dailyBudgetUsd !== null) {
+    const committed = s.spentTodayUsd + (s.reservedUsd ?? 0);
+    if (committed >= s.dailyBudgetUsd) return { ok: false, block: 'AI_BUDGET' };
+    const estimate = s.estimateUsd ?? 0;
+    // A tiny epsilon keeps float noise (0.1 + 0.2) from refusing a call that fits exactly.
+    if (estimate > 0 && committed + estimate > s.dailyBudgetUsd + 1e-9) return { ok: false, block: 'AI_BUDGET' };
+  }
+  if (s.userCallsToday + (s.reservedUserCalls ?? 0) >= s.userDailyCalls) return { ok: false, block: 'AI_USER_LIMIT' };
   return { ok: true };
 }
 

@@ -2,7 +2,7 @@ import 'server-only';
 
 import { Zip, ZipDeflate, strToU8 } from 'fflate';
 import {
-  csvLine, exportReadme, fileReferenceSpecs, planTenantExport, quoteIdent, tenantRowColumns,
+  RAW_EXPORT_FOLDER, csvLine, csvSafeLine, exportReadme, fileReferenceSpecs, planTenantExport, quoteIdent, tenantRowColumns,
   type CatalogColumn, type ExportPlan,
 } from './export-plan';
 
@@ -67,12 +67,23 @@ export function tenantExportStream(db: Db, tenantId: string, options: { now?: Da
     const [tenant] = await tx`SELECT name FROM tenants WHERE id = ${tenantId}`;
     if (!tenant) throw new Error('Firma bulunamadı');
 
+    // Every CSV twice: spreadsheet-safe for people (root and tables/), byte-exact under raw/ (S-07).
+    // Written one after the other: fflate holds a later entry in memory until the earlier one ends.
+    const variants = [{ prefix: '', line: csvSafeLine }, { prefix: RAW_EXPORT_FOLDER, line: csvLine }] as const;
+    const writeRows = (name: string, header: string[], rows: unknown[][]) => {
+      for (const v of variants) {
+        const out = file(v.prefix + name);
+        out.push(csvLine(header));
+        let chunk = '';
+        for (const r of rows) chunk += v.line(r);
+        out.push(chunk);
+        out.end();
+      }
+    };
+
     const tenantCols = tenantRowColumns(catalog);
     const tenantRows = await tx.unsafe(`SELECT ${tenantCols.map(quoteIdent).join(', ')} FROM tenants WHERE id = $1`, [tenantId]);
-    const tenantFile = file('tenant.csv');
-    tenantFile.push(csvLine(tenantCols));
-    for (const r of tenantRows as Array<Record<string, unknown>>) tenantFile.push(csvLine(tenantCols.map((c) => r[c])));
-    tenantFile.end();
+    writeRows('tenant.csv', tenantCols, (tenantRows as Array<Record<string, unknown>>).map((r) => tenantCols.map((c) => r[c])));
 
     // users is shared by every firm: only this firm's members, only profile fields (no password, tokens).
     const members = await tx`
@@ -82,45 +93,47 @@ export function tenantExportStream(db: Db, tenantId: string, options: { now?: Da
       WHERE m.tenant_id = ${tenantId}
       ORDER BY m.created_at`;
     const memberCols = ['user_id', 'name', 'email', 'email_verified', 'image', 'user_created_at', 'role', 'access_role', 'joined_at', 'deactivated_at'];
-    const membersFile = file('members.csv');
-    membersFile.push(csvLine(memberCols));
-    for (const r of members as Array<Record<string, unknown>>) membersFile.push(csvLine(memberCols.map((c) => r[c])));
-    membersFile.end();
+    writeRows('members.csv', memberCols, (members as Array<Record<string, unknown>>).map((r) => memberCols.map((c) => r[c])));
 
     for (const t of plan.tables) {
-      await drain();
-      const out = file(`tables/${t.table}.csv`);
-      out.push(csvLine(t.columns));
-      let count = 0;
-      if (t.columns.length) {
-        // Table and column names come from information_schema and are quoted; the firm is a bound parameter.
-        const text = `/* tenant-checked: firm export, every row WHERE tenant_id = $1 */ SELECT ${t.columns.map(quoteIdent).join(', ')} FROM public.${quoteIdent(t.table)} WHERE tenant_id = $1`;
-        await tx.unsafe(text, [tenantId]).cursor(BATCH, async (rows: Array<Record<string, unknown>>) => {
-          let chunk = '';
-          for (const r of rows) chunk += csvLine(t.columns.map((c) => r[c]));
-          out.push(chunk);
-          count += rows.length;
-          await drain();
-        });
+      for (const v of variants) {
+        await drain();
+        const out = file(`${v.prefix}tables/${t.table}.csv`);
+        out.push(csvLine(t.columns));
+        let count = 0;
+        if (t.columns.length) {
+          // Table and column names come from information_schema and are quoted; the firm is a bound parameter.
+          const text = `/* tenant-checked: firm export, every row WHERE tenant_id = $1 */ SELECT ${t.columns.map(quoteIdent).join(', ')} FROM public.${quoteIdent(t.table)} WHERE tenant_id = $1`;
+          await tx.unsafe(text, [tenantId]).cursor(BATCH, async (rows: Array<Record<string, unknown>>) => {
+            let chunk = '';
+            for (const r of rows) chunk += v.line(t.columns.map((c) => r[c]));
+            out.push(chunk);
+            count += rows.length;
+            await drain();
+          });
+        }
+        out.end();
+        rowCounts[t.table] = count;
       }
-      out.end();
-      rowCounts[t.table] = count;
     }
 
-    const filesOut = file('files.csv');
-    filesOut.push(csvLine(['table', 'id', 'name', 'storage_reference', 'size_bytes']));
     let fileCount = 0;
-    for (const spec of fileReferenceSpecs(plan)) {
-      await drain();
-      const text = `/* tenant-checked: firm export file list WHERE tenant_id = $1 */ SELECT to_jsonb(x)->>'id' AS id, ${spec.nameColumn ? `x.${quoteIdent(spec.nameColumn)}` : 'NULL'} AS name, x.${quoteIdent(spec.refColumn)} AS ref, ${spec.sizeColumn ? `x.${quoteIdent(spec.sizeColumn)}` : 'NULL'} AS size FROM public.${quoteIdent(spec.table)} x WHERE x.tenant_id = $1 AND x.${quoteIdent(spec.refColumn)} IS NOT NULL`;
-      await tx.unsafe(text, [tenantId]).cursor(BATCH, async (rows: Array<Record<string, unknown>>) => {
-        let chunk = '';
-        for (const r of rows) chunk += csvLine([spec.table, r.id, r.name, r.ref, r.size]);
-        filesOut.push(chunk);
-        fileCount += rows.length;
-      });
+    for (const v of variants) {
+      const filesOut = file(v.prefix + 'files.csv');
+      filesOut.push(csvLine(['table', 'id', 'name', 'storage_reference', 'size_bytes']));
+      fileCount = 0;
+      for (const spec of fileReferenceSpecs(plan)) {
+        await drain();
+        const text = `/* tenant-checked: firm export file list WHERE tenant_id = $1 */ SELECT to_jsonb(x)->>'id' AS id, ${spec.nameColumn ? `x.${quoteIdent(spec.nameColumn)}` : 'NULL'} AS name, x.${quoteIdent(spec.refColumn)} AS ref, ${spec.sizeColumn ? `x.${quoteIdent(spec.sizeColumn)}` : 'NULL'} AS size FROM public.${quoteIdent(spec.table)} x WHERE x.tenant_id = $1 AND x.${quoteIdent(spec.refColumn)} IS NOT NULL`;
+        await tx.unsafe(text, [tenantId]).cursor(BATCH, async (rows: Array<Record<string, unknown>>) => {
+          let chunk = '';
+          for (const r of rows) chunk += v.line([spec.table, r.id, r.name, r.ref, r.size]);
+          filesOut.push(chunk);
+          fileCount += rows.length;
+        });
+      }
+      filesOut.end();
     }
-    filesOut.end();
 
     const readme = file('README.txt');
     readme.push(exportReadme({ tenantName: String(tenant.name ?? ''), generatedAt: options.now ?? new Date(), plan, rowCounts, fileCount }));

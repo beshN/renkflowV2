@@ -1,3 +1,5 @@
+import { spreadsheetText } from '@/lib/security/spreadsheet-safe';
+
 /** CSV of audit rows (Excel-friendly: BOM, semicolons, formula-safe cells). */
 export type AuditCsvRow = {
   created_at: string | Date; actor_name: string | null; action: string; entity_type: string; entity_id: string;
@@ -6,8 +8,8 @@ export type AuditCsvRow = {
 
 /** A cell that a spreadsheet cannot run as a formula. */
 export function csvCell(value: unknown) {
-  let text = value === null || value === undefined ? '' : typeof value === 'string' ? value : JSON.stringify(value);
-  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  // Formula-looking text gets an apostrophe; real numbers (-12.5) are written as they are.
+  const text = spreadsheetText(value);
   return /[";\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

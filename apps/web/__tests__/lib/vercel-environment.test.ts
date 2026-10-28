@@ -2,6 +2,12 @@ import { inspectDeploymentEnvironment } from "@/lib/config/deployment-env";
 const production = {VERCEL:"1",VERCEL_ENV:"production",DEPLOYMENT_ENVIRONMENT:"production",DATABASE_URL:"postgres://user:pass@host.neon.tech/db?sslmode=require",DATABASE_URL_UNPOOLED:"postgres://user:pass@host.neon.tech/db?sslmode=require",AUTH_SECRET:"a".repeat(48),CRON_SECRET:"b".repeat(48),STORAGE_BACKEND:"vercel-blob",BLOB_READ_WRITE_TOKEN:"test-blob",AI_PROVIDER:"anthropic",ANTHROPIC_API_KEY:"test-key",ANTHROPIC_MODEL:"claude-sonnet-5-5",NATIVE_INVENTORY_ENABLED:"1",APP_URL:"https://renkflow.example"};
 describe("Vercel deployment environment boundaries",()=>{
  it("accepts the complete production contract",()=>expect(inspectDeploymentEnvironment(production).errors).toEqual([]));
+ it("backup encryption key is optional (warning only) but must be 32 base64 bytes when set",()=>{
+  expect(inspectDeploymentEnvironment(production).warnings).toContain("BACKUP_ENCRYPTION_KEY is not set: daily backups are stored gzip-only, unencrypted");
+  const ok=inspectDeploymentEnvironment({...production,BACKUP_ENCRYPTION_KEY:Buffer.alloc(32,7).toString("base64")});
+  expect(ok.errors).toEqual([]);expect(ok.warnings.join()).not.toContain("BACKUP_ENCRYPTION_KEY");
+  expect(inspectDeploymentEnvironment({...production,BACKUP_ENCRYPTION_KEY:"short"}).errors).toContain("BACKUP_ENCRYPTION_KEY must be 32 random bytes in base64 (openssl rand -base64 32)");
+ });
  it("uses isolated preview settings and automatic preview origins",()=>expect(inspectDeploymentEnvironment({...production,VERCEL_ENV:"preview",DEPLOYMENT_ENVIRONMENT:"preview",APP_URL:"",CRON_SECRET:""}).errors).toEqual([]));
  it("rejects fixed URLs in preview",()=>expect(inspectDeploymentEnvironment({...production,VERCEL_ENV:"preview",DEPLOYMENT_ENVIRONMENT:"preview"}).errors).toContain("APP_URL must be unset in Preview; the origin comes from VERCEL_URL"));
  it("rejects local database and storage bypasses on deployments",()=>{const r=inspectDeploymentEnvironment({...production,ALLOW_LOCAL_DATABASE:"1",STORAGE_BACKEND:"local",DATABASE_URL:"postgres://user:pass@127.0.0.1/db"});expect(r.errors).toContain("Local test bypasses must be disabled on Vercel");expect(r.errors).toContain("DATABASE_URL must use a remote TCP database on Vercel");});

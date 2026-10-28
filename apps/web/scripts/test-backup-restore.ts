@@ -7,7 +7,7 @@
  */
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -119,9 +119,34 @@ async function main() {
     assert.equal(customersEntry.key, `backups/${today}/customers.csv.gz`);
     assert(gunzipSync(readFileSync(path.join(storageDir, '.data/files', customersEntry.key))).toString('utf8').startsWith('id,tenant_id,full_name'), 'CSV with header');
     assert(manifest.tables.filter((t: { rows: number; key: string | null }) => t.rows === 0).every((t: { key: string | null }) => t.key === null), 'empty tables are not uploaded');
+    assert.equal(manifest.encryption, null, 'no BACKUP_ENCRYPTION_KEY → unencrypted, and the manifest says so');
+    assert.equal(manifest.version, 2);
+
+    // Encrypted run (another date): AES-256-GCM per file, .csv.gz.enc, key id in the manifest. A tiny
+    // single-put limit sends every file through the streaming (multipart) upload path.
+    const { runDatabaseBackup } = await import('../lib/db/backup.server');
+    const { backupKeyId } = await import('../lib/db/backup-crypto');
+    const key = randomBytes(32);
+    const encDate = '2000-01-21';
+    const encrypted = await runDatabaseBackup({ now: () => new Date(`${encDate}T01:30:00Z`), encryptionKey: key, singlePutMaxBytes: 64 });
+    assert(!encrypted.skipped && encrypted.complete, 'encrypted backup completes');
+    const encFolder = path.join(storageDir, '.data/files/backups', encDate);
+    const encManifest = JSON.parse(readFileSync(path.join(encFolder, 'manifest.json'), 'utf8'));
+    assert.deepEqual(encManifest.encryption, { alg: 'aes-256-gcm', keyId: backupKeyId(key), format: 'RFBK1' });
+    const encCustomers = encManifest.tables.find((t: { name: string }) => t.name === 'customers');
+    assert.equal(encCustomers.key, `backups/${encDate}/customers.csv.gz.enc`);
+    const encBytes = readFileSync(path.join(storageDir, '.data/files', encCustomers.key));
+    assert.equal(encBytes.subarray(0, 4).toString('ascii'), 'RFBK');
+    assert.equal(encBytes.length, encCustomers.bytes, 'manifest records the stored size');
+    assert.throws(() => gunzipSync(encBytes), 'not readable as plain gzip');
+    assert(!encBytes.includes(Buffer.from('Yedek A')) && !readFileSync(path.join(encFolder, 'manifest.json'), 'utf8').includes('Yedek A'), 'no row data in clear');
+    for (const t of encManifest.tables.filter((x: { key: string | null }) => x.key)) assert(t.key.endsWith('.csv.gz.enc'), `${t.name} encrypted`);
+    const keyFile = path.join(storageDir, 'backup.key');
+    writeFileSync(keyFile, key.toString('base64') + '\n', { mode: 0o600 });
+    const wrongKeyFile = path.join(storageDir, 'wrong.key');
+    writeFileSync(wrongKeyFile, randomBytes(32).toString('base64'), { mode: 0o600 });
 
     // Time budget: a run with no budget left stops cleanly and says so in its manifest.
-    const { runDatabaseBackup } = await import('../lib/db/backup.server');
     const stopped = await runDatabaseBackup({ now: () => new Date('2000-01-20T01:30:00Z'), softBudgetMs: 0 });
     assert.equal(stopped.skipped, false);
     assert(!stopped.skipped && !stopped.complete && stopped.stoppedReason === 'time budget');
@@ -165,7 +190,44 @@ async function main() {
     // Foreign keys still hold after loading with replication role replica.
     assert.equal((await target`SELECT count(*)::int AS n FROM customers c LEFT JOIN tenants t ON t.id=c.tenant_id WHERE t.id IS NULL`)[0].n, 0);
 
-    console.log(`PASS · cron backup of ${tables.length} tables (auth, preview guard, same-day skip, 14-day retention, time budget), restore into a db:deploy database with matching row counts, CSV edge values, tenant split and sequences; production and incomplete targets refused`);
+    // Encrypted backup: no key / a wrong key is refused before the target is touched; the right key
+    // (offline copy via --key-file) restores it exactly.
+    await target`INSERT INTO customers(id,tenant_id,full_name) VALUES(${randomUUID()},${tenantA},'hedefte kalmalı')`;
+    const noKey = runScript([restoreScript, '--date', encDate, '--target', targetUrl, '--yes'], restoreEnv, storageDir);
+    assert.notEqual(noKey.code, 0);
+    assert.match(noKey.output, /şifreli/);
+    const wrongEnv = runScript([restoreScript, '--date', encDate, '--target', targetUrl, '--yes'], { ...restoreEnv, BACKUP_ENCRYPTION_KEY: randomBytes(32).toString('base64') }, storageDir);
+    assert.notEqual(wrongEnv.code, 0);
+    assert.match(wrongEnv.output, /Anahtar uyuşmuyor/);
+    const wrongFile = runScript([restoreScript, '--date', encDate, '--target', targetUrl, '--yes', `--key-file=${wrongKeyFile}`], restoreEnv, storageDir);
+    assert.notEqual(wrongFile.code, 0);
+    assert.match(wrongFile.output, new RegExp(backupKeyId(key)));
+    assert.equal((await target`SELECT count(*)::int AS n FROM customers WHERE full_name='hedefte kalmalı'`)[0].n, 1, 'a refused restore changes nothing');
+    const encRestored = runScript([restoreScript, '--date', encDate, '--target', targetUrl, '--yes', '--key-file', keyFile], restoreEnv, storageDir);
+    assert.equal(encRestored.code, 0, encRestored.output);
+    assert.match(encRestored.output, /şifreli, anahtar/);
+    assert.equal((await target`SELECT count(*)::int AS n FROM customers WHERE full_name='hedefte kalmalı'`)[0].n, 0, 'restored from the encrypted backup');
+    const [encCustomer] = await target`SELECT tenant_id,full_name,email,phone,address FROM customers WHERE id=${customerA}`;
+    assert.deepEqual({ ...encCustomer }, { tenant_id: tenantA, full_name: tricky, email: null, phone: '', address: '  baştaki ve sondaki boşluk  ' });
+    for (const { name } of tables) {
+      if (name === 'schema_migrations') continue;
+      const ident = `"${name.replace(/"/g, '""')}"`;
+      const [a] = await source.unsafe(`SELECT count(*)::int AS n FROM public.${ident}`);
+      const [b] = await target.unsafe(`SELECT count(*)::int AS n FROM public.${ident}`);
+      assert.equal(b.n, a.n, `${name} row count (encrypted restore)`);
+    }
+    // A tampered encrypted file fails authentication and the whole restore rolls back.
+    const tamperedPath = path.join(storageDir, '.data/files', encCustomers.key);
+    const tampered = Buffer.from(encBytes);
+    tampered[tampered.length - 1] ^= 1; // the GCM tag: gzip data stays intact, authentication fails
+    writeFileSync(tamperedPath, tampered);
+    await target`INSERT INTO customers(id,tenant_id,full_name) VALUES(${randomUUID()},${tenantA},'hedefte kalmalı')`;
+    const tamperedRun = runScript([restoreScript, '--date', encDate, '--target', targetUrl, '--yes', '--key-file', keyFile], restoreEnv, storageDir);
+    assert.notEqual(tamperedRun.code, 0);
+    assert.match(tamperedRun.output, /doğrulanamadı/);
+    assert.equal((await target`SELECT count(*)::int AS n FROM customers WHERE full_name='hedefte kalmalı'`)[0].n, 1, 'a failed decryption rolls the restore back');
+
+    console.log(`PASS · cron backup of ${tables.length} tables (auth, preview guard, same-day skip, 14-day retention, time budget), restore into a db:deploy database with matching row counts, CSV edge values, tenant split and sequences; production and incomplete targets refused; encrypted backup (streamed upload, key id in manifest) restores with --key-file, missing / wrong key and a tampered file refused without changes`);
   } finally {
     await target?.end({ timeout: 5 });
     await source.end({ timeout: 5 });

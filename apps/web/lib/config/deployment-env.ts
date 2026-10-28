@@ -49,6 +49,10 @@ export function inspectDeploymentEnvironment(env: Environment) {
  }
  if (isDeployment && env.RESEND_API_KEY && !env.EMAIL_FROM) errors.push("EMAIL_FROM is required when RESEND_API_KEY is set");
  if (isDeployment && target==="production" && !env.RESEND_API_KEY) warnings.push("Email/password-reset delivery is not configured (RESEND_API_KEY, EMAIL_FROM)");
+ // Optional: a malformed key would fail every backup, so it is an error; a missing one only a warning.
+ const backupKey = env.BACKUP_ENCRYPTION_KEY?.trim();
+ if (backupKey && (!/^[A-Za-z0-9+/]+={0,2}$/.test(backupKey) || Buffer.from(backupKey, "base64").length !== 32)) errors.push("BACKUP_ENCRYPTION_KEY must be 32 random bytes in base64 (openssl rand -base64 32)");
+ if (isDeployment && target==="production" && !backupKey) warnings.push("BACKUP_ENCRYPTION_KEY is not set: daily backups are stored gzip-only, unencrypted");
  if (isDeployment && target==="production" && !env.DATABASE_URL_UNPOOLED) warnings.push("DATABASE_URL_UNPOOLED must be supplied for the separate migration step");
  return {target,errors,warnings};
 }

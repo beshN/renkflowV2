@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { sql } from '@/lib/db';
-import { assertModelAllowed } from './gate.server';
+import { releaseModelReservation, reserveModelCall } from './gate.server';
 import {COMPANY_RESEARCH_SEARCH_USD} from './company-research';
 
 /** Who a model request was made for; written next to its tokens, latency and cost. */
@@ -56,6 +56,56 @@ export function costUsd(model: string, usage: Tokens): number | null {
   return Number(((input * price.input + output * price.output) / 1_000_000+toolCostUsd(usage)).toFixed(6));
 }
 
+/**
+ * What the gate reserves for a model without a known price: an expensive model's list price, so
+ * an unknown model never slips under the budget for being unpriced.
+ */
+export const UNKNOWN_MODEL_PRICE = { input: 15, output: 75 } as const;
+/** Assumed when the caller does not say: request max_tokens and prompt size. */
+export const DEFAULT_ESTIMATE_OUTPUT_TOKENS = 8_000;
+export const DEFAULT_ESTIMATE_INPUT_TOKENS = 20_000;
+
+/** The caller's worst case for one request; reserved before the call, reconciled after it. */
+export type CallEstimate = { maxOutputTokens?: number; inputTokens?: number; webSearches?: number };
+
+/**
+ * Estimates for callers that do not pass one, by feature (the AI office sends its own request
+ * sizes: max_tokens 32 000 per runner turn with files and lookups in the prompt).
+ */
+const FEATURE_ESTIMATES: Record<string, CallEstimate> = {
+  office: { maxOutputTokens: 32_000, inputTokens: 60_000 },
+  office_review: { maxOutputTokens: 2_500, inputTokens: 40_000 },
+  office_triage: { maxOutputTokens: 2_000, inputTokens: 5_000 },
+};
+export function defaultEstimate(feature: string | undefined): CallEstimate {
+  return (feature && FEATURE_ESTIMATES[feature]) || {};
+}
+
+/** Tokens a document / image block is assumed to cost (its base64 body is not text the model reads). */
+const BINARY_BLOCK_TOKENS = 5_000;
+/**
+ * A rough upper estimate of the prompt's input tokens (about 3 characters per token for Turkish
+ * text and JSON). Base64 bodies (`data`) count a fixed amount per block instead of their length.
+ */
+export function approxInputTokens(...parts: unknown[]): number {
+  let binary = 0;
+  const text = JSON.stringify(parts, (key, value) => {
+    if (key === 'data' && typeof value === 'string' && value.length > 256) { binary++; return ''; }
+    return value;
+  }) ?? '';
+  return Math.ceil(text.length / 3) + binary * BINARY_BLOCK_TOKENS;
+}
+
+/** Maximum cost of one request: max_tokens × output price + expected input × input price (+ searches). */
+export function estimateCallCostUsd(model: string, estimate: CallEstimate = {}): number {
+  const price = modelPrice(model) ?? UNKNOWN_MODEL_PRICE;
+  const positive = (n: number | undefined, fallback: number) => (typeof n === 'number' && Number.isFinite(n) && n >= 0 ? n : fallback);
+  const output = positive(estimate.maxOutputTokens, DEFAULT_ESTIMATE_OUTPUT_TOKENS);
+  const input = positive(estimate.inputTokens, DEFAULT_ESTIMATE_INPUT_TOKENS);
+  const searches = positive(estimate.webSearches, 0) * COMPANY_RESEARCH_SEARCH_USD;
+  return Number(((input * price.input + output * price.output) / 1_000_000 + searches).toFixed(6));
+}
+
 let tableMissingLogged = false;
 
 /** Best effort: a usage row must never fail the request it describes. */
@@ -85,10 +135,25 @@ export async function recordAIUsage(entry: AIRequestMeta & { provider: string; m
   }
 }
 
-/** Runs one model call and records its usage, latency and outcome; errors are rethrown, never replaced. */
-export async function withUsage<T extends { usage?: Tokens }>(meta: AIRequestMeta | undefined, provider: string, model: string, call: () => Promise<T>): Promise<T> {
-  // The firm's assistant mode and spend caps come first: a refused call never reaches the provider.
-  if (meta?.tenantId) await assertModelAllowed(meta);
+/**
+ * Runs one model call and records its usage, latency and outcome; errors are rethrown, never replaced.
+ * The firm's assistant mode and spend caps come first, atomically: a reservation with the call's
+ * maximum cost (`estimate`) is taken before the provider is called and released after the real
+ * usage row is written, so concurrent calls cannot all pass the same remaining budget.
+ */
+export async function withUsage<T extends { usage?: Tokens }>(meta: AIRequestMeta | undefined, provider: string, model: string, call: () => Promise<T>, estimate?: CallEstimate): Promise<T> {
+  const reservation = meta?.tenantId
+    ? await reserveModelCall(meta, { model, estimateUsd: estimateCallCostUsd(model, estimate ?? defaultEstimate(meta.feature)) })
+    : null;
+  try {
+    return await measured(meta, provider, model, call);
+  } finally {
+    // After recordAIUsage: for a moment the call counts twice (safe), never zero times.
+    await releaseModelReservation(reservation);
+  }
+}
+
+async function measured<T extends { usage?: Tokens }>(meta: AIRequestMeta | undefined, provider: string, model: string, call: () => Promise<T>): Promise<T> {
   const started = Date.now();
   let response: T;
   try {

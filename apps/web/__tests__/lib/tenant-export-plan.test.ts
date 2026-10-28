@@ -91,6 +91,10 @@ describe('planTenantExport', () => {
     expect(text).toContain('user_mfa:');
     expect(text).toContain('2 dosyanın adı');
     expect(text).toContain('2026-10-26T10:00:00.000Z');
+    // The two copies: spreadsheet-safe at the root / tables/, byte-exact under raw/.
+    expect(text).toContain('raw/');
+    expect(text).toContain('tek tırnak');
+    expect(excludedTableReason('ai_call_reservations')).toBeTruthy();
   });
 });
 
