@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { auth } from '@/auth';
-import { HomeLanding } from '@/components/site/HomeLanding';
+import { LandingV2 } from '@/components/site/v2/LandingV2';
 import { COMPANY, socialLinks } from '@/lib/core/company';
 
 export const metadata: Metadata = {
@@ -17,7 +17,7 @@ export default async function HomePage() {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()).replace(/</g, '\\u003c') }} />
-      <HomeLanding signedIn={Boolean(session?.user)} />
+      <LandingV2 signedIn={Boolean(session?.user)} />
     </>
   );
 }
