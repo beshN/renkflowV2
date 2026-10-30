@@ -33,6 +33,9 @@ export function ProductConfigurator({
   text,
   stageClassName = "h-[360px] sm:h-[470px]",
   touchControls = false,
+  overlay,
+  viewOptionsOpen = false,
+  editableDimensions = false,
 }: {
   value?: ProductVisualization;
   kind?: ProductKind;
@@ -47,6 +50,12 @@ export function ProductConfigurator({
   stageClassName?: string;
   /** Steppers and sliders instead of number fields, for touch screens without a keyboard. */
   touchControls?: boolean;
+  /** Drawn over the 3D stage (the fair's dimension strip). */
+  overlay?: React.ReactNode;
+  /** Open the view options (angle, light) from the start. */
+  viewOptionsOpen?: boolean;
+  /** With the steppers: let the dimension also be typed. */
+  editableDimensions?: boolean;
 }) {
   const t = { ...CONFIGURATOR_TEXT_TR, ...text };
   const views: Array<[ProductView, string]> = [
@@ -191,7 +200,7 @@ export function ProductConfigurator({
           className="rf-product-stage relative overflow-hidden rounded-lg border border-border bg-[#eceeeb]"
         >
           <div
-            className={`pointer-events-none absolute left-5 top-5 z-10 ${time > 70 ? "text-slate-100" : "text-[#203641]"}`}
+            className={`rf-stage-label pointer-events-none absolute left-5 top-5 z-10 ${time > 70 ? "rf-night text-slate-100" : "text-[#203641]"}`}
           >
             <p className="text-[10px] font-semibold uppercase tracking-[.18em]">
               {t.productName ?? meta.name}
@@ -200,6 +209,7 @@ export function ProductConfigurator({
               {t.width} {draft.widthMm} mm · {roof ? `${t.projection} ${draft.projectionMm} mm · ${t.mountingHeight} ${draft.heightMm} mm` : `${t.height} ${draft.heightMm} mm`}
             </p>
           </div>
+          {overlay}
           <canvas
             ref={canvas}
             className={`${stageClassName} w-full touch-none`}
@@ -253,7 +263,7 @@ export function ProductConfigurator({
             <Expand size={17} />
           </button>
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="rf-view-tabs flex flex-wrap gap-1.5">
           {views.map(([key, label]) => (
             <button
               type="button"
@@ -282,7 +292,7 @@ export function ProductConfigurator({
           </button>
         </div>
         {motion && (
-          <div className="flex flex-wrap items-center gap-3 rounded-md border border-border p-3">
+          <div className="rf-motion flex flex-wrap items-center gap-3 rounded-md border border-border p-3">
             <button
               type="button"
               disabled={!ready}
@@ -330,7 +340,7 @@ export function ProductConfigurator({
             </div>
           </div>
         )}
-        <details className="text-xs">
+        <details className="rf-lighting text-xs" open={viewOptionsOpen || undefined}>
           <summary className="cursor-pointer py-2 text-muted-foreground">{t.viewOptions}</summary>
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2">{t.angle}
@@ -400,7 +410,7 @@ export function ProductConfigurator({
               ]
             >
           ).map(([key, label, max]) => touchControls ? (
-            <DimensionStepper key={key} label={label} value={draft[key]} min={key === "heightMm" ? 1000 : 900} max={max} onChange={(v) => update(key, v)} />
+            <DimensionStepper key={key} label={label} value={draft[key]} min={key === "heightMm" ? 1000 : 900} max={max} editable={editableDimensions} onChange={(v) => update(key, v)} />
           ) : (
             <label key={key} className="block text-xs">
               {label} (mm)

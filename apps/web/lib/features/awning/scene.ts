@@ -1,5 +1,5 @@
 import * as T from "three";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { createOutdoorEnvironment } from "../product-3d/environment";
 import { createAwning } from "./model";
 import { AwningConfiguration, toSceneState } from "./configuration";
 export type AwningView =
@@ -16,8 +16,6 @@ export function createAwningScene(
   onUnavailable: () => void = () => {},
 ) {
   const scene = new T.Scene();
-  scene.background = new T.Color("#eceeeb");
-  scene.fog = new T.Fog("#eceeeb", 23, 50);
   const camera = new T.PerspectiveCamera(40, 1, 0.05, 100);
   const renderer = new T.WebGLRenderer({
     canvas,
@@ -29,14 +27,11 @@ export function createAwningScene(
   renderer.shadowMap.type = T.PCFSoftShadowMap;
   renderer.outputColorSpace = T.SRGBColorSpace;
   renderer.toneMapping = T.ACESFilmicToneMapping;
-  const pmrem = new T.PMREMGenerator(renderer), room = new RoomEnvironment();
-  const environment = pmrem.fromScene(room, 0.04);
-  room.dispose();
-  scene.environment = environment.texture;
-  scene.environmentIntensity = 0.8;
-  const hemi = new T.HemisphereLight("#ddeaff", "#7f796b", 2.8),
-    sun = new T.DirectionalLight("#fff5e6", 3.2);
+  const hemi = new T.HemisphereLight("#cfe3ff", "#8d8a72", 2.2),
+    sun = new T.DirectionalLight("#fff3e0", 3.4);
   sun.position.set(-3, 9, 6);
+  const env = createOutdoorEnvironment(renderer, scene, sun.position);
+  scene.environmentIntensity = 1;
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, {
@@ -49,37 +44,15 @@ export function createAwningScene(
   });
   sun.shadow.bias = -0.0006;
   sun.shadow.normalBias = 0.035;
+  sun.shadow.radius = 4;
   scene.add(hemi, sun);
-  const ground = new T.Mesh(
-    new T.PlaneGeometry(200, 200),
-    new T.MeshStandardMaterial({ color: "#e2e4dd", roughness: 1 }),
-  );
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  scene.add(ground);
-  const wall = new T.Mesh(
-    new T.BoxGeometry(20, 6, 0.2),
-    new T.MeshStandardMaterial({ color: "#dedfd8", roughness: 0.95 }),
-  );
-  wall.position.set(0, 3, -0.19);
-  wall.receiveShadow = true;
-  scene.add(wall);
-  const seamMaterial = new T.MeshStandardMaterial({
-    color: "#aeb4ae",
-    roughness: 1,
-  });
-  for (let i = -10; i <= 10; i++)
-    for (const axis of [0, 1]) {
-      const seam = new T.Mesh(
-        new T.BoxGeometry(axis ? 20 : 0.007, 0.0015, axis ? 0.007 : 16),
-        seamMaterial,
-      );
-      seam.position.set(axis ? 0 : i * 0.8, 0.002, axis ? i * 0.8 : 5);
-      scene.add(seam);
-    }
+  // The awning always hangs on the building.
+  env.setWallVisible(true);
   let state = toSceneState(initial),
     model = createAwning(state);
   scene.add(model.group);
+  const furnish = () => env.placeProps({ w: state.width / 100, d: state.depth / 100, h: state.height / 100, roof: true, wall: true });
+  furnish();
   let theta = -0.72,
     phi = 1.13,
     distance = 11,
@@ -129,14 +102,12 @@ export function createAwningScene(
     state.time = time;
     const t = time / 100,
       night = t * t;
-    hemi.intensity = 2.5 * (1 - night) + 0.12;
-    sun.intensity = 3.1 * (1 - night) + 0.07;
-    sun.color.set(t > 0.3 && t < 0.85 ? "#ffbd80" : "#fff2df");
+    hemi.intensity = 2.2 * (1 - night) + 0.12;
+    sun.intensity = 3.4 * (1 - night) + 0.07;
+    sun.color.set(t > 0.3 && t < 0.85 ? "#ffbd80" : "#fff3e0");
     sun.position.set(-4, 9 - t * 7, 6);
-    const bg = new T.Color("#eceeeb").lerp(new T.Color("#111b2a"), night);
-    (scene.background as T.Color).copy(bg);
-    scene.fog!.color.copy(bg);
-    scene.environmentIntensity = 0.8 - night * 0.55;
+    env.setNight(night, sun.position);
+    scene.environmentIntensity = 1 - night * 0.7;
     renderer.toneMappingExposure = 1.05 + night * 0.15;
     render();
   }
@@ -276,6 +247,7 @@ export function createAwningScene(
       model.dispose();
       model = createAwning(state);
       scene.add(model.group);
+      furnish();
       // Keep the camera angle during edits and gently fit growing dimensions.
       target.y += (state.height - previous.height) / 100 * 0.55;
       target.z += (state.depth - previous.depth) / 100 * 0.4;
@@ -339,9 +311,8 @@ export function createAwningScene(
       });
       geometries.forEach((g) => g.dispose());
       materials.forEach((m) => m.dispose());
+      env.dispose();
       sun.shadow.dispose();
-      environment.dispose();
-      pmrem.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
     },

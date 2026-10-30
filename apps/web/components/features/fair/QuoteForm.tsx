@@ -71,16 +71,16 @@ export function QuoteForm({
   return (
     <section aria-labelledby="quote-title" className="mx-auto max-w-xl space-y-4">
       <div className="flex items-center gap-3">
-        <button type="button" aria-label={f.back} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-border bg-card" onClick={onBack}>
+        <button type="button" aria-label={f.back} className="fx-btn fx-btn-quiet !min-h-12 w-12 shrink-0 !px-0" onClick={onBack}>
           <ArrowLeft size={18} />
         </button>
         <div>
-          <h1 id="quote-title" className="font-display text-2xl font-semibold">{f.quoteTitle}</h1>
+          <h1 id="quote-title" className="fx-display text-3xl">{f.quoteTitle}</h1>
           <p className="text-sm text-muted-foreground">{f.quoteHint}</p>
         </div>
       </div>
-      <div className="rounded-xl border border-border bg-card p-4">
-        <p className="text-xs font-semibold uppercase tracking-[.14em] text-muted-foreground">{f.quoteFor(items.length)}</p>
+      <div className="fx-sheet p-4">
+        <p className="fx-note">{f.quoteFor(items.length)}</p>
         <ul className="mt-3 space-y-2">
           {items.map((item) => (
             <li key={item.id} className="flex items-center gap-3">
@@ -95,14 +95,14 @@ export function QuoteForm({
           ))}
         </ul>
       </div>
-      <form onSubmit={send} className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6">
+      <form onSubmit={send} className="fx-sheet space-y-4 p-4 sm:p-6">
         <p className="text-xs text-muted-foreground">{f.requiredHint}</p>
-        <label className="block text-sm font-medium">{label(f.fields.contactName, true)}<input className="rf-input mt-1.5 min-h-12 w-full text-base" required minLength={2} maxLength={200} autoComplete="name" {...field("contactName")} /></label>
-        <label className="block text-sm font-medium">{label(f.fields.email, true)}<input className="rf-input mt-1.5 min-h-12 w-full text-base" required type="email" inputMode="email" autoComplete="email" maxLength={200} {...field("email")} /></label>
-        <label className="block text-sm font-medium">{label(f.fields.phone)}<input className="rf-input mt-1.5 min-h-12 w-full text-base" type="tel" inputMode="tel" autoComplete="tel" maxLength={40} {...field("phone")} /></label>
-        <label className="block text-sm font-medium">{label(f.fields.companyName)}<input className="rf-input mt-1.5 min-h-12 w-full text-base" autoComplete="organization" maxLength={200} {...field("companyName")} /></label>
-        <label className="block text-sm font-medium">{label(f.fields.location)}<input className="rf-input mt-1.5 min-h-12 w-full text-base" autoComplete="country-name" maxLength={200} {...field("location")} /></label>
-        <label className="block text-sm font-medium">{label(f.fields.note)}<textarea className="rf-input mt-1.5 min-h-24 w-full text-base" maxLength={2000} placeholder={f.notePlaceholder} {...field("note")} /></label>
+        <label className="fx-field">{label(f.fields.contactName, true)}<input className="rf-input mt-1.5 min-h-12 w-full text-base" required minLength={2} maxLength={200} autoComplete="name" {...field("contactName")} /></label>
+        <label className="fx-field">{label(f.fields.email, true)}<input className="rf-input mt-1.5 min-h-12 w-full text-base" required type="email" inputMode="email" autoComplete="email" maxLength={200} {...field("email")} /></label>
+        <label className="fx-field">{label(f.fields.phone)}<input className="rf-input mt-1.5 min-h-12 w-full text-base" type="tel" inputMode="tel" autoComplete="tel" maxLength={40} {...field("phone")} /></label>
+        <label className="fx-field">{label(f.fields.companyName)}<input className="rf-input mt-1.5 min-h-12 w-full text-base" autoComplete="organization" maxLength={200} {...field("companyName")} /></label>
+        <label className="fx-field">{label(f.fields.location)}<input className="rf-input mt-1.5 min-h-12 w-full text-base" autoComplete="country-name" maxLength={200} {...field("location")} /></label>
+        <label className="fx-field">{label(f.fields.note)}<textarea className="rf-input mt-1.5 min-h-24 w-full text-base" maxLength={2000} placeholder={f.notePlaceholder} {...field("note")} /></label>
         {/* Honeypot: hidden from people and assistive technology. */}
         <input type="text" tabIndex={-1} autoComplete="off" aria-hidden className="absolute left-[-9999px] h-0 w-0 opacity-0" {...field("website")} />
         <details className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
@@ -123,7 +123,7 @@ export function QuoteForm({
             {conflict && <button type="button" className="min-h-10 rounded-lg border border-rose-300 bg-white px-3 font-medium" onClick={onConflict}>{f.reloadDesign}</button>}
           </div>
         )}
-        <button type="submit" disabled={busy} className="rf-fair-btn min-h-12 w-full justify-center text-base">{busy ? f.sending : f.send}</button>
+        <button type="submit" disabled={busy} className="fx-btn w-full !min-h-12 text-base">{busy ? f.sending : f.send}</button>
       </form>
     </section>
   );

@@ -1,0 +1,173 @@
+/*
+ * The fair configurator's look: a drawing sheet.
+ * Renk's logo is stencil slab lettering with architectural dimension ticks at its corners, and its
+ * products are aluminium profiles, fabric and glass. So: anodised-aluminium paper, hairline rules,
+ * crop marks like the logo's, dimension annotations, one navy (the logo's) and one sand (the
+ * fabric colour of the range). Everything is scoped to .rf-fair; nothing leaks into RenkFlow.
+ */
+
+.rf-fair {
+  color-scheme: light;
+  --background: 210 14% 94%;
+  --foreground: 210 16% 13%;
+  --card: 0 0% 100%;
+  --card-foreground: 210 16% 13%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 210 16% 13%;
+  --primary: 241 68% 33%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 14% 90%;
+  --secondary-foreground: 210 16% 13%;
+  --muted: 210 14% 90%;
+  --muted-foreground: 210 9% 35%;
+  --accent: 210 14% 90%;
+  --accent-foreground: 210 16% 13%;
+  --border: 210 12% 80%;
+  --input: 210 10% 66%;
+  --ring: 241 68% 33%;
+  --radius: 0.375rem;
+  --fx-deep: 241 62% 16%;
+  --fx-sand: 37 33% 64%;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.rf-fair :focus-visible { outline: 3px solid hsl(var(--primary)); outline-offset: 2px; }
+.rf-fair .fx-dark :focus-visible { outline-color: #fff; }
+
+/* ---------- Type ---------- */
+.rf-fair .fx-display { font-family: var(--font-display), var(--font-sans), sans-serif; font-weight: 800; font-stretch: 120%; letter-spacing: -0.022em; line-height: 1.02; text-wrap: balance; }
+.rf-fair .fx-title { font-family: var(--font-display), var(--font-sans), sans-serif; font-weight: 700; font-stretch: 112%; letter-spacing: -0.014em; line-height: 1.1; text-wrap: balance; }
+.rf-fair .fx-note { font-family: var(--font-condensed), var(--font-sans), sans-serif; font-size: 0.875rem; letter-spacing: 0.01em; color: hsl(var(--muted-foreground)); font-variant-numeric: tabular-nums; }
+.rf-fair .fx-figure { font-family: var(--font-condensed), var(--font-sans), sans-serif; font-variant-numeric: tabular-nums; }
+.rf-fair .fx-copy { max-width: 62ch; text-wrap: pretty; }
+
+/* ---------- Crop marks, as at the corners of the Renk logo's drawing ---------- */
+.rf-fair .fx-corners { position: relative; }
+.rf-fair .fx-corners::after {
+  content: "";
+  position: absolute;
+  inset: -9px;
+  pointer-events: none;
+  background:
+    linear-gradient(currentColor, currentColor) left top / 18px 1.5px no-repeat,
+    linear-gradient(currentColor, currentColor) left top / 1.5px 18px no-repeat,
+    linear-gradient(currentColor, currentColor) right top / 18px 1.5px no-repeat,
+    linear-gradient(currentColor, currentColor) right top / 1.5px 18px no-repeat,
+    linear-gradient(currentColor, currentColor) left bottom / 18px 1.5px no-repeat,
+    linear-gradient(currentColor, currentColor) left bottom / 1.5px 18px no-repeat,
+    linear-gradient(currentColor, currentColor) right bottom / 18px 1.5px no-repeat,
+    linear-gradient(currentColor, currentColor) right bottom / 1.5px 18px no-repeat;
+}
+
+/* ---------- Sheets and rules ---------- */
+.rf-fair .fx-sheet { background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 6px; }
+.rf-fair .fx-rows > * + * { border-top: 1px solid hsl(var(--border)); }
+.rf-fair .fx-rule { height: 1px; background: hsl(var(--border)); border: 0; }
+
+/* ---------- Buttons ---------- */
+.rf-fair .fx-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.7rem;
+  min-height: 3rem; padding: 0 1.5rem; border: 1px solid hsl(var(--primary)); border-radius: 6px;
+  background: hsl(var(--primary)); color: #fff; font-size: 1rem; font-weight: 600; letter-spacing: 0.004em;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.1s;
+}
+.rf-fair .fx-btn:hover:not(:disabled) { background: hsl(241 66% 26%); border-color: hsl(241 66% 26%); }
+.rf-fair .fx-btn:active:not(:disabled) { transform: translateY(1px); }
+.rf-fair .fx-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.rf-fair .fx-btn-light { background: #fff; border-color: #fff; color: hsl(var(--primary)); }
+.rf-fair .fx-btn-light:hover:not(:disabled) { background: hsl(210 14% 94%); border-color: hsl(210 14% 94%); }
+.rf-fair .fx-btn-quiet { background: hsl(var(--card)); border-color: hsl(var(--input)); color: hsl(var(--foreground)); font-weight: 500; }
+.rf-fair .fx-btn-quiet:hover:not(:disabled) { background: hsl(var(--card)); border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
+.rf-fair .fx-link { color: hsl(var(--primary)); font-weight: 500; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.rf-fair .fx-link:hover { text-decoration-thickness: 2px; }
+
+/* ---------- Form fields ---------- */
+.rf-fair .fx-field { display: block; font-size: 0.9375rem; font-weight: 500; }
+.rf-fair .fx-field > .fx-hint { font-weight: 400; color: hsl(var(--muted-foreground)); }
+.rf-fair .rf-input, .rf-fair .fx-input {
+  display: block; width: 100%; min-height: 3rem; margin-top: 0.4rem; padding: 0.6rem 0.8rem;
+  border: 1px solid hsl(var(--input)); border-radius: 6px; background: #fff; color: hsl(var(--foreground));
+  font-size: 1rem; font-weight: 400; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.rf-fair .rf-input:hover, .rf-fair .fx-input:hover { border-color: hsl(210 10% 46%); }
+.rf-fair .rf-input:focus, .rf-fair .fx-input:focus { outline: none; border-color: hsl(var(--primary)); box-shadow: 0 0 0 3px hsl(var(--primary) / 0.18); }
+.rf-fair select.rf-input, .rf-fair .rf-config-panel select {
+  appearance: none; padding-right: 2.4rem;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2358616a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 0.85rem center;
+}
+.rf-fair input[type="checkbox"] { appearance: none; flex: none; width: 1.4rem; height: 1.4rem; margin: 0; border: 1.5px solid hsl(var(--input)); border-radius: 4px; background: #fff; display: inline-grid; place-content: center; cursor: pointer; }
+.rf-fair input[type="checkbox"]:checked { background: hsl(var(--primary)); border-color: hsl(var(--primary)); }
+.rf-fair input[type="checkbox"]:checked::after { content: ""; width: 0.7rem; height: 0.4rem; border: 0 solid #fff; border-width: 0 0 2.5px 2.5px; transform: rotate(-45deg) translate(1px, -1px); }
+
+/* Sliders: a thin rule with a navy handle. */
+.rf-fair input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; height: 2.5rem; cursor: pointer; }
+.rf-fair input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: hsl(var(--border)); }
+.rf-fair input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: hsl(var(--border)); }
+.rf-fair input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; margin-top: -10px; border-radius: 50%; background: hsl(var(--primary)); border: 3px solid #fff; box-shadow: 0 0 0 1px hsl(var(--primary)), 0 1px 3px rgb(15 23 42 / 25%); }
+.rf-fair input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: hsl(var(--primary)); border: 3px solid #fff; box-shadow: 0 0 0 1px hsl(var(--primary)); }
+.rf-fair input[type="range"]:disabled { opacity: 0.4; }
+
+/* ---------- The 3D configurators, dressed for the fair ---------- */
+.rf-fair .rf-config-grid { gap: 1.5rem; }
+@media (min-width: 1024px) { .rf-fair .rf-config-grid { grid-template-columns: minmax(0, 1fr) 25rem; } }
+@media (orientation: portrait) { .rf-fair .rf-config-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.rf-fair .rf-product-stage, .rf-fair .rf-awning-stage { border: 1px solid hsl(var(--border)); border-radius: 6px; background: #dfe7ee; box-shadow: none; }
+.rf-fair .rf-stage-label { top: 0.9rem; left: 0.9rem; padding: 0.5rem 0.8rem; max-width: calc(100% - 1.8rem); background: rgb(255 255 255 / 86%); border-left: 3px solid hsl(var(--primary)); border-radius: 0 4px 4px 0; backdrop-filter: blur(6px); color: hsl(var(--foreground)); }
+.rf-fair .rf-stage-label p { text-transform: none; letter-spacing: 0; }
+.rf-fair .rf-stage-label p:first-child { font-family: var(--font-display), sans-serif; font-weight: 700; font-stretch: 110%; font-size: 0.95rem; }
+.rf-fair .rf-stage-label p + p { margin-top: 0.1rem; font-family: var(--font-condensed), sans-serif; font-size: 0.85rem; color: hsl(var(--muted-foreground)); }
+.rf-fair .rf-stage-label.rf-night { background: rgb(8 14 26 / 72%); color: #fff; }
+.rf-fair .rf-stage-label.rf-night p + p { color: rgb(255 255 255 / 75%); }
+.rf-fair .rf-product-stage > button, .rf-fair .rf-awning-stage > button { bottom: 0.9rem; right: 0.9rem; border-radius: 4px; background: rgb(255 255 255 / 90%); }
+
+.rf-fair .rf-view-tabs { gap: 0; border-bottom: 1px solid hsl(var(--border)); }
+.rf-fair .rf-view-tabs button { min-height: 2.75rem; padding: 0 1rem; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; margin-bottom: -1px; color: hsl(var(--muted-foreground)); font-size: 0.9375rem; font-weight: 500; }
+.rf-fair .rf-view-tabs button[aria-pressed="true"] { color: hsl(var(--primary)); border-bottom-color: hsl(var(--primary)); background: transparent; }
+.rf-fair .rf-view-tabs button:not([aria-pressed]), .rf-fair .rf-view-tabs .rf-icon-button { min-width: 2.75rem; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+
+.rf-fair .rf-motion { border: 1px solid hsl(var(--border)); border-radius: 6px; background: #fff; padding: 0.5rem 0.9rem; }
+.rf-fair .rf-motion button, .rf-fair .rf-lighting button { border-radius: 4px; }
+.rf-fair .rf-lighting { font-size: 0.9375rem; }
+.rf-fair .rf-lighting summary { display: none; }
+.rf-fair details.rf-lighting:not([open]) { display: block; }
+.rf-fair .rf-motion .text-xs, .rf-fair .rf-lighting .text-xs, .rf-fair .rf-lighting label { font-size: 0.9375rem; }
+
+.rf-fair .rf-config-panel { align-self: start; padding: 1.5rem; border: 1px solid hsl(var(--border)); border-radius: 6px; background: #fff; box-shadow: none; }
+.rf-fair .rf-config-panel .rf-section-title { margin: 0 0 0.25rem; padding-bottom: 0.9rem; border-bottom: 1px solid hsl(var(--border)); font-family: var(--font-display), sans-serif; font-weight: 700; font-stretch: 112%; font-size: 1.1875rem; letter-spacing: -0.01em; }
+.rf-fair .rf-config-panel .text-xs { font-size: 0.9375rem; line-height: 1.4rem; }
+.rf-fair .rf-config-panel .text-muted-foreground { color: hsl(var(--muted-foreground)); }
+.rf-fair .rf-config-panel > div + div, .rf-fair .rf-config-panel fieldset > * + * { margin-top: 1.4rem; }
+.rf-fair .rf-config-panel fieldset { min-width: 0; }
+.rf-fair .rf-config-panel button.rounded-full { width: 2.75rem; height: 2.75rem; border: 1px solid rgb(15 23 42 / 22%); box-shadow: inset 0 0 0 2px rgb(255 255 255 / 55%); }
+.rf-fair .rf-config-panel button.rounded-full[aria-pressed="true"] { border-color: hsl(var(--primary)); box-shadow: 0 0 0 2px #fff, 0 0 0 4px hsl(var(--primary)), inset 0 0 0 2px rgb(255 255 255 / 55%); }
+.rf-fair .rf-custom-color { display: none; }
+@media (orientation: portrait) and (min-width: 900px) {
+  .rf-fair .rf-config-panel > fieldset { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem 2.5rem; align-items: start; }
+  .rf-fair .rf-config-panel > fieldset > * { margin-top: 0 !important; }
+}
+.rf-fair .rf-config-grid button { min-height: 3rem; min-width: 3rem; }
+.rf-fair .rf-config-panel button.rounded-full { min-height: 0; min-width: 0; width: 3rem; height: 3rem; }
+
+/* Dimension stepper (touch and fair): the value is the headline of its control. */
+.rf-fair .fx-stepper { display: grid; gap: 0.5rem; }
+.rf-fair .fx-stepper .fx-stepper-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.rf-fair .fx-stepper .fx-stepper-value { font-family: var(--font-display), sans-serif; font-weight: 700; font-stretch: 110%; font-size: 1.375rem; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.rf-fair .fx-stepper .fx-stepper-value small { margin-left: 0.25rem; font-family: var(--font-condensed), sans-serif; font-weight: 500; font-size: 0.875rem; color: hsl(var(--muted-foreground)); }
+.rf-fair .fx-stepper input.fx-stepper-input { width: 6.2rem; min-height: 2.75rem; margin: 0; padding: 0 0.6rem; text-align: right; font-family: var(--font-display), sans-serif; font-weight: 700; font-size: 1.25rem; font-stretch: 110%; }
+.rf-fair .fx-stepper .fx-stepper-bar { display: flex; align-items: center; gap: 0.5rem; }
+.rf-fair .fx-stepper .fx-stepper-bar button { border: 1px solid hsl(var(--input)); border-radius: 6px; background: #fff; }
+.rf-fair .fx-stepper .fx-stepper-bar button:hover { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
+.rf-fair .fx-stepper .fx-stepper-range { display: flex; justify-content: space-between; font-family: var(--font-condensed), sans-serif; font-size: 0.8125rem; color: hsl(var(--muted-foreground)); font-variant-numeric: tabular-nums; }
+
+/* Dimension strip over the 3D view: dimension lines with end ticks, in the drawing's lettering. */
+.rf-fair .fx-dims { position: absolute; left: 0.9rem; bottom: 0.9rem; z-index: 10; display: flex; flex-wrap: wrap; gap: 0.4rem; max-width: calc(100% - 5rem); pointer-events: none; }
+.rf-fair .fx-dim { display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.3rem 0.65rem; background: rgb(255 255 255 / 88%); border-radius: 4px; backdrop-filter: blur(6px); color: hsl(var(--foreground)); font-family: var(--font-condensed), sans-serif; font-size: 0.875rem; line-height: 1.2; }
+.rf-fair .fx-dim svg { flex: none; width: 2.1rem; height: 0.9rem; color: hsl(var(--primary)); }
+.rf-fair .fx-dim .fx-dim-name { color: hsl(var(--muted-foreground)); }
+.rf-fair .fx-dim b { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Reduced motion: no animated crossfades or zooms on the idle screens. */
+@media (prefers-reduced-motion: reduce) { .rf-fair * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }

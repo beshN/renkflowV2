@@ -1,4 +1,4 @@
-import { PRODUCT_CATALOG, ProductKindSchema, type ProductKind } from '@/lib/features/product-3d/catalog';
+import { PRODUCT_CATALOG, ProductKindSchema, productMeta, type ProductKind } from '@/lib/features/product-3d/catalog';
 
 export const FAIR_KINDS = ['makasli', ...ProductKindSchema.options] as const;
 export type FairKind = 'makasli' | ProductKind;
@@ -40,3 +40,11 @@ export const fairProduct = (kind: FairKind) => FAIR_PRODUCTS.find((p) => p.kind 
  */
 const NOT_SHOWN: ReadonlySet<FairKind> = new Set(['cassette']);
 export const PICKER_PRODUCTS: readonly FairProductRule[] = FAIR_PRODUCTS.filter((p) => !NOT_SHOWN.has(p.kind));
+
+/** The sizes a visitor can set, in millimetres, as the configurators' controls allow them. */
+export function productRange(kind: FairKind): { width: [number, number]; depth: [number, number] | null; height: [number, number] } {
+  if (kind === 'makasli') return { width: [2500, 15000], depth: [1500, 5000], height: [2200, 4500] };
+  const meta = productMeta(kind as ProductKind);
+  const roof = meta.category === 'roof';
+  return { width: [900, meta.viewMax[0]], depth: roof ? [900, meta.viewMax[1]] : null, height: [1000, meta.viewMax[2]] };
+}

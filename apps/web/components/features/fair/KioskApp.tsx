@@ -207,7 +207,7 @@ export function KioskApp({ fair, release }: { fair: Fair; release: string }) {
               <button type="button" disabled={items.length >= MAX_ITEMS} className="inline-flex min-h-20 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-card text-xl font-medium text-muted-foreground disabled:opacity-50" onClick={() => setView("pick")}>
                 <Plus size={20} aria-hidden /> {f.addAnother}
               </button>
-              <button type="button" disabled={!items.length} className="rf-fair-btn inline-flex min-h-20 justify-center gap-3 text-xl" onClick={() => void continueOnPhone()}>
+              <button type="button" disabled={!items.length} className="fx-btn inline-flex min-h-20 justify-center gap-3 text-xl" onClick={() => void continueOnPhone()}>
                 <Smartphone size={24} aria-hidden /> {f.continueOnPhone}
               </button>
             </div>
@@ -240,7 +240,7 @@ export function KioskApp({ fair, release }: { fair: Fair; release: string }) {
                 ))}
               </div>
               <div className="flex flex-wrap items-center gap-5 border-t border-border pt-6">
-                <button type="button" className="rf-fair-btn min-h-16 justify-center px-12 text-xl" onClick={reset}>{f.done}</button>
+                <button type="button" className="fx-btn min-h-16 justify-center px-12 text-xl" onClick={reset}>{f.done}</button>
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <p role="status" className="inline-flex items-center gap-1.5 font-medium text-foreground">{qr.stored === "server" && <Check size={16} className="text-emerald-600" aria-hidden />}{qr.stored === "server" ? f.savedOnline : qr.stored === "queued" ? f.savedOffline : f.savedInQrOnly}</p>
                   <p>{f.resetIn(Math.max(0, KIOSK_TIMING.qrScreen - idle))} {f.kioskPrivacy}</p>
@@ -258,7 +258,7 @@ export function KioskApp({ fair, release }: { fair: Fair; release: string }) {
             <p className="text-lg text-muted-foreground">{f.stillThereHint(Math.max(0, limit - idle))}</p>
             <div className="grid gap-3 sm:grid-cols-2">
               <button type="button" className="min-h-16 rounded-lg border border-border bg-card text-lg font-medium" onClick={reset}>{f.startOver}</button>
-              <button type="button" className="rf-fair-btn min-h-16 justify-center text-lg" onClick={() => { lastActivity.current = Date.now(); setIdle(0); }}>{f.keepGoing}</button>
+              <button type="button" className="fx-btn min-h-16 justify-center text-lg" onClick={() => { lastActivity.current = Date.now(); setIdle(0); }}>{f.keepGoing}</button>
             </div>
           </div>
         </div>

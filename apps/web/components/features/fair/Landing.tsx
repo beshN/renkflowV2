@@ -7,42 +7,43 @@ import { BrandLogo } from "./BrandLogo";
 import { LanguageSwitch } from "./LanguageSwitch";
 
 /**
- * First screen of web and phone mode: the fair's promise in a big headline over a real installation,
- * then the three steps. The product list comes after the visitor decides to start.
+ * First screen of web and phone mode: the fair's promise over a real installation, with the logo's
+ * own crop marks framing the sheet, and the three steps as a ruled strip. The product list comes
+ * after the visitor decides to start.
  */
 export function Landing({ locale, onLocale, campaign, onStart }: { locale: Locale; onLocale: (l: Locale) => void; campaign: string | null; onStart: () => void }) {
   const f = fairText(locale);
   return (
-    <div className="relative isolate flex min-h-dvh flex-col overflow-hidden bg-[#13134d] text-white">
-      <Image src={ATTRACT_SLIDES[1].src} alt="" fill priority unoptimized sizes="100vw" className="-z-20 object-cover object-[35%_50%]" />
-      <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-b from-[#13134d]/85 via-[#13134d]/55 to-[#13134d]/95" />
+    <div className="fx-dark relative isolate flex min-h-dvh flex-col overflow-hidden bg-[hsl(var(--fx-deep))] text-white">
+      <Image src={ATTRACT_SLIDES[1].src} alt="" fill priority unoptimized sizes="100vw" className="-z-20 object-cover object-[62%_50%]" />
+      <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-[hsl(241_62%_11%/0.94)] via-[hsl(241_62%_11%/0.7)] to-[hsl(241_62%_11%/0.15)] max-sm:from-[hsl(241_62%_11%/0.8)] max-sm:via-[hsl(241_62%_11%/0.75)]" />
+      <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-[hsl(241_62%_9%/0.85)] via-transparent to-transparent" />
+      <div aria-hidden className="fx-corners pointer-events-none absolute inset-5 text-white/50 sm:inset-8" />
 
-      <header className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-5">
-        <BrandLogo variant="full" white height="clamp(64px, 8.5vw, 120px)" />
-        <div className="rounded-lg bg-white/95 p-1 text-neutral-900"><LanguageSwitch locale={locale} onChange={onLocale} /></div>
+      <header className="relative mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-7 pt-9 sm:px-12 sm:pt-12">
+        <BrandLogo variant="full" white height="clamp(64px, 8vw, 104px)" />
+        <LanguageSwitch locale={locale} onChange={onLocale} tone="dark" />
       </header>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center gap-8 px-5 pb-10 pt-4 sm:pb-16">
-        <div className="max-w-3xl space-y-5">
-          <h1 className="font-display text-4xl font-semibold leading-[1.05] tracking-tight drop-shadow-lg sm:text-6xl lg:text-7xl">{f.heroTitle}</h1>
-          <p className="max-w-2xl text-lg leading-relaxed text-white/90 sm:text-2xl">{f.heroText}</p>
-          {campaign && <p className="inline-block rounded-full bg-white/15 px-4 py-1.5 text-sm font-medium backdrop-blur">{campaign}</p>}
-          <div className="pt-2">
-            <button type="button" className="inline-flex min-h-14 items-center gap-3 rounded-full bg-white px-8 text-lg font-semibold text-[#13134d] shadow-2xl transition active:scale-95 motion-reduce:transition-none sm:min-h-16 sm:px-10 sm:text-xl" onClick={onStart}>
-              {f.heroCta} <ArrowRight size={22} aria-hidden />
-            </button>
-          </div>
+      <main className="relative mx-auto flex w-full max-w-7xl flex-1 items-center px-7 py-10 sm:px-12">
+        <div className="max-w-4xl">
+          <h1 className="fx-display text-[clamp(2.6rem,7.4vw,6rem)] text-white">{f.heroTitle}</h1>
+          <p className="fx-copy mt-6 text-lg leading-relaxed text-white/90 sm:text-2xl sm:leading-snug">{f.heroText}</p>
+          {campaign && <p className="fx-note mt-5 !text-white/75">{campaign}</p>}
+          <button type="button" className="fx-btn fx-btn-light mt-9 !min-h-14 !px-8 text-lg sm:!min-h-16 sm:text-xl" onClick={onStart}>
+            {f.heroCta} <ArrowRight size={22} aria-hidden />
+          </button>
         </div>
-
-        <ol className="grid gap-3 sm:grid-cols-3">
-          {f.heroSteps.map((step, i) => (
-            <li key={step} className="flex items-center gap-4 rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur-md">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white font-display text-lg font-semibold text-[#13134d]">{i + 1}</span>
-              <span className="text-base font-medium">{step}</span>
-            </li>
-          ))}
-        </ol>
       </main>
+
+      <ol className="relative mx-auto mb-9 grid w-full max-w-7xl gap-0 px-7 sm:mb-12 sm:grid-cols-3 sm:px-12">
+        {f.heroSteps.map((step, i) => (
+          <li key={step} className="flex items-center gap-4 border-t border-white/30 py-4 sm:pr-8">
+            <span className="fx-figure flex h-7 w-7 flex-none items-center justify-center rounded-[3px] border border-white/70 text-sm font-semibold">{i + 1}</span>
+            <span className="text-base leading-snug text-white/95 sm:text-lg">{step}</span>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

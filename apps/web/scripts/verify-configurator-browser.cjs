@@ -117,7 +117,9 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   await phone.getByRole('button', { name: 'Continue editing' }).tap();
   await phone.getByRole('button', { name: 'Edit: WINMAX Folding-Arm Awning' }).tap();
   await ready3d(phone);
-  await phone.getByLabel('Projection (mm)').fill('3500');
+  const projection = phone.getByRole('textbox', { name: 'Projection' });
+  await projection.fill('3500');
+  await projection.blur();
   await phone.waitForTimeout(800);
   await phone.getByRole('button', { name: 'Save changes' }).tap();
   await card(phone, 'WINMAX Folding-Arm Awning', '6500 × 3500 mm').waitFor({ timeout: 30000 });

@@ -42,6 +42,8 @@ export function AwningConfigurator({
   stageClassName = "h-[360px] sm:h-[470px]",
   locale = "tr-TR",
   touchControls = false,
+  overlay,
+  editableDimensions = false,
 }: {
   value?: AwningConfiguration;
   readOnly?: boolean;
@@ -56,6 +58,10 @@ export function AwningConfigurator({
   locale?: string;
   /** Steppers and sliders instead of number fields, for touch screens without a keyboard. */
   touchControls?: boolean;
+  /** Drawn over the 3D stage (the fair's dimension strip). */
+  overlay?: React.ReactNode;
+  /** With the steppers: let the dimension also be typed. */
+  editableDimensions?: boolean;
 }) {
   const t = { ...AWNING_TEXT_TR, ...text };
   const views: [AwningView, string][] = [
@@ -165,7 +171,7 @@ export function AwningConfigurator({
           className="rf-awning-stage relative overflow-hidden rounded-lg border border-border bg-[#eceeeb]"
         >
           <div
-            className={`pointer-events-none absolute left-5 top-5 z-10 ${time > 70 ? "text-slate-100" : "text-[#203641]"}`}
+            className={`rf-stage-label pointer-events-none absolute left-5 top-5 z-10 ${time > 70 ? "rf-night text-slate-100" : "text-[#203641]"}`}
           >
             <p className="text-[10px] font-semibold tracking-[.2em]">
               {t.productName}
@@ -179,6 +185,7 @@ export function AwningConfigurator({
               m²
             </p>
           </div>
+          {overlay}
           <canvas
             ref={canvas}
             className={`${stageClassName} w-full touch-none`}
@@ -224,7 +231,7 @@ export function AwningConfigurator({
             <Expand size={18} />
           </button>
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="rf-view-tabs flex flex-wrap gap-1.5">
           {views.map(([key, label]) => (
             <button
               key={key}
@@ -251,7 +258,7 @@ export function AwningConfigurator({
             <RotateCcw size={15} />
           </button>
         </div>
-        <div className="flex items-center gap-3 rounded-md border border-border p-3">
+        <div className="rf-motion flex items-center gap-3 rounded-md border border-border p-3">
           <button
             type="button"
             aria-label={t.playToggle}
@@ -278,7 +285,7 @@ export function AwningConfigurator({
             %{Math.round(opening)}
           </output>
         </div>
-        <label className="flex items-center gap-3 text-xs">
+        <label className="rf-lighting flex items-center gap-3 text-xs">
           {t.dayNight}
           <input
             type="range"
@@ -321,7 +328,7 @@ export function AwningConfigurator({
               ["mountingHeightMm", t.mountingHeight, 2200, 4500],
             ] as const
           ).map(([key, label, min, max]) => touchControls ? (
-            <DimensionStepper key={key} label={label} value={draft[key]} min={min} max={max} onChange={(v) => update(key, v)} />
+            <DimensionStepper key={key} label={label} value={draft[key]} min={min} max={max} editable={editableDimensions} onChange={(v) => update(key, v)} />
           ) : (
             <label key={key} className="block text-xs">
               {label} (mm)

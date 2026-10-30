@@ -1,5 +1,5 @@
 import * as T from "three";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { createOutdoorEnvironment } from "./environment";
 import { createProductModel, type ProductModel } from "./model";
 import { sameGeometry, productMeta, type VisualizationConfiguration } from "./catalog";
 export type ProductView =
@@ -12,8 +12,6 @@ export async function createProductStage(
 ) {
   const scene = new T.Scene(),
     camera = new T.PerspectiveCamera(40, 1, 0.025, 100);
-  scene.background = new T.Color("#eceeeb");
-  scene.fog = new T.Fog("#eceeeb", 25, 60);
   const renderer = new T.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.outputColorSpace = T.SRGBColorSpace;
@@ -21,15 +19,11 @@ export async function createProductStage(
   renderer.toneMappingExposure = 1.05;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = T.PCFSoftShadowMap;
-  const pmrem = new T.PMREMGenerator(renderer),
-    room = new RoomEnvironment(),
-    environment = pmrem.fromScene(room, 0.04);
-  room.dispose();
-  scene.environment = environment.texture;
-  const hemi = new T.HemisphereLight("#ddeaff", "#8a826c", 2.0),
-    sun = new T.DirectionalLight("#fff5e6", 3.0),
-    fill = new T.DirectionalLight("#d6e9ff", 0.7);
+  const hemi = new T.HemisphereLight("#cfe3ff", "#8d8a72", 1.5),
+    sun = new T.DirectionalLight("#fff3e0", 3.4),
+    fill = new T.DirectionalLight("#d6e9ff", 0.55);
   sun.position.set(-4, 8, 6);
+  const env = createOutdoorEnvironment(renderer, scene, sun.position);
   fill.position.set(5, 3, -2);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -43,24 +37,8 @@ export async function createProductStage(
   });
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.02;
+  sun.shadow.radius = 4;
   scene.add(hemi, sun, fill);
-  const ground = new T.Mesh(
-    new T.PlaneGeometry(150, 150),
-    new T.MeshStandardMaterial({ color: "#d7d9d3", roughness: 0.8 }),
-  );
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  scene.add(ground);
-  const grid = new T.GridHelper(24, 30, "#c6cbc5", "#c6cbc5");
-  grid.position.set(0, 0.002, 2);
-  scene.add(grid);
-  const wall = new T.Mesh(
-    new T.BoxGeometry(20, 6, 0.2),
-    new T.MeshStandardMaterial({ color: "#dddeda", roughness: 0.92 }),
-  );
-  wall.position.set(0, 3, -0.23);
-  wall.receiveShadow = true;
-  scene.add(wall);
   const leds: Array<T.SpotLight> = [];
   for (const x of [-1, 1]) {
     const l = new T.SpotLight("#ffd8a0", 0, 10, Math.PI * 0.42, 0.85, 1.6);
@@ -84,6 +62,10 @@ export async function createProductStage(
     lastNotify = 0;
   let animation: { start: number; from: number; to: number } | null = null;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+  /** The product is fixed to the building: the facade shows behind it. */
+  const onFacade = () =>
+    c.mounting === "wall" &&
+    (productMeta(c.kind).category === "roof" || c.kind === "zip" || c.kind === "cassette");
   const dimensions = () => ({
     w: c.widthMm / 1000,
     h: c.heightMm / 1000,
@@ -116,7 +98,7 @@ export async function createProductStage(
     target.set(0, h * 0.57, depth * 0.48);
     distance = Math.max(4, w * 1.55, h * 1.8, depth * 1.55);
     theta = -0.7;
-    phi = 1.1;
+    phi = 1.2;
     if (next === "front") {
       theta = 0;
       phi = 1.36;
@@ -151,19 +133,15 @@ export async function createProductStage(
   function setTime(value: number) {
     time = value;
     const night = (value / 100) ** 2;
-    hemi.intensity = 2.0 * (1 - night) + 0.15;
-    sun.intensity = 3.0 * (1 - night) + 0.07;
-    fill.intensity = 0.7 * (1 - night) + 0.12;
-    sun.color.set(value > 25 && value < 80 ? "#ffc78e" : "#fff5e6");
+    hemi.intensity = 1.5 * (1 - night) + 0.15;
+    sun.intensity = 3.4 * (1 - night) + 0.07;
+    fill.intensity = 0.55 * (1 - night) + 0.12;
+    sun.color.set(value > 25 && value < 80 ? "#ffc78e" : "#fff3e0");
     sun.position.y = 9 - (value / 100) * 7;
-    const bg = new T.Color("#eceeeb").lerp(new T.Color("#182432"), night);
-    (scene.background as T.Color).copy(bg);
-    scene.fog!.color.copy(bg);
-    scene.environmentIntensity = 1 - night * 0.65;
+    env.setNight(night, sun.position);
+    scene.environmentIntensity = 1 - night * 0.7;
     const { w, h, d, roof } = dimensions();
-    wall.visible =
-      c.mounting === "wall" &&
-      (roof || c.kind === "zip" || c.kind === "cassette");
+    env.setWallVisible(onFacade());
     leds.forEach((l, i) => {
       l.color.set(c.led === "white" ? "#e4f2ff" : "#ffd8a0");
       l.intensity = roof && c.led !== "off" ? (c.brightness / 100) * 18 : 0;
@@ -351,17 +329,8 @@ export async function createProductStage(
     canvas.removeEventListener("webglcontextlost", contextLost);
     document.removeEventListener("visibilitychange", visibility);
     model?.dispose();
-    ground.geometry.dispose();
-    (ground.material as T.Material).dispose();
-    wall.geometry.dispose();
-    (wall.material as T.Material).dispose();
-    grid.geometry.dispose();
-    (Array.isArray(grid.material) ? grid.material : [grid.material]).forEach(
-      (m) => m.dispose(),
-    );
+    env.dispose();
     sun.shadow.dispose();
-    environment.dispose();
-    pmrem.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
   }
@@ -389,6 +358,10 @@ export async function createProductStage(
     model = built;
     scene.add(model.group);
     model.update(opening);
+    {
+      const dims = dimensions();
+      env.placeProps({ w: dims.w, d: dims.d, h: dims.h, roof: dims.roof, wall: onFacade() });
+    }
     if (!sameProduct || request === 1) selectView(view);
     else {
       const current = dimensions();

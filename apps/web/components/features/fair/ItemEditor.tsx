@@ -6,9 +6,10 @@ import { ProductConfigurator } from "@/components/features/product-3d/ProductCon
 import type { AwningConfiguration } from "@/lib/features/awning/configuration";
 import type { ProductKind, VisualizationConfiguration } from "@/lib/features/product-3d/catalog";
 import { shrinkPreview } from "@/lib/features/fair/client";
-import { limitProblem, type DesignItem } from "@/lib/features/fair/design";
+import { limitProblem, sizes, type DesignItem } from "@/lib/features/fair/design";
 import { configuratorText, fairText, INTL_LOCALE, productName, type Locale } from "@/lib/features/fair/i18n";
 import { CONTROL_LABELS, fairProduct } from "@/lib/features/fair/products";
+import { DimensionStrip, type Dim } from "./DimensionStrip";
 
 /**
  * One product in the shared 3D configurators (WINMAX scene or the product-3d stage), plus quantity,
@@ -42,7 +43,15 @@ export function ItemEditor({
   const [note, setNote] = useState(item.note ?? "");
   const [invalid, setInvalid] = useState("");
   const [busy, setBusy] = useState(false);
-  const stage = kiosk ? "h-[56vh] portrait:h-[40vh]" : "h-[340px] sm:h-[460px]";
+  const roof = item.kind === "makasli" || rule.category === "roof";
+  const [size, setSize] = useState(() => sizes(item));
+  const stage = kiosk ? "h-[56vh] portrait:h-[42vh]" : "h-[340px] sm:h-[480px]";
+  const dims: Dim[] = [
+    { axis: "width", name: text.width ?? "", value: size.widthMm },
+    ...(roof ? [{ axis: "depth" as const, name: text.projection ?? "", value: size.projectionMm }] : []),
+    { axis: "height", name: (roof ? text.mountingHeight : text.height) ?? "", value: size.heightMm },
+  ];
+  const strip = <DimensionStrip dims={dims} />;
 
   async function save() {
     if (invalid || busy) return;
@@ -66,15 +75,16 @@ export function ItemEditor({
   }
 
   const sizeMessage = (message: string) => (message ? f.sizeOutOfRange : "");
+  const wide = kiosk ? "text-lg" : "text-sm";
   return (
-    <section aria-labelledby="editor-title" className="space-y-4">
-      <div className="flex items-center gap-3">
-        <button type="button" aria-label={f.back} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-card transition hover:border-primary/40" onClick={onBack}>
-          <ArrowLeft size={18} />
+    <section aria-labelledby="editor-title" className="space-y-6">
+      <div className="flex items-center gap-4">
+        <button type="button" aria-label={f.back} className={`fx-btn fx-btn-quiet !px-0 ${kiosk ? "!min-h-16 w-16" : "!min-h-12 w-12"}`} onClick={onBack}>
+          <ArrowLeft size={kiosk ? 26 : 20} aria-hidden />
         </button>
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[.16em] text-muted-foreground">{f.categories[rule.category]}</p>
-          <h1 id="editor-title" className={`font-display font-semibold leading-tight ${kiosk ? "text-3xl" : "text-2xl"}`}>{productName(locale, item.kind)}</h1>
+          <p className={`fx-note ${kiosk ? "!text-lg" : ""}`}>{f.categories[rule.category]}</p>
+          <h1 id="editor-title" className={`fx-display leading-none ${kiosk ? "text-5xl" : "text-3xl sm:text-4xl"}`}>{productName(locale, item.kind)}</h1>
         </div>
       </div>
       {item.kind === "makasli" ? (
@@ -83,10 +93,13 @@ export function ItemEditor({
           text={text}
           locale={INTL_LOCALE[locale]}
           stageClassName={stage}
-          touchControls={kiosk}
+          touchControls
+          editableDimensions={!kiosk}
+          overlay={strip}
           onValidationChange={(m) => setInvalid(sizeMessage(m))}
           onChange={(awning, image) => {
             latest.current = { awning, image };
+            setSize({ widthMm: awning.widthMm, projectionMm: awning.projectionMm, heightMm: awning.mountingHeightMm });
           }}
         />
       ) : (
@@ -95,18 +108,23 @@ export function ItemEditor({
           value={item.configuration ? { configuration: item.configuration } : undefined}
           text={text}
           stageClassName={stage}
-          touchControls={kiosk}
+          touchControls
+          editableDimensions={!kiosk}
+          overlay={strip}
+          viewOptionsOpen
           onValidationChange={(m) => setInvalid(sizeMessage(m))}
           onChange={(value) => {
             latest.current = { configuration: value.configuration, image: value.image };
+            setSize({ widthMm: value.configuration.widthMm, projectionMm: value.configuration.projectionMm, heightMm: value.configuration.heightMm });
           }}
         />
       )}
-      <div className="grid gap-3 sm:grid-cols-2">
+      {(rule.controls.length > 0 || !kiosk) && (
+        <div className="fx-sheet grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
           {rule.controls.length > 0 && (
-            <label className="block text-sm">
+            <label className="fx-field">
               {f.control}
-              <select className="rf-input mt-1 w-full" value={control} onChange={(e) => setControl(e.target.value)}>
+              <select className="rf-input" value={control} onChange={(e) => setControl(e.target.value)}>
                 <option value="">—</option>
                 {rule.controls.map((key) => <option key={key} value={key}>{CONTROL_LABELS[locale][key]}</option>)}
               </select>
@@ -114,22 +132,26 @@ export function ItemEditor({
           )}
           {/* Free text needs a keyboard: on the kiosk it is left for the phone. */}
           {!kiosk && (
-            <label className="block text-sm font-medium sm:col-span-2">
+            <label className="fx-field sm:col-span-2">
               {f.otherRequests}
-              <input className="rf-input mt-1.5 min-h-12 w-full text-base font-normal" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+              <input className="rf-input" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
             </label>
           )}
-      </div>
-      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-3 border-t border-border bg-card/95 px-4 py-3 shadow-[0_-6px_20px_-12px_rgb(15_23_42/0.25)] backdrop-blur sm:-mx-6 sm:px-6">
-        <div className="flex items-center gap-1" role="group" aria-label={f.quantity}>
-          <button type="button" aria-label={`${f.quantity} −`} className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-card" onClick={() => setQuantity((q) => Math.max(1, q - 1))}><Minus size={18} /></button>
-          <output className="w-20 text-center text-base font-medium tabular-nums" aria-live="polite">{f.pieces(quantity)}</output>
-          <button type="button" aria-label={`${f.quantity} +`} className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-card" onClick={() => setQuantity((q) => Math.min(99, q + 1))}><Plus size={18} /></button>
         </div>
-        <button type="button" disabled={!!invalid || busy} className={`rf-fair-btn flex-1 justify-center ${kiosk ? "min-h-16 text-xl" : "min-h-12 text-base"}`} onClick={() => void save()}>
-          {busy ? f.preparingPreview : isNew ? f.addToList : f.saveChanges}
-        </button>
-        {invalid && <p role="alert" className="w-full text-sm text-rose-700">{invalid}</p>}
+      )}
+      <div className="sticky bottom-0 z-10 -mx-4 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-3">
+          <div className="flex items-center gap-2" role="group" aria-label={f.quantity}>
+            <span className={`mr-1 text-muted-foreground ${wide}`}>{f.quantity}</span>
+            <button type="button" aria-label={`${f.quantity} −`} className={`fx-btn fx-btn-quiet !px-0 ${kiosk ? "!min-h-16 w-16" : "!min-h-12 w-12"}`} onClick={() => setQuantity((q) => Math.max(1, q - 1))}><Minus size={kiosk ? 24 : 18} aria-hidden /></button>
+            <output className={`fx-figure min-w-[3.5rem] text-center font-semibold ${kiosk ? "text-2xl" : "text-lg"}`} aria-live="polite">{quantity}</output>
+            <button type="button" aria-label={`${f.quantity} +`} className={`fx-btn fx-btn-quiet !px-0 ${kiosk ? "!min-h-16 w-16" : "!min-h-12 w-12"}`} onClick={() => setQuantity((q) => Math.min(99, q + 1))}><Plus size={kiosk ? 24 : 18} aria-hidden /></button>
+          </div>
+          <button type="button" disabled={!!invalid || busy} className={`fx-btn ml-auto flex-1 sm:flex-none sm:min-w-[18rem] ${kiosk ? "!min-h-[4.5rem] text-2xl" : "!min-h-12"}`} onClick={() => void save()}>
+            {busy ? f.preparingPreview : isNew ? f.addToList : f.saveChanges}
+          </button>
+          {invalid && <p role="alert" className="w-full text-sm font-medium text-rose-700">{invalid}</p>}
+        </div>
       </div>
     </section>
   );

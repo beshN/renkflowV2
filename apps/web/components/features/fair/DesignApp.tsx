@@ -1,20 +1,19 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Check, CheckCircle2, Copy, LayoutList, LinkIcon, Plus } from "lucide-react";
+import { Check, CheckCircle2, Copy, LinkIcon, Plus } from "lucide-react";
 import { createDesign, designLink, designPath, configuratorBase, fetchDesign, updateDesign } from "@/lib/features/fair/client";
 import { MAX_ITEMS, newItem, newToken, type DesignItem } from "@/lib/features/fair/design";
 import { fairText, isLocale, type Locale, type PrivacyController } from "@/lib/features/fair/i18n";
 import type { FairKind } from "@/lib/features/fair/products";
 import { decodeDesign, fragmentPayload } from "@/lib/features/fair/transfer";
 import { useMarkStandaloneScreen } from "@/lib/shared/hooks/useWorkspacePresence";
-import { BrandLogo } from "./BrandLogo";
+import { FairHeader } from "./FairHeader";
 import { ItemEditor } from "./ItemEditor";
 import { ItemList } from "./ItemList";
 import { Landing } from "./Landing";
-import { LanguageSwitch } from "./LanguageSwitch";
+import { QuoteHandoff } from "./QuoteHandoff";
 import { ProductPicker } from "./ProductPicker";
 import { QuoteForm, type QuoteResult } from "./QuoteForm";
-import { StepBar } from "./StepBar";
 import { useFairLightTheme } from "./theme";
 
 type View = "welcome" | "loading" | "notfound" | "overview" | "list" | "pick" | "edit" | "quote" | "done";
@@ -39,6 +38,9 @@ export function DesignApp({ mode, controller, token: initialToken, initial, defa
   const [copied, setCopied] = useState(false);
   const [result, setResult] = useState<QuoteResult | null>(null);
   const onServer = useRef(Boolean(initial));
+  useEffect(() => {
+    if (initial?.items.length && new URLSearchParams(window.location.search).get("step") === "quote") setView("quote");
+  }, [initial]);
   /** The server version this copy is based on: edits name it, so an older copy cannot overwrite newer work. */
   const version = useRef<number | null>(initial?.version ?? null);
   /** Saves run one after another; two quick edits must not both claim the same base version. */
@@ -135,50 +137,38 @@ export function DesignApp({ mode, controller, token: initialToken, initial, defa
         <Landing locale={locale} onLocale={setLocale} campaign={null} onStart={() => setView("pick")} />
       ) : (
       <>
-      <header className="sticky top-0 z-20 border-b border-border bg-card/95 shadow-sm backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <BrandLogo height={34} />
-            <p className="hidden truncate border-l border-border pl-3 text-xs text-muted-foreground sm:block">{fair?.name ?? f.web}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <LanguageSwitch locale={locale} onChange={setLocale} />
-            {items.length > 0 && view !== "list" && view !== "done" && view !== "quote" && (
-              <button type="button" aria-label={`${f.myList} (${items.length})`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium" onClick={() => setView("list")}>
-                <LayoutList size={16} aria-hidden /> <span className="hidden sm:inline">{f.myList}</span>
-                <span className="rounded-full bg-primary px-2 text-xs font-semibold tabular-nums text-primary-foreground">{items.length}</span>
-              </button>
-            )}
-          </div>
-        </div>
-        {view !== "loading" && view !== "notfound" && (
-          <StepBar locale={locale} step={view === "pick" ? 0 : view === "done" ? 3 : view === "quote" ? 2 : 1} />
-        )}
-      </header>
+      <FairHeader
+        locale={locale}
+        onLocale={setLocale}
+        fairName={fair?.name ?? f.web}
+        step={view === "loading" || view === "notfound" ? null : view === "pick" ? 0 : view === "done" ? 3 : view === "quote" ? 2 : 1}
+        listCount={items.length}
+        onList={view !== "list" && view !== "done" && view !== "quote" ? () => setView("list") : null}
+      />
 
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
         {view === "loading" && <p role="status" className="py-10 text-center text-sm text-muted-foreground">{f.loadingDesign}</p>}
         {view === "notfound" && (
           <div className="mx-auto max-w-md space-y-5 py-16 text-center">
             <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary" aria-hidden><LinkIcon size={28} /></span>
             <div className="space-y-2">
-              <h1 role="alert" className="font-display text-2xl font-semibold">{f.designNotFound}</h1>
+              <h1 role="alert" className="fx-display text-3xl">{f.designNotFound}</h1>
               <p className="text-muted-foreground">{f.notFoundHint}</p>
             </div>
-            <a className="rf-fair-btn inline-flex min-h-12 justify-center px-8" href={configuratorBase() || "/"}>{f.heroCta}</a>
+            <a className="fx-btn inline-flex min-h-12 justify-center px-8" href={configuratorBase() || "/"}>{f.heroCta}</a>
           </div>
         )}
 
         {view === "overview" && (
           <section aria-labelledby="overview-title" className="mx-auto max-w-2xl space-y-4">
             <div>
-              <h1 id="overview-title" className="font-display text-2xl font-semibold">{f.designIntro}</h1>
+              <h1 id="overview-title" className="fx-display text-3xl">{f.designIntro}</h1>
               <p className="mt-1 text-sm text-muted-foreground">{f.designIntroHint}</p>
             </div>
-            {items.length ? <ItemList locale={locale} items={items} /> : <p className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-muted-foreground">{f.listEmpty}</p>}
+            {items.length ? <ItemList locale={locale} items={items} /> : <p className="fx-sheet border-dashed p-6 text-center text-muted-foreground">{f.listEmpty}</p>}
             <div className="grid gap-3 sm:grid-cols-2">
-              <button type="button" disabled={!token || !items.length} className="rf-fair-btn min-h-14 justify-center text-base" onClick={() => setView("quote")}>{f.getQuote}</button>
-              <button type="button" className="min-h-14 rounded-lg border border-border bg-card text-base font-medium" onClick={() => setView(items.length ? "list" : "pick")}>{f.keepEditing}</button>
+              <button type="button" disabled={!token || !items.length} className="fx-btn min-h-14 justify-center text-base" onClick={() => setView("quote")}>{f.getQuote}</button>
+              <button type="button" className="fx-btn fx-btn-quiet !min-h-14 text-base" onClick={() => setView(items.length ? "list" : "pick")}>{f.keepEditing}</button>
             </div>
             <SaveState f={f} save={save} onReload={() => void reloadLatest()} />
             {token && (
@@ -197,7 +187,7 @@ export function DesignApp({ mode, controller, token: initialToken, initial, defa
 
         {view === "list" && (
           <section aria-labelledby="list-title" className="mx-auto max-w-2xl space-y-4">
-            <h1 id="list-title" className="font-display text-2xl font-semibold">{f.listTitle}</h1>
+            <h1 id="list-title" className="fx-display text-3xl">{f.listTitle}</h1>
             {!items.length && <p className="text-sm text-muted-foreground">{f.listEmpty}</p>}
             <ItemList
               locale={locale}
@@ -213,7 +203,7 @@ export function DesignApp({ mode, controller, token: initialToken, initial, defa
                 <Plus size={16} aria-hidden /> {f.addAnother}
               </button>
             )}
-            <button type="button" disabled={!token || !items.length || save === "saving"} className="rf-fair-btn min-h-14 w-full justify-center text-base" onClick={() => setView("quote")}>{f.getQuote}</button>
+            <button type="button" disabled={!token || !items.length || save === "saving"} className="fx-btn min-h-14 w-full justify-center text-base" onClick={() => setView("quote")}>{f.getQuote}</button>
             <SaveState f={f} save={save} onReload={() => void reloadLatest()} />
           </section>
         )}
@@ -236,6 +226,8 @@ export function DesignApp({ mode, controller, token: initialToken, initial, defa
         )}
 
         {view === "quote" && token && (
+          <div className="mx-auto max-w-xl space-y-4">
+          {onServer.current && <QuoteHandoff locale={locale} token={token} />}
           <QuoteForm
             locale={locale}
             controller={controller}
@@ -255,28 +247,29 @@ export function DesignApp({ mode, controller, token: initialToken, initial, defa
               setView("done");
             }}
           />
+          </div>
         )}
 
         {view === "done" && result && (
           <section className="mx-auto max-w-lg space-y-6 py-10 text-center" aria-live="polite">
             <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 text-emerald-600" aria-hidden><CheckCircle2 size={44} /></span>
             <div className="space-y-3">
-              <h1 className="font-display text-3xl font-semibold leading-tight">{f.thanksTitle}</h1>
+              <h1 className="fx-display text-4xl">{f.thanksTitle}</h1>
               <p className="text-muted-foreground">{f.thanksHint}</p>
             </div>
             {result.number && (
-              <div className="rounded-xl border border-border bg-card p-5">
-                <p className="text-xs font-semibold uppercase tracking-[.16em] text-muted-foreground">{f.requestNumber}</p>
-                <p className="mt-1 font-mono text-2xl font-semibold tracking-wide">{result.number}</p>
+              <div className="fx-sheet p-5">
+                <p className="fx-note">{f.requestNumber}</p>
+                <p className="fx-figure mt-1 text-3xl font-semibold tracking-wide">{result.number}</p>
               </div>
             )}
             <p className="text-sm text-muted-foreground">
               {result.emailStatus === "sent" ? f.emailSent(result.email) : result.emailStatus === "failed" ? f.emailNotSent : f.emailPending}
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
-              <button type="button" className="min-h-12 rounded-lg border border-border bg-card text-sm font-medium" onClick={() => setView("overview")}>{f.viewDesign}</button>
+              <button type="button" className="fx-btn fx-btn-quiet !min-h-12 text-sm" onClick={() => setView("overview")}>{f.viewDesign}</button>
               {token && (
-                <button type="button" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-border bg-card text-sm font-medium" onClick={() => { void navigator.clipboard?.writeText(designLink(token)).then(() => setCopied(true)).catch(() => {}); }}>
+                <button type="button" className="fx-btn fx-btn-quiet !min-h-12 gap-2 text-sm" onClick={() => { void navigator.clipboard?.writeText(designLink(token)).then(() => setCopied(true)).catch(() => {}); }}>
                   {copied ? <Check size={16} aria-hidden /> : <Copy size={16} aria-hidden />} {copied ? f.copied : f.copyLink}
                 </button>
               )}

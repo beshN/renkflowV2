@@ -7,7 +7,7 @@ export class Parts {
   readonly metal: T.MeshPhysicalMaterial;
   readonly steel: T.MeshStandardMaterial;
   readonly rubber: T.MeshStandardMaterial;
-  readonly fabric: T.MeshStandardMaterial;
+  readonly fabric: T.MeshPhysicalMaterial;
   readonly glass: T.MeshPhysicalMaterial;
   readonly glassEdge: T.MeshPhysicalMaterial;
   readonly led: T.MeshStandardMaterial;
@@ -20,7 +20,8 @@ export class Parts {
     [];
   private cache = new Map<string, T.BufferGeometry>();
   constructor(readonly config: VisualizationConfiguration) {
-    this.metal = new T.MeshPhysicalMaterial({ color: config.bodyColor, metalness: 0.35, roughness: 0.3, clearcoat: 0.25, clearcoatRoughness: 0.45 });
+    // Satin powder coat on aluminium: it reflects the sky softly instead of shining like plastic.
+    this.metal = new T.MeshPhysicalMaterial({ color: config.bodyColor, metalness: 0.55, roughness: 0.4, clearcoat: 0.12, clearcoatRoughness: 0.5, envMapIntensity: 1.1 });
     this.materials.add(this.metal);
     this.steel = this.material("#c8c9c7", { metalness: 0.8, roughness: 0.23 });
     this.rubber = this.material("#252b2a", { roughness: 0.88 });
@@ -47,34 +48,41 @@ export class Parts {
       this.textures.push(t);
       return t;
     };
-    this.fabric = this.material(config.fabricColor, {
-      roughness: 0.91,
+    this.fabric = new T.MeshPhysicalMaterial({
+      color: config.fabricColor,
+      roughness: 0.92,
       side: T.DoubleSide,
       bumpMap: texture(weave),
-      bumpScale: 0.0007,
-      ...(config.kind === "zip" && config.screen === "screen"
-        ? { alphaMap: texture(alpha), transparent: true, depthWrite: false }
-        : {}),
+      bumpScale: 0.0009,
+      // Cloth scatters light at grazing angles: a soft rim instead of a hard plastic highlight.
+      sheen: 0.9,
+      sheenRoughness: 0.55,
+      sheenColor: new T.Color(config.fabricColor).lerp(new T.Color("#ffffff"), 0.5),
+      envMapIntensity: 0.8,
+      ...(config.kind === "zip" && config.screen === "screen" ? { alphaMap: texture(alpha), alphaTest: 0.4 } : {}),
     });
+    this.materials.add(this.fabric);
+    // Clear float glass: sharp reflections of the sky and a faint green edge, nothing milky.
     this.glass = new T.MeshPhysicalMaterial({
-      color: "#d5ece7",
+      color: "#e9f4f1",
       metalness: 0,
-      roughness: 0.075,
-      transmission: 0.91,
-      thickness: 0.008,
-      ior: 1.5,
-      transparent: true,
-      opacity: 1,
-      envMapIntensity: 0.85,
+      roughness: 0.015,
+      transmission: 0.96,
+      thickness: 0.012,
+      ior: 1.52,
+      attenuationColor: new T.Color("#bfe0d6"),
+      attenuationDistance: 0.5,
+      specularIntensity: 1,
+      envMapIntensity: 1.5,
       side: T.FrontSide,
     });
     this.materials.add(this.glass);
     this.glassEdge = new T.MeshPhysicalMaterial({
-      color: "#8bb5a3",
-      roughness: 0.13,
-      transmission: 0.72,
-      thickness: 0.008,
-      ior: 1.5,
+      color: "#7fb09b",
+      roughness: 0.12,
+      transmission: 0.55,
+      thickness: 0.012,
+      ior: 1.52,
     });
     this.materials.add(this.glassEdge);
     const color = config.led === "white" ? "#e4f2ff" : "#ffd8a0";
@@ -93,6 +101,7 @@ export class Parts {
   setAppearance(config: VisualizationConfiguration) {
     this.metal.color.set(config.bodyColor);
     this.fabric.color.set(config.fabricColor);
+    this.fabric.sheenColor.set(config.fabricColor).lerp(new T.Color("#ffffff"), 0.5);
     const light = config.led === 'white' ? '#e4f2ff' : '#ffd8a0';
     this.led.color.set(config.led === 'off' ? '#dddcd1' : light);
     this.led.emissive.set(light);
