@@ -75,7 +75,7 @@ function handlers(source: string) {
   return [...bodies.keys()].filter((n) => /^(GET|POST|PUT|PATCH|DELETE)$/.test(n)).map((n) => ({ method: n, guarded: guarded(n) }));
 }
 
-const files = routes(API).map((file) => ({ file, key: relative(API, file).replace(/\/route\.ts$/, '').replace(/\\/g, '/'), source: readFileSync(file, 'utf8') }));
+const files = routes(API).map((file) => ({ file, key: relative(API, file).replace(/\\/g, '/').replace(/\/route\.ts$/, ''), source: readFileSync(file, 'utf8') }));
 
 describe('API route guards', () => {
   it('finds the routes', () => {

@@ -8,7 +8,7 @@ export type Priority = 'high' | 'medium' | 'low';
 export type Confidence = 'high' | 'medium' | 'low';
 export type BadgeTone = 'danger' | 'warning' | 'info' | 'neutral' | 'success';
 
-/** A short fact shown on the card: "3 gün", "2 çubuk eksik", "₺12.400". */
+/** A short fact shown on the card: "3 gün", "2 profil eksik", "₺12.400". */
 export type Badge = { label: string; tone?: BadgeTone; kind?: 'days' | 'count' | 'money' | 'percent' | 'date' | 'text' };
 /** A record the finding rests on (opens from the "Neden?" panel). */
 export type EvidenceRecord = { entityType: string; entityId: string; label: string; href?: string };

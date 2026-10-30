@@ -18,13 +18,14 @@ async function handleCallback(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const code = url.searchParams.get('code');
-    const state = url.searchParams.get('state') || (await request.formData().catch(() => null))?.get('RelayState') as string;
+    const formData = request.method === 'POST' ? await request.formData().catch(() => null) : null;
+    const state = url.searchParams.get('state') || (formData?.get('RelayState') as string | null) || null;
     
     // Parse SAMLResponse from FormData if POST
     let samlResponse = null;
     if (request.method === 'POST') {
-        const formData = await request.formData();
-        samlResponse = formData.get('SAMLResponse') as string;
+        samlResponse = (formData?.get('SAMLResponse') as string | null) ?? null;
+        // SAMLResponse already extracted from formData above
     }
 
     if (!state) {
@@ -36,7 +37,7 @@ async function handleCallback(request: NextRequest) {
         SELECT s.*, p.type, p.id as provider_id
         FROM sso_states s
         JOIN sso_providers p ON s.provider_id = p.id
-        WHERE s.state = ${state}
+        WHERE s.state = ${state} AND s.expires_at > NOW() AND p.enabled = true
     `;
     const stateRows = stateResult as any[];
     const stateRecord = stateRows[0];

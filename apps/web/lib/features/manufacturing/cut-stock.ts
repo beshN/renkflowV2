@@ -12,11 +12,11 @@ export function physicalBars(stock: PhysicalStock) {
     // length_m is written by individual-bar receipt and opening-count workflows. A total-only
     // legacy lot has no such evidence: its physical distribution must be entered by the workshop.
     if (!(Number(stock.lengthM) > 0) || !Number.isFinite(Number(stock.lengthM)) || quantity > Number(stock.lengthM) + 0.000001)
-      return { bars: [], problem: 'Toplam metre bilgisi var; fiziksel çubuk boyları ve adetleri girilmeli' };
+      return { bars: [], problem: 'Toplam metre bilgisi var; fiziksel profil boyları ve adetleri girilmeli' };
     return { bars: [{ ...base, id: stock.id, lengthMm: quantity * 1000 }], problem: null };
   }
   if (['adet', 'boy', 'pcs', 'piece'].includes(uom) && Number(stock.pieceLengthMm) > 0 && Number.isFinite(Number(stock.pieceLengthMm)) && Number.isInteger(quantity) && quantity <= 10000) {
     return { bars: Array.from({ length: quantity }, (_, i) => ({ ...base, id: `${stock.id}:bar:${i + 1}`, lotNumber: `${stock.lotNumber} · ${i + 1}/${quantity}`, lengthMm: Number(stock.pieceLengthMm) })), problem: null };
   }
-  return { bars: [], problem: ['adet', 'boy', 'pcs', 'piece'].includes(uom) ? 'Adet ve tek parça boyu kontrol edilmeli (en fazla 10.000 çubuk)' : 'Bu stok biriminden fiziksel kesim boyu belirlenemiyor; çubuk boyları ve adetleri girilmeli' };
+  return { bars: [], problem: ['adet', 'boy', 'pcs', 'piece'].includes(uom) ? 'Adet ve tek parça boyu kontrol edilmeli (en fazla 10.000 profil)' : 'Bu stok biriminden fiziksel kesim boyu belirlenemiyor; profil boyları ve adetleri girilmeli' };
 }

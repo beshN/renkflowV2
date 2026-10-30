@@ -5,7 +5,7 @@ describe('stock vocabulary', () => {
   it('shows warehouse types, units and movement sources in Turkish, keeping unknown codes visible', () => {
     expect(['RAW', 'WIP', 'FINISHED', 'REJECTED'].map(warehouseTypeLabel)).toEqual(['Hammadde deposu', 'Üretim (yarı mamul)', 'Mamul deposu', 'Red / iade']);
     expect(warehouseTypeLabel('NEW_TYPE')).toBe('NEW_TYPE');
-    expect([unitLabel('takim'), unitLabel('boy'), unitLabel('m')]).toEqual(['takım', 'boy (çubuk)', 'metre']);
+    expect([unitLabel('takim'), unitLabel('boy'), unitLabel('m')]).toEqual(['takım', 'boy (profil)', 'metre']);
     expect([movementSourceLabel('cutting_plan'), movementSourceLabel('manual'), movementSourceLabel(null)]).toEqual(['Kesim planı', 'Elle giriş', 'Kaynak yok']);
   });
 

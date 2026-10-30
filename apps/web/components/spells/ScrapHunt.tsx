@@ -65,13 +65,13 @@ export function ScrapHunt({ parts: initial, params, fromPlan, onClose }: { parts
     const part = byId.get(id);
     if (!part || placed.has(id) || result) return false;
     if (!fits(bar, id)) {
-      setNote(`${fmt(part.lengthMm)} mm bu çubuğa sığmıyor (testere payı ${params.kerfMm.toLocaleString('tr-TR')} mm dahil).`);
+      setNote(`${fmt(part.lengthMm)} mm bu profile sığmıyor (testere payı ${params.kerfMm.toLocaleString('tr-TR')} mm dahil).`);
       return false;
     }
     setBars((list) => { const next = list.map((b) => [...b]); if (bar >= next.length) next.push([]); next[bar].push(id); return next; });
     setHistory((h) => [...h, id]);
     setPicked(null);
-    setNote(`${fmt(part.lengthMm)} mm yerleştirildi (çubuk ${bar + 1}).`);
+    setNote(`${fmt(part.lengthMm)} mm yerleştirildi (profil ${bar + 1}).`);
     return true;
   };
 
@@ -154,7 +154,7 @@ export function ScrapHunt({ parts: initial, params, fromPlan, onClose }: { parts
     if (picked === id) { setPicked(null); return; }
     setPicked(id);
     const first = shown.findIndex((_, i) => fits(i, id));
-    setNote(`${fmt(byId.get(id)?.lengthMm ?? 0)} mm seçildi. Çubuğu ok tuşlarıyla seçip Enter'a basın.`);
+    setNote(`${fmt(byId.get(id)?.lengthMm ?? 0)} mm seçildi. Profili ok tuşlarıyla seçip Enter'a basın.`);
     focusBar(first < 0 ? 0 : first);
   };
 
@@ -189,7 +189,7 @@ export function ScrapHunt({ parts: initial, params, fromPlan, onClose }: { parts
           <div className="min-w-0">
             <h2 id="scrap-title" className="text-[15px] font-semibold tracking-[-0.01em]">Fire avı</h2>
             <p id="scrap-help" className="mt-0.5 text-[12.5px] text-muted-foreground">
-              Parçaları {fmt(params.barMm)} mm çubuklara yerleştirin, sistemle yarışın. Testere payı {params.kerfMm.toLocaleString('tr-TR')} mm{params.trimStartMm + params.trimEndMm ? `, tıraş ${fmt(params.trimStartMm + params.trimEndMm)} mm` : ''}; {fmt(params.minimumRemnantMm)} mm ve üstü kalan artık sayılır.
+              Parçaları {fmt(params.barMm)} mm profillere yerleştirin, sistemle yarışın. Testere payı {params.kerfMm.toLocaleString('tr-TR')} mm{params.trimStartMm + params.trimEndMm ? `, tıraş ${fmt(params.trimStartMm + params.trimEndMm)} mm` : ''}; {fmt(params.minimumRemnantMm)} mm ve üstü kalan artık sayılır.
             </p>
           </div>
           <button type="button" onClick={onClose} className="-mr-1 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Oyunu kapat"><X className="h-4 w-4" aria-hidden /></button>
@@ -229,7 +229,7 @@ export function ScrapHunt({ parts: initial, params, fromPlan, onClose }: { parts
             ) : <p className="text-[13px] text-muted-foreground">Hepsi yerleşti. Bitir'e basın.</p>}
           </section>
 
-          <section aria-label="Çubuklar" className="space-y-2.5">
+          <section aria-label="Profiller" className="space-y-2.5">
             {shown.map((bar, i) => {
               const left = remainingMm(lengths(bar), params);
               const over = drag?.moved && drag.over === i;
@@ -238,7 +238,7 @@ export function ScrapHunt({ parts: initial, params, fromPlan, onClose }: { parts
               const ring = over ? (ok ? 'ring-2 ring-emerald-500' : 'ring-2 ring-rose-500') : active && ok ? 'ring-1 ring-[hsl(var(--primary)/0.6)]' : 'ring-1 ring-border';
               return (
                 <div key={i} data-scrap-bar={i} className="flex items-center gap-2">
-                  <span className="w-7 shrink-0 text-[11px] tabular-nums text-muted-foreground" aria-hidden>Ç{i + 1}</span>
+                  <span className="w-7 shrink-0 text-[11px] tabular-nums text-muted-foreground" aria-hidden>P{i + 1}</span>
                   <div className={`relative flex h-9 min-w-0 flex-1 overflow-hidden rounded-md bg-muted ring-inset ${ring}`}>
                     {params.trimStartMm > 0 && <span aria-hidden className="h-full bg-foreground/25" style={{ width: `${(params.trimStartMm / params.barMm) * 100}%` }} />}
                     {bar.map((id) => {
@@ -252,7 +252,7 @@ export function ScrapHunt({ parts: initial, params, fromPlan, onClose }: { parts
                           animate={{ opacity: 1, scaleX: 1 }}
                           transition={{ duration: 0.18 }}
                           onClick={() => remove(id)}
-                          aria-label={`Çubuk ${i + 1}: ${fmt(len)} mm parçayı çıkar`}
+                          aria-label={`Profil ${i + 1}: ${fmt(len)} mm parçayı çıkar`}
                           title="Çıkar"
                           className="relative h-full shrink-0 origin-left overflow-hidden border-r-2 border-foreground/70 bg-[hsl(var(--primary)/0.22)] text-[10.5px] font-medium tabular-nums text-foreground hover:bg-[hsl(var(--primary)/0.32)] disabled:cursor-default"
                           style={{ width: `${((len + params.kerfMm) / params.barMm) * 100}%` }}
@@ -269,11 +269,11 @@ export function ScrapHunt({ parts: initial, params, fromPlan, onClose }: { parts
                     disabled={!!result}
                     onClick={() => onBarClick(i)}
                     onKeyDown={(e) => onBarKey(e, i)}
-                    aria-label={`Çubuk ${i + 1}: kalan ${fmt(left)} mm${bar.length ? (keep ? ', artık olarak kalır' : ', fire') : ', boş'}${picked ? (fits(i, picked) ? '. Seçili parçayı buraya koyun' : '. Seçili parça sığmıyor') : ''}`}
+                    aria-label={`Profil ${i + 1}: kalan ${fmt(left)} mm${bar.length ? (keep ? ', artık olarak kalır' : ', fire') : ', boş'}${picked ? (fits(i, picked) ? '. Seçili parçayı buraya koyun' : '. Seçili parça sığmıyor') : ''}`}
                     className={`w-[84px] shrink-0 rounded-md border px-1.5 py-1 text-right text-[11px] leading-tight tabular-nums transition-colors sm:w-[104px] ${picked && fits(i, picked) ? 'border-[hsl(var(--primary)/0.6)] bg-[hsl(var(--primary)/0.08)] hover:bg-[hsl(var(--primary)/0.16)]' : 'border-border hover:bg-accent'} disabled:hover:bg-transparent`}
                   >
                     <span className="block font-medium text-foreground">{fmt(left)} mm</span>
-                    <span className={`block ${!bar.length ? 'text-muted-foreground' : keep ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}>{!bar.length ? 'boş çubuk' : keep ? 'artık' : 'fire'}</span>
+                    <span className={`block ${!bar.length ? 'text-muted-foreground' : keep ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}>{!bar.length ? 'boş profil' : keep ? 'artık' : 'fire'}</span>
                   </button>
                 </div>
               );
@@ -292,10 +292,10 @@ export function ScrapHunt({ parts: initial, params, fromPlan, onClose }: { parts
               role="status"
             >
               <p className="text-[14px] font-medium tabular-nums">
-                Siz: {result.player.bars} çubuk, {pct(result.player.wastePercent)} fire <span className="text-muted-foreground">—</span> Sistem: {result.system.bars} çubuk, {pct(result.system.wastePercent)} fire
+                Siz: {result.player.bars} profil, {pct(result.player.wastePercent)} fire <span className="text-muted-foreground">—</span> Sistem: {result.system.bars} profil, {pct(result.system.wastePercent)} fire
               </p>
               <p className="mt-1 text-[13px] text-muted-foreground">{message(result.verdict)}</p>
-              {result.player.bars > result.system.bars && <p className="mt-1 text-[12px] text-muted-foreground">Bir çubuk fazlası her zaman geride sayılır; uzun artık bırakmak yetmez.</p>}
+              {result.player.bars > result.system.bars && <p className="mt-1 text-[12px] text-muted-foreground">Bir profil fazlası her zaman geride sayılır; uzun artık bırakmak yetmez.</p>}
             </motion.div>
           )}
         </div>

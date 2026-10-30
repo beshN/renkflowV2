@@ -4,6 +4,7 @@ import { requireSameOrigin, requireSameOriginJson } from '@/lib/features/manufac
 import { visibleOrdersForActor } from '@/lib/features/orders/access';
 import { NextRequest } from 'next/server';
 import { getAPIUser, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
+import { can } from '@/lib/security/access-matrix';
 import { orderService } from '@/lib/services/orderService.server';
 import { hasPermission, UserRole, AuthorizationError } from '@/lib/auth/rbac';
 import { TenantMismatchError } from '@/lib/services/types';
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // RBAC Check
     const userRole = (user.role as UserRole) || 'member';
-    if (!hasPermission(userRole, 'orders', 'read')) {
+    if (!hasPermission(userRole, 'orders', 'read') || (user.narrowed && !can(user.narrowed, 'orders', 'view'))) {
       return errorResponse('Bu işlem için yetkiniz bulunmuyor', 403);
     }
 
@@ -90,7 +91,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // RBAC Check: Require 'update' permission on 'orders'
     const userRole = (user.role as UserRole) || 'member';
-    if (!hasPermission(userRole, 'orders', 'update')) {
+    if (!hasPermission(userRole, 'orders', 'update') || (user.narrowed && !can(user.narrowed, 'orders', 'edit'))) {
       return errorResponse('Sipariş güncelleme yetkiniz bulunmuyor', 403);
     }
 
@@ -164,7 +165,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // RBAC Check: Require 'delete' permission on 'orders'
     // Only owner and admin have delete permission in the matrix
     const userRole = (user.role as UserRole) || 'member';
-    if (!hasPermission(userRole, 'orders', 'delete')) {
+    if (!hasPermission(userRole, 'orders', 'delete') || (user.narrowed && !can(user.narrowed, 'orders', 'delete'))) {
       return errorResponse('Sipariş silme yetkiniz bulunmuyor', 403);
     }
 

@@ -109,7 +109,7 @@ export function mapSamlProfile(profile: Record<string, any> | null | undefined, 
     subject,
     name: profile?.givenName || profile?.firstName || profile?.name,
     surname: profile?.sn || profile?.lastName || profile?.surname,
-    groups: profile?.groups || profile?.memberOf,
+    groups: Array.isArray(profile?.groups ?? profile?.memberOf) ? (profile?.groups ?? profile?.memberOf).map((g: unknown) => String(g).trim()).filter(Boolean) : typeof (profile?.groups ?? profile?.memberOf) === 'string' && String(profile?.groups ?? profile?.memberOf).trim() ? [String(profile?.groups ?? profile?.memberOf).trim()] : undefined,
     attributes: profile ?? {},
   };
 }

@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     const token = await withTransaction(async (tx) => {
       const members = await tx`
         SELECT role FROM tenant_members
-        WHERE tenant_id = ${tenantId} AND user_id = ${context.userId}
+        WHERE tenant_id = ${tenantId} AND user_id = ${context.userId} AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL
         LIMIT 1
         FOR UPDATE
       `;
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       if (existingUserId) {
         const existingMember = await tx`
           SELECT id FROM tenant_members
-          WHERE tenant_id = ${tenantId} AND user_id = ${existingUserId}
+          WHERE tenant_id = ${tenantId} AND user_id = ${existingUserId} AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL
           LIMIT 1
         `;
         const existingMemberRows = existingMember as Array<{ id: string }>;

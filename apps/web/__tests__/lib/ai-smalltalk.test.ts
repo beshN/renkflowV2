@@ -11,7 +11,7 @@ describe('command box small talk', () => {
   it.each(['teşekkürler', 'sağ ol', 'Eyvallah'])('"%s" gets a reply', (text) => expect(smallTalk(text)).toMatch(/Rica ederim/));
   it.each(['ne yapabilirsin', 'yardım', 'neler yapabilirsin?'])('"%s" explains what can be asked', (text) => expect(smallTalk(text)).toMatch(/sipariş/i));
   it('is not small talk for real questions and commands', () => {
-    for (const text of ['bu hafta geciken işler', '7016 mat kaç çubuk var', "Ahmet Bey'e 3x4 pergola teklif hazırla", 'RF-1042 nerede', 'Kaya İnşaat borcu ne kadar', 'yarın kaç sipariş teslim edilecek'])
+    for (const text of ['bu hafta geciken işler', '7016 mat kaç profil var', "Ahmet Bey'e 3x4 pergola teklif hazırla", 'RF-1042 nerede', 'Kaya İnşaat borcu ne kadar', 'yarın kaç sipariş teslim edilecek'])
       expect(smallTalk(text)).toBeNull();
   });
   it('never swallows something the command rules understand', () => {

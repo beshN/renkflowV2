@@ -60,12 +60,12 @@ export function CutDiagram({ plan, jobs, items, focusJobId, className }: {
                   <span className="font-semibold tabular-nums">{b + 1}.</span>
                   <span className="truncate">{items?.find((i) => i.id === bar.itemId)?.name ?? 'Profil'}</span>
                   <ColorChip color={bar.color} size={14} />
-                  {bar.isRemnant && <span className="rounded border border-border px-1">artık çubuk</span>}
+                  {bar.isRemnant && <span className="rounded border border-border px-1">artık profil</span>}
                   {mismatch && <span className="rounded border border-rose-500/40 px-1.5 font-medium text-rose-700 dark:text-rose-300">Renk uyuşmuyor</span>}
                 </span>
                 <span className="tabular-nums text-muted-foreground">{bar.lengthMm.toLocaleString('tr-TR')} mm</span>
               </div>
-              <div className={cn('flex overflow-hidden rounded border border-border bg-muted', full ? 'h-16' : 'h-11')} role="group" aria-label={`Çubuk ${b + 1}`}>
+              <div className={cn('flex overflow-hidden rounded border border-border bg-muted', full ? 'h-16' : 'h-11')} role="group" aria-label={`Profil ${b + 1}`}>
                 {bar.pieces.map((p, n) => {
                   // A piece of a job not in the list (another person's work) is grey, unnumbered.
                   const i = jobIndex.get(p.workOrderId);

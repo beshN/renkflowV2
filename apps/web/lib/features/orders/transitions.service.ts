@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { withTransaction } from "@/lib/db";
 import { hasPermission } from "../auth/permissions";
+import { can } from "@/lib/security/access-matrix";
 import {
   WorkOrderApiError,
   type WorkOrderActor,
@@ -21,7 +22,7 @@ export async function transitionOrder(
   id: string,
   raw: unknown,
 ) {
-  if (!hasPermission(a.role, "orders.edit"))
+  if (!hasPermission(a.role, "orders.edit") || (a.access && !can(a.access, "orders", "edit")))
     throw new WorkOrderApiError("Sipariş durumu değiştirme yetkiniz yok", 403);
   z.uuid().parse(id);
   const d = TransitionCommandSchema.parse(raw),

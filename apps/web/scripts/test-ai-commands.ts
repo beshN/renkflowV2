@@ -110,9 +110,9 @@ async function main() {
   for (const [len, color] of [[6.5, '7016 Mat'], [6.5, 'RAL 7016'], [7, '7016'], [6.5, '9016']] as const)
     await db`INSERT INTO stock_lots (tenant_id, item_id, warehouse_id, lot_number, original_qty, remaining_qty, length_m, status, metadata)
       VALUES (${tenantId}, ${item.id}, ${wh.id}, ${'L-' + randomUUID().slice(0, 6)}, ${len}, ${len}, ${len}, 'available', ${JSON.stringify({ color })}::text::jsonb)`;
-  const stock: any = await runCommand(owner, { text: '7016 mat kaç çubuk var' });
+  const stock: any = await runCommand(owner, { text: '7016 mat kaç profil var' });
   assert.equal(stock.type, 'answer');
-  assert.equal(stock.title, 'RAL 7016 Mat: 3 çubuk');
+  assert.equal(stock.title, 'RAL 7016 Mat: 3 profil');
   assert.match(stock.lines[0].value, /2×6\.500 mm, 1×7\.000 mm/);
 
   // What-if: delay 2 days → preview → approve → new promise; expedite; cancel preview.

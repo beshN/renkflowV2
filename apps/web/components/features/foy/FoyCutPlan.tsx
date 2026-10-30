@@ -67,8 +67,8 @@ export function FoyCutPlan({ doc,family,onReview }: { doc: FoyDoc;family?:string
           <StatusChip tone="neutral" label={`${s.pieces} parça`} />
           {s.remnantsUsed > 0 && <StatusChip tone="success" icon={Recycle} label={`${s.remnantsUsed} artık kullanılıyor`} />}
           {s.scrapUsed > 0 && <StatusChip tone="warning" icon={Recycle} label={`${s.scrapUsed} hurda boy kullanılıyor`} />}
-          {s.toPaint > 0 && <StatusChip tone="warning" icon={Paintbrush} label={`${s.toPaint} boyasız çubuktan kesilip boyanacak`} />}
-          {s.toBuy > 0 ? <StatusChip tone={result?.stockProblems?.length ? 'warning' : 'danger'} icon={ShoppingCart} label={`${s.toBuy} çubuk${result?.stockProblems?.length ? ' eksik görünüyor' : ' satın alma önerisi'}`} /> : s.pieces > 0 && !result?.stockProblems?.length && !result?.plan.unmatched.length && !result?.plan.groups.some((g) => g.tooLong.length || g.missing.length) && <StatusChip tone="success" label="Stok yetiyor" />}
+          {s.toPaint > 0 && <StatusChip tone="warning" icon={Paintbrush} label={`${s.toPaint} boyasız profilden kesilip boyanacak`} />}
+          {s.toBuy > 0 ? <StatusChip tone={result?.stockProblems?.length ? 'warning' : 'danger'} icon={ShoppingCart} label={`${s.toBuy} profil${result?.stockProblems?.length ? ' eksik görünüyor' : ' satın alma önerisi'}`} /> : s.pieces > 0 && !result?.stockProblems?.length && !result?.plan.unmatched.length && !result?.plan.groups.some((g) => g.tooLong.length || g.missing.length) && <StatusChip tone="success" label="Stok yetiyor" />}
           {s.wastePercent !== null && <StatusChip tone="neutral" label={`Fire %${s.wastePercent.toLocaleString('tr-TR')}`} />}
         </>}
       </div>
@@ -138,15 +138,15 @@ export function FoyCutPlan({ doc,family,onReview }: { doc: FoyDoc;family?:string
           )}
           {g.buy && (
             <p className="flex items-center gap-1.5 border-t border-border/60 bg-rose-500/5 px-3 py-1.5 text-[13px] text-rose-800 dark:text-rose-300">
-              <ShoppingCart size={14} aria-hidden /> {result.stockProblems?.length ? 'Boyları bilinen stoktan karşılanamadı:' : 'Uygun stok yetersiz; satın alma önerisi:'} <b>{g.buy.bars} çubuk × {cm(g.buy.lengthMm)} cm</b>
+              <ShoppingCart size={14} aria-hidden /> {result.stockProblems?.length ? 'Boyları bilinen stoktan karşılanamadı:' : 'Uygun stok yetersiz; satın alma önerisi:'} <b>{g.buy.bars} profil × {cm(g.buy.lengthMm)} cm</b>
               <span className="text-xs">({g.missing.map((m) => `${cm(m.lengthMm)} × ${m.count}`).join(', ')} karşılanamadı)</span>
             </p>
           )}
-          {g.tooLong.length > 0 && <p className="border-t border-border/60 px-3 py-1.5 text-xs text-rose-700">Standart çubuktan uzun parça var ({g.tooLong.map((m) => `${cm(m.lengthMm)} cm × ${m.count}`).join(', ')}); özel boy sipariş edin.</p>}
+          {g.tooLong.length > 0 && <p className="border-t border-border/60 px-3 py-1.5 text-xs text-rose-700">Standart profilden uzun parça var ({g.tooLong.map((m) => `${cm(m.lengthMm)} cm × ${m.count}`).join(', ')}); özel boy sipariş edin.</p>}
         </div>
       ))}
       {result && !result.plan.groups.length && !result.plan.unmatched.length && <p className="text-sm text-muted-foreground">Bu föyde profil kesim listesi bulunamadı.</p>}
-      {result && result.stock.bars === 0 && !result.stockProblems?.length && <p className="text-xs text-muted-foreground">Bu listeye uygun kullanılabilir çubuk kaydı yok. Fiziksel boyları ve adetleri Stok → Depo'dan kontrol edin.</p>}
+      {result && result.stock.bars === 0 && !result.stockProblems?.length && <p className="text-xs text-muted-foreground">Bu listeye uygun kullanılabilir profil kaydı yok. Fiziksel boyları ve adetleri Stok → Depo'dan kontrol edin.</p>}
     </section>
   );
 }

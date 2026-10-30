@@ -644,7 +644,7 @@ function ReceivingForm({
               <div className="grid gap-2 sm:grid-cols-2">
                 {l.uom === "m" && (
                   <label className="text-sm">
-                    Gerçekte gelen çubuk boyu · mm
+                    Gerçekte gelen profil boyu · mm
                     <input
                       required={
                         Number(values[l.id]?.accepted || 0) +
@@ -661,7 +661,7 @@ function ReceivingForm({
                   </label>
                 )}
                 <label className="text-sm">
-                  Sağlam · {l.uom === "m" ? "çubuk adedi" : l.uom}
+                  Sağlam · {l.uom === "m" ? "profil adedi" : l.uom}
                   <input
                     className="rf-input mt-1 w-full"
                     type="number"
@@ -672,7 +672,7 @@ function ReceivingForm({
                   />
                 </label>
                 <label className="text-sm">
-                  Hasarlı / yanlış · {l.uom === "m" ? "çubuk adedi" : l.uom}
+                  Hasarlı / yanlış · {l.uom === "m" ? "profil adedi" : l.uom}
                   <input
                     className="rf-input mt-1 w-full"
                     type="number"
@@ -717,8 +717,8 @@ function ReceivingForm({
                     >
                       {[
                         ["length", "Gerçek boy · mm"],
-                        ["accepted", "Sağlam çubuk adedi"],
-                        ["rejected", "Hasarlı / yanlış çubuk adedi"],
+                        ["accepted", "Sağlam profil adedi"],
+                        ["rejected", "Hasarlı / yanlış profil adedi"],
                       ].map(([key, label]) => (
                         <label key={key} className="text-sm">
                           {label}
@@ -942,7 +942,7 @@ function RequestPurchase({
           {l.uom === "m" && (
             <>
               <label className="text-sm">
-                Satın alınacak çubuk boyu · mm
+                Satın alınacak profil boyu · mm
                 <input
                   required
                   type="number"
@@ -965,7 +965,7 @@ function RequestPurchase({
             </>
           )}
           <label className="text-sm">
-            {l.uom === "m" ? "Çubuk adedi" : "Miktar · " + l.uom}
+            {l.uom === "m" ? "Profil adedi" : "Miktar · " + l.uom}
             <input
               required
               className="rf-input mt-1 w-full"
@@ -994,7 +994,7 @@ function RequestPurchase({
               checked={excess}
               onChange={(e) => setExcess(e.target.checked)}
             />
-            Gerçek çubuk/adet alımı nedeniyle talebi aşan miktarı da satın alma
+            Gerçek profil/adet alımı nedeniyle talebi aşan miktarı da satın alma
             taslağına eklemeyi kabul ediyorum.
           </label>
           <p className="text-sm text-muted-foreground sm:col-span-2">

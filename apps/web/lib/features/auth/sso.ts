@@ -189,7 +189,7 @@ export async function initiateSAMLLogin(
   `;
 
   // Build SAML AuthnRequest
-  const providerResult = await sql`SELECT * FROM sso_providers WHERE id = ${providerId}`;
+  const providerResult = await sql`SELECT * FROM sso_providers WHERE id = ${providerId} AND enabled = true`;
   const providerRows = providerResult as any[];
   
   if (!providerRows[0]) {
@@ -212,8 +212,8 @@ export async function handleSAMLCallback(
 ): Promise<{ user: any; redirectTo: string }> {
   // Validate state
   const stateResult = await sql`
-    SELECT * FROM sso_states 
-    WHERE state = ${state} AND expires_at > NOW()
+    /* state atomically consumed via DELETE ... RETURNING above */
+    DELETE FROM sso_states WHERE state = ${state} AND expires_at > NOW() RETURNING *
   `;
   const stateRows = stateResult as any[];
   const stateRecord = stateRows[0];
@@ -222,7 +222,7 @@ export async function handleSAMLCallback(
     throw new Error('Invalid or expired state');
   }
 
-  const providerResult = await sql`SELECT * FROM sso_providers WHERE id = ${stateRecord.provider_id}`;
+  const providerResult = await sql`SELECT * FROM sso_providers WHERE id = ${stateRecord.provider_id} AND enabled = true`;
   const providerRows = providerResult as any[];
 
   if (!providerRows[0]) {
@@ -242,7 +242,7 @@ export async function handleSAMLCallback(
   const user = await findOrCreateSSOUser(profile, provider);
   
   // Clean up state
-  await sql`DELETE FROM sso_states WHERE state = ${state}`;
+  // State was already atomically consumed above
 
   return { user, redirectTo: stateRecord.callback_url };
 }
@@ -377,12 +377,15 @@ export async function findOrCreateSSOUser(profile: SsoProfile, provider: SSOProv
   });
 }
 
-function determineRoleFromGroups(groups?: string[]): 'owner' | 'admin' | 'member' {
-  if (!groups) return 'member';
+function determineRoleFromGroups(groups?: string[]): 'admin' | 'office' {
+  if (!Array.isArray(groups) || groups.length === 0) return 'office';
+  const normalized = groups.map((g) => String(g).trim().toLowerCase());
+  if (normalized.includes('admin') || normalized.includes('owner') || normalized.includes('manager')) return 'admin';
+  return 'office';
   
-  if (groups.includes('admin') || groups.includes('Owner')) return 'owner';
-  if (groups.includes('manager') || groups.includes('Admin')) return 'admin';
-  return 'member';
+  // Role already resolved above from normalized group array
+  // Legacy manager check handled above
+  // Default role returned above
 }
 
 // ============================================
@@ -441,7 +444,7 @@ export async function initiateOIDCLogin(
 ): Promise<{ url: string; state: string; codeVerifier: string }> {
   const state = createId('state');
 
-  const providerResult = await sql`SELECT * FROM sso_providers WHERE id = ${providerId}`;
+  const providerResult = await sql`SELECT * FROM sso_providers WHERE id = ${providerId} AND enabled = true`;
   const providerRows = providerResult as any[];
   
   if (!providerRows[0]) {
@@ -474,8 +477,8 @@ export async function handleOIDCCallback(
   params: { code: string; state: string }
 ): Promise<{ user: any; redirectTo: string }> {
   const stateResult = await sql`
-    SELECT * FROM sso_states
-    WHERE state = ${params.state} AND expires_at > NOW()
+    /* state atomically consumed via DELETE ... RETURNING above */
+    DELETE FROM sso_states WHERE state = ${params.state} AND provider_id = ${providerId} AND expires_at > NOW() RETURNING *
   `;
   const stateRows = stateResult as any[];
   const stateRecord = stateRows[0];
@@ -484,7 +487,7 @@ export async function handleOIDCCallback(
     throw new Error('Invalid or expired state');
   }
 
-  const providerResult = await sql`SELECT * FROM sso_providers WHERE id = ${providerId}`;
+  const providerResult = await sql`SELECT * FROM sso_providers WHERE id = ${providerId} AND enabled = true`;
   const providerRows = providerResult as any[];
 
   if (!providerRows[0]) {
@@ -507,7 +510,7 @@ export async function handleOIDCCallback(
   const profile = mapOidcProfile(userInfo, emailPolicy(provider), claims);
 
   const user = await findOrCreateSSOUser(profile, provider);
-  await sql`DELETE FROM sso_states WHERE state = ${params.state}`;
+  // State was already atomically consumed above
 
   return { user, redirectTo: stateRecord.callback_url };
 }

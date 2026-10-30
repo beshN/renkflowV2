@@ -111,8 +111,8 @@ export async function fileCountImport(actor: WorkOrderActor, raw: unknown) {
     title: `Sayım listesi${document.date ? ' ' + document.date : ''}: ${rows.length} satır${uncertain.length ? `, ${uncertain.length} emin değilim` : ''}`,
     rationale: [
       `"${input.fileName}" (${document.pages} sayfa) kesin kurallarla okundu; model kullanılmadı.`,
-      ...(input.mode==='technical'?['Yalnız teknik başvuru: kg/m ve kaynak bilgisi malzeme kartına aktarılır. Toplam kg, toplam metre ve adet belgede tarihî bilgi olarak kalır; hiçbir stok hareketi veya çubuk sayımı oluşturulmaz.','Mevcut gramajla çelişen değer değiştirilmez; satır kontrol için işaretlenir.']:[`${counted.length} adet/takım satırı ${warehouse.name} deposuna açılış stoğu olarak yazılır (yalnız mevcut stoktan fazlası).`,`${metres.length} metre/boy satırı stok kartı olarak açılır; çubukların boy ve adedi açılış sayımı ekranında girilir, PDF'teki toplam karşılaştırma için tutulur.`]),
-      'Malzeme kartı: profil kodu + ölçü + işlenmiş hâl; renk çubukta tutulur. Onaylanmadan hiçbir stok yazılmaz.',
+      ...(input.mode==='technical'?['Yalnız teknik başvuru: kg/m ve kaynak bilgisi malzeme kartına aktarılır. Toplam kg, toplam metre ve adet belgede tarihî bilgi olarak kalır; hiçbir stok hareketi veya profil sayımı oluşturulmaz.','Mevcut gramajla çelişen değer değiştirilmez; satır kontrol için işaretlenir.']:[`${counted.length} adet/takım satırı ${warehouse.name} deposuna açılış stoğu olarak yazılır (yalnız mevcut stoktan fazlası).`,`${metres.length} metre/boy satırı stok kartı olarak açılır; profillerin boy ve adedi açılış sayımı ekranında girilir, PDF'teki toplam karşılaştırma için tutulur.`]),
+      'Malzeme kartı: profil kodu + ölçü + işlenmiş hâl; renk profilde tutulur. Onaylanmadan hiçbir stok yazılmaz.',
     ].join('\n'),
     payload,
     affected: [],

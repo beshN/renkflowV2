@@ -24,7 +24,7 @@ export function CutPlanVersions({ planId }: { planId: string }) {
             <li key={v.id} className="flex flex-wrap items-center gap-2">
               <span className="font-medium tabular-nums">#{v.n}</span>
               <StatusChip tone={v.id === planId ? 'info' : 'muted'} label={STATUS[v.status] ?? v.status} />
-              <span className="tabular-nums">fire %{v.wastePercent} · {v.bars} çubuk{v.missing ? ` · ${v.missing} eksik` : ''}</span>
+              <span className="tabular-nums">fire %{v.wastePercent} · {v.bars} profil{v.missing ? ` · ${v.missing} eksik` : ''}</span>
               {v.wasteDelta != null && v.wasteDelta !== 0 && <span className={v.wasteDelta < 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}>{v.wasteDelta > 0 ? '+' : ''}{v.wasteDelta}</span>}
               <span className="ml-auto text-muted-foreground">{new Date(v.createdAt).toLocaleString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
             </li>

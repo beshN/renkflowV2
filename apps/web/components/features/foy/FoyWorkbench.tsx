@@ -283,7 +283,7 @@ export function FoyWorkbench({orderId,family,expectedRevision=0,onAttached,contr
       {orderId&&<label className="block max-w-xs text-sm">Ürün grubu<select className="rf-input mt-1 w-full" value={productFamily} onChange={e=>setProductFamily(e.target.value as TechnicalFamily)}>{TECHNICAL_FAMILIES.map(f=><option key={f} value={f}>{FAMILY_LABELS[f]}</option>)}</select></label>}
       {controlled&&<label className="block text-sm">Revizyon gerekçesi<textarea className="rf-input mt-1 w-full" rows={2} maxLength={1000} value={revisionReason} onChange={e=>setRevisionReason(e.target.value)} placeholder="Değişen ölçü veya teknik bilgiyi açıklayın"/><span className="mt-1 block text-xs text-muted-foreground">Liste eklenince mevcut sürümde üretim durur. Yetkili onayından sonra güncel sürümle devam edilir.</span></label>}
       <PageHeader eyebrow="Üretim" title="Kesim listesi"
-        hint="Föy PDF'ini ya da fotoğrafını yükleyin. Hangi profil hangi çubuktan kesilecek, hangi artık ya da hurda boy kullanılacak, ne kadar fire çıkacak ve neyin alınması gerektiği hesaplanır. Siz onaylamadan hiçbir şey kaydedilmez."
+        hint="Föy PDF'ini ya da fotoğrafını yükleyin. Hangi parça hangi profilden kesilecek, hangi artık ya da hurda boy kullanılacak, ne kadar fire çıkacak ve neyin alınması gerektiği hesaplanır. Siz onaylamadan hiçbir şey kaydedilmez."
         kpis={entries.length ? [
           { label: 'föy', value: entries.length, icon: FileText },
           { label: 'kontrol bekliyor', value: entries.filter((e) => (e.result?.summary.warn ?? 0) > 0 && e.state !== 'done').length, icon: AlertTriangle, tone: 'warning' },

@@ -70,7 +70,7 @@ export function systemScore(parts: ScrapPart[], p: ScrapParams): ScrapScore {
   const demand: CutDemand[] = parts.map((part) => ({ itemId: 'oyun', color: '', lengthMm: part.lengthMm, quantity: 1, workOrderId: part.id }));
   const sources: CutSource[] = parts.map((_, i) => ({ id: `oyun-${String(i).padStart(3, '0')}`, itemId: 'oyun', color: '', lengthMm: p.barMm, unitCost: 0, isRemnant: false }));
   const plan = optimizeCuts(demand, sources, { kerfMm: p.kerfMm, trimStartMm: p.trimStartMm, trimEndMm: p.trimEndMm, minimumRemnantMm: p.minimumRemnantMm, standardLengthMm: p.barMm });
-  if (plan.unfulfilled.length) throw new Error('Parça çubuğa sığmıyor');
+  if (plan.unfulfilled.length) throw new Error('Parça profile sığmıyor');
   return { bars: plan.bars.length, wasteMm: plan.wasteMm, inputMm: plan.inputMm, wastePercent: plan.wastePercent };
 }
 

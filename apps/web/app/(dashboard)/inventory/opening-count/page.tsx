@@ -45,7 +45,7 @@ export default function OpeningCountPage() {
   const needsColor = !unpainted && !line?.color && Boolean(line || item);
 
   if (!data) return <main className="rf-page">{error ? <p role="alert">{error}</p> : <SkeletonRows rows={6} />}</main>;
-  if (!data.available) return <main className="rf-page"><h1 className="rf-page-title">Açılış sayımı</h1><p className="mt-3 text-sm text-muted-foreground">Bu kurulumda çubuk sayımı henüz etkin değil (veritabanı güncellemesi bekleniyor).</p></main>;
+  if (!data.available) return <main className="rf-page"><h1 className="rf-page-title">Açılış sayımı</h1><p className="mt-3 text-sm text-muted-foreground">Bu kurulumda profil sayımı henüz etkin değil (veritabanı güncellemesi bekleniyor).</p></main>;
 
   const reset = () => { setBars([{ lengthMm: '6000', count: '' }]); setCommandId(crypto.randomUUID()); setTarget(''); setItemId(''); setColor(''); };
 
@@ -54,10 +54,10 @@ export default function OpeningCountPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="rf-eyebrow">STOK · SAYIM</p>
-          <h1 className="rf-page-title">Çubuk bazında açılış sayımı</h1>
+          <h1 className="rf-page-title">Profil bazında açılış sayımı</h1>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            Metreyle tutulan profiller rafta çubuk çubuk sayılır: hangi profilde, hangi renkte, hangi boyda kaç çubuk var.
-            Her çubuk ayrı stok partisi olarak rengi ve boyuyla yazılır; kesim planı bu çubuklardan seçer.
+            Metreyle tutulan profiller rafta tek tek sayılır: hangi profilde, hangi renkte, hangi boyda kaç profil var.
+            Her profil ayrı stok partisi olarak rengi ve boyuyla yazılır; kesim planı bu profillerden seçer.
           </p>
         </div>
         <Link className="rf-secondary-button" href="/inventory/count-import">Sayım listeleri</Link>
@@ -72,9 +72,9 @@ export default function OpeningCountPage() {
             setDone('');
             const rows = bars.filter((b) => b.lengthMm || b.count).map((b) => ({ lengthMm: Number(b.lengthMm), count: Number(b.count) }));
             if (!rows.length || rows.some((b) => !Number.isInteger(b.lengthMm) || b.lengthMm < 100 || b.lengthMm > 30000 || !Number.isInteger(b.count) || b.count < 1))
-              return setError('Her satıra boyu (100–30000 mm) ve çubuk adedini tam sayı olarak girin');
-            if (rows.reduce((s, b) => s + b.count, 0) > MAX_BARS) return setError(`Bir girişte en fazla ${MAX_BARS} çubuk; kalanını ayrı girin`);
-            if (needsColor && !color.trim()) return setError('Çubukların rengini girin');
+              return setError('Her satıra boyu (100–30000 mm) ve profil adedini tam sayı olarak girin');
+            if (rows.reduce((s, b) => s + b.count, 0) > MAX_BARS) return setError(`Bir girişte en fazla ${MAX_BARS} profil; kalanını ayrı girin`);
+            if (needsColor && !color.trim()) return setError('Profillerin rengini girin');
             setBusy(true);
             const r = await requestJson<{ data: { bars: number; countedMeters: number; differenceMeters: number | null } }>('/api/v1/inventory/opening-count', {
               method: 'POST',
@@ -84,7 +84,7 @@ export default function OpeningCountPage() {
             setBusy(false);
             if (!r.ok || !r.data) return setError(r.error || 'Açılış sayımı kaydedilemedi');
             const d = r.data.data;
-            setDone(`${d.bars} çubuk (${metres(d.countedMeters)}) stoğa yazıldı${d.differenceMeters == null ? '' : ` · listeye göre fark ${d.differenceMeters >= 0 ? '+' : ''}${metres(d.differenceMeters)}`}.`);
+            setDone(`${d.bars} profil (${metres(d.countedMeters)}) stoğa yazıldı${d.differenceMeters == null ? '' : ` · listeye göre fark ${d.differenceMeters >= 0 ? '+' : ''}${metres(d.differenceMeters)}`}.`);
             reset();
             await load();
           }}
@@ -114,7 +114,7 @@ export default function OpeningCountPage() {
               </>
             )}
             {needsColor && (
-              <label className="block text-xs">Renk (her çubukta tutulur)
+              <label className="block text-xs">Renk (her profilde tutulur)
                 <input className="rf-input mt-2 w-full" value={color} onChange={(e) => setColor(e.target.value)} maxLength={100} placeholder="ör. 7016 Mat" />
                 {color.trim() && <ColorChip color={color} size={18} showName className="mt-2 text-sm" />}
               </label>
@@ -122,11 +122,11 @@ export default function OpeningCountPage() {
           </div>
 
           <fieldset className="space-y-2">
-            <legend className="text-xs text-muted-foreground">Çubuklar: boy ve adet</legend>
+            <legend className="text-xs text-muted-foreground">Profiller: boy ve adet</legend>
             {bars.map((b, i) => (
               <div key={i} className="flex flex-wrap items-end gap-2">
                 <label className="text-xs">Boy (mm)<input aria-label={`Boy ${i + 1}`} className="rf-input mt-1 w-28" inputMode="numeric" value={b.lengthMm} onChange={(e) => setBars(bars.map((x, j) => (j === i ? { ...x, lengthMm: e.target.value } : x)))} /></label>
-                <label className="text-xs">Çubuk adedi<input aria-label={`Adet ${i + 1}`} className="rf-input mt-1 w-28" inputMode="numeric" value={b.count} onChange={(e) => setBars(bars.map((x, j) => (j === i ? { ...x, count: e.target.value } : x)))} /></label>
+                <label className="text-xs">Profil adedi<input aria-label={`Adet ${i + 1}`} className="rf-input mt-1 w-28" inputMode="numeric" value={b.count} onChange={(e) => setBars(bars.map((x, j) => (j === i ? { ...x, count: e.target.value } : x)))} /></label>
                 {bars.length > 1 && <button type="button" className="rf-secondary-button" onClick={() => setBars(bars.filter((_, j) => j !== i))}>Kaldır</button>}
               </div>
             ))}
@@ -134,10 +134,10 @@ export default function OpeningCountPage() {
           </fieldset>
 
           <p className="text-sm" aria-live="polite">
-            Girilen: <strong>{barCount} çubuk · {metres(entered)}</strong>
+            Girilen: <strong>{barCount} profil · {metres(entered)}</strong>
             {line && <> · listede {metres(Number(line.quantity))} · fark {entered - Number(line.quantity) >= 0 ? '+' : ''}{metres(entered - Number(line.quantity))}</>}
           </p>
-          <button className="rf-primary-button" disabled={busy || (!line && (!itemId || !warehouseId))}>{busy ? 'Kaydediliyor…' : 'Çubukları stoğa yaz'}</button>
+          <button className="rf-primary-button" disabled={busy || (!line && (!itemId || !warehouseId))}>{busy ? 'Kaydediliyor…' : 'Profilleri stoğa yaz'}</button>
         </form>
       ) : (
         <p className="text-sm text-muted-foreground">Açılış sayımını firma yöneticisi girer.</p>
@@ -147,7 +147,7 @@ export default function OpeningCountPage() {
 
       <section className="space-y-2">
         <h2 className="font-semibold">Son sayılan liste satırları</h2>
-        <p className="text-sm text-muted-foreground">Çubukları bekleyen {data.lines.length} liste satırı var.</p>
+        <p className="text-sm text-muted-foreground">Profilleri bekleyen {data.lines.length} liste satırı var.</p>
         {data.counted.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -160,7 +160,7 @@ export default function OpeningCountPage() {
                       <td className="p-2">{c.name}</td>
                       <td className="p-2">{c.color ? <ColorChip color={c.color} size={16} /> : '—'}</td>
                       <td className="p-2">{metres(Number(c.quantity))}</td>
-                      <td className="p-2">{c.counted_bars} çubuk · {metres(Number(c.counted_meters))}</td>
+                      <td className="p-2">{c.counted_bars} profil · {metres(Number(c.counted_meters))}</td>
                       <td className={`p-2 ${Math.abs(diff) > 0.0005 ? 'text-amber-700 dark:text-amber-300' : ''}`}>{diff >= 0 ? '+' : ''}{metres(diff)}</td>
                     </tr>
                   );

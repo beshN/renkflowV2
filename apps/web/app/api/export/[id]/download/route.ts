@@ -21,7 +21,7 @@ export async function GET(
   { params }: RouteParams
 ) {
   try {
-    const { context, denied } = await apiContextWithPermission('reports.view');
+    const { context, denied } = await apiContextWithPermission('reports.export');
     if (denied) return denied;
     // A full export carries prices and contacts; a role that hides any of them gets none.
     if (await hidesAny(['price', 'cost', 'profit', 'customer_contact'])) return redactedJson({ error: 'Rolünüz bu dışa aktarımı içermez.' }, { status: 403 });

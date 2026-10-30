@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { aiAvailable, getAIService } from '@/lib/ai/service';
 import { auth } from '@/auth';
 import { hasPermission } from '@/lib/features/auth/permissions';
+import { can } from '@/lib/security/access-matrix';
+import { resolveMemberAccess } from '@/lib/security/member-access.server';
+import { consumeRateLimit, rateLimitResponse } from '@/lib/security/rate-limit';
 import { crossOriginRejection } from '@/lib/features/manufacturing/http-security';
 
 export async function GET() {
@@ -16,19 +19,28 @@ export async function POST(req: NextRequest) {
   if (crossOrigin) return crossOrigin;
   try {
     const session = await auth();
-    if (!session?.user) {
+    if (!session?.user?.id || !session.user.tenantId) {
       return NextResponse.json({ error: 'Oturum açmanız gerekiyor.' }, { status: 401 });
     }
     if (!aiAvailable()) {
       return NextResponse.json({ error: 'Belge analizi henüz etkinleştirilmedi. Sipariş bilgilerini elle girebilirsiniz.' }, { status: 503 });
     }
 
-    if (!hasPermission(session.user.role as any, 'orders.create')) return NextResponse.json({ error: 'Yetkiniz yok.' }, { status: 403 });
+    const access = await resolveMemberAccess(session.user.id, session.user.tenantId, { cached: false });
+    if (!access || access.deactivated) {
+      return NextResponse.json({ error: 'Oturum açmanız gerekiyor.' }, { status: 401 });
+    }
+    if (!hasPermission(access.base as any, 'orders.create') || !can(access, 'orders', 'create')) {
+      return NextResponse.json({ error: 'Yetkiniz yok.' }, { status: 403 });
+    }
+
+    const limit = await consumeRateLimit('aiExtract', session.user.id);
+    if (!limit.allowed) return rateLimitResponse(limit);
+
     const body = await req.json();
     const { mimeType, prompt } = body;
     let documentBase64 = body.documentBase64 || body.base64;
     if (body.blobPath) {
-      if (!session.user.id || !session.user.tenantId) return NextResponse.json({error:"Oturum gerekli"},{status:401});
       const file = await resolveUploadedFile({userId:session.user.id,tenantId:session.user.tenantId},{name:body.name,mime:mimeType,blobPath:body.blobPath});
       documentBase64 = Buffer.from(await file.arrayBuffer()).toString("base64");
     }
@@ -43,12 +55,13 @@ export async function POST(req: NextRequest) {
 Fatura veya irsaliye ise: tedarikçi, ürünler, adetler, fiyatlar bilgilerini çıkar.
 Eğer belge sipariş veya irsaliye değilse, genel içeriğini özetle ve bulabildiğin yapısal verileri çıkar.`;
 
+    const safePrompt = typeof prompt === 'string' && prompt.trim() ? prompt.trim().slice(0, 4000) : defaultPrompt;
     const aiService = getAIService();
     
     const result = await aiService.analyzeDocument(
       documentBase64,
       mimeType,
-      prompt || defaultPrompt,
+      safePrompt,
       { tenantId: session.user.tenantId ?? null, userId: session.user.id ?? null, feature: 'document.extract' }
     );
 

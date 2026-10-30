@@ -63,7 +63,7 @@ export function mainProcessIndex(input: {
 export const TECHNICAL_WARNINGS = {
   stock: "Stok yetersiz: eksik profiller gelene kadar kesim bekler",
   stockLengths:
-    "Bazı stok kayıtlarında fiziksel çubuk boyu eksik; bu kayıtlar kesim planına alınmadı",
+    "Bazı stok kayıtlarında fiziksel profil boyu eksik; bu kayıtlar kesim planına alınmadı",
   estimate:
     "Testere ve uç payı atölyenize göre doğrulanmadı; varsayılan değerlerle hesaplandı",
   recipe:

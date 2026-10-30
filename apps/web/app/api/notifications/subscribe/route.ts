@@ -39,6 +39,6 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 
-  await removePushSubscription(body.endpoint);
+  await removePushSubscription(body.endpoint, session.user.id);
   return NextResponse.json({ success: true });
 }

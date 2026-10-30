@@ -66,14 +66,14 @@ export async function refreshCuttingSuggestion(actor: SuggestionActor) {
     null,
     {
       kind: CUTTING_PLAN_KIND,
-      title: `${jobs.length === 1 ? '1 iş emrini kes' : `${jobs.length} iş emrini birlikte kes`}: ${result.bars.length} çubuk, ${(result.wastePercent == null ? 'hesaplanamadı' : percent(result.wastePercent))} fire`,
+      title: `${jobs.length === 1 ? '1 iş emrini kes' : `${jobs.length} iş emrini birlikte kes`}: ${result.bars.length} profil, ${(result.wastePercent == null ? 'hesaplanamadı' : percent(result.wastePercent))} fire`,
       rationale: [
         `Kesim bekleyen ${jobs.length} iş emri kesim motoruyla ${jobs.length === 1 ? '' : 'birlikte '}hesaplandı (${result.alternatives.length} yerleşim karşılaştırıldı).`,
-        `${result.bars.length} çubuk kullanılır: ${result.newBars} yeni çubuk${remnants ? `, ${remnants} artık` : ''}. Fire ${mmText(result.wasteMm)} mm (${(result.wastePercent == null ? 'hesaplanamadı' : percent(result.wastePercent))}), ${mmText(result.reusableMm)} mm kullanılabilir artık kalır.`,
+        `${result.bars.length} profil kullanılır: ${result.newBars} yeni profil${remnants ? `, ${remnants} artık` : ''}. Fire ${mmText(result.wasteMm)} mm (${(result.wastePercent == null ? 'hesaplanamadı' : percent(result.wastePercent))}), ${mmText(result.reusableMm)} mm kullanılabilir artık kalır.`,
         `Değerler: testere payı ${p.kerfMm} mm, tıraş ${p.trimStartMm}/${p.trimEndMm} mm, en kısa artık ${p.minimumRemnantMm} mm.`,
         ...(leftOut.length ? [`${leftOut.length} iş emri için stokta yeterli profil yok; bu öneriye alınmadı (Toplu kesim'de satın alma ihtiyacı görünür).`] : []),
         ...(morePending ? ['Kesim bekleyen 100\'den fazla iş var; en eski 100 iş hesaba katıldı.'] : []),
-        'Onaylarsanız plan kaydedilir ve bu çubuklar bu işler için ayrılır. Kalıcı stok düşümü ve artık girişi ölçülen kesimle yapılır.',
+        'Onaylarsanız plan kaydedilir ve bu profiller bu işler için ayrılır. Kalıcı stok düşümü ve artık girişi ölçülen kesimle yapılır.',
       ].join('\n'),
       payload: { workOrderIds, lotIds: result.bars.map((bar) => bar.source.id).sort(), parameterSource: result.parameterSource, fingerprint },
       affected: jobs.slice(0, 50).map((job) => ({ entityType: 'work_order', entityId: job.id, label: job.title.slice(0, 200), href: `/work-orders/${job.id}` })),

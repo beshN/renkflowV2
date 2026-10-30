@@ -23,8 +23,8 @@ export const OpeningCountSchema = z
     bars: z
       .array(
         z.object({
-          lengthMm: z.number({ message: 'Çubuk boyu sayı olmalı' }).int('Çubuk boyu tam sayı (mm) olmalı').min(100, 'Çubuk boyu en az 100 mm').max(30000, 'Çubuk boyu en fazla 30000 mm'),
-          count: z.number({ message: 'Çubuk adedi sayı olmalı' }).int('Çubuk adedi tam sayı olmalı').positive('Çubuk adedi en az 1').max(MAX_OPENING_BARS, `Bir girişte en fazla ${MAX_OPENING_BARS} çubuk`),
+          lengthMm: z.number({ message: 'Profil boyu sayı olmalı' }).int('Profil boyu tam sayı (mm) olmalı').min(100, 'Profil boyu en az 100 mm').max(30000, 'Profil boyu en fazla 30000 mm'),
+          count: z.number({ message: 'Profil adedi sayı olmalı' }).int('Profil adedi tam sayı olmalı').positive('Profil adedi en az 1').max(MAX_OPENING_BARS, `Bir girişte en fazla ${MAX_OPENING_BARS} profil`),
         }),
       )
       .min(1, 'En az bir boy girin')
@@ -79,7 +79,7 @@ export async function recordOpeningCount(actor: WorkOrderActor, raw: unknown, id
   if (!['owner', 'admin'].includes(actor.role)) fail('Açılış sayımını firma yöneticisi girer', 403);
   const input = OpeningCountSchema.parse(raw);
   const totalBars = input.bars.reduce((sum, b) => sum + b.count, 0);
-  if (totalBars > MAX_OPENING_BARS) fail(`Bir girişte en fazla ${MAX_OPENING_BARS} çubuk; kalanını ayrı girin`);
+  if (totalBars > MAX_OPENING_BARS) fail(`Bir girişte en fazla ${MAX_OPENING_BARS} profil; kalanını ayrı girin`);
   const t = actor.tenantId;
   return withTransaction(async (tx: any) => {
     // Only opening counts of this firm wait on each other; orders and receipts are not held up.
@@ -97,17 +97,17 @@ export async function recordOpeningCount(actor: WorkOrderActor, raw: unknown, id
         SELECT l.*, d.warehouse_id FROM stock_count_lines l JOIN stock_count_documents d ON d.id = l.document_id AND d.tenant_id = l.tenant_id
         WHERE l.tenant_id = ${t} AND l.id = ${input.lineId} FOR UPDATE OF l`;
       if (!line) fail('Sayım satırı bulunamadı', 404);
-      if (line.status !== 'needs_bars') fail('Bu satırın çubukları zaten girildi', 409);
+      if (line.status !== 'needs_bars') fail('Bu satırın profilleri zaten girildi', 409);
       itemId = line.item_id;
       warehouseId = warehouseId ?? line.warehouse_id;
       color = line.color || color;
     }
     const [item] = await tx`SELECT * FROM inventory_items WHERE tenant_id = ${t} AND id = ${itemId} AND active = true`;
     if (!item) fail('Malzeme bulunamadı veya pasif', 404);
-    if (item.stock_uom !== 'm') fail('Çubuk sayımı yalnız metre ile tutulan profiller içindir');
+    if (item.stock_uom !== 'm') fail('Profil sayımı yalnız metre ile tutulan profiller içindir');
     // Every bar carries a colour; an unpainted profile's bars say so.
     if ((item.processed_states ?? []).includes('boyasiz')) color = 'Boyasız';
-    if (!color) fail('Çubukların rengini girin');
+    if (!color) fail('Profillerin rengini girin');
     const [warehouse] = await tx`SELECT id FROM warehouses WHERE tenant_id = ${t} AND id = ${warehouseId} AND active = true AND warehouse_type IN ('RAW', 'REUSABLE_REMNANTS')`;
     if (!warehouse) fail('Hammadde veya artık deposu seçin');
 
@@ -133,7 +133,7 @@ export async function recordOpeningCount(actor: WorkOrderActor, raw: unknown, id
       idempotencyKey: key,
       referenceType: 'opening_count',
       referenceId: line?.document_id,
-      note: (input.note || `Açılış sayımı (çubuk): ${item.name} · ${color}`).slice(0, 1000),
+      note: (input.note || `Açılış sayımı (profil): ${item.name} · ${color}`).slice(0, 1000),
       lines,
     });
     if (line)

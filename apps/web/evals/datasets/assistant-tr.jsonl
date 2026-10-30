@@ -1,6 +1,6 @@
 {"id": "cmd-01", "task": "command", "input": "Ahmet Bey'e 3x4 pergola teklif hazırla antrasit", "expected": {"intent": "quote_draft", "customer": "Ahmet", "family": "pergola", "widthMm": 3000, "projectionMm": 4000, "color": "RAL 7016", "quantity": 1}}
 {"id": "cmd-02", "task": "command", "input": "bu hafta geciken işler", "expected": {"intent": "list_late", "period": "this_week"}}
-{"id": "cmd-03", "task": "command", "input": "7016 mat kaç çubuk var", "expected": {"intent": "stock_query", "color": "RAL 7016 Mat"}}
+{"id": "cmd-03", "task": "command", "input": "7016 mat kaç profil var", "expected": {"intent": "stock_query", "color": "RAL 7016 Mat"}}
 {"id": "cmd-04", "task": "command", "input": "ORD-12'ye 2 gün ekle", "expected": {"intent": "what_if", "scenario": "delay", "order": "ORD-12", "days": 2}}
 {"id": "cmd-05", "task": "command", "input": "abi bugün termini olan işler hangileri", "expected": {"intent": "list_late", "period": "today"}}
 {"id": "cmd-06", "task": "command", "input": "termini geçen siparişleri göster", "expected": {"intent": "list_late", "period": "overdue"}}

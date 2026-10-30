@@ -107,12 +107,12 @@ export async function executeProcurement(tx: any, actor: WorkOrderActor, action:
       const [item] = await tx`SELECT * FROM inventory_items WHERE tenant_id=${t} AND id=${line.itemId} AND active=true AND item_type<>'finished_good'`;
       if (!item) fail('Aktif hammadde veya sarf malzeme seçin',400);
       if (!(await tx`SELECT 1 FROM warehouses WHERE tenant_id=${t} AND id=${line.warehouseId} AND warehouse_type='RAW' AND active=true`).length) fail('Geçerli hammadde deposu gerekli',400);
-      if (item.stock_uom === 'm' && line.quantity > 10000) fail('Bir kalemde en fazla 10.000 fiziksel çubuk alınabilir',400);
-      if (item.stock_uom === 'm' && !line.lengthMm) fail('Metre ile izlenen profil için fiziksel çubuk boyu gerekli',400);
+      if (item.stock_uom === 'm' && line.quantity > 10000) fail('Bir kalemde en fazla 10.000 fiziksel profil alınabilir',400);
+      if (item.stock_uom === 'm' && !line.lengthMm) fail('Metre ile izlenen profil için fiziksel profil boyu gerekli',400);
       // Each bar received from this line carries the colour; a profile bar without one cannot be cut.
-      if (item.stock_uom === 'm' && !String(line.color ?? '').trim()) fail('Profil çubuğunun rengini girin (boyasız için "Boyasız")',400);
+      if (item.stock_uom === 'm' && !String(line.color ?? '').trim()) fail('Profilin rengini girin (boyasız için "Boyasız")',400);
       if (item.stock_uom !== 'm' && line.lengthMm) fail('Fiziksel boy yalnız metre ile izlenen profilde kullanılır',400);
-      if ((COUNT_UNITS.has(item.stock_uom) || item.stock_uom === 'm') && !Number.isInteger(line.quantity)) fail('Adet, takım veya çubuk miktarı tam sayı olmalı',400);
+      if ((COUNT_UNITS.has(item.stock_uom) || item.stock_uom === 'm') && !Number.isInteger(line.quantity)) fail('Adet, takım veya profil miktarı tam sayı olmalı',400);
       const quantity = item.stock_uom === 'm' ? line.quantity * line.lengthMm! / 1000 : line.quantity;
       if(line.requestLineId){
         const [requested]=await tx`SELECT l.*,r.status FROM material_request_lines l JOIN material_requests r ON r.id=l.material_request_id AND r.tenant_id=l.tenant_id WHERE l.tenant_id=${t} AND l.id=${line.requestLineId} FOR UPDATE OF l`;
@@ -182,7 +182,7 @@ export async function executeProcurement(tx: any, actor: WorkOrderActor, action:
       if (line.uom === 'm' && !lengthMm && !input.bars?.length) fail('Eski profil kaleminde fiziksel boy eksik. Bu sipariş için yeni boy tanımlı kalem oluşturun.',400);
       // Every profile bar carries a colour; an older order line without one takes it from the receipt.
       const barColor = String(input.color || line.metadata?.color || '').trim();
-      if (line.uom === 'm' && !barColor) fail('Bu profil satırında renk yok; kabulde çubuk rengini girin (boyasız için "Boyasız")',400);
+      if (line.uom === 'm' && !barColor) fail('Bu profil satırında renk yok; kabulde profil rengini girin (boyasız için "Boyasız")',400);
       if(input.acceptedQty>0&&line.metadata?.color&&!sameColor(barColor,line.metadata.color))fail('Sağlam kabulün rengi siparişle uyuşmuyor; yanlış rengi red olarak kaydedin',400);
       await tx`INSERT INTO goods_receipt_lines(tenant_id,goods_receipt_id,purchase_order_line_id,item_id,accepted_warehouse_id,rejected_warehouse_id,accepted_qty,rejected_qty,uom,metadata)VALUES(${t},${receipt.id},${line.id},${line.item_id},${line.warehouse_id},${input.rejectedWarehouseId || null},${input.acceptedQty},${input.rejectedQty},${line.uom},${json({ ...line.metadata, actualBars:input.bars, rejectionReason: input.rejectionReason })}::text::jsonb)`;
       for (const disposition of ['accepted','rejected'] as const) {
@@ -191,15 +191,17 @@ export async function executeProcurement(tx: any, actor: WorkOrderActor, action:
         const warehouseId = disposition === 'accepted' ? line.warehouse_id : input.rejectedWarehouseId;
         const metadata = { goodsReceiptId: receipt.id, purchaseOrderId: order.id, purchaseOrderLineId: line.id, currency:order.currency,disposition, rejectionReason: input.rejectionReason };
         if (line.uom === 'm') {
-          const distribution=input.bars ? input.bars.filter(b=>b.disposition===disposition) : [{lengthMm,count:amount*1000/lengthMm,disposition}];
+          const rawBarCount = (amount * 1000) / lengthMm;
+          const inferredBarCount = Math.abs(rawBarCount - Math.round(rawBarCount)) < 1e-6 ? Math.round(rawBarCount) : rawBarCount;
+          const distribution=input.bars ? input.bars.filter(b=>b.disposition===disposition) : [{lengthMm,count:inferredBarCount,disposition}];
           if(Math.abs(distribution.reduce((n,b)=>n+b.count*b.lengthMm/1000,0)-amount)>.000001 || distribution.reduce((n,b)=>n+b.count,0)>10000)fail('Fiziksel boy dağılımı kabul/red miktarıyla uyuşmuyor',400);
           let ordinal=0;
           for(const bar of distribution) {
-            if(!Number.isInteger(bar.count))fail('Profil kabulü fiziksel çubuk boyunun tam katı olmalı',400);
+            if(!Number.isInteger(bar.count))fail('Profil kabulü fiziksel profil boyunun tam katı olmalı',400);
             for(let n=0;n<bar.count;n++) {
               const meters=bar.lengthMm/1000;
               const actualColor=('color' in bar&&bar.color)|| (disposition==='rejected'?input.rejectedColor:undefined)||barColor;
-              if(disposition==='accepted'&&line.metadata?.color&&!sameColor(String(actualColor),line.metadata.color))fail('Sağlam çubuğun rengi siparişle uyuşmuyor',400);
+              if(disposition==='accepted'&&line.metadata?.color&&!sameColor(String(actualColor),line.metadata.color))fail('Sağlam profilin rengi siparişle uyuşmuyor',400);
               const [lot]=await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,lot_number,original_qty,remaining_qty,length_m,weight_kg,metadata) VALUES(${t},${line.item_id},${warehouseId},${receipt.receipt_number+'-'+line.position+'-'+disposition+'-'+(++ordinal)},${meters},${meters},${meters},${line.weight_per_meter_kg==null?null:meters*Number(line.weight_per_meter_kg)},${json({...metadata,color:actualColor,expectedColor:line.metadata?.color||null,unitCost:count(line.unit_price),isRemnant:false})}::text::jsonb) RETURNING id`;
               stockLines.push({itemId:line.item_id,warehouseId,lotId:lot.id,quantityDelta:meters,uom:line.uom,unitCost:count(line.unit_price),metadata});
             }

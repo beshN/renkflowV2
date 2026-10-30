@@ -215,6 +215,10 @@ export async function deleteNotification(
 // Email Notifications
 // ============================================
 
+function escapeHtml(value: unknown): string {
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 export async function sendOrderStatusEmail(
   email: string,
   order: Order,
@@ -231,8 +235,8 @@ export async function sendOrderStatusEmail(
     subject: `Sipariş Durumu Güncellendi - #${order.orderNumber}`,
     html: `
       <h1>Sipariş Durumu Güncellendi</h1>
-      <p>Merhaba ${order.customerName},</p>
-      <p><strong>#${order.orderNumber}</strong> numaralı siparişinizin durumu güncellendi:</p>
+      <p>Merhaba ${escapeHtml(order.customerName)},</p>
+      <p><strong>#${escapeHtml(order.orderNumber)}</strong> numaralı siparişinizin durumu güncellendi:</p>
       <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
         <p style="margin: 0; font-size: 18px; font-weight: bold;">
           ${oldStatus ? `${oldStatus} → ${order.status}` : order.status}
@@ -241,8 +245,8 @@ export async function sendOrderStatusEmail(
           ${statusMessage}
         </p>
       </div>
-      <p><strong>Ürün:</strong> ${order.productName}</p>
-      <p><strong>Tutar:</strong> ${order.totalAmount} ${order.currency}</p>
+      <p><strong>Ürün:</strong> ${escapeHtml(order.productName)}</p>
+      <p><strong>Tutar:</strong> ${escapeHtml(order.totalAmount)} ${escapeHtml(order.currency)}</p>
       <p>Siparişinizi takip etmek için dashboard'a giriş yapabilirsiniz.</p>
     `,
   };
@@ -258,11 +262,11 @@ export async function sendOrderCreatedEmail(
     subject: `Yeni Sipariş Alındı - #${order.orderNumber}`,
     html: `
       <h1>Yeni Siparişiniz</h1>
-      <p>Merhaba ${order.customerName},</p>
-      <p><strong>#${order.orderNumber}</strong> numaralı siparişiniz başarıyla oluşturuldu.</p>
+      <p>Merhaba ${escapeHtml(order.customerName)},</p>
+      <p><strong>#${escapeHtml(order.orderNumber)}</strong> numaralı siparişiniz başarıyla oluşturuldu.</p>
       <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
-        <p style="margin: 0;"><strong>Ürün:</strong> ${order.productName}</p>
-        <p style="margin: 8px 0 0 0;"><strong>Tutar:</strong> ${order.totalAmount} ${order.currency}</p>
+        <p style="margin: 0;"><strong>Ürün:</strong> ${escapeHtml(order.productName)}</p>
+        <p style="margin: 8px 0 0 0;"><strong>Tutar:</strong> ${escapeHtml(order.totalAmount)} ${escapeHtml(order.currency)}</p>
       </div>
       <p>Siparişiniz incelendikten sonra üretime başlanacaktır.</p>
     `,
@@ -283,16 +287,17 @@ export async function savePushSubscription(
     INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, created_at)
     VALUES (${userId}, ${subscription.endpoint}, ${subscription.p256dh}, ${subscription.auth}, NOW())
     ON CONFLICT (endpoint) DO UPDATE SET
+      user_id = ${userId},
       p256dh = ${subscription.p256dh},
       auth = ${subscription.auth},
       updated_at = NOW()
   `;
 }
 
-export async function removePushSubscription(endpoint: string): Promise<void> {
+export async function removePushSubscription(endpoint: string, userId?: string): Promise<void> {
   await sql`
     DELETE FROM push_subscriptions
-    WHERE endpoint = ${endpoint}
+    WHERE endpoint = ${endpoint} AND (${userId ?? null}::text IS NULL OR user_id::text = ${userId ?? null})
   `;
 }
 
@@ -420,10 +425,10 @@ export async function notifyOrderStatusChange(
 ): Promise<void> {
   // Get tenant members
   const members = await sql`
-    SELECT u.id, u.email, u.name
+    SELECT u.id, u.email, u.name, tm.role
     FROM tenant_members tm
     JOIN users u ON tm.user_id = u.id
-    WHERE tm.tenant_id = ${tenantId}
+    WHERE tm.tenant_id = ${tenantId} AND (to_jsonb(tm) ->> 'deactivated_at') IS NULL
   `;
 
   const membersRows = members as any[];
@@ -444,7 +449,7 @@ export async function notifyOrderStatusChange(
     }
 
     // Email notification if enabled
-    if (prefs?.email['order:status_changed'] !== false) {
+    if (prefs?.email['order:status_changed'] !== false && ['owner', 'admin', 'office', 'accountant'].includes(member.role)) {
       await sendOrderStatusEmail(member.email, order, oldStatus);
     }
 

@@ -254,7 +254,7 @@ export async function checkReceipt(a: WorkOrderActor, raw: unknown) {
       )
         fail("Gelen miktar kalan siparişle uyuşmuyor");
       if (l.uom === "m" && !row.bars?.length)
-        fail("Profil için gerçekte gelen boy ve çubuk adetleri gerekli", 400);
+        fail("Profil için gerçekte gelen boy ve profil adetleri gerekli", 400);
     }
     await checkPhotos(tx, a, d.photos, undefined, po.id);
     const [r] =

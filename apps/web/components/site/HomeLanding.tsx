@@ -17,7 +17,7 @@ const FEATURES = [
   {
     eyebrow: 'Kesim ve üretim',
     title: 'Her profil boyu, planlanmış bir kesim.',
-    body: 'Sipariş föyünü yüklediğinizde kesim listesi okunur. Parçalar önce depodaki artıklara, kalanı tam çubuklara yerleştirilir; ne kadar fire çıkacağı ve neyin satın alınacağı görünür. Kullanılabilir artık ölçüsüyle stoğa geri yazılır.',
+    body: 'Sipariş föyünü yüklediğinizde kesim listesi okunur. Parçalar önce depodaki artıklara, kalanı tam profillere yerleştirilir; ne kadar fire çıkacağı ve neyin satın alınacağı görünür. Kullanılabilir artık ölçüsüyle stoğa geri yazılır.',
     points: ['Föyden otomatik kesim listesi', 'Artık ve hurda boyların önce kullanılması', 'Fire ve satın alma önerisi'],
     mock: <CuttingMock />,
   },
@@ -312,7 +312,7 @@ function CutSection() {
         <Reveal className="max-w-2xl">
           <p className="rf-marker">Kesim planı</p>
           <h2 className="mt-3 text-[clamp(28px,3.6vw,46px)] font-bold leading-[1.04]">Föyü yükleyin, hangi boydan ne kesileceğini görün.</h2>
-          <p className="mt-4 text-[16px] leading-7 text-muted-foreground">Sipariş föyü okunur, parçalar önce depodaki artıklara, kalanı tam çubuklara yerleşir. Aşağıdaki plan gerçek hesaplama motoruyla çalışır; boyları değiştirip deneyin.</p>
+          <p className="mt-4 text-[16px] leading-7 text-muted-foreground">Sipariş föyü okunur, parçalar önce depodaki artıklara, kalanı tam profillere yerleşir. Aşağıdaki plan gerçek hesaplama motoruyla çalışır; boyları değiştirip deneyin.</p>
         </Reveal>
         <div className="mt-12"><CutDemo /></div>
       </div>

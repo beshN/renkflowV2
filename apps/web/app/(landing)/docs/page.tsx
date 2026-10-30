@@ -40,7 +40,7 @@ const GUIDES: Guide[] = [
       'Teklif — Satış › Teklifler › “Yeni teklif”: müşteriyi seçin, ürünü ölçüleriyle yapılandırın, rengi katalogdan seçin. KDV, döviz (gerekirse “TCMB’den al”) ve indirimleri girin. Firma eşiğini aşan indirim yönetici onayı ister.',
       'Gönderim — Teklifi PDF olarak yazdırın, WhatsApp ile gönderin veya müşteriye onay bağlantısı verin. Durumu “Gönderildi”, “Müşteri onayladı”, “Kabul edildi” ya da “Reddedildi” olarak işaretleyin.',
       'Sipariş — Kabul edilen teklifte “Sipariş dosyasını aç” düğmesine basın. Sipariş açılır; reçetesi olan kalemlerin iş emri kendiliğinden oluşur ve kesim havuzuna girer. Teklifsiz işler için Siparişler ekranındaki “Yeni sipariş” ile doğrudan sipariş de açabilirsiniz.',
-      'Teknik plan — Siparişe imalat föyünü yükleyin (Üretim › Kesim listesi). Föy okunur, kesim planı depodaki çubuk boylarına ve artık parçalara göre çıkarılır. Gerçek engeller düzeltilmeden onay açılmaz; stok eksikliği gibi uyarıları “Uyarıları gördüm” ile kabul edebilirsiniz.',
+      'Teknik plan — Siparişe imalat föyünü yükleyin (Üretim › Kesim listesi). Föy okunur, kesim planı depodaki profil boylarına ve artık parçalara göre çıkarılır. Gerçek engeller düzeltilmeden onay açılmaz; stok eksikliği gibi uyarıları “Uyarıları gördüm” ile kabul edebilirsiniz.',
       'Üretim — Üretim › İş emirleri ve Üretim ekranlarından ilerlemeyi izleyin. Ustalar işlerini Usta ekranından veya Ayarlar › İstasyon tabletleri ile eşlenen atölye tabletlerinden görür; fire ve gecikmeyi nedeniyle kaydeder.',
       'Sevkiyat ve montaj — Üretim › Sevkiyat ekranında teslimatı planlayın; montajlı işleri Üretim › Montaj ekranından ekibe atayın. Müşteri teslimi kendisine gönderilen sayfadan imzalar.',
       'Fatura ve tahsilat — Siparişin “Fatura & tahsilat” sekmesinden fatura kesin ve tahsilatları işleyin. Açık bakiyeler Finans › Alacaklar ekranında görünür.',
@@ -65,7 +65,7 @@ const GUIDES: Guide[] = [
     intro: 'Yapay zekâ özellikleri firma yöneticisi açmadan modele bağlanmaz. Kişisel veriler (ad, e-posta, telefon, T.C. kimlik no, IBAN) modele gönderilmeden önce maskelenir.',
     steps: [
       'Ayarlar › Asistan: çalışma modunu seçin (kapalı, yalnız kurallar veya yapay zekâ), KVKK onayını verin ve isterseniz günlük bütçe tanımlayın.',
-      'Genel › Asistan: “geciken işler”, “çubuk stoğu”, “şu müşteriye teklif taslağı hazırla” gibi komutlar yazın. Kayıt değiştiren her komut önce önizleme olarak gelir ve sizin onayınızla uygulanır.',
+      'Genel › Asistan: “geciken işler”, “profil stoğu”, “şu müşteriye teklif taslağı hazırla” gibi komutlar yazın. Kayıt değiştiren her komut önce önizleme olarak gelir ve sizin onayınızla uygulanır.',
       'Her ekrandan Cmd+K (Windows’ta Ctrl+K) ile arama açın ve “Asistana sor” seçeneğini kullanın.',
       'Asistanın öneri kartları geciken işler, eksik malzeme ve benzeri durumları dayanağıyla gösterir; kartı onaylayabilir, erteleyebilir veya bir daha önermemesini isteyebilirsiniz.',
       'Genel › AI ofis: görevi kendi cümlelerinizle yazın. Ofis müdürü görevin türüne ve zorluğuna karar verip uygun çalışana verir; iş yönetici kontrolünden geçtikten sonra dosya olarak teslim edilir. Firma sahibi, yönetici, ofis ve muhasebe rolleri kullanabilir.',

@@ -97,7 +97,7 @@ export function optimizeCuts(
     for (let i = 0; i < d.quantity; i++) pieces.push({ ...d, quantity: 1 });
   }
   if (new Set(sources.map((s) => s.id)).size !== sources.length)
-    throw new Error("Kaynak çubuk tekrar ediyor");
+    throw new Error("Kaynak profil tekrar ediyor");
   for (const s of sources)
     if (
       !Number.isFinite(s.lengthMm) ||
