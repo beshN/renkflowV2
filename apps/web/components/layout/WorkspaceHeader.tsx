@@ -41,7 +41,7 @@ function useUnreadNotifications(enabled: boolean, pathname: string) {
   return count;
 }
 
-const MENU_ITEM = 'flex cursor-pointer select-none items-center gap-2 rounded px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-foreground';
+const MENU_ITEM = 'flex cursor-pointer select-none items-center gap-2 rounded-[9px] px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-foreground';
 
 export function WorkspaceHeader() {
   const pathname = usePathname();
@@ -72,8 +72,8 @@ export function WorkspaceHeader() {
     <Dialog.Root open={mobileOpen} onOpenChange={setMobileOpen}>
       <Dialog.Trigger asChild><button className="rf-icon-button md:!hidden" aria-label="Ana menüyü aç"><Menu size={21} /></button></Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[70] bg-slate-950/50 md:hidden" />
-        <Dialog.Content className="fixed bottom-0 left-0 top-0 z-[71] flex w-[min(320px,85vw)] flex-col rf-sidebar p-5 outline-none md:hidden">
+        <Dialog.Overlay className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-[2px] md:hidden" />
+        <Dialog.Content className="fixed bottom-2 left-2 top-2 z-[71] flex w-[min(320px,85vw)] flex-col rounded-[20px] rf-sidebar p-5 outline-none md:hidden">
           <div className="mb-6 flex items-center justify-between"><Dialog.Title asChild><span><BrushLogo><BrandMark href="/dashboard" /></BrushLogo></span></Dialog.Title><Dialog.Close aria-label="Ana menüyü kapat" className="rf-icon-button"><X size={20} /></Dialog.Close></div>
           <Dialog.Description className="sr-only">Çalışma alanı modülleri</Dialog.Description>
           <nav className="flex-1 space-y-5 overflow-y-auto" aria-label="Mobil modüller">
@@ -94,10 +94,10 @@ export function WorkspaceHeader() {
       {detail && <><ChevronRight size={13} className="text-muted-foreground/60" /><span className="text-muted-foreground">{SUBPAGE_LABELS[pathname] ?? 'Detay'}</span></>}
     </div>
     <div className="ml-auto flex shrink-0 items-center gap-1.5 md:gap-3">
-      <button type="button" onClick={openCommands} aria-label="Sipariş, müşteri veya modül ara" aria-keyshortcuts="Meta+K Control+K" className="rf-global-search flex h-8 items-center gap-2 border border-border bg-card px-2.5 text-xs text-muted-foreground">
+      <button type="button" onClick={openCommands} aria-label="Sipariş, müşteri veya modül ara" aria-keyshortcuts="Meta+K Control+K" className="rf-global-search flex h-9 items-center gap-2 border border-border bg-card px-3 text-[12.5px] text-muted-foreground">
         <Search size={15} /><span className="hidden xl:inline">Sipariş, müşteri veya modül ara</span><kbd aria-hidden="true" className="rf-kbd hidden sm:inline-flex">⌘ K</kbd>
       </button>
-      {user && hasPermission(user.role, 'orders.create') && <Link href="/new-order" className="rf-primary-button !hidden h-8 items-center gap-1.5 px-3 text-xs sm:!inline-flex"><Plus size={15} /> Yeni sipariş</Link>}
+      {user && hasPermission(user.role, 'orders.create') && <Link href="/new-order" className="rf-primary-button !hidden h-9 items-center gap-1.5 px-3.5 text-[12.5px] sm:!inline-flex"><Plus size={15} /> Yeni sipariş</Link>}
       <div className="hidden h-6 w-px bg-border sm:block" />
       <TeaBreak />
       <button type="button" aria-label="Temayı değiştir" className="rf-icon-button" onClick={(event) => switchThemeWithReveal(isDark ? 'light' : 'dark', setTheme, event.currentTarget)}>
@@ -109,10 +109,10 @@ export function WorkspaceHeader() {
       </Link>}
       <DropdownMenu.Root modal={false}>
         <DropdownMenu.Trigger asChild>
-          <button type="button" title={user?.name} aria-label="Kullanıcı menüsü" className="hidden h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--rf-ink))] text-xs font-semibold text-[hsl(var(--rf-ink-foreground))] transition-opacity hover:opacity-85 sm:flex">{user?.name?.slice(0, 1).toLocaleUpperCase('tr-TR') || 'R'}</button>
+          <button type="button" title={user?.name} aria-label="Kullanıcı menüsü" className="hidden h-9 w-9 items-center justify-center rounded-full bg-[hsl(var(--rf-ink))] text-xs font-semibold text-[hsl(var(--rf-ink-foreground))] transition-opacity hover:opacity-85 sm:flex">{user?.name?.slice(0, 1).toLocaleUpperCase('tr-TR') || 'R'}</button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content align="end" sideOffset={8} className="rf-command-dialog z-[75] w-56 rounded-md border border-border bg-card p-1 text-card-foreground shadow-xl">
+          <DropdownMenu.Content align="end" sideOffset={8} className="rf-command-dialog z-[75] w-60 rounded-[14px] border border-border bg-card p-1.5 text-card-foreground shadow-[0_18px_40px_-16px_rgb(0_0_0/0.3)]">
             {user && <DropdownMenu.Label className="px-2.5 py-2">
               <span className="block truncate text-sm font-medium">{user.name || user.email}</span>
               <span className="block truncate text-xs text-muted-foreground">{BASE_ROLE_LABELS[user.role]}</span>

@@ -127,9 +127,9 @@ const config: Config = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-        xl: "8px",
-        "2xl": "10px",
-        "3xl": "12px",
+        xl: "14px",
+        "2xl": "18px",
+        "3xl": "22px",
       },
       keyframes: {
         "accordion-down": {

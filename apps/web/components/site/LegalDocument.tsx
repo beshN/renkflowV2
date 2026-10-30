@@ -52,7 +52,7 @@ function Block({ block }: { block: LegalBlock }) {
 /** A legal text with its version, last-updated date and a table of contents that follows the reading. */
 export function LegalDocument({ document, children }: { document: LegalDocumentData; children?: ReactNode }) {
   return (
-    <div className="grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-16">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-16">
       <TocNav items={document.sections} articleId="legal-article" />
       <article id="legal-article" className="x-prose max-w-[68ch]">
         <p className="!text-[13px] !text-[var(--x-muted)]">

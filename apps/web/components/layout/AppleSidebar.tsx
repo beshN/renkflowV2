@@ -170,9 +170,10 @@ export function AppleSidebar({
         if (event.key === 'Escape') setHovered(false);
       }}
       className={cn(
-        'rf-sidebar fixed left-0 top-0 z-50 hidden h-dvh flex-col overflow-hidden md:flex transition-[width] duration-200 motion-reduce:transition-none',
+        // A floating rounded panel, inset from the window edges.
+        'rf-sidebar fixed left-2 top-2 z-50 hidden h-[calc(100dvh-16px)] flex-col overflow-hidden rounded-[18px] md:flex transition-[width,box-shadow] duration-200 motion-reduce:transition-none',
         expanded ? 'w-[252px]' : 'w-[72px]',
-        collapsed && expanded && 'shadow-xl',
+        collapsed && expanded && 'shadow-[0_24px_48px_-16px_rgb(0_0_0/0.45)]',
       )}
     >
       <div aria-hidden className="rf-ral-strip shrink-0">
@@ -188,7 +189,7 @@ export function AppleSidebar({
             onClick={togglePinned}
             aria-expanded={!collapsed}
             aria-label={collapsed ? 'Menüyü sabitle' : 'Menüyü daralt'}
-            className="sb-muted sb-hover rounded-md p-1.5"
+            className="sb-muted sb-hover rounded-[9px] p-1.5"
           >
             {collapsed ? (
               <PanelLeftOpen size={16} />
@@ -201,7 +202,7 @@ export function AppleSidebar({
       <div className="sb-line mx-3 mb-1 mt-3 flex h-12 shrink-0 items-center gap-2.5 border-b px-1.5 pb-3 pt-1">
         <span
           aria-hidden
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[4px] bg-[var(--acc-cta)] font-display text-[12px] font-bold text-[var(--acc-cta-fg)] ring-1 ring-white/15"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[var(--acc-cta)] font-display text-[12px] font-bold text-[var(--acc-cta-fg)] ring-1 ring-white/15"
         >
           {initials(user?.tenantName || 'Çalışma alanı')}
         </span>
@@ -251,7 +252,7 @@ export function AppleSidebar({
                     aria-current={active ? 'page' : undefined}
                     title={!expanded ? item.label : undefined}
                     className={cn(
-                      'rf-nav-item relative flex h-8 items-center gap-3 whitespace-nowrap px-2.5 text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[hsl(var(--ring))]',
+                      'rf-nav-item relative flex h-9 items-center gap-3 whitespace-nowrap px-2.5 text-[13.5px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[hsl(var(--ring))]',
                       active && 'rf-nav-active',
                     )}
                   >
@@ -259,7 +260,7 @@ export function AppleSidebar({
                       <motion.span
                         layoutId="rf-nav-pill"
                         aria-hidden
-                        className="rf-nav-pill absolute inset-0 rounded-[4px]"
+                        className="rf-nav-pill absolute inset-0 rounded-[9px]"
                         transition={
                           reducedMotion
                             ? { duration: 0 }
@@ -301,7 +302,7 @@ export function AppleSidebar({
               onClick={() => signOut({ callbackUrl: '/auth/login' })}
               aria-label="Çıkış yap"
               title="Çıkış yap"
-              className="sb-muted sb-hover rounded-md p-2"
+              className="sb-muted sb-hover rounded-[9px] p-2"
             >
               <LogOut size={15} />
             </button>
@@ -312,7 +313,7 @@ export function AppleSidebar({
             type="button"
             aria-label="Menüyü sabitle"
             onClick={togglePinned}
-            className="sb-muted sb-hover flex w-full items-center justify-center rounded-md p-2"
+            className="sb-muted sb-hover flex w-full items-center justify-center rounded-[9px] p-2"
           >
             <PanelLeftOpen size={16} />
           </button>

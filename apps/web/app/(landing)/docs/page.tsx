@@ -100,7 +100,7 @@ const GUIDES: Guide[] = [
 export default function Page() {
   return (
     <MarketingStandardPage pageKey="docs" hideHighlights>
-      <div className="grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-16">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-16">
         <TocNav items={[...GUIDES, { id: 'destek', title: 'Destek' }]} label="Bu rehberde" articleId="docs-article" />
         <article id="docs-article" className="max-w-[68ch]">
           {GUIDES.map((guide, index) => (

@@ -45,7 +45,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           className={cn(
             'relative z-10 flex min-w-0 flex-1 flex-col pb-20 md:pb-0',
             'md:transition-[margin-left] md:duration-150 ease-out motion-reduce:transition-none',
-            isSidebarEffectivelyExpanded ? 'md:ml-[252px]' : 'md:ml-[72px]'
+            isSidebarEffectivelyExpanded ? 'md:ml-[268px]' : 'md:ml-[88px]'
           )}
         >
           <WorkspaceHeader />

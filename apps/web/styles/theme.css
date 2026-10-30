@@ -33,7 +33,7 @@
   --input: 180 4.5% 78.2%;
   --ring: var(--acc-text);
   --rf-primary-text: var(--acc-text);
-  --radius: 6px;
+  --radius: 10px;
 
   --rf-ink: 198 9.8% 20%;
   --rf-ink-foreground: 0 0% 100%;
@@ -59,9 +59,10 @@
   --rf-warning: #a35f00;
   --rf-danger: #b42318;
   --rf-focus-ring: hsl(var(--acc-text) / 22%);
-  --rf-radius: 6px;
-  --rf-shadow-soft: none;
-  --rf-shadow: 0 1px 0 rgb(30 36 39 / 4%), 0 12px 28px -18px rgb(30 36 39 / 22%);
+  --rf-radius: 14px;
+  /* Apple-like depth: a hairline and a short, soft drop. */
+  --rf-shadow-soft: 0 1px 2px rgb(30 36 39 / 4%), 0 6px 16px -10px rgb(30 36 39 / 14%);
+  --rf-shadow: 0 1px 2px rgb(30 36 39 / 5%), 0 18px 40px -22px rgb(30 36 39 / 28%);
   --rf-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -117,7 +118,7 @@
   --rf-warning: #e9b86b;
   --rf-danger: #f29a90;
   --rf-focus-ring: hsl(var(--acc-text) / 30%);
-  --rf-shadow-soft: none;
+  --rf-shadow-soft: inset 0 1px 0 rgb(255 255 255 / 3%), 0 8px 20px -14px rgb(0 0 0 / 60%);
   --rf-shadow: inset 0 1px 0 rgb(255 255 255 / 4%), 0 18px 40px -22px rgb(0 0 0 / 70%);
 }
 
@@ -169,7 +170,7 @@ h1, h2, .rf-page-title, .font-display {
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
-  border-radius: 6px;
+  border-radius: 9px;
   background: hsl(var(--rf-ink));
   color: hsl(var(--rf-ink-foreground));
 }
@@ -254,9 +255,9 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  padding: 0.55rem 0.9rem;
+  padding: 0.55rem 0.95rem;
   border: 1px solid hsl(var(--primary));
-  border-radius: 6px;
+  border-radius: 10px;
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
   font-size: 13px;
@@ -273,7 +274,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  border-radius: 6px;
+  border-radius: 10px;
   background: hsl(var(--rf-ink));
   color: hsl(var(--rf-ink-foreground));
   font-weight: 550;
@@ -287,9 +288,9 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  padding: 0.55rem 0.85rem;
+  padding: 0.55rem 0.9rem;
   border: 1px solid hsl(var(--border));
-  border-radius: 6px;
+  border-radius: 10px;
   background: hsl(var(--card));
   color: hsl(var(--foreground));
   font-size: 13px;
@@ -301,7 +302,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 .rf-secondary-button:hover { background: hsl(var(--accent)); border-color: hsl(var(--foreground) / 16%); }
 .rf-secondary-button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.rf-icon-button { border-radius: 7px; transition: background 140ms, color 140ms; }
+.rf-icon-button { border-radius: 10px; transition: background 140ms, color 140ms; }
 .rf-icon-button:hover { background: hsl(var(--accent)); color: hsl(var(--foreground)); }
 
 .rf-input,
@@ -309,12 +310,13 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 .rf-dashboard-shell textarea {
   border: 1px solid hsl(var(--input));
   background-color: hsl(var(--card));
-  border-radius: 6px;
+  border-radius: 10px;
   color: hsl(var(--foreground));
   font-size: 13px;
   transition: border-color 140ms, box-shadow 140ms;
 }
-.rf-input { padding: 0.55rem 0.75rem; min-width: 0; }
+/* Zero specificity, so utility padding (pl-10 beside a search icon) wins. */
+:where(.rf-input) { padding: 0.55rem 0.75rem; min-width: 0; }
 .rf-input:hover,
 .rf-dashboard-shell select:hover { border-color: hsl(var(--foreground) / 22%); }
 .rf-input:focus,
@@ -334,7 +336,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   background-position: right 0.6rem center;
 }
 
-.rf-kbd { border-radius: 5px; background: hsl(var(--muted)); font-family: var(--font-mono), monospace; }
+.rf-kbd { border-radius: 6px; background: hsl(var(--muted)); font-family: var(--font-mono), monospace; }
 
 .rf-eyebrow {
   display: inline-flex;
@@ -360,12 +362,12 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 .rf-tabs button:hover { color: hsl(var(--foreground)); }
 .rf-tabs button[aria-pressed='true']::after { height: 2px; border-radius: 2px 2px 0 0; background: hsl(var(--foreground)); }
 
-.rf-module-nav { gap: 2px; padding: 3px; border-radius: 7px; background: hsl(var(--muted)); border: 1px solid hsl(var(--border)); }
-.rf-module-nav a { border-radius: 4px; padding: 8px 12px; transition: background 140ms, color 140ms; }
+.rf-module-nav { gap: 2px; padding: 3px; border-radius: 11px; background: hsl(var(--muted)); border: 1px solid hsl(var(--border)); }
+.rf-module-nav a { border-radius: 8px; padding: 8px 12px; transition: background 140ms, color 140ms; }
 .rf-module-nav a:hover { color: hsl(var(--foreground)); }
 .rf-module-nav a[aria-current='page'] { background: hsl(var(--card)); color: hsl(var(--foreground)); box-shadow: 0 1px 2px rgb(17 17 19 / 8%), 0 0 0 1px hsl(var(--border)); }
 
-.rf-alert { border-radius: 6px; border-color: hsl(38 92% 50% / 30%); background: hsl(48 96% 89% / 45%); color: #854d0e; }
+.rf-alert { border-radius: var(--rf-radius); border-color: hsl(38 92% 50% / 30%); background: hsl(48 96% 89% / 45%); color: #854d0e; }
 .dark .rf-alert { border-color: hsl(38 92% 50% / 25%); background: hsl(38 92% 50% / 8%); color: #fcd34d; }
 
 .rf-chip {
@@ -373,8 +375,8 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   align-items: center;
   gap: 6px;
   height: 24px;
-  padding: 0 9px;
-  border-radius: 6px;
+  padding: 0 10px;
+  border-radius: 9999px;
   border: 1px solid hsl(var(--border));
   background: hsl(var(--card));
   font-size: 11.5px;
@@ -387,7 +389,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   place-items: center;
   width: 30px;
   height: 30px;
-  border-radius: 7px;
+  border-radius: 9px;
   color: hsl(var(--muted-foreground));
   border: 1px solid hsl(var(--border));
   background: hsl(var(--background));
@@ -406,12 +408,12 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   --sb-fg: #eef0f0;
   --sb-muted: #a9b2b6;
   --sb-hover: rgb(255 255 255 / 6%);
-  --sb-active: rgb(255 255 255 / 9%);
-  --sb-line: rgb(255 255 255 / 9%);
+  --sb-active: rgb(255 255 255 / 10%);
+  --sb-line: rgb(255 255 255 / 8%);
   --sb-mark: var(--acc-chrome);
   background: var(--sb-bg);
   color: var(--sb-fg);
-  border-right: 1px solid #1f2528;
+  border: 1px solid #1f2528;
   box-shadow: none;
   color-scheme: dark;
 }
@@ -421,21 +423,21 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   --sb-hover: rgb(255 255 255 / 5%);
   --sb-active: rgb(255 255 255 / 7.5%);
   --sb-line: rgb(255 255 255 / 7%);
-  border-right-color: #2b3337;
+  border-color: #2b3337;
 }
 .rf-sidebar [data-brand] { color: var(--sb-fg); }
 .rf-sidebar .sb-muted { color: var(--sb-muted); }
 .rf-sidebar .sb-line { border-color: var(--sb-line); }
 .rf-sidebar .sb-hover:hover { background: var(--sb-hover); color: var(--sb-fg); }
 .rf-sidebar :focus-visible { outline: 2px solid var(--sb-mark); outline-offset: -2px; }
-.rf-nav-item { color: var(--sb-muted); border-radius: 4px; transition: background 120ms, color 120ms; }
+.rf-nav-item { color: var(--sb-muted); border-radius: 9px; transition: background 120ms, color 120ms; }
 .rf-nav-item:hover { background: var(--sb-hover); color: var(--sb-fg); }
 .rf-nav-active,
 .rf-dashboard-shell .rf-nav-active { color: var(--sb-fg); background: transparent; box-shadow: none; }
 .rf-nav-active:hover { background: transparent; }
-.rf-nav-pill { background: var(--sb-active); box-shadow: inset 3px 0 0 var(--sb-mark); }
+.rf-nav-pill { background: var(--sb-active); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 4%); }
 /* Mobile drawer has no sliding pill; give the active row the same surface. */
-.rf-nav-active:not(:has(.rf-nav-pill)) { background: var(--sb-active); box-shadow: inset 3px 0 0 var(--sb-mark); }
+.rf-nav-active:not(:has(.rf-nav-pill)) { background: var(--sb-active); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 4%); }
 /* The RAL strip: the firm's most used frame colours, the brand's one decorative device. */
 .rf-ral-strip { display: flex; height: 3px; }
 .rf-ral-strip > span { flex: 1; }
@@ -459,10 +461,10 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
   border-bottom: 1px solid hsl(var(--border));
   box-shadow: none;
 }
-.rf-global-search { border-radius: 6px; transition: border-color 140ms, background-color 140ms; }
+.rf-global-search { border-radius: 10px; transition: border-color 140ms, background-color 140ms; }
 .rf-global-search:hover { border-color: hsl(var(--foreground) / 20%); }
 
-.rf-result-icon { border-radius: 6px; color: hsl(var(--foreground)); background: hsl(var(--muted)); border: 1px solid hsl(var(--border)); box-shadow: none; }
+.rf-result-icon { border-radius: 9px; color: hsl(var(--foreground)); background: hsl(var(--muted)); border: 1px solid hsl(var(--border)); box-shadow: none; }
 .rf-quick-operations a { border-radius: var(--rf-radius); box-shadow: var(--rf-shadow-soft); transition: border-color 160ms var(--rf-ease); }
 .rf-quick-operations a:hover { border-color: hsl(var(--foreground) / 18%); }
 .rf-workspace-footer { font-family: var(--font-mono), monospace; font-size: 10.5px; letter-spacing: 0.01em; }
@@ -580,7 +582,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 /* The call to action on anthracite, in the accent colour. */
 .rf-accent-button {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
-  border-radius: 4px;
+  border-radius: 10px;
   background: var(--acc-cta);
   color: var(--acc-cta-fg);
   font-weight: 600;
@@ -592,7 +594,7 @@ a.rf-panel:hover { border-color: hsl(var(--foreground) / 18%); }
 
 .rf-chrome-button {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgb(255 255 255 / 22%);
   color: var(--chrome-fg);
   font-weight: 500;

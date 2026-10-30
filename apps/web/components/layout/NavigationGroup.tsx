@@ -51,7 +51,7 @@ export function NavigationGroup({
               return next;
             })
           }
-          className="sb-muted sb-hover mb-1 flex min-h-7 w-full items-center justify-between rounded-[4px] px-2.5 text-[11px] font-semibold tracking-[0.02em]"
+          className="sb-muted sb-hover mb-1 flex min-h-7 w-full items-center justify-between rounded-[8px] px-2.5 text-[11.5px] font-medium"
         >
           {label}
           <ChevronDown

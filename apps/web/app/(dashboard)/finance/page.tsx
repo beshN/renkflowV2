@@ -93,7 +93,7 @@ export default function FinanceOverviewPage() {
         <section className="rf-panel rounded-2xl p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Finans Komuta Ekranı</h1>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Finans Komuta Ekranı</h2>
               <p className="mt-1 text-sm text-slate-500">Tahsilat ve açık bakiye görünümü sipariş kayıtlarıyla senkronize çalışır.</p>
             </div>
             <div className="flex items-center gap-2">

@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { CalendarClock, CheckSquare, LayoutGrid, MessageSquare, Plus, RefreshCw, Search } from 'lucide-react';
 import { RFKanbanView } from '@/components/shared/views/RFKanbanView';
 import { KanbanCardDialog } from '@/components/work-orders/KanbanCardDialog';
-import { Navbar } from '@/components/layout/Navbar';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
 import { listKanbanWorkOrders, listTenantMembers, updateWorkOrder, type TenantMember, type WorkOrder, type WorkOrderCapabilities, type WorkOrderPriority, type WorkOrderStatus, type WorkOrderBlockReasonCategory } from '@/lib/features/work-orders/client';
 import { BLOCK_LABELS, cardPlacement, KANBAN_COLUMNS, optimisticCardMove, PRIORITY_LABELS, READONLY_CAPABILITIES } from '@/lib/features/work-orders/kanban';
@@ -130,7 +129,7 @@ export default function KanbanPage() {
 
   if (isLoading || !user) return null;
   return <div className="flex min-h-screen min-w-0 flex-1 flex-col bg-background">
-    <Navbar title="Akış Kanbanı" />
+
     <main className="mx-auto w-full min-w-0 max-w-[1800px] space-y-5 p-4 md:p-6">
       <header className="flex flex-wrap items-center gap-4">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><LayoutGrid size={24} /></div>

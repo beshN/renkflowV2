@@ -35,7 +35,7 @@ export function PageHeader({ eyebrow, title, hint, kpis, action, leading, classN
             <h1 className="rf-page-title flex items-center gap-2">{title}{hint && <HintTip text={hint} />}</h1>
           </div>
         </div>
-        {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
+        {action && <div className="flex min-w-0 flex-wrap items-center gap-2">{action}</div>}
       </div>
       {kpis && kpis.length > 0 && (
         <ul className="flex flex-wrap gap-2" aria-label="Özet">

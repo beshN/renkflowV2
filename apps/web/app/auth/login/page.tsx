@@ -66,8 +66,8 @@ export default function LoginPage() {
     <AuthShell
       icon={<LockKeyhole size={18} />}
       eyebrow="Çalışma alanınıza erişin"
-      title="Tekrar hoş geldiniz"
-      description="Devam etmek için kurumsal hesap bilgilerinizi kullanın."
+      title="RenkFlow’a giriş yapın"
+      description="Firmanızın çalışma alanına e-posta adresiniz ve şifrenizle girin."
       footer={<>Yeni bir hesap mı gerekiyor? <Link href="/signup" className="font-medium text-primary hover:underline">Hesap oluşturun</Link></>}
     >
       <form method="post" onSubmit={handleSubmit} className="space-y-5" aria-busy={!ready || loading}>
