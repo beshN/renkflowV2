@@ -192,3 +192,39 @@
 .rfx { --x-swatch-ring: rgb(0 0 0 / 18%); }
 .dark .rfx { --x-swatch-ring: rgb(255 255 255 / 22%); }
 .dark .rfx .x-drawing rect { stroke: rgb(255 255 255 / 38%); }
+
+/* ---- Site-wide (every public page sits inside .rfx) ---- */
+
+/* First paint settles once: hero lines rise in sequence. CSS only, so it needs no JS to show. */
+@keyframes x-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.rfx .x-rise { animation: x-rise 640ms var(--x-ease) both; }
+.rfx .x-rise-2 { animation-delay: 70ms; }
+.rfx .x-rise-3 { animation-delay: 140ms; }
+.rfx .x-rise-4 { animation-delay: 210ms; }
+
+/* Text links draw their underline from the left on hover. */
+.rfx .x-link {
+  background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
+  transition: background-size 260ms var(--x-ease), color var(--x-fast);
+}
+.rfx .x-link:hover, .rfx .x-link:focus-visible { background-size: 100% 1px; }
+
+/* Light cone for the chrome page heads (no canvas strip under it, unlike the home hero). */
+.rfx .x-cone { background: radial-gradient(60% 520px at 70% -10%, rgb(255 255 255 / 6%), transparent 70%), var(--x-chrome); }
+
+/* Header */
+.rfx .x-header { background: color-mix(in srgb, var(--x-chrome) 100%, transparent); transition: background-color var(--x-base), box-shadow var(--x-base), backdrop-filter var(--x-base); }
+.rfx .x-header[data-scrolled='true'] {
+  background: color-mix(in srgb, var(--x-chrome) 86%, transparent);
+  -webkit-backdrop-filter: saturate(140%) blur(14px);
+  backdrop-filter: saturate(140%) blur(14px);
+  box-shadow: 0 1px 0 var(--x-chrome-line), 0 12px 32px -24px rgb(0 0 0 / 70%);
+}
+.rfx .x-header [data-brand] { color: var(--x-chrome-fg); }
+
+/* Prose for long documents */
+.rfx .x-prose p, .rfx .x-prose li { font-size: 15px; line-height: 1.75; color: var(--x-ink-2); }
+.rfx .x-prose a { color: var(--x-ink); }
+
+/* Code */
+.rfx .x-code { font-family: var(--font-mono), ui-monospace, monospace; font-size: 12.5px; line-height: 1.7; }

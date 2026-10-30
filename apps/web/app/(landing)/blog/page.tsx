@@ -22,15 +22,15 @@ export default function BlogPage() {
         { href: '/docs', label: 'Dokümantasyon', variant: 'secondary' },
       ]}
     >
-      <div className="divide-y divide-border border-y border-border">
+      <div className="border-t border-[var(--x-line)]">
         {blogPosts.map((post) => (
-          <Link key={post.id} href={`/blog/${post.id}`} className="group grid gap-2 py-8 md:grid-cols-[180px_1fr_auto] md:gap-8">
-            <p className="text-[13px] text-muted-foreground">{post.category} · {post.date}</p>
+          <Link key={post.id} href={`/blog/${post.id}`} className="group relative grid gap-2 border-b border-[var(--x-line)] py-8 transition-colors duration-200 hover:bg-[var(--x-surface)]/60 md:-mx-4 md:grid-cols-[180px_1fr_auto] md:gap-8 md:px-4">
+            <p className="text-[13px] text-[var(--x-muted)]">{post.category} · {post.date}</p>
             <div>
-              <h2 className="text-[19px] font-semibold tracking-[-0.025em] group-hover:underline group-hover:underline-offset-4">{post.title}</h2>
-              <p className="mt-2 max-w-2xl text-[14.5px] leading-7 text-muted-foreground">{post.summary}</p>
+              <h2 className="x-display text-[22px] leading-snug"><span className="x-link">{post.title}</span></h2>
+              <p className="mt-2 max-w-2xl text-[15px] leading-[1.7] text-[var(--x-muted)]">{post.summary}</p>
             </div>
-            <ArrowUpRight size={18} className="hidden text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 md:block" />
+            <ArrowUpRight size={18} className="hidden text-[var(--x-faint)] transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[var(--x-ink)] md:block" />
           </Link>
         ))}
       </div>

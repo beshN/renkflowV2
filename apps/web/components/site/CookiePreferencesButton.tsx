@@ -17,7 +17,7 @@ export function CookiePreferencesButton() {
     window.location.reload();
   };
   return (
-    <button type="button" onClick={reset} className="rf-secondary-button mt-6 h-10 px-4 text-[13.5px]">
+    <button type="button" onClick={reset} className="x-btn x-btn-quiet mt-8">
       Çerez tercihlerini sıfırla
     </button>
   );

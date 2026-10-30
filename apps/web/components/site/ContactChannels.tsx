@@ -1,5 +1,6 @@
 import { Clock, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 import { COMPANY, telHref, whatsappHref } from '@/lib/core/company';
+import { CopyButton } from '@/components/site/v2/blocks';
 
 type Channel = { icon: typeof Mail; label: string; value: string; href?: string; external?: boolean };
 
@@ -13,37 +14,23 @@ export function contactChannels(): Channel[] {
   return channels;
 }
 
+/** Every channel as a row: the value is the link, and e-mail and phone copy in one click. */
 export function ContactChannels() {
   return (
-    <div className="mt-16">
-      <h2 className="text-[13px] font-medium text-muted-foreground">Bize ulaşın</h2>
-      <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {contactChannels().map(({ icon: Icon, label, value, href, external }) => {
-          const body = (
-            <>
-              <Icon size={18} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden />
-              <span className="min-w-0">
-                <span className="block text-[13px] text-muted-foreground">{label}</span>
-                <span className="mt-1 block break-words text-[15px] font-medium">{value}</span>
-              </span>
-            </>
-          );
-          return (
-            <li key={label}>
-              {href ? (
-                <a
-                  href={href}
-                  {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                  className="flex h-full gap-3 rounded-xl border border-border bg-card p-5 transition-colors hover:border-foreground/20"
-                >
-                  {body}
-                </a>
-              ) : (
-                <div className="flex h-full gap-3 rounded-xl border border-border bg-card p-5">{body}</div>
-              )}
-            </li>
-          );
-        })}
+    <div className="mt-20">
+      <h2 className="x-display text-[clamp(24px,2.6vw,32px)] leading-tight">Bize ulaşın</h2>
+      <ul className="mt-6 border-t border-[var(--x-line)]">
+        {contactChannels().map(({ icon: Icon, label, value, href, external }) => (
+          <li key={label} className="group relative grid items-center gap-2 border-b border-[var(--x-line)] py-5 sm:grid-cols-[220px_1fr_auto] sm:gap-8">
+            <span className="flex items-center gap-2.5 text-[14px] text-[var(--x-muted)]"><Icon size={16} aria-hidden />{label}</span>
+            {href ? (
+              <a href={href} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})} className="x-link w-fit break-words text-[17px] font-medium">{value}</a>
+            ) : (
+              <span className="break-words text-[17px] font-medium">{value}</span>
+            )}
+            {(label === 'E-posta' || label === 'Telefon') && <CopyButton value={value} />}
+          </li>
+        ))}
       </ul>
     </div>
   );

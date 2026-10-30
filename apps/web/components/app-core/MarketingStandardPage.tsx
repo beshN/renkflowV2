@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
 
 import { HighlightGrid, MarketingShell, RelatedLinks } from '@/components/app-core/MarketingShell';
+import { Accordion } from '@/components/site/v2/blocks';
 import { marketingPages, type MarketingPageKey } from '@/lib/core/marketing-content';
 
 type MarketingStandardPageProps = {
@@ -12,6 +13,8 @@ type MarketingStandardPageProps = {
   hideClosing?: boolean;
   /** Skip the highlight cards when the page body carries the full content (legal texts, docs). */
   hideHighlights?: boolean;
+  /** A product piece shown beside the page title. */
+  aside?: ReactNode;
 };
 
 const SUMMARIES: Record<MarketingPageKey, { title: string; detail: string }> = {
@@ -62,7 +65,7 @@ export function marketingMetadata(pageKey: MarketingPageKey): Metadata {
   };
 }
 
-export function MarketingStandardPage({ pageKey, children, hideClosing, hideHighlights }: MarketingStandardPageProps) {
+export function MarketingStandardPage({ pageKey, children, hideClosing, hideHighlights, aside }: MarketingStandardPageProps) {
   const page = marketingPages[pageKey];
 
   if (!page) {
@@ -79,8 +82,9 @@ export function MarketingStandardPage({ pageKey, children, hideClosing, hideHigh
         { href: page.secondaryCta.href, label: page.secondaryCta.label, variant: 'secondary' },
       ]}
       hideClosing={hideClosing}
+      aside={aside}
     >
-      {!hideHighlights && <HighlightGrid items={page.highlights} />}
+      {!hideHighlights && (pageKey === 'faq' ? <Accordion items={page.highlights} /> : <HighlightGrid items={page.highlights} />)}
       {children}
       <RelatedLinks links={RELATED[pageKey].map((key) => ({ href: `/${key}`, ...SUMMARIES[key] }))} />
     </MarketingShell>

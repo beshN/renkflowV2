@@ -56,43 +56,43 @@ export default async function Page() {
   return (
     <MarketingStandardPage pageKey="status" hideHighlights>
       <div className="max-w-3xl">
-        <div role="status" className={`flex items-start gap-4 rounded-xl border p-6 ${allOk ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-rose-500/30 bg-rose-500/5'}`}>
+        <div role="status" className="flex items-start gap-4 rounded-[var(--x-r-window)] bg-[var(--x-surface)] p-6 shadow-[var(--x-shadow-window)]">
           {allOk
-            ? <CheckCircle2 aria-hidden size={28} className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-            : <XCircle aria-hidden size={28} className="mt-0.5 shrink-0 text-rose-600 dark:text-rose-400" />}
+            ? <span aria-hidden className="relative mt-1.5 flex h-3 w-3 shrink-0"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--x-ok)] opacity-40 motion-reduce:hidden" /><span className="relative inline-flex h-3 w-3 rounded-full bg-[var(--x-ok)]" /></span>
+            : <XCircle aria-hidden size={24} className="mt-0.5 shrink-0 text-[var(--x-danger)]" />}
           <div>
-            <h2 className="text-[21px] font-semibold tracking-[-0.03em]">{allOk ? 'Tüm sistemler çalışıyor' : 'Sorun var'}</h2>
-            <p className="mt-1.5 text-[14.5px] leading-7 text-muted-foreground">
+            <h2 className="x-display text-[24px] leading-tight">{allOk ? 'Tüm sistemler çalışıyor' : 'Sorun var'}</h2>
+            <p className="mt-1.5 text-[14.5px] leading-7 text-[var(--x-muted)]">
               {allOk
                 ? 'Uygulama, sunucu yapılandırması ve veritabanı normal yanıt veriyor.'
-                : <>Bazı bileşenler şu anda yanıt vermiyor; bu sürede bazı işlemler tamamlanamayabilir. Acil durumlar için {COMPANY.phone ? <a href={telHref(COMPANY.phone)} className="font-medium text-foreground underline underline-offset-4">{COMPANY.phone}</a> : null}{COMPANY.phone ? ' veya ' : ''}<a href={`mailto:${COMPANY.email}`} className="font-medium text-foreground underline underline-offset-4">{COMPANY.email}</a> adresinden bize ulaşın.</>}
+                : <>Bazı bileşenler şu anda yanıt vermiyor; bu sürede bazı işlemler tamamlanamayabilir. Acil durumlar için {COMPANY.phone ? <a href={telHref(COMPANY.phone)} className="x-link font-medium text-[var(--x-ink)]">{COMPANY.phone}</a> : null}{COMPANY.phone ? ' veya ' : ''}<a href={`mailto:${COMPANY.email}`} className="x-link font-medium text-[var(--x-ink)]">{COMPANY.email}</a> adresinden bize ulaşın.</>}
             </p>
           </div>
         </div>
 
-        <ul className="mt-6 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        <ul className="mt-6 divide-y divide-[var(--x-line)] overflow-hidden rounded-[var(--x-r-panel)] bg-[var(--x-surface)] shadow-[var(--x-shadow-raise)]">
           {checks.map((check) => (
             <li key={check.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
               <div>
                 <p className="text-[15px] font-medium">{check.label}</p>
-                <p className="mt-0.5 text-[13px] text-muted-foreground">{check.detail} · <span className="font-mono text-[12px]">{check.source}</span></p>
+                <p className="mt-0.5 text-[13px] text-[var(--x-muted)]">{check.detail} · <span className="x-mono text-[12px]">{check.source}</span></p>
               </div>
-              <p className={`inline-flex items-center gap-1.5 text-[13.5px] font-medium ${check.ok ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}`}>
+              <p className={`inline-flex items-center gap-1.5 text-[13.5px] font-medium ${check.ok ? 'text-[var(--x-ok)]' : 'text-[var(--x-danger)]'}`}>
                 {check.ok ? <CheckCircle2 aria-hidden size={16} /> : <XCircle aria-hidden size={16} />}
                 <span>{check.ok ? 'Çalışıyor' : 'Sorun var'}</span>
-                <span className="font-normal text-muted-foreground">· {check.note}</span>
+                <span className="font-normal text-[var(--x-muted)]">· {check.note}</span>
               </p>
             </li>
           ))}
         </ul>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[13px] text-muted-foreground">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[13px] text-[var(--x-muted)]">
           <p>Kontrol zamanı: <time dateTime={checkedAt.toISOString()}>{TIME.format(checkedAt)}</time> (İstanbul)</p>
-          <Link href="/status" prefetch={false} className="inline-flex items-center gap-1.5 font-medium text-foreground hover:underline"><RefreshCw aria-hidden size={14} /> Yeniden kontrol et</Link>
+          <Link href="/status" prefetch={false} className="x-btn x-btn-quiet !h-8 !text-[13px]"><RefreshCw aria-hidden size={14} /> Yeniden kontrol et</Link>
         </div>
 
-        <p className="mt-10 text-[14px] leading-7 text-muted-foreground">
-          Bu sayfa her açılışta denetimleri yeniden çalıştırır; sonuçlar önbelleğe alınmaz. Planlı bakımlar mümkün olduğunca mesai saatleri dışında yapılır ve önceden duyurulur. İzleme araçları için aynı denetimler <span className="font-mono text-[12.5px]">/api/health</span> ve <span className="font-mono text-[12.5px]">/api/health/ready</span> adreslerinden JSON olarak alınabilir.
+        <p className="mt-10 text-[14px] leading-7 text-[var(--x-muted)]">
+          Bu sayfa her açılışta denetimleri yeniden çalıştırır; sonuçlar önbelleğe alınmaz. Planlı bakımlar mümkün olduğunca mesai saatleri dışında yapılır ve önceden duyurulur. İzleme araçları için aynı denetimler <span className="x-mono text-[12.5px]">/api/health</span> ve <span className="x-mono text-[12.5px]">/api/health/ready</span> adreslerinden JSON olarak alınabilir.
         </p>
       </div>
     </MarketingStandardPage>

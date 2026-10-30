@@ -1,5 +1,6 @@
 import { MarketingStandardPage, marketingMetadata } from '@/components/app-core/MarketingStandardPage';
 import { COMPANY, privacyEmail, telHref, whatsappHref } from '@/lib/core/company';
+import { CopyButton, TocNav } from '@/components/site/v2/blocks';
 
 export const metadata = marketingMetadata('docs');
 
@@ -99,39 +100,38 @@ const GUIDES: Guide[] = [
 export default function Page() {
   return (
     <MarketingStandardPage pageKey="docs" hideHighlights>
-      <div className="grid gap-12 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <nav aria-label="Rehber bölümleri" className="lg:sticky lg:top-24 lg:self-start">
-          <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Bu rehberde</p>
-          <ol className="mt-3 space-y-1.5">
-            {[...GUIDES, { id: 'destek', title: 'Destek' }].map((guide) => (
-              <li key={guide.id}><a href={`#${guide.id}`} className="text-[13px] leading-5 text-muted-foreground hover:text-foreground">{guide.title}</a></li>
-            ))}
-          </ol>
-        </nav>
-        <article className="max-w-3xl">
+      <div className="grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-16">
+        <TocNav items={[...GUIDES, { id: 'destek', title: 'Destek' }]} label="Bu rehberde" articleId="docs-article" />
+        <article id="docs-article" className="max-w-[68ch]">
           {GUIDES.map((guide, index) => (
-            <section key={guide.id} id={guide.id} className={`scroll-mt-24 ${index ? 'mt-14' : ''}`}>
-              <h2 className="text-[21px] font-semibold tracking-[-0.03em]">
-                <a href={`#${guide.id}`} className="hover:underline">{guide.title}</a>
-              </h2>
-              <p className="mt-3 text-[15px] leading-7 text-muted-foreground">{guide.intro}</p>
+            <section key={guide.id} id={guide.id} className={`scroll-mt-24 ${index ? 'mt-16' : ''}`}>
+              <h2 className="x-display text-[24px] leading-tight"><a href={`#${guide.id}`} className="x-link">{guide.title}</a></h2>
+              <p className="mt-3 text-[15px] leading-[1.7] text-[var(--x-ink-2)]">{guide.intro}</p>
               {guide.steps && (
-                <ol className="mt-4 list-decimal space-y-2.5 pl-5 marker:text-muted-foreground">
-                  {guide.steps.map((step) => <li key={step} className="text-[14.5px] leading-7 text-muted-foreground">{step}</li>)}
+                <ol className="relative mt-6 space-y-5 border-l border-[var(--x-line)] pl-7">
+                  {guide.steps.map((step, i) => {
+                    const [head, ...rest] = step.split(' — ');
+                    return (
+                      <li key={step} className="relative">
+                        <span aria-hidden className="x-num absolute -left-[39px] top-0 grid h-6 w-6 place-items-center rounded-full bg-[var(--x-canvas)] text-[11.5px] font-semibold text-[var(--x-ink-2)] shadow-[inset_0_0_0_1px_var(--x-line-strong)]">{i + 1}</span>
+                        <p className="text-[14.5px] leading-[1.7] text-[var(--x-ink-2)]">{rest.length ? <><span className="font-medium text-[var(--x-ink)]">{head}.</span> {rest.join(' — ')}</> : step}</p>
+                      </li>
+                    );
+                  })}
                 </ol>
               )}
-              {guide.notes?.map((note) => <p key={note} className="mt-4 rounded-lg border border-border bg-muted/40 px-4 py-3 text-[13.5px] leading-6 text-muted-foreground">{note}</p>)}
+              {guide.notes?.map((note) => <p key={note} className="mt-5 rounded-[var(--x-r-panel)] bg-[var(--x-surface)] px-4 py-3 text-[13.5px] leading-6 text-[var(--x-ink-2)] shadow-[var(--x-shadow-raise)]">{note}</p>)}
             </section>
           ))}
-          <section id="destek" className="mt-14 scroll-mt-24">
-            <h2 className="text-[21px] font-semibold tracking-[-0.03em]"><a href="#destek" className="hover:underline">Destek</a></h2>
-            <p className="mt-3 text-[15px] leading-7 text-muted-foreground">Takıldığınız bir adım olursa bize ulaşın{COMPANY.hours ? ` (${COMPANY.hours})` : ''}.</p>
-            <ul className="mt-4 space-y-2 text-[14.5px] leading-7 text-muted-foreground">
-              <li>E-posta: <a href={`mailto:${COMPANY.email}`} className="font-medium text-foreground underline underline-offset-4">{COMPANY.email}</a></li>
-              {COMPANY.phone && <li>Telefon: <a href={telHref(COMPANY.phone)} className="font-medium text-foreground underline underline-offset-4">{COMPANY.phone}</a></li>}
-              {COMPANY.whatsapp && <li>WhatsApp: <a href={whatsappHref(COMPANY.whatsapp)} target="_blank" rel="noopener noreferrer" className="font-medium text-foreground underline underline-offset-4">{COMPANY.whatsapp}</a></li>}
-              <li>Servis durumu: <a href="/status" className="font-medium text-foreground underline underline-offset-4">Sistem durumu</a> · Son değişiklikler: <a href="/changelog" className="font-medium text-foreground underline underline-offset-4">Sürüm notları</a></li>
-            </ul>
+          <section id="destek" className="mt-16 scroll-mt-24">
+            <h2 className="x-display text-[24px] leading-tight"><a href="#destek" className="x-link">Destek</a></h2>
+            <p className="mt-3 text-[15px] leading-[1.7] text-[var(--x-ink-2)]">Takıldığınız bir adım olursa bize ulaşın{COMPANY.hours ? ` (${COMPANY.hours})` : ''}.</p>
+            <dl className="mt-5 border-t border-[var(--x-line)] text-[14.5px]">
+              <div className="flex items-center justify-between gap-4 border-b border-[var(--x-line)] py-3"><dt className="text-[var(--x-muted)]">E-posta</dt><dd className="flex items-center gap-2"><a href={`mailto:${COMPANY.email}`} className="x-link font-medium">{COMPANY.email}</a><CopyButton value={COMPANY.email} /></dd></div>
+              {COMPANY.phone && <div className="flex items-center justify-between gap-4 border-b border-[var(--x-line)] py-3"><dt className="text-[var(--x-muted)]">Telefon</dt><dd><a href={telHref(COMPANY.phone)} className="x-link x-num font-medium">{COMPANY.phone}</a></dd></div>}
+              {COMPANY.whatsapp && <div className="flex items-center justify-between gap-4 border-b border-[var(--x-line)] py-3"><dt className="text-[var(--x-muted)]">WhatsApp</dt><dd><a href={whatsappHref(COMPANY.whatsapp)} target="_blank" rel="noopener noreferrer" className="x-link font-medium">{COMPANY.whatsapp}</a></dd></div>}
+              <div className="flex items-center justify-between gap-4 border-b border-[var(--x-line)] py-3"><dt className="text-[var(--x-muted)]">Servis durumu</dt><dd className="flex gap-4"><a href="/status" className="x-link font-medium">Sistem durumu</a><a href="/changelog" className="x-link font-medium">Sürüm notları</a></dd></div>
+            </dl>
           </section>
         </article>
       </div>

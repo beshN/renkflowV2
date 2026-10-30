@@ -39,16 +39,16 @@ export default async function BlogDetailPage({
   }
 
   return (
-    <MarketingShell badge={`${post.category} · ${post.date}`} title={post.title} description={post.summary}>
-      <article className="max-w-2xl text-[16px] leading-8 text-foreground/90">
-        {post.content.map((paragraph) => (
-          <p key={paragraph} className="mt-6 first:mt-0">{paragraph}</p>
-        ))}
-        <p className="mt-10 text-[13px] text-muted-foreground">{post.author}</p>
+    <MarketingShell badge="Blog" title={post.title} description={post.summary}>
+      <article className="mx-auto max-w-[66ch]">
+        <p className="text-[13px] text-[var(--x-muted)]">{post.category} · {post.date} · {post.author}</p>
+        <div className="mt-8 space-y-6 text-[17px] leading-[1.8] text-[var(--x-ink-2)]">
+          {post.content.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+        </div>
+        <Link href="/blog" className="group mt-14 inline-flex items-center gap-1.5 text-[14px] font-medium">
+          <ArrowLeft size={15} className="transition-transform duration-200 group-hover:-translate-x-0.5" /> <span className="x-link">Tüm yazılar</span>
+        </Link>
       </article>
-      <Link href="/blog" className="mt-12 inline-flex items-center gap-1.5 text-[14px] font-medium hover:underline">
-        <ArrowLeft size={15} /> Tüm yazılar
-      </Link>
     </MarketingShell>
   );
 }

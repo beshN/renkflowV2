@@ -5,6 +5,7 @@ import Link from 'next/link';
 import * as Sentry from '@sentry/nextjs';
 import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
 import { WhileYouWait } from '@/components/spells/WhileYouWait';
+import '@/components/site/v2/landing-v2.css';
 
 export default function Error({
   error,
@@ -19,58 +20,30 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6">
-      <div role="alert" className="w-full max-w-lg rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl shadow-xl p-8">
+    <div className="rfx flex min-h-screen items-center justify-center p-6">
+      <div role="alert" className="x-window x-rise w-full max-w-lg p-8">
         <div className="flex items-start gap-4">
-          <div className="shrink-0 w-12 h-12 rounded-xl bg-red-50 dark:bg-red-950/40 flex items-center justify-center border border-red-100 dark:border-red-900/40">
-            <AlertTriangle aria-hidden="true" className="w-6 h-6 text-red-600 dark:text-red-400" />
-          </div>
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--x-r-panel)] bg-[rgb(180_67_47/0.08)] text-[var(--x-danger)]"><AlertTriangle aria-hidden="true" className="h-5 w-5" /></span>
           <div className="min-w-0">
-            <h1 className="text-lg font-semibold text-slate-900 dark:text-white">Bir hata oluştu</h1>
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              Üzgünüz, bu sayfada beklenmeyen bir sorun oluştu. Tekrar deneyebilir veya ana sayfaya dönebilirsiniz.
-            </p>
+            <h1 className="x-display text-[22px] leading-tight">Bu sayfa yüklenemedi</h1>
+            <p className="mt-1.5 text-[14.5px] leading-6 text-[var(--x-muted)]">Beklenmeyen bir sorun oluştu. Tekrar deneyin; sorun sürerse sayfayı yenileyin ya da ana sayfaya dönün.</p>
           </div>
         </div>
-
-        <div className="mt-6 flex flex-col sm:flex-row gap-3">
-          <button
-            type="button"
-            onClick={() => reset()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity"
-          >
-            <RefreshCw aria-hidden="true" className="w-4 h-4" />
-            Tekrar dene
-          </button>
-
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors"
-          >
-            Sayfayı yenile
-          </button>
-
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors"
-          >
-            <Home aria-hidden="true" className="w-4 h-4" />
-            Ana sayfa
-          </Link>
+        <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
+          <button type="button" onClick={() => reset()} className="x-btn x-btn-primary"><RefreshCw aria-hidden="true" className="h-4 w-4" /> Tekrar dene</button>
+          <button type="button" onClick={() => window.location.reload()} className="x-btn x-btn-quiet">Sayfayı yenile</button>
+          <Link href="/" className="x-btn x-btn-quiet"><Home aria-hidden="true" className="h-4 w-4" /> Ana sayfa</Link>
         </div>
-
         {process.env.NODE_ENV === 'development' && (
-          <div className="mt-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 p-4">
-            <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">Hata detayı (dev)</p>
-            <pre className="mt-2 text-xs text-red-700 dark:text-red-300 whitespace-pre-wrap break-words">
+          <div className="mt-6 rounded-[var(--x-r-panel)] bg-[var(--x-surface-sunk)] p-4 shadow-[inset_0_0_0_1px_var(--x-line)]">
+            <p className="text-[12px] font-medium text-[var(--x-muted)]">Hata detayı (geliştirme)</p>
+            <pre className="x-code mt-2 whitespace-pre-wrap break-words text-[var(--x-danger)]">
               {error.message}
               {error.digest ? `\n\nDigest: ${error.digest}` : ''}
             </pre>
           </div>
         )}
-
-        <WhileYouWait className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-800" />
+        <WhileYouWait className="mt-6 border-t border-[var(--x-line)] pt-4" />
       </div>
     </div>
   );

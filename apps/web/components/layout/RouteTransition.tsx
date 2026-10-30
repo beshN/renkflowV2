@@ -21,15 +21,13 @@ export function RouteTransition({ children, className }: RouteTransitionProps) {
     hasMounted = true;
   }, []);
 
-  if (prefersReducedMotion) {
-    return <div className={className}>{children}</div>;
-  }
-
   return (
     <motion.div
       key={pathname}
       className={className}
-      initial={hasMounted ? { opacity: 0, y: 8 } : false}
+      // Same element on server and client (a plain div for reduced motion made hydration mismatch);
+      // reduced motion simply never animates.
+      initial={hasMounted && !prefersReducedMotion ? { opacity: 0, y: 8 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
     >
