@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
+import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, TouchSensor, pointerWithin, rectIntersection, type CollisionDetection, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
 import { Bell, Boxes, ChevronDown, CornerDownLeft, KanbanSquare, List, ListFilter, Plus, ReceiptText, Search } from 'lucide-react';
 import { BrandSymbol } from '@/components/brand/BrandSymbol';
 import { cn } from '@/lib/utils';
@@ -34,21 +35,28 @@ export function ProductWindow() {
   const [filter, setFilter] = useState<Filter>('all');
   const [openId, setOpenId] = useState<string | null>(null);
   const [palette, setPalette] = useState(false);
-  const [toast, setToast] = useState<{ id: string; from: StageKey; to: StageKey; n: number } | null>(null);
+  const [toast, setToast] = useState<{ id: string; from: StageKey; to: StageKey; n: number; error?: boolean } | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const open = orders.find((o) => o.id === openId) ?? null;
 
+  // As on the workspace board: an order moves one step forward or back, never skipping a step.
+  const moveTo = useCallback((id: string, to: StageKey) => {
+    const order = orders.find((o) => o.id === id);
+    if (!order || order.stage === to) return;
+    if (Math.abs(stageIndex(to) - stageIndex(order.stage)) !== 1) {
+      setToast((t) => ({ id, from: order.stage, to, n: (t?.n ?? 0) + 1, error: true }));
+      return;
+    }
+    setOrders((list) => list.map((o) => (o.id === id ? { ...o, stage: to } : o)));
+    setToast((t) => ({ id, from: order.stage, to, n: (t?.n ?? 0) + 1 }));
+  }, [orders]);
   const advance = useCallback((id: string) => {
-    setOrders((list) => list.map((o) => {
-      if (o.id !== id) return o;
-      const next = STAGES[stageIndex(o.stage) + 1];
-      if (!next) return o;
-      setToast((t) => ({ id, from: o.stage, to: next.key, n: (t?.n ?? 0) + 1 }));
-      return { ...o, stage: next.key };
-    }));
-  }, []);
+    const order = orders.find((o) => o.id === id);
+    const next = order && STAGES[stageIndex(order.stage) + 1];
+    if (next) moveTo(id, next.key);
+  }, [orders, moveTo]);
   const undo = () => {
-    if (!toast) return;
+    if (!toast || toast.error) return;
     setOrders((list) => list.map((o) => (o.id === toast.id ? { ...o, stage: toast.from } : o)));
     setToast(null);
   };
@@ -112,7 +120,7 @@ export function ProductWindow() {
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div key={view === 'orders' ? layout : view} className={cn('absolute inset-0 overflow-auto [scrollbar-width:thin]', view === 'orders' && layout === 'board' && 'pt-3')} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={T.fast}>
                   {view === 'orders' && layout === 'list' && <OrdersTable orders={visible} openId={openId} onOpen={setOpenId} />}
-                  {view === 'orders' && layout === 'board' && <Board orders={orders} openId={openId} onOpen={setOpenId} />}
+                  {view === 'orders' && layout === 'board' && <Board orders={orders} openId={openId} onOpen={setOpenId} onMove={moveTo} />}
                   {view === 'stock' && <StockView />}
                 </motion.div>
               </AnimatePresence>
@@ -128,8 +136,14 @@ export function ProductWindow() {
             {toast && (
               <motion.div key={toast.n} role="status" initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 8, opacity: 0 }} transition={T.base}
                 className="absolute bottom-4 left-4 z-30 flex items-center gap-3 rounded-[var(--x-r-panel)] bg-[var(--x-ink)] py-2 pl-3 pr-2 text-[12px] text-[var(--x-surface)] shadow-[var(--x-shadow-pop)]">
-                <span><span className="x-mono">{toast.id}</span> {STAGES[stageIndex(toast.to)].label} aşamasına alındı</span>
-                <button type="button" onClick={undo} className="rounded-[4px] px-2 py-1 font-medium text-[var(--x-bronze-fill)] hover:bg-white/10">Geri al</button>
+                {toast.error ? (
+                  <span className="py-1 pr-1"><span className="x-mono">{toast.id}</span>: bu adıma doğrudan geçilemez. Bir önceki ya da bir sonraki aşamaya taşıyın.</span>
+                ) : (
+                  <>
+                    <span><span className="x-mono">{toast.id}</span> {STAGES[stageIndex(toast.to)].label} aşamasına alındı</span>
+                    <button type="button" onClick={undo} className="rounded-[4px] px-2 py-1 font-medium text-[var(--x-bronze-fill)] hover:bg-white/10">Geri al</button>
+                  </>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -227,37 +241,74 @@ function OrdersTable({ orders, openId, onOpen }: { orders: Order[]; openId: stri
   );
 }
 
-function Board({ orders, openId, onOpen }: { orders: Order[]; openId: string | null; onOpen: (id: string) => void }) {
+// The column under the pointer wins, as on a Trello board; keyboard moves fall back to overlap.
+const underPointer: CollisionDetection = (args) => { const hits = pointerWithin(args); return hits.length ? hits : rectIntersection(args); };
+
+function Board({ orders, openId, onOpen, onMove }: { orders: Order[]; openId: string | null; onOpen: (id: string) => void; onMove: (id: string, to: StageKey) => void }) {
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }), useSensor(KeyboardSensor));
+  const [dragging, setDragging] = useState<Order | null>(null);
+  const [dropped, setDropped] = useState<string | null>(null);
+  const from = dragging ? stageIndex(dragging.stage) : -1;
+  const onStart = (e: DragStartEvent) => setDragging(orders.find((o) => o.id === e.active.id) ?? null);
+  const onEnd = (e: DragEndEvent) => {
+    setDragging(null);
+    if (!e.over) return;
+    setDropped(String(e.active.id));
+    onMove(String(e.active.id), e.over.id as StageKey);
+    setTimeout(() => setDropped(null), 60);
+  };
   return (
-    <LayoutGroup id="pw-board">
-      <div className="grid h-full min-w-[960px] grid-cols-6 gap-2 px-4 pb-4 sm:px-5">
-        {STAGES.map((stage) => {
-          const list = orders.filter((o) => o.stage === stage.key);
-          return (
-            <section key={stage.key} aria-label={stage.label} className="flex min-h-0 flex-col rounded-[var(--x-r-panel)] bg-[var(--x-surface-sunk)] p-1.5">
-              <h3 className="flex items-center gap-1.5 px-1.5 py-1.5 text-[12px] font-medium" style={{ fontFamily: 'var(--font-sans)', fontStretch: '100%', letterSpacing: 0 }}><StageDot stage={stage.key} />{stage.label}<span className="x-num ml-auto text-[11px] font-normal text-[var(--x-faint)]">{list.length}</span></h3>
-              <div className="space-y-1.5">
-                {list.map((o) => (
-                  <motion.button
-                    layoutId={`card-${o.id}`}
-                    key={o.id}
-                    type="button"
-                    onClick={() => onOpen(o.id)}
-                    transition={T.indicator}
-                    className={cn('block w-full rounded-[var(--x-r-control)] bg-[var(--x-surface)] p-2.5 text-left shadow-[0_1px_2px_rgb(20_26_28/0.06),0_0_0_1px_var(--x-line)] transition-shadow duration-[120ms] hover:shadow-[0_4px_12px_-4px_rgb(20_26_28/0.16),0_0_0_1px_var(--x-line-strong)]', openId === o.id && 'shadow-[0_0_0_1.5px_var(--x-bronze-fill)]')}
-                  >
-                    <span className="flex items-center justify-between text-[11px]"><span className="x-mono text-[var(--x-bronze)]">{o.id}</span><Initials name={o.owner} /></span>
-                    <span className="mt-1 block truncate text-[12.5px] font-medium">{o.customer}</span>
-                    <span className="x-num mt-0.5 block text-[11px] text-[var(--x-muted)]">{fmt(o.spec.widthMm)} × {fmt(o.spec.projectionMm)}</span>
-                    <span className="mt-2 flex items-center justify-between text-[11px] text-[var(--x-muted)]"><Swatch color={o.spec.color} withLabel={false} /><span>{o.due}</span></span>
-                  </motion.button>
-                ))}
-              </div>
-            </section>
-          );
-        })}
-      </div>
-    </LayoutGroup>
+    <DndContext id="pw-board-dnd" sensors={sensors} collisionDetection={underPointer} onDragStart={onStart} onDragEnd={onEnd} onDragCancel={() => setDragging(null)} accessibility={{ screenReaderInstructions: { draggable: 'Taşımak için boşluk, sütun seçmek için oklar, bırakmak için boşluk.' } }}>
+      <LayoutGroup id="pw-board">
+        <div className="grid h-full min-w-[960px] grid-cols-6 gap-2 px-4 pb-4 sm:px-5">
+          {STAGES.map((stage, i) => (
+            <Column key={stage.key} stage={stage} state={!dragging ? 'idle' : i === from ? 'home' : Math.abs(i - from) === 1 ? 'allowed' : 'blocked'} count={orders.filter((o) => o.stage === stage.key).length}>
+              {orders.filter((o) => o.stage === stage.key).map((o) => <Card key={o.id} order={o} open={openId === o.id} onOpen={onOpen} layout={dropped !== o.id} />)}
+            </Column>
+          ))}
+        </div>
+      </LayoutGroup>
+      <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }}>
+        {dragging && <CardFace order={dragging} lifted />}
+      </DragOverlay>
+    </DndContext>
+  );
+}
+
+function Column({ stage, state, count, children }: { stage: (typeof STAGES)[number]; state: 'idle' | 'home' | 'allowed' | 'blocked'; count: number; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: stage.key });
+  return (
+    <section ref={setNodeRef} aria-label={stage.label} className={cn('flex min-h-0 flex-col rounded-[var(--x-r-panel)] bg-[var(--x-surface-sunk)] p-1.5 transition-[background-color,box-shadow,opacity] duration-150',
+      state === 'allowed' && 'shadow-[inset_0_0_0_1px_var(--x-line-strong)]',
+      state === 'allowed' && isOver && 'bg-[var(--x-bronze-soft)] shadow-[inset_0_0_0_1.5px_var(--x-bronze-fill)]',
+      state === 'blocked' && 'opacity-45',
+      state === 'blocked' && isOver && 'shadow-[inset_0_0_0_1.5px_var(--x-danger)]')}>
+      <h3 className="flex items-center gap-1.5 px-1.5 py-1.5 text-[12px] font-medium" style={{ fontFamily: 'var(--font-sans)', fontStretch: '100%', letterSpacing: 0 }}><StageDot stage={stage.key} />{stage.label}<span className="x-num ml-auto text-[11px] font-normal text-[var(--x-faint)]">{count}</span></h3>
+      <div className="flex-1 space-y-1.5">{children}</div>
+    </section>
+  );
+}
+
+function Card({ order, open, onOpen, layout }: { order: Order; open: boolean; onOpen: (id: string) => void; layout: boolean }) {
+  const { setNodeRef, attributes, listeners, isDragging } = useDraggable({ id: order.id });
+  return (
+    <motion.div layoutId={layout ? `card-${order.id}` : undefined} transition={T.indicator} ref={setNodeRef} {...attributes} {...listeners} role="button" aria-label={`${order.id} ${order.customer}, taşı ya da aç`} onClick={() => onOpen(order.id)}
+      onKeyDown={(e) => { listeners?.onKeyDown?.(e); if (e.key === 'Enter') onOpen(order.id); }}
+      style={{ opacity: isDragging ? 0.35 : 1 }}
+      className="cursor-grab touch-none rounded-[var(--x-r-control)] active:cursor-grabbing">
+      <CardFace order={order} open={open} />
+    </motion.div>
+  );
+}
+
+function CardFace({ order: o, open, lifted }: { order: Order; open?: boolean; lifted?: boolean }) {
+  return (
+    <div className={cn('block w-full rounded-[var(--x-r-control)] bg-[var(--x-surface)] p-2.5 text-left shadow-[0_1px_2px_rgb(20_26_28/0.06),0_0_0_1px_var(--x-line)] transition-shadow duration-[120ms] hover:shadow-[0_4px_12px_-4px_rgb(20_26_28/0.16),0_0_0_1px_var(--x-line-strong)]', open && 'shadow-[0_0_0_1.5px_var(--x-bronze-fill)]', lifted && 'w-[150px] rotate-[2.5deg] cursor-grabbing shadow-[0_18px_36px_-12px_rgb(20_26_28/0.4),0_0_0_1px_var(--x-line-strong)]')}>
+      <span className="flex items-center justify-between text-[11px]"><span className="x-mono text-[var(--x-bronze)]">{o.id}</span><Initials name={o.owner} /></span>
+      <span className="mt-1 block truncate text-[12.5px] font-medium">{o.customer}</span>
+      <span className="x-num mt-0.5 block text-[11px] text-[var(--x-muted)]">{fmt(o.spec.widthMm)} × {fmt(o.spec.projectionMm)}</span>
+      <span className="mt-2 flex items-center justify-between text-[11px] text-[var(--x-muted)]"><Swatch color={o.spec.color} withLabel={false} /><span>{o.due}</span></span>
+    </div>
   );
 }
 
@@ -315,7 +366,7 @@ function StockView() {
             <div className="mt-2 space-y-1 text-[11.5px]">
               <p className="flex justify-between"><span className="text-[var(--x-muted)]">Renk</span><Swatch color={row.color} /></p>
               <p className="flex justify-between"><span className="text-[var(--x-muted)]">Boy</span><span className="x-num">{fmt(ITEMS[row.item].stockMm)} mm</span></p>
-              <p className="flex justify-between"><span className="text-[var(--x-muted)]">Rezerve</span><span className="x-num">{row.reserved} çubuk</span></p>
+              <p className="flex justify-between"><span className="text-[var(--x-muted)]">Rezerve</span><span className="x-num">{row.reserved} profil</span></p>
             </div>
           </motion.div>
         </AnimatePresence>

@@ -87,6 +87,7 @@ jest.mock('framer-motion', () => {
   return {
     motion,
     AnimatePresence: ({ children }: any) => children,
+    LayoutGroup: ({ children }: any) => children,
     useAnimation: () => ({ start: jest.fn(), stop: jest.fn() }),
     useReducedMotion: () => true,
     useInView: () => true,

@@ -129,7 +129,7 @@ export function Scanner() {
                 <div className="mt-3 flex items-center justify-between rounded-[10px] px-3 py-3 text-[13px] shadow-[inset_0_0_0_1px_var(--x-line)]">
                   <span>{lot.from}</span><ArrowRight size={15} className="text-[var(--x-faint)]" aria-hidden /><span className="font-semibold">{shelf.name}</span>
                 </div>
-                <p className="mt-2 text-[11.5px] leading-4 text-[var(--x-muted)]">Fiziksel çubuklar tüm boyuyla taşınır: {lot.bars} boy × {lot.lengthMm.toLocaleString('tr-TR')} mm.</p>
+                <p className="mt-2 text-[11.5px] leading-4 text-[var(--x-muted)]">Fiziksel profiller tüm boyuyla taşınır: {lot.bars} boy × {lot.lengthMm.toLocaleString('tr-TR')} mm.</p>
                 <button type="button" onClick={post} className="mt-auto h-12 rounded-[12px] bg-[var(--x-ink)] text-[15px] font-semibold text-[var(--x-surface)] hover:bg-[var(--x-ink-2)]">Transferi kaydet</button>
               </>
             )}

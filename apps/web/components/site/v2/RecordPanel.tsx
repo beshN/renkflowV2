@@ -165,7 +165,7 @@ function CuttingTab({ plan }: { plan: Plan }) {
   return (
     <div>
       <div className="grid grid-cols-3 gap-px overflow-hidden rounded-[var(--x-r-panel)] bg-[var(--x-line)] shadow-[0_0_0_1px_var(--x-line)]">
-        {[[String(plan.bars.length), 'çubuk'], [String(remnants), 'artık kullanıldı'], [`%${fmt(plan.cut.wastePercent, 1)}`, 'fire']].map(([v, l]) => (
+        {[[String(plan.bars.length), 'profil'], [String(remnants), 'artık kullanıldı'], [`%${fmt(plan.cut.wastePercent, 1)}`, 'fire']].map(([v, l]) => (
           <div key={l} className="bg-[var(--x-surface)] px-3 py-2.5"><p className="x-num text-[16px] font-semibold tracking-[-0.02em]">{v}</p><p className="text-[11px] text-[var(--x-muted)]">{l}</p></div>
         ))}
       </div>
@@ -174,9 +174,9 @@ function CuttingTab({ plan }: { plan: Plan }) {
           const shown = bars.slice(0, 2);
           return (
             <div key={item.id}>
-              <p className="flex justify-between gap-3 text-[12px]"><span className="font-medium">{item.code} · {item.name}</span><span className="x-num text-[var(--x-muted)]">{bars.length} çubuk</span></p>
+              <p className="flex justify-between gap-3 text-[12px]"><span className="font-medium">{item.code} · {item.name}</span><span className="x-num text-[var(--x-muted)]">{bars.length} profil</span></p>
               <div className="mt-1.5 space-y-1.5">{shown.map((bar) => <BarRow key={bar.source.id} bar={bar} scale={7000} dense />)}</div>
-              {bars.length > shown.length && <p className="mt-1 text-[11px] text-[var(--x-faint)]">+{bars.length - shown.length} çubuk aynı düzende</p>}
+              {bars.length > shown.length && <p className="mt-1 text-[11px] text-[var(--x-faint)]">+{bars.length - shown.length} profil aynı düzende</p>}
             </div>
           );
         })}
@@ -216,7 +216,7 @@ function StockTab({ order, plan }: { order: Order; plan: Plan }) {
       )}
       {shortage.length > 0 ? (
         <div className="mt-4 flex items-center justify-between gap-3 rounded-[var(--x-r-panel)] bg-[var(--x-surface-sunk)] px-3 py-2.5 text-[12px]">
-          <span className="text-[var(--x-ink-2)]">{requested ? 'Satın alma talebi SA-0318 oluşturuldu.' : `${shortage.reduce((n, r) => n + r.short, 0)} çubuk satın alınmalı.`}</span>
+          <span className="text-[var(--x-ink-2)]">{requested ? 'Satın alma talebi SA-0318 oluşturuldu.' : `${shortage.reduce((n, r) => n + r.short, 0)} profil satın alınmalı.`}</span>
           {!requested ? <button type="button" className="x-ctl x-ctl-ink" onClick={() => setRequested(true)}>Talep oluştur</button> : <Check size={14} className="text-[var(--x-ok)]" aria-hidden />}
         </div>
       ) : (

@@ -17,7 +17,7 @@ type Role = 'manager' | 'office' | 'accountant';
 type Msg = { id: number; from: 'me' | 'ai'; text: string; tool?: string; draft?: boolean; links?: string[]; denied?: boolean };
 
 const OVERDUE = { icon: Timer, tone: 'warn' as const, title: 'RF-1038 termini geçti', detail: 'Çam Konutları · termin 11 Kas, montaj aşamasında', link: 'Siparişe git' };
-const BLOCKED = { icon: PackageX, tone: 'warn' as const, title: 'RF-1041 kesime geçemiyor', detail: '6056 lamel, RAL 9016 Mat: 24 çubuk eksik', link: 'Satın almaya git' };
+const BLOCKED = { icon: PackageX, tone: 'warn' as const, title: 'RF-1041 kesime geçemiyor', detail: '6056 lamel, RAL 9016 Mat: 24 profil eksik', link: 'Satın almaya git' };
 const COUNT = { icon: ClipboardList, tone: 'info' as const, title: 'B4 rafında bekleyen sayım', detail: 'Gönderildi, yönetici onayı bekliyor', link: 'Sayıma git' };
 const UNPLACED = { icon: AlertTriangle, tone: 'info' as const, title: '3 paket yerleştirilmemiş', detail: 'Mal kabulde bekliyor, raf atanmadı', link: 'Depoya git' };
 const SHIPMENTS = { icon: ClipboardList, tone: 'info' as const, title: 'Bu hafta 3 sevkiyat', detail: 'RF-1042, RF-1041, RF-1040 · araç planı hazır', link: 'Sevkiyata git' };
@@ -56,7 +56,7 @@ export function Assistant() {
   const list = useRef<HTMLDivElement>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
-  useEffect(() => { list.current?.scrollTo({ top: list.current.scrollHeight, behavior: reduce ? 'auto' : 'smooth' }); }, [msgs, typing, thinking, reduce]);
+  useEffect(() => { list.current?.scrollTo?.({ top: list.current.scrollHeight, behavior: reduce ? 'auto' : 'smooth' }); }, [msgs, typing, thinking, reduce]);
   const draft = useMemo(() => planOrder({ widthMm: 6000, projectionMm: 5000, heightMm: 2800, color: 'RAL 7037 Mat', motor: true, led: false, quantity: 2 }, 'draft'), []);
 
   const ask = (q: string) => {

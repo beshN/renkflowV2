@@ -90,14 +90,14 @@ export function LandingV2({ signedIn = false }: { signedIn?: boolean }) {
           >
             <ProductWindow />
           </motion.div>
-          <p className="mt-4 text-center text-[12.5px] text-[var(--x-muted)]">Siparişe tıklayın, <kbd className="x-kbd">⌘</kbd> <kbd className="x-kbd">K</kbd> ile arayın, panoda bir işi sonraki aşamaya alın.</p>
+          <p className="mt-4 text-center text-[12.5px] text-[var(--x-muted)]">Kartları sürükleyip aşamasını değiştirin, açmak için tıklayın, <kbd className="x-kbd">⌘</kbd> <kbd className="x-kbd">K</kbd> ile arayın.</p>
         </div>
       </section>
 
       {/* Lead to order */}
       <section className="mx-auto max-w-6xl px-5 pb-24 pt-16 sm:px-8 md:pb-32 md:pt-24">
         <SectionHead id="tekliften-siparise" title="Potansiyel müşteriden siparişe, ölçüler yeniden girilmeden.">
-          Keşifteki ölçüyle teklif hazırlanır ve müşteriye onay bağlantısıyla gider. Müşteri onaylayınca teklif siparişe döner; kesim listesi, çubuk ihtiyacı ve stok o anda hesaplanır. Teklifi gönderin, müşterinin telefonunda onaylayın.
+          Keşifteki ölçüyle teklif hazırlanır ve müşteriye onay bağlantısıyla gider. Müşteri onaylayınca teklif siparişe döner; kesim listesi, profil ihtiyacı ve stok o anda hesaplanır. Teklifi gönderin, müşterinin telefonunda onaylayın.
         </SectionHead>
         <Surface className="mt-12"><LeadToOrder /></Surface>
         <details className="group mt-8 rounded-[var(--x-r-window)] bg-[var(--x-surface)] shadow-[0_0_0_1px_var(--x-line)] [&_summary::-webkit-details-marker]:hidden">

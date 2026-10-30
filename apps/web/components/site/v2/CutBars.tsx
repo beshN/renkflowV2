@@ -17,7 +17,7 @@ export function BarRow({ bar, scale, dense = false, index }: { bar: CutBar; scal
   const length = bar.source.lengthMm;
   const pieceTotal = bar.pieces.reduce((n, p) => n + p.lengthMm, 0);
   const lossMm = Math.max(0, length - pieceTotal - (bar.reusable ? bar.remainingMm : 0));
-  const label = `${bar.source.isRemnant ? 'Artık' : 'Çubuk'} ${cm(length)} cm: ${bar.pieces.map((p) => `${cm(p.lengthMm)} cm`).join(', ')}${bar.reusable ? `, ${cm(bar.remainingMm)} cm artık rafa döner` : ''}`;
+  const label = `${bar.source.isRemnant ? 'Artık' : 'Profil'} ${cm(length)} cm: ${bar.pieces.map((p) => `${cm(p.lengthMm)} cm`).join(', ')}${bar.reusable ? `, ${cm(bar.remainingMm)} cm artık rafa döner` : ''}`;
   return (
     <div className="flex items-center gap-2.5">
       {index !== undefined && <span className="x-num w-5 shrink-0 text-right text-[11px] text-[var(--x-faint)]">{index}</span>}

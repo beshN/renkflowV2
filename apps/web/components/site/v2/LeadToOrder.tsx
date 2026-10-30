@@ -279,7 +279,7 @@ function ComputeView({ plan, rows, computed, released, onRelease, auto }: { plan
         <AnimatePresence>
           {computed && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={T.slow} className="mt-4 space-y-1.5">
-              {groups.slice(0, 2).map(({ item, bars }) => <div key={item.id}><p className="mb-1 text-[11px] text-[var(--x-muted)]">{item.code} · {bars.length} çubuk</p><BarRow bar={bars[0]} scale={7000} dense /></div>)}
+              {groups.slice(0, 2).map(({ item, bars }) => <div key={item.id}><p className="mb-1 text-[11px] text-[var(--x-muted)]">{item.code} · {bars.length} profil</p><BarRow bar={bars[0]} scale={7000} dense /></div>)}
             </motion.div>
           )}
         </AnimatePresence>
@@ -288,15 +288,15 @@ function ComputeView({ plan, rows, computed, released, onRelease, auto }: { plan
         {computed && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={T.slow} className="flex flex-col">
             <div className="grid grid-cols-3 gap-px overflow-hidden rounded-[var(--x-r-panel)] bg-[var(--x-line)] shadow-[0_0_0_1px_var(--x-line)]">
-              {[[String(plan.bars.length), 'çubuk'], [`%${fmt(plan.cut.wastePercent, 1)}`, 'fire'], [hours(plan.minutes), 'atölye']].map(([v, l]) => (
+              {[[String(plan.bars.length), 'profil'], [`%${fmt(plan.cut.wastePercent, 1)}`, 'fire'], [hours(plan.minutes), 'atölye']].map(([v, l]) => (
                 <div key={l} className="bg-[var(--x-surface)] px-3 py-2.5"><p className="x-num text-[15px] font-semibold tracking-[-0.02em]">{v}</p><p className="text-[11px] text-[var(--x-muted)]">{l}</p></div>
               ))}
             </div>
             <p className="mt-4 text-[12px] font-medium">Stok, RAL 7016 Mat</p>
             <ul className="mt-1.5 space-y-1.5 text-[12.5px]">
-              {stock.map((r) => <li key={r.item.id} className="flex justify-between gap-3"><span className="text-[var(--x-ink-2)]">{r.item.code} · {r.whole} çubuk{r.remnants ? ` + ${r.remnants} artık` : ''}</span><span className={r.short ? 'font-medium text-[var(--x-danger)]' : 'text-[var(--x-ok)]'}>{r.short ? `${r.short} eksik` : 'Rezerve edildi'}</span></li>)}
+              {stock.map((r) => <li key={r.item.id} className="flex justify-between gap-3"><span className="text-[var(--x-ink-2)]">{r.item.code} · {r.whole} profil{r.remnants ? ` + ${r.remnants} artık` : ''}</span><span className={r.short ? 'font-medium text-[var(--x-danger)]' : 'text-[var(--x-ok)]'}>{r.short ? `${r.short} eksik` : 'Rezerve edildi'}</span></li>)}
             </ul>
-            {short > 0 && <p className="mt-3 rounded-[var(--x-r-control)] bg-[var(--x-surface-sunk)] px-3 py-2 text-[12px] text-[var(--x-ink-2)]">{short} çubuk için satın alma önerisi hazır.</p>}
+            {short > 0 && <p className="mt-3 rounded-[var(--x-r-control)] bg-[var(--x-surface-sunk)] px-3 py-2 text-[12px] text-[var(--x-ink-2)]">{short} profil için satın alma önerisi hazır.</p>}
             <div className="mt-auto flex items-center justify-end gap-3 pt-5">
               {released ? <span className="flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--x-ok)]"><Check size={14} aria-hidden /> 4 iş emri oluşturuldu: kesim, CNC, boya, montaj</span> : <Primary onClick={onRelease} disabled={auto}>Üretime gönder</Primary>}
             </div>

@@ -68,7 +68,7 @@ export function OwnCutList() {
                   <>
                     <div className="flex flex-wrap gap-x-6 gap-y-1 text-[12px] text-[var(--x-muted)]">
                       <span><b className="x-num mr-1 text-[18px] font-semibold text-[var(--x-ink)]">{own.pieces}</b>parça</span>
-                      <span><b className="x-num mr-1 text-[18px] font-semibold text-[var(--x-ink)]">{ownBars.filter((b) => !b.source.isRemnant).length}</b>tam çubuk</span>
+                      <span><b className="x-num mr-1 text-[18px] font-semibold text-[var(--x-ink)]">{ownBars.filter((b) => !b.source.isRemnant).length}</b>tam profil</span>
                       <span><b className="x-num mr-1 text-[18px] font-semibold text-[var(--x-ink)]">{ownBars.filter((b) => b.source.isRemnant).length}</b>artık kullanıldı</span>
                       <span><b className="x-num mr-1 text-[18px] font-semibold text-[var(--x-ink)]">%{fmt(own.plan.wastePercent, 1)}</b>fire</span>
                     </div>
