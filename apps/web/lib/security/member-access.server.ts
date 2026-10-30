@@ -193,7 +193,7 @@ export async function narrowedHiddenFields(userId: string, tenantId: string, opt
 export function workerApiAllowed(path:string,method:string) {
   if(path==='/api/v1/production')return method==='POST';
   // The phone and field apps: bearer-only surfaces whose own guards apply the mobile matrix and job assignment.
-  if(['/api/auth/','/api/v1/auth/','/api/v1/me/','/api/v1/production/files/','/api/mobile/v1/','/api/v1/field/'].some(p=>path.startsWith(p)))return true;
-  if(['/api/v1/production','/api/v1/production/worker','/api/v1/production/workshop','/api/v1/production/loading','/api/v1/production/parts','/api/v1/production/files','/api/v1/warehouse','/api/v1/auth/me','/api/v1/me','/api/v1/notifications'].includes(path))return true;
+  if(['/api/auth/','/api/v1/auth/','/api/v1/me/','/api/v1/production/files/','/api/mobile/v1/','/api/v1/field/','/api/notifications/','/api/orders/documents/'].some(p=>path.startsWith(p)))return true;
+  if(['/api/v1/production','/api/v1/production/worker','/api/v1/production/workshop','/api/v1/production/loading','/api/v1/production/parts','/api/v1/production/files','/api/v1/warehouse','/api/v1/auth/me','/api/v1/me','/api/v1/notifications','/api/notifications','/api/storage/upload','/api/storage/content','/api/orders/qr'].includes(path) || path.startsWith('/api/work-orders'))return true;
   return method==='GET' && /^\/api\/v1\/orders\/[^/]+\/technical$/.test(path);
 }

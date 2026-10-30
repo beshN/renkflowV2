@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     // Verify user has permission to update this tenant
     const members = await sql`
       SELECT role FROM tenant_members
-      WHERE tenant_id = ${effectiveTenantId} AND user_id = ${context.userId}
+      WHERE tenant_id = ${effectiveTenantId} AND user_id = ${context.userId} AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL
       LIMIT 1
     `;
 

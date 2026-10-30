@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const crossOrigin = crossOriginRejection(request);
   if (crossOrigin) return crossOrigin;
   try {
-    const { context, denied } = await apiContextWithPermission('reports.view');
+    const { context, denied } = await apiContextWithPermission('reports.export');
     if (denied) return denied;
     if (await hidesAny(['price', 'cost', 'profit', 'customer_contact'])) return redactedJson({ error: 'Rolünüz bu dışa aktarımı içermez.' }, { status: 403 });
 
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const { context, denied } = await apiContextWithPermission('reports.view');
+    const { context, denied } = await apiContextWithPermission('reports.export');
     if (denied) return denied;
 
     const { searchParams } = new URL(request.url);

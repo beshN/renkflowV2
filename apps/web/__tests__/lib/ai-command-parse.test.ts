@@ -27,7 +27,7 @@ describe('command parser (Turkish, deterministic)', () => {
     expect(parseCommand('gelecek hafta gecikecek iş var mı').command).toEqual({ intent: 'list_late', period: 'next_week' });
   });
   it('stock by colour', () => {
-    expect(parseCommand('7016 mat kaç çubuk var').command).toEqual({ intent: 'stock_query', color: 'RAL 7016 Mat', item: null });
+    expect(parseCommand('7016 mat kaç profil var').command).toEqual({ intent: 'stock_query', color: 'RAL 7016 Mat', item: null });
     expect(parseCommand('antrasit parlak profil stok').command).toMatchObject({ intent: 'stock_query', color: 'RAL 7016 Parlak' });
   });
   it('what-if: expedite, delay N days, cancel; without an order number it asks', () => {
@@ -98,7 +98,7 @@ describe('measures without a unit', () => {
     it('low stock is not a bar-count question', () => {
       expect(parseCommand('kritik stok').command).toEqual({ intent: 'low_stock' });
       expect(parseCommand('stok azalan malzemeler').command).toEqual({ intent: 'low_stock' });
-      expect(parseCommand('7016 mat kaç çubuk var').command.intent).toBe('stock_query');
+      expect(parseCommand('7016 mat kaç profil var').command.intent).toBe('stock_query');
     });
     it('overdue invoices and open purchases', () => {
       expect(parseCommand('vadesi geçen faturalar').command).toEqual({ intent: 'overdue_invoices' });

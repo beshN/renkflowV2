@@ -48,7 +48,7 @@ export default function CutPlanPrint({ params }: { params: Promise<{ id: string 
           <h1 className="text-xl font-semibold">{sheet.rework ? "Rework kesim föyü" : "Kesim föyü"} · {sheet.code}</h1>
           <p className="mt-1 text-xs text-muted-foreground">{STATUS[sheet.status] ?? sheet.status} · {new Date(sheet.createdAt).toLocaleString("tr-TR")}</p>
         </div>
-        <p className="text-right text-xs">{sheet.bars.length} çubuk · %{Number(sheet.wastePercent).toFixed(1)} fire · {sheet.reusableMm} mm artık</p>
+        <p className="text-right text-xs">{sheet.bars.length} profil · %{Number(sheet.wastePercent).toFixed(1)} fire · {sheet.reusableMm} mm artık</p>
       </div>
       {sheet.status !== "approved" && sheet.status !== "completed" && (
         <p role="alert" className="cut-estimate mt-4 rounded border-2 border-rose-500 p-3 text-base font-bold">
@@ -68,8 +68,8 @@ export default function CutPlanPrint({ params }: { params: Promise<{ id: string 
       {sheet.unfulfilled > 0 && (
         <div className="mt-4 rounded border border-border p-3 text-xs">
           <p className="font-semibold">{sheet.unfulfilled} parça için stokta uygun profil yok; bu föy onaylanamaz.</p>
-          {sheet.purchase.length > 0 && <ul className="mt-1 list-disc pl-5">{sheet.purchase.map((l, i) => <li key={i}>Satın alma: {l.item ? `${l.item.sku} ${l.item.name}` : "Profil"} · <ColorChip color={l.color} size={12} /> · {l.bars} × {l.lengthMm} mm çubuk ({l.pieces} parça)</li>)}</ul>}
-          {sheet.tooLong.length > 0 && <ul className="mt-1 list-disc pl-5">{sheet.tooLong.map((piece, i) => <li key={i}>{piece.item ? `${piece.item.sku} ${piece.item.name}` : "Profil"} · <ColorChip color={piece.color} size={12} /> · {piece.lengthMm} mm: standart çubuktan uzun, satın almayla karşılanmaz</li>)}</ul>}
+          {sheet.purchase.length > 0 && <ul className="mt-1 list-disc pl-5">{sheet.purchase.map((l, i) => <li key={i}>Satın alma: {l.item ? `${l.item.sku} ${l.item.name}` : "Profil"} · <ColorChip color={l.color} size={12} /> · {l.bars} × {l.lengthMm} mm profil ({l.pieces} parça)</li>)}</ul>}
+          {sheet.tooLong.length > 0 && <ul className="mt-1 list-disc pl-5">{sheet.tooLong.map((piece, i) => <li key={i}>{piece.item ? `${piece.item.sku} ${piece.item.name}` : "Profil"} · <ColorChip color={piece.color} size={12} /> · {piece.lengthMm} mm: standart profilden uzun, satın almayla karşılanmaz</li>)}</ul>}
         </div>
       )}
       <ol className="mt-4 space-y-3">
@@ -77,7 +77,7 @@ export default function CutPlanPrint({ params }: { params: Promise<{ id: string 
           <li key={bar.position} className="cut-bar rounded border border-border p-3">
             <div className="flex flex-wrap justify-between gap-2 font-medium">
               <span className="inline-flex flex-wrap items-center gap-1.5">{bar.position}. {bar.item ? `${bar.item.sku} · ${bar.item.name}` : "Profil"} · <ColorChip color={bar.color} size={16} showName /></span>
-              <span>{bar.isRemnant ? "Artık" : "Çubuk"} {bar.lengthMm} mm{bar.lotNumber ? ` · Lot ${bar.lotNumber}` : ""}</span>
+              <span>{bar.isRemnant ? "Artık" : "Profil"} {bar.lengthMm} mm{bar.lotNumber ? ` · Lot ${bar.lotNumber}` : ""}</span>
             </div>
             <table className="mt-2 w-full text-xs">
               <thead><tr className="text-left text-muted-foreground"><th className="w-8 py-1">☐</th><th>Kesim</th><th>İş / sipariş</th></tr></thead>

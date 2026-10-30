@@ -11,12 +11,12 @@ type Doc = { id: string; title: string | null; count_date: string | null; file_n
 type Overview = { available: boolean; canImport?: boolean; documents: Doc[]; warehouses: Array<{ id: string; code: string; name: string }> };
 type Filed = { mode:'opening'|'technical';suggestionId: string; created: boolean; document: { title: string | null; date: string | null; pages: number }; summary: { rows: number; counted: number; metres: number; uncertain: number }; rows: Row[] };
 
-const STATUS: Record<string, string> = { applied: 'Stoğa yazıldı', needs_bars: 'Çubuk sayımı bekliyor', uncertain: 'Emin değilim · uygulanmadı', skipped: 'Atlandı', counted: 'Çubuklar sayıldı' };
+const STATUS: Record<string, string> = { applied: 'Stoğa yazıldı', needs_bars: 'Profil sayımı bekliyor', uncertain: 'Emin değilim · uygulanmadı', skipped: 'Atlandı', counted: 'Profiller sayıldı' };
 
 /** What happens to a row on approval, before it is approved. */
 function plan(row: Row) {
   if (row.issues.length) return { label: 'Emin değilim · uygulanmayacak', tone: 'text-amber-700 dark:text-amber-300' };
-  if (row.unit === 'm' || row.unit === 'boy') return { label: 'Kart açılır · çubuklar sayılacak', tone: 'text-muted-foreground' };
+  if (row.unit === 'm' || row.unit === 'boy') return { label: 'Kart açılır · profiller sayılacak', tone: 'text-muted-foreground' };
   return { label: 'Açılış stoğu yazılır', tone: 'text-emerald-700 dark:text-emerald-300' };
 }
 
@@ -80,7 +80,7 @@ export default function CountImportPage() {
             satırlar &quot;emin değilim&quot; diye işaretlenir ve uygulanmaz. Tarihî belgelerde teknik bilgi aktarımını seçin; miktarlar güncel stok olarak yazılmaz.
           </p>
         </div>
-        <div className="flex gap-2"><Link className="rf-secondary-button" href="/inventory/opening-count">Çubuk sayımı</Link><Link className="rf-secondary-button" href="/inventory">Stok listesine dön</Link></div>
+        <div className="flex gap-2"><Link className="rf-secondary-button" href="/inventory/opening-count">Profil sayımı</Link><Link className="rf-secondary-button" href="/inventory">Stok listesine dön</Link></div>
       </div>
 
       {data.canImport && (
@@ -125,7 +125,7 @@ export default function CountImportPage() {
         <section className="rf-panel space-y-3" aria-label="Okunan sayım listesi">
           <h2 className="font-semibold">{filed.document.title || 'Sayım listesi'} {filed.document.date || ''} · {filed.document.pages} sayfa</h2>
           <p className="text-sm">
-            {filed.summary.rows} satır okundu. {filed.mode==='technical'?'Yalnız teknik bilgi aktarılacak; stok miktarı değişmeyecek.':`${filed.summary.counted} açılış stoğu, ${filed.summary.metres} çubuk sayımı bekleyecek.`}{' '}
+            {filed.summary.rows} satır okundu. {filed.mode==='technical'?'Yalnız teknik bilgi aktarılacak; stok miktarı değişmeyecek.':`${filed.summary.counted} açılış stoğu, ${filed.summary.metres} profil sayımı bekleyecek.`}{' '}
             <strong>{filed.summary.uncertain} emin değilim</strong>.{' '}
             {filed.created ? 'Öneri oluşturuldu; ' : 'Bu liste zaten onay bekliyor; '}
             <Link className="underline" href="/dashboard">Önerilenler&apos;den onaylayın</Link>.

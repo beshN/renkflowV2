@@ -19,7 +19,7 @@ export const warehouseTypeLabel = (type: string | null | undefined) => (type && 
  */
 export const STOCK_UNITS = ['m', 'adet', 'takim', 'boy', 'kg', 'm2'] as const;
 export type StockUnit = (typeof STOCK_UNITS)[number];
-export const UNIT_LABELS: Record<StockUnit, string> = { m: 'metre', adet: 'adet', takim: 'takım', boy: 'boy (çubuk)', kg: 'kg', m2: 'm²' };
+export const UNIT_LABELS: Record<StockUnit, string> = { m: 'metre', adet: 'adet', takim: 'takım', boy: 'boy (profil)', kg: 'kg', m2: 'm²' };
 export const unitLabel = (unit: string | null | undefined) => (unit && UNIT_LABELS[unit as StockUnit]) || unit || '—';
 /** A quantity as people read it (Turkish digits, at most three decimals), with its unit when given. */
 export const formatQty = (n: number, unit?: string) => n.toLocaleString('tr-TR', { maximumFractionDigits: 3 }) + (unit ? ` ${unitLabel(unit)}` : '');

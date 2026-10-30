@@ -32,7 +32,7 @@ Geçmiş normal davranış en az beş tamamlanmış denemeden sonra güvenilir k
 
 Kalite sonucu sipariş, iş emri, operasyon/deneme, çalışan, iş merkezi/makine/ekip, reçete sürümü, kullanılan lot ve kesim paketi bağlamını saklar. Kanıt kayıtları değişmez; yeni deneme yeni kontrol oluşturur. Başarısız kapı sonraki aşamayı bloke eder.
 
-Yeni sarf malzemesi girişleri ve mal kabulü fiziksel lot oluşturur. Tüketim yalnız kullanılabilir gerçek lotlardan FIFO ile ayrılır. Eski toplu stok, yalnız ilgili raftaki gerçek izsiz miktar kadar `legacy_untracked` olarak tüketilebilir; lot bilgisi uydurulmaz, rezerve lot tüketilmez. Lot, stok ve raf defteri aynı transaction içinde değişir. Sarf lotu kısmi raftan/depodan aktarılınca alt lot kaynak parti/lot bilgisini korur. Profil çubuğu parçalama kesim akışında kalır.
+Yeni sarf malzemesi girişleri ve mal kabulü fiziksel lot oluşturur. Tüketim yalnız kullanılabilir gerçek lotlardan FIFO ile ayrılır. Eski toplu stok, yalnız ilgili raftaki gerçek izsiz miktar kadar `legacy_untracked` olarak tüketilebilir; lot bilgisi uydurulmaz, rezerve lot tüketilmez. Lot, stok ve raf defteri aynı transaction içinde değişir. Sarf lotu kısmi raftan/depodan aktarılınca alt lot kaynak parti/lot bilgisini korur. Profil parçalama kesim akışında kalır.
 
 Rework hata kategorisi, kaynak kontrol, aday/doğrulanmış kök neden, dönüş operasyonu, ek malzeme, hurda, işçilik ve çözüm taşır. Etkilenen rota ve kalite kapıları tamamlanmadan kapatılamaz. Usta kapanışı çevrim dışıyken cihaz kuyruğunda kalır; sunucu kabulüne kadar eşitlenmediği gösterilir. Sürüm/rol/firma kontrolü ve UUID aynı kapanışın iki kez işlenmesini engeller.
 

@@ -100,12 +100,12 @@ function Reorder({ writable }: { writable: boolean }) {
                 <span>hedef {num(r.levels.target)}</span>
                 {r.incoming > 0 && <span>yolda {num(r.incoming)}</span>}
                 {r.policy?.dailyUsage ? <span>günlük {num(r.policy.dailyUsage)}</span> : null}
-                {r.suggested && <span className="text-foreground">→ {num(r.suggested.quantity)}{r.suggested.lengthMm ? ` çubuk × ${r.suggested.lengthMm} mm` : ` ${r.uom}`} · {r.suggested.supplierName}</span>}
+                {r.suggested && <span className="text-foreground">→ {num(r.suggested.quantity)}{r.suggested.lengthMm ? ` profil × ${r.suggested.lengthMm} mm` : ` ${r.uom}`} · {r.suggested.supplierName}</span>}
                 {r.reason && <span className="text-rose-700 dark:text-rose-300">{r.reason}</span>}
               </p>
               {edit === r.itemId && (
                 <form className="grid grid-cols-2 gap-2 sm:grid-cols-5" onSubmit={(e) => { e.preventDefault(); void save(r.itemId); }}>
-                  {([['minStock', `Asgari (${r.uom})`], ['maxStock', `Azami (${r.uom})`], ['leadTimeDays', 'Tedarik (gün)'], ['orderMultiple', r.uom === 'm' ? 'Paket (çubuk)' : `Paket (${r.uom})`]] as const).map(([k, l]) => (
+                  {([['minStock', `Asgari (${r.uom})`], ['maxStock', `Azami (${r.uom})`], ['leadTimeDays', 'Tedarik (gün)'], ['orderMultiple', r.uom === 'm' ? 'Paket (profil)' : `Paket (${r.uom})`]] as const).map(([k, l]) => (
                     <label key={k} className="text-[11px] text-muted-foreground">{l}
                       <input type="number" min={0} step="any" required={k === 'minStock'} className="rf-input mt-1 w-full text-sm text-foreground" value={form[k]} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))} />
                     </label>
@@ -168,10 +168,10 @@ function RfqForm({ basics, onCancel, onSave }: { basics: Basics; onCancel: () =>
           <select aria-label={`Satır ${i + 1} kalem`} className="rf-input" value={l.itemId} onChange={(e) => setLines((p) => p.map((x, j) => (j === i ? { ...x, itemId: e.target.value } : x)))}>
             {basics.items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}
           </select>
-          <input type="number" min={uom(l.itemId) === 'm' || COUNT_UNITS.has(uom(l.itemId) ?? '') ? 1 : 0.001} step={uom(l.itemId) === 'm' || COUNT_UNITS.has(uom(l.itemId) ?? '') ? 1 : 'any'} required aria-label={`Satır ${i + 1} miktar`} placeholder={uom(l.itemId) === 'm' ? 'çubuk' : uom(l.itemId)} className="rf-input" value={l.quantity} onChange={(e) => setLines((p) => p.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))} />
+          <input type="number" min={uom(l.itemId) === 'm' || COUNT_UNITS.has(uom(l.itemId) ?? '') ? 1 : 0.001} step={uom(l.itemId) === 'm' || COUNT_UNITS.has(uom(l.itemId) ?? '') ? 1 : 'any'} required aria-label={`Satır ${i + 1} miktar`} placeholder={uom(l.itemId) === 'm' ? 'profil' : uom(l.itemId)} className="rf-input" value={l.quantity} onChange={(e) => setLines((p) => p.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))} />
           {uom(l.itemId) === 'm' ? (
             <>
-              <input type="number" min={100} required aria-label={`Satır ${i + 1} çubuk boyu`} placeholder="boy mm" className="rf-input" value={l.lengthMm} onChange={(e) => setLines((p) => p.map((x, j) => (j === i ? { ...x, lengthMm: e.target.value } : x)))} />
+              <input type="number" min={100} required aria-label={`Satır ${i + 1} profil boyu`} placeholder="boy mm" className="rf-input" value={l.lengthMm} onChange={(e) => setLines((p) => p.map((x, j) => (j === i ? { ...x, lengthMm: e.target.value } : x)))} />
               <input required aria-label={`Satır ${i + 1} renk`} placeholder="renk" className="rf-input" value={l.color} onChange={(e) => setLines((p) => p.map((x, j) => (j === i ? { ...x, color: e.target.value } : x)))} />
             </>
           ) : <span className="hidden sm:col-span-2 sm:block" />}
@@ -214,7 +214,7 @@ function RfqCard({ rfq: q, writable, onAct }: { rfq: Rfq; writable: boolean; onA
         {q.dueOn && <span className="ml-auto text-xs text-muted-foreground">son {new Date(q.dueOn + 'T12:00:00Z').toLocaleDateString('tr-TR')}</span>}
       </div>
       <ul className="text-xs text-muted-foreground">
-        {q.lines.map((l) => <li key={l.id}>{l.itemName} · {num(l.quantity)} {l.uom === 'm' ? `çubuk × ${l.lengthMm} mm · ${l.color}` : l.uom}{q.comparison.cheapest[l.id] && <span className="text-foreground"> · en iyi {formatCurrency(q.comparison.cheapest[l.id]!.unitPrice, q.currency)}</span>}</li>)}
+        {q.lines.map((l) => <li key={l.id}>{l.itemName} · {num(l.quantity)} {l.uom === 'm' ? `profil × ${l.lengthMm} mm · ${l.color}` : l.uom}{q.comparison.cheapest[l.id] && <span className="text-foreground"> · en iyi {formatCurrency(q.comparison.cheapest[l.id]!.unitPrice, q.currency)}</span>}</li>)}
       </ul>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[420px] text-xs">

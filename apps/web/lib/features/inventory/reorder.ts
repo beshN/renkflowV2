@@ -91,8 +91,8 @@ export function thresholdStatus(row: ThresholdRow): ThresholdStatus {
   let quantity: number;
   let lengthMm: number | undefined;
   if (row.uom === 'm') {
-    if (!last.lengthMm || !last.color) return { state: 'unknown', shortfall, reason: 'Son alışta çubuk boyu veya renk yok' };
-    if (!Number.isInteger(last.lengthMm) || last.lengthMm < 100 || last.lengthMm > 30000) return { state: 'unknown', shortfall, reason: 'Son alıştaki çubuk boyu geçersiz' };
+    if (!last.lengthMm || !last.color) return { state: 'unknown', shortfall, reason: 'Son alışta profil boyu veya renk yok' };
+    if (!Number.isInteger(last.lengthMm) || last.lengthMm < 100 || last.lengthMm > 30000) return { state: 'unknown', shortfall, reason: 'Son alıştaki profil boyu geçersiz' };
     lengthMm = last.lengthMm;
     // Bars of the last bought length, enough to cover the metres.
     quantity = toMultiple(Math.ceil((shortfall * 1000) / lengthMm - 1e-9), row.policy?.orderMultiple);

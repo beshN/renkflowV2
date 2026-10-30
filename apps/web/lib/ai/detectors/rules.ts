@@ -102,7 +102,7 @@ export function detectShortages(rows: ShortageRow[], today: string): Finding<Sho
     const priority: Priority = daysToDue !== null && daysToDue <= 7 ? 'high' : 'medium';
     const badges: Badge[] = [countBadge(missing, `${r.uom} eksik`, 'danger'), countBadge(r.jobs.length, 'iş bekliyor', 'warning')];
     if (best?.unitPrice) badges.push(moneyBadge(best.unitPrice * quantity));
-    if (metres && barM) badges.push(countBadge(quantity, 'çubuk', 'info'));
+    if (metres && barM) badges.push(countBadge(quantity, 'profil', 'info'));
     out.push({
       detector: 'shortage', dedupeKey: `short:${r.itemId}`, priority, confidence: best?.unitPrice ? 'high' : 'low',
       title: `${r.name}: ${missing.toLocaleString('tr-TR')} ${r.uom} eksik`,
@@ -110,7 +110,7 @@ export function detectShortages(rows: ShortageRow[], today: string): Finding<Sho
       rule: 'Açık işlerin ayrılmamış ihtiyacı > serbest stok + yoldaki sipariş',
       evidence: {
         badges, records: r.jobs.slice(0, 20).map((j) => ({ entityType: 'work_order', entityId: j.id, label: j.label, href: j.href })),
-        numbers: { ihtiyaç: r.demand, serbest: r.free, yolda: r.incoming, eksik: missing, sipariş: quantity, birim: metres ? 'çubuk' : r.uom, ilkTermin: firstDue, tedarikçiSayısı: r.suppliers.length },
+        numbers: { ihtiyaç: r.demand, serbest: r.free, yolda: r.incoming, eksik: missing, sipariş: quantity, birim: metres ? 'profil' : r.uom, ilkTermin: firstDue, tedarikçiSayısı: r.suppliers.length },
       },
       payload: { itemId: r.itemId, quantity, supplierId: best?.supplierId ?? null, unitPrice: best?.unitPrice ?? null, currency: best?.currency ?? 'TRY', lengthMm: r.lengthMm, color: r.color },
     });
@@ -292,7 +292,7 @@ export function detectOffcuts(remnants: Remnant[], cuts: Cut[], kerfMm: number):
     return {
       detector: 'offcut', dedupeKey: `offcut:${workOrderId}:${e.matches.map((m) => m.r.lotId).sort().join(',')}`, priority: oldest > 60 ? 'medium' : 'low', confidence: 'high',
       title: `${e.label}: ${e.matches.length} kesim artık parçadan çıkar`,
-      rationale: `${e.matches.map((m) => `${m.r.lotNumber} (${m.r.lengthMm.toLocaleString('tr-TR')} mm → ${m.cut.toLocaleString('tr-TR')} mm)`).join(', ')}. Yeni çubuk yerine bekleyen artıklar kullanılabilir.`,
+      rationale: `${e.matches.map((m) => `${m.r.lotNumber} (${m.r.lengthMm.toLocaleString('tr-TR')} mm → ${m.cut.toLocaleString('tr-TR')} mm)`).join(', ')}. Yeni profil yerine bekleyen artıklar kullanılabilir.`,
       rule: 'Aynı profil ve renk, artık boyu ≥ kesim + testere payı; en kısa uyan artık seçilir',
       evidence: {
         badges: [countBadge(e.matches.length, 'artık uygun', 'success'), { label: `${(saved / 1000).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} m`, tone: 'info', kind: 'count' }, ...(oldest > 30 ? [daysBadge(oldest, 'gündür bekliyor', 'warning')] : [])],

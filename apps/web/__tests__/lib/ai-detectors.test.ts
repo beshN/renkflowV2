@@ -41,7 +41,7 @@ describe('2 · shortage', () => {
   it('metre profiles are ordered in whole bars; without a bar length no supplier order is proposed', () => {
     const sup = [{ supplierId: 's1', name: 'A', unitPrice: 100, currency: 'TRY', score: null, leadDays: null }];
     const [f] = detectShortages([row({ suppliers: sup })], today);
-    expect([f.payload.quantity, f.evidence.numbers.birim]).toEqual([10, 'çubuk']);
+    expect([f.payload.quantity, f.evidence.numbers.birim]).toEqual([10, 'profil']);
     const [g] = detectShortages([row({ suppliers: sup, lengthMm: null })], today);
     expect([g.payload.supplierId, g.confidence]).toEqual([null, 'low']);
   });

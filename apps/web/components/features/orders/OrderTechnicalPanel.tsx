@@ -99,7 +99,7 @@ export function OrderTechnicalPanel({
     const r = await send({ action: "plan-cut", commandId: crypto.randomUUID() });
     setBusy(false);
     if (r.ok) {
-      toast.success("Kesim planlandı ve çubuklar ayrıldı");
+      toast.success("Kesim planlandı ve profiller ayrıldı");
       void load();
     } else toast.error(r.error || "Kesim planlanamadı");
   };
@@ -401,7 +401,7 @@ export function OrderTechnicalPanel({
                 ))}
                 {g.buy && (
                   <p className="mt-2 text-sm">
-                    Eksik: {g.buy.bars} çubuk × {g.buy.lengthMm} mm. Satın alma
+                    Eksik: {g.buy.bars} profil × {g.buy.lengthMm} mm. Satın alma
                     kararı bekler.
                   </p>
                 )}
@@ -421,7 +421,7 @@ export function OrderTechnicalPanel({
             <ul className="mt-2 space-y-1 text-sm">
               {r.plan?.availableLengths?.map((l: any, i: number) => (
                 <li key={i}>
-                  {l.itemName} · {l.lengthMm} mm × {l.count} çubuk · {l.color} ·{" "}
+                  {l.itemName} · {l.lengthMm} mm × {l.count} profil · {l.color} ·{" "}
                   {l.kind === "remnant" ? "Kullanılabilir artık" : "Tam boy"}
                 </li>
               ))}
@@ -455,7 +455,7 @@ export function OrderTechnicalPanel({
             <p className="text-sm">
               Revizyon gerekçesi: {r.revision_reason}.{" "}
               {r.impact?.keepsCuts
-                ? "Ayrılan çubuklar ve kesilen parçalar korunur."
+                ? "Ayrılan profiller ve kesilen parçalar korunur."
                 : "Parça ve stok etkisi teknik kontrolden geçmeli."}
             </p>
           )}
@@ -514,7 +514,7 @@ export function OrderTechnicalPanel({
                 <p className="font-medium">Kesim stok bekliyor</p>
                 <p className="mt-1 text-muted-foreground">
                   Üretim açık. Eksik profiller depoya girince kesimi buradan
-                  planlayın; çubuklar bu siparişe ayrılır.
+                  planlayın; profiller bu siparişe ayrılır.
                 </p>
                 {data.canApprove && (
                   <button
@@ -1023,7 +1023,7 @@ function RevisionMaterials({
       <h3 className="font-semibold">Kesilmiş parçaların kararı</h3>
       <p className="text-sm text-muted-foreground">
         Kesilmiş parçaları gerçek boylarıyla yeniden kullanıma alın veya hurda
-        ayırın. Başka listede kullanılmayan kesilmemiş çubuklar serbest
+        ayırın. Başka listede kullanılmayan kesilmemiş profiller serbest
         bırakılır. Yeni plan ayrıca onaylanır.
       </p>
       {finishedJobs.length > 0 && (
@@ -1133,7 +1133,7 @@ function RevisionMaterials({
               disabled={busy}
               onChange={(e) => setSharedAccepted(e.target.checked)}
             />
-            Diğer listelerin bekleyen parçaları aynı fiziksel çubuklarda
+            Diğer listelerin bekleyen parçaları aynı fiziksel profillerde
             korunarak devam planına alınsın. Gerçekleşmiş kesimler korunsun.
           </label>
         </div>
@@ -1182,7 +1182,7 @@ function RevisionMaterials({
       {!physical.length && (
         <p className="text-sm">
           Ayrıca karar verilecek kesilmiş parça yok. Yalnız bu sipariş için
-          ayrılmış, kesilmemiş çubuklar serbest bırakılacak.
+          ayrılmış, kesilmemiş profiller serbest bırakılacak.
         </p>
       )}
       {blocked && (
@@ -1390,7 +1390,7 @@ function CutCompletion({
     <div className="rf-panel space-y-3 p-3">
       <h3 className="font-semibold">Kesim kaydı</h3>
       <p className="text-sm text-muted-foreground">
-        Kesilen çubukları seçin. Diğerleri ayrılmış olarak bekler.
+        Kesilen profilleri seçin. Diğerleri ayrılmış olarak bekler.
       </p>
       <div className="max-h-64 space-y-2 overflow-y-auto">
         {remaining.map((s: any) => (
@@ -1421,7 +1421,7 @@ function CutCompletion({
           checked={confirmed}
           onChange={(e) => setConfirmed(e.target.checked)}
         />
-        Seçilen çubuklar plandaki ölçülerle kesildi. Parçaları ve artıkları
+        Seçilen profiller plandaki ölçülerle kesildi. Parçaları ve artıkları
         kontrol ettim.
       </label>
       <button

@@ -53,6 +53,7 @@ describe('SSO e-mail policy (mapper)', () => {
   it('treats SAML (no verified flag) by provider policy and uses NameID as subject', () => {
     expect(() => mapSamlProfile({ nameID: 'n1', email: 'a@firma.com' }, open)).toThrow(SSO_ERRORS.unprovenEmail);
     expect(mapSamlProfile({ nameID: 'n1', email: 'a@firma.com' }, { trustIdpEmail: true })).toMatchObject({ subject: 'n1', email: 'a@firma.com' });
+    expect(mapSamlProfile({ nameID: 'n1', email: 'a@firma.com', memberOf: 'CN=Non-Admin,OU=Users' }, { trustIdpEmail: true }).groups).toEqual(['CN=Non-Admin,OU=Users']);
     expect(() => mapSamlProfile({ email: 'a@firma.com' }, { trustIdpEmail: true })).toThrow(SSO_ERRORS.missingSubject);
   });
 });

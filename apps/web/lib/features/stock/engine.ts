@@ -34,14 +34,19 @@ export type RfqResponse = { supplierId: string; supplierName: string; leadTimeDa
  * total (then the shorter lead time); an expired answer is shown but never suggested.
  */
 export function compareResponses(lines: RfqLine[], responses: RfqResponse[], today: string) {
-  const rows = responses.map((r) => {
+  const normalized = responses.map((r) => {
+    const byLine = new Map<string, { lineId: string; unitPrice: number }>();
+    for (const p of r.prices) byLine.set(p.lineId, p);
+    return { ...r, prices: [...byLine.values()] };
+  });
+  const rows = normalized.map((r) => {
     const priced = lines.filter((l) => r.prices.some((p) => p.lineId === l.id));
     const total = round(priced.reduce((s, l) => s + l.quantity * (r.prices.find((p) => p.lineId === l.id)?.unitPrice ?? 0), 0), 2);
     const expired = !!r.validUntil && r.validUntil < today;
     return { supplierId: r.supplierId, supplierName: r.supplierName, leadTimeDays: r.leadTimeDays, validUntil: r.validUntil, total, complete: priced.length === lines.length, missing: lines.length - priced.length, expired };
   });
   const cheapest = Object.fromEntries(lines.map((l) => {
-    const offers = responses.flatMap((r) => r.prices.filter((p) => p.lineId === l.id).map((p) => ({ supplierId: r.supplierId, unitPrice: p.unitPrice })));
+    const offers = normalized.flatMap((r) => r.prices.filter((p) => p.lineId === l.id).map((p) => ({ supplierId: r.supplierId, unitPrice: p.unitPrice })));
     const best = offers.sort((a, b) => a.unitPrice - b.unitPrice)[0];
     return [l.id, best ?? null];
   }));

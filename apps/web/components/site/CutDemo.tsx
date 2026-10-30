@@ -89,7 +89,7 @@ export function CutDemo() {
           <>
             <div className="flex flex-wrap gap-x-6 gap-y-1 text-[13px]">
               <span><b className="text-[20px] font-semibold tabular-nums tracking-tight">{result.pieces}</b> <span className="text-muted-foreground">parça</span></span>
-              <span><b className="text-[20px] font-semibold tabular-nums tracking-tight">{wholeBars}</b> <span className="text-muted-foreground">tam çubuk</span></span>
+              <span><b className="text-[20px] font-semibold tabular-nums tracking-tight">{wholeBars}</b> <span className="text-muted-foreground">tam profil</span></span>
               {usedRemnants > 0 && <span><b className="text-[20px] font-semibold tabular-nums tracking-tight">{usedRemnants}</b> <span className="text-muted-foreground">artık kullanıldı</span></span>}
               <span><b className="text-[20px] font-semibold tabular-nums tracking-tight">%{plan.wastePercent.toLocaleString('tr-TR', { maximumFractionDigits: 1 })}</b> <span className="text-muted-foreground">fire</span></span>
             </div>
@@ -97,7 +97,7 @@ export function CutDemo() {
               {bars.map((b, i) => (
                 <li key={b.source.id}>
                   <div className="flex items-baseline justify-between text-[12px] text-muted-foreground">
-                    <span>{i + 1}. {b.source.isRemnant ? 'artık' : 'çubuk'} · {cm(b.source.lengthMm)} cm</span>
+                    <span>{i + 1}. {b.source.isRemnant ? 'artık' : 'profil'} · {cm(b.source.lengthMm)} cm</span>
                     <span className={b.reusable ? 'text-emerald-700 dark:text-emerald-400' : ''}>{b.remainingMm < 1 ? 'kalan yok' : b.reusable ? `${cm(b.remainingMm)} cm artık olarak kalır` : `${cm(b.remainingMm)} cm fire`}</span>
                   </div>
                   <div className="mt-1 flex h-8 overflow-hidden rounded-md bg-muted" style={{ width: `${(b.source.lengthMm / STANDARD) * 100}%` }} role="img" aria-label={`${b.pieces.map((p) => `${cm(p.lengthMm)} cm`).join(', ')} kesilir`}>

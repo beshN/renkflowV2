@@ -33,7 +33,7 @@ export type CommandResult = (
   | { type: 'need'; message: string; missing: string[]; examples: string[] }
   | { type: 'denied'; message: string }) & { processing?: { source: 'rules' | 'model'; label: string }; suggestions?: string[] };
 
-const EXAMPLES = ["Ahmet Bey'e 3x4 pergola teklif hazırla antrasit", 'bu hafta geciken işler', '7016 mat kaç çubuk var', "ORD-12'yi öne al", "ORD-12'ye 2 gün ekle", 'RF-1042 nerede', 'yarın teslimatlar', 'kritik stok', 'Kaya İnşaat siparişleri', 'vadesi geçen faturalar', 'yoldaki malzemeler'];
+const EXAMPLES = ["Ahmet Bey'e 3x4 pergola teklif hazırla antrasit", 'bu hafta geciken işler', '7016 mat kaç profil var', "ORD-12'yi öne al", "ORD-12'ye 2 gün ekle", 'RF-1042 nerede', 'yarın teslimatlar', 'kritik stok', 'Kaya İnşaat siparişleri', 'vadesi geçen faturalar', 'yoldaki malzemeler'];
 const NEEDS: Record<Exclude<Command['intent'], 'unknown'>, { module: Module; action: Action; what: string }> = {
   quote_draft: { module: 'quotations', action: 'create', what: 'teklif hazırlama' },
   list_late: { module: 'orders', action: 'view', what: 'siparişleri görme' },
@@ -329,7 +329,7 @@ async function openPurchases(actor: WorkOrderActor): Promise<CommandResult> {
 // Stock ---------------------------------------------------------------------------------------------
 
 async function stockAnswer(actor: WorkOrderActor, color: string | null, item: string | null): Promise<CommandResult> {
-  if (!(await tableExists('stock_lots'))) return { type: 'answer', title: 'Stok', lines: [], note: 'Çubuk stoğu bu kurulumda tutulmuyor.' };
+  if (!(await tableExists('stock_lots'))) return { type: 'answer', title: 'Stok', lines: [], note: 'Profil stoğu bu kurulumda tutulmuyor.' };
   const lots = await sql`SELECT l.item_id, i.name, l.metadata->>'color' AS color, l.length_m, l.remaining_qty, coalesce((l.metadata->>'isRemnant')::boolean, false) AS remnant
     FROM stock_lots l JOIN inventory_items i ON i.id = l.item_id JOIN warehouses w ON w.id = l.warehouse_id
     WHERE l.tenant_id = ${actor.tenantId} AND l.status = 'available' AND w.warehouse_type IN ('RAW', 'REUSABLE_REMNANTS') AND l.remaining_qty > 0 LIMIT 20000`;
@@ -345,11 +345,11 @@ async function stockAnswer(actor: WorkOrderActor, color: string | null, item: st
     g.metres += Number(l.remaining_qty);
     groups.set(l.item_id, g);
   }
-  const title = `${color ?? item ?? 'Stok'}: ${[...groups.values()].reduce((s, g) => s + g.bars, 0)} çubuk`;
+  const title = `${color ?? item ?? 'Stok'}: ${[...groups.values()].reduce((s, g) => s + g.bars, 0)} profil`;
   return {
     type: 'answer', title,
-    lines: [...groups.values()].sort((a, b) => b.bars - a.bars).slice(0, 15).map((g) => ({ label: g.name, value: `${g.bars} çubuk (${[...g.lengths.entries()].sort((x, y) => y[1] - x[1] || x[0] - y[0]).map(([mm, n]) => `${n}×${mm.toLocaleString('tr-TR')} mm`).join(', ') || '—'})${g.remnants ? ` + ${g.remnants} artık` : ''} · ${Math.round(g.metres * 10) / 10} m` })),
-    note: [groups.size ? null : 'Bu renkte ya da profilde serbest çubuk yok.', unsized ? `${unsized} stok kaydının çubuk boyu yok (ör. sayım içe aktarma); çubuk sayısına katılmadı.` : null].filter(Boolean).join(' ') || undefined,
+    lines: [...groups.values()].sort((a, b) => b.bars - a.bars).slice(0, 15).map((g) => ({ label: g.name, value: `${g.bars} profil (${[...g.lengths.entries()].sort((x, y) => y[1] - x[1] || x[0] - y[0]).map(([mm, n]) => `${n}×${mm.toLocaleString('tr-TR')} mm`).join(', ') || '—'})${g.remnants ? ` + ${g.remnants} artık` : ''} · ${Math.round(g.metres * 10) / 10} m` })),
+    note: [groups.size ? null : 'Bu renkte ya da malzemede serbest profil yok.', unsized ? `${unsized} stok kaydının profil boyu yok (ör. sayım içe aktarma); profil sayısına katılmadı.` : null].filter(Boolean).join(' ') || undefined,
   };
 }
 

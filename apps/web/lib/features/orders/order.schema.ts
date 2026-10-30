@@ -183,6 +183,7 @@ export const updateOrderSchema = z.object({
   currency: CurrencySchema.optional(),
   deliveryDate: optionalDate,
   notes: optionalNotes,
+  version: z.number().int().positive().optional(),
   status: z.enum(['pending', 'in_production', 'delivered']).optional(),
 });
 

@@ -8,6 +8,7 @@ import {
   OnboardingActor,
 } from '@/lib/features/onboarding/service';
 import { z } from 'zod';
+import { crossOriginRejection } from '@/lib/features/manufacturing/http-security';
 
 const ALLOWED_UPDATE_ROLES = new Set(['owner', 'admin', 'office']);
 
@@ -21,7 +22,7 @@ async function resolveOnboardingActor(requireWriteAccess: boolean): Promise<Onbo
     SELECT role
     FROM tenant_members
     WHERE tenant_id = ${session.user.tenantId}
-      AND user_id = ${session.user.id}
+      AND user_id = ${session.user.id} AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL
     LIMIT 1
   `;
   const membershipRows = membershipResult as Array<{ role: string }>;
@@ -67,6 +68,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const crossOrigin = crossOriginRejection(request);
+  if (crossOrigin) return crossOrigin;
   try {
     const actor = await resolveOnboardingActor(true);
     const body = await request.json();

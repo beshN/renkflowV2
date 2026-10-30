@@ -202,7 +202,7 @@ function validate(row: CountRow, table: Table) {
     }
   }
   if (row.weightPerMeterKg !== null && row.unit !== 'm') issue('Gramaj var ama miktar metre değil');
-  if (row.unit === 'boy' && row.pieceLengthMm === null) issue('Adet "boy" ama çubuk boyu yazmıyor');
+  if (row.unit === 'boy' && row.pieceLengthMm === null) issue('Adet "boy" ama profil boyu yazmıyor');
 }
 
 /** Reads every table of the count list. Lines outside a table (title, page numbers) are skipped. */

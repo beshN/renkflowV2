@@ -71,7 +71,7 @@ export async function planCutListFromDoc(actor: WorkOrderActor, raw: unknown, db
     if (!item || !profile || !relevant.has(stockProfileIdentity(profile))) return [];
     if (physicalCount >= 20000) {
       uncertainItemIds.add(profile.id);
-      stockProblems.push({ lotNumber: String(l.lot_number), itemName: profile.name, reason: 'Planın 20.000 fiziksel çubuk sınırı aşıldı; stok havuzunu daraltın' });
+      stockProblems.push({ lotNumber: String(l.lot_number), itemName: profile.name, reason: 'Planın 20.000 fiziksel profil sınırı aşıldı; stok havuzunu daraltın' });
       return [];
     }
     const decoded = physicalBars({
@@ -85,7 +85,7 @@ export async function planCutListFromDoc(actor: WorkOrderActor, raw: unknown, db
     if (decoded.problem) uncertainItemIds.add(profile.id);
     if (decoded.problem) stockProblems.push({ lotNumber: String(l.lot_number), itemName: profile.name, reason: decoded.problem });
     const bars = decoded.bars.slice(0, Math.max(0, 20000 - physicalCount));
-    if (bars.length < decoded.bars.length) {uncertainItemIds.add(profile.id);stockProblems.push({ lotNumber: String(l.lot_number), itemName: profile.name, reason: 'Planın 20.000 fiziksel çubuk sınırı aşıldı; stok havuzunu daraltın' });}
+    if (bars.length < decoded.bars.length) {uncertainItemIds.add(profile.id);stockProblems.push({ lotNumber: String(l.lot_number), itemName: profile.name, reason: 'Planın 20.000 fiziksel profil sınırı aşıldı; stok havuzunu daraltın' });}
     physicalCount += bars.length;
     return bars.map(b=>({...b,warehouseId:l.warehouse_id,warehouseName:l.warehouse_name,locationId:l.location_id,locationCode:l.location_code}));
   });

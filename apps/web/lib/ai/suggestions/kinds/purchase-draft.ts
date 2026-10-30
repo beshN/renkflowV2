@@ -68,7 +68,7 @@ export async function refreshPurchaseDraftSuggestion(actor: SuggestionActor) {
     o.lines
       .map((l) => {
         const item = byId.get(l.itemId)!;
-        return l.lengthMm ? `${item.name} ${l.quantity} çubuk × ${formatQty(l.lengthMm / 1000)} m, ${l.color}` : `${item.name} ${formatQty(l.quantity, item.uom)}`;
+        return l.lengthMm ? `${item.name} ${l.quantity} profil × ${formatQty(l.lengthMm / 1000)} m, ${l.color}` : `${item.name} ${formatQty(l.quantity, item.uom)}`;
       })
       .join('; ');
   await fileSuggestion(
@@ -82,7 +82,7 @@ export async function refreshPurchaseDraftSuggestion(actor: SuggestionActor) {
         `Kullanılabilir stok (hammadde ve artık depoları, ayrılanlar düşülerek), yoldaki ve taslaktaki siparişlerle birlikte sipariş noktasının (minimum; tanımlıysa + tedarik süresi boyunca tüketim) altında kalan ${lineCount} malzeme için hedefe (azami stok ya da sipariş noktası) kadar alım önerilir.`,
         ...orders.slice(0, 10).map(describe),
         ...(orders.length > 10 ? [`… ve ${orders.length - 10} sipariş daha.`] : []),
-        'Tedarikçi, depo, birim fiyat, çubuk boyu ve renk her malzemenin gönderilmiş son satın alma satırından alındı; fiyatı tedarikçiden teyit edin.',
+        'Tedarikçi, depo, birim fiyat, profil boyu ve renk her malzemenin gönderilmiş son satın alma satırından alındı; fiyatı tedarikçiden teyit edin.',
         ...(unknown.length ? [`Taslağa alınmayan ${unknown.length} malzeme: ${unknown.slice(0, 10).map((u) => u.text).join('; ')}${unknown.length > 10 ? '; …' : ''}.`] : []),
         'Onaylarsanız siparişler taslak olarak açılır; tedarikçiye hiçbir şey gönderilmez, Satın alma ekranından gözden geçirip onaylarsınız. Onay anında stok yeniden hesaplanır: miktar güncel eksiğe göre yazılır, artık gerekmeyen ya da son alış bilgisi değişen satır alınmaz.',
       ].join('\n'),

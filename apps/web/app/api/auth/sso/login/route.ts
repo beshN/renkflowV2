@@ -8,8 +8,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const email = searchParams.get('email');
-    const tenantSlug = searchParams.get('slug'); // Option to login by tenant slug directly
+    const email = searchParams.get('email')?.trim().toLowerCase() || null;
+    const tenantSlug = searchParams.get('slug')?.trim().toLowerCase() || null; // Option to login by tenant slug directly
     const baseUrl =
       resolveServerBaseUrl({
         context: 'api.auth.sso.login',
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
         JOIN LATERAL (
           SELECT tenant_id
           FROM tenant_members
-          WHERE user_id = u.id
+          WHERE user_id = u.id AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL
           ORDER BY
             CASE role
               WHEN 'owner' THEN 0

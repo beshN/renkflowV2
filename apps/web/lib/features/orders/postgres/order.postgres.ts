@@ -334,6 +334,31 @@ export class PostgresOrderService implements IOrderService {
     const existingOrder = await this.getOrderById(tenantId, id);
     if (!existingOrder) throw new Error('Order not found');
 
+    if (['shipped', 'delivered', 'completed', 'cancelled'].includes(existingOrder.status)) {
+      throw new WorkOrderApiError('Tamamlanmış, sevk edilmiş veya iptal edilmiş siparişin bilgileri doğrudan değiştirilemez', 409);
+    }
+    if (updates.version !== undefined && existingOrder.version !== undefined && updates.version !== existingOrder.version) {
+      throw new WorkOrderApiError('Sipariş başka bir ekranda güncellendi. Sayfayı yenileyin.', 409);
+    }
+    if (updates.quantity !== undefined || updates.productName !== undefined || updates.currency !== undefined || updates.totalAmount !== undefined) {
+      const linkedRows = await sql`
+        SELECT
+          EXISTS(SELECT 1 FROM work_orders WHERE tenant_id = ${tenantId} AND order_id = ${id} AND status <> 'cancelled') AS has_jobs,
+          COALESCE((SELECT SUM(amount) FROM payments WHERE tenant_id = ${tenantId} AND order_id = ${id}), 0) AS paid_total
+      `;
+      const linked = (linkedRows as Array<{ has_jobs?: boolean; paid_total?: string | number }> | undefined)?.[0];
+      if (linked?.has_jobs && (updates.quantity !== undefined || updates.productName !== undefined)) {
+        throw new WorkOrderApiError('Üretim emri açılmış siparişin ürün veya miktarı doğrudan değiştirilemez; sipariş revizyonu kullanın', 409);
+      }
+      const paidTotal = Number(linked?.paid_total || 0);
+      if (paidTotal > 0 && updates.currency !== undefined && updates.currency !== existingOrder.currency) {
+        throw new WorkOrderApiError('Tahsilatı olan siparişin para birimi değiştirilemez', 409);
+      }
+      if (updates.totalAmount !== undefined && updates.totalAmount + 0.005 < paidTotal) {
+        throw new WorkOrderApiError('Sipariş tutarı tahsil edilmiş tutarın altına düşürülemez', 409);
+      }
+    }
+
     const setClauses = [];
     const values: any[] = [];
     let paramIndex = 1;

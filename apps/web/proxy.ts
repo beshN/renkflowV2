@@ -227,7 +227,8 @@ export async function proxy(request: NextRequest) {
       if (company) {
         companyScoped = true;
         const token = await sessionToken(request);
-        if (token?.tenantId && token.tenantId !== company.id && pathname !== '/api/auth/signout')
+        const bearer = pathname.startsWith('/api/') ? bearerIdentity(request, pathname) : null;
+        if (((token?.tenantId && token.tenantId !== company.id) || (bearer?.tenantId && bearer.tenantId !== company.id)) && pathname !== '/api/auth/signout')
           return withProxySecurityHeaders(NextResponse.json({ error: 'Bu şirket için oturum açın.' }, { status: 403 }), { isSecureRequest });
         if (pathname === '/') {
           const destination = request.nextUrl.clone(); destination.pathname = token ? '/dashboard' : '/auth/login';

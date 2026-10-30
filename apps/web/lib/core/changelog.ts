@@ -133,7 +133,7 @@ export const changelog: ChangelogEntry[] = [
         kind: 'İyileştirme',
         items: [
           'Teknik plandaki notlar engel ve uyarı olarak ayrıldı. Stok eksikliği veya teklif ile föy arasındaki fark gibi uyarılar “Uyarıları gördüm” ile kabul edilir ve planda saklanır; okunamayan ölçü gibi gerçek engeller düzeltilmeden onay açılmaz.',
-          'Stok eksik olsa da üretim açılır, kesim bekler. Stok geldiğinde siparişteki “Stoğu kontrol et ve kesimi planla” ile çubuklar ayrılır.',
+          'Stok eksik olsa da üretim açılır, kesim bekler. Stok geldiğinde siparişteki “Stoğu kontrol et ve kesimi planla” ile profiller ayrılır.',
           'Usta ekranı iş bulunan ilk kategoriyle açılır; kategorilerde iş sayısı görünür ve arama tüm kategorileri tarar.',
           'Oturumunuz açıkken ana sayfa sizi panele yönlendirmez; panele “Panele git” ile geçebilirsiniz.',
         ],
@@ -194,7 +194,7 @@ export const changelog: ChangelogEntry[] = [
       {
         kind: 'İyileştirme',
         items: [
-          'Kesim planı depodaki gerçek çubuk boylarını kullanır; boyalı stok yetmediğinde boyasız stoktan kesip boyama önerir.',
+          'Kesim planı depodaki gerçek profil boylarını kullanır; boyalı stok yetmediğinde boyasız stoktan kesip boyama önerir.',
           'Gizli PDF belgeleri her cihazda güvenilir biçimde açılır.',
         ],
       },
@@ -264,7 +264,7 @@ export const changelog: ChangelogEntry[] = [
       {
         kind: 'Yeni',
         items: [
-          'Asistan: “teklif taslağı hazırla”, “geciken işler”, “çubuk stoğu” veya “bu siparişi öne alsak ne olur” gibi komutlar önizleme ve onayla çalışır; Cmd+K içinden “Asistana sor”; tarayıcı destekliyorsa sesle komut; sabah özeti.',
+          'Asistan: “teklif taslağı hazırla”, “geciken işler”, “profil stoğu” veya “bu siparişi öne alsak ne olur” gibi komutlar önizleme ve onayla çalışır; Cmd+K içinden “Asistana sor”; tarayıcı destekliyorsa sesle komut; sabah özeti.',
           'Öneri kartları: öncelik, dayanak, kopyalanabilir mesaj taslağı, erteleme ve “bir daha önerme”.',
           'Ayarlar › Asistan: çalışma modu (kapalı, yalnız kurallar, yapay zekâ), KVKK onayı ve günlük bütçe.',
           'Finans: faturalar, alacak yaşlandırma, yazdırılabilir fatura ve hesap ekstresi; siparişte “Fatura & tahsilat” sekmesi.',
@@ -294,7 +294,7 @@ export const changelog: ChangelogEntry[] = [
           'Ölçüye göre fiyat çıkaran pergola yapılandırıcı; ürün aileleri, fiyat matrisi ve reçete şablonları.',
           'Teklif siparişe dönüşürken iş emri ve kesim talebi kendiliğinden açılır.',
           'Firma renk kataloğu ve tüm RAL renkleri; usta ekranlarında renk karosu.',
-          'Stok eşiği uyarısı ve satın alma taslağı önerisi; çubuk bazında açılış sayımı; sayım PDF’inden içe aktarma.',
+          'Stok eşiği uyarısı ve satın alma taslağı önerisi; profil bazında açılış sayımı; sayım PDF’inden içe aktarma.',
           'Kesim planı ve usta föyü.',
           'Görsel panolar: Bugün, sipariş panosu, fabrika modu ve duvar ekranı.',
           'Yapay zekâ önerileri onay kuyruğunda bekler; kişisel veriler modele gönderilmeden maskelenir.',

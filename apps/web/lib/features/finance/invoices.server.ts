@@ -166,7 +166,7 @@ export async function orderBilling(actor: WorkOrderActor, orderId: string) {
       lines: invLines.filter((l: Row) => String(l.invoice_id) === String(i.id)).map((l: Row) => ({ id: String(l.id), orderItemId: l.order_item_id ? String(l.order_item_id) : null, description: l.description, quantity: Number(l.quantity), unitPrice: Number(l.unit_price), vatPercent: Number(l.vat_percent), netAmount: Number(l.net_amount), vatAmount: Number(l.vat_amount) })),
     })),
     payments: payments.map((p: Row) => ({ id: String(p.id), amount: Number(p.amount), currency: p.currency, method: p.method, paidAt: p.paid_at, note: p.note ?? null, reference: p.reference ?? null, chequeDueOn: iso(p.cheque_due_on), invoiceId: p.invoice_id ? String(p.invoice_id) : null, invoiceNumber: p.invoice_number ?? null })),
-    summary: { invoiceTotal: money(issued.reduce((s: number, i: Row) => s + Number(i.total), 0)), collected, balance: money(Math.max(total, issued.reduce((s: number, i: Row) => s + payable(i), 0)) - collected) },
+    summary: { invoiceTotal: money(issued.reduce((s: number, i: Row) => s + Number(i.total), 0)), collected, balance: money(Math.max(0, Math.max(total - issued.reduce((s: number, i: Row) => s + Number(i.withholding_total ?? 0), 0), issued.reduce((s: number, i: Row) => s + payable(i), 0)) - collected)) },
     estimatedProfit: await orderProfit(actor.tenantId, orderId, total, String(o.currency)),
   };
 }

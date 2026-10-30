@@ -269,7 +269,7 @@ export default function ProductionWorkspace() {
           <Link href="/orders/foy" className="rf-panel flex flex-wrap items-center justify-between gap-3 border-primary/40 hover:border-primary">
             <span>
               <span className="block text-sm font-semibold">Kesim listesi yükle</span>
-              <span className="block text-xs text-muted-foreground">Föyü yükleyin: hangi profil hangi çubuktan kesilecek, artık ve hurdadan neler kullanılacak, ne kadar fire çıkacak otomatik hesaplanır.</span>
+              <span className="block text-xs text-muted-foreground">Föyü yükleyin: hangi parça hangi profilden kesilecek, artık ve hurdadan neler kullanılacak, ne kadar fire çıkacak otomatik hesaplanır.</span>
             </span>
             <span className="rf-primary-button text-xs">Föyü yükle</span>
           </Link>
@@ -533,7 +533,7 @@ export default function ProductionWorkspace() {
               {!data.plans.length && <ScrapHuntButton parameters={data.cutting?.parameters} />}
             </div>
             <p className="mb-4 text-xs text-muted-foreground">
-              Aynı profil ve renkteki parçalar, eldeki çubuk ve artıklar da kullanılarak en az fireyle birlikte kesilir.
+              Aynı profil ve renkteki parçalar, eldeki profil ve artıklar da kullanılarak en az fireyle birlikte kesilir.
             </p>
             <div className="mb-4">
               <EstimateNotice text={cuttingEstimateNotice(data.cutting?.source)} onOpenSettings={manager ? openCuttingSettings : undefined} />
@@ -634,7 +634,7 @@ export default function ProductionWorkspace() {
                   </h2>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {p.work_order_ids.length} iş emri · {p.result.bars.length}{" "}
-                    çubuk ·{" "}
+                    profil ·{" "}
                     {p.result.wastePercent == null
                       ? "fire hesaplanmadı (stok eksik)"
                       : `%${Number(p.result.wastePercent).toFixed(2)} fire`}{" "}
@@ -664,7 +664,7 @@ export default function ProductionWorkspace() {
                         <li key={l.itemId + l.color}>
                           Satın alma ihtiyacı:{" "}
                           {items.find((x: any) => x.id === l.itemId)?.name} ·{" "}
-                          <ColorChip color={l.color} size={14} /> · {l.bars} × {l.lengthMm} mm çubuk
+                          <ColorChip color={l.color} size={14} /> · {l.bars} × {l.lengthMm} mm profil
                         </li>
                       ))}
                     </ul>
@@ -672,7 +672,7 @@ export default function ProductionWorkspace() {
                   {p.result.purchase?.tooLong?.length > 0 && (
                     <p className="mt-1">
                       {p.result.purchase.tooLong.length} parça standart boydan
-                      uzun; tek çubuktan kesilemez.
+                      uzun; tek profilden kesilemez.
                     </p>
                   )}
                 </div>
@@ -687,7 +687,7 @@ export default function ProductionWorkspace() {
                       {i + 1}.{" "}
                       {items.find((x: any) => x.id === bar.source.itemId)?.name}{" "}
                       · <ColorChip color={bar.source.color} size={14} className="text-foreground" /> ·{" "}
-                      {bar.source.isRemnant ? "Artık" : "Çubuk"}
+                      {bar.source.isRemnant ? "Artık" : "Profil"}
                       {mismatch && <span className="rounded border border-rose-500/40 px-1.5 font-medium text-rose-700 dark:text-rose-300">Renk iş emriyle uyuşmuyor</span>}
                     </span>
                     <span>{bar.source.lengthMm} mm</span>
@@ -945,7 +945,7 @@ export default function ProductionWorkspace() {
                   <p className="text-xs text-muted-foreground">
                     Kalem = profil kodu + ölçü + işlenmiş hâl. Boyalı, boyasız,
                     delikli ve hazır hâller ayrı kalemdir. Profilin rengi ve
-                    boyu her çubukta (stok girişinde) tutulur; adetli
+                    boyu her profilde (stok girişinde) tutulur; adetli
                     parçalarda parça boyu kartta.
                   </p>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -1047,7 +1047,7 @@ export default function ProductionWorkspace() {
                     <Field name="lotNumber" label="Lot / irsaliye kodu" />
                     <Field
                       name="quantity"
-                      label="Profil çubuk adedi / diğer stok miktarı"
+                      label="Profil adedi / diğer stok miktarı"
                       type="number"
                     />
                     <Field
@@ -1108,7 +1108,7 @@ export default function ProductionWorkspace() {
                         "minimum_remnant_mm",
                       ],
                       ...(data.cutting?.standardLengthEditable
-                        ? [["standardLengthMm", "Standart çubuk boyu · mm", "standard_length_mm"]]
+                        ? [["standardLengthMm", "Standart profil boyu · mm", "standard_length_mm"]]
                         : []),
                     ].map(([name, label]) => (
                       <Field

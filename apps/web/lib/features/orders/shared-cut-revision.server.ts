@@ -59,7 +59,7 @@ export async function releaseRevisionCutPlans(
           ),
       )
     )
-      fail("Ortak plandaki fiziksel çubukların rezervasyonu değişti.");
+      fail("Ortak plandaki fiziksel profillerin rezervasyonu değişti.");
     // Only unconsumed reservations are released; original consumed records remain in history.
     await tx`UPDATE stock_reservation_lines SET released_qty=reserved_qty-consumed_qty WHERE tenant_id=${a.tenantId} AND reservation_id IN(SELECT id FROM stock_reservations WHERE tenant_id=${a.tenantId} AND idempotency_key=${"cut-plan:" + plan.id})`;
     await tx`UPDATE stock_reservations SET status='released',updated_at=now() WHERE tenant_id=${a.tenantId} AND idempotency_key=${"cut-plan:" + plan.id}`;

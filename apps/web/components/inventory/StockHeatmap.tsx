@@ -27,7 +27,7 @@ export function StockHeatmap() {
   return (
     <section className="rf-panel space-y-3 p-4" aria-label="Renk ve boy ısı haritası">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="rf-section-title flex items-center gap-2"><Grid3x3 size={16} aria-hidden /> Çubuk haritası <HintTip text="Satır renk, sütun çubuk boyu (mm). Hücredeki sayı o renk ve boyda raftaki çubuk adedi; koyu hücre daha çok çubuk." /></h2>
+        <h2 className="rf-section-title flex items-center gap-2"><Grid3x3 size={16} aria-hidden /> Profil haritası <HintTip text="Satır renk, sütun profil boyu (mm). Hücredeki sayı o renk ve boyda raftaki profil adedi; koyu hücre daha çok profil." /></h2>
         {data && data.items.length > 1 && (
           <select aria-label="Profil" className="rf-input h-9 py-0 text-xs" value={item} onChange={(e) => setItem(e.target.value)}>
             <option value="">Tüm profiller</option>
@@ -35,8 +35,8 @@ export function StockHeatmap() {
           </select>
         )}
       </div>
-      {!data ? <Skeleton className="h-40 w-full" /> : !view.colors.length ? <EmptyState title="Çubuk yok" /> : (
-        <div tabIndex={0} role="region" aria-label="Çubuk ısı haritası" className="overflow-x-auto">
+      {!data ? <Skeleton className="h-40 w-full" /> : !view.colors.length ? <EmptyState title="Profil yok" /> : (
+        <div tabIndex={0} role="region" aria-label="Profil ısı haritası" className="overflow-x-auto">
           <table className="border-separate border-spacing-1 text-xs">
             <thead>
               <tr><th className="sr-only">Renk</th>{view.lengths.map((l) => <th key={l} className="px-1 text-right font-medium tabular-nums text-muted-foreground">{l.toLocaleString('tr-TR')}</th>)}</tr>
@@ -49,7 +49,7 @@ export function StockHeatmap() {
                     const n = view.count(col, l);
                     const a = n / view.max;
                     return (
-                      <td key={l} title={`${col} · ${l} mm · ${n} çubuk`} className="h-9 min-w-[52px] rounded text-center font-semibold tabular-nums"
+                      <td key={l} title={`${col} · ${l} mm · ${n} profil`} className="h-9 min-w-[52px] rounded text-center font-semibold tabular-nums"
                         style={{ background: n ? `hsl(var(--primary) / ${(0.12 + a * 0.75).toFixed(2)})` : 'hsl(var(--muted))', color: a > 0.5 ? '#fff' : undefined }}>
                         {n || ''}
                       </td>

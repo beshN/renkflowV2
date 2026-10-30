@@ -28,7 +28,7 @@ export async function productionSettings(actor: WorkOrderActor) {
   const [available, members] = await Promise.all([
     productionLeadAvailable(),
     sql`SELECT u.id, u.name, u.email, m.role FROM tenant_members m JOIN users u ON u.id = m.user_id
-        WHERE m.tenant_id = ${actor.tenantId} AND m.role = ANY(${PRODUCTION_LEAD_ROLES}::text[]) ORDER BY u.name, u.email`,
+        WHERE m.tenant_id = ${actor.tenantId} AND (to_jsonb(m) ->> 'deactivated_at') IS NULL AND m.role = ANY(${PRODUCTION_LEAD_ROLES}::text[]) ORDER BY u.name, u.email`,
   ]);
   const leadUserId = available ? await productionLead(sql, actor.tenantId) : null;
   // A lead who has left the team is still the setting: conversions wait until it is changed.
@@ -43,7 +43,7 @@ export async function saveProductionLead(actor: WorkOrderActor, raw: unknown) {
   const { leadUserId } = SaveSchema.parse(raw);
   if (!(await productionLeadAvailable())) fail('Bu ayar bu kurulumda henüz etkin değil (veritabanı güncellemesi bekleniyor)', 409);
   return withTransaction(async (tx: any) => {
-    if (leadUserId && !(await tx`SELECT 1 FROM tenant_members WHERE tenant_id = ${actor.tenantId} AND user_id = ${leadUserId} AND role = ANY(${PRODUCTION_LEAD_ROLES}::text[])`).length)
+    if (leadUserId && !(await tx`SELECT 1 FROM tenant_members WHERE tenant_id = ${actor.tenantId} AND user_id = ${leadUserId} AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL AND role = ANY(${PRODUCTION_LEAD_ROLES}::text[])`).length)
       fail('Seçilen kişi firmanın üretim ekibinde değil');
     const [before] = await tx`SELECT production_lead_user_id FROM manufacturing_preferences WHERE tenant_id = ${actor.tenantId} FOR UPDATE`;
     await tx`INSERT INTO manufacturing_preferences (tenant_id, production_lead_user_id) VALUES (${actor.tenantId}, ${leadUserId})

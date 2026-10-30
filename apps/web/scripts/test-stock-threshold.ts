@@ -84,7 +84,7 @@ async function main() {
   assert(card, 'the office sees the purchase draft suggestion');
   assert.equal(card.uncertain, true);
   assert.match(card.uncertaintyNote, /2 malzeme için tedarikçi veya alış bilgisi eksik/);
-  assert.match(card.rationale, /Test PROFIL 10 çubuk × 6,5 m, Test Gri/);
+  assert.match(card.rationale, /Test PROFIL 10 profil × 6,5 m, Test Gri/);
   assert.match(card.rationale, /Test YENI: Daha önce satın alınmamış/);
   // Nothing is ordered before approval.
   assert.equal((await db`SELECT count(*)::int AS n FROM purchase_orders WHERE tenant_id = ${tenantId} AND status = 'draft'`)[0].n, 1, 'only the unsent draft made for the test');

@@ -35,7 +35,7 @@ export function ProductionReasonSettings() {
     setMsg('');
     const options = lengthText.split(/[\s,;]+/).filter(Boolean).map(Number);
     const r = await requestJson<{ options: number[] }>('/api/v1/production/bar-lengths', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ options }) });
-    if (r.ok && r.data) { setLengths(r.data.options); setLengthText(r.data.options.join(', ')); setMsg('Çubuk boyları kaydedildi'); }
+    if (r.ok && r.data) { setLengths(r.data.options); setLengthText(r.data.options.join(', ')); setMsg('Profil boyları kaydedildi'); }
     else setMsg(r.error || 'Kaydedilemedi');
   }
 
@@ -65,7 +65,7 @@ export function ProductionReasonSettings() {
       </form>}
       {lengths && (
         <div className="space-y-2 border-t border-border pt-4">
-          <label className="block text-xs">Alınabilen çubuk boyları (mm)
+          <label className="block text-xs">Alınabilen profil boyları (mm)
             <HintTip text="Stok yetmeyince satın alma önerisi her profil için bu boylardan en az fire bırakanı seçer; profilin kendi standart boyu da her zaman aday." />
             <input inputMode="numeric" placeholder="6000, 6500, 7000" className="rf-input mt-1 w-full" value={lengthText} onChange={(e) => setLengthText(e.target.value)} />
           </label>

@@ -64,7 +64,7 @@ export async function saveReorderPolicy(actor: WorkOrderActor, itemId: string, r
     if (!before) throw new WorkOrderApiError('Stok kalemi bulunamadı', 404);
     // The pack is counted in what a purchase line counts: whole bars for a profile, whole pieces for counted items.
     if (p.orderMultiple != null && (before.stock_uom === 'm' || COUNT_UNITS.has(before.stock_uom)) && !Number.isInteger(p.orderMultiple))
-      throw new WorkOrderApiError(before.stock_uom === 'm' ? 'Paket katı tam çubuk sayısı olmalı' : 'Paket katı tam sayı olmalı', 400);
+      throw new WorkOrderApiError(before.stock_uom === 'm' ? 'Paket katı tam profil sayısı olmalı' : 'Paket katı tam sayı olmalı', 400);
     await tx`UPDATE inventory_items SET min_stock = ${p.minStock}, max_stock = ${p.maxStock}, lead_time_days = ${p.leadTimeDays}, order_multiple = ${p.orderMultiple}, updated_at = now() WHERE tenant_id = ${actor.tenantId} AND id = ${itemId}`;
     const pairs: Array<[string, unknown, unknown]> = [
       ['asgari', Number(before.min_stock), p.minStock], ['azami', before.max_stock == null ? null : Number(before.max_stock), p.maxStock],
@@ -101,7 +101,8 @@ export async function orderShortage(actor: Pick<WorkOrderActor, 'tenantId'>, ord
     }
   }
   if (!needs.length) return { lines: [], configured: items.length };
-  const ids = [...new Set(needs.map((n) => n.itemId))];
+  const ids = [...new Set(needs.map((n) => n.itemId))].filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id)));
+  if (!ids.length) return { lines: [], configured: items.length };
   const [meta, stock, held, incoming] = await Promise.all([
     sql`SELECT id, name, stock_uom FROM inventory_items WHERE tenant_id = ${t} AND id = ANY(${ids}::uuid[])`,
     sql`SELECT b.item_id, sum(b.on_hand_qty) AS qty FROM stock_balances b JOIN warehouses w ON w.id = b.warehouse_id AND w.tenant_id = b.tenant_id
@@ -146,8 +147,8 @@ export async function notifyShortageOnApproval(tenantId: string, orderId: string
     await recordAudit(sql, { tenantId, actorId: null, entityType: 'order', entityId: orderId, action: 'material_shortage', metadata: { lines: missing.map((l) => `${l.name} −${l.missing} ${l.uom}`) } });
     // The production lead while still in the firm, otherwise the managers.
     const [pref] = (await columnExists('manufacturing_preferences', 'production_lead_user_id'))
-      ? await sql`SELECT p.production_lead_user_id AS lead FROM manufacturing_preferences p JOIN tenant_members m ON m.tenant_id = p.tenant_id AND m.user_id = p.production_lead_user_id WHERE p.tenant_id = ${tenantId}` : [];
-    const people = pref?.lead ? [pref.lead as string] : (await sql`SELECT user_id FROM tenant_members WHERE tenant_id = ${tenantId} AND role IN ('owner', 'admin')`).map((m: any) => m.user_id as string);
+      ? await sql`SELECT p.production_lead_user_id AS lead FROM manufacturing_preferences p JOIN tenant_members m ON m.tenant_id = p.tenant_id AND m.user_id = p.production_lead_user_id WHERE p.tenant_id = ${tenantId} AND (to_jsonb(m) ->> 'deactivated_at') IS NULL` : [];
+    const people = pref?.lead ? [pref.lead as string] : (await sql`SELECT user_id FROM tenant_members WHERE tenant_id = ${tenantId} AND role IN ('owner', 'admin') AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL`).map((m: any) => m.user_id as string);
     const text = missing.slice(0, 4).map((l) => `${l.name} ${l.missing} ${l.uom}`).join(', ') + (missing.length > 4 ? ` +${missing.length - 4}` : '');
     for (const p of people)
       if (p !== actorId)
@@ -214,11 +215,11 @@ export async function createRfq(actor: WorkOrderActor, raw: unknown) {
     for (const l of d.lines) {
       const [item] = await tx`SELECT stock_uom FROM inventory_items WHERE tenant_id = ${actor.tenantId} AND id = ${l.itemId} AND active = true AND item_type <> 'finished_good'`;
       if (!item) throw new WorkOrderApiError('Satın alınabilir stok kalemi seçin', 400);
-      if (item.stock_uom === 'm' && (!l.lengthMm || !l.color)) throw new WorkOrderApiError('Profil için çubuk boyu ve renk gerekli', 400);
+      if (item.stock_uom === 'm' && (!l.lengthMm || !l.color)) throw new WorkOrderApiError('Profil için profil boyu ve renk gerekli', 400);
       // The same rules as a purchase order line, so choosing a supplier never fails late.
-      if ((item.stock_uom === 'm' || COUNT_UNITS.has(item.stock_uom)) && !Number.isInteger(l.quantity)) throw new WorkOrderApiError('Adet, takım veya çubuk miktarı tam sayı olmalı', 400);
-      if (item.stock_uom === 'm' && l.quantity > 10000) throw new WorkOrderApiError('Bir kalemde en fazla 10.000 çubuk istenebilir', 400);
-      if (item.stock_uom !== 'm' && l.lengthMm) throw new WorkOrderApiError('Çubuk boyu yalnız metre ile izlenen profilde kullanılır', 400);
+      if ((item.stock_uom === 'm' || COUNT_UNITS.has(item.stock_uom)) && !Number.isInteger(l.quantity)) throw new WorkOrderApiError('Adet, takım veya profil miktarı tam sayı olmalı', 400);
+      if (item.stock_uom === 'm' && l.quantity > 10000) throw new WorkOrderApiError('Bir kalemde en fazla 10.000 profil istenebilir', 400);
+      if (item.stock_uom !== 'm' && l.lengthMm) throw new WorkOrderApiError('Profil boyu yalnız metre ile izlenen profilde kullanılır', 400);
       if (!(await tx`SELECT 1 FROM warehouses WHERE tenant_id = ${actor.tenantId} AND id = ${l.warehouseId} AND active = true AND warehouse_type = 'RAW'`).length)
         throw new WorkOrderApiError('Hammadde deposu seçin', 400);
     }
@@ -239,7 +240,7 @@ const ResponseSchema = z.object({
   leadTimeDays: z.coerce.number().int().min(0).max(365).nullable().optional(),
   validUntil: DATE.nullable().optional(),
   note: z.string().trim().max(1000).optional(),
-  prices: z.array(z.object({ lineId: z.string().uuid(), unitPrice: z.coerce.number().min(0).max(100_000_000) })).min(1).max(100),
+  prices: z.array(z.object({ lineId: z.string().uuid(), unitPrice: z.coerce.number().min(0).max(100_000_000) })).min(1).max(100).refine((prices) => new Set(prices.map((p) => p.lineId)).size === prices.length, 'Aynı satır birden fazla fiyatlanamaz'),
 }).strict();
 
 /** A supplier's answer, typed by the office from the supplier's offer (replaces an earlier one). */

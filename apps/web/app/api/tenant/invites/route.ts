@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       SELECT role
       FROM tenant_members
       WHERE tenant_id = ${session.user.tenantId}
-        AND user_id = ${session.user.id}
+        AND user_id = ${session.user.id} AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL
       LIMIT 1
     `;
     const membershipRows = membershipResult as Array<{ role: string }>;

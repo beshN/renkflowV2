@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
+import { hasPermission, type UserRole } from '@/lib/auth/permissions';
+import { can } from '@/lib/security/access-matrix';
+import { resolveMemberAccess } from '@/lib/security/member-access.server';
 
 export async function GET() {
   try {
@@ -10,16 +13,12 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const membershipResult = await sql`
-      SELECT id
-      FROM tenant_members
-      WHERE tenant_id = ${session.user.tenantId}
-        AND user_id = ${session.user.id}
-      LIMIT 1
-    `;
-    const membershipRows = membershipResult as Array<{ id: string }>;
-    if (membershipRows.length === 0) {
+    const access = await resolveMemberAccess(session.user.id, session.user.tenantId, { cached: false });
+    if (!access || access.deactivated) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!hasPermission(access.base as UserRole, 'team.view') || !can(access, 'team', 'view')) {
+      return NextResponse.json({ error: 'Bu işlem için yetkiniz yok' }, { status: 403 });
     }
 
     const members = await sql`
@@ -34,6 +33,7 @@ export async function GET() {
       FROM tenant_members tm
       JOIN users u ON tm.user_id = u.id
       WHERE tm.tenant_id = ${session.user.tenantId}
+        AND (to_jsonb(tm) ->> 'deactivated_at') IS NULL
       ORDER BY tm.created_at DESC
     `;
 

@@ -155,7 +155,7 @@ export async function postStockEntryInTransaction(
       `;
       protectedQty = Number(reservedRows[0]?.qty || 0);
     }
-    if (onHand + delta < protectedQty) throw new Error('Yetersiz kullanılabilir stok');
+    if (onHand + delta < protectedQty - 1e-6) throw new Error('Yetersiz kullanılabilir stok');
   }
 
   const headerRows = await tx`
@@ -213,9 +213,11 @@ export async function reverseStockEntry(
     const headers = await tx`
       SELECT * FROM stock_entries
       WHERE id = ${stockEntryId} AND tenant_id = ${actor.tenantId} AND status = 'submitted'
-      FOR SHARE
+      FOR UPDATE
     `;
     if (!headers[0]) throw new Error('Stok kaydı bulunamadı');
+    if (headers[0].entry_type !== 'MATERIAL_RECEIPT') throw new Error('Yalnız malzeme giriş (kabul/sayım) kayıtları buradan terslenebilir');
+    if ((await tx`SELECT 1 FROM stock_entries WHERE tenant_id = ${actor.tenantId} AND reversal_of_id = ${stockEntryId}`).length) throw new Error('Stok girişi zaten geri alınmış');
     if (['warehouse_transfer', 'warehouse_count', 'cutting_plan', 'shipment', 'goods_receipt'].includes(headers[0].reference_type)) throw new Error('Kesim, sevkiyat veya satın alma kabulü ilgili işlem ekranından düzeltilmelidir');
     const lines = await tx`
       SELECT item_id, warehouse_id, lot_id, quantity_delta, uom, unit_cost, metadata

@@ -63,7 +63,7 @@ export async function drainInbound(limit = 3) {
   for (const row of rows)
     try {
       const [member] =
-        await sql`SELECT user_id,role FROM tenant_members WHERE tenant_id=${row.tenant_id} AND role IN('owner','admin') ORDER BY created_at LIMIT 1`;
+        await sql`SELECT user_id,role FROM tenant_members WHERE tenant_id=${row.tenant_id} AND role IN('owner','admin') AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL ORDER BY created_at LIMIT 1`;
       if (!member) throw new Error("Gelen kutusu yöneticisi yok");
       const actor = {
         tenantId: row.tenant_id,

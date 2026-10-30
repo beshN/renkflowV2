@@ -6,9 +6,10 @@ import {
   type WorkOrderActor,
 } from "../work-orders/security";
 import { hasPermission } from "../auth/permissions";
+import { can } from "@/lib/security/access-matrix";
 import { ViewCommandSchema, type SavedOrderView } from "./saved-views";
 function allowed(a: WorkOrderActor) {
-  if (!hasPermission(a.role, "orders.view"))
+  if (!hasPermission(a.role, "orders.view") || (a.access && !can(a.access, "orders", "view")))
     throw new WorkOrderApiError("Sipariş erişim yetkiniz yok", 403);
 }
 export async function listSavedViews(

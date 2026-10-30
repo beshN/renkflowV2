@@ -22,8 +22,8 @@ const ACTIONS: Action[] = [
   { id: 'a-quote', title: 'Yeni teklif', keywords: 'yeni teklif fiyat pergola yapılandır', href: '/quotations/new', icon: FilePlus2, roles: ['owner', 'admin', 'office'] },
   { id: 'a-order', title: 'Yeni sipariş', keywords: 'yeni sipariş oluştur', href: '/new-order', icon: PackagePlus, roles: ['owner', 'admin', 'office'] },
   { id: 'a-foy', title: 'İmalat föyü oku', keywords: 'föy foy imalat pdf oku içe aktar kesim listesi pergola', href: '/orders/foy', icon: FileText, roles: ['owner', 'admin', 'office'] },
-  { id: 'a-count', title: 'Stok sayımı', keywords: 'stok sayım sayımı çubuk açılış', href: '/inventory/opening-count', icon: ClipboardList, roles: ['owner', 'admin', 'office'] },
-  { id: 'a-cut', title: 'Kesim planı', keywords: 'kesim plan çubuk fire', href: '/production?tab=cutting', icon: Scissors, roles: ['owner', 'admin', 'office'] },
+  { id: 'a-count', title: 'Stok sayımı', keywords: 'stok sayım sayımı profil açılış', href: '/inventory/opening-count', icon: ClipboardList, roles: ['owner', 'admin', 'office'] },
+  { id: 'a-cut', title: 'Kesim planı', keywords: 'kesim plan profil fire', href: '/production?tab=cutting', icon: Scissors, roles: ['owner', 'admin', 'office'] },
   { id: 'a-board', title: 'Sipariş panosu', keywords: 'pano kanban sürükle aşama', href: '/orders?mode=board', icon: Columns3, roles: ['owner', 'admin', 'office', 'accountant'] },
   { id: 'a-cal', title: 'Takvim', keywords: 'takvim teslim montaj hafta plan', href: '/calendar', icon: CalendarDays, roles: ['owner', 'admin', 'office', 'accountant'] },
   { id: 'a-scan', title: 'Barkod / QR tara', keywords: 'tara barkod qr okut', href: '/warehouse/scan', icon: ScanLine },
@@ -51,7 +51,7 @@ function CommandResults({ close }: { close: () => void }) {
       .filter(order => [order.orderNumber, order.customerName, order.productName].some(value => value?.toLocaleLowerCase('tr-TR').includes(keyword)))
       .slice(0, 6).map(order => ({ id: order.id, title: order.orderNumber + ' · ' + order.customerName, subtitle: order.productName, href: '/orders/' + order.id, type: 'order' })) : [];
     // Customers, quotations and stock are searched on the search page (server side, per role).
-    // Free text can also go to the assistant as a command ("bu hafta geciken işler", "7016 kaç çubuk").
+    // Free text can also go to the assistant as a command ("bu hafta geciken işler", "7016 kaç profil").
     const ask = user?.role!=='worker' && foldText(query).length >= 4 ? [{ id: 'ask-assistant', title: `Asistana sor: “${query.trim()}”`, subtitle: 'Komut: sonuç kartı ya da onay bekleyen önizleme', href: '/assistant?q=' + encodeURIComponent(query.trim()), type: 'action', icon: Sparkles }] : [];
     const all = user?.role!=='worker' && foldText(query).length >= SEARCH_MIN_LENGTH ? [{ id: 'search-all', title: `“${query.trim()}” için tüm sonuçlar`, subtitle: 'Sipariş, müşteri, teklif ve stokta ara', href: '/search?q=' + encodeURIComponent(query.trim()), type: 'search' }] : [];
     const actions = ACTIONS.filter((a) => (user?.role!=='worker'||a.href==='/production/worker') && (!a.roles || (user && a.roles.includes(user.role))) && (!keyword || foldText(a.keywords + ' ' + a.title).includes(foldText(keyword))))

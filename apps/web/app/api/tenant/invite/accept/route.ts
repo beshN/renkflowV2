@@ -5,6 +5,7 @@ import { withTransaction } from '@/lib/db';
 import { columnExists } from '@/lib/db/schema-guard';
 import { consumeRateLimit, getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
 import { passwordProblem } from '@/lib/security/access-matrix';
+import { forgetMemberAccess } from '@/lib/security/member-access.server';
 import { hasLegalConsent, LEGAL_CONSENT_REQUIRED_MESSAGE } from '@/lib/features/auth/legal-consent';
 import { recordLegalConsent } from '@/lib/features/auth/legal-consent.server';
 
@@ -120,7 +121,12 @@ export async function POST(request: Request) {
         await tx`
           INSERT INTO tenant_members (tenant_id, user_id, role, access_role, created_at)
           VALUES (${invitation.tenant_id}, ${userId}, ${invitation.role}, ${invitation.access_role ?? null}, NOW())
-          ON CONFLICT (tenant_id, user_id) DO NOTHING
+          ON CONFLICT (tenant_id, user_id) DO UPDATE SET
+            role = EXCLUDED.role,
+            access_role = EXCLUDED.access_role,
+            deactivated_at = NULL,
+            deactivated_by = NULL
+          WHERE tenant_members.deactivated_at IS NOT NULL
         `;
       } else {
         await tx`
@@ -134,8 +140,10 @@ export async function POST(request: Request) {
         DELETE FROM invitations WHERE id = ${invitation.id}
       `;
 
-      return { existingUser: Boolean(existingUsersRows[0]?.id) };
+      return { existingUser: Boolean(existingUsersRows[0]?.id), userId, tenantId: String(invitation.tenant_id) };
     });
+
+    forgetMemberAccess(result.userId, result.tenantId);
 
     return NextResponse.json({
       success: true,

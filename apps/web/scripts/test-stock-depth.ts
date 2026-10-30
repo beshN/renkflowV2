@@ -55,7 +55,7 @@ async function main() {
 
   // Request for quotation: two suppliers, answers compared, the chosen one becomes a draft purchase order.
   await assert.rejects(s.createRfq(accountant as any, { supplierIds: [supA], lines: [{ itemId: screw.id, warehouseId: rawId, quantity: 200 }] }), (e: any) => e.status === 403);
-  await assert.rejects(s.createRfq(office as any, { supplierIds: [supA], lines: [{ itemId: profile.id, warehouseId: rawId, quantity: 10 }] }), /çubuk boyu ve renk/);
+  await assert.rejects(s.createRfq(office as any, { supplierIds: [supA], lines: [{ itemId: profile.id, warehouseId: rawId, quantity: 10 }] }), /profil boyu ve renk/);
   await assert.rejects(s.createRfq(office as any, { supplierIds: [supA], lines: [{ itemId: profile.id, warehouseId: rawId, quantity: 2.5, lengthMm: 6500, color: 'RAL 7016 Mat' }] }), /tam sayı/, 'the same rules as a purchase order');
   let rfqs: any = await s.createRfq(office as any, { supplierIds: [supA, supB], dueOn: '2026-10-20', lines: [{ itemId: screw.id, warehouseId: rawId, quantity: 200 }, { itemId: profile.id, warehouseId: rawId, quantity: 10, lengthMm: 6500, color: 'RAL 7016 Mat' }] });
   let rfq = rfqs.rfqs.find((r: any) => r.id === rfqs.id);

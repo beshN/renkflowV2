@@ -134,7 +134,7 @@ export const RECORDS: Record<RecordType, Def> = {
     },
     related: async (db, a, id) => {
       const [[l]] = await Promise.all([db`SELECT count(*)::int AS n FROM stock_lots WHERE tenant_id = ${a.tenantId} AND item_id = ${id} AND remaining_qty > 0`]);
-      return [{ key: 'lots', label: 'Çubuk / lot', count: n(l.n), href: `/inventory/${id}` }];
+      return [{ key: 'lots', label: 'Profil / lot', count: n(l.n), href: `/inventory/${id}` }];
     },
   },
   supplier: {

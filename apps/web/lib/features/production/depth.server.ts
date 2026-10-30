@@ -157,9 +157,9 @@ export async function reportDelay(actor: WorkOrderActor, workOrderId: string, ra
     return j;
   });
   const [pref] = (await columnExists('manufacturing_preferences', 'production_lead_user_id'))
-    ? await sql`SELECT production_lead_user_id AS lead FROM manufacturing_preferences WHERE tenant_id = ${actor.tenantId}`
+    ? await sql`SELECT p.production_lead_user_id AS lead FROM manufacturing_preferences p JOIN tenant_members m ON m.tenant_id = p.tenant_id AND m.user_id = p.production_lead_user_id WHERE p.tenant_id = ${actor.tenantId} AND (to_jsonb(m) ->> 'deactivated_at') IS NULL`
     : [];
-  const people = pref?.lead ? [pref.lead as string] : (await sql`SELECT user_id FROM tenant_members WHERE tenant_id = ${actor.tenantId} AND role IN ('owner', 'admin')`).map((m: any) => m.user_id as string);
+  const people = pref?.lead ? [pref.lead as string] : (await sql`SELECT user_id FROM tenant_members WHERE tenant_id = ${actor.tenantId} AND role IN ('owner', 'admin') AND (to_jsonb(tenant_members) ->> 'deactivated_at') IS NULL`).map((m: any) => m.user_id as string);
   for (const p of people)
     if (p !== actor.userId)
       await createNotification(p, actor.tenantId, 'order:delayed', `Gecikme: ${job.title}`, `${reason.label}${d.expectedUntil ? ` · tahmini ${d.expectedUntil}` : ''}`, { href: `/work-orders/${job.id}`, entityType: 'work_order', entityId: job.id })
@@ -267,21 +267,21 @@ export async function cutPlanVersions(actor: WorkOrderActor, planId: string) {
 // Bar length options ------------------------------------------------------------------------------
 
 export async function barLengthOptions(actor: WorkOrderActor) {
-  need(actor, OFFICE, 'Çubuk boyu seçeneklerini görme');
+  need(actor, OFFICE, 'Profil boyu seçeneklerini görme');
   if (!(await columnExists('manufacturing_preferences', 'bar_length_options_mm'))) return { available: false, options: [] as number[] };
   const [p] = await sql`SELECT bar_length_options_mm FROM manufacturing_preferences WHERE tenant_id = ${actor.tenantId}`;
   return { available: true, options: ((p?.bar_length_options_mm ?? []) as number[]).map(Number) };
 }
 
 export async function saveBarLengthOptions(actor: WorkOrderActor, raw: unknown) {
-  need(actor, MANAGERS, 'Çubuk boyu seçeneklerini değiştirme');
+  need(actor, MANAGERS, 'Profil boyu seçeneklerini değiştirme');
   if (!(await columnExists('manufacturing_preferences', 'bar_length_options_mm'))) throw new WorkOrderApiError('Bu kurulumda henüz etkin değil (veritabanı güncellemesi bekleniyor)', 409);
   const options = [...new Set(z.object({ options: z.array(z.coerce.number().int().min(1000).max(15000)).max(8) }).strict().parse(raw).options)].sort((a, b) => a - b);
   await withTransaction(async (tx: any) => {
     const [before] = await tx`SELECT bar_length_options_mm FROM manufacturing_preferences WHERE tenant_id = ${actor.tenantId} FOR UPDATE`;
     if (before) await tx`UPDATE manufacturing_preferences SET bar_length_options_mm = ${options}::int[], updated_at = now() WHERE tenant_id = ${actor.tenantId}`;
     else await tx`INSERT INTO manufacturing_preferences (tenant_id, bar_length_options_mm) VALUES (${actor.tenantId}, ${options}::int[])`;
-    await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'tenant_settings', entityId: actor.tenantId, action: 'bar_lengths_changed', changes: { 'çubuk boyları': { from: (before?.bar_length_options_mm ?? []).join(', ') || null, to: options.join(', ') || null } } });
+    await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'tenant_settings', entityId: actor.tenantId, action: 'bar_lengths_changed', changes: { 'profil boyları': { from: (before?.bar_length_options_mm ?? []).join(', ') || null, to: options.join(', ') || null } } });
   });
   return barLengthOptions(actor);
 }

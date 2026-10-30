@@ -60,7 +60,7 @@ async function main() {
   assert.deepEqual(filed.summary, { rows: 9, counted: 5, metres: 2, uncertain: 2 });
   const byName = (name: string) => filed.rows.find((r) => r.name === name)!;
   assert.match(byName('Test Dere').issues.join(), /Gramaj tutarsız/);
-  assert.match(byName('Test Demir').issues.join(), /çubuk boyu yazmıyor/);
+  assert.match(byName('Test Demir').issues.join(), /profil boyu yazmıyor/);
   // Nothing is written before approval.
   assert.equal((await db`SELECT count(*)::int AS n FROM inventory_items WHERE tenant_id = ${tenantId}`)[0].n, 0);
   assert.equal((await db`SELECT count(*)::int AS n FROM stock_entries WHERE tenant_id = ${tenantId}`)[0].n, 0);
@@ -143,7 +143,7 @@ async function main() {
   // A profile missing from the list is counted on its own, with a colour.
   const paintedItem = (await db`SELECT id FROM inventory_items WHERE tenant_id = ${tenantId} AND profile_code = '900' AND 'boyali' = ANY(processed_states)`)[0].id;
   await assert.rejects(recordOpeningCount(owner as any, { itemId: paintedItem, warehouseId: rawId, bars }, randomUUID()), /rengini girin/);
-  await assert.rejects(recordOpeningCount(owner as any, { itemId: paintedItem, warehouseId: rawId, color: 'Test Kırmızı', bars: [{ lengthMm: 6000, count: 600 }, { lengthMm: 5000, count: 401 }] }, randomUUID()), /en fazla 1000 çubuk/);
+  await assert.rejects(recordOpeningCount(owner as any, { itemId: paintedItem, warehouseId: rawId, color: 'Test Kırmızı', bars: [{ lengthMm: 6000, count: 600 }, { lengthMm: 5000, count: 401 }] }, randomUUID()), /en fazla 1000 profil/);
   await assert.rejects(recordOpeningCount(owner as any, { itemId: paintedItem, warehouseId: rawId, color: 'Test Kırmızı', bars: [{ lengthMm: 50, count: 1 }] }, randomUUID()), /en az 100 mm/);
   await recordOpeningCount(owner as any, { itemId: paintedItem, warehouseId: rawId, color: 'Test Kırmızı', bars: [{ lengthMm: 6500, count: 2 }] }, randomUUID());
   const onHand = Number((await db`SELECT on_hand_qty FROM stock_balances WHERE tenant_id = ${tenantId} AND item_id = ${paintedItem}`)[0].on_hand_qty);

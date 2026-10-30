@@ -39,7 +39,7 @@ export function receivingMatches(
           ...(row.lengthMm &&
           line.lengthMm &&
           Number(row.lengthMm) !== Number(line.lengthMm)
-            ? ["Belgedeki tek çubuk boyu siparişten farklı"]
+            ? ["Belgedeki tek profil boyu siparişten farklı"]
             : []),
         ],
       }));

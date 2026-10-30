@@ -1,6 +1,6 @@
 /**
  * Turkish command parser (pure, deterministic): "Ahmet Bey'e 3x4 pergola teklif hazırla antrasit",
- * "bu hafta geciken işler", "7016 mat kaç çubuk var", "ORD-12'yi öne al", "ORD-12'ye 2 gün ekle".
+ * "bu hafta geciken işler", "7016 mat kaç profil var", "ORD-12'yi öne al", "ORD-12'ye 2 gün ekle".
  * It only understands; it never runs anything. What it cannot read with confidence is left for the
  * model (when allowed) or asked back to the person.
  */

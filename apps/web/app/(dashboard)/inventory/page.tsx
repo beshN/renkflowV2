@@ -177,7 +177,7 @@ export default function InventoryPage() {
             <Link href="/warehouse/scan" aria-label="QR / barkod okut" className="rf-icon-button grid h-9 w-9 place-items-center border border-border"><ScanLine size={16} /></Link>
             {user && ["owner","admin"].includes(user.role) && <>
               <Link href="/inventory/count-import" aria-label="Sayım listesi içe aktar" className="rf-icon-button grid h-9 w-9 place-items-center border border-border"><FileUp size={16} /></Link>
-              <Link href="/inventory/opening-count" aria-label="Çubuk sayımı" className="rf-icon-button grid h-9 w-9 place-items-center border border-border"><ClipboardList size={16} /></Link>
+              <Link href="/inventory/opening-count" aria-label="Profil sayımı" className="rf-icon-button grid h-9 w-9 place-items-center border border-border"><ClipboardList size={16} /></Link>
               <Link href="/inventory/new" className="rf-primary-button h-9 px-3 text-xs"><Plus size={14} /> Malzeme</Link>
             </>}
           </>} />

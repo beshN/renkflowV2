@@ -3,12 +3,14 @@ import { z } from 'zod';
 import { sql } from '@/lib/db';
 import { WorkOrderActor,WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { hasPermission,type Permission } from '@/lib/auth/permissions';
+import { can } from '@/lib/security/access-matrix';
+import { tableExists } from '@/lib/db/schema-guard';
 import { CurrencySchema } from '@/lib/types/currency';
 import { PaymentMethodSchema,LedgerEntryKindSchema } from '@/lib/types/finance';
 import { collectionCap } from './collection-cap.server';
 const uuid=z.string().uuid();
 const optionalText=z.string().trim().max(180).default('');
-function permission(a:WorkOrderActor,p:Permission){if(!hasPermission(a.role,p))throw new WorkOrderApiError('Finans işlem yetkiniz yok',403);}
+function permission(a:WorkOrderActor,p:Permission){const act=p==='finance.view'?'view':p.endsWith('.create')?'create':'edit';if(!hasPermission(a.role,p)||(a.access&&!can(a.access,'finance',act)))throw new WorkOrderApiError('Finans işlem yetkiniz yok',403);}
 const fail=(s:string,status=409):never=>{throw new WorkOrderApiError(s,status);};
 export async function financeWorkspace(a:WorkOrderActor,employeeId?:string) {
   permission(a,'finance.view');
@@ -21,7 +23,8 @@ export async function financeWorkspace(a:WorkOrderActor,employeeId?:string) {
   return {actor:a,employees,entries,payments,orders};
 }
 async function writablePeriod(tx:any,a:WorkOrderActor,date:string){
-  const period=date.slice(0,7);
+  if(!(await tableExists('accounting_period_closes')))return;
+  const period=date.length>10?new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Istanbul',year:'numeric',month:'2-digit'}).format(new Date(date)).slice(0,7):date.slice(0,7);
   await tx`INSERT INTO accounting_period_closes(tenant_id,period,status)VALUES(${a.tenantId},${period},'open')ON CONFLICT(tenant_id,period)DO NOTHING`;
   const [row]=await tx`SELECT status FROM accounting_period_closes WHERE tenant_id=${a.tenantId} AND period=${period} FOR SHARE`;
   if(row.status==='hard_closed')fail('Bu muhasebe dönemi kapalı. Önce dönemi açın.');

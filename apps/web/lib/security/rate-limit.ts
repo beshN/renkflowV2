@@ -31,6 +31,7 @@ export const RATE_LIMIT_POLICIES = {
   tenantExport: { limit: 3, windowMs: 60 * 60_000 },
   accountClosure: { limit: 5, windowMs: 60 * 60_000 },
   assistant: { limit: 20, windowMs: 60_000 },
+  aiExtract: { limit: 20, windowMs: 10 * 60_000 },
   quoteDecision: { limit: 20, windowMs: 15 * 60_000 },
   inviteToken: { limit: 20, windowMs: 15 * 60_000 },
   telemetryIngest: { limit: 120, windowMs: 60_000 },

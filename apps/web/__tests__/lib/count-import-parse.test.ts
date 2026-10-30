@@ -78,7 +78,7 @@ describe('count list tables', () => {
     expect(find('Oval Dere').issues.join()).toMatch(/Gramaj tutarsız: 20 m × 1 kg\/m = 20\.00 kg, yazılan 25 kg/);
     expect(find('Sineklik').issues).toEqual(['Gramaj (kg/m) yok; ağırlık doğrulanamadı']);
     expect(find('Motor Kapağı').issues).toEqual(['Profil kodu yok', 'Gramaj (kg/m) yok; ağırlık doğrulanamadı']);
-    expect(find('50x100', (r) => r.unit === 'boy').issues).toEqual(['Adet "boy" ama çubuk boyu yazmıyor']);
+    expect(find('50x100', (r) => r.unit === 'boy').issues).toEqual(['Adet "boy" ama profil boyu yazmıyor']);
     expect(find('Kutu', (r) => r.quantity === 1).issues).toContain('Aynı kalem listede iki kez geçiyor');
     // Counted pieces in a profile-shaped table need no profile code or weight.
     expect(find('Piston')).toMatchObject({ quantity: 7, unit: 'adet', issues: [] });
