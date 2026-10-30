@@ -2,6 +2,7 @@ import * as T from "three";
 import { createOutdoorEnvironment } from "./environment";
 import { createProductModel, type ProductModel } from "./model";
 import { sameGeometry, productMeta, type VisualizationConfiguration } from "./catalog";
+const CAMERA_FLOOR = 0.35; // the camera stays above the terrace
 export type ProductView =
   "perspective" | "front" | "side" | "top" | "under" | "detail";
 export async function createProductStage(
@@ -76,7 +77,7 @@ export async function createProductStage(
     if (disposed || lost) return;
     camera.position.set(
       target.x + distance * Math.sin(phi) * Math.sin(theta),
-      target.y + distance * Math.cos(phi),
+      Math.max(CAMERA_FLOOR, target.y + distance * Math.cos(phi)),
       target.z + distance * Math.sin(phi) * Math.cos(theta),
     );
     camera.lookAt(target);
@@ -367,7 +368,9 @@ export async function createProductStage(
       const current = dimensions();
       target.y += (current.h - previous.h) * 0.57;
       target.z += (current.roof ? current.d - previous.d : 0) * 0.48;
-      distance *= Math.max(1, current.w / previous.w, current.h / previous.h);
+      // Keep the framing proportional to the product, both when it grows and when it shrinks.
+      const fit = (d: typeof current) => Math.max(4, d.w * 1.55, d.h * 1.8, (d.roof ? d.d : 0) * 1.55);
+      if (view !== "detail") distance *= fit(current) / fit(previous);
     }
     setTime(time);
     resize();

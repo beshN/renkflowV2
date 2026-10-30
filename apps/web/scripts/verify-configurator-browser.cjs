@@ -76,10 +76,10 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   await kiosk.getByRole('button', { name: 'Add to my list' }).tap();
   await card(kiosk, 'WINMAX Folding-Arm Awning', '6500 × 4000 mm').waitFor({ timeout: 30000 });
   await kiosk.getByRole('button', { name: 'Add another product' }).tap();
-  await kiosk.getByRole('button', { name: /Zip Screen/ }).tap();
+  await kiosk.getByRole('button', { name: /Rolling Roof/ }).tap();
   await ready3d(kiosk);
   await kiosk.getByRole('button', { name: 'Add to my list' }).tap();
-  await card(kiosk, 'Zip Screen', '3500 × 2800 mm').waitFor({ timeout: 30000 });
+  await card(kiosk, 'Rolling Roof', '5000 × 4000 mm').waitFor({ timeout: 30000 });
   await kiosk.screenshot({ path: SHOTS + 'k3-list.png' });
   step('second product added: the visitor has two designs');
 
@@ -106,7 +106,7 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   await phone.goto(link, { waitUntil: 'networkidle' });
   await phone.getByRole('heading', { name: 'Your design' }).waitFor();
   await card(phone, 'WINMAX Folding-Arm Awning', '6500 × 4000 mm').waitFor();
-  await card(phone, 'Zip Screen', '3500 × 2800 mm').waitFor();
+  await card(phone, 'Rolling Roof', '5000 × 4000 mm').waitFor();
   for (const text of ['UBESER · remote + wall switch', 'Cool white · 75%', 'Burgundy', 'White'])
     await phone.getByText(text).first().waitFor();
   assert.equal(await phone.getByText('#7b2438').count(), 0, 'visitors see colour names, not codes');
@@ -123,13 +123,13 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   await phone.waitForTimeout(800);
   await phone.getByRole('button', { name: 'Save changes' }).tap();
   await card(phone, 'WINMAX Folding-Arm Awning', '6500 × 3500 mm').waitFor({ timeout: 30000 });
-  await phone.getByRole('button', { name: 'Remove: Zip Screen' }).tap();
+  await phone.getByRole('button', { name: 'Remove: Rolling Roof' }).tap();
   await phone.getByText('Saved', { exact: true }).waitFor();
   const [edited] = await sql`SELECT version, items->0->'awning'->>'projectionMm' p, jsonb_array_length(items) n FROM fair_designs WHERE token = ${token}`;
   assert.equal(edited.p, '3500');
   assert.equal(edited.n, 1);
   assert.ok(edited.version > 1);
-  step('phone edit saved under the same link (projection 3500, zip removed)');
+  step('phone edit saved under the same link (projection 3500, rolling roof removed)');
 
   await phone.reload({ waitUntil: 'networkidle' });
   await card(phone, 'WINMAX Folding-Arm Awning', '6500 × 3500 mm').waitFor();
@@ -218,7 +218,7 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   await kiosk.getByText('No need to collect business cards.').waitFor();
   await kiosk.getByText('Offline', { exact: false }).first().waitFor();
   await kiosk.getByRole('button', { name: 'Start configuring' }).tap();
-  await kiosk.getByRole('button', { name: /Bioclimatic Pergola/ }).tap();
+  await kiosk.getByRole('button', { name: /Glass Roof/ }).tap();
   await kiosk.locator('canvas').first().waitFor();
   await ready3d(kiosk);
   assert.equal(await kiosk.getByText(/could not be loaded|could not start/).count(), 0, '3D works offline');
@@ -227,7 +227,7 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   await kiosk.waitForTimeout(1500);
   await kiosk.screenshot({ path: SHOTS + 'o1-offline-configure.png' });
   await kiosk.getByRole('button', { name: 'Add to my list' }).tap();
-  await card(kiosk, 'Bioclimatic Pergola', '5200 × 4000 mm').waitFor({ timeout: 30000 });
+  await card(kiosk, 'Glass Roof', '5200 × 4000 mm').waitFor({ timeout: 30000 });
   await kiosk.getByRole('button', { name: 'Continue on my phone' }).tap();
   await kiosk.getByText(/Offline: the design is inside the QR code/).waitFor();
   await kiosk.getByText(/1 design\(s\) waiting to sync/).waitFor();
@@ -244,7 +244,7 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
   const phone2 = await phoneCtx.newPage();
   watch(phone2, 'phone2');
   await phone2.goto(offlineLink, { waitUntil: 'networkidle' });
-  await card(phone2, 'Bioclimatic Pergola', '5200 × 4000 mm').waitFor();
+  await card(phone2, 'Glass Roof', '5200 × 4000 mm').waitFor();
   await phone2.getByText('Saved', { exact: true }).waitFor({ timeout: 15000 });
   assert.ok(!phone2.url().includes('#d='), 'short link once stored');
   const [claimed] = await sql`SELECT origin, f.code FROM fair_designs d LEFT JOIN fairs f ON f.id = d.fair_id WHERE token = ${offlineToken}`;

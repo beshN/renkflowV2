@@ -59,10 +59,13 @@ export function rollerPose(
     rotation: (2 * Math.PI * (radius - core)) / thickness,
   };
 }
+const ROLLING_END = 0.045;
 /** Video-matched tilt-then-stack presentation; exact hidden cam/link ratios are unpublished. */
 export function rollingPose(depth: number, opening: number) {
-  const n = Math.max(3, Math.ceil((depth - 0.36) / 0.235)),
-    closedPitch = (depth - 0.36) / n,
+  // Closed, the lamels run from the wall beam to the front beam with no open strip at either end.
+  const run = depth - ROLLING_END * 2,
+    n = Math.max(3, Math.ceil(run / 0.235)),
+    closedPitch = run / n,
     t = clamp01(opening / 100);
   const angle = Math.min(1, t / 0.22) * Math.PI * 0.445;
   // Reserve the complete panel silhouette, rather than dividing by sin(angle) at the flat endpoint.
@@ -80,7 +83,7 @@ export function rollingPose(depth: number, opening: number) {
     pitch,
     drop,
     linkLength: closedPitch,
-    centers: Array.from({ length: n }, (_, i) => 0.18 + pitch * (i + 0.5)),
+    centers: Array.from({ length: n }, (_, i) => ROLLING_END + pitch * (i + 0.5)),
   };
 }
 export function guillotinePositions(height: number, opening: number) {

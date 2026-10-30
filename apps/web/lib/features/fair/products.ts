@@ -36,9 +36,10 @@ export const fairProduct = (kind: FairKind) => FAIR_PRODUCTS.find((p) => p.kind 
 
 /**
  * Products visitors can pick. The cassette awning's 3D model draws only the closed cassette (no fabric,
- * no arms, no opening), which reads as broken on a fair screen; it stays valid for existing designs.
+ * no arms, no opening), and the bioclimatic pergola, winter garden and zip screen are not part of the fair
+ * range; all of them stay valid for existing designs.
  */
-const NOT_SHOWN: ReadonlySet<FairKind> = new Set(['cassette']);
+const NOT_SHOWN: ReadonlySet<FairKind> = new Set(['cassette', 'bioclimatic', 'winter-garden', 'zip']);
 export const PICKER_PRODUCTS: readonly FairProductRule[] = FAIR_PRODUCTS.filter((p) => !NOT_SHOWN.has(p.kind));
 
 /** The sizes a visitor can set, in millimetres, as the configurators' controls allow them. */

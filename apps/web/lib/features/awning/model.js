@@ -29,7 +29,8 @@ export function createAwning(state){
  const roller=new T.Mesh(new T.CylinderGeometry(.085,.085,w+.03,32),fabric);roller.rotation.z=Math.PI/2;roller.position.set(0,h+.035,.15);roller.castShadow=true;g.add(roller);
  // Side discs reveal winding rotation without attaching the fabric to the support rails.
  const winding=new T.Group();winding.position.copy(roller.position);g.add(winding);for(const x of [-w/2-.02,w/2+.02]){const disc=new T.Mesh(new T.CylinderGeometry(.096,.096,.028,24),steel);disc.rotation.z=Math.PI/2;disc.position.x=x;winding.add(disc);const mark=new T.Mesh(boxGeometry,rubber);mark.scale.set(.032,.02,.07);mark.position.set(x,.045,.025);winding.add(mark)}
- const rows=w>7?[-w/2,0,w/2]:[-w/2,w/2];
+ // One arm per started 4 m: 2 up to 8 m, 3 up to 12 m, 4 beyond.
+ const armCount=w<=8?2:w<=12?3:4,rows=Array.from({length:armCount},(_,k)=>-w/2+w*k/(armCount-1));
  for(const x of rows){
   box([.15,1.0,.035],x,h-.42,-.035);
   for(const side of [-1,1])box([.026,1.0,.14],x+side*.07,h-.42,.035);

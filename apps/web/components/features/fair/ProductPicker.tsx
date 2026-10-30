@@ -22,6 +22,12 @@ function rangeLine(locale: Locale, kind: FairKind) {
  * The products as a catalogue of real installations: WINMAX leads, the rest sit under their
  * category; the caption under each photo carries the name, what it is, and the sizes it comes in.
  */
+/** Four products sit in one row of four, not three plus a gap. */
+const columns = (count: number, kiosk: boolean) =>
+  kiosk
+    ? count === 4 ? "grid-cols-4 portrait:grid-cols-2" : "grid-cols-3 portrait:grid-cols-2"
+    : count === 4 ? "grid-cols-1 min-[520px]:grid-cols-2 lg:grid-cols-4" : "grid-cols-1 min-[520px]:grid-cols-2 lg:grid-cols-3";
+
 export function ProductPicker({ locale, onPick, disabled = false, kiosk = false }: { locale: Locale; onPick: (kind: FairKind) => void; disabled?: boolean; kiosk?: boolean }) {
   const f = fairText(locale);
   const [category, setCategory] = useState<Category>("all");
@@ -94,7 +100,7 @@ export function ProductPicker({ locale, onPick, disabled = false, kiosk = false 
             <h2 className={`fx-title ${kiosk ? "text-3xl" : "text-xl"}`}>{f.categories[g.category]}</h2>
             <span className="fx-note">{g.products.length}</span>
           </div>
-          <ul className={`grid gap-x-6 gap-y-9 ${kiosk ? "grid-cols-3 portrait:grid-cols-2" : "grid-cols-1 min-[520px]:grid-cols-2 lg:grid-cols-3"}`}>
+          <ul className={`grid gap-x-6 gap-y-9 ${columns(g.products.length, kiosk)}`}>
             {g.products.map((p, i) => card(p.kind, i < 3))}
           </ul>
         </div>

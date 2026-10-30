@@ -105,7 +105,8 @@ describe('design model', () => {
   });
   it('offers visitors only products whose 3D model shows the product, each with a photo', () => {
     expect(PICKER_PRODUCTS.map((p) => p.kind)).not.toContain('cassette');
-    expect(PICKER_PRODUCTS).toHaveLength(11);
+    for (const kind of ['bioclimatic', 'winter-garden', 'zip']) expect(PICKER_PRODUCTS.map((p) => p.kind)).not.toContain(kind);
+    expect(PICKER_PRODUCTS).toHaveLength(8);
     for (const p of PICKER_PRODUCTS) expect(CONFIGURATOR_MEDIA).toContain(productImage(p.kind));
   });
   it('starts fabric products in a colour that stands out from the light 3D floor', () => {

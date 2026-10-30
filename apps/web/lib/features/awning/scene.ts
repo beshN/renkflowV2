@@ -2,6 +2,7 @@ import * as T from "three";
 import { createOutdoorEnvironment } from "../product-3d/environment";
 import { createAwning } from "./model";
 import { AwningConfiguration, toSceneState } from "./configuration";
+const CAMERA_FLOOR = 0.35; // the camera stays above the terrace
 export type AwningView =
   | "perspective"
   | "front"
@@ -64,6 +65,8 @@ export function createAwningScene(
     raf = 0;
   let animation: null | { start: number; from: number; to: number } = null,
     lastNotify = 0;
+  const viewDistance = (v: AwningView, s: typeof state) =>
+    v === "detail" ? 3.15 : v === "under" ? Math.max(4.7, (s.width / 100) * 0.8) : Math.max(10.5, (s.width / 100) * 1.65);
   function selectView(v: AwningView) {
     view = v;
     const w = state.width / 100,
@@ -92,7 +95,7 @@ export function createAwningScene(
     if (disposed || lost) return;
     camera.position.set(
       target.x + distance * Math.sin(phi) * Math.sin(theta),
-      target.y + distance * Math.cos(phi),
+      Math.max(CAMERA_FLOOR, target.y + distance * Math.cos(phi)),
       target.z + distance * Math.sin(phi) * Math.cos(theta),
     );
     camera.lookAt(target);
@@ -251,7 +254,7 @@ export function createAwningScene(
       // Keep the camera angle during edits and gently fit growing dimensions.
       target.y += (state.height - previous.height) / 100 * 0.55;
       target.z += (state.depth - previous.depth) / 100 * 0.4;
-      distance *= Math.max(1, state.width / previous.width, state.height / previous.height);
+      distance *= viewDistance(view, state) / viewDistance(view, previous);
       render();
     },
     setOpening(value: number) {
