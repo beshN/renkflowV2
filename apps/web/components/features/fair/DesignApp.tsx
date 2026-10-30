@@ -11,7 +11,7 @@ import { FairHeader } from "./FairHeader";
 import { ItemEditor } from "./ItemEditor";
 import { ItemList } from "./ItemList";
 import { Landing } from "./Landing";
-import { QuoteHandoff } from "./QuoteHandoff";
+import { QuoteHandoff, useComputer } from "./QuoteHandoff";
 import { ProductPicker } from "./ProductPicker";
 import { QuoteForm, type QuoteResult } from "./QuoteForm";
 import { useFairLightTheme } from "./theme";
@@ -36,6 +36,8 @@ export function DesignApp({ mode, controller, token: initialToken, initial, defa
   const [editing, setEditing] = useState<{ item: DesignItem; isNew: boolean } | null>(null);
   const [save, setSave] = useState<SaveStatus>(initial ? "saved" : "idle");
   const [copied, setCopied] = useState(false);
+  const computer = useComputer();
+  const [formHere, setFormHere] = useState(false);
   const [result, setResult] = useState<QuoteResult | null>(null);
   const onServer = useRef(Boolean(initial));
   useEffect(() => {
@@ -226,8 +228,9 @@ export function DesignApp({ mode, controller, token: initialToken, initial, defa
         )}
 
         {view === "quote" && token && (
-          <div className="mx-auto max-w-xl space-y-4">
-          {onServer.current && <QuoteHandoff locale={locale} token={token} />}
+          computer && onServer.current && !formHere ? (
+            <QuoteHandoff locale={locale} token={token} onBack={() => setView("overview")} onContinue={() => setFormHere(true)} />
+          ) : (
           <QuoteForm
             locale={locale}
             controller={controller}
@@ -247,7 +250,7 @@ export function DesignApp({ mode, controller, token: initialToken, initial, defa
               setView("done");
             }}
           />
-          </div>
+          )
         )}
 
         {view === "done" && result && (

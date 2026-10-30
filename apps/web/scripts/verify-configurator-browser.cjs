@@ -101,6 +101,8 @@ const ready3d = (page) => page.waitForFunction(() => !/Loading 3D view|Preparing
 
   // ---- Phone -------------------------------------------------------------------------------------
   const phoneCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US' });
+  // A phone reports a touch screen; a computer (which gets the QR code instead of the form) reports none.
+  await phoneCtx.addInitScript(() => Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 5 }));
   const phone = await phoneCtx.newPage();
   watch(phone, 'phone');
   await phone.goto(link, { waitUntil: 'networkidle' });
