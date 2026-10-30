@@ -68,6 +68,7 @@ const PUBLIC_EXACT_PATHS = new Set([
   '/roadmap',
   '/changelog',
   '/full-landing',
+  '/v2',
   '/press',
   '/docs',
   '/blog',

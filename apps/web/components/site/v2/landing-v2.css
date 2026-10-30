@@ -1,0 +1,194 @@
+/*
+ * Landing v2 tokens. Scoped to .rfx so the workspace and the current landing are untouched.
+ *
+ * The page is aluminium on anthracite: RAL 7016 chrome, a cool aluminium canvas, white
+ * surfaces for the product, anodised bronze for the one thing that marks "here / now".
+ * Depth comes from hairlines, a 1px top highlight and one long, soft shadow; light falls
+ * from above the product window and nowhere else.
+ */
+
+.rfx {
+  /* Anthracite chrome */
+  --x-chrome: #283033;
+  --x-chrome-raised: #2f383b;
+  --x-chrome-fg: #f1f3f3;
+  --x-chrome-muted: #a9b3b7;
+  --x-chrome-line: rgb(255 255 255 / 9%);
+
+  /* Aluminium canvas and product surfaces */
+  --x-canvas: #eef0ef;
+  --x-canvas-deep: #e5e8e7;
+  --x-surface: #ffffff;
+  --x-surface-sunk: #f6f7f7;
+  --x-surface-hover: #f2f4f3;
+  --x-line: #dde1e0;
+  --x-line-strong: #c9cfcd;
+  --x-ink: #1d2326;
+  --x-ink-2: #3c4549;
+  --x-muted: #5d676c;
+  --x-faint: #8a9498;
+
+  /* Anodised bronze: position and the primary action */
+  --x-bronze: #8a6440;
+  --x-bronze-fill: #b48960;
+  --x-bronze-soft: rgb(180 137 96 / 14%);
+  --x-bronze-fg: #1d2326;
+
+  /* Stage hues, muted and drawn from coating cards so they sit next to RAL swatches */
+  --x-st-quote: #7d878b;
+  --x-st-approval: #9a7a4c;
+  --x-st-production: #5b7a8c;
+  --x-st-cutting: #b07a45;
+  --x-st-assembly: #6a8560;
+  --x-st-delivery: #3f7258;
+  --x-danger: #b4432f;
+  --x-ok: #2f7a55;
+
+  /* Shape */
+  --x-r-chip: 4px;
+  --x-r-control: 6px;
+  --x-r-panel: 8px;
+  --x-r-window: 12px;
+
+  /* Depth */
+  --x-shadow-window: 0 0 0 1px rgb(20 26 28 / 6%), 0 1px 0 rgb(255 255 255 / 70%) inset, 0 2px 4px rgb(20 26 28 / 4%), 0 48px 96px -48px rgb(10 14 16 / 55%);
+  --x-shadow-pop: 0 0 0 1px rgb(20 26 28 / 8%), 0 12px 32px -12px rgb(20 26 28 / 28%);
+  --x-shadow-raise: 0 1px 2px rgb(20 26 28 / 6%), 0 0 0 1px var(--x-line);
+
+  /* Motion */
+  --x-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --x-fast: 120ms;
+  --x-base: 200ms;
+  --x-slow: 320ms;
+
+  background: var(--x-canvas);
+  color: var(--x-ink);
+  /* The real workspace components (ProductDrawing) read the shadcn tokens. */
+  --background: 150 5% 94%;
+  --foreground: 200 13% 13%;
+  --border: 160 4% 87%;
+  --muted-foreground: 200 7% 39%;
+}
+
+.dark .rfx {
+  --x-canvas: #1f2629;
+  --x-canvas-deep: #1a2023;
+  --x-surface: #283034;
+  --x-surface-sunk: #232a2d;
+  --x-surface-hover: #2d363a;
+  --x-line: #364045;
+  --x-line-strong: #46525a;
+  --x-ink: #e9edee;
+  --x-ink-2: #c9d1d4;
+  --x-muted: #a2adb2;
+  --x-faint: #7c878c;
+  --x-chrome: #192023;
+  --x-chrome-raised: #20282b;
+  --x-bronze: #d6b08a;
+  --x-bronze-fill: #c49a6f;
+  --x-bronze-soft: rgb(214 176 138 / 14%);
+  --x-shadow-window: 0 0 0 1px rgb(255 255 255 / 7%), 0 1px 0 rgb(255 255 255 / 6%) inset, 0 48px 96px -40px rgb(0 0 0 / 80%);
+  --x-shadow-pop: 0 0 0 1px rgb(255 255 255 / 8%), 0 16px 40px -12px rgb(0 0 0 / 70%);
+  --x-shadow-raise: 0 0 0 1px var(--x-line);
+  --background: 200 12% 14%;
+  --foreground: 192 12% 92%;
+  --border: 202 12% 26%;
+  --muted-foreground: 199 10% 68%;
+}
+
+.rfx ::selection { background: var(--x-bronze-soft); }
+.rfx :focus-visible { outline: 2px solid var(--x-bronze-fill); outline-offset: 2px; border-radius: var(--x-r-chip); }
+
+.rfx .x-display {
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  font-stretch: 108%;
+  font-weight: 600;
+  letter-spacing: -0.028em;
+}
+.rfx .x-num { font-variant-numeric: tabular-nums; }
+.rfx .x-mono { font-family: var(--font-mono), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+/* Chrome band: header and hero */
+.rfx .x-chrome { background: var(--x-chrome); color: var(--x-chrome-fg); }
+.rfx .x-chrome :focus-visible { outline-color: var(--x-bronze-fill); }
+
+/* The only light on the page: a soft cone falling onto the product window. */
+.rfx .x-light {
+  background:
+    radial-gradient(48% 420px at 50% 38%, rgb(255 255 255 / 6.5%), transparent 72%),
+    linear-gradient(to bottom, var(--x-chrome) calc(100% - 240px), var(--x-canvas) calc(100% - 240px));
+}
+
+/* App window */
+.rfx .x-window {
+  background: var(--x-surface);
+  border-radius: var(--x-r-window);
+  box-shadow: var(--x-shadow-window);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Buttons */
+.rfx .x-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+  height: 40px; padding: 0 16px; border-radius: var(--x-r-control);
+  font-size: 14px; font-weight: 500; white-space: nowrap;
+  transition: background-color var(--x-fast) var(--x-ease), border-color var(--x-fast) var(--x-ease), color var(--x-fast), transform var(--x-fast) var(--x-ease);
+}
+.rfx .x-btn:active { transform: translateY(0.5px); }
+.rfx .x-btn-primary { background: var(--x-bronze-fill); color: var(--x-bronze-fg); font-weight: 600; box-shadow: inset 0 1px 0 rgb(255 255 255 / 18%), 0 1px 2px rgb(0 0 0 / 18%); }
+.rfx .x-btn-primary:hover { background: #c09670; }
+.rfx .x-btn-ghost-dark { color: var(--x-chrome-fg); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 18%); }
+.rfx .x-btn-ghost-dark:hover { background: rgb(255 255 255 / 6%); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 30%); }
+.rfx .x-btn-quiet { color: var(--x-ink); box-shadow: inset 0 0 0 1px var(--x-line-strong); background: var(--x-surface); }
+.rfx .x-btn-quiet:hover { background: var(--x-surface-hover); }
+
+/* Small controls inside the product */
+.rfx .x-ctl {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px;
+  border-radius: var(--x-r-control); font-size: 12px; font-weight: 500; color: var(--x-ink-2);
+  box-shadow: inset 0 0 0 1px var(--x-line); background: var(--x-surface);
+  transition: background-color var(--x-fast) var(--x-ease), box-shadow var(--x-fast) var(--x-ease);
+}
+.rfx .x-ctl:hover:not(:disabled) { background: var(--x-surface-hover); box-shadow: inset 0 0 0 1px var(--x-line-strong); }
+.rfx .x-ctl:disabled { opacity: 0.5; cursor: default; }
+.rfx .x-ctl-ink { background: var(--x-ink); color: var(--x-surface); box-shadow: none; }
+.rfx .x-ctl-ink:hover:not(:disabled) { background: var(--x-ink-2); box-shadow: none; }
+
+.rfx .x-kbd {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px;
+  border-radius: 4px; font-size: 10.5px; font-family: var(--font-mono), monospace;
+  color: var(--x-muted); box-shadow: inset 0 0 0 1px var(--x-line), 0 1px 0 var(--x-line);
+}
+
+/* Rows that open a record: hover tint and a bronze edge for the open one */
+.rfx .x-row { transition: background-color var(--x-fast) var(--x-ease); }
+.rfx .x-row:hover { background: var(--x-surface-hover); }
+.rfx .x-row[data-open='true'] { background: var(--x-bronze-soft); box-shadow: inset 2px 0 0 var(--x-bronze-fill); }
+
+/* Range input styled as a measuring slider */
+.rfx .x-range { -webkit-appearance: none; appearance: none; width: 100%; height: 20px; background: transparent; cursor: pointer; }
+.rfx .x-range::-webkit-slider-runnable-track { height: 2px; background: linear-gradient(to right, var(--x-ink) var(--fill, 50%), var(--x-line-strong) var(--fill, 50%)); border-radius: 2px; }
+.rfx .x-range::-moz-range-track { height: 2px; background: var(--x-line-strong); }
+.rfx .x-range::-moz-range-progress { height: 2px; background: var(--x-ink); }
+.rfx .x-range::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -6px; border-radius: 50%; background: var(--x-surface); box-shadow: 0 0 0 1px var(--x-line-strong), 0 1px 3px rgb(0 0 0 / 20%); transition: transform var(--x-fast) var(--x-ease); }
+.rfx .x-range::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: var(--x-surface); box-shadow: 0 0 0 1px var(--x-line-strong), 0 1px 3px rgb(0 0 0 / 20%); }
+.rfx .x-range:active::-webkit-slider-thumb { transform: scale(1.15); }
+.rfx .x-range:focus-visible { outline: none; }
+.rfx .x-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--x-bronze-soft), 0 0 0 1px var(--x-bronze-fill); }
+
+/* A value that just changed: a short bronze wash that fades out */
+@keyframes x-flash { from { background-color: var(--x-bronze-soft); } to { background-color: transparent; } }
+.rfx .x-flash { animation: x-flash 900ms var(--x-ease); }
+
+/* Hatched loss on cut bars */
+.rfx .x-hatch { background: repeating-linear-gradient(135deg, transparent 0 3px, rgb(120 130 134 / 28%) 3px 4px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .rfx *, .rfx *::before, .rfx *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+}
+
+/* Swatches and drawn frames need an edge that reads on both canvases. */
+.rfx { --x-swatch-ring: rgb(0 0 0 / 18%); }
+.dark .rfx { --x-swatch-ring: rgb(255 255 255 / 22%); }
+.dark .rfx .x-drawing rect { stroke: rgb(255 255 255 / 38%); }
