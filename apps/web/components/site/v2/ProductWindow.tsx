@@ -2,14 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
-import { Bell, Boxes, ChevronDown, CornerDownLeft, KanbanSquare, ListFilter, Plus, ReceiptText, Search } from 'lucide-react';
+import { Bell, Boxes, ChevronDown, CornerDownLeft, KanbanSquare, List, ListFilter, Plus, ReceiptText, Search } from 'lucide-react';
 import { BrandSymbol } from '@/components/brand/BrandSymbol';
 import { cn } from '@/lib/utils';
 import { fmt, ITEMS, ORDERS, STAGES, stageIndex, STOCK, type Order, type StageKey } from './model';
 import { Initials, StageDot, StageLabel, Swatch, T, Tabs } from './primitives';
 import { RecordPanel } from './RecordPanel';
 
-type View = 'orders' | 'board' | 'stock';
+type View = 'orders' | 'stock';
+type Layout = 'board' | 'list';
 type Filter = 'all' | 'sales' | 'shop' | 'ship';
 const FILTERS: Record<Filter, StageKey[]> = {
   all: ['quote', 'approval', 'production', 'cutting', 'assembly', 'delivery'],
@@ -19,7 +20,6 @@ const FILTERS: Record<Filter, StageKey[]> = {
 };
 const NAV: Array<{ key: View; label: string; icon: typeof ReceiptText }> = [
   { key: 'orders', label: 'Siparişler', icon: ReceiptText },
-  { key: 'board', label: 'Üretim panosu', icon: KanbanSquare },
   { key: 'stock', label: 'Depo', icon: Boxes },
 ];
 
@@ -30,6 +30,7 @@ const NAV: Array<{ key: View; label: string; icon: typeof ReceiptText }> = [
 export function ProductWindow() {
   const [orders, setOrders] = useState<Order[]>(ORDERS);
   const [view, setView] = useState<View>('orders');
+  const [layout, setLayout] = useState<Layout>('board');
   const [filter, setFilter] = useState<Filter>('all');
   const [openId, setOpenId] = useState<string | null>(null);
   const [palette, setPalette] = useState(false);
@@ -74,9 +75,9 @@ export function ProductWindow() {
 
   return (
     <div ref={root} className="x-window relative text-left">
-      <TopBar onSearch={() => setPalette(true)} view={view} />
+      <TopBar onSearch={() => setPalette(true)} view={view} layout={layout} />
       <div className="grid h-[560px] grid-cols-1 md:grid-cols-[208px_1fr] lg:h-[600px]">
-        <Sidebar view={view} setView={(v) => { setView(v); setOpenId(null); }} counts={{ orders: orders.length, board: orders.filter((o) => o.stage === 'production' || o.stage === 'cutting').length, stock: STOCK.length }} />
+        <Sidebar view={view} setView={(v) => { setView(v); setOpenId(null); }} counts={{ orders: orders.length, stock: STOCK.length }} />
         <main className="relative min-w-0 overflow-hidden bg-[var(--x-surface)]">
           <div className="flex h-full flex-col">
             <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-4 sm:px-5">
@@ -85,25 +86,33 @@ export function ProductWindow() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="md:hidden"><Tabs id="pw-mview" label="Ekran" variant="segmented" size="sm" items={NAV.map((n) => ({ key: n.key, label: n.label.split(' ')[0] }))} value={view} onChange={(v) => { setView(v); setOpenId(null); }} /></div>
-                <a href="#olcu" className="x-ctl x-ctl-ink max-md:!hidden"><Plus size={13} aria-hidden /> Yeni sipariş</a>
+                <a href="#tekliften-siparise" className="x-ctl x-ctl-ink max-md:!hidden"><Plus size={13} aria-hidden /> Yeni sipariş</a>
               </div>
             </div>
             {view === 'orders' && (
               <div className="flex items-center justify-between gap-3 border-b border-[var(--x-line)] px-4 pb-2.5 sm:px-5">
-                <Tabs id="pw-filter" label="Süzgeç" variant="segmented" size="sm" value={filter} onChange={setFilter} items={[
-                  { key: 'all', label: 'Tümü', count: orders.length },
-                  { key: 'sales', label: 'Satış', count: orders.filter((o) => FILTERS.sales.includes(o.stage)).length },
-                  { key: 'shop', label: 'Atölye', count: orders.filter((o) => FILTERS.shop.includes(o.stage)).length },
-                  { key: 'ship', label: 'Sevk', count: orders.filter((o) => FILTERS.ship.includes(o.stage)).length },
-                ]} />
+                <div className="flex items-center gap-2">
+                  <Tabs id="pw-layout" label="Görünüm" variant="segmented" size="sm" value={layout} onChange={(l) => setLayout(l)} items={[
+                    { key: 'board', label: <span className="flex items-center gap-1.5"><KanbanSquare size={12} aria-hidden />Pano</span> },
+                    { key: 'list', label: <span className="flex items-center gap-1.5"><List size={12} aria-hidden />Liste</span> },
+                  ]} />
+                  {layout === 'list' && (
+                    <Tabs id="pw-filter" label="Süzgeç" variant="segmented" size="sm" value={filter} onChange={setFilter} className="max-sm:hidden" items={[
+                      { key: 'all', label: 'Tümü', count: orders.length },
+                      { key: 'sales', label: 'Satış', count: orders.filter((o) => FILTERS.sales.includes(o.stage)).length },
+                      { key: 'shop', label: 'Atölye', count: orders.filter((o) => FILTERS.shop.includes(o.stage)).length },
+                      { key: 'ship', label: 'Sevk', count: orders.filter((o) => FILTERS.ship.includes(o.stage)).length },
+                    ]} />
+                  )}
+                </div>
                 <span className="hidden items-center gap-1.5 text-[12px] text-[var(--x-muted)] lg:flex"><ListFilter size={13} aria-hidden /> Termine göre</span>
               </div>
             )}
             <div className="relative min-h-0 flex-1">
               <AnimatePresence mode="wait" initial={false}>
-                <motion.div key={view} className="absolute inset-0 overflow-auto [scrollbar-width:thin]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={T.fast}>
-                  {view === 'orders' && <OrdersTable orders={visible} openId={openId} onOpen={setOpenId} />}
-                  {view === 'board' && <Board orders={orders} openId={openId} onOpen={setOpenId} />}
+                <motion.div key={view === 'orders' ? layout : view} className={cn('absolute inset-0 overflow-auto [scrollbar-width:thin]', view === 'orders' && layout === 'board' && 'pt-3')} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={T.fast}>
+                  {view === 'orders' && layout === 'list' && <OrdersTable orders={visible} openId={openId} onOpen={setOpenId} />}
+                  {view === 'orders' && layout === 'board' && <Board orders={orders} openId={openId} onOpen={setOpenId} />}
                   {view === 'stock' && <StockView />}
                 </motion.div>
               </AnimatePresence>
@@ -126,12 +135,12 @@ export function ProductWindow() {
           </AnimatePresence>
         </main>
       </div>
-      <AnimatePresence>{palette && <Palette orders={orders} onClose={() => setPalette(false)} onPick={(pick) => { setPalette(false); if (pick.type === 'order') { setOpenId(pick.id); if (view === 'stock') setView('orders'); setFilter('all'); } else { setView(pick.view); setOpenId(null); } }} />}</AnimatePresence>
+      <AnimatePresence>{palette && <Palette orders={orders} onClose={() => setPalette(false)} onPick={(pick) => { setPalette(false); if (pick.type === 'order') { setOpenId(pick.id); setView('orders'); setFilter('all'); } else { setView(pick.view); setOpenId(null); } }} />}</AnimatePresence>
     </div>
   );
 }
 
-function TopBar({ onSearch, view }: { onSearch: () => void; view: View }) {
+function TopBar({ onSearch, view, layout }: { onSearch: () => void; view: View; layout: Layout }) {
   return (
     <div className="flex h-11 items-center gap-3 border-b border-[var(--x-line)] bg-[var(--x-surface-sunk)] px-3">
       <div className="flex w-[196px] shrink-0 items-center gap-2 max-md:w-auto">
@@ -139,7 +148,7 @@ function TopBar({ onSearch, view }: { onSearch: () => void; view: View }) {
         <span className="text-[12.5px] font-semibold">Ege Alüminyum</span>
         <ChevronDown size={13} className="text-[var(--x-faint)]" aria-hidden />
       </div>
-      <span className="hidden text-[12px] text-[var(--x-muted)] md:block">{view === 'stock' ? 'Depo / A blok' : view === 'board' ? 'Üretim / Bu hafta' : 'Satış / Siparişler'}</span>
+      <span className="hidden text-[12px] text-[var(--x-muted)] md:block">{view === 'stock' ? 'Depo / A blok' : layout === 'board' ? 'Siparişler / Pano' : 'Siparişler / Liste'}</span>
       <button type="button" onClick={onSearch} className="ml-auto flex h-7 w-[220px] items-center gap-2 rounded-[var(--x-r-control)] bg-[var(--x-surface)] px-2.5 text-[12px] text-[var(--x-faint)] shadow-[inset_0_0_0_1px_var(--x-line)] transition-shadow hover:shadow-[inset_0_0_0_1px_var(--x-line-strong)] max-sm:w-auto">
         <Search size={13} aria-hidden /><span className="max-sm:hidden">Sipariş, müşteri, ekran</span><span className="ml-auto flex gap-0.5 max-sm:hidden"><kbd className="x-kbd">⌘</kbd><kbd className="x-kbd">K</kbd></span>
       </button>

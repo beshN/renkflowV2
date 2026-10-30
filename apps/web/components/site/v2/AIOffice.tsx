@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Check, FileSpreadsheet, FileText, Languages, Mail, RotateCcw, ShieldCheck } from 'lucide-react';
 import { CATEGORY, STAFF, type TaskCategoryId } from '@/lib/features/office/catalog';
-import { decide, DIFFICULTY_LABELS } from '@/lib/features/office/routing';
+import { decide, DIFFICULTY_LABELS, MISSING_NOTE } from '@/lib/features/office/routing';
 import { triageByRules } from '@/lib/features/office/triage';
 import { cn } from '@/lib/utils';
 import { fmt, mm, ORDERS, planOrder, tl } from './model';
@@ -49,6 +49,7 @@ export function AIOffice() {
   const [run, setRun] = useState<Run | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [step, setStep] = useState(0);
+  const [focus, setFocus] = useState<string>('murat');
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const clear = () => { timers.current.forEach(clearTimeout); timers.current = []; };
   useEffect(() => clear, []);
@@ -118,9 +119,10 @@ export function AIOffice() {
             const active = where === person.id;
             const isManager = person.id === 'manager';
             return (
-              <g key={person.id}>
+              <g key={person.id} role="button" tabIndex={busy ? -1 : 0} aria-label={`${person.name}, ${person.title}`} aria-pressed={focus === person.id} onClick={() => !busy && setFocus(person.id)} onKeyDown={(e) => { if (!busy && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setFocus(person.id); } }} className={cn('outline-none [&:focus-visible>rect:first-child]:stroke-[var(--x-bronze-fill)]', !busy && 'cursor-pointer')}>
                 <rect x={d.x} y={d.y} width={isManager ? 100 : 68} height={30} rx={3} fill="var(--x-surface)" stroke={active ? 'var(--x-bronze-fill)' : 'var(--x-line-strong)'} strokeWidth={active ? 1.5 : 1} />
                 <motion.rect x={d.x + (isManager ? 34 : 18)} y={d.y + 6} width={32} height={12} rx={2} initial={false} animate={{ fill: active ? 'var(--x-bronze-fill)' : 'var(--x-surface-sunk)', opacity: active && !reduce ? [1, 0.55, 1] : 1 }} transition={active && !reduce ? { duration: 1.4, repeat: Infinity, ease: 'easeInOut' } : T.base} stroke="var(--x-line-strong)" strokeWidth={0.6} />
+                {focus === person.id && !run && <circle cx={isManager ? d.x + 50 : s.x} cy={s.y} r={14} fill="none" stroke="var(--x-bronze-fill)" strokeWidth={1.5} />}
                 <circle cx={isManager ? d.x + 50 : s.x} cy={s.y} r={10} fill={mine || isManager ? 'var(--x-ink-2)' : 'var(--x-surface)'} stroke="var(--x-line-strong)" />
                 <text x={isManager ? d.x + 50 : s.x} y={s.y + 3.5} textAnchor="middle" fontSize="10" fontWeight={600} fill={mine || isManager ? 'var(--x-surface)' : 'var(--x-muted)'}>{person.name[0]}</text>
                 <text x={isManager ? d.x + 50 : s.x} y={s.y + 24} textAnchor="middle" fontSize="9.5" fill={mine ? 'var(--x-ink)' : 'var(--x-faint)'} fontWeight={mine ? 600 : 400}>{person.name}</text>
@@ -143,13 +145,17 @@ export function AIOffice() {
             })()}
           </AnimatePresence>
         </svg>
-        <p className="px-5 pb-4 text-[11.5px] leading-5 text-[var(--x-faint)]">Görevin türünü ve kimin alacağını ofisin kendi kuralları belirler. Bu sayfada iş, örnek veriyle canlandırılır.</p>
-        <AnimatePresence>
-          {run && reached('approval') && (
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={T.slow} className="border-t border-[var(--x-line)] px-5 py-4">
+        <p className="px-5 pb-4 text-[11.5px] leading-5 text-[var(--x-faint)]">Bir çalışana tıklayın: ne yaptığını ve ona verilebilecek örnek işleri görün. Bu sayfada iş, örnek veriyle canlandırılır.</p>
+        <AnimatePresence mode="wait">
+          {run && reached('approval') ? (
+            <motion.div key="file" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={T.slow} className="border-t border-[var(--x-line)] px-5 py-4">
               <Deliverable run={run} />
             </motion.div>
-          )}
+          ) : !run ? (
+            <motion.div key={focus} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={T.base} className="border-t border-[var(--x-line)] px-5 py-4">
+              <Profile id={focus} onPick={(t) => setText(t)} />
+            </motion.div>
+          ) : null}
         </AnimatePresence>
       </div>
 
@@ -182,6 +188,7 @@ export function AIOffice() {
               <Trail show done={reached('mask')} title="Kaan görevi okudu">
                 {CATEGORY[run.category].label} · {DIFFICULTY_LABELS[decision.difficulty]} · {run.worker.name}, {run.worker.title.toLocaleLowerCase('tr')}
                 {decision.reasons.length > 0 && <span className="block text-[var(--x-faint)]">Gerekçe: {decision.reasons.join(', ')}{run.revisions ? ` · revizyon ${run.revisions}` : ''}</span>}
+                {decision.missing.map((m) => MISSING_NOTE[m] && <span key={m} className="block text-[var(--x-st-approval)]">Not: {MISSING_NOTE[m]}.</span>)}
               </Trail>
               <Trail show={reached('mask')} done={reached('search')} title="Kişisel veriler maskelendi" icon={<ShieldCheck size={12} aria-hidden />}>
                 <span className="x-mono block truncate text-[11.5px] text-[var(--x-ink-2)]">{masked!.out}</span>
@@ -234,6 +241,29 @@ export function AIOffice() {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+/** Who sits at the desk and what to hand them; an example fills the task box. */
+function Profile({ id, onPick }: { id: string; onPick: (task: string) => void }) {
+  const person = STAFF.find((p) => p.id === id)!;
+  if (person.role === 'manager') {
+    return (
+      <div>
+        <p className="text-[13px] font-medium">{person.name} <span className="font-normal text-[var(--x-muted)]">{person.title}</span></p>
+        <p className="mt-1 text-[12.5px] leading-5 text-[var(--x-ink-2)]">Görevin türünü ve zorluğunu belirler, doğru çalışana verir. Teslim edilen Word, Excel, PowerPoint, PDF ya da görselin içeriğini görevle karşılaştırır; 7’nin altındaki teslimi bir kez düzeltmeye gönderir, sorun sürerse kararı size bırakır.</p>
+      </div>
+    );
+  }
+  const c = CATEGORY[person.role];
+  return (
+    <div>
+      <p className="flex items-baseline justify-between gap-3 text-[13px] font-medium"><span>{person.name} <span className="font-normal text-[var(--x-muted)]">{person.title}</span></span><span className="text-[11.5px] font-normal text-[var(--x-faint)]">{c.output.kind} · .{c.output.extension}</span></p>
+      <p className="mt-1 text-[12.5px] text-[var(--x-ink-2)]">{c.hint}.</p>
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        {c.examples.map((e) => <button key={e} type="button" onClick={() => onPick(`${e}.`)} className="rounded-full px-2.5 py-1 text-left text-[11.5px] text-[var(--x-ink-2)] shadow-[inset_0_0_0_1px_var(--x-line)] transition-colors duration-[120ms] hover:bg-[var(--x-surface-hover)]">{e}</button>)}
       </div>
     </div>
   );

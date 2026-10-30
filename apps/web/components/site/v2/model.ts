@@ -134,7 +134,7 @@ export const ORDERS: Order[] = [
   { id: 'RF-1038', customer: 'Çam Konutları', city: 'Urla', product: 'Bioklimatik pergola', spec: { widthMm: 3600, projectionMm: 3000, heightMm: 2400, color: 'RAL 8019 Mat', motor: false, led: false }, due: '11 Kas', stage: 'assembly', owner: 'Deniz Ö.' },
   { id: 'RF-1037', customer: 'Liman Otel', city: 'Kuşadası', product: 'Bioklimatik pergola', spec: { widthMm: 6800, projectionMm: 5800, heightMm: 3000, color: 'RAL 7037 Mat', motor: true, led: true }, due: '25 Kas', stage: 'quote', owner: 'Murat K.' },
   { id: 'RF-1035', customer: 'Bağ Evi', city: 'Seferihisar', product: 'Bioklimatik pergola', spec: { widthMm: 3000, projectionMm: 2500, heightMm: 2300, color: 'RAL 9016 Mat', motor: false, led: true }, due: '7 Kas', stage: 'delivery', owner: 'Deniz Ö.' },
-  { id: 'RF-1043', customer: 'Mavi Butik Otel', city: 'Alaçatı', product: 'Bioklimatik pergola', spec: { widthMm: 5000, projectionMm: 4000, heightMm: 2700, color: 'RAL 7016 Mat', motor: true, led: false }, due: '28 Kas', stage: 'quote', owner: 'Selin A.' },
+  { id: 'RF-1043', customer: 'Mavi Butik Otel', city: 'Alaçatı', product: 'Bioklimatik pergola', spec: { widthMm: 5000, projectionMm: 4000, heightMm: 2700, color: 'RAL 7016 Mat', motor: true, led: true }, due: '28 Kas', stage: 'quote', owner: 'Selin A.' },
 ];
 
 /** Rack stock per profile and colour, in whole bars; reserved bars belong to open orders. */

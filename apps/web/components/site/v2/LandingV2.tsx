@@ -3,17 +3,39 @@
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AIOffice } from './AIOffice';
-import { Configurator } from './Configurator';
+import { Assistant } from './Assistant';
+import { LeadToOrder } from './LeadToOrder';
+import { OwnCutList } from './OwnCutList';
 import { Floor } from './Floor';
 import { ProductWindow } from './ProductWindow';
 import { Scanner } from './Scanner';
 import { EASE } from './primitives';
 import './landing-v2.css';
 
-const AI_MORE = [
-  ['Asistan', 'Geciken siparişleri, takılan operasyonları, bekleyen sayımları ve eksik kurulumu kontrol edip ilgili ekrana götürür. Sipariş taslağı hazırlayabilir; taslak sizin onayınızla siparişe dönüşür.'],
-  ['Föy okuma', 'PDF sipariş föyü okunur; ölçüler ve teknik kurallar denetlenip kontrolünüze sunulur. Onayladığınız föy siparişe dönüşür, kesim listesi oradan çıkar.'],
+const OFFICE_FACTS = [
+  ['Teslim kontrolü', 'Müdür, Word, Excel ve PowerPoint içeriğini, PDF metnini ve görselleri görevle karşılaştırır. Yanlış hesap, eksik kalem ya da uydurma bilgi işi geri gönderir; küçük öneriler teslim kartında kalır.'],
+  ['Kişisel veriler', 'Müşteri, tedarikçi ve çalışan adları, telefon, e-posta, IBAN ve TC numaraları modele yer tutucuyla gider. Teslimde gerçek değerler dosyaya geri konur.'],
+  ['Kayıtlara erişim', 'Çalışan siparişleri, müşterileri, stok ve teklifleri görevi veren kişinin rolüyle arar ve yalnız okur; hiçbir kaydı değiştirmez. Firmanızın unvanı ve adresi antet ve imzaya otomatik girer.'],
 ] as const;
+
+const ASSISTANT_FACTS = [
+  ['Taslak, onay sizde', 'Sipariş taslağı ve sipariş notu hazırlayabilir. Taslak inceleme akışına girer; onaylı sipariş yalnız bir kişi onaylayınca oluşur.'],
+  ['Rolle sınırlı', 'Asistan yalnız rolünüzün açabildiği kayıtları okur: ofis finansı görmez, muhasebe sipariş oluşturamaz. Kaydın olmamasıyla yetkinizin olmamasını ayrı söyler.'],
+  ['Föy okuma', 'PDF sipariş föyü okunur; ölçüler ve teknik kurallar denetlenip kontrolünüze sunulur. Onayladığınız föy siparişe dönüşür.'],
+] as const;
+
+function Facts({ items }: { items: ReadonlyArray<readonly [string, string]> }) {
+  return (
+    <dl className="mt-10 grid gap-px overflow-hidden rounded-[var(--x-r-panel)] bg-[var(--x-chrome-line)] md:grid-cols-3">
+      {items.map(([term, detail]) => (
+        <div key={term} className="bg-[var(--x-chrome)] p-5 pr-7">
+          <dt className="text-[14px] font-medium">{term}</dt>
+          <dd className="mt-1.5 text-[13.5px] leading-[1.65] text-[var(--x-chrome-muted)]">{detail}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
 
 const FACTS = [
   ['Veri aktarımı', 'Müşteri, ürün ve stok listeleri Excel veya CSV dosyasından alınır. Aktarım sırasında ekibimiz yanınızda olur.'],
@@ -72,29 +94,37 @@ export function LandingV2({ signedIn = false }: { signedIn?: boolean }) {
         </div>
       </section>
 
-      {/* Measures drive everything */}
+      {/* Lead to order */}
       <section className="mx-auto max-w-6xl px-5 pb-24 pt-16 sm:px-8 md:pb-32 md:pt-24">
-        <SectionHead id="olcu" title="Ölçüyü değiştirin, siparişin geri kalanı yeniden hesaplanır.">
-          Çizim, teklif tutarı, kesim listesi ve kaç çubuk profil gerektiği aynı ölçüden çıkar. Depodaki artıklar tam çubuktan önce kullanılır. Rakamlar atölyede çalışan hesaplama motorlarından gelir.
+        <SectionHead id="tekliften-siparise" title="Potansiyel müşteriden siparişe, ölçüler yeniden girilmeden.">
+          Keşifteki ölçüyle teklif hazırlanır ve müşteriye onay bağlantısıyla gider. Müşteri onaylayınca teklif siparişe döner; kesim listesi, çubuk ihtiyacı ve stok o anda hesaplanır. Teklifi gönderin, müşterinin telefonunda onaylayın.
         </SectionHead>
-        <Surface className="mt-12"><Configurator /></Surface>
+        <Surface className="mt-12"><LeadToOrder /></Surface>
+        <details className="group mt-8 rounded-[var(--x-r-window)] bg-[var(--x-surface)] shadow-[0_0_0_1px_var(--x-line)] [&_summary::-webkit-details-marker]:hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+            <span><span className="block text-[14px] font-medium">Kendi kesim listenizi deneyin</span><span className="block text-[13px] text-[var(--x-muted)]">Parça boylarını yazın; atölyedeki kesim motoru artıkları önce kullanarak planı çıkarır.</span></span>
+            <span aria-hidden className="relative h-3.5 w-3.5 shrink-0 text-[var(--x-muted)] before:absolute before:left-0 before:top-1/2 before:h-px before:w-full before:bg-current after:absolute after:left-1/2 after:top-0 after:h-full after:w-px after:bg-current after:transition-transform group-open:after:scale-y-0" />
+          </summary>
+          <div className="border-t border-[var(--x-line)] px-5 py-5"><OwnCutList /></div>
+        </details>
       </section>
 
-      {/* AI office */}
+      {/* AI office and assistant */}
       <section className="x-chrome">
         <div className="mx-auto max-w-6xl px-5 py-24 sm:px-8 md:py-32">
           <SectionHead dark title="Ofis işini AI ofisine verin, son onay sizde kalsın.">
-            Görevi kendi cümlenizle yazarsınız. Ofis müdürü işin türünü okuyup doğru çalışana verir, teslim edilen dosyayı görevle karşılaştırıp puanlar. Müşteri adları modele gitmeden maskelenir. Bir görev verip izleyin.
+            Teklif e-postası, fiyat tablosu, çeviri, sunum, rapor ya da katalog görseli. Görevi kendi cümlenizle yazarsınız; ofis müdürü işin türünü okuyup doğru çalışana verir ve teslim edilen dosyayı görevle karşılaştırarak puanlar. Bir görev verip izleyin.
           </SectionHead>
           <Surface className="mt-12"><AIOffice /></Surface>
-          <dl className="mt-12 grid gap-px overflow-hidden rounded-[var(--x-r-panel)] bg-[var(--x-chrome-line)] sm:grid-cols-2">
-            {AI_MORE.map(([term, detail]) => (
-              <div key={term} className="bg-[var(--x-chrome)] p-5 pr-8">
-                <dt className="text-[14px] font-medium">{term}</dt>
-                <dd className="mt-1.5 text-[14px] leading-[1.65] text-[var(--x-chrome-muted)]">{detail}</dd>
-              </div>
-            ))}
-          </dl>
+          <Facts items={OFFICE_FACTS} />
+
+          <div className="mt-24 md:mt-32">
+            <SectionHead dark title="Asistan her ekranda, rolünüzün gördüğü kadarını bilir.">
+              Panelin sağ alt köşesinden açılır. Açılışta geciken siparişleri, takılan operasyonları ve bekleyen sayımları kendisi kontrol eder; sorularınızı firmanızın kayıtlarından yanıtlar. Rolü değiştirip aynı soruyu sorun.
+            </SectionHead>
+            <Surface className="mt-12"><Assistant /></Surface>
+            <Facts items={ASSISTANT_FACTS} />
+          </div>
         </div>
       </section>
 
