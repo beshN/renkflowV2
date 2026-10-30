@@ -2,11 +2,18 @@
 
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
+import { AIOffice } from './AIOffice';
 import { Configurator } from './Configurator';
 import { Floor } from './Floor';
 import { ProductWindow } from './ProductWindow';
+import { Scanner } from './Scanner';
 import { EASE } from './primitives';
 import './landing-v2.css';
+
+const AI_MORE = [
+  ['Asistan', 'Geciken siparişleri, takılan operasyonları, bekleyen sayımları ve eksik kurulumu kontrol edip ilgili ekrana götürür. Sipariş taslağı hazırlayabilir; taslak sizin onayınızla siparişe dönüşür.'],
+  ['Föy okuma', 'PDF sipariş föyü okunur; ölçüler ve teknik kurallar denetlenip kontrolünüze sunulur. Onayladığınız föy siparişe dönüşür, kesim listesi oradan çıkar.'],
+] as const;
 
 const FACTS = [
   ['Veri aktarımı', 'Müşteri, ürün ve stok listeleri Excel veya CSV dosyasından alınır. Aktarım sırasında ekibimiz yanınızda olur.'],
@@ -17,11 +24,11 @@ const FACTS = [
   ['Kurulum', 'Listeleriniz hazırsa ekipler genellikle birkaç gün içinde günlük işini RenkFlow’da yapmaya başlar.'],
 ] as const;
 
-function SectionHead({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
+function SectionHead({ title, children, id, dark = false }: { title: string; children: React.ReactNode; id?: string; dark?: boolean }) {
   return (
     <div id={id} className="grid scroll-mt-24 gap-4 md:grid-cols-[1fr_minmax(0,420px)] md:items-end md:gap-12">
       <h2 className="x-display max-w-[17ch] text-[clamp(30px,3.6vw,44px)] leading-[1.06] [text-wrap:balance]">{title}</h2>
-      <p className="text-[15px] leading-[1.65] text-[var(--x-muted)]">{children}</p>
+      <p className={`text-[15px] leading-[1.65] ${dark ? 'text-[var(--x-chrome-muted)]' : 'text-[var(--x-muted)]'}`}>{children}</p>
     </div>
   );
 }
@@ -45,7 +52,7 @@ export function LandingV2({ signedIn = false }: { signedIn?: boolean }) {
         <div className="mx-auto max-w-6xl px-5 pb-12 pt-14 sm:px-8 md:pb-14 md:pt-20">
           <p className="text-[14px] text-[var(--x-chrome-muted)]">Pergola, giyotin cam ve tente üreticileri için</p>
           <h1 className="x-display mt-4 text-[clamp(36px,4.9vw,62px)] leading-[1.03] [text-wrap:balance]">Ölçü bir kez girilir.<br className="max-md:hidden" /> Teklif, kesim ve sevkiyat ondan çıkar.</h1>
-          <p className="mt-6 max-w-[58ch] text-[16px] leading-[1.65] text-[var(--x-chrome-muted)]">RenkFlow, ölçüye özel üretim yapan firmaların sipariş, kesim planı, depo ve sevkiyat yazılımı. Aşağıdaki ekran uygulamanın çalışan bir kesiti.</p>
+          <p className="mt-6 max-w-[58ch] text-[16px] leading-[1.65] text-[var(--x-chrome-muted)]">RenkFlow, ölçüye özel üretim yapan firmaların sipariş, kesim planı, depo ve sevkiyat yazılımı. Yazışma ve tablo işlerini AI ofisine devredersiniz. Aşağıdaki ekran uygulamanın çalışan bir kesiti.</p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/contact" className="x-btn x-btn-primary">Demo talep edin</Link>
             <Link href={signedIn ? '/dashboard' : '/auth/login'} className="x-btn x-btn-ghost-dark">{signedIn ? 'Panele git' : 'Giriş yap'}</Link>
@@ -71,6 +78,32 @@ export function LandingV2({ signedIn = false }: { signedIn?: boolean }) {
           Çizim, teklif tutarı, kesim listesi ve kaç çubuk profil gerektiği aynı ölçüden çıkar. Depodaki artıklar tam çubuktan önce kullanılır. Rakamlar atölyede çalışan hesaplama motorlarından gelir.
         </SectionHead>
         <Surface className="mt-12"><Configurator /></Surface>
+      </section>
+
+      {/* AI office */}
+      <section className="x-chrome">
+        <div className="mx-auto max-w-6xl px-5 py-24 sm:px-8 md:py-32">
+          <SectionHead dark title="Ofis işini AI ofisine verin, son onay sizde kalsın.">
+            Görevi kendi cümlenizle yazarsınız. Ofis müdürü işin türünü okuyup doğru çalışana verir, teslim edilen dosyayı görevle karşılaştırıp puanlar. Müşteri adları modele gitmeden maskelenir. Bir görev verip izleyin.
+          </SectionHead>
+          <Surface className="mt-12"><AIOffice /></Surface>
+          <dl className="mt-12 grid gap-px overflow-hidden rounded-[var(--x-r-panel)] bg-[var(--x-chrome-line)] sm:grid-cols-2">
+            {AI_MORE.map(([term, detail]) => (
+              <div key={term} className="bg-[var(--x-chrome)] p-5 pr-8">
+                <dt className="text-[14px] font-medium">{term}</dt>
+                <dd className="mt-1.5 text-[14px] leading-[1.65] text-[var(--x-chrome-muted)]">{detail}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
+
+      {/* Warehouse scanning */}
+      <section className="mx-auto max-w-6xl px-5 py-24 sm:px-8 md:py-32">
+        <SectionHead title="Paketi okutun, rafı okutun, stok yerini bilir.">
+          Her paket ve raf, Code 128 ve QR taşıyan bir etiketle tanınır. Telefon kamerası ya da el terminaliyle okutulur; transfer iki dengeli hareket olarak kaydedilir. Rezerve bir paket taşınamaz.
+        </SectionHead>
+        <Surface className="mt-12"><Scanner /></Surface>
       </section>
 
       {/* Workshop and office on one record */}
