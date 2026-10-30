@@ -19,11 +19,10 @@ import { MorningSummary } from '@/components/features/ai/MorningSummary';
 import { DueActivities } from '@/components/records/DueActivities';
 import { FleetHealthCard } from '@/components/fleet/FleetHealthCard';
 import { SetupChecklist } from '@/components/features/onboarding/SetupChecklist';
-import { Donut, EmptyState, HealthBadge, HintTip, LifecycleStrip, PageHeader, ProgressRing, Skeleton, StatCard } from '@/components/kit';
+import { Donut, EmptyState, HealthBadge, HintTip, LifecycleStrip, ProgressRing, Skeleton, StatCard } from '@/components/kit';
 import { ColorSwatch } from '@/components/colors/ColorSwatch';
 import { colorInfo } from '@/lib/features/colors/color-spec';
-import { TearCalendar } from '@/components/spells/TearCalendar';
-import { OccasionBadge } from '@/components/spells/OccasionBadge';
+import { DashboardOverview } from '@/components/layout/DashboardOverview';
 import { ORDER_MILESTONES } from '@/lib/spells/milestones';
 
 // Loaded only once a firm has reached its first milestone.
@@ -44,7 +43,7 @@ type Summary = {
 const STEP_COLORS = ['#c2c8ca', '#a6b1b6', '#7f8a90', '#56626a', '#2e3538', '#dce0e0'];
 const SECTIONS = ['morning', 'today', 'activities', 'suggestions', 'flow', 'health', 'paint', 'week'] as const;
 type Section = (typeof SECTIONS)[number];
-const DEFAULT_HIDDEN: Section[] = ['activities', 'flow', 'health', 'paint', 'week'];
+const DEFAULT_HIDDEN: Section[] = ['suggestions', 'activities', 'flow', 'health', 'paint', 'week'];
 const SECTION_LABELS: Record<Section, string> = { morning: 'Sabah özeti', today: 'Bugünün işi', activities: 'Aktiviteler', suggestions: 'Önerilenler', flow: 'Sipariş akışı', health: 'Riskteki siparişler', paint: 'Renk kuyruğu', week: 'Bu hafta' };
 const LAYOUT_KEY = 'rf-dashboard-layout';
 
@@ -214,36 +213,31 @@ export default function DashboardPage() {
   const toggle = (s: Section) => saveLayout({ ...layout, hidden: layout.hidden.includes(s) ? layout.hidden.filter((x) => x !== s) : [...layout.hidden, s] });
 
   return (
-    <div className="rf-page space-y-5">
-      <PageHeader
-        leading={<TearCalendar />}
-        eyebrow={<>{new Intl.DateTimeFormat('tr-TR', { timeZone: 'Europe/Istanbul', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}<OccasionBadge /></>}
-        title="Bugün"
-        action={<>
-          <button type="button" onClick={() => void Promise.all([refresh(), loadSummary()])} disabled={isValidating} aria-label="Yenile" className="rf-icon-button grid h-9 w-9 place-items-center border border-border"><RefreshCw size={15} className={isValidating ? 'animate-spin motion-reduce:animate-none' : ''} /></button>
-          <button type="button" onClick={() => setEditing((v) => !v)} aria-pressed={editing} aria-label="Kartları düzenle" className="rf-icon-button grid h-9 w-9 place-items-center border border-border"><SlidersHorizontal size={15} /></button>
-          {canCreate && <Link href="/quotations/new" className="rf-primary-button h-9 px-3.5 text-xs"><FilePlus2 size={15} /> Yeni teklif</Link>}
-        </>}
-      />
+    <div className="rf-page rf-dashboard-home space-y-5">
+      <h1 className="sr-only">Genel bakış</h1>
       {error && !orders.length && <p role="alert" className="rf-alert text-sm"><AlertOctagon size={16} aria-hidden /> Siparişler alınamadı</p>}
 
       {user?.tenantId && totalOrders >= ORDER_MILESTONES[0] && <OrderMilestone tenantId={user.tenantId} count={totalOrders} />}
 
       <SetupChecklist />
 
-      <div className="rf-metric-strip grid grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Açık sipariş" icon={Factory} href="/orders?view=active" loading={isLoading} value={open.length} trend={trend.map((t) => t.created)} />
-        <StatCard label="Geciken" icon={AlertOctagon} href="/orders?view=overdue" loading={isLoading} value={overdue.length} tone={overdue.length ? 'danger' : 'neutral'} />
-        <StatCard label="Kesim bekleyen iş" icon={Scissors} href="/production?tab=cutting" loading={summaryLoading} value={n(summary?.cutting?.waiting)} />
-        <StatCard label="Bugün teslim" icon={Truck} href="/orders?view=today" loading={isLoading} value={dueToday.length} trend={trend.map((t) => t.completed)} />
+      <DashboardOverview trend={trend} loading={summaryLoading || isLoading} orders={open.filter(order => Boolean(order.deliveryDate) && order.deliveryDate! >= today)} production={summary?.production} tools={<>
+        <button type="button" onClick={() => void Promise.all([refresh(), loadSummary()])} disabled={isValidating} aria-label="Yenile" className="rf-icon-button"><RefreshCw size={13} className={isValidating ? 'animate-spin motion-reduce:animate-none' : ''} /></button>
+        <button type="button" onClick={() => setEditing(value => !value)} aria-pressed={editing} aria-label="Kartları düzenle" className="rf-icon-button"><SlidersHorizontal size={13} /></button>
+      </>}>
+      <div className="rf-metric-strip grid grid-cols-2">
+        <StatCard label="Açık sipariş" icon={Factory} href="/orders?view=active" loading={isLoading} value={open.length} />
+        <StatCard label="Bugün teslim" icon={Truck} href="/orders?view=today" loading={isLoading} value={dueToday.length} />
       </div>
+
+      </DashboardOverview>
 
       {manager && (user?.role === 'owner' || user?.role === 'admin') && <FleetHealthCard />}
 
-      <nav aria-label="Kısayollar" className="rf-toolbar -mx-1 flex overflow-x-auto px-1">
+      <nav aria-label="Kısayollar" className="rf-dashboard-shortcuts">
         {shortcuts.map((s) => (
           <Link key={s.href} href={s.href} className="rf-toolbar-item">
-            <s.icon size={16} aria-hidden />{s.label}
+            <s.icon size={16} aria-hidden /><span>{s.label}</span>
           </Link>
         ))}
       </nav>

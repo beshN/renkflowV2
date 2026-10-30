@@ -1,0 +1,293 @@
+/* Panel-only release: public site and authentication keep their production styles. */
+
+/* Animate UI owns workspace page changes; avoid a second stagger on every page child. */
+body:has(.rf-dashboard-shell) .rf-dashboard-shell [data-slot='page-transition'] .rf-page > * { animation: none; }
+
+/* Reference-led web system: a quiet frame, compact navigation, and an editorial card grid. */
+body:has(.rf-dashboard-shell), body:has(.rf-dashboard-shell) .rf-app-shell, body:has(.rf-dashboard-shell) .rf-dashboard-shell, body:has(.rf-dashboard-shell) .rf-command-dialog {
+  --background: 0 0% 96%; --foreground: 0 0% 9%; --card: 0 0% 100%; --card-foreground: 0 0% 9%;
+  --popover: 0 0% 100%; --popover-foreground: 0 0% 9%; --muted: 0 0% 96%; --muted-foreground: 0 0% 40%;
+  --border: 0 0% 91%; --input: 0 0% 87%; --radius: 10px; --rf-radius: 18px;
+  --acc-primary: 0 0% 14%; --acc-primary-fg: 0 0% 100%; --acc-text: 0 0% 19%; --acc-mark: #292929;
+  --rf-shadow-soft: 0 1px 2px rgb(0 0 0 / 2%), 0 5px 10px -8px rgb(0 0 0 / 14%);
+}
+html.dark body:has(.rf-dashboard-shell), .dark body:has(.rf-dashboard-shell) .rf-app-shell, .dark body:has(.rf-dashboard-shell) .rf-dashboard-shell, .dark body:has(.rf-dashboard-shell) .rf-command-dialog {
+  --background: 220 5% 11%; --foreground: 0 0% 94%; --card: 220 4% 15%; --card-foreground: 0 0% 94%;
+  --popover: 220 4% 17%; --popover-foreground: 0 0% 94%; --muted: 220 4% 18%; --muted-foreground: 0 0% 66%;
+  --border: 220 3% 23%; --input: 220 3% 28%; --acc-primary: 0 0% 92%; --acc-primary-fg: 220 5% 12%; --acc-text: 0 0% 85%; --acc-mark: #c2c7c4;
+}
+body:has(.rf-dashboard-shell) .rf-dashboard-shell { --rf-sidebar-width: 200px; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell .rf-panel, body:has(.rf-dashboard-shell) .rf-panel { border-radius: var(--rf-radius); border-color: hsl(var(--border) / 65%); box-shadow: var(--rf-shadow-soft); }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell :is(h1,h2,h3,.font-display,.rf-metric-value) { font-stretch: normal; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell .rf-page { padding: 12px 20px 24px 10px; }
+body:has(.rf-dashboard-shell) .rf-page-title { font-size: 24px; font-weight: 550; letter-spacing: -.04em; }
+body:has(.rf-dashboard-shell) .rf-eyebrow { text-transform: none; letter-spacing: .01em; font-size: 11px; font-weight: 400; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell .rf-page > header { border-bottom: 0; }
+body:has(.rf-dashboard-shell) .rf-workspace-header { height: 64px; padding-inline: 10px 20px; background: hsl(var(--background)); border: 0; backdrop-filter: none; }
+body:has(.rf-dashboard-shell) .rf-header-title { font-size: 20px; letter-spacing: -.04em; font-weight: 600; }
+body:has(.rf-dashboard-shell) .rf-header-title > span { font-weight: 600; }
+body:has(.rf-dashboard-shell) .rf-workspace-header .rf-global-search { border: 0; border-radius: 999px; min-width: 220px; font-size: 11px; padding-inline: 12px; }
+body:has(.rf-dashboard-shell) .rf-workspace-header .rf-global-search kbd { display: none; }
+body:has(.rf-dashboard-shell) .rf-workspace-header .rf-primary-button { min-height: 30px; height: 30px; padding-inline: 16px; font-size: 11px; }
+body:has(.rf-dashboard-shell) .rf-workspace-header .rf-icon-button { height: 30px; width: 30px; background: hsl(var(--card)); border-radius: 50%; }
+body:has(.rf-dashboard-shell) .rf-sidebar, body:has(.rf-dashboard-shell) .rf-dashboard-shell .rf-sidebar { --sb-bg: #f3f3f3; --sb-fg: #222; --sb-muted: #676767; --sb-hover: rgb(255 255 255 / 70%); --sb-active: #fff; --sb-line: transparent; --sb-mark: #333; color-scheme: light; border: 0; }
+.dark body:has(.rf-dashboard-shell) .rf-sidebar, .dark body:has(.rf-dashboard-shell) .rf-dashboard-shell .rf-sidebar { --sb-bg: #1b1c1e; --sb-fg: #f0f0f0; --sb-muted: #a3a3a3; --sb-hover: rgb(255 255 255 / 4%); --sb-active: #2b2d30; --sb-line: transparent; --sb-mark: #ddd; color-scheme: dark; }
+body:has(.rf-dashboard-shell) .rf-sidebar-expanded { width: var(--rf-sidebar-width); }
+body:has(.rf-dashboard-shell) .rf-sidebar-collapsed { width: 64px; }
+body:has(.rf-dashboard-shell) .rf-sidebar-brand { height: 64px; padding-inline: 18px 12px; }
+body:has(.rf-dashboard-shell) .rf-sidebar-brand [data-brand] { width: 30px; }
+body:has(.rf-dashboard-shell) .rf-sidebar-company { margin: 0 18px 10px; font-size: 10px; color: var(--sb-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body:has(.rf-dashboard-shell) .rf-sidebar nav { padding-inline: 12px; }
+body:has(.rf-dashboard-shell) .rf-sidebar nav section { margin-top: 12px; }
+body:has(.rf-dashboard-shell) .rf-sidebar nav section:first-child { margin-top: 0; }
+body:has(.rf-dashboard-shell) .rf-sidebar nav section:first-child > button { display: none; }
+body:has(.rf-dashboard-shell) .rf-sidebar nav section > button { font-size: 10px; font-weight: 450; min-height: 22px; padding-inline: 10px; }
+body:has(.rf-dashboard-shell) .rf-nav-item { min-height: 34px; height: 34px; border-radius: 8px; font-size: 12px; gap: 10px; font-weight: 450; }
+body:has(.rf-dashboard-shell) .rf-nav-item svg { width: 14px; height: 14px; stroke-width: 1.4; }
+body:has(.rf-dashboard-shell) .rf-nav-active { font-weight: 550; }
+body:has(.rf-dashboard-shell) .rf-nav-pill { border-radius: 8px; box-shadow: 0 2px 4px rgb(0 0 0 / 3%); }
+body:has(.rf-dashboard-shell) .rf-nav-active:not(:has(.rf-nav-pill)) { box-shadow: 0 2px 4px rgb(0 0 0 / 3%); }
+body:has(.rf-dashboard-shell) .rf-sidebar > div:last-child { padding: 12px; }
+body:has(.rf-dashboard-shell) .rf-primary-button, body:has(.rf-dashboard-shell) .rf-ink-button { border-radius: 999px; min-height: 34px; padding-inline: 15px; font-weight: 500; box-shadow: inset 0 1px 2px rgb(255 255 255 / 15%), 0 1px 3px rgb(0 0 0 / 7%); }
+body:has(.rf-dashboard-shell) .rf-secondary-button { border-radius: 10px; min-height: 34px; padding-inline: 13px; box-shadow: 0 1px 2px rgb(0 0 0 / 2%); }
+body:has(.rf-dashboard-shell) .rf-icon-button { border-radius: 9px; }
+body:has(.rf-dashboard-shell) .rf-input, body:has(.rf-dashboard-shell) .rf-dashboard-shell :is(select,textarea), body:has(.rf-dashboard-shell) .rf-dashboard-shell input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]) { border-radius: 9px; font-size: 12px; background-color: hsl(var(--card)); }
+body:has(.rf-dashboard-shell) .rf-metric-value { font-size: 38px; line-height: 1.05; font-weight: 450; letter-spacing: -.065em; }
+body:has(.rf-dashboard-shell) .rf-metric-strip { border-radius: 16px; padding: 4px; border: 1px solid hsl(var(--border)); background: hsl(var(--background) / 55%); gap: 4px; }
+body:has(.rf-dashboard-shell) .rf-metric-strip > .rf-metric { min-height: 104px; padding: 18px; border-radius: 12px; background: transparent; }
+body:has(.rf-dashboard-shell) .rf-metric-strip > .rf-metric:first-child { background: hsl(var(--card)); box-shadow: 0 3px 7px -4px rgb(0 0 0 / 10%); }
+body:has(.rf-dashboard-shell) .rf-metric-strip > .rf-metric > span:first-child { flex-direction: row-reverse; justify-content: flex-end; font-size: 11px; gap: 8px; }
+body:has(.rf-dashboard-shell) .rf-metric-strip > .rf-metric > span:first-child svg { width: 14px; height: 14px; }
+body:has(.rf-dashboard-shell) .rf-metric-strip > a.rf-metric:hover { box-shadow: none; background: hsl(var(--card)); }
+body:has(.rf-dashboard-shell) .rf-toolbar { gap: 6px; padding-block: 2px; }
+body:has(.rf-dashboard-shell) .rf-toolbar-item, body:has(.rf-dashboard-shell) .rf-toolbar-item:first-child, body:has(.rf-dashboard-shell) .rf-toolbar-item:last-child { margin: 0; border: 1px solid hsl(var(--border)); border-radius: 9px; padding: 7px 10px; font-size: 11px; }
+body:has(.rf-dashboard-shell) .rf-table-container, body:has(.rf-dashboard-shell) .rf-dashboard-shell .rf-data-view .rf-table-container { border-radius: 14px; border: 1px solid hsl(var(--border)); box-shadow: none; background: hsl(var(--card)); }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell table thead { background: hsl(var(--background) / 65%); }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell table thead th { font-size: 10px; font-weight: 500; letter-spacing: .01em; text-transform: none; color: hsl(var(--muted-foreground)); }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell table tbody td { border-color: hsl(var(--border) / 65%); font-size: 12px; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell .rf-tabs { gap: 8px; border-bottom: 1px solid hsl(var(--border)); }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell .rf-tabs button { padding-inline: 10px; font-size: 11px; border-radius: 7px 7px 0 0; }
+body:has(.rf-dashboard-shell) .rf-alert { border-radius: 10px; }
+body:has(.rf-dashboard-shell) .rf-overview-tools { display: flex; align-items: center; gap: 3px; }
+body:has(.rf-dashboard-shell) .rf-overview-tools .rf-icon-button { width: 26px; height: 26px; }
+body:has(.rf-dashboard-shell) .rf-overview-grid { display: grid; gap: 10px; align-items: start; margin-top: 0 !important; }
+body:has(.rf-dashboard-shell) .rf-overview-grid > div, body:has(.rf-dashboard-shell) .rf-overview-grid > aside { display: flex; flex-direction: column; gap: 10px; }
+body:has(.rf-dashboard-shell) .rf-overview-grid > div > *, body:has(.rf-dashboard-shell) .rf-overview-grid > aside > * { margin: 0 !important; }
+body:has(.rf-dashboard-shell) .rf-overview-card { padding: 16px; }
+body:has(.rf-dashboard-shell) .rf-overview-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+body:has(.rf-dashboard-shell) .rf-overview-heading h2 { font-size: 13px; font-weight: 550; letter-spacing: -.025em; }
+body:has(.rf-dashboard-shell) .rf-overview-heading p { margin-top: 3px; font-size: 10px; color: hsl(var(--muted-foreground)); }
+body:has(.rf-dashboard-shell) .rf-soft-badge { border: 1px solid hsl(var(--border)); border-radius: 999px; padding: 7px 10px; font-size: 9px; font-weight: 400; color: hsl(var(--muted-foreground)); flex-shrink: 0; }
+body:has(.rf-dashboard-shell) .rf-overview-projects { padding: 21px 8px 8px; }
+body:has(.rf-dashboard-shell) .rf-overview-projects-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+body:has(.rf-dashboard-shell) .rf-overview-projects h3 { font-size: 12px; font-weight: 550; letter-spacing: -.02em; }
+body:has(.rf-dashboard-shell) .rf-overview-projects p { font-size: 10px; color: hsl(var(--muted-foreground)); margin-top: 3px; }
+body:has(.rf-dashboard-shell) .rf-overview-projects-heading > a { display: grid; place-items: center; border: 1px solid hsl(var(--border)); border-radius: 50%; width: 30px; height: 30px; }
+body:has(.rf-dashboard-shell) .rf-order-chart { display: flex; height: 190px; gap: 20px; padding: 20px 4px 0; align-items: end; }
+body:has(.rf-dashboard-shell) .rf-order-chart-day { display: flex; flex: 1; min-width: 0; height: 100%; flex-direction: column; gap: 9px; text-align: center; font-size: 9px; color: hsl(var(--muted-foreground)); }
+body:has(.rf-dashboard-shell) .rf-order-chart-bars { display: flex; flex: 1; align-items: end; justify-content: center; gap: 3px; min-height: 0; }
+body:has(.rf-dashboard-shell) .rf-order-chart-bars > span { width: min(26px, 48%); border-radius: 5px 5px 0 0; min-height: 1px; }
+body:has(.rf-dashboard-shell) .rf-order-chart-created { background: linear-gradient(0deg, #ccebd3, #49bf65); }
+body:has(.rf-dashboard-shell) .rf-order-chart-completed { background: linear-gradient(0deg, hsl(var(--background)), hsl(var(--muted-foreground) / 35%)); }
+body:has(.rf-dashboard-shell) .rf-chart-legend { display: flex; justify-content: center; gap: 16px; margin-top: 12px; font-size: 9px; color: hsl(var(--muted-foreground)); }
+body:has(.rf-dashboard-shell) .rf-chart-legend span { display: inline-flex; align-items: center; gap: 5px; }
+body:has(.rf-dashboard-shell) .rf-chart-legend i, body:has(.rf-dashboard-shell) .rf-status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
+body:has(.rf-dashboard-shell) .rf-overview-empty { min-height: 190px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; text-align: center; color: hsl(var(--muted-foreground)); }
+body:has(.rf-dashboard-shell) .rf-overview-empty p { font-size: 12px; font-weight: 500; color: hsl(var(--foreground)); }
+body:has(.rf-dashboard-shell) .rf-overview-empty > span { font-size: 11px; max-width: 220px; }
+body:has(.rf-dashboard-shell) .rf-overview-empty-small { min-height: 130px; }
+body:has(.rf-dashboard-shell) .rf-delivery-list a { display: flex; align-items: center; gap: 9px; padding: 13px 0; }
+body:has(.rf-dashboard-shell) .rf-delivery-list li + li { border-top: 1px solid hsl(var(--border) / 65%); }
+body:has(.rf-dashboard-shell) .rf-delivery-list strong { display: block; font-size: 11px; font-weight: 550; margin-bottom: 3px; }
+body:has(.rf-dashboard-shell) .rf-delivery-icon { display: grid; flex-shrink: 0; place-items: center; width: 35px; height: 35px; border-radius: 10px; background: hsl(var(--muted)); }
+body:has(.rf-dashboard-shell) .rf-delivery-date { display: inline-flex; align-items: center; gap: 3px; font-size: 9px; color: hsl(var(--muted-foreground)); }
+body:has(.rf-dashboard-shell) .rf-overview-all { display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 12px; padding: 8px; border: 1px solid hsl(var(--border)); border-radius: 999px; font-size: 10px; transition: background 150ms; }
+body:has(.rf-dashboard-shell) .rf-overview-all:hover { background: hsl(var(--muted)); }
+body:has(.rf-dashboard-shell) .rf-production-summary > div { display: flex; justify-content: space-between; align-items: center; padding-block: 12px; border-bottom: 1px solid hsl(var(--border) / 60%); }
+body:has(.rf-dashboard-shell) .rf-production-summary dt { display: flex; align-items: center; gap: 7px; font-size: 11px; color: hsl(var(--muted-foreground)); }
+body:has(.rf-dashboard-shell) .rf-production-summary .rf-status-dot.bg-zinc-400 { background: #a1a1aa; box-shadow: 0 0 0 3px rgb(161 161 170 / 12%); }
+body:has(.rf-dashboard-shell) .rf-production-summary .rf-status-dot.bg-amber-500 { background: #f59e0b; box-shadow: 0 0 0 3px rgb(245 158 11 / 12%); }
+body:has(.rf-dashboard-shell) .rf-production-summary dd { font-size: 17px; font-weight: 500; letter-spacing: -.035em; }
+body:has(.rf-dashboard-shell) .rf-command-dialog { border-radius: 16px; box-shadow: 0 24px 65px -30px rgb(0 0 0 / 28%); }
+@media (min-width: 1150px) { body:has(.rf-dashboard-shell) .rf-overview-grid { grid-template-columns: minmax(0, 1fr) minmax(245px, 30%); } }
+@media (min-width: 768px) {
+  body:has(.rf-dashboard-shell) { background: #e4e4e4; }
+  .dark body:has(.rf-dashboard-shell) { background: #101113; }
+  body:has(.rf-dashboard-shell) .rf-dashboard-shell { width: calc(100% - 80px); max-width: 1360px; margin: 40px auto; min-height: calc(100dvh - 80px); border-radius: 24px; }
+  body:has(.rf-dashboard-shell) .rf-dashboard-shell > .rf-sidebar { left: max(40px, calc((100vw - 1360px) / 2)); top: 40px; height: calc(100dvh - 80px); border-radius: 24px 0 0 24px; }
+  body:has(.rf-dashboard-shell) .rf-workspace-header { border-top-right-radius: 24px; }
+  body:has(.rf-dashboard-shell) .rf-workspace-body { margin-left: var(--rf-sidebar-width); min-height: calc(100dvh - 80px); border-radius: 0 24px 24px 0; transition: margin-left 240ms cubic-bezier(.2,.8,.2,1); }
+  body:has(.rf-dashboard-shell) .rf-dashboard-shell[data-sidebar-state='collapsed'] .rf-workspace-body { margin-left: 64px; }
+}
+@media (min-width: 768px) and (max-width: 1100px) { body:has(.rf-dashboard-shell) .rf-dashboard-shell { --rf-sidebar-width: 175px; width: calc(100% - 40px); margin: 20px auto; } body:has(.rf-dashboard-shell) .rf-dashboard-shell > .rf-sidebar { left: 20px; top: 20px; height: calc(100dvh - 40px); } }
+@media (max-width: 767px) {
+  body:has(.rf-dashboard-shell) .rf-dashboard-shell .rf-page { padding: 12px 16px 24px; }
+  body:has(.rf-dashboard-shell) .rf-workspace-header { padding-inline: 16px; height: 58px; }
+  body:has(.rf-dashboard-shell) .rf-header-title { font-size: 17px; }
+  body:has(.rf-dashboard-shell) .rf-workspace-header .rf-global-search { min-width: 0; }
+  body:has(.rf-dashboard-shell) .rf-overview-grid { gap: 12px; }
+  body:has(.rf-dashboard-shell) .rf-overview-card { padding: 16px; }
+  body:has(.rf-dashboard-shell) .rf-metric-strip > .rf-metric { padding: 13px; min-height: 95px; }
+  body:has(.rf-dashboard-shell) .rf-metric-value { font-size: 34px; }
+  body:has(.rf-dashboard-shell) .rf-overview-heading { flex-wrap: wrap; }
+  body:has(.rf-dashboard-shell) .rf-order-chart { gap: 9px; height: 175px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  body:has(.rf-dashboard-shell) .rf-overview-all:active { transform: translateY(1px); }
+}
+@media (prefers-reduced-motion: reduce) { body:has(.rf-dashboard-shell) .rf-workspace-body { transition: none; } }
+@media print { body:has(.rf-dashboard-shell) .rf-dashboard-shell { margin: 0; width: 100%; border-radius: 0; } body:has(.rf-dashboard-shell) .rf-workspace-body { min-height: 0; margin-left: 0; } }
+
+/* Editorial workspace: quiet surfaces, deliberate hierarchy, meaningful motion. */
+body:has(.rf-dashboard-shell) .rf-dashboard-shell { --rf-sidebar-width: 192px; }
+body:has(.rf-dashboard-shell) .rf-sidebar-brand { padding-inline: 20px 12px; height: 76px; }
+body:has(.rf-dashboard-shell) .rf-sidebar-brand [data-brand] { width: auto; }
+body:has(.rf-dashboard-shell) .rf-sidebar-company { margin: 0 20px 18px; font-size: 11px; }
+body:has(.rf-dashboard-shell) .rf-sidebar nav { padding-inline: 12px; scrollbar-width: thin; scrollbar-color: transparent transparent; }
+body:has(.rf-dashboard-shell) .rf-sidebar nav:hover { scrollbar-color: hsl(var(--muted-foreground) / 25%) transparent; }
+body:has(.rf-dashboard-shell) .rf-sidebar nav section { margin-top: 20px; }
+body:has(.rf-dashboard-shell) .rf-sidebar nav section > button { font-size: 11px; padding-inline: 12px; margin-bottom: 5px; }
+body:has(.rf-dashboard-shell) .rf-nav-item { height: 38px; min-height: 38px; gap: 11px; padding-inline: 12px; font-size: 12px; font-weight: 400; border-radius: 9px; }
+body:has(.rf-dashboard-shell) .rf-nav-item svg { width: 16px; height: 16px; stroke-width: 1.5; }
+body:has(.rf-dashboard-shell) .rf-nav-active { font-weight: 550; }
+body:has(.rf-dashboard-shell) .rf-nav-pill { border-radius: 9px; background: var(--sb-active); box-shadow: 0 2px 5px rgb(0 0 0 / 4%); }
+body:has(.rf-dashboard-shell) .rf-sidebar-preview { box-shadow: 12px 0 32px -24px rgb(0 0 0 / 30%); }
+body:has(.rf-dashboard-shell) .rf-nav-disclosure { display: grid; grid-template-rows: 1fr; opacity: 1; transition: grid-template-rows 260ms cubic-bezier(.2,.8,.2,1), opacity 180ms; }
+body:has(.rf-dashboard-shell) .rf-nav-disclosure[data-open='false'] { grid-template-rows: 0fr; opacity: 0; }
+body:has(.rf-dashboard-shell) .rf-nav-disclosure > .rf-nav-group { overflow: hidden; min-height: 0; }
+body:has(.rf-dashboard-shell) .rf-sidebar-label { transition: opacity 150ms, transform 220ms cubic-bezier(.2,.8,.2,1); }
+body:has(.rf-dashboard-shell) .rf-sidebar[data-expanded='false'] .rf-sidebar-label { opacity: 0; transform: translateX(-5px); }
+body:has(.rf-dashboard-shell) .rf-sidebar > div:last-child { margin-inline: 12px; padding: 14px 0; border-top: 1px solid hsl(var(--border)); }
+body:has(.rf-dashboard-shell) .rf-sidebar > div:last-child > div > span:first-child { background: hsl(var(--card)); box-shadow: 0 1px 3px rgb(0 0 0 / 5%); }
+body:has(.rf-dashboard-shell) .rf-workspace-header { padding-block: 6px; }
+body:has(.rf-dashboard-shell) .rf-overview-heading h2 { font-size: 14px; font-weight: 550; }
+body:has(.rf-dashboard-shell) .rf-overview-heading p { font-size: 11px; margin-top: 5px; }
+body:has(.rf-dashboard-shell) .rf-period-select select { appearance: auto; padding: 6px 9px; font-size: 11px; border: 1px solid hsl(var(--border)); color: hsl(var(--muted-foreground)); background: transparent; }
+body:has(.rf-dashboard-shell) .rf-chart-totals { display: flex; gap: 28px; margin: 22px 0 24px; }
+body:has(.rf-dashboard-shell) .rf-chart-totals > div { display: grid; grid-template-columns: 7px auto; column-gap: 7px; align-items: center; }
+body:has(.rf-dashboard-shell) .rf-chart-totals strong { font-size: 24px; font-weight: 500; letter-spacing: -.04em; font-variant-numeric: tabular-nums; line-height: 1.2; }
+body:has(.rf-dashboard-shell) .rf-chart-totals span { grid-column: 2; font-size: 11px; color: hsl(var(--muted-foreground)); margin-top: 3px; }
+body:has(.rf-dashboard-shell) .rf-chart-totals i { width: 6px; height: 6px; border-radius: 50%; }
+body:has(.rf-dashboard-shell) .rf-chart-key-created { background: #48b66c; }
+body:has(.rf-dashboard-shell) .rf-chart-key-completed { background: #9ca3af; }
+body:has(.rf-dashboard-shell) .rf-chart-plot { display: flex; gap: 12px; }
+body:has(.rf-dashboard-shell) .rf-chart-axis { display: flex; flex-direction: column; justify-content: space-between; height: 140px; font-size: 10px; color: hsl(var(--muted-foreground)); width: 18px; text-align: right; font-variant-numeric: tabular-nums; }
+body:has(.rf-dashboard-shell) .rf-chart-canvas { position: relative; flex: 1; min-width: 0; }
+body:has(.rf-dashboard-shell) .rf-chart-grid { position: absolute; inset: 5px 0 24px; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
+body:has(.rf-dashboard-shell) .rf-chart-grid > span { border-top: 1px dashed hsl(var(--border)); width: 100%; }
+body:has(.rf-dashboard-shell) .rf-order-chart { height: 164px; gap: 10px; padding: 0; position: relative; }
+body:has(.rf-dashboard-shell) .rf-order-chart-day { position: relative; padding: 0 5px; align-items: center; border-radius: 5px; transition: background 150ms; }
+body:has(.rf-dashboard-shell) .rf-order-chart-day:hover, body:has(.rf-dashboard-shell) .rf-order-chart-day:focus-visible { background: hsl(var(--muted)); }
+body:has(.rf-dashboard-shell) .rf-order-chart-bars { width: 100%; gap: 4px; }
+body:has(.rf-dashboard-shell) .rf-order-chart-bars > span { width: min(20px, 44%); min-height: 0; border-radius: 4px 4px 0 0; }
+body:has(.rf-dashboard-shell) .rf-order-chart-created { background: #53b975; }
+body:has(.rf-dashboard-shell) .rf-order-chart-completed { background: #b5b9bf; }
+.dark body:has(.rf-dashboard-shell) .rf-order-chart-created { background: #62c186; }
+.dark body:has(.rf-dashboard-shell) .rf-order-chart-completed { background: #707782; }
+body:has(.rf-dashboard-shell) .rf-chart-tooltip { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translate(-50%,4px); display: grid; gap: 3px; width: max-content; padding: 9px 12px; background: hsl(var(--popover)); border: 1px solid hsl(var(--border)); border-radius: 9px; box-shadow: 0 6px 20px -8px rgb(0 0 0 / 22%); font-size: 10px; color: hsl(var(--foreground)); opacity: 0; visibility: hidden; pointer-events: none; z-index: 3; transition: opacity 150ms, transform 150ms; }
+body:has(.rf-dashboard-shell) .rf-order-chart-day:hover .rf-chart-tooltip, body:has(.rf-dashboard-shell) .rf-order-chart-day:focus .rf-chart-tooltip { opacity: 1; visibility: visible; transform: translate(-50%,0); }
+body:has(.rf-dashboard-shell) .rf-chart-details { margin-top: 20px; padding-top: 12px; border-top: 1px solid hsl(var(--border) / 65%); font-size: 11px; color: hsl(var(--muted-foreground)); }
+body:has(.rf-dashboard-shell) .rf-chart-details summary { cursor: pointer; width: fit-content; }
+body:has(.rf-dashboard-shell) .rf-chart-details table { width: 100%; text-align: left; margin-top: 12px; }
+body:has(.rf-dashboard-shell) .rf-chart-details :is(th,td) { padding: 7px; font-weight: 400; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shortcuts { display: grid; grid-template-columns: repeat(auto-fit,minmax(92px,1fr)); padding: 5px; border: 1px solid hsl(var(--border)); background: hsl(var(--card)); border-radius: 14px; gap: 3px; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shortcuts .rf-toolbar-item { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 7px; background: transparent; border: 0; border-radius: 9px; color: hsl(var(--muted-foreground)); font-size: 11px; margin: 0; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shortcuts .rf-toolbar-item:hover { background: hsl(var(--muted)); color: hsl(var(--foreground)); }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell .rf-page > header { margin-bottom: 20px; padding-bottom: 0; }
+body:has(.rf-dashboard-shell) .rf-page > header .rf-page-title { font-size: 26px; line-height: 1.25; letter-spacing: -.04em; margin-top: 5px; }
+body:has(.rf-dashboard-shell) .rf-page > header > ul { padding-top: 8px; }
+body:has(.rf-dashboard-shell) .rf-page > header > ul > li > :is(a,span) { border-radius: 9px; border-color: hsl(var(--border) / 70%); padding: 8px 12px; gap: 8px; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell .rf-page { padding-top: 16px; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell table :is(th,td) { padding-block: 13px; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell input::placeholder { color: hsl(var(--muted-foreground) / 70%); }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell :is(input,select,textarea):disabled { opacity: .55; cursor: not-allowed; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell [role='tablist'] { border-radius: 10px; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell [role='tab'] { border-radius: 7px; }
+@media (min-width: 768px) { body:has(.rf-dashboard-shell) .rf-dashboard-shell > .rf-sidebar { transition: width 280ms cubic-bezier(.22,1,.36,1); } body:has(.rf-dashboard-shell) .rf-workspace-body { transition: margin-left 280ms cubic-bezier(.22,1,.36,1); } }
+@media (max-width: 767px) {
+  body:has(.rf-dashboard-shell) .rf-chart-totals { gap: 22px; }
+  body:has(.rf-dashboard-shell) .rf-order-chart { gap: 3px; }
+  body:has(.rf-dashboard-shell) .rf-order-chart-day { padding-inline: 2px; }
+  body:has(.rf-dashboard-shell) .rf-chart-tooltip { font-size: 9px; padding: 6px; }
+  body:has(.rf-dashboard-shell) .rf-order-chart-day:first-child .rf-chart-tooltip { left: 0; transform: none; }
+  body:has(.rf-dashboard-shell) .rf-order-chart-day:last-child .rf-chart-tooltip { left: auto; right: 0; transform: none; }
+  body:has(.rf-dashboard-shell) .rf-dashboard-shortcuts { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  body:has(.rf-dashboard-shell) .rf-dashboard-shortcuts .rf-toolbar-item { flex-direction: column; gap: 6px; padding: 10px 3px; font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) { body:has(.rf-dashboard-shell) .rf-nav-disclosure, body:has(.rf-dashboard-shell) .rf-sidebar-label, body:has(.rf-dashboard-shell) .rf-chart-tooltip, body:has(.rf-dashboard-shell) .rf-order-chart-day, body:has(.rf-dashboard-shell) .rf-dashboard-shell > .rf-sidebar, body:has(.rf-dashboard-shell) .rf-workspace-body { transition: none; } }
+body:has(.rf-dashboard-shell) .rf-sidebar-brand { gap: 6px; }
+body:has(.rf-dashboard-shell) .rf-sidebar-brand [data-brand] { --brand-height: 24px; }
+body:has(.rf-dashboard-shell) .rf-sidebar-brand > button { flex-shrink: 0; }
+/* RenkFlow: production records, technical drawings, restrained colour. */
+body:has(.rf-dashboard-shell), body:has(.rf-dashboard-shell) .rf-app-shell, body:has(.rf-dashboard-shell) .rf-dashboard-shell, body:has(.rf-dashboard-shell) .rf-command-dialog {
+  --background: 45 14% 96%; --foreground: 210 15% 17%; --card: 0 0% 100%; --card-foreground: 210 15% 17%;
+  --muted: 40 9% 93%; --muted-foreground: 210 6% 41%; --border: 40 5% 85%; --input: 40 5% 76%;
+  --acc-primary: 209 24% 25%; --acc-primary-fg: 0 0% 100%; --acc-text: 209 24% 25%; --acc-mark: #314353;
+  --rf-radius: 8px; --radius: 5px; --rf-shadow-soft: none;
+}
+html.dark body:has(.rf-dashboard-shell), .dark body:has(.rf-dashboard-shell) .rf-app-shell, .dark body:has(.rf-dashboard-shell) .rf-dashboard-shell, .dark body:has(.rf-dashboard-shell) .rf-command-dialog {
+  --background: 210 10% 12%; --foreground: 40 10% 91%; --card: 210 9% 15%; --card-foreground: 40 10% 91%;
+  --muted: 210 8% 19%; --muted-foreground: 210 5% 67%; --border: 210 6% 27%; --input: 210 5% 39%;
+  --acc-primary: 208 17% 76%; --acc-primary-fg: 210 15% 15%; --acc-text: 208 17% 76%; --acc-mark: #afc1ce;
+}
+body:has(.rf-dashboard-shell) { font-size: 14px; }
+body:has(.rf-dashboard-shell) h1, body:has(.rf-dashboard-shell) h2, body:has(.rf-dashboard-shell) h3, body:has(.rf-dashboard-shell) .font-display, body:has(.rf-dashboard-shell) .rf-page-title, body:has(.rf-dashboard-shell) .rf-header-title {
+  font-family: var(--font-sans), 'Segoe UI', sans-serif; font-stretch: normal; letter-spacing: -.015em; font-weight: 500;
+}
+body:has(.rf-dashboard-shell) .rf-dashboard-shell :is(h1,h2,h3) { letter-spacing: -.015em; }
+body:has(.rf-dashboard-shell) .rf-page > header .rf-page-title { font-size: 25px; font-weight: 500; letter-spacing: -.015em; }
+body:has(.rf-dashboard-shell) .rf-primary-button, body:has(.rf-dashboard-shell) .rf-ink-button, body:has(.rf-dashboard-shell) .rf-secondary-button {
+  border-radius: 5px; box-shadow: none; background-image: none;
+}
+body:has(.rf-dashboard-shell) .rf-workspace-header .rf-primary-button { border-radius: 5px; height: 32px; }
+body:has(.rf-dashboard-shell) .rf-workspace-header .rf-global-search { border: 1px solid hsl(var(--border)); border-radius: 5px; }
+body:has(.rf-dashboard-shell) .rf-workspace-header .rf-icon-button { background: transparent; border-radius: 5px; }
+body:has(.rf-dashboard-shell) .rf-sidebar, body:has(.rf-dashboard-shell) .rf-dashboard-shell .rf-sidebar { --sb-bg: #eeede9; --sb-active: #fff; --sb-mark: #314353; }
+.dark body:has(.rf-dashboard-shell) .rf-sidebar, .dark body:has(.rf-dashboard-shell) .rf-dashboard-shell .rf-sidebar { --sb-bg: #1c2024; --sb-active: #2d3338; --sb-mark: #afc1ce; }
+body:has(.rf-dashboard-shell) .rf-nav-item { font-size: 13px; border-radius: 5px; }
+body:has(.rf-dashboard-shell) .rf-nav-pill { box-shadow: none; border-radius: 5px; border-left: 2px solid var(--sb-mark); }
+body:has(.rf-dashboard-shell) .rf-sidebar nav section > button { font-size: 11px; }
+body:has(.rf-dashboard-shell) .rf-nav-item svg { stroke-width: 1.5; }
+body:has(.rf-dashboard-shell) .rf-panel, body:has(.rf-dashboard-shell) .rf-dashboard-shell .rf-panel { border-radius: 8px; box-shadow: none; }
+body:has(.rf-dashboard-shell) .rf-overview-card { padding: 20px; }
+body:has(.rf-dashboard-shell) .rf-overview-heading h2 { font-size: 15px; font-weight: 500; }
+body:has(.rf-dashboard-shell) .rf-overview-heading p, body:has(.rf-dashboard-shell) .rf-delivery-list strong, body:has(.rf-dashboard-shell) .rf-production-summary dt { font-size: 12px; }
+body:has(.rf-dashboard-shell) .rf-soft-badge { border: 0; padding: 4px; font-size: 11px; }
+body:has(.rf-dashboard-shell) .rf-metric-strip { border: 0; background: hsl(var(--background)); border-radius: 5px; padding: 0; gap: 0; }
+body:has(.rf-dashboard-shell) .rf-metric-strip > .rf-metric { border-radius: 0; min-height: 112px; padding: 18px 20px; }
+body:has(.rf-dashboard-shell) .rf-metric-strip > .rf-metric:first-child { box-shadow: none; background: transparent; border-right: 1px solid hsl(var(--border)); }
+body:has(.rf-dashboard-shell) .rf-metric-value { font-family: var(--font-sans),sans-serif; font-weight: 400; font-size: 40px; letter-spacing: -.025em; }
+body:has(.rf-dashboard-shell) .rf-metric-strip > .rf-metric > span:first-child { font-size: 12px; }
+body:has(.rf-dashboard-shell) .rf-overview-projects { padding: 20px 0 0; }
+body:has(.rf-dashboard-shell) .rf-overview-projects-heading h3 { font-size: 12px; font-weight: 500; }
+body:has(.rf-dashboard-shell) .rf-overview-projects-heading h3 > span { font-variant-numeric: tabular-nums; color: hsl(var(--muted-foreground)); margin-left: 6px; }
+body:has(.rf-dashboard-shell) .rf-overview-projects-heading > a { border: 0; border-radius: 0; width: auto; height: auto; display: inline-flex; gap: 5px; font-size: 11px; color: hsl(var(--muted-foreground)); }
+body:has(.rf-dashboard-shell) .rf-project-register { margin-top: 12px; }
+body:has(.rf-dashboard-shell) .rf-project-register > a { display: grid; grid-template-columns: 100px 1fr 60px 14px; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid hsl(var(--border) / 65%); font-size: 12px; }
+body:has(.rf-dashboard-shell) .rf-project-register > a > span { font-family: var(--font-mono),monospace; font-size: 10px; color: hsl(var(--muted-foreground)); }
+body:has(.rf-dashboard-shell) .rf-project-register strong { font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body:has(.rf-dashboard-shell) .rf-project-register time { font-size: 11px; color: hsl(var(--muted-foreground)); text-align: right; }
+body:has(.rf-dashboard-shell) .rf-project-register > a:hover { background: hsl(var(--muted)); }
+body:has(.rf-dashboard-shell) .rf-order-chart-created, .dark body:has(.rf-dashboard-shell) .rf-order-chart-created, body:has(.rf-dashboard-shell) .rf-chart-key-created { background: #4e7286; }
+body:has(.rf-dashboard-shell) .rf-order-chart-completed, .dark body:has(.rf-dashboard-shell) .rf-order-chart-completed, body:has(.rf-dashboard-shell) .rf-chart-key-completed { background: #a7adae; }
+body:has(.rf-dashboard-shell) .rf-order-chart-bars > span { border-radius: 2px 2px 0 0; }
+body:has(.rf-dashboard-shell) .rf-chart-totals i { border-radius: 1px; }
+body:has(.rf-dashboard-shell) .rf-chart-totals strong { font-size: 25px; font-weight: 400; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shortcuts { border-radius: 5px; padding: 0; gap: 0; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shortcuts .rf-toolbar-item { border-radius: 0; padding-block: 14px; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shortcuts .rf-toolbar-item + .rf-toolbar-item { border-left: 1px solid hsl(var(--border)); }
+body:has(.rf-dashboard-shell) .rf-input, body:has(.rf-dashboard-shell) .rf-dashboard-shell :is(select,textarea), body:has(.rf-dashboard-shell) .rf-dashboard-shell input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]) { border-radius: 5px; font-size: 13px; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell table thead th { font-size: 11px; }
+body:has(.rf-dashboard-shell) .rf-dashboard-shell table tbody td { font-size: 13px; }
+body:has(.rf-dashboard-shell) .rf-table-container, body:has(.rf-dashboard-shell) .rf-dashboard-shell .rf-data-view .rf-table-container { border-radius: 6px; }
+body:has(.rf-dashboard-shell) .rf-page > header > ul > li > :is(a,span) { border: 0; border-right: 1px solid hsl(var(--border)); border-radius: 0; padding-left: 0; padding-right: 16px; background: transparent; }
+body:has(.rf-dashboard-shell) .rf-page > header > ul > li:last-child > :is(a,span) { border-right: 0; }
+@media(max-width: 900px) { }
+@media(max-width: 767px) { body:has(.rf-dashboard-shell) .rf-overview-card { padding: 16px; } body:has(.rf-dashboard-shell) .rf-project-register > a { grid-template-columns: 82px 1fr 48px; gap: 8px; font-size: 11px; } body:has(.rf-dashboard-shell) .rf-project-register > a > svg { display: none; } body:has(.rf-dashboard-shell) .rf-project-register > a > span { font-size: 9px; } body:has(.rf-dashboard-shell) .rf-dashboard-shortcuts .rf-toolbar-item + .rf-toolbar-item { border-left: 0; } }
+/* File pickers remain visually hidden even while their upload surface is disabled. */
+body:has(.rf-dashboard-shell) .rf-dashboard-shell input[type='file'].opacity-0 { opacity: 0; }
+body:has(.rf-dashboard-shell) .rf-overview-all { border-radius: 5px; }
+
+body:has(.rf-dashboard-shell) { --font-display: var(--font-sans); }
+body:has(.rf-dashboard-shell) [role='dialog'] { border-radius: 8px; }
+body:has(.rf-dashboard-shell) .rounded-\[22px\], body:has(.rf-dashboard-shell) .rounded-\[24px\] { border-radius: 8px; }

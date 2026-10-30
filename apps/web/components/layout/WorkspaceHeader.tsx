@@ -87,9 +87,9 @@ export function WorkspaceHeader() {
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
-    <div className="flex min-w-0 items-center gap-2 text-xs">
-      <Link href="/dashboard" className="hidden text-muted-foreground hover:text-foreground lg:block">Çalışma alanı</Link>
-      <ChevronRight size={13} className="hidden text-muted-foreground/60 lg:block" />
+    <div className="rf-header-title flex min-w-0 items-center gap-2 text-xs">
+
+
       <span className="truncate font-medium text-foreground">{section}</span>
       {detail && <><ChevronRight size={13} className="text-muted-foreground/60" /><span className="text-muted-foreground">{SUBPAGE_LABELS[pathname] ?? 'Detay'}</span></>}
     </div>

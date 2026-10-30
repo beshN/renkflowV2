@@ -68,10 +68,12 @@ export function NavigationGroup({
       )}
       <div
         id={id}
-        hidden={expanded && !open}
-        className="rf-nav-group space-y-0.5"
+        aria-hidden={expanded && !open}
+        inert={expanded && !open}
+        data-open={!expanded || open}
+        className="rf-nav-disclosure"
       >
-        {children}
+        <div className="rf-nav-group"><div className="space-y-0.5">{children}</div></div>
       </div>
     </section>
   );

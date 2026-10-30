@@ -1,4 +1,5 @@
 'use client';
+import '@/styles/panel-theme.css';
 
 import { WorkspaceTitle } from '@/components/brand/WorkspaceTitle';
 import { ReactNode, useEffect, useState } from 'react';
@@ -7,7 +8,7 @@ import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { RouteGuard } from '@/components/auth/RouteGuard';
 import { WorkspaceGate } from '@/components/auth/WorkspaceGate';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
-import { RouteTransition } from '@/components/layout/RouteTransition';
+import { RouteTransition } from '@/components/layout/PanelRouteTransition';
 import { AuthProviders } from '@/lib/context/Providers';
 import { AIChatbot } from '@/components/ai/AIChatbot';
 import { cn } from '@/lib/utils';
@@ -29,7 +30,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="rf-app-shell rf-dashboard-shell relative flex min-h-screen overflow-x-clip">
+    <div className="rf-app-shell rf-dashboard-shell relative flex min-h-screen overflow-x-clip" data-sidebar-state={isSidebarEffectivelyExpanded ? 'expanded' : 'collapsed'}>
 
       <AuthProviders>
         <WorkspaceTitle />
@@ -43,9 +44,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         <div
           className={cn(
-            'relative z-10 flex min-w-0 flex-1 flex-col pb-20 md:pb-0',
+            'rf-workspace-body relative z-10 flex min-w-0 flex-1 flex-col pb-20 md:pb-0',
             'md:transition-[margin-left] md:duration-150 ease-out motion-reduce:transition-none',
-            isSidebarEffectivelyExpanded ? 'md:ml-[252px]' : 'md:ml-[72px]'
           )}
         >
           <WorkspaceHeader />

@@ -87,15 +87,6 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   accounting: Calculator,
   personnel: IdCard,
 };
-/** RAL 9016, 9006, 7016 and 8017, then the accent colour: the frame colours a pergola shop sells most, in the brand strip. */
-const RAL_STRIP = ['#f1f0ea', '#a5a8a6', '#4a5256', '#6b4a3a', 'var(--acc-chrome)'];
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]!.toLocaleUpperCase('tr-TR'))
-    .join('');
 const ROLE_LABELS = {
   owner: 'Yönetici',
   admin: 'Yönetici',
@@ -171,16 +162,11 @@ export function AppleSidebar({
       }}
       className={cn(
         'rf-sidebar fixed left-0 top-0 z-50 hidden h-dvh flex-col overflow-hidden md:flex transition-[width] duration-200 motion-reduce:transition-none',
-        expanded ? 'w-[252px]' : 'w-[72px]',
-        collapsed && expanded && 'shadow-xl',
+        expanded ? 'rf-sidebar-expanded' : 'rf-sidebar-collapsed',
+        collapsed && expanded && 'rf-sidebar-preview',
       )}
     >
-      <div aria-hidden className="rf-ral-strip shrink-0">
-        {RAL_STRIP.map((c) => (
-          <span key={c} style={{ background: c }} />
-        ))}
-      </div>
-      <div className="sb-line flex h-[60px] shrink-0 items-center justify-between gap-3 border-b px-5">
+      <div className="rf-sidebar-brand sb-line flex h-[60px] shrink-0 items-center justify-between gap-3 border-b px-5">
         <BrushLogo><BrandMark href="/dashboard" compact={!expanded} /></BrushLogo>
         {expanded && (
           <button
@@ -198,20 +184,7 @@ export function AppleSidebar({
           </button>
         )}
       </div>
-      <div className="sb-line mx-3 mb-1 mt-3 flex h-12 shrink-0 items-center gap-2.5 border-b px-1.5 pb-3 pt-1">
-        <span
-          aria-hidden
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[4px] bg-[var(--acc-cta)] font-display text-[12px] font-bold text-[var(--acc-cta-fg)] ring-1 ring-white/15"
-        >
-          {initials(user?.tenantName || 'Çalışma alanı')}
-        </span>
-        <div className={cn('min-w-0 flex-1', !expanded && 'sr-only')}>
-          <p className="truncate text-[13px] font-semibold">
-            {user?.tenantName || 'Çalışma alanı'}
-          </p>
-          <p className="sb-muted mt-0.5 text-[11px]">Üretim operasyonları</p>
-        </div>
-      </div>
+      <div className={cn('rf-sidebar-company', !expanded && 'sr-only')} title={user?.tenantName || 'Çalışma alanı'}>{user?.tenantName || 'Çalışma alanı'}</div>
       <nav
         className="flex-1 overflow-x-hidden overflow-y-auto px-3 pb-4"
         aria-label="Modüller"
