@@ -93,3 +93,37 @@ Satın alma talebi ve siparişi tabloları hazırlanmıştır; pilot yalnız do�
 çalıştırır. PDF AI çıktısı `document_extractions` içinde insan onaylı taslak olarak kalır
 ve kendi başına stok hareketi oluşturamaz. Fiziksel artık lotları için `stock_lots`
 hazırdır; kesim optimizasyonu ve yeniden kullanılabilir parça işleme pilot sonrası açılır.
+
+## Pilot öncesi kontrol listesi
+
+`apps/web` içinde, ayrı ve yetkilendirilmiş test veritabanını işaret eden
+`.env.local` ile çalıştırın:
+
+```sh
+npm run pilot:readiness
+npm run pilot:readiness -- --json
+```
+
+Tüm sorgular tek `READ ONLY` transaction içindedir. Komut veri, migration, seed
+veya otomatik düzeltme yazmaz. Türkçe tablo veya JSON bulguları `code`, `severity`,
+`message`, `hint` içerir. Engel varsa çıkış kodu 1; yalnız uyarı/bilgi varsa 0'dır.
+Bağlantı ve yapılandırma hataları da engeldir; hata ayrıntıları yazdırılmaz.
+
+- Ortak native üretim şeması ve ek pilot alanları mevcut mu?
+- `product_family_recipes.family = 'makasli'` için yayınlı reçete var mı?
+  Taslaklar ayrıca incelenir; `validateRecipeExamples` sonucu gösterilir.
+- Her profil kaleminde kg/m, standart boy ve kesit dolu mu?
+- Rotanın her operasyonunda aktif iş merkezi ve atanabilir çalışan var mı?
+  014/025 migration'larındaki `work_centers`, `production_resources` ve aktif
+  `tenant_members` üyeliği kullanılır; zorunlu ekip/makine de kontrol edilir.
+- Her malzemede pozitif kullanılabilir lot ve pozitif bakiye var mı?
+  Eksiklik uyarıdır; miktar yeterliliği, rezervasyon ve depo uygunluğu hesaplanmaz.
+- Genişlik ve derinlik/açılım min/max değerleri bilgi olarak gösterilir;
+  uygunluk hükmü verilmez. Koşullu kalemler ve operasyonlar da incelenir.
+
+024, 035 ve 073 migration'larında test/sentetik bayrağı bulunmadığından bu uyarı
+kuralı eklenmemiştir. 073'teki `verification_source` serbest metin teknik kaynak
+bilgisidir; test bayrağı olarak yorumlanmaz.
+Rapor tenant'lar arasında eşleştirme yapmaz; reçete kodu/sürümü ve kalem adları
+çıktıya girer. Çıktıyı yetkili kişilerle paylaşın. Başarılı rapor fiziksel pilotun
+veya kapasite takviminin doğrulandığı anlamına gelmez.
