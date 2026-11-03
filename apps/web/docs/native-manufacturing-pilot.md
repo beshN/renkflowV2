@@ -207,3 +207,35 @@ bilgisidir; test bayrağı olarak yorumlanmaz.
 Rapor tenant'lar arasında eşleştirme yapmaz; reçete kodu/sürümü ve kalem adları
 çıktıya girer. Çıktıyı yetkili kişilerle paylaşın. Başarılı rapor fiziksel pilotun
 veya kapasite takviminin doğrulandığı anlamına gelmez.
+
+### Makaslı uçtan uca prova
+
+`apps/web` içinde `npm run test:makasli-e2e` (npm). Yeni script mevcut
+servisleri tek zincirde çağırır: korumalar → TEST fixture → hazırlık raporu →
+teklif/idempotency → ticari onay → insan teknik onayı/iş emri → kesim → boya ve
+üretim → MANUFACTURE/mamul stok → yükleme ve teslim. Her geçen adım `PASS ·`,
+fixture kısayolları ve rapor bulguları `BULGU ·`, hata ise adımıyla `FAIL ·` basar.
+Metre, kg ve adet kontrolleri ayrı yapılır. Her çalıştırma UUID slug'lı ayrı TEST
+tenant ve `@example.invalid` kullanıcılar oluşturur.
+
+**Blokeli prova:** Yerel testte fixture servislerle oluşturuldu; hazırlık raporu
+`PROFILE_FIELDS` blocker döndürdü: `profile_section` eksik. `material.save` bu
+alanı kabul etmiyor/yazmıyor. Servis değişikliği veya raw UPDATE ile aşılmadı.
+Bu nedenle tekliften teslimata sonraki adımlar ve FINISHED defter kontrolleri
+bu provada henüz doğrulanmadı; 10 PASS / sıfır çıkış kabulü sağlanmış değildir.
+Delme kuralı ve kimlik/üyelik bootstrap kayıtları etiketli INSERT ile hazırlanır;
+aile eşlemesi `importFamilyRecipe` üzerinden yapılır. Föy servisinin kullandığı
+`FOY-MAKASLI` mamul ve reçete de önceden TEST adıyla servisle oluşturulur.
+
+Script dış `DATABASE_URL` değerini yok sayar; yalnız `localTestDatabaseURL()`,
+loopback host ve `current_database()='renkflow_test'` korumalarıyla çalışır.
+Migration çalıştırmaz; eksik tabloyu açık hata olarak verir. Mevcut integration
+runner ise geçici kümede **hem renkflow_dev hem renkflow_test şeması hazırlar**
+ve başarılı script çıktısını gizler. Dolayısıyla bu runner ile mutlak
+“renkflow_dev'e yazma yok” ve komutta 10 görünür PASS şartları üç dosyalık
+kapsam içinde sağlanamaz. Bu prova doğrulanırken repo dışı test düzeneği yalnız
+izole renkflow_test hazırladı; runner komutlarının geçtiği iddia edilmez.
+
+Fiziksel pilot, gerçek reçeteler, gerçek fotoğraf, PDF/AI çıkarımı, bildirim,
+finans ve kapasite doğrulanmaz. Sentetik föyün owner tarafından açık teknik
+onayı insan onayı sınırını temsil eder; AI çıktısı insan onayı gerektirir.
