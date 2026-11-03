@@ -15,7 +15,10 @@ import path from 'node:path';
 
 const ROOT = path.resolve(__dirname, '..');
 // Not integration tests: test-db.ts only probes the DATABASE_URL in .env.local.
-const EXCLUDED = new Set(['test-db.ts']);
+const EXCLUDED = new Set(['test-db.ts', 'test-makasli-e2e.ts']);
+// The makasli rehearsal is blocked on material.save/profile_section and must not
+// make the default CI suite fail. Run it directly on a prepared renkflow_test;
+// this runner bootstraps renkflow_dev too, so even explicit selection is refused.
 
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -73,6 +76,9 @@ function startDatabase(env: NodeJS.ProcessEnv): Promise<ChildProcess> {
 
 async function main() {
   const only = process.argv.slice(2).map((name) => `test-${name.replace(/^test-|\.ts$/g, '')}.ts`);
+  if (only.includes('test-makasli-e2e.ts')) {
+    throw new Error('makasli-e2e: this runner also prepares renkflow_dev; use RENKFLOW_TEST_DB_PORT=<port> node --require ./scripts/register-server-only.cjs --import tsx scripts/test-makasli-e2e.ts on a prepared local renkflow_test (see docs/native-manufacturing-pilot.md)');
+  }
   const scripts = readdirSync(path.join(ROOT, 'scripts'))
     .filter((name) => /^test-.*\.ts$/.test(name) && !EXCLUDED.has(name))
     .filter((name) => !only.length || only.includes(name))

@@ -60,6 +60,22 @@ async function main() {
         (await db`SELECT to_regclass(${"public." + table}) AS name`)[0].name,
         `Eksik tablo: ${table}; prova migration çalıştırmaz`,
       );
+    // Services use lib/db's eagerly cached pool, not the private fixture client.
+    // Verify it before importing/calling any domain service or writing fixtures.
+    const { withTransaction } = await import("../lib/db");
+    const pool = await withTransaction(
+      (tx) =>
+        tx`SELECT current_database() AS name, host(inet_server_addr()) AS host`,
+    );
+    assert.equal(
+      pool[0]?.name,
+      "renkflow_test",
+      "Servis havuzu renkflow_test olmalı",
+    );
+    assert.equal(pool[0]?.host, "127.0.0.1", "Servis havuzu loopback olmalı");
+    findings.push(
+      "lib/db kod incelemesi: yalnız DATABASE_URL; POSTGRES_URL/DIRECT_URL önceliği, dotenv yüklemesi ve Neon sürücüsü yok. Servis havuzu transaction ile doğrulandı.",
+    );
     pass();
     const { PostgresQuotationService } =
       await import("../lib/features/quotations/postgres.service");
@@ -69,10 +85,12 @@ async function main() {
       await import("../lib/features/orders/technical.server");
     const { requireCommercialApproval } =
       await import("../lib/features/orders/quote-file.server");
-    const { withTransaction } = await import("../lib/db");
     const { emptyFoy } = await import("../lib/features/foy/types");
 
     step = "Fixture";
+    findings.push(
+      "Makaslıya özel FoyDoc tipi yok (pergola/windbreaker/unknown). TEST sentetik föy mevcut pergola systems/railOuter/bays alanlarını family=makasli adaptörüne verir; gerçek makaslı föy/PDF doğrulaması değildir.",
+    );
     findings.push(
       "INSERT tenants/users/tenant_members: izole TEST kimliği ve üyelik bootstrap servisi yok",
       "INSERT customers: mevcut teknik testin izole TEST müşterisi",
@@ -142,8 +160,20 @@ async function main() {
       cuttingConfirmed: true,
       emailEnabled: false,
       whatsappEnabled: false,
-      productionLeadUserId: w.id,
     });
+    // preferences.save strips productionLeadUserId; use the existing settings service.
+    const { saveProductionLead } =
+      await import("../lib/features/settings/production-settings.service");
+    await saveProductionLead(actor, { leadUserId: w.id });
+    assert.equal(
+      (
+        await db`SELECT production_lead_user_id FROM manufacturing_preferences WHERE tenant_id=${t.id}`
+      )[0].production_lead_user_id,
+      w.id,
+    );
+    findings.push(
+      "preferences.save üretim lideri alanını yazmaz; mevcut saveProductionLead servisiyle worker lider seçildi.",
+    );
     const { importFamilyRecipe } =
       await import("../lib/features/products/recipe-template.service");
     const imported = await importFamilyRecipe(actor, {
@@ -165,8 +195,15 @@ async function main() {
       imported.ok && "recipe" in imported,
       "aile reçetesi servisle içe aktarılmalı",
     );
+    // importFamilyRecipe returns id/code/version, but does not expose editRevision.
+    // Read the persisted revision of the imported recipe instead of assuming 1.
+    const [importedRevision] =
+      await db`SELECT edit_revision FROM production_recipes WHERE tenant_id=${t.id} AND id=${imported.recipe.id} AND version=${imported.recipe.version}`;
+    assert(
+      importedRevision && Number.isInteger(importedRevision.edit_revision),
+    );
     const recipe = await cmd("recipe.save", {
-      editRevision: 1,
+      editRevision: importedRevision.edit_revision,
       code: "TEST-MAK-PILOT",
       name: "TEST sentetik makaslı reçete",
       version: 1,
@@ -325,6 +362,7 @@ async function main() {
           .total_amount,
       ),
       0,
+      "ensureQuoteFile taslak/onaysız dosyada total_amount=0 tutar; acceptQuoteFile onayda ticari tutarı kopyalar",
     );
     pass();
     step = "Onay";
@@ -373,6 +411,7 @@ async function main() {
     );
     pass();
     step = "İş emri";
+    // No makasli FoyDoc template exists; the adaptation is reported above.
     const doc = emptyFoy("pergola");
     Object.assign(doc, {
       ral: "7016",
@@ -414,9 +453,16 @@ async function main() {
     assert.equal(jobs.length, 1);
     const job = jobs[0];
     assert.equal(job.cut_plan_id, approved.cutPlanId);
+    const [jobRecipe] =
+      await db`SELECT code FROM production_recipes WHERE tenant_id=${t.id} AND id=${job.recipe_id}`;
+    assert.equal(
+      jobRecipe.code,
+      "FOY-MAKASLI",
+      "approveTechnicalPlan uses createSheetJobs, not the commercial recipe",
+    );
     if (job.assigned_to !== w.id) {
       findings.push(
-        "Üretim liderine otomatik atama yok; raw UPDATE yerine operation.assign deneniyor",
+        "Üretim liderine otomatik iş emri ataması yok; operation.assign yalnız operasyonu atar, work_orders.assigned_to alanını düzeltmez. Raw UPDATE yapılmaz; operasyon ataması denenip iş emri kontrolü fail eder",
       );
       for (const op of await db`SELECT * FROM production_operations WHERE tenant_id=${t.id} AND work_order_id=${job.id}`)
         await cmd("operation.assign", {
@@ -430,7 +476,7 @@ async function main() {
         await db`SELECT assigned_to FROM work_orders WHERE tenant_id=${t.id} AND id=${job.id}`
       )[0].assigned_to,
       w.id,
-      "kesim için iş emri worker'a atanmalı",
+      "Kesim ve teslim için iş emri üretim liderine atanmalı; operation.assign iş emrini atamaz",
     );
     assert.equal(job.production_item_id, finished.id);
     pass();
@@ -504,7 +550,11 @@ async function main() {
       });
     const operations =
       await db`SELECT * FROM production_operations WHERE tenant_id=${t.id} AND work_order_id=${job.id} ORDER BY position`;
-    assert.equal(operations.length, 3);
+    assert.deepEqual(
+      operations.map((op) => op.name),
+      ["Kesim", "Boya", "Son hazırlık"],
+      "createSheetJobs FOY-MAKASLI için bu üç operasyonu üretir",
+    );
     for (const initial of operations) {
       let [op] =
         await db`SELECT * FROM production_operations WHERE tenant_id=${t.id} AND id=${initial.id}`;
@@ -582,7 +632,7 @@ async function main() {
       vehiclePlate: "TEST",
     };
     await assert.rejects(
-      loadOrder(worker, { ...load, checkedIds: [] }),
+      loadOrder(worker, { ...load, commandId: randomUUID(), checkedIds: [] }),
       /tamlık/,
     );
     const loaded = await loadOrder(worker, load);
@@ -607,7 +657,11 @@ async function main() {
         commandId: randomUUID(),
         lines: [{ workOrderId: job.id, quantity: 1 }],
       }),
-      /aş|kalan|tamam|hazır|yüklen/i,
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message === "Paketlenmiş miktardan fazla sevk edilemez" &&
+        "status" in error &&
+        error.status === 409,
     );
     assert.equal(await finishedBalance(), 0);
     const [shipment] =

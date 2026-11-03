@@ -22,7 +22,6 @@
     "type-check:manufacturing": "tsc --noEmit -p tsconfig.manufacturing.json",
     "test": "jest",
     "test:manufacturing": "jest --config jest.manufacturing.config.js --runInBand",
-    "test:makasli-e2e": "tsx scripts/run-integration-tests.ts makasli-e2e",
     "test:integration": "tsx scripts/run-integration-tests.ts",
     "load:seed": "tsx scripts/load/seed-load.ts",
     "load:run": "node scripts/load/run-load.mjs",

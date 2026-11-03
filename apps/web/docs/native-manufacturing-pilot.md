@@ -210,32 +210,63 @@ veya kapasite takviminin doğrulandığı anlamına gelmez.
 
 ### Makaslı uçtan uca prova
 
-`apps/web` içinde `npm run test:makasli-e2e` (npm). Yeni script mevcut
-servisleri tek zincirde çağırır: korumalar → TEST fixture → hazırlık raporu →
-teklif/idempotency → ticari onay → insan teknik onayı/iş emri → kesim → boya ve
-üretim → MANUFACTURE/mamul stok → yükleme ve teslim. Her geçen adım `PASS ·`,
-fixture kısayolları ve rapor bulguları `BULGU ·`, hata ise adımıyla `FAIL ·` basar.
-Metre, kg ve adet kontrolleri ayrı yapılır. Her çalıştırma UUID slug'lı ayrı TEST
-tenant ve `@example.invalid` kullanıcılar oluşturur.
+Önceden hazırlanmış, yalnız loopback üzerinde çalışan izole `renkflow_test`
+veritabanıyla, `apps/web` içinde (örnek yerel port 55547):
 
-**Blokeli prova:** Yerel testte fixture servislerle oluşturuldu; hazırlık raporu
-`PROFILE_FIELDS` blocker döndürdü: `profile_section` eksik. `material.save` bu
-alanı kabul etmiyor/yazmıyor. Servis değişikliği veya raw UPDATE ile aşılmadı.
-Bu nedenle tekliften teslimata sonraki adımlar ve FINISHED defter kontrolleri
-bu provada henüz doğrulanmadı; 10 PASS / sıfır çıkış kabulü sağlanmış değildir.
-Delme kuralı ve kimlik/üyelik bootstrap kayıtları etiketli INSERT ile hazırlanır;
-aile eşlemesi `importFamilyRecipe` üzerinden yapılır. Föy servisinin kullandığı
-`FOY-MAKASLI` mamul ve reçete de önceden TEST adıyla servisle oluşturulur.
+```sh
+RENKFLOW_TEST_DB_PORT=55547 node --require ./scripts/register-server-only.cjs --import tsx scripts/test-makasli-e2e.ts
+```
 
-Script dış `DATABASE_URL` değerini yok sayar; yalnız `localTestDatabaseURL()`,
-loopback host ve `current_database()='renkflow_test'` korumalarıyla çalışır.
-Migration çalıştırmaz; eksik tabloyu açık hata olarak verir. Mevcut integration
-runner ise geçici kümede **hem renkflow_dev hem renkflow_test şeması hazırlar**
-ve başarılı script çıktısını gizler. Dolayısıyla bu runner ile mutlak
-“renkflow_dev'e yazma yok” ve komutta 10 görünür PASS şartları üç dosyalık
-kapsam içinde sağlanamaz. Bu prova doğrulanırken repo dışı test düzeneği yalnız
-izole renkflow_test hazırladı; runner komutlarının geçtiği iddia edilmez.
+Bu komut veritabanını başlatmaz, şema/migration uygulamaz; eksik tabloyu açık
+hata olarak bildirir. `npm run db:local` veya integration runner ile hazırlamayın:
+bunlar renkflow_dev'i de hazırlar. Yalnız test veritabanı hazırlayan izole bir
+test düzeneği kullanılmalıdır. `test:makasli-e2e` npm satırı kaldırılmıştır.
+Script stdout'u doğrudan görünür.
 
-Fiziksel pilot, gerçek reçeteler, gerçek fotoğraf, PDF/AI çıkarımı, bildirim,
-finans ve kapasite doğrulanmaz. Sentetik föyün owner tarafından açık teknik
-onayı insan onayı sınırını temsil eder; AI çıktısı insan onayı gerektirir.
+Zincir: korumalar → TEST fixture → hazırlık raporu → teklif/idempotency →
+ticari onay → insan teknik onayı/iş emri → kesim → boya/üretim →
+MANUFACTURE/mamul stok → yükleme/teslim. Her geçen adım `PASS ·`, fixture
+kısayolları ve rapor bulguları `BULGU ·`, hata ise adımıyla `FAIL ·` basar.
+Metre, kg ve adet kontrolleri ayrıdır; her çalıştırma UUID slug'lı TEST tenant
+ve `@example.invalid` kullanıcılar oluşturur.
+
+**Blokeli prova:** Hazırlık raporu `PROFILE_FIELDS / profile_section` blocker
+verir; `material.save` bu alanı kabul etmiyor/yazmıyor. Servis değişikliği veya
+raw UPDATE ile aşılmaz. Sonraki adımlar ve FINISHED kontrolleri henüz uçtan uca
+doğrulanmadı; 10 PASS / sıfır çıkış kabulü sağlanmadı. Delme kuralı ve kimlik/
+üyelik bootstrap kayıtları etiketli INSERT'tir; aile eşlemesi `importFamilyRecipe`
+ile yapılır. Import sonucu yalnız reçete id/code/version içerdiği için
+editRevision bu id/sürümün kalıcı kaydından okunur; sabit 1 varsayılmaz.
+
+Dış `DATABASE_URL` yok sayılır. Özel istemci yanında, ilk domain servisinden ve
+fixture yazımından önce `withTransaction` ile **lib/db servis havuzunda** da
+`current_database()='renkflow_test'` ve sunucu adresi `127.0.0.1` doğrulanır.
+`lib/db/index.ts` kod incelemesi: ana/meta havuzlar yalnız `DATABASE_URL`
+kullanır; `POSTGRES_URL`/`DIRECT_URL` önceliği, dotenv yüklemesi veya Neon
+sürücüsü yoktur. URL, lib/db import edilmeden önce yerel test URL'sine sabitlenir.
+
+Genel runner başlangıçta `test-*.ts` dosyalarını otomatik keşfediyordu;
+`.github/workflows/validate.yml` genel `test:integration` komutunu çağırır.
+Blokeli prova artık runner'ın EXCLUDED listesinde olduğundan genel CI turuna
+girmez. `makasli-e2e` seçici argümanı runner tarafından tanınır fakat artık DB
+başlatılmadan, doğrudan güvenli komutu gösteren açık hatayla reddedilir; karma
+seçim de reddedilir. Diğer integration testlerinin davranışı değişmez. Blocker
+kalkınca otomatik katılım ayrı değerlendirilmelidir; #134 boş-DB çakışması
+çözülmüş sayılmaz.
+
+Föy şemasında makaslıya özel tip yoktur (pergola/windbreaker/unknown).
+Sentetik fixture mevcut pergola `systems/railOuter/bays` alanlarını
+`family=makasli` adaptörüne verir ve bunu BULGU olarak yazar; gerçek makaslı
+föy doğrulaması değildir. `approveTechnicalPlan` → `createSheetJobs`, ticari
+TEST-MAK-PILOT yerine FOY-MAKASLI reçetesine bağlı iş emri ve sabit
+Kesim/Boya/Son hazırlık operasyonları üretir. Mamul/reçete kartları önceden TEST
+adlarıyla oluşturulur. `preferences.save` üretim lideri alanını yok sayar; fixture mevcut
+`saveProductionLead(actor, {leadUserId})` servisini kullanır ve kalıcı ayarı
+doğrular. `createSheetJobs` bu ayarı iş emri ve operasyon atamasında kullanır. `operation.assign` yalnız operasyonu değiştirir;
+iş emri atanmamışsa prova raw UPDATE yapmadan açıkça fail eder.
+Onaysız dosyanın total_amount=0 beklentisi `ensureQuoteFile` davranışıdır;
+`acceptQuoteFile` müşteri onayında ticari tutarı aynı dosyaya kopyalar.
+
+Fiziksel pilot, gerçek reçeteler/fotoğraf, PDF/AI çıkarımı, bildirim, finans ve
+kapasite doğrulanmaz. Owner teknik onayı insan onayı sınırını temsil eder;
+AI çıktısı insan onayı gerektirir.
