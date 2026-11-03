@@ -46,7 +46,7 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: `PORT=${PORT} AUTH_URL=${BASE_URL} NEXT_PUBLIC_APP_URL=${BASE_URL} PUBLIC_SITE_MODE=off DATABASE_URL='postgresql://postgres:postgres@localhost:5432/renkflow?host=/cloudsql/local-dev' npm run start`,
+    command: `PORT=${PORT} AUTH_URL=${BASE_URL} NEXT_PUBLIC_APP_URL=${BASE_URL} PUBLIC_SITE_MODE=off AUTH_TRUST_HOST=true ALLOW_INSECURE_HTTP=1 ALLOW_LOCAL_DATABASE=1 DATABASE_URL='postgresql://postgres:postgres@127.0.0.1:5432/renkflow_e2e' npm run start:next`,
     url: BASE_URL,
     reuseExistingServer: false,
     timeout: 120 * 1000,

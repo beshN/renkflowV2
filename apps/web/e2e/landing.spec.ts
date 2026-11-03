@@ -13,7 +13,7 @@ test.describe('Landing Page', () => {
     const heroHeading = page.locator('h1');
     await expect(heroHeading).toBeVisible();
     await expect(heroHeading).toContainText(
-      /Üretim|Optimize|Production|Workflow|الإنتاج|Ekiplerinizi|tek merkezden/i,
+      /Ölçü bir kez girilir.*Teklif, kesim ve sevkiyat ondan çıkar/s,
     );
   });
 
@@ -39,10 +39,10 @@ test.describe('Landing Page', () => {
     await expect(html).toHaveClass(/dark|light/);
   });
 
-  test('should display language selector', async ({ page }) => {
-    const langButton = page
-      .getByRole('button', { name: /Dil|Language|اللغة|Türkçe|English|العربية/i })
-      .or(page.locator('button[aria-haspopup="listbox"]').first());
-    await expect(langButton).toBeVisible();
+  // The current public header has product navigation, rather than a language selector.
+  test('should display public navigation', async ({ page }) => {
+    const menu = page.getByRole('navigation', { name: 'Ana menü', exact: true });
+    await expect(menu.getByRole('link', { name: 'Özellikler', exact: true })).toHaveAttribute('href', '/features');
+    await expect(menu.getByRole('link', { name: 'Fiyatlandırma', exact: true })).toHaveAttribute('href', '/pricing');
   });
 });

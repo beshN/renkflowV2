@@ -79,3 +79,42 @@ jobs:
           if ! npm --prefix apps/web audit --omit=dev --audit-level=high --workspaces=false > /dev/null; then
             echo "::warning title=npm audit::Production dependencies have high advisories; see this job's log and fix them in a dependency PR."
           fi
+
+  e2e:
+    # Public browser tests run without deployment credentials or external services.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/web
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/renkflow_e2e
+      ALLOW_LOCAL_DATABASE: '1'
+      ALLOW_INSECURE_HTTP: '1'
+      AUTH_TRUST_HOST: 'true'
+      AUTH_SECRET: e2e-only-not-a-production-secret-32-chars
+      AUTH_URL: http://localhost:4173
+      NEXT_PUBLIC_APP_URL: http://localhost:4173
+      PUBLIC_SITE_MODE: 'off'
+      E2E_INCLUDE_PRIVATE: '0'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - run: npm ci --workspaces=false --legacy-peer-deps
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      # finance.spec.ts explicitly skips private flows: they require seeded tenant/auth/DB
+      # fixtures. Public auth tests only render forms; no login/signup or provider calls.
+      - name: Run existing public E2E tests (private fixture-dependent flows skipped)
+        run: npm run test:e2e -- --project=chromium
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: web-e2e-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          retention-days: 7

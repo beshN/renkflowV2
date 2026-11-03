@@ -5,6 +5,7 @@
  * Conversational AI assistant interface
  */
 
+import { ChatRequestError, chatErrorMessage } from '@/lib/ai/chat-errors';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -39,6 +40,7 @@ interface Message {
   content: string;
   timestamp: Date;
   isLoading?: boolean;
+  isError?: boolean;
   suggestions?: string[];
   metadata?: {
     type?: 'query' | 'action' | 'suggestion';
@@ -242,7 +244,7 @@ export function AIChat({ onClose, initialMessage, context }: AIChatProps) {
       // Build conversation history for AI context
       const history = messages
         .filter((m) => m.role === 'user' || m.role === 'assistant')
-        .filter((m) => !m.isLoading)
+        .filter((m) => !m.isLoading && !m.isError)
         .slice(-10)
         .map((m) => ({ role: m.role, content: m.content }));
 
@@ -259,7 +261,7 @@ export function AIChat({ onClose, initialMessage, context }: AIChatProps) {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error || `HTTP ${res.status}`);
+        throw new ChatRequestError(data);
       }
 
       // Replace loading message with actual response
@@ -286,7 +288,8 @@ export function AIChat({ onClose, initialMessage, context }: AIChatProps) {
           {
             id: `error_${Date.now()}`,
             role: 'assistant',
-            content: 'Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.',
+            content: chatErrorMessage(error),
+            isError: true,
             timestamp: new Date(),
           },
         ];

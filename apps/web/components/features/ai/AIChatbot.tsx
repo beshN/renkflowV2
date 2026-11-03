@@ -1,5 +1,6 @@
 'use client';
 
+import { ChatRequestError, chatErrorMessage } from '@/lib/ai/chat-errors';
 import { assistantFormSummary } from '@/lib/ai/assistant-form-drafts';
 import { modelUnavailableMessage } from '@/lib/ai/policy';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
@@ -426,12 +427,12 @@ export function AIChatbot() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         if (response.status === 401) {
-          throw new Error('Oturumunuz sona ermiş. Sayfayı yenileyip tekrar giriş yapın.');
+          throw new ChatRequestError({ error: 'Oturumunuz sona ermiş. Sayfayı yenileyip tekrar giriş yapın.' });
         }
         if (response.status === 429) {
-          throw new Error('Çok fazla istek gönderdiniz. Lütfen birkaç saniye bekleyin.');
+          throw new ChatRequestError({ error: 'Çok fazla istek gönderdiniz. Lütfen birkaç saniye bekleyin.' });
         }
-        throw new Error(errorData?.error || `Sunucu hatası (${response.status})`);
+        throw new ChatRequestError(errorData);
       }
 
       const data = await response.json();
@@ -470,7 +471,7 @@ export function AIChatbot() {
         const errorMessage: Message = {
           id: `err_${Date.now()}`,
           role: 'assistant',
-          content: `Bir sorun oluştu: ${error.message || 'Bilinmeyen hata'}. Lütfen tekrar deneyin.`,
+          content: chatErrorMessage(error),
           timestamp: new Date(),
           suggestions: ['Tekrar dene'],
           isError: true,

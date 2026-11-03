@@ -20,6 +20,7 @@ export async function financeWorkspace(a:WorkOrderActor,employeeId?:string) {
     sql`SELECT p.*,o.order_number,o.customer_name FROM payments p JOIN orders o ON o.id=p.order_id AND o.tenant_id=p.tenant_id WHERE p.tenant_id=${a.tenantId} ORDER BY p.paid_at DESC LIMIT 500`,
     sql`SELECT o.id,o.order_number,o.customer_name,o.currency,o.total_amount,COALESCE(SUM(p.amount)FILTER(WHERE p.currency=o.currency),0)AS paid_amount FROM orders o LEFT JOIN payments p ON p.order_id=o.id AND p.tenant_id=o.tenant_id WHERE o.tenant_id=${a.tenantId} GROUP BY o.id ORDER BY o.created_at DESC LIMIT 500`,
   ]);
+  if(employeeId && employees.length===0)fail('Çalışan kaydı bulunamadı',404);
   return {actor:a,employees,entries,payments,orders};
 }
 async function writablePeriod(tx:any,a:WorkOrderActor,date:string){
