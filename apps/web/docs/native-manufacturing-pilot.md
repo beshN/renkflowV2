@@ -251,8 +251,8 @@ Blokeli prova artık runner'ın EXCLUDED listesinde olduğundan genel CI turuna
 girmez. `makasli-e2e` seçici argümanı runner tarafından tanınır fakat artık DB
 başlatılmadan, doğrudan güvenli komutu gösteren açık hatayla reddedilir; karma
 seçim de reddedilir. Diğer integration testlerinin davranışı değişmez. Blocker
-kalkınca otomatik katılım ayrı değerlendirilmelidir; #134 boş-DB çakışması
-çözülmüş sayılmaz.
+kalkınca otomatik katılım ayrı değerlendirilmelidir. Boş DB isteyen
+pilot-readiness testi de genel runner dışında tutulur; ayrı komutu aşağıdadır.
 
 Föy şemasında makaslıya özel tip yoktur (pergola/windbreaker/unknown).
 Sentetik fixture mevcut pergola `systems/railOuter/bays` alanlarını
@@ -270,3 +270,13 @@ Onaysız dosyanın total_amount=0 beklentisi `ensureQuoteFile` davranışıdır;
 Fiziksel pilot, gerçek reçeteler/fotoğraf, PDF/AI çıkarımı, bildirim, finans ve
 kapasite doğrulanmaz. Owner teknik onayı insan onayı sınırını temsil eder;
 AI çıktısı insan onayı gerektirir.
+
+### Genel entegrasyon runner'ından ayrım
+
+`npm run test:integration` ve CI `validate.yml`, testlerden önce uygulama şemasını
+hazırlar. `test-pilot-readiness.ts` ise tamamen boş `renkflow_dev` ve
+`renkflow_test` gerektirdiği için bu runner'ın `EXCLUDED` listesinde gerekçesiyle
+birlikte tutulur. Genel entegrasyon turu bu testi çalıştırmaz. Yukarıdaki
+`db:local -- --empty` ve ayrı `npm run test:pilot-readiness` adımlarıyla
+çalıştırılmalıdır; mevcut CI validate adımı bu ayrı kontrolü otomatik çalıştırmaz.
+Boş DB koruması, loopback sınırlaması ve salt okunur rapor oturumu korunur.

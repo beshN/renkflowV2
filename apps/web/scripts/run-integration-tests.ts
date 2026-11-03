@@ -14,8 +14,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const ROOT = path.resolve(__dirname, '..');
-// Not integration tests: test-db.ts only probes the DATABASE_URL in .env.local.
-const EXCLUDED = new Set(['test-db.ts', 'test-makasli-e2e.ts']);
+// test-db.ts only probes DATABASE_URL in .env.local.
+// test-pilot-readiness.ts requires completely empty dev/test databases; this
+// runner applies the application schema first. Run it separately with
+// db:local -- --empty, then npm run test:pilot-readiness (see pilot docs).
+const EXCLUDED = new Set(['test-db.ts', 'test-pilot-readiness.ts', 'test-makasli-e2e.ts']);
 // The makasli rehearsal is blocked on material.save/profile_section and must not
 // make the default CI suite fail. Run it directly on a prepared renkflow_test;
 // this runner bootstraps renkflow_dev too, so even explicit selection is refused.
