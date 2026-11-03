@@ -11,10 +11,12 @@ jest.mock('@/lib/features/work-orders/security', () => ({
   },
 }));
 jest.mock('@/lib/security/rate-limit', () => ({ consumeRateLimit: async () => ({ allowed: true }), rateLimitHeaders: () => ({}) }));
-jest.mock('@/lib/ai/policy', () => ({ ModelBlockedError: class extends Error {} }));
 import { NextRequest } from 'next/server';
 import { POST } from '@/app/api/ai/chat/route';
 import { AI_CREDIT_MESSAGE } from '@/lib/ai/chat-errors';
+import { requireWorkOrderActor, WorkOrderApiError } from '@/lib/features/work-orders/security';
+import { ModelBlockedError } from '@/lib/ai/policy';
+import { ZodError } from 'zod';
 const mockAssist = jest.fn();
 const request = () => new NextRequest('http://localhost/api/ai/chat', {
   method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'http://localhost' },
@@ -44,4 +46,29 @@ test('a subsequent request can succeed after credit failure', async () => {
   const response = await POST(request());
   expect(response.status).toBe(200);
   expect((await response.json()).response).toBe('Kayıtlı işleriniz.');
+});
+
+test('a WorkOrderApiError mentioning kredi preserves its original status and message', async () => {
+  const error = new WorkOrderApiError('İşlem için kredi yetersiz; finans yetkinizi kontrol edin.', 403);
+  jest.mocked(requireWorkOrderActor).mockRejectedValueOnce(error);
+  const response = await POST(request());
+  expect(response.status).toBe(403);
+  expect(await response.json()).toEqual({ error: error.message });
+});
+test('a model policy error takes priority over credit wording', async () => {
+  const error = new ModelBlockedError('AI_BUDGET');
+  error.message = 'Bugünkü model bütçesi için kredi yetersiz.';
+  mockAssist.mockRejectedValueOnce(error);
+  const response = await POST(request());
+  expect(response.status).toBe(409);
+  expect(await response.json()).toEqual({ error: error.message, code: 'AI_BUDGET' });
+});
+test.each([
+  new SyntaxError('kredi yetersiz'),
+  new ZodError([{ code: 'custom', path: ['message'], message: 'kredi yetersiz' }]),
+])('validation errors take priority over credit wording', async (error) => {
+  mockAssist.mockRejectedValueOnce(error);
+  const response = await POST(request());
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({ error: 'Mesaj bilgilerini kontrol edip yeniden deneyin.' });
 });

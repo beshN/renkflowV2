@@ -14,13 +14,17 @@ function permission(a:WorkOrderActor,p:Permission){const act=p==='finance.view'?
 const fail=(s:string,status=409):never=>{throw new WorkOrderApiError(s,status);};
 export async function financeWorkspace(a:WorkOrderActor,employeeId?:string) {
   permission(a,'finance.view');
+  const employeeQuery=sql`SELECT * FROM employees WHERE tenant_id=${a.tenantId} AND (${!employeeId} OR id=${employeeId || null}) ORDER BY full_name LIMIT 500`;
+  // Resolve a filtered employee before starting the other queries: a missing employee is a 404,
+  // even when an unrelated finance table is unavailable. Unfiltered reads remain parallel.
+  const selectedEmployees=employeeId?await employeeQuery:undefined;
+  if(selectedEmployees && selectedEmployees.length===0)fail('Çalışan kaydı bulunamadı',404);
   const [employees,entries,payments,orders]=await Promise.all([
-    sql`SELECT * FROM employees WHERE tenant_id=${a.tenantId} AND (${!employeeId} OR id=${employeeId || null}) ORDER BY full_name LIMIT 500`,
+    selectedEmployees ?? employeeQuery,
     sql`SELECT l.*,e.full_name FROM employee_ledger_entries l JOIN employees e ON e.id=l.employee_id AND e.tenant_id=l.tenant_id WHERE l.tenant_id=${a.tenantId} AND (${!employeeId} OR l.employee_id=${employeeId || null}) ORDER BY l.entry_date DESC,l.created_at DESC LIMIT 500`,
     sql`SELECT p.*,o.order_number,o.customer_name FROM payments p JOIN orders o ON o.id=p.order_id AND o.tenant_id=p.tenant_id WHERE p.tenant_id=${a.tenantId} ORDER BY p.paid_at DESC LIMIT 500`,
     sql`SELECT o.id,o.order_number,o.customer_name,o.currency,o.total_amount,COALESCE(SUM(p.amount)FILTER(WHERE p.currency=o.currency),0)AS paid_amount FROM orders o LEFT JOIN payments p ON p.order_id=o.id AND p.tenant_id=o.tenant_id WHERE o.tenant_id=${a.tenantId} GROUP BY o.id ORDER BY o.created_at DESC LIMIT 500`,
   ]);
-  if(employeeId && employees.length===0)fail('Çalışan kaydı bulunamadı',404);
   return {actor:a,employees,entries,payments,orders};
 }
 async function writablePeriod(tx:any,a:WorkOrderActor,date:string){

@@ -45,10 +45,10 @@ export async function POST(req:NextRequest) {
   });
   return NextResponse.json({success:true,model:assistantModelInfo(answer.modelUsed),response:answer.answer,suggestions:answer.suggestions.slice(0,4),actions,toolsUsed:[...new Set([...Object.keys(snapshot.data).filter(k=>Array.isArray(snapshot.data[k]) && !['unavailable'].includes(k)),...searched])],context:{generatedAt:snapshot.data.generatedAt,scope:snapshot.data.scope},confidence:null},{headers:{'Cache-Control':'private, no-store'}});
  } catch(error) {
-  if(isInsufficientCreditError(error))return NextResponse.json({error:AI_CREDIT_MESSAGE,code:'ai_insufficient_credit',mode:'ai_unavailable'},{status:503,headers:{'Cache-Control':'private, no-store'}});
   if(error instanceof WorkOrderApiError)return NextResponse.json({error:error.message},{status:error.status});
   if(error instanceof ModelBlockedError)return NextResponse.json({error:error.message,code:error.block},{status:409});
   if(error instanceof ZodError || error instanceof SyntaxError)return NextResponse.json({error:'Mesaj bilgilerini kontrol edip yeniden deneyin.'},{status:400});
+  if(isInsufficientCreditError(error))return NextResponse.json({error:AI_CREDIT_MESSAGE,code:'ai_insufficient_credit',mode:'ai_unavailable'},{status:503,headers:{'Cache-Control':'private, no-store'}});
   console.error('[Assistant]',error instanceof Error?error.message:'failed');
   return NextResponse.json({error:'Asistan şu anda yanıt veremiyor. Operasyon önerileri ve uygulama ekranları kullanılabilir.'},{status:503});
  }
