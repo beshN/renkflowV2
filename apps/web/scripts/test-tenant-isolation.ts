@@ -1,0 +1,103 @@
+/** Integration coverage for real services; loopback renkflow_test only. */
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import postgres from 'postgres';
+import { localTestDatabaseURL } from './local-test-database';
+async function main() {
+  process.env.DATABASE_URL = localTestDatabaseURL();
+  process.env.AUTH_SECRET = 'isolated-test-only-tenant-review-secret';
+  process.env.NATIVE_INVENTORY_ENABLED = '1';
+  const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
+  try {
+    assert.equal((await db`SELECT current_database() AS name`)[0].name, 'renkflow_test');
+    // Inventory is diagnostic, not a claim that application-role RLS is effective.
+    const inventory = await db`
+      SELECT c.relname AS table_name, c.relrowsecurity AS rls,
+        c.relforcerowsecurity AS force_rls,
+        (SELECT count(*)::int FROM pg_policy p WHERE p.polrelid=c.oid) AS policies
+      FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+      WHERE n.nspname='public' AND c.relkind='r'
+        AND EXISTS(SELECT 1 FROM pg_attribute a WHERE a.attrelid=c.oid
+          AND a.attname IN ('tenant_id','organization_id'))
+      ORDER BY c.relname
+    `;
+    console.log('RLS_INVENTORY=' + JSON.stringify(inventory));
+    const children = await db`
+      SELECT child.relname AS table_name, parent.relname AS parent_table,
+        child.relrowsecurity AS rls,
+        (SELECT count(*)::int FROM pg_policy p WHERE p.polrelid=child.oid) AS policies
+      FROM pg_constraint fk
+      JOIN pg_class child ON child.oid=fk.conrelid
+      JOIN pg_namespace n ON n.oid=child.relnamespace
+      JOIN pg_class parent ON parent.oid=fk.confrelid
+      WHERE fk.contype='f' AND n.nspname='public'
+        AND NOT EXISTS(SELECT 1 FROM pg_attribute a WHERE a.attrelid=child.oid
+          AND a.attname IN ('tenant_id','organization_id'))
+        AND EXISTS(SELECT 1 FROM pg_attribute a WHERE a.attrelid=parent.oid
+          AND a.attname IN ('tenant_id','organization_id'))
+      ORDER BY child.relname, parent.relname
+    `;
+    console.log('TENANT_CHILDREN=' + JSON.stringify(children));
+    const { PostgresOrderService } = await import('../lib/features/orders/postgres/order.postgres');
+    const { PostgresQuotationService } = await import('../lib/features/quotations/postgres.service');
+    const wo = await import('../lib/features/work-orders/service');
+    const stock = await import('../lib/features/manufacturing/inventory.service');
+    const platform = await import('../lib/features/manufacturing/platform.service');
+    const orders = new PostgresOrderService(), quotes = new PostgresQuotationService();
+    const fixtures = [];
+    for (const name of ['a', 'b']) {
+      const tenantId = randomUUID(), userId = randomUUID();
+      await db`INSERT INTO tenants(id,name,slug) VALUES(${tenantId},${name},${tenantId})`;
+      await db`INSERT INTO users(id,name,email) VALUES(${userId},${name},${userId + '@test.local'})`;
+      await db`INSERT INTO tenant_members(tenant_id,user_id,role) VALUES(${tenantId},${userId},'owner')`;
+      const actor = { tenantId, userId, role: 'owner' as const };
+      const [order] = await db`INSERT INTO orders(tenant_id,order_number,customer_name,status,total_amount) VALUES(${tenantId},${name},${name},'approved',100) RETURNING *`;
+      const [job] = await db`INSERT INTO work_orders(tenant_id,title,order_id,created_by) VALUES(${tenantId},${name},${order.id},${userId}) RETURNING *`;
+      const [item] = await db`INSERT INTO inventory_items(tenant_id,sku,name) VALUES(${tenantId},${name},${name}) RETURNING *`;
+      const [warehouse] = await db`INSERT INTO warehouses(tenant_id,code,name,warehouse_type) VALUES(${tenantId},${name},${name},'FINISHED') RETURNING *`;
+      const entry = await stock.postStockEntry(actor, { entryType: 'MATERIAL_RECEIPT', idempotencyKey: randomUUID(), lines: [{ itemId: item.id, warehouseId: warehouse.id, quantityDelta: 5, uom: 'adet' }] });
+      const [shipment] = await db`INSERT INTO production_shipments(tenant_id,order_id,work_order_id,quantity,stock_entry_id,created_by) VALUES(${tenantId},${order.id},${job.id},1,${entry.id},${userId}) RETURNING *`;
+      const quote = await quotes.createQuotation(tenantId, { currency: 'TRY', discountPercent: 0, customerName: name, items: [{ productName: name, quantity: 1, unitPrice: 100, discountPercent: 0, totalPrice: 100 }] }, userId);
+      fixtures.push({ actor, order, job, item, warehouse, shipment, quote });
+    }
+    for (const [own, other] of [[fixtures[0], fixtures[1]], [fixtures[1], fixtures[0]]]) {
+      const t = own.actor.tenantId;
+      const listed = await orders.getOrders(t);
+      assert.ok(listed.some(o => o.id === own.order.id));
+      assert.ok(!listed.some(o => o.id === other.order.id));
+      await assert.rejects(orders.getOrderById(t, other.order.id), /Tenant mismatch/);
+      await assert.rejects(orders.updateOrder(t, other.order.id, { customerName: 'forbidden' }), /Tenant mismatch/);
+      assert.ok(await quotes.getQuotationById(t, own.quote.id));
+      assert.equal(await quotes.getQuotationById(t, other.quote.id), null);
+      await assert.rejects(quotes.updateQuotation(t, other.quote.id, { customerName: 'forbidden' }), /Teklif bulunamadı/);
+      assert.equal((await wo.getWorkOrderDetails(t, own.job.id)).id, own.job.id);
+      await assert.rejects(wo.getWorkOrderDetails(t, other.job.id), /bulunamadı/);
+      await assert.rejects(wo.updateWorkOrder(own.actor, other.job.id, { title: 'forbidden' }), /bulunamadı/);
+      const balances = await stock.getStockBalances(t);
+      assert.ok(balances.some((b: { item_id: string }) => b.item_id === own.item.id));
+      assert.ok(!balances.some((b: { item_id: string }) => b.item_id === other.item.id));
+      await assert.rejects(stock.postStockEntry(own.actor, { entryType: 'MATERIAL_RECEIPT', idempotencyKey: randomUUID(), lines: [{ itemId: other.item.id, warehouseId: own.warehouse.id, quantityDelta: 1, uom: 'adet' }] }), /bulunamadı/);
+      const overview = await platform.productionOverview(own.actor);
+      assert.ok(overview.shipments.some((s: { id: string }) => s.id === own.shipment.id));
+      assert.ok(!overview.shipments.some((s: { id: string }) => s.id === other.shipment.id));
+      await assert.rejects(platform.productionCommand(own.actor, { commandId: randomUUID(), action: 'shipment.delivered', data: { id: other.shipment.id, version: 1 } }), /Sevkiyat değişti/);
+      assert.equal((await db`SELECT customer_name FROM orders WHERE id=${other.order.id}`)[0].customer_name, other.order.customer_name);
+      assert.equal((await db`SELECT customer_name FROM quotations WHERE id=${other.quote.id}`)[0].customer_name, other.quote.customerName);
+      assert.equal((await db`SELECT title FROM work_orders WHERE id=${other.job.id}`)[0].title, other.job.title);
+      assert.equal(Number((await db`SELECT on_hand_qty FROM stock_balances WHERE item_id=${other.item.id} AND tenant_id=${other.actor.tenantId}`)[0].on_hand_qty), 5);
+      assert.equal((await db`SELECT status FROM production_shipments WHERE id=${other.shipment.id}`)[0].status, other.shipment.status);
+    }
+    // FKs permit inconsistent ownership; HTTP creation of this state is not established.
+    const [a, b] = fixtures;
+    const [ownDocument] = await db`INSERT INTO documents(tenant_id,order_id,name,file_path) VALUES(${a.actor.tenantId},${a.order.id},'own-document','own-test-key') RETURNING id`;
+    await db`INSERT INTO documents(tenant_id,order_id,name,file_path) VALUES(${b.actor.tenantId},${a.order.id},'foreign-document','foreign-test-key')`;
+    assert.deepEqual((await orders.getOrderById(a.actor.tenantId, a.order.id))!.documents?.map(d => d.id), [ownDocument.id]);
+    assert.deepEqual((await orders.getOrders(a.actor.tenantId)).find(o => o.id === a.order.id)!.documents?.map(d => d.id), [ownDocument.id]);
+    console.log('PASS: both tenants; orders, quotes, work orders, stock, shipments and inconsistent documents');
+  } finally {
+    await db.end();
+    const { getSql, getMetaSql } = await import('../lib/db');
+    await Promise.all([getSql().end(), getMetaSql().end()]);
+  }
+}
+main().catch(error => { console.error(error); process.exitCode = 1; });
