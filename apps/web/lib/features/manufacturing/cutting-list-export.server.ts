@@ -2,7 +2,7 @@ import 'server-only';
 import { z } from 'zod';
 import { sql } from '@/lib/db';
 import { WorkOrderApiError, requireWorkOrderPermission, type WorkOrderActor } from '@/lib/features/work-orders/security';
-import { cuttingListCsv, type CuttingCsvRow } from './cutting-list-csv';
+import { cuttingListCsv, storedMillimetres, type CuttingCsvRow } from './cutting-list-csv';
 
 /** Same office roles as cutPlanSheet; membership narrowing also applies. SELECT only. */
 export async function exportCuttingList(actor: WorkOrderActor, id: string) {
@@ -25,11 +25,10 @@ export async function exportCuttingList(actor: WorkOrderActor, id: string) {
     LEFT JOIN orders o ON o.id=w.order_id AND o.tenant_id=w.tenant_id AND o.tenant_id=${t}
     WHERE c.tenant_id=${t} AND c.id=${id}
     ORDER BY b.position,p.position`;
-  const mm = (v: unknown) => typeof v === 'number' && Number.isFinite(v) ? v : null;
   return cuttingListCsv(rows.map((r: Record<string, unknown>): CuttingCsvRow => ({
     orderNumber: r.order_number as string | null, profileCode: r.profile_code as string | null,
-    profileName: r.profile_name as string | null, profileLengthMm: mm(r.profile_length_mm),
-    pieceLengthMm: mm(r.piece_length_mm), remainingMm: mm(r.remaining_mm),
+    profileName: r.profile_name as string | null, profileLengthMm: storedMillimetres(r.profile_length_mm),
+    pieceLengthMm: storedMillimetres(r.piece_length_mm), remainingMm: storedMillimetres(r.remaining_mm),
     barPosition: Number(r.bar_position), piecePosition: Number(r.piece_position),
     parameterSource: plan.result?.parameterSource, status: plan.status,
   })));

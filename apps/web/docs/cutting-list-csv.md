@@ -18,9 +18,9 @@ Her satır kayıtlı bir fiziksel parçadır: adet 1; profil/parça sırası kay
 profil kodu `inventory_items.profile_code` alanından gelir (SKU ile doldurulmaz).
 İsim ve kod güncel tenant stok kartındandır; plan tarihindeki bir katalog snapshot'ı
 değildir. Uzunluk ve artık yalnız kayıttaki mm değerlerinden alınır; kg, m veya adet
-çevrimi/toplamı yoktur. Artık her parçada tekrarlanır, toplanmamalıdır. Açı ve
+çevrimi/toplamı yoktur. Profil artığı yalnız profilin ilk parça satırında yazılır; sonraki satırlar boştur. Açı ve
 etiket/parça kodu mevcut motorun kayıt sözleşmesinde yoktur: boş sütun bırakılır.
-Eksik numara/kod/ölçü sıfır veya başka veriyle doldurulmaz. `parameterSource`
+Eski JSON kayıtlarındaki geçerli ondalık mm metinleri sayıya okunur; boş, birim içeren veya geçersiz metinler boş kalır. Eksik numara/kod/ölçü sıfır veya başka veriyle doldurulmaz. `parameterSource`
 `default`/`unconfirmed` ise Tahmini=Evet, `confirmed` ise Hayır, yoksa boş.
 
 Kesim föyünün owner/admin/office rol sınırı korunur; ayrıca mevcut üye erişim
