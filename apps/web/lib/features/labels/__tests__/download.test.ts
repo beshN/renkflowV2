@@ -10,32 +10,18 @@ jest.mock('@/lib/security/field-access.server', () => ({ hidesAny: jest.fn().moc
 // Keep the real labelRecord tenant queries; isolate unrelated production dependencies.
 jest.mock('@/lib/features/manufacturing/platform.service', () => ({ cutPlanSheet: jest.fn() }));
 jest.mock('@/lib/features/manufacturing/inventory.service', () => ({}));
+import { hidesAny } from '@/lib/security/field-access.server';
 import { sql } from '@/lib/db';
 import { requireWorkOrderActor, WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { requireCap } from '@/lib/features/field/common.server';
 import { cutPlanSheet } from '@/lib/features/manufacturing/platform.service';
 import { GET } from '@/app/api/v1/labels/zpl/route';
 const tenantA = '10000000-0000-4000-8000-000000000001';
-const tenantB = '20000000-0000-4000-8000-000000000001';
 const foreignId = '30000000-0000-4000-8000-000000000001';
 const actor = { tenantId: tenantA, userId: foreignId, role: 'office' };
 const request = (kind: string, id = foreignId) => new Request(`http://localhost/api/v1/labels/zpl?kind=${kind}&id=${id}`);
 beforeEach(() => { jest.mocked(requireWorkOrderActor).mockResolvedValue(actor as never); jest.mocked(requireCap).mockResolvedValue({} as never); });
-it.each(['shipment', 'location', 'job'])('denies another tenant’s %s through the real service and scoped SQL', async (kind) => {
-  const seen: string[] = [];
-  jest.mocked(sql).mockImplementation((parts: TemplateStringsArray, ...values: unknown[]) => {
-    const query = parts.join('?'); seen.push(query);
-    expect(query).toMatch(/tenant_id=/);
-    expect(values).toContain(tenantA);
-    expect(values).not.toContain(tenantB);
-    // Fixture exists only in B. An unscoped query would expose it.
-    return Promise.resolve(values.includes(tenantB) || !query.includes('tenant_id=') ? [{ id: foreignId, customer_name: 'FOREIGN' }] : []) as never;
-  });
-  const response = await GET(request(kind));
-  expect(response.status).toBe(404);
-  expect(await response.text()).not.toContain('FOREIGN');
-  expect(seen.length).toBeGreaterThan(0);
-});
+// Real SQL tenant and JOIN isolation is covered by scripts/test-zpl-labels.ts.
 it('forwards the authenticated tenant to the existing cut-sheet authorization', async () => {
   jest.mocked(cutPlanSheet).mockRejectedValue(new WorkOrderApiError('Kesim planı bulunamadı', 404));
   expect((await GET(request('cut'))).status).toBe(404);
@@ -79,4 +65,30 @@ it('does not label a draft or cancelled plan', async () => {
     jest.mocked(cutPlanSheet).mockResolvedValue({ status } as never);
     expect((await GET(request('cut'))).status).toBe(409);
   }
+});
+
+it('returns 403 before reading shipment data when customer_contact is hidden', async () => {
+  jest.mocked(hidesAny).mockResolvedValueOnce(true);
+  const response = await GET(request('shipment'));
+  expect(response.status).toBe(403);
+  expect(hidesAny).toHaveBeenCalledWith(['customer_contact']);
+  expect(sql).not.toHaveBeenCalled();
+});
+it('rejects a missing shipment unit and names overflowing identity fields in 422 responses', async () => {
+  jest.mocked(sql).mockResolvedValue([{ customer_name: 'Test', order_number: 'TEST', title: 'Test', quantity: 2, production_uom: null }] as never);
+  const missing = await GET(request('shipment'));
+  expect(missing.status).toBe(422);
+  expect(await missing.text()).toContain('production_uom');
+  jest.mocked(sql).mockResolvedValue([{ customer_name: 'Test', order_number: 'A'.repeat(43), title: 'Test', quantity: 2, production_uom: 'adet' }] as never);
+  const overflowing = await GET(request('shipment'));
+  expect(overflowing.status).toBe(422);
+  expect(await overflowing.text()).toContain('Sipariş no:');
+});
+it('downloads a long company title and summary while retaining quantity and unit', async () => {
+  jest.mocked(sql).mockResolvedValue([{ customer_name: 'Çığ Şirketi '.repeat(8), order_number: 'TEST', title: 'Türkçe ürün '.repeat(8), quantity: 2, production_uom: 'adet' }] as never);
+  const response = await GET(request('shipment'));
+  expect(response.status).toBe(200);
+  const body = await response.text();
+  expect(body).toContain('_E2_80_A6');
+  expect(body).toContain('_32_20_61_64_65_74');
 });

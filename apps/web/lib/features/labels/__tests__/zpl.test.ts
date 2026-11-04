@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { escapeZpl, generateZpl, labelDots, type ZplLabel } from '../zpl';
+import { escapeZpl, generateZpl, labelDots, shortenZplText, type ZplLabel } from '../zpl';
 const code = 'RF-R-012345ABCDEF';
 export const fixtures: ZplLabel[] = [
   { kind: 'cut', orderNumber: 'TEST-001', profileCode: 'P-108', lengthMm: 1250, quantity: 1, workOrder: '00000000-0000-4000-8000-000000000001', code: '00000000-0000-4000-8000-000000000001' },
@@ -30,4 +30,22 @@ describe('ZPL labels', () => {
     expect(() => generateZpl({ kind: 'location', locationCode: 'x'.repeat(51), code })).toThrow();
     expect(() => generateZpl({ ...fixtures[0], kind: 'cut', orderNumber: '', profileCode: '', workOrder: '', code, lengthMm: 12, quantity: 1.5 })).toThrow();
   });
+});
+
+it('shortens free text by code point with an escaped ellipsis, while keeping identities strict', () => {
+  const customer = 'Çığ İmalat Şirketi Türkçe Özel Profil Sanayi ve Ticaret Anonim Şirketi';
+  const summary = 'çğıİöşü😀'.repeat(10) + '^XZ';
+  const label = { kind: 'shipment' as const, customer, orderNumber: 'TEST-001', packageNumber: '', packageTotal: '', summary };
+  const output = generateZpl(label);
+  expect(output).toContain(escapeZpl('Müşteri: ' + Array.from(customer).slice(0, 40).join('') + '…'));
+  expect(output).toContain(escapeZpl(Array.from(summary).slice(0, 49).join('') + '…'));
+  expect(output).not.toContain('_EF_BF_BD');
+  expect(shortenZplText('ç'.repeat(48) + '😀ZY', 50)).toBe('ç'.repeat(48) + '😀…');
+  expect(shortenZplText('çğıİöşü😀', 9)).toBe('çğıİöşü😀');
+  expect(shortenZplText('çğıİöşü😀x', 8)).toBe('çğıİöşü…');
+  expect(() => generateZpl({ ...label, orderNumber: 'A'.repeat(43) })).toThrow('Sipariş no:');
+  expect(() => generateZpl({ kind: 'location', locationCode: 'A'.repeat(51), code })).toThrow('Raf kodu:');
+  expect(() => generateZpl({ kind: 'location', locationCode: 'A1', code: code.repeat(4) })).toThrow('QR içeriği:');
+  const cut = fixtures[0];
+  if (cut.kind === 'cut') expect(() => generateZpl({ ...cut, workOrder: 'A'.repeat(43) })).toThrow('İş emri:');
 });
