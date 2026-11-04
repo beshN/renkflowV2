@@ -97,7 +97,7 @@ describe('request-layer retry behavior', () => {
       const fetcher = jest.fn().mockRejectedValue(forbiddenError);
 
       await expect(
-        cachedRequest('test:403:once', fetcher, { retryDelay: 1 })
+        cachedRequest('test:403:once', fetcher, { retryDelay: 0 })
       ).rejects.toThrow('Bu işlem için yetkiniz yok');
 
       expect(fetcher).toHaveBeenCalledTimes(1);
@@ -108,7 +108,7 @@ describe('request-layer retry behavior', () => {
       const fetcher = jest.fn().mockRejectedValue(unauthorizedError);
 
       await expect(
-        cachedRequest('test:401:once', fetcher, { retryDelay: 1 })
+        cachedRequest('test:401:once', fetcher, { retryDelay: 0 })
       ).rejects.toThrow('Unauthorized');
 
       expect(fetcher).toHaveBeenCalledTimes(1);
@@ -120,7 +120,7 @@ describe('request-layer retry behavior', () => {
         const fetcher = jest.fn().mockRejectedValue(error);
 
         await expect(
-          cachedRequest(`test:${status}:once`, fetcher, { retryDelay: 1 })
+          cachedRequest(`test:${status}:once`, fetcher, { retryDelay: 0 })
         ).rejects.toThrow(`Validation error ${status}`);
 
         expect(fetcher).toHaveBeenCalledTimes(1);
@@ -132,7 +132,7 @@ describe('request-layer retry behavior', () => {
       const fetcher = jest.fn().mockRejectedValue(networkError);
 
       await expect(
-        cachedRequest('test:network:retry-zero', fetcher, { retry: 0, retryDelay: 1 })
+        cachedRequest('test:network:retry-zero', fetcher, { retry: 0, retryDelay: 0 })
       ).rejects.toThrow('Failed to fetch');
 
       expect(fetcher).toHaveBeenCalledTimes(1);
@@ -148,7 +148,7 @@ describe('request-layer retry behavior', () => {
 
       const result = await cachedRequest('test:network:retry-two', fetcher, {
         retry: 2,
-        retryDelay: 1,
+        retryDelay: 0,
       });
 
       expect(result).toBe('third-time-charm');
@@ -162,7 +162,7 @@ describe('request-layer retry behavior', () => {
         .mockRejectedValueOnce(networkError)
         .mockResolvedValueOnce({ success: true, orders: ['order-1'] });
 
-      const result = await cachedRequest('test:network:retry-success', fetcher, { retryDelay: 1 });
+      const result = await cachedRequest('test:network:retry-success', fetcher, { retryDelay: 0 });
 
       expect(result).toEqual({ success: true, orders: ['order-1'] });
       // 1 initial attempt + 1 retry = 2 total executions
@@ -174,7 +174,7 @@ describe('request-layer retry behavior', () => {
       const fetcher = jest.fn().mockRejectedValue(networkError);
 
       await expect(
-        cachedRequest('test:network:fail-after-retry', fetcher, { retryDelay: 1 })
+        cachedRequest('test:network:fail-after-retry', fetcher, { retryDelay: 0 })
       ).rejects.toThrow('Failed to fetch');
 
       // 1 initial attempt + 1 retry = 2 total executions (default retry = 1)
@@ -188,7 +188,7 @@ describe('request-layer retry behavior', () => {
         .mockRejectedValueOnce(serverError)
         .mockResolvedValueOnce({ ok: true });
 
-      const result = await cachedRequest('test:500:retry-success', fetcher, { retryDelay: 1 });
+      const result = await cachedRequest('test:500:retry-success', fetcher, { retryDelay: 0 });
 
       expect(result).toEqual({ ok: true });
       expect(fetcher).toHaveBeenCalledTimes(2);
@@ -202,7 +202,7 @@ describe('request-layer retry behavior', () => {
         .mockResolvedValueOnce('recovered');
 
       const result = await cachedRequest('test:custom:predicate', fetcher, {
-        retryDelay: 1,
+        retryDelay: 0,
         shouldRetry: (err) => err === customError,
       });
 
@@ -219,7 +219,7 @@ describe('request-layer retry behavior', () => {
 
       const { result } = renderHook(() =>
         useCachedQuery('test:hook:403', fetcher, {
-          retryDelay: 1,
+          retryDelay: 0,
           onError,
         })
       );
@@ -242,7 +242,7 @@ describe('request-layer retry behavior', () => {
 
       const { result } = renderHook(() =>
         useCachedQuery('test:hook:network-retry', fetcher, {
-          retryDelay: 1,
+          retryDelay: 0,
         })
       );
 
