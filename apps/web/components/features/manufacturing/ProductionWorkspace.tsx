@@ -326,7 +326,7 @@ export default function ProductionWorkspace() {
                 name="recipeId"
                 label="Yayınlanmış reçete"
                 options={data.recipes
-                  .filter((r: any) => r.status === "published")
+                  .filter((r: any) => r.status === "published" || (r.status === "archived" && (data.orders || []).some((o: any) => o.product_configuration?.recipeId === r.id)))
                   .map((r: any) => ({
                     id: r.id,
                     name: `${r.name} · v${r.version}`,

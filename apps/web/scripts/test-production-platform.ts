@@ -322,6 +322,16 @@ async function main() {
   await db.unsafe(migration);
   await db.unsafe(migration);
   const snapshots = await db`SELECT id,bom_snapshot FROM work_orders WHERE tenant_id=${tenant.id} AND id=ANY(${jobIds}::uuid[]) ORDER BY id`;
+  await db`INSERT INTO product_family_recipes(tenant_id,family,recipe_code) VALUES(${tenant.id},'pergola',${definition.code}) ON CONFLICT DO NOTHING`;
+  const choice = { family: "pergola", recipeId: recipe.id, color: "Boyasız", parameters: { widthMm: 3000, projectionMm: 1500, mountingHeightMm: 3100 } };
+  let retainedQuote = await quotes.createQuotation(tenant.id, {
+    ...quoteData, idempotencyKey: randomUUID(), items: [0, 1].map(() => ({ ...quoteData.items[0], productConfiguration: choice })),
+  } as any, user.id);
+  retainedQuote = await quotes.updateStatus(tenant.id, retainedQuote.id, 'sent', retainedQuote.version, user.id, 'owner');
+  retainedQuote = await quotes.updateStatus(tenant.id, retainedQuote.id, 'accepted', retainedQuote.version, user.id, 'owner');
+  const retainedOrder = await quotes.convertToOrder(tenant.id, retainedQuote.id, user.id);
+  await db`UPDATE orders SET technical_file_required=false WHERE tenant_id=${tenant.id} AND id=${retainedOrder.orderId}`;
+  const retainedLines = await db`SELECT id FROM order_items WHERE order_id=${retainedOrder.orderId} ORDER BY id`;
   const nextRecipe = await command("recipe.save", { ...definition, version: 2 });
   for (const reason of [undefined, "", "  ", 42]) {
     await assert.rejects(command("recipe.publish", { id: nextRecipe.id, reason }), /Yayın gerekçesi zorunludur/);
@@ -336,6 +346,37 @@ async function main() {
   assert.equal((await db`SELECT status FROM production_recipes WHERE tenant_id=${tenant.id} AND id=${recipe.id}`)[0].status, "archived");
   assert.equal((await db`SELECT status FROM production_recipes WHERE tenant_id=${ecoTenant.id} AND id=${foreignRecipe.id}`)[0].status, "published");
   assert.deepEqual(await db`SELECT id,bom_snapshot FROM work_orders WHERE tenant_id=${tenant.id} AND id=ANY(${jobIds}::uuid[]) ORDER BY id`, snapshots);
+  const { configureProduct, configurationOptions, previewConfiguration } = await import('../lib/features/products/configure.service');
+  await assert.rejects(previewConfiguration(actor, { currency: "TRY", choice }), /yayında değil/);
+  await assert.rejects(quotes.createQuotation(tenant.id, { ...quoteData, idempotencyKey: randomUUID(), items: [{ ...quoteData.items[0], productConfiguration: choice }] } as any, user.id), /yayında değil/);
+  assert.deepEqual((await configurationOptions(actor, "pergola")).recipes.map((r: any) => r.id), [nextRecipe.id]);
+  await assert.rejects(command("job.create", { orderItemId: retainedLines[0].id, recipeId: nextRecipe.id, sourceWarehouseId: warehouses.RAW.id, wipWarehouseId: warehouses.WIP.id, targetWarehouseId: warehouses.FINISHED.id, assignedTo: user.id }), /aynı reçeteyi seçin/);
+  const retainedJob = await makeJob(retainedLines[0].id);
+  assert.equal(retainedJob.bom_snapshot.recipe.version, 1);
+  assert.equal(retainedJob.recipe_id, recipe.id);
+  const { createJobsForConfiguredOrder, rebuildConfiguredJob } = await import('../lib/features/manufacturing/platform.service');
+  const release = await db.begin(tx => createJobsForConfiguredOrder(tx, actor, retainedOrder.orderId));
+  assert.equal(release.created.length, 1);
+  assert.deepEqual(release.pending.map(p => [p.orderItemId, p.reason]), [[retainedLines[0].id, "Bu kalem için üretim emri zaten var"]]);
+  const [autoJob] = await db`SELECT recipe_id,bom_snapshot FROM work_orders WHERE tenant_id=${tenant.id} AND id=${release.created[0].id}`;
+  assert.equal(autoJob.recipe_id, recipe.id);
+  assert.equal(autoJob.bom_snapshot.recipe.version, 1);
+  const reconfigured = await configureProduct(db, tenant.id, "TRY", { ...choice, parameters: { ...choice.parameters, widthMm: 3200 } }, undefined, retainedLines[0].id);
+  assert.equal(reconfigured.recipeId, recipe.id);
+  assert.equal(reconfigured.recipe.version, 1);
+  await assert.rejects(configureProduct(db, ecoTenant.id, "TRY", choice, undefined, retainedLines[0].id));
+  await assert.rejects(configureProduct(db, tenant.id, "TRY", choice, undefined, orderItems[0].id), /yayında değil/);
+  await db.begin(async tx => {
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${tenant.id},0))`;
+    await tx`UPDATE order_items SET width_mm=3200 WHERE order_id=${retainedOrder.orderId} AND id=${retainedLines[0].id}`;
+    const rebuilt = await rebuildConfiguredJob(tx, actor, retainedLines[0].id, "TRY");
+    assert.equal(rebuilt.rebuilt, true);
+    const [job] = await tx`SELECT recipe_id,bom_snapshot FROM work_orders WHERE tenant_id=${tenant.id} AND id=${rebuilt.workOrderId}`;
+    assert.equal(job.recipe_id, recipe.id);
+    assert.equal(job.bom_snapshot.recipe.version, 1);
+  });
+  await assert.rejects(command("recipe.publish", { id: nextRecipe.id, reason: "a".repeat(1001) }), /en fazla 1000 karakter/);
+  console.log("PASS · archived v1: configured quote/order survives v2, manual/automatic jobs retain v1 snapshot, order reconfiguration/rebuild retains v1, new configuration rejects v1");
   const audit = await db`SELECT note,metadata FROM activity_logs WHERE tenant_id=${tenant.id} AND entity_id=${nextRecipe.id} AND action='recipe.publish'`;
   assert.equal(audit.length, 1);
   assert.equal(audit[0].note, "Yeni teknik sürüm");
@@ -360,10 +401,17 @@ async function main() {
   assert.equal((await db`SELECT status FROM production_recipes WHERE tenant_id=${tenant.id} AND id=${nextRecipe.id}`)[0].status, "published");
   assert.equal((await db`SELECT status FROM production_recipes WHERE tenant_id=${tenant.id} AND id=${rollbackDraft.id}`)[0].status, "draft");
   const concurrentDrafts = await Promise.all([3, 4].map(version => command("recipe.save", { ...definition, version })));
-  await Promise.all(concurrentDrafts.map(draft => command("recipe.publish", { id: draft.id, reason: "Eşzamanlı yerel test" })));
+  await Promise.all(concurrentDrafts.map(draft => command("recipe.publish", { id: draft.id, reason: "a".repeat(1000) })));
   assert.equal((await db`SELECT count(*)::int AS n FROM production_recipes WHERE tenant_id=${tenant.id} AND code=${definition.code} AND status='published'`)[0].n, 1);
   assert.deepEqual(await db`SELECT id,bom_snapshot FROM work_orders WHERE tenant_id=${tenant.id} AND id=ANY(${jobIds}::uuid[]) ORDER BY id`, snapshots);
   console.log("PASS · ECO-lite: partial unique index, idempotent conflict skip without data changes, tenant isolation, required reason, audit replay, unchanged bom_snapshot");
+
+  if (process.env.RENKFLOW_TEST_RECIPE_ARCHIVE_ONLY === "1") {
+    await db.end();
+    const { sql } = await import('../lib/db');
+    await sql.end();
+    return;
+  }
 
   // Without the workshop's own values the plan is made with the defaults and says it is an estimate.
   const savedPreferences = (await db`SELECT * FROM manufacturing_preferences WHERE tenant_id=${tenant.id}`)[0];

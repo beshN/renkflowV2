@@ -644,6 +644,7 @@ async function execute(
     manager(a);
     const reason = typeof data.reason === "string" ? data.reason.trim() : "";
     if (!reason) fail("Yayın gerekçesi zorunludur", 400);
+    if (reason.length > 1000) fail("Yayın gerekçesi en fazla 1000 karakter olabilir", 400);
     const [row] =
       await tx`SELECT * FROM production_recipes WHERE tenant_id=${t} AND id=${uuid.parse(data.id)}`;
     if (!row) fail("Reçete bulunamadı", 404);
@@ -782,8 +783,10 @@ async function createJob(
     t = a.tenantId;
   const [item] =
     await tx`SELECT oi.*,o.id AS oid,o.order_number,o.delivery_date FROM order_items oi JOIN orders o ON o.id=oi.order_id WHERE o.tenant_id=${t} AND oi.id=${d.orderItemId} AND o.status NOT IN('cancelled','delivered','completed') FOR UPDATE OF oi`;
+  const pc = item?.product_configuration as ProductConfiguration | null | undefined;
   const [r] =
-    await tx`SELECT * FROM production_recipes WHERE tenant_id=${t} AND id=${d.recipeId} AND status='published'`;
+    await tx`SELECT * FROM production_recipes WHERE tenant_id=${t} AND id=${d.recipeId}
+      AND (status='published' OR (status='archived' AND id=${pc?.recipeId || null}))`;
   if (!item || !r) fail("Onaylı reçete veya sipariş kalemi bulunamadı", 404);
   await requireCommercialApproval(tx, t, item.oid);
   if(await columnExists('orders','quotation_id')) {
@@ -791,7 +794,6 @@ async function createJob(
     if(file?.required==='true' && !(await tx`SELECT id FROM order_technical_revisions WHERE tenant_id=${t} AND order_id=${item.oid} AND status='approved'`).length) fail('Önce siparişin teknik planını onaylayın');
   }
   // A line configured in the quote is built with the recipe, measures, options and colour it was quoted with.
-  const pc = item.product_configuration as ProductConfiguration | null | undefined;
   if (pc && pc.recipeId !== r.id) fail(`Bu kalem teklifte "${pc.recipe.code}" reçetesinin ${pc.recipe.version}. sürümüyle yapılandırıldı; aynı reçeteyi seçin`, 400);
   if (
     (
@@ -2065,7 +2067,7 @@ export async function rebuildConfiguredJob(tx: any, a: WorkOrderActor, orderItem
   try {
     // Loaded here: configure.service imports this module (recipe), a static import would be a cycle.
     const { configureProduct } = await import("../products/configure.service");
-    next = await configureProduct(tx, t, currency, choice);
+    next = await configureProduct(tx, t, currency, choice, undefined, orderItemId);
   } catch (error) {
     if (error instanceof WorkOrderApiError || error instanceof z.ZodError) return { rebuilt: false as const, reason: `Reçete yeni ölçüyle hesaplanamadı: ${error instanceof WorkOrderApiError ? error.message : "ölçü geçersiz"}` };
     throw error;

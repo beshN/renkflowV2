@@ -222,6 +222,10 @@ async function main() {
   const gone: any = await quotationService.createQuotation(tenantId, { customerName: 'Test müşteri', currency: 'TRY', discountPercent: 0, items: [item(0, { productConfiguration: await previewConfiguration(office as any, { currency: 'TRY', choice: draftChoice }) })] } as any, officeId);
   const goneDone: any = await convertLegacyFixture(tenantId, gone.id, officeId, gone.version, 'office');
   assert.match(goneDone.pendingWorkOrders[0].reason, /üretim sorumlusu artık üretim ekibinde değil/);
+  // Existing order changes keep the quoted recipe after a newer version is published.
+  const replacement: any = await productionCommand(owner as any, { commandId: randomUUID(), action: 'recipe.save', data: { ...def, version: 2, examples } });
+  await productionCommand(owner as any, { commandId: randomUUID(), action: 'recipe.publish', data: { id: replacement.id, reason: 'Yerel arşiv regresyon testi' } });
+  assert.equal((await db`SELECT status FROM production_recipes WHERE tenant_id=${tenantId} AND id=${row.id}`)[0].status, 'archived');
   // An applied change request on a configured line: the bill of materials is worked out again with the
   // new width and the unstarted work order is opened again with it (the old one cancelled); once a cut
   // plan holds the job, the line changes but the job waits for rework, said on the request.
@@ -233,6 +237,7 @@ async function main() {
   const jobsNow = await db`SELECT id, status, configuration, bom_snapshot FROM work_orders WHERE tenant_id = ${tenantId} AND order_item_id = ${doneLine.id} ORDER BY created_at`;
   assert.deepEqual(jobsNow.map((j: any) => [j.id === oldJobId, j.status]), [[true, 'cancelled'], [false, 'open']]);
   assert.equal(jobsNow[1].configuration.widthMm, 3200, 'the new job is built with the new width');
+  assert.equal(jobsNow[1].bom_snapshot.recipe.version, 1, 'the changed order retains its archived quoted version');
   assert.equal((await db`SELECT status FROM orders WHERE id = ${done.orderId}`)[0].status !== 'pending', true);
   const stepOwners = await db`SELECT DISTINCT assigned_to FROM production_operations WHERE work_order_id = ${jobsNow[1].id}`;
   assert.ok(stepOwners.length >= 1, 'the rebuilt job keeps people on its steps');
