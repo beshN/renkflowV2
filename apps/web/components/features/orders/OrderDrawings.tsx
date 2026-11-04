@@ -29,7 +29,8 @@ export function OrderDrawings({
   }, [orderId]);
   if (error) return <p role="alert">{error}</p>;
   if (!data) return <p role="status">Çizim hazırlanıyor…</p>;
-  if (!data.lines.length) return <p>Makaslı tente kalemi yok.</p>;
+  if (!data.lines.length)
+    return printable ? <p>Makaslı tente kalemi yok.</p> : null;
   return (
     <section
       className="rf-panel rf-print-document space-y-4 border border-border p-4"
@@ -54,10 +55,10 @@ export function OrderDrawings({
         Kayıtlı sipariş kalemi ölçüleri. İmalat öncesi insan onayı gerekir;
         onaylı teknik plan yerine geçmez.
       </p>
-      {data.lines.map((line) => (
+      {data.lines.map((line, index) => (
         <figure key={line.id} className="break-inside-avoid">
           <figcaption>
-            {line.productName} · Kalem {line.id}
+            {line.productName} · Kalem {index + 1}
           </figcaption>
           {line.svg ? (
             <div dangerouslySetInnerHTML={{ __html: line.svg }} />

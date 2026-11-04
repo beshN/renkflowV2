@@ -6,8 +6,8 @@ export default async function ManufacturingDrawing({
 }) {
   const { id } = await params;
   return (
-    <main className="rf-page mx-auto max-w-4xl">
+    <div className="rf-page mx-auto max-w-4xl">
       <OrderDrawings orderId={id} printable />
-    </main>
+    </div>
   );
 }

@@ -126,7 +126,7 @@ export function OrderTechnicalPanel({
     issues = technicalIssues(r?.technical);
   return (
     <section className="min-w-0 space-y-4" aria-label="Sipariş teknik dosyası">
-      <OrderDrawings orderId={orderId} />
+      {!worker && <OrderDrawings orderId={orderId} />}
       {!worker && (
         <ol
           aria-label="Siparişin ana süreci"

@@ -36,3 +36,17 @@ test("failed or denied request offers no PDF action or stale drawing", async () 
   );
   expect(screen.queryByRole("button")).not.toBeInTheDocument();
 });
+
+test("empty panel is hidden while the print view explains the empty state", async () => {
+  (requestJson as jest.Mock).mockResolvedValue({
+    ok: true,
+    data: { orderNumber: "TEST", lines: [] },
+  });
+  const { container, unmount } = render(<OrderDrawings orderId="empty" />);
+  await waitFor(() => expect(container).toBeEmptyDOMElement());
+  unmount();
+  render(<OrderDrawings orderId="empty" printable />);
+  expect(
+    await screen.findByText("Makaslı tente kalemi yok."),
+  ).toBeInTheDocument();
+});

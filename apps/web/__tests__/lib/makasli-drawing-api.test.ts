@@ -40,6 +40,7 @@ beforeEach(() => {
       const own =
         (values[0] === "A" && id === orderA) ||
         (values[0] === "B" && id === orderB);
+      if (query.includes("FROM work_orders")) return [];
       if (query.includes("JOIN")) {
         expect(query).toContain("o.id=i.order_id AND o.tenant_id=?");
         expect(query).toContain("WHERE o.tenant_id=?");
@@ -81,4 +82,20 @@ test("permission failure stops reads", async () => {
   );
   expect((await get(orderA)).status).toBe(403);
   expect(sql).not.toHaveBeenCalled();
+});
+
+test("unassigned worker receives 404 before any item read", async () => {
+  tenant = "A";
+  (requireWorkOrderActor as jest.Mock).mockResolvedValue({
+    tenantId: "A",
+    userId: "worker",
+    role: "worker",
+  });
+  expect((await get(orderA)).status).toBe(404);
+  expect(sql).toHaveBeenCalledTimes(2);
+  expect(
+    (sql as unknown as jest.Mock).mock.calls.some(([query]) =>
+      query.join("").includes("FROM order_items"),
+    ),
+  ).toBe(false);
 });

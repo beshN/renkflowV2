@@ -6,7 +6,7 @@ import {
   type WorkOrderActor,
 } from "../work-orders/security";
 import { needTechnical } from "./technical.server";
-import { technicalFamily } from "./technical";
+import { requireTechnicalAssignment } from "./technical-assignment";
 import { makasliDrawing } from "./makasli-drawing";
 
 export async function orderDrawings(
@@ -26,6 +26,11 @@ export async function orderDrawings(
   const [order] =
     await sql`SELECT id,order_number FROM orders WHERE tenant_id=${actor.tenantId} AND id=${orderId}`;
   if (!order) throw new WorkOrderApiError("Sipariş bulunamadı", 404);
+  if (actor.role === "worker") {
+    const jobs = await sql`SELECT assigned_to FROM work_orders
+      WHERE tenant_id=${actor.tenantId} AND order_id=${orderId} AND status<>'cancelled'`;
+    requireTechnicalAssignment(actor, jobs);
+  }
   // order_items has no tenant column: the owning order scopes every line, including the join.
   const lines =
     await sql`SELECT i.id,i.product_name,i.width_mm,i.projection_mm,i.mounting_height_mm,
@@ -39,7 +44,9 @@ export async function orderDrawings(
         l.family
           ? l.family === "makasli"
           : l.awning_code === "WINMAX-MAKASLI" ||
-            technicalFamily(l.product_name || "") === "makasli",
+            /^(makaslı tente|winmax makaslı tente)$/i.test(
+              (l.product_name || "").trim(),
+            ),
       )
       .map((l: any) => ({
         id: l.id as string,

@@ -35,3 +35,8 @@ test("preserves Turkish and escapes XML in text and attribute context", () => {
       .querySelector("parsererror"),
   ).toBeNull();
 });
+
+test("formats decimal mm with Turkish comma without losing saved precision", () => {
+  const { svg } = makasliDrawing({ ...measures, widthMm: 5000.5 }, "Test");
+  expect(svg).toContain("Genişlik: 5000,5 mm");
+});
