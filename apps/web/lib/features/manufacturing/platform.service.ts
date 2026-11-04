@@ -703,8 +703,8 @@ async function execute(
       .parse(data);
     const [shipment] =
       await tx`SELECT * FROM production_shipments WHERE tenant_id=${t} AND id=${d.id} FOR UPDATE`;
+    if (!shipment) fail("Sevkiyat bulunamadı", 404);
     if (
-      !shipment ||
       shipment.version !== d.version ||
       shipment.status === "delivered"
     )
