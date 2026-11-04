@@ -9,6 +9,10 @@ import { EmptyState } from "@/components/kit/EmptyState";
 import { ProductDialog } from "@/components/features/product-3d/ProductDialog";
 import { attachVisualization } from "@/lib/features/product-3d/catalog";
 import { applyAwning } from "@/lib/features/awning/configuration";
+// Only the API's own JSON `error` is shown; a non-JSON body (a proxy's 502 page) falls back to the
+// screen's Turkish message. Status 0 is a network error or timeout: requestJson's message is kept.
+const apiError = (r: { status: number; data: unknown; error: string | null }) =>
+  r.status === 0 ? r.error : typeof (r.data as any)?.error === "string" ? (r.data as any).error : null;
 const fieldLabels: Record<string, string> = {
   customerName: "Müşteri",
   productName: "Ürün",
@@ -139,7 +143,7 @@ function Review({ draft, onSource }: { draft: any; onSource: (page: number) => v
             { fallbackError: "Onaylanamadı" },
           );
           const orderId = r.data?.data?.orderId;
-          if (!r.ok || !orderId) throw new Error(r.error || "Onaylanamadı");
+          if (!r.ok || !orderId) throw new Error(apiError(r) || "Onaylanamadı");
           window.location.assign(`/orders/${orderId}`);
         } catch (e) {
           setError(e instanceof Error ? e.message : "Onaylanamadı");
@@ -324,7 +328,7 @@ export default function IntakeReview({
   const { id } = use(params),
     { data, error, mutate } = useSWR(`/api/v1/production/intake/${id}`, async (url: string) => {
       const r = await requestJson<{ data?: any }>(url, { cache: "no-store" }, { fallbackError: "Taslak alınamadı" });
-      if (!r.ok) throw new Error(r.error || "Taslak alınamadı");
+      if (!r.ok) throw new Error(apiError(r) || "Taslak alınamadı");
       return r.data;
     }),
     draft = data?.data;
