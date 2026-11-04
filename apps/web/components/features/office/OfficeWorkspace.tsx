@@ -205,7 +205,7 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
   /** The other mode, suggested when the device struggles or has room to spare; a declined one is not offered again. */
   const [hint, setHint] = useState<StageHint | null>(null);
   const [playing, setPlaying] = useState(false);
-  useEffect(() => { sim.setGamesEnabled(funFeatures); if (!funFeatures) { setPlaying(false); setQuip(null); record.current = null; clearTimeout(cheerTimer.current); clearTimeout(quipTimer.current); } }, [funFeatures, sim]);
+  useEffect(() => { if (funFeatures === undefined) return; sim.setGamesEnabled(funFeatures); if (!funFeatures) { setPlaying(false); setQuip(null); record.current = null; clearTimeout(cheerTimer.current); clearTimeout(quipTimer.current); } }, [funFeatures, sim]);
   const [quip, setQuip] = useState<{ id: string; text: string } | null>(null);
   /** Who looks over while the game is open. */
   const [watcher, setWatcher] = useState<string | null>(null);
@@ -242,7 +242,7 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
   useEffect(() => { try { localStorage.setItem(QUALITY_KEY, quality); } catch { /* the choice just is not remembered */ } }, [quality]);
 
   useEffect(() => {
-    if (!canvas.current) return;
+    if (!canvas.current || funFeatures === undefined) return;
     // Time away from the page passes in the office too, at the speed it was left running.
     if (here.leftAt !== null && !here.view.paused) sim.catchUp(((Date.now() - here.leftAt) / 1000) * here.view.speed);
     here.leftAt = null;

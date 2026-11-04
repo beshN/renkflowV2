@@ -15,6 +15,7 @@ async function main() {
   assert.equal((await db`SELECT current_database() AS name`)[0].name, 'renkflow_test');
   const { readFunFeatures, saveFunFeatures } = await import('../lib/features/settings/fun-features.server');
   const { getSql } = await import('../lib/db');
+  const { accessDecision } = await import('../lib/security/member-access.server');
   const tenants = [randomUUID(), randomUUID()];
   const users: string[] = [];
   try {
@@ -31,6 +32,11 @@ async function main() {
     // One identity has different roles in the two firms: the current tenant still controls the write.
     await db`INSERT INTO tenant_members (tenant_id, user_id, role) VALUES (${tenants[1]}, ${contexts.owner.userId}, 'worker')`;
     const other = { tenantId: tenants[1], userId: contexts.owner.userId };
+    // The proxy's real membership gate permits a worker's read, without an access_denied decision.
+    for (let i = 0; i < 3; i++) assert.equal(await accessDecision(contexts.worker.userId, tenants[0], '/api/tenant/fun-features', 'GET'), null);
+    assert.equal((await readFunFeatures(contexts.worker)).enabled, true, 'worker keeps the default enabled policy');
+    for (const method of ['POST', 'PUT', 'DELETE']) assert.equal((await accessDecision(contexts.worker.userId, tenants[0], '/api/tenant/fun-features', method))?.status, 403);
+    assert.equal((await accessDecision(contexts.worker.userId, tenants[0], '/api/tenant/fun-features/other', 'GET'))?.status, 403);
     assert.equal((await readFunFeatures(contexts.owner)).enabled, true);
     assert.equal((await readFunFeatures(other)).enabled, true);
     await saveFunFeatures(contexts.owner, false);

@@ -1,8 +1,8 @@
 'use client';
 
-import { withFunFeatures } from '@/lib/features/settings/useFunFeatures';
+import { useFunFeatures } from '@/lib/features/settings/useFunFeatures';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 
 // The game is only fetched when someone actually taps the forklift.
@@ -13,9 +13,33 @@ const PalletGame = dynamic(() => import('./PalletGame'), { ssr: false });
  * and a forklift. The forklift is a quiet button that opens a pallet stacking game; the
  * list's own title and actions stay what you are meant to look at.
  */
-function ForkliftEmptyEnabled() {
+export function ForkliftEmpty() {
+  const enabled = useFunFeatures();
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
+  useEffect(() => { if (!enabled) setOpen(false); }, [enabled]);
+  const forklift = (
+        <svg aria-hidden width="78" height="72" viewBox="98 0 78 72" className="block">
+          {/* Mast and forks (lift a little on hover) */}
+          <g className={enabled ? "transition-transform duration-300 ease-out group-hover:-translate-y-1 group-focus-visible:-translate-y-1 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0" : undefined}>
+            <g className="text-muted-foreground/55" fill="none" stroke="currentColor" strokeWidth="1.3">
+              <rect x="101" y="49" width="17" height="2.5" rx="0.5" />
+              <path d="M102 51.5v3.5M109.5 51.5v3.5M117 51.5v3.5" />
+              <rect x="103" y="38" width="13" height="11" rx="1" />
+            </g>
+            <path d="M100 56.5h20" stroke="hsl(var(--foreground) / 0.55)" strokeWidth="1.6" strokeLinecap="round" />
+          </g>
+          <rect x="120" y="14" width="3.5" height="50" rx="1" fill="hsl(var(--foreground) / 0.5)" />
+          {/* Cab guard */}
+          <path d="M131 44V20h22l3 24" fill="none" stroke="hsl(var(--foreground) / 0.5)" strokeWidth="1.6" strokeLinejoin="round" />
+          {/* Body and counterweight */}
+          <path d="M124 44h38a4 4 0 0 1 4 4v10a3 3 0 0 1-3 3h-39z" fill="hsl(var(--primary))" opacity="0.85" />
+          <rect x="138" y="36" width="9" height="8" rx="1.5" fill="hsl(var(--primary))" opacity="0.6" />
+          <circle cx="133" cy="62" r="5" fill="hsl(var(--card))" stroke="hsl(var(--foreground) / 0.6)" strokeWidth="2" />
+          <circle cx="157" cy="62" r="5" fill="hsl(var(--card))" stroke="hsl(var(--foreground) / 0.6)" strokeWidth="2" />
+          <circle cx="160" cy="27" r="1.6" fill="hsl(var(--primary))" className={enabled ? "opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" : "opacity-0"} />
+        </svg>
+  );
   return (
     <div className="relative">
       <svg aria-hidden width="176" height="72" viewBox="0 0 176 72" className="block text-muted-foreground/45">
@@ -44,7 +68,7 @@ function ForkliftEmptyEnabled() {
           <path d="M68 40h22" strokeDasharray="2 2" />
         </g>
       </svg>
-      <button
+      {enabled ? <button
         ref={button}
         type="button"
         onClick={() => setOpen(true)}
@@ -52,31 +76,9 @@ function ForkliftEmptyEnabled() {
         title="Forklift"
         className="group absolute right-0 top-0 h-[72px] w-[78px] rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
       >
-        <svg aria-hidden width="78" height="72" viewBox="98 0 78 72" className="block">
-          {/* Mast and forks (lift a little on hover) */}
-          <g className="transition-transform duration-300 ease-out group-hover:-translate-y-1 group-focus-visible:-translate-y-1 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0">
-            <g className="text-muted-foreground/55" fill="none" stroke="currentColor" strokeWidth="1.3">
-              <rect x="101" y="49" width="17" height="2.5" rx="0.5" />
-              <path d="M102 51.5v3.5M109.5 51.5v3.5M117 51.5v3.5" />
-              <rect x="103" y="38" width="13" height="11" rx="1" />
-            </g>
-            <path d="M100 56.5h20" stroke="hsl(var(--foreground) / 0.55)" strokeWidth="1.6" strokeLinecap="round" />
-          </g>
-          <rect x="120" y="14" width="3.5" height="50" rx="1" fill="hsl(var(--foreground) / 0.5)" />
-          {/* Cab guard */}
-          <path d="M131 44V20h22l3 24" fill="none" stroke="hsl(var(--foreground) / 0.5)" strokeWidth="1.6" strokeLinejoin="round" />
-          {/* Body and counterweight */}
-          <path d="M124 44h38a4 4 0 0 1 4 4v10a3 3 0 0 1-3 3h-39z" fill="hsl(var(--primary))" opacity="0.85" />
-          <rect x="138" y="36" width="9" height="8" rx="1.5" fill="hsl(var(--primary))" opacity="0.6" />
-          <circle cx="133" cy="62" r="5" fill="hsl(var(--card))" stroke="hsl(var(--foreground) / 0.6)" strokeWidth="2" />
-          <circle cx="157" cy="62" r="5" fill="hsl(var(--card))" stroke="hsl(var(--foreground) / 0.6)" strokeWidth="2" />
-          <circle cx="160" cy="27" r="1.6" fill="hsl(var(--primary))" className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
-        </svg>
-      </button>
-      {open && <PalletGame onClose={() => { setOpen(false); requestAnimationFrame(() => button.current?.focus()); }} />}
+        {forklift}
+      </button> : <span className="absolute right-0 top-0 h-[72px] w-[78px]">{forklift}</span>}
+      {enabled && open && <PalletGame onClose={() => { setOpen(false); requestAnimationFrame(() => button.current?.focus()); }} />}
     </div>
   );
 }
-
-const ForkliftEmpty = withFunFeatures(ForkliftEmptyEnabled);
-export { ForkliftEmpty };
