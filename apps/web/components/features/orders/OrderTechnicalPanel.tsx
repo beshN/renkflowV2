@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { OrderDrawings } from "./OrderDrawings";
 import { useCommandRetry } from "@/lib/hooks/useCommandRetry";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -125,6 +126,7 @@ export function OrderTechnicalPanel({
     issues = technicalIssues(r?.technical);
   return (
     <section className="min-w-0 space-y-4" aria-label="Sipariş teknik dosyası">
+      <OrderDrawings orderId={orderId} />
       {!worker && (
         <ol
           aria-label="Siparişin ana süreci"

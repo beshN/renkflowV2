@@ -3,6 +3,7 @@ import { OrderTechnicalPanel } from '@/components/features/orders/OrderTechnical
 import { requestJson } from '@/lib/shared/network';
 import { technicalIssues, TECHNICAL_WARNINGS } from '@/lib/features/orders/technical';
 
+jest.mock('@/components/features/orders/OrderDrawings', () => ({ OrderDrawings: () => null }));
 jest.mock('@/lib/shared/network', () => ({ requestJson: jest.fn() }));
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn(), info: jest.fn() } }));
 for (const path of [
