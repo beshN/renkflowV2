@@ -54,7 +54,7 @@ it.each([
     breadcrumbs: [{ message: '+90 555 123 45 67' }], contexts: { private: {} },
     tags: { email: 'private@example.test' },
   });
-  expect(event.tags).toEqual({ label: 'records:orders', tenant_id: 'tenant-1' });
+  expect(event.tags).toMatchObject({ label: 'records:orders', tenant_id: 'tenant-1' });
   expect(event).not.toHaveProperty('extra');
   expect(event).not.toHaveProperty('message');
   expect(JSON.stringify(event)).not.toMatch(/private|Private|555/);
@@ -78,4 +78,44 @@ it('still reports when session lookup fails', async () => {
 it('never lets an SDK failure change the API response', async () => {
   (Sentry.captureException as jest.Mock).mockImplementation(() => { throw new Error('SDK failure'); });
   await expect(reportServerError('orders', null)).resolves.toBeUndefined();
+});
+
+it('preserves SDK environment, release and sdk metadata after filtering', async () => {
+  await reportServerError('orders', new Error('private'));
+  const processor = mockScope.addEventProcessor.mock.calls[0][0];
+  const metadata = {
+    environment: 'preview', release: 'commit-sha',
+    sdk: { name: 'sentry.javascript.nextjs', version: '11.1.0', integrations: ['Http'] },
+  };
+  const event = processor({ ...metadata, extra: { email: 'private@example.test' }, request: { data: 'private body' } });
+  expect(event).toMatchObject(metadata);
+  expect(event).not.toHaveProperty('extra');
+  expect(event).not.toHaveProperty('request');
+});
+
+it.each([
+  [new TypeError('private'), 'TypeError', undefined],
+  [Object.assign(new Error('private'), { name: 'PostgresError', code: '23505' }), 'PostgresError', '23505'],
+  [Object.assign(new Error('private'), { name: 'PostgresError', code: '40P01' }), 'PostgresError', '40P01'],
+  [Object.assign(new Error('private'), { name: 'Private Name', code: 'private@example.test' }), 'Error', undefined],
+  [Object.assign(new Error('private'), { name: 'PostgresError', code: 'ALICE' }), 'PostgresError', undefined],
+  [Object.assign(new Error('private'), { code: '23505' }), 'Error', undefined],
+  [{ name: 'PostgresError', code: '23505' }, 'Unknown', undefined],
+] as const)('groups only by allowlisted error class and Postgres code', async (error, errorClass, code) => {
+  await reportServerError('orders', error);
+  const processor = mockScope.addEventProcessor.mock.calls[0][0];
+  const event = processor({});
+  expect(event.tags).toEqual({ label: 'orders', tenant_id: 'tenant-1', error_class: errorClass, ...(code ? { postgres_code: code } : {}) });
+  expect(event.fingerprint).toEqual(['caught-server-error', 'orders', errorClass, code ?? 'none']);
+  expect(JSON.stringify(event)).not.toMatch(/private|Private|ALICE/);
+});
+
+it('does not invoke a code getter and still reports', async () => {
+  const getter = jest.fn(() => { throw new Error('private getter'); });
+  const error = Object.defineProperty(Object.assign(new Error('private'), { name: 'PostgresError' }), 'code', { get: getter });
+  await reportServerError('orders', error);
+  expect(getter).not.toHaveBeenCalled();
+  expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+  const event = mockScope.addEventProcessor.mock.calls[0][0]({});
+  expect(event.tags).not.toHaveProperty('postgres_code');
 });
