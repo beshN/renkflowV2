@@ -72,7 +72,7 @@ async function main() {
     return { parameters, expected: calculateRecipe(def as any, parameters).materials.map((m) => ({ itemId: m.itemId, quantity: m.quantity })) };
   });
   await db`UPDATE production_recipes SET examples = ${JSON.stringify(examples)}::text::jsonb WHERE id = ${row.id}`;
-  await productionCommand(owner as any, { commandId: randomUUID(), action: 'recipe.publish', data: { id: row.id, editRevision: row.edit_revision } });
+  await productionCommand(owner as any, { commandId: randomUUID(), action: 'recipe.publish', data: { reason: 'Yerel test yayını', id: row.id, editRevision: row.edit_revision } });
 
   await assert.rejects(configurationOptions(worker as any, 'pergola'), (e: any) => e.status === 403);
   // Every RAL colour can be quoted; the firm's frequently used colours come first in the picker and

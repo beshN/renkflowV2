@@ -642,6 +642,8 @@ async function execute(
   }
   if (action === "recipe.publish") {
     manager(a);
+    const reason = typeof data.reason === "string" ? data.reason.trim() : "";
+    if (!reason) fail("Yayın gerekçesi zorunludur", 400);
     const [row] =
       await tx`SELECT * FROM production_recipes WHERE tenant_id=${t} AND id=${uuid.parse(data.id)}`;
     if (!row) fail("Reçete bulunamadı", 404);
@@ -649,6 +651,13 @@ async function execute(
     if(row.edit_revision !== (data.editRevision || 1))fail("Reçete değişti; örnekleri yeniden kontrol edin");
     if(row.status !== "draft")fail("Yalnız taslak reçete yayınlanabilir");
     validateRecipeExamples(recipe(row));
+    // productionCommand holds the tenant advisory lock for this entire transaction.
+    const archived = await tx`UPDATE production_recipes SET status='archived' WHERE tenant_id=${t} AND code=${row.code} AND status='published' RETURNING id`;
+    await recordAudit(tx, {
+      tenantId: t, actorId: a.userId, entityType: "recipe", entityId: row.id,
+      action: "recipe.publish", note: reason,
+      metadata: { reason, code: row.code, version: row.version, archivedRecipeIds: archived.map((r: any) => r.id), commandId: key },
+    });
     return (
       await tx`UPDATE production_recipes SET status='published',published_at=now()WHERE tenant_id=${t} AND id=${row.id} RETURNING *`
     )[0];

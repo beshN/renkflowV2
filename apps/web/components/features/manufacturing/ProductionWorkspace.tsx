@@ -510,13 +510,16 @@ export default function ProductionWorkspace() {
                       {r.status === "draft" ? "Düzenle" : "Yeni sürüm hazırla"}
                     </button>
                     {r.status === "draft" && (
-                      <button
-                        disabled={busy}
-                        className="rf-primary-button"
-                        onClick={() => run("recipe.publish", { id: r.id,editRevision:r.edit_revision })}
-                      >
-                        Örnekleri doğrula ve yayınla
-                      </button>
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        const reason = String(new FormData(e.currentTarget).get("reason") || "").trim();
+                        run("recipe.publish", { id: r.id, editRevision: r.edit_revision, reason });
+                      }}>
+                        <Field name="reason" label="Yayın gerekçesi" />
+                        <button disabled={busy} className="rf-primary-button" type="submit">
+                          Örnekleri doğrula ve yayınla
+                        </button>
+                      </form>
                     )}
                   </div>
                 )}
