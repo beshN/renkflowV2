@@ -1,19 +1,21 @@
 /** Recorded history only. No scheduler, quantity conversion or inferred active time. */
 export function medianActiveSeconds(values: unknown[]): { n: number; median: number | null } {
   const measured = values.filter((v): v is number | string =>
-    (typeof v === 'number' || (typeof v === 'string' && v.trim() !== '')) && Number.isFinite(Number(v)) && Number(v) >= 0,
+    (typeof v === 'number' || (typeof v === 'string' && v.trim() !== '')) && Number.isFinite(Number(v)) && Number(v) > 0,
   ).map(Number).sort((a, b) => a - b);
   const n = measured.length;
   return { n, median: n < 2 ? null : (measured[Math.floor((n - 1) / 2)] + measured[Math.floor(n / 2)]) / 2 };
 }
 
-export function deadlineCounts(rows: { completedAt: string; dueAt: string | null }[]) {
+/** Compare calendar days in Turkey; a date-only deadline includes its entire day. */
+export function deadlineCounts(rows: { completedAt: string | Date; dueAt: string | Date | null }[]) {
+  const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' });
   let onTime = 0, late = 0;
   for (const row of rows) {
     if (!row.dueAt) continue;
-    const completed = Date.parse(row.completedAt), due = Date.parse(row.dueAt);
+    const completed = new Date(row.completedAt).getTime(), due = new Date(row.dueAt).getTime();
     if (!Number.isFinite(completed) || !Number.isFinite(due)) continue;
-    if (completed <= due) onTime++; else late++;
+    if (day.format(completed) <= day.format(due)) onTime++; else late++;
   }
   return { n: onTime + late, onTime, late };
 }

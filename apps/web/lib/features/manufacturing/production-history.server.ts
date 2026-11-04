@@ -22,7 +22,7 @@ export async function productionHistory(context: ServerUserContext, start: strin
         AND p.completed_at>=${range.from} AND p.completed_at<${range.until}
       ORDER BY p.work_center_code, p.id`;
     const jobs = await tx`
-      SELECT completed_at::text AS "completedAt", due_at::text AS "dueAt"
+      SELECT completed_at AS "completedAt", due_at AS "dueAt"
       FROM work_orders WHERE tenant_id=${t} AND category='production' AND status='done'
         AND completed_at>=${range.from} AND completed_at<${range.until}`;
     // These stored lengths can use planned remainingMm when no measurement was entered.

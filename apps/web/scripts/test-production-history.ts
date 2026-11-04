@@ -20,11 +20,13 @@ async function main() {
       await db`INSERT INTO work_centers(tenant_id,code,name) VALUES(${tenant},'CUT',${'Tenant '+index})`;
       for (let i = 0; i < 4; i++) {
         const id = randomUUID(); jobs.push(id);
-        const completed = i === 3 ? '2026-01-02T21:00:00Z' : '2026-01-01T22:00:00Z';
-        const due = i === 2 ? null : i === 1 ? '2026-01-01T21:59:00Z' : completed;
+        // Jan 2 afternoon in Turkey; i=3 is next midnight, outside the selected day.
+        const completed = i === 3 ? '2026-01-02T21:00:00Z' : '2026-01-02T12:00:00Z';
+        // i=0: same-day midnight deadline; i=1: previous-day midnight deadline.
+        const due = i === 2 ? null : i === 1 ? '2026-01-01T00:00:00+03:00' : '2026-01-02T00:00:00+03:00';
         await db`INSERT INTO work_orders(id,tenant_id,title,category,status,completed_at,due_at) VALUES(${id},${tenant},'Synthetic','production','done',${completed},${due})`;
         await db`INSERT INTO production_operations(tenant_id,work_order_id,position,name,work_center_code,planned_minutes,status,planned_qty,completed_qty,active_seconds,started_at,completed_at)
-          VALUES(${tenant},${id},1,'Synthetic','CUT',1,'done',1,1,${index ? 9000 : [10,30,0,999][i]},${i === 2 ? null : '2026-01-01T21:00:00Z'},${completed})`;
+          VALUES(${tenant},${id},1,'Synthetic','CUT',1,'done',1,1,${index ? 9000 : [10,30,0,999][i]},${'2026-01-01T21:00:00Z'},${completed})`;
       }
       const warehouse = randomUUID(), item = randomUUID(), lot = randomUUID(), plan = randomUUID();
       plans.push(plan); lots.push(lot);
@@ -42,6 +44,14 @@ async function main() {
     const a = await productionHistory(context(tenants[0]), '2026-01-02', '2026-01-02');
     assert.deepEqual(a.centers, [{ code: 'CUT', name: 'Tenant 0', completed: 3, active: { n: 2, median: 20 } }]);
     assert.deepEqual(a.deadlines, { n: 2, onTime: 1, late: 1 });
+    // Verify each real DB row independently: midnight due + same-day afternoon is on time;
+    // midnight due + next-day afternoon is late. The service reads actual timestamptz values.
+    await db`UPDATE work_orders SET due_at=NULL WHERE id=${jobs[1]} AND tenant_id=${tenants[0]}`;
+    assert.deepEqual((await productionHistory(context(tenants[0]), '2026-01-02', '2026-01-02')).deadlines, { n: 1, onTime: 1, late: 0 });
+    await db`UPDATE work_orders SET due_at='2026-01-01T00:00:00+03:00' WHERE id=${jobs[1]} AND tenant_id=${tenants[0]}`;
+    await db`UPDATE work_orders SET due_at=NULL WHERE id=${jobs[0]} AND tenant_id=${tenants[0]}`;
+    assert.deepEqual((await productionHistory(context(tenants[0]), '2026-01-02', '2026-01-02')).deadlines, { n: 1, onTime: 0, late: 1 });
+    await db`UPDATE work_orders SET due_at='2026-01-02T00:00:00+03:00' WHERE id=${jobs[0]} AND tenant_id=${tenants[0]}`;
     assert.equal(a.completedJobs, 3);
     assert.deepEqual(a.calculatedLosses, [{ unit: 'mm', n: 1, total: 12 }]);
     assert.equal(a.measuredLossSamples, 0);

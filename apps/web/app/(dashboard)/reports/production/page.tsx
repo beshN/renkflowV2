@@ -27,11 +27,11 @@ export default async function ProductionHistoryPage({ searchParams }: { searchPa
     {invalid && <p role="alert">Geçerli başlangıç ve bitiş tarihi seçin.</p>}
     {data && <>
       <AppleCard><h2 className="font-semibold">İş merkezi başına tamamlanan operasyonlar</h2>
-        <p className="mt-2 text-sm text-muted-foreground">n: tamamlanan operasyon; süre n: başlangıcı ve geçerli active_seconds kaydı olan operasyon. Medyan için en az 2 örnek gerekir. Süreler saniyedir; tahmin kullanılmaz.</p>
+        <p className="mt-2 text-sm text-muted-foreground">n: tamamlanan operasyon; süre n: başlangıcı ve pozitif active_seconds kaydı olan operasyon. Medyan için en az 2 örnek gerekir. Süreler saniyedir; tahmin kullanılmaz. Eski varsayılan sıfırlardan ayırt edilemeyen 0 saniyelik kayıtlar süre örneğine alınmaz.</p>
         {!data.centers.length ? <p className="mt-3">Veri yok (n=0)</p> : <div className="mt-3 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr><th scope="col">İş merkezi</th><th scope="col">Tamamlanan (n)</th><th scope="col">Medyan aktif süre</th></tr></thead><tbody>{data.centers.map(c => <tr key={c.code} className="border-t"><th scope="row" className="py-3">{c.name} · {c.code}</th><td>{c.completed} (n={c.completed})</td><td>{c.active.median === null ? (c.active.n ? 'Yetersiz örnek' : 'Veri yok') : fmt(c.active.median) + ' sn'} (n={c.active.n})</td></tr>)}</tbody></table></div>}
       </AppleCard>
       <AppleCard><h2 className="font-semibold">İş emri termin uyumu</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Üretim iş emrinin kayıtlı due_at ve completed_at zamanları karşılaştırılır; eşitlik zamanında sayılır. Sipariş termini varsayılmaz. Termini olmayan {data.completedJobs - data.deadlines.n} kayıt kapsam dışıdır.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Üretim iş emrinin kayıtlı due_at ve completed_at değerleri Türkiye takvim gününe göre karşılaştırılır; termin gününün tamamı zamanında sayılır. Sipariş termini varsayılmaz. Termini olmayan {data.completedJobs - data.deadlines.n} kayıt kapsam dışıdır.</p>
         <p className="mt-3">{data.deadlines.n ? `Zamanında: ${data.deadlines.onTime} · Gecikmiş: ${data.deadlines.late}` : 'Veri yok'} (n={data.deadlines.n})</p>
       </AppleCard>
       <AppleCard><h2 className="font-semibold">Kesim planı firesi · profil</h2>
