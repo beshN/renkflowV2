@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { consumeRateLimit, getClientIp, rateLimitResponse } from '@/lib/security/rate-limit';
@@ -107,6 +108,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(successResponse);
   } catch (error: unknown) {
     console.error('Forgot password error:', error);
+    await reportServerError("app/api/auth/forgot-password/route:POST", error);
     return NextResponse.json(
       { error: 'Bir hata oluştu. Lütfen tekrar deneyin.' },
       { status: 500 }

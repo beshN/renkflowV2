@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
@@ -99,6 +100,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Invites fetch error:', error);
+    await reportServerError("app/api/tenant/invites/route:GET", error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

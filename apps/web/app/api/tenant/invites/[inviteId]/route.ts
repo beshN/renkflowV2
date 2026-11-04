@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { recordAuditAfterCommit } from '@/lib/audit/audit-log';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
@@ -62,6 +63,7 @@ export async function DELETE(
     });
   } catch (error) {
     console.error('Delete invite error:', error);
+    await reportServerError("app/api/tenant/invites/[inviteId]/route:DELETE", error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
