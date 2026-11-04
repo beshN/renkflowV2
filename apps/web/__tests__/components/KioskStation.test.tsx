@@ -13,3 +13,14 @@ it('selects assigned work and sends JSON to the guarded existing-operation adapt
   const post = jest.mocked(requestJson).mock.calls.find(c=>c[1]?.method==='POST')!;
   expect(JSON.parse(post[1]!.body as string)).toEqual(expect.objectContaining({operationId:'op',version:2,action:'start'}));
 });
+it.each([
+  ['running', '4', '1', true],
+  ['running', '4', '1.5', false],
+  ['blocked', '4', '1', false],
+])('shows only supported actions for %s with %s planned and %s complete', async (status, planned_qty, completed_qty, finish) => {
+  jest.mocked(requestJson).mockResolvedValue({ok:true,status:200,data:{jobs:[{id:'op',title:'Montaj',name:'Birleştirme',order_number:'QA',status,version:2,planned_qty,completed_qty,unit:'adet',quality_checks:[]}]},error:null});
+  render(<KioskStation />);
+  fireEvent.click(await screen.findByRole('button',{name:/QA.*adet/}));
+  expect(!!screen.queryByRole('button',{name:'Bitir · 3 adet'})).toBe(finish);
+  if (status === 'blocked') expect(screen.queryByRole('button',{name:'Başla'})).not.toBeInTheDocument();
+});

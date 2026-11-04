@@ -14,6 +14,8 @@ export function KioskStation() {
   }
   useEffect(() => { void load(); }, []);
   const job = jobs.find(j => j.id === selected);
+  const remaining = job ? Number(job.planned_qty) - Number(job.completed_qty) : 0;
+  const canFinish = Number.isInteger(remaining) && remaining > 0;
   async function act(action: 'start' | 'pause' | 'complete') {
     if (!job || locked.current) return;
     locked.current = true; setBusy(true); setError('');
@@ -42,10 +44,11 @@ export function KioskStation() {
       <p className="text-xl">{job.completed_qty} / {job.planned_qty} {job.unit || 'Birim belirtilmemiş'}</p>
       <p>{({ waiting: 'Önceki aşama bekleniyor', ready: 'Hazır', running: 'Çalışıyor', paused: 'Molada', blocked: 'Engelli' } as Record<string,string>)[job.status]}</p>
       <div className="grid gap-4">
-        {['ready','paused','blocked'].includes(job.status) && <Button className="min-h-24 text-2xl" disabled={busy} onClick={() => void act('start')}>{job.status === 'paused' ? 'Devam' : 'Başla'}</Button>}
+        {['ready','paused'].includes(job.status) && <Button className="min-h-24 text-2xl" disabled={busy} onClick={() => void act('start')}>{job.status === 'paused' ? 'Devam' : 'Başla'}</Button>}
         {job.status === 'running' && <><Button variant="outline" className="min-h-24 text-2xl" disabled={busy} onClick={() => void act('pause')}>Mola</Button>
-          <Button className="min-h-24 text-2xl" disabled={busy || !!job.quality_checks?.length} onClick={() => void act('complete')}>Bitir · kalan miktar</Button></>}
+          {canFinish && <Button className="min-h-24 text-2xl" disabled={busy || !!job.quality_checks?.length} onClick={() => void act('complete')}>Bitir · {remaining} {job.unit || 'Birim belirtilmemiş'}</Button>}</>}
       </div>
+      {job.status === 'running' && !canFinish && <p>Kalan miktar bu kioskta tamamlanamaz; mevcut usta ekranını kullanın.</p>}
       {!!job.quality_checks?.length && <p>Kalite kontrolü gereken işi <a className="underline" href="/production/worker">mevcut usta ekranından</a> tamamlayın.</p>}
       <p role="status">{busy ? 'İşlem kaydediliyor…' : ''}</p>
     </section>}</div>

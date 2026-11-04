@@ -13,7 +13,7 @@ Rota: `/production/worker/kiosk`. Panel kabuğu olmadan açılır; mevcut Button
 
 Kiosk bu servisi çağırır; alternatif süre tablosu, geçiş motoru veya migration eklemez. İş emri seviyesinde atama tek başına yeterli değildir: mevcut operasyon komutu operasyonun kişiye atanmasını gerektirir. Liste aynı koşulu uygular. Tüm roller için gerçek operasyon ataması aranır. Owner/admin/office yalnız mevcut production edit yetkileri varsa erişir; kiosk komutları bu roller için de worker kapsamına daraltılır, mevcut transaction içindeki atama kontrolü korunur. Accountant/member erişemez.
 
-Miktar satır bazında `work_orders.production_uom` ile gösterilir. Birim eksikse açıkça belirtilir; adet varsayılmaz. Miktar veya para toplamı yoktur. Bitir mevcut integer quantity sözleşmesiyle kalan miktarı tamamlar. Kalite kontrolü isteyen işlerin tamamlanması mevcut usta ekranında kalır; kiosk kalite sonucunu otomatik geçmez. Kesirli miktar desteği mevcut komut sözleşmesiyle sınırlıdır.
+Miktar satır bazında `work_orders.production_uom` ile gösterilir. Birim eksikse açıkça belirtilir; adet varsayılmaz. Miktar veya para toplamı yoktur. Bitir mevcut integer quantity sözleşmesiyle kalan miktarı tamamlar. Kalite kontrolü isteyen işlerin tamamlanması mevcut usta ekranında kalır; kiosk kalite sonucunu otomatik geçmez. Kesirli kalan miktarda Bitir gizlenir; pozitif tam sayı kalan miktarda düğme miktar ve birimi gösterir. Blocked operasyonda Başla gösterilmez; engelin mevcut üretim ekranından incelenmesi gerekir. Worker API sınırı yalnız tam `/api/v1/production/kiosk` yolu için GET ve POST kabul eder.
 
 ## Manuel pilot kontrolü
 
