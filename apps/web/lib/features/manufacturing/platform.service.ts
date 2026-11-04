@@ -1938,12 +1938,12 @@ export async function cutPlanSheet(actor: WorkOrderActor, id: string) {
   ])];
   const lotIds = bars.map((b) => b.source.id);
   const [items, jobs, lots] = await Promise.all([
-    itemIds.length ? sql`SELECT id,sku,name FROM inventory_items WHERE tenant_id=${t} AND id=ANY(${itemIds}::uuid[])` : [],
+    itemIds.length ? sql`SELECT id,sku,name,profile_code FROM inventory_items WHERE tenant_id=${t} AND id=ANY(${itemIds}::uuid[])` : [],
     sql`SELECT w.id,w.title,o.order_number FROM work_orders w JOIN orders o ON o.id=w.order_id AND o.tenant_id=w.tenant_id WHERE w.tenant_id=${t} AND w.id=ANY(${plan.work_order_ids}::uuid[])`,
     lotIds.length ? sql`SELECT id,lot_number FROM stock_lots WHERE tenant_id=${t} AND id=ANY(${lotIds}::uuid[])` : [],
   ]);
-  const item = new Map(items.map((i: any) => [i.id, { sku: i.sku, name: i.name }]));
-  const job = new Map(jobs.map((j: any) => [j.id, { title: j.title, orderNumber: j.order_number }]));
+  const item = new Map<string, { sku: string; name: string; profileCode: string | null }>(items.map((i: any) => [i.id, { sku: i.sku, name: i.name, profileCode: i.profile_code }]));
+  const job = new Map<string, { id: string; title: string; orderNumber: string }>(jobs.map((j: any) => [j.id, { id: j.id, title: j.title, orderNumber: j.order_number }]));
   const lot = new Map(lots.map((l: any) => [l.id, l.lot_number]));
   const source: CuttingParameterSource | null = plan.result.parameterSource ?? null;
   return {
