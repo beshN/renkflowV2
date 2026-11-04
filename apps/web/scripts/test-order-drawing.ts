@@ -10,8 +10,9 @@ async function main() {
   process.env.AUTH_SECRET = randomUUID() + randomUUID();
   const db = postgres(process.env.DATABASE_URL, { onnotice: () => {} });
   const { sql, getMetaSql } = await import("../lib/db");
-  const { orderDrawings } =
+  const { orderDrawings, orderDrawingModels } =
     await import("../lib/features/orders/makasli-drawing.server");
+  const { makasliDxf } = await import("../lib/features/orders/makasli-dxf");
   const { WorkOrderApiError } =
     await import("../lib/features/work-orders/security");
   const identity = async (client: any) => {
@@ -63,6 +64,12 @@ async function main() {
         [lines[i]],
       );
       assert(result.lines[0].svg?.includes("5000,5 mm"));
+      const model = await orderDrawingModels(actors[i], orders[i]);
+      const dxf = makasliDxf(model);
+      assert(dxf.includes("5000,5 mm"));
+      assert(dxf.includes(`TEST ${i === 0 ? "A" : "B"} makasli tente`));
+      assert(!dxf.includes(`TEST ${i === 0 ? "B" : "A"} makasli tente`));
+      await denied(() => orderDrawingModels(actors[i], orders[1 - i]));
       assert(!JSON.stringify(result).includes(lines[1 - i]));
       await denied(() => orderDrawings(actors[i], orders[1 - i]));
     }
@@ -84,21 +91,35 @@ async function main() {
       role: "worker" as const,
     };
     await denied(() => orderDrawings(worker, orders[0]));
+    await denied(() => orderDrawingModels(worker, orders[0]));
     // A malformed foreign-tenant job pointing at our order must not grant assignment.
     await db`INSERT INTO work_orders(tenant_id,title,order_id,assigned_to) VALUES(${tenants[1]},'TEST foreign assignment',${orders[0]},${worker.userId})`;
     await denied(() => orderDrawings(worker, orders[0]));
+    await denied(() => orderDrawingModels(worker, orders[0]));
     await db`INSERT INTO work_orders(tenant_id,title,order_id,assigned_to,status) VALUES(${tenants[0]},'TEST cancelled assignment',${orders[0]},${worker.userId},'cancelled')`;
     await denied(() => orderDrawings(worker, orders[0]));
+    await denied(() => orderDrawingModels(worker, orders[0]));
     await db`INSERT INTO work_orders(tenant_id,title,order_id,assigned_to) VALUES(${tenants[0]},'TEST own assignment',${orders[0]},${worker.userId})`;
     assert.equal(
       (await orderDrawings(worker, orders[0])).lines[0].id,
       lines[0],
     );
+    assert(
+      makasliDxf(await orderDrawingModels(worker, orders[0])).includes(
+        "5000,5 mm",
+      ),
+    );
     await denied(() => orderDrawings(worker, orders[1]));
+    await denied(() => orderDrawingModels(worker, orders[1]));
     await db`UPDATE order_items SET projection_mm=NULL WHERE id=${lines[0]} AND order_id=${orders[0]}`;
     const missing = (await orderDrawings(actors[0], orders[0])).lines[0];
     assert.equal(missing.svg, null);
     assert.equal(missing.message, "ölçü eksik: açılım/çıkma");
+    const missingDxf = makasliDxf(
+      await orderDrawingModels(actors[0], orders[0]),
+    );
+    assert(missingDxf.includes("olcu eksik: acilim/cikma"));
+    assert(!missingDxf.includes("\r\nLINE\r\n"));
     await db`INSERT INTO order_items(order_id,product_name,quantity,unit_price,total_price) VALUES(${orders[0]},'Makaslı tente motoru',1,0,0)`;
     assert.equal((await orderDrawings(actors[0], orders[0])).lines.length, 1);
     console.log(

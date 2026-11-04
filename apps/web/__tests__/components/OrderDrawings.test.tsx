@@ -21,6 +21,10 @@ test("missing measures remain visible on the printable sheet without a fabricate
   const { container } = render(<OrderDrawings orderId="test" printable />);
   expect(await screen.findByText("ölçü eksik: genişlik")).toBeInTheDocument();
   expect(container.querySelector("svg")).toBeNull();
+  expect(screen.getByRole("link", { name: "DXF indir" })).toHaveAttribute(
+    "href",
+    "/api/v1/orders/test/drawing/dxf",
+  );
   fireEvent.click(screen.getByText("Yazdır / PDF olarak kaydet"));
   expect(print).toHaveBeenCalledTimes(1);
   print.mockRestore();
@@ -35,6 +39,9 @@ test("failed or denied request offers no PDF action or stale drawing", async () 
     expect(screen.getByRole("alert")).toHaveTextContent("Sipariş bulunamadı"),
   );
   expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("link", { name: "DXF indir" }),
+  ).not.toBeInTheDocument();
 });
 
 test("empty panel is hidden while the print view explains the empty state", async () => {
