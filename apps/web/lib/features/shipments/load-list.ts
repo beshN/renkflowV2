@@ -18,10 +18,14 @@ export async function readShipmentLoadList(sql: any, actor: WorkOrderActor, id: 
     JOIN shipments s ON s.id=si.shipment_id AND s.tenant_id=si.tenant_id
     LEFT JOIN orders o ON o.id=si.order_id AND o.tenant_id=si.tenant_id
     LEFT JOIN order_items oi ON oi.id=si.order_item_id AND oi.order_id=o.id
-    LEFT JOIN production_shipments ps ON ps.erp_shipment_id=s.id
-      AND ps.tenant_id=s.tenant_id AND ps.order_id=o.id
-    LEFT JOIN work_orders w ON w.id=ps.work_order_id AND w.tenant_id=ps.tenant_id
-      AND w.order_id=o.id AND w.order_item_id=oi.id
+    LEFT JOIN LATERAL (
+      SELECT w.id, w.production_uom
+      FROM production_shipments ps
+      JOIN work_orders w ON w.id=ps.work_order_id AND w.tenant_id=ps.tenant_id
+        AND w.order_id=o.id AND w.order_item_id=oi.id
+      WHERE ps.erp_shipment_id=s.id AND ps.tenant_id=s.tenant_id AND ps.order_id=o.id
+      ORDER BY ps.created_at, ps.id LIMIT 1
+    ) w ON true
     WHERE si.tenant_id=${actor.tenantId} AND s.tenant_id=${actor.tenantId} AND s.id=${id}
     ORDER BY si.created_at, si.id`;
   return { ...shipment, items };
