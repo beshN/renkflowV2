@@ -3,7 +3,7 @@
  * Professional-grade helpers for finance module
  */
 
-import { Payment, OrderWithPayments, EmployeeLedgerEntry, LedgerEntryKind } from '@/lib/types/finance';
+import { Payment, EmployeeLedgerEntry, LedgerEntryKind } from '@/lib/types/finance';
 import { normalizeCurrencyInput } from '@/lib/utils/currency';
 import { spreadsheetText } from '@/lib/security/spreadsheet-safe';
 
@@ -91,33 +91,6 @@ export function getRelativeTimeString(date: Date | string): string {
 // ============================================
 // Analytics & Calculations
 // ============================================
-
-export interface FinanceStats {
-  totalRevenue: number;
-  totalPayments: number;
-  outstandingAmount: number;
-  collectionRate: number;
-  averageOrderValue: number;
-  paymentCount: number;
-}
-
-export function calculateFinanceStats(orders: OrderWithPayments[]): FinanceStats {
-  const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
-  const totalPayments = orders.reduce((sum, o) => sum + o.paidAmount, 0);
-  const outstandingAmount = orders.reduce((sum, o) => sum + Math.max(0, o.remainingAmount), 0);
-  const collectionRate = totalRevenue > 0 ? (totalPayments / totalRevenue) * 100 : 0;
-  const averageOrderValue = orders.length > 0 ? totalRevenue / orders.length : 0;
-  const paymentCount = orders.filter(o => o.paidAmount > 0).length;
-
-  return {
-    totalRevenue,
-    totalPayments,
-    outstandingAmount,
-    collectionRate,
-    averageOrderValue,
-    paymentCount,
-  };
-}
 
 export interface PayrollStats {
   totalSalary: number;
