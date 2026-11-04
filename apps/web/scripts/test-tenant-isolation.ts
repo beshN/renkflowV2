@@ -1,5 +1,6 @@
 /** Integration coverage for real services; loopback renkflow_test only. */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import postgres from 'postgres';
 import { localTestDatabaseURL } from './local-test-database';
@@ -47,6 +48,11 @@ async function main() {
     assert.equal((await serviceSql`SELECT current_database() AS name`)[0].name, 'renkflow_test');
     const invoices = await import('../lib/features/finance/invoices.server');
     const finance = await import('../lib/features/finance/receivables.server');
+    const { syncLedger } = await import('../lib/features/accounting/posting.server');
+    // Execute the actual private query text, without exporting a test-only application API.
+    const planningSource = readFileSync('lib/ai/commands/run.server.ts', 'utf8');
+    const titlesQuery = planningSource.match(/sql`(SELECT w.id, w.title, w.order_id, o.order_number FROM work_orders w LEFT JOIN orders o[^`]+)`/);
+    assert.ok(titlesQuery, 'AI planning titles query must be identifiable');
     const { customerKey } = await import('../lib/features/finance/engine');
     const orders = new PostgresOrderService(), quotes = new PostgresQuotationService();
     const fixtures = [];
@@ -88,6 +94,28 @@ async function main() {
       assert.deepEqual((await invoices.listInvoices(own.actor)).map(i => i.id), [ownInvoice.id]);
       assert.equal((await invoices.getInvoice(own.actor, ownInvoice.id)).id, ownInvoice.id);
       await assert.rejects(invoices.getInvoice(own.actor, foreignInvoice.id), /Fatura bulunamadı/);
+      // Cancelled-only foreign relation: no issued foreign invoice can mask this check.
+      await db`UPDATE invoices SET status='draft' WHERE id=${foreignInvoice.id}`;
+      await insertInvoice(own.order.id, 'cancelled');
+      assert.equal((await finance.customerStatement(own.actor, customerKey(own.customer.id, own.order.customer_name), '2000-01-01', '2099-12-31')).lines.length, 4);
+      await assert.rejects(finance.customerStatement(own.actor, customerKey(other.customer.id, other.order.customer_name), '2000-01-01', '2099-12-31'), /Müşteri bulunamadı/);
+      // Scoped ledger sync must book the own payment but never an inconsistent foreign order.
+      const paymentRows = await db`SELECT id,order_id FROM payments WHERE tenant_id=${t}`;
+      for (const payment of paymentRows) {
+        const result = await syncLedger(serviceSql, t, { paymentId: payment.id });
+        assert.equal(result.failed, 0);
+        assert.equal(result.posted, payment.order_id === own.order.id ? 1 : 0);
+        const entries = await db`SELECT id FROM journal_entries WHERE tenant_id=${t} AND source_key=${'payment:' + payment.id}`;
+        assert.equal(entries.length, payment.order_id === own.order.id ? 1 : 0);
+      }
+      // A mismatched order and an absent order must retain their LEFT JOIN work-order rows.
+      const [foreignJob] = await db`INSERT INTO work_orders(tenant_id,title,order_id) VALUES(${t},'foreign-linked test job',${other.order.id}) RETURNING id`;
+      const [unlinkedJob] = await db`INSERT INTO work_orders(tenant_id,title) VALUES(${t},'unlinked test job') RETURNING id`;
+      const titles = await serviceSql.unsafe(titlesQuery[1].replace('${tenantId}', '$1'), [t]);
+      assert.equal(titles.find((w: { id: string }) => w.id === own.job.id)?.order_number, own.order.order_number);
+      assert.equal(titles.find((w: { id: string }) => w.id === foreignJob.id)?.order_number, null);
+      assert.equal(titles.find((w: { id: string }) => w.id === unlinkedJob.id)?.order_number, null);
+      assert.ok(!titles.some((w: { id: string }) => w.id === other.job.id));
       const listed = await orders.getOrders(t);
       assert.ok(listed.some(o => o.id === own.order.id));
       assert.ok(!listed.some(o => o.id === other.order.id));
