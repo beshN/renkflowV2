@@ -9,6 +9,9 @@ export type PromiseInput = {
   centers: Center[];
   resources?: Resource[];
   operations: PromiseOperation[];
+  /** ISO timestamp with explicit offset, e.g. 2026-11-02T08:00:00+03:00.
+   * Convert date-only readiness at the caller to the factory shift start in
+   * Europe/Istanbul; this function does not choose a time for YYYY-MM-DD. */
   materialReadyAt: string;
 };
 export type PromiseConstraint = { kind: 'material' } | { kind: 'workCenter'; workCenterCode: string };
@@ -17,6 +20,8 @@ export type PromiseResult = {
   bindingConstraint: PromiseConstraint | null;
   explanation: string;
   missing: Array<{ operationId?: string; reason: string }>;
+  ignoredLoad: Array<{ operationId: string; workOrderId: string; reason: string }>;
+  optimistic: boolean;
   tasks: ReturnType<typeof buildSchedule>['tasks'];
 };
 
@@ -28,8 +33,9 @@ export type PromiseResult = {
  */
 export function promiseDate(input: PromiseInput): PromiseResult {
   const missing: PromiseResult['missing'] = [];
+  const ignoredLoad: PromiseResult['ignoredLoad'] = [];
   const fail = (): PromiseResult => ({ earliestFinish: null, bindingConstraint: null,
-    explanation: 'Eksikler giderilmeden termin hesaplanamaz.', missing, tasks: [] });
+    explanation: 'Eksikler giderilmeden termin hesaplanamaz.', missing, ignoredLoad, optimistic: ignoredLoad.length > 0, tasks: [] });
   for (const [value, reason] of [[input.now, 'Başlangıç tarihi geçersiz'],
     [input.materialReadyAt, 'Malzeme hazır tarihi gerekli veya geçersiz']] as const) {
     if (!Number.isFinite(Date.parse(value))) missing.push({ reason });
@@ -50,14 +56,17 @@ export function promiseDate(input: PromiseInput): PromiseResult {
   try {
     const resources = input.resources ?? [];
     const existing = buildSchedule(input.load, input.centers, input.now, resources);
-    if (existing.blocked.length) {
-      missing.push(...existing.blocked.map(o => ({ operationId: o.id, reason: o.blockedReason })));
-      return fail();
+    // Exclude whole blocked routes, including any scheduled prefix: retaining
+    // a prefix would reserve capacity for a job whose completion is unknown.
+    const blockedOrders = new Map(existing.blocked.map(o => [o.workOrderId, o.blockedReason]));
+    for (const op of input.load) {
+      const reason = blockedOrders.get(op.workOrderId);
+      if (reason) ignoredLoad.push({ operationId: op.id, workOrderId: op.workOrderId, reason });
     }
     // Replay the scheduler's existing group order ahead of the candidate without
     // changing scheduler.ts or letting candidate priority reorder current work.
     const order = [...new Set(existing.tasks.map(o => o.workOrderId))];
-    const load = input.load.map(o => ({ ...o, id: `load:${o.id}`,
+    const load = input.load.filter(o => !blockedOrders.has(o.workOrderId)).map(o => ({ ...o, id: `load:${o.id}`,
       workOrderId: `load:${String(order.indexOf(o.workOrderId)).padStart(10, '0')}`,
       running: true, priority: 'medium', dueAt: undefined }));
     const candidate = input.operations.map((o): ScheduleInput => ({ ...o,
@@ -94,8 +103,8 @@ export function promiseDate(input: PromiseInput): PromiseResult {
       || Date.parse(b.task.end) - Date.parse(a.task.end))[0].task;
     const bindingConstraint: PromiseConstraint = materialBinds ? { kind: 'material' }
       : { kind: 'workCenter', workCenterCode: limiting.workCenterCode };
-    return { earliestFinish, bindingConstraint, missing, tasks,
-      explanation: `${materialBinds ? 'Malzeme hazır tarihi' : `${limiting.workCenterCode} iş merkezi ve ortak kaynak takvimi`} termini belirliyor. Mevcut yük önce yerleştirildi; vardiya, iş günü ve duruşlar dikkate alındı. Tahmin insan onayı gerektirir.` };
+    return { earliestFinish, bindingConstraint, missing, ignoredLoad, optimistic: ignoredLoad.length > 0, tasks,
+      explanation: `${ignoredLoad.length ? 'Bekleyen işler hariç, iyimser tahmin. ' : ''}${materialBinds ? 'Malzeme hazır tarihi' : `${limiting.workCenterCode} iş merkezi ve ortak kaynak takvimi`} termini belirliyor. Mevcut yük önce yerleştirildi; vardiya, iş günü ve duruşlar dikkate alındı. Tahmin insan onayı gerektirir.` };
   } catch (error) {
     missing.push({ reason: error instanceof Error ? error.message : 'Planlama girdileri geçersiz' });
     return fail();

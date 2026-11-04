@@ -59,11 +59,46 @@ describe('promiseDate', () => {
     const input = base(); input.operations[0].plannedMinutes = plannedMinutes;
     expect(promiseDate(input).earliestFinish).toBeNull();
   });
-  it('reports blocked load and missing resources', () => {
-    const input = base(); input.load = [{ ...load(), materialReady: false }];
-    expect(promiseDate(input).missing[0].operationId).toBe('old');
-    input.load = []; input.centers[0].machineRequired = true;
+  it.each(['CUT', 'OTHER'])('ignores material-waiting load on %s and flags optimism', workCenterCode => {
+    const input = base();
+    input.centers.push({ ...input.centers[0], code: 'OTHER' });
+    input.load = [{ ...load(), workCenterCode, materialReady: false }];
+    const result = promiseDate(input);
+    expect(result.earliestFinish).toBe(iso('2026-11-02T09:00:00+03:00'));
+    expect(result.missing).toEqual([]);
+    expect(result.ignoredLoad).toEqual([{ operationId: 'old', workOrderId: 'zzz', reason: 'Malzeme hazırlığı bekleniyor' }]);
+    expect(result.optimistic).toBe(true);
+    expect(result.explanation).toContain('Bekleyen işler hariç, iyimser');
+  });
+  it.each(['machineRequired', 'teamRequired'] as const)('ignores load missing %s while retaining schedulable capacity', required => {
+    const input = base();
+    input.centers.push({ ...input.centers[0], code: 'OTHER', [required]: true });
+    input.load = [load(), { ...load(), id: 'waiting', workOrderId: 'waiting', workCenterCode: 'OTHER' }];
+    const result = promiseDate(input);
+    expect(result.earliestFinish).toBe(iso('2026-11-02T11:00:00+03:00'));
+    expect(result.ignoredLoad.map(o => o.operationId)).toEqual(['waiting']);
+    expect(result.missing).toEqual([]);
+  });
+  it('excludes an explicitly blocked route including its scheduled prefix', () => {
+    const input = base();
+    input.centers.push({ ...input.centers[0], code: 'OTHER', shiftStart: '18:00', shiftEnd: '19:00', machineRequired: true });
+    input.resources = [{ ...input.centers[0], id: 'machine', kind: 'machine' }];
+    input.load = [load(), { ...load(), id: 'later', position: 1, workCenterCode: 'OTHER', machineId: 'machine' }];
+    const result = promiseDate(input);
+    expect(result.earliestFinish).toBe(iso('2026-11-02T09:00:00+03:00'));
+    expect(result.ignoredLoad.map(o => o.operationId)).toEqual(['old', 'later']);
+    input.load = [{ ...load(), blockedReason: 'Kalite onayı bekleniyor' }];
+    expect(promiseDate(input).ignoredLoad[0].reason).toBe('Kalite onayı bekleniyor');
+  });
+  it('still rejects missing candidate resources', () => {
+    const input = base(); input.centers[0].machineRequired = true;
     expect(promiseDate(input).earliestFinish).toBeNull();
+    expect(promiseDate(input).ignoredLoad).toEqual([]);
+  });
+  it('does not mark fully schedulable load as optimistic', () => {
+    const input = base(); input.load = [load()];
+    expect(promiseDate(input).optimistic).toBe(false);
+    expect(promiseDate(input).ignoredLoad).toEqual([]);
   });
   it('attributes inherited delay to the upstream center', () => {
     const input = base(); input.load = [load()];
