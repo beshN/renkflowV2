@@ -3,7 +3,7 @@ import type { WorkOrderActor } from '@/lib/features/work-orders/security';
 /** Shared by the HTTP route and real-schema PostgreSQL integration test. */
 export async function readShipmentList(sql: any, actor: WorkOrderActor) {
   return sql`
-      SELECT 
+      SELECT
         s.id,
         s.shipment_number,
         s.customer_name,
