@@ -1,5 +1,6 @@
 'use client';
 
+import '@/lib/shared/validation/zod-locale';
 import { SessionProvider } from 'next-auth/react';
 import { ThemeProvider } from 'next-themes';
 import { AuthProvider } from './AuthContext';
