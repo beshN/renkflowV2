@@ -988,7 +988,7 @@ function floatPaper(person: Person, agent: Agent) {
   for (const m of person.paperMaterials) m.opacity = opacity;
 }
 
-export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulation, labels: Map<string, HTMLElement>, options: { quality?: StageQuality; camera?: CameraView; onHint?: (hint: StageHint) => void; onPick?: (pick: StagePick) => void } = {}): OfficeStage {
+export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulation, labels: Map<string, HTMLElement>, options: { funFeatures?: boolean; quality?: StageQuality; camera?: CameraView; onHint?: (hint: StageHint) => void; onPick?: (pick: StagePick) => void } = {}): OfficeStage {
   const fast = options.quality === 'performance';
   const scene = new T.Scene();
   scene.background = SKY.night.clone();
@@ -1025,7 +1025,7 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
   const loungeLamp = buildLounge(scene);
   buildDecor(scene);
   const kitchen = buildKitchen(scene);
-  const games = buildGamingCorner(scene);
+  const games = options.funFeatures === false ? null : buildGamingCorner(scene);
   const tv = buildTvCorner(scene);
   const clock = buildShelfAndClock(scene);
   let tvDrawn = -1, visitor = false, brewUntil = 0;
@@ -1041,7 +1041,7 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
     return [agent.id, person];
   }));
 
-  const clickable: T.Object3D[] = [games.screen, ...scene.children.filter(o => o.userData.pick && o !== games.screen), ...[...people.values()].map(p => p.root)];
+  const clickable: T.Object3D[] = [...(games ? [games.screen] : []), ...scene.children.filter(o => o.userData.pick && o !== games?.screen), ...[...people.values()].map(p => p.root)];
   const target = new T.Vector3(-0.3, 0, 1.4);
   const initialView = { theta: 0.42, phi: 0.9, distance: 28.5 };
   // The camera eases towards where the person dragged or zoomed it.
@@ -1214,7 +1214,7 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
       (puff.material as T.MeshBasicMaterial).opacity = brewing ? (1 - t) * 0.45 : 0;
       puff.visible = Boolean(brewing);
     });
-    games.draw(sim.agents.filter(a => a.phase === 'break' && a.activity === 'game').length + (visitor ? 1 : 0), time);
+    games?.draw(sim.agents.filter(a => a.phase === 'break' && a.activity === 'game').length + (visitor ? 1 : 0), time);
     const mode = sim.agents.some(a => a.phase === 'break' && a.activity === 'tv') ? 'tv' : 'off';
     const tick = mode === 'off' ? -2 : Math.floor(now / 90);
     if (tick !== tvDrawn) { tvDrawn = tick; tv.draw(mode, time); }
@@ -1263,7 +1263,7 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
     setSpeed(value) { speed = value; },
     setPaused(value) { paused = value; },
     setVisitorPlaying(value) { visitor = value; },
-    setRecord(value) { games.setRecord(value); },
+    setRecord(value) { games?.setRecord(value); },
     wave(agentId) { waves.set(agentId, performance.now() + 2500); },
     brew() { brewUntil = performance.now() + 4000; },
     setNight(value) {

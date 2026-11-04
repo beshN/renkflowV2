@@ -1,5 +1,7 @@
 'use client';
 
+import { withFunFeatures } from '@/lib/features/settings/useFunFeatures';
+
 import { useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 
@@ -11,7 +13,7 @@ const PalletGame = dynamic(() => import('./PalletGame'), { ssr: false });
  * and a forklift. The forklift is a quiet button that opens a pallet stacking game; the
  * list's own title and actions stay what you are meant to look at.
  */
-export function ForkliftEmpty() {
+function ForkliftEmptyEnabled() {
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   return (
@@ -75,3 +77,6 @@ export function ForkliftEmpty() {
     </div>
   );
 }
+
+const ForkliftEmpty = withFunFeatures(ForkliftEmptyEnabled);
+export { ForkliftEmpty };

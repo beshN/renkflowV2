@@ -1,5 +1,7 @@
 'use client';
 
+import { withFunFeatures } from '@/lib/features/settings/useFunFeatures';
+
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Share2, X } from 'lucide-react';
@@ -26,7 +28,7 @@ function pick(tenantId: string, count: number) {
  * One-time card when the firm reaches its 10th, 100th, 1.000th or 10.000th order.
  * Remembered per browser, tenant and milestone; nothing is written to the server.
  */
-export default function OrderMilestone({ tenantId, count }: { tenantId: string; count: number }) {
+function OrderMilestoneEnabled({ tenantId, count }: { tenantId: string; count: number }) {
   const reduce = useReducedMotion();
   const [milestone, setMilestone] = useState<number | null>(null);
   const ref = useRef<HTMLElement>(null);
@@ -105,3 +107,6 @@ export default function OrderMilestone({ tenantId, count }: { tenantId: string; 
     </AnimatePresence>
   );
 }
+
+const OrderMilestone = withFunFeatures(OrderMilestoneEnabled);
+export default OrderMilestone;

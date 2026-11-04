@@ -1,7 +1,7 @@
 'use client';
 import { prepareFileUpload } from '@/lib/storage/client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Link from 'next/link';
@@ -12,6 +12,7 @@ import { requestJson } from '@/lib/shared/network';
 import { NewOrderFormData } from '@/lib/types';
 import { ArrowLeft, FileUp, Loader2, Info } from 'lucide-react';
 import { ORDER_MAX_UPLOAD_SIZE_BYTES } from '@/lib/features/orders/constants';
+import { useFunFeatures } from '@/lib/features/settings/useFunFeatures';
 import { celebrate } from '@/components/spells/celebrate';
 
 async function createOrderViaApi(payload: FormData): Promise<{ ok: boolean; status: number; message?: string }> {
@@ -44,6 +45,9 @@ async function createOrderViaApi(payload: FormData): Promise<{ ok: boolean; stat
 }
 
 export default function NewOrderPage() {
+  const funFeatures = useFunFeatures();
+  const funEnabled = useRef(funFeatures);
+  funEnabled.current = funFeatures;
   const router = useRouter();
   const { user, isLoading } = useAuth();
   const { showToast } = useToast();
@@ -86,7 +90,7 @@ export default function NewOrderPage() {
       return;
     }
 
-    celebrate();
+    if (funEnabled.current) celebrate();
     showToast('Sipariş kaydı tamamlandı.', 'success');
     router.push('/orders');
     router.refresh();

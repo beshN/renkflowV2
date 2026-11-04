@@ -1,5 +1,7 @@
 'use client';
 
+import { withFunFeatures } from '@/lib/features/settings/useFunFeatures';
+
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Puzzle } from 'lucide-react';
@@ -11,7 +13,7 @@ const PipePuzzle = dynamic(() => import('./PipePuzzle'), {
 });
 
 /** A quiet, optional pastime under an error message: a pipe puzzle behind one small link. */
-export function WhileYouWait({ className }: { className?: string }) {
+function WhileYouWaitEnabled({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <div className={className}>
@@ -27,3 +29,6 @@ export function WhileYouWait({ className }: { className?: string }) {
     </div>
   );
 }
+
+const WhileYouWait = withFunFeatures(WhileYouWaitEnabled);
+export { WhileYouWait };

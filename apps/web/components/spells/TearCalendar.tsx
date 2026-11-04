@@ -1,5 +1,7 @@
 'use client';
 
+import { withFunFeatures } from '@/lib/features/settings/useFunFeatures';
+
 import { useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
@@ -13,7 +15,7 @@ function parts(date: Date) {
  * Tear-off desk calendar (after the Chengyu Calendar spell). Click to tear today's
  * page; it falls away and a fresh copy settles back in.
  */
-export function TearCalendar({ date = new Date() }: { date?: Date }) {
+function TearCalendarEnabled({ date = new Date() }: { date?: Date }) {
   const reduce = useReducedMotion();
   const [tears, setTears] = useState(0);
   const { day, month } = parts(date);
@@ -48,3 +50,6 @@ export function TearCalendar({ date = new Date() }: { date?: Date }) {
     </button>
   );
 }
+
+const TearCalendar = withFunFeatures(TearCalendarEnabled);
+export { TearCalendar };

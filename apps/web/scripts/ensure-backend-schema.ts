@@ -187,6 +187,7 @@ export const BACKEND_MIGRATIONS = [
   '079_office_task_sensitivity.sql',
   '080_sso_identities.sql',
   '081_ai_call_reservations.sql',
+  '082_fun_features.sql',
 ];
 
 /** Mobile API tables (sessions, offline receipts, uploads, push devices); applied after 045 (installations). */
