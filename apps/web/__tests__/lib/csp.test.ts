@@ -5,6 +5,7 @@ describe('application CSP', () => {
   const original = { ...process.env };
   beforeEach(() => {
     delete process.env.CSP_REPORT_ONLY;
+    delete process.env.CSP_ENFORCE;
     delete process.env.NEXT_PUBLIC_SENTRY_DSN;
     delete process.env.NEXT_PUBLIC_SOCKET_URL;
     delete process.env.NEXT_PUBLIC_WS_URL;
@@ -12,10 +13,10 @@ describe('application CSP', () => {
   });
   afterEach(() => { process.env = { ...original }; });
 
-  it('enforces by default, with an unpredictable nonce per request and critical directives', () => {
+  it('reports by default, with an unpredictable nonce per request and critical directives', () => {
     const first = createCsp('/dashboard');
     const second = createCsp('/dashboard');
-    expect(first.header).toBe('Content-Security-Policy');
+    expect(first.header).toBe('Content-Security-Policy-Report-Only');
     expect(first.nonce).not.toBe(second.nonce);
     expect(Buffer.from(first.nonce, 'base64')).toHaveLength(32);
     expect(first.policy).toContain(`'nonce-${first.nonce}'`);
@@ -27,12 +28,20 @@ describe('application CSP', () => {
     expect(scripts).not.toContain('unsafe-eval');
   });
 
-  it.each(['', '0', 'true', 'typo'])('fails safely for rollback value %s', value => {
-    process.env.CSP_REPORT_ONLY = value;
+  it.each(['', '0', 'true', 'typo'])('stays report-only for non-opt-in value %s', value => {
+    process.env.CSP_ENFORCE = value;
+    expect(createCsp('/api/health').header).toBe('Content-Security-Policy-Report-Only');
+  });
+
+  it.each([undefined, '', '0', 'true', 'typo'])('enforces only on opt-in with rollback value %s', value => {
+    process.env.CSP_ENFORCE = '1';
+    if (value === undefined) delete process.env.CSP_REPORT_ONLY;
+    else process.env.CSP_REPORT_ONLY = value;
     expect(createCsp('/api/health').header).toBe('Content-Security-Policy');
   });
 
-  it('switches only the full policy to report-only with the explicit flag', () => {
+  it.each([undefined, '1'])('explicit rollback wins over enforce=%s', enforce => {
+    if (enforce) process.env.CSP_ENFORCE = enforce;
     process.env.CSP_REPORT_ONLY = '1';
     const csp = createCsp('/api/health');
     expect(csp.header).toBe('Content-Security-Policy-Report-Only');

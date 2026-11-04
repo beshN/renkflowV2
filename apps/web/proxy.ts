@@ -385,7 +385,7 @@ export async function proxy(request: NextRequest) {
   response.headers.delete('Content-Security-Policy-Report-Only');
   response.headers.set(csp.header, csp.policy);
   if (csp.header === 'Content-Security-Policy-Report-Only') {
-    // Keep the pre-existing, non-breaking baseline during rollback.
+    // Keep the pre-existing, non-breaking baseline in report-only mode (default or explicit rollback).
     response.headers.set('Content-Security-Policy', SECURITY_HEADERS['Content-Security-Policy']);
   } else {
     response.headers.set('Content-Security-Policy', csp.policy);

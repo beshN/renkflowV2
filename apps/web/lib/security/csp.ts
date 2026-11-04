@@ -44,7 +44,8 @@ export function createCsp(pathname: string) {
   return {
     nonce,
     policy,
-    header: process.env.CSP_REPORT_ONLY === '1'
-      ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy',
+    // Opt in only after authenticated flows have been verified; rollback always wins.
+    header: process.env.CSP_ENFORCE === '1' && process.env.CSP_REPORT_ONLY !== '1'
+      ? 'Content-Security-Policy' : 'Content-Security-Policy-Report-Only',
   };
 }

@@ -16,6 +16,7 @@ describe('CSP through the actual proxy', () => {
     process.env.PUBLIC_SITE_MODE = 'off';
     process.env.ALLOW_INSECURE_HTTP = '1';
     delete process.env.CSP_REPORT_ONLY;
+    delete process.env.CSP_ENFORCE;
   });
   afterEach(() => { process.env = { ...original }; });
   const request = (path: string) => new NextRequest(`http://localhost:3027${path}`, {
@@ -23,6 +24,7 @@ describe('CSP through the actual proxy', () => {
   });
 
   it.each(['/auth/login', '/api/health', '/api/auth/session', '/dashboard'])('enforces for pass-through and redirects: %s', async path => {
+    process.env.CSP_ENFORCE = '1';
     const response = await proxy(request(path));
     const csp = response.headers.get('Content-Security-Policy')!;
     expect(csp).toContain("frame-ancestors 'none'");
@@ -37,13 +39,16 @@ describe('CSP through the actual proxy', () => {
     const nonce = first.headers.get('x-middleware-request-x-nonce');
     expect(nonce).toBeTruthy();
     expect(nonce).not.toBe(second.headers.get('x-middleware-request-x-nonce'));
-    expect(first.headers.get('Content-Security-Policy')).toContain(`'nonce-${nonce}'`);
-    expect(first.headers.get('x-middleware-request-content-security-policy')).toBe(first.headers.get('Content-Security-Policy'));
+    expect(first.headers.get('Content-Security-Policy-Report-Only')).toContain(`'nonce-${nonce}'`);
+    expect(first.headers.get('x-middleware-request-content-security-policy')).toBe(first.headers.get('Content-Security-Policy-Report-Only'));
     expect(first.headers.get(`x-middleware-request-${HIDDEN_FIELDS_HEADER}`)).toBeNull();
   });
 
-  it('keeps the baseline enforced while rolling back the full policy', async () => {
-    process.env.CSP_REPORT_ONLY = '1';
+  it.each([false, true])('keeps the baseline enforced in report-only mode; explicit rollback=%s', async rollback => {
+    if (rollback) {
+      process.env.CSP_ENFORCE = '1';
+      process.env.CSP_REPORT_ONLY = '1';
+    }
     const response = await proxy(request('/auth/login'));
     expect(response.headers.get('Content-Security-Policy')).toBe(CONTENT_SECURITY_POLICY);
     expect(response.headers.get('Content-Security-Policy-Report-Only')).toContain('nonce-');

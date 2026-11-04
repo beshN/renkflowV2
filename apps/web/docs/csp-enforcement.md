@@ -1,10 +1,16 @@
 # S-08: uygulama CSP ilk dilimi
 
-Panel, `/auth/*`, `/signup` ve `/api/*` cevaplarında tam CSP varsayılan olarak zorunludur. Proxy'nin mevcut public sayfa listesi ve statik varlıklar önceki baseline + report-only politikasını korur. Landing tasarımı/işlevi değişmez. Dosya handler'larının mevcut daha sıkı `sandbox` CSP'si korunur; bu genel politika onların yerine geçirilmez.
+Panel, `/auth/*`, `/signup` ve `/api/*` cevaplarında tam CSP varsayılan olarak **report-only** çalışır. Tam enforcement yalnız açık `CSP_ENFORCE=1` ile etkinleşir; `CSP_REPORT_ONLY=1` her durumda öncelikli geri dönüş anahtarıdır. Proxy'nin mevcut public sayfa listesi ve statik varlıklar önceki baseline + report-only politikasını korur. Landing tasarımı/işlevi değişmez. Dosya handler'larının mevcut daha sıkı `sandbox` CSP'si korunur; bu genel politika onların yerine geçirilmez.
 
-## Geri dönüş
+## Modlar ve geri dönüş
 
-Uygulama sunucusunda **yalnız `CSP_REPORT_ONLY=1`** tam politikayı report-only'ye taşır. Değişken yoksa, boşsa, `0`, `true` veya başka bir değerse enforcement sürer. Eski `base-uri 'self'; object-src 'none'` baseline zorunlu kalır; dosya sandbox'ları gevşemez. Runtime değişkeni olduğu için sunucuyu yeniden başlatın; bu değişken için yeniden build gerekmez. Tekrar enforcement için değişkeni kaldırıp sunucuyu yeniden başlatın. Bu PR production/Vercel ayarı değiştirmez.
+| CSP_ENFORCE | CSP_REPORT_ONLY | Tam politika |
+| --- | --- | --- |
+| yok / boş / 0 / true / hatalı | herhangi | report-only |
+| 1 | yok / boş / 0 / true / hatalı | enforced |
+| 1 | 1 | report-only (geri dönüş öncelikli) |
+
+Eski `base-uri 'self'; object-src 'none'` baseline her modda zorunlu kalır. Bayrakları değiştirdikten sonra sunucuyu yeniden başlatın; rebuild gerekmez. Enforce'tan güvenli geri dönüş için `CSP_REPORT_ONLY=1` verin veya `CSP_ENFORCE` değişkenini kaldırın. Bu PR production/Vercel ayarı değiştirmez. Varsayılanın report-only olması, doğrulanmamış oturumlu ekranlarda politika nedeniyle kırılma riskini erteler; S-08 enforcement tamamlandı iddiası yoktur.
 
 ## İnceleme ve izinler
 
@@ -23,12 +29,28 @@ Uygulama sunucusunda **yalnız `CSP_REPORT_ONLY=1`** tam politikayı report-only
 
 Migration, seed veya yeni iş verisi yok. #133–#146 dosya listeleri incelendi; bu dilimin değiştirdiği dosyalarla ortak dosya yok. #116 eski audit dalının proxy değişiklikleriyle gelecekte birleştirme incelemesi gerekebilir; o dal değiştirilmez. Production, Neon, Vercel veya canlı DB işlemi yok. AI çıktısı insan onayı gerektirir; inceleme ve merge Berat'a aittir.
 
-## Bu dilimde yerel doğrulama
+## Claude DÜZELT 1 sonrası doğrulama
 
-- Node 24.19.0 ortamında `apps/web` içinde type-check başarılı; lint 0 hata / kapsam dışı mevcut 3 uyarı. Repo/CI Node 22 ister; Node 22 sonucu doğrulanmadı.
-- Tam `npm test -- --runInBand`: 226 suite'in 225'i, 1692 testin 1685'i geçti. Yalnız mevcut `einvoice-xsd.test.ts` içindeki 7 test, ortamda `xmllint` bulunmadığından `ENOENT`. Tam test paketi yeşil değil. CSP/proxy/baseline odaklı son tur: 3 suite / 23 test başarılı.
-- `npm run build` başarılı; postbuild standalone PDF worker paketleme ve gerçek föy Türkçe metin çıkarma kontrolü dahil.
-- Build sonrası doğrudan `next start` ile localhost:3027, aynı build + `CSP_REPORT_ONLY=1` ile localhost:3028 çalıştırıldı. Next, `output: standalone` için standalone server kullanımını öneren uyarı verdi; buna rağmen gerçek yerel HTTP cevapları alındı. Bu, deploy/production doğrulaması değildir.
-- İki GET /auth/login: nonce farklı; HTML nonce başlıkla aynı; enforcement altında report-only başlığı yok. Aynı build'in geri dönüş sürecinde baseline enforced ve tam nonce politikası report-only olarak doğrulandı. /api/auth/session 200 ve /dashboard anonim 302 cevapları zorunlu CSP taşıdı.
-- Gerçek Chromium: /auth/login 200, 0 CSP olayı/mesajı; 6 inline scriptin nonce'ı CSP ile eşleşti. / 200 açıldı fakat korunan mevcut report-only politika altında 7 `script-src` / `eval` ihlal kaydı görüldü; ana sayfa için “konsol ihlalsiz” kriteri sağlandı denmiyor. Kaynak/kod değiştirilmedi ve `unsafe-eval` production'a eklenmedi.
-- /dashboard, /quotations, /orders, /work-orders, /production?tab=cutting, /assistant anonim ziyaretleri girişe yönlendi. Girişte CSP ihlali olmaması bu oturumlu sayfaların doğrulandığı anlamına gelmez. Geçerli yerel oturum/veri sağlanmadığından panel ekranları, kayıtlı kesim planı, PDF/CSV indirme/önizleme, oturumlu AI asistanı ve gerçek GA/Sentry/Socket bağlantıları doğrulanmadı. Hesap/iş kaydı/seed üretilmedi; canlı sistem kullanılmadı.
+- `apps/web/AGENTS.md` ve kurulu Next.js CSP/nonce, proxy/middleware, headers belgeleri tekrar okundu. Node 24.19.0: type-check başarılı; lint 0 hata / mevcut 3 uyarı. Node 22/uzak CI sonucu doğrulanmadı.
+- Tam `npm test -- --runInBand`: 226 suite'in 225'i, 1699 testin 1692'si geçti. Yalnız mevcut `einvoice-xsd.test.ts` içindeki 7 test eksik `xmllint` nedeniyle ENOENT. Tam paket yeşil değil. CSP/proxy/baseline odaklı tur: 3 suite / 30 test başarılı.
+- `npm run build` ve postbuild standalone PDF worker/gerçek föy Türkçe PDF extraction kontrolleri başarılı.
+- Aynı build üç yerel `next start` sürecinde denendi: varsayılan, `CSP_ENFORCE=1`, iki bayrak birlikte. HTTP 200 giriş cevaplarında modlar beklenen şekilde, nonce'lar istek başına farklı ve tema scriptinin HTML nonce'ı tam politika başlığıyla aynı. Enforce modunda 6 inline scriptin tamamı nonce taşır. Default/rollback'te baseline enforced + tam politika report-only; enforce'ta yalnız tam enforced politika var. Next standalone yapılandırması için standalone server öneren uyarı verdi; bu bir deployment doğrulaması değildir.
+
+- Normal Chromium turu: enforce giriş sayfası 200 / 0 CSP olayı. Default ve rollback giriş sayfası 200 açıldı; her birinde 5 report-only inline-script olayı var: framework scriptleri bu iki modda nonce taşımıyor, tema scripti taşıyor. Browser scriptleri engellemiyor. Bu ek gözlem tam nonce raporlarının temiz olduğu şeklinde sunulmuyor; mevcut baseline/Next başlık önceliğini düzeltmek bu küçük mod değişikliğinde genişletilmedi, enforcement öncesi listede kalır.
+
+## Landing eval kaynağı
+
+Yerel production build'de Chromium'un Function constructor çağrıları yalnız tanısal init script ile izlendi; ürün kodu değiştirilmedi. Yedi çağrının tamamı **Zod JIT** kaynaklı: bir `allowsEval` yetenek yoklaması ve altı object validator derlemesi. Stack'te `$ZodObjectJIT`, `Doc.compile`, `_zod.parse` var; oluşturulan validator alanları geometry, itemId, name, minWidthMm, widthMm, kerfMm. Kurulu `node_modules/zod/v4/core/util.js` (`allowsEval`), `doc.js` (`compile`, `new F`) ve `schemas.js` (`generateFastpass`) kaynaklarıyla eşleştirildi. Normal, izleme yapılmayan Chromium turunda da landing 200 ve 7 report-only eval ihlali görüldü. Zod panel kodunda da kullanılır; bu bulgu oturumlu ekranların enforcement altında güvenli olduğunun kanıtı değildir. Bu commit Zod ayarını/kodunu, landing'i veya script izinlerini değiştirmez; production'a unsafe-eval eklemez.
+
+## Enforcement öncesi kontrol listesi
+
+Geçerli yerel/test kullanıcı ve kayıtlar sağlanmadan hesap/seed/iş verisi üretilmedi. Aşağıdakilerin tamamı **oturumlu enforce modunda doğrulanmadı**; anonim giriş yönlendirmesi ekran doğrulaması sayılmaz:
+
+- Dashboard, siparişler ve üretim/kesim ekranları: açılış + gerçek etkileşim; konsolda CSP ihlali yok.
+- Kayıtlı kesim planı, PDF önizleme/yazdırma, intake iframe: dosya açılışı ve son cevap CSP/sandbox başlıkları.
+- `/office`, ürün yapılandırıcı ve asistan: Zod doğrulama, mevcut 3D/barkod/QR akışları ve AI için insan onayı sınırı.
+- CSV/DXF indirmeleri: erişim, attachment başlıkları ve dosya açılışı. Diğer PR'lara ait henüz main'de olmayan DXF yolları bu dalda test edilmiş sayılmaz.
+- GA onayı, Sentry ve yapılandırılmış socket bağlantıları: gerçek test yapılandırmasında izinler ve konsol.
+- Zod JIT fallback/ihlal davranışını her ilgili akışta değerlendirme; ayrı bir düzeltme gerekirse incelemeden sonra uygulama.
+
+Bu liste tamamlanıp insan incelemesi yapılmadan production enforcement'a geçildiği varsayılmamalıdır. `/api/storage/content` gibi başarılı dosya cevaplarında route sandbox CSP'si ile proxy politikasının gerçek son yanıt önceliği **doğrulanmadı**: geçerli aktör/dosya olmadan sahte başarılı yanıt kurulmadı. Bu küçük düzeltme header birleştirmesini veya dosya rotalarını değiştirmez; gerçek HTTP testi sonraki doğrulama listesinde kalır. Merkezi rapor toplayıcı yoktur; report-only gözlemi yalnız browser konsolundadır.
