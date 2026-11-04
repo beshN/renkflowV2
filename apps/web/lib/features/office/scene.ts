@@ -24,6 +24,8 @@ export type StageHint = 'slow' | 'smooth';
 
 export type OfficeStage = {
   setSpeed(speed: number): void;
+  /** Toggle the optional corner without replacing the WebGL scene. */
+  setFunFeatures(enabled: boolean): void;
   /** Someone at the keyboard is playing the racing game: the games screen shows it too. */
   setVisitorPlaying(playing: boolean): void;
   /** The racing record on this device, shown small on the games screen (0: none yet). */
@@ -469,7 +471,7 @@ function drawRecord(g: CanvasRenderingContext2D, w: number, best: number) {
 }
 
 /** The games corner: a big screen on a low stand facing the room, a console, two bean bags. */
-function buildGamingCorner(scene: T.Scene) {
+function buildGamingCorner(scene: T.Object3D) {
   const { x, screenZ, seatZ, standWidth } = GAMING;
   scene.add(at(box(standWidth, 0.45, 0.45, '#27272a'), x, 0.225, screenZ));
   const consoleBox = at(box(0.32, 0.07, 0.24, '#f8fafc'), x - 0.5, 0.485, screenZ + 0.02);
@@ -1025,10 +1027,22 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
   const loungeLamp = buildLounge(scene);
   buildDecor(scene);
   const kitchen = buildKitchen(scene);
-  const games = options.funFeatures === false ? null : buildGamingCorner(scene);
+  // Keep optional furniture out of the static bake so it can be hidden independently.
+  const gamesRoot = live(new T.Group());
+  gamesRoot.visible = false;
+  scene.add(gamesRoot);
+  let games: ReturnType<typeof buildGamingCorner> | undefined;
+  let funFeatures = false;
+  const setFunFeatures = (enabled: boolean) => {
+    if (enabled && !games) games = buildGamingCorner(gamesRoot);
+    funFeatures = enabled;
+    gamesRoot.visible = enabled;
+    if (!enabled) visitor = false;
+  };
   const tv = buildTvCorner(scene);
   const clock = buildShelfAndClock(scene);
   let tvDrawn = -1, visitor = false, brewUntil = 0;
+  setFunFeatures(options.funFeatures !== false);
   const waves = new Map<string, number>();
   const drawBoard = buildBoard(scene);
   bakeStatic(scene);
@@ -1041,7 +1055,7 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
     return [agent.id, person];
   }));
 
-  const clickable: T.Object3D[] = [...(games ? [games.screen] : []), ...scene.children.filter(o => o.userData.pick && o !== games?.screen), ...[...people.values()].map(p => p.root)];
+  const clickable: T.Object3D[] = [gamesRoot, ...scene.children.filter(o => o.userData.pick), ...[...people.values()].map(p => p.root)];
   const target = new T.Vector3(-0.3, 0, 1.4);
   const initialView = { theta: 0.42, phi: 0.9, distance: 28.5 };
   // The camera eases towards where the person dragged or zoomed it.
@@ -1098,7 +1112,7 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
     const box = canvas.getBoundingClientRect();
     pointer.set(((e.clientX - box.left) / box.width) * 2 - 1, -((e.clientY - box.top) / box.height) * 2 + 1);
     raycaster.setFromCamera(pointer, camera);
-    const hit = raycaster.intersectObjects(clickable, true)[0];
+    const hit = raycaster.intersectObjects(clickable.filter(o => o !== gamesRoot || funFeatures), true)[0];
     for (let node: T.Object3D | null = hit?.object ?? null; node; node = node.parent) if (node.userData.pick) return node.userData.pick as StagePick;
     return null;
   };
@@ -1214,7 +1228,7 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
       (puff.material as T.MeshBasicMaterial).opacity = brewing ? (1 - t) * 0.45 : 0;
       puff.visible = Boolean(brewing);
     });
-    games?.draw(sim.agents.filter(a => a.phase === 'break' && a.activity === 'game').length + (visitor ? 1 : 0), time);
+    if (funFeatures) games?.draw(sim.agents.filter(a => a.phase === 'break' && a.activity === 'game').length + (visitor ? 1 : 0), time);
     const mode = sim.agents.some(a => a.phase === 'break' && a.activity === 'tv') ? 'tv' : 'off';
     const tick = mode === 'off' ? -2 : Math.floor(now / 90);
     if (tick !== tvDrawn) { tvDrawn = tick; tv.draw(mode, time); }
@@ -1261,8 +1275,9 @@ export function createOfficeStage(canvas: HTMLCanvasElement, sim: OfficeSimulati
 
   return {
     setSpeed(value) { speed = value; },
+    setFunFeatures,
     setPaused(value) { paused = value; },
-    setVisitorPlaying(value) { visitor = value; },
+    setVisitorPlaying(value) { visitor = funFeatures && value; },
     setRecord(value) { games?.setRecord(value); },
     wave(agentId) { waves.set(agentId, performance.now() + 2500); },
     brew() { brewUntil = performance.now() + 4000; },

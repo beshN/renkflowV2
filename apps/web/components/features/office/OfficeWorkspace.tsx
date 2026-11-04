@@ -180,6 +180,8 @@ function keptOffice(key: string) {
 
 export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
   const funFeatures = useFunFeatures();
+  const funEnabled = useRef(funFeatures);
+  funEnabled.current = funFeatures;
   const [here] = useState(() => keptOffice(officeKey));
   const sim = here.sim;
   // The office changes many times a second; the panel follows at most four times a second (the 3D
@@ -205,7 +207,6 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
   /** The other mode, suggested when the device struggles or has room to spare; a declined one is not offered again. */
   const [hint, setHint] = useState<StageHint | null>(null);
   const [playing, setPlaying] = useState(false);
-  useEffect(() => { if (funFeatures === undefined) return; sim.setGamesEnabled(funFeatures); if (!funFeatures) { setPlaying(false); setQuip(null); record.current = null; clearTimeout(cheerTimer.current); clearTimeout(quipTimer.current); } }, [funFeatures, sim]);
   const [quip, setQuip] = useState<{ id: string; text: string } | null>(null);
   /** Who looks over while the game is open. */
   const [watcher, setWatcher] = useState<string | null>(null);
@@ -213,6 +214,16 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
   const cheerTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   /** The best record set since the game opened, congratulated once it closes. */
   const record = useRef<RallyRun | null>(null);
+  useEffect(() => {
+    stage.current?.setFunFeatures(funFeatures === true);
+    if (funFeatures === true) stage.current?.setRecord(readRallyBest());
+    if (funFeatures === undefined) return;
+    sim.setGamesEnabled(funFeatures);
+    if (!funFeatures) {
+      setPlaying(false); setQuip(null); record.current = null;
+      clearTimeout(cheerTimer.current); clearTimeout(quipTimer.current);
+    }
+  }, [funFeatures, sim]);
   const say = useCallback((id: string, text: string, ms: number) => {
     stage.current?.wave(id);
     setQuip({ id, text });
@@ -242,14 +253,14 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
   useEffect(() => { try { localStorage.setItem(QUALITY_KEY, quality); } catch { /* the choice just is not remembered */ } }, [quality]);
 
   useEffect(() => {
-    if (!canvas.current || funFeatures === undefined) return;
+    if (!canvas.current) return;
     // Time away from the page passes in the office too, at the speed it was left running.
     if (here.leftAt !== null && !here.view.paused) sim.catchUp(((Date.now() - here.leftAt) / 1000) * here.view.speed);
     here.leftAt = null;
     setHint(null);
     let gone = false;
     const pick = (picked: StagePick) => {
-      if (!funFeatures) return;
+      if (funEnabled.current !== true) return;
       if (picked.kind === 'tv') {
         setWatcher(pickCheerer(sim.agents, VISITOR)?.name ?? null);
         setPlaying(true);
@@ -269,13 +280,13 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
       try {
         // A new quality mode builds the stage again on a fresh canvas, with the camera where it was.
         stage.current = createOfficeStage(canvas.current, sim, labels.current, {
-          quality, camera: here.camera, onPick: pick, funFeatures,
+          quality, camera: here.camera, onPick: pick, funFeatures: funEnabled.current === true,
           onHint: next => { if (!here.declined.has(next)) setHint(next); },
         });
         stage.current.setSpeed(here.view.speed);
         stage.current.setPaused(here.view.paused);
         stage.current.setNight(here.view.night);
-        if (funFeatures) stage.current.setRecord(readRallyBest());
+        if (funEnabled.current === true) stage.current.setRecord(readRallyBest());
       } catch {
         setFailed(true);
       }
@@ -287,7 +298,7 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
       stage.current = null;
       here.leftAt = Date.now();
     };
-  }, [here, sim, quality, say, funFeatures]);
+  }, [here, sim, quality, say]);
   useEffect(() => stage.current?.setSpeed(speed), [speed]);
   useEffect(() => stage.current?.setPaused(paused), [paused]);
   useEffect(() => stage.current?.setNight(night), [night]);

@@ -5,7 +5,7 @@ import type { StagePick } from '@/lib/features/office/scene';
 let enabled: boolean | undefined = false;
 jest.mock('@/lib/features/settings/useFunFeatures', () => ({ useFunFeatures: () => enabled }));
 const createOfficeStage = jest.fn((..._args: unknown[]) => ({
-  setSpeed: jest.fn(), setPaused: jest.fn(), setNight: jest.fn(), setRecord: jest.fn(),
+  setFunFeatures: jest.fn(), setSpeed: jest.fn(), setPaused: jest.fn(), setNight: jest.fn(), setRecord: jest.fn(),
   dispose: jest.fn(), cameraView: jest.fn(), wave: jest.fn(), brew: jest.fn(), setVisitorPlaying: jest.fn(),
 }));
 jest.mock('@/lib/features/office/scene', () => ({ createOfficeStage: (...args: unknown[]) => createOfficeStage(...args) }));
@@ -25,13 +25,12 @@ it('passes disabled policy to the scene and ignores TV/coffee/staff picks withou
   expect(createOfficeStage.mock.results[0].value.brew).not.toHaveBeenCalled();
 });
 
-it('waits for policy resolution, builds once, and does not end retained game breaks while loading', async () => {
+it('builds once while policy loads and does not end retained game breaks', async () => {
   const games = jest.spyOn(OfficeSimulation.prototype, 'setGamesEnabled');
   const sync = jest.spyOn(OfficeSimulation.prototype, 'sync');
   enabled = undefined;
   const { rerender } = render(<OfficeWorkspace officeKey="loading-policy" />);
-  await act(async () => {});
-  expect(createOfficeStage).not.toHaveBeenCalled();
+  await waitFor(() => expect(createOfficeStage).toHaveBeenCalledTimes(1));
   expect(games).not.toHaveBeenCalled();
   const sim = sync.mock.contexts[0] as OfficeSimulation;
   // Represents an existing break in the persistent office, before the new visit's policy resolves.
@@ -41,7 +40,8 @@ it('waits for policy resolution, builds once, and does not end retained game bre
   expect(sim.agents.some(a => a.activity === 'game')).toBe(true);
   enabled = true;
   rerender(<OfficeWorkspace officeKey="loading-policy" />);
-  await waitFor(() => expect(createOfficeStage).toHaveBeenCalledTimes(1));
+  expect(createOfficeStage).toHaveBeenCalledTimes(1);
+  expect(createOfficeStage.mock.results[0].value.setFunFeatures).toHaveBeenLastCalledWith(true);
   expect(games).toHaveBeenCalledTimes(1);
   expect(games).toHaveBeenCalledWith(true);
   expect(sim.agents.some(a => a.activity === 'game')).toBe(true);
