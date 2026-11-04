@@ -142,9 +142,12 @@ export function isRetryableError(error: unknown): boolean {
     return false;
   }
 
-  // Network / timeout message signatures
+  // Network / timeout message signatures. "Load failed" is the fetch network
+  // error of Safari and every iOS browser (WebKit); matching the message, not
+  // every TypeError, keeps programming errors in fetchers from being retried.
   if (
     message.includes('failed to fetch') ||
+    message.includes('load failed') ||
     message.includes('fetch failed') ||
     message.includes('network') ||
     message.includes('timeout') ||

@@ -77,6 +77,13 @@ describe('request-layer retry behavior', () => {
       expect(isRetryableError({ code: 'UND_ERR_CONNECT_TIMEOUT' })).toBe(true);
     });
 
+    it('retries the Safari / iOS (WebKit) fetch network error, but not programming TypeErrors', () => {
+      expect(isRetryableError(new TypeError('Load failed'))).toBe(true);
+      expect(isRetryableError(new TypeError("Cannot read properties of undefined (reading 'map')"))).toBe(false);
+      // An explicit 4xx still wins over any network-like message.
+      expect(isRetryableError(Object.assign(new TypeError('Load failed'), { status: 403 }))).toBe(false);
+    });
+
     it('retries 5xx server errors', () => {
       expect(isRetryableError({ status: 500 })).toBe(true);
       expect(isRetryableError({ status: 502 })).toBe(true);
@@ -192,6 +199,26 @@ describe('request-layer retry behavior', () => {
 
       expect(result).toEqual({ ok: true });
       expect(fetcher).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries the Safari "Load failed" network error exactly 1 time by default', async () => {
+      const safariNetworkError = new TypeError('Load failed');
+      const fetcher = jest
+        .fn()
+        .mockRejectedValueOnce(safariNetworkError)
+        .mockResolvedValueOnce({ success: true });
+
+      const result = await cachedRequest('test:safari:retry-success', fetcher, { retryDelay: 0 });
+
+      expect(result).toEqual({ success: true });
+      expect(fetcher).toHaveBeenCalledTimes(2);
+
+      const persistent = jest.fn().mockRejectedValue(safariNetworkError);
+      await expect(
+        cachedRequest('test:safari:fail-after-retry', persistent, { retryDelay: 0 })
+      ).rejects.toThrow('Load failed');
+      // 1 initial attempt + 1 retry = 2 total executions (default retry = 1)
+      expect(persistent).toHaveBeenCalledTimes(2);
     });
 
     it('allows overriding shouldRetry custom predicate', async () => {
