@@ -318,7 +318,7 @@ async function main() {
     job2 = await makeJob(orderItems[1].id);
   const jobIds = [job1.id, job2.id];
   // ECO-lite: migration preflight, publication isolation and immutable job snapshots.
-  const migration = readFileSync("lib/db/migrations/082_recipe_publish_archive.sql", "utf8");
+  const migration = readFileSync("lib/db/migrations/083_recipe_publish_archive.sql", "utf8");
   await db.unsafe(migration);
   await db.unsafe(migration);
   const snapshots = await db`SELECT id,bom_snapshot FROM work_orders WHERE tenant_id=${tenant.id} AND id=ANY(${jobIds}::uuid[]) ORDER BY id`;

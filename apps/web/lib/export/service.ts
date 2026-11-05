@@ -141,13 +141,12 @@ export async function generateOrderReportPDF(
   tenantId: string,
   orderId: string
 ): Promise<Uint8Array> {
-  // Fetch order with all details
+  // The PDF uses only these order fields; do not fetch document rows or storage paths.
   const orderResult = await sql`
-    SELECT o.*, json_agg(d.*) as documents
+    SELECT o.order_number, o.customer_name, o.email, o.product_name,
+      o.total_amount, o.currency, o.status, o.created_at
     FROM orders o
-    LEFT JOIN documents d ON d.order_id = o.id
     WHERE o.id = ${orderId} AND o.tenant_id = ${tenantId}
-    GROUP BY o.id
   `;
   const orderRows = orderResult as any[];
   const order = orderRows[0];

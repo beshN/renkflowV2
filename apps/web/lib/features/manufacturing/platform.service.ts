@@ -394,6 +394,7 @@ async function execute(
         standardLengthMm: z.number().nonnegative().default(0),
         weightPerMeterKg: z.number().nonnegative().default(0),
         minStock: z.number().nonnegative().finite().max(1000000).default(0),
+        profileSection: text.nullish(),
         // Identity: profile code + size + processed states (+ piece length for counted pieces).
         profileCode: z.string().trim().max(40).optional().transform((v) => v || null),
         sizeLabel: z.string().trim().max(40).optional().transform((v) => v || null),
@@ -414,7 +415,7 @@ async function execute(
     }
     try {
       const [row] =
-        await tx`INSERT INTO inventory_items(tenant_id,sku,name,unit,item_type,stock_uom,standard_length_m,weight_per_meter_kg,min_stock,profile_code,size_label,processed_states,piece_length_mm)VALUES(${t},${d.sku},${d.name},${d.uom},${d.itemType},${d.uom},${d.standardLengthMm / 1000},${d.weightPerMeterKg},${d.minStock},${d.profileCode},${d.sizeLabel},${states}::text[],${d.pieceLengthMm ?? null}) RETURNING *`;
+        await tx`INSERT INTO inventory_items(tenant_id,sku,name,unit,item_type,stock_uom,standard_length_m,weight_per_meter_kg,min_stock,profile_section,profile_code,size_label,processed_states,piece_length_mm)VALUES(${t},${d.sku},${d.name},${d.uom},${d.itemType},${d.uom},${d.standardLengthMm / 1000},${d.weightPerMeterKg},${d.minStock},${d.profileSection ?? null},${d.profileCode},${d.sizeLabel},${states}::text[],${d.pieceLengthMm ?? null}) RETURNING *`;
       return row;
     } catch (error) {
       // Two saves of the same item at once: the second meets the unique index, not a server error.
@@ -713,8 +714,8 @@ async function execute(
       .parse(data);
     const [shipment] =
       await tx`SELECT * FROM production_shipments WHERE tenant_id=${t} AND id=${d.id} FOR UPDATE`;
+    if (!shipment) fail("Sevkiyat bulunamadı", 404);
     if (
-      !shipment ||
       shipment.version !== d.version ||
       shipment.status === "delivered"
     )
@@ -1833,7 +1834,9 @@ export async function shipProducedQuantity(
     await tx`SELECT oi.quantity,COALESCE((SELECT SUM(s.quantity) FROM production_shipments s JOIN work_orders w ON w.id=s.work_order_id WHERE s.tenant_id=${a.tenantId} AND w.order_item_id=oi.id),0) AS shipped,COALESCE((SELECT SUM(w.produced_qty) FROM work_orders w WHERE w.tenant_id=${a.tenantId} AND w.order_item_id=oi.id AND w.status<>'cancelled'),0) AS produced FROM order_items oi WHERE order_id=${job.order_id}`;
   const complete = all.every((r: any) => num(r.shipped) >= num(r.quantity));
   const allProduced = all.every((r: any) => r.produced === undefined || num(r.produced) >= num(r.quantity));
-  await tx`UPDATE orders SET status=${complete ? "shipped" : allProduced ? "ready_for_shipment" : "in_production"},shipment_status=${complete ? "shipped" : allProduced ? "ready" : "partially_shipped"},version=version+1 WHERE tenant_id=${a.tenantId} AND id=${job.order_id}`;
+  // orders_shipment_status_check (migration 013) allows only not_shipped/ready/shipped/delivered, so a
+  // partial shipment keeps 'ready'; the order status says whether the rest is still in production.
+  await tx`UPDATE orders SET status=${complete ? "shipped" : allProduced ? "ready_for_shipment" : "in_production"},shipment_status=${complete ? "shipped" : "ready"},version=version+1 WHERE tenant_id=${a.tenantId} AND id=${job.order_id}`;
   if (complete) await noteOrderDates(tx, a.tenantId, job.order_id, "shipped");
   await enqueueOrderNotice(
     tx,
@@ -1949,12 +1952,12 @@ export async function cutPlanSheet(actor: WorkOrderActor, id: string) {
   ])];
   const lotIds = bars.map((b) => b.source.id);
   const [items, jobs, lots] = await Promise.all([
-    itemIds.length ? sql`SELECT id,sku,name FROM inventory_items WHERE tenant_id=${t} AND id=ANY(${itemIds}::uuid[])` : [],
+    itemIds.length ? sql`SELECT id,sku,name,profile_code FROM inventory_items WHERE tenant_id=${t} AND id=ANY(${itemIds}::uuid[])` : [],
     sql`SELECT w.id,w.title,o.order_number FROM work_orders w JOIN orders o ON o.id=w.order_id AND o.tenant_id=w.tenant_id WHERE w.tenant_id=${t} AND w.id=ANY(${plan.work_order_ids}::uuid[])`,
     lotIds.length ? sql`SELECT id,lot_number FROM stock_lots WHERE tenant_id=${t} AND id=ANY(${lotIds}::uuid[])` : [],
   ]);
-  const item = new Map(items.map((i: any) => [i.id, { sku: i.sku, name: i.name }]));
-  const job = new Map(jobs.map((j: any) => [j.id, { title: j.title, orderNumber: j.order_number }]));
+  const item = new Map<string, { sku: string; name: string; profileCode: string | null }>(items.map((i: any) => [i.id, { sku: i.sku, name: i.name, profileCode: i.profile_code }]));
+  const job = new Map<string, { id: string; title: string; orderNumber: string }>(jobs.map((j: any) => [j.id, { id: j.id, title: j.title, orderNumber: j.order_number }]));
   const lot = new Map(lots.map((l: any) => [l.id, l.lot_number]));
   const source: CuttingParameterSource | null = plan.result.parameterSource ?? null;
   return {

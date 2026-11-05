@@ -1,3 +1,7 @@
+let enabled = true;
+jest.mock('@/lib/features/settings/useFunFeatures', () => ({
+  withFunFeatures: (Component: React.ComponentType) => function Gate() { return enabled ? <Component /> : null; },
+}));
 import { render, fireEvent } from '@testing-library/react';
 
 const success = jest.fn();
@@ -10,7 +14,7 @@ import { KonamiCode } from '@/components/spells/KonamiCode';
 const CODE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
 
 describe('Konami code', () => {
-  beforeEach(() => { jest.useFakeTimers(); success.mockClear(); celebrate.mockClear(); });
+  beforeEach(() => { enabled = true; jest.useFakeTimers(); success.mockClear(); celebrate.mockClear(); });
   afterEach(() => jest.useRealTimers());
 
   it('celebrates after the full sequence, even after a false start', () => {
@@ -19,6 +23,18 @@ describe('Konami code', () => {
     jest.runAllTimers();
     expect(success).toHaveBeenCalledTimes(1);
     expect(celebrate).toHaveBeenCalled();
+  });
+
+  it('does not trigger while disabled and cancels pending bursts on disable', () => {
+    const { rerender } = render(<KonamiCode />);
+    for (const key of CODE) fireEvent.keyDown(window, { key });
+    enabled = false;
+    rerender(<KonamiCode />);
+    success.mockClear();
+    for (const key of CODE) fireEvent.keyDown(window, { key });
+    jest.runAllTimers();
+    expect(success).not.toHaveBeenCalled();
+    expect(celebrate).not.toHaveBeenCalled();
   });
 
   it('ignores a wrong sequence and typing in a field', () => {
