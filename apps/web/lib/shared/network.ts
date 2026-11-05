@@ -76,7 +76,7 @@ export async function requestJson<T = unknown>(
         error:
           getErrorFromPayload(payload) ||
           options.fallbackError ||
-          `Istek basarisiz oldu (${response.status})`,
+          `İstek başarısız oldu (${response.status})`,
       };
     }
 
@@ -94,8 +94,8 @@ export async function requestJson<T = unknown>(
       status: 0,
       data: null,
       error: timeout
-        ? 'Istek zaman asimina ugradi. Lutfen tekrar deneyin.'
-        : options.fallbackError || 'Ag hatasi olustu. Baglantinizi kontrol edip tekrar deneyin.',
+        ? 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.'
+        : options.fallbackError || 'Ağ hatası oluştu. Bağlantınızı kontrol edip tekrar deneyin.',
     };
   }
 }
