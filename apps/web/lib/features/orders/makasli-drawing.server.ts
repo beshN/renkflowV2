@@ -7,9 +7,13 @@ import {
 } from "../work-orders/security";
 import { needTechnical } from "./technical.server";
 import { requireTechnicalAssignment } from "./technical-assignment";
-import { makasliDrawing } from "./makasli-drawing";
+import {
+  makasliGeometry,
+  drawingSvg,
+  type DrawingGeometry,
+} from "./makasli-drawing";
 
-export async function orderDrawings(
+export async function orderDrawingModels(
   actor: WorkOrderActor,
   orderId: string,
 ): Promise<{
@@ -17,7 +21,7 @@ export async function orderDrawings(
   lines: Array<{
     id: string;
     productName: string;
-    svg: string | null;
+    geometry: DrawingGeometry | null;
     message: string | null;
   }>;
 }> {
@@ -51,18 +55,25 @@ export async function orderDrawings(
       .map((l: any) => ({
         id: l.id as string,
         productName: l.product_name as string,
-        ...makasliDrawing(
-          {
-            widthMm: l.width_mm == null ? null : Number(l.width_mm),
-            projectionMm:
-              l.projection_mm == null ? null : Number(l.projection_mm),
-            mountingHeightMm:
-              l.mounting_height_mm == null
-                ? null
-                : Number(l.mounting_height_mm),
-          },
-          l.product_name || "Makaslı tente",
-        ),
+        ...makasliGeometry({
+          widthMm: l.width_mm == null ? null : Number(l.width_mm),
+          projectionMm:
+            l.projection_mm == null ? null : Number(l.projection_mm),
+          mountingHeightMm:
+            l.mounting_height_mm == null ? null : Number(l.mounting_height_mm),
+        }),
       })),
+  };
+}
+
+/** Preserve the existing JSON/SVG API while both exports share authorization and geometry. */
+export async function orderDrawings(actor: WorkOrderActor, orderId: string) {
+  const result = await orderDrawingModels(actor, orderId);
+  return {
+    ...result,
+    lines: result.lines.map(({ geometry, ...line }) => ({
+      ...line,
+      svg: geometry ? drawingSvg(geometry, line.productName) : null,
+    })),
   };
 }

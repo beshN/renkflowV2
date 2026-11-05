@@ -50,6 +50,15 @@ export function OrderDrawings({
             İmalat ölçü föyü / PDF
           </Link>
         )}
+        {printable && (
+          <a
+            className="rf-secondary-button"
+            href={`/api/v1/orders/${orderId}/drawing/dxf`}
+            download
+          >
+            DXF indir
+          </a>
+        )}
       </div>
       <p className="text-sm">
         Kayıtlı sipariş kalemi ölçüleri. İmalat öncesi insan onayı gerekir;
