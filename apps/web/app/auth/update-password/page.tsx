@@ -68,15 +68,15 @@ export default function UpdatePasswordPage() {
       body: JSON.stringify({ token, password }),
     }, {
       timeoutMs: 20000,
-      fallbackError: 'Sifre guncelleme istegi tamamlanamadi.',
+      fallbackError: 'Şifre güncelleme isteği tamamlanamadı.',
     });
     setLoading(false);
 
     if (!result.ok) {
       setError(
         result.error === 'token_expired'
-          ? 'Baglantinin suresi dolmus.'
-          : result.error || 'Sifre guncellenemedi.',
+          ? 'Bağlantının süresi dolmuş.'
+          : result.error || 'Şifre güncellenemedi.',
       );
       return;
     }
