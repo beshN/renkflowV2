@@ -14,10 +14,10 @@ import { I18nProvider } from '@/lib/i18n';
  * Note: OrdersProvider removed - now using Zustand for order state management.
  * Import useOrders from '@/lib/hooks/useOrders' in components that need order data.
  */
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({ children, nonce }: { children: ReactNode; nonce?: string }) {
   return (
     <I18nProvider>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <ThemeProvider nonce={nonce} attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
         {children}
       </ThemeProvider>
     </I18nProvider>
