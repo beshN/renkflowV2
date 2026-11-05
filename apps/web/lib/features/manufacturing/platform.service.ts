@@ -1823,7 +1823,9 @@ export async function shipProducedQuantity(
     await tx`SELECT oi.quantity,COALESCE((SELECT SUM(s.quantity) FROM production_shipments s JOIN work_orders w ON w.id=s.work_order_id WHERE s.tenant_id=${a.tenantId} AND w.order_item_id=oi.id),0) AS shipped,COALESCE((SELECT SUM(w.produced_qty) FROM work_orders w WHERE w.tenant_id=${a.tenantId} AND w.order_item_id=oi.id AND w.status<>'cancelled'),0) AS produced FROM order_items oi WHERE order_id=${job.order_id}`;
   const complete = all.every((r: any) => num(r.shipped) >= num(r.quantity));
   const allProduced = all.every((r: any) => r.produced === undefined || num(r.produced) >= num(r.quantity));
-  await tx`UPDATE orders SET status=${complete ? "shipped" : allProduced ? "ready_for_shipment" : "in_production"},shipment_status=${complete ? "shipped" : allProduced ? "ready" : "partially_shipped"},version=version+1 WHERE tenant_id=${a.tenantId} AND id=${job.order_id}`;
+  // orders_shipment_status_check (migration 013) allows only not_shipped/ready/shipped/delivered, so a
+  // partial shipment keeps 'ready'; the order status says whether the rest is still in production.
+  await tx`UPDATE orders SET status=${complete ? "shipped" : allProduced ? "ready_for_shipment" : "in_production"},shipment_status=${complete ? "shipped" : "ready"},version=version+1 WHERE tenant_id=${a.tenantId} AND id=${job.order_id}`;
   if (complete) await noteOrderDates(tx, a.tenantId, job.order_id, "shipped");
   await enqueueOrderNotice(
     tx,
