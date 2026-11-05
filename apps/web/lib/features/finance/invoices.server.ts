@@ -396,7 +396,7 @@ export async function recordCollection(actor: WorkOrderActor, raw: unknown) {
 export async function listInvoices(actor: WorkOrderActor, status?: string | null) {
   await requireFinance(actor);
   const s = status && ['draft', 'issued', 'cancelled'].includes(status) ? status : null;
-  const rows = await sql`SELECT i.*, o.order_number FROM invoices i JOIN orders o ON o.id = i.order_id
+  const rows = await sql`SELECT i.*, o.order_number FROM invoices i JOIN orders o ON o.id = i.order_id AND o.tenant_id = i.tenant_id
     WHERE i.tenant_id = ${actor.tenantId} AND (${s}::text IS NULL OR i.status = ${s}) ORDER BY coalesce(i.issued_on, i.created_at::date) DESC, i.created_at DESC LIMIT 300`;
   return rows.map(invoiceDto);
 }
@@ -404,7 +404,7 @@ export async function listInvoices(actor: WorkOrderActor, status?: string | null
 /** One invoice with its lines and the seller (for the printable page). */
 export async function getInvoice(actor: WorkOrderActor, id: string) {
   await requireFinance(actor);
-  const [i] = await sql`SELECT i.*, o.order_number FROM invoices i JOIN orders o ON o.id = i.order_id WHERE i.tenant_id = ${actor.tenantId} AND i.id = ${id}`;
+  const [i] = await sql`SELECT i.*, o.order_number FROM invoices i JOIN orders o ON o.id = i.order_id AND o.tenant_id = i.tenant_id WHERE i.tenant_id = ${actor.tenantId} AND i.id = ${id}`;
   if (!i) fail('Fatura bulunamadı', 404);
   const [lines, [tenant]] = await Promise.all([
     sql`SELECT * FROM invoice_lines WHERE invoice_id = ${id} ORDER BY position`,

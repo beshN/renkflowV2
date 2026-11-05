@@ -1,3 +1,4 @@
+import { headers } from 'next/headers'
 import { ThemeApplier } from '@/components/layout/ThemeApplier'
 import GoogleAnalytics from '@/components/analytics/GoogleAnalytics'
 import { Toaster } from 'sonner'
@@ -110,11 +111,12 @@ import { Providers } from '@/lib/context/Providers'
 import { SyncStatusBar } from '@/components/sync/SyncStatusBar'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const nonce = (await headers()).get('x-nonce') || undefined
   return (
     <html lang="tr" suppressHydrationWarning>
       <head>
@@ -133,7 +135,7 @@ export default function RootLayout({
         <meta name="msapplication-TileImage" content="/brand/icon-192.png" />
       </head>
       <body className={`${plexSans.variable} ${archivo.variable} ${plexMono.variable} font-sans antialiased`}>
-        <Providers>
+        <Providers nonce={nonce}>
           <ErrorBoundary>
             <SyncStatusBar />
             <ThemeApplier />
@@ -142,7 +144,7 @@ export default function RootLayout({
             <ClientComponents />
           </ErrorBoundary>
         </Providers>
-        <GoogleAnalytics GA_MEASUREMENT_ID={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || ''} />
+        <GoogleAnalytics nonce={nonce} GA_MEASUREMENT_ID={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || ''} />
       </body>
     </html>
   )
