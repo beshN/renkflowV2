@@ -191,6 +191,7 @@ export async function narrowedHiddenFields(userId: string, tenantId: string, opt
 
 /** Dedicated shop-floor APIs; this is enforced even for the worker's default preset. */
 export function workerApiAllowed(path:string,method:string) {
+  if(path==='/api/v1/production/kiosk')return method==='GET' || method==='POST';
   if(path==='/api/v1/production')return method==='POST';
   // The phone and field apps: bearer-only surfaces whose own guards apply the mobile matrix and job assignment.
   if(['/api/auth/','/api/v1/auth/','/api/v1/me/','/api/v1/production/files/','/api/mobile/v1/','/api/v1/field/','/api/notifications/','/api/orders/documents/'].some(p=>path.startsWith(p)))return true;

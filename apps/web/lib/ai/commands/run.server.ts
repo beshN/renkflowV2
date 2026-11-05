@@ -420,7 +420,7 @@ async function simulate(tenantId: string, orderId: string, cmd: Extract<Command,
       }),
     };
     const now = new Date().toISOString();
-    const titles = new Map<string, Row>((await sql`SELECT w.id, w.title, w.order_id, o.order_number FROM work_orders w LEFT JOIN orders o ON o.id = w.order_id WHERE w.tenant_id = ${tenantId} AND w.status NOT IN ('done', 'cancelled')`).map((w: Row) => [String(w.id), w] as [string, Row]));
+    const titles = new Map<string, Row>((await sql`SELECT w.id, w.title, w.order_id, o.order_number FROM work_orders w LEFT JOIN orders o ON o.id = w.order_id AND o.tenant_id = w.tenant_id WHERE w.tenant_id = ${tenantId} AND w.status NOT IN ('done', 'cancelled')`).map((w: Row) => [String(w.id), w] as [string, Row]));
     const jobs = (tasks: Row[]): PlanJob[] => {
       const by = new Map<string, PlanJob>();
       for (const t of tasks) {
