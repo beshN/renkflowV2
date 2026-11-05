@@ -26,16 +26,16 @@ export default function ForgotPasswordPage() {
       body: JSON.stringify({ email: email.trim().toLowerCase() }),
     }, {
       timeoutMs: 20000,
-      fallbackError: 'Sifirlama istegi gonderilemedi.',
+      fallbackError: 'Sıfırlama isteği gönderilemedi.',
     });
     setLoading(false);
 
     if (!result.ok) {
-      setError(result.error || 'Sifre sifirlama istegi gonderilemedi.');
+      setError(result.error || 'Şifre sıfırlama isteği gönderilemedi.');
       return;
     }
 
-    setMessage(result.data?.message || 'E-posta kayitliysa sifirlama baglantisi gonderildi.');
+    setMessage(result.data?.message || 'E-posta kayıtlıysa sıfırlama bağlantısı gönderildi.');
   };
 
   return (
