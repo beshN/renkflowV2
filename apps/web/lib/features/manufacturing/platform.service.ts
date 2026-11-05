@@ -394,6 +394,7 @@ async function execute(
         standardLengthMm: z.number().nonnegative().default(0),
         weightPerMeterKg: z.number().nonnegative().default(0),
         minStock: z.number().nonnegative().finite().max(1000000).default(0),
+        profileSection: text.nullish(),
         // Identity: profile code + size + processed states (+ piece length for counted pieces).
         profileCode: z.string().trim().max(40).optional().transform((v) => v || null),
         sizeLabel: z.string().trim().max(40).optional().transform((v) => v || null),
@@ -414,7 +415,7 @@ async function execute(
     }
     try {
       const [row] =
-        await tx`INSERT INTO inventory_items(tenant_id,sku,name,unit,item_type,stock_uom,standard_length_m,weight_per_meter_kg,min_stock,profile_code,size_label,processed_states,piece_length_mm)VALUES(${t},${d.sku},${d.name},${d.uom},${d.itemType},${d.uom},${d.standardLengthMm / 1000},${d.weightPerMeterKg},${d.minStock},${d.profileCode},${d.sizeLabel},${states}::text[],${d.pieceLengthMm ?? null}) RETURNING *`;
+        await tx`INSERT INTO inventory_items(tenant_id,sku,name,unit,item_type,stock_uom,standard_length_m,weight_per_meter_kg,min_stock,profile_section,profile_code,size_label,processed_states,piece_length_mm)VALUES(${t},${d.sku},${d.name},${d.uom},${d.itemType},${d.uom},${d.standardLengthMm / 1000},${d.weightPerMeterKg},${d.minStock},${d.profileSection ?? null},${d.profileCode},${d.sizeLabel},${states}::text[],${d.pieceLengthMm ?? null}) RETURNING *`;
       return row;
     } catch (error) {
       // Two saves of the same item at once: the second meets the unique index, not a server error.
