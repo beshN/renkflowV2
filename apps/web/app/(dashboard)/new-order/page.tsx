@@ -21,14 +21,14 @@ async function createOrderViaApi(payload: FormData): Promise<{ ok: boolean; stat
     body: payload,
   }, {
     timeoutMs: 25000,
-    fallbackError: 'Siparis kaydi su anda tamamlanamadi.',
+    fallbackError: 'Sipariş kaydı şu anda tamamlanamadı.',
   });
 
   if (!result.ok) {
     return {
       ok: false,
       status: result.status,
-      message: result.error || 'Siparis kaydi olusturulamadi.',
+      message: result.error || 'Sipariş kaydı oluşturulamadı.',
     };
   }
 
@@ -37,7 +37,7 @@ async function createOrderViaApi(payload: FormData): Promise<{ ok: boolean; stat
     return {
       ok: false,
       status: result.status,
-      message: payloadBody.error || payloadBody.message || 'Siparis kaydi olusturulamadi.',
+      message: payloadBody.error || payloadBody.message || 'Sipariş kaydı oluşturulamadı.',
     };
   }
 

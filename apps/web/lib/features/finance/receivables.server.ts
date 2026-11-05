@@ -22,9 +22,9 @@ const iso = (d: unknown) => (d ? (d instanceof Date ? d.toISOString() : String(d
 async function ledger(tenantId: string) {
   const [invoices, payments] = await Promise.all([
     sql`SELECT i.id, i.invoice_number, i.issued_on, i.due_on, coalesce((to_jsonb(i) ->> 'payable_total')::numeric, i.total) AS total, i.order_id, i.issued_by, o.order_number, o.customer_id, o.customer_name, i.customer_name AS invoice_customer
-      FROM invoices i JOIN orders o ON o.id = i.order_id WHERE i.tenant_id = ${tenantId} AND i.status = 'issued' AND i.currency = 'TRY'`,
+      FROM invoices i JOIN orders o ON o.id = i.order_id AND o.tenant_id = i.tenant_id WHERE i.tenant_id = ${tenantId} AND i.status = 'issued' AND i.currency = 'TRY'`,
     sql`SELECT p.id, p.amount, p.method, p.paid_at, p.reference, p.order_id, p.invoice_id, o.order_number, o.customer_id, o.customer_name
-      FROM payments p JOIN orders o ON o.id = p.order_id WHERE p.tenant_id = ${tenantId} AND p.currency = 'TRY'`,
+      FROM payments p JOIN orders o ON o.id = p.order_id AND o.tenant_id = p.tenant_id WHERE p.tenant_id = ${tenantId} AND p.currency = 'TRY'`,
   ]);
   const customers = new Map<string, { key: string; customerId: string | null; name: string; invoices: Row[]; payments: Row[] }>();
   const slot = (r: Row) => {
@@ -82,7 +82,7 @@ export async function customerStatement(actor: WorkOrderActor, key: string, from
   // A cancelled invoice stays in the history: its debit on the day it was issued, a reversal on the
   // day it was cancelled — so a statement already sent for a past period does not change.
   const cancelled = (await sql`SELECT i.invoice_number, i.issued_on, i.cancelled_at, coalesce((to_jsonb(i) ->> 'payable_total')::numeric, i.total) AS total, o.order_number, o.customer_id, o.customer_name
-    FROM invoices i JOIN orders o ON o.id = i.order_id WHERE i.tenant_id = ${actor.tenantId} AND i.status = 'cancelled' AND i.invoice_number IS NOT NULL AND i.currency = 'TRY'`)
+    FROM invoices i JOIN orders o ON o.id = i.order_id AND o.tenant_id = i.tenant_id WHERE i.tenant_id = ${actor.tenantId} AND i.status = 'cancelled' AND i.invoice_number IS NOT NULL AND i.currency = 'TRY'`)
     .filter((i: Row) => customerKey(i.customer_id, i.customer_name) === key);
   if (!found && !cancelled.length) throw new WorkOrderApiError('Müşteri bulunamadı', 404);
   const c = found ?? { key, customerId: null, name: String(cancelled[0].customer_name ?? 'Müşteri'), invoices: [] as Row[], payments: [] as Row[] };
