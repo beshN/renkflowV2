@@ -1,4 +1,5 @@
 "use client";
+import { ZplDownload } from "@/components/features/labels/ZplDownload";
 import { ProductionInsights } from '@/components/production/ProductionInsights';
 import { CutPlanVersions } from '@/components/production/CutPlanVersions';
 import { ScrapHuntButton } from '@/components/spells/ScrapHuntButton';
@@ -432,6 +433,7 @@ export default function ProductionWorkspace() {
                         >
                           Etiket
                         </Link>
+                        {j.cut_plan_id && <ZplDownload kind="job" id={j.id} />}
                       </td>
                     </tr>
                   ))}
@@ -807,6 +809,7 @@ export default function ProductionWorkspace() {
                   Kesim paketi etiketi
                 </Link>
               </div>
+              {["approved", "completed"].includes(p.status) && <ZplDownload kind="cut" id={p.id} />}
               <CutPlanVersions planId={p.id} />
               {p.actual && (
                 <p className="text-xs text-muted-foreground">
@@ -1530,6 +1533,7 @@ export default function ProductionWorkspace() {
                   {jobs.find((j: any) => j.id === s.work_order_id)?.title} ·{" "}
                   {s.quantity} adet · {s.carrier} {s.tracking_number}
                 </span>
+                <ZplDownload kind="shipment" id={s.id} />
                 {s.status === "delivered" ? (
                   <span className="text-emerald-600">Teslim edildi</span>
                 ) : (
