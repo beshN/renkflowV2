@@ -1,4 +1,5 @@
 "use client";
+import { ZplDownload } from "@/components/features/labels/ZplDownload";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Printer, Plus, Trash2, Copy, ScanLine } from "lucide-react";
 import { useWarehouse } from "./useWarehouse";
@@ -101,6 +102,7 @@ export function FactoryLabel({
         className="rf-label-barcode"
       />
       <p className="rf-label-human">{label.code}</p>
+      {label.kind === "location" && <ZplDownload kind="location" id={label.record_id || label.record.id} />}
       {error && <p role="alert">{error}</p>}
     </article>
   );

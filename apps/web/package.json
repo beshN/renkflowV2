@@ -50,6 +50,7 @@
     "db:status": "tsx scripts/db-status.ts",
     "db:restore-backup": "tsx scripts/restore-backup.ts",
     "vercel:env:sync": "tsx scripts/sync-vercel-env.ts",
+    "test:zpl": "tsx --require ./scripts/register-server-only.cjs scripts/test-zpl-labels.ts",
     "test:warehouse": "tsx --require ./scripts/register-server-only.cjs scripts/test-warehouse.ts",
     "test:count-import": "tsx --require ./scripts/register-server-only.cjs scripts/test-count-import.ts",
     "test:stock-threshold": "tsx --require ./scripts/register-server-only.cjs scripts/test-stock-threshold.ts",
