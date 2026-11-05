@@ -394,6 +394,7 @@ async function execute(
         standardLengthMm: z.number().nonnegative().default(0),
         weightPerMeterKg: z.number().nonnegative().default(0),
         minStock: z.number().nonnegative().finite().max(1000000).default(0),
+        profileSection: text.nullish(),
         // Identity: profile code + size + processed states (+ piece length for counted pieces).
         profileCode: z.string().trim().max(40).optional().transform((v) => v || null),
         sizeLabel: z.string().trim().max(40).optional().transform((v) => v || null),
@@ -414,7 +415,7 @@ async function execute(
     }
     try {
       const [row] =
-        await tx`INSERT INTO inventory_items(tenant_id,sku,name,unit,item_type,stock_uom,standard_length_m,weight_per_meter_kg,min_stock,profile_code,size_label,processed_states,piece_length_mm)VALUES(${t},${d.sku},${d.name},${d.uom},${d.itemType},${d.uom},${d.standardLengthMm / 1000},${d.weightPerMeterKg},${d.minStock},${d.profileCode},${d.sizeLabel},${states}::text[],${d.pieceLengthMm ?? null}) RETURNING *`;
+        await tx`INSERT INTO inventory_items(tenant_id,sku,name,unit,item_type,stock_uom,standard_length_m,weight_per_meter_kg,min_stock,profile_section,profile_code,size_label,processed_states,piece_length_mm)VALUES(${t},${d.sku},${d.name},${d.uom},${d.itemType},${d.uom},${d.standardLengthMm / 1000},${d.weightPerMeterKg},${d.minStock},${d.profileSection ?? null},${d.profileCode},${d.sizeLabel},${states}::text[],${d.pieceLengthMm ?? null}) RETURNING *`;
       return row;
     } catch (error) {
       // Two saves of the same item at once: the second meets the unique index, not a server error.
@@ -703,8 +704,8 @@ async function execute(
       .parse(data);
     const [shipment] =
       await tx`SELECT * FROM production_shipments WHERE tenant_id=${t} AND id=${d.id} FOR UPDATE`;
+    if (!shipment) fail("Sevkiyat bulunamadı", 404);
     if (
-      !shipment ||
       shipment.version !== d.version ||
       shipment.status === "delivered"
     )
@@ -1822,7 +1823,9 @@ export async function shipProducedQuantity(
     await tx`SELECT oi.quantity,COALESCE((SELECT SUM(s.quantity) FROM production_shipments s JOIN work_orders w ON w.id=s.work_order_id WHERE s.tenant_id=${a.tenantId} AND w.order_item_id=oi.id),0) AS shipped,COALESCE((SELECT SUM(w.produced_qty) FROM work_orders w WHERE w.tenant_id=${a.tenantId} AND w.order_item_id=oi.id AND w.status<>'cancelled'),0) AS produced FROM order_items oi WHERE order_id=${job.order_id}`;
   const complete = all.every((r: any) => num(r.shipped) >= num(r.quantity));
   const allProduced = all.every((r: any) => r.produced === undefined || num(r.produced) >= num(r.quantity));
-  await tx`UPDATE orders SET status=${complete ? "shipped" : allProduced ? "ready_for_shipment" : "in_production"},shipment_status=${complete ? "shipped" : allProduced ? "ready" : "partially_shipped"},version=version+1 WHERE tenant_id=${a.tenantId} AND id=${job.order_id}`;
+  // orders_shipment_status_check (migration 013) allows only not_shipped/ready/shipped/delivered, so a
+  // partial shipment keeps 'ready'; the order status says whether the rest is still in production.
+  await tx`UPDATE orders SET status=${complete ? "shipped" : allProduced ? "ready_for_shipment" : "in_production"},shipment_status=${complete ? "shipped" : "ready"},version=version+1 WHERE tenant_id=${a.tenantId} AND id=${job.order_id}`;
   if (complete) await noteOrderDates(tx, a.tenantId, job.order_id, "shipped");
   await enqueueOrderNotice(
     tx,

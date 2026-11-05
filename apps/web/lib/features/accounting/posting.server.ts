@@ -129,7 +129,7 @@ export async function syncLedger(db: Db, tenantId: string, scope: Scope = {}): P
 
   if (!scoped || scope.paymentId) {
     const payments = await db`
-      SELECT p.*, o.order_number FROM payments p JOIN orders o ON o.id = p.order_id
+      SELECT p.*, o.order_number FROM payments p JOIN orders o ON o.id = p.order_id AND o.tenant_id = p.tenant_id
       WHERE p.tenant_id = ${tenantId} AND p.currency = 'TRY'
         AND (${scope.paymentId ?? null}::uuid IS NULL OR p.id = ${scope.paymentId ?? null}::uuid)
         AND NOT EXISTS (SELECT 1 FROM journal_entries j WHERE j.tenant_id = p.tenant_id AND j.source_key = 'payment:' || p.id)`;
