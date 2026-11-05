@@ -1,3 +1,45 @@
+# Güncel geliştirici devri
+
+Durum kontrolü: **3 Kasım 2026 (America/Los_Angeles)**; GitHub `main` tabanı: `cae494f5689c29ed67e06ec412ff4c3dac313959`. Bu bölüm kod/PR durumunu özetler; üretim, Neon, Vercel veya canlı DB bu belge yenilemesinde incelenmedi/değiştirilmedi. Canlı şema, gerçek fabrika pilotu ve sağlayıcı teslimatı **doğrulanmadı**.
+
+## Main'de bulunanlar
+
+- Web: Next.js App Router uygulaması; sipariş/teklif, üretim/iş emri, profil stoğu/kesim, depo/sevkiyat ve finans modülleri `apps/web/lib/features` altında mevcut. Bu, bütün akışların sahada tamamlandığı iddiası değildir.
+- AI belge inceleme ve asistan altyapısı mevcut; **AI çıktısı taslaktır, insan incelemesi ve onayı zorunludur**. Gerçek reçete, ölçü, kapasite veya fiyat tahmin edilerek onaylanmış sayılmaz.
+- Yerel PostgreSQL başlatıcısı, Jest, ayrı geçici test-DB entegrasyon runner'ı ve CI doğrulama adımları mevcut. Güncel kurulum ve gerçek package script'leri [README](../README.md) içinde.
+- SwiftUI ve Kotlin saha istemcileri mevcut; eski Expo prototipi bunlara bağlı değil. Kök `dev:mobile` script'i hâlâ prototipe gider; harici kullanım doğrulanmadı. Bu görev mobil kapsamını genişletmez.
+
+## Açık draft PR'larda bekleyenler
+
+Aşağıdaki PR'ların **hiçbiri birleşmemiştir**; buradaki özellikler main'de bitmiş kabul edilmemeli. GitHub kontrolünde #133, #134 ve #135 açık fakat draft değildi; diğerleri açık draft. Bu liste yalnız istenen #133–#148 aralığıdır, tüm açık PR envanteri değildir.
+
+| PR | Bekleyen dilim | Kontrol edilen durum |
+| --- | --- | --- |
+| [#133](https://github.com/beshN/renkflowV2/pull/133) | AI kredi hatası, finance filtresi ve herkese açık E2E CI bağlantısı | açık, draft değil |
+| [#134](https://github.com/beshN/renkflowV2/pull/134) | Makaslı tente için salt okunur pilot hazırlık raporu | açık, draft değil |
+| [#135](https://github.com/beshN/renkflowV2/pull/135) | Pilot hazırlığı için salt okunur yönetici sayfası (#134 devamı) | açık, draft değil |
+| [#136](https://github.com/beshN/renkflowV2/pull/136) | Makaslı test-DB uçtan uca prova; blokeler tamamlanmış pilot sayılmaz | açık draft |
+| [#137](https://github.com/beshN/renkflowV2/pull/137) | material.save profil kesiti kaydı düzeltmesi | açık draft |
+| [#138](https://github.com/beshN/renkflowV2/pull/138) | RLS / tenant izolasyonu: belge, finans ve AI join incelemesi | açık draft |
+| [#139](https://github.com/beshN/renkflowV2/pull/139) | Fabrika pilotu için ZPL etiket dosyaları | açık draft |
+| [#140](https://github.com/beshN/renkflowV2/pull/140) | Sevkiyat salt okunur yükleme listesi ve yazdır/PDF görünümü | açık draft |
+| [#141](https://github.com/beshN/renkflowV2/pull/141) | Kayıtlı makaslı ölçülerinden 2D imalat ölçü föyü | açık draft |
+| [#142](https://github.com/beshN/renkflowV2/pull/142) | Oturumlu usta için atanmış iş kiosku | açık draft |
+| [#143](https://github.com/beshN/renkflowV2/pull/143) | Kayıtlı geçmişten salt okunur üretim analitiği | açık draft |
+| [#144](https://github.com/beshN/renkflowV2/pull/144) | İstasyon bazında salt okunur haftalık üretim planı | açık draft |
+| [#145](https://github.com/beshN/renkflowV2/pull/145) | Kayıtlı kesim sonucunun salt okunur CSV dışa aktarımı | açık draft |
+| [#146](https://github.com/beshN/renkflowV2/pull/146) | Ortak 2D ölçü geometrisinden makaslı DXF indirme | açık draft |
+| [#147](https://github.com/beshN/renkflowV2/pull/147) | CSP enforcement, S-08 ilk dilim | açık draft |
+| [#148](https://github.com/beshN/renkflowV2/pull/148) | Oyun ve sürprizleri firma ayarıyla kapatma | açık draft |
+
+Birleştirme ve yayınlama ayrı inceleme gerektirir; bu belge PR'ları değiştirmez. Gerçek mühendislik girdileri ve fiziksel cihaz/pilot doğrulanmadan fabrika hazırlığı tamamlanmış sayılmaz. ERP veya çoklu tenant kapsamı bu işle genişletilmez.
+
+## Tarihsel notların okunması
+
+Aşağıdaki eski devir günlüğü, [ROADMAP](ROADMAP.md) ve [PROGRESS](PROGRESS.md) tarihli kayıtlar olarak korunur. Eski test sayıları, model/depolama sağlayıcıları, yerel hesap bilgileri ve Preview/deployment durumları güncel talimat veya güncel doğrulama değildir; canlı geçerlilikleri **doğrulanmadı**. Güncel ortam değişkeni sözleşmesi [web .env.example](../apps/web/.env.example), yerel komutlar [README](../README.md) içindedir. Sırlar ve gerçek bağlantı dizeleri repoya yazılmaz; canlı migration/seed çalıştırılmaz.
+
+---
+
 # RenkFlow — Mac üzerinde devam notu
 
 Son çalışma: 2 Ekim 2026. Hedef tek şirket, **Renk Alüminyum**; web uygulaması öncelikli. ERPNext runtime bağımlılığı yok; mevcut native stok/üretim altyapısı korunuyor. Kullanıcı isteğiyle geliştirme burada durduruldu.
