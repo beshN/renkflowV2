@@ -1,9 +1,8 @@
 // Security headers set by `proxy.ts` on every response.
 //
-// CSP: the enforced policy holds only directives that cannot break the app. The full policy runs
-// report-only until the violations it reports in the browser console are cleared; then it moves
-// to nonce-based enforcement in the proxy. frame-ancestors stays with X-Frame-Options, because
-// document previews are framed same-origin (see the SAMEORIGIN override in `proxy.ts`).
+// Baseline retained for public marketing pages/assets and the application rollback switch.
+// Application/auth/API responses replace these CSP headers with a request-local policy in
+// proxy.ts (lib/security/csp.ts). Existing file handlers retain their stricter sandbox CSP.
 
 export const CONTENT_SECURITY_POLICY = "base-uri 'self'; object-src 'none'";
 

@@ -10,6 +10,7 @@ import { HIDDEN_FIELDS_HEADER } from '@/lib/security/field-header';
 import { FIELD_GROUPS } from '@/lib/security/access-matrix';
 import { bearerToken, verifyBearerToken } from '@/lib/security/bearer-identity';
 import { MFA_SETUP_REQUIRED_CODE, MFA_SETUP_REQUIRED_MESSAGE, MFA_SETUP_URL } from '@/lib/features/auth/mfa-policy';
+import { createCsp } from '@/lib/security/csp';
 import { SECURITY_HEADERS } from '@/lib/security/security-headers';
 
 const AUTH_SECRET =
@@ -192,7 +193,7 @@ function withProxySecurityHeaders(
   return response;
 }
 
-export async function proxy(request: NextRequest) {
+async function routeRequest(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const method = request.method.toUpperCase();
   const forwardedProto = request.headers.get('x-forwarded-proto');
@@ -202,7 +203,7 @@ export async function proxy(request: NextRequest) {
 
   // Healthcheck endpoints must bypass all auth/redirect logic
   if (pathname === '/api/ready' || pathname === '/api/health') {
-    return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
+    return withProxySecurityHeaders(NextResponse.next({ request: { headers: request.headers } }), { isSecureRequest });
   }
 
   // Keep ACME challenge path on plain HTTP for certificate issuance/renewal.
@@ -261,7 +262,7 @@ export async function proxy(request: NextRequest) {
     if (action.type === 'rewrite') {
       const rewriteUrl = request.nextUrl.clone();
       rewriteUrl.pathname = action.destination;
-      return withProxySecurityHeaders(NextResponse.rewrite(rewriteUrl), { isSecureRequest });
+      return withProxySecurityHeaders(NextResponse.rewrite(rewriteUrl, { request: { headers: request.headers } }), { isSecureRequest });
     }
 
     if (action.type === 'redirect') {
@@ -294,7 +295,7 @@ export async function proxy(request: NextRequest) {
       dashboardUrl.search = '';
       return withProxySecurityHeaders(NextResponse.redirect(dashboardUrl, 302), { isSecureRequest });
     }
-    return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
+    return withProxySecurityHeaders(NextResponse.next({ request: { headers: request.headers } }), { isSecureRequest });
   }
 
   if(privateAccessEmail() && (pathname.startsWith('/track/') || pathname.startsWith('/q/') || pathname.startsWith('/teklif/') || pathname.startsWith('/teslim/'))) {
@@ -337,7 +338,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isStaticAsset(pathname) || isPublicPage(pathname)) {
-    return withProxySecurityHeaders(NextResponse.next(), { isSecureRequest });
+    return withProxySecurityHeaders(NextResponse.next({ request: { headers: request.headers } }), { isSecureRequest });
   }
 
   const token = await sessionToken(request);
@@ -367,6 +368,29 @@ export async function proxy(request: NextRequest) {
     return withProxySecurityHeaders(buildLoginRedirect(request), { isSecureRequest });
   }
   return withProxySecurityHeaders(next, { isSecureRequest });
+}
+
+/** Request-local nonce; never retain policy/nonce in module state or trust client values. */
+export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  // Public marketing and assets retain their existing policy in this first slice.
+  const application = pathname.startsWith('/api/') || (!isPublicPage(pathname) && !isStaticAsset(pathname));
+  if (!application) return routeRequest(request);
+
+  const csp = createCsp(pathname);
+  request.headers.set('x-nonce', csp.nonce);
+  request.headers.set('Content-Security-Policy', csp.policy);
+  request.headers.delete('Content-Security-Policy-Report-Only');
+  const response = await routeRequest(request);
+  response.headers.delete('Content-Security-Policy-Report-Only');
+  response.headers.set(csp.header, csp.policy);
+  if (csp.header === 'Content-Security-Policy-Report-Only') {
+    // Keep the pre-existing, non-breaking baseline in report-only mode (default or explicit rollback).
+    response.headers.set('Content-Security-Policy', SECURITY_HEADERS['Content-Security-Policy']);
+  } else {
+    response.headers.set('Content-Security-Policy', csp.policy);
+  }
+  return response;
 }
 
 export const config = {
