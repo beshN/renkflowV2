@@ -46,6 +46,11 @@ jobs:
       - name: Install dependencies
         run: npm --prefix apps/web ci --workspaces=false --legacy-peer-deps
 
+      # __tests__/lib/einvoice-xsd.test.ts validates UBL-TR XML with xmllint (libxml2); the Mac runner
+      # had it, the Ubuntu image does not.
+      - name: Install xmllint for e-invoice schema tests
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libxml2-utils
+
       - name: Run backend and frontend validation gate
         run: npm --prefix apps/web run validate
 
