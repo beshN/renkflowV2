@@ -16,8 +16,8 @@ on:
 
 # Aynı dalda yeni bir push gelince eski çalışma iptal olur; ayrıca aynı dal için hem `push` hem
 # `pull_request` çalışması tetiklenirse biri öbürünü iptal eder (Actions dakikası boşa gitmez).
-# The repository is public and these jobs run on the owner's own Mac (self-hosted runner). Pull
-# requests from forks never run there (see each job's `if`): their code would execute on that machine.
+# Jobs run on GitHub-hosted Ubuntu runners. Pull requests from forks remain excluded
+# by each job's `if` condition.
 # Actions are pinned to commit SHAs; Dependabot keeps the pins current.
 permissions:
   contents: read
@@ -29,7 +29,7 @@ concurrency:
 jobs:
   validate:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, macOS]
+    runs-on: ubuntu-latest
     timeout-minutes: 35
 
     steps:
@@ -38,10 +38,10 @@ jobs:
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        # No actions cache: the self-hosted runner keeps ~/.npm between runs, and uploading the
-        # cache to GitHub after every run took several minutes.
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
 
       - name: Install dependencies
         run: npm --prefix apps/web ci --workspaces=false --legacy-peer-deps
@@ -49,9 +49,11 @@ jobs:
       - name: Run backend and frontend validation gate
         run: npm --prefix apps/web run validate
 
+      - name: Install Chromium for PDF fixtures
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
       # Every scripts/test-*.ts against a fresh throwaway PostgreSQL (temp dir, free port, no remote URL).
-      # The PDF fixture uses the Chromium already in the runner's Playwright cache; `playwright install`
-      # hung on this runner, so it is not run here (install it on the runner once when Playwright updates).
       # Each script has its own 180 s limit (scripts/run-integration-tests.ts), so a hang is reported by name.
       - name: Integration tests on an isolated local database
         timeout-minutes: 15
@@ -60,7 +62,7 @@ jobs:
   # Critical production advisories block; high ones are reported as warnings.
   audit:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, macOS]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout
@@ -70,6 +72,8 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
 
       # Same lockfile the deploy installs from (apps/web/package-lock.json, workspaces off); no install needed.
       - name: Audit production dependencies
