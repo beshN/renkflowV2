@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import {
@@ -52,6 +53,7 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     console.error('Work order checklist toggle error:', error);
+    await reportServerError("app/api/work-orders/[workOrderId]/checklist/[itemId]/toggle/route:POST", error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest } from 'next/server';
 import { apiContextWithPermission } from '@/lib/features/auth/api-access';
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
     return redactedJson({ success: true, data });
   } catch (error) {
     console.error('Delay warning analytics error:', error);
+    await reportServerError("app/api/analytics/delay-warnings/route:GET", error);
     return redactedJson({ error: 'Internal server error' }, { status: 500 });
   }
 }

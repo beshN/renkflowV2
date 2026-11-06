@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedSuccess } from '@/lib/security/field-access.server';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
@@ -84,6 +85,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return errorResponse(error.message, 403);
     }
     
+    await reportServerError("app/api/v1/orders/[id]/status/route:PATCH", error);
     return errorResponse('Sipariş durumu güncellenirken bir hata oluştu', 500);
   }
 }

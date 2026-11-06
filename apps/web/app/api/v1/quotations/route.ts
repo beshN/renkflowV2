@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedSuccess } from '@/lib/security/field-access.server';
 import { WorkOrderApiError } from "@/lib/features/work-orders/security";
 import { requireSameOriginJson } from "@/lib/features/manufacturing/http-security";
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status, error.code);
     if (error instanceof AuthorizationError) return errorResponse(error.message, 403);
+    await reportServerError("app/api/v1/quotations/route:GET", error);
     return errorResponse("Teklif işlemi tamamlanamadı. Lütfen tekrar deneyin.", 500);
   }
 }
@@ -51,6 +53,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status, error.code);
     if (error instanceof ZodError) return errorResponse('Geçersiz veri: ' + error.issues.map((issue) => issue.message).join(', '), 400);
     if (error instanceof AuthorizationError) return errorResponse(error.message, 403);
+    await reportServerError("app/api/v1/quotations/route:POST", error);
     return errorResponse("Teklif işlemi tamamlanamadı. Lütfen tekrar deneyin.", 500);
   }
 }

@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
@@ -8,10 +9,11 @@ import { importFamilyRecipe, productFamiliesOverview, recipeTemplateCsv } from '
 export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'private, no-store' };
 
-function error(e: unknown) {
+async function error(e: unknown) {
   if (e instanceof WorkOrderApiError) return redactedJson({ error: e.message }, { status: e.status, headers });
   if (e instanceof ZodError) return redactedJson({ error: e.issues.map((i) => i.message).join(', ') }, { status: 400, headers });
   console.error('[family recipes]', e instanceof Error ? e.message : 'failed');
+  await reportServerError("app/api/v1/products/recipes/route:error", e);
   return redactedJson({ error: 'Reçete işlenemedi.' }, { status: 500, headers });
 }
 

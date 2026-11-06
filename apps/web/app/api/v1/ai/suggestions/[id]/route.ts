@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (error instanceof z.ZodError) return redactedJson({ error: 'Geçersiz karar veya değer.' }, { status: 400 });
     if (error instanceof SyntaxError) return redactedJson({ error: 'Geçersiz JSON.' }, { status: 400 });
     console.error('[AI suggestions]', error);
+    await reportServerError("app/api/v1/ai/suggestions/[id]/route:POST", error);
     return redactedJson({ error: 'Karar kaydedilemedi.' }, { status: 500 });
   }
 }

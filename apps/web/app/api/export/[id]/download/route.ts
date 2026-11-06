@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { hidesAny, redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest, NextResponse } from 'next/server';
 import { apiContextWithPermission } from '@/lib/features/auth/api-access';
@@ -56,6 +57,7 @@ export async function GET(
       return redactedJson({ error: 'Not found' }, { status: 404 });
     }
     console.error('[api/export/[id]/download] Unexpected error:', error);
+    await reportServerError("app/api/export/[id]/download/route:GET", error);
     return redactedJson({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
