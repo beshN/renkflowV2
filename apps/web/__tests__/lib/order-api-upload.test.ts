@@ -39,3 +39,22 @@ it('rejects malformed order lines instead of discarding them',async()=>{
 it('checks write permission before resolving private files',async()=>{
  jest.mocked(hasPermission).mockReturnValue(false);expect((await POST(request())).status).toBe(403);expect(resolveUploadedFile).not.toHaveBeenCalled();
 });
+
+it('passes a valid form request key to the service and rejects malformed keys', async () => {
+ const clientRequestId='11111111-1111-4111-8111-111111111111';
+ expect((await POST(request({clientRequestId}))).status).toBe(200);
+ expect(jest.mocked(orderService.createOrder).mock.calls[0][4]).toBe(clientRequestId);
+ jest.mocked(orderService.createOrder).mockClear();
+ expect((await POST(request({clientRequestId:'invalid'}))).status).toBe(400);
+ expect(orderService.createOrder).not.toHaveBeenCalled();
+});
+it('returns 200 with the same order id for a replay and 409 for changed content', async () => {
+ const clientRequestId='11111111-1111-4111-8111-111111111111';
+ for(let attempt=0;attempt<2;attempt++){
+  const response=await POST(request({clientRequestId}));
+  expect(response.status).toBe(200);expect((await response.json()).data.id).toBe('order');
+ }
+ const { WorkOrderApiError }=await import('@/lib/features/work-orders/security');
+ jest.mocked(orderService.createOrder).mockRejectedValueOnce(new WorkOrderApiError('Different content',409));
+ expect((await POST(request({clientRequestId,totalAmount:'101'}))).status).toBe(409);
+});

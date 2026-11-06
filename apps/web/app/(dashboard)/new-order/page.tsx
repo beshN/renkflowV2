@@ -45,6 +45,7 @@ async function createOrderViaApi(payload: FormData): Promise<{ ok: boolean; stat
 }
 
 export default function NewOrderPage() {
+  const clientRequestId = useRef<string | null>(null);
   const funFeatures = useFunFeatures();
   const funEnabled = useRef(funFeatures);
   funEnabled.current = funFeatures;
@@ -79,6 +80,8 @@ export default function NewOrderPage() {
 
   const handleSubmit = async (formData: FormData) => {
     setSubmitError('');
+    clientRequestId.current ??= crypto.randomUUID();
+    formData.set('clientRequestId', clientRequestId.current);
     const result = await createOrderViaApi(formData);
     if (!result.ok) {
       if (result.status === 401) {

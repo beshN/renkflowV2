@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
       if (files.length + references.length > 10) return errorResponse('En fazla 10 dosya yüklenebilir', 400);
       
       rawData = {
+        clientRequestId: formData.get('clientRequestId') || undefined,
         customerId: formData.get('customerId') || undefined,
         customerName: formData.get('customerName'),
         email: formData.get('email') || undefined,
@@ -118,6 +119,9 @@ export async function POST(request: NextRequest) {
       // Handle JSON body
       rawData = await request.json();
     }
+
+    const keyResult = z.uuid().optional().safeParse(rawData.clientRequestId);
+    if (!keyResult.success) return errorResponse('Geçersiz istek anahtarı', 400);
 
     // Validate input with Zod (includes sanitization)
     const validationResult = createOrderSchema.safeParse(rawData);
@@ -151,7 +155,7 @@ export async function POST(request: NextRequest) {
       })),
     };
 
-    const order = await orderService.createOrder(user.tenantId, orderData, files, user.id);
+    const order = await orderService.createOrder(user.tenantId, orderData, files, user.id, keyResult.data);
     
     return redactedSuccess(order, 'Sipariş başarıyla oluşturuldu');
   } catch (error: unknown) {

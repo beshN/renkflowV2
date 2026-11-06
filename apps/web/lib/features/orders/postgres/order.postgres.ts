@@ -1,3 +1,4 @@
+import { orderCreateRequestHash } from '../create-idempotency';
 import { requireVisualizationStorage, storeVisualization } from '@/lib/features/product-3d/storage';
 import { verifiedFileKey } from "@/lib/storage/upload-reference";
 import { applyOrderStatus } from '@/lib/features/sales/order-status.server';
@@ -221,8 +222,11 @@ export class PostgresOrderService implements IOrderService {
   }
 
   /** The audit record is written in the same transaction as the order (actor null if unknown). */
-  async createOrder(tenantId: string, formData: NewOrderFormData, files?: File[], actorId?: string): Promise<Order> {
+  async createOrder(tenantId: string, formData: NewOrderFormData, files?: File[], actorId?: string, clientRequestId?: string): Promise<Order> {
     // console.log('[PostgresOrderService] createOrder called', { tenantId, ... });
+
+    clientRequestId = clientRequestId?.toLowerCase();
+    const requestHash = clientRequestId ? await orderCreateRequestHash(formData, files) : null;
 
     // Generate unique order number
     const orderNumber = this.generateOrderNumber();
@@ -230,7 +234,19 @@ export class PostgresOrderService implements IOrderService {
 
     try {
       const orderId = await withTransaction(async (tx) => {
-        // console.log('[PostgresOrderService] Starting transaction');
+        // Serialize retries before any customer, item, upload or audit side effects.
+        if (clientRequestId) {
+          await tx.sql`SELECT pg_advisory_xact_lock(hashtextextended(${JSON.stringify(['order-create', tenantId, clientRequestId])}, 0))`;
+          const [prior] = await tx.sql`
+            SELECT id, client_request_hash FROM orders
+            WHERE tenant_id = ${tenantId} AND client_request_id = ${clientRequestId}
+          `;
+          if (prior) {
+            if (prior.client_request_hash !== requestHash)
+              throw new WorkOrderApiError('İstek anahtarı farklı bir sipariş içeriği için kullanılmış', 409);
+            return prior.id as string;
+          }
+        }
         
         // K6: every order is linked to a customer card (chosen, matched or created here).
         const customer = await resolveOrderCustomer(tx.sql, tenantId, formData, actorId);
@@ -238,13 +254,14 @@ export class PostgresOrderService implements IOrderService {
           INSERT INTO orders (
             order_number, customer_id, customer_name, email, phone, 
             status, total_amount, currency, delivery_date, 
-            notes, product_name, quantity, tenant_id, custom_fields
+            notes, product_name, quantity, tenant_id, custom_fields, client_request_id, client_request_hash
           )
           VALUES (
             ${orderNumber}, ${customer.id}, ${formData.customerName}, ${formData.email || null}, ${formData.phone || null},
             'pending', ${formData.totalAmount}, ${safeParseCurrency(formData.currency) || 'TRY'}, ${formData.deliveryDate || null},
             ${formData.notes || null}, ${formData.productName}, ${formData.quantity}, ${tenantId},
-            ${formData.customFields ? JSON.stringify(formData.customFields) : null}::text::jsonb
+            ${formData.customFields ? JSON.stringify(formData.customFields) : null}::text::jsonb,
+            ${clientRequestId || null}, ${requestHash}
           )
           RETURNING id
         `;

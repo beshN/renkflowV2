@@ -14,9 +14,10 @@ import {
   jsonb,
   unique,
   pgSchema,
+  uniqueIndex,
   boolean,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 
 // ============================================
 // Tenants (Organizations)
@@ -156,6 +157,8 @@ export const orders = pgTable('orders', {
   id: uuid('id').defaultRandom().primaryKey(),
   tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
   orderNumber: text('order_number').notNull(),
+  clientRequestId: uuid('client_request_id'),
+  clientRequestHash: text('client_request_hash'),
   customerId: uuid('customer_id').references(() => customers.id),
   customerName: text('customer_name').notNull(),
   email: text('email'),
@@ -183,6 +186,7 @@ export const orders = pgTable('orders', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   uniqueTenantOrderNumber: unique().on(table.tenantId, table.orderNumber),
+  uniqueTenantClientRequestId: uniqueIndex('orders_tenant_client_request_id_unique').on(table.tenantId, table.clientRequestId).where(sql`${table.clientRequestId} IS NOT NULL`),
 }));
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({
