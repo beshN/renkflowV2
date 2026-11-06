@@ -26,7 +26,7 @@ export interface IOrderService {
   /**
    * Create a new order
    */
-  createOrder(tenantId: string, formData: NewOrderFormData, files?: File[], actorId?: string): Promise<Order>;
+  createOrder(tenantId: string, formData: NewOrderFormData, files?: File[], actorId?: string, clientRequestId?: string): Promise<Order>;
 
   /**
    * Update an existing order
