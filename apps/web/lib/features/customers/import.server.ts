@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { z } from 'zod';
+import { summarizeImport, type ImportResultRow } from '@/lib/features/import/csv';
 
 import { recordAudit } from '@/lib/audit/audit-log';
 import { columnExists } from '@/lib/db/schema-guard';
@@ -14,8 +15,7 @@ import { identityKeys, parseCustomerImport, type CustomerImportFields } from './
 type Db = any;
 type Row = Record<string, any>;
 
-export type ImportOutcome = 'new' | 'exists' | 'fill' | 'name_match' | 'error';
-export type ImportResultRow = { line: number; name: string; outcome: ImportOutcome; matchedId?: string; filled?: string[]; errors?: string[] };
+export type { ImportOutcome, ImportResultRow } from '@/lib/features/import/csv';
 
 export const ImportInput = z.object({
   text: z.string().min(1).max(2_000_000),
@@ -59,7 +59,6 @@ export async function importCustomers(db: Db, actor: { tenantId: string; userId:
     const known = await cards(tx, actor.tenantId);
     const results: ImportResultRow[] = [];
     const created: string[] = [];
-    let filledCount = 0;
     for (const row of parsed.rows) {
       const name = row.data.fullName || row.data.companyName || '';
       if (row.errors.length) { results.push({ line: row.line, name, outcome: 'error', errors: row.errors }); continue; }
@@ -73,7 +72,6 @@ export async function importCustomers(db: Db, actor: { tenantId: string; userId:
             for (const f of filled) await tx`UPDATE customers SET ${tx(COLUMNS[f])} = coalesce(${tx(COLUMNS[f])}, ${row.data[f]}), updated_at = now() WHERE id = ${match.id}`;
             await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'customer', entityId: match.id, action: 'field_updated', metadata: { source: 'import', fields: filled.map((f) => COLUMNS[f]) } });
           }
-          filledCount++;
           results.push({ line: row.line, name, outcome: 'fill', matchedId: String(match.id), filled: filled.map((f) => COLUMNS[f]) });
         } else {
           results.push({ line: row.line, name, outcome: 'exists', matchedId: String(match.id) });
@@ -100,13 +98,7 @@ export async function importCustomers(db: Db, actor: { tenantId: string; userId:
       }
       results.push({ line: row.line, name, outcome: 'new' });
     }
-    const summary = {
-      new: results.filter((r) => r.outcome === 'new').length,
-      exists: results.filter((r) => r.outcome === 'exists').length,
-      filled: filledCount,
-      nameMatches: results.filter((r) => r.outcome === 'name_match').length,
-      errors: results.filter((r) => r.outcome === 'error').length,
-    };
+    const summary = summarizeImport(results);
     if (!input.dryRun) {
       await recordAudit(tx, { tenantId: actor.tenantId, actorId: actor.userId, entityType: 'tenant', entityId: actor.tenantId, action: 'customers_imported', metadata: summary });
     }

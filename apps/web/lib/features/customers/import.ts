@@ -1,7 +1,7 @@
 // Customer list (CSV from Excel, another program or an old system) → validated rows. Pure: runs in
 // the browser for the preview and on the server before writing.
 
-import { parseCsvRecords } from '@/lib/features/products/csv';
+import { csvRecords, mapColumns } from '@/lib/features/import/csv';
 import { foldText } from '@/lib/shared/text/fold';
 
 export type CustomerImportFields = {
@@ -34,23 +34,6 @@ const HEADERS: Record<keyof CustomerImportFields, string[]> = {
   notes: ['not', 'notlar', 'aciklama', 'notes'],
 };
 
-const key = (header: string) => foldText(header).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
-
-/** Which file column feeds which field; exact names first, then prefixes ("Telefon (iş)"). */
-function mapColumns(header: string[]) {
-  const keys = header.map(key);
-  const used = new Set<number>();
-  const map: Partial<Record<keyof CustomerImportFields, number>> = {};
-  for (const exact of [true, false]) {
-    for (const field of Object.keys(HEADERS) as (keyof CustomerImportFields)[]) {
-      if (map[field] !== undefined) continue;
-      const at = keys.findIndex((k, i) => !used.has(i) && HEADERS[field].some((name) => (exact ? k === name : k.startsWith(name) && name.length >= 3)));
-      if (at !== -1) { map[field] = at; used.add(at); }
-    }
-  }
-  return { map, ignored: header.filter((h, i) => h.trim() && !used.has(i)) };
-}
-
 export function isValidTckn(value: string): boolean {
   if (!/^[1-9]\d{10}$/.test(value)) return false;
   const d = value.split('').map(Number);
@@ -76,9 +59,9 @@ const clean = (value: string | undefined, max: number) => {
 };
 
 export function parseCustomerImport(text: string): ParsedCustomerImport {
-  const records = parseCsvRecords(text).filter((r) => r.cells.some((c) => c.trim()));
+  const records = csvRecords(text);
   if (records.length < 2) throw new Error('Dosyada başlık satırı ve en az bir müşteri olmalı');
-  const { map, ignored } = mapColumns(records[0].cells);
+  const { map, ignored } = mapColumns(records[0].cells, HEADERS);
   if (map.fullName === undefined && map.companyName === undefined) throw new Error('Ad ya da firma sütunu bulunamadı (örnek başlıklar: "Ad Soyad", "Firma")');
   const body = records.slice(1);
   if (body.length > MAX_IMPORT_ROWS) throw new Error(`Tek seferde en fazla ${MAX_IMPORT_ROWS} müşteri aktarılabilir (dosyada ${body.length})`);
