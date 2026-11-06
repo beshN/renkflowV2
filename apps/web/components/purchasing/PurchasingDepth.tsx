@@ -268,7 +268,7 @@ function Suppliers() {
       <section className="rf-panel space-y-2 lg:col-span-2" aria-label="Tedarikçi iadeleri">
         <h3 className="text-sm font-semibold">Tedarikçiye iadeler · gönderildi / kapandı</h3>
         <p className="text-xs text-muted-foreground">Her birim için belge adedi ve ham iade miktarı. Taslaklar dahil değildir.</p>
-        {data.returns?.length ? data.returns.map(r=><p key={r.supplierId+':'+r.uom} className="text-sm">{r.supplierName} · {r.documentCount} belge · {num(r.quantity)} {r.uom}</p>) : <p className="text-sm">Gönderilmiş iade yok.</p>}
+        {data.returns?.length ? data.returns.map(r=><p key={r.supplierId+':'+r.uom} className="text-sm">{r.supplierName} · {r.documentCount} belge · {r.quantity.toLocaleString('tr-TR', { maximumFractionDigits: 6 })} {r.uom}</p>) : <p className="text-sm">Gönderilmiş iade yok.</p>}
       </section>
       <section className="rf-panel space-y-2" aria-label="Tedarikçi puanı">
         <div className="flex items-center gap-2"><h3 className="text-sm font-semibold">Tedarikçi puanı · 12 ay</h3><HintTip text="Zamanında teslim (ilk kabul beklenen günde ya da önce) %60, kalite (ret oranı) %40. Üç teslimattan azında harf verilmez." /></div>
