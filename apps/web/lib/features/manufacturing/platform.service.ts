@@ -1,3 +1,4 @@
+import { executePaintDispatch, requirePaintDispatchAccess } from "./paint-dispatch.server";
 import { assertStationOperation, requireStationChecklist } from '@/lib/features/stations/security.server';
 import {partGroups,syncDailyStages} from './daily-progress.server';
 import { allocatePhysicalCuts, type StockItem, type StockLot } from './cut-list';
@@ -262,6 +263,7 @@ export async function productionCommand(a: WorkOrderActor, raw: unknown) {
   for (let attempt = 1; ; attempt++) {
     try {
       // The permission read is retried with the command: it can meet the same dropped connection.
+      if(command.action.startsWith('paint.dispatch.')) await requirePaintDispatchAccess(a, 'edit');
       if(dailyRecord)await requireCap(a,'production','edit','Günlük üretim kaydı');
       return await runProductionCommand(a, command, hash);
     } catch (error) {
@@ -334,6 +336,7 @@ async function execute(
   key: string,
 ): Promise<any> {
   const t = a.tenantId;
+  if (action.startsWith("paint.dispatch.")) return executePaintDispatch(tx, a, action, data, key);
   if (action.startsWith("warehouse.") && action !== "warehouse.save") return executeWarehouse(tx,a,action,data,key);
   if (action.startsWith("finance.")) return executeFinance(tx,a,action,data);
   if (action.startsWith("procurement.")) return executeProcurement(tx, a, action, data, key);
