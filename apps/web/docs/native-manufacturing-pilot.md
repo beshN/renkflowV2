@@ -96,6 +96,30 @@ hazırdır; kesim optimizasyonu ve yeniden kullanılabilir parça işleme pilot 
 
 ## Pilot öncesi kontrol listesi
 
+### Salt okunur yönetici sayfası (#134 devamı)
+
+`/production/pilot-readiness` sunucuda render edilir. Yalnız `owner/admin`
+rolleri (mevcut `team.manage` izni), üretim görüntüleme yetkileri korunarak
+erişebilir; menüde tek bağlantı bulunur. Güncel üyelik `requireWorkOrderActor`
+ile çözülür. Yetkisiz oturum girişe, yetkisiz rol dashboard'a yönlendirilir.
+
+`pilotReadinessReport(actor)` yalnız doğrulanmış actor'ün tenant'ını kullanır;
+URL'den tenant seçimi almaz. Sabit rapor alanları tek `READ ONLY` transaction'da
+okunur; her veri SELECT'i `WHERE tenant_id = actor.tenantId` ile sınırlıdır.
+Şema metaverisi dışında tenant dışı satır okunmaz. CLI ve sayfa aynı okuyucuyu
+ve #134'ün saf `checkPilotReadiness` değerlendirmesini kullanır. Yazma, otomatik
+düzeltme, audit/event üretimi, migration veya yeni API route yoktur.
+
+Eksik aile eşlemesi ve eksik şema bulguları açıkça gösterilir. Okuma hatası
+boş başarılı rapora çevrilmez; bağlantı ayrıntıları açığa çıkarılmadan
+“Rapor okunamadı” gösterilir. KPI, miktar/para toplamı veya tahmin üretilmez.
+AI çıktısı insan onayı gerektirir; rapor fiziksel pilot onayı değildir.
+
+Jest servis/sayfa testleri yetki, tenant kapsamı, boş/hatalı veri ve menü
+politikasını kapsar. Aşağıdaki yerel `test:pilot-readiness` doğrulaması gerçek
+servisi de ayrı tenant A/B ve boş tenant ile `default_transaction_read_only=on`
+oturumunda çalıştırır; fixture satırlarının değişmediğini kontrol eder.
+
 `apps/web` içinde, yalnız yetkilendirilmiş veritabanını işaret eden `.env.local`
 ile çalıştırın:
 

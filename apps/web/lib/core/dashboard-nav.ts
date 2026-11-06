@@ -32,6 +32,7 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
   { id: 'production', label: 'Üretim', subtitle: '', items: [
     {id:'worker',label:'Usta ekranı',href:'/production/worker',allowedRoles:['owner','admin','office','worker']},
     { id: 'cut-list', allowedRoles: ['owner', 'admin', 'office'], label: 'Kesim listesi', href: '/orders/foy', requiresPermission: 'orders.create' },
+    { id: 'pilot-readiness', label: 'Pilot hazırlık raporu', href: '/production/pilot-readiness', adminOnly: true, requiresPermission: 'team.manage' },
     { id: 'production', allowedRoles: ROUTE_ROLES['/production'], label: 'Üretim', href: '/production', requiresPermission: 'orders.view' },
     { id: 'work-orders', label: 'İş emirleri', href: '/work-orders', requiresPermission: 'orders.view' },
     { id: 'kanban', label: 'Üretim akışı', keywords: 'kanban pano iş emri sürükle', href: '/kanban', requiresPermission: 'kanban.view' },

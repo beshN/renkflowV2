@@ -227,6 +227,60 @@ async function main() {
       "development DB remains empty",
     );
 
+    // Exercise the actual server service on this isolated local fixture database.
+    // Set the URL before importing the lazy application DB client; never use inherited config.
+    const otherTenant = randomUUID();
+    await db`INSERT INTO product_family_recipes (tenant_id,recipe_code,family) VALUES (${otherTenant},'OTHER-TENANT-PRIVATE','makasli')`;
+    const previousUrl = process.env.DATABASE_URL;
+    const previousSecret = process.env.AUTH_SECRET;
+    process.env.AUTH_SECRET = randomUUID();
+    process.env.DATABASE_URL = readOnlyUrl.toString();
+    const { pilotReadinessReport } =
+      await import("../lib/features/manufacturing/pilot-readiness.service");
+    const { getSql } = await import("../lib/db");
+    try {
+      const actor = { userId: user, tenantId: tenant, role: "admin" as const };
+      const report = await pilotReadinessReport(actor);
+      assert.equal(report.empty, false);
+      assert(report.findings.every((f) => f.severity === "info"));
+      assert(!JSON.stringify(report).includes("OTHER-TENANT-PRIVATE"));
+      const other = await pilotReadinessReport({
+        ...actor,
+        tenantId: otherTenant,
+      });
+      assert(JSON.stringify(other).includes("OTHER-TENANT-PRIVATE"));
+      assert(!JSON.stringify(other).includes("PILOT-TEST"));
+      const emptyTenant = await pilotReadinessReport({
+        ...actor,
+        tenantId: randomUUID(),
+      });
+      assert.equal(emptyTenant.empty, true);
+      assert(emptyTenant.findings.some((f) => f.code === "RECIPE_MISSING"));
+      for (const role of ["office", "worker", "member", "accountant"] as const)
+        await assert.rejects(
+          pilotReadinessReport({ ...actor, role }),
+          (error: unknown) =>
+            error instanceof Error && "status" in error && error.status === 403,
+        );
+      assert.equal(
+        (await db`SELECT count(*)::int AS n FROM production_recipes`)[0].n,
+        2,
+      );
+      assert.equal(
+        (await db`SELECT count(*)::int AS n FROM product_family_recipes`)[0].n,
+        2,
+      );
+      console.log(
+        "PASS · server report: tenant A/B isolation, empty tenant, forbidden roles, default READ ONLY session, unchanged fixture rows",
+      );
+    } finally {
+      await getSql().end({ timeout: 5 });
+      if (previousSecret === undefined) delete process.env.AUTH_SECRET;
+      else process.env.AUTH_SECRET = previousSecret;
+      if (previousUrl === undefined) delete process.env.DATABASE_URL;
+      else process.env.DATABASE_URL = previousUrl;
+    }
+
     const remote = run("postgres://blocked.invalid/readiness_guard_test");
     assert.equal(remote.status, 1);
     assert.match(remote.output, /uzak/);
