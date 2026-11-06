@@ -30,7 +30,7 @@ async function main() {
     const before = await db`SELECT * FROM stock_lots WHERE tenant_id=${t}`;
     assert.equal(before[0].heat_number,null);
     assert.equal(before[0].supplier_lot_number,null);
-    const migration = readFileSync('lib/db/migrations/084_lot_heat_trace.sql','utf8');
+    const migration = readFileSync('lib/db/migrations/085_lot_heat_trace.sql','utf8');
     await db.unsafe(migration); await db.unsafe(migration);
     assert.deepEqual(await db`SELECT * FROM stock_lots WHERE tenant_id=${t}`,before,'repeated migration leaves existing rows unchanged');
     await cmd('stock.receive', { itemId:profile.id,warehouseId:wh.RAW.id,quantity:1,lengthMm:6000,color:'Boyasız',unitCost:1,lotNumber:'MANUAL',heatNumber:' Manual-Heat ',supplierLotNumber:'  ' });
