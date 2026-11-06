@@ -7,6 +7,8 @@ import { ColorChip } from "@/components/colors/ColorSwatch";
 import { ProgressRing, Skeleton, Timeline } from "@/components/kit";
 import { LIFECYCLE, lifecycleIndex } from "@/lib/features/orders/lifecycle";
 import { normalizeOrderStatus } from "@/lib/features/orders/workspace";
+import { usePublicLocale } from "@/lib/i18n/public-locale";
+import { PublicLanguageSwitch } from "@/components/shared/PublicLanguageSwitch";
 import tr from "@/lib/i18n/locales/tr.json";
 import en from "@/lib/i18n/locales/en.json";
 import { cn } from "@/lib/utils";
@@ -19,31 +21,8 @@ export default function Tracking({ params, searchParams }: {
 }) {
   const { token } = use(params);
   const { lang } = use(searchParams);
-  // Keep this public route independent of the global detector and its storage cache.
-  const [locale, setLocale] = useState<"tr" | "en">(lang === "en" ? "en" : "tr");
+  const { locale, changeLanguage } = usePublicLocale({ tr: tr.track.title, en: en.track.title }, lang);
   const messages = (locale === "en" ? en : tr).track;
-  useEffect(() => {
-    const selectLanguage = () => {
-      const requested = new URLSearchParams(window.location.search).get("lang");
-      setLocale(requested === "en" || requested === "tr" ? requested : navigator.language?.toLowerCase().startsWith("en") ? "en" : "tr");
-    };
-    selectLanguage();
-    window.addEventListener("popstate", selectLanguage);
-    return () => window.removeEventListener("popstate", selectLanguage);
-  }, []);
-  useEffect(() => {
-    const previous = document.documentElement.lang;
-    const previousTitle = document.title;
-    document.documentElement.lang = locale;
-    document.title = `${messages.title} | RenkFlow`;
-    return () => { document.documentElement.lang = previous; document.title = previousTitle; };
-  }, [locale, messages.title]);
-  const changeLanguage = (language: "tr" | "en") => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("lang", language);
-    window.history.pushState(null, "", url);
-    setLocale(language);
-  };
   const [data, setData] = useState<any>();
   const [error, setError] = useState<"" | "invalidLink" | "loadError" | "rateLimited">("");
   useEffect(() => {
@@ -55,9 +34,13 @@ export default function Tracking({ params, searchParams }: {
         const r = await fetch(`/api/v1/tracking/${token}`, { signal: c.signal, cache: "no-store" });
         if (c.signal.aborted) return;
         if (r.status === 429) { setError("rateLimited"); return; }
+        if (!r.ok) {
+          if (r.status === 404) { setData(undefined); setError("invalidLink"); }
+          else setError("loadError");
+          return;
+        }
         const body = await r.json();
         if (c.signal.aborted) return;
-        if (!r.ok) { setError(r.status === 404 ? "invalidLink" : "loadError"); return; }
         setError("");
         setData(body.data);
       } catch {
@@ -81,13 +64,9 @@ export default function Tracking({ params, searchParams }: {
     <main className="mx-auto min-h-screen max-w-3xl space-y-6 p-4 pt-10 sm:p-6 sm:pt-12">
       <div className="flex items-center justify-between gap-3">
         <p className="rf-eyebrow">{messages.eyebrow}</p>
-        <div className="flex gap-2 text-xs" role="group" aria-label={messages.language}>
-          {(["tr", "en"] as const).map((language) => <button key={language} type="button" lang={language} className={cn(locale === language ? "rf-primary-button" : "rf-secondary-button", "h-8 !px-2 !py-1 !text-xs")} aria-pressed={locale === language} onClick={() => changeLanguage(language)}>{language.toUpperCase()}</button>)}
-        </div>
+        <PublicLanguageSwitch locale={locale} onChange={changeLanguage} label={messages.language} />
       </div>
-      {error && <p role="alert" className="rf-alert">{error === "rateLimited"
-        ? locale === "en" ? "Too many attempts. Please try again shortly." : "Çok sık denendi, biraz sonra tekrar deneyin."
-        : messages[error]}</p>}
+      {error && <p role="alert" className="rf-alert">{messages[error]}</p>}
       {!data ? !error && (
         <div className="space-y-4" role="status"><span className="sr-only">{messages.loading}</span><Skeleton className="h-10 w-48" /><Skeleton className="h-20 w-full" /><Skeleton className="h-48 w-full" /></div>
       ) : (
