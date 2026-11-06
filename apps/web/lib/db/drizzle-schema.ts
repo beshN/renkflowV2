@@ -30,6 +30,7 @@ export const tenants = pgTable('tenants', {
   brandColor: text('brand_color').default('#8c5e40'),
   industry: text('industry'),
   templateKey: text('template_key').default('mobilya'),
+  funFeaturesEnabled: boolean('fun_features_enabled').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });

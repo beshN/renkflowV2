@@ -643,6 +643,9 @@ async function execute(
   }
   if (action === "recipe.publish") {
     manager(a);
+    const reason = typeof data.reason === "string" ? data.reason.trim() : "";
+    if (!reason) fail("Yayın gerekçesi zorunludur", 400);
+    if (reason.length > 1000) fail("Yayın gerekçesi en fazla 1000 karakter olabilir", 400);
     const [row] =
       await tx`SELECT * FROM production_recipes WHERE tenant_id=${t} AND id=${uuid.parse(data.id)}`;
     if (!row) fail("Reçete bulunamadı", 404);
@@ -650,6 +653,13 @@ async function execute(
     if(row.edit_revision !== (data.editRevision || 1))fail("Reçete değişti; örnekleri yeniden kontrol edin");
     if(row.status !== "draft")fail("Yalnız taslak reçete yayınlanabilir");
     validateRecipeExamples(recipe(row));
+    // productionCommand holds the tenant advisory lock for this entire transaction.
+    const archived = await tx`UPDATE production_recipes SET status='archived' WHERE tenant_id=${t} AND code=${row.code} AND status='published' RETURNING id`;
+    await recordAudit(tx, {
+      tenantId: t, actorId: a.userId, entityType: "recipe", entityId: row.id,
+      action: "recipe.publish", note: reason,
+      metadata: { reason, code: row.code, version: row.version, archivedRecipeIds: archived.map((r: any) => r.id), commandId: key },
+    });
     return (
       await tx`UPDATE production_recipes SET status='published',published_at=now()WHERE tenant_id=${t} AND id=${row.id} RETURNING *`
     )[0];
@@ -774,8 +784,10 @@ async function createJob(
     t = a.tenantId;
   const [item] =
     await tx`SELECT oi.*,o.id AS oid,o.order_number,o.delivery_date FROM order_items oi JOIN orders o ON o.id=oi.order_id WHERE o.tenant_id=${t} AND oi.id=${d.orderItemId} AND o.status NOT IN('cancelled','delivered','completed') FOR UPDATE OF oi`;
+  const pc = item?.product_configuration as ProductConfiguration | null | undefined;
   const [r] =
-    await tx`SELECT * FROM production_recipes WHERE tenant_id=${t} AND id=${d.recipeId} AND status='published'`;
+    await tx`SELECT * FROM production_recipes WHERE tenant_id=${t} AND id=${d.recipeId}
+      AND (status='published' OR (status='archived' AND id=${pc?.recipeId || null}))`;
   if (!item || !r) fail("Onaylı reçete veya sipariş kalemi bulunamadı", 404);
   await requireCommercialApproval(tx, t, item.oid);
   if(await columnExists('orders','quotation_id')) {
@@ -783,7 +795,6 @@ async function createJob(
     if(file?.required==='true' && !(await tx`SELECT id FROM order_technical_revisions WHERE tenant_id=${t} AND order_id=${item.oid} AND status='approved'`).length) fail('Önce siparişin teknik planını onaylayın');
   }
   // A line configured in the quote is built with the recipe, measures, options and colour it was quoted with.
-  const pc = item.product_configuration as ProductConfiguration | null | undefined;
   if (pc && pc.recipeId !== r.id) fail(`Bu kalem teklifte "${pc.recipe.code}" reçetesinin ${pc.recipe.version}. sürümüyle yapılandırıldı; aynı reçeteyi seçin`, 400);
   if (
     (
@@ -1941,12 +1952,12 @@ export async function cutPlanSheet(actor: WorkOrderActor, id: string) {
   ])];
   const lotIds = bars.map((b) => b.source.id);
   const [items, jobs, lots] = await Promise.all([
-    itemIds.length ? sql`SELECT id,sku,name FROM inventory_items WHERE tenant_id=${t} AND id=ANY(${itemIds}::uuid[])` : [],
+    itemIds.length ? sql`SELECT id,sku,name,profile_code FROM inventory_items WHERE tenant_id=${t} AND id=ANY(${itemIds}::uuid[])` : [],
     sql`SELECT w.id,w.title,o.order_number FROM work_orders w JOIN orders o ON o.id=w.order_id AND o.tenant_id=w.tenant_id WHERE w.tenant_id=${t} AND w.id=ANY(${plan.work_order_ids}::uuid[])`,
     lotIds.length ? sql`SELECT id,lot_number FROM stock_lots WHERE tenant_id=${t} AND id=ANY(${lotIds}::uuid[])` : [],
   ]);
-  const item = new Map(items.map((i: any) => [i.id, { sku: i.sku, name: i.name }]));
-  const job = new Map(jobs.map((j: any) => [j.id, { title: j.title, orderNumber: j.order_number }]));
+  const item = new Map<string, { sku: string; name: string; profileCode: string | null }>(items.map((i: any) => [i.id, { sku: i.sku, name: i.name, profileCode: i.profile_code }]));
+  const job = new Map<string, { id: string; title: string; orderNumber: string }>(jobs.map((j: any) => [j.id, { id: j.id, title: j.title, orderNumber: j.order_number }]));
   const lot = new Map(lots.map((l: any) => [l.id, l.lot_number]));
   const source: CuttingParameterSource | null = plan.result.parameterSource ?? null;
   return {
@@ -2059,7 +2070,7 @@ export async function rebuildConfiguredJob(tx: any, a: WorkOrderActor, orderItem
   try {
     // Loaded here: configure.service imports this module (recipe), a static import would be a cycle.
     const { configureProduct } = await import("../products/configure.service");
-    next = await configureProduct(tx, t, currency, choice);
+    next = await configureProduct(tx, t, currency, choice, undefined, orderItemId);
   } catch (error) {
     if (error instanceof WorkOrderApiError || error instanceof z.ZodError) return { rebuilt: false as const, reason: `Reçete yeni ölçüyle hesaplanamadı: ${error instanceof WorkOrderApiError ? error.message : "ölçü geçersiz"}` };
     throw error;

@@ -1,3 +1,4 @@
+import '@/lib/shared/validation/zod-locale';
 import { ProductVisualizationSchema } from '@/lib/features/product-3d/catalog';
 import { AwningConfigurationSchema, AwningPreviewSchema } from '@/lib/features/awning/configuration';
 import { z } from 'zod';

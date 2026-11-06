@@ -1,4 +1,5 @@
 import "server-only";
+import { requireTechnicalAssignment } from "./technical-assignment";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { sql, withTransaction } from "@/lib/db";
@@ -223,12 +224,7 @@ export async function technicalWorkspace(a: WorkOrderActor, id: string) {
     ({ configuration: _configuration, bom_snapshot: _bom, ...j }: any) => j,
   );
   const family = revisions[0]?.family || technicalFamily(o.product_name || "");
-  if (
-    a.role === "worker" &&
-    family !== "other" &&
-    !jobs.some((j: any) => j.assigned_to === a.userId)
-  )
-    fail("Sipariş bulunamadı", 404);
+  if (family !== "other") requireTechnicalAssignment(a, jobs);
   const operations =
     await sql`SELECT p.id,p.work_order_id,p.position,p.name,p.status,p.version,p.planned_qty,p.completed_qty,p.reason,p.quality_checks FROM production_operations p JOIN work_orders w ON w.id=p.work_order_id AND w.tenant_id=p.tenant_id WHERE p.tenant_id=${a.tenantId} AND w.order_id=${id} AND w.status<>'cancelled' ORDER BY p.position`;
   const [cutPlan] =

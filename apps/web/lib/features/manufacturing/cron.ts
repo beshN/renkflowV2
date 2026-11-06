@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import "server-only";
 import { sweepAbandonedUploads } from "@/lib/storage/orphan-cleanup";
 import { timingSafeEqual } from "node:crypto";
@@ -33,8 +34,9 @@ export async function runCron(request: Request, queue: CronQueue) {
  try {
   const result = queue === "fx" ? await (await import("@/lib/features/fx/rates.server")).syncTcmb((await import("@/lib/db")).sql) : queue === "inbound" ? await drainInbound(1) : queue === "notifications" ? await drainNotifications(5) : queue === "e-invoices" ? await (await import("@/lib/features/einvoice/document.server")).drainEInvoices(10) : {cleanup:await drainStorageCleanup(undefined,20),orphaned:await sweepAbandonedUploads(),expiredRateLimits:await pruneRateLimitBuckets(),vehiclePositions:await pruneVehiclePositions(),detectors:await (await import('@/lib/ai/detectors/cron.server')).runDetectorsDue()};
   return Response.json({ok:true,queue,result},{headers});
- } catch {
+ } catch (error) {
   console.error(`[cron] ${queue} failed`);
+  await reportServerError("lib/features/manufacturing/cron:runCron", error);
   return Response.json({error:"Queue processing failed"},{status:500,headers});
  }
 }

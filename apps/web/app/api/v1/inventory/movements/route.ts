@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
@@ -63,6 +64,7 @@ export async function GET(req: NextRequest) {
     if (error instanceof WorkOrderApiError) {
       return redactedJson({ error: error.message }, { status: error.status });
     }
+    await reportServerError("app/api/v1/inventory/movements/route:GET", error);
     return redactedJson({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextResponse } from 'next/server';
 import { AuthenticationError, getServerUserContext } from '@/lib/features/auth/serverAuth';
 import { canSeeChecklist } from '@/lib/features/onboarding/checklist';
@@ -13,6 +14,7 @@ export async function GET() {
   } catch (error) {
     if (error instanceof AuthenticationError) return NextResponse.json({ error: error.message }, { status: 401 });
     console.error('Onboarding checklist error:', error);
+    await reportServerError("app/api/onboarding/checklist/route:GET", error);
     return NextResponse.json({ data: null }, { status: 500 });
   }
 }

@@ -1,5 +1,7 @@
 'use client';
 
+import { withFunFeatures } from '@/lib/features/settings/useFunFeatures';
+
 import { useRef, useState, type ComponentType } from 'react';
 import type { ScrapParams, ScrapPart } from '@/lib/features/spells/scrap-hunt';
 
@@ -12,7 +14,7 @@ type Loaded = { Game: ComponentType<GameProps>; parts: ScrapPart[]; params: Scra
  * shown plan's pieces (a copy is played; the plan itself is never touched); without them the game
  * draws a random set.
  */
-export function ScrapHuntButton({ lengths, parameters, className = '' }: { lengths?: number[]; parameters?: Record<string, unknown> | null; className?: string }) {
+function ScrapHuntButtonEnabled({ lengths, parameters, className = '' }: { lengths?: number[]; parameters?: Record<string, unknown> | null; className?: string }) {
   const [game, setGame] = useState<Loaded | null>(null);
   const [loading, setLoading] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -50,3 +52,6 @@ export function ScrapHuntButton({ lengths, parameters, className = '' }: { lengt
     </>
   );
 }
+
+const ScrapHuntButton = withFunFeatures(ScrapHuntButtonEnabled);
+export { ScrapHuntButton };

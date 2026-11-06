@@ -24,7 +24,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     const result = await publicDecision((await params).token, await req.json(), { ip: getClientIp(req.headers), agent: req.headers.get('user-agent') ?? '' });
     return NextResponse.json(result, { headers: HEADERS });
   } catch (e) {
-    const res = recordError(e, 'public-quote');
+    const res = await recordError(e, 'public-quote');
     for (const [k, v] of Object.entries(HEADERS)) res.headers.set(k, v);
     return res;
   }

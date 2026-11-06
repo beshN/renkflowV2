@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedSuccess } from '@/lib/security/field-access.server';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { requireSameOrigin } from '@/lib/features/manufacturing/http-security';
@@ -48,6 +49,7 @@ export async function GET(request: NextRequest) {
     if (error instanceof AuthorizationError) {
       return errorResponse(error.message, 403);
     }
+    await reportServerError("app/api/v1/orders/route:GET", error);
     return errorResponse('Siparişler alınırken bir hata oluştu', 500);
   }
 }
@@ -167,6 +169,7 @@ export async function POST(request: NextRequest) {
       return errorResponse(error.message, error.status, error.code);
     }
     
+    await reportServerError("app/api/v1/orders/route:POST", error);
     return errorResponse('Sipariş oluşturulurken bir hata oluştu', 500);
   }
 }

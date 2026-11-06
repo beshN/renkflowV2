@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest } from "next/server";
 import { ZodError } from "zod";
@@ -12,13 +13,14 @@ import {
   resolveLabel,
 } from "@/lib/features/warehouse/service";
 export const dynamic = "force-dynamic";
-function error(e: unknown) {
+async function error(e: unknown) {
   const status =
     e instanceof WorkOrderApiError
       ? e.status
       : e instanceof ZodError || e instanceof SyntaxError
         ? 400
         : 500;
+  if (status === 500) await reportServerError('warehouse', e);
   return redactedJson(
     {
       error:
