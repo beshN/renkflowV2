@@ -156,7 +156,7 @@ async function main() {
         expected: [{ itemId: profile.id, quantity: widthMm / 1000 }],
       })),
     });
-    await command("recipe.publish", { id: recipe.id });
+    await command("recipe.publish", { reason: "Yerel test yayını", id: recipe.id });
     await assert.rejects(
       db`UPDATE production_recipes SET verification_source='changed source' WHERE id=${recipe.id}`,
       /immutable/,
