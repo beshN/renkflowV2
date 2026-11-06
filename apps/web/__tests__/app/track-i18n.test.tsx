@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { renderToString } from 'react-dom/server';
 import { act, fireEvent, render, screen, cleanup } from '@testing-library/react';
 import Tracking from '@/app/track/[token]/page';
 import tr from '@/lib/i18n/locales/tr.json';
@@ -15,14 +16,15 @@ const order = {
   shipments: [{ quantity: 2, status: 'delivered', created_at: '2026-11-05T22:30:00Z', carrier: 'Özel taşıyıcı', tracking_number: 'TR-123' }],
 };
 const originalFetch = global.fetch;
+const query = (url: string) => Promise.resolve(Object.fromEntries(new URL(url, 'https://example.test').searchParams));
 async function mount(url = '/track/test', response: { ok: boolean; status: number; json: () => Promise<unknown> } = { ok: true, status: 200, json: async () => ({ data: order }) }) {
   window.history.replaceState(null, '', url);
   global.fetch = jest.fn().mockResolvedValue(response);
   const params = Promise.resolve({ token: 'test' });
-  await act(async () => { render(<Suspense><Tracking params={params} /></Suspense>); });
+  await act(async () => { render(<Suspense><Tracking params={params} searchParams={query(url)} /></Suspense>); });
 }
 beforeEach(() => { Object.defineProperty(navigator, 'language', { configurable: true, value: 'tr-TR' }); });
-afterEach(() => { cleanup(); global.fetch = originalFetch; jest.restoreAllMocks(); });
+afterEach(() => { cleanup(); global.fetch = originalFetch; jest.restoreAllMocks(); jest.useRealTimers(); });
 
 test('English URL selects customer copy, headings, free text and Istanbul dates', async () => {
   await mount('/track/test?lang=en');
@@ -77,7 +79,7 @@ test.each(['en', 'tr'] as const)('invalid-link error uses %s copy', async (local
 test('network error is translated and stays translated when switching', async () => {
   window.history.replaceState(null, '', '/track/test?lang=en');
   global.fetch = jest.fn().mockRejectedValue(new Error('network'));
-  await act(async () => { render(<Suspense><Tracking params={Promise.resolve({ token: 'test' })} /></Suspense>); });
+  await act(async () => { render(<Suspense><Tracking params={Promise.resolve({ token: 'test' })} searchParams={query(window.location.href)} /></Suspense>); });
   expect(screen.getByRole('alert')).toHaveTextContent(en.track.loadError);
   fireEvent.click(screen.getByRole('button', { name: 'TR' }));
   expect(screen.getByRole('alert')).toHaveTextContent('Takip bilgisi alınamadı');
@@ -92,9 +94,66 @@ test('track locale keys match recursively', () => {
 test.each(['en', 'tr'] as const)('loading text uses %s and popstate resynchronizes language', async (locale) => {
   window.history.replaceState(null, '', `/track/test?lang=${locale}`);
   global.fetch = jest.fn().mockReturnValue(new Promise(() => {}));
-  await act(async () => { render(<Suspense><Tracking params={Promise.resolve({ token: 'test' })} /></Suspense>); });
+  await act(async () => { render(<Suspense><Tracking params={Promise.resolve({ token: 'test' })} searchParams={query(window.location.href)} /></Suspense>); });
   expect(screen.getByRole('status')).toHaveTextContent((locale === 'en' ? en : tr).track.loading);
   window.history.replaceState(null, '', '/track/test?lang=tr');
   fireEvent.popState(window);
   expect(document.documentElement.lang).toBe('tr');
+});
+
+
+test('English route searchParams render English before effects run', () => {
+  // Fulfilled thenables let use() read route props synchronously during SSR.
+  const fulfilled = <T,>(value: T) => Object.assign(Promise.resolve(value), { status: 'fulfilled', value });
+  window.history.replaceState(null, '', '/track/test');
+  const html = renderToString(<Tracking params={fulfilled({ token: 'test' })} searchParams={fulfilled({ lang: 'en' })} />);
+  expect(html).toContain(en.track.eyebrow);
+  expect(html).toContain(en.track.loading);
+  expect(html).not.toContain(tr.track.eyebrow);
+  expect(global.fetch).toBe(originalFetch);
+});
+
+test('language buttons expose and visually distinguish the selected language', async () => {
+  await mount('/track/test?lang=en');
+  const english = screen.getByRole('button', { name: 'EN' });
+  const turkish = screen.getByRole('button', { name: 'TR' });
+  expect(english).toHaveAttribute('aria-pressed', 'true');
+  expect(english).toHaveClass('rf-primary-button');
+  expect(turkish).toHaveAttribute('aria-pressed', 'false');
+  expect(turkish).toHaveClass('rf-secondary-button');
+  fireEvent.click(turkish);
+  expect(turkish).toHaveAttribute('aria-pressed', 'true');
+  expect(turkish).toHaveClass('rf-primary-button');
+  expect(english).toHaveAttribute('aria-pressed', 'false');
+  expect(english).toHaveClass('rf-secondary-button');
+});
+
+const rateLimited = { ok: false, status: 429, json: async () => { throw new Error('non-JSON rate limit response'); } };
+test.each(['en', 'tr'] as const)('429 shows dedicated %s copy and polling recovers', async locale => {
+  jest.useFakeTimers();
+  await mount(`/track/test?lang=${locale}`, rateLimited);
+  expect(screen.getByRole('alert')).toHaveTextContent(locale === 'en'
+    ? 'Too many attempts. Please try again shortly.' : 'Çok sık denendi, biraz sonra tekrar deneyin.');
+  expect(screen.queryByRole('heading', { name: order.orderNumber })).not.toBeInTheDocument();
+  (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: order }) });
+  await act(async () => { jest.advanceTimersByTime(20000); });
+  expect(global.fetch).toHaveBeenCalledTimes(2);
+  expect(screen.getByRole('heading', { name: order.orderNumber })).toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+test('429 keeps existing data below its warning and continues polling', async () => {
+  jest.useFakeTimers();
+  await mount('/track/test?lang=en');
+  (global.fetch as jest.Mock).mockResolvedValueOnce(rateLimited);
+  await act(async () => { jest.advanceTimersByTime(20000); });
+  const warning = screen.getByRole('alert');
+  const heading = screen.getByRole('heading', { name: order.orderNumber });
+  expect(warning).toHaveTextContent('Too many attempts. Please try again shortly.');
+  expect(warning.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByText('Özel profil RAL 7016')).toBeInTheDocument();
+  await act(async () => { jest.advanceTimersByTime(20000); });
+  expect(global.fetch).toHaveBeenCalledTimes(3);
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(heading).toBeInTheDocument();
 });

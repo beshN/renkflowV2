@@ -66,7 +66,7 @@ function PromisePanel({ orderId }: { orderId: string }) {
         {result.data.missing.length > 0 ? <ul className="list-disc pl-5">
           {result.data.missing.map((item, index) => <li key={item.operationId ?? index}>{item.reason}</li>)}
         </ul> : <>
-          {result.data.optimistic === true && <div role="alert">
+          {result.data.optimistic === true && <div role="note">
             <p>İyimser tahmin: {result.data.ignoredLoad.length} bekleyen iş hesaba katılmadı</p>
             <details>
               <summary>Hesaba katılmayan işlerin nedenleri</summary>
