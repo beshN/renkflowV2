@@ -106,20 +106,25 @@ export function calculateMaterialReadiness(input: {
 /** Advisory only: no reservation, procurement or writes. Call with an authenticated actor and
  * a human-approved recipe. Physical profile reservations block their ambiguous pool with a warning.
  * Other materials subtract outstanding reservations in their stock unit. Lead times are calendar days.
+ * additionalRecipes share input.color and are checked as combined demand. snapshotTx, when supplied
+ * by the order endpoint, is its existing repeatable-read/read-only transaction.
  */
 export async function promiseMaterialReadyDate(
   actor: WorkOrderActor,
-  input: { recipe: RecipeDefinition; parameters: RecipeParameters; color: string; today?: string },
+  input: { recipe: RecipeDefinition; parameters: RecipeParameters; color: string; today?: string; additionalRecipes?: Array<{ recipe: RecipeDefinition; parameters: RecipeParameters }> },
+  snapshotTx?: any,
 ): Promise<ReturnType<typeof calculateMaterialReadiness> & { cuttingEstimateNotice: string | null; requiresHumanApproval: true }> {
   if (!['owner', 'admin', 'office'].includes(actor.role)) throw new WorkOrderApiError('Bu işlem için yetkiniz yok', 403);
   await requireCap(actor, 'inventory', 'view', 'Malzeme hazır olma tarihi');
   await requireCap(actor, 'production', 'view', 'Malzeme hazır olma tarihi');
-  const recipe = calculateRecipe(input.recipe, input.parameters);
+  const calculated = [input, ...(input.additionalRecipes ?? [])].map(line => calculateRecipe(line.recipe, line.parameters));
+  // Combine demand before checking stock, so two order lines cannot spend the same free lot.
+  const recipe = { materials: calculated.flatMap(r => r.materials), cuts: calculated.flatMap(r => r.cuts) };
   const itemIds = recipe.materials.map(m => m.itemId);
   const today = input.today ?? new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   // A consistent read-only snapshot prevents preferences, lots and reservations being read at
   // different committed moments. The date remains an estimate, not a stock commitment.
-  return getSql().begin('isolation level repeatable read read only', async (tx: any) => {
+  const read = async (tx: any) => {
     const items = await tx`SELECT id, stock_uom, lead_time_days, piece_length_mm, processed_states
       FROM inventory_items WHERE tenant_id=${actor.tenantId} AND active=true AND id=ANY(${itemIds}::uuid[])`;
     const lots = await tx`SELECT l.*,
@@ -152,5 +157,6 @@ export async function promiseMaterialReadyDate(
       cutting: cutting.parameters,
     });
     return { ...result, cuttingEstimateNotice: cuttingEstimateNotice(cutting.source), requiresHumanApproval: true as const };
-  });
+  };
+  return snapshotTx ? read(snapshotTx) : getSql().begin('isolation level repeatable read read only', read);
 }
