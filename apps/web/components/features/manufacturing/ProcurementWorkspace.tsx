@@ -1,4 +1,5 @@
 'use client';
+import { ListImportWizard } from '@/components/features/import/ListImportWizard';
 import { COUNT_UNITS } from '@/lib/features/inventory/vocabulary';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -63,6 +64,7 @@ export default function ProcurementWorkspace({ section }: { section: 'purchases'
   const total = (order: ProcurementOrder) => order.lines.reduce((sum, l) => sum + Number(l.ordered_qty) * Number(l.unit_price || 0), 0);
   const changedLine = (key: string, patch: Partial<DraftLine>) => setLines(current => current.map(l => l.key === key ? { ...l, ...patch } : l));
   return <main className="p-4 md:p-7">
+    {section === 'suppliers' && writable && <details className="rf-panel mb-4 p-4"><summary className="cursor-pointer text-sm font-medium">Listeden içe aktar</summary><div className="mt-4"><ListImportWizard supplier /></div></details>}
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4"><div><p className="rf-eyebrow">TEDARİK OPERASYONLARI</p><h1 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h1><p className="mt-2 text-sm text-muted-foreground">Siparişten teslim almaya, aynı kayıt üzerinden kontrollü malzeme akışı.</p></div><div className="flex gap-2"><button className="rf-secondary-button" disabled={loading || busy} onClick={() => void reload()} aria-label="Tedarik verilerini yenile"><RefreshCw size={15} /></button>{writable && section === 'purchases' && <button className="rf-primary-button" onClick={() => { setLines([blankLine()]); setDialog('purchase'); setNotice(''); }}><Plus size={15} />Yeni satın alma</button>}{writable && section === 'suppliers' && <button className="rf-primary-button" onClick={() => { setSupplier(null); setDialog('supplier'); setNotice(''); }}><Plus size={15} />Yeni tedarikçi</button>}</div></div>
     <nav className="mb-5 flex flex-wrap gap-2" aria-label="Tedarik bölümleri">{([['purchases', 'Satın alma', ShoppingCart], ['receipts', 'Mal kabul', PackageCheck], ['suppliers', 'Tedarikçiler', Users]] as const).map(([key, label, Icon]) => <Link key={key} href={'/' + key} aria-current={section === key ? 'page' : undefined} className={section === key ? 'rf-primary-button' : 'rf-secondary-button'}><Icon size={15} />{label}</Link>)}</nav>
     {error && <div role="alert" className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}<button className="ml-3 underline" onClick={() => void reload()}>Yenile</button></div>}
