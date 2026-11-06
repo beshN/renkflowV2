@@ -182,5 +182,46 @@
     "weeksAgo": "{{count}} weeks ago",
     "monthsAgo": "{{count}} months ago",
     "yearsAgo": "{{count}} years ago"
+  },
+  "track": {
+    "title": "Order tracking",
+    "eyebrow": "RENK ALÜMİNYUM · ORDER TRACKING",
+    "loading": "Loading order details",
+    "loadError": "Unable to load tracking details",
+    "invalidLink": "This tracking link is invalid or has expired.",
+    "fallback": "Your order is being processed.",
+    "share": "Share on WhatsApp",
+    "shareText": "My order {{orderNumber}}: {{sentence}} {{url}}",
+    "stages": "Order stages",
+    "estimatedDelivery": "Estimated delivery",
+    "quantity": "{{quantity}} pcs",
+    "produced": "{{produced}} / {{planned}} produced",
+    "open3d": "Open saved 3D view",
+    "shipments": "Shipments",
+    "delivered": "Delivered",
+    "inTransit": "On the way",
+    "language": "Language",
+    "sentences": {
+      "new": "We have received your order.",
+      "pending_approval": "Your order is awaiting approval.",
+      "approved": "Your order is approved.",
+      "preparing_materials": "Your materials are being prepared.",
+      "ready_for_production": "Your order is queued for production.",
+      "in_production": "Your profiles are being cut and processed.",
+      "quality_check": "Assembly and quality checks are underway.",
+      "ready_for_shipment": "Packed and ready to ship.",
+      "shipped": "Your order is on its way.",
+      "completed": "Your order has been delivered.",
+      "cancelled": "Your order has been cancelled.",
+      "on_hold": "Your order is on hold."
+    },
+    "steps": {
+      "quote": "Quote",
+      "approval": "Approval",
+      "production": "Production",
+      "cutting": "Cutting",
+      "assembly": "Assembly",
+      "delivery": "Delivery"
+    }
   }
 }

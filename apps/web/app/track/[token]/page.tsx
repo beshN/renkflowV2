@@ -7,29 +7,41 @@ import { ColorChip } from "@/components/colors/ColorSwatch";
 import { ProgressRing, Skeleton, Timeline } from "@/components/kit";
 import { LIFECYCLE, lifecycleIndex } from "@/lib/features/orders/lifecycle";
 import { normalizeOrderStatus } from "@/lib/features/orders/workspace";
+import tr from "@/lib/i18n/locales/tr.json";
+import en from "@/lib/i18n/locales/en.json";
 import { cn } from "@/lib/utils";
 
-/** One short sentence per status, written for the customer. */
-const SENTENCE: Record<string, string> = {
-  new: "Siparişiniz alındı.",
-  pending_approval: "Siparişiniz onay bekliyor.",
-  approved: "Siparişiniz onaylandı.",
-  preparing_materials: "Malzemeleriniz hazırlanıyor.",
-  ready_for_production: "Üretim sırasına alındı.",
-  in_production: "Profilleriniz kesiliyor ve işleniyor.",
-  quality_check: "Montaj ve kalite kontrolde.",
-  ready_for_shipment: "Paketlendi, sevke hazır.",
-  shipped: "Yola çıktı.",
-  completed: "Teslim edildi.",
-  cancelled: "Sipariş iptal edildi.",
-  on_hold: "Sipariş beklemede.",
-};
 const ICONS = [FileText, BadgeCheck, Factory, Scissors, Wrench, Truck];
 
 export default function Tracking({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
+  // Keep this public route independent of the global detector and its storage cache.
+  const [locale, setLocale] = useState<"tr" | "en">("tr");
+  const messages = (locale === "en" ? en : tr).track;
+  useEffect(() => {
+    const selectLanguage = () => {
+      const requested = new URLSearchParams(window.location.search).get("lang");
+      setLocale(requested === "en" || requested === "tr" ? requested : navigator.language?.toLowerCase().startsWith("en") ? "en" : "tr");
+    };
+    selectLanguage();
+    window.addEventListener("popstate", selectLanguage);
+    return () => window.removeEventListener("popstate", selectLanguage);
+  }, []);
+  useEffect(() => {
+    const previous = document.documentElement.lang;
+    const previousTitle = document.title;
+    document.documentElement.lang = locale;
+    document.title = `${messages.title} | RenkFlow`;
+    return () => { document.documentElement.lang = previous; document.title = previousTitle; };
+  }, [locale, messages.title]);
+  const changeLanguage = (language: "tr" | "en") => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("lang", language);
+    window.history.pushState(null, "", url);
+    setLocale(language);
+  };
   const [data, setData] = useState<any>();
-  const [error, setError] = useState("");
+  const [error, setError] = useState<"" | "invalidLink" | "loadError">("");
   useEffect(() => {
     const c = new AbortController();
     setData(undefined);
@@ -38,12 +50,12 @@ export default function Tracking({ params }: { params: Promise<{ token: string }
       try {
         const r = await fetch(`/api/v1/tracking/${token}`, { signal: c.signal, cache: "no-store" });
         const body = await r.json();
-        if (!r.ok) { setError(body.error); return; }
         if (c.signal.aborted) return;
+        if (!r.ok) { setError(r.status === 404 ? "invalidLink" : "loadError"); return; }
         setError("");
         setData(body.data);
       } catch {
-        if (!c.signal.aborted) setError("Takip bilgisi alınamadı");
+        if (!c.signal.aborted) setError("loadError");
       }
     }
     void load();
@@ -54,27 +66,33 @@ export default function Tracking({ params }: { params: Promise<{ token: string }
   const status = data ? normalizeOrderStatus(data.status) : "";
   const at = data ? (status === "completed" ? LIFECYCLE.length : lifecycleIndex(status)) : -1;
   const share = () => {
-    const text = `Siparişim ${data.orderNumber}: ${SENTENCE[status] ?? ""} ${window.location.href}`;
+    const sentence = messages.sentences[status as keyof typeof messages.sentences] ?? "";
+    const text = messages.shareText.replace("{{orderNumber}}", () => data.orderNumber).replace("{{sentence}}", () => sentence).replace("{{url}}", () => window.location.href);
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
   };
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl space-y-6 p-4 pt-10 sm:p-6 sm:pt-12">
-      <p className="rf-eyebrow">RENK ALÜMİNYUM · SİPARİŞ TAKİBİ</p>
-      {error ? <p role="alert" className="rf-alert">{error}</p> : !data ? (
-        <div className="space-y-4" role="status"><span className="sr-only">Sipariş bilgisi alınıyor</span><Skeleton className="h-10 w-48" /><Skeleton className="h-20 w-full" /><Skeleton className="h-48 w-full" /></div>
+      <div className="flex items-center justify-between gap-3">
+        <p className="rf-eyebrow">{messages.eyebrow}</p>
+        <div className="flex gap-2 text-xs" role="group" aria-label={messages.language}>
+          {(["tr", "en"] as const).map((language) => <button key={language} type="button" lang={language} aria-pressed={locale === language} onClick={() => changeLanguage(language)}>{language.toUpperCase()}</button>)}
+        </div>
+      </div>
+      {error ? <p role="alert" className="rf-alert">{messages[error]}</p> : !data ? (
+        <div className="space-y-4" role="status"><span className="sr-only">{messages.loading}</span><Skeleton className="h-10 w-48" /><Skeleton className="h-20 w-full" /><Skeleton className="h-48 w-full" /></div>
       ) : (
         <>
           <header className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h1 className="font-mono text-3xl font-semibold">{data.orderNumber}</h1>
-              <p className="mt-2 text-xl text-primary">{SENTENCE[status] ?? "Siparişiniz işleme alındı."}</p>
+              <p className="mt-2 text-xl text-primary">{messages.sentences[status as keyof typeof messages.sentences] ?? messages.fallback}</p>
             </div>
-            <button type="button" onClick={share} className="rf-secondary-button h-10 gap-2 px-3 text-sm"><MessageCircle size={16} aria-hidden /> WhatsApp&apos;ta paylaş</button>
+            <button type="button" onClick={share} className="rf-secondary-button h-10 gap-2 px-3 text-sm"><MessageCircle size={16} aria-hidden /> {messages.share}</button>
           </header>
 
           {at >= 0 && (
-            <ol className="flex items-start" aria-label="Sipariş aşamaları">
+            <ol className="flex items-start" aria-label={messages.stages}>
               {LIFECYCLE.map((step, i) => {
                 const Icon = ICONS[i];
                 const done = i < at, current = i === at;
@@ -89,7 +107,7 @@ export default function Tracking({ params }: { params: Promise<{ token: string }
                       </span>
                       <span aria-hidden className={cn("h-1 flex-1", i === LIFECYCLE.length - 1 ? "bg-transparent" : done ? "bg-primary" : "bg-border")} />
                     </span>
-                    <span className={cn("text-[11px] sm:text-xs", current ? "font-semibold" : "text-muted-foreground")}>{step.label}</span>
+                    <span className={cn("text-[11px] sm:text-xs", current ? "font-semibold" : "text-muted-foreground")}>{messages.steps[step.key]}</span>
                   </li>
                 );
               })}
@@ -99,8 +117,8 @@ export default function Tracking({ params }: { params: Promise<{ token: string }
           {data.deliveryDate && (
             <p className="flex items-center gap-2 rounded-md border border-border p-3 text-sm">
               <CalendarCheck2 size={18} aria-hidden className="text-primary" />
-              <span className="text-muted-foreground">Tahmini teslim</span>
-              <strong className="ml-auto tabular-nums">{new Date(data.deliveryDate + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long", weekday: "long" })}</strong>
+              <span className="text-muted-foreground">{messages.estimatedDelivery}</span>
+              <strong className="ml-auto tabular-nums">{new Date(data.deliveryDate + "T00:00:00+03:00").toLocaleDateString(locale === "en" ? "en-GB" : "tr-TR", { timeZone: "Europe/Istanbul", day: "numeric", month: "long", weekday: "long" })}</strong>
             </p>
           )}
 
@@ -113,25 +131,25 @@ export default function Tracking({ params }: { params: Promise<{ token: string }
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="font-medium">{item.product_name}</h2>
-                    <p className="text-sm text-muted-foreground">{item.quantity} adet{item.color ? <> · <ColorChip color={item.color} size={14} /></> : null}</p>
+                    <p className="text-sm text-muted-foreground">{messages.quantity.replace("{{quantity}}", String(item.quantity))}{item.color ? <> · <ColorChip color={item.color} size={14} /></> : null}</p>
                   </div>
-                  {planned > 0 && <ProgressRing value={produced} max={planned} label={`${produced} / ${planned} üretildi`} center={`${produced}/${planned}`} />}
+                  {planned > 0 && <ProgressRing value={produced} max={planned} label={messages.produced.replace("{{produced}}", String(produced)).replace("{{planned}}", String(planned))} center={`${produced}/${planned}`} />}
                 </div>
                 {item.parameters && <ProductDrawing family={item.family ?? "pergola"} widthMm={item.parameters.widthMm} projectionMm={item.parameters.projectionMm} heightMm={item.parameters.mountingHeightMm} color={item.color} className="h-auto max-h-64 w-full" />}
-                {(item.awning_configuration || item.product_visualization) && <ProductDialog visualization={item.product_visualization} awningConfiguration={item.awning_configuration} previewImage={item.awning_preview} readOnly label="Kaydedilmiş 3D görünümü aç" />}
+                {(item.awning_configuration || item.product_visualization) && <ProductDialog visualization={item.product_visualization} awningConfiguration={item.awning_configuration} previewImage={item.awning_preview} readOnly label={messages.open3d} />}
               </section>
             );
           })}
 
           {data.shipments.length > 0 && (
             <section className="rf-panel">
-              <h2 className="mb-4 flex items-center gap-2 font-medium"><Truck size={16} aria-hidden /> Sevkiyat</h2>
+              <h2 className="mb-4 flex items-center gap-2 font-medium"><Truck size={16} aria-hidden /> {messages.shipments}</h2>
               <Timeline items={data.shipments.map((s: any, i: number) => ({
                 id: String(i),
                 icon: s.status === "delivered" ? PackageCheck : Truck,
                 tone: s.status === "delivered" ? "in" : "neutral",
-                title: `${s.quantity} adet · ${s.status === "delivered" ? "Teslim edildi" : "Yolda"}`,
-                when: new Date(s.created_at).toLocaleDateString("tr-TR"),
+                title: `${messages.quantity.replace("{{quantity}}", String(s.quantity))} · ${s.status === "delivered" ? messages.delivered : messages.inTransit}`,
+                when: new Date(s.created_at).toLocaleDateString(locale === "en" ? "en-GB" : "tr-TR", { timeZone: "Europe/Istanbul" }),
                 detail: [s.carrier, s.tracking_number].filter(Boolean).join(" "),
               }))} />
             </section>
