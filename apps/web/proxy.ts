@@ -114,9 +114,6 @@ async function accessGate(request: NextRequest, token: RequestIdentity, pathname
     return pathname.startsWith('/api/') ? withProxySecurityHeaders(NextResponse.json({ error: 'Yetki doğrulanamadı; tekrar deneyin.' }, { status: 503 }), { isSecureRequest }) : null;
   }
   if (!decision) return null;
-  // Lot trace conceals access refusals consistently with its route/service guard.
-  if (pathname === '/api/v1/traceability/lots')
-    return withProxySecurityHeaders(NextResponse.json({ error: 'Bulunamadı' }, { status: 404, headers: { 'Cache-Control': 'private, no-store' } }), { isSecureRequest });
   const api = pathname.startsWith('/api/');
   // The firm requires two-step sign-in and this owner/admin has not set it up: only the account page and its APIs stay open.
   if (decision.code === MFA_SETUP_REQUIRED_CODE) {
@@ -316,11 +313,7 @@ async function routeRequest(request: NextRequest) {
     }
     // These handlers perform their own credential and private-pilot checks.
     const mobileBearerRoute = pathname === '/api/v1/auth/login' || pathname === '/api/v1/auth/me' || pathname.startsWith('/api/v1/field/') || pathname.startsWith('/api/mobile/v1/');
-    if(privateAccessEmail() && !mobileBearerRoute && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/cron/') && !pathname.startsWith('/api/telemetry/') && !(await isAuthenticated(request))) {
-      const trace = pathname === '/api/v1/traceability/lots';
-      return withProxySecurityHeaders(NextResponse.json({ error: trace ? 'Bulunamadı' : 'Oturum açmanız gerekiyor.' },
-        { status: trace ? 404 : 401, ...(trace ? { headers: { 'Cache-Control': 'private, no-store' } } : {}) }), { isSecureRequest });
-    }
+    if(privateAccessEmail() && !mobileBearerRoute && !pathname.startsWith('/api/auth/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/cron/') && !pathname.startsWith('/api/telemetry/') && !(await isAuthenticated(request))) return withProxySecurityHeaders(NextResponse.json({error:'Oturum açmanız gerekiyor.'},{status:401}),{isSecureRequest});
     // Exempt and auth paths still lose any hidden-field header a client sent.
     let next = await forwardHiddenFields(request, null);
     if (!pathname.startsWith('/api/auth/') && !gateExempt(pathname)) {

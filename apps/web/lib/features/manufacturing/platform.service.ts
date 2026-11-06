@@ -1354,8 +1354,6 @@ async function cutAction(
     for (const [jobId, length] of allocated) {
       const job = jobs.find((j: any) => j.id === jobId);
       if (!job) fail("Kesim emri bulunamadı");
-      await tx`INSERT INTO work_order_material_lots(tenant_id,work_order_id,rework_id,item_id,lot_id,quantity,uom,unit_cost,currency,method)
-        VALUES(${t},${jobId},(SELECT id FROM production_rework WHERE tenant_id=${t} AND work_order_id=${jobId} AND id=ANY(${plan.rework_ids}::uuid[]) ORDER BY id LIMIT 1),${lot.item_id},${lot.id},${length},'m',${lot.metadata.unitCost ?? null},${lot.metadata.currency ?? null},'physical_lot')`;
       if (reworkPlan) continue;
       lines.push({
         itemId: lot.item_id,

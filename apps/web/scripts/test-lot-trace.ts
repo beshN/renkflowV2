@@ -50,14 +50,9 @@ async function main() {
     const [plan] = await db`INSERT INTO cutting_plans(tenant_id,status,work_order_ids,demand,parameters,result,created_by,idempotency_key) VALUES (${t},'approved',${[job.id]},'[]','{"minimumRemnantMm":500}',${JSON.stringify(result)}::text::jsonb,${userId},${randomUUID()}) RETURNING id,version`;
     await db`UPDATE stock_lots SET status='reserved' WHERE tenant_id=${t} AND id=${source.id}`;
     await db`INSERT INTO cutting_plan_sources(tenant_id,plan_id,lot_id) VALUES (${t},${plan.id},${source.id})`;
-    const cutId = randomUUID();
-    const cutData = { id:plan.id,version:plan.version,confirmed:true };
-    await cmd('cut.complete',cutData,cutId);
-    await cmd('cut.complete',cutData,cutId); // replay does not duplicate allocations
-    const { qualityContext } = await import('../lib/features/manufacturing/traceability.service');
-    const [savedJob] = await db`SELECT * FROM work_orders WHERE tenant_id=${t} AND id=${job.id}`;
-    const context = await qualityContext(db,actor,savedJob,{id:randomUUID(),attempt:1});
-    assert.equal(context.materialLots.filter((l: any) => l.lotId===source.id).length,1,'cut trace is not duplicated in quality evidence');
+    assert.equal((await traceLots(actor,{heat:'HEAT-Ab'})).lots.find((l: any) => l.id===source.id).workOrders.length,0,'approved plans are not consumed evidence');
+    await cmd('cut.complete',{ id:plan.id,version:plan.version,confirmed:true });
+    assert.equal((await db`SELECT count(*)::int AS n FROM work_order_material_lots WHERE tenant_id=${t} AND lot_id=${source.id}`)[0].n,0,'cut trace must not write material allocations');
     const [remnant] = await db`SELECT * FROM stock_lots WHERE tenant_id=${t} AND metadata->>'parentLotId'=${source.id}`;
     assert.equal(remnant.heat_number,'HEAT-Ab'); assert.equal(remnant.supplier_lot_number,'SUP-1');
     const token = jwt.sign({sub:userId,tenantId:t,role:'owner'},process.env.AUTH_SECRET!,{expiresIn:'5m'});
@@ -68,6 +63,11 @@ async function main() {
     assert.equal(body.lots.length,2);
     const tracedSource = body.lots.find((l: any) => l.id===source.id);
     assert.equal(tracedSource.workOrders.length,1);
+    assert.equal(tracedSource.workOrders[0].cutPlanId,plan.id);
+    assert.equal(tracedSource.workOrders[0].allocationId,null);
+    assert.equal(Number(tracedSource.workOrders[0].quantity),2);
+    assert.equal(tracedSource.workOrders[0].uom,'m');
+    assert.deepEqual((await (await get('?heat=HEAT-Ab')).json()).data,body,'repeated reads are consistent');
     assert.equal(tracedSource.workOrders[0].order.order_number,'TRACE-ORDER');
     assert.equal(tracedSource.workOrders[0].order.customer_name,'Fixture customer');
     assert.equal(tracedSource.uom,'m');
@@ -77,6 +77,15 @@ async function main() {
     await db`UPDATE stock_lots SET heat_number=NULL,supplier_lot_number=NULL WHERE tenant_id=${t} AND id=${remnant.id}`;
     assert.equal((await traceLots(actor,{heat:'HEAT-Ab'})).lots.length,2);
     await db`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,lot_number,original_qty,remaining_qty,heat_number) VALUES (${other},${profile.id},${wh.RAW.id},'FOREIGN',1,1,'FOREIGN-HEAT')`;
+    const [foreignOrder] = await db`INSERT INTO orders(tenant_id,order_number,customer_name,total_amount) VALUES (${other},'FOREIGN-ORDER','Other customer',0) RETURNING id`;
+    const [foreignJob] = await db`INSERT INTO work_orders(tenant_id,title,order_id) VALUES (${other},'Foreign job',${foreignOrder.id}) RETURNING id`;
+    // Cross-tenant JSON references must not bypass either the plan or work-order tenant scope.
+    for (const [planTenant,pieceJob] of [[t,foreignJob.id],[other,job.id]]) {
+      const corruptResult = { bars:[{source:{id:source.id},pieces:[{workOrderId:pieceJob,lengthMm:1000}]}] };
+      await db`INSERT INTO cutting_plans(tenant_id,status,work_order_ids,demand,parameters,result,created_by,idempotency_key) VALUES (${planTenant},'completed',${[pieceJob]},'[]','{}',${JSON.stringify(corruptResult)}::text::jsonb,${userId},${randomUUID()})`;
+    }
+    const scoped = (await traceLots(actor,{heat:'HEAT-Ab'})).lots.find((l: any) => l.id===source.id);
+    assert.equal(scoped.workOrders.length,1,'foreign work orders and plans stay hidden');
     const foreign = await get('?heat=FOREIGN-HEAT');
     assert.equal(foreign.status,200); assert.deepEqual((await foreign.json()).data.lots,[]);
     assert.equal((await get('')).status,400);
@@ -84,7 +93,7 @@ async function main() {
     await db`UPDATE tenant_members SET role='worker' WHERE tenant_id=${t} AND user_id=${userId}`;
     assert.equal((await get('?heat=HEAT-Ab')).status,404,'fresh membership overrides stale owner token');
     await assert.rejects(() => traceLots(actor,{heat:'HEAT-Ab'}),{status:404});
-    console.log('PASS lot-trace: migration twice preserves rows; receipt → real cut → inherited remnant → work order → order; exact heat/supplier match; tenant isolation; worker 404; omitted values NULL; missing query 400; no-store; replay safe.');
+    console.log('PASS lot-trace: migration twice preserves rows; receipt → real cut → inherited remnant → work order → order; exact heat/supplier match; tenant isolation; worker 404; omitted values NULL; missing query 400; no-store; consistent repeated reads; no cut allocation writes.');
   } finally {
     try {
       // Only this local test connection: immutable ledger fixtures require trigger-free deletion.

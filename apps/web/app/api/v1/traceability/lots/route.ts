@@ -7,7 +7,7 @@ import { NO_STORE, recordError } from '@/lib/features/records/http';
 export async function GET(request: NextRequest) {
   try {
     const user = await getAPIUser(request);
-    if (!user?.tenantId) throw new WorkOrderApiError('Bulunamadı', 404);
+    if (!user?.tenantId) throw new WorkOrderApiError('Unauthorized', 401);
     const result = await traceLots({ userId: user.id, tenantId: user.tenantId,
       role: user.role as WorkOrderActor['role'] }, {
       heat: request.nextUrl.searchParams.get('heat'),
@@ -15,8 +15,6 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json({ data: result }, { headers: NO_STORE });
   } catch (error) {
-    if (error instanceof WorkOrderApiError && [401, 403].includes(error.status))
-      return recordError(new WorkOrderApiError('Bulunamadı', 404), 'lot-trace');
     return recordError(error, 'lot-trace');
   }
 }
