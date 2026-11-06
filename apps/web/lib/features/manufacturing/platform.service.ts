@@ -1,3 +1,5 @@
+import { LotIdentifierSchema } from './lot-trace';
+import { executePaintDispatch, requirePaintDispatchAccess } from "./paint-dispatch.server";
 import { assertStationOperation, requireStationChecklist } from '@/lib/features/stations/security.server';
 import {partGroups,syncDailyStages} from './daily-progress.server';
 import { allocatePhysicalCuts, type StockItem, type StockLot } from './cut-list';
@@ -262,6 +264,7 @@ export async function productionCommand(a: WorkOrderActor, raw: unknown) {
   for (let attempt = 1; ; attempt++) {
     try {
       // The permission read is retried with the command: it can meet the same dropped connection.
+      if(command.action.startsWith('paint.dispatch.')) await requirePaintDispatchAccess(a, 'edit');
       if(dailyRecord)await requireCap(a,'production','edit','Günlük üretim kaydı');
       return await runProductionCommand(a, command, hash);
     } catch (error) {
@@ -334,6 +337,7 @@ async function execute(
   key: string,
 ): Promise<any> {
   const t = a.tenantId;
+  if (action.startsWith("paint.dispatch.")) return executePaintDispatch(tx, a, action, data, key);
   if (action.startsWith("warehouse.") && action !== "warehouse.save") return executeWarehouse(tx,a,action,data,key);
   if (action.startsWith("finance.")) return executeFinance(tx,a,action,data);
   if (action.startsWith("procurement.")) return executeProcurement(tx, a, action, data, key);
@@ -394,6 +398,7 @@ async function execute(
         standardLengthMm: z.number().nonnegative().default(0),
         weightPerMeterKg: z.number().nonnegative().default(0),
         minStock: z.number().nonnegative().finite().max(1000000).default(0),
+        profileSection: text.nullish(),
         // Identity: profile code + size + processed states (+ piece length for counted pieces).
         profileCode: z.string().trim().max(40).optional().transform((v) => v || null),
         sizeLabel: z.string().trim().max(40).optional().transform((v) => v || null),
@@ -414,7 +419,7 @@ async function execute(
     }
     try {
       const [row] =
-        await tx`INSERT INTO inventory_items(tenant_id,sku,name,unit,item_type,stock_uom,standard_length_m,weight_per_meter_kg,min_stock,profile_code,size_label,processed_states,piece_length_mm)VALUES(${t},${d.sku},${d.name},${d.uom},${d.itemType},${d.uom},${d.standardLengthMm / 1000},${d.weightPerMeterKg},${d.minStock},${d.profileCode},${d.sizeLabel},${states}::text[],${d.pieceLengthMm ?? null}) RETURNING *`;
+        await tx`INSERT INTO inventory_items(tenant_id,sku,name,unit,item_type,stock_uom,standard_length_m,weight_per_meter_kg,min_stock,profile_section,profile_code,size_label,processed_states,piece_length_mm)VALUES(${t},${d.sku},${d.name},${d.uom},${d.itemType},${d.uom},${d.standardLengthMm / 1000},${d.weightPerMeterKg},${d.minStock},${d.profileSection ?? null},${d.profileCode},${d.sizeLabel},${states}::text[],${d.pieceLengthMm ?? null}) RETURNING *`;
       return row;
     } catch (error) {
       // Two saves of the same item at once: the second meets the unique index, not a server error.
@@ -508,6 +513,8 @@ async function execute(
         color: z.string().trim().max(100).default(""),
         unitCost: z.number().nonnegative(),
         lotNumber: text,
+        supplierLotNumber: LotIdentifierSchema,
+        heatNumber: LotIdentifierSchema,
         currency:z.enum(["TRY","EUR","USD","GBP"]).default("TRY"),
       })
       .parse(data);
@@ -522,7 +529,7 @@ async function execute(
       if (!d.color) fail("Profilin rengini girin (boyasız için \"Boyasız\")", 400);
       for (let n = 0; n < d.quantity; n++) {
         const [lot] =
-          await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,lot_number,original_qty,remaining_qty,length_m,weight_kg,metadata)VALUES(${t},${d.itemId},${d.warehouseId},${d.lotNumber + "-" + (n + 1)},${d.lengthMm / 1000},${d.lengthMm / 1000},${d.lengthMm / 1000},${(d.lengthMm / 1000) * num(item.weight_per_meter_kg)},${js({ color: d.color, unitCost: d.unitCost, currency:d.currency,isRemnant: false })}::text::jsonb)RETURNING *`;
+          await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,supplier_lot_number,heat_number,lot_number,original_qty,remaining_qty,length_m,weight_kg,metadata)VALUES(${t},${d.itemId},${d.warehouseId},${d.supplierLotNumber},${d.heatNumber},${d.lotNumber + "-" + (n + 1)},${d.lengthMm / 1000},${d.lengthMm / 1000},${d.lengthMm / 1000},${(d.lengthMm / 1000) * num(item.weight_per_meter_kg)},${js({ color: d.color, unitCost: d.unitCost, currency:d.currency,isRemnant: false })}::text::jsonb)RETURNING *`;
         lines.push({
           itemId: d.itemId,
           warehouseId: d.warehouseId,
@@ -536,7 +543,7 @@ async function execute(
     } else {
       if (COUNT_UNITS.has(item.stock_uom) && !Number.isInteger(d.quantity))
         fail(`${unitLabel(item.stock_uom)} biriminde tam sayı girin`, 400);
-      const [lot]=await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,lot_number,original_qty,remaining_qty,metadata)VALUES(${t},${d.itemId},${d.warehouseId},${d.lotNumber},${d.quantity},${d.quantity},${js({unitCost:d.unitCost,currency:d.currency})}::text::jsonb)RETURNING id`;
+      const [lot]=await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,supplier_lot_number,heat_number,lot_number,original_qty,remaining_qty,metadata)VALUES(${t},${d.itemId},${d.warehouseId},${d.supplierLotNumber},${d.heatNumber},${d.lotNumber},${d.quantity},${d.quantity},${js({unitCost:d.unitCost,currency:d.currency})}::text::jsonb)RETURNING id`;
       lines.push({
         lotId:lot.id,
         itemId: d.itemId,
@@ -642,6 +649,9 @@ async function execute(
   }
   if (action === "recipe.publish") {
     manager(a);
+    const reason = typeof data.reason === "string" ? data.reason.trim() : "";
+    if (!reason) fail("Yayın gerekçesi zorunludur", 400);
+    if (reason.length > 1000) fail("Yayın gerekçesi en fazla 1000 karakter olabilir", 400);
     const [row] =
       await tx`SELECT * FROM production_recipes WHERE tenant_id=${t} AND id=${uuid.parse(data.id)}`;
     if (!row) fail("Reçete bulunamadı", 404);
@@ -649,6 +659,13 @@ async function execute(
     if(row.edit_revision !== (data.editRevision || 1))fail("Reçete değişti; örnekleri yeniden kontrol edin");
     if(row.status !== "draft")fail("Yalnız taslak reçete yayınlanabilir");
     validateRecipeExamples(recipe(row));
+    // productionCommand holds the tenant advisory lock for this entire transaction.
+    const archived = await tx`UPDATE production_recipes SET status='archived' WHERE tenant_id=${t} AND code=${row.code} AND status='published' RETURNING id`;
+    await recordAudit(tx, {
+      tenantId: t, actorId: a.userId, entityType: "recipe", entityId: row.id,
+      action: "recipe.publish", note: reason,
+      metadata: { reason, code: row.code, version: row.version, archivedRecipeIds: archived.map((r: any) => r.id), commandId: key },
+    });
     return (
       await tx`UPDATE production_recipes SET status='published',published_at=now()WHERE tenant_id=${t} AND id=${row.id} RETURNING *`
     )[0];
@@ -703,8 +720,8 @@ async function execute(
       .parse(data);
     const [shipment] =
       await tx`SELECT * FROM production_shipments WHERE tenant_id=${t} AND id=${d.id} FOR UPDATE`;
+    if (!shipment) fail("Sevkiyat bulunamadı", 404);
     if (
-      !shipment ||
       shipment.version !== d.version ||
       shipment.status === "delivered"
     )
@@ -773,8 +790,10 @@ async function createJob(
     t = a.tenantId;
   const [item] =
     await tx`SELECT oi.*,o.id AS oid,o.order_number,o.delivery_date FROM order_items oi JOIN orders o ON o.id=oi.order_id WHERE o.tenant_id=${t} AND oi.id=${d.orderItemId} AND o.status NOT IN('cancelled','delivered','completed') FOR UPDATE OF oi`;
+  const pc = item?.product_configuration as ProductConfiguration | null | undefined;
   const [r] =
-    await tx`SELECT * FROM production_recipes WHERE tenant_id=${t} AND id=${d.recipeId} AND status='published'`;
+    await tx`SELECT * FROM production_recipes WHERE tenant_id=${t} AND id=${d.recipeId}
+      AND (status='published' OR (status='archived' AND id=${pc?.recipeId || null}))`;
   if (!item || !r) fail("Onaylı reçete veya sipariş kalemi bulunamadı", 404);
   await requireCommercialApproval(tx, t, item.oid);
   if(await columnExists('orders','quotation_id')) {
@@ -782,7 +801,6 @@ async function createJob(
     if(file?.required==='true' && !(await tx`SELECT id FROM order_technical_revisions WHERE tenant_id=${t} AND order_id=${item.oid} AND status='approved'`).length) fail('Önce siparişin teknik planını onaylayın');
   }
   // A line configured in the quote is built with the recipe, measures, options and colour it was quoted with.
-  const pc = item.product_configuration as ProductConfiguration | null | undefined;
   if (pc && pc.recipeId !== r.id) fail(`Bu kalem teklifte "${pc.recipe.code}" reçetesinin ${pc.recipe.version}. sürümüyle yapılandırıldı; aynı reçeteyi seçin`, 400);
   if (
     (
@@ -1356,7 +1374,7 @@ async function cutAction(
     let remnantId: string | null = null;
     if (bar.reusable) {
       const [r] =
-        await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,lot_number,original_qty,remaining_qty,length_m,weight_kg,metadata)VALUES(${t},${lot.item_id},${remnantWarehouse.id},${"ART-" + randomUUID().slice(0, 12)},${bar.remainingMm / 1000},${bar.remainingMm / 1000},${bar.remainingMm / 1000},${num(lot.weight_per_meter_kg)>0?(bar.remainingMm / 1000) * num(lot.weight_per_meter_kg):null},${js({ ...lot.metadata, isRemnant: true, parentLotId: lot.id, planId: plan.id })}::text::jsonb)RETURNING id`;
+        await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,supplier_lot_number,heat_number,lot_number,original_qty,remaining_qty,length_m,weight_kg,metadata)VALUES(${t},${lot.item_id},${remnantWarehouse.id},${lot.supplier_lot_number},${lot.heat_number},${"ART-" + randomUUID().slice(0, 12)},${bar.remainingMm / 1000},${bar.remainingMm / 1000},${bar.remainingMm / 1000},${num(lot.weight_per_meter_kg)>0?(bar.remainingMm / 1000) * num(lot.weight_per_meter_kg):null},${js({ ...lot.metadata, isRemnant: true, parentLotId: lot.id, planId: plan.id })}::text::jsonb)RETURNING id`;
       remnantId = r.id;
       lines.push({
         itemId: lot.item_id,
@@ -1822,7 +1840,9 @@ export async function shipProducedQuantity(
     await tx`SELECT oi.quantity,COALESCE((SELECT SUM(s.quantity) FROM production_shipments s JOIN work_orders w ON w.id=s.work_order_id WHERE s.tenant_id=${a.tenantId} AND w.order_item_id=oi.id),0) AS shipped,COALESCE((SELECT SUM(w.produced_qty) FROM work_orders w WHERE w.tenant_id=${a.tenantId} AND w.order_item_id=oi.id AND w.status<>'cancelled'),0) AS produced FROM order_items oi WHERE order_id=${job.order_id}`;
   const complete = all.every((r: any) => num(r.shipped) >= num(r.quantity));
   const allProduced = all.every((r: any) => r.produced === undefined || num(r.produced) >= num(r.quantity));
-  await tx`UPDATE orders SET status=${complete ? "shipped" : allProduced ? "ready_for_shipment" : "in_production"},shipment_status=${complete ? "shipped" : allProduced ? "ready" : "partially_shipped"},version=version+1 WHERE tenant_id=${a.tenantId} AND id=${job.order_id}`;
+  // orders_shipment_status_check (migration 013) allows only not_shipped/ready/shipped/delivered, so a
+  // partial shipment keeps 'ready'; the order status says whether the rest is still in production.
+  await tx`UPDATE orders SET status=${complete ? "shipped" : allProduced ? "ready_for_shipment" : "in_production"},shipment_status=${complete ? "shipped" : "ready"},version=version+1 WHERE tenant_id=${a.tenantId} AND id=${job.order_id}`;
   if (complete) await noteOrderDates(tx, a.tenantId, job.order_id, "shipped");
   await enqueueOrderNotice(
     tx,
@@ -1938,12 +1958,12 @@ export async function cutPlanSheet(actor: WorkOrderActor, id: string) {
   ])];
   const lotIds = bars.map((b) => b.source.id);
   const [items, jobs, lots] = await Promise.all([
-    itemIds.length ? sql`SELECT id,sku,name FROM inventory_items WHERE tenant_id=${t} AND id=ANY(${itemIds}::uuid[])` : [],
+    itemIds.length ? sql`SELECT id,sku,name,profile_code FROM inventory_items WHERE tenant_id=${t} AND id=ANY(${itemIds}::uuid[])` : [],
     sql`SELECT w.id,w.title,o.order_number FROM work_orders w JOIN orders o ON o.id=w.order_id AND o.tenant_id=w.tenant_id WHERE w.tenant_id=${t} AND w.id=ANY(${plan.work_order_ids}::uuid[])`,
     lotIds.length ? sql`SELECT id,lot_number FROM stock_lots WHERE tenant_id=${t} AND id=ANY(${lotIds}::uuid[])` : [],
   ]);
-  const item = new Map(items.map((i: any) => [i.id, { sku: i.sku, name: i.name }]));
-  const job = new Map(jobs.map((j: any) => [j.id, { title: j.title, orderNumber: j.order_number }]));
+  const item = new Map<string, { sku: string; name: string; profileCode: string | null }>(items.map((i: any) => [i.id, { sku: i.sku, name: i.name, profileCode: i.profile_code }]));
+  const job = new Map<string, { id: string; title: string; orderNumber: string }>(jobs.map((j: any) => [j.id, { id: j.id, title: j.title, orderNumber: j.order_number }]));
   const lot = new Map(lots.map((l: any) => [l.id, l.lot_number]));
   const source: CuttingParameterSource | null = plan.result.parameterSource ?? null;
   return {
@@ -2056,7 +2076,7 @@ export async function rebuildConfiguredJob(tx: any, a: WorkOrderActor, orderItem
   try {
     // Loaded here: configure.service imports this module (recipe), a static import would be a cycle.
     const { configureProduct } = await import("../products/configure.service");
-    next = await configureProduct(tx, t, currency, choice);
+    next = await configureProduct(tx, t, currency, choice, undefined, orderItemId);
   } catch (error) {
     if (error instanceof WorkOrderApiError || error instanceof z.ZodError) return { rebuilt: false as const, reason: `Reçete yeni ölçüyle hesaplanamadı: ${error instanceof WorkOrderApiError ? error.message : "ölçü geçersiz"}` };
     throw error;

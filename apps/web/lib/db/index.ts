@@ -8,6 +8,9 @@
  * - Cloud SQL / standard PostgreSQL compatibility
  */
 
+// Server bundle layers can load their own zod instance; almost every server module
+// imports this database layer, so the Turkish zod locale is applied in each of them.
+import '@/lib/shared/validation/zod-locale';
 import { ConnectionInfo } from '@/lib/types';
 import postgres from 'postgres';
 

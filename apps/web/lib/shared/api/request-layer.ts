@@ -21,16 +21,151 @@ interface PendingRequest<T> {
   timestamp: number;
 }
 
-interface RequestConfig {
+export interface RequestConfig {
   cacheTTL?: number; // milliseconds, default 5 minutes
   deduplicate?: boolean;
   retry?: number;
   retryDelay?: number;
+  shouldRetry?: (error: unknown) => boolean;
 }
 
 const DEFAULT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const DEFAULT_RETRY_COUNT = 3;
+const DEFAULT_RETRY_COUNT = 1;
 const DEFAULT_RETRY_DELAY = 1000;
+
+/**
+ * Extract HTTP status code from an error object if present.
+ */
+export function extractHttpStatus(error: unknown): number | null {
+  if (!error || typeof error !== 'object') return null;
+
+  const candidate = error as {
+    status?: unknown;
+    statusCode?: unknown;
+    response?: { status?: unknown };
+    cause?: unknown;
+  };
+
+  const toStatusNumber = (val: unknown): number | null => {
+    if (typeof val === 'number' && Number.isFinite(val)) return val;
+    if (typeof val === 'string') {
+      const parsed = parseInt(val, 10);
+      if (!isNaN(parsed) && Number.isFinite(parsed)) return parsed;
+    }
+    return null;
+  };
+
+  const direct = toStatusNumber(candidate.status) ?? toStatusNumber(candidate.statusCode);
+  if (direct !== null) return direct;
+
+  const responseStatus = toStatusNumber(candidate.response?.status);
+  if (responseStatus !== null) return responseStatus;
+
+  if (candidate.cause && typeof candidate.cause === 'object') {
+    return extractHttpStatus(candidate.cause);
+  }
+
+  return null;
+}
+
+/**
+ * Determines whether an error qualifies for automatic retry.
+ * - 4xx errors (client, auth, validation) are NEVER retried.
+ * - Network errors, timeouts, and 5xx server errors ARE retried.
+ */
+export function isRetryableError(error: unknown): boolean {
+  if (!error) return false;
+
+  const status = extractHttpStatus(error);
+
+  // 4xx: client, auth (401/403), validation (400/409/422), etc. -> NEVER retry
+  if (status !== null && status >= 400 && status < 500) {
+    return false;
+  }
+
+  // 5xx: transient server errors -> retry
+  if (status !== null && status >= 500 && status < 600) {
+    return true;
+  }
+
+  // Status 0 represents network failure in client HTTP wrappers (e.g. requestJson)
+  if (status === 0) {
+    return true;
+  }
+
+  const errObj = typeof error === 'object' ? (error as Record<string, unknown>) : null;
+  const rawCode = errObj?.code;
+  if (typeof rawCode === 'string' || typeof rawCode === 'number') {
+    const codeStr = String(rawCode).toUpperCase();
+    if (/^(4\d\d|UNAUTHORIZED|FORBIDDEN|VALIDATION_ERROR|BAD_REQUEST)$/i.test(codeStr)) {
+      return false;
+    }
+    if (
+      [
+        'ECONNRESET',
+        'ECONNREFUSED',
+        'ETIMEDOUT',
+        'ENOTFOUND',
+        'EAI_AGAIN',
+        'EPIPE',
+        'UND_ERR_CONNECT_TIMEOUT',
+        'UND_ERR_HEADERS_TIMEOUT',
+        'UND_ERR_BODY_TIMEOUT',
+      ].includes(codeStr)
+    ) {
+      return true;
+    }
+  }
+
+  const name = errObj?.name;
+  if (typeof name === 'string' && (name === 'AbortError' || name === 'TimeoutError')) {
+    return true;
+  }
+
+  const message = (
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : typeof errObj?.message === 'string'
+          ? errObj.message
+          : ''
+  ).toLowerCase();
+
+  // Explicit auth / client rejection messages without network keywords
+  if (
+    message.includes('yetkiniz') ||
+    message.includes('unauthorized') ||
+    message.includes('forbidden') ||
+    message.includes('permission denied')
+  ) {
+    return false;
+  }
+
+  // Network / timeout message signatures. "Load failed" is the fetch network
+  // error of Safari and every iOS browser (WebKit); matching the message, not
+  // every TypeError, keeps programming errors in fetchers from being retried.
+  if (
+    message.includes('failed to fetch') ||
+    message.includes('load failed') ||
+    message.includes('fetch failed') ||
+    message.includes('network') ||
+    message.includes('timeout') ||
+    message.includes('timed out') ||
+    message.includes('zaman aşımı') ||
+    message.includes('zaman asimi') ||
+    message.includes('ağ hatası') ||
+    message.includes('ag hatasi') ||
+    message.includes('connection reset') ||
+    message.includes('connection refused') ||
+    message.includes('econnreset') ||
+    message.includes('etimedout')
+  ) {
+    return true;
+  }
+
+  return false;
+}
 
 class RequestCache {
   private static instance: RequestCache;
@@ -113,9 +248,14 @@ class RequestCache {
       timestamp: Date.now(),
     });
 
-    promise.finally(() => {
-      this.pendingRequests.delete(key);
-    });
+    promise
+      .finally(() => {
+        this.pendingRequests.delete(key);
+      })
+      .catch(() => {
+        // Prevent unhandled rejection on internal cleanup chain;
+        // errors are handled by the caller awaiting the original promise.
+      });
   }
 
   subscribe(key: string, callback: (data: unknown) => void): () => void {
@@ -157,6 +297,7 @@ export async function cachedRequest<T>(
     deduplicate = true,
     retry = DEFAULT_RETRY_COUNT,
     retryDelay = DEFAULT_RETRY_DELAY,
+    shouldRetry,
   } = config;
 
   // Check cache first
@@ -178,7 +319,8 @@ export async function cachedRequest<T>(
     try {
       return await fetcher();
     } catch (error) {
-      if (attempt < retry) {
+      const canRetry = shouldRetry ? shouldRetry(error) : isRetryableError(error);
+      if (attempt < retry && canRetry) {
         const delay = retryDelay * Math.pow(2, attempt);
         await new Promise((resolve) => setTimeout(resolve, delay));
         return executeWithRetry(attempt + 1);
@@ -251,6 +393,9 @@ export async function optimisticUpdate<T, R>(
 export interface UseCachedQueryOptions<T> {
   enabled?: boolean;
   cacheTTL?: number;
+  retry?: number;
+  retryDelay?: number;
+  shouldRetry?: (error: unknown) => boolean;
   refetchOnMount?: boolean;
   refetchOnWindowFocus?: boolean;
   onSuccess?: (data: T) => void;
@@ -274,6 +419,9 @@ export function useCachedQuery<T>(
   const {
     enabled = true,
     cacheTTL = DEFAULT_CACHE_TTL,
+    retry = DEFAULT_RETRY_COUNT,
+    retryDelay = DEFAULT_RETRY_DELAY,
+    shouldRetry,
     refetchOnMount = true,
     refetchOnWindowFocus = false,
     onSuccess,
@@ -302,7 +450,12 @@ export function useCachedQuery<T>(
     }
 
     try {
-      const result = await cachedRequest(key, fetcher, { cacheTTL });
+      const result = await cachedRequest(key, fetcher, {
+        cacheTTL,
+        retry,
+        retryDelay,
+        shouldRetry,
+      });
       setData(result);
       setError(null);
       onSuccess?.(result);
@@ -314,7 +467,7 @@ export function useCachedQuery<T>(
       setIsLoading(false);
       setIsValidating(false);
     }
-  }, [key, enabled, fetcher, cacheTTL, onSuccess, onError]);
+  }, [key, enabled, fetcher, cacheTTL, retry, retryDelay, shouldRetry, onSuccess, onError]);
 
   const refetch = React.useCallback(async () => {
     if (key) {

@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSSOProviders, initiateSAMLLogin, initiateOIDCLogin, SSOProvider } from '@/lib/auth/sso';
 import { sql } from '@/lib/db';
@@ -139,6 +140,7 @@ export async function GET(request: NextRequest) {
 
   } catch (error: unknown) {
     console.error('SSO Login Error:', error);
+    await reportServerError("app/api/auth/sso/login/route:GET", error);
     return NextResponse.json(
       { error: 'SSO login failed. Please try again.' },
       { status: 500 }

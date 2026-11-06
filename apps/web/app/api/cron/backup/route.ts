@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { cronAuthorized } from "@/lib/features/manufacturing/cron";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,9 +14,11 @@ export async function GET(request: Request) {
   const result = await (await import("@/lib/db/backup.server")).runDatabaseBackup();
   // An incomplete backup answers 500 so the scheduler's failure alerting notices it.
   const ok = result.skipped || result.complete;
+  if (!ok) await reportServerError('cron:backup:incomplete', undefined);
   return Response.json({ok,queue:"backup",result},{status:ok ? 200 : 500,headers});
- } catch {
+ } catch (error) {
   console.error("[cron] backup failed");
+  await reportServerError("app/api/cron/backup/route:GET", error);
   return Response.json({error:"Backup failed"},{status:500,headers});
  }
 }

@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import {
@@ -53,6 +54,7 @@ export async function GET(
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     console.error('Work order detail error:', error);
+    await reportServerError("app/api/work-orders/[workOrderId]/route:GET", error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -107,6 +109,7 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     console.error('Work order update error:', error);
+    await reportServerError("app/api/work-orders/[workOrderId]/route:PATCH", error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

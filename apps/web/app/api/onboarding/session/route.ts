@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
@@ -63,6 +64,7 @@ export async function GET() {
     if (mapped) return mapped;
 
     console.error('Onboarding session fetch error:', error);
+    await reportServerError("app/api/onboarding/session/route:GET", error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -88,6 +90,7 @@ export async function POST(request: NextRequest) {
     if (mapped) return mapped;
 
     console.error('Onboarding step completion error:', error);
+    await reportServerError("app/api/onboarding/session/route:POST", error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

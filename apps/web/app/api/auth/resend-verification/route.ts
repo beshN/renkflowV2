@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { sendVerificationEmail } from '@/lib/email';
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
 
     if (!emailResult.success) {
       console.error('Failed to resend verification email:', emailResult.error);
+      await reportServerError("app/api/auth/resend-verification/route:POST", emailResult.error);
       return NextResponse.json(
         { error: 'E-posta gönderilemedi. Lütfen daha sonra tekrar deneyin.', field: 'general' },
         { status: 500 }
@@ -92,6 +94,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: unknown) {
     console.error('Resend verification error:', error);
+    await reportServerError("app/api/auth/resend-verification/route:POST", error);
     return NextResponse.json(
       { error: 'Bir hata oluştu. Lütfen daha sonra tekrar deneyin.', field: 'general' },
       { status: 500 }

@@ -213,15 +213,15 @@ async function main() {
     ],
   };
   const recipe = await command("recipe.save", definition);
-  await command("recipe.publish", { id: recipe.id });
+  await command("recipe.publish", { reason: "Yerel test yayını", id: recipe.id });
   await assert.rejects(()=>db`UPDATE production_recipes SET name='Mutation' WHERE id=${recipe.id}`);
   const customDefinition={...definition,code:"CUSTOM",parameterDefinitions:[{key:"armCount",label:"Makas adedi",type:"number",minimum:1,maximum:8,integer:true,required:true,defaultValue:2}],constraints:[{formula:"if(led,motor,1)",message:"LED için motor gerekli"}],operations:definition.operations.map(op=>({...op,setupMinutesFormula:"5"}))};
   const customDraft=await command("recipe.save",customDefinition);
   const edited=await command("recipe.save",{...customDefinition,editRevision:customDraft.edit_revision});
   assert.equal(edited.edit_revision,2);
   await assert.rejects(()=>command("recipe.save",customDefinition));
-  await assert.rejects(()=>command("recipe.publish",{id:edited.id,editRevision:1}));
-  await command("recipe.publish",{id:edited.id,editRevision:2});
+  await assert.rejects(()=>command("recipe.publish",{ reason: "Yerel test yayını",id:edited.id,editRevision:1}));
+  await command("recipe.publish",{ reason: "Yerel test yayını",id:edited.id,editRevision:2});
   console.log("PASS · recipes: custom parameters and setup persisted, stale edit/publish rejected, database immutable publication");
   await assert.rejects(() =>
     command("recipe.save", { ...definition, name: "Forbidden update" }),
@@ -317,6 +317,102 @@ async function main() {
   const job1 = await makeJob(orderItems[0].id),
     job2 = await makeJob(orderItems[1].id);
   const jobIds = [job1.id, job2.id];
+  // ECO-lite: migration preflight, publication isolation and immutable job snapshots.
+  const migration = readFileSync("lib/db/migrations/083_recipe_publish_archive.sql", "utf8");
+  await db.unsafe(migration);
+  await db.unsafe(migration);
+  const snapshots = await db`SELECT id,bom_snapshot FROM work_orders WHERE tenant_id=${tenant.id} AND id=ANY(${jobIds}::uuid[]) ORDER BY id`;
+  await db`INSERT INTO product_family_recipes(tenant_id,family,recipe_code) VALUES(${tenant.id},'pergola',${definition.code}) ON CONFLICT DO NOTHING`;
+  const choice = { family: "pergola", recipeId: recipe.id, color: "Boyasız", parameters: { widthMm: 3000, projectionMm: 1500, mountingHeightMm: 3100 } };
+  let retainedQuote = await quotes.createQuotation(tenant.id, {
+    ...quoteData, idempotencyKey: randomUUID(), items: [0, 1].map(() => ({ ...quoteData.items[0], productConfiguration: choice })),
+  } as any, user.id);
+  retainedQuote = await quotes.updateStatus(tenant.id, retainedQuote.id, 'sent', retainedQuote.version, user.id, 'owner');
+  retainedQuote = await quotes.updateStatus(tenant.id, retainedQuote.id, 'accepted', retainedQuote.version, user.id, 'owner');
+  const retainedOrder = await quotes.convertToOrder(tenant.id, retainedQuote.id, user.id);
+  await db`UPDATE orders SET technical_file_required=false WHERE tenant_id=${tenant.id} AND id=${retainedOrder.orderId}`;
+  const retainedLines = await db`SELECT id FROM order_items WHERE order_id=${retainedOrder.orderId} ORDER BY id`;
+  const nextRecipe = await command("recipe.save", { ...definition, version: 2 });
+  for (const reason of [undefined, "", "  ", 42]) {
+    await assert.rejects(command("recipe.publish", { id: nextRecipe.id, reason }), /Yayın gerekçesi zorunludur/);
+  }
+  const [ecoTenant] = await db`INSERT INTO tenants(name,slug) VALUES('ECO test',${"eco-" + randomUUID()}) RETURNING id`;
+  const [foreignRecipe] = await db`INSERT INTO production_recipes(tenant_id,code,name,version,finished_item_id,rules,operations,limits,examples,status)
+    SELECT ${ecoTenant.id},code,name,version,finished_item_id,rules,operations,limits,examples,'published' FROM production_recipes WHERE tenant_id=${tenant.id} AND id=${recipe.id} RETURNING id`;
+  await assert.rejects(command("recipe.publish", { id: foreignRecipe.id, reason: "Yetkisiz yayın" }), /Reçete bulunamadı/);
+  const publishId = randomUUID();
+  await command("recipe.publish", { id: nextRecipe.id, reason: "  Yeni teknik sürüm  " }, publishId);
+  await command("recipe.publish", { id: nextRecipe.id, reason: "  Yeni teknik sürüm  " }, publishId);
+  assert.equal((await db`SELECT status FROM production_recipes WHERE tenant_id=${tenant.id} AND id=${recipe.id}`)[0].status, "archived");
+  assert.equal((await db`SELECT status FROM production_recipes WHERE tenant_id=${ecoTenant.id} AND id=${foreignRecipe.id}`)[0].status, "published");
+  assert.deepEqual(await db`SELECT id,bom_snapshot FROM work_orders WHERE tenant_id=${tenant.id} AND id=ANY(${jobIds}::uuid[]) ORDER BY id`, snapshots);
+  const { configureProduct, configurationOptions, previewConfiguration } = await import('../lib/features/products/configure.service');
+  await assert.rejects(previewConfiguration(actor, { currency: "TRY", choice }), /yayında değil/);
+  await assert.rejects(quotes.createQuotation(tenant.id, { ...quoteData, idempotencyKey: randomUUID(), items: [{ ...quoteData.items[0], productConfiguration: choice }] } as any, user.id), /yayında değil/);
+  assert.deepEqual((await configurationOptions(actor, "pergola")).recipes.map((r: any) => r.id), [nextRecipe.id]);
+  await assert.rejects(command("job.create", { orderItemId: retainedLines[0].id, recipeId: nextRecipe.id, sourceWarehouseId: warehouses.RAW.id, wipWarehouseId: warehouses.WIP.id, targetWarehouseId: warehouses.FINISHED.id, assignedTo: user.id }), /aynı reçeteyi seçin/);
+  const retainedJob = await makeJob(retainedLines[0].id);
+  assert.equal(retainedJob.bom_snapshot.recipe.version, 1);
+  assert.equal(retainedJob.recipe_id, recipe.id);
+  const { createJobsForConfiguredOrder, rebuildConfiguredJob } = await import('../lib/features/manufacturing/platform.service');
+  const release = await db.begin(tx => createJobsForConfiguredOrder(tx, actor, retainedOrder.orderId));
+  assert.equal(release.created.length, 1);
+  assert.deepEqual(release.pending.map(p => [p.orderItemId, p.reason]), [[retainedLines[0].id, "Bu kalem için üretim emri zaten var"]]);
+  const [autoJob] = await db`SELECT recipe_id,bom_snapshot FROM work_orders WHERE tenant_id=${tenant.id} AND id=${release.created[0].id}`;
+  assert.equal(autoJob.recipe_id, recipe.id);
+  assert.equal(autoJob.bom_snapshot.recipe.version, 1);
+  const reconfigured = await configureProduct(db, tenant.id, "TRY", { ...choice, parameters: { ...choice.parameters, widthMm: 3200 } }, undefined, retainedLines[0].id);
+  assert.equal(reconfigured.recipeId, recipe.id);
+  assert.equal(reconfigured.recipe.version, 1);
+  await assert.rejects(configureProduct(db, ecoTenant.id, "TRY", choice, undefined, retainedLines[0].id));
+  await assert.rejects(configureProduct(db, tenant.id, "TRY", choice, undefined, orderItems[0].id), /yayında değil/);
+  await db.begin(async tx => {
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${tenant.id},0))`;
+    await tx`UPDATE order_items SET width_mm=3200 WHERE order_id=${retainedOrder.orderId} AND id=${retainedLines[0].id}`;
+    const rebuilt = await rebuildConfiguredJob(tx, actor, retainedLines[0].id, "TRY");
+    assert.equal(rebuilt.rebuilt, true);
+    const [job] = await tx`SELECT recipe_id,bom_snapshot FROM work_orders WHERE tenant_id=${tenant.id} AND id=${rebuilt.workOrderId}`;
+    assert.equal(job.recipe_id, recipe.id);
+    assert.equal(job.bom_snapshot.recipe.version, 1);
+  });
+  await assert.rejects(command("recipe.publish", { id: nextRecipe.id, reason: "a".repeat(1001) }), /en fazla 1000 karakter/);
+  console.log("PASS · archived v1: configured quote/order survives v2, manual/automatic jobs retain v1 snapshot, order reconfiguration/rebuild retains v1, new configuration rejects v1");
+  const audit = await db`SELECT note,metadata FROM activity_logs WHERE tenant_id=${tenant.id} AND entity_id=${nextRecipe.id} AND action='recipe.publish'`;
+  assert.equal(audit.length, 1);
+  assert.equal(audit[0].note, "Yeni teknik sürüm");
+  assert.deepEqual(audit[0].metadata.archivedRecipeIds, [recipe.id]);
+  await assert.rejects(db`UPDATE production_recipes SET status='published' WHERE tenant_id=${tenant.id} AND id=${recipe.id}`, (e: any) => e.code === '23505');
+  // DDL and legacy conflicts are rolled back: no fixture or index changes escape this test.
+  await assert.rejects(db.begin(async tx => {
+    await tx`DROP INDEX public.production_recipes_one_published_per_code`;
+    await tx`UPDATE production_recipes SET status='published' WHERE tenant_id=${tenant.id} AND id=${recipe.id}`;
+    const before = await tx`SELECT id,status FROM production_recipes ORDER BY id`;
+    await tx.unsafe(migration);
+    await tx.unsafe(migration);
+    assert.equal((await tx`SELECT to_regclass('public.production_recipes_one_published_per_code') AS idx`)[0].idx, null);
+    assert.deepEqual(await tx`SELECT id,status FROM production_recipes ORDER BY id`, before);
+    throw new Error("rollback ECO migration fixture");
+  }), /rollback ECO migration fixture/);
+  const rollbackDraft = await command("recipe.save", { ...definition, version: 5 });
+  // An audit FK failure after archival must roll the entire publication back.
+  await assert.rejects(productionCommand({ ...actor, userId: randomUUID() }, {
+    commandId: randomUUID(), action: "recipe.publish", data: { id: rollbackDraft.id, reason: "Rollback testi" },
+  }), (e: any) => e.code === '23503');
+  assert.equal((await db`SELECT status FROM production_recipes WHERE tenant_id=${tenant.id} AND id=${nextRecipe.id}`)[0].status, "published");
+  assert.equal((await db`SELECT status FROM production_recipes WHERE tenant_id=${tenant.id} AND id=${rollbackDraft.id}`)[0].status, "draft");
+  const concurrentDrafts = await Promise.all([3, 4].map(version => command("recipe.save", { ...definition, version })));
+  await Promise.all(concurrentDrafts.map(draft => command("recipe.publish", { id: draft.id, reason: "a".repeat(1000) })));
+  assert.equal((await db`SELECT count(*)::int AS n FROM production_recipes WHERE tenant_id=${tenant.id} AND code=${definition.code} AND status='published'`)[0].n, 1);
+  assert.deepEqual(await db`SELECT id,bom_snapshot FROM work_orders WHERE tenant_id=${tenant.id} AND id=ANY(${jobIds}::uuid[]) ORDER BY id`, snapshots);
+  console.log("PASS · ECO-lite: partial unique index, idempotent conflict skip without data changes, tenant isolation, required reason, audit replay, unchanged bom_snapshot");
+
+  if (process.env.RENKFLOW_TEST_RECIPE_ARCHIVE_ONLY === "1") {
+    await db.end();
+    const { sql } = await import('../lib/db');
+    await sql.end();
+    return;
+  }
+
   // Without the workshop's own values the plan is made with the defaults and says it is an estimate.
   const savedPreferences = (await db`SELECT * FROM manufacturing_preferences WHERE tenant_id=${tenant.id}`)[0];
   await db`UPDATE manufacturing_preferences SET kerf_mm=3,trim_start_mm=0,trim_end_mm=0,minimum_remnant_mm=500,standard_length_mm=6000,cutting_confirmed=false WHERE tenant_id=${tenant.id}`;
@@ -697,7 +793,9 @@ async function main() {
   }
   console.log("PASS · resources: real machine calendars, company/role/capability constraints, stale-resource and stale-plan publication rejected");
   const overview = await productionOverview(actor);
-  assert.equal(overview.jobs.length, 2);
+  // The archived-v1 checks above open three jobs of their own on retainedOrder (manual, automatic, rebuilt).
+  assert.equal(overview.jobs.filter((j: any) => j.order_id !== retainedOrder.orderId).length, 2);
+  assert.equal(overview.jobs.filter((j: any) => j.order_id === retainedOrder.orderId).length, 3);
   const {productionAnalytics}=await import("../lib/features/manufacturing/analytics.service");
   const analytics=await productionAnalytics(actor);assert.equal(analytics.centers.length,5);assert(analytics.centers.some(c=>c.baseline && c.baseline.samples>0));
   const isolatedAnalytics=await productionAnalytics({...actor,tenantId:randomUUID()});assert.equal(isolatedAnalytics.predictions.length,0);assert.equal(isolatedAnalytics.centers.length,0);
@@ -828,7 +926,7 @@ async function main() {
       {
         commandId: randomUUID(),
         action: "recipe.publish",
-        data: { id: recipe.id },
+        data: { reason: "Yerel test yayını", id: recipe.id },
       },
     ),
   );

@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextRequest } from 'next/server';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { ZodError } from 'zod';
@@ -9,11 +10,12 @@ import { requireWorkOrderActor, WorkOrderApiError } from '@/lib/features/work-or
 export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'private, no-store' };
 
-function error(e: unknown) {
+async function error(e: unknown) {
   if (e instanceof WorkOrderApiError) return redactedJson({ error: e.message }, { status: e.status, headers });
   if (e instanceof ZodError) return redactedJson({ error: e.issues.map((i) => i.message).join(', ') }, { status: 400, headers });
   if (e instanceof SyntaxError) return redactedJson({ error: 'Geçersiz istek' }, { status: 400, headers });
   console.error('[legal identity]', e instanceof Error ? e.message : 'failed');
+  await reportServerError("app/api/v1/settings/legal-identity/route:error", e);
   return redactedJson({ error: 'Fatura bilgileri işlenemedi.' }, { status: 500, headers });
 }
 

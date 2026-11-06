@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { requireWorkOrderActor, WorkOrderApiError } from "@/lib/features/work-orders/security";
 import { cutPlanSheet } from "@/lib/features/manufacturing/platform.service";
@@ -11,6 +12,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   } catch (e) {
     if (e instanceof WorkOrderApiError) return redactedJson({ error: e.message }, { status: e.status });
     console.error("[cut-plan sheet]", e instanceof Error ? e.message : "request failed");
+    await reportServerError("app/api/v1/production/cut-plans/[id]/route:GET", e);
     return redactedJson({ error: "Kesim planı alınamadı." }, { status: 500 });
   }
 }

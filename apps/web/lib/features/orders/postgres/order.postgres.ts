@@ -101,7 +101,7 @@ export class PostgresOrderService implements IOrderService {
           )
         ) FILTER (WHERE d.id IS NOT NULL) as documents
       FROM orders o
-      LEFT JOIN documents d ON o.id = d.order_id
+      LEFT JOIN documents d ON o.id = d.order_id AND d.tenant_id = o.tenant_id
       WHERE o.tenant_id = ${tenantId}
       GROUP BY o.id
       ORDER BY o.created_at DESC
@@ -174,7 +174,7 @@ export class PostgresOrderService implements IOrderService {
           )
         ) FILTER (WHERE d.id IS NOT NULL) as documents
       FROM orders o
-      LEFT JOIN documents d ON o.id = d.order_id
+      LEFT JOIN documents d ON o.id = d.order_id AND d.tenant_id = o.tenant_id
       WHERE o.id = ${id} AND o.tenant_id = ${tenantId}
       GROUP BY o.id
     `;

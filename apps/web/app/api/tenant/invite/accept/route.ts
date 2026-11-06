@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 
@@ -158,6 +159,7 @@ export async function POST(request: Request) {
     }
 
     console.error('Accept invite error:', error);
+    await reportServerError("app/api/tenant/invite/accept/route:POST", error);
     return NextResponse.json(
       { error: 'Hesap oluşturulurken bir hata oluştu.' },
       { status: 500 }

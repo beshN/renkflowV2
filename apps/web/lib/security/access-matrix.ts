@@ -256,3 +256,9 @@ export function passwordProblem(password: string, email?: string | null) {
   if (local && local.length >= 4 && password.toLocaleLowerCase('tr').includes(local)) return 'Şifre e-posta adınızı içeremez';
   return null;
 }
+
+/** Promise reads factory load and free stock; technical worker access is insufficient. */
+export function canPromiseOrder(access: Access): boolean {
+  return ['owner', 'admin', 'office'].includes(access.base)
+    && can(access, 'orders', 'view') && can(access, 'production', 'view') && can(access, 'inventory', 'view');
+}

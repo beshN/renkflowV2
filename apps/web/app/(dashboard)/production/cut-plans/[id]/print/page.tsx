@@ -42,6 +42,7 @@ export default function CutPlanPrint({ params }: { params: Promise<{ id: string 
       {/* Shell, sidebar and header are hidden by the shared print rules (styles/workspace.css). */}
       <style>{`@media print { [data-ai-chatbot],.rf-command-launcher,.pwa-install-prompt { display:none!important } .cut-bar { break-inside:avoid } .cut-estimate { border:2px solid #111!important;background:white!important;color:#111!important } @page { size:A4;margin:12mm } }`}</style>
       <button className="rf-primary-button mb-6 print:hidden" onClick={() => window.print()}>Yazdır / PDF olarak kaydet</button>
+      <a className="rf-primary-button mb-6 ml-3 inline-flex print:hidden" href={`/api/v1/production/cut-plans/${id}/csv`} download>CSV indir</a>
       <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
         <div>
           <BrandMark href="/production" size="sm" className="mb-3" />

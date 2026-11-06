@@ -7,6 +7,7 @@ import { postStockEntryInTransaction } from './inventory.service';
 import { COUNT_UNITS, unitLabel } from '@/lib/features/inventory/vocabulary';
 import {requireCap} from '../field/common.server';
 import {sameColor} from '../colors/color-spec';
+import { LotIdentifierSchema } from './lot-trace';
 const uuid = z.string().uuid();
 const qty = z.number().finite().nonnegative().max(1000000);
 const note = z.string().trim().max(2000).default('');
@@ -41,6 +42,7 @@ export const ReceiptInputSchema = z.object({
   purchaseOrderId: uuid, version: z.number().int().positive(), notes: note,
   lines: z.array(z.object({
     lineId: uuid, acceptedQty: qty, rejectedQty: qty.default(0),
+    supplierLotNumber: LotIdentifierSchema, heatNumber: LotIdentifierSchema,
     bars: z.array(z.object({lengthMm:z.number().int().min(100).max(30000),count:z.number().int().positive().max(10000),disposition:z.enum(['accepted','rejected']),color:z.string().trim().min(1).max(100).optional()})).max(100).optional(),
     // For a profile line ordered before colour was required: the colour of the bars received.
     color: z.string().trim().max(100).optional(),
@@ -202,12 +204,12 @@ export async function executeProcurement(tx: any, actor: WorkOrderActor, action:
               const meters=bar.lengthMm/1000;
               const actualColor=('color' in bar&&bar.color)|| (disposition==='rejected'?input.rejectedColor:undefined)||barColor;
               if(disposition==='accepted'&&line.metadata?.color&&!sameColor(String(actualColor),line.metadata.color))fail('Sağlam profilin rengi siparişle uyuşmuyor',400);
-              const [lot]=await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,lot_number,original_qty,remaining_qty,length_m,weight_kg,metadata) VALUES(${t},${line.item_id},${warehouseId},${receipt.receipt_number+'-'+line.position+'-'+disposition+'-'+(++ordinal)},${meters},${meters},${meters},${line.weight_per_meter_kg==null?null:meters*Number(line.weight_per_meter_kg)},${json({...metadata,color:actualColor,expectedColor:line.metadata?.color||null,unitCost:count(line.unit_price),isRemnant:false})}::text::jsonb) RETURNING id`;
+              const [lot]=await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,supplier_lot_number,heat_number,lot_number,original_qty,remaining_qty,length_m,weight_kg,metadata) VALUES(${t},${line.item_id},${warehouseId},${input.supplierLotNumber},${input.heatNumber},${receipt.receipt_number+'-'+line.position+'-'+disposition+'-'+(++ordinal)},${meters},${meters},${meters},${line.weight_per_meter_kg==null?null:meters*Number(line.weight_per_meter_kg)},${json({...metadata,color:actualColor,expectedColor:line.metadata?.color||null,unitCost:count(line.unit_price),isRemnant:false})}::text::jsonb) RETURNING id`;
               stockLines.push({itemId:line.item_id,warehouseId,lotId:lot.id,quantityDelta:meters,uom:line.uom,unitCost:count(line.unit_price),metadata});
             }
           }
         } else {
-          const [lot]=await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,lot_number,original_qty,remaining_qty,metadata)VALUES(${t},${line.item_id},${warehouseId},${receipt.receipt_number+'-'+line.position+'-'+disposition},${amount},${amount},${json({...metadata,unitCost:count(line.unit_price)})}::text::jsonb)RETURNING id`;
+          const [lot]=await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,supplier_lot_number,heat_number,lot_number,original_qty,remaining_qty,metadata)VALUES(${t},${line.item_id},${warehouseId},${input.supplierLotNumber},${input.heatNumber},${receipt.receipt_number+'-'+line.position+'-'+disposition},${amount},${amount},${json({...metadata,unitCost:count(line.unit_price)})}::text::jsonb)RETURNING id`;
           stockLines.push({ itemId:line.item_id,warehouseId,lotId:lot.id,quantityDelta:amount,uom:line.uom,unitCost:count(line.unit_price),metadata });
         }
       }

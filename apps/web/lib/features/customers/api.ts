@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import 'server-only';
 
 import { NextResponse } from 'next/server';
@@ -82,12 +83,13 @@ export const CUSTOMER_COLUMNS: Record<keyof typeof customerFields, string> = {
   contacts: 'contacts',
 };
 
-export function customerErrorResponse(error: unknown, fallback: string) {
+export async function customerErrorResponse(error: unknown, fallback: string) {
   if (error instanceof AuthenticationError) return NextResponse.json({ error: 'Oturum gerekli.' }, { status: 401 });
   if (error instanceof AuthorizationError) return NextResponse.json({ error: 'Müşteri kayıtlarına erişim yetkiniz yok.' }, { status: 403 });
   if (error instanceof WorkOrderApiError) return NextResponse.json({ error: error.message }, { status: error.status });
   if (error instanceof z.ZodError) return NextResponse.json({ error: error.issues[0]?.message || 'Geçersiz müşteri bilgisi.' }, { status: 400 });
   if (error instanceof SyntaxError) return NextResponse.json({ error: 'Geçersiz JSON.' }, { status: 400 });
   console.error('[Customers]', error);
+  await reportServerError("lib/features/customers/api:customerErrorResponse", error);
   return NextResponse.json({ error: fallback }, { status: 500 });
 }

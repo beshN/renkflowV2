@@ -6,6 +6,7 @@ import Script from 'next/script';
 // Cast Script to a narrowed type to keep TS happy with inline analytics snippets.
 const ScriptComponent = Script as React.ComponentType<{
   id?: string;
+  nonce?: string;
   strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive' | 'worker';
   src?: string;
   children?: React.ReactNode;
@@ -23,7 +24,7 @@ function hasAnalyticsConsent() {
   }
 }
 
-export default function GoogleAnalytics({ GA_MEASUREMENT_ID }: { GA_MEASUREMENT_ID: string }) {
+export default function GoogleAnalytics({ GA_MEASUREMENT_ID, nonce }: { GA_MEASUREMENT_ID: string; nonce?: string }) {
   // Analytics only loads after the visitor accepts analytics cookies (KVKK / cookie policy).
   const [consented, setConsented] = useState(false);
 
@@ -49,11 +50,13 @@ export default function GoogleAnalytics({ GA_MEASUREMENT_ID }: { GA_MEASUREMENT_
   return (
     <>
       <ScriptComponent
+        nonce={nonce}
         id="gtag-external"
         strategy="afterInteractive"
         src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
       />
       <ScriptComponent
+        nonce={nonce}
         id="google-analytics"
         strategy="afterInteractive"
       >
