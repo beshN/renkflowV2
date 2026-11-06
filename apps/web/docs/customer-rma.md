@@ -4,7 +4,7 @@ Sipariş detayındaki teslim edilmiş kalemden **Müşteri iadesi** ile insan ta
 
 087 yalnız eklemeli ve idempotenttir; tedarikçi iadesinin 086 tablolarını kullanmaz. Yerel doğrulama `npm run db:local` ve `npm run test:integration -- customer-rma` ile yapılır. Production migration/deploy bu çalışmanın parçası değildir.
 
-- Teslim kanıtı: `production_shipments.status=delivered`, aynı sipariş/kalem/tenant ve `work_orders.production_uom=order_items.quantity_unit`. Sadece sipariş üst durumunun teslim olması yeterli değildir; satır teslim kanıtı olmayan eski kayıtlar için giriş gösterilmez. Birim dönüşümü yapılmaz.
+- Teslim kanıtı: `production_shipments.status=delivered`, aynı sipariş/kalem/tenant ve `work_orders.production_uom=order_items.quantity_unit`. Yerel sevkiyat akışına bağlı olmayan manuel sipariş açıkça `delivered` ise kalem miktarı kullanılır; o kalemde herhangi bir native sevkiyat varsa yalnız teslim edilmiş sevkiyat miktarı kullanılır. Birim dönüşümü yapılmaz.
 - Kaynak kalem ve sipariş kilitlenir; önceki tüm RMA satırları (reddedilenler dahil) teslim miktarından düşülür. Bu dilimde rezervasyon serbest bırakma/iptal akışı yoktur. Adet birimleri tam sayı gerektirir.
 - Karar `pending → repair | replace | reject`; karar tekrarları yan etkisizdir, farklı ikinci karar reddedilir. Oluşturma anahtarı kaynak/miktar/neden/fotoğraf ve belirtilmiş servis bağı ile karşılaştırılır.
 - `replace` reçetesiz, malzeme/operasyon üretmeyen `general / blocked` taslak WO açar. Ayrı insan onayı `production.approve` ister; mevcut WO durum değiştirme servisi ve DB CHECK onay öncesinde ilerlemeyi engeller. Onay yalnız kilidi kaldırır, üretimi başlatmaz. Üretim planlama ayrıca insanın sorumluluğundadır.

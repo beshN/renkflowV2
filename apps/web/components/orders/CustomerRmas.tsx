@@ -22,7 +22,13 @@ type Rma = {
   service_ticket_id: string | null;
   replacement_work_order_id: string | null;
   replacement_approved_at: string | null;
-  lines: Array<{ id: string; quantity: number; uom: string; reason: string; photo_attachment_id: string | null }>;
+  lines: Array<{
+    id: string;
+    quantity: number;
+    uom: string;
+    reason: string;
+    photo_attachment_id: string | null;
+  }>;
 };
 type Source = {
   id: string;

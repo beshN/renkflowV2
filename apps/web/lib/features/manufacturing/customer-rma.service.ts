@@ -24,6 +24,7 @@ async function ready() {
   if (!(await tableExists("customer_rma_lines")))
     fail("Müşteri iadesi için veritabanı güncellemesi bekleniyor");
 }
+// Manual orders explicitly marked delivered use their line quantity only when no native shipment exists for that line.
 // Delivered quantities always retain the source order item's unit. No conversion or cross-line totals.
 export async function customerRmaSources(a: WorkOrderActor, orderId: string) {
   await access(a, "view");
@@ -31,8 +32,9 @@ export async function customerRmaSources(a: WorkOrderActor, orderId: string) {
     await sql`SELECT id FROM orders WHERE tenant_id=${a.tenantId} AND id=${orderId}`;
   if (!o) fail("Sipariş bulunamadı", 404);
   return sql`SELECT i.id,i.product_name,i.quantity_unit AS uom,
- COALESCE((SELECT sum(s.quantity) FROM production_shipments s JOIN work_orders w ON w.tenant_id=s.tenant_id AND w.id=s.work_order_id
- WHERE s.tenant_id=${a.tenantId} AND s.order_id=o.id AND s.status='delivered' AND w.order_item_id=i.id AND w.production_uom=i.quantity_unit),0) AS delivered_qty
+ CASE WHEN o.status='delivered' AND NOT EXISTS(SELECT 1 FROM production_shipments ps JOIN work_orders pw ON pw.tenant_id=ps.tenant_id AND pw.id=ps.work_order_id WHERE ps.tenant_id=${a.tenantId} AND ps.order_id=o.id AND pw.order_item_id=i.id)
+ THEN i.quantity ELSE COALESCE((SELECT sum(s.quantity) FROM production_shipments s JOIN work_orders w ON w.tenant_id=s.tenant_id AND w.id=s.work_order_id
+ WHERE s.tenant_id=${a.tenantId} AND s.order_id=o.id AND s.status='delivered' AND w.order_item_id=i.id AND w.production_uom=i.quantity_unit),0) END AS delivered_qty
  FROM order_items i JOIN orders o ON o.id=i.order_id WHERE o.tenant_id=${a.tenantId} AND o.id=${orderId}`;
 }
 export async function customerRmas(a: WorkOrderActor, id?: string) {
@@ -63,7 +65,7 @@ export async function createCustomerRma(a: WorkOrderActor, raw: unknown) {
   return withTransaction(async ({ sql: tx }) => {
     await tx`SELECT pg_advisory_xact_lock(hashtextextended(${t},0))`;
     const [source] =
-      await tx`SELECT i.*,o.order_number FROM order_items i JOIN orders o ON o.id=i.order_id
+      await tx`SELECT i.*,o.order_number,o.status AS order_status FROM order_items i JOIN orders o ON o.id=i.order_id
  WHERE o.tenant_id=${t} AND i.id=${d.sourceLineId} FOR UPDATE OF i,o`;
     if (!source) fail("Sipariş kalemi bulunamadı", 404);
     const [old] =
@@ -82,7 +84,8 @@ export async function createCustomerRma(a: WorkOrderActor, raw: unknown) {
     if (COUNT_UNITS.has(source.quantity_unit) && !Number.isInteger(d.quantity))
       fail("Adet biriminde tam sayı gerekli", 400);
     const [available] =
-      await tx`SELECT COALESCE((SELECT sum(s.quantity) FROM production_shipments s JOIN work_orders w ON w.tenant_id=s.tenant_id AND w.id=s.work_order_id WHERE s.tenant_id=${t} AND s.order_id=${source.order_id} AND s.status='delivered' AND w.order_item_id=${source.id} AND w.production_uom=${source.quantity_unit}),0)
+      await tx`SELECT (CASE WHEN ${source.order_status}='delivered' AND NOT EXISTS(SELECT 1 FROM production_shipments ps JOIN work_orders pw ON pw.tenant_id=ps.tenant_id AND pw.id=ps.work_order_id WHERE ps.tenant_id=${t} AND ps.order_id=${source.order_id} AND pw.order_item_id=${source.id})
+ THEN ${source.quantity}::numeric ELSE COALESCE((SELECT sum(s.quantity) FROM production_shipments s JOIN work_orders w ON w.tenant_id=s.tenant_id AND w.id=s.work_order_id WHERE s.tenant_id=${t} AND s.order_id=${source.order_id} AND s.status='delivered' AND w.order_item_id=${source.id} AND w.production_uom=${source.quantity_unit}),0) END)
  -COALESCE((SELECT sum(l.quantity) FROM customer_rma_lines l WHERE l.tenant_id=${t} AND l.order_item_id=${source.id}),0) >= ${d.quantity}::numeric AS enough`;
     if (!available.enough) fail("İade miktarı kalan teslim miktarını aşamaz");
     if (d.photoAttachmentId) {

@@ -61,8 +61,29 @@ async function main() {
         await db`INSERT INTO work_orders(tenant_id,title,order_id,order_item_id,production_uom,created_by)VALUES(${t},'Teslim kaynağı',${o.id},${l.id},${uom},${userId})RETURNING id`;
       await db`INSERT INTO production_shipments(tenant_id,order_id,work_order_id,quantity,stock_entry_id,created_by,status)VALUES(${t},${o.id},${w.id},6,${entry.id},${userId},'delivered'),(${t},${o.id},${w.id},4,${entry.id},${userId},'shipped')`;
     }
+    const [legacy] =
+      await db`INSERT INTO orders(tenant_id,order_number,customer_name,total_amount,status)VALUES(${t},${randomUUID()},'Manual delivered fixture',0,'delivered') RETURNING id`;
+    const [legacyLine] =
+      await db`INSERT INTO order_items(order_id,product_name,quantity,quantity_unit,unit_price,total_price)VALUES(${legacy.id},'Teslim edilmiş profil',10,'m',0,0) RETURNING id`;
+    assert.equal(
+      Number((await s.customerRmaSources(a, legacy.id))[0].delivered_qty),
+      10,
+    );
+    await refused(s.createCustomerRma(a, input(legacyLine.id, 11)), 409);
+    const legacyRma = await s.createCustomerRma(a, input(legacyLine.id, 3.5));
+    assert.equal(
+      legacyRma.service_ticket_id,
+      null,
+      "no existing service ticket is created implicitly",
+    );
     const [before] =
       await db`SELECT count(*)::int AS n FROM stock_entries WHERE tenant_id=${t}`;
+    await db`UPDATE orders SET status='delivered' WHERE tenant_id=${t} AND id=${o.id}`;
+    assert.equal(
+      Number((await s.customerRmaSources(a, o.id))[0].delivered_qty),
+      6,
+      "native partial delivery takes precedence over header status",
+    );
     await refused(s.createCustomerRma(a, input(lines[0], 7)), 409);
     await refused(s.createCustomerRma(a, input(lines[0], 1.5)), 400);
     await refused(s.createCustomerRma(foreign, input(lines[0], 1)), 404);
@@ -136,11 +157,11 @@ async function main() {
     // The database also refuses bypassing the application gate (fresh migration runners).
     const [constraint] =
       await db`SELECT 1 FROM pg_constraint WHERE conrelid='work_orders'::regclass AND pg_get_constraintdef(oid) LIKE '%customer_rma_approval_pending%'`;
-    if (constraint)
-      await assert.rejects(
-        db`UPDATE work_orders SET status='in_progress' WHERE tenant_id=${t} AND id=${wo.id}`,
-        (e: { code: string }) => e.code === "23514",
-      );
+    assert.ok(constraint, "DB approval constraint exists");
+    await assert.rejects(
+      db`UPDATE work_orders SET status='in_progress' WHERE tenant_id=${t} AND id=${wo.id}`,
+      (e: { code: string }) => e.code === "23514",
+    );
     await refused(s.approveCustomerRmaReplacement(foreign, r.id), 404);
     await s.approveCustomerRmaReplacement(a, r.id);
     assert.equal(
@@ -203,6 +224,20 @@ async function main() {
         await tx`DELETE FROM tenants WHERE id IN(${t},${other})`;
         await tx`DELETE FROM users WHERE id IN(${userId},${workerId},${accountId})`;
       });
+      assert.equal(
+        (
+          await db`SELECT count(*)::int AS n FROM tenants WHERE id IN(${t},${other})`
+        )[0].n,
+        0,
+        "finally removes tenant fixtures",
+      );
+      assert.equal(
+        (
+          await db`SELECT count(*)::int AS n FROM customer_rmas WHERE tenant_id IN(${t},${other})`
+        )[0].n,
+        0,
+        "finally removes RMA fixtures",
+      );
     } finally {
       await db.end();
       await (sql as any).end?.();
