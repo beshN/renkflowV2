@@ -64,6 +64,14 @@ jobs:
         timeout-minutes: 15
         run: npm --prefix apps/web run test:integration
 
+      - name: Pilot readiness on an empty local database
+        timeout-minutes: 7
+        working-directory: apps/web
+        env:
+          RENKFLOW_TEST_DB_DIR: ${{ runner.temp }}
+          RENKFLOW_TEST_DB_PORT: '55433'
+        run: node --import tsx scripts/ci-pilot-readiness.ts
+
   # Critical production advisories block; high ones are reported as warnings.
   audit:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
