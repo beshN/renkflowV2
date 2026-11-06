@@ -37,7 +37,14 @@ type Source = {
   uom: string;
 };
 const labels = { draft: "Taslak", sent: "Gönderildi", closed: "Kapandı" };
-export function SupplierReturns({ id }: { id?: string }) {
+export function SupplierReturns({
+  id,
+  schemaPending = false,
+}: {
+  id?: string;
+  /** Migration 086 not applied yet: no request is made, the page explains why it is empty. */
+  schemaPending?: boolean;
+}) {
   const { data: session } = useSession();
   const scope = `${session?.user?.tenantId}:${session?.user?.id}`;
   const writable = ["owner", "admin", "office"].includes(
@@ -74,6 +81,7 @@ export function SupplierReturns({ id }: { id?: string }) {
     setSource(null);
     setQuantity("");
     pending.current = null;
+    if (schemaPending) return;
     const ac = new AbortController();
     void load(ac.signal);
     const sourceId = new URLSearchParams(window.location.search).get(
@@ -92,7 +100,7 @@ export function SupplierReturns({ id }: { id?: string }) {
         else setError(r.error || "Reddedilen kabul satırı bulunamadı");
       });
     return () => ac.abort();
-  }, [load, id, scope]);
+  }, [load, id, scope, schemaPending]);
   async function act(url: string, body: unknown) {
     if (lock.current) return;
     lock.current = true;
@@ -129,6 +137,13 @@ export function SupplierReturns({ id }: { id?: string }) {
           </Link>
         }
       />
+      {schemaPending && (
+        <p role="status" className="rf-panel text-sm">
+          Tedarikçi iadesi için veritabanı güncellemesi bekleniyor. Güncelleme
+          uygulanınca iade belgeleri burada görünür; mal kabul ve tedarikçi
+          karnesi bu sürede normal çalışır.
+        </p>
+      )}
       {error && (
         <p role="alert" className="rf-panel text-sm">
           {error}
@@ -256,7 +271,7 @@ export function SupplierReturns({ id }: { id?: string }) {
             : "—"}
         </p>
       )}
-      {!id && (
+      {!id && !schemaPending && (
         <p className="text-sm text-muted-foreground">
           Yeni taslağı mal kabul geçmişindeki reddedilen satırın “Tedarikçiye
           iade” girişinden açın.

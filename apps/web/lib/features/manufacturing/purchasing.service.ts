@@ -2,6 +2,7 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { sql } from '@/lib/db';
+import { tableExists } from '@/lib/db/schema-guard';
 import { WorkOrderActor, WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { postStockEntryInTransaction } from './inventory.service';
 import { COUNT_UNITS, unitLabel } from '@/lib/features/inventory/vocabulary';
@@ -141,7 +142,8 @@ export async function executeProcurement(tx: any, actor: WorkOrderActor, action:
     const d = z.object({ id: uuid, version: z.number().int().positive(), reason: z.string().trim().min(5).max(1000) }).parse(raw);
     const [receipt] = await tx`SELECT * FROM goods_receipts WHERE tenant_id=${t} AND id=${d.id} FOR UPDATE`;
     if (!receipt || receipt.status !== 'submitted') fail('Bu mal kabul düzeltilemez');
-    if ((await tx`SELECT 1 FROM supplier_return_lines l JOIN goods_receipt_lines gl ON gl.tenant_id=l.tenant_id AND gl.id=l.goods_receipt_line_id WHERE l.tenant_id=${t} AND gl.goods_receipt_id=${receipt.id} LIMIT 1`).length) fail('İade belgesi bağlı mal kabul terslenemez');
+    // Before 086 there are no return documents, so nothing can block the reversal.
+    if ((await tableExists('supplier_return_lines')) && (await tx`SELECT 1 FROM supplier_return_lines l JOIN goods_receipt_lines gl ON gl.tenant_id=l.tenant_id AND gl.id=l.goods_receipt_line_id WHERE l.tenant_id=${t} AND gl.goods_receipt_id=${receipt.id} LIMIT 1`).length) fail('İade belgesi bağlı mal kabul terslenemez');
     const [order] = await tx`SELECT * FROM purchase_orders WHERE tenant_id=${t} AND id=${receipt.purchase_order_id} FOR UPDATE`;
     if (!order || order.version !== d.version) fail('Satın alma siparişi değişti; listeyi yenileyin.');
     const [entry] = await tx`SELECT * FROM stock_entries WHERE tenant_id=${t} AND id=${receipt.stock_entry_id} FOR UPDATE`;

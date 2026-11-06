@@ -13,6 +13,10 @@ import {
   requireProcurementWrite,
 } from "./purchasing.service";
 import { postStockEntryInTransaction } from "./inventory.service";
+import {
+  SUPPLIER_RETURN_SCHEMA_PENDING,
+  supplierReturnsReady,
+} from "./supplier-return-schema.server";
 
 export {
   SupplierReturnInput,
@@ -31,8 +35,18 @@ async function readAccess(actor: WorkOrderActor) {
   requireProcurementRead(actor);
   await requireCap(actor, "purchasing", "view", "Tedarikçi iadesi");
 }
+// Checked after the permission checks so an unauthorised caller still gets 401/403, not schema state.
+async function requireReturnSchema() {
+  if (!(await supplierReturnsReady())) fail(SUPPLIER_RETURN_SCHEMA_PENDING, 409);
+}
+export { supplierReturnsReady };
 export async function supplierReturns(actor: WorkOrderActor, id?: string) {
   await readAccess(actor);
+  if (!(await supplierReturnsReady())) {
+    // Before 086 the list is simply empty; a single document cannot exist yet.
+    if (id) fail(SUPPLIER_RETURN_SCHEMA_PENDING, 409);
+    return [];
+  }
   const rows = await sql`SELECT r.*,s.name AS supplier_name,
     COALESCE((SELECT json_agg(json_build_object('id',l.id,'source_line_id',l.goods_receipt_line_id,
       'quantity',l.quantity,'uom',l.uom,'item_name',i.name,'receipt_number',gr.receipt_number))
@@ -64,6 +78,7 @@ export async function createSupplierReturn(
 ) {
   requireProcurementWrite(actor);
   await requireCap(actor, "purchasing", "create", "Tedarikçi iadesi taslağı");
+  await requireReturnSchema();
   const d = SupplierReturnInput.parse(raw),
     t = actor.tenantId;
   return withTransaction(
@@ -129,6 +144,7 @@ export async function transitionSupplierReturn(
       "create",
       "Red deposundan stok çıkışı",
     );
+  await requireReturnSchema();
   return withTransaction(
     async ({ sql: tx }) => {
       await tx`SELECT pg_advisory_xact_lock(hashtextextended(${t},0))`;
