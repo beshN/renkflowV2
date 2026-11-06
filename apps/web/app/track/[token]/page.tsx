@@ -13,10 +13,14 @@ import { cn } from "@/lib/utils";
 
 const ICONS = [FileText, BadgeCheck, Factory, Scissors, Wrench, Truck];
 
-export default function Tracking({ params }: { params: Promise<{ token: string }> }) {
+export default function Tracking({ params, searchParams }: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ lang?: string | string[] }>;
+}) {
   const { token } = use(params);
+  const { lang } = use(searchParams);
   // Keep this public route independent of the global detector and its storage cache.
-  const [locale, setLocale] = useState<"tr" | "en">("tr");
+  const [locale, setLocale] = useState<"tr" | "en">(lang === "en" ? "en" : "tr");
   const messages = (locale === "en" ? en : tr).track;
   useEffect(() => {
     const selectLanguage = () => {
@@ -41,7 +45,7 @@ export default function Tracking({ params }: { params: Promise<{ token: string }
     setLocale(language);
   };
   const [data, setData] = useState<any>();
-  const [error, setError] = useState<"" | "invalidLink" | "loadError">("");
+  const [error, setError] = useState<"" | "invalidLink" | "loadError" | "rateLimited">("");
   useEffect(() => {
     const c = new AbortController();
     setData(undefined);
@@ -49,6 +53,8 @@ export default function Tracking({ params }: { params: Promise<{ token: string }
     async function load() {
       try {
         const r = await fetch(`/api/v1/tracking/${token}`, { signal: c.signal, cache: "no-store" });
+        if (c.signal.aborted) return;
+        if (r.status === 429) { setError("rateLimited"); return; }
         const body = await r.json();
         if (c.signal.aborted) return;
         if (!r.ok) { setError(r.status === 404 ? "invalidLink" : "loadError"); return; }
@@ -76,10 +82,13 @@ export default function Tracking({ params }: { params: Promise<{ token: string }
       <div className="flex items-center justify-between gap-3">
         <p className="rf-eyebrow">{messages.eyebrow}</p>
         <div className="flex gap-2 text-xs" role="group" aria-label={messages.language}>
-          {(["tr", "en"] as const).map((language) => <button key={language} type="button" lang={language} aria-pressed={locale === language} onClick={() => changeLanguage(language)}>{language.toUpperCase()}</button>)}
+          {(["tr", "en"] as const).map((language) => <button key={language} type="button" lang={language} className={cn(locale === language ? "rf-primary-button" : "rf-secondary-button", "h-8 !px-2 !py-1 !text-xs")} aria-pressed={locale === language} onClick={() => changeLanguage(language)}>{language.toUpperCase()}</button>)}
         </div>
       </div>
-      {error ? <p role="alert" className="rf-alert">{messages[error]}</p> : !data ? (
+      {error && <p role="alert" className="rf-alert">{error === "rateLimited"
+        ? locale === "en" ? "Too many attempts. Please try again shortly." : "Çok sık denendi, biraz sonra tekrar deneyin."
+        : messages[error]}</p>}
+      {!data ? !error && (
         <div className="space-y-4" role="status"><span className="sr-only">{messages.loading}</span><Skeleton className="h-10 w-48" /><Skeleton className="h-20 w-full" /><Skeleton className="h-48 w-full" /></div>
       ) : (
         <>
