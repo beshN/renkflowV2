@@ -9,7 +9,8 @@ test.describe('Authentication Flow', () => {
   });
 
   test('should navigate to signup page', async ({ page }) => {
-    await page.goto('/');
+    // Account creation is linked from the login form in the current public site.
+    await page.goto('/auth/login');
     await page.locator('a[href="/signup"]').first().click();
     await expect(page).toHaveURL(/signup/);
     await expect(page.locator('input[type="email"]')).toBeVisible();
