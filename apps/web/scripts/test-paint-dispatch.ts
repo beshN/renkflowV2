@@ -44,6 +44,19 @@ async function main() {
     await assert.rejects(() => send([p0, b.partIds[0]]), { status: 404 });
     await assert.rejects(() => send([p0], b.supplierId), { status: 404 });
     await assert.rejects(() => cmd('paint.dispatch.create', { partIds: [p0], supplierId: a.supplierId, expectedReturnDate: '2026-02-30' }));
+    // Cancelled jobs must be rejected by both discovery and the command boundary.
+    await db`UPDATE work_orders SET status='cancelled' WHERE tenant_id=${a.tenantId} AND id=${a.jobId}`;
+    assert.equal((await paintDispatchCandidates(a)).groups.length, 0);
+    await assert.rejects(() => send([p0]), { status: 409, message: 'İptal edilmiş üretim emrinin parçası gönderilemez' });
+    assert.equal((await db`SELECT state FROM production_parts WHERE tenant_id=${a.tenantId} AND id=${p0}`)[0].state, 'paint_waiting');
+    await db`UPDATE work_orders SET status='open' WHERE tenant_id=${a.tenantId} AND id=${a.jobId}`;
+    // A waiting part from an older technical revision must not be offered.
+    const [olderRevision] = await db`INSERT INTO order_technical_revisions(tenant_id,order_id,revision,family,status,source_name,source_hash,document,created_by)
+      SELECT tenant_id,order_id,2,family,'superseded','fixture-old',${randomUUID()},'{}',created_by
+      FROM order_technical_revisions WHERE tenant_id=${a.tenantId} AND id=${a.revisionId} RETURNING id`;
+    await db`UPDATE production_parts SET technical_revision_id=${olderRevision.id} WHERE tenant_id=${a.tenantId} AND id=${p4}`;
+    assert.ok(!(await paintDispatchCandidates(a)).groups.flatMap(g => g.parts).some(p => p.id === p4));
+    await db`UPDATE production_parts SET technical_revision_id=${a.revisionId} WHERE tenant_id=${a.tenantId} AND id=${p4}`;
     const candidatesBefore = await paintDispatchCandidates(a);
     assert.deepEqual(candidatesBefore.groups.map(g => g.target_color), ['RAL 7016', 'RAL 9005']);
     const candidateParts = candidatesBefore.groups.flatMap(g => g.parts);
@@ -96,9 +109,15 @@ async function main() {
     const resentRow = (await paintDispatches(a)).find((d: any) => d.id === resent.id)!;
     assert.equal(Number(resentRow.weight_kg), 2); assert.equal(resentRow.expected_return_date, null); assert.equal(resentRow.overdue, false);
     await db`UPDATE order_technical_revisions SET status='blocked' WHERE tenant_id=${a.tenantId} AND id=${a.revisionId}`;
+    assert.equal((await paintDispatchCandidates(a)).groups.length, 0);
     await assert.rejects(() => send([p3]), { status: 409 });
+    // Physical returns remain possible even when the work order is cancelled.
+    await db`UPDATE work_orders SET status='cancelled' WHERE tenant_id=${a.tenantId} AND id=${a.jobId}`;
     assert.equal((await cmd('paint.dispatch.return', { dispatchId: created.id, parts: [{ partId: p2, outcome: 'returned' }] })).status, 'closed');
     assert.equal((await cmd('paint.dispatch.return', { dispatchId: resent.id, parts: [{ partId: p1, outcome: 'returned' }] })).status, 'closed');
+    assert.equal((await db`SELECT state FROM production_parts WHERE tenant_id=${a.tenantId} AND id=${p2}`)[0].state, 'paint_returned');
+    assert.equal((await db`SELECT status FROM work_orders WHERE tenant_id=${a.tenantId} AND id=${a.jobId}`)[0].status, 'cancelled');
+    await db`UPDATE work_orders SET status='open' WHERE tenant_id=${a.tenantId} AND id=${a.jobId}`;
     assert.equal((await paintDispatches(a)).length, 0);
     list = await paintDispatches(a, 'closed');
     const closed = list.find((d: any) => d.id === created.id)!;

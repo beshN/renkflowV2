@@ -47,6 +47,7 @@ export async function executePaintDispatch(tx: any, a: WorkOrderActor, action: s
   for (const id of jobs) {
     const [job] = await tx`SELECT * FROM work_orders WHERE tenant_id=${t} AND id=${id} FOR UPDATE`;
     if (!job) fail('Üretim kaydı bulunamadı', 404);
+    if (create && job.status === 'cancelled') fail('İptal edilmiş üretim emrinin parçası gönderilemez');
     await requireCommercialApproval(tx, t, job.order_id);
     if (parts.some((p: any) => p.work_order_id === id && p.technical_revision_id !== job.technical_revision_id)) fail('Teknik sürüm değişti; güncel planı açın');
     const [revision] = await tx`SELECT status FROM order_technical_revisions WHERE tenant_id=${t} AND id=${job.technical_revision_id}`;
@@ -98,6 +99,8 @@ export async function paintDispatchCandidates(a: WorkOrderActor) {
     JOIN orders o ON o.tenant_id=w.tenant_id AND o.id=w.order_id
     JOIN inventory_items i ON i.tenant_id=p.tenant_id AND i.id=p.item_id
     WHERE p.tenant_id=${a.tenantId} AND p.state='paint_waiting'
+    AND w.status<>'cancelled' AND p.technical_revision_id=w.technical_revision_id
+    AND EXISTS(SELECT 1 FROM order_technical_revisions r WHERE r.tenant_id=${a.tenantId} AND r.id=p.technical_revision_id AND r.status='approved')
     AND NOT EXISTS(SELECT 1 FROM paint_dispatch_parts d WHERE d.tenant_id=${a.tenantId} AND d.part_id=p.id AND d.outcome='sent')
     ORDER BY p.target_color,o.order_number,w.title,p.sequence,p.id`;
   const groups = new Map<string, { target_color: string; parts: typeof parts[number][] }>();
