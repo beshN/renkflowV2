@@ -15,7 +15,7 @@ async function main() {
     const migration = readFileSync('lib/db/migrations/084_paint_dispatches.sql', 'utf8');
     await db.unsafe(migration); await db.unsafe(migration);
     const { productionCommand } = await import('../lib/features/manufacturing/platform.service');
-    const { paintDispatches } = await import('../lib/features/manufacturing/paint-dispatch.server');
+    const { paintDispatches, paintDispatchCandidates, paintDispatchDetail } = await import('../lib/features/manufacturing/paint-dispatch.server');
     const { recordPartProgress } = await import('../lib/features/manufacturing/parts.server');
     for (let n = 0; n < 2; n++) {
       const t = tenants[n], u = users[n];
@@ -44,8 +44,40 @@ async function main() {
     await assert.rejects(() => send([p0, b.partIds[0]]), { status: 404 });
     await assert.rejects(() => send([p0], b.supplierId), { status: 404 });
     await assert.rejects(() => cmd('paint.dispatch.create', { partIds: [p0], supplierId: a.supplierId, expectedReturnDate: '2026-02-30' }));
+    // Cancelled jobs must be rejected by both discovery and the command boundary.
+    await db`UPDATE work_orders SET status='cancelled' WHERE tenant_id=${a.tenantId} AND id=${a.jobId}`;
+    assert.equal((await paintDispatchCandidates(a)).groups.length, 0);
+    await assert.rejects(() => send([p0]), { status: 409, message: 'İptal edilmiş üretim emrinin parçası gönderilemez' });
+    assert.equal((await db`SELECT state FROM production_parts WHERE tenant_id=${a.tenantId} AND id=${p0}`)[0].state, 'paint_waiting');
+    await db`UPDATE work_orders SET status='open' WHERE tenant_id=${a.tenantId} AND id=${a.jobId}`;
+    // A waiting part from an older technical revision must not be offered.
+    const [olderRevision] = await db`INSERT INTO order_technical_revisions(tenant_id,order_id,revision,family,status,source_name,source_hash,document,created_by)
+      SELECT tenant_id,order_id,2,family,'superseded','fixture-old',${randomUUID()},'{}',created_by
+      FROM order_technical_revisions WHERE tenant_id=${a.tenantId} AND id=${a.revisionId} RETURNING id`;
+    await db`UPDATE production_parts SET technical_revision_id=${olderRevision.id} WHERE tenant_id=${a.tenantId} AND id=${p4}`;
+    assert.ok(!(await paintDispatchCandidates(a)).groups.flatMap(g => g.parts).some(p => p.id === p4));
+    await db`UPDATE production_parts SET technical_revision_id=${a.revisionId} WHERE tenant_id=${a.tenantId} AND id=${p4}`;
+    const candidatesBefore = await paintDispatchCandidates(a);
+    assert.deepEqual(candidatesBefore.groups.map(g => g.target_color), ['RAL 7016', 'RAL 9005']);
+    const candidateParts = candidatesBefore.groups.flatMap(g => g.parts);
+    assert.equal(candidateParts.length, 5);
+    assert.ok(candidateParts.every(p => a.partIds.includes(p.id)));
+    assert.equal(candidateParts.find(p => p.id === p2)!.weight_kg, null);
+    assert.equal(Number(candidateParts.find(p => p.id === p0)!.weight_kg), 2);
+    assert.ok(candidateParts.every(p => p.work_order_id === a.jobId && p.profile_name && p.order_number));
+    assert.deepEqual(candidatesBefore.suppliers.map(s => s.id), [a.supplierId]);
+    assert.ok((await paintDispatchCandidates(b)).groups.flatMap(g => g.parts).every(p => b.partIds.includes(p.id)));
     const data = { partIds: [p0, p1, p2], supplierId: a.supplierId, expectedReturnDate: '2000-01-01', note: 'Fixture' }, key = randomUUID();
     const created = await cmd('paint.dispatch.create', data, key);
+    const candidatesAfter = (await paintDispatchCandidates(a)).groups.flatMap(g => g.parts);
+    assert.deepEqual(new Set(candidatesAfter.map(p => p.id)), new Set([p3, p4]));
+    const detailBefore = await paintDispatchDetail(a, created.id);
+    assert.equal(detailBefore.supplier_name, 'Paint fixture');
+    assert.equal(detailBefore.parts.length, 3);
+    assert.ok(detailBefore.parts.every(p => p.outcome === 'sent' && p.returned_at === null && p.reject_reason === null));
+    assert.equal(detailBefore.parts.find(p => p.id === p2)!.weight_kg, null);
+    await assert.rejects(() => paintDispatchDetail(b, created.id), { status: 404 });
+    await assert.rejects(() => paintDispatchDetail(a, randomUUID()), { status: 404 });
     assert.deepEqual(await cmd('paint.dispatch.create', data, key), created);
     await assert.rejects(() => cmd('paint.dispatch.create', { ...data, note: 'changed' }, key), { status: 409 });
     await assert.rejects(() => send([p0]), { status: 409 });
@@ -68,13 +100,24 @@ async function main() {
     await cmd('paint.dispatch.return', { dispatchId: created.id, parts: [{ partId: p1, outcome: 'rejected', rejectReason: 'Renk hatalı' }] });
     const [rejected] = await db`SELECT p.state,p.paint_returned_at,d.reject_reason FROM production_parts p JOIN paint_dispatch_parts d ON d.tenant_id=p.tenant_id AND d.part_id=p.id WHERE p.tenant_id=${a.tenantId} AND p.id=${p1}`;
     assert.equal(rejected.state, 'paint_waiting'); assert.equal(rejected.paint_returned_at, null); assert.equal(rejected.reject_reason, 'Renk hatalı');
+    const returnedDetail = await paintDispatchDetail(a, created.id);
+    assert.equal(returnedDetail.parts.find(p => p.id === p0)!.outcome, 'returned');
+    assert.ok(returnedDetail.parts.find(p => p.id === p0)!.returned_at);
+    assert.equal(returnedDetail.parts.find(p => p.id === p1)!.reject_reason, 'Renk hatalı');
+    assert.ok((await paintDispatchCandidates(a)).groups.flatMap(g => g.parts).some(p => p.id === p1));
     const resent = await send([p1]); assert.equal(resent.dispatchNumber, '2');
     const resentRow = (await paintDispatches(a)).find((d: any) => d.id === resent.id)!;
     assert.equal(Number(resentRow.weight_kg), 2); assert.equal(resentRow.expected_return_date, null); assert.equal(resentRow.overdue, false);
     await db`UPDATE order_technical_revisions SET status='blocked' WHERE tenant_id=${a.tenantId} AND id=${a.revisionId}`;
+    assert.equal((await paintDispatchCandidates(a)).groups.length, 0);
     await assert.rejects(() => send([p3]), { status: 409 });
+    // Physical returns remain possible even when the work order is cancelled.
+    await db`UPDATE work_orders SET status='cancelled' WHERE tenant_id=${a.tenantId} AND id=${a.jobId}`;
     assert.equal((await cmd('paint.dispatch.return', { dispatchId: created.id, parts: [{ partId: p2, outcome: 'returned' }] })).status, 'closed');
     assert.equal((await cmd('paint.dispatch.return', { dispatchId: resent.id, parts: [{ partId: p1, outcome: 'returned' }] })).status, 'closed');
+    assert.equal((await db`SELECT state FROM production_parts WHERE tenant_id=${a.tenantId} AND id=${p2}`)[0].state, 'paint_returned');
+    assert.equal((await db`SELECT status FROM work_orders WHERE tenant_id=${a.tenantId} AND id=${a.jobId}`)[0].status, 'cancelled');
+    await db`UPDATE work_orders SET status='open' WHERE tenant_id=${a.tenantId} AND id=${a.jobId}`;
     assert.equal((await paintDispatches(a)).length, 0);
     list = await paintDispatches(a, 'closed');
     const closed = list.find((d: any) => d.id === created.id)!;
@@ -102,6 +145,8 @@ async function main() {
     await assert.rejects(() => cmd('paint.dispatch.create', data, key), { status: 403 });
     await db`UPDATE tenant_members SET role='worker' WHERE tenant_id=${a.tenantId} AND user_id=${a.userId}`;
     await assert.rejects(() => paintDispatches(a), { status: 403 });
+    await assert.rejects(() => paintDispatchCandidates(a), { status: 403 });
+    await assert.rejects(() => paintDispatchDetail(a, created.id), { status: 403 });
     await assert.rejects(() => cmd('paint.dispatch.create', data, key), { status: 403 });
     console.log('Paint dispatch acceptance passed: lifecycle, rework, tenant isolation, replay, kg, legacy rules, migration twice.');
   } finally {
