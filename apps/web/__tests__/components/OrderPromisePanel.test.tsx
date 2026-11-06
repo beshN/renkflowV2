@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { OrderPromisePanel } from '@/components/features/orders/OrderPromisePanel';
 import { requestJson } from '@/lib/shared/network';
 import { useMemberAccess } from '@/lib/hooks/useMemberAccess';
@@ -10,7 +10,7 @@ const request = requestJson as jest.Mock;
 const access = useMemberAccess as jest.Mock;
 const suggestion = {
   earliestFinish: '2026-11-09T10:00:00Z', bindingConstraint: { kind: 'workCenter', workCenterCode: 'CUT' },
-  explanation: 'Mevcut yük dikkate alındı.', missing: [], requiresHumanApproval: true,
+  ignoredLoad: [], optimistic: false, explanation: 'Mevcut yük dikkate alındı.', missing: [], requiresHumanApproval: true,
   material: [{ readyDate: '2026-11-08', fulfilled: [{ color: 'RAL 7016' }], missing: [], undefinedLeadTime: [] }],
 };
 const ok = (data: unknown = suggestion) => ({ ok: true, status: 200, data: { data } });
@@ -141,4 +141,70 @@ test('insan onayı şartını sağlamayan yanıtı öneri olarak göstermez', as
   render(<OrderPromisePanel orderId="a" />); calculate();
   await screen.findByRole('alert');
   expect(screen.queryByText(/Önerilen tarih/)).not.toBeInTheDocument();
+});
+
+const ignoredLoad = [
+  { operationId: '11111111-1111-4111-8111-111111111111', workOrderId: '22222222-2222-4222-8222-222222222222', reason: 'Kalite onayı bekleniyor' },
+  { operationId: '33333333-3333-4333-8333-333333333333', workOrderId: '44444444-4444-4444-8444-444444444444', reason: 'Malzeme hazırlığı bekleniyor' },
+];
+test.each([true, false])('optimistic %s ise uyarı görünürlüğü ve iş sayısı doğrudur', async optimistic => {
+  request.mockResolvedValue(ok({ ...suggestion, optimistic, ignoredLoad }));
+  const { container } = render(<OrderPromisePanel orderId="a" />); calculate();
+  await screen.findByText(/Önerilen tarih/);
+  if (optimistic) {
+    const warning = screen.getByRole('alert');
+    expect(warning).toHaveTextContent('İyimser tahmin: 2 bekleyen iş hesaba katılmadı');
+    expect(warning.nextElementSibling).toHaveTextContent('Önerilen tarih');
+    const details = warning.querySelector('details')!;
+    expect(details).not.toHaveAttribute('open');
+    fireEvent.click(within(warning).getByText('Hesaba katılmayan işlerin nedenleri'));
+    expect(details).toHaveAttribute('open');
+    for (const item of ignoredLoad) expect(within(details).getByText(item.reason)).toBeInTheDocument();
+  } else {
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText(ignoredLoad[0].reason)).not.toBeInTheDocument();
+  }
+  for (const item of ignoredLoad) {
+    expect(container).not.toHaveTextContent(item.operationId);
+    expect(container).not.toHaveTextContent(item.workOrderId);
+  }
+});
+
+test('eksikler varken iyimser uyarı, nedenleri ve tarihler gösterilmez', async () => {
+  request.mockResolvedValue(ok({ ...suggestion, optimistic: true, ignoredLoad,
+    missing: [{ operationId: 'op', reason: 'Vardiya gerekli' }, { reason: 'Reçete gerekli' }] }));
+  render(<OrderPromisePanel orderId="a" />); calculate();
+  await screen.findByText('Vardiya gerekli');
+  expect(screen.getByText('Reçete gerekli')).toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.queryByText(/Önerilen tarih|09.11.2026|08.11.2026|İyimser tahmin/)).not.toBeInTheDocument();
+  expect(screen.queryByText(ignoredLoad[0].reason)).not.toBeInTheDocument();
+});
+
+test('stok ve rezervasyon nedenleri yalnız ait oldukları grupta, UUID ve toplam olmadan gösterilir', async () => {
+  const ids = {
+    lotId: '55555555-5555-4555-8555-555555555555',
+    itemId: '66666666-6666-4666-8666-666666666666',
+    warehouseId: '77777777-7777-4777-8777-777777777777',
+  };
+  request.mockResolvedValue(ok({ ...suggestion, material: [
+    { ...suggestion.material[0], stockProblems: [{ ...ids, reason: 'Profil uzunluğu eksik' }],
+      reservationWarnings: [{ ...ids, reason: 'Rezerve profil dışlandı' }] },
+    { ...suggestion.material[0], fulfilled: [{ color: 'Beyaz' }],
+      stockProblems: [{ ...ids, reason: 'Fiziksel profil belirsiz' }], reservationWarnings: [] },
+    { ...suggestion.material[0], fulfilled: [{ color: 'Siyah' }] },
+  ] }));
+  const { container } = render(<OrderPromisePanel orderId="a" />); calculate();
+  await screen.findByText('Stok sorunu: Profil uzunluğu eksik');
+  const first = screen.getByText('RAL 7016:').closest('li')!;
+  const second = screen.getByText('Beyaz:').closest('li')!;
+  const third = screen.getByText('Siyah:').closest('li')!;
+  expect(first).toHaveTextContent('Stok sorunu: Profil uzunluğu eksik');
+  expect(first).toHaveTextContent('Rezervasyon uyarısı: Rezerve profil dışlandı');
+  expect(first).not.toHaveTextContent('Fiziksel profil belirsiz');
+  expect(second).toHaveTextContent('Stok sorunu: Fiziksel profil belirsiz');
+  expect(second).not.toHaveTextContent('Rezervasyon uyarısı');
+  expect(third).not.toHaveTextContent(/Stok sorunu|Rezervasyon uyarısı/);
+  for (const id of Object.values(ids)) expect(container).not.toHaveTextContent(id);
+  expect(container).not.toHaveTextContent(/toplam/i);
 });

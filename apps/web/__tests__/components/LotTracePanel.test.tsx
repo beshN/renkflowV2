@@ -85,6 +85,7 @@ test("yükleniyor, boş sonuç ve hata ayrıdır; tekrar dene son aramayı kulla
   expect(screen.getByRole("alert")).toHaveTextContent("Yüklenemedi");
   expect(screen.queryByText("Bu numarayla kayıtlı lot yok")).not.toBeInTheDocument();
   fireEvent.change(screen.getByRole("textbox"), { target: { value: "başka" } });
+  expect(screen.getByRole("button", { name: "Tekrar dene" })).toHaveAttribute("type", "button");
   fireEvent.click(screen.getByRole("button", { name: "Tekrar dene" }));
   await screen.findByText("Bu numarayla kayıtlı lot yok");
   expect(request.mock.calls[1][0]).toBe(request.mock.calls[0][0]);
@@ -136,4 +137,20 @@ test("yeni arama eski isteği iptal eder; geç gelen yanıtı göstermez", async
   expect(request.mock.calls[0][1].signal.aborted).toBe(true);
   await act(async () => { finish(ok([lot])); });
   expect(screen.queryByText("Lot LOT-1")).not.toBeInTheDocument();
+});
+
+test.each([
+  ["HEAT-42", "SUP-21"],
+  [null, null],
+  [undefined, undefined],
+  ["HEAT-42", null],
+  [null, "SUP-21"],
+])("lot kartındaki numaralar yalnız varsa gösterilir: %s / %s", async (heat, supplierLot) => {
+  request.mockResolvedValue(ok([{ ...lot, heat_number: heat, supplier_lot_number: supplierLot }]));
+  render(<LotTracePanel />); search();
+  await screen.findByText("Lot LOT-1");
+  expect(Boolean(screen.queryByText(/^Döküm no:/))).toBe(Boolean(heat));
+  expect(Boolean(screen.queryByText(/^Tedarikçi lot no:/))).toBe(Boolean(supplierLot));
+  if (heat) expect(screen.getByText(`Döküm no: ${heat}`)).toBeInTheDocument();
+  if (supplierLot) expect(screen.getByText(`Tedarikçi lot no: ${supplierLot}`)).toBeInTheDocument();
 });
