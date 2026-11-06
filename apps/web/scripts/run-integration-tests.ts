@@ -19,8 +19,8 @@ import path from 'node:path';
 const ROOT = path.resolve(__dirname, '..');
 // test-db.ts only probes DATABASE_URL in .env.local.
 // test-pilot-readiness.ts requires completely empty dev/test databases; this
-// runner applies the application schema first. Run it separately with
-// db:local -- --empty, then npm run test:pilot-readiness (see pilot docs).
+// runner applies the application schema first. CI runs it separately in
+// "Pilot readiness on an empty local database" via ci-pilot-readiness.ts.
 const EXCLUDED = new Set(['test-db.ts', 'test-pilot-readiness.ts']);
 
 function freePort(): Promise<number> {

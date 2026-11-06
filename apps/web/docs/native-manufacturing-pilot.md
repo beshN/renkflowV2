@@ -293,5 +293,12 @@ hazırlar. `test-pilot-readiness.ts` ise tamamen boş `renkflow_dev` ve
 `renkflow_test` gerektirdiği için bu runner'ın `EXCLUDED` listesinde gerekçesiyle
 birlikte tutulur. Genel entegrasyon turu bu testi çalıştırmaz. Yukarıdaki
 `db:local -- --empty` ve ayrı `npm run test:pilot-readiness` adımlarıyla
-çalıştırılmalıdır; mevcut CI validate adımı bu ayrı kontrolü otomatik çalıştırmaz.
+çalıştırılabilir. CI `validate` işi genel entegrasyon adımından sonra
+`Pilot readiness on an empty local database` adımında bu kontrolü otomatik çalıştırır.
+`scripts/ci-pilot-readiness.ts`, runner'ın geçici dizininde her seferinde yeni,
+boş bir cluster açar; ayrı portta `db:local -- --empty` başlatır, hazır olmasını
+en çok 180 saniye bekler ve `npm run test:pilot-readiness` çalıştırır.
+Başarıda, hatada ve SIGINT/SIGTERM durumunda alt süreçler durdurulur.
+Harici `DATABASE_URL` kullanılmaz; bağlantı loopback yardımcılarıyla sabitlenir.
+Ham DB/test çıktısı bağlantı bilgileri ve sunucu hatalarını gizlemek için aktarılmaz.
 Boş DB koruması, loopback sınırlaması ve salt okunur rapor oturumu korunur.
