@@ -1,3 +1,4 @@
+import { LotIdentifierSchema } from './lot-trace';
 import { executePaintDispatch, requirePaintDispatchAccess } from "./paint-dispatch.server";
 import { assertStationOperation, requireStationChecklist } from '@/lib/features/stations/security.server';
 import {partGroups,syncDailyStages} from './daily-progress.server';
@@ -512,6 +513,8 @@ async function execute(
         color: z.string().trim().max(100).default(""),
         unitCost: z.number().nonnegative(),
         lotNumber: text,
+        supplierLotNumber: LotIdentifierSchema,
+        heatNumber: LotIdentifierSchema,
         currency:z.enum(["TRY","EUR","USD","GBP"]).default("TRY"),
       })
       .parse(data);
@@ -526,7 +529,7 @@ async function execute(
       if (!d.color) fail("Profilin rengini girin (boyasız için \"Boyasız\")", 400);
       for (let n = 0; n < d.quantity; n++) {
         const [lot] =
-          await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,lot_number,original_qty,remaining_qty,length_m,weight_kg,metadata)VALUES(${t},${d.itemId},${d.warehouseId},${d.lotNumber + "-" + (n + 1)},${d.lengthMm / 1000},${d.lengthMm / 1000},${d.lengthMm / 1000},${(d.lengthMm / 1000) * num(item.weight_per_meter_kg)},${js({ color: d.color, unitCost: d.unitCost, currency:d.currency,isRemnant: false })}::text::jsonb)RETURNING *`;
+          await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,supplier_lot_number,heat_number,lot_number,original_qty,remaining_qty,length_m,weight_kg,metadata)VALUES(${t},${d.itemId},${d.warehouseId},${d.supplierLotNumber},${d.heatNumber},${d.lotNumber + "-" + (n + 1)},${d.lengthMm / 1000},${d.lengthMm / 1000},${d.lengthMm / 1000},${(d.lengthMm / 1000) * num(item.weight_per_meter_kg)},${js({ color: d.color, unitCost: d.unitCost, currency:d.currency,isRemnant: false })}::text::jsonb)RETURNING *`;
         lines.push({
           itemId: d.itemId,
           warehouseId: d.warehouseId,
@@ -540,7 +543,7 @@ async function execute(
     } else {
       if (COUNT_UNITS.has(item.stock_uom) && !Number.isInteger(d.quantity))
         fail(`${unitLabel(item.stock_uom)} biriminde tam sayı girin`, 400);
-      const [lot]=await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,lot_number,original_qty,remaining_qty,metadata)VALUES(${t},${d.itemId},${d.warehouseId},${d.lotNumber},${d.quantity},${d.quantity},${js({unitCost:d.unitCost,currency:d.currency})}::text::jsonb)RETURNING id`;
+      const [lot]=await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,supplier_lot_number,heat_number,lot_number,original_qty,remaining_qty,metadata)VALUES(${t},${d.itemId},${d.warehouseId},${d.supplierLotNumber},${d.heatNumber},${d.lotNumber},${d.quantity},${d.quantity},${js({unitCost:d.unitCost,currency:d.currency})}::text::jsonb)RETURNING id`;
       lines.push({
         lotId:lot.id,
         itemId: d.itemId,
@@ -1371,7 +1374,7 @@ async function cutAction(
     let remnantId: string | null = null;
     if (bar.reusable) {
       const [r] =
-        await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,lot_number,original_qty,remaining_qty,length_m,weight_kg,metadata)VALUES(${t},${lot.item_id},${remnantWarehouse.id},${"ART-" + randomUUID().slice(0, 12)},${bar.remainingMm / 1000},${bar.remainingMm / 1000},${bar.remainingMm / 1000},${num(lot.weight_per_meter_kg)>0?(bar.remainingMm / 1000) * num(lot.weight_per_meter_kg):null},${js({ ...lot.metadata, isRemnant: true, parentLotId: lot.id, planId: plan.id })}::text::jsonb)RETURNING id`;
+        await tx`INSERT INTO stock_lots(tenant_id,item_id,warehouse_id,supplier_lot_number,heat_number,lot_number,original_qty,remaining_qty,length_m,weight_kg,metadata)VALUES(${t},${lot.item_id},${remnantWarehouse.id},${lot.supplier_lot_number},${lot.heat_number},${"ART-" + randomUUID().slice(0, 12)},${bar.remainingMm / 1000},${bar.remainingMm / 1000},${bar.remainingMm / 1000},${num(lot.weight_per_meter_kg)>0?(bar.remainingMm / 1000) * num(lot.weight_per_meter_kg):null},${js({ ...lot.metadata, isRemnant: true, parentLotId: lot.id, planId: plan.id })}::text::jsonb)RETURNING id`;
       remnantId = r.id;
       lines.push({
         itemId: lot.item_id,

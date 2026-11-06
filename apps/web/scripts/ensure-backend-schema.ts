@@ -190,6 +190,7 @@ export const BACKEND_MIGRATIONS = [
   '082_fun_features.sql',
   '083_recipe_publish_archive.sql',
   '084_paint_dispatches.sql',
+  '085_lot_heat_trace.sql',
 ];
 
 /** Mobile API tables (sessions, offline receipts, uploads, push devices); applied after 045 (installations). */
