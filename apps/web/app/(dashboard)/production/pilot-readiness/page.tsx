@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/observability/report-server-error";
 import { redirect } from "next/navigation";
 import {
   requireWorkOrderActor,
@@ -17,7 +18,7 @@ export default async function PilotReadinessPage() {
       redirect("/auth/login");
     if (error instanceof WorkOrderApiError && error.status === 403)
       redirect("/dashboard");
-    // Database errors may contain credentials or another tenant's server details.
+    await reportServerError("pilot-readiness:page", error);
   }
 
   return (

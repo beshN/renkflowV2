@@ -11,6 +11,7 @@ import { BREAKS, LOUNGE_TEXT, OfficeSimulation, type Agent, type EventKind, type
 import type { CameraView, OfficeStage, StageHint, StagePick, StageQuality } from '@/lib/features/office/scene';
 import { cheerLine, pickCheerer, type RallyRun } from '@/lib/features/office/cheer';
 import { GAMING } from '@/lib/features/office/layout';
+import { useFunFeatures } from '@/lib/features/settings/useFunFeatures';
 import { readRallyBest } from '@/lib/features/office/rally';
 
 /** The racing game only loads when the games screen is clicked. */
@@ -178,6 +179,9 @@ function keptOffice(key: string) {
 }
 
 export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
+  const funFeatures = useFunFeatures();
+  const funEnabled = useRef(funFeatures);
+  funEnabled.current = funFeatures;
   const [here] = useState(() => keptOffice(officeKey));
   const sim = here.sim;
   // The office changes many times a second; the panel follows at most four times a second (the 3D
@@ -210,6 +214,16 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
   const cheerTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   /** The best record set since the game opened, congratulated once it closes. */
   const record = useRef<RallyRun | null>(null);
+  useEffect(() => {
+    stage.current?.setFunFeatures(funFeatures === true);
+    if (funFeatures === true) stage.current?.setRecord(readRallyBest());
+    if (funFeatures === undefined) return;
+    sim.setGamesEnabled(funFeatures);
+    if (!funFeatures) {
+      setPlaying(false); setQuip(null); record.current = null;
+      clearTimeout(cheerTimer.current); clearTimeout(quipTimer.current);
+    }
+  }, [funFeatures, sim]);
   const say = useCallback((id: string, text: string, ms: number) => {
     stage.current?.wave(id);
     setQuip({ id, text });
@@ -246,6 +260,7 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
     setHint(null);
     let gone = false;
     const pick = (picked: StagePick) => {
+      if (funEnabled.current !== true) return;
       if (picked.kind === 'tv') {
         setWatcher(pickCheerer(sim.agents, VISITOR)?.name ?? null);
         setPlaying(true);
@@ -265,13 +280,13 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
       try {
         // A new quality mode builds the stage again on a fresh canvas, with the camera where it was.
         stage.current = createOfficeStage(canvas.current, sim, labels.current, {
-          quality, camera: here.camera, onPick: pick,
+          quality, camera: here.camera, onPick: pick, funFeatures: funEnabled.current === true,
           onHint: next => { if (!here.declined.has(next)) setHint(next); },
         });
         stage.current.setSpeed(here.view.speed);
         stage.current.setPaused(here.view.paused);
         stage.current.setNight(here.view.night);
-        stage.current.setRecord(readRallyBest());
+        if (funEnabled.current === true) stage.current.setRecord(readRallyBest());
       } catch {
         setFailed(true);
       }
@@ -426,7 +441,7 @@ export function OfficeWorkspace({ officeKey }: { officeKey: string }) {
         </section>
       </aside>
 
-      {playing && <RallyGame onClose={closeRally} onPlaying={onRallyPlaying} onRunEnd={onRunEnd} watcher={watcher} />}
+      {funFeatures && playing && <RallyGame onClose={closeRally} onPlaying={onRallyPlaying} onRunEnd={onRunEnd} watcher={watcher} />}
       {composing && <TaskComposer sim={sim} office={office} onClose={() => setComposing(false)} />}
     </div>
   );

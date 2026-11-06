@@ -78,7 +78,7 @@ async function main() {
         { parameters: { widthMm: 5000, projectionMm: 2000, mountingHeightMm: 3000, quantity: 2 }, expected: [{ itemId: profile.id, quantity: 19.96 }, { itemId: screw.id, quantity: 16 }, { itemId: motor.id, quantity: 2 }] },
       ],
     });
-    await cmd('recipe.publish', { id: recipe.id });
+    await cmd('recipe.publish', { reason: "Yerel test yayını", id: recipe.id });
 
     // ── 1. Twenty-four orders at once, from two desks, with double clicks on "convert" ──────────
     const quotes = new PostgresQuotationService();

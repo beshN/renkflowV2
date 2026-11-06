@@ -1,5 +1,7 @@
 'use client';
 
+import { withFunFeatures } from '@/lib/features/settings/useFunFeatures';
+
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { isLateNight } from '@/lib/spells/late-night';
@@ -11,7 +13,7 @@ const LABEL = 'Geç oldu, bir çay molası?';
  * Between 00:00 and 05:00 Istanbul time a steaming tulip tea glass sits in the header.
  * Rendered after mount only (server and browser clocks differ); rechecked every few minutes.
  */
-export function TeaBreak() {
+function TeaBreakEnabled() {
   const [night, setNight] = useState(false);
   useEffect(() => {
     const check = () => setNight(isLateNight(new Date()));
@@ -41,3 +43,6 @@ export function TeaBreak() {
     </button>
   );
 }
+
+const TeaBreak = withFunFeatures(TeaBreakEnabled);
+export { TeaBreak };

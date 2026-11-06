@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { hidesAny, redactedJson } from '@/lib/security/field-access.server';
 import { NextResponse } from 'next/server';
 
@@ -154,6 +155,7 @@ export async function GET(
       return redactedJson({ error: 'Forbidden' }, { status: 403 });
     }
     console.error('Order document content route error:', error);
+    await reportServerError("app/api/orders/documents/[documentId]/content/route:GET", error);
     return redactedJson({ error: 'Internal server error' }, { status: 500 });
   }
 }

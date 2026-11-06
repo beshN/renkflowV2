@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { z } from 'zod';
@@ -241,6 +242,7 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: unknown) {
     console.error('Contact form error:', error);
+    await reportServerError("app/api/contact/route:POST", error);
     return NextResponse.json(
       { error: 'Mesaj gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.' },
       { status: 500 }

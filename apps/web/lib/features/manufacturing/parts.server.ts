@@ -70,6 +70,8 @@ export async function recordPartProgress(a: WorkOrderActor, raw: unknown) {
         "Miktar bu aşamada bekleyen parça sayısını aşıyor",
         409,
       );
+    const tracked = await tx`SELECT part_id FROM paint_dispatch_parts WHERE tenant_id=${a.tenantId} AND part_id=ANY(${parts.map((p: any) => p.id)}::uuid[]) AND outcome='sent'`;
+    if (tracked.length) throw new WorkOrderApiError("Bu parçalar sevkiyat belgesi üzerinden sonuçlandırılmalı", 409);
     await tx`UPDATE production_parts SET state=${to},paint_sent_at=CASE WHEN ${to}='paint_sent' THEN now() ELSE paint_sent_at END,paint_returned_at=CASE WHEN ${to}='paint_returned' THEN now() ELSE paint_returned_at END,updated_by=${a.userId} WHERE tenant_id=${a.tenantId} AND id=ANY(${parts.map((p: any) => p.id)}::uuid[])`;
     await tx`INSERT INTO production_events(tenant_id,work_order_id,event_type,payload,actor_id,command_id) VALUES(${a.tenantId},${job.id},${d.action},${JSON.stringify({ input: d, partIds: parts.map((p: any) => p.id) })}::text::jsonb,${a.userId},${d.commandId})`;
     await syncDailyStages(tx, a.tenantId, job.id, a.userId);

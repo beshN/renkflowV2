@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { queryAudit } from '@/lib/audit/audit-log';
@@ -26,6 +27,7 @@ export async function GET(request: Request) {
     if (error instanceof AuthenticationError) return NextResponse.json({ error: 'Oturum gerekli.' }, { status: 401 });
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Geçersiz filtre.' }, { status: 400 });
     console.error('[Audit export]', error);
+    await reportServerError("app/api/audit/export/route:GET", error);
     return NextResponse.json({ error: 'Dışa aktarılamadı.' }, { status: 500 });
   }
 }

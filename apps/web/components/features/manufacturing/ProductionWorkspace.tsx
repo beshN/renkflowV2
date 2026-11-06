@@ -1,4 +1,8 @@
 "use client";
+import { PaintDispatchPanel } from "./PaintDispatchPanel";
+import { LotTracePanel } from "./LotTracePanel";
+import { useMemberAccess } from "@/lib/hooks/useMemberAccess";
+import { ZplDownload } from "@/components/features/labels/ZplDownload";
 import { ProductionInsights } from '@/components/production/ProductionInsights';
 import { CutPlanVersions } from '@/components/production/CutPlanVersions';
 import { ScrapHuntButton } from '@/components/spells/ScrapHuntButton';
@@ -44,6 +48,7 @@ const tabs = [
   ["recipes", "Reçeteler", Box],
   ["cutting", "Toplu kesim", Scissors],
   ["planning", "Çizelgeleme", CalendarClock],
+  ["paint", "Boyahane", Box],
   ["stock", "Malzeme ve kapasite", Warehouse],
   ["intake", "Belgeden sipariş", FileSearch],
   ["communication", "Müşteri iletişimi", Mail],
@@ -70,7 +75,7 @@ const status: Record<string, string> = {
   uncertain: "Teslimat doğrulanmalı",
   superseded: "Eski çizelge",
 };
-function Field({ name, label, type = "text", required = true, value }: any) {
+function Field({ name, label, type = "text", required = true, value, maxLength }: any) {
   return (
     <label className="block text-xs">
       {label}
@@ -80,6 +85,7 @@ function Field({ name, label, type = "text", required = true, value }: any) {
         required={required}
         step={type === "number" ? "any" : undefined}
         defaultValue={value}
+        maxLength={maxLength}
         className="rf-input mt-2 w-full"
       />
     </label>
@@ -119,6 +125,8 @@ function Badge({ value }: { value: string }) {
   );
 }
 export default function ProductionWorkspace() {
+  const access = useMemberAccess();
+  const paintView = !!access && ["owner", "admin", "office"].includes(access.base) && !!access.permissions.production?.includes("view");
   const { data, error, busy, command, refresh } = useProduction(),
     [tab, setTab] = useState("overview"),
     [editor, setEditor] = useState<any>(false),
@@ -245,7 +253,7 @@ export default function ProductionWorkspace() {
         aria-label="Üretim bölümleri"
         className="flex gap-1 overflow-x-auto border-b border-border"
       >
-        {tabs.filter(([id]) => id !== "recipes").map(([id, label, Icon]) => (
+        {tabs.filter(([id]) => id !== "recipes" && (id !== "paint" || paintView)).map(([id, label, Icon]) => (
           <button
             key={id}
             className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-xs ${tab === id ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}
@@ -326,7 +334,7 @@ export default function ProductionWorkspace() {
                 name="recipeId"
                 label="Yayınlanmış reçete"
                 options={data.recipes
-                  .filter((r: any) => r.status === "published")
+                  .filter((r: any) => r.status === "published" || (r.status === "archived" && (data.orders || []).some((o: any) => o.product_configuration?.recipeId === r.id)))
                   .map((r: any) => ({
                     id: r.id,
                     name: `${r.name} · v${r.version}`,
@@ -432,6 +440,7 @@ export default function ProductionWorkspace() {
                         >
                           Etiket
                         </Link>
+                        {j.cut_plan_id && <ZplDownload kind="job" id={j.id} />}
                       </td>
                     </tr>
                   ))}
@@ -510,13 +519,16 @@ export default function ProductionWorkspace() {
                       {r.status === "draft" ? "Düzenle" : "Yeni sürüm hazırla"}
                     </button>
                     {r.status === "draft" && (
-                      <button
-                        disabled={busy}
-                        className="rf-primary-button"
-                        onClick={() => run("recipe.publish", { id: r.id,editRevision:r.edit_revision })}
-                      >
-                        Örnekleri doğrula ve yayınla
-                      </button>
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        const reason = String(new FormData(e.currentTarget).get("reason") || "").trim();
+                        run("recipe.publish", { id: r.id, editRevision: r.edit_revision, reason });
+                      }}>
+                        <Field name="reason" label="Yayın gerekçesi" />
+                        <button disabled={busy} className="rf-primary-button" type="submit">
+                          Örnekleri doğrula ve yayınla
+                        </button>
+                      </form>
                     )}
                   </div>
                 )}
@@ -807,6 +819,7 @@ export default function ProductionWorkspace() {
                   Kesim paketi etiketi
                 </Link>
               </div>
+              {["approved", "completed"].includes(p.status) && <ZplDownload kind="cut" id={p.id} />}
               <CutPlanVersions planId={p.id} />
               {p.actual && (
                 <p className="text-xs text-muted-foreground">
@@ -923,6 +936,7 @@ export default function ProductionWorkspace() {
       )}
       {tab === "stock" && (
         <>
+          <LotTracePanel />
           <div className="grid gap-5 xl:grid-cols-2">
             {manager && (
               <>
@@ -1045,6 +1059,8 @@ export default function ProductionWorkspace() {
                       )}
                     />
                     <Field name="lotNumber" label="Lot / irsaliye kodu" />
+                    <Field name="supplierLotNumber" label="Tedarikçi lot no" required={false} maxLength={64} />
+                    <Field name="heatNumber" label="Döküm (heat) no" required={false} maxLength={64} />
                     <Field
                       name="quantity"
                       label="Profil adedi / diğer stok miktarı"
@@ -1353,6 +1369,7 @@ export default function ProductionWorkspace() {
             ))}
         </section>
       )}
+      {tab === "paint" && paintView && <PaintDispatchPanel />}
       {tab === "intake" && (
         <>
           <section className="rf-panel">
@@ -1530,6 +1547,7 @@ export default function ProductionWorkspace() {
                   {jobs.find((j: any) => j.id === s.work_order_id)?.title} ·{" "}
                   {s.quantity} adet · {s.carrier} {s.tracking_number}
                 </span>
+                <ZplDownload kind="shipment" id={s.id} />
                 {s.status === "delivered" ? (
                   <span className="text-emerald-600">Teslim edildi</span>
                 ) : (

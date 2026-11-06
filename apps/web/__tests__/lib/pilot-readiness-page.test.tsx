@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { reportServerError } from "@/lib/observability/report-server-error";
 import Page from "@/app/(dashboard)/production/pilot-readiness/page";
 import {
   requireWorkOrderActor,
@@ -6,6 +7,7 @@ import {
 } from "@/lib/features/work-orders/security";
 import { pilotReadinessReport } from "@/lib/features/manufacturing/pilot-readiness.service";
 
+jest.mock("@/lib/observability/report-server-error", () => ({ reportServerError: jest.fn() }));
 jest.mock("server-only", () => ({}));
 jest.mock("next/navigation", () => ({
   redirect: jest.fn((path: string) => {
@@ -38,6 +40,7 @@ it("redirects an unauthenticated request without reading the report", async () =
     .mockRejectedValue(new WorkOrderApiError("Unauthorized", 401));
   await expect(Page()).rejects.toThrow("REDIRECT:/auth/login");
   expect(pilotReadinessReport).not.toHaveBeenCalled();
+  expect(reportServerError).not.toHaveBeenCalled();
 });
 
 it("redirects a forbidden role and never renders report content", async () => {
@@ -48,6 +51,7 @@ it("redirects a forbidden role and never renders report content", async () => {
     .mocked(pilotReadinessReport)
     .mockRejectedValue(new WorkOrderApiError("Forbidden", 403));
   await expect(Page()).rejects.toThrow("REDIRECT:/dashboard");
+  expect(reportServerError).not.toHaveBeenCalled();
 });
 
 it("renders the honest empty state without forms or write actions", async () => {
@@ -75,6 +79,7 @@ it("shows a safe unavailable state without server error details or invented resu
     .mocked(pilotReadinessReport)
     .mockRejectedValue(new Error("PRIVATE connection detail"));
   render(await Page());
+  expect(reportServerError).toHaveBeenCalledWith("pilot-readiness:page", expect.objectContaining({ message: "PRIVATE connection detail" }));
   expect(screen.getByRole("alert")).toHaveTextContent("Rapor okunamadı");
   expect(screen.queryByText(/PRIVATE/)).toBeNull();
 });

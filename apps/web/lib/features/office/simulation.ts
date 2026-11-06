@@ -122,6 +122,14 @@ export class OfficeSimulation {
   /** Breaks on (the page) or off (tests that follow one task through the office). */
   private readonly breaks: boolean;
   private seed: number;
+  private gamesEnabled = true;
+
+  setGamesEnabled(enabled: boolean) {
+    this.gamesEnabled = enabled;
+    if (!enabled) for (const agent of this.agents) {
+      if (agent.activity === 'game' && agent.spotId) this.endBreak(agent);
+    }
+  }
 
   constructor(options: { breaks?: boolean; seed?: number } = {}) {
     this.breaks = options.breaks ?? true;
@@ -540,7 +548,7 @@ export class OfficeSimulation {
     if (this.hasWaitingTask(agent)) { agent.phaseTime = 0; return; }
     const away = this.agents.filter(a => a.role !== 'manager' && (a.phase === 'to_break' || a.phase === 'break' || a.phase === 'from_break')).length;
     if (away >= MAX_AWAY) { agent.rest = agent.phaseTime + this.between(10, 25); return; }
-    const kinds = (Object.keys(BREAKS) as BreakKind[]).filter(kind => BREAKS[kind].weight > 0 && this.freeSpots(kind).length);
+    const kinds = (Object.keys(BREAKS) as BreakKind[]).filter(kind => (kind !== 'game' || this.gamesEnabled) && BREAKS[kind].weight > 0 && this.freeSpots(kind).length);
     if (!kinds.length) { agent.rest = agent.phaseTime + this.between(4, 10); return; }
     let roll = this.random() * kinds.reduce((sum, kind) => sum + BREAKS[kind].weight, 0);
     const kind = kinds.find(k => (roll -= BREAKS[k].weight) < 0) ?? kinds[0];

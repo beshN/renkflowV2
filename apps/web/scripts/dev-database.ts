@@ -66,7 +66,7 @@ async function main() {
     }
   }
   console.log(
-    `Local PostgreSQL ready · renkflow_dev / renkflow_test${empty ? " · empty mode (no schema or migrations)" : ""}`,
+    `Local PostgreSQL ready on port ${localTestDatabasePort()} · renkflow_dev / renkflow_test${empty ? " · empty mode (no schema or migrations)" : ""}`,
   );
   async function stop() {
     await engine.stop();
