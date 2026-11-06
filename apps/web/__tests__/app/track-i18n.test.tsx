@@ -157,3 +157,27 @@ test('429 keeps existing data below its warning and continues polling', async ()
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   expect(heading).toBeInTheDocument();
 });
+
+
+test.each(['tr', 'en'] as const)('404 hides previously loaded data and polling can recover in %s', async locale => {
+  jest.useFakeTimers();
+  await mount(`/track/test?lang=${locale}`);
+  const json = jest.fn().mockRejectedValue(new Error('non-JSON response'));
+  (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: false, status: 404, json });
+  await act(async () => { jest.advanceTimersByTime(20000); });
+  expect(screen.getByRole('alert')).toHaveTextContent((locale === 'en' ? en : tr).track.invalidLink);
+  expect(screen.queryByRole('heading', { name: order.orderNumber })).not.toBeInTheDocument();
+  expect(screen.queryByText('Özel profil RAL 7016')).not.toBeInTheDocument();
+  expect(json).not.toHaveBeenCalled();
+  await act(async () => { jest.advanceTimersByTime(20000); });
+  expect(screen.getByRole('heading', { name: order.orderNumber })).toBeInTheDocument();
+});
+
+test.each([500, 403])('%i preserves data below the generic warning', async status => {
+  jest.useFakeTimers();
+  await mount('/track/test?lang=en');
+  (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: false, status });
+  await act(async () => { jest.advanceTimersByTime(20000); });
+  expect(screen.getByRole('alert')).toHaveTextContent(en.track.loadError);
+  expect(screen.getByRole('heading', { name: order.orderNumber })).toBeInTheDocument();
+});
