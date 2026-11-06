@@ -10,6 +10,8 @@ import { requestJson } from "@/lib/shared/network";
 type Lot = {
   id: string;
   lot_number: string;
+  heat_number?: string | null;
+  supplier_lot_number?: string | null;
   product_code: string;
   product_name: string;
   warehouse_name: string;
@@ -94,7 +96,7 @@ function LotSearch() {
       {result.state === "error" && (
         <div role="alert">
           <p>Yüklenemedi</p>
-          <button className="rf-secondary-button mt-2" onClick={() => { if (query) void search(query); }}>
+          <button type="button" className="rf-secondary-button mt-2" onClick={() => { if (query) void search(query); }}>
             Tekrar dene
           </button>
         </div>
@@ -104,6 +106,8 @@ function LotSearch() {
         : result.lots.map((lot) => (
           <article key={lot.id} className="space-y-2 border-t border-border pt-3 text-sm">
             <h3 className="font-medium">Lot {lot.lot_number}</h3>
+            {lot.heat_number && <p>Döküm no: {lot.heat_number}</p>}
+            {lot.supplier_lot_number && <p>Tedarikçi lot no: {lot.supplier_lot_number}</p>}
             <p>Profil: {lot.product_code} · {lot.product_name}</p>
             <p>Depo: {lot.warehouse_name} · Giriş tarihi: {new Date(lot.created_at).toLocaleDateString("tr-TR")}</p>
             <p>Kalan miktar: {lot.remaining_qty} {lot.uom}</p>
