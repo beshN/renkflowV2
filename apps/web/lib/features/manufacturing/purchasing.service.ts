@@ -62,7 +62,7 @@ export type ProcurementOrder = {
   currency:string|null; expected_at: string | null; notes: string; created_at: string; lines: ProcurementLine[];
 };
 export type ProcurementSupplier = { id: string; name: string; contact_name: string; phone: string; email: string; payment_terms: number; notes: string; is_active: boolean; version: number };
-export type ProcurementReceipt = { id: string; receipt_number: string; purchase_order_number: string; supplier_name: string; status: string; notes: string; created_at: string; stock_entry_id: string; lines: Array<{ item_name: string; accepted_qty: number; rejected_qty: number; uom: string; metadata: { rejectionReason?: string } }> };
+export type ProcurementReceipt = { id: string; receipt_number: string; purchase_order_number: string; supplier_name: string; status: string; notes: string; created_at: string; stock_entry_id: string; lines: Array<{ id: string; item_name: string; accepted_qty: number; rejected_qty: number; uom: string; metadata: { rejectionReason?: string } }> };
 export type ProcurementWorkspaceData = {
   actor: WorkOrderActor; suppliers: ProcurementSupplier[]; orders: ProcurementOrder[]; receipts: ProcurementReceipt[];
   items: Array<{ id: string; name: string; stock_uom: string; standard_length_m: number }>;
@@ -141,6 +141,7 @@ export async function executeProcurement(tx: any, actor: WorkOrderActor, action:
     const d = z.object({ id: uuid, version: z.number().int().positive(), reason: z.string().trim().min(5).max(1000) }).parse(raw);
     const [receipt] = await tx`SELECT * FROM goods_receipts WHERE tenant_id=${t} AND id=${d.id} FOR UPDATE`;
     if (!receipt || receipt.status !== 'submitted') fail('Bu mal kabul düzeltilemez');
+    if ((await tx`SELECT 1 FROM supplier_return_lines l JOIN goods_receipt_lines gl ON gl.tenant_id=l.tenant_id AND gl.id=l.goods_receipt_line_id WHERE l.tenant_id=${t} AND gl.goods_receipt_id=${receipt.id} LIMIT 1`).length) fail('İade belgesi bağlı mal kabul terslenemez');
     const [order] = await tx`SELECT * FROM purchase_orders WHERE tenant_id=${t} AND id=${receipt.purchase_order_id} FOR UPDATE`;
     if (!order || order.version !== d.version) fail('Satın alma siparişi değişti; listeyi yenileyin.');
     const [entry] = await tx`SELECT * FROM stock_entries WHERE tenant_id=${t} AND id=${receipt.stock_entry_id} FOR UPDATE`;

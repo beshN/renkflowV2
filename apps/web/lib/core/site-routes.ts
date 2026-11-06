@@ -30,7 +30,7 @@ export const APP_ROUTES = [
   '/account', '/accounting', '/assistant', '/audit', '/calendar', '/crm', '/dashboard', '/factory',
   '/finance', '/installations', '/inventory', '/kanban', '/knowledge', '/leads', '/new-order',
   '/notifications', '/office', '/orders', '/production', '/products', '/purchases', '/quotations',
-  '/receipts', '/reports', '/scrap', '/search', '/service', '/settings', '/shipments', '/suppliers',
+  '/receipts', '/reports', '/scrap', '/search', '/service', '/settings', '/shipments', '/supplier-returns', '/suppliers',
   '/team', '/vehicles', '/warehouse', '/work-orders',
 ] as const;
 

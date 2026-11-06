@@ -76,7 +76,8 @@
     "prebuild": "node scripts/sync-pdf-worker.cjs",
     "predev": "node scripts/sync-pdf-worker.cjs",
     "postbuild": "node scripts/verify-pdf-server-bundle.cjs",
-    "test:promise": "tsx --require ./scripts/register-server-only.cjs scripts/test-promise.ts"
+    "test:promise": "tsx --require ./scripts/register-server-only.cjs scripts/test-promise.ts",
+    "test:supplier-return": "tsx --require ./scripts/register-server-only.cjs scripts/test-supplier-return.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
