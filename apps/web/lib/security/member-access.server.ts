@@ -198,5 +198,6 @@ export function workerApiAllowed(path:string,method:string) {
   if(['/api/v1/production','/api/v1/production/worker','/api/v1/production/workshop','/api/v1/production/loading','/api/v1/production/parts','/api/v1/production/files','/api/v1/warehouse','/api/v1/auth/me','/api/v1/me','/api/v1/notifications','/api/notifications','/api/storage/upload','/api/storage/content','/api/orders/qr'].includes(path) || path.startsWith('/api/work-orders'))return true;
   // Firm policy is readable by every active member; writes remain owner/admin only.
   if(path==='/api/tenant/fun-features')return method==='GET';
-  return method==='GET' && /^\/api\/v1\/orders\/[^/]+\/technical$/.test(path);
+  // Promise deliberately conceals itself from workers with 404 in its route/service guard.
+  return method==='GET' && /^\/api\/v1\/orders\/[^/]+\/(technical|promise)$/.test(path);
 }
