@@ -29,7 +29,9 @@ export async function executeQuality(tx:any,a:WorkOrderActor,action:string,data:
  const events=await tx`SELECT * FROM production_events WHERE tenant_id=${a.tenantId} AND work_order_id=${row.work_order_id} AND created_at>=${row.created_at} AND event_type IN('operation.complete','operation.rework') ORDER BY id`;
  let seconds=reworkLaborSeconds(row.snapshot,events);
  if(d.extraLaborMinutes!==undefined)seconds=d.extraLaborMinutes*60;
- const allocations=await tx`SELECT * FROM work_order_material_lots WHERE tenant_id=${a.tenantId} AND rework_id=${row.id}`;
+ // Cut profiles are costed from the plan below; their new trace rows must not count twice.
+ const allocations=await tx`SELECT m.* FROM work_order_material_lots m WHERE m.tenant_id=${a.tenantId} AND m.rework_id=${row.id}
+   AND NOT EXISTS(SELECT 1 FROM cutting_plan_sources s WHERE s.tenant_id=${a.tenantId} AND s.plan_id=${row.cut_plan_id} AND s.lot_id=m.lot_id)`;
  const components:Array<{label:string;amount:number|null;currency:string|null}>=allocations.map((m:any)=>({label:'Ek malzeme '+m.item_id,amount:m.unit_cost===null?null:Number(m.quantity)*Number(m.unit_cost),currency:m.currency}));
  const [plan]=row.cut_plan_id?await tx`SELECT * FROM cutting_plans WHERE tenant_id=${a.tenantId} AND id=${row.cut_plan_id} AND status='completed'`:[];
  if(row.profile_cuts?.length){

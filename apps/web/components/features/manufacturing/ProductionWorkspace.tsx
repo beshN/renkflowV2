@@ -71,7 +71,7 @@ const status: Record<string, string> = {
   uncertain: "Teslimat doğrulanmalı",
   superseded: "Eski çizelge",
 };
-function Field({ name, label, type = "text", required = true, value }: any) {
+function Field({ name, label, type = "text", required = true, value, maxLength }: any) {
   return (
     <label className="block text-xs">
       {label}
@@ -81,6 +81,7 @@ function Field({ name, label, type = "text", required = true, value }: any) {
         required={required}
         step={type === "number" ? "any" : undefined}
         defaultValue={value}
+        maxLength={maxLength}
         className="rf-input mt-2 w-full"
       />
     </label>
@@ -1051,6 +1052,8 @@ export default function ProductionWorkspace() {
                       )}
                     />
                     <Field name="lotNumber" label="Lot / irsaliye kodu" />
+                    <Field name="supplierLotNumber" label="Tedarikçi lot no" required={false} maxLength={64} />
+                    <Field name="heatNumber" label="Döküm (heat) no" required={false} maxLength={64} />
                     <Field
                       name="quantity"
                       label="Profil adedi / diğer stok miktarı"
