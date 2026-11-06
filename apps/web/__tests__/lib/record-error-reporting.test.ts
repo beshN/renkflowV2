@@ -27,7 +27,7 @@ it('reports the fallback once with the operation label and preserves the respons
 
 it.each([
   [new WorkOrderApiError('Forbidden', 403, 'FORBIDDEN'), 403, { error: 'Forbidden', code: 'FORBIDDEN' }],
-  [new ZodError([]), 400, { error: 'Geçersiz istek' }],
+  [new ZodError([]), 400, { error: 'Geçersiz istek', fields: [] }],
   [new SyntaxError('Bad JSON'), 400, { error: 'Geçersiz istek' }],
   [new Error('Dosya geçersiz'), 400, { error: 'Dosya geçersiz' }],
   [new Error('STORAGE_BACKEND missing'), 503, { error: 'Dosya eki bu kurulumda kapalı (depolama yapılandırılmamış)' }],
