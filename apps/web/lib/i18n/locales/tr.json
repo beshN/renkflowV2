@@ -182,5 +182,46 @@
     "weeksAgo": "{{count}} hafta önce",
     "monthsAgo": "{{count}} ay önce",
     "yearsAgo": "{{count}} yıl önce"
+  },
+  "track": {
+    "title": "Sipariş takibi",
+    "eyebrow": "RENK ALÜMİNYUM · SİPARİŞ TAKİBİ",
+    "loading": "Sipariş bilgisi alınıyor",
+    "loadError": "Takip bilgisi alınamadı",
+    "invalidLink": "Takip bağlantısı geçersiz veya süresi dolmuş.",
+    "fallback": "Siparişiniz işleme alındı.",
+    "share": "WhatsApp'ta paylaş",
+    "shareText": "Siparişim {{orderNumber}}: {{sentence}} {{url}}",
+    "stages": "Sipariş aşamaları",
+    "estimatedDelivery": "Tahmini teslim",
+    "quantity": "{{quantity}} adet",
+    "produced": "{{produced}} / {{planned}} üretildi",
+    "open3d": "Kaydedilmiş 3D görünümü aç",
+    "shipments": "Sevkiyat",
+    "delivered": "Teslim edildi",
+    "inTransit": "Yolda",
+    "language": "Dil",
+    "sentences": {
+      "new": "Siparişiniz alındı.",
+      "pending_approval": "Siparişiniz onay bekliyor.",
+      "approved": "Siparişiniz onaylandı.",
+      "preparing_materials": "Malzemeleriniz hazırlanıyor.",
+      "ready_for_production": "Üretim sırasına alındı.",
+      "in_production": "Profilleriniz kesiliyor ve işleniyor.",
+      "quality_check": "Montaj ve kalite kontrolde.",
+      "ready_for_shipment": "Paketlendi, sevke hazır.",
+      "shipped": "Yola çıktı.",
+      "completed": "Teslim edildi.",
+      "cancelled": "Sipariş iptal edildi.",
+      "on_hold": "Sipariş beklemede."
+    },
+    "steps": {
+      "quote": "Teklif",
+      "approval": "Onay",
+      "production": "Üretim",
+      "cutting": "Kesim",
+      "assembly": "Montaj",
+      "delivery": "Teslim"
+    }
   }
 }
