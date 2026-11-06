@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 export type PublicLocale = "tr" | "en";
 
 /** Public pages deliberately bypass the global language detector and storage. */
-export function usePublicLocale(titles: { tr: string; en: string }) {
-  const [locale, setLocale] = useState<"tr" | "en">("tr");
+export function usePublicLocale(titles: { tr: string; en: string }, initialLang?: string | string[]) {
+  const [locale, setLocale] = useState<PublicLocale>(initialLang === "en" ? "en" : "tr");
   const title = titles[locale];
   useEffect(() => {
     const selectLanguage = () => {

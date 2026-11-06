@@ -222,7 +222,8 @@
       "cutting": "Kesim",
       "assembly": "Montaj",
       "delivery": "Teslim"
-    }
+    },
+    "rateLimited": "Çok sık denendi, biraz sonra tekrar deneyin."
   },
   "quote": {
     "title": "Fiyat teklifi",
@@ -261,7 +262,10 @@
     "reject": "Reddet",
     "record": "Kararınız adınız, tarih-saat ve IP adresinizle {{firm}} tarafından kaydedilir.",
     "notDecidable": "Bu teklif şu an karar beklemiyor.",
-    "binding": "Türkçe metin bağlayıcıdır."
+    "binding": "Türkçe metin bağlayıcıdır.",
+    "rateLimited": "Çok sık denendi, biraz sonra tekrar deneyin.",
+    "alreadyDecided": "Bu teklif için karar zaten verilmiş veya teklifin durumu değişmiş olabilir. Güncel durumu kontrol edin.",
+    "checkFields": "Lütfen alanları kontrol edin"
   },
   "signoff": {
     "title": "Montaj teslim onayı",
@@ -287,6 +291,9 @@
     "declaration": "Yukarıdaki montajı teslim aldım; not edilen eksikler dışında iş tamamdır.",
     "approve": "Teslimi onayla",
     "record": "Onayınız adınız, saat ve bağlantı bilgisiyle firmanın kaydına yazılır.",
-    "binding": "Türkçe metin bağlayıcıdır."
+    "binding": "Türkçe metin bağlayıcıdır.",
+    "rateLimited": "Çok sık denendi, biraz sonra tekrar deneyin.",
+    "alreadySigned": "Bu teslim zaten imzalanmış veya montajın durumu değişmiş olabilir. Güncel durumu kontrol edin.",
+    "checkFields": "Lütfen alanları kontrol edin"
   }
 }

@@ -1,4 +1,5 @@
 import { formatCurrency } from '@/lib/utils';
+import { renderToString } from 'react-dom/server';
 import { Suspense } from 'react';
 import { act, fireEvent, render, screen, cleanup, within } from '@testing-library/react';
 import Page from '@/app/teklif/[token]/page';
@@ -18,12 +19,13 @@ const data = {
   items: [{ productName: 'Özel profil RAL 7016', description: 'Özel açıklama', quantity: 2, unitPrice: 61.72, discountPercent: 5, totalPrice: 123.45 }],
 };
 const originalFetch = global.fetch;
+const routeQuery = () => Promise.resolve(Object.fromEntries(new URLSearchParams(window.location.search)));
 const copy = tr.quote;
 const english = en.quote;
 async function mount(query = '', response?: { ok: boolean; status: number; json: () => Promise<unknown> }) {
   window.history.replaceState(null, '', `/teklif/test${query}`);
   global.fetch = jest.fn().mockResolvedValue(response ?? { ok: true, status: 200, json: async () => ({ data }) });
-  await act(async () => { render(<Suspense><Page params={Promise.resolve({ token: 'test' })} /></Suspense>); });
+  await act(async () => { render(<Suspense><Page params={Promise.resolve({ token: 'test' })} searchParams={routeQuery()} /></Suspense>); });
 }
 beforeEach(() => { Object.defineProperty(navigator, 'language', { configurable: true, value: 'tr-TR' }); });
 afterEach(() => { cleanup(); global.fetch = originalFetch; jest.restoreAllMocks(); });
@@ -107,7 +109,7 @@ test('network rejection uses a local error and loading copy follows URL', async 
   cleanup();
   window.history.replaceState(null, '', '/teklif/test?lang=en');
   global.fetch = jest.fn().mockReturnValue(new Promise(() => {}));
-  await act(async () => { render(<Suspense><Page params={Promise.resolve({ token: 'test' })} /></Suspense>); });
+  await act(async () => { render(<Suspense><Page params={Promise.resolve({ token: 'test' })} searchParams={routeQuery()} /></Suspense>); });
   expect(screen.getByRole('status')).toHaveTextContent(english.loading);
 });
 
@@ -135,4 +137,57 @@ test.each(['accepted', 'rejected'])('completed %s status and Istanbul time use E
   await mount('?lang=en', { ok: true, status: 200, json: async () => ({ data: { ...data, status, decidedBy: 'Özel İsim', decidedAt: '2026-11-05T22:30:00Z' } }) });
   expect(screen.getByRole('status')).toHaveTextContent(status === 'accepted' ? 'Approved' : 'Rejected');
   expect(screen.getByText(/Özel İsim/)).toHaveTextContent('06/11/2026');
+});
+
+test('English route searchParams render an English heading before effects', () => {
+  const fulfilled = <T,>(value: T) => Object.assign(Promise.resolve(value), { status: 'fulfilled', value });
+  window.history.replaceState(null, '', '/teklif/test');
+  const html = renderToString(<Page params={fulfilled({ token: 'test' })} searchParams={fulfilled({ lang: 'en' })} />);
+  expect(html).toContain(`<h1 class="rf-page-title">${english.title}</h1>`);
+  expect(html).not.toContain(copy.title);
+  expect(global.fetch).toBe(originalFetch);
+});
+
+test.each(['tr', 'en'] as const)('GET 429 uses dedicated %s copy without parsing a body', async locale => {
+  const messages = locale === 'en' ? english : copy;
+  const json = jest.fn().mockRejectedValue(new Error('non-JSON response'));
+  await mount(`?lang=${locale}`, { ok: false, status: 429, json });
+  expect(screen.getByRole('alert')).toHaveTextContent(messages.rateLimited);
+  expect(json).not.toHaveBeenCalled();
+});
+
+test.each(['tr', 'en'] as const)('POST error mapping and 409 reload use %s copy', async locale => {
+  const messages = locale === 'en' ? english : copy;
+  await mount(`?lang=${locale}`);
+  fireEvent.change(screen.getByLabelText(messages.name), { target: { value: 'Özel İsim' } });
+
+  const fetch = jest.mocked(global.fetch);
+  for (const [status, key] of [[404, 'invalidLink'], [429, 'rateLimited'], [400, 'checkFields'], [422, 'submitError'], [500, 'submitError']] as const) {
+    // 422 is not emitted by these services; it must stay a generic failure.
+    const json = jest.fn().mockResolvedValue({ error: 'Sunucunun Türkçe ayrıntısı' });
+    fetch.mockResolvedValueOnce({ ok: false, status, json } as unknown as Response);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.approve })); });
+    expect(screen.getByRole('alert')).toHaveTextContent(messages[key]);
+    expect(screen.queryByText('Sunucunun Türkçe ayrıntısı')).not.toBeInTheDocument();
+    expect(json).not.toHaveBeenCalled();
+  }
+  const before = fetch.mock.calls.length;
+  fetch.mockResolvedValueOnce({ ok: false, status: 409 } as Response);
+  fetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: { ...data, status: 'accepted', decidable: false, decidedBy: 'Özel İmza' } }) } as Response);
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.approve })); });
+  expect(fetch).toHaveBeenCalledTimes(before + 2);
+  expect(fetch.mock.calls.at(-1)).toEqual(['/api/v1/public/quotes/test', { cache: 'no-store' }]);
+  expect(screen.getByText(messages.alreadyDecided)).toBeInTheDocument();
+  expect(screen.getByText(/Özel İmza/)).toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: messages.approve })).not.toBeInTheDocument();
+});
+
+test('language buttons use the shared selected styles', async () => {
+  await mount('?lang=en');
+  expect(screen.getByRole('button', { name: 'EN' })).toHaveClass('rf-primary-button');
+  expect(screen.getByRole('button', { name: 'TR' })).toHaveClass('rf-secondary-button');
+  fireEvent.click(screen.getByRole('button', { name: 'TR' }));
+  expect(screen.getByRole('button', { name: 'TR' })).toHaveClass('rf-primary-button');
+  expect(screen.getByRole('button', { name: 'EN' })).toHaveClass('rf-secondary-button');
 });

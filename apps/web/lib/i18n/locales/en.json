@@ -222,7 +222,8 @@
       "cutting": "Cutting",
       "assembly": "Assembly",
       "delivery": "Delivery"
-    }
+    },
+    "rateLimited": "Too many attempts. Please try again shortly."
   },
   "quote": {
     "title": "Price quotation",
@@ -261,7 +262,10 @@
     "reject": "Reject",
     "record": "Your decision is recorded by {{firm}} with your name, date, time and IP address.",
     "notDecidable": "This quotation is not currently awaiting a decision.",
-    "binding": "The Turkish text is binding."
+    "binding": "The Turkish text is binding.",
+    "rateLimited": "Too many attempts. Please try again shortly.",
+    "alreadyDecided": "This quotation may already have a decision or its status may have changed. Please check the current status.",
+    "checkFields": "Please check the fields"
   },
   "signoff": {
     "title": "Installation delivery sign-off",
@@ -287,6 +291,9 @@
     "declaration": "I have received the installation above; the work is complete except for the recorded missing items.",
     "approve": "Confirm delivery",
     "record": "Your confirmation is recorded by the company with your name, time and connection information.",
-    "binding": "The Turkish text is binding."
+    "binding": "The Turkish text is binding.",
+    "rateLimited": "Too many attempts. Please try again shortly.",
+    "alreadySigned": "This delivery may already be signed or the installation status may have changed. Please check the current status.",
+    "checkFields": "Please check the fields"
   }
 }

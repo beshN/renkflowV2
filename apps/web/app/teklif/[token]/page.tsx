@@ -12,6 +12,7 @@ import { ProductDialog } from '@/components/features/product-3d/ProductDialog';
 import type { ProductVisualization } from '@/lib/features/product-3d/catalog';
 import type { AwningConfiguration } from '@/lib/features/awning/configuration';
 
+import { PublicLanguageSwitch } from "@/components/shared/PublicLanguageSwitch";
 import tr from "@/lib/i18n/locales/tr.json";
 import en from "@/lib/i18n/locales/en.json";
 import { usePublicLocale } from "@/lib/i18n/public-locale";
@@ -23,16 +24,19 @@ type Quote = {
 };
 
 /** The customer's own quote behind an approval link, with one decision: approve or reject, with their name. */
-export default function QuoteApproval({ params }: { params: Promise<{ token: string }> }) {
+export default function QuoteApproval({ params, searchParams }: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ lang?: string | string[] }>;
+}) {
   const { token } = use(params);
-  const { locale, changeLanguage } = usePublicLocale({ tr: tr.quote.title, en: en.quote.title });
+  const { lang } = use(searchParams);
+  const { locale, changeLanguage } = usePublicLocale({ tr: tr.quote.title, en: en.quote.title }, lang);
   const messages = (locale === "en" ? en : tr).quote;
   const dateLocale = locale === "en" ? "en-GB" : "tr-TR";
-  const languageSwitch = <div className="flex gap-2 text-xs" role="group" aria-label={messages.language}>
-    {(["tr", "en"] as const).map((language) => <button key={language} type="button" lang={language} aria-pressed={locale === language} onClick={() => changeLanguage(language)}>{language.toUpperCase()}</button>)}
-  </div>;
+  const languageSwitch = <PublicLanguageSwitch locale={locale} onChange={changeLanguage} label={messages.language} />;
   const [quote, setQuote] = useState<Quote>();
-  const [error, setError] = useState<"" | "invalidLink" | "loadError" | "submitError">("");
+  const [error, setError] = useState<"" | "invalidLink" | "loadError" | "submitError" | "rateLimited" | "checkFields">("");
+  const [notice, setNotice] = useState<"" | "alreadyDecided">("");
   const [name, setName] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -40,7 +44,7 @@ export default function QuoteApproval({ params }: { params: Promise<{ token: str
   const load = useCallback(async () => {
     try {
       const r = await fetch(`/api/v1/public/quotes/${token}`, { cache: "no-store" });
-      if (!r.ok) { setError(r.status === 404 ? "invalidLink" : "loadError"); return; }
+      if (!r.ok) { setError(r.status === 404 ? "invalidLink" : r.status === 429 ? "rateLimited" : "loadError"); return; }
       const body = await r.json();
       setQuote(body.data);
       setError("");
@@ -51,9 +55,12 @@ export default function QuoteApproval({ params }: { params: Promise<{ token: str
   async function decide(decision: "accept" | "reject") {
     setBusy(true);
     setError("");
+    setNotice("");
     try {
       const r = await fetch(`/api/v1/public/quotes/${token}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision, name, note: note || undefined }) });
-      if (!r.ok) { setError(r.status === 404 ? "invalidLink" : "submitError"); return; }
+      // Services use 409 for an already recorded decision and other state conflicts.
+      if (r.status === 409) { setNotice("alreadyDecided"); await load(); return; }
+      if (!r.ok) { setError(r.status === 404 ? "invalidLink" : r.status === 429 ? "rateLimited" : r.status === 400 ? "checkFields" : "submitError"); return; }
       await load();
     } catch { setError("submitError"); }
     finally { setBusy(false); }
@@ -62,12 +69,14 @@ export default function QuoteApproval({ params }: { params: Promise<{ token: str
   if (error && !quote)
     return <main className="grid min-h-screen place-items-center bg-background p-6">{languageSwitch}<p role="alert" className="rf-panel max-w-md text-center text-sm">{messages[error]}</p></main>;
   if (!quote)
-    return <main className="mx-auto min-h-screen max-w-3xl space-y-4 bg-background p-4 pt-10" role="status">{languageSwitch}<span className="sr-only">{messages.loading}</span><Skeleton className="h-10 w-2/3" /><Skeleton className="h-48" /><Skeleton className="h-24" /></main>;
+    return <main className="mx-auto min-h-screen max-w-3xl space-y-4 bg-background p-4 pt-10" role="status">{languageSwitch}<h1 className="rf-page-title">{messages.title}</h1><span className="sr-only">{messages.loading}</span><Skeleton className="h-10 w-2/3" /><Skeleton className="h-48" /><Skeleton className="h-24" /></main>;
 
   const done = quote.status === "accepted" || quote.status === "rejected";
   return (
     <main className="mx-auto min-h-screen max-w-4xl space-y-6 bg-background p-4 pt-8 sm:p-8 sm:pt-12">
       {languageSwitch}
+      {notice && <p role="status" className="rf-panel text-sm">{messages[notice]}</p>}
+      {error && <p role="alert" className="rf-panel text-sm">{messages[error]}</p>}
       <header className="space-y-5 border-b border-border pb-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
@@ -150,7 +159,6 @@ export default function QuoteApproval({ params }: { params: Promise<{ token: str
           <label className="block text-sm">{messages.note}
             <textarea maxLength={1000} className="rf-input mt-1 min-h-16 w-full" value={note} onChange={(e) => setNote(e.target.value)} />
           </label>
-          {error && <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">{messages[error]}</p>}
           <div className="flex flex-wrap gap-2">
             <button disabled={busy || name.trim().length < 2} className="rf-primary-button"><BadgeCheck size={15} /> {messages.approve}</button>
             <button type="button" disabled={busy || name.trim().length < 2} className="rf-input" onClick={() => void decide("reject")}>{messages.reject}</button>
