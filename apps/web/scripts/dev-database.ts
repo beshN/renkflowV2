@@ -6,6 +6,9 @@ import path from "node:path";
 import postgres from "postgres";
 async function main() {
   const empty = process.argv.includes("--empty");
+  const names = process.argv.includes("--test-only")
+    ? ["renkflow_test"]
+    : ["renkflow_dev", "renkflow_test"];
   // RENKFLOW_TEST_DB_DIR gives a throwaway cluster (the integration runner uses a fresh temp dir).
   const directory = path.resolve(
     process.env.RENKFLOW_TEST_DB_DIR || ".data/postgres",
@@ -30,14 +33,14 @@ async function main() {
   const admin = postgres(
     `postgres://postgres:renkflow-local-only@127.0.0.1:${localTestDatabasePort()}/postgres`,
   );
-  for (const name of ["renkflow_dev", "renkflow_test"]) {
+  for (const name of names) {
     if (!(await admin`SELECT 1 FROM pg_database WHERE datname=${name}`).length)
       await admin.unsafe(
         `CREATE DATABASE ${name} ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0`,
       );
   }
   const ascii =
-    await admin`SELECT datname FROM pg_database WHERE datname IN ('renkflow_dev', 'renkflow_test') AND pg_encoding_to_char(encoding) <> 'UTF8'`;
+    await admin`SELECT datname FROM pg_database WHERE datname IN ${admin(names)} AND pg_encoding_to_char(encoding) <> 'UTF8'`;
   if (ascii.length)
     console.warn(
       `Not UTF8 (created by an older version of this script): ${ascii.map((r) => r.datname).join(", ")}. Drop them and rerun to match production.`,
@@ -45,7 +48,7 @@ async function main() {
   await admin.end();
   if (!empty) {
     const { ensureBackendSchema } = await import("./ensure-backend-schema");
-    for (const name of ["renkflow_dev", "renkflow_test"]) {
+    for (const name of names) {
       const db = postgres(
         `postgres://postgres:renkflow-local-only@127.0.0.1:${localTestDatabasePort()}/${name}`,
         { onnotice: () => {} },
@@ -66,7 +69,7 @@ async function main() {
     }
   }
   console.log(
-    `Local PostgreSQL ready on port ${localTestDatabasePort()} · renkflow_dev / renkflow_test${empty ? " · empty mode (no schema or migrations)" : ""}`,
+    `Local PostgreSQL ready on port ${localTestDatabasePort()} · ${names.join(" / ")}${empty ? " · empty mode (no schema or migrations)" : ""}`,
   );
   async function stop() {
     await engine.stop();

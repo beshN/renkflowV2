@@ -210,18 +210,29 @@ veya kapasite takviminin doğrulandığı anlamına gelmez.
 
 ### Makaslı uçtan uca prova
 
-Önceden hazırlanmış, yalnız loopback üzerinde çalışan izole `renkflow_test`
-veritabanıyla, `apps/web` içinde (örnek yerel port 55547):
+`apps/web` içinde:
+
+```sh
+npm run test:integration -- makasli-e2e
+```
+
+Runner boş ve geçici bir PostgreSQL kümesini boş bir portta açar; yalnız
+`renkflow_test` oluşturur (`dev-database.ts --test-only`). Mevcut `schema.sql`,
+bootstrap migration'ları ve `ensureBackendSchema` zinciri uygulanır. Eksik
+`product_drilling_rules` tablosunu oluşturan mevcut adım
+`lib/db/migrations/064_order_technical_files.sql` bu zincirdedir. Yeni migration
+veya uygulama şeması değişikliği gerekmez. Mobil test şeması da mevcut yerel
+kurulum yoluyla yalnız bu DB'ye uygulanır. Küme test sonunda kapatılıp silinir;
+`renkflow_dev` hazırlanmaz. Runner dış DATABASE_URL değerlerini kullanmaz.
+
+Önceden aynı yolla hazırlanmış bir test DB'sinde betik doğrudan da çalıştırılabilir:
 
 ```sh
 RENKFLOW_TEST_DB_PORT=55547 node --require ./scripts/register-server-only.cjs --import tsx scripts/test-makasli-e2e.ts
 ```
 
-Bu komut veritabanını başlatmaz, şema/migration uygulamaz; eksik tabloyu açık
-hata olarak bildirir. `npm run db:local` veya integration runner ile hazırlamayın:
-bunlar renkflow_dev'i de hazırlar. Yalnız test veritabanı hazırlayan izole bir
-test düzeneği kullanılmalıdır. `test:makasli-e2e` npm satırı kaldırılmıştır.
-Script stdout'u doğrudan görünür.
+Doğrudan betik DB başlatmaz veya migration uygulamaz; eksik tabloyu hata olarak
+bildirir. Adım çıktıları runner'dan da doğrudan görünür.
 
 Zincir: korumalar → TEST fixture → hazırlık raporu → teklif/idempotency →
 ticari onay → insan teknik onayı/iş emri → kesim → boya/üretim →
@@ -230,13 +241,20 @@ kısayolları ve rapor bulguları `BULGU ·`, hata ise adımıyla `FAIL ·` basa
 Metre, kg ve adet kontrolleri ayrıdır; her çalıştırma UUID slug'lı TEST tenant
 ve `@example.invalid` kullanıcılar oluşturur.
 
-**Blokeli prova:** Hazırlık raporu `PROFILE_FIELDS / profile_section` blocker
-verir; `material.save` bu alanı kabul etmiyor/yazmıyor. Servis değişikliği veya
-raw UPDATE ile aşılmaz. Sonraki adımlar ve FINISHED kontrolleri henüz uçtan uca
-doğrulanmadı; 10 PASS / sıfır çıkış kabulü sağlanmadı. Delme kuralı ve kimlik/
-üyelik bootstrap kayıtları etiketli INSERT'tir; aile eşlemesi `importFamilyRecipe`
-ile yapılır. Import sonucu yalnız reçete id/code/version içerdiği için
-editRevision bu id/sürümün kalıcı kaydından okunur; sabit 1 varsayılmaz.
+6 Kasım 2026 doğrulaması: güncel main `f915919f`, PR head `69765122` üzerine
+merge commit ile alındı. İzole test DB'sinde **10/10 PASS**, çıkış kodu **0**:
+Korumalar, Fixture, Hazırlık, Teklif, Onay, İş emri, Kesim, Üretim, Mamul stok,
+Sevkiyat. FINISHED stoku üretimden sonra 2 adet, yüklemeden sonra 0; fazla
+sevkiyat 409 ile reddedilir; teslim sonrası sipariş tamamlanır.
+
+Fixture `material.save` üzerinden `profileSection` gönderir; mevcut servis bu
+alanı kalıcı yazar. Reçete yayını gerekçe içerir. Yapılandırılmış teklif kalemi
+`TEST-MAK-PILOT` reçetesini iş emrine taşır; sevkiyatın sipariş bağlantısı
+`shipment_items.order_id` üzerinden doğrulanır (`shipments.order_id` yoktur).
+Raw UPDATE ile servis aşılmaz. Delme kuralı ve kimlik/üyelik bootstrap kayıtları
+etiketli INSERT'tir; aile eşlemesi `importFamilyRecipe` ile yapılır. Import sonucu
+yalnız reçete id/code/version içerdiği için editRevision bu id/sürümün kalıcı
+kaydından okunur; sabit 1 varsayılmaz.
 
 Dış `DATABASE_URL` yok sayılır. Özel istemci yanında, ilk domain servisinden ve
 fixture yazımından önce `withTransaction` ile **lib/db servis havuzunda** da
@@ -245,24 +263,21 @@ fixture yazımından önce `withTransaction` ile **lib/db servis havuzunda** da
 kullanır; `POSTGRES_URL`/`DIRECT_URL` önceliği, dotenv yüklemesi veya Neon
 sürücüsü yoktur. URL, lib/db import edilmeden önce yerel test URL'sine sabitlenir.
 
-Genel runner başlangıçta `test-*.ts` dosyalarını otomatik keşfediyordu;
-`.github/workflows/validate.yml` genel `test:integration` komutunu çağırır.
-Blokeli prova artık runner'ın EXCLUDED listesinde olduğundan genel CI turuna
-girmez. `makasli-e2e` seçici argümanı runner tarafından tanınır fakat artık DB
-başlatılmadan, doğrudan güvenli komutu gösteren açık hatayla reddedilir; karma
-seçim de reddedilir. Diğer integration testlerinin davranışı değişmez. Blocker
-kalkınca otomatik katılım ayrı değerlendirilmelidir. Boş DB isteyen
-pilot-readiness testi de genel runner dışında tutulur; ayrı komutu aşağıdadır.
+Prova artık genel runner'ın EXCLUDED listesinde değildir. Varsayılan
+`npm run test:integration` keşfi ve `.github/workflows/validate.yml` içindeki
+mevcut entegrasyon adımı provayı çalıştırır; ayrı workflow/npm satırı gerekmez.
+Tekli ve karma seçim de desteklenir. Boş DB isteyen pilot-readiness testi ise
+aynı gerekçeyle genel runner dışında kalır; ayrı komutu aşağıdadır.
 
 Föy şemasında makaslıya özel tip yoktur (pergola/windbreaker/unknown).
 Sentetik fixture mevcut pergola `systems/railOuter/bays` alanlarını
 `family=makasli` adaptörüne verir ve bunu BULGU olarak yazar; gerçek makaslı
-föy doğrulaması değildir. `approveTechnicalPlan` → `createSheetJobs`, ticari
-TEST-MAK-PILOT yerine FOY-MAKASLI reçetesine bağlı iş emri ve sabit
-Kesim/Boya/Son hazırlık operasyonları üretir. Mamul/reçete kartları önceden TEST
+föy doğrulaması değildir. `approveTechnicalPlan`, yapılandırılmış teklif için
+`createJobsForConfiguredOrder` üzerinden TEST-MAK-PILOT reçetesine bağlı iş emri
+ve reçetede tanımlı Kesim/Boya/Son hazırlık operasyonlarını üretir. Mamul/reçete kartları önceden TEST
 adlarıyla oluşturulur. `preferences.save` üretim lideri alanını yok sayar; fixture mevcut
 `saveProductionLead(actor, {leadUserId})` servisini kullanır ve kalıcı ayarı
-doğrular. `createSheetJobs` bu ayarı iş emri ve operasyon atamasında kullanır. `operation.assign` yalnız operasyonu değiştirir;
+doğrular. İş emri oluşturma servisi bu ayarı iş emri ve operasyon atamasında kullanır. `operation.assign` yalnız operasyonu değiştirir;
 iş emri atanmamışsa prova raw UPDATE yapmadan açıkça fail eder.
 Onaysız dosyanın total_amount=0 beklentisi `ensureQuoteFile` davranışıdır;
 `acceptQuoteFile` müşteri onayında ticari tutarı aynı dosyaya kopyalar.

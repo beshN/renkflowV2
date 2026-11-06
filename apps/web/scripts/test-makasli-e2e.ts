@@ -123,6 +123,7 @@ async function main() {
       itemType: "raw_material",
       uom: "m",
       profileCode: "170",
+      profileSection: "TEST 170 Dere",
       processedStates: ["boyali"],
       standardLengthMm: 6000,
       weightPerMeterKg: 3.482,
@@ -133,6 +134,7 @@ async function main() {
       itemType: "raw_material",
       uom: "m",
       profileCode: "170",
+      profileSection: "TEST 170 Dere",
       processedStates: ["boyasiz"],
       standardLengthMm: 6000,
       weightPerMeterKg: 3.482,
@@ -242,40 +244,9 @@ async function main() {
       })),
     });
     await cmd("recipe.publish", {
+      reason: "TEST sentetik makaslı prova yayını",
       id: recipe.id,
       editRevision: recipe.edit_revision,
-    });
-    await cmd("recipe.save", {
-      code: "FOY-MAKASLI",
-      name: "TEST föy üretim reçetesi",
-      version: 1,
-      finishedItemId: finished.id,
-      rules: [
-        {
-          itemId: profile.id,
-          kind: "profile",
-          uom: "m",
-          quantityFormula: "quantity",
-          cutLengthFormula: "widthMm",
-        },
-      ],
-      operations: [
-        {
-          name: "TEST hazırlık",
-          workCenterCode: "ASSEMBLY",
-          minutesFormula: "10",
-          qualityChecks: [],
-        },
-      ],
-      limits: {
-        minWidthMm: 2500,
-        maxWidthMm: 15000,
-        minProjectionMm: 1500,
-        maxProjectionMm: 5000,
-        minMountingHeightMm: 2200,
-        maxMountingHeightMm: 4500,
-      },
-      examples: [],
     });
     findings.push(
       "INSERT product_drilling_rules: delme kuralı yazma servisi yok; TEST sentetik geometri, gerçek reçete doğrulaması değil",
@@ -457,9 +428,10 @@ async function main() {
       await db`SELECT code FROM production_recipes WHERE tenant_id=${t.id} AND id=${job.recipe_id}`;
     assert.equal(
       jobRecipe.code,
-      "FOY-MAKASLI",
-      "approveTechnicalPlan uses createSheetJobs, not the commercial recipe",
+      "TEST-MAK-PILOT",
+      "Yapılandırılmış teklif kalemi kendi yayınlanmış reçetesini kullanmalı",
     );
+    assert.equal(job.recipe_id, recipe.id);
     if (job.assigned_to !== w.id) {
       findings.push(
         "Üretim liderine otomatik iş emri ataması yok; operation.assign yalnız operasyonu atar, work_orders.assigned_to alanını düzeltmez. Raw UPDATE yapılmaz; operasyon ataması denenip iş emri kontrolü fail eder",
@@ -553,7 +525,7 @@ async function main() {
     assert.deepEqual(
       operations.map((op) => op.name),
       ["Kesim", "Boya", "Son hazırlık"],
-      "createSheetJobs FOY-MAKASLI için bu üç operasyonu üretir",
+      "Yayınlanmış TEST-MAK-PILOT reçetesindeki üç operasyon korunmalı",
     );
     for (const initial of operations) {
       let [op] =
@@ -645,7 +617,7 @@ async function main() {
     assert.equal(issues[0].warehouse_id, warehouses.FINISHED);
     assert.equal(Number(issues[0].quantity_delta), -2);
     const shipments =
-      await db`SELECT id FROM shipments WHERE tenant_id=${t.id} AND order_id=${orderId}`;
+      await db`SELECT DISTINCT s.id FROM shipments s JOIN shipment_items i ON i.shipment_id=s.id AND i.tenant_id=s.tenant_id WHERE s.tenant_id=${t.id} AND i.order_id=${orderId}`;
     assert.equal(shipments.length, 1);
     const items =
       await db`SELECT quantity FROM shipment_items WHERE tenant_id=${t.id} AND shipment_id=${shipments[0].id} AND order_id=${orderId}`;
