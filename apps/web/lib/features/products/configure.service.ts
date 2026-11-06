@@ -99,7 +99,7 @@ export async function configurationOptions(actor: WorkOrderActor, familyKey: str
  * published recipe, and the unit price from the firm's matrix, or the reason it has none (then the
  * seller types the price and the line says so).
  */
-export async function configureProduct(db: any, tenantId: string, currency: string, raw: unknown, memo = new Map<string, Promise<any>>()): Promise<ProductConfiguration> {
+export async function configureProduct(db: any, tenantId: string, currency: string, raw: unknown, memo = new Map<string, Promise<any>>(), existingOrderItemId?: string): Promise<ProductConfiguration> {
   const choice: ConfigurationChoice = ConfigurationChoiceSchema.parse(raw);
   const family = productFamily(choice.family) ?? fail('Bilinmeyen ürün ailesi');
   if(family.geometry==='vertical'){choice.parameters.projectionMm=0;choice.parameters.motor=family.key==='giyotin';}
@@ -108,7 +108,16 @@ export async function configureProduct(db: any, tenantId: string, currency: stri
     SELECT r.* FROM production_recipes r JOIN product_family_recipes m ON m.tenant_id = r.tenant_id AND m.recipe_code = r.code AND m.family = ${family.key}
     WHERE r.tenant_id = ${tenantId} AND r.id = ${choice.recipeId}`;
   if (!row) fail('Reçete bu ürün ailesine ait değil', 409);
-  if (row.status !== 'published') fail(`"${row.code}" reçetesi yayında değil; örneklerle doğrulanıp yayınlanmalı`, 409);
+  // Only a server-selected, tenant-owned existing order line may retain its archived recipe.
+  // Never take this context from the configurator request or trust a submitted snapshot.
+  let retainedRecipe = false;
+  if (row.status === 'archived' && existingOrderItemId) {
+    const [item] = await db`SELECT oi.id FROM order_items oi JOIN orders o ON o.id=oi.order_id
+      WHERE o.tenant_id=${tenantId} AND oi.id=${existingOrderItemId}
+        AND oi.product_configuration->>'recipeId'=${choice.recipeId}`;
+    retainedRecipe = !!item;
+  }
+  if (row.status !== 'published' && !retainedRecipe) fail(`"${row.code}" reçetesi yayında değil; örneklerle doğrulanıp yayınlanmalı`, 409);
   if((row.geometry||'roof')!==(family.geometry||'roof'))fail('Reçetenin ölçü modeli bu ürün grubuyla uyuşmuyor',409);
   if(family.geometry==='vertical'&&!row.verification_source)fail('Mekanizma ve profil standardının doğrulanmış teknik kaynağı gerekli',409);
   // Stock does not limit the choice; one quote with several lines reads the firm's colours once.

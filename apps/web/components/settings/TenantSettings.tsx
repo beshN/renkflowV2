@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { FunFeaturesSettings } from './FunFeaturesSettings';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -171,6 +172,8 @@ export function TenantSettings() {
           </div>
         </form>
       </section>
+
+      <FunFeaturesSettings />
 
       {/* Invites moved to the team screen (role + access role + expiry). */}
       <section className="p-1">

@@ -1,5 +1,7 @@
 'use client';
 
+import { withFunFeatures } from '@/lib/features/settings/useFunFeatures';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
@@ -19,7 +21,7 @@ function grade(totalError: number) {
  * 404 easter egg: a saw head sweeps a 6 m profile; stop it on the target length.
  * Space, Enter or a click cuts. Respects reduced motion by slowing the sweep.
  */
-export function CutGame() {
+function CutGameEnabled() {
   const reduce = useReducedMotion();
   const [round, setRound] = useState(0);
   const [results, setResults] = useState<Result[]>([]);
@@ -108,3 +110,6 @@ export function CutGame() {
     </div>
   );
 }
+
+const CutGame = withFunFeatures(CutGameEnabled);
+export { CutGame };

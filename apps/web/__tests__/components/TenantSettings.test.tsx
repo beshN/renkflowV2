@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { TenantSettings } from '@/components/settings/TenantSettings';
 
+jest.mock('@/components/settings/FunFeaturesSettings', () => ({ FunFeaturesSettings: () => null }));
+
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 jest.mock('@/lib/context/AuthContext', () => ({
   useAuth: () => ({
