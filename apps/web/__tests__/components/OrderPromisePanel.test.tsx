@@ -152,7 +152,8 @@ test.each([true, false])('optimistic %s ise uyarı görünürlüğü ve iş say�
   const { container } = render(<OrderPromisePanel orderId="a" />); calculate();
   await screen.findByText(/Önerilen tarih/);
   if (optimistic) {
-    const warning = screen.getByRole('alert');
+    const warning = screen.getByRole('note');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(warning).toHaveTextContent('İyimser tahmin: 2 bekleyen iş hesaba katılmadı');
     expect(warning.nextElementSibling).toHaveTextContent('Önerilen tarih');
     const details = warning.querySelector('details')!;
@@ -161,6 +162,7 @@ test.each([true, false])('optimistic %s ise uyarı görünürlüğü ve iş say�
     expect(details).toHaveAttribute('open');
     for (const item of ignoredLoad) expect(within(details).getByText(item.reason)).toBeInTheDocument();
   } else {
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByText(ignoredLoad[0].reason)).not.toBeInTheDocument();
   }
@@ -176,6 +178,7 @@ test('eksikler varken iyimser uyarı, nedenleri ve tarihler gösterilmez', async
   render(<OrderPromisePanel orderId="a" />); calculate();
   await screen.findByText('Vardiya gerekli');
   expect(screen.getByText('Reçete gerekli')).toBeInTheDocument();
+  expect(screen.queryByRole('note')).not.toBeInTheDocument();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   expect(screen.queryByText(/Önerilen tarih|09.11.2026|08.11.2026|İyimser tahmin/)).not.toBeInTheDocument();
   expect(screen.queryByText(ignoredLoad[0].reason)).not.toBeInTheDocument();
