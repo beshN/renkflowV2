@@ -1,5 +1,6 @@
 "use client";
 import { PaintDispatchPanel } from "./PaintDispatchPanel";
+import { LotTracePanel } from "./LotTracePanel";
 import { useMemberAccess } from "@/lib/hooks/useMemberAccess";
 import { ZplDownload } from "@/components/features/labels/ZplDownload";
 import { ProductionInsights } from '@/components/production/ProductionInsights';
@@ -935,6 +936,7 @@ export default function ProductionWorkspace() {
       )}
       {tab === "stock" && (
         <>
+          <LotTracePanel />
           <div className="grid gap-5 xl:grid-cols-2">
             {manager && (
               <>
