@@ -1,5 +1,6 @@
 'use client';
 
+import { CustomerRmaEntry } from '@/components/orders/CustomerRmaEntry';
 import { OrderPromisePanel } from '@/components/features/orders/OrderPromisePanel';
 import { OrderTechnicalPanel } from '@/components/features/orders/OrderTechnicalPanel';
 import { measurementSummary } from '@/lib/features/orders/measurement-summary';
@@ -425,6 +426,7 @@ export default function OrderDetailPage() {
                             </div>
                             <div>
                               <p className="text-sm font-semibold text-foreground">{item.productName}</p>
+                              <CustomerRmaEntry orderId={orderId} lineId={item.id} />
                               <div className="mt-0.5 flex flex-wrap gap-2 text-xs text-muted-foreground">
                                 {item.quantity && <span>{item.quantity} adet</span>}
                                 {item.color && <span className="inline-flex items-center gap-1">· <ColorChip color={item.color} size={16} /></span>}

@@ -27,7 +27,7 @@ export const PUBLIC_PAGES = [
 
 /** Signed-in workspace: one entry per folder under app/(dashboard). */
 export const APP_ROUTES = [
-  '/account', '/accounting', '/assistant', '/audit', '/calendar', '/crm', '/dashboard', '/factory',
+  '/account', '/accounting', '/assistant', '/audit', '/calendar', '/crm', '/customer-rmas', '/dashboard', '/factory',
   '/finance', '/installations', '/inventory', '/kanban', '/knowledge', '/leads', '/new-order',
   '/notifications', '/office', '/orders', '/production', '/products', '/purchases', '/quotations',
   '/receipts', '/reports', '/scrap', '/search', '/service', '/settings', '/shipments', '/supplier-returns', '/suppliers',

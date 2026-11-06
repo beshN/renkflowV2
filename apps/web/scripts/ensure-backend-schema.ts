@@ -192,6 +192,7 @@ export const BACKEND_MIGRATIONS = [
   '084_paint_dispatches.sql',
   '085_lot_heat_trace.sql',
   '086_supplier_returns.sql',
+  '087_customer_rma.sql',
 ];
 
 /** Mobile API tables (sessions, offline receipts, uploads, push devices); applied after 045 (installations). */

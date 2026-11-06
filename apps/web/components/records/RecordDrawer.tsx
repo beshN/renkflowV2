@@ -44,6 +44,7 @@ const EVENT_LABEL: Record<string, string> = {
   created: 'oluşturdu', updated: 'güncelledi', status_changed: 'durumu değiştirdi', tags_changed: 'etiketleri değiştirdi', owner_changed: 'sahibini / tarihini değiştirdi',
   checklist_added: 'kontrol maddesi ekledi', checklist_done: 'maddeyi tamamladı', checklist_reopened: 'maddeyi yeniden açtı', checklist_removed: 'maddeyi sildi',
   activity_planned: 'aktivite planladı', activity_done: 'aktiviteyi tamamladı', activity_reopened: 'aktiviteyi yeniden açtı', late_notified: 'gecikme bildirimi gönderildi',
+  decision: 'iade kararı verdi', replacement_approved: 'değişim taslağını onayladı',
   converted: 'siparişe dönüştürdü', deleted: 'sildi', note_added: 'not ekledi',
 };
 const when = (at: string) => new Date(at).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
