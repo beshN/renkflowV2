@@ -793,7 +793,9 @@ async function main() {
   }
   console.log("PASS · resources: real machine calendars, company/role/capability constraints, stale-resource and stale-plan publication rejected");
   const overview = await productionOverview(actor);
-  assert.equal(overview.jobs.length, 2);
+  // The archived-v1 checks above open three jobs of their own on retainedOrder (manual, automatic, rebuilt).
+  assert.equal(overview.jobs.filter((j: any) => j.order_id !== retainedOrder.orderId).length, 2);
+  assert.equal(overview.jobs.filter((j: any) => j.order_id === retainedOrder.orderId).length, 3);
   const {productionAnalytics}=await import("../lib/features/manufacturing/analytics.service");
   const analytics=await productionAnalytics(actor);assert.equal(analytics.centers.length,5);assert(analytics.centers.some(c=>c.baseline && c.baseline.samples>0));
   const isolatedAnalytics=await productionAnalytics({...actor,tenantId:randomUUID()});assert.equal(isolatedAnalytics.predictions.length,0);assert.equal(isolatedAnalytics.centers.length,0);
