@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest } from 'next/server';
 import { ZodError } from 'zod';
@@ -8,13 +9,14 @@ import { colorCatalogSettings, saveColorCatalog } from '@/lib/features/settings/
 export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'private, no-store' };
 
-function error(e: unknown) {
+async function error(e: unknown) {
   if (e instanceof WorkOrderApiError) return redactedJson({ error: e.message }, { status: e.status, headers });
   if (e instanceof ZodError) return redactedJson({ error: e.issues.map((i) => i.message).join(', ') }, { status: 400, headers });
   if (e instanceof SyntaxError) return redactedJson({ error: 'Geçersiz istek' }, { status: 400, headers });
   // Two saves at once: the other one's list is now the catalogue.
   if ((e as { code?: string })?.code === '23505') return redactedJson({ error: 'Renk adı listede iki kez geçiyor' }, { status: 409, headers });
   console.error('[color catalog]', e instanceof Error ? e.message : 'failed');
+  await reportServerError("app/api/v1/settings/colors/route:error", e);
   return redactedJson({ error: 'Sık kullanılan renkler işlenemedi.' }, { status: 500, headers });
 }
 

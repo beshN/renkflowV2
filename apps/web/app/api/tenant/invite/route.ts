@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { recordAudit } from '@/lib/audit/audit-log';
 import { NextRequest, NextResponse } from 'next/server';
 import { withTransaction } from '@/lib/db';
@@ -172,6 +173,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     console.error('Invite error:', error);
+    await reportServerError("app/api/tenant/invite/route:POST", error);
     return NextResponse.json({ error: 'Davet oluşturulurken bir hata oluştu' }, { status: 500 });
   }
 }

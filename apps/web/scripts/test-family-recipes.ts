@@ -71,7 +71,7 @@ async function main() {
   assert.equal(again.recipe.version, 1);
   assert.equal((await db`SELECT jsonb_array_length(examples) AS n FROM production_recipes WHERE id = ${saved.recipe.id}`)[0].n, 1, 'examples kept');
   await db`UPDATE production_recipes SET examples = '[]' WHERE id = ${saved.recipe.id}`;
-  await assert.rejects(productionCommand(owner as any, { commandId: randomUUID(), action: 'recipe.publish', data: { id: saved.recipe.id, editRevision: 2 } }), /en az iki doğrulanmış örnek/);
+  await assert.rejects(productionCommand(owner as any, { commandId: randomUUID(), action: 'recipe.publish', data: { reason: 'Yerel test yayını', id: saved.recipe.id, editRevision: 2 } }), /en az iki doğrulanmış örnek/);
   // A first import that fails to save (the output is not a finished-good card) leaves no claim; the retry works.
   await assert.rejects(importFamilyRecipe(owner as any, { ...input, code: 'PRG-YENI', finishedItemId: p108, dryRun: false }), /Çıktı kartı mamul olmalı/);
   assert.equal((await db`SELECT count(*)::int AS n FROM product_family_recipes WHERE tenant_id = ${tenantId} AND recipe_code = 'PRG-YENI'`)[0].n, 0);
