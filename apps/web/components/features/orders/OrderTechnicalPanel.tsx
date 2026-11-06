@@ -1482,6 +1482,7 @@ function PaintProgress({
           ? "Gramaj eksik; ağırlık hesaplanmadı"
           : `Toplam ${Number(part.weight_kg).toLocaleString("tr-TR", { maximumFractionDigits: 3 })} kg`}
       </p>
+      {part.in_dispatch && <p className="text-sm text-muted-foreground">Boyahane sevkiyatından sonuçlandırın</p>}
       {returnOnly && (
         <p className="text-sm text-muted-foreground">
           Teknik revizyon sırasında yalnız boyadan fiziksel dönüş
@@ -1511,7 +1512,7 @@ function PaintProgress({
         )}
         <button
           className="rf-secondary-button"
-          disabled={busy || part.sent < quantity}
+          disabled={busy || part.in_dispatch || part.sent < quantity}
           onClick={() => void record("paint.return")}
         >
           Boyadan geldi

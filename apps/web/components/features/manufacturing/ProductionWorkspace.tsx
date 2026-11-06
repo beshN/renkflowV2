@@ -1,4 +1,6 @@
 "use client";
+import { PaintDispatchPanel } from "./PaintDispatchPanel";
+import { useMemberAccess } from "@/lib/hooks/useMemberAccess";
 import { ZplDownload } from "@/components/features/labels/ZplDownload";
 import { ProductionInsights } from '@/components/production/ProductionInsights';
 import { CutPlanVersions } from '@/components/production/CutPlanVersions';
@@ -45,6 +47,7 @@ const tabs = [
   ["recipes", "Reçeteler", Box],
   ["cutting", "Toplu kesim", Scissors],
   ["planning", "Çizelgeleme", CalendarClock],
+  ["paint", "Boyahane", Box],
   ["stock", "Malzeme ve kapasite", Warehouse],
   ["intake", "Belgeden sipariş", FileSearch],
   ["communication", "Müşteri iletişimi", Mail],
@@ -121,6 +124,8 @@ function Badge({ value }: { value: string }) {
   );
 }
 export default function ProductionWorkspace() {
+  const access = useMemberAccess();
+  const paintView = !!access && ["owner", "admin", "office"].includes(access.base) && !!access.permissions.production?.includes("view");
   const { data, error, busy, command, refresh } = useProduction(),
     [tab, setTab] = useState("overview"),
     [editor, setEditor] = useState<any>(false),
@@ -247,7 +252,7 @@ export default function ProductionWorkspace() {
         aria-label="Üretim bölümleri"
         className="flex gap-1 overflow-x-auto border-b border-border"
       >
-        {tabs.filter(([id]) => id !== "recipes").map(([id, label, Icon]) => (
+        {tabs.filter(([id]) => id !== "recipes" && (id !== "paint" || paintView)).map(([id, label, Icon]) => (
           <button
             key={id}
             className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-xs ${tab === id ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}
@@ -1362,6 +1367,7 @@ export default function ProductionWorkspace() {
             ))}
         </section>
       )}
+      {tab === "paint" && paintView && <PaintDispatchPanel />}
       {tab === "intake" && (
         <>
           <section className="rf-panel">

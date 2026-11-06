@@ -86,3 +86,46 @@ export async function paintDispatches(a: WorkOrderActor, rawStatus?: string | nu
     WHERE d.tenant_id=${a.tenantId} AND (${status}::text IS NULL AND d.status IN ('open','partially_returned') OR d.status=${status})
     GROUP BY d.id,s.name ORDER BY d.dispatch_number DESC`;
 }
+
+/** Waiting pieces are grouped by their exact command colour; units stay separate. */
+export async function paintDispatchCandidates(a: WorkOrderActor) {
+  await requirePaintDispatchAccess(a, 'view');
+  const parts = await sql`SELECT p.id,p.work_order_id,w.title AS work_order_title,o.order_number,
+    i.profile_code,i.name AS profile_name,p.target_color,p.length_mm,
+    CASE WHEN p.weight_per_meter_kg IS NULL THEN NULL ELSE p.length_mm/1000*p.weight_per_meter_kg END AS weight_kg
+    FROM production_parts p
+    JOIN work_orders w ON w.tenant_id=p.tenant_id AND w.id=p.work_order_id
+    JOIN orders o ON o.tenant_id=w.tenant_id AND o.id=w.order_id
+    JOIN inventory_items i ON i.tenant_id=p.tenant_id AND i.id=p.item_id
+    WHERE p.tenant_id=${a.tenantId} AND p.state='paint_waiting'
+    AND NOT EXISTS(SELECT 1 FROM paint_dispatch_parts d WHERE d.tenant_id=${a.tenantId} AND d.part_id=p.id AND d.outcome='sent')
+    ORDER BY p.target_color,o.order_number,w.title,p.sequence,p.id`;
+  const groups = new Map<string, { target_color: string; parts: typeof parts[number][] }>();
+  for (const part of parts) {
+    const group = groups.get(part.target_color) || { target_color: part.target_color, parts: [] as typeof parts[number][] };
+    group.parts.push(part);
+    groups.set(part.target_color, group);
+  }
+  const suppliers = await sql`SELECT id,name FROM suppliers WHERE tenant_id=${a.tenantId} ORDER BY name,id`;
+  return { groups: [...groups.values()], suppliers };
+}
+
+export async function paintDispatchDetail(a: WorkOrderActor, rawId: string) {
+  await requirePaintDispatchAccess(a, 'view');
+  const id = z.uuid().parse(rawId);
+  const [dispatch] = await sql`SELECT d.*,s.name AS supplier_name FROM paint_dispatches d
+    JOIN suppliers s ON s.tenant_id=d.tenant_id AND s.id=d.supplier_id
+    WHERE d.tenant_id=${a.tenantId} AND d.id=${id}`;
+  if (!dispatch) fail('Sevkiyat bulunamadı', 404);
+  const parts = await sql`SELECT p.id,p.work_order_id,w.title AS work_order_title,o.order_number,
+    i.profile_code,i.name AS profile_name,p.length_mm,
+    CASE WHEN p.weight_per_meter_kg IS NULL THEN NULL ELSE p.length_mm/1000*p.weight_per_meter_kg END AS weight_kg,
+    d.outcome,d.reject_reason,d.returned_at
+    FROM paint_dispatch_parts d
+    JOIN production_parts p ON p.tenant_id=d.tenant_id AND p.id=d.part_id
+    JOIN work_orders w ON w.tenant_id=p.tenant_id AND w.id=p.work_order_id
+    JOIN orders o ON o.tenant_id=w.tenant_id AND o.id=w.order_id
+    JOIN inventory_items i ON i.tenant_id=p.tenant_id AND i.id=p.item_id
+    WHERE d.tenant_id=${a.tenantId} AND d.dispatch_id=${id} ORDER BY p.sequence,p.id`;
+  return { ...dispatch, parts };
+}
