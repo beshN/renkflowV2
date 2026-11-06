@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { hidesAny, redactedJson } from '@/lib/security/field-access.server';
 import { apiContextWithPermission } from '@/lib/features/auth/api-access';
 import { createExportJob, getExportJob, listExportJobs } from '@/lib/export/service';
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
       );
     }
     console.error('[api/export POST] Unexpected error:', error);
+    await reportServerError("app/api/export/route:POST", error);
     return redactedJson({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -81,6 +83,7 @@ export async function GET(request: Request) {
       return redactedJson({ success: true, jobs: [] });
     }
     console.error('[api/export GET] Unexpected error:', error);
+    await reportServerError("app/api/export/route:GET", error);
     return redactedJson({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

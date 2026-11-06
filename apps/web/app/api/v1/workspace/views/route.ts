@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest } from "next/server";
 import { ZodError } from "zod";
@@ -11,7 +12,7 @@ import {
   savedViewCommand,
 } from "@/lib/features/orders/saved-views.service";
 export const dynamic = "force-dynamic";
-function failure(e: unknown) {
+async function failure(e: unknown) {
   if (e instanceof WorkOrderApiError)
     return redactedJson({ error: e.message }, { status: e.status });
   if (e instanceof ZodError || e instanceof SyntaxError)
@@ -20,6 +21,7 @@ function failure(e: unknown) {
       { status: 400 },
     );
   console.error("[workspace-views]", e instanceof Error ? e.message : "failed");
+  await reportServerError("app/api/v1/workspace/views/route:failure", e);
   return redactedJson(
     { error: "Görünüm işlemi tamamlanamadı. Tekrar deneyin." },
     { status: 500 },

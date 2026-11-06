@@ -3,6 +3,7 @@ import { OrderTechnicalPanel } from '@/components/features/orders/OrderTechnical
 import { requestJson } from '@/lib/shared/network';
 import { technicalIssues, TECHNICAL_WARNINGS } from '@/lib/features/orders/technical';
 
+jest.mock('@/components/features/orders/OrderDrawings', () => ({ OrderDrawings: () => <div data-testid="order-drawings">Drawing widget</div> }));
 jest.mock('@/lib/shared/network', () => ({ requestJson: jest.fn() }));
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn(), info: jest.fn() } }));
 for (const path of [
@@ -63,4 +64,20 @@ describe('technical plan release', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Üretime açmadan önce düzeltilmeli');
     expect(screen.queryByRole('checkbox', { name: /Uyarıları gördüm/ })).not.toBeInTheDocument();
   });
+});
+
+test('worker panel never mounts the drawing widget or its forbidden request', async () => {
+  request.mockReset();
+  request.mockResolvedValue({ ok: true, data: workspace({ blockers: [], warnings: [] }) });
+  render(<OrderTechnicalPanel orderId="order-1" worker />);
+  await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+  expect(screen.queryByTestId('order-drawings')).not.toBeInTheDocument();
+  expect(request.mock.calls.every(([url]) => !url.endsWith('/drawing'))).toBe(true);
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+test('office panel retains the drawing widget', async () => {
+  request.mockReset();
+  request.mockResolvedValue({ ok: true, data: workspace({ blockers: [], warnings: [] }) });
+  render(<OrderTechnicalPanel orderId="order-1" />);
+  expect(await screen.findByTestId('order-drawings')).toBeInTheDocument();
 });

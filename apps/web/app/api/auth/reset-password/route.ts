@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextResponse } from 'next/server';
 import { passwordProblem } from '@/lib/security/access-matrix';
 import bcrypt from 'bcryptjs';
@@ -120,6 +121,7 @@ export async function POST(request: Request) {
     });
   } catch (error: unknown) {
     console.error('Reset password error:', error);
+    await reportServerError("app/api/auth/reset-password/route:POST", error);
     return NextResponse.json(
       { error: 'Bir hata oluştu. Lütfen tekrar deneyin.' },
       { status: 500 }

@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { sql } from '@/lib/db';
 import { requireWorkOrderActor, requireWorkOrderPermission, WorkOrderApiError } from '@/lib/features/work-orders/security';
@@ -32,6 +33,7 @@ export async function GET() {
   } catch (error) {
     if (error instanceof WorkOrderApiError) return redactedJson({ error: error.message }, { status: error.status });
     console.error('[inventory heatmap]', error instanceof Error ? error.message : error);
+    await reportServerError("app/api/v1/inventory/heatmap/route:GET", error);
     return redactedJson({ error: 'Isı haritası alınamadı' }, { status: 500 });
   }
 }

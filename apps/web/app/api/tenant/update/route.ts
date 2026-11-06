@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { changedFields, recordAuditAfterCommit } from '@/lib/audit/audit-log';
 import { NextResponse } from 'next/server';
 
@@ -84,6 +85,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
     console.error('Update tenant error:', error);
+    await reportServerError("app/api/tenant/update/route:POST", error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
