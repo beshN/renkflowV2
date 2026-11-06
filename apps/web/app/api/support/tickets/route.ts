@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
@@ -158,6 +159,7 @@ export async function GET(request: NextRequest) {
     if (mapped) return mapped;
 
     console.error('Support tickets list error:', error);
+    await reportServerError("app/api/support/tickets/route:GET", error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -184,6 +186,7 @@ export async function POST(request: NextRequest) {
     if (mapped) return mapped;
 
     console.error('Support ticket create error:', error);
+    await reportServerError("app/api/support/tickets/route:POST", error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

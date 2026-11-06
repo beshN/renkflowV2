@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedSuccess } from '@/lib/security/field-access.server';
 import { recordAuditAfterCommit } from "@/lib/audit/audit-log";
 import { WorkOrderApiError } from "@/lib/features/work-orders/security";
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return redactedSuccess(quotation);
   } catch (error: any) {
     if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status, error.code);
+    await reportServerError("app/api/v1/quotations/[id]/route:GET", error);
     return errorResponse("Teklif işlemi tamamlanamadı. Lütfen tekrar deneyin.", 500);
   }
 }
@@ -105,6 +107,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           error.issues.map((issue) => issue.message).join(", "),
         400,
       );
+    await reportServerError("app/api/v1/quotations/[id]/route:PATCH", error);
     return errorResponse("Teklif işlemi tamamlanamadı. Lütfen tekrar deneyin.", 500);
   }
 }
@@ -125,6 +128,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return redactedSuccess({ success: true }, "Teklif silindi");
   } catch (error: any) {
     if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status, error.code);
+    await reportServerError("app/api/v1/quotations/[id]/route:DELETE", error);
     return errorResponse("Teklif işlemi tamamlanamadı. Lütfen tekrar deneyin.", 500);
   }
 }

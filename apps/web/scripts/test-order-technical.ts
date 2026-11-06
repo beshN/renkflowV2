@@ -130,7 +130,7 @@ async function main() {
       expected: [{ itemId: profile.id, quantity: widthMm / 1000 }],
     })),
   });
-  await cmd("recipe.publish", { id: recipe.id });
+  await cmd("recipe.publish", { reason: "Yerel test yayını", id: recipe.id });
   await db`INSERT INTO product_family_recipes(tenant_id,recipe_code,family,created_by) VALUES(${t.id},'MAK-PILOT','makasli',${u.id})`;
   await db`INSERT INTO product_drilling_rules(tenant_id,family,profile_code,mechanism,version,source,rule,approved_by) VALUES(${t.id},'makasli','170','standard',1,'Synthetic verified drawing',${JSON.stringify({ reference: "start", face: "üst", diameterMm: 6, edgeDistanceMm: 10, offsetsMm: [100, 3900] })}::text::jsonb,${u.id})`;
   await cmd("stock.receive", {

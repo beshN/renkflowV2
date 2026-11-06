@@ -54,7 +54,7 @@ export default function AcceptInvitePage() {
         existingUser?: boolean;
       }>(`/api/tenant/invite/validate?token=${token}`, undefined, {
         timeoutMs: 15000,
-        fallbackError: 'Davet dogrulanamadi.',
+        fallbackError: 'Davet doğrulanamadı.',
       });
       if (!active) return;
 
@@ -62,7 +62,7 @@ export default function AcceptInvitePage() {
 
       if (!payload?.valid) {
         setStatus('invalid');
-        setError(result.error || payload?.error || 'Davet baglantisi dogrulanamadi.');
+        setError(result.error || payload?.error || 'Davet bağlantısı doğrulanamadı.');
         return;
       }
 
@@ -113,7 +113,7 @@ export default function AcceptInvitePage() {
       body: JSON.stringify({ token, name: name.trim(), password, acceptLegal }),
     }, {
       timeoutMs: 20000,
-      fallbackError: 'Davet kabul islemi tamamlanamadi.',
+      fallbackError: 'Davet kabul işlemi tamamlanamadı.',
     });
 
     if (!result.ok) {

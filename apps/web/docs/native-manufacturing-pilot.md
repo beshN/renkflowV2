@@ -207,3 +207,13 @@ bilgisidir; test bayrağı olarak yorumlanmaz.
 Rapor tenant'lar arasında eşleştirme yapmaz; reçete kodu/sürümü ve kalem adları
 çıktıya girer. Çıktıyı yetkili kişilerle paylaşın. Başarılı rapor fiziksel pilotun
 veya kapasite takviminin doğrulandığı anlamına gelmez.
+
+### Genel entegrasyon runner'ından ayrım
+
+`npm run test:integration` ve CI `validate.yml`, testlerden önce uygulama şemasını
+hazırlar. `test-pilot-readiness.ts` ise tamamen boş `renkflow_dev` ve
+`renkflow_test` gerektirdiği için bu runner'ın `EXCLUDED` listesinde gerekçesiyle
+birlikte tutulur. Genel entegrasyon turu bu testi çalıştırmaz. Yukarıdaki
+`db:local -- --empty` ve ayrı `npm run test:pilot-readiness` adımlarıyla
+çalıştırılmalıdır; mevcut CI validate adımı bu ayrı kontrolü otomatik çalıştırmaz.
+Boş DB koruması, loopback sınırlaması ve salt okunur rapor oturumu korunur.

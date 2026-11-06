@@ -4,9 +4,15 @@ import Link from "next/link";
 import { intakeReviewFields, ExtractionEvidence } from "@/lib/ai/extraction";
 import { missingInfoMessage } from "@/lib/ai/extract/missing-info";
 import useSWR from "swr";
+import { requestJson } from "@/lib/shared/network";
+import { EmptyState } from "@/components/kit/EmptyState";
 import { ProductDialog } from "@/components/features/product-3d/ProductDialog";
 import { attachVisualization } from "@/lib/features/product-3d/catalog";
 import { applyAwning } from "@/lib/features/awning/configuration";
+// Only the API's own JSON `error` is shown; a non-JSON body (a proxy's 502 page) falls back to the
+// screen's Turkish message. Status 0 is a network error or timeout: requestJson's message is kept.
+const apiError = (r: { status: number; data: unknown; error: string | null }) =>
+  r.status === 0 ? r.error : typeof (r.data as any)?.error === "string" ? (r.data as any).error : null;
 const fieldLabels: Record<string, string> = {
   customerName: "Müşteri",
   productName: "Ürün",
@@ -127,14 +133,18 @@ function Review({ draft, onSource }: { draft: any; onSource: (page: number) => v
               totalPrice: i.quantity * i.unitPrice,
             })),
           };
-          const r = await fetch(`/api/v1/production/intake/${draft.id}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          const body = await r.json();
-          if (!r.ok) throw new Error(body.error);
-          window.location.assign(`/orders/${body.data.orderId}`);
+          const r = await requestJson<{ data?: { orderId?: string } }>(
+            `/api/v1/production/intake/${draft.id}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            },
+            { fallbackError: "Onaylanamadı" },
+          );
+          const orderId = r.data?.data?.orderId;
+          if (!r.ok || !orderId) throw new Error(apiError(r) || "Onaylanamadı");
+          window.location.assign(`/orders/${orderId}`);
         } catch (e) {
           setError(e instanceof Error ? e.message : "Onaylanamadı");
         } finally {
@@ -316,7 +326,11 @@ export default function IntakeReview({
 }) {
   const [sourcePage, setSourcePage] = useState(1);
   const { id } = use(params),
-    { data, error } = useSWR(`/api/v1/production/intake/${id}`, async (url: string) => {const r=await fetch(url,{cache:"no-store"});const body=await r.json();if(!r.ok)throw new Error(body.error);return body;}),
+    { data, error, mutate } = useSWR(`/api/v1/production/intake/${id}`, async (url: string) => {
+      const r = await requestJson<{ data?: any }>(url, { cache: "no-store" }, { fallbackError: "Taslak alınamadı" });
+      if (!r.ok) throw new Error(apiError(r) || "Taslak alınamadı");
+      return r.data;
+    }),
     draft = data?.data;
   return (
     <div className="rf-page space-y-6">
@@ -325,7 +339,14 @@ export default function IntakeReview({
       </Link>
       <h1 className="rf-page-title">Belge ve sipariş incelemesi</h1>
       {!data ? (
-        error ? <p role="alert">{error.message}</p> : <div role="status" className="h-40 animate-pulse rounded-md bg-muted motion-reduce:animate-none"><span className="sr-only">Taslak alınıyor</span></div>
+        error ? (
+          <div role="alert">
+            <EmptyState
+              title={error.message || "Taslak alınamadı"}
+              action={{ label: "Tekrar dene", onClick: () => void mutate() }}
+            />
+          </div>
+        ) : <div role="status" className="h-40 animate-pulse rounded-md bg-muted motion-reduce:animate-none"><span className="sr-only">Taslak alınıyor</span></div>
       ) : !draft ? (
         <p role="alert">Taslak bulunamadı.</p>
       ) : (

@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest } from "next/server";
 import { ZodError } from "zod";
@@ -35,6 +36,7 @@ export async function POST(
       "[OrderTransition]",
       e instanceof Error ? e.message : "failed",
     );
+    await reportServerError("app/api/v1/orders/[id]/transition/route:POST", e);
     return redactedJson(
       { error: "Durum güncellenemedi. Yeniden deneyin." },
       { status: 500 },

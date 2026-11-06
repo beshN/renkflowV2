@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { OrderDrawings } from "./OrderDrawings";
 import { useCommandRetry } from "@/lib/hooks/useCommandRetry";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -125,6 +126,7 @@ export function OrderTechnicalPanel({
     issues = technicalIssues(r?.technical);
   return (
     <section className="min-w-0 space-y-4" aria-label="Sipariş teknik dosyası">
+      {!worker && <OrderDrawings orderId={orderId} />}
       {!worker && (
         <ol
           aria-label="Siparişin ana süreci"
@@ -1480,6 +1482,7 @@ function PaintProgress({
           ? "Gramaj eksik; ağırlık hesaplanmadı"
           : `Toplam ${Number(part.weight_kg).toLocaleString("tr-TR", { maximumFractionDigits: 3 })} kg`}
       </p>
+      {part.in_dispatch && <p className="text-sm text-muted-foreground">Boyahane sevkiyatından sonuçlandırın</p>}
       {returnOnly && (
         <p className="text-sm text-muted-foreground">
           Teknik revizyon sırasında yalnız boyadan fiziksel dönüş
@@ -1509,7 +1512,7 @@ function PaintProgress({
         )}
         <button
           className="rf-secondary-button"
-          disabled={busy || part.sent < quantity}
+          disabled={busy || part.in_dispatch || part.sent < quantity}
           onClick={() => void record("paint.return")}
         >
           Boyadan geldi
