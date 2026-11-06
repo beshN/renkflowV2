@@ -1,5 +1,6 @@
 'use client';
 
+import { OrderPromisePanel } from '@/components/features/orders/OrderPromisePanel';
 import { OrderTechnicalPanel } from '@/components/features/orders/OrderTechnicalPanel';
 import { measurementSummary } from '@/lib/features/orders/measurement-summary';
 import { ProductDialog } from '@/components/features/product-3d/ProductDialog';
@@ -522,6 +523,8 @@ export default function OrderDetailPage() {
                   </div>
                 </div>
               </div>
+
+              <OrderPromisePanel orderId={orderId} />
 
               {/* Quick Actions */}
               <div className="rf-panel border border-border p-5 shadow-sm">
