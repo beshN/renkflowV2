@@ -38,6 +38,7 @@ export const normalizeStates = (states: readonly string[]) =>
 export const MOVEMENT_SOURCE_LABELS: Record<string, string> = {
   manual: 'Elle giriş',
   goods_receipt: 'Mal kabul',
+  supplier_return: 'Tedarikçiye iade',
   cutting_plan: 'Kesim planı',
   work_order: 'Üretim emri',
   rework: 'Rework',

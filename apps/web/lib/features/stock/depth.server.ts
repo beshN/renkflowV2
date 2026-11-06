@@ -12,6 +12,8 @@ import { executeProcurement, requireProcurementRead, requireProcurementWrite } f
 import { thresholdRows } from '@/lib/features/inventory/thresholds';
 import { available, reorderLevels, thresholdStatus } from '@/lib/features/inventory/reorder';
 import { istanbulToday } from '@/lib/features/sales/order-status.server';
+import { requireCap } from '@/lib/features/field/common.server';
+import { supplierReturnsReady } from '@/lib/features/manufacturing/supplier-return-schema.server';
 import { COUNT_UNITS } from '@/lib/features/inventory/vocabulary';
 import { compareResponses, priceHistory, shortage, supplierScore, type Need } from './engine';
 
@@ -314,7 +316,10 @@ export async function cancelRfq(actor: WorkOrderActor, rfqId: string) {
 /** Every supplier's record (on time, rejects, lead time) and the prices paid per item over time. */
 export async function supplierScorecards(actor: WorkOrderActor) {
   requireProcurementRead(actor);
-  const [orders, points] = await Promise.all([
+  await requireCap(actor, 'purchasing', 'view', 'Tedarikçi karnesi');
+  // Before 086 (applied by hand with db:deploy) there are no returns to count.
+  const returnsReady = await supplierReturnsReady();
+  const [orders, points, returns] = await Promise.all([
     sql`SELECT po.id, po.supplier_id, s.name AS supplier_name, po.expected_at, po.created_at,
         (SELECT min(gr.received_at) FROM goods_receipts gr WHERE gr.tenant_id = po.tenant_id AND gr.purchase_order_id = po.id AND gr.status = 'submitted') AS first_receipt,
         (SELECT coalesce(sum(gl.accepted_qty), 0) FROM goods_receipt_lines gl JOIN goods_receipts gr ON gr.id = gl.goods_receipt_id WHERE gr.tenant_id = po.tenant_id AND gr.purchase_order_id = po.id AND gr.status = 'submitted') AS accepted,
@@ -326,10 +331,16 @@ export async function supplierScorecards(actor: WorkOrderActor) {
       JOIN inventory_items i ON i.id = l.item_id JOIN suppliers s ON s.id = po.supplier_id
       WHERE l.tenant_id = ${actor.tenantId} AND po.status IN ('submitted', 'partially_received', 'received') AND l.unit_price IS NOT NULL
       ORDER BY po.created_at DESC LIMIT 2000`,
+    returnsReady ? sql`SELECT r.supplier_id,s.name AS supplier_name,l.uom,count(DISTINCT r.id)::int AS document_count,sum(l.quantity) AS quantity
+      FROM supplier_returns r JOIN supplier_return_lines l ON l.tenant_id=r.tenant_id AND l.supplier_return_id=r.id
+      JOIN suppliers s ON s.tenant_id=r.tenant_id AND s.id=r.supplier_id
+      WHERE r.tenant_id=${actor.tenantId} AND r.status IN ('sent','closed')
+      GROUP BY r.supplier_id,s.name,l.uom ORDER BY s.name,l.uom` : Promise.resolve([] as any[]),
   ]);
   const bySupplier = new Map<string, { name: string; rows: any[] }>();
   for (const o of orders) bySupplier.set(o.supplier_id, { name: o.supplier_name, rows: [...(bySupplier.get(o.supplier_id)?.rows ?? []), o] });
   return {
+    returns: returns.map((r: {supplier_id:string;supplier_name:string;uom:string;document_count:number;quantity:string}) => ({supplierId:r.supplier_id,supplierName:r.supplier_name,uom:r.uom,documentCount:Number(r.document_count),quantity:Number(r.quantity)})),
     suppliers: [...bySupplier.entries()].map(([id, g]) => ({
       supplierId: id, supplierName: g.name,
       ...supplierScore(g.rows.map((o: any) => ({ expectedAt: iso(o.expected_at), sentAt: new Date(o.created_at).toISOString(), firstReceiptAt: o.first_receipt ? new Date(o.first_receipt).toISOString() : null, accepted: Number(o.accepted), rejected: Number(o.rejected) }))),

@@ -137,6 +137,26 @@ export const RECORDS: Record<RecordType, Def> = {
       return [{ key: 'lots', label: 'Profil / lot', count: n(l.n), href: `/inventory/${id}` }];
     },
   },
+  supplier_return: {
+    label: 'Tedarikçiye iade',
+    canView: r => OFFICE_AND_ACCOUNTS.includes(r), canEdit: r => OFFICE.includes(r),
+    auditTypes: ['supplier_return'],
+    allows: async (a, need) => {
+      const access = await resolveMemberAccess(a.userId,a.tenantId);
+      return Boolean(access && !access.deactivated && can(access,'purchasing','view') && can(access,'purchasing',need));
+    },
+    // Before 086 (db:deploy) the tables are missing: no return record exists yet.
+    head: async (db,a,id) => {
+      if (!(await tableExists('supplier_returns'))) return null;
+      const [r] = await db`SELECT return_number,status FROM supplier_returns WHERE tenant_id=${a.tenantId} AND id=${id}`;
+      return r ? {type:'supplier_return',id,title:r.return_number,subtitle:r.status,href:`/supplier-returns/${id}`} : null;
+    },
+    related: async (db,a,id) => {
+      if (!(await tableExists('supplier_returns'))) return [];
+      const [r] = await db`SELECT supplier_id FROM supplier_returns WHERE tenant_id=${a.tenantId} AND id=${id}`;
+      return r ? [{key:'supplier',label:'Tedarikçi',count:1,href:'/suppliers'}] : [];
+    },
+  },
   supplier: {
     label: 'Tedarikçi',
     canView: (r) => OFFICE_AND_ACCOUNTS.includes(r),
