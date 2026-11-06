@@ -12,8 +12,10 @@ type MaterialGroup = {
   missing: { color: string }[];
   undefinedLeadTime: { color: string }[];
   unitMismatch?: { color: string }[];
+  stockProblems?: { reason: string }[];
+  reservationWarnings?: { reason: string }[];
 };
-type Suggestion = Pick<PromiseResult, 'earliestFinish' | 'bindingConstraint' | 'explanation' | 'missing'> & {
+type Suggestion = Pick<PromiseResult, 'earliestFinish' | 'bindingConstraint' | 'explanation' | 'missing' | 'ignoredLoad' | 'optimistic'> & {
   material: MaterialGroup[];
   requiresHumanApproval: true;
 };
@@ -62,8 +64,15 @@ function PromisePanel({ orderId }: { orderId: string }) {
       </div>}
       {result.state === 'ready' && <div className="space-y-3 text-sm">
         {result.data.missing.length > 0 ? <ul className="list-disc pl-5">
-          {result.data.missing.map((item, index) => <li key={index}>{item.reason}</li>)}
+          {result.data.missing.map((item, index) => <li key={item.operationId ?? index}>{item.reason}</li>)}
         </ul> : <>
+          {result.data.optimistic === true && <div role="alert">
+            <p>İyimser tahmin: {result.data.ignoredLoad.length} bekleyen iş hesaba katılmadı</p>
+            <details>
+              <summary>Hesaba katılmayan işlerin nedenleri</summary>
+              <ul>{result.data.ignoredLoad.map((item, index) => <li key={item.operationId ?? index}>{item.reason}</li>)}</ul>
+            </details>
+          </div>}
           {result.data.earliestFinish && <p>Önerilen tarih: {date(result.data.earliestFinish)}</p>}
           {result.data.bindingConstraint && <p>Belirleyici kısıt: {result.data.bindingConstraint.kind === 'material'
             ? 'Malzeme' : `Kapasite (${result.data.bindingConstraint.workCenterCode})`}</p>}
@@ -78,6 +87,8 @@ function PromisePanel({ orderId }: { orderId: string }) {
               {group.readyDate === null ? 'Tedarik süresi veya birim eksik'
                 : result.data.missing.length > 0 ? 'Eksikler giderilmeden tarih gösterilmez'
                   : date(group.readyDate)}
+              {group.stockProblems?.map((item, problemIndex) => <p key={`stock-${problemIndex}`}>Stok sorunu: {item.reason}</p>)}
+              {group.reservationWarnings?.map((item, warningIndex) => <p key={`reservation-${warningIndex}`}>Rezervasyon uyarısı: {item.reason}</p>)}
             </li>;
           })}</ul>
         </>}
