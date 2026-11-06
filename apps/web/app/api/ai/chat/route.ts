@@ -1,3 +1,4 @@
+import { AI_CREDIT_MESSAGE, isInsufficientCreditError } from '@/lib/ai/chat-errors';
 import { isQuoteDraftRequest } from '@/lib/ai/commands/parse';
 import { runCommand } from '@/lib/ai/commands/run.server';
 import { assistantFormHref } from '@/lib/ai/assistant-form-drafts';
@@ -47,6 +48,7 @@ export async function POST(req:NextRequest) {
   if(error instanceof WorkOrderApiError)return NextResponse.json({error:error.message},{status:error.status});
   if(error instanceof ModelBlockedError)return NextResponse.json({error:error.message,code:error.block},{status:409});
   if(error instanceof ZodError || error instanceof SyntaxError)return NextResponse.json({error:'Mesaj bilgilerini kontrol edip yeniden deneyin.'},{status:400});
+  if(isInsufficientCreditError(error))return NextResponse.json({error:AI_CREDIT_MESSAGE,code:'ai_insufficient_credit',mode:'ai_unavailable'},{status:503,headers:{'Cache-Control':'private, no-store'}});
   console.error('[Assistant]',error instanceof Error?error.message:'failed');
   return NextResponse.json({error:'Asistan şu anda yanıt veremiyor. Operasyon önerileri ve uygulama ekranları kullanılabilir.'},{status:503});
  }
