@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextRequest } from 'next/server';
 import { getAPIUser, successResponse, errorResponse, handleCORS } from '@/lib/api/auth-helpers';
 import { isPrivateAccessAllowed } from '@/lib/features/auth/private-access';
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
     }, 'Kullanıcı bilgileri');
   } catch (error: unknown) {
     console.error('Get me error:', error);
+    await reportServerError("app/api/v1/auth/me/route:GET", error);
     return errorResponse('Kullanıcı bilgileri alınırken bir hata oluştu', 500);
   }
 }

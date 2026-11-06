@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { handleOIDCCallback, handleSAMLCallback } from '@/lib/auth/sso';
 import { sql } from '@/lib/db';
@@ -91,6 +92,7 @@ async function handleCallback(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     console.error('SSO Callback Error:', error);
+    await reportServerError("app/api/auth/sso/callback/route:handleCallback", error);
     return NextResponse.json(
       { error: 'Authentication failed. Please try again.' },
       { status: 500 }

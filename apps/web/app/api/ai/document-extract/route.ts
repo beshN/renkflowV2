@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { resolveUploadedFile } from "@/lib/storage/upload-reference";
 import { NextRequest, NextResponse } from 'next/server';
 import { aiAvailable, getAIService } from '@/lib/ai/service';
@@ -72,6 +73,7 @@ Eğer belge sipariş veya irsaliye değilse, genel içeriğini özetle ve bulabi
     });
   } catch (error: any) {
     console.error('[AI Document Extract API] Error:', error?.message || error);
+    await reportServerError("app/api/ai/document-extract/route:POST", error);
     return NextResponse.json(
       { error: 'Belge analizi tamamlanamadı. Dosyayı kontrol edip tekrar deneyin.' },
       { status: 500 }

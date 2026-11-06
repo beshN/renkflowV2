@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { AuthenticationError, getServerUserContext } from '@/lib/features/auth/serverAuth';
 import { searchWorkspace } from '@/lib/features/search/workspace-search';
@@ -12,6 +13,7 @@ export async function GET(request: Request) {
   } catch (error) {
     if (error instanceof AuthenticationError) return redactedJson({ error: 'Oturum gerekli.' }, { status: 401 });
     console.error('[Search]', error);
+    await reportServerError("app/api/v1/search/all/route:GET", error);
     return redactedJson({ error: 'Arama şu anda yapılamadı.' }, { status: 500 });
   }
 }

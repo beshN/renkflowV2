@@ -1,11 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import Link from 'next/link';
 import { useApiCollection } from '@/lib/hooks/useApiCollection';
 import { RFListView } from '@/components/shared/views/RFListView';
 import { AppleNavbar } from '@/components/layout/AppleNavbar';
-import { Truck, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Truck } from 'lucide-react';
 
 export default function ShipmentsPage() {
   const { data: shipments, loading, error, reload: loadShipments } = useApiCollection('/api/v1/shipments', 'Sevkiyat kayıtları alınamadı. Bağlantıyı kontrol edin veya tekrar deneyin.');
@@ -41,7 +40,7 @@ export default function ShipmentsPage() {
             error={error}
             onRetry={loadShipments}
             columns={[
-              { key: 'shipment_number', label: 'Sevkiyat No' },
+              { key: 'shipment_number', label: 'Sevkiyat No', render: (val, row) => <Link className="underline" href={`/shipments/${row.id}/load-list`}><span>{val}</span> · Yükleme listesi</Link> },
               { key: 'customer_name', label: 'Müşteri' },
               { 
                 key: 'status', 
@@ -68,7 +67,7 @@ export default function ShipmentsPage() {
                       {val.map((l: any, i: number) => (
                         <div key={i}>
                           <span className="font-semibold">{l.product_name}</span> 
-                          <span className="ml-1 text-muted-foreground">({l.quantity} Adet)</span>
+                          <span className="ml-1 text-muted-foreground">({l.quantity} {l.uom || '(birim belirtilmemiş)'})</span>
                         </div>
                       ))}
                     </div>

@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { GET as fieldGet, POST as fieldPost } from '@/app/api/v1/field/[...path]/route';
 import {mobileLogin,mobileRefresh,requireMobileSession,mobileDevices,revokeMobileDevice} from '@/lib/features/mobile/sessions';
@@ -77,6 +78,7 @@ async function handle(request: NextRequest, context: Context, writing: boolean) 
     if (error instanceof WorkOrderApiError) return json({ success: false, error: error.message, ...(error.code ? { code: error.code } : {}) }, error.status);
     // A contract mismatch must fail closed; don't expose validation payloads or private fields.
     console.error('[mobile-contract] response rejected', error instanceof Error ? error.name : 'unknown');
+    await reportServerError('mobile:contract', error);
     return json({ success: false, error: 'Mobil işlem doğrulanamadı. Yeniden deneyin.' }, 500);
   }
 }

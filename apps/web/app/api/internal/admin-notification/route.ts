@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 /**
  * Internal API for Admin Notifications
  * 
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[AdminNotification] Failed to send:', error);
+    await reportServerError("app/api/internal/admin-notification/route:POST", error);
     return NextResponse.json(
       { error: 'Failed to send notification' },
       { status: 500 }

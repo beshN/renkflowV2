@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedSuccess } from '@/lib/security/field-access.server';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
 import { requireSameOrigin, requireSameOriginJson } from '@/lib/features/manufacturing/http-security';
@@ -71,6 +72,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (error instanceof AuthorizationError) {
       return errorResponse(error.message, 403);
     }
+    await reportServerError("app/api/v1/orders/[id]/route:GET", error);
     return errorResponse('Sipariş alınırken bir hata oluştu', 500);
   }
 }
@@ -144,6 +146,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return errorResponse(error.message, 403);
     }
     
+    await reportServerError("app/api/v1/orders/[id]/route:PATCH", error);
     return errorResponse('Sipariş güncellenirken bir hata oluştu', 500);
   }
 }
@@ -198,6 +201,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return errorResponse(error.message, 403);
     }
     
+    await reportServerError("app/api/v1/orders/[id]/route:DELETE", error);
     return errorResponse('Sipariş silinirken bir hata oluştu', 500);
   }
 }

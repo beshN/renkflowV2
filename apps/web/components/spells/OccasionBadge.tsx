@@ -1,5 +1,7 @@
 'use client';
 
+import { withFunFeatures } from '@/lib/features/settings/useFunFeatures';
+
 import { useEffect, useState } from 'react';
 
 type Occasion = { label: string; solemn?: boolean };
@@ -16,7 +18,7 @@ const OCCASIONS: Record<string, Occasion> = {
 };
 
 /** National days in Istanbul time; rendered after mount to avoid hydration drift. */
-export function OccasionBadge() {
+function OccasionBadgeEnabled() {
   const [occasion, setOccasion] = useState<Occasion | null>(null);
   useEffect(() => {
     const key = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', month: '2-digit', day: '2-digit' }).format(new Date());
@@ -32,3 +34,6 @@ export function OccasionBadge() {
     </span>
   );
 }
+
+const OccasionBadge = withFunFeatures(OccasionBadgeEnabled);
+export { OccasionBadge };

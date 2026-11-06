@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { NextRequest } from 'next/server';
 import { ZodError } from 'zod';
@@ -8,10 +9,11 @@ import { productionSettings, saveProductionLead } from '@/lib/features/settings/
 export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'private, no-store' };
 
-function error(e: unknown) {
+async function error(e: unknown) {
   if (e instanceof WorkOrderApiError) return redactedJson({ error: e.message }, { status: e.status, headers });
   if (e instanceof ZodError || e instanceof SyntaxError) return redactedJson({ error: 'Geçersiz seçim' }, { status: 400, headers });
   console.error('[production settings]', e instanceof Error ? e.message : 'failed');
+  await reportServerError("app/api/v1/settings/production/route:error", e);
   return redactedJson({ error: 'Üretim ayarları işlenemedi.' }, { status: 500, headers });
 }
 

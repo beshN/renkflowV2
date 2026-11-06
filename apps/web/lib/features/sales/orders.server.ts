@@ -309,7 +309,7 @@ export async function decideChange(actor: WorkOrderActor, orderId: string, chang
           const pc=item.product_configuration;
           if(pc){
             const {configureProduct}=await import('../products/configure.service');
-            const configured=await configureProduct(tx,actor.tenantId,o.currency,{family:pc.family,recipeId:pc.recipeId,color:item.color||pc.color,parameters:{...pc.parameters,widthMm:Number(item.width_mm)||pc.parameters.widthMm,projectionMm:pc.parameters.projectionMm===0?0:Number(item.projection_mm)||pc.parameters.projectionMm,mountingHeightMm:Number(item.mounting_height_mm)||pc.parameters.mountingHeightMm}});
+            const configured=await configureProduct(tx,actor.tenantId,o.currency,{family:pc.family,recipeId:pc.recipeId,color:item.color||pc.color,parameters:{...pc.parameters,widthMm:Number(item.width_mm)||pc.parameters.widthMm,projectionMm:pc.parameters.projectionMm===0?0:Number(item.projection_mm)||pc.parameters.projectionMm,mountingHeightMm:Number(item.mounting_height_mm)||pc.parameters.mountingHeightMm}},undefined,item.id);
             configured.price={...configured.price,source:'manual',message:'Onaylı sipariş değişikliği; mevcut fiyat korunur'};
             await tx`UPDATE order_items SET product_configuration=${JSON.stringify(configured)}::text::jsonb WHERE order_id=${orderId} AND id=${line.orderItemId}`;
           }

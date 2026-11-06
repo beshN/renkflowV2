@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextResponse } from 'next/server';
 import { getWorkOrderSummary } from '@/lib/features/work-orders/service';
 import {
@@ -18,6 +19,7 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     console.error('Work order summary error:', error);
+    await reportServerError("app/api/work-orders/summary/route:GET", error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
