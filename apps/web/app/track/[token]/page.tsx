@@ -7,6 +7,7 @@ import { ColorChip } from "@/components/colors/ColorSwatch";
 import { ProgressRing, Skeleton, Timeline } from "@/components/kit";
 import { LIFECYCLE, lifecycleIndex } from "@/lib/features/orders/lifecycle";
 import { normalizeOrderStatus } from "@/lib/features/orders/workspace";
+import { usePublicLocale } from "@/lib/i18n/public-locale";
 import tr from "@/lib/i18n/locales/tr.json";
 import en from "@/lib/i18n/locales/en.json";
 import { cn } from "@/lib/utils";
@@ -15,31 +16,8 @@ const ICONS = [FileText, BadgeCheck, Factory, Scissors, Wrench, Truck];
 
 export default function Tracking({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
-  // Keep this public route independent of the global detector and its storage cache.
-  const [locale, setLocale] = useState<"tr" | "en">("tr");
+  const { locale, changeLanguage } = usePublicLocale({ tr: tr.track.title, en: en.track.title });
   const messages = (locale === "en" ? en : tr).track;
-  useEffect(() => {
-    const selectLanguage = () => {
-      const requested = new URLSearchParams(window.location.search).get("lang");
-      setLocale(requested === "en" || requested === "tr" ? requested : navigator.language?.toLowerCase().startsWith("en") ? "en" : "tr");
-    };
-    selectLanguage();
-    window.addEventListener("popstate", selectLanguage);
-    return () => window.removeEventListener("popstate", selectLanguage);
-  }, []);
-  useEffect(() => {
-    const previous = document.documentElement.lang;
-    const previousTitle = document.title;
-    document.documentElement.lang = locale;
-    document.title = `${messages.title} | RenkFlow`;
-    return () => { document.documentElement.lang = previous; document.title = previousTitle; };
-  }, [locale, messages.title]);
-  const changeLanguage = (language: "tr" | "en") => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("lang", language);
-    window.history.pushState(null, "", url);
-    setLocale(language);
-  };
   const [data, setData] = useState<any>();
   const [error, setError] = useState<"" | "invalidLink" | "loadError">("");
   useEffect(() => {
