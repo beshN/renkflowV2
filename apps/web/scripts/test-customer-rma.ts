@@ -150,13 +150,13 @@ async function main() {
     const [wo] =
       await db`SELECT * FROM work_orders WHERE tenant_id=${t} AND id=${replaced.replacement_work_order_id}`;
     assert.equal(wo.status, "blocked");
-    assert.equal(wo.customer_rma_approval_pending, true);
+    assert.equal(wo.rma_approval_pending, true);
     assert.equal(wo.recipe_id, null);
     assert.equal(wo.bom_id, null);
     await refused(updateWorkOrder(a, wo.id, { status: "in_progress" }), 409);
     // The database also refuses bypassing the application gate (fresh migration runners).
     const [constraint] =
-      await db`SELECT 1 FROM pg_constraint WHERE conrelid='work_orders'::regclass AND pg_get_constraintdef(oid) LIKE '%customer_rma_approval_pending%'`;
+      await db`SELECT 1 FROM pg_constraint WHERE conrelid='work_orders'::regclass AND pg_get_constraintdef(oid) LIKE '%rma_approval_pending%'`;
     assert.ok(constraint, "DB approval constraint exists");
     await assert.rejects(
       db`UPDATE work_orders SET status='in_progress' WHERE tenant_id=${t} AND id=${wo.id}`,
@@ -166,8 +166,8 @@ async function main() {
     await s.approveCustomerRmaReplacement(a, r.id);
     assert.equal(
       (
-        await db`SELECT customer_rma_approval_pending FROM work_orders WHERE tenant_id=${t} AND id=${wo.id}`
-      )[0].customer_rma_approval_pending,
+        await db`SELECT rma_approval_pending FROM work_orders WHERE tenant_id=${t} AND id=${wo.id}`
+      )[0].rma_approval_pending,
       false,
     );
     await refused(s.decideCustomerRma(a, r.id, { decision: "reject" }), 409);
@@ -208,6 +208,8 @@ async function main() {
       await db.begin(async (tx) => {
         await tx`SET LOCAL session_replication_role=replica`;
         for (const table of [
+          "company_address_claims",
+          "company_addresses",
           "record_attachments",
           "customer_rma_lines",
           "customer_rmas",
@@ -221,9 +223,19 @@ async function main() {
           await tx`DELETE FROM ${tx(table)} WHERE tenant_id IN (${t},${other})`;
         await tx`DELETE FROM order_items WHERE order_id IN(SELECT id FROM orders WHERE tenant_id IN(${t},${other}))`;
         await tx`DELETE FROM orders WHERE tenant_id IN(${t},${other})`;
+        await tx`SET LOCAL session_replication_role=origin`;
         await tx`DELETE FROM tenants WHERE id IN(${t},${other})`;
         await tx`DELETE FROM users WHERE id IN(${userId},${workerId},${accountId})`;
       });
+      for (const table of ["company_addresses", "company_address_claims"]) {
+        assert.equal(
+          (
+            await db`SELECT count(*)::int AS n FROM ${db(table)} WHERE tenant_id IN(${t},${other})`
+          )[0].n,
+          0,
+          "finally removes seeded address fixtures",
+        );
+      }
       assert.equal(
         (
           await db`SELECT count(*)::int AS n FROM tenants WHERE id IN(${t},${other})`

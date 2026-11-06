@@ -27,4 +27,4 @@ CREATE TABLE IF NOT EXISTS public.customer_rma_lines (
  UNIQUE(tenant_id,rma_id,order_item_id)
 );
 CREATE INDEX IF NOT EXISTS customer_rma_lines_source ON public.customer_rma_lines(tenant_id,order_item_id);
-ALTER TABLE public.work_orders ADD COLUMN IF NOT EXISTS customer_rma_approval_pending boolean NOT NULL DEFAULT false CHECK (NOT customer_rma_approval_pending OR status IN ('blocked','cancelled'));
+ALTER TABLE public.work_orders ADD COLUMN IF NOT EXISTS rma_approval_pending boolean NOT NULL DEFAULT false CHECK (NOT rma_approval_pending OR status IN ('blocked','cancelled'));

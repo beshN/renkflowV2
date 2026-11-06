@@ -95,7 +95,7 @@ export const ToggleChecklistInputSchema = z.object({
 });
 
 type WorkOrderRow = {
-  customer_rma_approval_pending?: boolean;
+  rma_approval_pending?: boolean;
   id: string;
   tenant_id: string;
   title: string;
@@ -670,7 +670,7 @@ export async function updateWorkOrder(
       await ensureTenantMember(tx, actor.tenantId, input.assignedToUserId);
     }
 
-    if (existing.customer_rma_approval_pending && input.status && !['blocked', 'cancelled'].includes(input.status)) {
+    if (existing.rma_approval_pending && input.status && !['blocked', 'cancelled'].includes(input.status)) {
       throw new WorkOrderApiError('Değişim taslağı için RMA ekranında insan onayı gerekli', 409);
     }
     const targetStatus = input.status || existing.status;

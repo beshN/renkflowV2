@@ -130,7 +130,7 @@ export async function decideCustomerRma(
       const [l] =
         await tx`SELECT * FROM customer_rma_lines WHERE tenant_id=${t} AND rma_id=${id}`;
       const [w] =
-        await tx`INSERT INTO work_orders(tenant_id,title,description,category,status,source,created_by,order_id,order_item_id,planned_qty,production_uom,customer_rma_approval_pending)
+        await tx`INSERT INTO work_orders(tenant_id,title,description,category,status,source,created_by,order_id,order_item_id,planned_qty,production_uom,rma_approval_pending)
  VALUES(${t},${"Taslak değişim · " + r.return_number},'İnsan onayı bekleniyor; üretim reçetesi ve malzeme planı ayrıca hazırlanmalıdır.','general','blocked','manual',${a.userId},${r.order_id},${l.order_item_id},${l.quantity},${l.uom},true) RETURNING id`;
       wo = w.id;
     }
@@ -156,7 +156,7 @@ export async function approveCustomerRmaReplacement(
     if (!r) fail("Müşteri iadesi bulunamadı", 404);
     if (r.decision !== "replace") fail("Değişim kararı gerekli");
     if (r.replacement_approved_at) return r;
-    await tx`UPDATE work_orders SET customer_rma_approval_pending=false,updated_at=now() WHERE tenant_id=${a.tenantId} AND id=${r.replacement_work_order_id}`;
+    await tx`UPDATE work_orders SET rma_approval_pending=false,updated_at=now() WHERE tenant_id=${a.tenantId} AND id=${r.replacement_work_order_id}`;
     const [updated] =
       await tx`UPDATE customer_rmas SET replacement_approved_by=${a.userId},replacement_approved_at=now(),updated_by=${a.userId},updated_at=now() WHERE tenant_id=${a.tenantId} AND id=${id} RETURNING *`;
     await audit(tx, a, id, "replacement_approved", {
