@@ -241,7 +241,7 @@ kısayolları ve rapor bulguları `BULGU ·`, hata ise adımıyla `FAIL ·` basa
 Metre, kg ve adet kontrolleri ayrıdır; her çalıştırma UUID slug'lı TEST tenant
 ve `@example.invalid` kullanıcılar oluşturur.
 
-6 Kasım 2026 doğrulaması: güncel main `f915919f`, PR head `69765122` üzerine
+6 Kasım 2026 doğrulaması: güncel main `5d0ae4ee`, PR head `69765122` üzerine
 merge commit ile alındı. İzole test DB'sinde **10/10 PASS**, çıkış kodu **0**:
 Korumalar, Fixture, Hazırlık, Teklif, Onay, İş emri, Kesim, Üretim, Mamul stok,
 Sevkiyat. FINISHED stoku üretimden sonra 2 adet, yüklemeden sonra 0; fazla
@@ -274,10 +274,12 @@ Sentetik fixture mevcut pergola `systems/railOuter/bays` alanlarını
 `family=makasli` adaptörüne verir ve bunu BULGU olarak yazar; gerçek makaslı
 föy doğrulaması değildir. `approveTechnicalPlan`, yapılandırılmış teklif için
 `createJobsForConfiguredOrder` üzerinden TEST-MAK-PILOT reçetesine bağlı iş emri
-ve reçetede tanımlı Kesim/Boya/Son hazırlık operasyonlarını üretir. Mamul/reçete kartları önceden TEST
-adlarıyla oluşturulur. `preferences.save` üretim lideri alanını yok sayar; fixture mevcut
+ve reçetede tanımlı Kesim/Boya/Son hazırlık operasyonlarını üretir. Mamul/reçete
+kartları önceden TEST adlarıyla oluşturulur. `preferences.save` üretim lideri
+alanını yok sayar; fixture mevcut
 `saveProductionLead(actor, {leadUserId})` servisini kullanır ve kalıcı ayarı
-doğrular. İş emri oluşturma servisi bu ayarı iş emri ve operasyon atamasında kullanır. `operation.assign` yalnız operasyonu değiştirir;
+doğrular. İş emri oluşturma servisi bu ayarı iş emri ve operasyon atamasında
+kullanır. `operation.assign` yalnız operasyonu değiştirir;
 iş emri atanmamışsa prova raw UPDATE yapmadan açıkça fail eder.
 Onaysız dosyanın total_amount=0 beklentisi `ensureQuoteFile` davranışıdır;
 `acceptQuoteFile` müşteri onayında ticari tutarı aynı dosyaya kopyalar.
