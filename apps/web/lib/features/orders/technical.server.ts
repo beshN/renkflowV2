@@ -1,4 +1,5 @@
 import "server-only";
+import { requireTechnicalAssignment } from "./technical-assignment";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { sql, withTransaction } from "@/lib/db";
@@ -223,12 +224,7 @@ export async function technicalWorkspace(a: WorkOrderActor, id: string) {
     ({ configuration: _configuration, bom_snapshot: _bom, ...j }: any) => j,
   );
   const family = revisions[0]?.family || technicalFamily(o.product_name || "");
-  if (
-    a.role === "worker" &&
-    family !== "other" &&
-    !jobs.some((j: any) => j.assigned_to === a.userId)
-  )
-    fail("Sipariş bulunamadı", 404);
+  if (family !== "other") requireTechnicalAssignment(a, jobs);
   const operations =
     await sql`SELECT p.id,p.work_order_id,p.position,p.name,p.status,p.version,p.planned_qty,p.completed_qty,p.reason,p.quality_checks FROM production_operations p JOIN work_orders w ON w.id=p.work_order_id AND w.tenant_id=p.tenant_id WHERE p.tenant_id=${a.tenantId} AND w.order_id=${id} AND w.status<>'cancelled' ORDER BY p.position`;
   const [cutPlan] =
@@ -237,7 +233,7 @@ export async function technicalWorkspace(a: WorkOrderActor, id: string) {
     ? await sql`SELECT s.lot_id,s.consumed,l.lot_number,l.length_m FROM cutting_plan_sources s JOIN stock_lots l ON l.id=s.lot_id AND l.tenant_id=s.tenant_id WHERE s.tenant_id=${a.tenantId} AND s.plan_id=${cutPlan.id} ORDER BY l.lot_number`
     : [];
   const parts =
-    await sql`SELECT p.work_order_id,p.item_id,i.name AS item_name,p.length_mm,p.target_color,COUNT(*)::int AS total,COUNT(*) FILTER(WHERE p.state='planned')::int AS planned,COUNT(*) FILTER(WHERE p.state='cut')::int AS cut,COUNT(*) FILTER(WHERE p.state='paint_waiting')::int AS waiting,COUNT(*) FILTER(WHERE p.state='paint_sent')::int AS sent,COUNT(*) FILTER(WHERE p.paint_returned_at IS NOT NULL)::int AS returned,COUNT(*) FILTER(WHERE p.state='assembled')::int AS assembled,CASE WHEN COUNT(p.weight_per_meter_kg)=COUNT(*) THEN SUM(p.length_mm/1000*p.weight_per_meter_kg) ELSE NULL END AS weight_kg FROM production_parts p JOIN work_orders w ON w.id=p.work_order_id AND w.tenant_id=p.tenant_id JOIN inventory_items i ON i.id=p.item_id AND i.tenant_id=p.tenant_id WHERE p.tenant_id=${a.tenantId} AND w.order_id=${id} AND w.status<>'cancelled' GROUP BY p.work_order_id,p.item_id,i.name,p.length_mm,p.target_color`;
+    await sql`SELECT p.work_order_id,p.item_id,i.name AS item_name,p.length_mm,p.target_color,BOOL_OR(EXISTS(SELECT 1 FROM paint_dispatch_parts d WHERE d.tenant_id=${a.tenantId} AND d.part_id=p.id AND d.outcome='sent')) AS in_dispatch,COUNT(*)::int AS total,COUNT(*) FILTER(WHERE p.state='planned')::int AS planned,COUNT(*) FILTER(WHERE p.state='cut')::int AS cut,COUNT(*) FILTER(WHERE p.state='paint_waiting')::int AS waiting,COUNT(*) FILTER(WHERE p.state='paint_sent')::int AS sent,COUNT(*) FILTER(WHERE p.paint_returned_at IS NOT NULL)::int AS returned,COUNT(*) FILTER(WHERE p.state='assembled')::int AS assembled,CASE WHEN COUNT(p.weight_per_meter_kg)=COUNT(*) THEN SUM(p.length_mm/1000*p.weight_per_meter_kg) ELSE NULL END AS weight_kg FROM production_parts p JOIN work_orders w ON w.id=p.work_order_id AND w.tenant_id=p.tenant_id JOIN inventory_items i ON i.id=p.item_id AND i.tenant_id=p.tenant_id WHERE p.tenant_id=${a.tenantId} AND w.order_id=${id} AND w.status<>'cancelled' GROUP BY p.work_order_id,p.item_id,i.name,p.length_mm,p.target_color`;
   const revisionParts =
     a.role === "worker"
       ? []

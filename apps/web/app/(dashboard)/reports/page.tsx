@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { ProductionReport } from '@/components/features/manufacturing/ProductionReport';
 import { useAuth } from '@/lib/context/AuthContext';
 import { hasPermission } from '@/lib/auth/permissions';
@@ -49,6 +50,7 @@ export default function ReportsPage() {
           return <div key={status}><div className="mb-2 flex justify-between text-sm"><StatusBadge status={status} /><span>{count} sipariş</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full bg-blue-600" style={{ width: orders.length ? count / orders.length * 100 + '%' : '0%' }} /></div></div>;
         })}</div>
       </AppleCard>
+      <Link href="/reports/production" className="inline-block text-sm underline">Üretim analitiği · kayıtlı geçmiş</Link>
       <ProductionReport/>
     </main>
   </div>;

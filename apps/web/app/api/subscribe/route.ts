@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { sql } from '@/lib/db';
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'Başarıyla kayıt oldunuz ve e-posta gönderildi!' }, { status: 200 });
   } catch (error) {
     console.error('Subscription error:', error);
+    await reportServerError("app/api/subscribe/route:POST", error);
     return NextResponse.json({ error: 'Bir hata oluştu. Lütfen tekrar deneyin.' }, { status: 500 });
   }
 }

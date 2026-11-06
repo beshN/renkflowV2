@@ -1,8 +1,9 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { CompanyHostError } from '@/lib/features/company/host.server';
 import { WorkOrderApiError } from '@/lib/features/work-orders/security';
-export function workspaceError(error: unknown) {
+export async function workspaceError(error: unknown) {
   if (error instanceof ZodError)
     return NextResponse.json(
       { error: error.issues[0]?.message || 'Alanları kontrol edin.' },
@@ -19,6 +20,7 @@ export function workspaceError(error: unknown) {
     '[workspace]',
     error instanceof Error ? error.message : 'Request failed',
   );
+  await reportServerError("lib/security/workspace-response:workspaceError", error);
   return NextResponse.json(
     { error: 'İşlem tamamlanamadı. Tekrar deneyin.' },
     { status: 500 },

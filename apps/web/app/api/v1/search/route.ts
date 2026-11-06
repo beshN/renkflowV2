@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedSuccess } from '@/lib/security/field-access.server';
 import { visibleOrdersForActor } from '@/lib/features/orders/access';
 /**
@@ -149,6 +150,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     if (error instanceof WorkOrderApiError) return errorResponse(error.message, error.status, error.code);
     console.error('Search error:', error);
+    await reportServerError("app/api/v1/search/route:GET", error);
     return errorResponse('Arama sırasında bir hata oluştu', 500);
   }
 }

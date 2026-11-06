@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { privateAccessEmail } from '@/lib/features/auth/private-access';
 import { NextRequest, NextResponse } from 'next/server';
 import { passwordProblem } from '@/lib/security/access-matrix';
@@ -39,7 +40,7 @@ function validatePassword(password: unknown, email?: string | null): { valid: bo
   return { valid: true };
 }
 
-function mapRegistrationError(error: unknown) {
+async function mapRegistrationError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   const normalized = message.toLowerCase();
 
@@ -63,6 +64,7 @@ function mapRegistrationError(error: unknown) {
     normalized.includes('timeout') ||
     normalized.includes('econn')
   ) {
+    await reportServerError("app/api/auth/register/route:mapRegistrationError", error);
     return {
       status: 500,
       field: 'general',
@@ -71,6 +73,7 @@ function mapRegistrationError(error: unknown) {
     };
   }
 
+  await reportServerError("app/api/auth/register/route:mapRegistrationError", error);
   return {
     status: 500,
     field: 'general',
@@ -238,7 +241,7 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: unknown) {
     console.error('Registration error:', error);
-    const mapped = mapRegistrationError(error);
+    const mapped = await mapRegistrationError(error);
     return NextResponse.json(
       { error: mapped.error, field: mapped.field, code: mapped.code },
       { status: mapped.status }

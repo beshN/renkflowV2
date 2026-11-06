@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { redactedJson } from '@/lib/security/field-access.server';
 import { sql } from '@/lib/db';
 import { AuthenticationError, getServerUserContext } from '@/lib/features/auth/serverAuth';
@@ -101,6 +102,7 @@ export async function GET() {
   } catch (error) {
     if (error instanceof AuthenticationError) return redactedJson({ error: 'Oturum gerekli.' }, { status: 401 });
     console.error('[Dashboard Summary]', error);
+    await reportServerError("app/api/v1/dashboard/summary/route:GET", error);
     return redactedJson({ error: 'Özet yüklenemedi.' }, { status: 500 });
   }
 }

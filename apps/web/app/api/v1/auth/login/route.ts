@@ -1,3 +1,4 @@
+import { reportServerError } from '@/lib/observability/report-server-error';
 import { companyForHost } from '@/lib/features/company/host.server';
 import { NextRequest } from 'next/server';
 import { successResponse, errorResponse, handleCORS, generateAPIToken } from '@/lib/api/auth-helpers';
@@ -148,6 +149,7 @@ export async function POST(request: NextRequest) {
     }, 'Giriş başarılı');
   } catch (error: unknown) {
     console.error('API login error:', error);
+    await reportServerError("app/api/v1/auth/login/route:POST", error);
     return errorResponse('Giriş yapılırken bir hata oluştu', 500);
   }
 }
