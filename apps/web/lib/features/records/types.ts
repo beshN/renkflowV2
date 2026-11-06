@@ -1,5 +1,5 @@
 /** Shared (client and server) record platform types and pure helpers. */
-export const RECORD_TYPES = ['order', 'quotation', 'customer', 'work_order', 'inventory_item', 'supplier', 'lead', 'installation', 'service_ticket', 'vehicle', 'supplier_return'] as const;
+export const RECORD_TYPES = ['order', 'quotation', 'customer', 'work_order', 'inventory_item', 'supplier', 'lead', 'installation', 'service_ticket', 'vehicle', 'supplier_return', 'customer_rma'] as const;
 export type RecordType = (typeof RECORD_TYPES)[number];
 
 export const ACTIVITY_KINDS = ['call', 'email', 'measure', 'delivery', 'production', 'feedback', 'todo'] as const;
@@ -39,5 +39,6 @@ export const ROLES_WITHOUT_ACCESS: Record<RecordType, string[]> = {
   lead: ['worker', 'member'], installation: ['member'], service_ticket: ['member'],
   // The fleet is the owner's and admins' only.
   supplier_return: ['worker', 'member'],
+  customer_rma: ['worker', 'member'],
   vehicle: ['office', 'accountant', 'worker', 'member'],
 };

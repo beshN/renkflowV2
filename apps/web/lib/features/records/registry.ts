@@ -137,6 +137,29 @@ export const RECORDS: Record<RecordType, Def> = {
       return [{ key: 'lots', label: 'Profil / lot', count: n(l.n), href: `/inventory/${id}` }];
     },
   },
+  customer_rma: {
+    label: 'Müşteri iadesi',
+    canView: r => OFFICE_AND_ACCOUNTS.includes(r),
+    canEdit: r => OFFICE.includes(r),
+    auditTypes: ['customer_rma'],
+    allows: async (a, need) => {
+      const access = await resolveMemberAccess(a.userId, a.tenantId);
+      return Boolean(access && !access.deactivated && can(access, 'orders', 'view') && can(access, 'service', need));
+    },
+    head: async (db, a, id) => {
+      if (!(await tableExists('customer_rmas'))) return null;
+      const [r] = await db`SELECT return_number,decision FROM customer_rmas WHERE tenant_id=${a.tenantId} AND id=${id}`;
+      return r ? { type: 'customer_rma', id, title: r.return_number, subtitle: r.decision, href: `/customer-rmas/${id}` } : null;
+    },
+    related: async (db, a, id) => {
+      const [r] = await db`SELECT order_id,service_ticket_id,replacement_work_order_id FROM customer_rmas WHERE tenant_id=${a.tenantId} AND id=${id}`;
+      return r ? [
+        { key: 'order', label: 'Sipariş', count: 1, href: `/orders/${r.order_id}` },
+        ...(r.service_ticket_id ? [{ key: 'service', label: 'Servis', count: 1, href: `/service?open=${r.service_ticket_id}` }] : []),
+        ...(r.replacement_work_order_id ? [{ key: 'work_order', label: 'Değişim taslağı', count: 1, href: `/work-orders/${r.replacement_work_order_id}` }] : []),
+      ] : [];
+    },
+  },
   supplier_return: {
     label: 'Tedarikçiye iade',
     canView: r => OFFICE_AND_ACCOUNTS.includes(r), canEdit: r => OFFICE.includes(r),
