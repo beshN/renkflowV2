@@ -60,12 +60,12 @@ dönmelidir.
 
 Beklenen son bakiyeler:
 
-| Kalem | Depo | Eldeki | Rezerve | Kullanılabilir |
-|---|---|---:|---:|---:|
-| PROF-AL-4040 | RAW | 8 m | 0 m | 8 m |
-| PROF-AL-4040 | WIP | 0 m | 0 m | 0 m |
-| FG-DEMO | FINISHED | 1 adet | 0 | 1 adet |
-| SCRAP-AL | SCRAP | 0.0425 kg | 0 | 0.0425 kg |
+| Kalem        | Depo     |    Eldeki | Rezerve | Kullanılabilir |
+| ------------ | -------- | --------: | ------: | -------------: |
+| PROF-AL-4040 | RAW      |       8 m |     0 m |            8 m |
+| PROF-AL-4040 | WIP      |       0 m |     0 m |            0 m |
+| FG-DEMO      | FINISHED |    1 adet |       0 |         1 adet |
+| SCRAP-AL     | SCRAP    | 0.0425 kg |       0 |      0.0425 kg |
 
 ## API özeti
 
@@ -93,3 +93,103 @@ Satın alma talebi ve siparişi tabloları hazırlanmıştır; pilot yalnız do�
 çalıştırır. PDF AI çıktısı `document_extractions` içinde insan onaylı taslak olarak kalır
 ve kendi başına stok hareketi oluşturamaz. Fiziksel artık lotları için `stock_lots`
 hazırdır; kesim optimizasyonu ve yeniden kullanılabilir parça işleme pilot sonrası açılır.
+
+## Pilot öncesi kontrol listesi
+
+`apps/web` içinde, yalnız yetkilendirilmiş veritabanını işaret eden `.env.local`
+ile çalıştırın:
+
+```sh
+npm run pilot:readiness
+npm run pilot:readiness -- --json
+```
+
+Komut varsayılan olarak yalnız loopback bağlantılara (`localhost`, `127.0.0.0/8`,
+`::1`) izin verir. Uzak bağlantı için ayrıca `--allow-remote` gerekir; bayrak yoksa
+bağlantı kurulmadan engel ve çıkış kodu 1 üretilir. Unix socket de uzak kabul edilir:
+socket bir uzak DB vekiline bağlı olabilir. Belirsiz/çoklu host ve host override
+biçimleri reddedilir. Bağlanılacak host ve port açıkça sabitlenir; `PGHOST`/`PGPORT`
+geridönüşü kullanılmaz. Bu çalışma kapsamında production veya Preview DB'ye
+bağlanılmaz ve `--allow-remote` kullanılmaz.
+
+İnsan çıktısı `Bağlantı türü: yerel/uzak` ile başlar; yapılandırma çözümlenemiyorsa
+`bilinmiyor` gösterilir. Adres ve hata ayrıntıları yazdırılmaz. JSON tek bir nesnedir:
+`connectionType`, `findings` ve `summary` alanlarını içerir. Her bulgu `code`,
+`severity`, `message`, `hint`; özet ise `blockers`, `warnings`, `message` içerir.
+İnsan çıktısının son satırı ve JSON özet mesajı şu biçimdedir:
+
+```text
+N engel, M uyarı. Engel olmaması pilota hazır olunduğu anlamına gelmez.
+```
+
+Tüm sorgular tek `READ ONLY` transaction içindedir. Komut veri, migration, seed
+veya otomatik düzeltme yazmaz. Engel varsa çıkış kodu 1; yalnız uyarı/bilgi varsa
+0'dır. Bağlantı ve yapılandırma hataları da engeldir.
+
+- Ortak native üretim şeması ve ek pilot alanları mevcut mu?
+- `product_family_recipes.family = 'makasli'` için yayınlı reçete var mı?
+  Her tenant/reçete kodu için yalnız en yüksek yayınlı sürüm engel/uyarı hesabına
+  girer; eski yayınlı ve arşiv sürümler incelenmez. Taslak bulgularının tamamı
+  `info` olur ve `(taslak)` etiketlenir. Yalnız taslak varsa yayınlı reçete eksikliği
+  yine engeldir. `validateRecipeExamples` sonucu gösterilir.
+- Her profil kaleminde kg/m, standart boy ve kesit dolu mu? Malzeme kartı yoksa
+  yalnız `MATERIAL_MISSING` üretilir; aynı kalem için profil/stok bulgusu eklenmez.
+- Rotanın her operasyonunda aktif iş merkezi ve atanabilir çalışan var mı?
+  014/025 migration'larındaki `work_centers`, `production_resources` ve aktif
+  `tenant_members` üyeliği kullanılır; zorunlu ekip/makine de kontrol edilir.
+  `platform.service.ts` içindeki `operation.assign` ile aynı şekilde, aktif
+  `owner/admin/office/worker` üyeliği yeterlidir; ayrı `employee` kaynak kartı
+  zorunlu değildir. Atama servisi employee kartının aktifliğini/merkezini de
+  filtrelemez. Seçilen makine/ekip kaynağı ve ekip üyeliğini ayrıca kontrol eder.
+  `scheduler.ts` çalışan kartı yoksa kapasitesi 1 olan varsayılan takvim oluşturur.
+  Bu rapor atama uygunluğunu kontrol eder; çalışma takvimi veya anlık yükü hesaplamaz.
+- Her malzemede pozitif kullanılabilir lot ve pozitif bakiye var mı?
+  Eksiklik uyarıdır; miktar yeterliliği, rezervasyon ve depo uygunluğu hesaplanmaz.
+- Genişlik ve derinlik/açılım min/max değerleri bilgi olarak gösterilir;
+  uygunluk hükmü verilmez. Koşullu kalemler ve operasyonlar da incelenir.
+
+### Yerel boş DB ve test reçetesi doğrulaması
+
+İlk terminalde yeni, ayrılmış bir yerel küme dizini ve boş port seçin:
+
+```sh
+RENKFLOW_TEST_DB_DIR=/tmp/renkflow-pilot-check RENKFLOW_TEST_DB_PORT=55538 npm run db:local -- --empty
+```
+
+`--empty`, `renkflow_dev` ve `renkflow_test` veritabanlarını şema veya migration
+uygulamadan açar; mevcut tabloları silmez. Bu seçenek olmadan `db:local` eski şema
+hazırlama davranışını korur. Bu doğrulamada **daima `--empty` kullanın**.
+
+İkinci terminalde aynı portla:
+
+```sh
+RENKFLOW_TEST_DB_PORT=55538 npm run test:pilot-readiness
+```
+
+Test betiği dışarıdan gelen `DATABASE_URL` değerini kullanmaz; yalnız loopback
+üzerindeki bu iki sabit DB adına bağlanır. Her iki DB'nin de boş olduğunu doğrular;
+mevcut uygulama tabloları varsa yazmadan durur. Önce boş `renkflow_dev` üzerinde
+CLI'yi çalıştırır. Sonra yalnız `renkflow_test` içinde raporun okuduğu kolonlara
+sahip test tabloları ve eksiksiz yayınlı reçete + eksik taslak oluşturur. Raporu
+salt okunur oturumda çalıştırır; tablo, JSON, özet, çıkış kodu ve uzak bağlantı
+korumasını doğrular. Oluşturduğu test tablolarını sonunda temizler; `renkflow_dev`
+boş kalır. Migration veya seed betiği çalıştırmaz. Test şeması odaklı bir fixture'dır;
+uygulamanın tüm constraint/RLS kurallarını veya fiziksel pilotu doğrulamaz.
+Test bitince ilk terminalde Ctrl+C ile yerel sunucuyu durdurun.
+
+024, 035 ve 073 migration'larında test/sentetik bayrağı bulunmadığından bu uyarı
+kuralı eklenmemiştir. 073'teki `verification_source` serbest metin teknik kaynak
+bilgisidir; test bayrağı olarak yorumlanmaz.
+Rapor tenant'lar arasında eşleştirme yapmaz; reçete kodu/sürümü ve kalem adları
+çıktıya girer. Çıktıyı yetkili kişilerle paylaşın. Başarılı rapor fiziksel pilotun
+veya kapasite takviminin doğrulandığı anlamına gelmez.
+
+### Genel entegrasyon runner'ından ayrım
+
+`npm run test:integration` ve CI `validate.yml`, testlerden önce uygulama şemasını
+hazırlar. `test-pilot-readiness.ts` ise tamamen boş `renkflow_dev` ve
+`renkflow_test` gerektirdiği için bu runner'ın `EXCLUDED` listesinde gerekçesiyle
+birlikte tutulur. Genel entegrasyon turu bu testi çalıştırmaz. Yukarıdaki
+`db:local -- --empty` ve ayrı `npm run test:pilot-readiness` adımlarıyla
+çalıştırılmalıdır; mevcut CI validate adımı bu ayrı kontrolü otomatik çalıştırmaz.
+Boş DB koruması, loopback sınırlaması ve salt okunur rapor oturumu korunur.

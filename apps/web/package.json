@@ -14,6 +14,8 @@
     "db:check-manufacturing": "tsx scripts/check-manufacturing-schema.ts",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/seed.ts",
+    "pilot:readiness": "tsx scripts/check-pilot-readiness.ts",
+    "test:pilot-readiness": "tsx scripts/test-pilot-readiness.ts",
     "pilot:manufacturing": "tsx --require ./scripts/register-server-only.cjs scripts/pilot-native-manufacturing.ts",
     "ws:server": "tsx server/index.ts",
     "type-check": "tsc --noEmit",
