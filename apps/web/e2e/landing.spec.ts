@@ -12,7 +12,7 @@ test.describe('Landing Page', () => {
   test('should display hero section', async ({ page }) => {
     const heroHeading = page.locator('h1');
     await expect(heroHeading).toBeVisible();
-    await expect(heroHeading).toHaveText(/\S/);
+    await expect(heroHeading).toHaveText(/Ölçü bir kez girilir/i);
   });
 
   test('should open public features page', async ({ page }) => {
