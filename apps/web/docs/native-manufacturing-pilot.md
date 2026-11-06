@@ -208,6 +208,86 @@ Rapor tenant'lar arasında eşleştirme yapmaz; reçete kodu/sürümü ve kalem 
 çıktıya girer. Çıktıyı yetkili kişilerle paylaşın. Başarılı rapor fiziksel pilotun
 veya kapasite takviminin doğrulandığı anlamına gelmez.
 
+### Makaslı uçtan uca prova
+
+`apps/web` içinde:
+
+```sh
+npm run test:integration -- makasli-e2e
+```
+
+Runner boş ve geçici bir PostgreSQL kümesini boş bir portta açar; yalnız
+`renkflow_test` oluşturur (`dev-database.ts --test-only`). Mevcut `schema.sql`,
+bootstrap migration'ları ve `ensureBackendSchema` zinciri uygulanır. Eksik
+`product_drilling_rules` tablosunu oluşturan mevcut adım
+`lib/db/migrations/064_order_technical_files.sql` bu zincirdedir. Yeni migration
+veya uygulama şeması değişikliği gerekmez. Mobil test şeması da mevcut yerel
+kurulum yoluyla yalnız bu DB'ye uygulanır. Küme test sonunda kapatılıp silinir;
+`renkflow_dev` hazırlanmaz. Runner dış DATABASE_URL değerlerini kullanmaz.
+
+Önceden aynı yolla hazırlanmış bir test DB'sinde betik doğrudan da çalıştırılabilir:
+
+```sh
+RENKFLOW_TEST_DB_PORT=55547 node --require ./scripts/register-server-only.cjs --import tsx scripts/test-makasli-e2e.ts
+```
+
+Doğrudan betik DB başlatmaz veya migration uygulamaz; eksik tabloyu hata olarak
+bildirir. Adım çıktıları runner'dan da doğrudan görünür.
+
+Zincir: korumalar → TEST fixture → hazırlık raporu → teklif/idempotency →
+ticari onay → insan teknik onayı/iş emri → kesim → boya/üretim →
+MANUFACTURE/mamul stok → yükleme/teslim. Her geçen adım `PASS ·`, fixture
+kısayolları ve rapor bulguları `BULGU ·`, hata ise adımıyla `FAIL ·` basar.
+Metre, kg ve adet kontrolleri ayrıdır; her çalıştırma UUID slug'lı TEST tenant
+ve `@example.invalid` kullanıcılar oluşturur.
+
+6 Kasım 2026 doğrulaması: güncel main `5d0ae4ee`, PR head `69765122` üzerine
+merge commit ile alındı. İzole test DB'sinde **10/10 PASS**, çıkış kodu **0**:
+Korumalar, Fixture, Hazırlık, Teklif, Onay, İş emri, Kesim, Üretim, Mamul stok,
+Sevkiyat. FINISHED stoku üretimden sonra 2 adet, yüklemeden sonra 0; fazla
+sevkiyat 409 ile reddedilir; teslim sonrası sipariş tamamlanır.
+
+Fixture `material.save` üzerinden `profileSection` gönderir; mevcut servis bu
+alanı kalıcı yazar. Reçete yayını gerekçe içerir. Yapılandırılmış teklif kalemi
+`TEST-MAK-PILOT` reçetesini iş emrine taşır; sevkiyatın sipariş bağlantısı
+`shipment_items.order_id` üzerinden doğrulanır (`shipments.order_id` yoktur).
+Raw UPDATE ile servis aşılmaz. Delme kuralı ve kimlik/üyelik bootstrap kayıtları
+etiketli INSERT'tir; aile eşlemesi `importFamilyRecipe` ile yapılır. Import sonucu
+yalnız reçete id/code/version içerdiği için editRevision bu id/sürümün kalıcı
+kaydından okunur; sabit 1 varsayılmaz.
+
+Dış `DATABASE_URL` yok sayılır. Özel istemci yanında, ilk domain servisinden ve
+fixture yazımından önce `withTransaction` ile **lib/db servis havuzunda** da
+`current_database()='renkflow_test'` ve sunucu adresi `127.0.0.1` doğrulanır.
+`lib/db/index.ts` kod incelemesi: ana/meta havuzlar yalnız `DATABASE_URL`
+kullanır; `POSTGRES_URL`/`DIRECT_URL` önceliği, dotenv yüklemesi veya Neon
+sürücüsü yoktur. URL, lib/db import edilmeden önce yerel test URL'sine sabitlenir.
+
+Prova artık genel runner'ın EXCLUDED listesinde değildir. Varsayılan
+`npm run test:integration` keşfi ve `.github/workflows/validate.yml` içindeki
+mevcut entegrasyon adımı provayı çalıştırır; ayrı workflow/npm satırı gerekmez.
+Tekli ve karma seçim de desteklenir. Boş DB isteyen pilot-readiness testi ise
+aynı gerekçeyle genel runner dışında kalır; ayrı komutu aşağıdadır.
+
+Föy şemasında makaslıya özel tip yoktur (pergola/windbreaker/unknown).
+Sentetik fixture mevcut pergola `systems/railOuter/bays` alanlarını
+`family=makasli` adaptörüne verir ve bunu BULGU olarak yazar; gerçek makaslı
+föy doğrulaması değildir. `approveTechnicalPlan`, yapılandırılmış teklif için
+`createJobsForConfiguredOrder` üzerinden TEST-MAK-PILOT reçetesine bağlı iş emri
+ve reçetede tanımlı Kesim/Boya/Son hazırlık operasyonlarını üretir. Mamul/reçete
+kartları önceden TEST adlarıyla oluşturulur. `preferences.save` üretim lideri
+alanını yok sayar; fixture mevcut
+`saveProductionLead(actor, {leadUserId})` servisini kullanır ve kalıcı ayarı
+doğrular. İş emri oluşturma servisi bu ayarı iş emri ve operasyon atamasında
+kullanır. `operation.assign` yalnız operasyonu değiştirir;
+iş emri atanmamışsa prova raw UPDATE yapmadan açıkça fail eder.
+Onaysız dosyanın total_amount=0 beklentisi `ensureQuoteFile` davranışıdır;
+`acceptQuoteFile` müşteri onayında ticari tutarı aynı dosyaya kopyalar.
+
+Fiziksel pilot, gerçek reçeteler/fotoğraf, PDF/AI çıkarımı, bildirim, finans ve
+kapasite doğrulanmaz. Owner teknik onayı insan onayı sınırını temsil eder;
+AI çıktısı insan onayı gerektirir.
+
 ### Genel entegrasyon runner'ından ayrım
 
 `npm run test:integration` ve CI `validate.yml`, testlerden önce uygulama şemasını

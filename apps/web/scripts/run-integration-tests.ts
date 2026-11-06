@@ -4,7 +4,10 @@
  * The cluster lives in a temp directory on a free port, so a run never reuses data from an earlier
  * run and never collides with a developer's `npm run db:local`. Nothing here accepts a remote URL.
  *
+ * Only renkflow_test is created; the existing schema + backend migrations are applied.
+ *
  *   npm run test:integration                 all scripts
+ *   npm run test:integration -- makasli-e2e  the ten-step rehearsal
  *   npm run test:integration -- sales chain  only test-sales.ts and test-chain.ts
  */
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -55,9 +58,13 @@ function run(command: string, args: string[], env: NodeJS.ProcessEnv, timeoutMs 
 
 function startDatabase(env: NodeJS.ProcessEnv): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ['--import', 'tsx', 'scripts/dev-database.ts'], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, ['--import', 'tsx', 'scripts/dev-database.ts', '--test-only'], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
     let log = '';
-    const timer = setTimeout(() => reject(new Error(`database did not start in 180 s\n${log}`)), 180_000);
+    const timer = setTimeout(() => {
+      child.kill('SIGTERM');
+      setTimeout(() => child.kill('SIGKILL'), 5_000).unref();
+      reject(new Error(`database did not start in 180 s\n${log}`));
+    }, 180_000);
     const onData = (chunk: Buffer) => {
       log += chunk;
       if (log.includes('Local PostgreSQL ready')) {
@@ -87,9 +94,10 @@ async function main() {
   delete env.DATABASE_URL;
   delete env.DATABASE_URL_UNPOOLED;
 
-  const database = await startDatabase(env);
+  let database: ChildProcess | undefined;
   const failures: string[] = [];
   try {
+    database = await startDatabase(env);
     const mobile = await run(process.execPath, ['--import', 'tsx', '../../scripts/mobile/apply-local-schema.ts'], env);
     if (mobile.code !== 0) throw new Error(`mobile schema failed\n${mobile.output}`);
 
@@ -98,6 +106,7 @@ async function main() {
       const result = await run(process.execPath, ['--require', './scripts/register-server-only.cjs', '--import', 'tsx', `scripts/${script}`], env);
       const seconds = ((Date.now() - started) / 1000).toFixed(1);
       if (result.code === 0) {
+        if (script === 'test-makasli-e2e.ts') console.log(result.output.trim());
         console.log(`ok   ${script} (${seconds} s)`);
       } else {
         failures.push(script);
@@ -105,8 +114,11 @@ async function main() {
       }
     }
   } finally {
-    database.kill('SIGTERM');
-    await new Promise((resolve) => database.once('exit', resolve));
+    if (database && database.exitCode === null) {
+      const stopped = new Promise((resolve) => database!.once('exit', resolve));
+      database.kill('SIGTERM');
+      await stopped;
+    }
     rmSync(directory, { recursive: true, force: true });
   }
 
